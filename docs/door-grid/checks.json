@@ -1,0 +1,28 @@
+[
+  {
+    "suite": "STARTER_GEOMETRY_RESULT",
+    "checks": 119,
+    "failures": []
+  },
+  {
+    "suite": "STARTUP_RETRY_RESULT",
+    "checks": 10,
+    "failures": []
+  },
+  {
+    "suite": "CANCEL_ICON_RESULT",
+    "checks": 35,
+    "failures": []
+  },
+  {
+    "suite": "SERVICE_NOTICE_RESULT",
+    "baseline": false,
+    "checks": 16,
+    "failures": []
+  },
+  {
+    "suite": "STARTER_DOOR_GRID_RESULT",
+    "checks": 358,
+    "failures": []
+  }
+]

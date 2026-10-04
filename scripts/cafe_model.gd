@@ -47,8 +47,8 @@ const CORNER_PARCEL_IDS := ["corner_0", "corner_1", "corner2_0", "corner2_1", "c
 const PARCEL_IDS := V11_PARCEL_IDS+CORNER_PARCEL_IDS
 # Compatibility name: expand() now buys one small parcel, never the whole strip.
 const EXPANSION_COST := PARCEL_COST
-const DOOR_START := 4.75
-const DOOR_END := 6.25
+const DOOR_START := Footprint.DOOR_START
+const DOOR_END := Footprint.DOOR_END
 const EXTERIOR_ARRIVAL_FRONT := 10.5
 const EXTERIOR_ARRIVAL_RIGHT := 13.76
 const EXTERIOR_EXIT_FRONT := 11.4
@@ -65,8 +65,8 @@ const STAFF_CAPS={"chef":3,"waiter":4,"cleaner":3,"cashier":1}
 const HIRE_FEES={"chef":2800,"waiter":2200,"cleaner":1800}
 const WAGE_RATES={"chef":24,"waiter":16,"cleaner":14,"cashier":16} # Provisional cashier trial wage; future duty only.
 const MAX_STOVE_LEVEL := 3
-const ENTRANCE := Vector2i(0, 5)
-const ENTRY_LANDING := Vector2i(1, 5)
+const ENTRANCE := Footprint.ENTRANCE
+const ENTRY_LANDING := Footprint.ENTRY_LANDING
 const SERVICE_KINDS := ["table", "chair", "bench", "stove", "beverage", "sink", "counter", "bin", "register"]
 const PHASES := ["arriving", "ordering", "cooking", "drinking", "eating", "checkout_wait", "checkout_walk", "paying", "leaving", "dirty", "cleaning"]
 const BASE_COOK_SECONDS := 45.0
@@ -75,7 +75,7 @@ const PHASE_SECONDS := {"ordering": ORDER_TAKING_SECONDS, "cooking": BASE_COOK_S
 const WALK_SPEED := 1.5
 const ARRIVAL_INTERVAL := 4.0
 const MAX_ARRIVING := 2
-const EXTERIOR_DOOR := Vector2(-0.5, 5.5)
+const EXTERIOR_DOOR := Footprint.EXTERIOR_DOOR
 const ARRIVAL_LANE_X := -2.76
 const ARRIVAL_START_Z := 10.8
 const DIRECTIONS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
@@ -1726,6 +1726,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	var body_error=_opening_body_error(checked_walls.walls,checked_attachments.attachments,actors)
 	if body_error!="":return _fail("Invalid saved walls: "+body_error)
+	# Validate the saved layout as written first. Narrow only a matching free
+	# starter when its new jambs leave every saved body and remaining route clear.
+	checked_attachments.attachments=_align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
 	items = validated
 	dining_sets.assign(saved_sets.groups)
 	built_walls.assign(checked_walls.walls)
@@ -2488,7 +2491,9 @@ func host_for_attachment_width(host_id:String,width:float)->Dictionary:
 		if not span.is_empty() and span.a.distance_to(span.b)>=width:return span
 	return {}
 func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
-	if int(data.version)<5:return {"ok":true,"attachments":OpeningGeometry.initial_attachments(),"next_attachment_id":2}
+	if int(data.version)<5:
+		var legacy=OpeningGeometry.initial_attachments();legacy[0].width=Footprint.LEGACY_DOOR_WIDTH
+		return {"ok":true,"attachments":legacy,"next_attachment_id":2}
 	var bad={"ok":false,"error":"Invalid hosted door/window data"}
 	if not _valid_int(data.get("wall_attachment_format"),1,1) or not data.get("wall_attachments") is Array or data.wall_attachments.size()>300:return bad
 	var attachments:Array[Dictionary]=[];var ids={};var highest=0
@@ -2497,7 +2502,7 @@ func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
 		if raw.get("kind") not in OpeningGeometry.PRICES or not raw.get("host_id") is String or raw.host_id.length()>80:return bad
 		var width=raw.get("width");var offset=raw.get("offset")
 		if not (width is int or width is float) or not (offset is int or offset is float) or not is_finite(float(width)) or not is_finite(float(offset)):return bad
-		if not is_equal_approx(float(width),float(OpeningGeometry.WIDTHS[raw.kind])) and not (raw.kind=="door" and is_equal_approx(float(width),1.5)):return bad
+		if not is_equal_approx(float(width),float(OpeningGeometry.WIDTHS[raw.kind])) and not (raw.kind=="door" and (is_equal_approx(float(width),Footprint.LEGACY_DOOR_WIDTH) or is_equal_approx(float(width),Footprint.DOOR_WIDTH))):return bad
 		if not _valid_int(raw.get("paid_cost"),0,int(OpeningGeometry.PRICES[raw.kind])) or int(raw.paid_cost) not in [0,int(OpeningGeometry.PRICES[raw.kind])]:return bad
 		attachments.append({"id":int(raw.id),"kind":str(raw.kind),"host_id":str(raw.host_id),"offset":float(offset),"width":float(width),"paid_cost":int(raw.paid_cost)})
 		ids[int(raw.id)]=true;highest=maxi(highest,int(raw.id))
@@ -2507,3 +2512,46 @@ func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
 	var reason=_attachment_layout_error(walls,attachments,products)
 	if reason!="":return {"ok":false,"error":reason}
 	return {"ok":true,"attachments":attachments,"next_attachment_id":int(data.next_attachment_id)}
+
+func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,layout:Array,ownership:Array)->Array:
+	var proposed=attachments.duplicate(true)
+	var changed=false
+	for attachment in proposed:
+		if OpeningGeometry.is_legacy_starter_door(attachment):attachment.width=Footprint.DOOR_WIDTH;changed=true
+	if not changed:return attachments
+	var staff:Array=[];var actors:Array=[]
+	for actor in runtime.service.get("staff",[]):staff.append(actor.pos);actors.append(actor.pos)
+	for guest in runtime.customers:
+		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
+	if _opening_body_error(walls,proposed,actors)!="":return attachments
+	if _wall_egress_error(walls,staff,layout,ownership,runtime.customers,proposed)!="":return attachments
+	# This deliberately defers, rather than moving a person or replacing a saved
+	# route. The same signature can be aligned on a later load after it is clear.
+	var host=OpeningGeometry.resolve_host("shell:west",walls)
+	var old_start=Footprint.DOOR_CENTER-Footprint.LEGACY_DOOR_WIDTH*.5
+	var old_end=Footprint.DOOR_CENTER+Footprint.LEGACY_DOOR_WIDTH*.5
+	var added=[]
+	for span in [Vector2(old_start,Footprint.DOOR_START),Vector2(Footprint.DOOR_END,old_end)]:
+		added.append(OpeningGeometry.segment_rect({"a":Vector2(0,span.x),"b":Vector2(0,span.y),"host":host}).grow(.23))
+	for actor in runtime.service.get("staff",[]):
+		var route=[]
+		for cell in actor.path:route.append(cell_center(cell))
+		if not _starter_door_route_clear(actor.pos,route,int(actor.index),added):return attachments
+	for guest in runtime.customers:
+		if str(guest.phase) in ["dirty","cleaning"]:continue
+		var position=Vector2(float(guest.x),float(guest.z))
+		if not _starter_door_route_clear(position,guest.route,int(guest.route_index),added):return attachments
+		var motion:Dictionary=guest.get("mobility",{})
+		if not motion.is_empty() and not _starter_door_route_clear(position,motion.route,int(motion.route_index),added):return attachments
+	return proposed
+
+func _starter_door_route_clear(start:Vector2,route:Array,index:int,added:Array)->bool:
+	for i in range(index,route.size()):
+		var finish:Vector2=route[i]
+		for rect in added:
+			if rect.has_point(start) or rect.has_point(finish):return false
+			var corners=[rect.position,Vector2(rect.end.x,rect.position.y),rect.end,Vector2(rect.position.x,rect.end.y)]
+			for edge in range(4):
+				if Geometry2D.segment_intersects_segment(start,finish,corners[edge],corners[(edge+1)%4])!=null:return false
+		start=finish
+	return true

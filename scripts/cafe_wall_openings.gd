@@ -9,7 +9,11 @@ const PRICES={"door":40,"window":30}
 const WIDTHS={"door":.76,"window":.70}
 const SHELL_HOSTS=["shell:back","shell:west"]
 static func initial_attachments()->Array[Dictionary]:
-	return [{"id":1,"kind":"door","host_id":"shell:west","offset":5.5,"width":1.5,"paid_cost":0}]
+	return [{"id":1,"kind":"door","host_id":"shell:west","offset":Footprint.DOOR_CENTER,"width":Footprint.DOOR_WIDTH,"paid_cost":0}]
+static func is_legacy_starter_door(attachment:Dictionary)->bool:
+	# Only the exact free starter signature is eligible; moved/replaced doors
+	# and every purchased attachment retain their saved geometry and value.
+	return int(attachment.id)==1 and attachment.kind=="door" and attachment.host_id=="shell:west" and float(attachment.offset)==Footprint.DOOR_CENTER and float(attachment.width)==Footprint.LEGACY_DOOR_WIDTH and int(attachment.paid_cost)==0
 static func initial_shell_products(material="original")->Dictionary:
 	return {"shell:back":{"height":"full","material":material,"paid_cost":0},"shell:west":{"height":"full","material":material,"paid_cost":0}}
 static func shell_hosts(material="original",walls:Array=[])->Array[Dictionary]:
