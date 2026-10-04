@@ -415,7 +415,7 @@ func _draw():
 	ground_art.prepare(game.model)
 	if use_batched_ground:ground_art.draw_pavement(self)
 	else:_draw_legacy_pavement(ground_view)
-	_tree(iso(.6,-2.7),.86)
+	_scenery_tree(Vector2(.6,-2.7),.86)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
@@ -628,8 +628,8 @@ func _draw():
 				draw_set_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,"…" if e.type=="guest" else "!")
 			draw_set_transform(Vector2.ZERO)
-	_tree(iso(13.5,-.5),1.10)
-	if not game.model.is_floor_owned(Vector2i(14,11)):_tree(iso(14.5,11.5),.78)
+	_scenery_tree(Vector2(13.5,-.5),1.10)
+	_scenery_tree(Vector2(14.5,11.5),.78)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):
@@ -727,6 +727,16 @@ func hit_wall(screen:Vector2)->Dictionary:
 		if Geometry2D.is_point_in_polygon(screen,polygon):return wall
 	return {}
 
+func _scenery_tree_visible_at(world:Vector2)->bool:
+	# Render-only scenery. Sale signs need clear ground while their plots are
+	# shown in Decorate; leaving that view restores trees on unowned land.
+	var cell=Vector2i(floori(world.x),floori(world.y))
+	if game.model.is_floor_owned(cell):return false
+	if not game.editing:return true
+	var parcel=game.model.parcel_at(cell)
+	return parcel.is_empty() or not parcel.visible
+func _scenery_tree(world:Vector2,scale:float):
+	if _scenery_tree_visible_at(world):_tree(iso(world.x,world.y),scale)
 func _tree(p: Vector2,s: float):
 	# Stable authored variants use the existing tree identities (source scales).
 	# The rear tree is mirrored; the corner sapling is slightly narrower. These
@@ -767,10 +777,8 @@ func _parcel_ground():
 		for xx in range(int(x)+1,int(x+w)):line(iso(xx,z+.08),iso(xx,z+h-.08),Color(.57,.66,.46,.25),.7)
 		for zz in range(int(z)+1,int(z+h)):line(iso(x+.08,zz),iso(x+w-.08,zz),Color(.57,.66,.46,.25),.7)
 func _parcel_sign_point(parcel:Dictionary)->Vector2:
-	# This real plot contains the retained tree. Keep its board planted in
-	# clear ground within the same parcel; drawing and hit testing share it.
-	if str(parcel.get("id",""))=="corner_0":
-		return iso(float(parcel.x)+.4,float(parcel.z)+float(parcel.h)-.4)
+	# Every sign stays centered. Scenery on visible sale plots is hidden
+	# temporarily by _scenery_tree_visible_at; hit testing shares this anchor.
 	return iso(float(parcel.x)+float(parcel.w)*.5,float(parcel.z)+float(parcel.h)*.5)
 
 func _parcel_sign(parcel):
