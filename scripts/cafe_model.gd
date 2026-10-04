@@ -31,7 +31,8 @@ const PARCEL_DEPTH := 3
 const PARCEL_ROWS := 3
 const PARCEL_COLUMNS := 4
 # Provisional land progression. Existing ownership never incurs a new charge.
-const PARCEL_ROW_COSTS := [10000,18000,30000]
+const PARCEL_RING_COSTS := [10000,18000,30000]
+const PARCEL_ROW_COSTS := PARCEL_RING_COSTS # Compatibility name for older callers.
 const RIGHT_PARCEL_ROWS := 2
 const RIGHT_PARCEL_COLUMNS := 3
 const RIGHT_PARCEL_ROW_COSTS := [10000,18000]
@@ -637,6 +638,12 @@ func advance_payroll(delta:float,on_duty:bool)->Dictionary:
 	return {"paid":paid,"charged":charged,"due":wages_due}
 
 
+func _parcel_geometric_ring(parcel:Dictionary)->int:
+	# A ring is spatial distance from the starter footprint, not a ledger row.
+	var right_band=maxi(0,ceili(float(parcel.x+parcel.w-BASE_WIDTH)/PARCEL_WIDTH))
+	var front_band=maxi(0,ceili(float(parcel.z+parcel.h-BASE_DEPTH)/PARCEL_DEPTH))
+	return maxi(right_band,front_band)
+
 func _parcel_geometry(index:int)->Dictionary:
 	if index<0 or index>=PARCEL_IDS.size():return {}
 	var corner=index>=V11_PARCEL_IDS.size()
@@ -645,12 +652,14 @@ func _parcel_geometry(index:int)->Dictionary:
 	var columns=CORNER_PARCEL_COLUMNS if corner else (RIGHT_PARCEL_COLUMNS if right else PARCEL_COLUMNS)
 	var local_index=index-offset
 	var row=int(local_index/columns);var column=local_index%columns
-	return {"id":PARCEL_IDS[index],"direction":"corner" if corner else ("right" if right else "front"),"row":row,"column":column,
+	var parcel={"id":PARCEL_IDS[index],"direction":"corner" if corner else ("right" if right else "front"),"row":row,"column":column,
 		"x":BASE_WIDTH+column*PARCEL_WIDTH if corner else (BASE_WIDTH+row*PARCEL_WIDTH if right else column*PARCEL_WIDTH),
 		"z":BASE_DEPTH+row*PARCEL_DEPTH if corner or not right else column*PARCEL_DEPTH,
 		"w":PARCEL_WIDTH,"h":PARCEL_DEPTH,
-		"cost":RIGHT_PARCEL_ROW_COSTS[row] if right else PARCEL_ROW_COSTS[row],
 		"prerequisite":"" if row==0 else PARCEL_IDS[index-columns]}
+
+	parcel["cost"]=PARCEL_RING_COSTS[_parcel_geometric_ring(parcel)-1]
+	return parcel
 
 func _parcel_has_owned_neighbor(parcel:Dictionary,ownership:Array)->bool:
 	for x in range(int(parcel.x),int(parcel.x)+int(parcel.w)):
@@ -673,9 +682,11 @@ func expansion_parcels() -> Array[Dictionary]:
 		if parcel.direction=="corner":available=available and _parcel_has_owned_neighbor(parcel,owned_parcels)
 		parcel["owned"]=owned_parcels.has(parcel.id)
 		parcel["unlocked"]=available
-		# Show real current-row corner land before it is edge-connected.
-		# The existing lock cue and purchase rule still require adjacent land.
-		parcel["visible"]=stage_visible
+		# The full first geometric ring includes its diagonal corner even while
+		# that corner is purchase-locked. Beyond it, reveal existing unlocked
+		# expansion choices without changing any purchase or ownership rule.
+		var in_first_ring=_parcel_geometric_ring(parcel)==1
+		parcel["visible"]=stage_visible and (in_first_ring or available)
 		parcels.append(parcel)
 	return parcels
 
