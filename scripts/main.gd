@@ -108,6 +108,7 @@ var music_enabled = true
 var music_toggle: Button
 var detail_stats: Label
 var music_tween: Tween
+var cafe_intro
 var illustration: Node2D
 var interaction
 var workface_guidance
@@ -152,8 +153,11 @@ func _ready():
 	print("NATIVE_READY children=",get_child_count()," world=",world.get_child_count()," ui=",ui.get_child_count())
 	if "--capture-diagnostics" in OS.get_cmdline_user_args():
 		get_tree().create_timer(3).timeout.connect(_capture)
-	_notify(_recovery_notice() if save_recovery_blocked else (startup_notice if startup_notice!="" else "Welcome to Little Leaf"))
+	if save_recovery_blocked or startup_notice!="":
+		_notify(_recovery_notice() if save_recovery_blocked else startup_notice)
 	web_lifecycle.start()
+	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
+	cafe_intro.start(self)
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
@@ -819,6 +823,8 @@ func _save():
 	return true
 
 func _input(event):
+	if cafe_intro!=null and cafe_intro.handle_input(event):
+		get_viewport().set_input_as_handled();return
 	if web_lifecycle!=null and web_lifecycle.handle_input(event):
 		get_viewport().set_input_as_handled();return
 	# A dismissed modal owns its complete pointer sequence before camera pinch.
@@ -863,6 +869,7 @@ func _sync_window_scale():
 
 func _notification(what):
 	if what==NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		if cafe_intro!=null:cafe_intro.finish()
 		if web_lifecycle!=null:web_lifecycle.cancel_pending()
 		if compact_ui!=null:compact_ui.cancel_modal_pointer()
 		if camera_gestures!=null:camera_gestures.on_focus_lost()
@@ -876,6 +883,8 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func _process(delta):
+	if cafe_intro!=null and cafe_intro.active:
+		_music_tick(delta);return
 	if compact_ui!=null and compact_ui.viewport_too_small:return
 	_sync_staff_duty()
 	if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())

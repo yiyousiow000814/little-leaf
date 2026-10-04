@@ -55,6 +55,6 @@ with tempfile.TemporaryDirectory(prefix="expansion-saveguard-", dir=qa_root) as 
         ("test_expansion_tree_visibility.gd", b"EXPANSION_TREE_RESULT"),
         ("test_expansion_ring_prices.gd", b"EXPANSION_RING_PRICES_RESULT"),
     ]:
-        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--fresh-review"], env, 60)
+        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--skip-intro", "--fresh-review"], env, 60)
         if marker not in output:
             raise SystemExit("Missing completion result: " + script)
