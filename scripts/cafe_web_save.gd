@@ -121,16 +121,17 @@ func request_save()->bool:
 	# The native codec's complete save validation runs before any IDB write.
 	if not game.model.save(STAGING_FILE):
 		game.progress_save_error=game.model.last_error
-		game._notify("Unsaved changes · "+game.progress_save_error);return false
+		return false
 	var payload=FileAccess.get_file_as_string(STAGING_FILE)
 	if payload=="":
 		game.progress_save_error="Could not read the validated save"
-		game._notify("Unsaved changes · "+game.progress_save_error);return false
-	pending=true;queued=false;inflight_generation=generation;game.progress_save_error=""
+		return false
+	# Keep an existing failure visible while the retry is in flight. Clearing it
+	# here makes every automatic retry flash the same warning again.
+	pending=true;queued=false;inflight_generation=generation
 	_credit_expected=int(api.creditForSave(payload))
 	if _credit_expected>0:_hold_for_credit()
 	game.model.last_event="Saving café progress"
-	game._notify("Saving changes… Keep this page open until Saved appears")
 	api.save(payload,revision,profile_id,_callback)
 	# A submitted asynchronous write is never reported as durable success.
 	return false
@@ -169,23 +170,22 @@ func _on_commit(arguments:Array):
 			ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
 			game.startup_notice="Unsaved changes · "+reason
 		game.progress_save_error=reason
-		game._notify("Unsaved changes · "+reason)
 		return
 	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not bool(result.get("durable",false)):
 		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 		game.progress_save_error="Invalid browser save revision; reload to recover"
 		game.startup_notice="Unsaved changes · "+game.progress_save_error
-		game._notify("Unsaved changes · "+game.progress_save_error);return
+		return
 	var credit=result.get("creditedCoins",0)
 	if not (credit is int or credit is float) or not is_finite(float(credit)) or floor(float(credit))!=float(credit) or int(credit)!=_credit_expected or int(credit)<0 or int(credit)>1000000000:
 		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 		game.progress_save_error="Invalid compensation acknowledgement; reload to recover"
-		game.startup_notice="Unsaved changes · "+game.progress_save_error;game._notify(game.startup_notice);return
+		game.startup_notice="Unsaved changes · "+game.progress_save_error;return
 	if int(credit)>0:
 		if game.model.coins!=_credit_base_coins or game.model.coins>1000000000-int(credit):
 			ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
-			game.startup_notice=game.progress_save_error;game._notify(game.startup_notice);return
+			game.startup_notice=game.progress_save_error;return
 		game.model.coins+=int(credit)
 		_credit_notice="%s coins of compensation added"%str(int(credit));_overflow_notice_shown=false
 		game._update_ui()
@@ -197,8 +197,7 @@ func _on_commit(arguments:Array):
 		game.call_deferred("_save");return
 	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Café progress saved"
 	if _credit_notice!="":
-		game._notify("Saved · "+_credit_notice);_credit_notice=""
+		game._notify(_credit_notice);_credit_notice=""
 	elif not _overflow_notice_shown and not result.get("campaignDeferred",[]).is_empty():
-		_overflow_notice_shown=true;game._notify("Saved · Your full compensation is waiting until the wallet has room")
-	else:game._notify("Saved · Café progress is safely stored in this browser")
+		_overflow_notice_shown=true;game._notify("Your full compensation is waiting until the wallet has room")
 	game._update_ui()
