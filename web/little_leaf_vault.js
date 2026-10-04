@@ -254,6 +254,23 @@
     };
     return client;
   }
-  root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient });
+  let retrying = null;
+  function retry(callback) {
+    // A fresh client reopens storage after a transient boot failure. No saved
+    // record is deleted, selected, repaired or committed by this operation.
+    if (!retrying) {
+      retrying = (async () => {
+        const candidate = createClient();
+        const result = await candidate.boot();
+        if (result.ok) {
+          root.__littleLeafVault.close();
+          root.__littleLeafVault = candidate;
+        } else candidate.close();
+        return result;
+      })().finally(() => { retrying = null; });
+    }
+    retrying.then(result => callback(JSON.stringify(result)));
+  }
+  root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient, retry });
   root.__littleLeafVault = createClient();
 })(globalThis);

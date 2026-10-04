@@ -44,6 +44,7 @@ var help_panel:PanelContainer
 var help_text:Label
 var help_box:VBoxContainer
 var help_done:Button
+var help_retry:Button
 var settings_help:Button
 var help_returns_to_settings=false
 var hire_button:Button
@@ -231,7 +232,7 @@ func setup():
  plot_button=_small_button("",func():game._expand();sync());manage_box.add_child(plot_button)
  manage_box.add_child(_small_button("Done",func():management.hide()))
  help_panel=_panel();var hb=VBoxContainer.new();help_box=hb;hb.add_theme_constant_override("separation",9);help_panel.add_child(hb)
- hb.add_child(game.label("Quick help",18));help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_text.custom_minimum_size=Vector2(260,0);hb.add_child(help_text);hb.add_child(_small_button("Show whole café",func():_camera_action(0)));help_done=_small_button("Done",_close_help);hb.add_child(help_done)
+ hb.add_child(game.label("Quick help",18));help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_text.custom_minimum_size=Vector2(260,0);hb.add_child(help_text);help_retry=_small_button("Try loading again",func():game.web_save.retry_startup());hb.add_child(help_retry);help_retry.hide();hb.add_child(_small_button("Show whole café",func():_camera_action(0)));help_done=_small_button("Done",_close_help);hb.add_child(help_done)
  hint=PanelContainer.new();hint.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_theme_stylebox_override("panel",game._style(Color("fbefdc"),Color("d4bd95"),9));game.ui.add_child(hint)
  hint_text=game.label("",13,Color("735b3e"));hint_text.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_child(hint_text);hint.hide()
  top_row=game.ui.get_child(0).get_child(0);title=top_row.get_child(0);settings_button=top_row.get_child(top_row.get_child_count()-1)
@@ -647,8 +648,16 @@ func show_management():
 func show_help():
  help_returns_to_settings=false;help_done.text="Done"
  game.settings.hide()
- help_text.text=(last_detail+"\n\n" if game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Floor buys one tile at a time. New land starts bare; previews show the price and any refund.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_retry.visible=game.web_save!=null and game.web_save.startup_error!=""
+ help_retry.disabled=help_retry.visible and game.web_save.retrying
+ help_retry.text="Loading saved café…" if help_retry.disabled else "Try loading again"
+ var save_detail=""
+ if game.save_recovery_blocked:
+  save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Floor buys one tile at a time. New land starts bare; previews show the price and any refund.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
  _popup_at(help_panel,340)
+ if help_retry.visible and not help_retry.disabled:help_retry.grab_focus()
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
 func return_to_help():
