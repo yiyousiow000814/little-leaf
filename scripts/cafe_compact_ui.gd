@@ -84,11 +84,6 @@ var earnings:PanelContainer
 var earnings_text:Label
 var earnings_seconds=0.0
 var earnings_amount=0
-var starter_hint:PanelContainer
-var starter_hint_text:Label
-var starter_dismiss:Button
-var starter_dismissed=false
-var starter_layout_queued=false
 var play_panel:PanelContainer
 var play_panel_box:VBoxContainer
 var play_controls:HBoxContainer
@@ -250,16 +245,6 @@ func setup():
  earnings=PanelContainer.new();earnings.mouse_filter=Control.MOUSE_FILTER_IGNORE
  earnings.add_theme_stylebox_override("panel",game._style(Color("f0f5de"),Color("c8d6b2"),9));game.ui.add_child(earnings)
  earnings_text=game.label("",14,Color("3e6b43"));earnings_text.mouse_filter=Control.MOUSE_FILTER_IGNORE;earnings.add_child(earnings_text);earnings.hide()
- starter_hint=PanelContainer.new();starter_hint.add_theme_stylebox_override("panel",game._style(Color("f8f4e7"),Color("d4d9bf"),12));game.ui.add_child(starter_hint)
- starter_hint.resized.connect(_position_starter_hint)
- var starter_row=HBoxContainer.new();starter_row.add_theme_constant_override("separation",12);starter_hint.add_child(starter_row)
- starter_hint_text=game.label("Your team serves automatically.\nTable set in Decorate · %s coins."%Money.amount(game.model.price_of("table_set")),14)
- starter_hint_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;starter_hint_text.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- starter_hint_text.custom_minimum_size.x=maxf(120,minf(game.get_viewport().get_visible_rect().size.x-36,480)-110)
- starter_hint_text.size.x=starter_hint_text.custom_minimum_size.x
- starter_hint_text.minimum_size_changed.connect(_queue_starter_layout);starter_row.add_child(starter_hint_text)
- starter_dismiss=_small_button("Got it",dismiss_starter_hint,60);starter_dismiss.size_flags_vertical=Control.SIZE_SHRINK_CENTER;starter_row.add_child(starter_dismiss)
- starter_hint.visible=game.fresh_start
  blockage_button=_small_button("Show",_show_work_blockage,68);blockage_button.custom_minimum_size.y=34;blockage_button.tooltip_text="Show blocked work tiles in Decorate";game.ui.add_child(blockage_button);blockage_button.hide()
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
@@ -279,7 +264,6 @@ func setup():
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- hud.theme_panel(starter_hint,false,14);hud.theme_button(starter_dismiss)
  wallet_notice=WalletNotice.new(self);wallet_notice.setup(earnings,earnings_text)
  status_notice=StatusNotice.new(self);status_notice.setup()
  _build_viewport_guard()
@@ -388,9 +372,6 @@ func sync():
  business_menu_action.disabled=game.save_recovery_blocked
  var world_visible=not has_open_popup()
  var narrow=width<650
- if game.editing:starter_dismissed=true
- starter_hint.visible=game.fresh_start and not starter_dismissed and not game.settings.visible and world_visible
- _layout_starter_hint(width)
  earnings.position=Vector2(width-132,164) if narrow else Vector2(maxf(32,game.top_text.get_global_rect().end.x-122),88)
  staff_access.visible=not narrow
  mobile_staff_access.visible=narrow and world_visible
@@ -503,30 +484,6 @@ func show_wages_due(amount:int):wallet_notice.show_due(amount)
 func tick_earnings(delta:float):
  if wallet_notice!=null:wallet_notice.tick(delta)
  if status_notice!=null:status_notice.sync_position()
-func dismiss_starter_hint():
- starter_dismissed=true;starter_hint.hide()
-func _queue_starter_layout():
- if starter_layout_queued:return
- starter_layout_queued=true
- _settle_starter_layout.call_deferred()
-func _settle_starter_layout():
- starter_layout_queued=false
- if not is_instance_valid(starter_hint) or not is_instance_valid(starter_dismiss):return
- _layout_starter_hint(game.get_viewport().get_visible_rect().size.x)
-func _layout_starter_hint(width:float):
- var insets=hud._safe_insets() if hud!=null else Vector4.ZERO
- var card_width=minf(width-insets.x-insets.z-36,480)
- # Give wrapping a real width before requesting its minimum height. A zero-
- # width first layout used to measure every character on its own line.
- var text_width=maxf(120,card_width-32-12-starter_dismiss.get_combined_minimum_size().x)
- starter_hint_text.custom_minimum_size.x=text_width
- starter_hint_text.size.x=text_width
- starter_hint.size=Vector2(card_width,maxf(62,starter_hint.get_combined_minimum_size().y))
- _position_starter_hint()
-func _position_starter_hint():
- var view=game.get_viewport().get_visible_rect().size
- var insets=hud._safe_insets() if hud!=null else Vector4.ZERO
- starter_hint.position=Vector2(insets.x+(18 if view.x<650 else 26),view.y-insets.w-starter_hint.size.y-20)
 func _show_work_blockage():
  var target=WorkfaceGuidance.blocked_station(game)
  if target.is_empty():return
@@ -702,6 +659,7 @@ func handle_unhandled_input(event:InputEvent)->bool:
  return false
 func short_reason(text:String)->String:
  var t=text.to_lower()
+ if t.begins_with("your team serves automatically"):return text
  if t.contains("already occupies"):return "Opening already here"
  if t.contains("empty floor") or t.contains("not a host"):return "Place a wall first"
  if t.contains("full-height") or t.contains("half wall"):return "Needs a full wall"

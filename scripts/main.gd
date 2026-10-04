@@ -544,7 +544,10 @@ func _toggle_edit():
 	editing=not editing
 	_cancel_selection()
 	if editing: _notify("Decorating pauses service. Select furniture to move it; the door stays clear.")
-	else: _notify("Service resumed"); _save()
+	else:
+		# Guidance belongs to the completed Decorate action, never to launch or UI sync.
+		_notify("Your team serves automatically.\nTable set in Decorate · %s coins."%Money.amount(model.price_of("table_set")))
+		_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
 
