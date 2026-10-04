@@ -8,6 +8,7 @@ extends RefCounted
 signal changed
 signal meal_completed(customer_id: int, payment: int)
 
+const Footprint=preload("res://scripts/cafe_footprint.gd")
 const DiningSets=preload("res://scripts/cafe_dining_sets.gd")
 const FurnitureMotion=preload("res://scripts/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/cafe_layout_access.gd")
@@ -20,9 +21,9 @@ const Checkout=preload("res://scripts/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
 const SAVE_VERSION = SaveContract.VERSION
 const INITIAL_COINS := 1200
-const BASE_WIDTH := 12
-const ORIGINAL_BASE_DEPTH := 8 # Existing west shell and pre-v12 physical flooring.
-const BASE_DEPTH := 9
+const BASE_WIDTH := Footprint.WIDTH
+const ORIGINAL_BASE_DEPTH := Footprint.LEGACY_DEPTH # Pre-v12 physical flooring only.
+const BASE_DEPTH := Footprint.DEPTH
 const MAX_DEPTH := 18
 const MAX_WIDTH := 18
 const PARCEL_WIDTH := 3
@@ -793,7 +794,7 @@ func expand()->bool:
 
 func wall_segments() -> Array[Dictionary]:
 	var result:Array[Dictionary]=[]
-	for host in OpeningGeometry.shell_hosts(shell_products):
+	for host in OpeningGeometry.shell_hosts(shell_products,built_walls):
 		for segment in OpeningGeometry.solid_segments(host,built_walls,wall_attachments):result.append(segment)
 	return result
 
@@ -1550,7 +1551,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
 		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
-		"floor_finishes":floor_finishes,
+		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
 		"wall_format":1,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
@@ -1789,11 +1790,14 @@ func built_wall_segments() -> Array[Dictionary]:
 
 func _fixed_edge_blocked(a:Vector2i,b:Vector2i,openings=null,walls=null)->bool:
 	if absi(a.x-b.x)+absi(a.y-b.y)!=1:return false
-	var host={}
-	if a.y!=b.y and mini(a.y,b.y)==-1 and maxi(a.y,b.y)==0 and a.x>=0 and a.x<BASE_WIDTH:host=OpeningGeometry.shell_hosts()[0]
-	elif a.x!=b.x and mini(a.x,b.x)==-1 and maxi(a.x,b.x)==0 and a.y>=0 and a.y<ORIGINAL_BASE_DEPTH:host=OpeningGeometry.shell_hosts()[1]
-	if host.is_empty():return false
-	return not OpeningGeometry.point_in_door((cell_center(a)+cell_center(b))*.5,host,built_walls if walls==null else walls,wall_attachments if openings==null else openings,.23)
+	var on_back=a.y!=b.y and mini(a.y,b.y)==-1 and maxi(a.y,b.y)==0 and a.x>=0 and a.x<BASE_WIDTH
+	var on_west=a.x!=b.x and mini(a.x,b.x)==-1 and maxi(a.x,b.x)==0 and a.y>=0 and a.y<BASE_DEPTH
+	if not on_back and not on_west:return false
+	var effective_walls:Array=built_walls if walls==null else walls
+	var shell=OpeningGeometry.shell_hosts(shell_products,effective_walls)
+	var host=shell[0] if on_back else shell[1]
+	if on_west and a.y>=int(host.b.y):return false
+	return not OpeningGeometry.point_in_door((cell_center(a)+cell_center(b))*.5,host,effective_walls,wall_attachments if openings==null else openings,.23)
 
 func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
 	var key=WallGeometry.edge_between(a,b)
@@ -1834,7 +1838,7 @@ func _wall_edge_error(wall:Dictionary,ownership:Array) -> String:
 	if not WallGeometry.valid_shape(wall,MAX_WIDTH,MAX_DEPTH):return "Choose a valid one-tile edge, height and wallpaper"
 	var sides:=WallGeometry.adjacent_cells(wall)
 	if not _floor_owned_in(sides[0],ownership) and not _floor_owned_in(sides[1],ownership):return "Buy the adjacent plot before building a wall"
-	if (wall.axis=="x" and int(wall.z)==0 and int(wall.x)<BASE_WIDTH) or (wall.axis=="z" and int(wall.x)==0 and int(wall.z)<ORIGINAL_BASE_DEPTH):return "The original cafe shell is already here · attach a door/window or choose wallpaper"
+	if Footprint.is_shell_edge(wall):return "The original cafe shell is already here · attach a door/window or choose wallpaper"
 	return ""
 
 func _furniture_actor_positions(extra:Array) -> Array[Vector2]:
@@ -2025,7 +2029,7 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	for current in built_walls:proposed.append(proposed_wall if WallGeometry.key_of(current)==key else current)
 	# Keep the same host identity, but validate every host (including a wide
 	# opening spanning two segments) before touching either model or wallet.
-	var reason=_wall_edge_error(proposed_wall,owned_parcels)
+	var reason="" if Footprint.is_extension_wall(wall) else _wall_edge_error(proposed_wall,owned_parcels)
 	if reason=="":reason=_attachment_layout_error(proposed,wall_attachments)
 	if reason=="":reason=_chair_egress_error(proposed,items,owned_parcels,customers)
 	if reason=="":reason=_wall_egress_error(proposed,_wall_actor_list(actor_positions),items,owned_parcels,customers)
@@ -2186,12 +2190,14 @@ func _legacy_floor_owned(cell:Vector2i,ownership:Array,version:int)->bool:
 	return ownership.has(RIGHT_PARCEL_IDS[index])
 
 func _validate_saved_floors(data:Dictionary,ownership:Array,legacy_style:String)->Dictionary:
+	if data.has("starter_geometry_version") and not _valid_int(data.starter_geometry_version,Footprint.SAVE_REVISION,Footprint.SAVE_REVISION):return {"ok":false,"error":"Invalid starter geometry version"}
 	var finishes={}
 	if int(data.version)<12:
 		for z in range(MAX_DEPTH):
 			for x in range(MAX_WIDTH):
 				var cell=Vector2i(x,z)
 				if _legacy_floor_owned(cell,ownership,int(data.version)):finishes[_floor_key(cell)]={"style":legacy_style,"paid_cost":0}
+		_complete_legacy_starter_floor(finishes,data)
 		return {"ok":true,"finishes":finishes}
 	var failed={"ok":false,"error":"Invalid saved flooring"}
 	if not data.get("floor_finishes") is Dictionary or data.floor_finishes.size()>MAX_WIDTH*MAX_DEPTH:return failed
@@ -2205,7 +2211,17 @@ func _validate_saved_floors(data:Dictionary,ownership:Array,legacy_style:String)
 		var cell=Vector2i(int(parts[0]),int(parts[1]))
 		if _floor_key(cell)!=key or not _floor_owned_in(cell,ownership):return failed
 		finishes[key]={"style":str(tile.style),"paid_cost":int(tile.paid_cost)}
+	_complete_legacy_starter_floor(finishes,data)
 	return {"ok":true,"finishes":finishes}
+
+func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
+	# Validate into a new dictionary first; failed loads never alter live state
+	# or the imported file. A saved revision makes the repair one-time.
+	if data.has("starter_geometry_version"):return
+	for z in range(Footprint.LEGACY_DEPTH,Footprint.DEPTH):
+		for x in range(Footprint.WIDTH):
+			var key=_floor_key(Vector2i(x,z))
+			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
 func set_shell_material(material:String) -> bool:
 	if material!="original" and material not in WallGeometry.MATERIALS:return _fail("Choose a listed wallpaper")
@@ -2263,9 +2279,9 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 		if not WallGeometry.valid_shape(raw,MAX_WIDTH,MAX_DEPTH):return fail_result
 		var wall:=WallGeometry.make(str(raw.axis),int(raw.x),int(raw.z),str(raw.height),str(raw.material))
 		var edge_error=_wall_edge_error(wall,ownership)
-		# R7 could place a wall over the old opening. Preserve that wall and
-		# cut the hosted starter doorway through both coplanar layers.
-		var legacy_overlay=wall.axis=="z" and int(wall.x)==0 and int(wall.z)==5
+		# Preserve historical doorway overlays and player walls on the former
+		# starter gap. The latter replace, rather than overlap, the default edge.
+		var legacy_overlay=(wall.axis=="z" and int(wall.x)==0 and int(wall.z)==5) or Footprint.is_extension_wall(wall)
 		if (edge_error!="" and not legacy_overlay) or keys.has(WallGeometry.key_of(wall)):return fail_result
 		var id=int(raw.get("id",walls.size()+1))
 		if int(data.version)>=5 and not _valid_int(raw.get("id"),1,1000000000):return fail_result
@@ -2295,8 +2311,11 @@ func _validated_shell_products(data:Dictionary)->Dictionary:
 		var product=raw[key]
 		if product.get("height") not in WallGeometry.HEIGHTS:return {}
 		if product.get("material")!="original" and product.get("material") not in WallGeometry.MATERIALS:return {}
-		var price=wall_price(str(product.height))*(12 if key=="shell:back" else 8)
-		if not _valid_int(product.get("paid_cost"),0,price) or int(product.paid_cost) not in [0,price]:return {}
+		var price=wall_price(str(product.height))*(Footprint.WIDTH if key=="shell:back" else Footprint.DEPTH)
+		var legacy_price=wall_price(str(product.height))*(Footprint.WIDTH if key=="shell:back" else Footprint.LEGACY_DEPTH)
+		# Keep the exact amount previously paid; extending the included shell
+		# must neither charge the player nor invent refundable value.
+		if not _valid_int(product.get("paid_cost"),0,price) or int(product.paid_cost) not in [0,legacy_price,price]:return {}
 		result[key]={"height":str(product.height),"material":str(product.material),"paid_cost":int(product.paid_cost)}
 	return result
 
