@@ -482,8 +482,11 @@ func _layout_unified_toolbar(width:float):
  var action_gap=18.0 if roomy else 8.0
  var group_gap=16.0 if roomy else 8.0
  var pair_gap=6.0 if roomy else 4.0
- var decorate_size=Vector2(40,40.0*_texture("decorate").get_height()/_texture("decorate").get_width())
- var staff_size=Vector2(float(_texture("staff").get_width())/_texture("staff").get_height(),1)*(56.0 if roomy else 44.0)
+ # Balance the wide sparse brush/bucket against the denser portrait silhouette.
+ # Compact dimensions remain unchanged; all artwork keeps its native aspect.
+ var decorate_width=48.0 if roomy else 40.0
+ var decorate_size=Vector2(decorate_width,decorate_width*_texture("decorate").get_height()/_texture("decorate").get_width())
+ var staff_size=Vector2(float(_texture("staff").get_width())/_texture("staff").get_height(),1)*(48.0 if roomy else 44.0)
  var settings_size=Vector2(1,float(_texture("settings").get_height())/_texture("settings").get_width())*(56.0 if roomy else 40.0)
  var edit_width=88.0+pair_gap if game.editing else decorate_size.x
  var action_width=edit_width+action_gap*2+staff_size.x+settings_size.x
