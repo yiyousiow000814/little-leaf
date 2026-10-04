@@ -806,8 +806,11 @@ func _recovery_notice()->String:
 	return startup_notice if startup_notice!="" else "Saved café needs recovery · original file kept untouched"
 
 func _unsaved_progress_message()->String:
-	if not progress_unsaved:return ""
-	return "Unsaved changes · "+progress_save_error if progress_save_error!="" else "Saving changes…"
+	# Pending background writes are silent. A real failure stays in one warning
+	# until the latest changes have a durable acknowledgement.
+	if not progress_unsaved or progress_save_error=="":return ""
+	var action="Open Settings → Quick help" if save_recovery_blocked else "Keep this page open; saving will retry" if web_save!=null else "Keep the game open; saving will retry"
+	return "Unsaved changes · "+progress_save_error+" · "+action
 
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
@@ -818,7 +821,7 @@ func _save():
 	_update_people()
 	model.service_snapshot=_service_save_snapshot()
 	if not model.save(SAVE_FILE):
-		progress_unsaved=true;progress_save_error=model.last_error;_notify(_unsaved_progress_message());return false
+		progress_unsaved=true;progress_save_error=model.last_error;return false
 	progress_unsaved=false;progress_save_error=""
 	return true
 
