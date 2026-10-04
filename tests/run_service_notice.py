@@ -20,7 +20,7 @@ with tempfile.TemporaryDirectory(prefix="little-leaf-notice-") as profile:
     godot = os.environ.get("GODOT_BIN", "godot")
     subprocess.run([godot, "--headless", "--path", str(root), "--editor", "--import", "--quit"],
                    env=env, check=True, timeout=120)
-    user_args = ["--", "--visual-qa", "--fresh-review"]
+    user_args = ["--", "--visual-qa", "--skip-intro", "--fresh-review"]
     if rendered:
         captures = root / "evidence/service-notice/after"
         captures.mkdir(parents=True, exist_ok=True)

@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix="staff-start-saveguard-", dir=qa) as dir
             shutil.copy2(save_dir / "staff-start-standalone.json", save_file)
         elif case == "bad-load":
             save_file.write_text("not a valid cafe")
-        args = ["--script", "res://tests/test_staff_start.gd", "--", "--visual-qa"]
+        args = ["--script", "res://tests/test_staff_start.gd", "--", "--visual-qa", "--skip-intro"]
         if case == "fresh":
             args.append("--fresh-review")
         run(args, "STAFF_START_RESULT ")
@@ -65,6 +65,6 @@ with tempfile.TemporaryDirectory(prefix="staff-start-saveguard-", dir=qa) as dir
         ("test_floor_availability.gd", "FLOOR_AVAILABILITY_RESULT "),
         ("test_furniture_worker_egress.gd", "FURNITURE_WORKER_EGRESS "),
     ]:
-        run(["--script", "res://tests/" + script, "--", "--fresh-review", "--visual-qa"], marker)
+        run(["--script", "res://tests/" + script, "--", "--fresh-review", "--visual-qa", "--skip-intro"], marker)
 print("STAFF_START_SUITE_RESULT " + json.dumps({"checks": sum(r["checks"] for r in reports),
       "failures": [], "suites": reports}))

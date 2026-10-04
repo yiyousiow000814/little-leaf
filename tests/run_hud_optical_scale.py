@@ -55,6 +55,6 @@ with tempfile.TemporaryDirectory(prefix="geometry-saveguard-", dir=qa_root) as t
         ("test_hud_layout.gd", b"HUD_LAYOUT_RESULT"),
         ("test_cancel_icon.gd", b"CANCEL_ICON_RESULT"),
     ]:
-        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--fresh-review"], env, 60)
+        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--skip-intro", "--fresh-review"], env, 60)
         if marker not in output:
             raise SystemExit("Missing completion result: " + script)

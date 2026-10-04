@@ -54,6 +54,6 @@ with tempfile.TemporaryDirectory(prefix="geometry-saveguard-", dir=qa_root) as t
         ("test_role_boundaries.gd", b"ROLE_BOUNDARIES_RESULT"),
         ("test_role_release.gd", b"ROLE_RELEASE_RESULT"),
     ]:
-        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--fresh-review"], env, 60)
+        output = run(["--path", str(project), "--script", "res://tests/" + script, "--", "--visual-qa", "--skip-intro", "--fresh-review"], env, 60)
         if marker not in output:
             raise SystemExit("Missing completion result: " + script)

@@ -403,6 +403,8 @@ func _draw():
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
+	var gameplay_origin = origin
+	if game.cafe_intro!=null:origin+=game.cafe_intro.render_offset(size)
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
 	draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
 	_grass(size)
@@ -636,6 +638,8 @@ func _draw():
 		for parcel in game.model.expansion_parcels():
 				if not parcel.owned and parcel.visible:_parcel_sign(parcel)
 	if game.workface_guidance!=null:game.workface_guidance.draw_access_focus(self)
+	# Do not expose the presentation offset to resize anchoring or input projection.
+	origin = gameplay_origin
 func _draw_legacy_pavement(ground_view: Rect2):
 	for z in range(ExteriorExtent.PAVEMENT_Z_MIN,ExteriorExtent.PAVEMENT_Z_MAX):
 		for x in [PAVEMENT_EDGE, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH*2]:

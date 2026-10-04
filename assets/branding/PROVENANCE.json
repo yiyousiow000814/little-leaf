@@ -1,0 +1,36 @@
+{
+  "approved_version": 3,
+  "source_sha256": "71420e89a4706b73d89c14734166f3d900b8c6c904612527911c9406b3cba0b6",
+  "source_dimensions": [
+    853,
+    1844
+  ],
+  "source_art_bounds": [
+    46,
+    538,
+    813,
+    1040
+  ],
+  "source_crop_with_padding": [
+    38,
+    530,
+    821,
+    1048
+  ],
+  "output_dimensions": [
+    783,
+    518
+  ],
+  "rgb_changed_pixels": 0,
+  "opaque_pixels": 213320,
+  "partial_alpha_pixels": 1826,
+  "transparent_pixels": 190448,
+  "fully_transparent_padding": 8,
+  "method": "Deterministic R-minus-B chroma alpha mask within title-only vertical band; narrow smooth alpha transition. Original RGB bytes retained exactly, crop only, no resizing/recoloring/generation.",
+  "asset_sha256": "b75415fdf74e98904348264e4851b21401fe2f1ae09a6a277f10849f81564478",
+  "authorization": "User approved programmatic blue-background removal on 2026-10-04; original lettering/leaves retained.",
+  "failed_imagegen_extraction_used": false,
+  "asset_origin": "User-approved game wordmark generated from the project's original lettering; programmatic alpha-only extraction authorized by user. No external logo, clip art or font outlines added.",
+  "license_notes": "Generated project artwork; existing font, HUD, music and other license notices remain unchanged. This provenance does not grant a blanket license for the game.",
+  "approval_reference": "Accepted title artwork, revision 3; private source reference retained in the recoverable project archive."
+}
