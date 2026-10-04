@@ -419,6 +419,7 @@ func _draw():
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
+	if game.interaction!=null:game.interaction.draw_floor_feedback(self)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
 	if game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
 		var selected=game.model.get_item(game.selected_id)
@@ -435,11 +436,11 @@ func _draw():
 	var interaction=game.interaction if "interaction" in game else null
 	var preview=interaction!=null and interaction.preview_active
 	if preview:
-		var outline="839c6b" if interaction.drag_valid else "b77961"
+		var outline=Color(.34,.50,.28,.80) if interaction.drag_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
 			var c=Vector2i(int(part.x),int(part.z))
 			var corners=[iso(c.x+.03,c.y+.03),iso(c.x+.97,c.y+.03),iso(c.x+.97,c.y+.97),iso(c.x+.03,c.y+.97)]
-			poly(corners,Color(.67,.77,.52,.24) if interaction.drag_valid else Color(.75,.39,.29,.23))
+			poly(corners,Color(.32,.52,.30,.22) if interaction.drag_valid else Color(.66,.38,.29,.22))
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)

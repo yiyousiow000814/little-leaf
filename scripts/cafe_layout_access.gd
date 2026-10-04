@@ -1,5 +1,7 @@
 extends RefCounted
 ## The same structural workface facts drive preview, commit, and issue navigation.
+static func requires_access(_kind:String)->bool:return true
+
 static func issues(model,layout:Array)->Array:
  var typed_layout:Array[Dictionary]=[];typed_layout.assign(layout)
  var result=[]
