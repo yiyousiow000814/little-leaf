@@ -117,6 +117,11 @@ func ui_cases():
  var cafe=TestMain.new();root.add_child(cafe);cafe.set_process(false);cafe.illustration.set_process(false)
  for player in cafe.audio_players.values():player.stop()
  cafe.editing=true;cafe.ui.hide();await frames()
+ # Arrange the crowded relocation case explicitly; public fresh starts now
+ # place workers at their posts rather than supplying this back-wall fixture.
+ for i in 3:
+  cafe.staff_states[i].pos=Vector2(2.5+i,.5)
+  cafe.staff_states[i].node.position=Vector3(2.5+i,0,.5)
  var field=cafe.interaction.edit_plan
  var point=cafe.illustration.iso(2.5,.5)
  cafe.selected_kind="table_set";cafe.rotation_step=0
