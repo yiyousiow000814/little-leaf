@@ -1,0 +1,95 @@
+{
+  "aperture_a": "(0.0, 5.0)",
+  "aperture_b": "(0.0, 6.0)",
+  "center_crosses": true,
+  "coins": 100000,
+  "customers": [],
+  "door": {
+    "host_id": "shell:west",
+    "id": 1,
+    "kind": "door",
+    "offset": 5.5,
+    "paid_cost": 0,
+    "width": 1.0
+  },
+  "entrance": "(0, 5)",
+  "fixture": "fresh",
+  "items": [
+    {
+      "id": 1,
+      "kind": "stove",
+      "level": 1,
+      "rot": 0,
+      "x": 8,
+      "z": 1
+    },
+    {
+      "id": 2,
+      "kind": "beverage",
+      "rot": 0,
+      "x": 9,
+      "z": 1
+    },
+    {
+      "id": 3,
+      "kind": "sink",
+      "rot": 0,
+      "x": 10,
+      "z": 1
+    },
+    {
+      "id": 4,
+      "kind": "counter",
+      "rot": 0,
+      "x": 6,
+      "z": 2
+    },
+    {
+      "id": 6,
+      "kind": "table",
+      "rot": 0,
+      "x": 3,
+      "z": 3
+    },
+    {
+      "id": 7,
+      "kind": "chair",
+      "rot": 0,
+      "x": 3,
+      "z": 4
+    },
+    {
+      "id": 14,
+      "kind": "bin",
+      "rot": 0,
+      "x": 11,
+      "z": 1
+    },
+    {
+      "id": 15,
+      "kind": "register",
+      "rot": 1,
+      "x": 6,
+      "z": 4
+    }
+  ],
+  "landing": "(1, 5)",
+  "phase": "after-fresh",
+  "projection": {
+    "origin": [
+      576,
+      226
+    ],
+    "tile": [
+      34.32,
+      17.16
+    ],
+    "zoom": 1.0
+  },
+  "source_hash_unchanged": "",
+  "synthetic": true,
+  "viewport": [
+    1360,
+    880
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "aperture_a": "(0.0, 4.75)",
+  "aperture_b": "(0.0, 6.25)",
+  "center_crosses": true,
+  "coins": 100000,
+  "customers": [
+    {
+      "admitted": false,
+      "chair_id": 7.0,
+      "checkout_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "checkout_reason": "",
+      "checkout_register_id": -1.0,
+      "checkout_stall": 0.0,
+      "checkout_ticket": 0.0,
+      "checkout_token": -1.0,
+      "departure_blocked": false,
+      "dismount_progress": 0.0,
+      "dismounting": false,
+      "duration": 8.37333345413208,
+      "egress_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "elapsed": 0.0,
+      "entry_cell": {
+        "$vector2i": [
+          0,
+          5
+        ]
+      },
+      "entry_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "entry_outside": {
+        "$vector2i": [
+          -1,
+          5
+        ]
+      },
+      "exit_completed": false,
+      "exterior_exit": false,
+      "heading": {
+        "$vector2": [
+          0.0,
+          -1.0
+        ]
+      },
+      "id": 1.0,
+      "mobility": {
+
+      },
+      "paid": false,
+      "phase": "arriving",
+      "route": [
+        {
+          "$vector2": [
+            0.5,
+            5.05000019073486
+          ]
+        },
+        {
+          "$vector2": [
+            0.5,
+            5.5
+          ]
+        }
+      ],
+      "route_index": 0.0,
+      "seated": false,
+      "service_cell": {
+        "$vector2i": [
+          2,
+          4
+        ]
+      },
+      "settlement_mode": "register",
+      "table_id": 6.0,
+      "table_service_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "waiting": true,
+      "withdrawn": false,
+      "x": -0.12,
+      "z": 5.05
+    }
+  ],
+  "door": {
+    "host_id": "shell:west",
+    "id": 1,
+    "kind": "door",
+    "offset": 5.5,
+    "paid_cost": 0,
+    "width": 1.5
+  },
+  "entrance": "(0, 5)",
+  "fixture": "crossing",
+  "items": [
+    {
+      "id": 1,
+      "kind": "stove",
+      "level": 1,
+      "rot": 0,
+      "x": 8,
+      "z": 1
+    },
+    {
+      "id": 2,
+      "kind": "beverage",
+      "rot": 0,
+      "x": 9,
+      "z": 1
+    },
+    {
+      "id": 3,
+      "kind": "sink",
+      "rot": 0,
+      "x": 10,
+      "z": 1
+    },
+    {
+      "id": 4,
+      "kind": "counter",
+      "rot": 0,
+      "x": 6,
+      "z": 2
+    },
+    {
+      "id": 6,
+      "kind": "table",
+      "rot": 0,
+      "x": 3,
+      "z": 3
+    },
+    {
+      "id": 7,
+      "kind": "chair",
+      "rot": 0,
+      "x": 3,
+      "z": 4
+    },
+    {
+      "id": 14,
+      "kind": "bin",
+      "rot": 0,
+      "x": 11,
+      "z": 1
+    },
+    {
+      "id": 15,
+      "kind": "register",
+      "rot": 1,
+      "x": 6,
+      "z": 4
+    }
+  ],
+  "landing": "(1, 5)",
+  "phase": "after-crossing",
+  "projection": {
+    "origin": [
+      576,
+      226
+    ],
+    "tile": [
+      34.32,
+      17.16
+    ],
+    "zoom": 1.0
+  },
+  "source_hash_unchanged": "c0bfbb6c3698f79bda29a5e3f0c75f8e10afcd5ddb2e66e6f567a92372ac1840",
+  "synthetic": true,
+  "viewport": [
+    1360,
+    880
+  ]
+}

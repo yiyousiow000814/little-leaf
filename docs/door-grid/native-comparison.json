@@ -1,0 +1,57 @@
+{
+  "fresh": {
+    "before_aperture": [
+      4.75,
+      6.25
+    ],
+    "after_aperture": [
+      5,
+      6
+    ],
+    "pixel_difference_bounds": [
+      359,
+      218,
+      416,
+      335
+    ],
+    "matching_model_and_camera": true,
+    "source_hash_unchanged": "",
+    "before_sha256": "31e8655d67cb0edf625c7cc17a4401e7e1b86b8fb6d6aa076a32eeab345b3e0d",
+    "after_sha256": "9d3d85fb749b5cfb7327480dabaec2f4e582ee81431dd8e14694ae9b5a3af5d2"
+  },
+  "old-clear": {
+    "before_aperture": [
+      4.75,
+      6.25
+    ],
+    "after_aperture": [
+      5,
+      6
+    ],
+    "pixel_difference_bounds": [
+      359,
+      218,
+      416,
+      335
+    ],
+    "matching_model_and_camera": true,
+    "source_hash_unchanged": "1feff5a29f56df3c94cf18ffeed2765eeb1d58b00bc6efe2ceff42379db63fac",
+    "before_sha256": "31e8655d67cb0edf625c7cc17a4401e7e1b86b8fb6d6aa076a32eeab345b3e0d",
+    "after_sha256": "9d3d85fb749b5cfb7327480dabaec2f4e582ee81431dd8e14694ae9b5a3af5d2"
+  },
+  "crossing": {
+    "before_aperture": [
+      4.75,
+      6.25
+    ],
+    "after_aperture": [
+      4.75,
+      6.25
+    ],
+    "pixel_difference_bounds": null,
+    "matching_model_and_camera": true,
+    "source_hash_unchanged": "c0bfbb6c3698f79bda29a5e3f0c75f8e10afcd5ddb2e66e6f567a92372ac1840",
+    "before_sha256": "31e8655d67cb0edf625c7cc17a4401e7e1b86b8fb6d6aa076a32eeab345b3e0d",
+    "after_sha256": "31e8655d67cb0edf625c7cc17a4401e7e1b86b8fb6d6aa076a32eeab345b3e0d"
+  }
+}
