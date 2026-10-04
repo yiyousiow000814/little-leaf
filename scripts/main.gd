@@ -742,7 +742,9 @@ func _service_save_snapshot()->Dictionary:
 func _restore_service_runtime():
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
-		_update_people();_sync_service_guests();return
+		_update_people()
+		if fresh_start and not save_recovery_blocked:_place_fresh_staff_at_posts()
+		_sync_service_guests();return
 	service_serial=int(snapshot.serial);animation_time=float(snapshot.animation_time)
 	floor_tasks.restore(snapshot.get("floor_tasks",{}))
 	service_guests.clear()
@@ -774,6 +776,22 @@ func _restore_service_runtime():
 		var arrived=destination!=Vector2i(-1,-1) and staff.pos.distance_to(Vector2(destination)+Vector2(.5,.5))<.03
 		var travel_action={"plate":"carrying_to_pass" if staff.role=="chef" else "carrying_plate","drink":"carrying_drink","dishes":"carrying_dishes","trash":"carrying_trash"}.get(payload,"walking")
 		_set_staff_art(staff,str(step.action) if arrived else travel_action,target,clampf(float(staff.job_elapsed)/seconds,0,1) if arrived else 0.0,payload)
+
+func _place_fresh_staff_at_posts():
+	# Only a genuinely new cafe has no saved positions to resume. Use the same
+	# reachable posts as ordinary idle work, before its first illustrated frame.
+	# Saved snapshots and recovery fallbacks never pass through this placement.
+	var claimed=[]
+	for index in staff_states.size():
+		var staff=staff_states[index]
+		var cell=_staff_idle_cell(index,claimed)
+		if not _staff_walkable(cell):continue
+		claimed.append(cell)
+		staff.pos=model.cell_center(cell)
+		staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
+		staff.destination=cell;staff.path=[];staff.index=0
+		var station=model.get_item(int(staff.get("idle_home_id",-1)))
+		_set_staff_art(staff,"standby",station,0.0,"none")
 
 func _on_window_close():
 	# Persist the same validated runtime transaction before an ordinary close.

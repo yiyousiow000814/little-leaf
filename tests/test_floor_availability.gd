@@ -31,6 +31,10 @@ func run():
    game.rotation_step=rotation
    check(floor.refresh(game.model)==cells,"selection-independent floor "+kind+str(rotation))
  check(floor.builds==builds and plan.validations==0,"background selection/rotation does not scan placement candidates")
+ # This relocation case needs an actor under the prospective plant. Do not
+ # depend on the public new-game spawn point to arrange the obstruction.
+ game.staff_states[0].pos=Vector2(2.5,.5)
+ game.staff_states[0].node.position=Vector3(2.5,0,.5)
  var actors=game.interaction._staff_positions()
  var receipt=plan.prepare(game.model,"table_set",-1,0,Vector2i(5,8),actors)
  check(not receipt.ok and receipt.error=="Chair needs owned floor","whole table preview rejects chair extending beyond owned edge")
