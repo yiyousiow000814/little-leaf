@@ -1,0 +1,16 @@
+*.png binary
+*.mp3 binary
+*.ttf binary
+*.otf binary
+*.gd -text
+*.gdshader -text
+*.tscn -text
+*.godot -text
+*.json -text
+*.txt -text
+*.md -text
+*.html -text
+*.cfg -text
+*.import -text
+*.uid -text
+*.svg -text

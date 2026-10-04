@@ -1,0 +1,167 @@
+extends RefCounted
+## Web progress uses only the independent IndexedDB authority. These staging
+## files live in unmounted MEMFS /tmp; never put them beneath user:// or /userfs.
+const MinimalStart=preload("res://scripts/minimal_start.gd")
+const STAGING_FILE="/tmp/little_leaf_vault_staging.json"
+var game_ref:WeakRef
+var game:
+	get:return game_ref.get_ref()
+var api
+var profile_id=""
+var revision=0
+var ready=false
+var pending=false
+var queued=false
+var generation=0
+var inflight_generation=0
+var _callback
+var startup_error=""
+var _credit_hold=false
+var _held_paused=false
+var _held_input=false
+var _held_unhandled=false
+var _held_gui_disabled=false
+var _held_viewport:WeakRef
+var _credit_base_coins=0
+var _credit_expected=0
+var _credit_notice=""
+var _overflow_notice_shown=false
+
+func _init(owner):game_ref=weakref(owner)
+
+func _write_stage(payload:String)->bool:
+	DirAccess.make_dir_recursive_absolute("/tmp")
+	var file=FileAccess.open(STAGING_FILE,FileAccess.WRITE)
+	if file==null:return false
+	file.store_string(payload);file.flush()
+	var error=file.get_error();file.close()
+	return error==OK
+
+func load_startup():
+	api=JavaScriptBridge.get_interface("__littleLeafVault")
+	if api==null:
+		_block_startup("Browser save support is missing; reload the full game package");return
+	var result=JSON.parse_string(str(api.bootJson))
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		_block_startup(str(result.get("error","Browser save storage could not be opened")) if result is Dictionary else "Browser save startup did not finish");return
+	profile_id=str(result.profileId);revision=int(result.revision)
+	var source=str(result.source)
+	if source=="fresh":
+		game.fresh_start=true;MinimalStart.apply(game.model)
+	else:
+		if not result.get("payload") is String or not _write_stage(str(result.payload)):
+			_block_startup("Could not prepare the saved café for validation");return
+		# Only legacy v13 may use the existing narrow trapped-staff import
+		# exception. Its write still cannot pass until the layout is repaired.
+		var requires_repair=false
+		if not game.model.load_save(STAGING_FILE):
+			if source!="legacy-v13" or not game.model.load_save(STAGING_FILE,true):
+				_block_startup(game.model.last_error);return
+			requires_repair=true;game.paused=true
+		game.startup_save_source="isolated-browser-authority" if source=="authority" else "read-only-v13-import"
+		if source=="legacy-v13":game.startup_notice="Previous café loaded read-only · Original progress is unchanged"
+		if requires_repair:game.startup_notice="Café paused for repair · Use Decorate to open a route for trapped staff, then save · Original progress is unchanged"
+		if game.model.included_bin_pending:
+			game.model.ensure_basic_bin()
+	ready=true
+	_callback=JavaScriptBridge.create_callback(_on_commit)
+
+func _block_startup(reason:String):
+	startup_error=reason;ready=false
+	game.save_writes_suppressed=true;game.save_recovery_blocked=true;game.paused=true
+	game.startup_notice="Saved café needs recovery · "+reason+" · Original progress is unchanged"
+	MinimalStart.apply(game.model)
+
+func request_save()->bool:
+	game.save_timer=0.0
+	if not ready or game.save_recovery_blocked or game.save_writes_suppressed:return false
+	generation+=1
+	game.progress_unsaved=true
+	if pending:
+		queued=true;return false
+	game._update_people()
+	game.model.service_snapshot=game._service_save_snapshot()
+	# The native codec's complete save validation runs before any IDB write.
+	if not game.model.save(STAGING_FILE):
+		game.progress_save_error=game.model.last_error
+		game._notify("Unsaved changes · "+game.progress_save_error);return false
+	var payload=FileAccess.get_file_as_string(STAGING_FILE)
+	if payload=="":
+		game.progress_save_error="Could not read the validated save"
+		game._notify("Unsaved changes · "+game.progress_save_error);return false
+	pending=true;queued=false;inflight_generation=generation;game.progress_save_error=""
+	_credit_expected=int(api.creditForSave(payload))
+	if _credit_expected>0:_hold_for_credit()
+	game.model.last_event="Saving café progress"
+	game._notify("Saving changes… Keep this page open until Saved appears")
+	api.save(payload,revision,profile_id,_callback)
+	# A submitted asynchronous write is never reported as durable success.
+	return false
+
+func _hold_for_credit():
+	# Freeze only while a grant-bearing transaction is pending. No wallet
+	# credit is visible/spendable before its receipt and payload commit.
+	if game.web_lifecycle!=null:game.web_lifecycle.cancel_pending()
+	_credit_hold=true;_credit_base_coins=game.model.coins
+	_held_paused=game.paused;_held_input=game.is_processing_input();_held_unhandled=game.is_processing_unhandled_input()
+	var viewport=game.get_viewport();_held_viewport=weakref(viewport);_held_gui_disabled=viewport.gui_disable_input
+	game.paused=true;game.set_process_input(false);game.set_process_unhandled_input(false);viewport.gui_disable_input=true
+
+func _release_credit_hold():
+	if not _credit_hold:return
+	_credit_hold=false
+	var viewport=_held_viewport.get_ref() if _held_viewport!=null else null
+	if is_instance_valid(viewport):viewport.gui_disable_input=_held_gui_disabled
+	if game!=null:
+		game.paused=_held_paused;game.set_process_input(_held_input);game.set_process_unhandled_input(_held_unhandled)
+	_held_viewport=null
+
+func stop():
+	_release_credit_hold();ready=false
+
+func _on_commit(arguments:Array):
+	_release_credit_hold()
+	if game==null or not game.is_inside_tree():return
+	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	pending=false
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		game.progress_unsaved=true;queued=false
+		var reason=str(result.get("error","Browser save failed")) if result is Dictionary else "Invalid browser save acknowledgement"
+		var code=str(result.get("code","")) if result is Dictionary else ""
+		if code in ["REVISION_CONFLICT","CORRUPT_AUTHORITY","NOT_READY"]:
+			ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+			game.startup_notice="Unsaved changes · "+reason
+		game.progress_save_error=reason
+		game._notify("Unsaved changes · "+reason)
+		return
+	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not bool(result.get("durable",false)):
+		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
+		game.progress_save_error="Invalid browser save revision; reload to recover"
+		game.startup_notice="Unsaved changes · "+game.progress_save_error
+		game._notify("Unsaved changes · "+game.progress_save_error);return
+	var credit=result.get("creditedCoins",0)
+	if not (credit is int or credit is float) or not is_finite(float(credit)) or floor(float(credit))!=float(credit) or int(credit)!=_credit_expected or int(credit)<0 or int(credit)>1000000000:
+		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
+		game.progress_save_error="Invalid compensation acknowledgement; reload to recover"
+		game.startup_notice="Unsaved changes · "+game.progress_save_error;game._notify(game.startup_notice);return
+	if int(credit)>0:
+		if game.model.coins!=_credit_base_coins or game.model.coins>1000000000-int(credit):
+			ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
+			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
+			game.startup_notice=game.progress_save_error;game._notify(game.startup_notice);return
+		game.model.coins+=int(credit)
+		_credit_notice="%s coins of compensation added"%str(int(credit));_overflow_notice_shown=false
+		game._update_ui()
+	_credit_expected=0
+	revision=int(result.revision)
+	if queued or generation!=inflight_generation:
+		queued=false
+		# Never clear a newer edit's unsaved marker from an older completion.
+		game.call_deferred("_save");return
+	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Café progress saved"
+	if _credit_notice!="":
+		game._notify("Saved · "+_credit_notice);_credit_notice=""
+	elif not _overflow_notice_shown and not result.get("campaignDeferred",[]).is_empty():
+		_overflow_notice_shown=true;game._notify("Saved · Your full compensation is waiting until the wallet has room")
+	else:game._notify("Saved · Café progress is safely stored in this browser")
+	game._update_ui()

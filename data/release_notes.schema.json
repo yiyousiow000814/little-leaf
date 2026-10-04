@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Little Leaf Café offline release notes",
+  "description": "The release owner supplies the actual shipped version, date, and bullets before changing status to released. Pending data is never shown as a new release.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "status", "version", "date", "label", "new", "fixed"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["pending", "released"]},
+    "version": {"type": ["string", "null"]},
+    "date": {"type": ["string", "null"]},
+    "label": {"type": ["string", "null"]},
+    "new": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}},
+    "fixed": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "pending"}}},
+      "then": {
+        "properties": {
+          "version": {"type": "null"},
+          "date": {"type": "null"},
+          "label": {"type": "null"},
+          "new": {"maxItems": 0},
+          "fixed": {"maxItems": 0}
+        }
+      },
+      "else": {
+        "properties": {
+          "version": {"type": "string", "minLength": 1, "pattern": "^(?![Pp][Ee][Nn][Dd][Ii][Nn][Gg]$)(?![Tt][Bb][Dd]$)(?![Uu][Nn][Kk][Nn][Oo][Ww][Nn]$)[^\\s\\r\\n](?:[^\\r\\n]*[^\\s\\r\\n])?$"},
+          "date": {"type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "label": {"type": "string"}
+        },
+        "anyOf": [
+          {"properties": {"new": {"minItems": 1}}},
+          {"properties": {"fixed": {"minItems": 1}}}
+        ]
+      }
+    }
+  ]
+}

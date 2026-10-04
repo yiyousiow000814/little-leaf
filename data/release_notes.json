@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "status": "released",
+  "version": "0.1.5-dev.1",
+  "date": "2026-10-03",
+  "label": "Layout, controls and saves",
+  "new": [
+    "Closer zoom and clearer controls in portrait and landscape.",
+    "Existing browser cafés receive 1,000 coins once after a successful updated save."
+  ],
+  "fixed": [
+    "Move occupied furniture without losing service progress; Show locates blocked station access.",
+    "People pass one another. Browser saves confirm success, retain errors and preserve preferences."
+  ]
+}

@@ -1,0 +1,236 @@
+{
+  "schema_version": 2,
+  "project": "Little Leaf Cafe / 小叶食堂",
+  "asset_category": "game_music",
+  "backup_category": "Games/LittleLeaf",
+  "restored_at_utc": "2026-10-01T00:44:40.652784+00:00",
+  "restoration": {
+    "method": "Existing latest Library MP3s copied without transcoding or audio modification",
+    "content_recreated": false,
+    "original_editable_composition_sources_recovered": false,
+    "generated_new_music": false,
+    "release": "1.1, as stated in embedded MP3 comments",
+    "release_history": [
+      {
+        "date": "2026-09-30",
+        "event": "Three restaurant tracks delivered for daily service, busy service and decorating."
+      },
+      {
+        "date": "2026-09-30",
+        "event": "Opening articulation revision 1.1. Embedded tags state only two first-bar note velocities changed. Historical production report records reduced velocities and PCM unchanged after 4.8 seconds; the pre-revision PCM was not available to repeat that comparison during restoration."
+      },
+      {
+        "date": "2026-10-01",
+        "event": "Restored the three Library MP3s into the reconstructed Godot R2 project. Original bytes, titles, tags, IDs and Library version metadata preserved; SHA-256 and decode checked."
+      }
+    ]
+  },
+  "integration": {
+    "tempo_bpm_from_embedded_tags": 100,
+    "nominal_loop_seconds_from_embedded_tags": 76.8,
+    "loop_duration_note": "ffprobe reports 76.824 seconds including MP3 framing. Decoded PCM is 76.8 seconds. Do not trim or re-encode the recovered originals to force the container duration.",
+    "placement_note": "Keep this directory inside the Games/LittleLeaf project/version backup; these are game assets, not independent Music-category products."
+  },
+  "rights": {
+    "assessment_date": "2026-10-03",
+    "conclusion": {
+      "public_noncommercial_game_soundtrack": "supported_by_identified_supplier_licence",
+      "commercial_game_soundtrack": "supported_by_identified_supplier_licence",
+      "qualification": "GeneralUser GS supplier permission is documented. Its stated uncertainty about some historical sample origins remains. This is not an independent ownership or non-infringement guarantee.",
+      "express_fee_or_attribution_condition_for_rendered_music_found": false,
+      "user_input_needed_for_this_provenance_check": false
+    },
+    "production": {
+      "composer": "Original music created by the assistant for Little Leaf Cafe",
+      "composition_source_relative_path": "little-leaf-audio/source/compose_cafe.py",
+      "mastering_source_relative_path": "little-leaf-audio/source/master_and_verify.py",
+      "method": "Locally authored note and arrangement events, rendered with a sampled-instrument SoundFont; no generative-music service was used in the reported production.",
+      "render_engine": {
+        "name": "FluidSynth",
+        "version": "2.4.4",
+        "library": "libfluidsynth.so.3",
+        "interface": "Python ctypes"
+      },
+      "soundfont": {
+        "name": "GeneralUser GS",
+        "version": "2.0.3",
+        "license_version": "2.0",
+        "creator": "S. Christian Collins",
+        "production_relative_path": "little-leaf-audio/assets/GeneralUser-GS.sf2",
+        "historical_copy_source_relative_path": "cinematic_score_v3/assets/GeneralUser-GS.sf2",
+        "original_file_recovered": false,
+        "historical_sha256": null,
+        "historical_sha256_status": "unverified; no checksum substituted from another project or fresh download"
+      },
+      "tempo_bpm": 100,
+      "bars": 32,
+      "beats": 128,
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "bitrate_bps": 320000,
+      "decoded_frames": 3686400,
+      "decoded_duration_seconds": 76.8,
+      "container_duration_seconds": 76.824,
+      "encoding": "FFmpeg/libmp3lame with Xing header",
+      "presets": [
+        {
+          "stem": "01_nylon_melody",
+          "bank": 0,
+          "program": 24,
+          "preset": "Nylon Guitar"
+        },
+        {
+          "stem": "02_clarinet_answer",
+          "bank": 0,
+          "program": 71,
+          "preset": "Clarinet"
+        },
+        {
+          "stem": "03_nylon_comp",
+          "bank": 0,
+          "program": 24,
+          "preset": "Nylon Guitar"
+        },
+        {
+          "stem": "04_upright_bass",
+          "bank": 0,
+          "program": 32,
+          "preset": "Acoustic Bass"
+        },
+        {
+          "stem": "05_vibraphone_colour",
+          "bank": 0,
+          "program": 11,
+          "preset": "Vibraphone"
+        },
+        {
+          "stem": "06_brush_kit",
+          "bank": 128,
+          "program": 40,
+          "preset": "Brush"
+        },
+        {
+          "stem": "07_hand_percussion",
+          "bank": 128,
+          "program": 0,
+          "preset": "Standard 1"
+        }
+      ],
+      "preset_numbering": "Zero-based SoundFont bank/program values; quiet variant has no hand-percussion notes.",
+      "other_audio_inputs": "None in these BGM recordings according to the executed source record. All seven stems use the same GeneralUser GS file; no imported song, melody, loop, second sample bank, or external impulse response.",
+      "effects": "NumPy/SciPy filtering and circular delays of the rendered signal; release-tail wrapping, static mixing and master gain.",
+      "sfx_scope": "Separate procedural game foley from make_sfx.py was not mixed into these BGM recordings and is not audited here.",
+      "release_1_1": "Two first-bar note-velocity reductions; later content retained according to the historical production report. This addendum does not reperform the old PCM comparison."
+    },
+    "licence_summary": {
+      "recorded_music_permission": "Private and commercial music creation and profit from recordings are permitted by the supplier licence.",
+      "attribution": "No express attribution requirement for rendered music was found in the supplied licence; optional credit may name GeneralUser GS and S. Christian Collins.",
+      "website_condition": "When featuring GeneralUser GS on a website, link to the creator website rather than directly to its download files, or host a permitted local copy. This addendum does not distribute the bank.",
+      "creator_url": "https://schristiancollins.com/generaluser.php",
+      "residual_caveat": "The creator states that some sample sources cannot be established with complete certainty. The licence therefore does not provide independent proof of every underlying sample origin."
+    },
+    "limitations": [
+      "The original composition directory, MIDI, stems and original SoundFont bytes have not been recovered.",
+      "The exact historical SoundFont checksum is unverified.",
+      "This addendum distinguishes reported historical execution evidence from independently repeated current file-hash and official-licence checks.",
+      "The soundfont supplier's sample-origin caveat remains; no legal guarantee or blanket whole-game clearance is made."
+    ],
+    "addendum": "MUSIC_PROVENANCE_ADDENDUM.json",
+    "historical_recovery_record": "RECOVERY_PROVENANCE_20261001.json",
+    "scope": "Current music provenance assessment only; no audio-byte or whole-game publication approval change."
+  },
+  "qa_limits": [
+    "Full decode and metadata checks passed; no perceptual listening test was performed in this recovery.",
+    "No pre-revision PCM source was recovered for a fresh after-4.8-seconds byte comparison.",
+    "No Godot playback, crossfade or loop-seam listening test was performed by the asset-recovery step."
+  ],
+  "tracks": [
+    {
+      "role": "daily_service",
+      "file_name": "小叶食堂_门口的阳光_日常营业.mp3",
+      "resource_path": "res://assets/audio/小叶食堂_门口的阳光_日常营业.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "sha256": "09fe06367c3d936edecf8c6fd859675c719d3e71e9893089567807178b8282e5",
+      "size_bytes": 3074203,
+      "codec": "mp3",
+      "channels": 2,
+      "sample_rate_hz": 48000,
+      "codec_bitrate_bps": 320000,
+      "ffprobe_container_duration_seconds": 76.824,
+      "decoded_pcm_sample_frames": 3686400,
+      "decoded_pcm_duration_seconds": 76.8,
+      "embedded_tags": {
+        "title": "小叶食堂 · 门口的阳光",
+        "artist": "Original score for Little Leaf Cafe",
+        "album": "小叶食堂",
+        "comment": "Opening articulation revision 1.1. Only two first-bar note velocities changed. 100 BPM, 76.8-second loop.",
+        "encoder": "Lavf61.7.103"
+      },
+      "validation": {
+        "full_ffmpeg_decode": "passed",
+        "decode_errors": "",
+        "library_identity_xattrs_verified": true
+      }
+    },
+    {
+      "role": "busy_service",
+      "file_name": "小叶食堂_午市轻快步_忙碌营业.mp3",
+      "resource_path": "res://assets/audio/小叶食堂_午市轻快步_忙碌营业.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "sha256": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
+      "size_bytes": 3074203,
+      "codec": "mp3",
+      "channels": 2,
+      "sample_rate_hz": 48000,
+      "codec_bitrate_bps": 320000,
+      "ffprobe_container_duration_seconds": 76.824,
+      "decoded_pcm_sample_frames": 3686400,
+      "decoded_pcm_duration_seconds": 76.8,
+      "embedded_tags": {
+        "title": "小叶食堂 · 午市轻快步",
+        "artist": "Original score for Little Leaf Cafe",
+        "album": "小叶食堂",
+        "comment": "Opening articulation revision 1.1. Only two first-bar note velocities changed. 100 BPM, 76.8-second loop.",
+        "encoder": "Lavf61.7.103"
+      },
+      "validation": {
+        "full_ffmpeg_decode": "passed",
+        "decode_errors": "",
+        "library_identity_xattrs_verified": true
+      }
+    },
+    {
+      "role": "decorating",
+      "file_name": "小叶食堂_桌边的叶影_安静布置.mp3",
+      "resource_path": "res://assets/audio/小叶食堂_桌边的叶影_安静布置.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "sha256": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
+      "size_bytes": 3074203,
+      "codec": "mp3",
+      "channels": 2,
+      "sample_rate_hz": 48000,
+      "codec_bitrate_bps": 320000,
+      "ffprobe_container_duration_seconds": 76.824,
+      "decoded_pcm_sample_frames": 3686400,
+      "decoded_pcm_duration_seconds": 76.8,
+      "embedded_tags": {
+        "title": "小叶食堂 · 桌边的叶影",
+        "artist": "Original score for Little Leaf Cafe",
+        "album": "小叶食堂",
+        "comment": "Opening articulation revision 1.1. Only two first-bar note velocities changed. 100 BPM, 76.8-second loop.",
+        "encoder": "Lavf61.7.103"
+      },
+      "validation": {
+        "full_ffmpeg_decode": "passed",
+        "decode_errors": "",
+        "library_identity_xattrs_verified": true
+      }
+    }
+  ]
+}

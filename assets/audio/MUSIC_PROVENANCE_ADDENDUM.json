@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "title": "Little Leaf music provenance and licence addendum",
+  "issued_at_utc": "2026-10-03T10:13:00Z",
+  "revision": 1,
+  "scope": "The three unchanged Little Leaf Cafe release 1.1 MP3 recordings listed below; this is not a blanket clearance of the whole game or other music.",
+  "conclusion": {
+    "public_noncommercial_game_soundtrack": "supported_by_identified_supplier_licence",
+    "commercial_game_soundtrack": "supported_by_identified_supplier_licence",
+    "qualification": "GeneralUser GS supplier permission is documented. Its stated uncertainty about some historical sample origins remains. This is not an independent ownership or non-infringement guarantee.",
+    "express_fee_or_attribution_condition_for_rendered_music_found": false,
+    "user_input_needed_for_this_provenance_check": false
+  },
+  "checked_package": {
+    "file_name": "LittleLeaf_0.1.1-dev.1_Private_UX_Complete_Editable.zip",
+    "library_file_id": "[private reference omitted]",
+    "source_file_id": "[private reference omitted]",
+    "library_version": 0,
+    "size_bytes": 16819082,
+    "sha256": "5c112ec9be830275ffae0a626c4c0c5f2e372585d3b680fb168f7c8cbafd3733",
+    "audio_contents": "Only the three MP3 recordings; no SoundFont, MIDI, or FluidSynth shared library is included."
+  },
+  "production": {
+    "composer": "Original music created by the assistant for Little Leaf Cafe",
+    "composition_source_relative_path": "little-leaf-audio/source/compose_cafe.py",
+    "mastering_source_relative_path": "little-leaf-audio/source/master_and_verify.py",
+    "method": "Locally authored note and arrangement events, rendered with a sampled-instrument SoundFont; no generative-music service was used in the reported production.",
+    "render_engine": {
+      "name": "FluidSynth",
+      "version": "2.4.4",
+      "library": "libfluidsynth.so.3",
+      "interface": "Python ctypes"
+    },
+    "soundfont": {
+      "name": "GeneralUser GS",
+      "version": "2.0.3",
+      "license_version": "2.0",
+      "creator": "S. Christian Collins",
+      "production_relative_path": "little-leaf-audio/assets/GeneralUser-GS.sf2",
+      "historical_copy_source_relative_path": "cinematic_score_v3/assets/GeneralUser-GS.sf2",
+      "original_file_recovered": false,
+      "historical_sha256": null,
+      "historical_sha256_status": "unverified; no checksum substituted from another project or fresh download"
+    },
+    "tempo_bpm": 100,
+    "bars": 32,
+    "beats": 128,
+    "sample_rate_hz": 48000,
+    "channels": 2,
+    "bitrate_bps": 320000,
+    "decoded_frames": 3686400,
+    "decoded_duration_seconds": 76.8,
+    "container_duration_seconds": 76.824,
+    "encoding": "FFmpeg/libmp3lame with Xing header",
+    "presets": [
+      {
+        "stem": "01_nylon_melody",
+        "bank": 0,
+        "program": 24,
+        "preset": "Nylon Guitar"
+      },
+      {
+        "stem": "02_clarinet_answer",
+        "bank": 0,
+        "program": 71,
+        "preset": "Clarinet"
+      },
+      {
+        "stem": "03_nylon_comp",
+        "bank": 0,
+        "program": 24,
+        "preset": "Nylon Guitar"
+      },
+      {
+        "stem": "04_upright_bass",
+        "bank": 0,
+        "program": 32,
+        "preset": "Acoustic Bass"
+      },
+      {
+        "stem": "05_vibraphone_colour",
+        "bank": 0,
+        "program": 11,
+        "preset": "Vibraphone"
+      },
+      {
+        "stem": "06_brush_kit",
+        "bank": 128,
+        "program": 40,
+        "preset": "Brush"
+      },
+      {
+        "stem": "07_hand_percussion",
+        "bank": 128,
+        "program": 0,
+        "preset": "Standard 1"
+      }
+    ],
+    "preset_numbering": "Zero-based SoundFont bank/program values; quiet variant has no hand-percussion notes.",
+    "other_audio_inputs": "None in these BGM recordings according to the executed source record. All seven stems use the same GeneralUser GS file; no imported song, melody, loop, second sample bank, or external impulse response.",
+    "effects": "NumPy/SciPy filtering and circular delays of the rendered signal; release-tail wrapping, static mixing and master gain.",
+    "sfx_scope": "Separate procedural game foley from make_sfx.py was not mixed into these BGM recordings and is not audited here.",
+    "release_1_1": "Two first-bar note-velocity reductions; later content retained according to the historical production report. This addendum does not reperform the old PCM comparison."
+  },
+  "evidence": [
+    {
+      "type": "production_execution_record",
+      "event_time_utc": "2026-09-30T09:29:33Z",
+      "verification": "Original composer re-read the original executed command/source outputs on 2026-10-03 and supplied exact excerpts. Current auditor did not re-run the missing composition sources.",
+      "finding": "Copied the GeneralUser GS bank and its licence from cinematic_score_v3; loaded that bank with fluid_synth_sfload and enumerated the six used presets successfully."
+    },
+    {
+      "type": "licence_execution_record",
+      "event_time_utc": "2026-09-30T09:28:23Z",
+      "verification": "Original composer reports the full contemporaneous licence read in the executed production record.",
+      "finding": "GeneralUser GS v2.0.3 / Licence v2.0, matching the official text independently retrieved for this addendum."
+    },
+    {
+      "type": "historical_export_hash_record",
+      "event_time_utc": "2026-09-30T09:58:47Z",
+      "record_name": "replacement-guards.json",
+      "verification": "The original composer supplied the exact three SHA-256 values from the recorded executed output.",
+      "finding": "All three values match the independently hashed MP3 bytes inside the checked 0.1.1 editable archive."
+    },
+    {
+      "type": "current_archive_hash_check",
+      "event_date_utc": "2026-10-03",
+      "verification": "Independently hashed the current archive and each embedded MP3; matched the Library build receipt and historical track values."
+    },
+    {
+      "type": "official_licence",
+      "checked_date_utc": "2026-10-03",
+      "url": "https://github.com/mrbumpy409/GeneralUser-GS/blob/main/documentation/LICENSE.txt",
+      "raw_url": "https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/refs/heads/main/documentation/LICENSE.txt",
+      "saved_file": "GeneralUser-GS-LICENSE.txt",
+      "size_bytes": 2317,
+      "sha256": "7b32efefdf95ce38a043799f0659853ddc00fbaa14d8c50f0aca16b9b8b405be",
+      "note": "A current copy fetched from the official creator repository, not the missing historical local licence file."
+    }
+  ],
+  "licence_summary": {
+    "recorded_music_permission": "Private and commercial music creation and profit from recordings are permitted by the supplier licence.",
+    "attribution": "No express attribution requirement for rendered music was found in the supplied licence; optional credit may name GeneralUser GS and S. Christian Collins.",
+    "website_condition": "When featuring GeneralUser GS on a website, link to the creator website rather than directly to its download files, or host a permitted local copy. This addendum does not distribute the bank.",
+    "creator_url": "https://schristiancollins.com/generaluser.php",
+    "residual_caveat": "The creator states that some sample sources cannot be established with complete certainty. The licence therefore does not provide independent proof of every underlying sample origin."
+  },
+  "limitations": [
+    "The original composition directory, MIDI, stems and original SoundFont bytes have not been recovered.",
+    "The exact historical SoundFont checksum is unverified.",
+    "This addendum distinguishes reported historical execution evidence from independently repeated current file-hash and official-licence checks.",
+    "The soundfont supplier's sample-origin caveat remains; no legal guarantee or blanket whole-game clearance is made."
+  ],
+  "preservation": {
+    "music_bytes_changed": false,
+    "historical_archives_changed": false,
+    "apply_to": "New release candidates only, after verifying the three exact MP3 hashes. Preserve historical archive bytes and historical recovery records.",
+    "supersedes": "The former missing-provider/missing-licence assessment for these exact three tracks; it does not erase the historical fact that their source files were missing during the October 1 recovery."
+  },
+  "tracks": [
+    {
+      "role": "daily_service",
+      "file_name": "小叶食堂_门口的阳光_日常营业.mp3",
+      "project_relative_path": "assets/audio/小叶食堂_门口的阳光_日常营业.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "music_release": "1.1",
+      "size_bytes": 3074203,
+      "sha256": "09fe06367c3d936edecf8c6fd859675c719d3e71e9893089567807178b8282e5",
+      "matches_historical_export_record": true
+    },
+    {
+      "role": "busy_service",
+      "file_name": "小叶食堂_午市轻快步_忙碌营业.mp3",
+      "project_relative_path": "assets/audio/小叶食堂_午市轻快步_忙碌营业.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "music_release": "1.1",
+      "size_bytes": 3074203,
+      "sha256": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
+      "matches_historical_export_record": true
+    },
+    {
+      "role": "decorating",
+      "file_name": "小叶食堂_桌边的叶影_安静布置.mp3",
+      "project_relative_path": "assets/audio/小叶食堂_桌边的叶影_安静布置.mp3",
+      "library_file_id": "[private reference omitted]",
+      "source_file_id": "[private reference omitted]",
+      "library_version": 1,
+      "music_release": "1.1",
+      "size_bytes": 3074203,
+      "sha256": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
+      "matches_historical_export_record": true
+    }
+  ],
+  "production_factual_review": {
+    "completed_at_utc": "2026-10-03T10:12:24Z",
+    "reviewer": "Original composer",
+    "basis": "Re-read original executed production record",
+    "result": "No corrections within the reviewed production-facts scope",
+    "receipt": "PRODUCTION_REVIEW_RECEIPT.json"
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "wallet": {
+    "original": "hud-faithful-assets/wallet.png",
+    "bounds": [
+      0,
+      0,
+      1989,
+      790
+    ],
+    "runtime_size": [
+      1024,
+      407
+    ]
+  },
+  "decorate": {
+    "original": "hud-faithful-assets/decorate.generated-original.png",
+    "bounds": [
+      113,
+      118,
+      1181,
+      1030
+    ],
+    "runtime_size": [
+      320,
+      273
+    ]
+  },
+  "staff": {
+    "original": "hud-faithful-assets/staff.png",
+    "bounds": [
+      87,
+      59,
+      1054,
+      1343
+    ],
+    "runtime_size": [
+      241,
+      320
+    ]
+  },
+  "settings": {
+    "original": "hud-faithful-assets/settings.png",
+    "bounds": [
+      64,
+      150,
+      1271,
+      1008
+    ],
+    "runtime_size": [
+      320,
+      227
+    ]
+  },
+  "shop_frame": {
+    "original": "generated_images/exec-b9101491-7a20-4976-9508-a461d07ac693.png",
+    "bounds": [
+      33,
+      67,
+      2042,
+      686
+    ],
+    "runtime_size": [
+      1024,
+      316
+    ]
+  },
+  "cream_face": {
+    "original": "generated_images/exec-61db7216-2981-4114-ae4f-560db9b5048f.png",
+    "bounds": [
+      118,
+      127,
+      1135,
+      1114
+    ],
+    "runtime_size": [
+      320,
+      311
+    ]
+  }
+}

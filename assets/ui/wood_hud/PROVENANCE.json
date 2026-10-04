@@ -1,0 +1,37 @@
+{
+  "selected_concept": {
+    "library_file_id": "[private reference omitted]",
+    "local_path": "[private reference omitted]"
+  },
+  "revision": "Camera controls moved to lower-right; source design retained. This asset set contains no baked gameplay text.",
+  "generated_assets": [
+    "rail.png",
+    "wallet.png",
+    "sign.png",
+    "decorate.png",
+    "staff.png",
+    "settings.png"
+  ],
+  "generation": "Built-in OpenAI image generation, original project assets; transparent originals unchanged. AtlasTexture regions select meaningful alpha bounds at render time.",
+  "font": {
+    "name": "Nunito variable",
+    "license": "SIL OFL 1.1",
+    "source": "https://github.com/google/fonts/tree/main/ofl/nunito"
+  },
+  "icons": {
+    "name": "Tabler Icons",
+    "license": "MIT",
+    "source": "https://github.com/tabler/tabler-icons",
+    "files": [
+      "player-pause.svg",
+      "player-play.svg",
+      "minus.svg",
+      "plus.svg",
+      "maximize.svg"
+    ],
+    "rendering": "Original SVG geometry; currentColor set to brown at runtime."
+  },
+  "no_external_paid_generation": true,
+  "export_contract": "HUD PNGs, Tabler SVGs and Nunito have importer=\"keep\" .import metadata. Their original bytes must be preserved in exports for runtime alpha bounds, memory-sized texture creation and font loading. Do not discard these .import files.",
+  "export_reference": "https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/import_process.html"
+}
