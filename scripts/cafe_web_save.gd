@@ -16,6 +16,8 @@ var generation=0
 var inflight_generation=0
 var _callback
 var startup_error=""
+var retrying=false
+var _retry_callback
 var _credit_hold=false
 var _held_paused=false
 var _held_input=false
@@ -44,32 +46,67 @@ func load_startup():
 	var result=JSON.parse_string(str(api.bootJson))
 	if not result is Dictionary or not bool(result.get("ok",false)):
 		_block_startup(str(result.get("error","Browser save storage could not be opened")) if result is Dictionary else "Browser save startup did not finish");return
-	profile_id=str(result.profileId);revision=int(result.revision)
+	_accept_boot(result)
+
+func _accept_boot(result:Dictionary)->bool:
+	# Validate in isolation. A failed retry cannot replace the displayed model.
+	var candidate=game.Model.new()
 	var source=str(result.source)
+	var requires_repair=false
+	var notice=""
 	if source=="fresh":
-		game.fresh_start=true;MinimalStart.apply(game.model)
+		MinimalStart.apply(candidate)
 	else:
 		if not result.get("payload") is String or not _write_stage(str(result.payload)):
-			_block_startup("Could not prepare the saved café for validation");return
-		# Only legacy v13 may use the existing narrow trapped-staff import
-		# exception. Its write still cannot pass until the layout is repaired.
-		var requires_repair=false
-		if not game.model.load_save(STAGING_FILE):
-			if source!="legacy-v13" or not game.model.load_save(STAGING_FILE,true):
-				_block_startup(game.model.last_error);return
-			requires_repair=true;game.paused=true
-		game.startup_save_source="isolated-browser-authority" if source=="authority" else "read-only-v13-import"
-		if source=="legacy-v13":game.startup_notice="Previous café loaded read-only · Original progress is unchanged"
-		if requires_repair:game.startup_notice="Café paused for repair · Use Decorate to open a route for trapped staff, then save · Original progress is unchanged"
-		if game.model.included_bin_pending:
-			game.model.ensure_basic_bin()
-	ready=true
+			_block_startup("Could not prepare the saved café for validation");return false
+		# Preserve the existing narrow legacy import exception. A normal
+		# authority record must always pass strict save validation.
+		if not candidate.load_save(STAGING_FILE):
+			if source!="legacy-v13" or not candidate.load_save(STAGING_FILE,true):
+				_block_startup(candidate.last_error);return false
+			requires_repair=true
+		if source=="legacy-v13":notice="Previous café loaded read-only · Original progress is unchanged"
+		if requires_repair:notice="Café paused for repair · Use Decorate to open a route for trapped staff, then save · Original progress is unchanged"
+		if candidate.included_bin_pending:candidate.ensure_basic_bin()
+	game.model=candidate
+	game.fresh_start=source=="fresh"
+	game.startup_save_source="isolated-browser-authority" if source=="authority" else "read-only-v13-import" if source=="legacy-v13" else ""
+	game.startup_notice=notice
+	game.paused=requires_repair
+	game.save_writes_suppressed=false;game.save_recovery_blocked=false
+	startup_error="";ready=true
+	profile_id=str(result.profileId);revision=int(result.revision)
 	_callback=JavaScriptBridge.create_callback(_on_commit)
+	return true
+
+func retry_startup():
+	# A failed save of an already loaded café may have unsaved edits. Never
+	# reload those edits through the startup retry or bypass revision guards.
+	if retrying or startup_error=="" or pending:return
+	retrying=true
+	_retry_callback=JavaScriptBridge.create_callback(_on_retry)
+	var vault=JavaScriptBridge.get_interface("LittleLeafVault")
+	if vault==null:
+		retrying=false;game.compact_ui.show_help();return
+	vault.retry(_retry_callback)
+	game.compact_ui.show_help()
+
+func _on_retry(arguments:Array):
+	retrying=false
+	if game==null or not game.is_inside_tree():return
+	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		startup_error=str(result.get("error","Browser save storage could not be opened")) if result is Dictionary else "Invalid browser save response"
+		game.startup_notice="Saved café could not be opened · "+startup_error+" · Original progress is unchanged"
+		game.compact_ui.show_help();return
+	api=JavaScriptBridge.get_interface("__littleLeafVault")
+	if _accept_boot(result):game._resume_loaded_cafe()
+	else:game.compact_ui.show_help()
 
 func _block_startup(reason:String):
 	startup_error=reason;ready=false
 	game.save_writes_suppressed=true;game.save_recovery_blocked=true;game.paused=true
-	game.startup_notice="Saved café needs recovery · "+reason+" · Original progress is unchanged"
+	game.startup_notice="Saved café could not be opened · "+reason+" · Original progress is unchanged"
 	MinimalStart.apply(game.model)
 
 func request_save()->bool:
