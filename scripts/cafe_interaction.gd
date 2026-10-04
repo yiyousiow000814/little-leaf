@@ -1,4 +1,9 @@
 extends RefCounted
+const EditPlan=preload("res://scripts/cafe_edit_plan.gd")
+const FloorAvailability=preload("res://scripts/cafe_floor_availability.gd")
+var edit_plan=EditPlan.new()
+var floor_availability=FloorAvailability.new()
+var placement_receipt:Dictionary={}
 const Money=preload("res://scripts/cafe_money.gd")
 ## Transactional world input. Furniture positions and coins change only on a
 ## successful drag release (or new-item placement); previews never mutate
@@ -134,6 +139,7 @@ func refresh(screen: Vector2):
 	if preview_active and is_instance_valid(game.tool_text):game.tool_text.text=drag_reason
 
 func cancel(clear_selection = true):
+	edit_plan.invalidate()
 	if game.has_method("_dismiss_edit_feedback"):game._dismiss_edit_feedback()
 	_clear_gesture()
 	_middle_down = false
@@ -166,7 +172,9 @@ func rotate_selection():
 		if selected.is_empty(): cancel(); return
 		# R on a clicked selection retains the previous immediate rotation
 		# behavior, but R while dragging is purely a preview until release.
-		if game.model.move(int(selected.id), int(selected.x), int(selected.z), next, _staff_positions()):
+		var actors=_staff_positions()
+		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors)
+		if edit_plan.commit(game.model,receipt,actors,game._apply_edit_staff_positions):
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
@@ -307,10 +315,9 @@ func _update_validity(screen: Vector2):
 	if drag_item_id >= 0:
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
-	if not (game.model.can_move(drag_item_id,drag_cell.x,drag_cell.y,drag_rotation,_staff_positions()) if drag_item_id>=0 else game.model.can_place(drag_kind, drag_cell.x, drag_cell.y, drag_item_id, drag_rotation, _staff_positions())):
-		drag_reason = str(game.model.last_error); return
-	if drag_item_id < 0 and int(game.model.coins) < int(game.model.price_of(drag_kind)):
-		drag_reason = "Not enough coins · need %s" % Money.amount(int(game.model.price_of(drag_kind))); return
+	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
+	if not placement_receipt.ok:
+		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return
 	drag_valid = true
 	drag_reason = "Release to move" if drag_item_id >= 0 else ("Release to place" if drag_active else "Click or drag to place")
 	if game.model.has_method("placement_warning"):
@@ -330,7 +337,7 @@ func _commit_preview():
 		var current: Dictionary = game.model.get_item(drag_item_id)
 		if int(current.x) == drag_cell.x and int(current.z) == drag_cell.y and game.model.logical_rotation(drag_item_id) == drag_rotation:
 			return
-	var success: bool = game.model.move(drag_item_id, drag_cell.x, drag_cell.y, drag_rotation, _staff_positions()) if was_move else game.model.place(kind, drag_cell.x, drag_cell.y, drag_rotation, _staff_positions())
+	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions(),game._apply_edit_staff_positions)
 	if not success:
 		game._notify(str(game.model.last_error)); return
 	if was_move: game._cancel_selection()
@@ -421,3 +428,13 @@ func _staff_positions() -> Array[Vector2]:
 
 func _service_locked(id: int) -> bool:
 	return game.has_method("_item_service_locked") and bool(game._item_service_locked(id))
+
+func draw_floor_feedback(artist):
+	if not game.editing:return
+	for cell in floor_availability.refresh(game.model):
+		var blocked=bool(floor_availability.cells[cell].blocked)
+		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
+		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
+		var corners=[artist.iso(cell.x+.04,cell.y+.04),artist.iso(cell.x+.96,cell.y+.04),artist.iso(cell.x+.96,cell.y+.96),artist.iso(cell.x+.04,cell.y+.96)]
+		artist.poly(corners,fill)
+		for edge in 4:artist.line(corners[edge],corners[(edge+1)%4],outline,.8)

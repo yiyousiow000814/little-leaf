@@ -1,0 +1,53 @@
+[
+  {
+    "suite": "STARTER_GEOMETRY_RESULT",
+    "checks": 119,
+    "failures": []
+  },
+  {
+    "suite": "STARTUP_RETRY_RESULT",
+    "checks": 10,
+    "failures": []
+  },
+  {
+    "suite": "CANCEL_ICON_RESULT",
+    "checks": 35,
+    "failures": []
+  },
+  {
+    "suite": "SERVICE_NOTICE_RESULT",
+    "baseline": false,
+    "checks": 16,
+    "failures": []
+  },
+  {
+    "suite": "STARTER_DOOR_GRID_RESULT",
+    "checks": 358,
+    "failures": []
+  },
+  {
+    "suite": "FLOOR_AVAILABILITY_RESULT",
+    "background_builds": 2,
+    "checks": 50,
+    "failures": [],
+    "green": 91,
+    "red": 17,
+    "target_validations": 6
+  },
+  {
+    "suite": "FURNITURE_WORKER_EGRESS",
+    "checks": 121,
+    "failures": [],
+    "native_input_events": 3,
+    "scope": "isolated model and actual Main native mouse/key paths; no player save"
+  },
+  {
+    "suite": "STAFF_RELOCATION_SERVICE_RESULT",
+    "checks": 16,
+    "cleaned": 4,
+    "failures": [],
+    "payload": "plate",
+    "seconds": 288.933333333333,
+    "served": 4
+  }
+]
