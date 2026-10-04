@@ -388,7 +388,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		for cell in staff.path:
 			if not _cell(cell):return _fail("Invalid staff path cell")
 		if not JOB_LENGTHS.has(staff.get("job_kind")) or not _integer(staff.get("job_step"),0,int(JOB_LENGTHS[staff.job_kind])-1) or not _number(staff.get("job_elapsed"),0,3600):return _fail("Invalid saved work stage")
-		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink"],"cleaner":["","cleanup","floor"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
+		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink","cleanup"],"cleaner":["","cleanup","floor"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
 		if staff.has("table_face_id") and (not _integer(staff.table_face_id,-1,1000000000) or (int(staff.table_face_id)!=-1 and (not item_map.has(int(staff.table_face_id)) or item_map[int(staff.table_face_id)].kind!="table"))):return _fail("Invalid reserved table face")
 		if staff.has("table_face_cell") and not _cell(staff.table_face_cell):return _fail("Invalid table face cell")
 		if not _integer(staff.get("station_id"),-1,1000000000) or (int(staff.station_id)!=-1 and not item_map.has(int(staff.station_id))):return _fail("Missing saved work station")
@@ -431,6 +431,10 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		var cleanup_step_map=[0,2,6,1,3,4,5]
 		for staff in service.staff:
 			if staff.job_kind=="cleanup":staff.job_step=cleanup_step_map[int(staff.job_step)]
+	# Cleaner table stages remain readable solely for in-flight legacy work.
+	# Runtime preparation releases unstarted work without changing identities.
+	for staff in service.staff:
+		if staff.role=="waiter" and staff.job_kind=="cleanup" and int(staff.job_step)>=3:return _fail("Waiter cannot own floor cleanup")
 	if not service.staff.is_empty() and (int(roles.get("chef",0))!=cooks or int(roles.get("waiter",0))!=expected_waiters or int(roles.get("cleaner",0))!=expected_cleaners or int(roles.get("cashier",0))!=expected_cashiers):return _fail("Saved staff roles disagree with staffing")
 	if source_version>=10 and not service.staff.is_empty() and not duty.is_empty():
 		for role in duty_actual:

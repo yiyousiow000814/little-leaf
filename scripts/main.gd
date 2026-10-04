@@ -94,7 +94,7 @@ const SERVICE_STEPS = {
 	"deliver_drink": [{"kind":"beverage","action":"collecting_drink","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
 	"cleanup": [{"kind":"table","action":"collecting","seconds":.75},{"kind":"sink","action":"washing","seconds":1.5},{"kind":"table","action":"wiping","seconds":1.2},{"kind":"table","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"table","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"table","action":"mopping","seconds":1.5}]
 }
-const ROLE_JOBS={"chef":["cook"],"waiter":["order","deliver_meal","brew","deliver_drink"],"cleaner":["cleanup"],"cashier":["take_payment"]}
+const ROLE_JOBS={"chef":["cook"],"waiter":["order","deliver_meal","brew","deliver_drink","cleanup"],"cleaner":["cleanup"],"cashier":["take_payment"]}
 var idle_home_revision=-1
 var idle_home_count=-1
 
@@ -1132,30 +1132,47 @@ func _cleanup_step_needed(record:Dictionary,action:String,debris_kind="")->bool:
 		"mopping":return record.floor_spill and not record.spill_cleaned
 	return false
 
+func _cleanup_role_step(record:Dictionary,role:String)->int:
+	# Keep the save's seven stage indices: table 0–2, floor 3–6.
+	for candidate in (range(0,3) if role=="waiter" else range(3,7)):
+		var step=SERVICE_STEPS.cleanup[candidate]
+		if _cleanup_step_needed(record,str(step.action),step.get("debris_kind","")):return candidate
+	return SERVICE_STEPS.cleanup.size()
+
+func _sync_cleanup_completion(record:Dictionary):
+	# Either worker may finish first. Never erase the other role's work.
+	record.floor_cleaned=record.trash_owner in ["none","disposed"] and record.spill_cleaned
+	record.floor_dirty=not record.floor_cleaned
+	record.cleanup_done=record.dishes_collected and record.plate_owner=="clean" and record.drink_owner=="cleared" and record.table_wiped and record.floor_cleaned
+
 func _prepare_cleanup_step(staff:Dictionary,index:int):
 	if staff.job_kind!="cleanup" or not service_guests.has(int(staff.job_guest_id)):return
 	var record=service_guests[int(staff.job_guest_id)]
 	var current_action=str(SERVICE_STEPS.cleanup[mini(int(staff.job_step),SERVICE_STEPS.cleanup.size()-1)].action)
 	var held_dishes=record.plate_owner=="staff" and int(record.plate_staff_index)==index
 	var held_trash=record.trash_owner=="staff" and int(record.trash_staff_index)==index
-	var forced=-1
-	# Carrying is an exclusive commitment: finish the pickup gesture, then
-	# reach the matching destination before accepting table/floor tools.
-	if held_dishes and current_action not in ["collecting","washing"]:forced=1
-	elif held_trash and current_action not in ["sweeping","disposing_trash"]:forced=5
+	var elapsed=float(staff.job_elapsed)
 	var desired=int(staff.job_step)
-	if forced>=0:desired=forced
-	elif float(staff.job_elapsed)<=0.0:
-		desired=SERVICE_STEPS.cleanup.size()
-		for candidate in range(SERVICE_STEPS.cleanup.size()):
-			if _cleanup_step_needed(record,str(SERVICE_STEPS.cleanup[candidate].action),SERVICE_STEPS.cleanup[candidate].get("debris_kind","")):
-				desired=candidate;break
+	# Migration exception: an old cleaner finishes an already-started table
+	# gesture and physically carries/washes its dishes. No new table work is
+	# assigned to cleaners. Sink ownership also survives a mid-wash reload.
+	var legacy_table=staff.role=="cleaner" and int(staff.job_step)<3
+	if legacy_table and elapsed<=0.0 and not held_dishes and not (current_action=="washing" and record.plate_owner=="sink"):
+		_sync_cleanup_completion(record);_clear_service_job(staff);return
+	# Held objects always reach their real destination before another tool.
+	if held_dishes:
+		if current_action!="collecting" or elapsed<=0.0:desired=1
+	elif held_trash:
+		if current_action!="sweeping" or elapsed<=0.0:desired=5
+	elif legacy_table and (elapsed>0.0 or record.plate_owner=="sink"):
+		pass
+	elif elapsed<=0.0:
+		desired=_cleanup_role_step(record,str(staff.role))
 	if desired!=int(staff.job_step):
 		staff.job_step=desired;staff.job_elapsed=0.0;staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100)
 		staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if int(staff.job_step)>=SERVICE_STEPS.cleanup.size():
-		record.cleanup_done=true;record.floor_cleaned=true;record.floor_dirty=false
-		_clear_service_job(staff);return
+		_sync_cleanup_completion(record);_clear_service_job(staff);return
 	var step=SERVICE_STEPS.cleanup[int(staff.job_step)]
 	if step.kind=="table":staff.station_id=-1;return
 	if step.kind=="sink" and record.plate_owner=="sink":staff.station_id=int(record.plate_target_id)
@@ -1365,11 +1382,17 @@ func _assign_service_job(staff: Dictionary, index: int):
 			if kind=="brew" and (phase!="drinking" or record.drink_ready): continue
 			if kind=="deliver_meal" and (phase!="cooking" or not record.meal_ready or record.meal_done): continue
 			if kind=="deliver_drink" and (phase!="drinking" or not record.drink_ready or record.drink_done): continue
-			if kind=="cleanup" and (not _cleanup_ready(guest) or record.cleanup_done): continue
+			if kind=="cleanup" and (not _cleanup_ready(guest) or record.cleanup_done or _cleanup_role_step(record,str(staff.role))>=SERVICE_STEPS.cleanup.size()): continue
 			var assigned=false
 			for other in staff_states:
 				if int(other.job_guest_id)==int(guest.id) and int(other.job_token)==int(record.token): assigned=true;break
 			if assigned: continue
+			if kind=="cleanup":
+				# Floor work must not depend on a sink or a table-service face.
+				staff.job_kind=kind;staff.job_guest_id=int(guest.id);staff.job_token=int(record.token)
+				staff.job_step=_cleanup_role_step(record,str(staff.role));staff.job_elapsed=0.0;staff.station_id=-1
+				staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1);staff.yield_time=0.0
+				_prepare_cleanup_step(staff,index);return
 			var station={}
 			if kind=="take_payment":station=model.get_item(int(guest.checkout_register_id))
 			elif kind=="order": station=model.get_item(int(guest.table_id))
