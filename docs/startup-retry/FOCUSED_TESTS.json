@@ -1,0 +1,92 @@
+{
+  "synthetic_only": true,
+  "checks": [
+    {
+      "name": "Synthetic authority seeded durably",
+      "pass": true
+    },
+    {
+      "name": "Transient boot failure reproduced",
+      "pass": true
+    },
+    {
+      "name": "Old client retains failed boot after storage recovers",
+      "pass": true
+    },
+    {
+      "name": "Fresh-client retry opens existing authority",
+      "pass": true
+    },
+    {
+      "name": "Retry preserves loaded identity and revision",
+      "pass": true
+    },
+    {
+      "name": "Retry returns original synthetic wallet",
+      "pass": true
+    },
+    {
+      "name": "Retry leaves every existing authority record byte-identical",
+      "pass": true
+    },
+    {
+      "name": "Existing compare-and-swap ownership remains authoritative",
+      "pass": true
+    },
+    {
+      "name": "Retry rejects damaged authority",
+      "pass": true
+    },
+    {
+      "name": "Rejected retry cannot overwrite damaged records",
+      "pass": true
+    },
+    {
+      "name": "Engine fixture seeded",
+      "pass": true
+    },
+    {
+      "name": "Actual engine starts with protected loading failure",
+      "pass": true
+    },
+    {
+      "name": "Actual engine retry restores same authority",
+      "pass": true
+    },
+    {
+      "name": "Actual engine retry leaves stored bytes unchanged",
+      "pass": true
+    },
+    {
+      "name": "Actual furniture input changes the model",
+      "pass": true
+    },
+    {
+      "name": "Reload retains same identity and latest durable revision",
+      "pass": true
+    },
+    {
+      "name": "Reload agrees exactly with saved payload",
+      "pass": true
+    },
+    {
+      "name": "Actual engine has no browser or script errors",
+      "pass": true
+    }
+  ],
+  "engine": {
+    "same_profile": true,
+    "exact_payload_reload": true,
+    "coins": 42000,
+    "durable_revisions": [
+      2,
+      3
+    ]
+  },
+  "authority_before_retry_sha256": "6b97a7541c2ccded2e308d987cdc2d678b0759ff24bddd4f972e6f1e55a83da8",
+  "passed": true,
+  "native_startup_validation": {
+    "checks": 10,
+    "failures": []
+  }
+}

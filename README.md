@@ -2,7 +2,7 @@
 
 Editable Godot source for Little Leaf Cafe, baseline **0.1.5-dev.1**.
 
-This repository preserves the reviewed 0.1.5 baseline, including the category-arrow repair. It does **not** contain a fix for the reported shipped recovery issue. Recovery remediation and 0.1.6 work, including the welcome intro, require separate review and are absent from this baseline. Publishing this source repository does not deploy the game or change its itch.io visibility.
+This repository preserves the reviewed 0.1.5 baseline, including the category-arrow repair, and adds the separately scoped [browser startup retry](docs/startup-retry/README.md) and [starter wall/floor geometry](docs/starter-geometry/README.md) fixes. Retry addresses transient loading failures; the actual reported player failure remains unknown. Geometry completes the starter west wall and fills only missing, unmarked legacy starter-row tiles. Other 0.1.6 work, including the welcome intro, requires separate review. Publishing this source repository does not deploy the game or change its itch.io visibility.
 
 ## Run
 
@@ -20,7 +20,7 @@ The baseline tag is `0.1.5-dev.1`. Restore into a new directory to preserve any 
 git clone --branch 0.1.5-dev.1 https://github.com/yiyousiow000814/little-leaf.git little-leaf-baseline
 ```
 
-`SOURCE_MANIFEST.json` records SHA-256 values for all 203 original production files and the published counterparts. Eight provenance/prompt documents have private Library references and absolute workspace paths redacted for public publication; their original checksums are retained. All other production files, including executable source, images, fonts, music and license text, are byte-identical to the frozen baseline. No saves, tokens, QA archives, evidence captures or generated export binaries are included.
+`SOURCE_MANIFEST.json` records SHA-256 values for all 203 original production files and the published counterparts. Eight provenance/prompt documents have private Library references and absolute workspace paths redacted for public publication; their original checksums are retained. At that baseline tag, all other production files, including executable source, images, fonts, music and license text, are byte-identical to the frozen baseline. The scoped fixes add focused synthetic tests and sanitized evidence captures. No real player saves, tokens, QA archives or generated export binaries are included.
 
 ## Assets and licenses
 

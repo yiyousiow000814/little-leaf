@@ -52,6 +52,7 @@ var catalog_scroll:ScrollContainer
 var startup_save_source=""
 var fresh_start=false
 var startup_notice=""
+var _save_problem_shown=false
 var edit_button: Button
 var expand_button: Button
 var pause_button: Button
@@ -131,9 +132,7 @@ func _ready():
 	_build_ui()
 	_setup_music()
 	settings_controls.setup_audio()
-	model.meal_completed.connect(func(_customer_id,payment):
-		settings_controls.play_sfx("coin")
-		compact_ui.show_earnings(payment))
+	_connect_model_events()
 	_rebuild_room()
 	_rebuild_furniture()
 	illustration=Illustration.new()
@@ -158,6 +157,28 @@ func _ready():
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
+
+func _connect_model_events():
+	model.meal_completed.connect(func(_customer_id,payment):
+		settings_controls.play_sfx("coin")
+		compact_ui.show_earnings(payment))
+
+func _resume_loaded_cafe():
+	# Only called after startup retry has validated a complete saved model.
+	model.strict_workfaces=false
+	_connect_model_events()
+	_cancel_selection()
+	for staff in staff_states:staff.node.queue_free()
+	staff_states.clear();service_guests.clear()
+	floor_tasks=FloorTasks.new(self)
+	_rebuild_room();_rebuild_furniture();_restore_service_runtime()
+	var loaded_notice=startup_notice
+	_ensure_checkout_deployment()
+	startup_notice=loaded_notice
+	_save_problem_shown=false
+	compact_ui.help_panel.hide()
+	_update_ui();illustration.queue_redraw()
+	_notify(startup_notice if startup_notice!="" else "Saved café loaded. You can continue playing.")
 
 func _exit_tree():
 	if web_lifecycle!=null:web_lifecycle.stop()
@@ -674,7 +695,11 @@ func _service_warning() -> String:
 func _notify(words: String):
 	if settings_controls!=null and (words.begins_with("Placed") or words.begins_with("Furniture moved") or words.begins_with("Moved")): settings_controls.play_sfx("place")
 	status_text.text=compact_ui.short_reason(words) if compact_ui!=null else words
-	if compact_ui!=null:compact_ui.last_detail=words
+	if compact_ui!=null:
+		compact_ui.last_detail=words
+		if save_recovery_blocked and not _save_problem_shown:
+			_save_problem_shown=true
+			compact_ui.show_help()
 	toast_lifetime=3.0
 	status_text.show()
 func _dismiss_edit_feedback():
@@ -823,8 +848,6 @@ func _process(delta):
 	if compact_ui!=null:compact_ui.tick_earnings(delta)
 	toast_lifetime=maxf(0,toast_lifetime-delta)
 	status_text.visible=toast_lifetime>0
-	if save_recovery_blocked:
-		status_text.text=_recovery_notice();status_text.show()
 	if not editing and not paused and not save_recovery_blocked: _tick_live_service(delta*speed)
 	visual_timer+=delta
 	save_timer+=delta

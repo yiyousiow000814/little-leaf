@@ -1,0 +1,112 @@
+{
+  "scope": "Starter west-wall geometry and one-time missing legacy starter-floor migration only.",
+  "source": "Previously captured actual Godot Web engine comparison with synthetic fixtures, fixed camera and frozen time.",
+  "capture_viewport": {
+    "width": 1360,
+    "height": 880
+  },
+  "real_player_profiles_accessed": false,
+  "new_cloud_browser_capture": false,
+  "cases": [
+    {
+      "fixture": "new",
+      "build": "before",
+      "image": "new-before.png",
+      "image_sha256": "de73747ce34cdd5c8f4903e278bf4811dd1e4d2b1bd1218a8a62f823f02093ec",
+      "floor_tiles": 108,
+      "west_wall_end": "(0.0, 8.0)",
+      "coins": 1200,
+      "owned_parcels": [],
+      "custom_tile_3_8": "warm_oak",
+      "browser_errors": [],
+      "console_errors": []
+    },
+    {
+      "fixture": "new",
+      "build": "after",
+      "image": "new-after.png",
+      "image_sha256": "07e96f2723c40cc879e11c87460c7a6f3c08e33ffe9fc3dd93ee2b54c70751fb",
+      "floor_tiles": 108,
+      "west_wall_end": "(0.0, 9.0)",
+      "coins": 1200,
+      "owned_parcels": [],
+      "custom_tile_3_8": "warm_oak",
+      "browser_errors": [],
+      "console_errors": []
+    },
+    {
+      "fixture": "legacy",
+      "build": "before",
+      "image": "legacy-before.png",
+      "image_sha256": "bf0c3582cceb2b2b7e6af9ca8e269136a3fa66e861a2add74864e31309b6b836",
+      "floor_tiles": 97,
+      "west_wall_end": "(0.0, 8.0)",
+      "coins": 1200,
+      "owned_parcels": [],
+      "custom_tile_3_8": "sage_tile",
+      "browser_errors": [],
+      "console_errors": []
+    },
+    {
+      "fixture": "legacy",
+      "build": "after",
+      "image": "legacy-after.png",
+      "image_sha256": "c0eb4def4b7f556319837ae247de9575c1cc28c6c69c393b13e83e6462280cb9",
+      "floor_tiles": 108,
+      "west_wall_end": "(0.0, 9.0)",
+      "coins": 1200,
+      "owned_parcels": [],
+      "custom_tile_3_8": "sage_tile",
+      "browser_errors": [],
+      "console_errors": []
+    }
+  ],
+  "pixel_comparison": {
+    "new": {
+      "width": 1360,
+      "height": 880,
+      "changed_pixels": 6990,
+      "difference_bounds": [
+        194,
+        201,
+        298,
+        357
+      ],
+      "changed_hud_pixels": 0,
+      "caption": "\u5730\u677f 108 \u2192 108\uff1b\u897f\u5899 8 \u2192 9"
+    },
+    "legacy": {
+      "width": 1360,
+      "height": 880,
+      "changed_pixels": 25197,
+      "difference_bounds": [
+        194,
+        201,
+        721,
+        589
+      ],
+      "changed_hud_pixels": 0,
+      "caption": "\u5730\u677f 97 \u2192 108\uff1b\u897f\u5899 8 \u2192 9"
+    },
+    "viewer_controls_passed": true,
+    "passed": true
+  },
+  "current_cloud_native_validation": {
+    "engine": "4.6.3.stable.official.7d41c59c4",
+    "geometry_checks": 119,
+    "startup_retry_checks": 10,
+    "failures": [],
+    "synthetic_only": true,
+    "base_retry_commit": "de773097e843bbf724b34132096dab7960155ceb",
+    "fresh_disposable_project": true
+  },
+  "deployment": false,
+  "changed_source_sha256": {
+    "scripts/cafe_footprint.gd": "facc9940be92d9bb25788182f3c457e488c60f7ae445a3e138b2eb584c93b26b",
+    "scripts/cafe_model.gd": "32f190d19ccae207b7ab508aa00f30000dda417113de2ae05d8502f3448ee4d0",
+    "scripts/cafe_wall_openings.gd": "d1ca54bd77887cfa3fead31c4c9cd2502cbb6326ff66877ac647478f2aadbfe8",
+    "scripts/illustrated_ground.gd": "83517ca8b36bf3a361300773a8658878bd465b7af839a1813dafdbc0d2a42fc3",
+    "tests/test_starter_geometry.gd": "f417b2ae1e1ade4885d483cb8a34e3cbca32d7532a27277a068bb939d759583e",
+    "tests/run_starter_geometry_native.py": "a0cdc135e2fb0937f93b546065bf761d77ac1802954d0726d20e65b8bd86bdd0"
+  }
+}

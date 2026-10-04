@@ -1,0 +1,49 @@
+{
+  "scope": "Transient browser-save startup retry only; actual player failure remains unknown.",
+  "method": "Actual Godot Web engine in headless Chromium with fresh disposable contexts and synthetic native-v15 saves.",
+  "real_player_profile_accessed": false,
+  "synthetic_wallet": 42000,
+  "baseline_candidate_comparison": "Identical fixture and once-only storage denial in separate disposable contexts.",
+  "candidate_sequence": {
+    "initial_error": "SecurityError: synthetic once-only storage denial",
+    "retry_calls": 1,
+    "retry_revision": 1,
+    "stored_bytes_unchanged_until_normal_save": true,
+    "actual_mouse_furniture_move": true,
+    "durable_save_revisions": [
+      2,
+      3
+    ],
+    "same_profile_after_reload": true,
+    "exact_saved_payload_after_reload": true,
+    "reload_revision": 3,
+    "browser_errors": 0,
+    "script_errors": 0
+  },
+  "rejection_cases": [
+    {
+      "case": "ambiguous",
+      "retry_calls": 1,
+      "stored_bytes_unchanged": true
+    },
+    {
+      "case": "corrupt",
+      "retry_calls": 1,
+      "stored_bytes_unchanged": true
+    },
+    {
+      "case": "invalid-layout",
+      "retry_calls": 1,
+      "stored_bytes_unchanged": true
+    }
+  ],
+  "capture_sha256": {
+    "before.png": "caa802e980c9c67fe6a563c5d9dff673ff41de6e294b6033743d73c672c5c3b0",
+    "after.png": "c3594967e4b8f6deec29611a9d974721ae586eabd491dbccf00dadf0b8fabdf8"
+  },
+  "local_validation": {
+    "native_checks": 276,
+    "storage_boundary_checks": 24
+  },
+  "remote_ci": "Not run when this evidence was captured."
+}

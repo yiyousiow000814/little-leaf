@@ -5,6 +5,7 @@ extends RefCounted
 ## Pan transforms the retained vertices. Effective scale changes rebuild only
 ## stroke offsets, preserving the legacy width/feather behavior at every zoom.
 
+const Footprint=preload("res://scripts/cafe_footprint.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const AAStrokes=preload("res://scripts/retained_aa_strokes.gd")
 var use_stroke_mesh := true
@@ -59,7 +60,7 @@ func _quad(vertices: PackedVector2Array,colors: PackedColorArray,indices: Packed
 	for i in [0,1,2,0,2,3]:indices.append(start+i)
 
 func _owns(model,cell: Vector2i) -> bool:
-	return model.is_floor_owned(cell) if model.has_method("is_floor_owned") else cell.x>=0 and cell.x<12 and cell.y>=0 and cell.y<int(model.depth)
+	return model.is_floor_owned(cell) if model.has_method("is_floor_owned") else cell.x>=0 and cell.x<Footprint.WIDTH and cell.y>=0 and cell.y<int(model.depth)
 
 func prepare(model):
 	if pavement_mesh==null:_build_pavement()

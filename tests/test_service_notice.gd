@@ -68,6 +68,9 @@ func run():
   game.settings.hide();game.compact_ui.sync();await settle()
   check(not has_service_copy(game),"closing settings does not replay an expired notice")
   game.fresh_start=false
+  game._resume_loaded_cafe();await settle()
+  check(not buttons_contain(game.ui,"Got it"),"startup retry resume does not recreate removed starter card")
+  check(not has_service_copy(game),"startup retry resume does not show action-only guidance")
   game._toggle_edit();game._toggle_edit();await settle()
   check(has_service_copy(game),"loaded cafés receive guidance at the same action boundary")
   game.save_recovery_blocked=true;game.startup_notice="Recovery remains authoritative"

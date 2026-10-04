@@ -521,7 +521,7 @@ func _layout_unified_toolbar(width:float):
   action_captions[name].hide();action_art[name].position=Vector2(2,0)*scale;action_art[name].size=Vector2(40,44)*scale
  if game.editing:
   done_face.position=Vector2.ZERO;done_face.size=game.edit_button.size;action_art.decorate.position=Vector2(9,9)*scale;action_art.decorate.size=Vector2(26,26)*scale
-  cancel_face.position=Vector2.ZERO;cancel_face.size=edit_cancel.size;cancel_art.position=Vector2(10,10)*scale;cancel_art.size=Vector2(24,24)*scale
+  cancel_face.position=Vector2.ZERO;cancel_face.size=edit_cancel.size;cancel_art.position=Vector2(10,10)*scale;cancel_art.size=Vector2(24,24)*scale;cancel_art.pivot_offset=cancel_art.size/2
  layout_host.set_meta("unified_wrapped",wrapped)
  game.settings.offset_top=popup_top()
 func _wallet_amount(value:int,width:float,font_size:int)->String:
