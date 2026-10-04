@@ -1,5 +1,6 @@
 extends RefCounted
 ## Pure hosted-opening geometry. Attachments never become floor furniture.
+const Footprint=preload("res://scripts/cafe_footprint.gd")
 const WALL_HEIGHT=128.0
 const DOOR_TOP=97.0
 const WINDOW_BOTTOM=43.0
@@ -11,10 +12,10 @@ static func initial_attachments()->Array[Dictionary]:
 	return [{"id":1,"kind":"door","host_id":"shell:west","offset":5.5,"width":1.5,"paid_cost":0}]
 static func initial_shell_products(material="original")->Dictionary:
 	return {"shell:back":{"height":"full","material":material,"paid_cost":0},"shell:west":{"height":"full","material":material,"paid_cost":0}}
-static func shell_hosts(material="original")->Array[Dictionary]:
+static func shell_hosts(material="original",walls:Array=[])->Array[Dictionary]:
 	var products=material if material is Dictionary else initial_shell_products(material)
-	var result:Array[Dictionary]=[{"host_id":"shell:back","a":Vector2.ZERO,"b":Vector2(12,0),"axis":"x","normal":Vector2(0,-.26),"wall_ids":[],"shell":true},
-		{"host_id":"shell:west","a":Vector2.ZERO,"b":Vector2(0,8),"axis":"z","normal":Vector2(-.26,0),"wall_ids":[],"shell":true}]
+	var result:Array[Dictionary]=[{"host_id":"shell:back","a":Vector2.ZERO,"b":Vector2(Footprint.WIDTH,0),"axis":"x","normal":Vector2(0,-.26),"wall_ids":[],"shell":true},
+		{"host_id":"shell:west","a":Vector2.ZERO,"b":Vector2(0,Footprint.west_shell_depth(walls)),"axis":"z","normal":Vector2(-.26,0),"wall_ids":[],"shell":true}]
 	for host in result:
 		var product=products.get(host.host_id,{"height":"full","material":"original","paid_cost":0})
 		host.height=product.height;host.material=product.material;host.paid_cost=int(product.paid_cost)
@@ -23,7 +24,7 @@ static func wall_host(wall:Dictionary)->Dictionary:
 	var a=Vector2(float(wall.x),float(wall.z));var direction=Vector2.RIGHT if wall.axis=="x" else Vector2.DOWN
 	return {"host_id":"wall:%d"%int(wall.get("id",-1)),"a":a,"b":a+direction,"axis":wall.axis,"height":wall.height,"material":wall.material,"normal":Vector2.DOWN*.16 if wall.axis=="x" else Vector2.RIGHT*.16,"wall_ids":[int(wall.get("id",-1))],"shell":false}
 static func hosts(walls:Array,material="original")->Array[Dictionary]:
-	var result=shell_hosts(material)
+	var result=shell_hosts(material,walls)
 	for wall in walls:result.append(wall_host(wall))
 	return result
 static func resolve_host(ref:String,walls:Array,material="original")->Dictionary:
