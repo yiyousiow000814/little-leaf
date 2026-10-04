@@ -53,9 +53,6 @@ func sync_position():
  panel.custom_minimum_size=Vector2(width,height);panel.reset_size();panel.size=Vector2(width,height)
  height=panel.size.y # Container minima may exceed the font estimate after wrapping.
  var x=inset.x+(view.x-inset.x-inset.z-width)/2;var y=view.y-inset.w-height-16
- if compact.starter_hint.visible:
-  var starter=compact.starter_hint.get_global_rect()
-  if x<starter.end.x and x+width>starter.position.x:y=minf(y,starter.position.y-height-8)
  if game.tray.visible and compact.tray_reveal>0:
   y=minf(y,game.tray.position.y-height-8)
   # Selection actions sit above the catalogue. A notice must clear their
