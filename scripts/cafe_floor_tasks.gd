@@ -141,6 +141,17 @@ func contact(staff:Dictionary,index:int,action:String,target_item:Dictionary,pha
   if phase>=1:entry.spill_cleaned=true;entry.spill_remaining=0.0
 func complete_step(staff:Dictionary,index:int):
  staff.job_step+=1;staff.job_elapsed=0.0;prepare(staff,index)
+static func _walk_position_valid(walk:Dictionary,guest:Dictionary,codec)->bool:
+ if codec._point(walk.get("pos")) and codec._cell(walk.get("cell")):return true
+ # Only customer provenance can extend to the original street ends. The
+ # runtime codec validates this guest before passing it to this ledger.
+ # Require its exact current position and derived cell; staff/litter targets
+ # retain their ordinary bounds, and earned drop history stays untouched.
+ var pos=walk.get("pos");var cell=walk.get("cell")
+ if not codec._street_point(pos) or not cell is Vector2i or cell!=Vector2i(pos.floor()):return false
+ if guest.get("street_route_format")!="little_leaf.street_endpoints.v1":return false
+ if guest.get("phase")!="arriving" and not (guest.get("phase")=="leaving" and guest.get("withdrawn",false)):return false
+ return pos.distance_to(Vector2(float(guest.x),float(guest.z)))<.00001
 static func validate_snapshot(data,staff:Array,item_map:Dictionary,guests:Dictionary,codec)->Dictionary:
  if not data is Dictionary or not codec._integer(data.get("next_id"),1,1000000000) or not codec._integer(data.get("completed"),0,1000000000) or not data.get("messes") is Array or data.messes.size()>MAX_MESSES or not data.get("walks") is Array or data.walks.size()>60:return {"ok":false,"error":"Invalid independent floor task ledger"}
  var ids={};var cells={};var hands={}
@@ -170,6 +181,6 @@ static func validate_snapshot(data,staff:Array,item_map:Dictionary,guests:Dictio
   ids[int(entry.id)]=entry
  var walkers={}
  for walk in data.walks:
-  if not walk is Dictionary or not codec._integer(walk.get("guest_id"),1,1000000000) or walkers.has(int(walk.guest_id)) or not guests.has(int(walk.guest_id)) or not codec._point(walk.get("pos")) or not codec._cell(walk.get("cell")) or not codec._integer(walk.get("inside_steps"),0,1000000) or not walk.get("dropped") is bool:return {"ok":false,"error":"Invalid walking mess source"}
+  if not walk is Dictionary or not codec._integer(walk.get("guest_id"),1,1000000000) or walkers.has(int(walk.guest_id)) or not guests.has(int(walk.guest_id)) or not _walk_position_valid(walk,guests[int(walk.guest_id)],codec) or not codec._integer(walk.get("inside_steps"),0,1000000) or not walk.get("dropped") is bool:return {"ok":false,"error":"Invalid walking mess source"}
   walkers[int(walk.guest_id)]=true
  return {"ok":true,"records":ids}

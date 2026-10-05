@@ -66,6 +66,45 @@ func _integer(value,low:int,high:int)->bool:
 # small bounded margin beyond that edge (furthest current arrival x=19.76).
 func _point(value)->bool:
 	return value is Vector2 and value.is_finite() and value.x>=-6 and value.x<=24 and value.y>=-6 and value.y<=28
+func _street_point(value)->bool:
+	return value is Vector2 and value.is_finite() and absf(value.x+2.76)<.00001 and value.y>=-82.0 and value.y<=82.0
+func _street_path_valid(guest:Dictionary)->bool:
+	var has_marker=guest.has("street_route_format") or guest.has("street_origin_z")
+	if has_marker:
+		if guest.get("street_route_format")!="little_leaf.street_endpoints.v1" or not _number(guest.get("street_origin_z"),-82,82) or absf(float(guest.street_origin_z))!=82.0:return false
+	var extended_allowed=has_marker and (guest.phase=="arriving" or (guest.phase=="leaving" and bool(guest.get("withdrawn",false))))
+	for index in range(guest.route.size()):
+		var point=guest.route[index]
+		if _point(point):continue
+		if not has_marker or not _street_point(point) or signf(point.y)!=signf(float(guest.street_origin_z)):return false
+		if not extended_allowed and index>=int(guest.route_index):return false
+	# Rerouting may retain a consumed outer-lane waypoint after the guest is
+	# seated. Validate that history as one contiguous same-end approach; it
+	# grants no permission for an extended current or remaining service route.
+	if has_marker:
+		var history:Array=guest.route.duplicate()
+		if guest.phase=="leaving" and bool(guest.get("withdrawn",false)):history.reverse()
+		if not _street_prefix_valid(history,float(guest.street_origin_z)):return false
+	var points=[Vector2(float(guest.x),float(guest.z))]
+	points.append_array(guest.route.slice(int(guest.route_index)))
+	if not extended_allowed:
+		for point in points:
+			if not _point(point):return false
+		return true
+	# An arriving path has one outer prefix. A withdrawn path has the same
+	# single lane as its final suffix back to the original road end.
+	if guest.phase=="leaving":points.reverse()
+	return _street_prefix_valid(points,float(guest.street_origin_z))
+func _street_prefix_valid(points:Array,origin:float)->bool:
+	var entered_old_bounds=false
+	var previous_extended=false
+	for point in points:
+		if _point(point):
+			if previous_extended and absf(point.x+2.76)>.00001:return false
+			entered_old_bounds=true;previous_extended=false;continue
+		if entered_old_bounds or not _street_point(point) or signf(point.y)!=signf(origin):return false
+		previous_extended=true
+	return true
 func _cell(value,allow_none=false)->bool:
 	return value is Vector2i and ((allow_none and value==Vector2i(-100,-100)) or (value.x>=-6 and value.x<=24 and value.y>=-6 and value.y<=28))
 func _fail(reason:String)->Dictionary:
@@ -249,7 +288,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not _integer(guest.table_id,1,1000000000) or not _integer(guest.chair_id,1,1000000000):return _fail("Invalid guest furnishing identity")
 		if not item_map.has(int(guest.table_id)) or item_map[int(guest.table_id)].kind!="table" or not item_map.has(int(guest.chair_id)) or item_map[int(guest.chair_id)].kind not in ["chair","bench"]:return _fail("Guest references a missing table or seat")
 		if not guest.phase is String or not phases.has(guest.phase):return _fail("Invalid customer phase")
-		if not _number(guest.x,-6,24) or not _number(guest.z,-6,28) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
+		if not _number(guest.x,-6,24) or not _number(guest.z,-82,82) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
 		for key in ["paid","seated","waiting","exterior_exit","departure_blocked"]:
 			if not guest[key] is bool:return _fail("Invalid guest flag: "+key)
 		for key in ["admitted","withdrawn","exit_completed"]:
@@ -265,7 +304,8 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if not _cell(guest[key]):return _fail("Invalid guest cell field: "+key)
 		if not guest.route is Array or guest.route.size()>512 or not _integer(guest.route_index,0,guest.route.size()):return _fail("Invalid guest route index")
 		for point in guest.route:
-			if not _point(point):return _fail("Invalid saved route point")
+			if not _point(point) and not _street_point(point):return _fail("Invalid saved route point")
+		if not _street_path_valid(guest):return _fail("Invalid street endpoint route")
 		var egress_fields=0
 		for key in ["dismounting","egress_cell","dismount_progress"]:
 			if guest.has(key):egress_fields+=1

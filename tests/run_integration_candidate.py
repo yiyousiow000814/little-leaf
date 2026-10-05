@@ -18,6 +18,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_street_pedestrians", "STREET_PEDESTRIANS_RESULT"),
+    ("test_street_endpoints", "STREET_ENDPOINTS_RESULT"),
+    ("test_street_service_save", "STREET_SERVICE_SAVE_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),

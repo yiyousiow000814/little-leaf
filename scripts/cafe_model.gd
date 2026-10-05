@@ -79,6 +79,8 @@ const MAX_ARRIVING := 2
 const EXTERIOR_DOOR := Footprint.EXTERIOR_DOOR
 const ARRIVAL_LANE_X := -2.76
 const ARRIVAL_START_Z := 10.8
+const StreetExtent=preload("res://scripts/exterior_world_extent.gd")
+const STREET_ROUTE_FORMAT="little_leaf.street_endpoints.v1"
 const DIRECTIONS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 
 var catalog: Array[Dictionary] = [
@@ -253,7 +255,8 @@ func _withdraw_exterior_guest(guest:Dictionary):
 	if route.is_empty() and absf(position.x-ARRIVAL_LANE_X)>.001:route.append(Vector2(ARRIVAL_LANE_X,position.y))
 	# An arrival still on the first pavement segment simply keeps walking
 	# outward; do not turn a rear queued guest back into an exiting peer.
-	route.append(Vector2(ARRIVAL_LANE_X,maxf(ARRIVAL_START_Z+3.0,position.y+2.0)))
+	var destination=float(guest.street_origin_z) if guest.get("street_route_format","")==STREET_ROUTE_FORMAT else maxf(ARRIVAL_START_Z+3.0,position.y+2.0)
+	route.append(Vector2(ARRIVAL_LANE_X,destination))
 	guest.phase="leaving";guest.seated=false;guest.waiting=false
 	guest["withdrawn"]=true;guest["admitted"]=false;guest["exit_completed"]=false
 	guest.exterior_exit=true;guest.departure_blocked=false
@@ -1097,7 +1100,8 @@ func _spawn_customer() -> void:
 			"id": _next_customer_id, "table_id": pair.table_id, "chair_id": pair.chair_id,
 			"mobility":{}, "phase": "arriving", "elapsed": 0.0, "duration": _route_length(start, route) / WALK_SPEED,
 			"x": start.x, "z": start.y, "paid": false, "seated": false, "admitted": false, "withdrawn": false, "exit_completed": false,
-			"route": route, "route_index": 0, "heading": Vector2.UP,
+			"street_route_format":STREET_ROUTE_FORMAT,"street_origin_z":start.y,
+			"route": route, "route_index": 0, "heading": Vector2.DOWN if start.y<0.0 else Vector2.UP,
 			"service_cell": approach, "waiting": true, "exterior_exit": false,
 			"entry_cell": access.entry_cell, "entry_direction": access.entry_direction,
 			"entry_outside": access.entry_outside, "departure_blocked": false,
@@ -1242,10 +1246,9 @@ func cell_center(cell: Vector2i) -> Vector2:
 
 
 func _arrival_start_position() -> Vector2:
-	var z := maxf(ARRIVAL_START_Z,float(depth)+.8)
-	for customer in customers:
-		if customer.phase == "arriving" and float(customer.x) < 0.0:
-			z = maxf(z, float(customer.z) + 0.9)
+	# The original world's two pavement ends, independent of camera and land
+	# growth. The visit follows its real full route at the normal walking speed.
+	var z=float(StreetExtent.PAVEMENT_Z_MIN if _next_customer_id%2==0 else StreetExtent.PAVEMENT_Z_MAX)
 	return Vector2(ARRIVAL_LANE_X, z)
 
 
