@@ -57,6 +57,10 @@ var tile = Vector2(39,19.5)
 var origin = Vector2(630,260)
 var ink = Color("6d7859")
 var opacity = 1.0
+var _art_transform := Transform2D.IDENTITY
+var _stroke_to_raster := Transform2D.IDENTITY
+var _stroke_from_raster := Transform2D.IDENTITY
+var _stroke_raster_scale := 1.0
 var ui_scale = 1.0
 const PAVEMENT_EDGE = -3.26
 const PAVEMENT_ROW_WIDTH = 1.0
@@ -347,12 +351,68 @@ func col(c):
 	var color = Color(c) if c is String else c
 	color.a *= opacity
 	return color
+# Godot builds its antialias fringe in the submitted point coordinates. If
+# the draw transform magnifies those coordinates, the fringe magnifies too.
+# Submit strokes in raster coordinates at close zoom and during the 4x atlas bake;
+# authored centerlines, stroke widths, fill geometry and palette stay unchanged.
+func art_transform(offset:Vector2,rotation:float=0.0,scale:Vector2=Vector2.ONE):
+	_art_transform=Transform2D(rotation,scale,0.0,offset)
+	var outer=get_global_transform_with_canvas()
+	_stroke_to_raster=outer*_art_transform
+	_stroke_raster_scale=art_stroke_scale(_stroke_to_raster)
+	if is_zero_approx(outer.determinant()):
+		_stroke_from_raster=Transform2D.IDENTITY
+		_stroke_raster_scale=0.0
+	else:_stroke_from_raster=outer.affine_inverse()
+	draw_set_transform_matrix(_art_transform)
+
+static func art_stroke_scale(transform:Transform2D)->float:
+	var horizontal=transform.x.length()
+	var vertical=transform.y.length()
+	# One scalar width preserves circular strokes only for uniform scale.
+	# Keep the original renderer for a future stretched/sheared drawing.
+	if not is_equal_approx(horizontal,vertical) or horizontal<=.00001:return 0.0
+	if absf(transform.x.dot(transform.y))>horizontal*vertical*.00001:return 0.0
+	return horizontal
+
+func art_cache_covers(bounds:Rect2,bake_scale:float)->bool:
+	# Keep the bounded atlas for ordinary play and offscreen pieces. At the
+	# closest inspection zoom, draw only visible magnified pieces from their
+	# existing vector source instead of stretching a finite texture.
+	if _stroke_raster_scale<=bake_scale:return true
+	return not (_stroke_to_raster*bounds).intersects(get_viewport_rect())
+
+func art_polyline(points:PackedVector2Array,tint:Color,width:float):
+	var raster_scale=_stroke_raster_scale
+	if raster_scale<=1.0:
+		draw_polyline(points,tint,width,true)
+		return
+	draw_set_transform_matrix(_stroke_from_raster)
+	draw_polyline(_stroke_to_raster*points,tint,width*raster_scale,true)
+	draw_set_transform_matrix(_art_transform)
+
+func art_arc(center:Vector2,radius:float,start:float,end:float,count:int,tint:Color,width:float):
+	var points=PackedVector2Array()
+	for index in range(count):
+		var angle=lerpf(start,end,float(index)/float(count-1))
+		points.append(center+Vector2(cos(angle),sin(angle))*radius)
+	art_polyline(points,tint,width)
+
+func art_line(start:Vector2,finish:Vector2,tint:Color,width:float):
+	var raster_scale=_stroke_raster_scale
+	if raster_scale<=1.0:
+		draw_line(start,finish,tint,width,true)
+		return
+	draw_set_transform_matrix(_stroke_from_raster)
+	draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
+	draw_set_transform_matrix(_art_transform)
+
 func poly(points: Array,c):
 	var vertices=PackedVector2Array(points)
 	var tint=col(c)
 	draw_colored_polygon(vertices,tint)
 	vertices.append(vertices[0])
-	draw_polyline(vertices,tint,0.7,true)
+	art_polyline(vertices,tint,0.7)
 func rounded_poly(points: Array,r: float,c):
 	var smooth=[]
 	for i in range(points.size()):
@@ -365,20 +425,20 @@ func rounded_poly(points: Array,r: float,c):
 			var t=float(k)/5.0
 			smooth.append((1-t)*(1-t)*a+2*(1-t)*t*vertex+t*t*b)
 	poly(smooth,c)
-func line(a: Vector2,b: Vector2,c,width=1.0): draw_line(a,b,col(c),width,true)
+func line(a: Vector2,b: Vector2,c,width=1.0): art_line(a,b,col(c),width)
 func ellipse(p: Vector2,size: Vector2,c):
 	var points=_ellipse_vertices(p,size)
 	var tint=col(c)
 	draw_colored_polygon(points,tint)
 	points.append(points[0])
-	draw_polyline(points,tint,0.7,true)
+	art_polyline(points,tint,0.7)
 func outlined_ellipse(p: Vector2,size: Vector2,c,edge,width=1.0):
 	var points=_ellipse_vertices(p,size)
 	draw_colored_polygon(points,col(c))
 	points.append(points[0])
 	# The explicit border already supplies the antialiased silhouette. A
 	# second same-fill-color border underneath it was redundant draw work.
-	draw_polyline(points,col(edge),width,true)
+	art_polyline(points,col(edge),width)
 func iso(x: float,z: float,h=0.0) -> Vector2: return origin+Vector2((x-z)*tile.x,(x+z)*tile.y)-Vector2(0,h*ui_scale*zoom*(1.55 if is_instance_valid(game) and game.wall_detail else 1.0))
 func screen_to_world(p:Vector2)->Vector2:
 	var d=p-origin
@@ -390,9 +450,9 @@ func _draw():
 	render_contacts.clear()
 	if icon_kind!="":
 		ui_scale=1; tile=Vector2(39,19.5); origin=Vector2.ZERO
-		draw_set_transform(Vector2(49,57),0,Vector2(.80,.80))
+		art_transform(Vector2(49,57),0,Vector2(.80,.80))
 		item(icon_kind,Vector2.ZERO,icon_rotation,0)
-		draw_set_transform(Vector2.ZERO)
+		art_transform(Vector2.ZERO)
 		return
 	if not is_instance_valid(game): return
 	var size=get_viewport_rect().size
@@ -456,10 +516,10 @@ func _draw():
 		var heading=pose.heading if pose.blend>.02 else guest.get("heading",Vector2.ZERO)
 		var facing=character_facings.get("guest_%s"%guest.id,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
 		var face=float(facing.mirror)
-		draw_set_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		art_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(guest.id),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
-		draw_set_transform(Vector2.ZERO)
+		art_transform(Vector2.ZERO)
 	# Existing shell and player walls share the same aperture geometry.
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
@@ -534,7 +594,7 @@ func _draw():
 			var d=e.entry
 			var p=iso(d.x+.5,d.z+.5)
 			opacity=.63 if bool(d.get("preview",false)) else 1.0
-			draw_set_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+			art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 			if e.type=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
 			elif e.type=="stove_foreground":furniture_art.draw_stove_foreground(self,Vector2.ZERO,int(d.rot),int(d.id))
 			elif e.type=="chair_back":
@@ -546,7 +606,7 @@ func _draw():
 			if d.kind=="table" and show_service: _meal(d.id)
 			if d.kind=="sink" and show_service: _sink_dishes(d.id)
 			if d.kind=="counter" and show_service: _station_payloads(d.id,d.kind,int(d.rot))
-			draw_set_transform(Vector2.ZERO)
+			art_transform(Vector2.ZERO)
 			opacity=1.0
 		else:
 			var d=e.entry
@@ -580,7 +640,7 @@ func _draw():
 				pose["cooking_remaining"]=float(pose.cooking_elapsed)*(1.0-cooking_progress)/cooking_progress if cooking_progress>.000001 else -1.0
 			pose["hide_reach"]=bool(e.get("hide_reach",false))
 			pose["reach_overlay"]=bool(e.get("reach_overlay",false))
-			draw_set_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+			art_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 			var action=str(d.get("art_action","idle")) if e.type=="staff" else CheckoutArt.guest_action(d,game.service_guests.get(int(d.id),{}))
 			var progress=float(d.get("art_phase",0.0)) if e.type=="staff" else clampf(float(d.get("elapsed",0.0))/maxf(.01,float(d.get("duration",1.0))),0.0,1.0)
 			if e.type=="guest" and d.phase=="paying":progress=CheckoutArt.guest_progress(game,d)
@@ -632,9 +692,9 @@ func _draw():
 				anchor.x*=face
 				# Text stays upright when the actor faces left. Position and gap use
 				# the same local scale as the animal, including zoom/detail mode.
-				draw_set_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,"…" if e.type=="guest" else "!")
-			draw_set_transform(Vector2.ZERO)
+			art_transform(Vector2.ZERO)
 	_scenery_tree(Vector2(13.5,-.5),1.10)
 	_scenery_tree(Vector2(14.5,11.5),.78)
 	# Plot boards are editing affordances. Keep their ground anchors centered
@@ -669,13 +729,13 @@ func _grass(size: Vector2):
 	prepare_grass(size)
 	# Match the floor transform: a tuft stays on the same piece of land while
 	# panning, zooming and resizing. Road, pavement and finishes cover it later.
-	draw_set_transform(origin,0,Vector2.ONE*(tile.x/39.0))
+	art_transform(origin,0,Vector2.ONE*(tile.x/39.0))
 	if use_grass_mesh:
 		draw_mesh(grass_mesh,null)
 	else:
 		draw_multiline(_grass_left,col(Color(.44,.57,.30,.33)),.75,true)
 		draw_multiline(_grass_right,col(Color(.53,.64,.37,.30)),.70,true)
-	draw_set_transform(Vector2.ZERO)
+	art_transform(Vector2.ZERO)
 
 func prepare_grass(_size: Vector2):
 	if _grass_left.is_empty():
@@ -761,8 +821,9 @@ func _tree(p: Vector2,s: float):
 		# Godot flips negative widths in place; it does not move their origin.
 		# Supply the mirrored left edge while retaining the negative flip flag.
 		if destination.size.x<0:destination.position.x+=destination.size.x
-		draw_texture_rect_region(moving_atlas.texture,destination,moving_atlas.regions["tree"])
-		return
+		if absf(s)<=MovingAtlas.BAKE_SCALE or not destination.abs().intersects(get_viewport_rect()):
+			draw_texture_rect_region(moving_atlas.texture,destination,moving_atlas.regions["tree"])
+			return
 	_tree_crown_legacy(p,s,horizontal_scale)
 func _tree_crown_legacy(p:Vector2,s:float,horizontal_scale:float=1.0):
 	# Both the cached atlas and fallback share the same authored tree contours.
@@ -793,7 +854,7 @@ func _parcel_sign_point(parcel:Dictionary)->Vector2:
 func _parcel_sign(parcel):
 	var center=_parcel_sign_point(parcel)
 	var unit=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
-	draw_set_transform(center,0,Vector2.ONE*unit)
+	art_transform(center,0,Vector2.ONE*unit)
 	ellipse(Vector2(0,1),Vector2(13,4),Color(.32,.42,.24,.13))
 	line(Vector2(0,0),Vector2(0,-29),"a2885d",4)
 	rounded_poly([Vector2(-44,-57),Vector2(44,-57),Vector2(44,-19),Vector2(-44,-19)],3,"dfc795" if parcel.unlocked else "d4c6a7")
@@ -805,7 +866,7 @@ func _parcel_sign(parcel):
 		# Small geometry-only lock, avoiding emoji/font fallback or extra words.
 		poly([Vector2(32,-43),Vector2(39,-43),Vector2(39,-37),Vector2(32,-37)],"8b876b")
 		line(Vector2(33,-43),Vector2(33,-46),"8b876b",1.4);line(Vector2(33,-46),Vector2(38,-46),"8b876b",1.4);line(Vector2(38,-46),Vector2(38,-43),"8b876b",1.4)
-	draw_set_transform(Vector2.ZERO)
+	art_transform(Vector2.ZERO)
 func hit_parcel(screen:Vector2) -> String:
 	if not is_instance_valid(game) or not game.editing or not game.model.has_method("expansion_parcels"):return ""
 	update_projection()
@@ -874,7 +935,7 @@ func item(kind: String,p: Vector2,rot: int,id: int,variant:String=""):
 			outlined_ellipse(p+Vector2(0,-27),Vector2(18,9),"abc9be","6c978d",3)
 			ellipse(p+Vector2(0,-27),Vector2(13,6),"7da79c")
 			line(p+Vector2(5,-33),p+Vector2(5,-45),"d4e4cf",2.5)
-			draw_arc(p+Vector2(1,-45),4,PI,TAU,12,col("d4e4cf"),2.5,true)
+			art_arc(p+Vector2(1,-45),4,PI,TAU,12,col("d4e4cf"),2.5)
 			line(p+Vector2(-3,-45),p+Vector2(-3,-41),"d4e4cf",2.5)
 		"bin": _bin(p,rot,id)
 		"counter":
@@ -1042,7 +1103,7 @@ func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=
 func _round_limb(start:Vector2,finish:Vector2,color,width:float):
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():
 		var key=moving_atlas.limb_key(start.distance_to(finish),color,width)
-		if key!="":moving_atlas.draw_limb(self,key,start,finish);return
+		if key!="" and art_cache_covers(Rect2(start,Vector2.ZERO).expand(finish).grow(width),MovingAtlas.BAKE_SCALE):moving_atlas.draw_limb(self,key,start,finish);return
 	_round_limb_legacy(start,finish,color,width)
 
 func _round_limb_legacy(start:Vector2,finish:Vector2,color,width:float):
@@ -1052,7 +1113,7 @@ func _round_limb_legacy(start:Vector2,finish:Vector2,color,width:float):
 	ellipse(finish,Vector2.ONE*width*.5,color)
 
 func _rigid_part(key:String,p:Vector2)->bool:
-	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():moving_atlas.draw_part(self,key,p);return true
+	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready() and art_cache_covers(Rect2(p+moving_atlas.rectangles[key].position,moving_atlas.rectangles[key].size),MovingAtlas.BAKE_SCALE):moving_atlas.draw_part(self,key,p);return true
 	return false
 func _person_shadow(p:Vector2):
 	if not _rigid_part("shadow",p):_person_shadow_legacy(p)
@@ -1068,7 +1129,7 @@ func _fox_tail_legacy(body:Vector2,fur):
 func _body_shape(body:Vector2,shirt:String,seated:bool,fwd:Vector2,side:Vector2):
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():
 		var key=moving_atlas.body_key(shirt,seated,fwd,side)
-		if key!="":moving_atlas.draw_part(self,key,body);return
+		if key!="" and art_cache_covers(Rect2(body+moving_atlas.rectangles[key].position,moving_atlas.rectangles[key].size),MovingAtlas.BAKE_SCALE):moving_atlas.draw_part(self,key,body);return
 	_body_shape_legacy(body,shirt,seated,fwd,side)
 func _body_shape_legacy(body:Vector2,shirt:String,seated:bool,fwd:Vector2,side:Vector2):
 	if seated:
@@ -1086,7 +1147,7 @@ func _apron_legacy(body:Vector2):
 	rounded_poly([body+Vector2(-3,-19),body+Vector2(3,-19),body+Vector2(2.5,-15),body+Vector2(-2.5,-15)],1,"d5d8b9")
 
 func _draw_head(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):
-	if use_cached_heads and is_equal_approx(opacity,1.0) and head_atlas.is_ready():
+	if use_cached_heads and is_equal_approx(opacity,1.0) and head_atlas.is_ready() and art_cache_covers(Rect2(p+HeadAtlas.ART_RECT.position,HeadAtlas.ART_RECT.size),HeadAtlas.BAKE_SCALE):
 		head_atlas.draw_head(self,p,species,away,blink,chef_hat,blocked,view)
 	else:_draw_head_legacy(p,species,away,blink,chef_hat,blocked,view)
 
@@ -1285,7 +1346,7 @@ func _cup(bottom:Vector2,filled=true):
 		var surface=-.8-5.8*level;var wide=2.3+.7*level
 		rounded_poly([bottom+Vector2(-wide,surface),bottom+Vector2(wide,surface),bottom+Vector2(2.3,-.8),bottom+Vector2(-2.3,-.8)],.7,"e7bd68")
 		ellipse(bottom+Vector2(0,surface),Vector2(wide,1.1),"f3ce80")
-	draw_polyline(PackedVector2Array([bottom+Vector2(-3.7,-8.5),bottom+Vector2(-2.8,0),bottom+Vector2(2.8,0),bottom+Vector2(3.7,-8.5)]),col("a8b7a1"),.7,true)
+	art_polyline(PackedVector2Array([bottom+Vector2(-3.7,-8.5),bottom+Vector2(-2.8,0),bottom+Vector2(2.8,0),bottom+Vector2(3.7,-8.5)]),col("a8b7a1"),.7)
 	outlined_ellipse(bottom+Vector2(0,-9),Vector2(3.7,1.4),"d4ddc6","f4efd7",.8)
 	line(bottom+Vector2(-2.3,-7.4),bottom+Vector2(-1.8,-2.3),Color(1,1,.92,.6),.8)
 

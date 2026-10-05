@@ -162,7 +162,7 @@ static func draw(artist:Node2D,origin:Vector2,p:Dictionary,fur,shadow):
  var hand:Vector2=origin+p.hand;var tip:Vector2=origin+p.contact
  var arm:Vector2=p.arm_axis;var side=Vector2(-arm.y,arm.x)
  var axis:Vector2=p.axis;var across:Vector2=p.across
- artist.draw_polyline(PackedVector2Array([origin+p.shoulder,origin+p.elbow,origin+p.wrist]),artist.col(fur),3.7,true)
+ artist.art_polyline(PackedVector2Array([origin+p.shoulder,origin+p.elbow,origin+p.wrist]),artist.col(fur),3.7)
  artist.ellipse(origin+p.shoulder,Vector2.ONE*1.85,fur)
  artist.ellipse(origin+p.elbow,Vector2.ONE*1.85,fur)
  artist.rounded_poly([hand-arm*2.3-side*1.6,hand+arm*1.9-side*1.6,hand+arm*2.15+side*.8,hand+arm*.6+side*1.7,hand-arm*2.0+side*1.5],1.1,fur)

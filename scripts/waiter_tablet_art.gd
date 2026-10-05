@@ -105,7 +105,7 @@ static func _edge_wrist(shoulder:Vector2,surface:Vector2,frame:Transform2D)->Vec
 func _polygon(a,origin:Vector2,points:PackedVector2Array,tint,edge="",width=.6,transform=Transform2D.IDENTITY):
  var world:PackedVector2Array=Transform2D(0,origin)*transform*points
  a.draw_colored_polygon(world,a.col(tint))
- if edge!="":a.draw_polyline(world,a.col(edge),width,true)
+ if edge!="":a.art_polyline(world,a.col(edge),width)
 
 func draw_case(a,origin:Vector2):
  if not enabled:return

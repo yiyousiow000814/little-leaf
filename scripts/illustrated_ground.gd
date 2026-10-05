@@ -167,7 +167,7 @@ func prepare_floor_strokes(scale: float):
 
 func _begin(artist) -> float:
 	var scale: float=artist.tile.x/39.0
-	artist.draw_set_transform(artist.origin,0,Vector2.ONE*scale)
+	artist.art_transform(artist.origin,0,Vector2.ONE*scale)
 	return scale
 
 func draw_pavement(artist):
@@ -180,7 +180,7 @@ func draw_pavement(artist):
 		for i in range(2):
 			if not pavement_edges[i].is_empty():artist.draw_multiline(pavement_edges[i],PAVEMENT_COLORS[i],.7/scale,true)
 		artist.draw_multiline(pavement_grid,Color("c7cbae"),.7/scale,true)
-	artist.draw_set_transform(Vector2.ZERO)
+	artist.art_transform(Vector2.ZERO)
 
 func draw_floor(artist):
 	var scale := _begin(artist)
@@ -191,4 +191,4 @@ func draw_floor(artist):
 	else:
 		for batch in floor_strokes:
 			if not batch.lines.is_empty():artist.draw_multiline(batch.lines,batch.color,float(batch.width)/scale,true)
-	artist.draw_set_transform(Vector2.ZERO)
+	artist.art_transform(Vector2.ZERO)

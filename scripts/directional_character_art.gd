@@ -155,7 +155,7 @@ func leg(hip:Vector2,ankle:Vector2,color,width:float,seat_mix:float,axis:Vector2
  var points=PackedVector2Array()
  for index in range(9):
   var u=float(index)/8.0;points.append(origin+(1-u)*(1-u)*hip+2*(1-u)*u*middle+u*u*ankle)
- a.draw_polyline(points,a.col(color),width,true)
+ a.art_polyline(points,a.col(color),width)
  a.ellipse(origin+hip,Vector2.ONE*width*.5,color);a.ellipse(origin+ankle,Vector2.ONE*width*.5,color)
 
 func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,phase=0.0,staff=false,side_profile=false,settings:Dictionary={}):

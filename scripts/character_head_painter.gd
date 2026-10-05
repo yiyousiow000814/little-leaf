@@ -9,6 +9,6 @@ func _draw():
 	for entry in atlas.entries:
 		var region:Rect2=atlas.regions[atlas.key(entry.species,entry.away,entry.blink,entry.chef,entry.blocked,entry.view)]
 		var anchor:Vector2=region.position-atlas.ART_RECT.position*atlas.BAKE_SCALE
-		draw_set_transform(anchor,0,Vector2.ONE*atlas.BAKE_SCALE)
+		art_transform(anchor,0,Vector2.ONE*atlas.BAKE_SCALE)
 		_draw_head_legacy(Vector2.ZERO,entry.species,entry.away,entry.blink,entry.chef,entry.blocked,entry.view)
-	draw_set_transform(Vector2.ZERO)
+	art_transform(Vector2.ZERO)

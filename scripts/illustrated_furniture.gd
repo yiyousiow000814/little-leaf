@@ -23,10 +23,10 @@ var expanded_parts_enabled := true
 func prepare_cache(artist: Node2D):
 	if cache_enabled: static_atlas.request(artist)
 
-func _can_cache(artist: Node2D) -> bool:
+func _can_cache(artist: Node2D,p:Vector2=Vector2.ZERO) -> bool:
 	# A single faded composite is not equal to individually faded overlapping
 	# primitives. Keep the original .63-opacity drag preview exactly intact.
-	return cache_enabled and static_atlas.is_ready() and (not "opacity" in artist or is_equal_approx(float(artist.opacity),1.0))
+	return cache_enabled and static_atlas.is_ready() and (not "opacity" in artist or is_equal_approx(float(artist.opacity),1.0)) and artist.art_cache_covers(Rect2(p+Vector2(-40,-100),Vector2(80,140)),StaticAtlas.BAKE_SCALE)
 
 func _cached_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 	static_atlas.draw_part(artist,part,p,posmod(rotation,4))
@@ -37,7 +37,7 @@ func _cached_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 func try_draw_static(artist: Node2D,part: String,p: Vector2,rotation=0) -> bool:
 	if not expanded_parts_enabled or not part in StaticAtlas.PARTS:return false
 	prepare_cache(artist)
-	if not _can_cache(artist):return false
+	if not _can_cache(artist,p):return false
 	_cached_part(artist,part,p,rotation)
 	return true
 
@@ -58,7 +58,7 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 	var sequence := part_sequence(kind,rotation)
 	if sequence.is_empty(): return false
 	prepare_cache(artist)
-	if not _can_cache(artist): return _draw_item_legacy(artist,kind,p,rotation,id)
+	if not _can_cache(artist,p): return _draw_item_legacy(artist,kind,p,rotation,id)
 	a=artist;origin=p;turn=posmod(rotation,4)
 	for part in sequence:
 		if part=="heat":
@@ -178,7 +178,7 @@ func cup(x: float,z: float,h: float):
 	var c=point(x,z,h)
 	a.rounded_poly([c+Vector2(-3.5,-6),c+Vector2(3.5,-6),c+Vector2(2.5,0),c+Vector2(-2.5,0)],1,"fff1d2")
 	a.outlined_ellipse(c+Vector2(0,-6),Vector2(3.5,1.6),"b08c60","eee2bb",.6)
-	a.draw_arc(c+Vector2(3,-3.5),2.5,-PI/2,PI/2,10,a.col("eee2bb"),1.2,true)
+	a.art_arc(c+Vector2(3,-3.5),2.5,-PI/2,PI/2,10,a.col("eee2bb"),1.2)
 func espresso():
 	# Original countertop juice dispenser, recognisable reservoir, lid and tap.
 	# Kept as a part name for existing atlas compatibility; it is no espresso box.
@@ -204,7 +204,7 @@ func beverage_accessories():
 func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 	kitchen_height=true
 	prepare_cache(artist)
-	if _can_cache(artist):
+	if _can_cache(artist,p):
 		_cached_part(artist,"beverage_machine",p,rotation)
 		_cached_part(artist,"beverage_accessories",p,rotation)
 		return
@@ -245,7 +245,7 @@ func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
 	kitchen_height=true
 	prepare_cache(artist)
-	if _can_cache(artist):
+	if _can_cache(artist,p):
 		_cached_part(artist,"stove_pan",p,rotation)
 	else:
 		a=artist;origin=p;turn=posmod(rotation,4)
@@ -342,7 +342,7 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 
 func draw_bench_part(artist:Node2D,p:Vector2,rotation:int,back_only:bool):
 	prepare_cache(artist)
-	if _can_cache(artist):
+	if _can_cache(artist,p):
 		_cached_part(artist,"bench_back" if back_only else "bench_seat",p,rotation)
 		return
 	_draw_bench_part_legacy(artist,p,rotation,back_only)
