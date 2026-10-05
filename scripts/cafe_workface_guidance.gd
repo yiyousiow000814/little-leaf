@@ -26,6 +26,7 @@ static func blocked_station(owner)->Dictionary:
   var reason=str(staff.get("art_block_reason",staff.get("blocked_reason",""))).to_lower()
   if not reason.contains("blocked"):continue
   var item=owner.model.get_item(int(staff.get("blocked_target_id",-1)))
+  if not owner.editing and str(item.get("kind",""))=="stove":continue
   if not item.is_empty() and str(item.kind) in ["stove","beverage","sink","counter","bin","register"]:return item
  return {}
 static func describe(owner)->Array:
@@ -118,10 +119,14 @@ func _refresh_access():
    next=[failure.duplicate(true)];next_source="preview"
   elif i.drag_valid:
    var proposed=game.model.placement_access_issues(i.drag_kind,i.drag_cell.x,i.drag_cell.y,i.drag_item_id,i.drag_rotation)
-   for existing in game.model.layout_access_issues():
-    for remaining in proposed:
-     if int(existing.item_id)==int(remaining.item_id) and str(existing.side)==str(remaining.side):
-      next.append(existing);break
+   var existing_issues=game.model.layout_access_issues()
+   for issue in proposed:
+    var existing=false
+    for old in existing_issues:
+     if int(old.item_id)==int(issue.item_id) and str(old.side)==str(issue.side):existing=true;break
+    if existing or str(issue.kind)=="stove":
+     next.append(issue)
+     if not existing:next_source="preview"
   preview_issues=next.duplicate(true);preview_latched=true;preview_source=next_source
  elif over_ui and preview_latched:
   next=preview_issues.duplicate(true);next_source=preview_source
