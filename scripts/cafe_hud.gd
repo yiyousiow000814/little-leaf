@@ -12,6 +12,8 @@ var spacer:Control
 var wallet:Button
 var wallet_art:TextureRect
 var wallet_mobile_art:TextureRect
+var mobile_coin:TextureRect
+var mobile_surfaces={}
 var wallet_title:Label
 var wallet_box:Control
 var rail_art:Control
@@ -257,6 +259,7 @@ func setup():
  row.add_child(wallet);row.move_child(wallet,2);wallet.resized.connect(_queue_layout)
  wallet_art=_picture(wallet,_texture("wallet"))
  wallet_mobile_art=_picture(wallet,_texture("mobile_purse"))
+ mobile_coin=_picture(wallet,_texture("coin"));mobile_coin.hide()
  wallet_box=Control.new();wallet_box.mouse_filter=Control.MOUSE_FILTER_IGNORE;wallet.add_child(wallet_box)
  wallet_title=_label(wallet_box,"Coins",11)
  game.top_text.reparent(wallet_box);game.top_text.add_theme_font_override("font",font_bold);game.top_text.add_theme_color_override("font_color",INK)
@@ -288,6 +291,9 @@ func setup():
  layout_host=Control.new();layout_host.mouse_filter=Control.MOUSE_FILTER_IGNORE;game.ui.add_child(layout_host)
  for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:control.reparent(layout_host)
  layout_host.add_child(edit_cancel);edit_cancel.hide()
+ for button in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:
+  var surface=Panel.new();surface.mouse_filter=Control.MOUSE_FILTER_IGNORE;surface.show_behind_parent=true;surface.material=_art_material(2 if button==game.business_button else 1)
+  surface.add_theme_stylebox_override("panel",texture_style("green_face" if button==game.business_button else "cream_face",14));button.add_child(surface);button.move_child(surface,0);surface.hide();mobile_surfaces[button]=surface
  rail.hide()
  game.edit_button.pressed.connect(_after_edit_toggle)
  action_help=ActionHelp.new(self);action_help.setup([game.business_button,game.edit_button,edit_cancel,ui.staff_access,ui.settings_button,game.pause_button])
@@ -447,9 +453,10 @@ func cancel_edit_action():
  # Existing atomic actions are already committed; only the live selection/preview is discarded.
  _close_pending_edit_popovers();game._cancel_selection();ui.sync();game.illustration.queue_redraw()
 func popup_right()->float:
+ if layout_host.get_meta("mobile_layout",false):return game.get_viewport().get_visible_rect().size.x-_safe_insets().z-8
  var view=game.get_viewport().get_visible_rect().size;var insets=_safe_insets()
- var safe_right=view.x-insets.z-12
- if view.x<750 or rail_art==null:return safe_right
+ var safe_right=view.x-insets.z
+ if rail_art==null:return safe_right
  var source=_texture("rail").get_size();var cap=minf(rail_art.size.x*.22,rail_art.size.y*1.2)
  var painted_right=rail_art.get_global_rect().end.x-RAIL_WOOD_RIGHT_INSET*cap/(source.y*1.2)
  return minf(safe_right,painted_right+PANEL_WOOD_RIGHT_INSET)
@@ -480,6 +487,15 @@ func _settle_layout():
  sync(game.get_viewport().get_visible_rect().size.x)
 
 func _layout_unified_toolbar(width:float):
+ var safe=_safe_insets();var view=game.get_viewport().get_visible_rect().size
+ var mobile=width-safe.x-safe.z<700 or (view.y-safe.y-safe.w<500 and width<1000)
+ layout_host.set_meta("mobile_layout",mobile)
+ rail_art.visible=not mobile;mobile_coin.visible=mobile
+ for surface in mobile_surfaces.values():surface.visible=mobile
+ if mobile:
+  _layout_mobile_toolbar(width)
+  return
+ sign_art.show()
  # One control/art family on every device. Narrow views wrap the same real
  # buttons instead of turning Open into a different controls-menu action.
  var inset=_safe_insets();var usable=width-inset.x-inset.z
@@ -488,8 +504,8 @@ func _layout_unified_toolbar(width:float):
  # The portrait staff art and landscape gear keep their original proportions.
  var roomy=usable>=850.0
  var action_gap=18.0 if roomy else 8.0
- var group_gap=16.0 if roomy else 8.0
- var pair_gap=6.0 if roomy else 4.0
+ var group_gap=2.0 if usable<370.0 else (4.0 if not wrapped and usable<650.0 else (16.0 if roomy else 8.0))
+ var pair_gap=2.0 if usable<370.0 else (6.0 if roomy else 4.0)
  # Balance the wide sparse brush/bucket against the denser portrait silhouette.
  # Compact dimensions remain unchanged; all artwork keeps its native aspect.
  var decorate_width=48.0 if roomy else 40.0
@@ -499,24 +515,26 @@ func _layout_unified_toolbar(width:float):
  var edit_width=88.0+pair_gap if game.editing else decorate_size.x
  var action_width=edit_width+action_gap*2+staff_size.x+settings_size.x
  var max_action_width=88.0+pair_gap+action_gap*2+staff_size.x+settings_size.x
- var wallet_width=172.0;var sign_width=76.0;var gap=8.0 if usable>=750 else 4.0
+ var wallet_width=140.0;var sign_width=76.0;var gap=8.0 if usable>=750 else 4.0
  # The end cap and the clear gap after the gear are separate from its hit box.
- var end_padding=44.0 if roomy else 40.0
+ var end_padding=32.0 if not wrapped and usable<650.0 else (44.0 if roomy else 40.0)
  if not wrapped:
-  var identity_width=minf(380,usable-16-(136+group_gap+max_action_width+gap*2+end_padding))
+  var identity_limit=280.0 if game.get_viewport().get_visible_rect().size.y-inset.y-inset.w<600.0 else 380.0
+  var outer_margin=0.0 if usable<650.0 else 16.0
+  var identity_width=minf(identity_limit,usable-outer_margin-(136+group_gap+max_action_width+gap*2+end_padding))
   sign_width=maxf(76,identity_width*120.0/380.0)
   wallet_width=identity_width-sign_width
  var design_width=wallet_width+sign_width+gap*2+136+group_gap+action_width+end_padding
- var w=minf(430,usable-16) if wrapped else design_width
+ var w=minf(430,usable if usable<370.0 else usable-16) if wrapped else design_width
  var wallet_height=wallet_width*155.0/415.0*scale
- var h=126.0 if wrapped else maxf(56*scale,wallet_height)+8.0
+ var h=108.0 if wrapped else maxf(56*scale,wallet_height)+4.0
  layout_host.position=Vector2(inset.x+(usable-w)*.5,inset.y+2);layout_host.size=Vector2(w,h)
  rail_art.position=layout_host.position+Vector2(0,5);rail_art.size=Vector2(w,h-5);rail_art.queue_redraw()
  wallet_art.show();wallet_mobile_art.hide();wallet_title.show();ui.play_controls.show();ui.play_panel.hide()
  var wallet_x=(w-wallet_width-sign_width-12)*.5 if wrapped else 0.0
- var wallet_y=2.0;var sign_x=wallet_x+wallet_width+12 if wrapped else (wallet_width+gap)*scale
+ var wallet_y=0.0;var sign_x=wallet_x+wallet_width+12 if wrapped else (wallet_width+gap)*scale
  _place(wallet,Rect2(wallet_x,wallet_y,wallet_width*scale,wallet_height));wallet_art.position=Vector2.ZERO;wallet_art.size=wallet.size
- _place(game.business_button,Rect2(sign_x,4,sign_width*scale,(56 if wrapped else sign_width*0.7)*scale))
+ _place(game.business_button,Rect2(sign_x,0,sign_width*scale,(52 if wrapped else maxf(44,sign_width*0.7))*scale))
  sign_art.position=Vector2.ZERO;sign_art.size=game.business_button.size
  var sw=wallet.size.x/415.0
  wallet_box.position=Vector2(180*sw,32*sw);wallet_box.size=Vector2(163*sw,110*sw)
@@ -548,8 +566,8 @@ func _layout_unified_toolbar(width:float):
  if wrapped:
   var cap=minf(w*.22,rail_art.size.y*1.2)
   var wood_inset=RAIL_WOOD_RIGHT_INSET*cap/(_texture("rail").get_height()*1.2)
-  controls_x=minf(controls_x,w-wood_inset-12-controls_width)
- var controls_y=66.0 if wrapped else maxf(2,(h-56*scale)*.5)
+  controls_x=minf(controls_x,w-wood_inset-(8 if usable<370.0 else 12)-controls_width)
+ var controls_y=52.0 if wrapped else maxf(2,(h-56*scale)*.5)
  _layout_unified_play_controls(scale)
  _place(ui.play_controls,Rect2(controls_x,controls_y,136,56))
  var center_y=controls_y+28
@@ -570,6 +588,59 @@ func _layout_unified_toolbar(width:float):
   cancel_face.position=Vector2.ZERO;cancel_face.size=edit_cancel.size;cancel_art.position=Vector2(10,10)*scale;cancel_art.size=Vector2(24,24)*scale;cancel_art.pivot_offset=cancel_art.size/2
  layout_host.set_meta("unified_wrapped",wrapped)
  game.settings.offset_top=popup_top()
+func _layout_mobile_toolbar(width:float):
+ # Phone UI is composed from small painted controls, not a squeezed shop sign.
+ # Status and tools have distinct groups; every live action retains a 44px target.
+ var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<550
+ var w=usable-16;var h=92.0 if wrapped else 44.0
+ layout_host.position=Vector2(inset.x+8,inset.y+6);layout_host.size=Vector2(w,h)
+ layout_host.set_meta("unified_wrapped",wrapped)
+ wallet_art.hide();wallet_mobile_art.hide();wallet_title.hide();sign_art.hide()
+ ui.play_controls.show();ui.play_panel.hide();ui.business_action.hide();ui.business_state.show()
+ _place(wallet,Rect2(0,0,106,44))
+ mobile_coin.position=Vector2(7,8);mobile_coin.size=Vector2(28,28)
+ wallet_box.position=Vector2(38,0);wallet_box.size=Vector2(62,44)
+ game.top_text.position=Vector2.ZERO;game.top_text.size=wallet_box.size;_font(game.top_text,18)
+ game.top_text.text=_wallet_amount(game.model.coins,62,18)
+ var exact=ui.Money.amount(game.model.coins)+" Leaf Coins";var compact=game.top_text.text!=ui.Money.amount(game.model.coins)
+ game.top_text.tooltip_text=exact;wallet.tooltip_text=exact;wallet.accessibility_name=exact
+ wallet.accessibility_description="Tap or click to show the full balance" if compact else ""
+ wallet.focus_mode=Control.FOCUS_ALL if compact else Control.FOCUS_NONE
+ wallet.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND if compact else Control.CURSOR_ARROW
+ _place(game.business_button,Rect2(112,0,80,44))
+ ui.business_state.position=Vector2(3,0);ui.business_state.size=Vector2(74,44);_font(ui.business_state,12 if game.save_recovery_blocked else 14)
+ ui.business_state.text="RECOVERY" if game.save_recovery_blocked else game.model.operating_status().to_upper()
+ game.business_button.accessibility_name="Close café admissions" if game.model.operating_open else "Reopen café admissions"
+ game.business_button.accessibility_description="Current guests can finish" if game.model.operating_open else "Welcome new guests"
+ game.business_button.tooltip_text=game.business_button.accessibility_name
+ var tool_y=48.0 if wrapped else 0.0
+ _layout_unified_play_controls(1.0,true)
+ _place(ui.play_controls,Rect2(0 if wrapped else 198,tool_y,136,44))
+ var action_width=44.0;var gap=6.0
+ var action_count=(2 if wrapped else 3)+(1 if game.editing else 0)
+ var action_x=w-action_count*action_width-(action_count-1)*gap
+ _place(game.edit_button,Rect2(action_x,tool_y,44,44))
+ _mobile_action_art(game.edit_button,"decorate")
+ var staff_x=action_x+action_width+gap
+ if game.editing:
+  _place(edit_cancel,Rect2(action_x+50,tool_y,44,44));staff_x+=50
+  done_face.position=Vector2.ZERO;done_face.size=game.edit_button.size
+  action_art.decorate.position=Vector2(11,11);action_art.decorate.size=Vector2(22,22)
+  cancel_face.position=Vector2.ZERO;cancel_face.size=edit_cancel.size;cancel_art.position=Vector2(11,11);cancel_art.size=Vector2(22,22);cancel_art.pivot_offset=cancel_art.size/2
+ _place(ui.staff_access,Rect2(staff_x,tool_y,44,44));_mobile_action_art(ui.staff_access,"staff")
+ _place(ui.settings_button,Rect2(w-44,0,44,44));_mobile_action_art(ui.settings_button,"settings")
+ for button in mobile_surfaces:
+  var surface:Panel=mobile_surfaces[button];surface.position=Vector2.ZERO;surface.size=button.size
+ mobile_surfaces[game.business_button].modulate=Color.WHITE if game.model.operating_open else Color(.81,.77,.68)
+ mobile_surfaces[game.edit_button].visible=not game.editing
+ edit_cancel.visible=game.editing
+ game.settings.offset_top=popup_top()
+func _mobile_action_art(button:Button,name:String):
+ var art:TextureRect=action_art[name];var texture_size=art.texture.get_size()
+ var extent=Vector2(30,32) if name=="staff" else Vector2(32,32)
+ var fitted=texture_size*minf(extent.x/texture_size.x,extent.y/texture_size.y)
+ art.position=(button.size-fitted)*.5;art.size=fitted;action_captions[name].hide()
+
 func _place_action_art(button:Button,name:String,paint_origin:Vector2,paint_size:Vector2):
  # One optical centerline and one edge-to-edge gap, with independent 44px targets.
  var target=Vector2(maxf(44,paint_size.x+4),maxf(44,paint_size.y))
@@ -592,12 +663,14 @@ func _wallet_amount(value:int,width:float,font_size:int)->String:
     text=prefix+str(floori(magnitude/unit[0]))+unit[1]
    return text
  return exact
-func _layout_unified_play_controls(s:float):
+func _layout_unified_play_controls(s:float,mobile:bool=false):
+ var top=0.0 if mobile else 6.0
+ var target_height=44.0 if mobile else 56.0
  ui.play_controls.add_theme_constant_override("separation",roundi(4*s));ui.play_controls.alignment=BoxContainer.ALIGNMENT_BEGIN
- game.pause_button.custom_minimum_size=Vector2(44,56)*s
- pause_face.position=Vector2(0,6)*s;pause_face.size=Vector2(44,44)*s;pause_art.position=Vector2(12,18)*s;pause_art.size=Vector2(20,20)*s;pause_caption.hide()
- speed_capsule.custom_minimum_size=Vector2(88,56)*s
- var next=Rect2(Vector2(0,6)*s,Vector2(88,44)*s);var changed=not speed_geometry.is_equal_approx(next)
+ game.pause_button.custom_minimum_size=Vector2(44,target_height)*s
+ pause_face.position=Vector2(0,top)*s;pause_face.size=Vector2(44,44)*s;pause_art.position=Vector2(12,top+12)*s;pause_art.size=Vector2(20,20)*s;pause_caption.hide()
+ speed_capsule.custom_minimum_size=Vector2(88,target_height)*s
+ var next=Rect2(Vector2(0,top)*s,Vector2(88,44)*s);var changed=not speed_geometry.is_equal_approx(next)
  speed_geometry=next;speed_cell=44*s;speed_inset=3*s;speed_rail.position=next.position;speed_rail.size=next.size
  speed_thumb.size=Vector2(speed_cell-2*speed_inset,next.size.y-2*speed_inset)
  for index in range(game.settings_controls.speed_buttons.size()):
