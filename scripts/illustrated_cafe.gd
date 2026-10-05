@@ -1311,8 +1311,12 @@ func _chair(p: Vector2,r: int,back_only: bool,style:String="basic"):
 		line(a,b,"b89964",1)
 		return
 	ellipse(p+Vector2(0,1),Vector2(14,6),Color(.45,.39,.23,.06))
+	# Ground contacts belong to this chair-local transform, so a visual dining
+	# dock carries its feet and shadows together without changing the model cell.
 	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
-		line(_chair_point(p,d.x*1.1,d.y*1.1,1,r),_chair_point(p,d.x,d.y,17,r),"ad8c55",2.6)
+		ellipse(_chair_point(p,d.x*1.1,d.y*1.1,0,r),Vector2(2.2,1.1),Color(.45,.39,.23,.14))
+	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
+		line(_chair_point(p,d.x*1.1,d.y*1.1,0,r),_chair_point(p,d.x,d.y,17,r),"ad8c55",2.6)
 	var points=[]
 	for d in [Vector2(-.35,-.35),Vector2(.35,-.35),Vector2(.35,.35),Vector2(-.35,.35)]: points.append(_chair_point(p,d.x,d.y,18,r))
 	var lower=[]
