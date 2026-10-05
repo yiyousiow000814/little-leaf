@@ -55,6 +55,16 @@ static func depth_entries(opening:Dictionary)->Array[Dictionary]:
 	return [{"type":"opening_frame","depth":a.x+a.y+.015,"entry":opening,"part":"start"},
 		{"type":"opening_frame","depth":middle.x+middle.y+.02,"entry":opening,"part":"middle"},
 		{"type":"opening_frame","depth":b.x+b.y+.05,"entry":opening,"part":"end"}]
+static func visible_jamb_reveal(view,opening:Dictionary)->Array[PackedVector2Array]:
+	var host:Dictionary=opening.host;var a:Vector2=opening.a;var b:Vector2=opening.b
+	var low=float(opening.bottom);var high=float(opening.top)
+	var af=a+front(host);var bf=b+front(host);var ab=a+back(host)
+	var aperture=PackedVector2Array([view.iso(af.x,af.y,low),view.iso(bf.x,bf.y,low),view.iso(bf.x,bf.y,high),view.iso(af.x,af.y,high)])
+	var reveal=PackedVector2Array([view.iso(af.x,af.y,low),view.iso(ab.x,ab.y,low),view.iso(ab.x,ab.y,high),view.iso(af.x,af.y,high)])
+	# The back of the jamb projects above the front aperture. The solid lintel
+	# has already been drawn, so this later reveal must not repaint through it.
+	# Clip the visible face only; the wall/opening dimensions remain untouched.
+	return Geometry2D.intersect_polygons(reveal,aperture)
 static func casing(view,opening:Dictionary,part:String,alpha=1.0,tint=Color.WHITE):
 	var host:Dictionary=opening.host;var axis:Vector2=(host.b-host.a).normalized();var normal:Vector2=host.normal
 	var near=front(host)+(normal.normalized()*.008 if not host.shell else -normal.normalized()*.01)
@@ -68,8 +78,7 @@ static func casing(view,opening:Dictionary,part:String,alpha=1.0,tint=Color.WHIT
 		var left=endpoint-axis*half+near;var right=endpoint+axis*half+near
 		# Only the far reveal faces the camera. Its front casing is drawn last.
 		if part=="start":
-			var q=endpoint+front(host);var r=endpoint+far
-			quad(view,[view.iso(q.x,q.y,low),view.iso(r.x,r.y,low),view.iso(r.x,r.y,high),view.iso(q.x,q.y,high)],reveal)
+			for visible_face in visible_jamb_reveal(view,opening):view.draw_colored_polygon(visible_face,reveal)
 		quad(view,[view.iso(left.x,left.y,low),view.iso(right.x,right.y,low),view.iso(right.x,right.y,high+4),view.iso(left.x,left.y,high+4)],color)
 	else:
 		var left=a-axis*half+near;var right=b+axis*half+near
