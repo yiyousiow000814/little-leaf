@@ -12,14 +12,25 @@ DIAGNOSTIC_TAG = "v" + DIAGNOSTIC_VERSION
 DIAGNOSTIC_BRANCH = "release/0.1.8-save-diagnostic"
 DIAGNOSTIC_BASE_TAG = "v0.1.8"
 DIAGNOSTIC_BASE_SHA = "9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc"
+DIAGNOSTIC_FIX_VERSION = "0.1.9-alpha-2"
+DIAGNOSTIC_FIX_TAG = "v" + DIAGNOSTIC_FIX_VERSION
+DIAGNOSTIC_FIX_BASE_SHA = "cee67c6720e3ec428d3e769bbb97de2a7780e5a9"
 
 
 def release_kind(tag):
-    if tag == DIAGNOSTIC_TAG:
+    if tag in (DIAGNOSTIC_TAG, DIAGNOSTIC_FIX_TAG):
         return "diagnostic"
     if re.fullmatch("v" + STABLE, tag):
         return "stable"
-    raise ValueError("Expected a stable vX.Y.Z tag or the exact v0.1.9-alpha-1 diagnostic tag")
+    raise ValueError("Expected a stable vX.Y.Z tag or an exact approved diagnostic tag (v0.1.9-alpha-1 or v0.1.9-alpha-2)")
+
+
+def diagnostic_base(tag):
+    if tag == DIAGNOSTIC_FIX_TAG:
+        return DIAGNOSTIC_TAG, DIAGNOSTIC_FIX_BASE_SHA
+    if tag == DIAGNOSTIC_TAG:
+        return DIAGNOSTIC_BASE_TAG, DIAGNOSTIC_BASE_SHA
+    raise ValueError("No approved diagnostic source route for this tag")
 
 
 def git_value(root, *arguments):
@@ -34,23 +45,28 @@ def require_reviewed_source(root, tag):
         require_main_ancestor(root)
         return
     head = git_value(root, "rev-parse", "HEAD")
-    base = git_value(root, "rev-parse", DIAGNOSTIC_BASE_TAG + "^{commit}")
+    base_tag, base_sha = diagnostic_base(tag)
+    base = git_value(root, "rev-parse", base_tag + "^{commit}")
     branch = git_value(root, "rev-parse", "refs/remotes/origin/" + DIAGNOSTIC_BRANCH)
-    tagged = git_value(root, "rev-parse", DIAGNOSTIC_TAG + "^{commit}")
+    tagged = git_value(root, "rev-parse", tag + "^{commit}")
     parents = git_value(root, "show", "-s", "--format=%P", "HEAD").split()
-    if base != DIAGNOSTIC_BASE_SHA or parents != [DIAGNOSTIC_BASE_SHA]:
-        raise ValueError("Diagnostic must be one reviewed squash commit directly on the pinned v0.1.8 source")
+    if base != base_sha or parents != [base_sha]:
+        raise ValueError("Diagnostic must be one reviewed squash commit directly on the pinned " + base_tag + " source")
     if branch != head or tagged != head:
         raise ValueError("Diagnostic tag must equal the reviewed maintenance branch tip and checked-out source")
 
 
 def fetch_reviewed_source(root, tag):
     # Only these fixed source routes exist. Never accept a branch/ref override.
-    refs = ["main"] if release_kind(tag) == "stable" else [
-        "refs/heads/" + DIAGNOSTIC_BRANCH + ":refs/remotes/origin/" + DIAGNOSTIC_BRANCH,
-        "refs/tags/" + DIAGNOSTIC_BASE_TAG + ":refs/tags/" + DIAGNOSTIC_BASE_TAG,
-        "refs/tags/" + DIAGNOSTIC_TAG + ":refs/tags/" + DIAGNOSTIC_TAG,
-    ]
+    if release_kind(tag) == "stable":
+        refs = ["main"]
+    else:
+        base_tag, _ = diagnostic_base(tag)
+        refs = [
+            "refs/heads/" + DIAGNOSTIC_BRANCH + ":refs/remotes/origin/" + DIAGNOSTIC_BRANCH,
+            "refs/tags/" + base_tag + ":refs/tags/" + base_tag,
+            "refs/tags/" + tag + ":refs/tags/" + tag,
+        ]
     subprocess.run(["git", "-C", str(root), "fetch", "--no-tags", "origin", *refs], check=True)
     require_reviewed_source(root, tag)
 

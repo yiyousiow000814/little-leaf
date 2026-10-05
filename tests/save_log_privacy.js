@@ -42,14 +42,22 @@ function load(options = {}) {
   check(initial[0].revision === 4 && !('revision' in initial[1]), 'Revision accepts only a non-negative safe integer');
   check(initial[1].code === 'STORAGE_ERROR' && initial[2].code === 'QuotaExceededError', 'Unknown error codes are reduced to a fixed safe code');
   check(!('layer' in initial[1]) && !('source' in initial[1]), 'Unknown layer and source strings are discarded');
-  const allowedKeys = new Set(['sequence', 'timestamp', 'event', 'layer', 'source', 'profile', 'revision', 'code']);
+  const allowedKeys = new Set(['sequence', 'timestamp', 'event', 'layer', 'source', 'profile', 'revision', 'code', 'stage', 'connectionGeneration']);
   check(initial.every(entry => Object.keys(entry).every(key => allowedKeys.has(key))), 'Entries contain only documented allowlisted fields');
   const text = api.text();
   check(text.includes('app 0.1.8-alpha') && text.includes('origin=https://example.test') && text.includes('referrerOrigin=https://refer.example.test') && text.includes('browser=Safari 18.3') && text.includes('frame=top-level'), 'Context retains version, origins, browser family/version and frame status');
   check(!text.includes('PRIVATE_') && !text.includes(id), 'Rendered log excludes credentials, paths, query/fragment, raw UA, save data, errors and complete IDs');
   check(!JSON.stringify(initial).includes('PRIVATE_') && !JSON.stringify(initial).includes(id), 'Snapshot has the same privacy boundary');
+  api.record('connection_opened', { stage: 'reopen_existing', connectionGeneration: 2, message: 'PRIVATE_MESSAGE', stack: 'PRIVATE_STACK' });
+  check(api.snapshot().at(-1).stage === 'reopen_existing' && api.snapshot().at(-1).connectionGeneration === 2, 'connection diagnostics accept only explicit static stage and valid generation');
+  for (const connectionGeneration of [0, -1, 1.5, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1, '2']) {
+    api.record('connection_closed', { stage: 'PRIVATE_STAGE', connectionGeneration });
+    const row = api.snapshot().at(-1);
+    check(!('stage' in row) && !('connectionGeneration' in row), 'unsafe stage or connection generation cannot enter diagnostics');
+  }
+  check(!api.text().includes('PRIVATE_'), 'new connection diagnostics never include raw messages, stacks or arbitrary stage strings');
   initial[0].event = 'PRIVATE_MUTATION'; initial.push({ event: 'PRIVATE_MUTATION' });
-  check(!api.text().includes('PRIVATE_MUTATION') && api.snapshot().length === 3, 'Snapshot callers cannot mutate the stored events');
+  check(!api.text().includes('PRIVATE_MUTATION') && api.snapshot().length === 11, 'Snapshot callers cannot mutate the stored events');
   for (const fields of [null, new Proxy({}, { get() { throw new Error('PRIVATE_GETTER'); } })]) {
     assert.doesNotThrow(() => api.record('save_failure', fields));
   }

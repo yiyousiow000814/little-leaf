@@ -114,7 +114,8 @@ body {
   'use strict';
   const LIMIT = 240;
   const events = [];
-  const allowedEvents = new Set(['boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested']);
+  const allowedEvents = new Set(['boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested', 'connection_opened', 'connection_closed', 'connection_reopen_requested']);
+  const allowedStages = new Set(['boot_open', 'transaction_create', 'object_store', 'get_identity', 'get_active', 'active_result', 'identity_result', 'compare_authority', 'put', 'transaction_complete', 'reopen_existing', 'versionchange', 'forced_close', 'save_prepare']);
   const allowedSources = new Set(['authority', 'legacy-v13', 'fresh', 'native-primary', 'native-import', 'review']);
   const allowedCodes = new Set(['CAMPAIGN_CONFIG', 'CORRUPT_AUTHORITY', 'INVALID_SAVE', 'STORAGE_BLOCKED', 'STORAGE_ABORT', 'LEGACY_UNREADABLE', 'AMBIGUOUS_LEGACY', 'STORAGE_UNAVAILABLE', 'NOT_READY', 'SAVE_BUSY', 'REVISION_CONFLICT', 'REVISION_LIMIT', 'QuotaExceededError', 'SecurityError', 'AbortError', 'UnknownError', 'InvalidStateError', 'VersionError', 'NotFoundError', 'DataError', 'TransactionInactiveError', 'ReadOnlyError', 'ConstraintError', 'STORAGE_ERROR', 'VALIDATION_FAILED', 'STAGING_FAILED', 'INVALID_ACK', 'INVALID_REVISION_ACK', 'INVALID_CREDIT_ACK', 'CREDIT_SYNC_REQUIRED', 'WRITES_SUPPRESSED', 'RECOVERY_BLOCKED', 'NATIVE_SAVE_FAILED', 'BRIDGE_MISSING']);
   let version = 'unknown', sequence = 0, dropped = 0, copyStatus = '', lastRead = null;
@@ -151,6 +152,8 @@ body {
       const profile = fingerprint(fields.profileId); if (profile) entry.profile = profile;
       if (Number.isSafeInteger(fields.revision) && fields.revision >= 0) entry.revision = fields.revision;
       if (typeof fields.code === 'string' && fields.code) entry.code = allowedCodes.has(fields.code) ? fields.code : 'STORAGE_ERROR';
+      if (allowedStages.has(fields.stage)) entry.stage = fields.stage;
+      if (Number.isSafeInteger(fields.connectionGeneration) && fields.connectionGeneration >= 1) entry.connectionGeneration = fields.connectionGeneration;
       if (event === 'read_result' || event === 'read_accepted') lastRead = entry;
       events.push(Object.freeze(entry));
       if (events.length > LIMIT) { events.shift(); dropped++; }
@@ -311,18 +314,21 @@ body {
   }
   function transaction(db, mode, action) {
     return new Promise((resolve, reject) => {
-      let tx, value, actionError;
+      let tx, value, actionError, stage = 'transaction_create';
+      const mark = value => { stage = value; };
+      const tagged = error => Object.assign(new Error(resultError(error).error), { code: resultError(error).code, storageStage: stage, transactionCreated: !!tx });
       try {
         // Strict durability asks supported browsers to flush before completion.
         // Browsers without the options overload retain atomic transaction semantics.
         try { tx = db.transaction(STORE, mode, mode === 'readwrite' ? { durability: 'strict' } : undefined); }
         catch (error) { if (!(error instanceof TypeError)) throw error; tx = db.transaction(STORE, mode); }
-        tx.oncomplete = () => resolve(value);
+        tx.oncomplete = () => { mark('transaction_complete'); resolve(value); };
         tx.onerror = () => {}; // Abort is the authoritative failure boundary.
-        tx.onabort = () => reject(actionError || tx.error || fail('STORAGE_ABORT', 'Save transaction aborted; previous progress is unchanged'));
-        const rejectAction = error => { actionError = error; tx.abort(); };
-        action(tx.objectStore(STORE), result => { value = result; }, rejectAction);
-      } catch (error) { if (tx) { actionError = error; try { tx.abort(); } catch (_) {} } reject(error); }
+        tx.onabort = () => reject(actionError || tagged(tx.error || fail('STORAGE_ABORT', 'Save transaction aborted; previous progress is unchanged')));
+        const rejectAction = error => { actionError = tagged(error); try { tx.abort(); } catch (_) { reject(actionError); } };
+        mark('object_store');
+        action(tx.objectStore(STORE), result => { value = result; }, rejectAction, mark);
+      } catch (error) { const failure = tagged(error); if (tx) { actionError = failure; try { tx.abort(); } catch (_) {} } reject(failure); }
     });
   }
   async function readLegacy(factory) {
@@ -361,6 +367,48 @@ body {
     // singleton always uses this origin's IndexedDB and fixed namespace.
     let factory = options.indexedDB, campaigns = null;
     let db = null, record = null, legacy = null, opening = null, busy = false, faulted = false;
+    let connectionGeneration = 0;
+    function installConnection(connection, stage) {
+      db = connection;
+      const generation = ++connectionGeneration;
+      observe('connection_opened', { stage, connectionGeneration: generation });
+      connection.onversionchange = () => {
+        observe('connection_closed', { stage: 'versionchange', connectionGeneration: generation });
+        connection.close();
+      };
+      connection.onclose = () => observe('connection_closed', { stage: 'forced_close', connectionGeneration: generation });
+    }
+    function readCurrent(store, resolve, abort, mark) {
+      mark('get_identity'); const identityRequest = store.get(IDENTITY);
+      identityRequest.onerror = () => mark('get_identity');
+      mark('get_active'); const request = store.get(ACTIVE);
+      request.onerror = () => mark('get_active');
+      request.onsuccess = () => {
+        try {
+          mark('active_result'); const current = validRecord(request.result);
+          mark('identity_result'); const identity = identityRequest.result;
+          if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
+          resolve(current);
+        } catch (error) { abort(error); }
+      };
+    }
+    function compareCurrent(current, expectedRevision, expectedProfileId) {
+      if (current.profileId !== expectedProfileId || current.revision !== expectedRevision || current.digest !== record.digest) throw fail('REVISION_CONFLICT', 'Another tab saved newer progress; this tab was not saved. Reload before continuing');
+      if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
+    }
+    async function reopenExisting(expectedRevision, expectedProfileId) {
+      observe('connection_reopen_requested', { code: 'InvalidStateError', stage: 'transaction_create', connectionGeneration });
+      db.close();
+      const connection = await openDB(factory, DB_NAME, false);
+      if (!connection) throw fail('CORRUPT_AUTHORITY', 'Saved café storage is missing; keep this page open for recovery');
+      try {
+        if (connection.version !== 1 || !connection.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Saved café storage changed format; keep this page open for recovery');
+        const current = await transaction(connection, 'readonly', readCurrent);
+        await verifyRecord(current);
+        compareCurrent(current, expectedRevision, expectedProfileId);
+        installConnection(connection, 'reopen_existing');
+      } catch (error) { connection.close(); throw error; }
+    }
     const client = {
       bootJson: '',
       async boot() {
@@ -371,20 +419,9 @@ body {
             campaigns = campaignConfig(options.campaigns === undefined ? CAMPAIGNS : options.campaigns);
             if (!factory) factory = root.indexedDB;
             if (!factory || !root.crypto || !root.crypto.subtle) throw fail('STORAGE_UNAVAILABLE', 'Durable browser storage is unavailable');
-            db = await openDB(factory, DB_NAME, true);
+            installConnection(await openDB(factory, DB_NAME, true), 'boot_open');
             if (!db.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save store is missing');
-            record = await transaction(db, 'readonly', (store, resolve, abort) => {
-              const identityRequest = store.get(IDENTITY);
-              const request = store.get(ACTIVE);
-              request.onsuccess = () => {
-                try {
-                  const current = validRecord(request.result);
-                  const identity = identityRequest.result;
-                  if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
-                  resolve(current);
-                } catch (error) { abort(error); }
-              };
-            });
+            record = await transaction(db, 'readonly', readCurrent);
             await verifyRecord(record);
             if (!record.revision) legacy = await readLegacy(factory);
             const result = { ok: true, profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
@@ -411,30 +448,29 @@ body {
           const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
           candidate.digest = await hash(fingerprint(candidate));
           observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
-          const next = await transaction(db, 'readwrite', (store, resolve, abort) => {
-            const identityRequest = store.get(IDENTITY);
-            const request = store.get(ACTIVE);
-            request.onsuccess = () => {
-              try {
-                const current = validRecord(request.result);
-                const identity = identityRequest.result;
-                if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
-                if (current.profileId !== expectedProfileId || current.revision !== expectedRevision || current.digest !== record.digest) throw fail('REVISION_CONFLICT', 'Another tab saved newer progress; this tab was not saved. Reload before continuing');
-                // Compare the entire prior payload too. Never overwrite corrupted
-                // bytes even when their stale checksum/revision survived damage.
-                if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
-                store.put(candidate, ACTIVE); resolve(candidate);
-                observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision });
-              } catch (error) { abort(error); }
-            };
+          const write = () => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
+            readCurrent(store, current => {
+              mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
+              mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
+              observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
+            }, abort, mark);
           });
+          let next;
+          try { next = await write(); }
+          catch (error) {
+            // Only a synchronous failure before a transaction exists is replayed.
+            // Never retry a get/result/put/abort failure or an unknown write outcome.
+            if (error.code !== 'InvalidStateError' || error.storageStage !== 'transaction_create' || error.transactionCreated) throw error;
+            await reopenExisting(expectedRevision, expectedProfileId);
+            next = await write(); // One retry, preserving the exact pending candidate.
+          }
           record = next;
           observe('save_confirmed', { profileId: next.profileId, revision: next.revision });
           client.bootJson = JSON.stringify({ ok: true, profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
           return { ok: true, profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
         } catch (error) {
           if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
-          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code });
+          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code, stage: error.storageStage || 'save_prepare', connectionGeneration });
           return resultError(error);
         } finally { busy = false; }
       },

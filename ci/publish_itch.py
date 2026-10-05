@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from release_metadata import STABLE, DIAGNOSTIC_VERSION, release_kind
+from release_metadata import STABLE, DIAGNOSTIC_VERSION, DIAGNOSTIC_FIX_VERSION, release_kind
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers
@@ -76,8 +76,9 @@ def check_previous(status, new_version):
     old, new = version_order(previous), version_order(new_version)
     if old >= new:
         raise ValueError("This version or a newer version is already on itch; refusing a duplicate or rollback")
-    if new_version == DIAGNOSTIC_VERSION and old != version_order("0.1.8"):
-        raise ValueError("The one-off diagnostic may only replace the completed 0.1.8 HTML5 baseline")
+    required_baseline = {DIAGNOSTIC_VERSION: "0.1.8", DIAGNOSTIC_FIX_VERSION: DIAGNOSTIC_VERSION}.get(new_version)
+    if required_baseline is not None and old != version_order(required_baseline):
+        raise ValueError("This diagnostic may only replace the completed " + required_baseline + " HTML5 baseline")
     return head["id"]
 
 

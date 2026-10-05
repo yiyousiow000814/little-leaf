@@ -72,14 +72,17 @@ class MetadataTests(unittest.TestCase):
             with self.assertRaises(ValueError): version(self.root)
 
     def test_exact_diagnostic_metadata(self):
-        (self.root / "project.godot").write_text('config/version="0.1.9-alpha-1"\n')
-        self.notes["version"] = metadata.DIAGNOSTIC_VERSION; self.save()
-        self.assertEqual(version(self.root, metadata.DIAGNOSTIC_TAG), metadata.DIAGNOSTIC_VERSION)
-        self.assertEqual(version(self.root), metadata.DIAGNOSTIC_VERSION)
+        for value in [metadata.DIAGNOSTIC_VERSION, metadata.DIAGNOSTIC_FIX_VERSION]:
+            with self.subTest(value=value):
+                (self.root / "project.godot").write_text('config/version="' + value + '"\n')
+                self.notes["version"] = value; self.save()
+                self.assertEqual(version(self.root, "v" + value), value)
+                self.assertEqual(version(self.root), value)
 
     def test_other_prereleases_cannot_publish(self):
-        for value in ["0.1.8-alpha-1", "0.1.9-alpha-2", "0.1.9-alpha.1", "0.1.9-rc.1",
-                      "0.1.9-alpha-1+build.1", "0.1.9-alpha-1\n"]:
+        for value in ["0.1.8-alpha-1", "0.1.9-alpha-3", "0.1.9-alpha.1", "0.1.9-rc.1",
+                      "0.1.9-alpha-1+build.1", "0.1.9-alpha-1\n", "0.1.9-alpha-2+build.1",
+                      "0.1.9-alpha-2\n", "0.1.9-alpha-02", "0.1.9-alpha-12"]:
             with self.subTest(value=value):
                 (self.root / "project.godot").write_text('config/version="' + value + '"\n')
                 self.notes["version"] = value; self.save()
@@ -89,7 +92,7 @@ class MetadataTests(unittest.TestCase):
         schema = json.loads((Path(__file__).resolve().parents[1] / "data/release_notes.schema.json").read_text())
         pattern = schema["allOf"][0]["else"]["properties"]["version"]["pattern"]
         for value, accepted in [("0.1.8", True), ("0.1.9-alpha-1", True), ("0.1.9", True),
-                                ("0.1.9-alpha-2", False), ("0.1.9-alpha.1", False),
+                                ("0.1.9-alpha-2", True), ("0.1.9-alpha-3", False), ("0.1.9-alpha.1", False),
                                 ("v0.1.8", False), ("0.1.8\n", False), ("01.1.8", False)]:
             with self.subTest(value=value):
                 self.assertEqual(bool(re.search(pattern, value)), accepted)
@@ -138,30 +141,34 @@ class MainHistoryTests(GitRepositoryTests):
 
 
 class DiagnosticHistoryTests(GitRepositoryTests):
+    release_tag = metadata.DIAGNOSTIC_TAG
+    base_tag = metadata.DIAGNOSTIC_BASE_TAG
+    base_constant = "DIAGNOSTIC_BASE_SHA"
+
     def setUp(self):
         super().setUp()
-        self.git("tag", metadata.DIAGNOSTIC_BASE_TAG, self.base)
+        self.git("tag", self.base_tag, self.base)
         self.git("checkout", "-b", metadata.DIAGNOSTIC_BRANCH)
         self.git("commit", "--allow-empty", "-m", "reviewed diagnostic squash")
         self.head = self.git("rev-parse", "HEAD")
-        self.git("tag", metadata.DIAGNOSTIC_TAG, self.head)
+        self.git("tag", self.release_tag, self.head)
         self.branch_ref = "refs/remotes/origin/" + metadata.DIAGNOSTIC_BRANCH
         self.git("update-ref", self.branch_ref, self.head)
-        self.base_patch = patch.object(metadata, "DIAGNOSTIC_BASE_SHA", self.base)
+        self.base_patch = patch.object(metadata, self.base_constant, self.base)
         self.base_patch.start()
         self.addCleanup(self.base_patch.stop)
 
     def verify(self):
-        require_reviewed_source(self.root, metadata.DIAGNOSTIC_TAG)
+        require_reviewed_source(self.root, self.release_tag)
 
     def test_exact_squash_and_named_branch_accepted(self):
         self.verify()
 
     def test_wrong_base_tag_or_pinned_source_rejected(self):
-        self.git("tag", "-f", metadata.DIAGNOSTIC_BASE_TAG, self.head)
+        self.git("tag", "-f", self.base_tag, self.head)
         with self.assertRaises(ValueError): self.verify()
-        self.git("tag", "-f", metadata.DIAGNOSTIC_BASE_TAG, self.base)
-        with patch.object(metadata, "DIAGNOSTIC_BASE_SHA", "f" * 40):
+        self.git("tag", "-f", self.base_tag, self.base)
+        with patch.object(metadata, self.base_constant, "f" * 40):
             with self.assertRaises(ValueError): self.verify()
 
     def test_unmerged_candidate_or_advanced_branch_rejected(self):
@@ -178,48 +185,84 @@ class DiagnosticHistoryTests(GitRepositoryTests):
         with self.assertRaises(ValueError): self.verify()
 
     def test_tag_must_match_checked_out_source(self):
-        self.git("tag", "-f", metadata.DIAGNOSTIC_TAG, self.base)
+        self.git("tag", "-f", self.release_tag, self.base)
         with self.assertRaises(ValueError): self.verify()
 
     def test_extra_commit_or_merge_parent_rejected(self):
         self.git("commit", "--allow-empty", "-m", "second commit instead of one squash")
         self.git("update-ref", self.branch_ref, "HEAD")
-        self.git("tag", "-f", metadata.DIAGNOSTIC_TAG, "HEAD")
+        self.git("tag", "-f", self.release_tag, "HEAD")
         with self.assertRaises(ValueError): self.verify()
         merged = self.git("commit-tree", "HEAD^{tree}", "-p", self.base, "-p", self.head, "-m", "merge instead of squash")
         self.git("checkout", "--detach", merged)
         self.git("update-ref", self.branch_ref, "HEAD")
-        self.git("tag", "-f", metadata.DIAGNOSTIC_TAG, "HEAD")
+        self.git("tag", "-f", self.release_tag, "HEAD")
         with self.assertRaises(ValueError): self.verify()
 
     def test_other_tags_never_fetch_any_source(self):
-        for tag in ["main", "release/other", "v0.1.9-alpha-2", "v0.1.9-alpha.1", "v0.1.9-alpha-1\n"]:
+        for tag in ["main", "release/other", "v0.1.9-alpha-3", "v0.1.9-alpha.1", "v0.1.9-alpha-1\n"]:
             with self.subTest(tag=tag), patch.object(metadata.subprocess, "run") as run:
                 with self.assertRaises(ValueError): fetch_reviewed_source(self.root, tag)
                 run.assert_not_called()
 
     def test_fetch_uses_only_fixed_source_refs(self):
         with patch.object(metadata.subprocess, "run") as run, patch.object(metadata, "require_reviewed_source") as verify:
-            fetch_reviewed_source(self.root, metadata.DIAGNOSTIC_TAG)
+            fetch_reviewed_source(self.root, self.release_tag)
             self.assertEqual(run.call_args.args[0], [
                 "git", "-C", str(self.root), "fetch", "--no-tags", "origin",
                 "refs/heads/release/0.1.8-save-diagnostic:refs/remotes/origin/release/0.1.8-save-diagnostic",
-                "refs/tags/v0.1.8:refs/tags/v0.1.8",
-                "refs/tags/v0.1.9-alpha-1:refs/tags/v0.1.9-alpha-1"])
-            verify.assert_called_once_with(self.root, metadata.DIAGNOSTIC_TAG)
+                "refs/tags/" + self.base_tag + ":refs/tags/" + self.base_tag,
+                "refs/tags/" + self.release_tag + ":refs/tags/" + self.release_tag])
+            verify.assert_called_once_with(self.root, self.release_tag)
             fetch_reviewed_source(self.root, "v0.1.9")
             self.assertEqual(run.call_args.args[0], ["git", "-C", str(self.root), "fetch", "--no-tags", "origin", "main"])
 
     def test_real_local_fetch_checks_the_correct_history(self):
         self.git("remote", "add", "origin", ".")
-        fetch_reviewed_source(self.root, metadata.DIAGNOSTIC_TAG)
+        fetch_reviewed_source(self.root, self.release_tag)
         # A stable tag cannot borrow the diagnostic branch's fetched history.
         with self.assertRaises(ValueError): fetch_reviewed_source(self.root, "v0.1.9")
         self.git("checkout", "--detach", self.base)
         fetch_reviewed_source(self.root, "v0.1.8")
 
 
+class DiagnosticFixHistoryTests(DiagnosticHistoryTests):
+    release_tag = metadata.DIAGNOSTIC_FIX_TAG
+    base_tag = metadata.DIAGNOSTIC_TAG
+    base_constant = "DIAGNOSTIC_FIX_BASE_SHA"
+
+    def test_alpha2_cannot_skip_the_shipped_alpha1_parent(self):
+        self.git("tag", "v0.1.8", self.base)
+        self.git("tag", "-d", self.base_tag)
+        with self.assertRaises(ValueError): self.verify()
+
+    def test_historical_alpha1_route_keeps_its_own_pinned_base(self):
+        self.assertEqual(metadata.diagnostic_base(metadata.DIAGNOSTIC_TAG),
+                         ("v0.1.8", "9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc"))
+        with self.assertRaises(ValueError): metadata.diagnostic_base("v0.1.9-alpha-3")
+
+
 class ItchGuardTests(unittest.TestCase):
+    def test_alpha2_only_replaces_completed_alpha1(self):
+        for previous in ["0.1.9-alpha-1", "v0.1.9-alpha-1", "0.1.9-alpha-1+build.1"]:
+            self.assertEqual(check_previous(status(previous), metadata.DIAGNOSTIC_FIX_VERSION), 55)
+        for previous in ["0.1.7", "0.1.8", "0.1.9-alpha-0", "0.1.9-alpha-2",
+                         "v0.1.9-alpha-2", "0.1.9-alpha-2+build.1", "0.1.9-alpha-3",
+                         "0.1.9-beta.1", "0.1.9", "0.1.10", "unknown"]:
+            with self.subTest(previous=previous), self.assertRaises(ValueError):
+                check_previous(status(previous), metadata.DIAGNOSTIC_FIX_VERSION)
+
+    def test_alpha2_cannot_replace_pending_or_failed_alpha1(self):
+        for previous in [status(metadata.DIAGNOSTIC_VERSION, state="failed"),
+                         status(metadata.DIAGNOSTIC_VERSION, pending={"id": 56, "state": "processing"})]:
+            with self.assertRaises(ValueError): check_previous(previous, metadata.DIAGNOSTIC_FIX_VERSION)
+
+    def test_alpha2_allows_later_stable_but_never_rollback(self):
+        self.assertEqual(check_previous(status(metadata.DIAGNOSTIC_FIX_VERSION), "0.1.9"), 55)
+        for value in ["0.1.8", metadata.DIAGNOSTIC_VERSION]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                check_previous(status(metadata.DIAGNOSTIC_FIX_VERSION), value)
+
     def test_diagnostic_replaces_only_shipped_baseline(self):
         for previous in ["0.1.8", "v0.1.8", "0.1.8+build.1"]:
             self.assertEqual(check_previous(status(previous), metadata.DIAGNOSTIC_VERSION), 55)
@@ -238,7 +281,7 @@ class ItchGuardTests(unittest.TestCase):
         with self.assertRaises(ValueError): check_previous(status(metadata.DIAGNOSTIC_VERSION), "0.1.8")
 
     def test_unapproved_prerelease_targets_rejected(self):
-        for value in ["0.1.9-alpha-2", "0.1.9-alpha.1", "0.1.9-rc.1", "v0.1.9-alpha-1"]:
+        for value in ["0.1.9-alpha-3", "0.1.9-alpha.1", "0.1.9-rc.1", "v0.1.9-alpha-1"]:
             with self.subTest(value=value), self.assertRaises(ValueError): check_previous(status("0.1.8"), value)
 
     def test_semver_prerelease_precedence(self):
@@ -365,11 +408,16 @@ class ArtifactTests(unittest.TestCase):
     def test_valid(self): self.assertEqual(self.verify(), self.manifest)
 
     def test_exact_diagnostic_artifact_accepted(self):
+        for value in [metadata.DIAGNOSTIC_VERSION, metadata.DIAGNOSTIC_FIX_VERSION]:
+            self.manifest.update(tag="v" + value, version=value); self.save()
+            self.assertEqual(verify_artifact(self.web, "v" + value, SHA), self.manifest)
+
+    def test_alpha1_artifact_cannot_publish_as_alpha2(self):
         self.manifest.update(tag=metadata.DIAGNOSTIC_TAG, version=metadata.DIAGNOSTIC_VERSION); self.save()
-        self.assertEqual(verify_artifact(self.web, metadata.DIAGNOSTIC_TAG, SHA), self.manifest)
+        with self.assertRaises(ValueError): verify_artifact(self.web, metadata.DIAGNOSTIC_FIX_TAG, SHA)
 
     def test_unapproved_prerelease_artifact_rejected(self):
-        for value in ["0.1.9-alpha-2", "0.1.9-alpha.1", "0.1.9-alpha-1+build.1"]:
+        for value in ["0.1.9-alpha-3", "0.1.9-alpha.1", "0.1.9-alpha-1+build.1"]:
             self.manifest.update(tag="v" + value, version=value); self.save()
             with self.subTest(value=value), self.assertRaises(ValueError): verify_artifact(self.web, "v" + value, SHA)
 

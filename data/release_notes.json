@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.9-alpha-1",
+  "version": "0.1.9-alpha-2",
   "date": "2026-10-05",
-  "label": "Save inspection diagnostic",
-  "new": [
-    "Added Settings → Log to inspect whether this browser has a save and review save/load diagnostics.",
-    "Temporary diagnostic based on 0.1.8. This build helps inspect the reported save loss; it does not claim to fix it."
-  ],
-  "fixed": []
+  "label": "Browser save reconnection diagnostic",
+  "new": [],
+  "fixed": [
+    "Added bounded recovery for the reported browser save error when the database connection is closing: reopen the same existing database and recheck the profile and revision before retrying.",
+    "Keeps the log under Settings, then Log, and the existing save schema. Verification on the affected Safari device is still pending; this build does not claim to resolve every save-loss cause."
+  ]
 }

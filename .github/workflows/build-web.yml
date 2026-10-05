@@ -32,6 +32,7 @@ jobs:
           node tests/legacy_byte_storage.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
+          node tests/connection_recovery.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -49,6 +50,13 @@ jobs:
           "$RUNNER_TEMP/save-log-browser-tools/node_modules/.bin/playwright" install-deps chromium
           google-chrome --version
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/save-log-browser-tools/node_modules/playwright" xvfb-run -a node tests/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
+      - name: Verify closed-connection recovery in actual exported WebKit game
+        timeout-minutes: 9
+        env:
+          RUNTIME_BROWSER: webkit
+        run: |
+          "$RUNNER_TEMP/save-log-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/save-log-browser-tools/node_modules/playwright" xvfb-run -a node tests/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Keep tested Web artifact
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

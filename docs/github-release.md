@@ -20,7 +20,7 @@ Downloadable builds and test evidence stay in Actions for **7 days**. Keep any r
 4. Watch **Release Web to itch.io**. It tests and rebuilds the tagged commit, then uploads to **`siowyiyou/little-leaf:html5`**. The summary records its source SHA, version and itch build ID.
 5. Verify [the live game](https://siowyiyou.itch.io/little-leaf), including fresh and copied-save startup. Successful upload processing does not replace browser, persistence, rendering or audio checks.
 
-Only a newly created stable `vX.Y.Z` tag from `main`, or the one-off diagnostic tag below, can publish. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
+Only a newly created stable `vX.Y.Z` tag from `main`, or one of the exact diagnostic tags below, can publish. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
 
 ## One-off save inspection diagnostic
 
@@ -30,10 +30,20 @@ Only a newly created stable `vX.Y.Z` tag from `main`, or the one-off diagnostic 
 2. Create the maintenance branch **`release/0.1.8-save-diagnostic`** at that exact 0.1.8 commit. Prepare only the diagnostic, its metadata, and the narrowly scoped release support in a PR targeting this branch. Review and **squash merge once** so the released commit has exactly one parent: the pinned 0.1.8 commit. The branch must have no extra merge or intermediate commits.
 3. Wait for **Check and build Web** on the exact maintenance commit, including the diagnostic regression tests. Inspect its Web build in a fresh profile and a separate copied-save profile. Confirm the release notes date is the actual UTC publication date; the prepared date is **2026-10-05**.
 4. Obtain publication approval that explicitly covers replacing the existing game entry at [Little Leaf](https://siowyiyou.itch.io/little-leaf). This is the same **`siowyiyou/little-leaf:html5`** channel, not a preview channel. Keeping the game entry helps reproduce the phone/browser storage problem but does not prove storage availability or persistence.
-5. Only then create the new immutable tag **`v0.1.9-alpha-1`** at the reviewed maintenance tip. Both the pre-build gate and pre-upload gate fetch only fixed refs and verify: the base tag still names the pinned 0.1.8 source, the alpha tag equals the checked-out source and maintenance tip, and that source is the single squash commit on 0.1.8. No arbitrary branch/ref override or other prerelease tag is accepted.
+5. Only then create the new immutable tag **`v0.1.9-alpha-1`** at the reviewed maintenance tip. Both the pre-build gate and pre-upload gate fetch only fixed refs and verify: the base tag still names the pinned 0.1.8 source, the alpha tag equals the checked-out source and maintenance tip, and that source is the single squash commit on 0.1.8. No arbitrary branch/ref override is accepted; the separately bounded alpha-2 route is described below.
 6. The existing GitHub Actions → Butler route and `BUTLER_API_KEY` secret mechanism publish the exact tested artifact. The alpha may replace only a completed **0.1.8** HTML5 build with no pending upload. Duplicate alpha, stable 0.1.9, newer, unknown, and other live baselines stop before upload. After processing, verify the served version and Settings → Log on the user's existing phone/browser entry before interpreting the diagnostics.
 
 Stable releases keep their existing `main` ancestry requirement. SemVer ordering permits a later reviewed stable `0.1.9` to replace `0.1.9-alpha-1`; it forbids publishing `0.1.8` over the alpha. The original source/tag and retained artifact are recovery material only: rollback still needs separate review and authorization, and there is no rollback bypass in this pipeline.
+
+## Save reconnection diagnostic: 0.1.9-alpha-2
+
+This alpha targets the reported Safari error that the IndexedDB connection is closing. It adds bounded reopening of the same existing database and profile/revision validation before retrying. Acceptance on the affected device remains pending. It does not promise recovery of previously lost unsaved changes or resolution of every browser persistence issue.
+
+- Keep **`v0.1.9-alpha-1`** unchanged at **`cee67c6720e3ec428d3e769bbb97de2a7780e5a9`** (published tree `272850cd497f7edc30cd06e7a7f4aa17b96f7dde`, completed Butler build **2071085**). Retain its artifact and the original 0.1.8 source as recovery references; do not move either published tag.
+- Review the focused fix and release metadata in a PR targeting the existing **`release/0.1.8-save-diagnostic`** branch. Squash merge once directly on that pinned alpha-1 commit. There must be exactly one parent and no intermediate maintenance commit. Do not alter or revert `main`.
+- Pass the exact merged commit's Web CI and review the fix evidence. Use only a newly created **`v0.1.9-alpha-2`** tag after approval for the same game entry. Both release gates freshly verify the pinned alpha-1 tag, the single-squash parent, the alpha-2 tag, and the maintenance tip.
+- The existing Actions/Butler route publishes only to **`siowyiyou/little-leaf:html5`**, using the same secret mechanism. Alpha-2 may replace only completed **0.1.9-alpha-1** with no pending upload. Older/unknown baselines, duplicate alpha-2 and newer versions are rejected; alpha-1's original baseline guard and stable `main` rules stay unchanged.
+- Release notes use **2026-10-05** until a later publication day requires correction. Keep the log under **Settings, then Log** for before/after device validation. Successful upload is not Safari acceptance. A later reviewed stable 0.1.9 may replace alpha-2; rollback to alpha-1 or 0.1.8 is still blocked and needs a separately reviewed recovery.
 
 ## Checks and safety
 
