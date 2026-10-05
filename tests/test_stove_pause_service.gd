@@ -29,7 +29,9 @@ func run():
     # This service-only fixture moves the worker onto safe floor before editing.
     check(game._staff_walkable(Vector2i(2,7)) and not game.model.path_between(Vector2i(staff.pos.floor()),Vector2i(2,7)).is_empty(),"synthetic step-aside tile is clear and reachable")
     staff.pos=Vector2(2.5,7.5);staff.path=[];staff.index=0;staff.destination=Vector2i(-100,-100)
-    check(game.model.place("plant",face.x,face.y),"blocking an in-progress stove is allowed")
+    check(not game.model.place("plant",face.x,face.y),"new in-progress stove obstruction is rejected")
+    # Inject a legacy blocked-layout fixture to keep pause/recovery coverage.
+    game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
     blocker_id=int(game.model.items[-1].id);blocked_worker=staff
     held=[staff.job_kind,staff.job_guest_id,staff.job_token,staff.job_step,staff.job_elapsed,staff.station_id]
     game._rebuild_furniture();game.idle_home_revision=-1
@@ -76,7 +78,7 @@ func run():
  print("FINAL_GUESTS ",JSON.stringify(game.model.customers))
  check(not blocked_worker.is_empty() and restored,"active blocking and recovery exercised")
  check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits resume, pay and clean exactly once")
- check(game.model.total_earned==1000,"all expected payments occur exactly once")
+ check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all expected payments occur exactly once")
  print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"served":game.model.served,"cleaned":game.model.total_cleaned}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

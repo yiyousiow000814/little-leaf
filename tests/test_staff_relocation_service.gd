@@ -40,7 +40,7 @@ func run():
     if worker.job_kind=="" or payload=="none":continue
     var before=ledger(cafe)
     var cell=Vector2i(worker.pos.floor());actors=cafe.interaction._staff_positions()
-    # This fixture exercises repathing while service continues. Optional stove
+    # This fixture exercises repathing while service continues. Legacy stove
     # blockage and recovery have their own pause-service test.
     if not cafe.model.placement_access_issues("plant",cell.x,cell.y).is_empty():continue
     var field=cafe.interaction.edit_plan
@@ -67,8 +67,8 @@ func run():
   if cafe.model.customers.is_empty() and cafe.floor_tasks.messes.is_empty() and cafe.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(relocated,"real carrying-worker relocation was exercised")
  check(done and cafe.model.served==4 and cafe.model.total_cleaned==4,"all four generated visits finish and clean exactly once after repath")
- check(cafe.model.total_earned==1000,"no duplicate payments")
- check(cafe.model.coins==before_coins+1000-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
+ check(cafe.model.total_earned==4*cafe.Model.MEAL_PAYMENT,"no duplicate payments")
+ check(cafe.model.coins==before_coins+4*cafe.Model.MEAL_PAYMENT-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
  print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}))
  for tween in get_processed_tweens():tween.kill()
  cafe.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

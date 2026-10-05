@@ -18,9 +18,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
-    ("test_street_pedestrians", "STREET_PEDESTRIANS_RESULT"),
-    ("test_street_endpoints", "STREET_ENDPOINTS_RESULT"),
-    ("test_street_service_save", "STREET_SERVICE_SAVE_RESULT"),
+    ("test_economy_revision", "ECONOMY_REVISION_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),
@@ -48,8 +46,11 @@ SUITES = [
     ("test_autosave_feedback_adversarial", "AUTOSAVE_ADVERSARIAL_RESULT"),
     ("test_autosave_feedback_ui", "AUTOSAVE_UI_RESULT"),
     ("test_stove_optional", "STOVE_OPTIONAL_RESULT"),
+    ("test_stove_work_reservation", "STOVE_WORK_RESERVATION_RESULT"),
+    ("test_stove_reservation_ui", "STOVE_RESERVATION_UI_RESULT"),
     ("test_stove_pause_service", "STOVE_PAUSE_SERVICE_RESULT"),
     ("test_workface_ground_guidance", "WORKFACE_GROUND_GUIDANCE_RESULT"),
+    ("test_workface_single_tint", "WORKFACE_SINGLE_TINT_RESULT"),
     ("test_departing_route_edit", "DEPARTING_ROUTE_RESULT"),
     ("test_departing_route_service", "DEPARTING_ROUTE_SERVICE_RESULT"),
     ("test_register_edge", "REGISTER_EDGE_RESULT"),
@@ -60,9 +61,13 @@ SUITES = [
     ("test_chef_hat", "CHEF_HAT_TESTS"),
     ("test_character_bubble", "CHARACTER_BUBBLE_RESULT"),
     ("test_arm_occlusion", "ARM_OCCLUSION_RESULT"),
+    ("test_bubble_symbol_clarity", "BUBBLE_SYMBOL_CLARITY_RESULT"),
     ("test_art_raster_strokes", "ART_RASTER_STROKE_TESTS"),
     ("test_customer_litter", "@json"),
     ("test_litter_visibility", "@json"),
+    ("test_street_pedestrians", "STREET_PEDESTRIANS_RESULT"),
+    ("test_street_endpoints", "STREET_ENDPOINTS_RESULT"),
+    ("test_street_service_save", "STREET_SERVICE_SAVE_RESULT"),
 ]
 EXCLUDE = shutil.ignore_patterns(
     ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",

@@ -1268,15 +1268,38 @@ func _table_vase_point(_table_id:int) -> Vector2:
 func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role="chef") -> Vector2:
 	var bounds=DirectionalCharacter.head_bounds(posmod(id,3),false,staff and role=="chef")
 	var body=DirectionalCharacter.body_offset(pose,moving,float(pose.get("phase",0)))
-	# Keep the body anchor mirrored, but place the oval slightly screen-right
-	# for every facing. Its -5px tail tip still points to the head center.
-	# The tail extends 13px below the center; retain the 5px ear/hat gap.
-	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+5.0,body.y+bounds.position.y-18.0)
+	# The oval sits beside the upper-right ear/hat, not directly overhead.
+	# Mirror only the owner's body offset; this UI placement stays screen-right.
+	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+32.0,body.y+bounds.position.y-7.0)
 
 func bubble(p: Vector2,words: String):
 	ellipse(p,Vector2(13,10),"fff6d9")
-	poly([p+Vector2(-4,7),p+Vector2(1,7),p+Vector2(-5,13)],"fff6d9")
-	draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+	# The leftward tail returns to the owner's upper-right head edge, with
+	# clear space beside the ear/hat rather than moving the old tail wholesale.
+	poly([p+Vector2(-11,4),p+Vector2(-7,8),p+Vector2(-16,12)],"fff6d9")
+	var mark=bubble_symbol_geometry(words)
+	if mark.is_empty():
+		draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+		return
+	# Optically centered vector marks replace the old left-aligned font glyphs.
+	# Submit in final raster coordinates so AA remains one pixel at any zoom.
+	var raster=_stroke_raster_scale>0.0
+	if raster:draw_set_transform_matrix(_stroke_from_raster)
+	var scale=_stroke_raster_scale if raster else 1.0
+	var tint=col("829270")
+	for point in mark.dots:
+		var center=_stroke_to_raster*(p+point) if raster else p+point
+		draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
+	if mark.has("stem"):
+		var start=_stroke_to_raster*(p+mark.stem[0]) if raster else p+mark.stem[0]
+		var finish=_stroke_to_raster*(p+mark.stem[1]) if raster else p+mark.stem[1]
+		draw_line(start,finish,tint,float(mark.width)*scale,true)
+	if raster:draw_set_transform_matrix(_art_transform)
+
+static func bubble_symbol_geometry(words:String)->Dictionary:
+	if words=="…":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
+	if words=="!":return {"dots":[Vector2(0,4.0)],"radius":.8,"stem":[Vector2(0,-4.0),Vector2(0,1.5)],"width":1.5}
+	return {}
 func _meal(table_id: int):
 	if game==null: return
 	for guest in game.model.customers:

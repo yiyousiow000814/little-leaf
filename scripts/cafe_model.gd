@@ -56,15 +56,14 @@ const EXTERIOR_EXIT_FRONT := 11.4
 const EXTERIOR_EXIT_RIGHT := 12.85
 const GUEST_CLEARANCE := 0.44
 const STAFF_PLACEMENT_RADIUS := 0.30
-# Provisional R25 growth curve: basic furniture stays affordable; extra staff
-# require earned capital and 10,000-coin land is reachable through better service.
-# These rates affect future actions/time only; saved balances/accrual stay intact.
+# Approved early growth rates apply to future purchases, payments and work.
+# Saved balances, accrued payroll and historical purchase costs stay intact.
 const HIRE_COST := 2800
-const MEAL_PAYMENT := 250
+const MEAL_PAYMENT := 200
 const MAX_COOKS := 3
 const STAFF_CAPS={"chef":3,"waiter":4,"cleaner":3,"cashier":1}
 const HIRE_FEES={"chef":2800,"waiter":2200,"cleaner":1800}
-const WAGE_RATES={"chef":24,"waiter":16,"cleaner":14,"cashier":16} # Provisional cashier trial wage; future duty only.
+const WAGE_RATES={"chef":18,"waiter":11,"cleaner":10,"cashier":11} # Future duty only; saved accrual and debt remain exact.
 const MAX_STOVE_LEVEL := 3
 const ENTRANCE := Footprint.ENTRANCE
 const ENTRY_LANDING := Footprint.ENTRY_LANDING
@@ -84,7 +83,7 @@ const STREET_ROUTE_FORMAT="little_leaf.street_endpoints.v1"
 const DIRECTIONS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 
 var catalog: Array[Dictionary] = [
-	{"kind":"table_set","name":"Basic oak","price":140,"variant":"oak_single","description":"Round oak table · simple wooden chair"},
+	{"kind":"table_set","name":"Basic oak","price":280,"variant":"oak_single","description":"Round oak table · simple wooden chair"},
 	{"kind":"table_set_cottage","name":"Cottage","price":420,"variant":"cottage_single","description":"Cream farmhouse table · sage cross-back chair"},
 	{"kind":"table_set_retro","name":"Retro","price":1200,"variant":"retro_single","description":"Mint pedestal table · coral diner chair"},
 	{"kind":"table_set_refined","name":"Refined","price":3600,"variant":"refined_single","description":"Ivory-inlaid walnut table · forest upholstered chair"},
@@ -1879,18 +1878,25 @@ func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> S
 			if not after.has(accessible):return "Keep the trapped staff member's remaining walkway clear"
 	return ""
 
-func _furniture_actor_component(start:Vector2i,layout:Array) -> Dictionary:
+func _furniture_actor_component(start:Vector2i,layout:Array,walls=null,openings=null) -> Dictionary:
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
 	if start.x<1 or blocked.has(start) or not is_floor_owned(start):return {}
+	var wall_edges:Dictionary={}
+	if walls!=null:
+		for wall in walls:
+			var sides=WallGeometry.adjacent_cells(wall)
+			if _built_edge_blocked(sides[0],sides[1],walls,openings):wall_edges[WallGeometry.key_of(wall)]=true
 	var reached:Dictionary={start:true}
 	var queue:Array[Vector2i]=[start];var cursor:=0
 	while cursor<queue.size():
 		var cell:=queue[cursor];cursor+=1
 		for direction in DIRECTIONS:
 			var next:Vector2i=cell+direction
-			if next.x<1 or reached.has(next) or blocked.has(next) or not is_floor_owned(next) or edge_blocked(cell,next):continue
+			if next.x<1 or reached.has(next) or blocked.has(next) or not is_floor_owned(next):continue
+			var blocked_edge=edge_blocked(cell,next) if walls==null else (_fixed_edge_blocked(cell,next,openings,walls) or wall_edges.has(WallGeometry.edge_between(cell,next)))
+			if blocked_edge:continue
 			reached[next]=true;queue.append(next)
 	return reached
 
@@ -1993,9 +1999,15 @@ func _wall_candidate_error(wall:Dictionary,actors:Array,ignore_key:String="") ->
 	proposed.append(wall)
 	var hosted_error=_attachment_layout_error(proposed,wall_attachments)
 	if hosted_error!="":return hosted_error
+	var stove_error=_stove_wall_edit_error(proposed)
+	if stove_error!="":return stove_error
 	var chair_error:=_chair_egress_error(proposed,items,owned_parcels,customers)
 	if chair_error!="":return chair_error
 	return _wall_egress_error(proposed,actors,items,owned_parcels,customers)
+
+func _stove_wall_edit_error(walls:Array,openings=null)->String:
+	var issue=LayoutAccess.introduced_stove_wall(self,walls,openings)
+	return "" if issue.is_empty() else str(issue.reason)
 
 func can_place_wall(axis:String,x:int,z:int,height:String="full",material:String="sage_panels",actor_positions:Array=[]) -> bool:
 	last_error=""
@@ -2029,6 +2041,7 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	# opening spanning two segments) before touching either model or wallet.
 	var reason="" if Footprint.is_extension_wall(wall) else _wall_edge_error(proposed_wall,owned_parcels)
 	if reason=="":reason=_attachment_layout_error(proposed,wall_attachments)
+	if reason=="":reason=_stove_wall_edit_error(proposed)
 	if reason=="":reason=_chair_egress_error(proposed,items,owned_parcels,customers)
 	if reason=="":reason=_wall_egress_error(proposed,_wall_actor_list(actor_positions),items,owned_parcels,customers)
 	if reason!="":quote.reason=reason;return quote
@@ -2444,6 +2457,8 @@ func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
 	return ""
 func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	var reason=_attachment_layout_error(built_walls,proposed)
+	if reason!="":return reason
+	reason=_stove_wall_edit_error(built_walls,proposed)
 	if reason!="":return reason
 	var actors=_wall_actor_list(actor_positions)
 	reason=_opening_body_error(built_walls,proposed,actors)
