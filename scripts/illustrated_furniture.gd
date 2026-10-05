@@ -1,4 +1,5 @@
 extends RefCounted
+const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -41,7 +42,7 @@ func try_draw_static(artist: Node2D,part: String,p: Vector2,rotation=0) -> bool:
 static func part_sequence(kind: String,rotation: int) -> Array:
 	var r := posmod(rotation,4)
 	match kind:
-		"stove": return ["stove_base","payload","stove_pan","stove_controls"] if r in [0,1] else ["stove_base","stove_pan","payload","stove_controls"]
+		"stove": return ["stove_base","heat","payload","stove_pan","stove_controls"] if r in [0,1] else ["stove_base","heat","stove_pan","payload","stove_controls"]
 		"beverage": return ["beverage_base","beverage_machine","payload","beverage_accessories"] if r in [0,3] else ["beverage_base","payload","beverage_machine","beverage_accessories"]
 		"bench": return ["bench_back","bench_seat"] if r in [1,2] else ["bench_seat","bench_back"]
 		"counter","sink","bookshelf","divider","rug": return [kind]
@@ -57,7 +58,9 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 	if not _can_cache(artist): return _draw_item_legacy(artist,kind,p,rotation,id)
 	a=artist;origin=p;turn=posmod(rotation,4)
 	for part in sequence:
-		if part=="payload":
+		if part=="heat":
+			if artist.has_method("_stove_heat"):artist._stove_heat(id,turn)
+		elif part=="payload":
 			if artist.has_method("_station_payloads"): artist._station_payloads(id,kind,turn)
 		else:
 			_cached_part(artist,part,p,turn)
@@ -95,6 +98,22 @@ func _stove_base():
 		top_ellipse(burner.x,burner.y,31.6,.063,.063,"5b7665")
 		for d in [Vector2.RIGHT,Vector2.DOWN]:
 			edge(point(burner.x-d.x*.18,burner.y-d.y*.18,31.8),point(burner.x+d.x*.18,burner.y+d.y*.18,31.8),"556e60",1.15)
+
+	# A short raised grate supports the pan and leaves a real burner gap.
+	for q in [Vector2(-.13,0),Vector2(.13,0),Vector2(0,.13)]:
+		edge(point(q.x,q.y,31.5),point(q.x,q.y,34),"536e61",1.25)
+
+func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float):
+	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
+	var base=point(0,0,34)+Vector2(0,2.15)
+	# The live blue gas jets are below the pan, not painted over the food.
+	# Drawn before the pan layer, the upper tips are naturally occluded.
+	for i in range(3):
+		var x=-7.3+i*7.3
+		var at=base+Vector2(x,.6*(1.0-absf(x)/7.3))
+		var height=3.1+.60*sin(elapsed_seconds*8.5+i*1.9)
+		a.rounded_poly([at+Vector2(-1.0,0),at+Vector2(-.65,-height*.55),at+Vector2(.12,-height),at+Vector2(.9,-height*.25),at+Vector2(.9,0)],.22,"59a9cf")
+		a.line(at+Vector2(0,-.05),at+Vector2(.1,-height*.60),"c2e4d5",.65)
 
 func _stove_controls():
 	if front_visible():
@@ -192,24 +211,20 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 	espresso()
 	beverage_accessories()
 static func stove_food_surface(rotation:int)->Vector2:
-	return KitchenGeometry.surface(Vector2.ZERO,39,rotation)
+	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
 
 func stove_pan():
-	var c=point(0,0,32)
-	edge(point(0,-.17,36),point(0,-.32,36),"536e5f",2.2)
-	edge(point(0,.15,36),point(0,.31,36),"536e5f",2.2)
+	var c=point(0,0,34)
+	edge(point(0,-.17,38),point(0,-.32,38),"536e5f",2.2)
+	edge(point(0,.15,38),point(0,.31,38),"536e5f",2.2)
 	a.rounded_poly([c+Vector2(-8,-7),c+Vector2(8,-7),c+Vector2(7,0),c+Vector2(-6,0)],2,"9eac94")
-	a.ellipse(c+Vector2(0,-.5),Vector2(7,3.5),"8ea08b")
+	a.ellipse(c+Vector2(0,-.5),Vector2(7,1.4),"8ea08b")
 	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5,4.2),"607d6b","dce0c9",1.2)
 	a.ellipse(c+Vector2(0,-7),Vector2(6.8,2.8),"718c77")
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
-	kitchen_height=true
-	# Live food is excluded from static atlas cells, including shop icons.
-	a=artist;origin=p;turn=posmod(rotation,4)
-	var c=point(0,0,32)
-	a.ellipse(c+Vector2(0,-7),Vector2(6.8,2.8)*remaining,"d9a962")
-	for q in [Vector2(-3,-7),Vector2(2,-8),Vector2(3,-6)]:a.ellipse(c+Vector2(0,-7)+(q-Vector2(0,-7))*remaining,Vector2(1.6,.8)*remaining,"829760")
+	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
+	CookingFood.draw_rest_food(artist,point(0,0,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
 
 func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
 	kitchen_height=true
@@ -248,6 +263,7 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 		"counter":cabinet()
 		"stove":
 			_stove_base()
+			if a.has_method("_stove_heat"):a._stove_heat(_id,turn)
 			# Local plate (-.20,.30) is behind the raised pan in these views.
 			# Match sub-object depth, rather than painting every dish last.
 			if turn in [0,1] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
