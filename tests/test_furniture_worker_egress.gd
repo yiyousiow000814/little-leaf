@@ -17,7 +17,7 @@ func check(ok:bool,label:String):
 func blank(model=null):
  var m=Model.new() if model==null else model
  m.items.clear();m.dining_sets.clear();m.customers.clear();m.built_walls.clear();m.wall_actor_positions.clear()
- m.coins=100000;m.strict_workfaces=false;m._notify()
+ m.coins=100000;m._notify()
  return m
 func ring(m):
  for spec in [[3,2,2],[2,3,1],[3,4,0]]:
@@ -94,12 +94,11 @@ func model_cases():
   check(m.place("rug",6,6,0,[actor]),spec.label+" unrelated legacy edit remains allowed")
   check(m.move(id,7,7,0,[actor]),spec.label+" outward repair remains allowed")
   check(m._furniture_actor_component(Model.ENTRY_LANDING,m.items).has(cell),spec.label+" repair restores staff route")
- # Required appliance access remains protected with or without strict workfaces.
- m=blank();check(m.place("beverage",6,1,0),"required-front beverage fixture places")
- check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"authoritative policy rejects a newly blocked beverage front")
- check("front blocked" in m.placement_warning("table_set",6,2,-1,3),"rejected front retains its precise diagnostic")
- m.strict_workfaces=true
- check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"strict model policy rejects the same blocked beverage front")
+ # The shared placement rule protects both required appliance fronts.
+ for kind in ["beverage","sink"]:
+  m=blank();check(m.place(kind,6,1,0),"required-front fixture places: "+kind)
+  check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"authoritative policy rejects a newly blocked front: "+kind)
+  check("front blocked" in m.placement_warning("table_set",6,2,-1,3),"rejected front retains its precise diagnostic: "+kind)
 func frames(n=2):
  for unused in range(n):await process_frame
 func mouse(point:Vector2,pressed:bool):

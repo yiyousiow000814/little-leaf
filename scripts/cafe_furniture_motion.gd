@@ -8,7 +8,7 @@ static func copy_model(model):
  var shadow=model.get_script().new()
  # Geometry planning never needs payroll, renderer caches or service ledgers.
  # Their original objects remain untouched by the transaction.
- for key in ["catalog","items","customers","dining_sets","built_walls","wall_attachments","shell_material","shell_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","strict_workfaces","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
+ for key in ["catalog","items","customers","dining_sets","built_walls","wall_attachments","shell_material","shell_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
   var value=model.get(key)
   shadow.set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
  return shadow

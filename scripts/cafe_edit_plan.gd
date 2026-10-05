@@ -20,7 +20,7 @@ func stamp(model,actors:Array)->Array:
   hash(model.owned_parcels),model.width,model.depth,
   # Runtime routes, physical reservations, and directional safety policy.
   hash(model.customers),hash(model.wall_actor_positions),
-  hash(model.checkout_staff_claims),hash(actors),model.strict_workfaces,
+  hash(model.checkout_staff_claims),hash(actors),
   # Purchase entitlement and staffing used by the existing planners.
   model.coins,model._next_item_id,hash(model.catalog),
   model.included_checkout_pending,model.included_bin_pending,
