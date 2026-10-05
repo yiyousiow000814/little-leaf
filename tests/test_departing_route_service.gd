@@ -35,8 +35,8 @@ func run():
   if moved and game.model.customers.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(moved,"boundary epsilon case occurs in generated real traffic")
  check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits depart and clean once after the edit")
- check(game.model.total_earned==1000,"all four payments occur exactly once")
- check(game.model.coins==initial_coins+1000-(game.model.total_wages_paid-initial_wages),"only genuine payments and wages change wallet")
+ check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all four payments occur exactly once")
+ check(game.model.coins==initial_coins+4*game.Model.MEAL_PAYMENT-(game.model.total_wages_paid-initial_wages),"only genuine payments and wages change wallet")
  print("DEPARTING_ROUTE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"boundary_position":str(repro_position),"served":game.model.served,"cleaned":game.model.total_cleaned}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

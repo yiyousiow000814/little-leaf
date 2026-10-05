@@ -78,7 +78,7 @@ func run():
  print("FINAL_GUESTS ",JSON.stringify(game.model.customers))
  check(not blocked_worker.is_empty() and restored,"active blocking and recovery exercised")
  check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits resume, pay and clean exactly once")
- check(game.model.total_earned==1000,"all expected payments occur exactly once")
+ check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all expected payments occur exactly once")
  print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"served":game.model.served,"cleaned":game.model.total_cleaned}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
