@@ -1,12 +1,13 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "date": "2026-10-05",
-  "label": "Legacy save compatibility",
+  "label": "Café interface cleanup",
   "new": [],
   "fixed": [
-    "Older browser saves and settings stored as signed byte arrays now load correctly.",
-    "Legacy recovery retains original data and the existing validation and size limits."
+    "Centered the Coins balance and improved large-number display with an exact-balance hint.",
+    "Shifted character bubbles slightly right while keeping their tails aligned with their characters.",
+    "Removed the bottom notification feature and its repeated status messages."
   ]
 }
