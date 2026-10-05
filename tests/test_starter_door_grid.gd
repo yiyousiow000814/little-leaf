@@ -51,7 +51,7 @@ func staff_snapshot(position:Vector2,route:Array=[],index:int=0)->Dictionary:
  var staff=[]
  for role in ["chef","waiter","cleaner"]:
   staff.append({"role":role,"on_duty":true,"duty_pending":false,"pos":position if role=="chef" else Vector2(2.5,6.5 if role=="waiter" else 7.5),"destination":Vector2i(-100,-100),"path":route if role=="chef" else [],"index":index if role=="chef" else 0,"job_kind":"","job_step":0,"job_elapsed":0.0,"station_id":-1,"job_guest_id":-1,"job_token":-1})
- return {"version":Contract.SERVICE_VERSION,"checkout_format":Contract.CHECKOUT_FORMAT,"serial":0,"records":[],"staff":staff,"animation_time":0.0}
+ return {"version":Contract.SERVICE_VERSION,"checkout_format":Contract.CHECKOUT_FORMAT,"serial":0,"records":[],"staff":staff,"animation_time":0.0,"dishwashing":{"format":"little_leaf.dishwashing.v1","next_id":1,"completed":0,"dishes":[]}}
 func _init():
  if not "geometry-saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED");quit(2);return
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))

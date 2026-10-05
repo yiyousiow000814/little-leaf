@@ -1,4 +1,5 @@
 extends RefCounted
+const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 ## Standalone original character study. Four isometric directions rotate the
 ## entire body, not a front-facing paper doll with a different face.
 ## The production renderer now uses this reviewed directional construction.
@@ -192,7 +193,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  var near_target=near_shoulder+Vector2(1+swing,10)
  if payload!="none":near_target=carry
  elif action in ["cooking","preparing_food","preparing_drink","washing"]:near_target=near_shoulder+Vector2(8,1+sin(t*TAU*2)*.6)
- elif action in ["serving","placing_plate","collecting","collecting_plate","collecting_drink","plating","taking_order"]:near_target=near_shoulder+Vector2(7,3)
+ elif action in ["serving","placing_plate","dropping_dishes","collecting","collecting_plate","collecting_drink","plating","taking_order"]:near_target=near_shoulder+Vector2(7,3)
  elif action in ["eating","drinking","standby"]:near_target=near_shoulder+Vector2(3,8+sin(t*TAU)*.4)
  elif action in ["mopping","sweeping"]:near_target=near_shoulder+Vector2(7,4+sin(t*TAU*2))
  if relaxed:near_target=near_shoulder+Vector2.DOWN
@@ -204,6 +205,12 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  if staff and action=="cooking":
   cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)))
   near_tip=cooking_pose.hand
+ var washing_pose={}
+ if action=="washing" and settings.has("washing_basis"):
+  var reference:Dictionary=settings.get("washing_grip_reference",{}).duplicate()
+  if not reference.is_empty():reference.center-=origin
+  washing_pose=SinkWashArt.pose(near_shoulder,far_shoulder,settings.get("reach",Vector2(10,-24))-origin,settings.washing_basis,float(settings.get("washing_seconds",0.0)),reference)
+  near_tip=washing_pose.near.hand;far_tip=washing_pose.far.hand
  var cleaning_pose={}
  var disposal_pose={}
  var wiping_pose={}
@@ -230,7 +237,9 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   waiter_tablet.draw_case(a,origin)
   waiter_tablet.draw_hands(a,origin,fur,shadow)
   if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
- if not overlay:paw(far_shoulder,far_tip,shadow,4.4)
+ if not overlay:
+  if not washing_pose.is_empty():washing_arm(washing_pose.far,shadow,4.4,species,false)
+  else:paw(far_shoulder,far_tip,shadow,4.4)
  var far_hip:Vector2=legs.far_hip;var near_hip:Vector2=legs.near_hip
  var far_foot:Vector2=legs.far_foot;var near_foot:Vector2=legs.near_foot
  if not overlay:
@@ -272,7 +281,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  var far_work=(not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
  if hide and not overlay and far_work:paw(near_shoulder,near_tip,fur,4.8)
  if not hide:
-  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work):paw(near_shoulder,near_tip,fur,4.8)
+  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work) and washing_pose.is_empty():paw(near_shoulder,near_tip,fur,4.8)
   var work_hand=far_tip if payload!="none" and tool in ["cloth","mop","broom"] else near_tip
   var floor:Vector2=settings.get("reach",Vector2(22,2))-origin+Vector2(3,-3) if tool in ["mop","broom"] else Vector2(22,2)
   if waiter_tablet.enabled and action=="taking_order":
@@ -280,6 +289,14 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    elif not back:
     # The far arm remains behind the torso; only fingers cover the device.
     waiter_tablet.draw_hands(a,origin,fur,shadow)
+  elif not washing_pose.is_empty():
+   washing_arm(washing_pose.near,fur,4.8,species,false)
+   if overlay:washing_arm(washing_pose.far,shadow,4.4,species,true)
+   var contact:Vector2=washing_pose.work.hand
+   if washing_pose.contact:
+    a.rounded_poly([origin+contact+Vector2(-2,-.8),origin+contact+Vector2(1.8,-1.3),origin+contact+Vector2(2.2,.7),origin+contact+Vector2(-1.8,1.1)],.5,"c3d2b6")
+   ellipse(washing_pose.support.hand,Vector2(1.7,1.6),shadow if washing_pose.use_near else fur)
+   ellipse(contact+Vector2(0,-.5),Vector2(1.7,1.6),fur if washing_pose.use_near else shadow)
   elif not cooking_pose.is_empty():
    CookingPose.draw(a,origin,cooking_pose,fur,shadow)
   elif not wiping_pose.is_empty():
@@ -312,7 +329,44 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    origin=head_origin
   else:a._draw_head(origin,species,back,blink,chef_hat,blocked,2 if profile else (3 if back else 0))
   head_attention=0.0
- return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}
+ return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"washing_pose":washing_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}
+func washing_arm(part:Dictionary,color,width:float,species:int,masked:bool):
+ if masked:
+  far_overlay_paw(part.shoulder,part.elbow,color,width,species)
+  # The elbow emerges beside the torso, then the bent forearm comes forward
+  # over the plate. Masking it by the apron severs the wrist from the hand.
+  # Keep the head in front while preserving ordinary far-arm body masking.
+  for piece in washing_forearm_parts(part,width,species):
+   var world=[]
+   for point in piece:world.append(origin+point)
+   a.poly(world,color)
+ else:
+  # These are already solved half-arm endpoints. paw() is reserved for one
+  # complete 10.5-pixel arm and would double each segment past the joint.
+  a._round_limb(origin+part.shoulder,origin+part.elbow,color,width)
+  for piece in washing_forearm_parts(part,width,species,false):
+   var world=[]
+   for point in piece:world.append(origin+point)
+   a.poly(world,color)
+
+func washing_forearm_parts(part:Dictionary,width:float,species:int,mask_head=true)->Array[PackedVector2Array]:
+ var axis:Vector2=(part.hand-part.elbow).normalized();var angle=axis.angle();var side=Vector2(-axis.y,axis.x)
+ var middle:Vector2=part.elbow.lerp(part.hand,.4);var outline=PackedVector2Array()
+ # Keep the rounded elbow but narrow the visible forearm itself, not only
+ # its tip. The wrist is slimmer than the palm, so both read separately.
+ for k in range(13):outline.append(part.hand+Vector2.from_angle(angle-PI*.5+PI*float(k)/12)*1.45)
+ outline.append(middle+side*width*.38)
+ for k in range(13):outline.append(part.elbow+Vector2.from_angle(angle+PI*.5+PI*float(k)/12)*width*.5)
+ outline.append(middle-side*width*.38)
+ var pieces:Array[PackedVector2Array]=[outline]
+ if not mask_head:return pieces
+ for mask in ArmOcclusion.head_masks(back,profile,species,Vector2.ZERO):
+  for cover in Geometry2D.offset_polygon(mask,.7):
+   var visible:Array[PackedVector2Array]=[]
+   for piece in pieces:visible.append_array(Geometry2D.clip_polygons(piece,cover))
+   pieces=visible
+ return pieces
+
 static func carry_anchor(away:bool)->Vector2:return Vector2(13,-17) if away else Vector2(2,-18)
 func eye(at:Vector2,size:Vector2):
  at+=Vector2(-.65,1.0)*head_attention

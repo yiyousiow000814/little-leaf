@@ -8,7 +8,8 @@ const LAYOUT_MOTION_INTRO_VERSION = 15
 const PRIMARY_FILE = "user://little_leaf_cafe_layout_motion_v15.json"
 const CHECKOUT_FORMAT = "little_leaf.checkout.v1"
 const LAYOUT_MOTION_FORMAT = "little_leaf.layout_motion.v1"
-const SERVICE_VERSION = 3
+const SERVICE_VERSION = 4
+const LEGACY_SERVICE_VERSION = 3
 const LEGACY_MAX_VERSION = 12
 const PROFILES = [{"file":"little_leaf_cafe_layout_motion_v15.json","app":"Little Leaf Cafe"}]
 static func accepts_version(value)->bool:

@@ -253,24 +253,74 @@ func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
 	if artist.has_method("_stove_food"):artist._stove_food(id,rotation)
 
 func _sink_faucet():
-	# The same planted stem and basin-directed outlet, with a readable matte
-	# metal body. Joined round caps cannot become detached antialias blocks.
-	top_ellipse(-.18,-.31,30.2,.045,.055,"819b88")
-	top_ellipse(-.18,-.31,30.4,.033,.040,"c2d3bc")
-	var pipe=[point(-.18,-.31,30),point(-.18,-.31,47),point(-.18,-.02,47),point(-.18,-.02,43)]
+	# One centered tap serves the full basin; there is no decorative rack.
+	var x=KitchenGeometry.SINK_BASIN_CENTER.x
+	var back=-.35
+	top_ellipse(x,back,30.2,.045,.050,"819b88")
+	top_ellipse(x,back,30.4,.033,.038,"c2d3bc")
+	var pipe=[point(x,back,30),point(x,back,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_OUTLET_HEIGHT)]
 	for i in range(pipe.size()-1):a._face_line(pipe[i],pipe[i+1],"93ac9c",2.5)
 	for joint in pipe:a._face_ellipse(joint,Vector2.ONE*1.25,"93ac9c")
-	# A real faucet control, joined to the stem above the collar. This
-	# replaces the old unexplained ivory dot elsewhere on the worktop.
-	var valve_hub=point(-.18,-.31,32.4)
-	var valve_tip=point(-.30,-.31,33.1)
-	a._face_line(valve_hub,valve_tip,"799783",1.2)
-	for tip in [valve_hub,valve_tip]:a._face_ellipse(tip,Vector2.ONE*.60,"799783")
-	a._face_ellipse(valve_hub,Vector2.ONE*.82,"799783")
-	# Shared screen-left light direction, thin enough to retain the metal body.
+
 	var light=Vector2(-.38,-.16)
 	for i in range(pipe.size()-1):a._face_line(pipe[i]+light,pipe[i+1]+light,"d8e4d1",.65)
 	for joint in pipe:a._face_ellipse(joint+light,Vector2.ONE*.325,"d8e4d1")
+
+func _sink_clip(shape:PackedVector2Array,opening:PackedVector2Array,color):
+	for polygon in Geometry2D.intersect_polygons(shape,opening):a.poly(Array(polygon),color)
+
+func _sink_outline(radius:Vector2,source_height:float)->PackedVector2Array:
+	var result=KitchenGeometry.sink_outline(radius,source_height,turn)
+	for index in range(result.size()):result[index]+=origin
+	return result
+
+func _sink_cavity():
+	var center=KitchenGeometry.SINK_BASIN_CENTER
+	var outer=KitchenGeometry.SINK_BASIN_OUTER
+	var inner=KitchenGeometry.SINK_BASIN_INNER
+	var bottom=KitchenGeometry.SINK_BOTTOM_RADIUS
+	var opening=_sink_outline(inner,KitchenGeometry.SINK_OPENING_HEIGHT)
+	top_ellipse(center.x,center.y,KitchenGeometry.SINK_RIM_HEIGHT,outer.x,outer.y,"eef0d7")
+	a.poly(Array(opening),"537b70")
+	# Actual vertical interior walls join the upper opening to a lower floor.
+	# Both the floor and wall faces are clipped by the opening: the near wall
+	# cannot paint over the countertop just because its floor lies lower.
+	for index in range(32):
+		var t=index*TAU/32.0;var next=(index+1)*TAU/32.0
+		var u=Vector2(cos(t),sin(t));var v=Vector2(cos(next),sin(next))
+		var front=(u+v).rotated(turn*PI/2).dot(Vector2.ONE)>0.0
+		var color="739a8b" if front else ("5c8275" if (u+v).rotated(turn*PI/2).x>0 else "688f80")
+		var wall=PackedVector2Array([point(center.x+u.x*inner.x,center.y+u.y*inner.y,KitchenGeometry.SINK_OPENING_HEIGHT),point(center.x+v.x*inner.x,center.y+v.y*inner.y,KitchenGeometry.SINK_OPENING_HEIGHT),point(center.x+v.x*bottom.x,center.y+v.y*bottom.y,KitchenGeometry.SINK_BOTTOM_HEIGHT),point(center.x+u.x*bottom.x,center.y+u.y*bottom.y,KitchenGeometry.SINK_BOTTOM_HEIGHT)])
+		_sink_clip(wall,opening,color)
+	_sink_clip(_sink_outline(bottom,KitchenGeometry.SINK_BOTTOM_HEIGHT),opening,"91b0a0")
+	# A small recessed drain belongs to the lower surface, not the rim plane.
+	var drain=PackedVector2Array()
+	for index in range(32):
+		var angle=index*TAU/32.0
+		drain.append(point(center.x+cos(angle)*.035,center.y+sin(angle)*.032,KitchenGeometry.SINK_BOTTOM_HEIGHT+.18))
+	_sink_clip(drain,opening,"547c70")
+
+func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
+	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
+	var center=KitchenGeometry.SINK_BASIN_CENTER
+	var outer=KitchenGeometry.SINK_BASIN_OUTER
+	var inner=KitchenGeometry.SINK_BASIN_INNER
+	# A continuous near lip occludes submerged dish edges. Clipping in the
+	# payload painter preserves the original rounded countertop silhouette.
+	var right=Vector2.RIGHT.rotated(turn*PI/2).dot(Vector2.ONE)*outer.x
+	var down=Vector2.DOWN.rotated(turn*PI/2).dot(Vector2.ONE)*outer.y
+	var start=atan2(down,right)-PI/2
+	var rim_points=[];var inner_points=[]
+	for index in range(33):
+		var angle=start+index*PI/32.0;var ray=Vector2(cos(angle),sin(angle))
+		var q=center+ray*outer;var inner_q=center+ray*inner
+		rim_points.append(point(q.x,q.y,KitchenGeometry.SINK_RIM_HEIGHT))
+		inner_points.append(point(inner_q.x,inner_q.y,KitchenGeometry.SINK_OPENING_HEIGHT))
+	inner_points.reverse()
+	a.poly(rim_points+inner_points,"f4f1da")
+	# The rear-mounted stem changes depth with rotation. Its spout now clears
+	# the entire six-dish stack in projection, without an always-front trick.
+	if KitchenGeometry.sink_tap_in_front(turn):_sink_faucet()
 
 func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=0):
 	kitchen_height=kind in ["counter","stove","beverage","sink"]
@@ -295,19 +345,9 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			beverage_accessories()
 		"sink":
 			cabinet(.94,.82,29,"bac4aa","99ad98","cbd7be")
-			# Inset basin, separate ribbed draining rack and a planted gooseneck tap.
-			top_ellipse(-.12,.035,30,.25,.28,"eef0d7")
-			top_ellipse(-.12,.035,30.5,.205,.23,"6d9689")
-			top_ellipse(-.12,.075,30.7,.16,.17,"92b6a8")
-			top_ellipse(-.12,.10,30.9,.038,.035,"739187")
-			box(.30,.01,.22,.54,29.5,31,"b6c7af","8ea58f","9baf97")
-			for z in [-.19,-.10,0,.10,.20]:edge(point(.22,z,31.2),point(.39,z,31.2),"819b88",.9)
-			for z in [-.10,.05]:
-				var dish=point(.30,z,32)
-				a.outlined_ellipse(dish+Vector2(0,-5),Vector2(2.6,5.5),"f7ecd1","cfceb0",.8)
+			# Recessed floor, side walls and front lip, all on the same sink.
+			_sink_cavity()
 			_sink_faucet()
-			box(.29,-.31,.10,.10,30,37,"c9dab9","b1cba7","a4be9c")
-			edge(point(.29,-.31,38),point(.29,-.24,38),"739783",1.2)
 		"bookshelf":
 			box(0,0,.72,.46,0,61,"c7a574","ae8955","ba945e","b08b58")
 			if front_visible():

@@ -1,6 +1,6 @@
-extends "res://scripts/main.gd"
+extends "res://tests/fixtures/before_dishwashing_main.gd"
 # Legacy role scheduling copied from public baseline 5658420.
-# Only these changed responsibilities are overridden; scene/model stay current.
+# Freeze the pre-dishwashing controller so old pickup/wash stages remain real.
 const LEGACY_ROLE_JOBS={"chef":["cook"],"waiter":["order","deliver_meal","brew","deliver_drink"],"cleaner":["cleanup"],"cashier":["take_payment"]}
 
 func _prepare_cleanup_step(staff:Dictionary,index:int):
