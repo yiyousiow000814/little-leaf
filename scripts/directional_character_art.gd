@@ -3,6 +3,7 @@ extends RefCounted
 ## entire body, not a front-facing paper doll with a different face.
 ## The production renderer now uses this reviewed directional construction.
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
+const ArmOcclusion=preload("res://scripts/character_arm_occlusion.gd")
 const CleaningPose=preload("res://scripts/cleaning_tool_pose.gd")
 const CookingPose=preload("res://scripts/cooking_tool_pose.gd")
 const WaiterTabletArt=preload("res://scripts/waiter_tablet_art.gd")
@@ -130,6 +131,11 @@ func paw(start:Vector2,tip:Vector2,c,width=4.7):
  var finish=start+(tip-start).normalized()*10.5
  a._round_limb(origin+start,origin+finish,c,width)
  return finish
+func far_overlay_paw(start:Vector2,tip:Vector2,color,width:float,species:int,head_offset=Vector2.ZERO):
+ for part in ArmOcclusion.visible_far_arm(start,tip,width,back,profile,species,head_offset):
+  var world=[]
+  for point in part:world.append(origin+point)
+  a.poly(world,color)
 func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  var axis:Vector2=axis_override if axis_override.length_squared()>.01 else (Vector2.RIGHT if profile else Vector2(1,-.48 if back else .48).normalized())
  var center=ankle+axis*1.5;var across=axis.orthogonal()
@@ -180,7 +186,8 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  # Far arm and far leg are behind the torso; near parts are in front.
  var far_shoulder=Vector2(-1,-25.5) if profile else (Vector2(-6,-26.5) if back else Vector2(6,-26.5))
  var near_shoulder=Vector2(1,-23.5) if profile else (Vector2(7,-24) if back else Vector2(-7,-24))
- var far_tip=far_shoulder+Vector2(-1-swing,10).normalized()*10.5
+ var relaxed=not walking and seat_mix<.01 and payload=="none" and tool=="none" and action in ["idle","standby","blocked"]
+ var far_tip=far_shoulder+(Vector2.DOWN if relaxed else Vector2(-1-swing,10).normalized())*10.5
  var carry:Vector2=settings.get("carry_hand",carry_anchor(back))
  var near_target=near_shoulder+Vector2(1+swing,10)
  if payload!="none":near_target=carry
@@ -188,6 +195,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  elif action in ["serving","placing_plate","collecting","collecting_plate","collecting_drink","plating","taking_order"]:near_target=near_shoulder+Vector2(7,3)
  elif action in ["eating","drinking","standby"]:near_target=near_shoulder+Vector2(3,8+sin(t*TAU)*.4)
  elif action in ["mopping","sweeping"]:near_target=near_shoulder+Vector2(7,4+sin(t*TAU*2))
+ if relaxed:near_target=near_shoulder+Vector2.DOWN
  var near_tip=near_shoulder+(near_target-near_shoulder).normalized()*10.5
  waiter_tablet.update(staff,str(settings.get("role","")),action,payload,tool,t,back,near_shoulder,far_shoulder)
  if waiter_tablet.ordering:
@@ -222,7 +230,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   waiter_tablet.draw_case(a,origin)
   waiter_tablet.draw_hands(a,origin,fur,shadow)
   if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
- if not overlay and (wiping_pose.is_empty() or wiping_pose.use_near):paw(far_shoulder,far_tip,shadow,4.4)
+ if not overlay:paw(far_shoulder,far_tip,shadow,4.4)
  var far_hip:Vector2=legs.far_hip;var near_hip:Vector2=legs.near_hip
  var far_foot:Vector2=legs.far_foot;var near_foot:Vector2=legs.near_foot
  if not overlay:
@@ -231,17 +239,16 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  if not overlay:
   if not back and species==1:tail(false)
   if not back and species==0:ellipse(Vector2(-9,-13),Vector2(3.4,3.3),"f6ebce")
+  # The same intact outline also masks far-arm worktop overlays.
+  shape(ArmOcclusion.torso_points(back,profile),cloth,3.5)
   # Three-quarter torso: shoulder line, side panel and hem all share the view.
   if profile:
-   shape([Vector2(-5.5,-28),Vector2(5,-27),Vector2(8,-22),Vector2(7,-12),Vector2(-6,-11.5),Vector2(-8,-20)],cloth,3.5)
    shape([Vector2(-5.5,-28),Vector2(-2.5,-25),Vector2(-3,-12),Vector2(-6,-11.5),Vector2(-8,-20)],Color(cloth).darkened(.075),1.8)
    line(Vector2(-4.5,-13.4),Vector2(5.6,-13),Color(cloth).lightened(.23),.75)
   elif back:
-   shape([Vector2(-7.8,-28),Vector2(5.3,-29.5),Vector2(9,-23),Vector2(8.2,-11.5),Vector2(-7,-10),Vector2(-10,-17)],cloth,3.5)
    shape([Vector2(5.3,-29),Vector2(9,-23),Vector2(8.2,-11.5),Vector2(4.6,-12),Vector2(5,-23)],Color(cloth).darkened(.075),1.8)
    line(Vector2(-6,-12),Vector2(6,-13.2),Color(cloth).lightened(.23),.75)
   else:
-   shape([Vector2(-7.5,-28.5),Vector2(5.6,-27),Vector2(9.3,-21),Vector2(8.0,-10.8),Vector2(-7,-12.2),Vector2(-10,-20)],cloth,3.5)
    shape([Vector2(-7.5,-28.2),Vector2(-4.8,-25),Vector2(-4,-12),Vector2(-7,-12.2),Vector2(-10,-20)],Color(cloth).darkened(.075),1.7)
    line(Vector2(-5,-14),Vector2(7,-12.8),Color(cloth).lightened(.23),.75)
   shoe(near_foot,true,legs.near_axis)
@@ -262,24 +269,26 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
    waiter_tablet.draw_tablet(a,origin)
    waiter_tablet.draw_case(a,origin)
+ var far_work=(not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
+ if hide and not overlay and far_work:paw(near_shoulder,near_tip,fur,4.8)
  if not hide:
-  if not waiter_tablet.ordering and cooking_pose.is_empty():paw(near_shoulder,near_tip,fur,4.8)
+  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work):paw(near_shoulder,near_tip,fur,4.8)
   var work_hand=far_tip if payload!="none" and tool in ["cloth","mop","broom"] else near_tip
   var floor:Vector2=settings.get("reach",Vector2(22,2))-origin+Vector2(3,-3) if tool in ["mop","broom"] else Vector2(22,2)
   if waiter_tablet.enabled and action=="taking_order":
    if not waiter_tablet.ordering:a._action_prop(origin,carry,"idle",t,payload,tool,work_hand,near_tip,floor)
    elif not back:
-    paw(far_shoulder,far_tip,shadow,4.4)
+    # The far arm remains behind the torso; only fingers cover the device.
     waiter_tablet.draw_hands(a,origin,fur,shadow)
   elif not cooking_pose.is_empty():
    CookingPose.draw(a,origin,cooking_pose,fur,shadow)
   elif not wiping_pose.is_empty():
-   if not wiping_pose.use_near:paw(far_shoulder,far_tip,shadow,4.4)
+   if overlay and not wiping_pose.use_near:far_overlay_paw(far_shoulder,far_tip,shadow,4.4,species)
    if wiping_pose.contact:
     a._action_prop(origin,carry,action,t,payload,tool,wiping_pose.hand,wiping_pose.hand,floor)
     ellipse(wiping_pose.hand,Vector2(2.1,2.1),fur if wiping_pose.use_near else shadow)
   elif not payment_pose.is_empty():
-   if not payment_pose.use_near:paw(far_shoulder,far_tip,shadow,4.4)
+   if overlay and not payment_pose.use_near:far_overlay_paw(far_shoulder,far_tip,shadow,4.4,species)
    CheckoutArt.hand_prop(a,origin+payment_pose.hand,t,action=="taking_payment")
    ellipse(payment_pose.hand,Vector2(1.8,1.8),fur if payment_pose.use_near else shadow)
   elif not cleaning_pose.is_empty():

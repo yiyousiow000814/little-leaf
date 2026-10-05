@@ -42,7 +42,6 @@ var _cache_key=""
 var successful_point=Vector2(INF,INF)
 var successful_key=""
 var tool_buttons={}
-var floor_option:OptionButton
 var shell_option:OptionButton
 var paper_option:OptionButton
 var wall_options:VBoxContainer
@@ -99,7 +98,6 @@ func build()->Control:
 	papers.item_selected.connect(func(index):material=Geometry.MATERIALS[index];_cache_key="";refresh(pointer))
 	options.add_child(game.label("R turns edge · Esc cancels",11,Color("7b856c")))
 	var finishes=VBoxContainer.new();surface_options=finishes;finishes.add_theme_constant_override("separation",6);panel.add_child(finishes)
-	var floor_row=HBoxContainer.new();floor_row.add_child(game.label("Floor",12));floor_option=_option(FLOOR_NAMES);floor_row.add_child(floor_option);finishes.add_child(floor_row)
 	var shell_row=HBoxContainer.new();shell_row.add_child(game.label("Back walls",12));shell_option=_option(["Original"]+MATERIAL_NAMES);shell_row.add_child(shell_option);finishes.add_child(shell_row)
 	shell_option.item_selected.connect(func(index):
 		if game.model.set_shell_material((["original"]+Geometry.MATERIALS)[index]):_changed())
