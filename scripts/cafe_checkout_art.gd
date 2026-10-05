@@ -58,7 +58,10 @@ static func hand_prop(artist,hand:Vector2,progress:float,cashier:bool):
  artist.line(hand+Vector2(-1.8,-.4),hand+Vector2(1.8,-.4),"889e82",.65)
 static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  f.a=artist;f.origin=p;f.turn=posmod(rotation,4)
- f.cabinet(.90,.76,29,"b7a77e","968965","e7d7ad")
+ # Checkout uses a plain customer-facing panel, not the generic storage
+ # cabinet's doors/handles. Keep its footprint, height, palette and terminal
+ # orientation; no drawer seam is painted through the rear views either.
+ f.box(0,0,.90,.76,1,29,"e7d7ad","b7a77e","968965","b7a77e")
  f.box(0,-.10,.43,.38,29,33,"8faaa0","759487","637f73")
  f.box(0,-.34,.22,.08,29,30,"c8d5bc","8ca092","728a7d")
  f.top_ellipse(0,-.35,30,.037,.020,"e4d99e")
@@ -89,5 +92,4 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  if recent:
   var extension=.12
   f.face([f.point(-.05,.15,33.25),f.point(.07,.15,33.25),f.point(.07,.15+extension,33.25),f.point(-.05,.15+extension,33.25)],"fff5d8",.25)
- f.edge(f.point(-.32,.385,24),f.point(.32,.385,24),"756d53",1)
  return true
