@@ -22,6 +22,8 @@ SUITES = [
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),
     ("test_hud_layout", "HUD_LAYOUT_RESULT"),
+    ("test_toolbar_help", "TOOLBAR_HELP_RESULT"),
+    ("test_mobile_toolbar", "MOBILE_TOOLBAR_RESULT"),
     ("test_wallet_alignment", "WALLET_ALIGNMENT_RESULT"),
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),

@@ -40,26 +40,30 @@ func run():
     check(Rect2(Vector2.ZERO,Vector2(view)).encloses(rect),label+" viewport contains "+button.accessibility_name)
    for a in range(buttons.size()):
     for b in range(a+1,buttons.size()):check(not buttons[a].get_global_rect().intersects(buttons[b].get_global_rect()),label+" distinct targets %d/%d"%[a,b])
-   var source=hud.rail_art.art.get_size();var cap=minf(hud.rail_art.size.x*.22,hud.rail_art.size.y*1.2)
-   var wood_right=hud.rail_art.get_global_rect().end.x-hud.RAIL_WOOD_RIGHT_INSET*cap/(source.y*1.2)
-   check(ui.settings_button.get_global_rect().end.x<=wood_right,label+" settings target inside painted rail")
-   var staff=painted_rect(hud.action_art.staff)
-   var gear=painted_rect(hud.action_art.settings)
-   var expected_gap=18.0 if view.x>=850 else 8.0
-   check(absf(gear.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/settings gap")
-   check(absf(staff.get_center().y-gear.get_center().y)<.1,label+" staff/settings optical centerline")
-   check(wood_right-gear.end.x>=9,label+" visible gear outer inset")
-   if not editing:
-    var decorate=painted_rect(hud.action_art.decorate)
-    check(absf(staff.position.x-decorate.end.x-expected_gap)<.1,label+" equal painted decorate/staff gap")
-    check(absf(decorate.get_center().y-staff.get_center().y)<.1,label+" decorate optical centerline")
+   if not hud.layout_host.get_meta("mobile_layout",false):
+    var source=hud.rail_art.art.get_size();var cap=minf(hud.rail_art.size.x*.22,hud.rail_art.size.y*1.2)
+    var wood_right=hud.rail_art.get_global_rect().end.x-hud.RAIL_WOOD_RIGHT_INSET*cap/(source.y*1.2)
+    check(ui.settings_button.get_global_rect().end.x<=wood_right,label+" settings target inside painted rail")
+    var staff=painted_rect(hud.action_art.staff)
+    var gear=painted_rect(hud.action_art.settings)
+    var expected_gap=18.0 if view.x>=850 else 8.0
+    check(absf(gear.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/settings gap")
+    check(absf(staff.get_center().y-gear.get_center().y)<.1,label+" staff/settings optical centerline")
+    check(wood_right-gear.end.x>=9,label+" visible gear outer inset")
+    if not editing:
+     var decorate=painted_rect(hud.action_art.decorate)
+     check(absf(staff.position.x-decorate.end.x-expected_gap)<.1,label+" equal painted decorate/staff gap")
+     check(absf(decorate.get_center().y-staff.get_center().y)<.1,label+" decorate optical centerline")
+    else:
+     check(absf(staff.position.x-hud.edit_cancel.get_global_rect().end.x-expected_gap)<.1,label+" cancel/staff painted gap")
+     check(hud.edit_cancel.position.x-game.edit_button.get_rect().end.x>=4,label+" visible done/cancel separation")
    else:
-    check(absf(staff.position.x-hud.edit_cancel.get_global_rect().end.x-expected_gap)<.1,label+" cancel/staff painted gap")
-    check(hud.edit_cancel.position.x-game.edit_button.get_rect().end.x>=4,label+" visible done/cancel separation")
+    check(not hud.rail_art.visible,label+" mobile uses separated painted controls")
+    check(hud.layout_host.size.y<=92,label+" mobile leaves world visible")
    check(game.pause_button.size.x==44,label+" play target does not inflate with viewport height")
    if view.x==1360:desktop_wallet=hud.wallet.size
-   if view.x==960:check(hud.wallet.size.is_equal_approx(desktop_wallet),label+" embedded and fullscreen wallet proportions match")
-   if view.x>=800:check(hud.wallet.size.x/game.pause_button.size.x>=5.5,label+" approved prominent wallet hierarchy")
+   if view.x==960:check(hud.wallet.size.x<desktop_wallet.x,label+" short embedded toolbar reduces decorative wallet area")
+   if view.x>=800:check(hud.wallet.size.x/game.pause_button.size.x>=4.3,label+" wallet remains prominent beside44px play target")
   game.editing=false;game.settings.hide();await settle()
   var old_pause=game.paused;await click(game.pause_button);check(game.paused!=old_pause,str(view)+" pointer toggles pause")
   await click(game.settings_controls.speed_buttons[1]);check(game.speed==2,str(view)+" pointer selects 2x")
@@ -77,9 +81,9 @@ func run():
    var escape=InputEventKey.new();escape.keycode=KEY_ESCAPE;escape.pressed=true;root.push_input(escape,true);await settle()
    check(not game.settings.visible,str(view)+" short viewport settings dismisses with Escape")
   ui.cancel_modal_pointer()
- # Repeated height-only resize must retain the approved proportions.
+ # Repeated height-only resize must select the same compact/full proportions.
  for height in [540,880,540,880]:
   root.size=Vector2i(960,height);await settle()
-  check(hud.wallet.size.is_equal_approx(desktop_wallet),"repeated height resize keeps wallet hierarchy")
+  check(hud.wallet.size.x<desktop_wallet.x if height<600 else hud.wallet.size.is_equal_approx(desktop_wallet),"repeated height resize restores the matching wallet hierarchy")
  print("HUD_LAYOUT_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

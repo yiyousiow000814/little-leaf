@@ -41,6 +41,13 @@ var management:PanelContainer
 var help_panel:PanelContainer
 var help_text:Label
 var help_box:VBoxContainer
+var help_scroll:ScrollContainer
+var help_footer:VBoxContainer
+var help_heading:Label
+var help_overview:Button
+var help_notes:Button
+var help_scrim:ColorRect
+var help_modal=false
 var help_done:Button
 var help_retry:Button
 var settings_help:Button
@@ -224,8 +231,19 @@ func setup():
  upgrade_button.reparent(context);context.move_child(upgrade_button,context.get_child_count()-1)
  plot_button=_small_button("",func():game._expand();sync());manage_box.add_child(plot_button)
  manage_box.add_child(_small_button("Done",func():management.hide()))
- help_panel=_panel();var hb=VBoxContainer.new();help_box=hb;hb.add_theme_constant_override("separation",9);help_panel.add_child(hb)
- hb.add_child(game.label("Quick help",18));help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_text.custom_minimum_size=Vector2(260,0);hb.add_child(help_text);help_retry=_small_button("Try loading again",func():game.web_save.retry_startup());hb.add_child(help_retry);help_retry.hide();hb.add_child(_small_button("Show whole café",func():_camera_action(0)));help_done=_small_button("Done",_close_help);hb.add_child(help_done)
+ help_panel=_panel();help_panel.name="QuickHelpPanel"
+ help_box=VBoxContainer.new();help_box.add_theme_constant_override("separation",8);help_panel.add_child(help_box)
+ help_heading=game.label("Quick help",18);help_box.add_child(help_heading)
+ help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
+ var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
+ help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
+ help_retry=_small_button("Try loading again",func():game.web_save.retry_startup());help_content.add_child(help_retry);help_retry.hide()
+ help_footer=VBoxContainer.new();help_footer.add_theme_constant_override("separation",8);help_box.add_child(help_footer)
+ help_overview=_small_button("Show whole café",func():_camera_action(0));help_footer.add_child(help_overview)
+ help_done=_small_button("Done",_close_help);help_footer.add_child(help_done)
+ help_scrim=ColorRect.new();help_scrim.name="QuickHelpModalBackdrop";help_scrim.color=Color(0.12,0.16,0.10,0.28);help_scrim.z_index=49;game.ui.add_child(help_scrim);help_scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);help_scrim.hide()
+ help_panel.visibility_changed.connect(func():
+  if not help_panel.visible:_set_help_modal(false))
  hint=PanelContainer.new();hint.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_theme_stylebox_override("panel",game._style(Color("fbefdc"),Color("d4bd95"),9));game.ui.add_child(hint)
  hint_text=game.label("",13,Color("735b3e"));hint_text.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_child(hint_text);hint.hide()
  top_row=game.ui.get_child(0).get_child(0);title=top_row.get_child(0);settings_button=top_row.get_child(top_row.get_child_count()-1)
@@ -255,10 +273,11 @@ func setup():
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
  for popup in [finishes,floor_panel,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
-  hud.theme_panel(popup,true,26);hud.theme_panel_contents(popup)
+  hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  update_notes=UpdateNotes.new(self);update_notes.setup()
- var notes_entry=update_notes.make_menu_entry();help_box.add_child(notes_entry);help_box.move_child(notes_entry,help_box.get_child_count()-2)
+ help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
+ for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
  _add_update_badge(help_access);_add_update_badge(settings_help)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
@@ -414,6 +433,11 @@ func sync():
  _sync_starter_floor_repair()
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
 func _wrap_themed_popup(panel:PanelContainer,width:float):
+ if panel==help_panel:
+  panel.set_meta("popup_width",width);hud.theme_scroll(help_scroll)
+  for control in [help_scroll.get_child(0),help_footer,help_heading]:control.minimum_size_changed.connect(_queue_popup_fit)
+  panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
+  return
  panel.z_index=50
  var body=panel.get_child(0);var scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true
  panel.add_child(scroll);body.reparent(scroll);body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;panel.custom_minimum_size=Vector2.ZERO;panel.set_anchors_preset(Control.PRESET_TOP_LEFT);panel.set_meta("popup_width",width)
@@ -427,7 +451,8 @@ func _fit_themed_popups():
  popup_fit_queued=false
  if hud==null or not is_instance_valid(game):return
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
- var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets();var top=hud.popup_top()
+ _fit_help_panel()
+ var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
   if not panel.visible:continue
@@ -445,6 +470,45 @@ func _fit_themed_popups():
   var available=maxf(44,hud.popup_height_budget()-padding.y)
   record.scroll.custom_minimum_size=Vector2(0,minf(available,body.get_combined_minimum_size().y))
   panel.size=Vector2(width,0);panel.position=Vector2(hud.popup_left(panel.size.x),hud.popup_y(panel.size.y))
+func _fit_help_panel():
+ if not is_instance_valid(help_panel) or not help_panel.visible:return
+ var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
+ var width=minf(340,maxf(0,view.x-insets.x-insets.z-24))
+ var padding=help_panel.get_theme_stylebox("panel").get_minimum_size()
+ var top=hud.layout_host.get_global_rect().end.y+10
+ var footer_height=help_footer.get_combined_minimum_size().y
+ var fixed_height=padding.y+help_heading.get_combined_minimum_size().y+footer_height+16
+ # Prefer a docked panel with at least 100px of readable instructions. Only
+ # genuinely short viewports use a scrim and disable the obscured toolbar.
+ var modal=view.y-insets.w-top-12<fixed_height+100
+ _set_help_modal(modal)
+ if modal:top=insets.y+12
+ var available=maxf(0,view.y-insets.w-top-12-fixed_height)
+ var body:Control=help_scroll.get_child(0)
+ var bar=help_scroll.get_v_scroll_bar()
+ var gutter=bar.get_minimum_size().x+help_scroll.get_theme_constant("scrollbar_h_separation") if bar.visible else 0.0
+ body.size.x=maxf(0,width-padding.x-gutter)
+ help_scroll.custom_minimum_size=Vector2(0,minf(available,body.get_combined_minimum_size().y))
+ help_panel.size=Vector2(width,0)
+ help_panel.position=Vector2(hud.popup_left(help_panel.size.x),top)
+ if help_panel.get_index()!=game.ui.get_child_count()-1:game.ui.move_child(help_panel,game.ui.get_child_count()-1)
+func _set_help_modal(enabled:bool):
+ help_modal=enabled
+ if is_instance_valid(help_scrim):help_scrim.visible=enabled
+ if hud==null or not is_instance_valid(hud.layout_host):return
+ hud.layout_host.mouse_behavior_recursive=Control.MOUSE_BEHAVIOR_DISABLED if enabled else Control.MOUSE_BEHAVIOR_INHERITED
+ hud.layout_host.focus_behavior_recursive=Control.FOCUS_BEHAVIOR_DISABLED if enabled else Control.FOCUS_BEHAVIOR_INHERITED
+ if enabled:
+  var focused=game.get_viewport().gui_get_focus_owner()
+  if focused==null or not help_panel.is_ancestor_of(focused):help_scroll.grab_focus()
+func _help_tab(event:InputEventKey)->bool:
+ if not help_panel.visible or event.keycode!=KEY_TAB:return false
+ var controls=[help_scroll]
+ if help_retry.visible and not help_retry.disabled:controls.append(help_retry)
+ controls.append_array([help_overview,help_notes,help_done])
+ var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
+ index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())
+ controls[index].grab_focus();return true
 func _business_pressed():
  if compact_play:
   game.settings.hide();_popup_at(play_panel,320);sync()
@@ -598,7 +662,7 @@ func show_help():
  help_returns_to_settings=false;help_done.text="Done"
  game.settings.hide()
  _sync_help_content()
- _popup_at(help_panel,340)
+ _popup_at(help_panel,340);help_scroll.scroll_vertical=0;_fit_help_panel();help_scroll.grab_focus()
  if help_retry.visible and not help_retry.disabled:help_retry.grab_focus()
 func _sync_help_content():
  help_retry.visible=game.web_save!=null and game.web_save.startup_error!=""
@@ -616,7 +680,7 @@ func _sync_help_content():
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
 func return_to_help():
- _popup_at(help_panel,340)
+ _popup_at(help_panel,340);_fit_help_panel();help_notes.grab_focus()
 func _close_help():
  help_panel.hide()
  if help_returns_to_settings:game.settings.show();_fit_themed_popups()
@@ -639,6 +703,7 @@ func handle_input(event:InputEvent)->bool:
  for popup in panels:
   if is_instance_valid(popup) and popup.visible:any_open=true;break
  if not any_open:return false
+ if event is InputEventKey and event.pressed and _help_tab(event):return true
  if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
   game.settings.hide();pending_wall={};_hide_popups();sync();return true
  var pointer_press=(event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed)
