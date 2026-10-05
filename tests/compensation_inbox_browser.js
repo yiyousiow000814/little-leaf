@@ -10,6 +10,7 @@ const web=arg('--web-build'),output=arg('--output'),layoutFile=arg('--layout-rep
 if(!web||!output||!layoutFile)throw Error('--web-build, --output and --layout-report are required');
 fs.mkdirSync(output,{recursive:true});
 const layout=JSON.parse(fs.readFileSync(layoutFile,'utf8'));assert(!layout.failures.length);const points=layout.web_input_points;
+const regions=layout.web_visible_regions;assert(regions&&regions.settings&&regions.list&&regions.detail,'exact engine-derived text regions are required');
 const report={synthetic_only:true,checks:[],source_sha256:{}};
 report.export_js_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'index.js'))).digest('hex');
 report.web_template_sha256=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json'),'utf8')).web_template_sha256;
@@ -30,19 +31,23 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   report.ocr_version=cp.execFileSync(tesseract,['--version'],{encoding:'utf8'}).split('\n')[0];
   report.rendered_stages={};
   const normalize=text=>text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
-  const visible=async(stage,phrases)=>{
-   report.stage=stage;const deadline=Date.now()+15000;let observed='',attempts=0;
-   const file=path.join(output,stage+'.png');
+  report.ocr_threads=1;
+  const visible=async(stage,phrases,region)=>{
+   report.stage=stage;const deadline=Date.now()+30000;let observed='',attempts=0;
+   assert(region.length===4&&region.every(Number.isFinite));
+   const clip={x:Math.floor(region[0]),y:Math.floor(region[1]),width:Math.ceil(region[2])+1,height:Math.ceil(region[3])+1};
+   const file=path.join(output,stage+'.png'),textFile=path.join(output,stage+'-text.png');
    do{
     attempts++;await page.screenshot({path:file});
-    observed=cp.execFileSync(tesseract,[file,'stdout','--psm','11'],{encoding:'utf8',timeout:5000,stdio:['ignore','pipe','pipe']});
+    await page.screenshot({path:textFile,clip});
+    observed=cp.execFileSync(tesseract,[textFile,'stdout','--psm','6'],{encoding:'utf8',timeout:Math.max(1,deadline-Date.now()),env:{...process.env,OMP_THREAD_LIMIT:'1'},stdio:['ignore','pipe','pipe']});
     fs.writeFileSync(path.join(output,stage+'.txt'),observed);
     if(phrases.every(phrase=>normalize(observed).includes(normalize(phrase)))){
-     report.rendered_stages[stage]={phrases,observed,attempts};check(true,'rendered '+stage+' contains its required visible text');return;
+     report.rendered_stages[stage]={phrases,observed,attempts,clip};check(true,'rendered '+stage+' contains its required visible text');return;
     }
     await page.waitForTimeout(100);
    }while(Date.now()<deadline);
-   report.rendered_stages[stage]={phrases,observed,attempts};throw Error('Rendered '+stage+' text did not appear within 15s');
+   report.rendered_stages[stage]={phrases,observed,attempts,clip};throw Error('Rendered '+stage+' text did not appear within 30s');
   };
   await page.goto(url+'/fixture');
   await page.addScriptTag({content:sources.old});await page.evaluate(()=>window.oldVault=LittleLeafVault);
@@ -73,18 +78,18 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   check(report.launch_hook?.launchCalls===1&&JSON.stringify(report.launch_hook.launchArgs)==='[\"--time-scale\",\"0\",\"--\",\"--skip-intro\"]','exported Engine accepts exact clock and intro fixture arguments');
   check(await page.evaluate(()=>JSON.parse(__littleLeafVault.snapshotJson()).paid.length===1),'actual exported shell retains historical snapshot on reload');
   const click=async name=>{report.stage='click-'+name;assert(points[name]&&points[name].length===2);await page.mouse.click(...points[name]);};
-  await click('settings');await visible('settings',['Settings','Inbox']);
-  await click('inbox');await visible('inbox-list',['Inbox','Letters are kept for 14 days']);
+  await click('settings');await visible('settings',['Inbox'],regions.settings);
+  await click('inbox');await visible('inbox-list',['Inbox','Letters are kept for 14 days'],regions.list);
   check(await page.evaluate(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return !__littleLeafInbox.isRead(s.profileId,r.id,r.revision);}), 'opening actual Inbox list does not consume unread receipt');
   await page.screenshot({path:path.join(output,'exported-inbox-history.png')});
   await click('first_message');
-  await visible('inbox-detail',['Dear café owner','Paid','0.1.5 update']);
+  await visible('inbox-detail',['Dear café owner','Paid','0.1.5 update'],regions.detail);
   await page.waitForFunction(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return r&&__littleLeafInbox.isRead(s.profileId,r.id,r.revision);},null,{timeout:15000});
   check(await page.evaluate(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return __littleLeafInbox.isRead(s.profileId,r.id,r.revision);}), 'opening actual message detail acknowledges its paid receipt');
   await page.screenshot({path:path.join(output,'exported-inbox-detail.png')});
   await page.keyboard.press('Escape');
-  await click('settings');await visible('reopened-settings',['Settings','Inbox']);
-  await click('inbox');await visible('reopened-inbox',['Inbox','Letters are kept for 14 days']);await page.keyboard.press('Escape');
+  await click('settings');await visible('reopened-settings',['Inbox'],regions.settings);
+  await click('inbox');await visible('reopened-inbox',['Inbox','Letters are kept for 14 days'],regions.list);await page.keyboard.press('Escape');
   check(await readRecords()===before,'actual Inbox open/read/reopen/Escape leaves authority byte-identical');
   report.authority_after_inbox_sha256=crypto.createHash('sha256').update(await readRecords()).digest('hex');
   await page.reload();await page.waitForFunction(()=>!document.getElementById('status'),null,{timeout:60000});

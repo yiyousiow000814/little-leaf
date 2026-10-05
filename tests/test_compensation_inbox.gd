@@ -21,6 +21,7 @@ var checks=0
 var failures=[]
 var capture_dir=""
 var web_points={}
+var web_regions={}
 func _initialize():
  for arg in OS.get_cmdline_user_args():
   if arg.begins_with("--capture-dir="):capture_dir=arg.trim_prefix("--capture-dir=")
@@ -36,6 +37,13 @@ func capture(label:String):
  check(root.get_texture().get_image().save_png(capture_dir.path_join(label+".png"))==OK,"capture "+label)
 func point(control:Control)->Array:
  var center=control.get_global_rect().get_center();return [center.x,center.y]
+func region(control:Control)->Array:
+ var bounds=control.get_global_rect();return [bounds.position.x,bounds.position.y,bounds.size.x,bounds.size.y]
+func button_text_region(button:Button)->Array:
+ var font=button.get_theme_font("font");var font_size=button.get_theme_font_size("font_size")
+ var measured=font.get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size)
+ var bounds=Rect2(button.get_global_rect().get_center()-measured*.5,measured).grow(6)
+ return [bounds.position.x,bounds.position.y,bounds.size.x,bounds.size.y]
 func paid(id=CAMPAIGN,revision=1,coins=1000)->Dictionary:
  return {"id":id,"revision":revision,"coins":coins,"grantedAt":1770000000000+revision,"status":"granted"}
 func text(node:Node)->String:
@@ -54,6 +62,7 @@ func run():
  web_points.settings=point(ui.settings_button)
  game.settings.show();await settle()
  web_points.inbox=point(ui.settings_inbox)
+ web_regions.settings=button_text_region(ui.settings_inbox)
  game.settings.hide()
  var money=game.model.coins;var snapshot=JSON.stringify(game.web_save.inbox_snapshot)
  inbox.show();await settle()
@@ -72,6 +81,7 @@ func run():
  await capture("02-history-desktop")
  inbox.rows[1].pressed.emit();await settle()
  web_points.back_to_inbox=point(inbox.back_button)
+ web_regions.detail=region(inbox.letter_body)
  check("Paid · Added to your wallet" in text(inbox.body) and "1,000 Leaf Coins" in text(inbox.body) and "Dear café owner," in text(inbox.body) and "0.1.5 update" in text(inbox.body) and "Warmly,\nLittle Leaf" in text(inbox.body),"paid letter has a reason, exact amount, salutation and sign-off")
  check(inbox.has_unread(),"only chosen detail becomes read")
  await capture("03-paid-detail-desktop")
@@ -95,6 +105,7 @@ func run():
  check(inbox.has_unread(),"pending eligibility cannot suppress later paid receipt")
  web_points.first_message=point(inbox.rows[0])
  await capture("05-one-letter-desktop")
+ web_regions.list=region(inbox.heading_box)
  for size in [Vector2i(800,600),Vector2i(390,844),Vector2i(844,390)]:
   root.size=size;await settle();inbox.show();await settle()
   check(inbox.panel.get_global_rect().end.x<=size.x+.5 and inbox.panel.position.x>=0,"horizontal bounds at "+str(size))
@@ -168,7 +179,7 @@ func run():
  await create_timer(.12).timeout
  for tween in get_processed_tweens():tween.kill()
  game.queue_free();await process_frame;await process_frame
- var result={"checks":checks,"failures":failures,"native_synthetic_only":true,"web_input_points":web_points}
+ var result={"checks":checks,"failures":failures,"native_synthetic_only":true,"web_input_points":web_points,"web_visible_regions":web_regions}
  if OS.get_environment("LL_UI_RESULT")!="":
   var file=FileAccess.open(OS.get_environment("LL_UI_RESULT"),FileAccess.WRITE);file.store_string(JSON.stringify(result))
  print("COMPENSATION_INBOX_RESULT ",JSON.stringify(result))
