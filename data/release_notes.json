@@ -1,15 +1,18 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.5-dev.1",
-  "date": "2026-10-03",
-  "label": "Layout, controls and saves",
+  "version": "0.1.6",
+  "date": "2026-10-05",
+  "label": "Welcome and café polish",
   "new": [
-    "Closer zoom and clearer controls in portrait and landscape.",
-    "Existing browser cafés receive 1,000 coins once after a successful updated save."
+    "A skippable Welcome intro with the refreshed Little Leaf title."
   ],
   "fixed": [
-    "Move occupied furniture without losing service progress; Show locates blocked station access.",
-    "People pass one another. Browser saves confirm success, retain errors and preserve preferences."
+    "Clearer controls, starter floors and doorway, expansion signs and prices.",
+    "Staff begin at their work posts; waiters and cleaners keep separate jobs.",
+    "Optional blocked stoves keep meals safely paused, and departing guests no longer block unrelated furniture edits.",
+    "Routine autosaves are quiet while save errors and retry guidance remain visible.",
+    "More natural chef cooking, corrected pan handles and hat fit, a plain checkout front, and clearer customer-path litter.",
+    "Sharper character and furniture edges at close-up zoom."
   ]
 }
