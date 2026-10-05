@@ -251,6 +251,32 @@ async function main() {
       requireVisibleText(text, phrases);
       check(true, name + ' rendered Help text verified by local OCR');
     };
+    const screenUiText = async (page, name, region, phrases, retryTarget = null) => {
+      const clip = layouts.new.regions?.[region];
+      assert(clip && clip.width > 0 && clip.height > 0, 'Derived UI region ' + region);
+      const deadline = Date.now() + 45000;
+      let lastError;
+      do {
+        // Build category selection is idempotent. The real tray disables input
+        // during its opening tween, so a slow exported frame may ignore the
+        // first click even after a fixed wall-clock delay. Never retry payment.
+        if (retryTarget) await click(page, 'new', retryTarget, 0);
+        await page.waitForTimeout(400);
+        await page.screenshot({path: path.join(output, name + '.png')});
+        const crop = path.join(output, name + '-crop.png');
+        await page.screenshot({path: crop, clip});
+        const text = cp.execFileSync(tesseract, [crop, 'stdout', '-l', 'eng', '--psm', '6'],
+          {encoding: 'utf8', timeout: Math.max(1000, Math.min(30000, deadline - Date.now())),
+            env: {...process.env, OMP_THREAD_LIMIT: '1'}});
+        fs.writeFileSync(path.join(output, name + '-ocr.txt'), text);
+        try {
+          requireVisibleText(text, phrases);
+          check(true, name + ' rendered UI state verified before the next action');
+          return;
+        } catch (error) {lastError = error;}
+      } while (Date.now() < deadline);
+      throw lastError;
+    };
     const assertUnchanged = async (page, baseline, name) => {
       const after = await stableSnapshot(page);
       check(canonical(after) === canonical(baseline), name + ': all authority/identity/previous/receipt and legacy bytes unchanged');
@@ -327,16 +353,24 @@ async function main() {
         // post-commit old mutation, even if it happened on a focus transition.
         await oldPage.evaluate(() => {__wallCompatibility.writes = []; __wallCompatibility.transactions = []; __wallCompatibility.saves = []; __wallCompatibility.saveStarts = 0;});
         await boot(newPage, 'new', revision);
-        await click(newPage, 'new', 'decorate', 2800);
-        await click(newPage, 'new', 'build'); await click(newPage, 'new', 'wall');
+        await click(newPage, 'new', 'decorate', 0);
+        await screenUiText(newPage, 'case-b-build-catalog', 'catalog', ['Wall', 'Door', 'Window'], 'build');
+        await click(newPage, 'new', 'wall', 0);
+        await screenUiText(newPage, 'case-b-wall-picker', 'product', ['Wall style', 'Choose target']);
         for (const name of ['height', 'paper']) {
           await click(newPage, 'new', name); await newPage.keyboard.press('Home'); await newPage.keyboard.press('Enter'); await newPage.waitForTimeout(150);
         }
+        await screenUiText(newPage, 'case-b-selected-wall', 'product', ['Half wall', 'Sage panels', '35 coins', 'Choose target']);
         await click(newPage, 'new', 'choose_target');
         await click(newPage, 'new', 'segment');
-        await newPage.screenshot({path: path.join(output, 'case-b-new-confirmation.png')});
+        await screenUiText(newPage, 'case-b-new-confirmation', 'review',
+          ['Replace wall', 'Selected one-tile wall', 'Half wall', 'Sage panels', 'You pay 35 coins']);
+        check((await observation(newPage)).saveStarts === 0, 'New picker/target actions cause no save before the verified wall confirmation');
         await click(newPage, 'new', 'confirm'); await idle(newPage);
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
+        report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
+          wall_format: payload.wall_format, target: 'shell:back#2', expected_segment: layouts.new.expected_segment,
+          actual_segment: payload.shell_segment_products?.['shell:back#2'] || null};
         check(active(committed).revision === revision + 1, 'Normal new UI edit commits exactly R+1');
         check(payload.wall_format === 2 && canonical(payload.shell_segment_products['shell:back#2']) === canonical(layouts.new.expected_segment), 'Real new UI commits the expected one-tile wall format 2 edit');
         check(payload.coins === JSON.parse(active(baseline).payload).coins - layouts.new.expected_cost, 'Real new UI charges the expected wall price once');

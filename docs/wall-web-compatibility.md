@@ -57,6 +57,13 @@ ambiguous OCR text fails the gate and retains its screenshot, crop and OCR outpu
    UI/lifecycle attempts. Old reload must reject the new format; new reload must
    validate and preserve it without compensation or opening changes
 
+Case B verifies the rendered Build catalog, wall picker, selected half-wall product,
+and exact one-tile confirmation before continuing. Native preflight supplies the
+bounded OCR rectangles. Only idempotent Build category selection may retry while
+the real opening tween still disables input; the confirmation is clicked once.
+The gate requires zero new-client saves before that verified confirmation and
+retains the expected/actual wall segment if the final state assertion fails.
+
 The old stale-tab case uses the supported `--time-scale 0` argument. The new edit
 uses `--time-scale 0.1` so real GUI tweens finish, while its autosave interval is
 150 seconds. The old recovery/autosave case uses scale 1. No production timer is

@@ -11,7 +11,7 @@ class LayoutMain extends "res://scripts/main.gd":
   if model.included_bin_pending:model.ensure_basic_bin()
  func _save():save_calls+=1;return true
 var game
-var result={"checks":0,"failures":[],"viewport":[1360,880],"points":{}}
+var result={"checks":0,"failures":[],"viewport":[1360,880],"points":{},"regions":{}}
 var output=""
 var fixture=""
 var newer=false
@@ -32,6 +32,10 @@ func point(control:Control)->Array:
  var rect=control.get_global_rect()
  check(Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(rect),"bounded target "+str(control.name))
  var center=rect.get_center();return [center.x,center.y]
+func region(control:Control)->Dictionary:
+ var rect=control.get_global_rect()
+ check(control.is_visible_in_tree() and Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(rect),"bounded visible OCR region "+str(control.name))
+ return {"x":floor(rect.position.x),"y":floor(rect.position.y),"width":ceil(rect.size.x),"height":ceil(rect.size.y)}
 func click(name:String,control:Control):
  result.points[name]=point(control)
  var event=InputEventMouseButton.new();event.position=control.get_global_rect().get_center();event.button_index=MOUSE_BUTTON_LEFT;event.pressed=true
@@ -56,6 +60,7 @@ func run():
   # At desktop size the category rail is visible; no guessed screen locations.
   await click("build",game.category_buttons["Build"])
   check(game.catalog_category=="Build","real native Build pointer selects category")
+  result.regions.catalog=region(game.tray)
   await click("wall",game.build_tools.tool_buttons["full"])
   var ui=game.compact_ui
   check(ui.finishes.visible,"real native wall card opens product picker")
@@ -65,6 +70,7 @@ func run():
   ui.wall_papers.select(0);ui.wall_papers.item_selected.emit(0)
   await settle()
   result.points.paper=point(ui.wall_papers)
+  result.regions.product=region(ui.finishes)
   await click("choose_target",ui.wall_use_button)
   var target=game.illustration.iso(2.5,0,70)
   var hit=game.illustration.hit_wall_host(target)
@@ -73,6 +79,7 @@ func run():
   game.build_tools.refresh(target);game.build_tools._commit();await settle()
   check(ui.wall_review.visible and ui.pending_wall.get("key","")=="shell:back#2","exact segment opens replacement review")
   check(not ui.wall_confirm_button.disabled,"replacement is valid with restored actors")
+  result.regions.review=region(ui.wall_review)
   var before=game.model.coins
   await click("confirm",ui.wall_confirm_button)
   check(game.save_calls==1 and game.model.coins==before-35,"normal confirm invokes one save and one 35 coin charge")
