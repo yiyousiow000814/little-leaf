@@ -44,7 +44,7 @@ static func _hull(points:Array)->Array:
 	if result.size()>1 and result[0].is_equal_approx(result[-1]):result.pop_back()
 	return result
 
-static func _build(entry:Dictionary,seed:int,scale:float,natural_scatter:bool=false)->Dictionary:
+static func _build(entry:Dictionary,seed:int,scale:float)->Dictionary:
 	var center:Vector2=entry.floor_target
 	var spill=[];var pieces=[];var occupied=[]
 	var angle=_fraction(seed,1)*TAU
@@ -59,19 +59,9 @@ static func _build(entry:Dictionary,seed:int,scale:float,natural_scatter:bool=fa
 	if kind!="none":
 		var anchor:Vector2=entry.debris_target
 		var types=["banana"] if kind=="banana" else [["paper","crumbs","crumbs"],["bag","paper","crumbs"],["paper","bag"]][posmod(int(seed/11),3)]
-		if natural_scatter and kind!="banana":types=[["paper"],["bag"],["paper"]][posmod(int(seed/7),3)]
 		for index in range(types.size()):
 			var spread=Vector2.ZERO if types.size()==1 else Vector2((index-(types.size()-1)*.5)*.43,(_fraction(seed,index+30)-.5)*.24).rotated(angle)*scale
-			# New dry litter uses a loose cluster rather than equally spaced pieces.
-			# Legacy generation and every loaded shape remain untouched.
-			if natural_scatter and types.size()>1:
-				var scatter=Vector2(_fraction(seed,index*3+83)-.5,_fraction(seed,index*5+109)-.5)
-				spread=scatter.rotated(angle)*.54*scale
 			var piece={"kind":types[index],"center":anchor+spread,"angle":_created_precision(_fraction(seed,index+40)*TAU),"size":_created_precision(scale*(.86+_fraction(seed,index+50)*.25))}
-			# Orient new peel curls and the bag opening across the view so their
-			# identity reads; loaded angles and legacy shapes stay authoritative.
-			if natural_scatter and types[index] in ["banana","bag"]:
-				piece.angle=_created_precision(PI*1.75+(_fraction(seed,142)-.5)*.50)
 			pieces.append(piece);occupied.append_array(piece_bounds(piece))
 	return {"version":VERSION,"seed":seed,"center":center,"outline":spill.duplicate() if pieces.is_empty() else _hull(occupied),"spill_outline":spill,"pieces":pieces}
 
@@ -98,17 +88,12 @@ func ensure(entry:Dictionary)->Dictionary:
 	entry.mess_shape=_build(entry,seed,.34)
 	return entry.mess_shape
 
-func generate(entry:Dictionary,seed:int,size_scale:float=1.0,natural_scatter:bool=false)->bool:
+func generate(entry:Dictionary,seed:int,size_scale:float=1.0)->bool:
 	var original=Vector2(entry.floor_cell)+Vector2(.5,.5)
 	for attempt in range(8):
-		var center=original+Vector2(_fraction(seed,attempt*2+70)-.5,_fraction(seed,attempt*2+71)-.5)*(.24 if natural_scatter else .64)
+		var center=original+Vector2(_fraction(seed,attempt*2+70)-.5,_fraction(seed,attempt*2+71)-.5)*.64
 		entry.floor_target=center;entry.debris_target=center;entry.spill_target=center
-		var candidate=_build(entry,seed,size_scale*(1.0 if attempt<4 else .72),natural_scatter)
-		if natural_scatter:
-			var contained=true
-			for point in candidate.outline:
-				if Vector2i(floori(point.x),floori(point.y))!=entry.floor_cell:contained=false;break
-			if not contained:continue
+		var candidate=_build(entry,seed,size_scale*(1.0 if attempt<4 else .72))
 		if not layout_clear(candidate):continue
 		entry.mess_shape=candidate
 		if not work_cells(entry).is_empty():return true
