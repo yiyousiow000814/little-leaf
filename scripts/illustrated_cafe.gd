@@ -43,6 +43,8 @@ var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/illustrated_walls.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
+const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
+var street_pedestrians=StreetPedestrians.new()
 const GroundArt=preload("res://scripts/illustrated_ground.gd")
 var ground_art=GroundArt.new()
 # Test-only comparison switch; normal rendering always uses cached ground.
@@ -120,8 +122,43 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	_update_street_pedestrians(delta)
 	update_motion(delta)
 	queue_redraw()
+func _update_street_pedestrians(delta:float):
+	if not is_instance_valid(game):return
+	var active=not game.editing and not game.paused and not game.save_recovery_blocked
+	if game.cafe_intro!=null and game.cafe_intro.active:active=false
+	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
+	var step=delta*game.speed if active else 0.0
+	street_pedestrians.advance(step)
+	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
+	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
+
+func _draw_street_people(show_service:bool):
+	# Street traffic and exterior customers share the original scale and wall
+	# occlusion. Sort their ground depth together before drawing the shell.
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
+	for guest in game.model.customers:
+		if not show_service:break
+		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
+		var position=Vector2(float(guest.x),float(guest.z))
+		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(get_viewport_rect()):continue
+		entries.append({"position":position,"guest":guest})
+	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
+	for entry in entries:
+		var is_guest=entry.has("guest")
+		var actor=entry.guest if is_guest else entry
+		var key="guest_%s"%actor.id if is_guest else str(actor.key)
+		var pose=motion.sample(key) if is_guest else street_pedestrians.motion.sample(key)
+		var heading=pose.heading if pose.blend>.02 else actor.get("heading",Vector2.ZERO)
+		var facing=character_facings.get(key,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
+		var face=float(facing.mirror)
+		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
+		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
+		art_transform(Vector2.ZERO)
+
 func _prune_departed_guest_motion():
 	# Only rendering history is retired. Keep dirty-table/service/floor-effect
 	# owners until their authoritative records are gone; staff keys never enter
@@ -506,20 +543,7 @@ func _draw():
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
-	# Exterior guests are behind the wall plane and are occluded correctly;
-	# the doorway opening still reveals them as they enter or leave.
-	for guest in game.model.customers:
-		if not show_service:break
-		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]: continue
-		var p=iso(float(guest.x),float(guest.z))
-		var pose=motion.sample("guest_%s"%guest.id)
-		var heading=pose.heading if pose.blend>.02 else guest.get("heading",Vector2.ZERO)
-		var facing=character_facings.get("guest_%s"%guest.id,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
-		var face=float(facing.mirror)
-		art_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-		character(Vector2.ZERO,int(guest.id),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
-		art_transform(Vector2.ZERO)
+	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
