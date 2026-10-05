@@ -13,6 +13,7 @@ const DiningSets=preload("res://scripts/cafe_dining_sets.gd")
 const FurnitureMotion=preload("res://scripts/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/cafe_layout_access.gd")
 const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
+const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
@@ -117,6 +118,7 @@ var floor_style: String = "warm_oak" # Selected flooring brush.
 var floor_finishes: Dictionary = {} # Canonical "x,z" keys, never inferred from land.
 var shell_material: String = "original" # Legacy migration field; products own current host styles.
 var shell_products:Dictionary = {}
+var shell_segment_products:Dictionary = {}
 # View supplies current staff centers before preview/commit. Never serialized.
 var wall_actor_positions: Array[Vector2] = []
 var _wall_index: Dictionary = {}
@@ -179,6 +181,7 @@ func reset_new() -> void:
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
+	shell_segment_products=ShellSegments.migrate(shell_products,built_walls).segments
 	floor_finishes.clear()
 	for z in range(BASE_DEPTH):
 		for x in range(BASE_WIDTH):floor_finishes[_floor_key(Vector2i(x,z))]={"style":floor_style,"paid_cost":0}
@@ -1560,9 +1563,11 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
-		"wall_format":1,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
+		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
+	var walls_check=_validate_saved_walls(data,owned_parcels)
+	if not walls_check.ok:return _fail("Could not save walls: "+str(walls_check.error))
 	var floors_check=_validate_saved_floors(data,owned_parcels,floor_style)
 	if not floors_check.ok:return _fail("Could not save flooring: "+str(floors_check.error))
 	var openings_check=_validate_saved_attachments(data,built_walls)
@@ -1743,6 +1748,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	wall_attachments.assign(checked_attachments.attachments);_next_wall_id=int(checked_walls.next_wall_id);_next_attachment_id=int(checked_attachments.next_attachment_id)
 	floor_finishes=checked_floors.finishes
 	floor_style=checked_walls.floor_style;shell_material=checked_walls.shell_material;shell_products=checked_walls.shell_products
+	shell_segment_products=checked_walls.shell_segment_products
 	wall_actor_positions.clear()
 	guest_obstacle_positions.clear();checkout_staff_claims.clear()
 	coins = int(data.coins)
@@ -2038,6 +2044,8 @@ func place_wall(axis:String,x:int,z:int,height:String="full",material:String="sa
 
 func wall_replacement_quote(key:String,height:String,material:String,actor_positions:Array=[]) -> Dictionary:
 	if key in OpeningGeometry.SHELL_HOSTS:return _shell_replacement_quote(key,height,material)
+	var segment=ShellSegments.parse_key(key)
+	if not segment.is_empty():return ShellSegments.quote(ShellSegments.state(shell_products,shell_segment_products),built_walls,wall_attachments,segment.root_id,int(segment.index),height,material,coins)
 	# Quoting never changes the wall, attachments, wallet, IDs or revision.
 	var wall:=get_wall(key)
 	var quote={"valid":false,"new_cost":wall_price(height),"refund":0,"net":0,"reason":""}
@@ -2062,19 +2070,8 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	quote.valid=true
 	return quote
 
-func _shell_replacement_quote(key:String,height:String,material:String)->Dictionary:
-	var host=get_wall_host(key)
-	var units=int(host.a.distance_to(host.b))
-	var quote={"valid":false,"new_cost":wall_price(height)*units,"refund":int(int(host.paid_cost)/2),"net":0,"units":units,"reason":""}
-	quote.net=int(quote.new_cost)-int(quote.refund)
-	if height not in WallGeometry.HEIGHTS:quote.reason="Choose half or full wall height";return quote
-	if material!="original" and material not in WallGeometry.MATERIALS:quote.reason="Choose a listed wallpaper";return quote
-	if host.height==height and host.material==material:quote.reason="This wall already has this style";return quote
-	var proposed=shell_products.duplicate(true);proposed[key]={"height":height,"material":material,"paid_cost":int(quote.new_cost)}
-	var reason=_attachment_layout_error(built_walls,wall_attachments,proposed)
-	if reason!="":quote.reason=reason;return quote
-	if coins<int(quote.net):quote.reason="Not enough coins · replacement needs "+Money.amount(int(quote.net))+" after refund";return quote
-	quote.valid=true;return quote
+func _shell_replacement_quote(_key:String,_height:String,_material:String)->Dictionary:
+	return {"valid":false,"new_cost":0,"refund":0,"net":0,"units":0,"reason":"Select one wall tile"}
 
 func can_replace_wall(key:String,height:String,material:String,actor_positions:Array=[]) -> bool:
 	var quote=wall_replacement_quote(key,height,material,actor_positions)
@@ -2084,8 +2081,10 @@ func can_replace_wall(key:String,height:String,material:String,actor_positions:A
 func replace_wall(key:String,height:String,material:String,actor_positions:Array=[]) -> bool:
 	var quote=wall_replacement_quote(key,height,material,actor_positions)
 	if not quote.valid:return _fail(str(quote.reason))
-	if key in OpeningGeometry.SHELL_HOSTS:
-		shell_products[key]={"height":height,"material":material,"paid_cost":int(quote.new_cost)}
+	var segment=ShellSegments.parse_key(key)
+	if not segment.is_empty():
+		var cost=int(quote.new_cost)
+		shell_segment_products[key]={"height":height,"material":material,"paid_cost":cost,"refund_credit":cost/2}
 	else:
 		var wall=get_wall(key);wall.height=height;wall.material=material
 	# One commit and one notification. There is no intermediate sale, missing
@@ -2247,13 +2246,8 @@ func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
 			var key=_floor_key(Vector2i(x,z))
 			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
-func set_shell_material(material:String) -> bool:
-	if material!="original" and material not in WallGeometry.MATERIALS:return _fail("Choose a listed wallpaper")
-	if shell_material==material:last_error="";return true
-	shell_material=material
-	for key in shell_products:shell_products[key].material=material
-	last_error="";last_event="Original shell wallpaper changed"
-	_notify();return true
+func set_shell_material(_material:String) -> bool:
+	return _fail("Select one wall tile")
 
 func _wall_operational_warnings(walls:Array) -> Dictionary:
 	var warnings:Dictionary={}
@@ -2295,7 +2289,8 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var walls:Array[Dictionary]=[]
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
-	if data.has("wall_format") and (not _valid_int(data.wall_format,1,1)):return fail_result
+	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version)!=SAVE_VERSION:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0
@@ -2317,11 +2312,13 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	if saved_floor not in FLOOR_STYLES or (saved_shell!="original" and saved_shell not in WallGeometry.MATERIALS):return fail_result
 	var products=_validated_shell_products(data)
 	if products.is_empty():return fail_result
+	var segments=ShellSegments.from_save(data,walls,products)
+	if not segments.ok:return {"ok":false,"error":str(segments.error)}
 	var next_id=highest_wall_id+1
 	if int(data.version)>=5:
 		if not _valid_int(data.get("next_wall_id"),next_id,1000000001):return fail_result
 		next_id=int(data.next_wall_id)
-	return {"ok":true,"walls":walls,"floor_style":saved_floor,"shell_material":saved_shell,"shell_products":products,"next_wall_id":next_id}
+	return {"ok":true,"walls":walls,"floor_style":saved_floor,"shell_material":saved_shell,"shell_products":products,"shell_segment_products":segments.state.segments,"next_wall_id":next_id}
 
 func _validated_shell_products(data:Dictionary)->Dictionary:
 	var legacy=str(data.get("shell_material","original"))
@@ -2335,8 +2332,8 @@ func _validated_shell_products(data:Dictionary)->Dictionary:
 		var product=raw[key]
 		if product.get("height") not in WallGeometry.HEIGHTS:return {}
 		if product.get("material")!="original" and product.get("material") not in WallGeometry.MATERIALS:return {}
-		var price=wall_price(str(product.height))*(Footprint.WIDTH if key=="shell:back" else Footprint.DEPTH)
-		var legacy_price=wall_price(str(product.height))*(Footprint.WIDTH if key=="shell:back" else Footprint.LEGACY_DEPTH)
+		var price=int(ShellSegments.LEGACY_PRICES[product.height])*(Footprint.WIDTH if key=="shell:back" else Footprint.DEPTH)
+		var legacy_price=int(ShellSegments.LEGACY_PRICES[product.height])*(Footprint.WIDTH if key=="shell:back" else Footprint.LEGACY_DEPTH)
 		# Keep the exact amount previously paid; extending the included shell
 		# must neither charge the player nor invent refundable value.
 		if not _valid_int(product.get("paid_cost"),0,price) or int(product.paid_cost) not in [0,legacy_price,price]:return {}
@@ -2439,7 +2436,12 @@ func reroute_guest(guest:Dictionary) -> bool:
 # Hosted doors/windows. Stable wall IDs survive moving a wall; apertures are
 # derived from the host, never saved as independent floating floor furniture.
 func wall_hosts()->Array[Dictionary]:return OpeningGeometry.hosts(built_walls,shell_products)
-func get_wall_host(host_id:String)->Dictionary:return OpeningGeometry.resolve_host(host_id,built_walls,shell_products)
+func get_wall_host(host_id:String)->Dictionary:
+	var segment=ShellSegments.parse_key(host_id)
+	if not segment.is_empty():return ShellSegments.segment_host(ShellSegments.state(shell_products,shell_segment_products),built_walls,segment.root_id,int(segment.index))
+	return OpeningGeometry.resolve_host(host_id,built_walls,shell_products)
+func selectable_wall_hosts()->Array[Dictionary]:return ShellSegments.selectable_hosts(shell_products,shell_segment_products,built_walls)
+func shell_render_host(root_id:String,preview:Dictionary={})->Dictionary:return ShellSegments.render_host(shell_products,shell_segment_products,built_walls,root_id,preview)
 func get_wall_attachment(id:int)->Dictionary:
 	for attachment in wall_attachments:
 		if int(attachment.id)==id:return attachment
@@ -2457,11 +2459,11 @@ func wall_openings()->Array[Dictionary]:
 		if not opening.is_empty():result.append(opening)
 	return result
 func attachment_price(kind:String)->int:return int(OpeningGeometry.PRICES.get(kind,-1))
-func _attachment_layout_error(walls:Array,attachments:Array,products=null)->String:
-	for attachment in attachments:
-		var reason=OpeningGeometry.compatible_error(attachment,walls,attachments,int(attachment.id),shell_products if products==null else products)
-		if reason!="":return reason
-	return ""
+func _attachment_layout_error(walls:Array,attachments:Array,products=null,segments=null)->String:
+	var roots=shell_products if products==null else products
+	var ledger=shell_segment_products if segments==null and products==null else (ShellSegments.migrate(roots,walls).segments if segments==null else segments)
+	return ShellSegments.support_error(ShellSegments.state(roots,ledger),walls,attachments)
+
 func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
 	for host in OpeningGeometry.hosts(walls):
 		for segment in OpeningGeometry.solid_segments(host,walls,attachments):
@@ -2554,7 +2556,9 @@ func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
 	if not _valid_int(data.get("next_attachment_id"),highest+1,1000000001):return bad
 	var products=_validated_shell_products(data)
 	if products.is_empty():return bad
-	var reason=_attachment_layout_error(walls,attachments,products)
+	var segments=ShellSegments.from_save(data,walls,products)
+	if not segments.ok:return {"ok":false,"error":str(segments.error)}
+	var reason=_attachment_layout_error(walls,attachments,products,segments.state.segments)
 	if reason!="":return {"ok":false,"error":reason}
 	return {"ok":true,"attachments":attachments,"next_attachment_id":int(data.next_attachment_id)}
 

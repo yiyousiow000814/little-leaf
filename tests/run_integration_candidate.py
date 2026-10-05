@@ -18,6 +18,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
+    ("test_shell_segment_model", "SHELL_SEGMENT_MODEL_RESULT"),
+    ("test_shell_segment_ui", "SHELL_SEGMENT_UI_RESULT"),
     ("test_economy_revision", "ECONOMY_REVISION_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
@@ -49,6 +52,8 @@ SUITES = [
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),
     ("test_autosave_feedback_adversarial", "AUTOSAVE_ADVERSARIAL_RESULT"),
     ("test_autosave_feedback_ui", "AUTOSAVE_UI_RESULT"),
+    ("test_inbox_save_cache", "INBOX_SAVE_CACHE_RESULT"),
+    ("test_compensation_inbox", "COMPENSATION_INBOX_RESULT"),
     ("test_stove_optional", "STOVE_OPTIONAL_RESULT"),
     ("test_stove_work_reservation", "STOVE_WORK_RESERVATION_RESULT"),
     ("test_stove_reservation_ui", "STOVE_RESERVATION_UI_RESULT"),

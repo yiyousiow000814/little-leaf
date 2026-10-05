@@ -561,8 +561,9 @@ func _draw():
 	# Existing shell and player walls share the same aperture geometry.
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
-	var corner_height=minf(WallGeometry.HEIGHT_PIXELS[game.build_tools.render_shell_host("shell:back").height],WallGeometry.HEIGHT_PIXELS[game.build_tools.render_shell_host("shell:west").height])
+	var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
+	game.build_tools.draw_shell_selection(self)
 	var entities=[]
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
@@ -1684,7 +1685,7 @@ func _draw_floor_mess(record:Dictionary):
 
 func hit_wall_host(screen:Vector2)->Dictionary:
 	update_projection()
-	var hosts=game.model.wall_hosts()
+	var hosts=game.model.selectable_wall_hosts()
 	hosts.sort_custom(func(a,b):return float(a.a.x+a.a.y+a.b.x+a.b.y)>float(b.a.x+b.a.y+b.b.x+b.b.y))
 	for host in hosts:
 		if OpeningArt.hit_host(self,screen,host):return host

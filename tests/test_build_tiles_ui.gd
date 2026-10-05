@@ -250,14 +250,14 @@ func run():
  for mode in ["half","full","door","window"]:
   game.build_tools.choose(mode);game.build_tools.refresh(Vector2.ZERO);await settle()
   stable_action({"half":"Half wall","full":"Full wall","door":"Door","window":"Window"}[mode],mode+" action")
- # Exercise the exact nine-tile inherited wall quote that previously replaced
- # the action title with Pay495 on pointer updates.
+ # The stable title remains separate from the new one-grid inherited-wall
+ # quote after pointer updates and repeated UI synchronization.
  game.build_tools.material="sage_panels";game.build_tools.choose("full")
  var wall_point=shell_point("shell:west");game.build_tools.refresh(wall_point);await settle()
- check(game.build_tools.replacing and game.build_tools.selected_key=="shell:west","real pointer picks inherited west shell")
- check(game.build_tools.replacement_quote.get("net",-1)==495,"inherited west shell replacement quotes495")
- before=snapshot();stable_action("Full wall","inherited wall Pay495 replacement")
- check(shop.price_label.text=="Pay 495","replacement payment is separate from Full wall title")
+ check(game.build_tools.replacing and game.build_tools.selected_key.begins_with("shell:west#"),"real pointer picks one inherited west-wall grid segment")
+ check(game.build_tools.replacement_quote.get("net",-1)==55,"inherited shell replacement quotes one55-coin wall segment")
+ before=snapshot();stable_action("Full wall","inherited wall Pay55 replacement")
+ check(shop.price_label.text=="Pay 55","one-segment payment is separate from Full wall title")
  same_state(before,"wall quote sync never buys or saves")
  # Layout includes repeated viewport/category transitions and both nested shelves.
  for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]:

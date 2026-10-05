@@ -6,6 +6,7 @@ const StaffPanel=preload("res://scripts/cafe_staff_panel.gd")
 const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
+const Inbox=preload("res://scripts/cafe_inbox.gd")
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -19,6 +20,8 @@ var shop_layout_insets=Vector4(INF,INF,INF,INF)
 var hud
 var wallet_notice
 var update_notes
+var inbox
+var settings_inbox:Button
 var update_badges=[]
 var staff_panel
 var blockage_button
@@ -143,6 +146,7 @@ func _popup_panels()->Array:
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
+ if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
  return panels
 
 func has_open_popup()->bool:
@@ -173,7 +177,7 @@ func setup():
   var labels=card.get_child(0).get_children()
   labels[-1].text=Money.amount(game.model.wall_price("half"))+"–"+Money.amount(game.model.wall_price("full")) if key=="full" else Money.amount(game.model.attachment_price(key))
   labels[-2].text="Wall" if key=="full" else str(key).capitalize()
-  card.tooltip_text="Choose height and wallpaper, then click an edge or an existing wall" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
+  card.tooltip_text="Choose height and style, then place or replace one wall tile" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
  var wall_card=game.build_tools.tool_buttons["full"]
  for signal_link in wall_card.pressed.get_connections():wall_card.pressed.disconnect(signal_link.callable)
  wall_card.pressed.connect(func():product_target="";show_wall_product())
@@ -181,7 +185,7 @@ func setup():
  finish_box.add_child(game.label("Wall",20))
  wall_preview=game.build_tools.WallIcon.new();wall_preview.custom_minimum_size=Vector2(84,62);wall_preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;finish_box.add_child(wall_preview)
  wall_heights=game.build_tools._option(["Half wall","Full wall"]);finish_box.add_child(wall_heights)
- finish_box.add_child(game.label("Wallpaper · included in wall price",12))
+ finish_box.add_child(game.label("Wall style · included",12))
  wall_papers=game.build_tools.paper_option;wall_papers.reparent(finish_box)
  for signal_link in wall_papers.item_selected.get_connections():wall_papers.item_selected.disconnect(signal_link.callable)
  game.build_tools.wall_options.hide();game.build_tools.surface_options.hide()
@@ -252,6 +256,7 @@ func setup():
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
+ settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox);settings_box.move_child(settings_inbox,settings_box.get_child_count()-2)
  settings_help=_small_button("Help & updates",_show_help_from_settings);settings_help.accessibility_name="Help and update notes";settings_box.add_child(settings_help);settings_box.move_child(settings_help,settings_box.get_child_count()-2)
  for c in settings_box.get_children():
   if c is Label:
@@ -264,7 +269,8 @@ func setup():
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
- _add_update_badge(help_access);_add_update_badge(settings_help)
+ inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
+ _add_update_badge(help_access);_add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -305,15 +311,24 @@ func _on_notes_unread_changed(_unread:bool):
  _sync_update_badges()
 func _sync_update_badges():
  var unread=update_notes!=null and update_notes.has_unread()
+ var inbox_unread=inbox!=null and inbox.has_unread()
  for record in update_badges:
-  record.badge.visible=unread
-  record.button.accessibility_name=("Help and updates, unread update notes" if unread else "Help and updates")
+  var button=record.button
+  if button==settings_button:
+   record.badge.visible=unread or inbox_unread
+   button.accessibility_name="Settings"+(", unread Inbox messages" if inbox_unread else "")+(", unread update notes" if unread else "")
+  elif button==settings_inbox:
+   record.badge.visible=inbox_unread;button.accessibility_name="Inbox, unread messages" if inbox_unread else "Inbox"
+  else:
+   record.badge.visible=unread
+   button.accessibility_name="Help and updates, unread update notes" if unread else "Help and updates"
 func clear_selection():
  selected_wall="";selected_shell=""
  if is_instance_valid(context):context.hide()
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
 func sync():
+ if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
  var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=game.model.get_wall(selected_wall)
@@ -436,6 +451,7 @@ func _fit_themed_popups():
  if hud==null or not is_instance_valid(game):return
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
  _fit_help_panel()
+ if inbox!=null:inbox.fit_popup()
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
@@ -577,8 +593,8 @@ func show_wall_product():
  game.settings.hide()
  wall_papers.clear()
  for name in game.build_tools.MATERIAL_NAMES:wall_papers.add_item(name)
- if product_target in game.model.OpeningGeometry.SHELL_HOSTS:wall_papers.add_item("Original room")
- var product=game.model.get_wall_host(product_target) if product_target in game.model.OpeningGeometry.SHELL_HOSTS else game.model.get_wall(product_target)
+ if not game.model.ShellSegments.parse_key(product_target).is_empty():wall_papers.add_item("Original room")
+ var product=game.model.get_wall_host(product_target) if not game.model.ShellSegments.parse_key(product_target).is_empty() else game.model.get_wall(product_target)
  var height=str(product.get("height",game.build_tools.mode if game.build_tools.mode in ["half","full"] else "full"))
  var paper=str(product.get("material",game.build_tools.material))
  wall_heights.select(0 if height=="half" else 1)
@@ -594,7 +610,6 @@ func _sync_wall_product():
  if product_target!="":
   var quote=game.model.wall_replacement_quote(product_target,height,paper,game.build_tools.actor_positions())
   wall_price_label.text="New %s · refund %s · pay %s"%[Money.amount(int(quote.new_cost)),Money.amount(int(quote.refund)),Money.amount(int(quote.net))]
-  if quote.has("units"):wall_price_label.text+="\nEntire %d-tile wall · starter resale is 0 until replaced"%quote.units
   if not quote.valid:wall_price_label.text+="\n"+str(quote.reason)
  wall_use_button.text="Choose target"
 func _use_wall_product():
@@ -604,7 +619,7 @@ func _use_wall_product():
 func review_wall_replacement(key:String,height:String,paper:String):
  pending_wall={"key":key,"height":height,"material":paper}
  var quote=game.model.wall_replacement_quote(key,height,paper,game.build_tools.actor_positions())
- var scope=("Entire back wall" if key=="shell:back" else "Entire left wall")+" · %d tiles"%quote.get("units",1) if quote.has("units") else "Selected one-tile wall"
+ var scope="Selected one-tile wall"
  wall_review_text.text=scope+"\n"+("Half wall" if height=="half" else "Full wall")+" · "+("Original room" if paper=="original" else game.build_tools.MATERIAL_NAMES[game.model.WallGeometry.MATERIALS.find(paper)])
  wall_review_text.text+="\n\nNew wall: %s coins\nOld wall refund: %s coins\nYou pay: %s coins"%[Money.amount(int(quote.new_cost)),Money.amount(int(quote.refund)),Money.amount(int(quote.net))]
  if not quote.valid:wall_review_text.text+="\n\n"+str(quote.reason)
@@ -616,7 +631,7 @@ func _confirm_wall_replacement():
  if not game.model.replace_wall(chosen.key,chosen.height,chosen.material,game.build_tools.actor_positions()):
   review_wall_replacement(chosen.key,chosen.height,chosen.material);return
  pending_wall={};wall_review.hide();game.build_tools.cancel()
- selected_shell=chosen.key if chosen.key in game.model.OpeningGeometry.SHELL_HOSTS else ""
+ selected_shell=chosen.key if not game.model.ShellSegments.parse_key(chosen.key).is_empty() else ""
  selected_wall=chosen.key if selected_shell=="" else ""
  game.build_tools._changed();sync()
 func _rotate_selected():
@@ -667,6 +682,7 @@ func _remove_selected():
  sync()
 func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
+ if inbox!=null and inbox.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
  var any_open=false
@@ -694,7 +710,7 @@ func handle_unhandled_input(event:InputEvent)->bool:
   game._cancel_selection();selected_wall=game.model.WallGeometry.key_of(wall);sync();return true
  var host=game.illustration.hit_wall_host(event.position)
  if not host.is_empty() and host.shell:
-  game._cancel_selection();selected_shell=str(host.host_id);sync();return true
+  game._cancel_selection();selected_shell=str(host.segment_key);sync();return true
  clear_selection()
  if game.build_tools.mode=="select_opening":game.build_tools.cancel();sync()
  return false

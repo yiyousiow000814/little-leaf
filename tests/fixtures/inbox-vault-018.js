@@ -166,24 +166,13 @@
       return { payload, path, digest: await hash(payload) };
     } finally { db.close(); }
   }
-  // Presentation projection only. Receipt values come from the verified
-  // envelope, including retired campaigns; nothing is inferred from balance.
-  function inboxSnapshot(record, campaigns) {
-    const paid = Object.entries(record.campaigns || {}).map(([id, receipt]) => ({ id, ...receipt }));
-    paid.sort((a, b) => b.grantedAt - a.grantedAt || b.revision - a.revision || a.id.localeCompare(b.id));
-    const deferred = record.revision ? planCampaigns(record.payload, record.origin, record, campaigns, record.revision + 1, Date.now()).deferred : [];
-    return { ok: true, profileId: record.profileId, revision: record.revision, paid, deferred };
-  }
   function createClient(options = {}) {
     // Dependencies may be supplied only by the isolated test harness. The live
     // singleton always uses this origin's IndexedDB and fixed namespace.
     let factory = options.indexedDB, campaigns = null;
     let db = null, record = null, legacy = null, opening = null, busy = false, faulted = false;
-    let inboxJson = JSON.stringify({ ok: false });
     const client = {
       bootJson: '',
-      // A serialized copy cannot mutate the authority or its previous record.
-      snapshotJson() { return inboxJson; },
       async boot() {
         if (opening) return opening;
         opening = (async () => {
@@ -207,8 +196,7 @@
             });
             await verifyRecord(record);
             if (!record.revision) legacy = await readLegacy(factory);
-            inboxJson = JSON.stringify(inboxSnapshot(record, campaigns));
-            const result = { ok: true, inbox: JSON.parse(inboxJson), profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
+            const result = { ok: true, profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
             client.bootJson = JSON.stringify(result); return result;
           } catch (error) { faulted = true; const result = resultError(error); client.bootJson = JSON.stringify(result); return result; }
         })();
@@ -246,9 +234,8 @@
             };
           });
           record = next;
-          inboxJson = JSON.stringify(inboxSnapshot(next, campaigns));
-          client.bootJson = JSON.stringify({ ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
-          return { ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
+          client.bootJson = JSON.stringify({ ok: true, profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
+          return { ok: true, profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
         } catch (error) {
           if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
           return resultError(error);

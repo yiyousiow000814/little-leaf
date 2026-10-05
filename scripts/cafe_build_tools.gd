@@ -172,7 +172,7 @@ func refresh(screen:Vector2):
 	if mode in ["half","full"]:
 		var host=game.illustration.hit_wall_host(screen)
 		if not host.is_empty() and host.shell:
-			replacing=true;selected_key=str(host.host_id);preview={};preview_shell=host.duplicate(true)
+			replacing=true;selected_key=str(host.segment_key);preview={};preview_shell=host.duplicate(true)
 			preview_shell.height=mode;preview_shell.material=material
 			replacement_quote=game.model.wall_replacement_quote(selected_key,mode,material,actor_positions())
 			preview_valid=bool(replacement_quote.valid);preview_warning=""
@@ -213,7 +213,24 @@ func refresh(screen:Vector2):
 	if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
 
 func render_shell_host(key:String)->Dictionary:
-	return preview_shell if active() and preview_valid and not preview_shell.is_empty() and selected_key==key else game.model.get_wall_host(key)
+	return game.model.shell_render_host(key,preview_shell if active() and preview_valid else {})
+
+func render_shell_corner_height(key:String)->float:
+	var host=game.model.get_wall_host(key+"#0")
+	if active() and preview_valid and not preview_shell.is_empty() and selected_key==key+"#0":host=preview_shell
+	return float(Geometry.HEIGHT_PIXELS[host.height])
+
+func draw_shell_selection(view):
+	if not game.editing:return
+	var host={}
+	if active() and not preview_shell.is_empty():
+		host=preview_shell
+	elif not active() and game.compact_ui.selected_shell!="":host=game.model.get_wall_host(game.compact_ui.selected_shell)
+	if host.is_empty():return
+	var shape=OpeningArt.segment_selection_geometry(view,host)
+	# Points are already projected to display coordinates. Subpixel coverage
+	# keeps this dark-gray outline light at every zoom, without a highlight fill.
+	view.draw_multiline(shape.edges,Color("444744"),.35,true)
 
 func replacement_price_text()->String:
 	if replacement_quote.is_empty():return ""
