@@ -18,6 +18,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_inbox_save_cache", "INBOX_SAVE_CACHE_RESULT"),
+    ("test_compensation_inbox", "COMPENSATION_INBOX_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),

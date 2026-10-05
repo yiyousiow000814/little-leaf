@@ -6,6 +6,7 @@ const StaffPanel=preload("res://scripts/cafe_staff_panel.gd")
 const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
+const Inbox=preload("res://scripts/cafe_inbox.gd")
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -19,6 +20,8 @@ var shop_layout_insets=Vector4(INF,INF,INF,INF)
 var hud
 var wallet_notice
 var update_notes
+var inbox
+var settings_inbox:Button
 var update_badges=[]
 var staff_panel
 var blockage_button
@@ -143,6 +146,7 @@ func _popup_panels()->Array:
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
+ if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
  return panels
 
 func has_open_popup()->bool:
@@ -252,6 +256,7 @@ func setup():
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
+ settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox);settings_box.move_child(settings_inbox,settings_box.get_child_count()-2)
  settings_help=_small_button("Help & updates",_show_help_from_settings);settings_help.accessibility_name="Help and update notes";settings_box.add_child(settings_help);settings_box.move_child(settings_help,settings_box.get_child_count()-2)
  for c in settings_box.get_children():
   if c is Label:
@@ -264,7 +269,8 @@ func setup():
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
- _add_update_badge(help_access);_add_update_badge(settings_help)
+ inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
+ _add_update_badge(help_access);_add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -305,15 +311,24 @@ func _on_notes_unread_changed(_unread:bool):
  _sync_update_badges()
 func _sync_update_badges():
  var unread=update_notes!=null and update_notes.has_unread()
+ var inbox_unread=inbox!=null and inbox.has_unread()
  for record in update_badges:
-  record.badge.visible=unread
-  record.button.accessibility_name=("Help and updates, unread update notes" if unread else "Help and updates")
+  var button=record.button
+  if button==settings_button:
+   record.badge.visible=unread or inbox_unread
+   button.accessibility_name="Settings"+(", unread Inbox messages" if inbox_unread else "")+(", unread update notes" if unread else "")
+  elif button==settings_inbox:
+   record.badge.visible=inbox_unread;button.accessibility_name="Inbox, unread messages" if inbox_unread else "Inbox"
+  else:
+   record.badge.visible=unread
+   button.accessibility_name="Help and updates, unread update notes" if unread else "Help and updates"
 func clear_selection():
  selected_wall="";selected_shell=""
  if is_instance_valid(context):context.hide()
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
 func sync():
+ if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
  var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=game.model.get_wall(selected_wall)
@@ -436,6 +451,7 @@ func _fit_themed_popups():
  if hud==null or not is_instance_valid(game):return
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
  _fit_help_panel()
+ if inbox!=null:inbox.fit_popup()
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
@@ -667,6 +683,7 @@ func _remove_selected():
  sync()
 func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
+ if inbox!=null and inbox.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
  var any_open=false

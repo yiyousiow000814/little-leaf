@@ -128,8 +128,9 @@ func _soft_button(button:Button):
  _sync_soft_button(id)
 func _sync_soft_button(id:int):
  if not soft_buttons.has(id):return
- var record:Dictionary=soft_buttons[id];var button:Button=record.button
- if not is_instance_valid(button):soft_buttons.erase(id);return
+ var record:Dictionary=soft_buttons[id]
+ if not is_instance_valid(record.button):soft_buttons.erase(id);return
+ var button:Button=record.button
  var state="normal"
  match button.get_draw_mode():
   BaseButton.DRAW_PRESSED:state="pressed"
