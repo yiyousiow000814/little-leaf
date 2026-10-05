@@ -35,7 +35,7 @@ func cancel(button:Button):
  var id=button.get_instance_id()
  if holds.has(id) and is_instance_valid(holds[id]):holds[id].kill()
 func begin(button:Button,point:Vector2):
- if game.get_viewport().get_visible_rect().size.x>=750 or button.disabled:return
+ if (game.get_viewport().get_visible_rect().size.x>=750 and not hud.layout_host.get_meta("mobile_layout",false)) or button.disabled:return
  var id=button.get_instance_id();cancel(button);hide();fired[id]=false;before[id]=button.button_pressed;points[id]=point
  var tween=game.create_tween();holds[id]=tween;tween.tween_interval(.5)
  tween.tween_callback(func():

@@ -21,14 +21,14 @@ func run():
  var blocked=0
  for cell in cells:
   if cells[cell].blocked:blocked+=1
- check(blocked==16,"eight furnishings and eight required clear spaces are red; stove access is optional")
+ check(blocked==17,"eight furnishings and nine required clear spaces are red, including chef workface")
  for x in 12:check(not cells[Vector2i(x,8)].blocked,"empty edge row is free "+str(x))
  check(cells[Vector2i(0,5)].blocked and cells[Vector2i(1,5)].blocked,"actual entrance and landing remain required")
  check(not cells[Vector2i(0,4)].blocked and not cells[Vector2i(1,4)].blocked,"table anchor dilation does not enlarge doorway red mask")
  var stove={}
  for item in game.model.items:
   if item.kind=="stove":stove=item;break
- check(not cells[game.model.workface_cell(stove)].blocked,"optional stove workface is not a mandatory red cell")
+ check(cells[game.model.workface_cell(stove)].blocked,"stove workface is a mandatory red cell")
  for kind in ["","plant","table_set"]:
   game.selected_kind=kind
   for rotation in 4:
