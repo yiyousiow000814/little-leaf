@@ -27,12 +27,18 @@ func valid(snapshot:Dictionary)->Dictionary:
 func roundtrip(label:String):
  var cleaner_on=game.worker("cleaner").on_duty
  var before=game._service_save_snapshot();var money=game.model.coins
+ var walls=game.model.shell_segment_products.duplicate(true);var openings=game.model.wall_attachments.duplicate(true)
  game.model.service_snapshot=before
  var saved=game.model.save("user://dishwashing-fixture.json")
  check(saved,label+" saves: "+game.model.last_error)
  if not saved:return
+ var saved_bytes=FileAccess.get_sha256("user://dishwashing-fixture.json")
+ var payload=JSON.parse_string(FileAccess.get_file_as_string("user://dishwashing-fixture.json"))
+ check(payload.wall_format==2 and payload.runtime.service.version==game.SaveContract.SERVICE_VERSION,label+" saves both new wall and dish service formats together")
  check(game.model.load_save("user://dishwashing-fixture.json"),label+" loads: "+game.model.last_error)
  game._restore_service_runtime()
+ check(FileAccess.get_sha256("user://dishwashing-fixture.json")==saved_bytes,label+" load leaves original synthetic bytes unchanged")
+ check(game.model.shell_segment_products==walls and game.model.wall_attachments==openings,label+" mixed wall ledger and openings survive active dish reload")
  check(game.dishwashing.dishes.size()==before.dishwashing.dishes.size() and game.dishwashing.next_id==int(before.dishwashing.next_id),label+" queue identity unchanged")
  for dish in before.dishwashing.dishes:
   check(game.dishwashing.dishes.has(int(dish.id)) and is_equal_approx(float(game.dishwashing.dishes[int(dish.id)].elapsed),float(dish.elapsed)),label+" wash progress unchanged")
@@ -45,6 +51,9 @@ func run():
  game=Fixture.new();root.add_child(game);await process_frame
  game.set_process(false);game.illustration.set_process(false)
  check(game.save_writes_suppressed and OS.get_environment("XDG_DATA_HOME")!="","isolated generated saves only")
+ # One paid segment stays mixed throughout queue, transport and wash reloads.
+ check(game.model.replace_wall("shell:back#2","half","leaf_print"),"combined fixture purchases one wall segment")
+ check(game.model.shell_segment_products["shell:back#2"].paid_cost==35,"combined fixture retains actual paid wall credit")
  # Physical waiter route ends in a queued plate, never a washed plate.
  var r=game.setup_dirty(false);duty("cleaner",false)
  var stages=[]
