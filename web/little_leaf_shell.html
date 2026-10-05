@@ -109,9 +109,88 @@ body {
 
 		<script>
 /* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */
+/* Session-only save diagnostics. No storage, payloads, raw errors or telemetry. */
+(function (root) {
+  'use strict';
+  const LIMIT = 240;
+  const events = [];
+  const allowedEvents = new Set(['boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested']);
+  const allowedSources = new Set(['authority', 'legacy-v13', 'fresh', 'native-primary', 'native-import', 'review']);
+  const allowedCodes = new Set(['CAMPAIGN_CONFIG', 'CORRUPT_AUTHORITY', 'INVALID_SAVE', 'STORAGE_BLOCKED', 'STORAGE_ABORT', 'LEGACY_UNREADABLE', 'AMBIGUOUS_LEGACY', 'STORAGE_UNAVAILABLE', 'NOT_READY', 'SAVE_BUSY', 'REVISION_CONFLICT', 'REVISION_LIMIT', 'QuotaExceededError', 'SecurityError', 'AbortError', 'UnknownError', 'InvalidStateError', 'VersionError', 'NotFoundError', 'DataError', 'TransactionInactiveError', 'ReadOnlyError', 'ConstraintError', 'STORAGE_ERROR', 'VALIDATION_FAILED', 'STAGING_FAILED', 'INVALID_ACK', 'INVALID_REVISION_ACK', 'INVALID_CREDIT_ACK', 'CREDIT_SYNC_REQUIRED', 'WRITES_SUPPRESSED', 'RECOVERY_BLOCKED', 'NATIVE_SAVE_FAILED', 'BRIDGE_MISSING']);
+  let version = 'unknown', sequence = 0, dropped = 0, copyStatus = '', lastRead = null;
+  function origin(value) {
+    try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.origin : 'unknown'; } catch (_) { return 'unknown'; }
+  }
+  function fingerprint(value) {
+    if (typeof value !== 'string' || !value || value.length > 128) return '';
+    let hash = 2166136261;
+    for (const byte of new TextEncoder().encode(value)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
+    return hash.toString(16).padStart(8, '0');
+  }
+  function context() {
+    const value = { origin: 'unknown', frame: 'unknown', referrerOrigin: 'unknown', browser: 'unknown' };
+    try { value.origin = origin(root.location.href); } catch (_) {}
+    try { value.frame = root.top === root ? 'top-level' : 'embedded'; } catch (_) {}
+    try { value.referrerOrigin = origin(root.document.referrer); } catch (_) {}
+    try {
+      const ua = root.navigator.userAgent;
+      for (const [name, pattern] of [['Edge', /Edg(?:e|A|iOS)?\/([0-9.]{1,20})/], ['Firefox', /(?:Firefox|FxiOS)\/([0-9.]{1,20})/], ['Chrome', /(?:Chrome|CriOS)\/([0-9.]{1,20})/], ['Safari', /Version\/([0-9.]{1,20}).*Safari/]]) {
+        const match = pattern.exec(ua); if (match) { value.browser = name + ' ' + match[1]; break; }
+      }
+    } catch (_) {}
+    return value;
+  }
+  const safeContext = context();
+  function record(event, fields = {}) {
+    // Reject unknown fields and raw messages rather than attempting redaction.
+    try {
+      if (!allowedEvents.has(event)) return;
+      const entry = { sequence: ++sequence, timestamp: new Date().toISOString(), event };
+      if (['vault', 'controller', 'native'].includes(fields.layer)) entry.layer = fields.layer;
+      if (allowedSources.has(fields.source)) entry.source = fields.source;
+      const profile = fingerprint(fields.profileId); if (profile) entry.profile = profile;
+      if (Number.isSafeInteger(fields.revision) && fields.revision >= 0) entry.revision = fields.revision;
+      if (typeof fields.code === 'string' && fields.code) entry.code = allowedCodes.has(fields.code) ? fields.code : 'STORAGE_ERROR';
+      if (event === 'read_result' || event === 'read_accepted') lastRead = entry;
+      events.push(Object.freeze(entry));
+      if (events.length > LIMIT) { events.shift(); dropped++; }
+    } catch (_) { /* Diagnostics must never interfere with save control flow. */ }
+  }
+  function text() {
+    return ['Little Leaf save log | app ' + version, 'Session only. Copy before refreshing or closing this page.', 'Submitted is pending. Confirmed means IndexedDB transaction completed. Accepted means game controller accepted its acknowledgement.', 'origin=' + safeContext.origin + ' | frame=' + safeContext.frame + ' | referrerOrigin=' + safeContext.referrerOrigin + ' | browser=' + safeContext.browser, 'Latest read=' + (lastRead ? JSON.stringify(lastRead) : 'not accepted yet'), 'Events retained=' + events.length + '/' + LIMIT + ' | older events dropped=' + dropped, ...events.map(e => e.timestamp + ' #' + e.sequence + ' ' + e.event + Object.entries(e).filter(([key]) => !['sequence', 'timestamp', 'event'].includes(key)).map(([key, value]) => ' ' + key + '=' + value).join(''))].join('\n');
+  }
+  function fallbackCopy(value) {
+    let area;
+    try {
+      area = root.document.createElement('textarea'); area.value = value;
+      area.setAttribute('readonly', ''); area.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none';
+      root.document.body.appendChild(area); area.focus(); area.select(); area.setSelectionRange(0, value.length);
+      copyStatus = root.document.execCommand('copy') ? 'copied' : 'unavailable';
+    } catch (_) { copyStatus = 'unavailable'; }
+    finally { try { if (area) area.remove(); root.document.getElementById('canvas').focus(); } catch (_) {} }
+  }
+  function copy() {
+    const value = text(); copyStatus = 'pending';
+    try {
+      if (root.navigator.clipboard && root.navigator.clipboard.writeText) {
+        root.navigator.clipboard.writeText(value).then(() => { copyStatus = 'copied'; }, () => fallbackCopy(value));
+      } else fallbackCopy(value);
+    } catch (_) { fallbackCopy(value); }
+    return copyStatus;
+  }
+  root.LittleLeafSaveLog = Object.freeze({
+    record, text, copy, snapshot: () => events.map(e => ({ ...e })),
+    setVersion(value) { if (typeof value === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?$/.test(value) && value.length <= 40) version = value; },
+    get copyStatus() { return copyStatus; }
+  });
+})(globalThis);
 /* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */
 (function (root) {
   'use strict';
+  // This observer never participates in a transaction or changes a result.
+  function observe(event, fields = {}) {
+    try { if (root.LittleLeafSaveLog) root.LittleLeafSaveLog.record(event, { layer: 'vault', ...fields }); } catch (_) {}
+  }
   const DB_NAME = 'little-leaf.authoritative.v1';
   const STORE = 'profiles';
   const ACTIVE = 'active';
@@ -286,6 +365,7 @@ body {
       bootJson: '',
       async boot() {
         if (opening) return opening;
+        observe('boot_requested');
         opening = (async () => {
           try {
             campaigns = campaignConfig(options.campaigns === undefined ? CAMPAIGNS : options.campaigns);
@@ -308,14 +388,16 @@ body {
             await verifyRecord(record);
             if (!record.revision) legacy = await readLegacy(factory);
             const result = { ok: true, profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
+            observe('read_result', { source: result.source, profileId: result.profileId, revision: result.revision });
             client.bootJson = JSON.stringify(result); return result;
-          } catch (error) { faulted = true; const result = resultError(error); client.bootJson = JSON.stringify(result); return result; }
+          } catch (error) { faulted = true; const result = resultError(error); observe('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result; }
         })();
         return opening;
       },
       async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
-        if (!record || faulted) return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover'));
-        if (busy) return resultError(fail('SAVE_BUSY', 'A save is still pending'));
+        observe('save_requested', { profileId: expectedProfileId, revision: expectedRevision });
+        if (!record || faulted) { observe('save_failure', { code: 'NOT_READY' }); return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover')); }
+        if (busy) { observe('save_failure', { code: 'SAVE_BUSY' }); return resultError(fail('SAVE_BUSY', 'A save is still pending')); }
         busy = true;
         try {
           parsePayload(payload, 15);
@@ -328,6 +410,7 @@ body {
           const previous = record.revision ? { ...record, previous: null } : null;
           const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
           candidate.digest = await hash(fingerprint(candidate));
+          observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
           const next = await transaction(db, 'readwrite', (store, resolve, abort) => {
             const identityRequest = store.get(IDENTITY);
             const request = store.get(ACTIVE);
@@ -341,14 +424,17 @@ body {
                 // bytes even when their stale checksum/revision survived damage.
                 if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
                 store.put(candidate, ACTIVE); resolve(candidate);
+                observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision });
               } catch (error) { abort(error); }
             };
           });
           record = next;
+          observe('save_confirmed', { profileId: next.profileId, revision: next.revision });
           client.bootJson = JSON.stringify({ ok: true, profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
           return { ok: true, profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
         } catch (error) {
           if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
+          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code });
           return resultError(error);
         } finally { busy = false; }
       },

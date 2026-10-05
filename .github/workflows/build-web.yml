@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify metadata and CI guard tests
         env:
@@ -29,6 +30,8 @@ jobs:
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/legacy_byte_storage.js
+          node tests/save_log_observers.js
+          node tests/save_log_privacy.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -37,6 +40,15 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Verify exported save diagnostic in sandboxed Chromium
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          npm install --prefix "$RUNNER_TEMP/save-log-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/save-log-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/save-log-browser-tools/node_modules/playwright" xvfb-run -a node tests/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
       - name: Keep tested Web artifact
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
