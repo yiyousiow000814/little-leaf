@@ -56,6 +56,7 @@ SUITES = [
     ("test_register_edge", "REGISTER_EDGE_RESULT"),
     ("test_chef_fire", "CHEF_FIRE_TESTS"),
     ("test_food_contact", "FOOD_CONTACT_TESTS"),
+    ("test_chair_ground_contact", "CHAIR_GROUND_CONTACT_RESULT"),
     ("test_simple_kitchen", "SIMPLE_KITCHEN_TESTS"),
     ("test_pan_handle_workface", "PAN_HANDLE_WORKFACE_TESTS"),
     ("test_chef_hat", "CHEF_HAT_TESTS"),
