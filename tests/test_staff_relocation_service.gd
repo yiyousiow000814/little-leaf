@@ -39,7 +39,7 @@ func run():
     if worker.job_kind=="" or payload=="none":continue
     var before=ledger(cafe)
     var cell=Vector2i(worker.pos.floor());actors=cafe.interaction._staff_positions()
-    # This fixture exercises repathing while service continues. Optional stove
+    # This fixture exercises repathing while service continues. Legacy stove
     # blockage and recovery have their own pause-service test.
     if not cafe.model.placement_access_issues("plant",cell.x,cell.y).is_empty():continue
     var field=cafe.interaction.edit_plan
