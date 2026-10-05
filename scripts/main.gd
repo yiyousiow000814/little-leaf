@@ -127,7 +127,6 @@ func _ready():
 	if not "--visual-qa" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_title("Little Leaf Cafe · "+str(ProjectSettings.get_setting("application/config/version","R7 review")))
 	_load_startup()
-	model.strict_workfaces=false
 	_setup_world()
 	build_tools=BuildTools.new(self)
 	_build_ui()
@@ -169,7 +168,6 @@ func _connect_model_events():
 
 func _resume_loaded_cafe():
 	# Only called after startup retry has validated a complete saved model.
-	model.strict_workfaces=false
 	_connect_model_events()
 	_cancel_selection()
 	for staff in staff_states:staff.node.queue_free()
@@ -1233,7 +1231,6 @@ func _tick_live_service(delta: float):
 		guest.duration=1.0e12
 	model.guest_obstacle_positions.clear()
 	for staff in staff_states:model.guest_obstacle_positions.append(staff.pos)
-	model.blocked_walking_ids.clear()
 	model.tick(delta)
 	floor_tasks.observe_walks()
 	var payroll=model.advance_payroll(delta,_staff_on_duty())

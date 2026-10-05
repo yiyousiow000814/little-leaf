@@ -117,7 +117,6 @@ static func can_place(model,x:int,z:int,rot:int,id:int=-1,actor_positions:Array=
  if actor_error!="":return model._fail(actor_error)
  if model.edge_blocked(Vector2i(x,z),Vector2i(int(data.parts[1].x),int(data.parts[1].z))):return model._fail("A wall separates the table and chair")
  if not model._placement_workfaces_allowed(data.layout):return false
- if model.strict_workfaces and not model._workfaces_preserved(data.layout,id):return model._fail("Keep station fronts clear")
  var chair_error=model._chair_egress_error(model.built_walls,data.layout,model.owned_parcels,model.customers)
  if chair_error!="":return model._fail(chair_error)
  if not model._layout_has_access(data.layout,model.depth):return model._fail("Leave a walkable service route")

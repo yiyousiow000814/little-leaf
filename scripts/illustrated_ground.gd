@@ -5,7 +5,6 @@ extends RefCounted
 ## Pan transforms the retained vertices. Effective scale changes rebuild only
 ## stroke offsets, preserving the legacy width/feather behavior at every zoom.
 
-const Footprint=preload("res://scripts/cafe_footprint.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const AAStrokes=preload("res://scripts/retained_aa_strokes.gd")
 var use_stroke_mesh := true
@@ -59,9 +58,6 @@ func _quad(vertices: PackedVector2Array,colors: PackedColorArray,indices: Packed
 		vertices.append(p);colors.append(color)
 	for i in [0,1,2,0,2,3]:indices.append(start+i)
 
-func _owns(model,cell: Vector2i) -> bool:
-	return model.is_floor_owned(cell) if model.has_method("is_floor_owned") else cell.x>=0 and cell.x<Footprint.WIDTH and cell.y>=0 and cell.y<int(model.depth)
-
 func prepare(model):
 	if pavement_mesh==null:_build_pavement()
 	if revision!=int(model.revision):
@@ -85,7 +81,7 @@ func _floor_content_key(model) -> String:
 		for x in range(model.MAX_WIDTH):
 			var cell=Vector2i(x,z)
 			# Empty owned land and unowned land expose the same underlying grass.
-			key+="/"+model.floor_style_at(cell) if _owns(model,cell) else "/"
+			key+="/"+model.floor_style_at(cell) if model.is_floor_owned(cell) else "/"
 	return key
 
 func _build_pavement():
@@ -118,7 +114,7 @@ func _build_floor(model):
 	for z in range(model.MAX_DEPTH):
 		for x in range(model.MAX_WIDTH):
 			var cell := Vector2i(x,z)
-			if not _owns(model,cell):continue
+			if not model.is_floor_owned(cell):continue
 			var style=str(model.floor_style_at(cell))
 			# Ownership makes land usable; only an installed finish covers grass.
 			if style=="":continue

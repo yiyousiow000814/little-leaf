@@ -158,17 +158,12 @@ var service_snapshot: Dictionary = {}
 var loaded_save_version: int = SAVE_VERSION
 var _arrival_elapsed: float = 0.0
 var _walking_customer_id: int = -1
-# Legacy view hooks retained for runtime compatibility; never transit walls.
-var blocked_walking_ids: Dictionary = {}
 # Current staff centers are transient occupancy, never a permanent layout rule.
 var guest_obstacle_positions: Array[Vector2] = []
 var checkout_staff_claims:Array[Vector2]=[] # Transient physical/next-leg reservations for deployment.
-# Runtime opts into directional-workface validation; legacy standalone models
-# retain their established mutation API and saved layouts remain loadable.
 var _motion_preview_cache: Dictionary = {}
 var _mobility_validated: Dictionary = {}
 var last_placement_issue: Dictionary = {}
-var strict_workfaces: bool = false
 
 
 func _init() -> void:
@@ -193,7 +188,6 @@ func reset_new() -> void:
 	included_checkout_pending=true;cashiers=0;next_checkout_ticket=1
 	service_snapshot.clear()
 	loaded_save_version=SAVE_VERSION
-	blocked_walking_ids.clear()
 	coins = INITIAL_COINS
 	owned_parcels.clear()
 	_sync_floor_bounds()
@@ -365,8 +359,6 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 	var actor_error := _furniture_actor_error([proposed[-1]],proposed,actor_positions)
 	if actor_error!="":return _fail(actor_error)
 	if not _placement_workfaces_allowed(proposed):return false
-	if strict_workfaces and not _workfaces_preserved(proposed,ignore_id):
-		return _fail("Keep the station's rotated front work tile clear and reachable")
 	var chair_error := _chair_egress_error(built_walls,proposed,owned_parcels,customers)
 	if chair_error!="":return _fail(chair_error)
 	if kind=="register":
@@ -1245,16 +1237,6 @@ func _workface_open_in(item: Dictionary, layout: Array[Dictionary]) -> bool:
 		if int(other.x)==cell.x and int(other.z)==cell.y and str(other.kind)!="rug": return false
 	return true
 
-func _workfaces_preserved(proposed: Array[Dictionary], changed_id: int) -> bool:
-	for item in proposed:
-		if not str(item.kind) in ["beverage","sink"]: continue
-		if _workface_open_in(item,proposed): continue
-		var previous=get_item(int(item.id))
-		# Preserve existing saves with blocked legacy stations, but no mutation
-		# may newly block a usable station or place/move one onto a blocked face.
-		if int(item.id)==changed_id or previous.is_empty() or _workface_open_in(previous,items): return false
-	return true
-
 func cell_center(cell: Vector2i) -> Vector2:
 	return Vector2(cell.x + 0.5, cell.y + 0.5)
 
@@ -1763,7 +1745,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
 	loaded_save_version=int(data.version)
-	blocked_walking_ids.clear()
 	_next_customer_id=int(runtime_state.next_customer_id)
 	_arrival_elapsed=float(runtime_state.arrival_elapsed)
 	_walking_customer_id=int(runtime_state.walking_customer_id)
