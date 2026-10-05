@@ -76,7 +76,7 @@ func needed(entry:Dictionary,action:String,debris_kind="")->bool:
  return false
 func assign(staff:Dictionary,index:int):
  if staff.role!="cleaner" or staff.job_kind!="":return
- var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var shortest=1000000
+ var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var blocked={};var shortest=1000000
  for entry in messes.values():
   var busy=false
   for other in game.staff_states:
@@ -84,13 +84,25 @@ func assign(staff:Dictionary,index:int):
   if busy:continue
   var work_cell=geometry.destination(entry,staff,from,[])
   if work_cell==Vector2i(-1,-1):
-   if chosen.is_empty():chosen=entry
+   if blocked.is_empty():blocked=entry
    continue
   var route=game._static_service_path(from,work_cell)
   if route.size()<shortest:chosen=entry;shortest=route.size()
- if chosen.is_empty():return
+ if chosen.is_empty():
+  if not blocked.is_empty():
+   staff.blocked_reason="Floor cleanup side blocked · make space beside the mess in Decorate";staff.blocked_target_id=-1000000-int(blocked.id);staff.blocked_guest_id=-1
+  return
  staff.job_kind="floor";staff.job_mess_id=int(chosen.id);staff.job_guest_id=-1;staff.job_token=int(chosen.token);staff.job_step=0;staff.job_elapsed=0.0;staff.station_id=-1;staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100);staff.yield_time=0.0;staff.blocked_reason="";staff.blocked_target_id=-1;staff.blocked_guest_id=-1
  prepare(staff,index)
+func release_blocked(staff:Dictionary):
+ # Unstarted floor work is a claim, not physical possession. Let another
+ # reachable task proceed while the saved mess waits for its space to clear.
+ # Started gestures and held/bin trash retain their stage, time and owner.
+ if staff.job_kind!="floor" or float(staff.job_elapsed)>0.0 or int(staff.job_step)==2:return
+ var entry=record(staff)
+ if entry.is_empty() or str(entry.trash_owner) in ["staff","bin"]:return
+ var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
+ if geometry.destination(entry,staff,from,[])==Vector2i(-1,-1):game._clear_service_job(staff)
 func prepare(staff:Dictionary,index:int):
  if staff.job_kind!="floor":return
  var entry=record(staff)

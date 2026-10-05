@@ -1442,6 +1442,10 @@ func _assign_service_job(staff: Dictionary, index: int):
 				if int(other.job_guest_id)==int(guest.id) and int(other.job_token)==int(record.token): assigned=true;break
 			if assigned: continue
 			if kind=="cleanup":
+				var cleanup_step=_cleanup_role_step(record,str(staff.role))
+				if str(SERVICE_STEPS.cleanup[cleanup_step].action) in ["sweeping","mopping"] and floor_tasks.destination_for_record(record,staff,from,[])==Vector2i(-1,-1):
+					staff.blocked_reason="Floor cleanup side blocked · make space beside the mess in Decorate";staff.blocked_target_id=int(guest.table_id);staff.blocked_guest_id=int(guest.id)
+					continue
 				# Floor work must not depend on a sink or a table-service face.
 				staff.job_kind=kind;staff.job_guest_id=int(guest.id);staff.job_token=int(record.token)
 				staff.job_step=_cleanup_role_step(record,str(staff.role));staff.job_elapsed=0.0;staff.station_id=-1
@@ -1695,8 +1699,14 @@ func _animate_staff(delta: float):
 			continue
 		if staff.job_kind=="floor":
 			if floor_tasks.record(staff).is_empty():_clear_service_job(staff)
+			else:floor_tasks.release_blocked(staff)
 			continue
 		if not service_guests.has(int(staff.job_guest_id)) or int(service_guests[int(staff.job_guest_id)].token)!=int(staff.job_token): _clear_service_job(staff)
+		elif _is_floor_cleanup(staff) and float(staff.job_elapsed)<=0.0:
+			# Legacy diner-owned floor work follows the same pre-contact rule.
+			var record=service_guests[int(staff.job_guest_id)]
+			var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
+			if str(record.trash_owner) not in ["staff","bin"] and floor_tasks.destination_for_record(record,staff,from,[])==Vector2i(-1,-1):_clear_service_job(staff)
 		elif staff.job_kind=="take_payment" and bool(service_guests[int(staff.job_guest_id)].guest.paid):_clear_service_job(staff)
 		elif staff.job_kind=="cook" and str(SERVICE_STEPS.cook[int(staff.job_step)].kind)=="counter": _reserve_pass(staff)
 	for index in staff_states.size():
