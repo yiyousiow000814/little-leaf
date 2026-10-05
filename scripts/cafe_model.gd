@@ -56,15 +56,14 @@ const EXTERIOR_EXIT_FRONT := 11.4
 const EXTERIOR_EXIT_RIGHT := 12.85
 const GUEST_CLEARANCE := 0.44
 const STAFF_PLACEMENT_RADIUS := 0.30
-# Provisional R25 growth curve: basic furniture stays affordable; extra staff
-# require earned capital and 10,000-coin land is reachable through better service.
-# These rates affect future actions/time only; saved balances/accrual stay intact.
+# Approved early growth rates apply to future purchases, payments and work.
+# Saved balances, accrued payroll and historical purchase costs stay intact.
 const HIRE_COST := 2800
-const MEAL_PAYMENT := 250
+const MEAL_PAYMENT := 200
 const MAX_COOKS := 3
 const STAFF_CAPS={"chef":3,"waiter":4,"cleaner":3,"cashier":1}
 const HIRE_FEES={"chef":2800,"waiter":2200,"cleaner":1800}
-const WAGE_RATES={"chef":24,"waiter":16,"cleaner":14,"cashier":16} # Provisional cashier trial wage; future duty only.
+const WAGE_RATES={"chef":18,"waiter":11,"cleaner":10,"cashier":11} # Future duty only; saved accrual and debt remain exact.
 const MAX_STOVE_LEVEL := 3
 const ENTRANCE := Footprint.ENTRANCE
 const ENTRY_LANDING := Footprint.ENTRY_LANDING
@@ -82,7 +81,7 @@ const ARRIVAL_START_Z := 10.8
 const DIRECTIONS := [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
 
 var catalog: Array[Dictionary] = [
-	{"kind":"table_set","name":"Basic oak","price":140,"variant":"oak_single","description":"Round oak table · simple wooden chair"},
+	{"kind":"table_set","name":"Basic oak","price":280,"variant":"oak_single","description":"Round oak table · simple wooden chair"},
 	{"kind":"table_set_cottage","name":"Cottage","price":420,"variant":"cottage_single","description":"Cream farmhouse table · sage cross-back chair"},
 	{"kind":"table_set_retro","name":"Retro","price":1200,"variant":"retro_single","description":"Mint pedestal table · coral diner chair"},
 	{"kind":"table_set_refined","name":"Refined","price":3600,"variant":"refined_single","description":"Ivory-inlaid walnut table · forest upholstered chair"},
