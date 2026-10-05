@@ -10,11 +10,9 @@ A cozy café game made with Godot.
 
 For experiments, use copied saves in a separate profile.
 
-## Assets and licenses
+[Development guide](docs/README.md) · [Assets and licenses](docs/licenses.md)
 
-See [asset licenses and credits](docs/repository-notes.md#assets-and-licenses) before reusing assets. No repository-wide open-source license has been selected.
-
-[Source baseline, recovery and development notes](docs/repository-notes.md)
+No repository-wide open-source license has been selected.
 
 ## Checked Web builds and releases
 
