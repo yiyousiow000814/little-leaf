@@ -149,7 +149,8 @@ static func validate_snapshot(data,staff:Array,records:Dictionary,item_map:Dicti
   if not codec._integer(record.get("dish_sink_id",-1),-1,1000000000) or not codec._integer(record.get("dish_id",-1),-1,1000000000):return {"ok":false,"error":"Invalid dish reservation"}
   var sink_id=int(record.get("dish_sink_id",-1));var dish_id=int(record.get("dish_id",-1))
   if sink_id!=-1:
-   if not item_map.has(sink_id) or item_map[sink_id].kind!="sink" or record.plate_owner not in ["table","staff"]:return {"ok":false,"error":"Dish reservation has no valid sink or payload"}
+   var cup_only=record.plate_owner=="clean" and record.drink_owner=="table" and not record.dishes_collected
+   if not item_map.has(sink_id) or item_map[sink_id].kind!="sink" or (record.plate_owner not in ["table","staff"] and not cup_only):return {"ok":false,"error":"Dish reservation has no valid sink or payload"}
    var owner_found=false
    for worker in staff:
     if worker.get("job_kind")=="cleanup" and int(worker.get("job_guest_id",-1))==int(record.guest_id) and int(worker.get("job_step",-1)) in [0,1]:owner_found=true;break

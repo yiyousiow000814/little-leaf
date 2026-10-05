@@ -1021,8 +1021,12 @@ func _tick_step(delta: float) -> void:
 	var departing: Array[Dictionary] = []
 	for customer in customers:
 		if FurnitureMotion.active(customer):
-			FurnitureMotion.advance(self,customer,delta);continue
+			FurnitureMotion.advance(self,customer,delta)
+			if bool(customer.get("meal_abandoned",false)) and not FurnitureMotion.active(customer):_begin_departure(customer)
+			continue
 		var phase: String = str(customer.phase)
+		if bool(customer.get("meal_abandoned",false)) and phase not in ["leaving","dirty","cleaning"]:
+			_begin_departure(customer);continue
 		if phase in ["arriving","leaving","checkout_walk"]:
 			customer.waiting = false
 			_advance_walk(customer, delta)
@@ -1101,7 +1105,7 @@ func _spawn_customer() -> void:
 		var customer: Dictionary = {
 			"id": _next_customer_id, "table_id": pair.table_id, "chair_id": pair.chair_id,
 			"mobility":{}, "phase": "arriving", "elapsed": 0.0, "duration": _route_length(start, route) / WALK_SPEED,
-			"x": start.x, "z": start.y, "paid": false, "seated": false, "admitted": false, "withdrawn": false, "exit_completed": false,
+			"x": start.x, "z": start.y, "paid": false, "seated": false, "admitted": false, "withdrawn": false, "exit_completed": false,"meal_abandoned":false,
 			"street_route_format":STREET_ROUTE_FORMAT,"street_origin_z":start.y,
 			"route": route, "route_index": 0, "heading": Vector2.DOWN if start.y<0.0 else Vector2.UP,
 			"service_cell": approach, "waiting": true, "exterior_exit": false,
@@ -1399,6 +1403,15 @@ func _clear_of_entry(customer: Dictionary, position: Vector2) -> bool:
 func _guest_body_blocks(_customer_id: int, _proposed: Vector2) -> bool:
 	# Seats and checkout destinations are reserved independently of bodies.
 	return false
+
+func abandon_meal(customer:Dictionary) -> void:
+	if bool(customer.get("meal_abandoned",false)):return
+	customer["meal_abandoned"]=true
+	customer.checkout_ticket=0;customer.checkout_register_id=-1;customer.checkout_token=-1
+	customer.checkout_cell=Vector2i(-100,-100);customer.checkout_reason="";customer.checkout_stall=0.0
+	# A moved chair may still be receiving its diner. Finish that real route;
+	# the model's next movement step starts a normal dismount when it arrives.
+	if not FurnitureMotion.active(customer):_begin_departure(customer)
 
 func _begin_departure(customer: Dictionary) -> void:
 	var access := guest_access_for(int(customer.chair_id),false,Vector2.ZERO,_departure_exit_z(int(customer.id)),int(customer.table_id),int(customer.id))

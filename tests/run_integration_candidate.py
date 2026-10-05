@@ -43,6 +43,7 @@ SUITES = [
     ("test_role_boundaries", "ROLE_BOUNDARIES_RESULT"),
     ("test_role_release", "ROLE_RELEASE_RESULT"),
     ("test_dishwashing_queue", "DISHWASHING_QUEUE_RESULT"),
+    ("test_single_guest_patience", "SINGLE_GUEST_PATIENCE_RESULT"),
     ("test_sink_basin_visual", "SINK_BASIN_VISUAL_RESULT"),
     ("test_sink_wash_action", "SINK_WASH_ACTION_RESULT"),
     ("test_floor_availability", "FLOOR_AVAILABILITY_RESULT"),

@@ -19,21 +19,29 @@ func ledger(cafe):
  return Codec.new().encode(snapshot)
 func run():
  var cafe=LoadedMain.new();root.add_child(cafe);cafe.set_process(false);cafe.illustration.set_process(false)
+ var paid_visits={};var abandoned_visits={};var duplicate_payments=[]
+ cafe.model.meal_completed.connect(func(id,amount):
+  if paid_visits.has(id):duplicate_payments.append(id)
+  paid_visits[id]=amount)
  for player in cafe.audio_players.values():player.stop()
  check(not cafe.save_recovery_blocked and cafe.model.dining_sets.size()==4,"fully synthetic four-table fixture initializes")
  var actors=cafe.interaction._staff_positions()
  # Two admitted cohorts now walk from the fixed street ends at normal speed.
  for tick in 7200:
   cafe._tick_live_service(1.0/30.0);cafe._animate_staff(1.0/30.0);cafe.animation_time+=1.0/30.0
+  for guest in cafe.model.customers:
+   if guest.get("meal_abandoned",false):abandoned_visits[int(guest.id)]=true
   if cafe.model.customers.size()==4 and cafe.model.customers.all(func(g):return cafe.model._customer_admitted(g)):break
   if tick%120==0:await process_frame
  check(cafe.model.customers.size()==4,"four actual synthetic visits arrive")
  cafe.model.set_operating_open(false)
  check(cafe.model.customers.all(func(g):return not g.get("withdrawn",false)),"all visits are admitted before closing")
- var before_coins=cafe.model.coins;var before_wages=cafe.model.total_wages_paid
+ var before_coins=cafe.model.coins;var before_wages=cafe.model.total_wages_paid;var before_earned=cafe.model.total_earned
  var relocated=false;var done=false;var ticks=0;var payload_seen=""
  for tick in 18000:
   cafe._tick_live_service(1.0/30.0);cafe._animate_staff(1.0/30.0);cafe.animation_time+=1.0/30.0;ticks=tick+1
+  for guest in cafe.model.customers:
+   if guest.get("meal_abandoned",false):abandoned_visits[int(guest.id)]=true
   if not relocated:
    for index in cafe.staff_states.size():
     var worker=cafe.staff_states[index];var payload=cafe._staff_payload(worker,index)
@@ -66,9 +74,9 @@ func run():
   if tick%120==0:await process_frame
   if cafe.model.customers.is_empty() and cafe.floor_tasks.messes.is_empty() and cafe.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(relocated,"real carrying-worker relocation was exercised")
- check(done and cafe.model.served==4 and cafe.model.total_cleaned==4,"all four generated visits finish and clean exactly once after repath")
- check(cafe.model.total_earned==4*cafe.Model.MEAL_PAYMENT,"no duplicate payments")
- check(cafe.model.coins==before_coins+4*cafe.Model.MEAL_PAYMENT-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
+ check(done and cafe.model.served+abandoned_visits.size()==4 and cafe.model.total_cleaned==4,"all four visits settle or depart unpaid and release clean tables after repath")
+ check(duplicate_payments.is_empty() and paid_visits.size()==cafe.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and cafe.model.total_earned==paid_visits.size()*cafe.Model.MEAL_PAYMENT,"exactly one payment per served diner and none for abandonment")
+ check(cafe.model.coins==before_coins+cafe.model.total_earned-before_earned-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
  print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}))
  for tween in get_processed_tweens():tween.kill()
  cafe.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

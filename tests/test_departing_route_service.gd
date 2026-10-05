@@ -11,6 +11,10 @@ func check(ok,label):
 func _initialize():run.call_deferred()
 func run():
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
+ var paid_visits={};var abandoned_visits={};var duplicate_payments=[]
+ game.model.meal_completed.connect(func(id,amount):
+  if paid_visits.has(id):duplicate_payments.append(id)
+  paid_visits[id]=amount)
  check(game.model.place("plant",11,7),"synthetic movable plant places")
  var id=int(game.model.items[-1].id);game.model._arrival_elapsed=-1000000
  var initial_coins=game.model.coins;var initial_wages=game.model.total_wages_paid
@@ -19,6 +23,8 @@ func run():
   if game.model._next_customer_id<=4:game.model._spawn_customer()
   if game.model._next_customer_id==5 and game.model.customers.all(func(g):return bool(g.admitted)):game.model.set_operating_open(false)
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
+  for guest in game.model.customers:
+   if guest.get("meal_abandoned",false):abandoned_visits[int(guest.id)]=true
   if not moved:
    for guest in game.model.customers:
     if guest.phase!="leaving" or not guest.paid or float(guest.x)>=0 or float(guest.x)<-.01:continue
@@ -34,9 +40,9 @@ func run():
   if tick%180==0:await process_frame
   if moved and game.model.customers.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(moved,"boundary epsilon case occurs in generated real traffic")
- check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits depart and clean once after the edit")
- check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all four payments occur exactly once")
- check(game.model.coins==initial_coins+4*game.Model.MEAL_PAYMENT-(game.model.total_wages_paid-initial_wages),"only genuine payments and wages change wallet")
+ check(done and game.model.served+abandoned_visits.size()==4 and game.model.total_cleaned==4,"all four served or abandoned visits depart and clean once after the edit")
+ check(duplicate_payments.is_empty() and paid_visits.size()==game.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and game.model.total_earned==paid_visits.size()*game.Model.MEAL_PAYMENT,"served diners pay exactly once and abandoned diners never pay")
+ check(game.model.coins==initial_coins+game.model.total_earned-(game.model.total_wages_paid-initial_wages),"only genuine payments and wages change wallet")
  print("DEPARTING_ROUTE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"boundary_position":str(repro_position),"served":game.model.served,"cleaned":game.model.total_cleaned}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

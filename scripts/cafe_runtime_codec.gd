@@ -148,7 +148,7 @@ func _checkout_guest_error(guest:Dictionary,item_map:Dictionary,source_version:i
 	var checkout=guest.phase in CHECKOUT_STAGES
 	var settled=guest.paid and guest.phase in ["leaving","dirty","cleaning"]
 	if checkout and (guest.paid or guest.exterior_exit or bool(guest.get("withdrawn",false))):return "Checkout guest has already left or paid"
-	if not guest.paid and guest.exterior_exit and not bool(guest.get("withdrawn",false)):return "Unpaid register guest has an exterior exit"
+	if not guest.paid and guest.exterior_exit and not bool(guest.get("withdrawn",false)) and not bool(guest.get("meal_abandoned",false)):return "Unpaid register guest has an exterior exit"
 	if checkout or settled:
 		if int(guest.checkout_ticket)<1:return "Finished meal has no checkout ticket"
 	else:
@@ -292,14 +292,20 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not _number(guest.x,-6,24) or not _number(guest.z,-82,82) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
 		for key in ["paid","seated","waiting","exterior_exit","departure_blocked"]:
 			if not guest[key] is bool:return _fail("Invalid guest flag: "+key)
-		for key in ["admitted","withdrawn","exit_completed"]:
+		for key in ["admitted","withdrawn","exit_completed","meal_abandoned"]:
 			if guest.has(key) and not guest[key] is bool:return _fail("Invalid operating guest flag")
 		var withdrawn=bool(guest.get("withdrawn",false))
+		if not guest.has("meal_abandoned"):guest.meal_abandoned=false
+		var abandoned=bool(guest.meal_abandoned)
+		if abandoned:
+			if not state.service is Dictionary or not _integer(state.service.get("version"),SaveContract.MEAL_DEPARTURE_SERVICE_VERSION,SaveContract.SERVICE_VERSION):return _fail("Unserved meal departure needs its service format")
+			var moving_to_seat=guest.phase in ["ordering","cooking"] and _mobility_kind(guest)=="to_assigned_seat"
+			if guest.paid or withdrawn or (guest.phase not in ["leaving","dirty","cleaning"] and not moving_to_seat):return _fail("Invalid abandoned meal state")
 		if withdrawn and (guest.phase!="leaving" or guest.paid or guest.seated):return _fail("Invalid unserved departure")
 		if not withdrawn:
 			if tables.has(int(guest.table_id)) or seats.has(int(guest.chair_id)):return _fail("Two guests reserve the same dining pair")
 			tables[int(guest.table_id)]=true;seats[int(guest.chair_id)]=true
-			if bool(guest.paid)!=(str(guest.phase) in ["leaving","dirty","cleaning"]):return _fail("Payment disagrees with meal phase")
+			if bool(guest.paid)!=(str(guest.phase) in ["leaving","dirty","cleaning"] and not abandoned):return _fail("Payment disagrees with meal phase")
 		if not _point(guest.heading) or not _cell(guest.entry_outside):return _fail("Invalid guest direction")
 		for key in ["service_cell","entry_cell","entry_direction","table_service_direction"]:
 			if not _cell(guest[key]):return _fail("Invalid guest cell field: "+key)
@@ -314,7 +320,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		elif egress_fields!=3:return _fail("Incomplete chair departure state")
 		if not guest.dismounting is bool or not _cell(guest.egress_cell,true) or not _number(guest.dismount_progress,0,1):return _fail("Invalid chair departure state")
 		if guest.dismounting:
-			var paid_departure=guest.phase=="leaving" and guest.paid
+			var paid_departure=guest.phase=="leaving" and (guest.paid or abandoned)
 			var unpaid_checkout=SaveContract.has_checkout(source_version) and guest.phase=="checkout_walk" and not guest.paid and guest.get("settlement_mode")=="register"
 			if not (paid_departure or unpaid_checkout) or withdrawn or not guest.seated or guest.exterior_exit or int(guest.route_index)!=0:return _fail("Chair departure disagrees with guest phase")
 			var chair=item_map[int(guest.chair_id)];var table=item_map[int(guest.table_id)]
@@ -370,6 +376,14 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not record is Dictionary or not _integer(record.get("guest_id"),1,1000000000) or not guests.has(int(record.guest_id)) or records.has(int(record.guest_id)):return _fail("Invalid service guest identity")
 		if not _integer(record.get("token"),1,int(service.serial)) or tokens.has(int(record.token)):return _fail("Invalid service token")
 		tokens[int(record.token)]=true
+		# Missing legacy metadata receives a fresh grace period;
+		# phase elapsed is clamped by service and cannot reconstruct meal waiting.
+		if not record.has("meal_wait_seconds"):record.meal_wait_seconds=0.0
+		if not _number(record.meal_wait_seconds,0,1000000000):return _fail("Invalid seated meal wait clock")
+		if bool(guests[int(record.guest_id)].meal_abandoned):
+			if float(record.meal_wait_seconds)<120.0 or record.get("meal_ready")!=false or record.get("meal_done")!=false or record.get("pass_reserved")!=false:return _fail("Abandoned meal retains prepared food or invalid deadline")
+			if record.get("plate_owner") not in ["clean","staff","dish_queue"] or record.get("drink_owner") not in ["table","cleared"]:return _fail("Abandoned meal retains unfinished service payload")
+			if record.get("meal_station_id")!=-1 or record.get("meal_pass_id")!=-1 or record.get("drink_station_id")!=-1:return _fail("Abandoned meal retains a service station")
 		for key in ["order_done","meal_ready","drink_ready","floor_cleaned","floor_dirty","meal_done","drink_done","dishes_collected","table_wiped","cleanup_done","pass_reserved","floor_spill","spill_cleaned"]:
 			if not record.get(key) is bool:return _fail("Invalid service flag: "+key)
 		if not PLATE_OWNERS.has(record.get("plate_owner")) or not DRINK_OWNERS.has(record.get("drink_owner")) or not TRASH_OWNERS.has(record.get("trash_owner")):return _fail("Invalid payload owner")
@@ -446,6 +460,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if floor_job_claims.has(int(staff.job_mess_id)):return _fail("Two workers own the same floor job")
 			floor_job_claims[int(staff.job_mess_id)]=true
 		elif staff.job_kind not in ["","wash"] and (not records.has(int(staff.job_guest_id)) or int(staff.job_token)!=int(records[int(staff.job_guest_id)].token)):return _fail("Job token does not match guest")
+		if guests.has(int(staff.job_guest_id)) and bool(guests[int(staff.job_guest_id)].meal_abandoned) and staff.job_kind not in ["","cleanup"]:return _fail("Abandoned meal retains an active service job")
 		if staff.job_kind=="take_payment":
 			var id=int(staff.job_guest_id);var guest=guests[id];var record=records[id];var register_id=int(staff.station_id)
 			if not _number(staff.job_elapsed,0,PAYMENT_SECONDS) or not item_map.has(register_id) or item_map[register_id].kind!="register" or register_id!=int(guest.checkout_register_id):return _fail("Invalid cashier station or payment progress")
