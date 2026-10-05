@@ -2,11 +2,17 @@ extends SceneTree
 const SaveLog=preload("res://scripts/cafe_save_log.gd")
 var checks=0
 var failures=[]
+var web_points={}
+func point(control:Control)->Array:
+ var center=control.get_global_rect().get_center();return [center.x,center.y]
+func settle():
+ for i in range(4):await process_frame
 func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func _init():call_deferred("run")
 func run():
+ root.size=Vector2i(1360,880)
  var game=load("res://main.tscn").instantiate();root.add_child(game)
  await process_frame;await process_frame
  game.set_process(false)
@@ -16,7 +22,15 @@ func run():
  var entry=game.settings.find_child("SaveLogEntry",true,false)
  check(entry!=null and entry.text=="Log","Settings entry is exactly Log")
  check(not log.log_text.editable and log.log_text.wrap_mode==TextEdit.LINE_WRAPPING_BOUNDARY,"Log is read-only with wrapped scrollable text")
- game.settings.show();entry.pressed.emit();await process_frame
+ await settle()
+ web_points.settings=point(ui.settings_button)
+ game.settings.show();await settle();ui._fit_themed_popups();await settle()
+ web_points.log=point(entry)
+ entry.pressed.emit();await settle();ui._fit_themed_popups();await settle()
+ web_points.copy=point(log.copy_button)
+ for key in web_points:
+  var p=web_points[key]
+  check(p[0]>=0 and p[0]<1360 and p[1]>=0 and p[1]<880,"browser input point inside viewport: "+key)
  check(log.panel.visible and not game.settings.visible and ui.has_open_popup(),"Settings Log opens within modal flow")
  check("Session only" in log.log_text.text and "app " in log.log_text.text,"version and copy-before-refresh notice visible")
  var model=game.model;var source=game.startup_save_source;var blocked=game.save_recovery_blocked
@@ -48,5 +62,8 @@ func run():
   ui._fit_themed_popups()
   check(log.panel.size.x<=size.x and log.panel.position.x>=0 and log.panel.position.y>=0,"Log fits viewport "+str(size))
   check(log.panel.size.y<=size.y,"Log footer reachable by outer scroll "+str(size))
- print("SAVE_LOG_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
+ var result={"checks":checks,"failures":failures,"web_input_points":web_points,"web_viewport":{"width":1360,"height":880}}
+ if OS.get_environment("LL_UI_RESULT")!="":
+  var file=FileAccess.open(OS.get_environment("LL_UI_RESULT"),FileAccess.WRITE);file.store_string(JSON.stringify(result))
+ print("SAVE_LOG_RESULT ",JSON.stringify(result))
  game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
