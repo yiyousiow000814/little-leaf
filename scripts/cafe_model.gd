@@ -2345,6 +2345,28 @@ func reroute_guest(guest:Dictionary) -> bool:
 	var chair:=get_item(int(guest.chair_id))
 	if chair.is_empty():return false
 	var chair_cell:=Vector2i(int(chair.x),int(chair.z))
+	if str(guest.phase)=="leaving" and not is_floor_owned(cell):
+		# An already-departing guest keeps its remaining outdoor route. There
+		# is no indoor start cell from which to ask for another exit path.
+		var route_index=int(guest.route_index)
+		if route_index<0 or route_index>=guest.route.size():return false
+		var solids=[]
+		for item in items:
+			if item.kind!="rug":solids.append(Rect2(Vector2(item.x,item.z),Vector2.ONE).grow(.23))
+		var previous=position
+		for index in range(route_index,guest.route.size()):
+			var next:Vector2=guest.route[index]
+			if not next.is_finite() or segment_blocked(previous,next):return false
+			if absf(next.x-previous.x)>.0001 and absf(next.y-previous.y)>.0001:return false
+			# Check the whole remaining body sweep, including just beyond an
+			# owned edge; a clear center tile alone can still clip furniture.
+			for rect in solids:
+				if rect.has_point(previous) or rect.has_point(next):return false
+				var corners=[rect.position,Vector2(rect.end.x,rect.position.y),rect.end,Vector2(rect.position.x,rect.end.y)]
+				for edge in range(4):
+					if Geometry2D.segment_intersects_segment(previous,next,corners[edge],corners[(edge+1)%4])!=null:return false
+			previous=next
+		return true
 	var route:Array[Vector2]=[]
 	var best:Dictionary={}
 	var best_length:=INF
