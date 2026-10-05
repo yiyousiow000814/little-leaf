@@ -9,7 +9,7 @@ var layout_host:Control
 var rail:PanelContainer
 var row:HBoxContainer
 var spacer:Control
-var wallet:Control
+var wallet:Button
 var wallet_art:TextureRect
 var wallet_mobile_art:TextureRect
 var wallet_title:Label
@@ -250,7 +250,10 @@ func setup():
  rail_art=RailArtwork.new();rail_art.art=_texture("rail");rail_art.material=_art_material();game.ui.add_child(rail_art);rail_art.z_index=-1
  # A CanvasLayer child keeps screen positioning without top-level draw-order promotion.
  ui.title.hide();spacer.hide();game.state_badge.hide()
- wallet=Control.new();wallet.mouse_filter=Control.MOUSE_FILTER_STOP;wallet.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+ wallet=Button.new();wallet.mouse_filter=Control.MOUSE_FILTER_STOP;wallet.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+ for state in ["normal","hover","pressed","hover_pressed","disabled"]:wallet.add_theme_stylebox_override(state,StyleBoxEmpty.new())
+ var wallet_focus=_surface(Color.TRANSPARENT,Color("fff3be"),12);wallet_focus.set_border_width_all(2);wallet.add_theme_stylebox_override("focus",wallet_focus)
+ wallet.pressed.connect(_show_wallet_balance);wallet.focus_entered.connect(_show_wallet_balance)
  row.add_child(wallet);row.move_child(wallet,2);wallet.resized.connect(_queue_layout)
  wallet_art=_picture(wallet,_texture("wallet"))
  wallet_mobile_art=_picture(wallet,_texture("mobile_purse"))
@@ -307,6 +310,12 @@ func _fit_mobile_caption(label:Label):
  var target=11
  if font_bold.get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,target).x>label.size.x:target=10
  _font(label,target)
+func _show_wallet_balance():
+ # Compact balances remain discoverable by mouse, touch and keyboard.
+ if action_help!=null and game.top_text.text!=ui.Money.amount(game.model.coins):
+  action_help.show(wallet)
+  # On wrapped layouts, keep the hint below the second row of live controls.
+  action_help.panel.position.y=maxf(action_help.panel.position.y,layout_host.get_global_rect().end.y+6)
 func sync(width:float):
  if layout_host==null:return
  var insets=_safe_insets()
@@ -512,13 +521,23 @@ func _layout_unified_toolbar(width:float):
  sign_art.position=Vector2.ZERO;sign_art.size=game.business_button.size
  var sw=wallet.size.x/415.0
  wallet_box.position=Vector2(180*sw,32*sw);wallet_box.size=Vector2(163*sw,110*sw)
+ # Center the amount under Coins, preserving clearance from the painted
+ # purse/coins and leaf pins on either side of the cream plaque.
  var money_font=maxi(13,roundi(32*sw));var money_width=136*sw
  game.top_text.text=_wallet_amount(game.model.coins,money_width,money_font)
- game.top_text.tooltip_text=ui.Money.amount(game.model.coins)+" Leaf Coins"
+ # At the narrow one-row breakpoint, even 999M can need one smaller step.
+ while money_font>12 and font_bold.get_string_size(game.top_text.text,HORIZONTAL_ALIGNMENT_LEFT,-1,money_font).x>money_width:
+  money_font-=1;game.top_text.text=_wallet_amount(game.model.coins,money_width,money_font)
+ var exact=ui.Money.amount(game.model.coins)+" Leaf Coins"
+ var compact=game.top_text.text!=ui.Money.amount(game.model.coins)
+ game.top_text.tooltip_text=exact;wallet.tooltip_text=exact;wallet.accessibility_name=exact
+ wallet.accessibility_description="Tap or click to show the full balance" if compact else ""
+ wallet.focus_mode=Control.FOCUS_ALL if compact else Control.FOCUS_NONE
+ wallet.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND if compact else Control.CURSOR_ARROW
  var title_font=maxi(11,roundi(20*sw));var title_h=font_bold.get_height(title_font);var money_h=font_bold.get_height(money_font)
  var ty=maxf(0,(wallet_box.size.y-title_h-money_h-1)*.5)
  wallet_title.position=Vector2(0,ty);wallet_title.size=Vector2(wallet_box.size.x,title_h);_font(wallet_title,title_font)
- game.top_text.position=Vector2(26*sw,ty+title_h+1);game.top_text.size=Vector2(money_width,money_h);_font(game.top_text,money_font)
+ game.top_text.position=Vector2((wallet_box.size.x-money_width)*.5,ty+title_h+1);game.top_text.size=Vector2(money_width,money_h);_font(game.top_text,money_font)
  ui.business_action.hide();ui.business_state.show();ui.business_state.text="RECOVERY" if game.save_recovery_blocked else game.model.operating_status().to_upper()
  var sign_scale=game.business_button.size.y/56.0
  ui.business_state.position=Vector2(2,24)*sign_scale;ui.business_state.size=Vector2(game.business_button.size.x-4*sign_scale,20*sign_scale);_font(ui.business_state,maxi(13,floori(13*sign_scale)))
@@ -562,12 +581,16 @@ func _place_action_art(button:Button,name:String,paint_origin:Vector2,paint_size
 func _wallet_amount(value:int,width:float,font_size:int)->String:
  var exact=ui.Money.amount(value)
  if font_bold.get_string_size(exact,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x<=width:return exact
- # Keep the small wallet readable; its tooltip retains the exact balance.
- var magnitude=absf(float(value));var units=[[1000000000000.0,"t"],[1000000000.0,"b"],[1000000.0,"m"],[1000.0,"k"]]
+ # Abbreviate only when the measured exact amount cannot fit at this size.
+ # The wallet tooltip and click/tap hint retain the full balance.
+ var magnitude=absf(float(value));var units=[[1000000000000.0,"T"],[1000000000.0,"B"],[1000000.0,"M"],[1000.0,"K"]]
  for unit in units:
   if magnitude>=unit[0]:
    var truncated=floorf(magnitude/unit[0]*10)/10.0
-   var text=("−" if value<0 else "")+str(truncated)+unit[1]
+   var prefix="−" if value<0 else ""
+   var text=prefix+("%.1f"%truncated).trim_suffix(".0")+unit[1]
+   if font_bold.get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size).x>width:
+    text=prefix+str(floori(magnitude/unit[0]))+unit[1]
    return text
  return exact
 func _layout_unified_play_controls(s:float):

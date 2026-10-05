@@ -22,6 +22,7 @@ SUITES = [
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),
     ("test_hud_layout", "HUD_LAYOUT_RESULT"),
+    ("test_wallet_alignment", "WALLET_ALIGNMENT_RESULT"),
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),
     ("test_service_notice", "SERVICE_NOTICE_RESULT"),
