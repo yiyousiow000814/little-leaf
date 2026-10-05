@@ -51,6 +51,8 @@ SUITES = [
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),
     ("test_autosave_feedback_adversarial", "AUTOSAVE_ADVERSARIAL_RESULT"),
     ("test_autosave_feedback_ui", "AUTOSAVE_UI_RESULT"),
+    ("test_inbox_save_cache", "INBOX_SAVE_CACHE_RESULT"),
+    ("test_compensation_inbox", "COMPENSATION_INBOX_RESULT"),
     ("test_stove_optional", "STOVE_OPTIONAL_RESULT"),
     ("test_stove_work_reservation", "STOVE_WORK_RESERVATION_RESULT"),
     ("test_stove_reservation_ui", "STOVE_RESERVATION_UI_RESULT"),

@@ -26,6 +26,8 @@ var _held_gui_disabled=false
 var _held_viewport:WeakRef
 var _credit_base_coins=0
 var _credit_expected=0
+# Read-only presentation cache, separate from model serialization.
+var inbox_snapshot:Dictionary={"ok":false}
 
 func _init(owner):game_ref=weakref(owner)
 
@@ -73,6 +75,7 @@ func _accept_boot(result:Dictionary)->bool:
 	game.save_writes_suppressed=false;game.save_recovery_blocked=false
 	startup_error="";ready=true
 	profile_id=str(result.profileId);revision=int(result.revision)
+	_refresh_inbox(result)
 	_callback=JavaScriptBridge.create_callback(_on_commit)
 	return true
 
@@ -187,9 +190,20 @@ func _on_commit(arguments:Array):
 		game._update_ui()
 	_credit_expected=0
 	revision=int(result.revision)
+	_refresh_inbox(result)
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
 		game.call_deferred("_save");return
 	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Café progress saved"
 	game._update_ui()
+
+func _refresh_inbox(result:Dictionary):
+	# Accept only a snapshot paired with this accepted boot/durable revision.
+	# Missing presentation support must never affect the authoritative save.
+	var snapshot=result.get("inbox",null)
+	if not snapshot is Dictionary or not bool(snapshot.get("ok",false)) or str(snapshot.get("profileId",""))!=profile_id or int(snapshot.get("revision",-1))!=revision:
+		inbox_snapshot={"ok":false};return
+	if not snapshot.get("paid") is Array or not snapshot.get("deferred") is Array:
+		inbox_snapshot={"ok":false};return
+	inbox_snapshot=snapshot.duplicate(true)
