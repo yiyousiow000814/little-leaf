@@ -703,10 +703,13 @@ func _update_ui():
 func _service_warning() -> String:
 	if model.included_checkout_pending:return Checkout.PENDING_NOTICE
 	for guest in model.checkout_queue():
-		if str(guest.get("checkout_reason",""))!="":return str(guest.checkout_reason)
+		var reason=str(guest.get("checkout_reason",""))
+		# Queue progress is internal state, not a warning the player must fix.
+		if reason!="" and reason not in ["Waiting for a safe place at the register","Waiting seated for the register","Waiting for the cashier","Waiting in line","Waiting for queue space"]:return reason
 	var first=""
 	for staff in staff_states:
 		var reason=str(staff.get("art_block_reason",""))
+		if reason.begins_with("Waiting ") or reason.begins_with("Pass counter full"):continue
 		var blocked=model.get_item(int(staff.get("blocked_target_id",-1)))
 		if not editing and str(blocked.get("kind",""))=="stove" and reason.to_lower().contains("blocked"):continue
 		if reason=="": continue

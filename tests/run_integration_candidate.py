@@ -25,6 +25,7 @@ SUITES = [
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),
     ("test_service_notice", "SERVICE_NOTICE_RESULT"),
+    ("test_service_status_noise", "SERVICE_STATUS_NOISE_RESULT"),
     ("test_starter_geometry", "STARTER_GEOMETRY_RESULT"),
     ("test_starter_door_grid", "STARTER_DOOR_GRID_RESULT"),
     ("test_expansion_visibility", "EXPANSION_VISIBILITY_RESULT"),

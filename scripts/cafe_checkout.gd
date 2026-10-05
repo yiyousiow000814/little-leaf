@@ -190,7 +190,9 @@ static func advance(m,delta:float):
    continue
   if not m._walkable(front) or m.edge_blocked(front,Vector2i(int(item.x),int(item.z))):guest.checkout_reason="Register front blocked";continue
   if not m._walkable(back) or m.edge_blocked(back,Vector2i(int(item.x),int(item.z))):guest.checkout_reason="Clear the register's staff side";continue
-  if not _clear_body(m,destination,int(guest.id)):guest.checkout_reason="Register front blocked" if rank==0 else "Waiting for queue space";continue
+  # A previous payer can still own the tile while leaving. This is ordinary
+  # queue handover; structural access failures are checked separately above.
+  if not _clear_body(m,destination,int(guest.id)):guest.checkout_reason="Waiting for queue space";continue
   # Destination claims are exclusive, but they are never transit obstacles.
   if path(m,m.ENTRY_LANDING,back).is_empty():guest.checkout_reason="Clear the register's staff side";continue
   if path(m,destination,m.ENTRY_LANDING).is_empty():guest.checkout_reason="Register exit blocked";continue
