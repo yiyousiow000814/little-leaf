@@ -205,7 +205,7 @@ static func arrived(m,guest:Dictionary):
 static func ready(m,guest:Dictionary,register_id:int)->bool:
  if not guest.get("mobility",{}).is_empty():return false
  var item=m.get_item(register_id)
- if item.is_empty() or item.kind!="register" or guest.is_empty() or guest.paid or str(guest.get("settlement_mode","legacy"))!="register":return false
+ if item.is_empty() or item.kind!="register" or guest.is_empty() or guest.paid or bool(guest.get("meal_abandoned",false)) or str(guest.get("settlement_mode","legacy"))!="register":return false
  var waiting=queue(m)
  if waiting.is_empty() or int(waiting[0].id)!=int(guest.id) or str(guest.phase) not in ["checkout_wait","paying"] or guest.seated:return false
  var face=m.workface_cell(item)

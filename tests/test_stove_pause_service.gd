@@ -17,7 +17,7 @@ func run():
  game.model.cooks=2;game.model.duty_targets.chef=2;game.model.duty_counts.chef=2;game._update_people();game._sync_staff_duty()
  # Keep the actual bounded arrival clock valid for the mid-service save.
  var blocked_worker={};var held=[];var blocker_id=-1;var blocked_ticks=0;var restored=false;var done=false
- var other_completed=false;var stationary=0;var last=Vector2.INF
+ var other_completed=false;var other_progressed=false;var stationary=0;var last=Vector2.INF
  for tick in 15000:
   if game.model._next_customer_id==5 and game.model.customers.all(func(g):return bool(g.admitted)):game.model.set_operating_open(false)
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
@@ -62,9 +62,13 @@ func run():
    for id in game.service_guests:
     var record=game.service_guests[id]
     if id!=int(held[1]) and (record.meal_ready or record.meal_done):other_completed=true
-   if blocked_ticks>=2700:
-    check(other_completed,"other chef/stove continues meals during blockage")
-    check(stationary>2400,"blocked worker settles without repeated walking loop")
+   for staff in game.staff_states:
+    if staff.job_kind=="cook" and int(staff.job_guest_id)!=int(held[1]) and int(staff.job_step)==1 and float(staff.job_elapsed)>=5.0:other_progressed=true
+   # Resume within the new 120-second unserved-meal deadline. The patience
+   # suite separately verifies cancellation for an obstruction beyond it.
+   if blocked_ticks>=900:
+    check(other_completed or other_progressed,"other chef/stove performs real cooking during the shorter blockage")
+    check(stationary>600,"blocked worker settles without repeated walking loop")
     var repaired=game.model.remove(blocker_id)
     check(repaired,"clear stove without cancelling meal: "+game.model.last_error)
     if not repaired:break
@@ -79,7 +83,7 @@ func run():
  check(not blocked_worker.is_empty() and restored,"active blocking and recovery exercised")
  check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits resume, pay and clean exactly once")
  check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all expected payments occur exactly once")
- print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"served":game.model.served,"cleaned":game.model.total_cleaned}))
+ print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"other_cooking_progressed":other_progressed,"served":game.model.served,"cleaned":game.model.total_cleaned}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()

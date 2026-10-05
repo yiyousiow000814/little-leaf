@@ -96,6 +96,8 @@ const SERVICE_STEPS = {
 	"cleanup": [{"kind":"table","action":"collecting","seconds":.75},{"kind":"sink","action":"dropping_dishes","seconds":Dishwashing.DROP_SECONDS},{"kind":"table","action":"wiping","seconds":1.2},{"kind":"table","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"table","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"table","action":"mopping","seconds":1.5}]
 }
 const ROLE_JOBS={"chef":["cook"],"waiter":["order","deliver_meal","brew","deliver_drink","cleanup"],"cleaner":["cleanup"],"cashier":["take_payment"]}
+const MEAL_IMPATIENCE_SECONDS=70.0
+const MEAL_DEPARTURE_SECONDS=120.0
 var idle_home_revision=-1
 var idle_home_count=-1
 
@@ -701,6 +703,7 @@ func _restore_service_runtime():
 		for guest in model.customers:
 			if int(guest.id)==int(saved.guest_id):
 				var record=saved.duplicate(true);record.erase("guest_id");record["guest"]=guest
+				record["meal_wait_seconds"]=float(saved.get("meal_wait_seconds",0.0))
 				service_guests[int(guest.id)]=record;break
 	# Preserve staff ordering: later chef hires were appended, and payloads
 	# refer to stable staff indices. Recreating all chefs first would swap hands.
@@ -840,14 +843,17 @@ func _process(delta):
 	if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
 	if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(delta)
-	if not editing and not paused and not save_recovery_blocked: _tick_live_service(delta*speed)
+	if not editing and not paused and not save_recovery_blocked:
+		_tick_live_service(delta*speed)
+		_update_people()
+		# Resolve cooking/contact before deadlines and before any autosave.
+		_animate_staff(delta*speed)
 	visual_timer+=delta
 	save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui(); _update_service_props()
 	if save_timer>15 and (interaction==null or not interaction.drag_active): _save()
 	_update_people()
-	if not editing and not paused and not save_recovery_blocked: _animate_staff(delta*speed)
 	animation_time+=delta if not editing and not paused else 0.0
 	_music_tick(delta)
 	if is_instance_valid(ghost):
@@ -973,7 +979,7 @@ func _sync_service_guests():
 			continue
 		service_serial+=1
 		var phase=str(guest.phase)
-		service_guests[id]={"guest":guest,"token":service_serial,
+		service_guests[id]={"guest":guest,"token":service_serial,"meal_wait_seconds":0.0,
 			"order_done":phase in ["cooking","drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"meal_ready":phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"drink_ready":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"meal_station_id":-1,"meal_pass_id":-1,"pass_reserved":false,"drink_station_id":-1,"floor_cleaned":false,"floor_dirty":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
 			"meal_done":phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
 			"drink_done":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
@@ -1138,7 +1144,7 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 	if int(staff.job_step)>=SERVICE_STEPS.cleanup.size():
 		_sync_cleanup_completion(record);_clear_service_job(staff);return
 	var step=SERVICE_STEPS.cleanup[int(staff.job_step)]
-	if int(staff.job_step) in [0,1] and record.plate_owner not in ["dish_queue","clean"]:
+	if int(staff.job_step) in [0,1] and (record.plate_owner not in ["dish_queue","clean"] or record.drink_owner=="table"):
 		var sink=dishwashing.reserve(record,staff)
 		if sink.is_empty():
 			staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
@@ -1156,8 +1162,82 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 		if item.kind==step.kind:staff.blocked_target_id=int(item.id);break
 	staff.blocked_reason="Add the included trash bin in Decorate" if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
 
+func _guest_waiting_for_meal(record:Dictionary)->bool:
+	var guest:Dictionary=record.get("guest",{})
+	# Ordering begins only when the arrival route reaches the actual seat.
+	# Keep counting if that seat is relocated; its meal phase is preserved.
+	return not bool(guest.get("meal_abandoned",false)) and str(guest.get("phase","")) in ["ordering","cooking"] and not bool(record.get("meal_done",false)) and str(record.get("plate_owner",""))!="table"
+
+func _advance_meal_wait(delta:float):
+	if not is_finite(delta) or delta<=0.0:return
+	for record in service_guests.values():
+		if _guest_waiting_for_meal(record):
+			record.meal_wait_seconds=minf(1000000000.0,float(record.get("meal_wait_seconds",0.0))+minf(delta,60.0))
+
+func _guest_bubble_symbol(guest:Dictionary)->String:
+	var record:Dictionary=service_guests.get(int(guest.id),{})
+	var waited=float(record.get("meal_wait_seconds",0.0))
+	if bool(guest.get("meal_abandoned",false)) and str(guest.phase) not in ["dirty","cleaning"]:return "angry"
+	if _guest_waiting_for_meal(record) and waited>=MEAL_IMPATIENCE_SECONDS:
+		return "angry"
+	return "…" if str(guest.phase)=="ordering" else ""
+
+func _meal_prepared(record:Dictionary)->bool:
+	var owner=str(record.plate_owner)
+	if owner=="table" and int(record.plate_target_id)==int(record.guest.table_id):return true
+	if owner=="counter" and int(record.plate_target_id)==int(record.meal_pass_id):
+		if str(model.get_item(int(record.plate_target_id)).get("kind",""))=="counter":return true
+	for worker in staff_states:
+		if int(worker.job_guest_id)!=int(record.guest.id) or int(worker.job_token)!=int(record.token):continue
+		# Cooking actually completed when the existing job entered plating.
+		# This saved stage also covers plating and the chef's trip to the pass.
+		if worker.job_kind=="cook" and int(worker.job_step)>=2:return true
+		if worker.job_kind=="deliver_meal" and bool(record.meal_ready) and owner=="staff" and int(record.plate_staff_index)==staff_states.find(worker):return true
+	return false
+
+func _resolve_meal_deadlines():
+	for record in service_guests.values():
+		if _guest_waiting_for_meal(record) and float(record.get("meal_wait_seconds",0.0))>=MEAL_DEPARTURE_SECONDS and not _meal_prepared(record):
+			_abandon_unfinished_meal(record)
+
+func _abandon_unfinished_meal(record:Dictionary):
+	var guest:Dictionary=record.guest
+	if bool(guest.get("meal_abandoned",false)):return
+	var old_token=int(record.token);var cleanup_workers=[]
+	for worker in staff_states:
+		if int(worker.get("blocked_guest_id",-1))==int(guest.id):
+			worker.blocked_reason="";worker.blocked_guest_id=-1;worker.blocked_target_id=-1
+		if int(worker.job_guest_id)!=int(guest.id) or int(worker.job_token)!=old_token:continue
+		if worker.job_kind=="cleanup":
+			# Existing real cleanup retains its work/payload under the new token.
+			cleanup_workers.append(worker);continue
+		_clear_service_job(worker)
+		worker.path.clear();worker.index=0;worker.destination=Vector2i(-100,-100)
+		worker.yield_time=0.0;worker.blocked_time=0.0;worker.stalled_time=0.0
+		_set_staff_art(worker,"idle",{},0.0,"none")
+	service_serial+=1;record.token=service_serial
+	for worker in cleanup_workers:worker.job_token=record.token
+	record.pass_reserved=false;record.meal_station_id=-1;record.meal_pass_id=-1;record.drink_station_id=-1
+	record.meal_ready=false;record.meal_done=false
+	# Discard only unfinished kitchen payloads. A delivered cup and existing
+	# carried/queued dirty dishes still belong to the normal cleanup lifecycle.
+	if record.plate_owner in ["kitchen","station"]:
+		record.plate_owner="clean";record.plate_staff_index=-1;record.plate_target_id=-1
+	if record.drink_owner!="table":
+		record.drink_owner="cleared";record.drink_staff_index=-1;record.drink_target_id=-1
+	else:
+		record.dishes_collected=false;record.table_wiped=false
+	if record.plate_owner=="clean" and record.drink_owner=="cleared":
+		record.dishes_collected=true;record.table_wiped=true;record.dish_sink_id=-1
+	_sync_cleanup_completion(record)
+	model.abandon_meal(guest)
+	_retire_service_station_references()
+
 func _tick_live_service(delta: float):
 	_sync_service_guests()
+	# Advance before model movement: a guest reaching its seat this tick starts
+	# at zero, and none of the arrival tick is mistaken for seated waiting.
+	_advance_meal_wait(delta)
 	# Preserve the model's phase lengths and save API. Only postpone a phase's
 	# completion while its real service trip is unfinished; other guests keep
 	# walking/eating. This prevents a plate teleport or a table cleaning itself.
@@ -1347,6 +1427,7 @@ func _assign_service_job(staff: Dictionary, index: int):
 	for kind in ROLE_JOBS[str(staff.role)]:
 		for guest in model.customers:
 			if bool(guest.get("withdrawn",false)):continue
+			if bool(guest.get("meal_abandoned",false)) and kind!="cleanup":continue
 			var record=service_guests[int(guest.id)]
 			var phase=str(guest.phase)
 			if kind=="take_payment" and not model.checkout_ready(guest,int(guest.get("checkout_register_id",-1))):continue
@@ -1548,7 +1629,9 @@ func _staff_payload(staff: Dictionary, index: int) -> String:
 func _service_contact(staff: Dictionary, index: int, action: String, target: Dictionary, phase: float):
 	if staff.job_kind=="wash":dishwashing.contact(staff);return
 	if staff.job_kind=="floor":floor_tasks.contact(staff,index,action,target,phase);return
-	var record=service_guests[int(staff.job_guest_id)]
+	var record:Dictionary=service_guests.get(int(staff.job_guest_id),{})
+	if record.is_empty() or int(staff.job_token)!=int(record.token):return
+	if bool(record.guest.get("meal_abandoned",false)) and staff.job_kind!="cleanup":return
 	if action=="plating" and phase>=.65:
 		record.plate_owner="staff";record.plate_staff_index=index;record.plate_target_id=-1
 	elif action=="placing_plate" and phase>=.65:
@@ -1735,6 +1818,8 @@ func _animate_staff(delta: float):
 			if staff.job_kind=="brew":record.drink_done=true
 			record[{"order":"order_done","cook":"meal_ready","brew":"drink_ready","deliver_meal":"meal_done","deliver_drink":"drink_done","cleanup":"cleanup_done"}[staff.job_kind]]=true
 			_clear_service_job(staff)
+	# The whole frame's real cooking and table contacts win ties at the deadline.
+	if delta>0.0:_resolve_meal_deadlines()
 
 func _find_path(start: Vector2i,goal: Vector2i) -> Array:
 	# Compatibility route helper shares the authoritative partial-floor BFS.

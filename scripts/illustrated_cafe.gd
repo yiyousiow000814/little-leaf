@@ -734,13 +734,16 @@ func _draw():
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
 				line(Vector2(-1.7,-82.5),Vector2(-1.7,-77.5),"819071",1.4);line(Vector2(1.7,-82.5),Vector2(1.7,-77.5),"819071",1.4)
-			if not bool(e.get("reach_overlay",false)) and ((e.type=="guest" and str(d.phase)=="ordering") or (e.type=="staff" and action=="blocked")):
+			var bubble_symbol="…" if e.type=="guest" and str(d.phase)=="ordering" else ("!" if e.type=="staff" and action=="blocked" else "")
+			# Archived service fixtures keep their original ordering-only display.
+			if e.type=="guest" and game.has_method("_guest_bubble_symbol"):bubble_symbol=game._guest_bubble_symbol(d)
+			if not bool(e.get("reach_overlay",false)) and bubble_symbol!="":
 				var bubble_id=int(e.get("index",d.get("id",1)))
 				var anchor=_character_bubble_anchor(bubble_id,e.type=="staff",moving,pose,str(d.get("art_role",d.get("role","chef"))))
 				# Text stays upright when the actor faces left. Position and gap use
 				# the same local scale as the animal, including zoom/detail mode.
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-				bubble(anchor,"…" if e.type=="guest" else "!")
+				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
 	_scenery_tree(Vector2(13.5,-.5),1.10)
 	_scenery_tree(Vector2(14.5,11.5),.78)
@@ -1310,7 +1313,10 @@ func bubble(p: Vector2,words: String):
 	var raster=_stroke_raster_scale>0.0
 	if raster:draw_set_transform_matrix(_stroke_from_raster)
 	var scale=_stroke_raster_scale if raster else 1.0
-	var tint=col("829270")
+	var tint=col(str(mark.get("color","829270")))
+	if mark.has("face_radius"):
+		var center=_stroke_to_raster*p if raster else p
+		draw_circle(center,float(mark.face_radius)*scale,col(str(mark.face_fill)),true,-1.0,true)
 	for point in mark.dots:
 		var center=_stroke_to_raster*(p+point) if raster else p+point
 		draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
@@ -1318,11 +1324,21 @@ func bubble(p: Vector2,words: String):
 		var start=_stroke_to_raster*(p+mark.stem[0]) if raster else p+mark.stem[0]
 		var finish=_stroke_to_raster*(p+mark.stem[1]) if raster else p+mark.stem[1]
 		draw_line(start,finish,tint,float(mark.width)*scale,true)
+	for stroke in mark.get("strokes",[]):
+		var points=PackedVector2Array()
+		for point in stroke:points.append(_stroke_to_raster*(p+point) if raster else p+point)
+		var width=float(mark.width)*scale
+		draw_polyline(points,tint,width,true)
+		for endpoint in [points[0],points[-1]]:draw_circle(endpoint,width*.5,tint,true,-1.0,true)
 	if raster:draw_set_transform_matrix(_art_transform)
 
 static func bubble_symbol_geometry(words:String)->Dictionary:
 	if words=="…":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
 	if words=="!":return {"dots":[Vector2(0,4.0)],"radius":.8,"stem":[Vector2(0,-4.0),Vector2(0,1.5)],"width":1.5}
+	if words=="angry":return {"face_radius":7.0,"face_fill":"e6b079","color":"57674d",
+		"dots":[Vector2(-2.6,-.45),Vector2(2.6,-.45)],"radius":.8,"width":1.15,
+		"strokes":[[Vector2(-4.2,-3.0),Vector2(-1.1,-1.6)],[Vector2(1.1,-1.6),Vector2(4.2,-3.0)],
+			[Vector2(-2.8,3.65),Vector2(-2.2,3.15),Vector2(-1.5,2.8),Vector2(-.75,2.57),Vector2(0,2.5),Vector2(.75,2.57),Vector2(1.5,2.8),Vector2(2.2,3.15),Vector2(2.8,3.65)]]}
 	return {}
 func _meal(table_id: int):
 	if game==null: return
