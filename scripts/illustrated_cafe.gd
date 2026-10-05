@@ -689,7 +689,6 @@ func _draw():
 			if not bool(e.get("reach_overlay",false)) and ((e.type=="guest" and str(d.phase)=="ordering") or (e.type=="staff" and action=="blocked")):
 				var bubble_id=int(e.get("index",d.get("id",1)))
 				var anchor=_character_bubble_anchor(bubble_id,e.type=="staff",moving,pose,str(d.get("art_role",d.get("role","chef"))))
-				anchor.x*=face
 				# Text stays upright when the actor faces left. Position and gap use
 				# the same local scale as the animal, including zoom/detail mode.
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
@@ -702,7 +701,6 @@ func _draw():
 	if game.editing and game.model.has_method("expansion_parcels"):
 		for parcel in game.model.expansion_parcels():
 				if not parcel.owned and parcel.visible:_parcel_sign(parcel)
-	if game.workface_guidance!=null:game.workface_guidance.draw_access_focus(self)
 	# Do not expose the presentation offset to resize anchoring or input projection.
 	origin = gameplay_origin
 func _draw_legacy_pavement(ground_view: Rect2):
@@ -1246,8 +1244,10 @@ func _table_vase_point(_table_id:int) -> Vector2:
 func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role="chef") -> Vector2:
 	var bounds=DirectionalCharacter.head_bounds(posmod(id,3),false,staff and role=="chef")
 	var body=DirectionalCharacter.body_offset(pose,moving,float(pose.get("phase",0)))
-	# The tail extends 13px below the center; leave a clear 5px ear/hat gap.
-	return body+Vector2(bounds.get_center().x,bounds.position.y-18.0)
+	# Keep the body anchor mirrored, but place the oval slightly screen-right
+	# for every facing. Its -5px tail tip still points to the head center.
+	# The tail extends 13px below the center; retain the 5px ear/hat gap.
+	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+5.0,body.y+bounds.position.y-18.0)
 
 func bubble(p: Vector2,words: String):
 	ellipse(p,Vector2(13,10),"fff6d9")

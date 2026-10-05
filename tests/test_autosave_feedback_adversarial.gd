@@ -40,16 +40,12 @@ class FakeGame extends Node:
  var startup_notice=""
  var paused=false
  var web_lifecycle=null
- var notices=[]
  var followup_saves=0
- func _notify(words):notices.append(words)
  func _update_people():pass
  func _service_save_snapshot():return {}
  func _update_ui():pass
  func _save():followup_saves+=1
 class NativeHarness extends Main:
- var notices=[]
- func _notify(words:String):notices.append(words)
  func _update_people():pass
  func _service_save_snapshot()->Dictionary:return {}
 var failures=[]
@@ -70,10 +66,10 @@ func dispose_main(game):
 func run():
  var game=FakeGame.new();root.add_child(game)
  var save=make_save(game)
- # Failed staging must remain visible without an API write or transient toast.
+ # Failed staging retains its diagnostic without submitting an API write.
  game.model.empty_payload=true
  check(not save.request_save() and not save.pending and save.api.writes==0,"empty validated staging never submits")
- check(game.progress_unsaved and game.progress_save_error=="Could not read the validated save" and game.notices.is_empty(),"empty staging retains an actionable error")
+ check(game.progress_unsaved and game.progress_save_error=="Could not read the validated save","empty staging retains an actionable error")
  game.model.empty_payload=false
  save.request_save();ack(save)
  # A previous failure must survive an acknowledgement for an older generation.
@@ -83,11 +79,11 @@ func run():
  await process_frame
  check(game.followup_saves==1,"older success schedules the queued generation")
  save.request_save();ack(save)
- check(not game.progress_unsaved and game.progress_save_error=="" and game.notices.is_empty(),"latest durable acknowledgement clears error silently")
+ check(not game.progress_unsaved and game.progress_save_error=="","latest durable acknowledgement clears error silently")
  # Malformed and empty callbacks stay retryable errors.
  for arguments in [[],["not json"],["[]"]]:
   save.request_save();save._on_commit(arguments)
-  check(game.progress_unsaved and game.progress_save_error!="" and not save.pending and save.ready,"malformed callback remains a retryable visible failure")
+  check(game.progress_unsaved and game.progress_save_error!="" and not save.pending and save.ready,"malformed callback remains a retryable failure with retained details")
   save.request_save();ack(save)
  # Wrong acknowledgements must fail closed, preserve unsaved state and stop writes.
  for extra in [{"profileId":"different"},{"revision":0},{"revision":99},{"durable":false},{"creditedCoins":1},{"creditedCoins":0.5},{"creditedCoins":"0"},{"creditedCoins":-1}]:
@@ -96,7 +92,6 @@ func run():
   check(not save.ready and game.save_recovery_blocked and game.paused and game.progress_unsaved and game.progress_save_error!="","invalid acknowledgement remains fail-closed: "+str(extra))
   var prior_writes=save.api.writes;var prior_generation=save.generation
   check(not save.request_save() and save.api.writes==prior_writes and save.generation==prior_generation,"blocked acknowledgement cannot trigger another write")
-  check(game.notices.is_empty(),"blocked failure uses the persistent warning without toast spam")
  # A credited wallet changed in flight must not be overwritten by compensation.
  game.save_recovery_blocked=false;game.save_writes_suppressed=false;game.paused=false
  save=make_save(game);save.api.credit=100;save.request_save();game.model.coins+=1;ack(save,{"creditedCoins":100})
@@ -106,10 +101,10 @@ func run():
  var native=NativeHarness.new();native.model=NoDiskModel.new()
  check(not native._save() and native.progress_unsaved and native.progress_save_error=="Synthetic disk full","native save failure records unsaved state")
  var warning=native._unsaved_progress_message()
- check("Keep the game open; saving will retry" in warning and native.notices.is_empty(),"native failure remains actionable without a transient toast")
+ check("Keep the game open; saving will retry" in warning,"native failure retains actionable Help details")
  check(not native._save() and native._unsaved_progress_message()==warning,"repeated native failures retain the same warning")
  native.model.save_ok=true
- check(native._save() and not native.progress_unsaved and native.progress_save_error=="" and native._unsaved_progress_message()=="" and native.notices.is_empty(),"native success clears persistent error silently")
+ check(native._save() and not native.progress_unsaved and native.progress_save_error=="" and native._unsaved_progress_message()=="","native success clears persistent error silently")
  native.save_recovery_blocked=true
  var native_calls=native.model.calls
  check(native._save() and native.model.calls==native_calls,"existing native recovery guard still suppresses disk writes")

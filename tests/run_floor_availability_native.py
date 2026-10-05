@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix="geometry-saveguard-", dir=qa_root) as t
         ("test_starter_geometry.gd", b"STARTER_GEOMETRY_RESULT"),
         ("test_startup_retry.gd", b"STARTUP_RETRY_RESULT"),
         ("test_cancel_icon.gd", b"CANCEL_ICON_RESULT"),
-        ("test_service_notice.gd", b"SERVICE_NOTICE_RESULT"),
+        ("test_no_bottom_notifications.gd", b"NO_BOTTOM_NOTIFICATIONS_RESULT"),
         ("test_starter_door_grid.gd", b"STARTER_DOOR_GRID_RESULT"),
         ("test_floor_availability.gd", b"FLOOR_AVAILABILITY_RESULT"),
         ("test_furniture_worker_egress.gd", b"FURNITURE_WORKER_EGRESS"),

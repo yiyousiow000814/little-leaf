@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix="geometry-saveguard-feedback-") as tempo
         ("test_autosave_feedback.gd", "AUTOSAVE_FEEDBACK_RESULT ", []),
         ("test_autosave_feedback_adversarial.gd", "AUTOSAVE_ADVERSARIAL_RESULT ", []),
         ("test_autosave_feedback_ui.gd", "AUTOSAVE_UI_RESULT ", ["--", "--visual-qa", "--fresh-review", "--skip-intro"]),
-        ("test_service_notice.gd", "SERVICE_NOTICE_RESULT ", ["--", "--visual-qa", "--fresh-review", "--skip-intro"]),
+        ("test_no_bottom_notifications.gd", "NO_BOTTOM_NOTIFICATIONS_RESULT ", ["--", "--visual-qa", "--fresh-review", "--skip-intro"]),
         ("test_hud_layout.gd", "HUD_LAYOUT_RESULT ", ["--", "--visual-qa", "--fresh-review", "--skip-intro"]),
         ("test_startup_retry.gd", "STARTUP_RETRY_RESULT ", []),
         ("test_starter_geometry.gd", "STARTER_GEOMETRY_RESULT ", []),

@@ -41,15 +41,16 @@ func run():
  var face=game.model.workface_cell(live_stove)
  for staff in game.staff_states:staff.pos=Vector2(1.5,7.5)
  check(game.model.place("plant",face.x,face.y),"live current café permits intentional stove obstruction")
- game._rebuild_furniture();game.editing=true
- check(game.workface_guidance.access_message().contains("Stove access blocked"),"decorate identifies blocked stove")
+ game._rebuild_furniture();game.editing=true;game.selected_id=int(live_stove.id)
+ game.workface_guidance._refresh()
+ check(game.model.layout_access_issues().size()==1 and int(game.model.layout_access_issues()[0].item_id)==int(live_stove.id),"structural validation identifies blocked stove")
+ check(game.workface_guidance.markers.size()==1 and not game.workface_guidance.markers[0].clear,"selected blocked stove retains red ground marker")
  var chef=game.staff_states[0]
  chef.blocked_reason="Stove front blocked · make space in Decorate";chef.art_block_reason=chef.blocked_reason;chef.blocked_target_id=live_stove.id
- check(not game._service_warning().is_empty(),"edit mode can expose diagnostic")
  game.editing=false
- check(game._service_warning()=="","play hides stove diagnostic")
  check(game.workface_guidance.blocked_station(game).is_empty(),"play hides stove locate badge")
- check(game.workface_guidance.access_message()=="","play clears decorate notice")
+ game.workface_guidance._refresh()
+ check(game.workface_guidance.markers.is_empty(),"play clears Decorate ground markers")
  game.idle_home_revision=-1;game._refresh_idle_homes()
  check(chef.idle_home_id==-1,"decorative stove is not an idle working home")
  check(game._service_station("stove",Vector2i(1,7),0).is_empty(),"new cooking job skips blocked stove")

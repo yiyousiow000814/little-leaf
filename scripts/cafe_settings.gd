@@ -69,8 +69,6 @@ func save_preferences()->bool:
 	cfg.set_value("updates","last_seen_version",last_seen_update_version)
 	if OS.has_feature("web") and config_path=="user://little_leaf_settings.cfg":
 		var saved=web_preferences!=null and web_preferences.save_from(cfg)
-		if not saved and game!=null and is_instance_valid(game.status_text):
-			game._notify("Preferences not saved · "+(web_preferences.last_error if web_preferences!=null else "Storage unavailable"))
 		_sync_preference_storage_notice()
 		return saved
 	return cfg.save(config_path)==OK
@@ -188,6 +186,7 @@ func build_play_controls() -> HBoxContainer:
 func _sync_preference_storage_notice():
 	if not is_instance_valid(preference_storage_note):return
 	preference_storage_note.text="Changes are saved automatically" if web_preferences==null or web_preferences.last_error=="" else "Preferences not saved · "+web_preferences.last_error
+	preference_storage_note.visible=web_preferences!=null and web_preferences.last_error!=""
 func sync():
 	if game==null:return
 	_sync_preference_storage_notice()

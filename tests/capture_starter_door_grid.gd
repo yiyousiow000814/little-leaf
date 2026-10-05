@@ -24,7 +24,7 @@ func _run():
  seed(8124);root.size=Vector2i(1360,880)
  game=CaptureGame.new();root.add_child(game);game.set_process(false);game.paused=true;game.editing=false;game._toggle_edit()
  game.illustration.free();game.illustration=FixedArt.new();game.illustration.game=game;game.add_child(game.illustration);game.illustration.set_process(false)
- game._choose("table_set");game.rotation_step=0;game._update_ui();game.interaction.refresh(Vector2(0,0));game.interaction.preview_active=false;game.status_text.hide();game.toast_lifetime=0
+ game._choose("table_set");game.rotation_step=0;game._update_ui();game.interaction.refresh(Vector2(0,0));game.interaction.preview_active=false
  for n in range(12):game.illustration.queue_redraw();await process_frame
  await RenderingServer.frame_post_draw
  var phase=OS.get_environment("DOOR_PHASE");var output=OS.get_environment("DOOR_OUTPUT")

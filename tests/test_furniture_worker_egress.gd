@@ -151,7 +151,7 @@ func ui_cases():
   check(cafe.model._furniture_actor_component(Model.ENTRY_LANDING,cafe.model.items).has(Vector2i(pos.floor())),"worker has indoor exit "+str(index))
   if index>0:check(pos==positions[index],"unaffected worker stays put "+str(index))
  # Immediate selected R uses the same joint transaction as a drag release.
- var id=int(cafe.model.items[-2].id);cafe.interaction._select_item(cafe.model.get_item(id),false)
+ var id=int(cafe.model.items[-2].id);cafe.interaction._select_item(cafe.model.get_item(id))
  var money=cafe.model.coins;var old_pos=cafe.staff_states[0].pos
  var key=InputEventKey.new();key.keycode=KEY_R;key.pressed=true;Input.parse_input_event(key);ui_events+=1;await frames()
  check(cafe.model.logical_rotation(id)==1,"selected R safely rotates onto hidden worker's former tile")

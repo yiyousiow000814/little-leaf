@@ -44,13 +44,13 @@ func run():
  var diner=guest_template.duplicate(true)
  diner.id=91;diner.phase="eating";diner.seated=true;diner.waiting=false;diner.table_id=8;diner.chair_id=9;diner.x=6.5;diner.z=6.5;diner.elapsed=0.0;diner.duration=20.0;diner.heading=Vector2.UP
  game.model.customers.append(diner)
- game.toast_lifetime=0;game.status_text.hide();game.animation_time=0;game.visual_timer=0
+ game.animation_time=0;game.visual_timer=0
  root.size=Vector2i(1360,880)
  var cases=[]
  for detail in [false,true]:
   game.illustration.zoom=1.15 if not detail else 2.1
   game.illustration.pan_offset=Vector2(0,-20) if not detail else Vector2(160,-150)
-  game.illustration.update_projection();game._update_ui();game.status_text.hide()
+  game.illustration.update_projection();game._update_ui()
   for i in range(12):await process_frame
   game.illustration.queue_redraw();await process_frame;await RenderingServer.frame_post_draw
   var path="res://docs/litter-remnants-visibility/%s-%s.png"%[mode,"detail" if detail else "normal"]

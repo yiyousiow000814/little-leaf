@@ -102,7 +102,7 @@ func build()->Control:
 	var floor_row=HBoxContainer.new();floor_row.add_child(game.label("Floor",12));floor_option=_option(FLOOR_NAMES);floor_row.add_child(floor_option);finishes.add_child(floor_row)
 	var shell_row=HBoxContainer.new();shell_row.add_child(game.label("Back walls",12));shell_option=_option(["Original"]+MATERIAL_NAMES);shell_row.add_child(shell_option);finishes.add_child(shell_row)
 	shell_option.item_selected.connect(func(index):
-		if game.model.set_shell_material((["original"]+Geometry.MATERIALS)[index]):_changed("Back-wall wallpaper changed"))
+		if game.model.set_shell_material((["original"]+Geometry.MATERIALS)[index]):_changed())
 	finishes.add_child(game.label("Flooring is bought per tile · land stays open",11,Color("7b856c")))
 	sync();return panel
 
@@ -232,9 +232,8 @@ func handle_input(event:InputEvent)->bool:
 		if event.button_index==MOUSE_BUTTON_LEFT and not event.pressed and _pressed:
 			refresh(event.position)
 			if not _dragging and _available(event.position) and selected_key==_press_key and (not preview.is_empty() or not preview_shell.is_empty() or mode in OPENING_MODES or mode=="floor"):
-				if mode=="floor" and _press_floor_quote!=_floor_quote_signature():game._notify("Floor price changed · click again to review")
-				elif replacing or preview_valid:_commit()
-				else:game._notify(preview_reason)
+				var same_price=mode!="floor" or _press_floor_quote==_floor_quote_signature()
+				if same_price and (replacing or preview_valid):_commit()
 			_pressed=false;_dragging=false;return true
 	if event is InputEventMouseMotion:
 		if _pressed and not (event.button_mask&MOUSE_BUTTON_MASK_LEFT):on_focus_lost()
@@ -266,12 +265,11 @@ func _commit():
 	elif mode=="paint":ok=game.model.replace_wall(selected_key,str(preview.height),material,actor_positions())
 	elif mode=="remove":ok=game.model.remove_wall(selected_key)
 	if ok:
-		successful_key=selected_key;successful_point=pointer;_changed(str(game.model.last_event))
-	else:game._notify(str(game.model.last_error))
+		successful_key=selected_key;successful_point=pointer;_changed()
 	_cache_key="";refresh(pointer)
 
-func _changed(message:String):
-	game._update_ui();game._save();game._notify(message);game.illustration.queue_redraw()
+func _changed():
+	game._update_ui();game._save();game.illustration.queue_redraw()
 
 func get_render_attachments()->Array:
 	return _render_attachments if active() and mode in OPENING_MODES and _render_preview_active else game.model.wall_attachments
@@ -346,16 +344,15 @@ func _commit_opening():
 		opening_source_id=int(opening_preview.id);_cache_key="";game._update_ui();return
 	if mode=="move_opening" and opening_source_id<0:
 		opening_source_id=int(opening_preview.id);_cache_key="";_render_attachments=[]
-		game._notify("Selected %s · click another full wall · Esc keeps it here"%opening_preview.kind);refresh(pointer);return
+		refresh(pointer);return
 	var ok=false
 	if mode in ["door","window"]:ok=game.model.place_wall_attachment(mode,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
 	elif mode=="move_opening":ok=game.model.move_wall_attachment(opening_source_id,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
 	elif mode=="remove_opening":ok=game.model.remove_wall_attachment(int(opening_preview.id),actor_positions())
 	if ok:
 		successful_key=selected_key;successful_point=pointer
-		if mode=="move_opening":opening_source_id=-1
-		_changed(str(game.model.last_event))
-	else:game._notify(str(game.model.last_error))
+		if mode=="move_opening":opening_source_id=-1;game.settings_controls.play_sfx("place")
+		_changed()
 	_cache_key="";_render_attachments=[];refresh(pointer)
 
 # Flooring is a decorative layer: picking never selects/moves furniture and the
@@ -387,8 +384,7 @@ func _commit_floor():
 	if floor_preview.is_empty():return
 	var cell=Vector2i(int(floor_preview.x),int(floor_preview.z))
 	if game.model.place_floor(cell,floor_material):
-		successful_key=selected_key;successful_point=pointer;_changed(str(game.model.last_event))
-	else:game._notify(str(game.model.last_error))
+		successful_key=selected_key;successful_point=pointer;_changed()
 	refresh(pointer)
 
 func draw_floor_preview(artist):

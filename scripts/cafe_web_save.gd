@@ -26,8 +26,6 @@ var _held_gui_disabled=false
 var _held_viewport:WeakRef
 var _credit_base_coins=0
 var _credit_expected=0
-var _credit_notice=""
-var _overflow_notice_shown=false
 
 func _init(owner):game_ref=weakref(owner)
 
@@ -65,7 +63,6 @@ func _accept_boot(result:Dictionary)->bool:
 			if source!="legacy-v13" or not candidate.load_save(STAGING_FILE,true):
 				_block_startup(candidate.last_error);return false
 			requires_repair=true
-		if source=="legacy-v13":notice="Previous café loaded read-only · Original progress is unchanged"
 		if requires_repair:notice="Café paused for repair · Use Decorate to open a route for trapped staff, then save · Original progress is unchanged"
 		if candidate.included_bin_pending:candidate.ensure_basic_bin()
 	game.model=candidate
@@ -187,7 +184,6 @@ func _on_commit(arguments:Array):
 			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
 			game.startup_notice=game.progress_save_error;return
 		game.model.coins+=int(credit)
-		_credit_notice="%s coins of compensation added"%str(int(credit));_overflow_notice_shown=false
 		game._update_ui()
 	_credit_expected=0
 	revision=int(result.revision)
@@ -196,8 +192,4 @@ func _on_commit(arguments:Array):
 		# Never clear a newer edit's unsaved marker from an older completion.
 		game.call_deferred("_save");return
 	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Café progress saved"
-	if _credit_notice!="":
-		game._notify(_credit_notice);_credit_notice=""
-	elif not _overflow_notice_shown and not result.get("campaignDeferred",[]).is_empty():
-		_overflow_notice_shown=true;game._notify("Your full compensation is waiting until the wallet has room")
 	game._update_ui()
