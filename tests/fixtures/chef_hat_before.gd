@@ -106,7 +106,7 @@ static func body_offset(settings:Dictionary,walking:bool,phase:float) -> Vector2
 static func head_bounds(species:int,side_profile=false,with_hat=false) -> Rect2:
  # The outer ear/skull extents used by head() and profile_head(), including hat.
  var top=[-73.0 if side_profile else -72.0,-59.0 if side_profile else -60.0,-53.7 if side_profile else -54.4][posmod(species,3)]
- if with_hat:top=minf(top,-63.5)
+ if with_hat:top=minf(top,-60.8)
  return Rect2(Vector2(-14.5,top),Vector2(29.0,-25.0-top))
 
 var a
@@ -313,60 +313,9 @@ func eye(at:Vector2,size:Vector2):
  else:
   dot(at,size,"4e624b");dot(at+Vector2(.2,-.5),Vector2(.25,.28),"f8f0d9")
  if blocked:a._face_line(origin+at+Vector2(-1,-2.6),origin+at+Vector2(1,-2),"758061",.7)
-func hat(species:int):
- # Fitted toque: the crown is an asymmetric soft volume; the band wraps the
- # skull instead of ending as a flat white bar. All marks share the head's
- # authored view, so profile/rear are not front art pasted on another face.
- var cream="fff5dd"
- var shade="e5d8b9"
- var edge="d6c6a3"
- if profile:
-  shape([Vector2(-10.6,-50.5),Vector2(-12.3,-54.7),Vector2(-10.7,-59.4),Vector2(-6.2,-61.7),Vector2(-2.8,-60.7),Vector2(1.2,-63),Vector2(6,-61.6),Vector2(9.3,-57.3),Vector2(8.6,-51.8)],cream,2.1)
-  shape([Vector2(-10.6,-53),Vector2(-8.6,-51.4),Vector2(-7.7,-48.1),Vector2(-10.2,-48.9)],shade,.7)
-  # A curved contact edge anchors the band to the sloping forehead.
-  a._face_line(origin+Vector2(-10,-48.5),origin+Vector2(7.8,-47.1),"c9bb99",1.15)
-  shape([Vector2(-10.3,-52.3),Vector2(-2.5,-52.7),Vector2(8.6,-51.4),Vector2(8,-47.8),Vector2(-2.2,-48.2),Vector2(-9.9,-49.4)],cream,1.2)
-  line(Vector2(-9,-50.1),Vector2(-2.5,-49.1),edge,.55)
-  line(Vector2(-2.5,-49.1),Vector2(7.4,-48.7),edge,.55)
-  line(Vector2(3.3,-57.8),Vector2(4.4,-54),shade,.65)
- elif back:
-  shape([Vector2(-11.1,-51.7),Vector2(-13,-55.7),Vector2(-10.7,-60.3),Vector2(-5.4,-61.3),Vector2(-1.4,-59.9),Vector2(3,-63),Vector2(8.4,-61.8),Vector2(11.5,-57.4),Vector2(10.3,-52.3)],cream,2.2)
-  a._face_line(origin+Vector2(-9.4,-47.5),origin+Vector2(9.3,-48.9),"c9bb99",1.15)
-  shape([Vector2(-10.8,-52.7),Vector2(-1,-52),Vector2(10.4,-54),Vector2(9.7,-49.3),Vector2(-.5,-47.9),Vector2(-10.1,-48.8)],cream,1.25)
-  line(Vector2(-9.3,-49.8),Vector2(-.5,-49),edge,.6)
-  line(Vector2(-.5,-49),Vector2(8.8,-50.3),edge,.6)
-  line(Vector2(5.8,-53),Vector2(5.3,-50),shade,.7)
-  line(Vector2(-7.5,-57.6),Vector2(-6.6,-54.6),shade,.65)
- else:
-  shape([Vector2(-11.4,-52),Vector2(-13,-56.1),Vector2(-10.6,-60.4),Vector2(-6.2,-61.9),Vector2(-1.7,-60.5),Vector2(2.6,-63),Vector2(7.8,-61.9),Vector2(11.5,-58),Vector2(10.3,-52)],cream,2.2)
-  shape([Vector2(-11.2,-53.2),Vector2(-7.6,-52.6),Vector2(-7.2,-48.2),Vector2(-10.3,-49.4)],shade,.7)
-  a._face_line(origin+Vector2(-9.8,-48.3),origin+Vector2(9.3,-47.9),"c9bb99",1.15)
-  shape([Vector2(-10.7,-53),Vector2(-1,-53.5),Vector2(10.4,-52.3),Vector2(9.7,-48.1),Vector2(.2,-47.7),Vector2(-10.1,-49)],cream,1.25)
-  line(Vector2(-9.1,-50),Vector2(.3,-48.8),edge,.6)
-  line(Vector2(.3,-48.8),Vector2(8.8,-49.1),edge,.6)
-  line(Vector2(6.9,-58.8),Vector2(7.1,-54.4),shade,.65)
- if species==0:
-  # The two long ears are retained at their original tips. They emerge from
-  # tailored oval ports, with an inset shadow and a foreground fabric lip.
-  # Only the exposed upper ear is repainted, never a complete ear over fabric.
-  if profile:
-   hat_ear_port([Vector2(-8,-61.4),Vector2(-9,-63),Vector2(-7,-68),Vector2(-4,-65),Vector2(-3.8,-61.1)],Vector2(-5.8,-61.2),Vector2(3.4,1.4),"dfd4b5",Vector2.ZERO,Vector2.ZERO)
-   hat_ear_port([Vector2(-3,-60.6),Vector2(-3,-69),Vector2(0,-73),Vector2(3,-69),Vector2(3.6,-60.2)],Vector2(.3,-60.4),Vector2(3.7,1.45),FUR[0],Vector2(.2,-66),Vector2(.4,-61.4))
-  else:
-   hat_ear_port([Vector2(-9.6,-60),Vector2(-10,-63),Vector2(-8,-67),Vector2(-5,-65),Vector2(-4.3,-59.7)],Vector2(-7,-59.8),Vector2(3.5,1.45),FUR[0],Vector2.ZERO if back else Vector2(-7,-62),Vector2.ZERO if back else Vector2(-6.5,-60.8))
-   hat_ear_port([Vector2(.4,-61.4),Vector2(0,-68),Vector2(3,-72),Vector2(6,-69),Vector2(6.4,-61.2)],Vector2(3.3,-61.2),Vector2(3.7,1.45),FUR[0],Vector2.ZERO if back else Vector2(3,-66),Vector2.ZERO if back else Vector2(3.3,-62.2))
-
-func hat_ear_port(points:Array,center:Vector2,radius:Vector2,fur,inner_start:Vector2,inner_end:Vector2):
- ellipse(center,radius,"c3b28d")
- shape(points,fur,1.65)
- if inner_start!=Vector2.ZERO:line(inner_start,inner_end,"d9bca7",1.5)
- # The front rim hides the very bottom of the ear and gives the opening
- # visible thickness. This is a fabric cutout, not an accidental intersection.
- var points_lip=[]
- for index in range(9):
-  var angle=PI*float(index)/8.0
-  points_lip.append(center+Vector2(cos(angle)*radius.x,sin(angle)*radius.y*.66))
- for index in range(points_lip.size()-1):line(points_lip[index],points_lip[index+1],"f5e9ca",1.05)
+func hat():
+ shape([Vector2(-10,-49),Vector2(9,-49),Vector2(9,-54),Vector2(-10,-54)],"fff5dd",1.5)
+ for x in [-7,0,7]:ellipse(Vector2(x,-56),Vector2(5.3,4.8),"fff5dd")
 func tail(rear:bool):
  if rear:
   shape([Vector2(-1,-13),Vector2(-6,-11),Vector2(-15,-14),Vector2(-20,-21),Vector2(-18,-27),Vector2(-13,-22),Vector2(-9,-18),Vector2(-1,-18)],"c68b46",3.0)
@@ -397,7 +346,7 @@ func head(species:int):
    shape([Vector2(5,-49),Vector2(8,-55),Vector2(9,-46)],"af794b",1)
  ellipse(Vector2(-.5 if back else 0,-38),Vector2(13.1,12.7),fur)
  if back:
-  if chef_hat:hat(species)
+  if chef_hat:hat()
   return
  if species==1:
   shape([Vector2(-10,-36),Vector2(-4,-34),Vector2(4,-36),Vector2(12,-34),Vector2(8,-28),Vector2(0,-26),Vector2(-8,-29)],"f4e8cd",3.3)
@@ -408,7 +357,7 @@ func head(species:int):
  a._face_line(origin+Vector2(9,-33.8),origin+Vector2(8.5,-32.5),"99866b",.65)
  a._face_line(origin+Vector2(8.5,-32.5),origin+Vector2(6.4,-32.0),"99866b",.65)
  dot(Vector2(1,-33.5),Vector2(1.8,1.0),Color(.81,.52,.42,.16))
- if chef_hat:hat(species)
+ if chef_hat:hat()
 func profile_head(species:int):
  var fur=FUR[species]
  if species==2:
@@ -431,4 +380,4 @@ func profile_head(species:int):
  a._face_line(origin+Vector2(10.3,-31.8),origin+Vector2(7.7,-31.5),"99866b",.65)
  dot(Vector2(2.5,-33.5),Vector2(1.7,1.0),Color(.81,.52,.42,.16))
 
- if chef_hat:hat(species)
+ if chef_hat:hat()
