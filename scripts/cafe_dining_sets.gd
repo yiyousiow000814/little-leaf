@@ -3,10 +3,10 @@ const Money=preload("res://scripts/cafe_money.gd")
 ## Bound logical objects over stable physical furniture IDs.
 const DIRECTIONS=[Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT]
 # Product keys are stable UI identities; physical members remain table/chair.
-# Basic oak and legacy benches keep their historical prices and resale behavior.
+# New purchases use current catalog prices; historical costs keep their resale value.
 const PRODUCTS={"table_set":"oak_single","table_set_cottage":"cottage_single","table_set_retro":"retro_single","table_set_refined":"refined_single"}
 const VARIANTS={
- "oak_single":{"table":"table","seat":"chair","price":140,"name":"Basic oak","description":"Round oak table · simple wooden chair"},
+ "oak_single":{"table":"table","seat":"chair","price":280,"name":"Basic oak","description":"Round oak table · simple wooden chair"},
  "cottage_single":{"table":"table","seat":"chair","price":420,"name":"Cottage","description":"Cream farmhouse table · sage cross-back chair"},
  "retro_single":{"table":"table","seat":"chair","price":1200,"name":"Retro","description":"Mint pedestal table · coral diner chair"},
  "refined_single":{"table":"table","seat":"chair","price":3600,"name":"Refined","description":"Ivory-inlaid walnut table · forest upholstered chair"},
@@ -15,7 +15,7 @@ const VARIANTS={
 # Save integrity, matching the floor/wall ledgers: only real historical amounts.
 # If a catalog price changes, append that genuine price here and retain prior
 # amounts. Never replace an old purchase's paid_cost with today's storefront.
-const HISTORICAL_PAID_COSTS={"oak_single":[140],"cottage_single":[420],"retro_single":[1200],"refined_single":[3600],"legacy_bench":[175]}
+const HISTORICAL_PAID_COSTS={"oak_single":[140,280],"cottage_single":[420],"retro_single":[1200],"refined_single":[3600],"legacy_bench":[175]}
 const LEGACY_UNRECORDED_COSTS={"oak_single":140,"legacy_bench":175}
 static func is_product(kind:String)->bool:return PRODUCTS.has(kind)
 static func variant_for_product(kind:String)->String:return str(PRODUCTS.get(kind,"oak_single"))
