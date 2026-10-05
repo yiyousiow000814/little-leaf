@@ -1,0 +1,38 @@
+Godot Engine anti-aliased line attribution
+
+scripts/retained_aa_strokes.gd adapts the positive-width anti-aliased line
+construction in Godot Engine's servers/rendering/renderer_canvas_cull.cpp.
+
+Verified source reference: Godot 4.6.3-stable
+Commit: 35e80b3a8822a9df9be390814b62f44c0a9c69e8
+Source: https://github.com/godotengine/godot/blob/35e80b3a8822a9df9be390814b62f44c0a9c69e8/servers/rendering/renderer_canvas_cull.cpp
+License: https://github.com/godotengine/godot/blob/35e80b3a8822a9df9be390814b62f44c0a9c69e8/LICENSE.txt
+Authors: https://github.com/godotengine/godot/blob/35e80b3a8822a9df9be390814b62f44c0a9c69e8/AUTHORS.md
+
+The helper records Godot 4.6.3 as its source version. The exact commit of the
+original local engine binary was not recovered; the reference above identifies
+the upstream source checked for this notice, not that binary's provenance.
+
+The complete upstream MIT license follows unchanged. Retain this notice with
+copies or substantial portions of the adapted code, including game exports.
+
+Copyright (c) 2014-present Godot Engine contributors (see AUTHORS.md).
+Copyright (c) 2007-2014 Juan Linietsky, Ariel Manzur.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
