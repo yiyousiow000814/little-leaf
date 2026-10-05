@@ -77,19 +77,22 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  var light="79ac78" if recent else ("e2c973" if paying else "526f62")
  # Local -Z is the employee side. Keep the keys on that side of the
  # employee-facing screen, with both seated on the existing till base.
- # Draw the far piece first so quarter-turns cannot paint keys through it.
+ # The receipt leaves the customer side of the terminal. In employee views
+ # it is behind the tall screen, just as the keys are on its near side.
+ # Keep those pieces in depth order instead of painting the paper last.
  var employee_visible=Vector2(0,-1).rotated(f.turn*PI/2).dot(Vector2.ONE)>0
- var parts=["screen","keys"] if employee_visible else ["keys","screen"]
+ var parts=["receipt","screen","keys"] if employee_visible else ["keys","screen","receipt"]
  for part in parts:
   if part=="keys":
    for x in [-.085,0,.085]:
     for z in [-.22,-.15]:f.top_ellipse(x,z,33.2,.025,.018,"eee1bd")
    f.top_ellipse(.145,-.1,33.3,.024,.024,light)
+  elif part=="receipt":
+   if recent:
+    var extension=.12
+    f.face([f.point(-.05,.15,33.25),f.point(.07,.15,33.25),f.point(.07,.15+extension,33.25),f.point(-.05,.15+extension,33.25)],"fff5d8",.25)
   else:
    f.box(0,.035,.34,.10,33,39,"a4bbb0","668476","567064")
    if employee_visible:
     f.face([f.point(-.13,-.021,34),f.point(.13,-.021,34),f.point(.13,-.021,37.8),f.point(-.13,-.021,37.8)],"d4e1b7",.5)
- if recent:
-  var extension=.12
-  f.face([f.point(-.05,.15,33.25),f.point(.07,.15,33.25),f.point(.07,.15+extension,33.25),f.point(-.05,.15+extension,33.25)],"fff5d8",.25)
  return true
