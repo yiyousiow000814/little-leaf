@@ -1,18 +1,12 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "date": "2026-10-05",
-  "label": "Welcome and café polish",
-  "new": [
-    "A skippable Welcome intro with the refreshed Little Leaf title."
-  ],
+  "label": "Legacy save compatibility",
+  "new": [],
   "fixed": [
-    "Clearer controls, starter floors and doorway, expansion signs and prices.",
-    "Staff begin at their work posts; waiters and cleaners keep separate jobs.",
-    "Optional blocked stoves keep meals safely paused, and departing guests no longer block unrelated furniture edits.",
-    "Routine autosaves are quiet while save errors and retry guidance remain visible.",
-    "More natural chef cooking, corrected pan handles and hat fit, a plain checkout front, and clearer customer-path litter.",
-    "Sharper character and furniture edges at close-up zoom."
+    "Older browser saves and settings stored as signed byte arrays now load correctly.",
+    "Legacy recovery retains original data and the existing validation and size limits."
   ]
 }

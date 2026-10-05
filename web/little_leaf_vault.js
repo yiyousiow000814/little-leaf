@@ -158,7 +158,8 @@
       if (entries.length > 1) throw fail('AMBIGUOUS_LEGACY', 'Several legacy cafés were found; choose a recovery file explicitly');
       if (!entries.length) return null;
       const { path, entry } = entries[0];
-      if (!entry || !(entry.contents instanceof Uint8Array) || entry.contents.byteLength > LIMIT) throw fail('LEGACY_UNREADABLE', 'Legacy save is unreadable or too large');
+      // Godot native writes use signed HEAP8; IDBFS preserves that byte view.
+      if (!entry || !(entry.contents instanceof Uint8Array || entry.contents instanceof Int8Array) || entry.contents.byteLength > LIMIT) throw fail('LEGACY_UNREADABLE', 'Legacy save is unreadable or too large');
       let payload;
       try { payload = new TextDecoder('utf-8', { fatal: true }).decode(entry.contents); } catch (_) { throw fail('INVALID_SAVE', 'Legacy save has invalid text encoding'); }
       parsePayload(payload, 13);
