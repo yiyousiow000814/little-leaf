@@ -64,13 +64,14 @@ func _init():
 	check(fresh.starter_geometry_version==1,"save records completed geometry revision")
 	var reload=Model.new();check(reload.load_save(OUT+"/fresh.json"),"fresh reload")
 	check(reload.floor_finishes==model.floor_finishes,"fresh floors round trip exactly")
-	check(model.replace_wall("shell:west","full","sage_panels"),"replacement uses full nine-tile shell")
-	check(model.shell_products["shell:west"].paid_cost==9*model.wall_price("full"),"replacement charges actual shell length")
-	check(model.save(OUT+"/nine-tile-shell.json") and reload.load_save(OUT+"/nine-tile-shell.json"),"nine-tile shell paid value saves and reloads")
+	check(model.replace_wall("shell:west#2","full","sage_panels"),"replacement targets one starter grid segment")
+	check(model.shell_segment_products["shell:west#2"].paid_cost==model.wall_price("full"),"replacement charges one wall tile")
+	check(model.save(OUT+"/one-tile-shell.json") and reload.load_save(OUT+"/one-tile-shell.json"),"one-tile shell paid value saves and reloads")
 	# Pre-v12 fixtures exercise real save loading, including the older parcel
 	# coordinates. They do not read or write any player file.
 	for version in [1,5,6,11,12,13,15]:
 		var old=fresh.duplicate(true);old.erase("starter_geometry_version");old.version=version
+		old.wall_format=1;old.erase("shell_segment_format");old.erase("shell_segment_products")
 		for x in range(12):old.floor_finishes.erase("%d,8"%x)
 		if version<15:old.erase("layout_motion_format");old.runtime.erase("layout_motion_format")
 		if version<13:
@@ -85,6 +86,7 @@ func _init():
 		var again=Model.new();check(again.load_save(OUT+"/migrated.json"),"legacy %d second load"%version)
 		check(again.floor_finishes==migrated.floor_finishes,"legacy %d repair is idempotent"%version)
 	var custom=fresh.duplicate(true);custom.erase("starter_geometry_version")
+	custom.wall_format=1;custom.erase("shell_segment_format");custom.erase("shell_segment_products")
 	custom.owned_parcels=["front_0","right_0"]
 	for x in range(12):custom.floor_finishes.erase("%d,8"%x)
 	custom.floor_finishes["3,8"]={"style":"sage_tile","paid_cost":model.floor_price("sage_tile")}

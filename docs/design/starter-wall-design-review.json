@@ -1,0 +1,35 @@
+{
+  "reviewed_at_utc": "2026-10-05T07:44:00.879847+00:00",
+  "commit": "5a0f15189b49a01737e4c2c1823cd6715f61a126",
+  "scope": "starter-wall per-grid migration design only",
+  "decision": "approved for local implementation with stated compatibility constraints",
+  "files_sha256": {
+    "docs/design/starter-wall-grid-segments.md": "883ca717c9c7e828beacf59d018e979f254650ce6d171c4b50e763429522e363",
+    "qa/prototypes/shell_segment_contract.gd": "cc564c4684ffcbf5bc0bf7cc4d2fe27b54c0ce05b8c7d96f36af4171ae30c1fd"
+  },
+  "accepted_design": [
+    "Keep two geometric root hosts, their order, coordinates, 0.26 thickness and opening identities/offsets.",
+    "Add one-cell appearance/payment ledger, retaining free dormant ninth west segment with z=8 extension authority.",
+    "Allocate paid shares deterministically and use cumulative half-refund differences to preserve exact legacy total refund.",
+    "Single-segment replacement consumes only its own refund credit and does not reallocate neighbors.",
+    "Use wall_format 2 as forward compatibility guard while outer payload version stays 15.",
+    "Validate all segments intersecting each complete aperture interval and keep homogeneous legacy renderer fast-path."
+  ],
+  "required_constraints": [
+    "Legacy paid-value migration and validation must use historical accepted values, not mutable future economy prices.",
+    "Audit all root height/material consumers, notably corner caps and all opening creation/move/rotation validators, so preserved root snapshots never override current segment state.",
+    "Only migrate already validated old inputs; invalid new payloads must leave live model and original file unchanged."
+  ],
+  "implementation_gates": [
+    "Real old-client suppression and stale-tab revision-conflict tests, new-client reload and failed durable write tests.",
+    "Preserve campaign receipts and original legacy storage.",
+    "Pixel-equivalent homogeneous scenes plus mixed-height/material aperture and end-face native QA.",
+    "Final integration with door-jamb clipping, stove placement protection, Build selection/price UI and dishwashing service-format migration.",
+    "Full combined regression and fresh exact-source CI before any publication."
+  ],
+  "limits": [
+    "27,219 prototype checks reported and test source reviewed; this review did not rerun Godot.",
+    "No production migration or browser claim is made by this design approval.",
+    "All 0.1.9 remote repository writes remain held."
+  ]
+}

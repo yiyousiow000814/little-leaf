@@ -18,6 +18,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
+    ("test_shell_segment_model", "SHELL_SEGMENT_MODEL_RESULT"),
+    ("test_shell_segment_ui", "SHELL_SEGMENT_UI_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),

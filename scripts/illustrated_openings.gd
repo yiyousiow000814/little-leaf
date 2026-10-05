@@ -31,12 +31,44 @@ static func cap(view,host:Dictionary,a:float,b:float,alpha=1.0,tint=Color.WHITE)
 static func end_face(view,host:Dictionary,t:float,low:float,high:float,alpha=1.0,tint=Color.WHITE):
 	var color="b8c7a8" if host.material=="original" else WallArt.PALETTES[host.material].end
 	quad(view,[p(view,host,t,low,front(host)),p(view,host,t,low,back(host)),p(view,host,t,high,back(host)),p(view,host,t,high,front(host))],tinted(color,alpha,tint))
+static func segment_selection_geometry(view,host:Dictionary)->Dictionary:
+	# Outline the visible faces of the complete wall product, using its actual
+	# thickness. These are selection edges, not new gaps or interior wall faces.
+	var length=host.a.distance_to(host.b);var height=128.0 if host.height=="full" else 58.0
+	var a=p(view,host,0,0,front(host));var b=p(view,host,length,0,front(host))
+	var ah=p(view,host,0,height,front(host));var bh=p(view,host,length,height,front(host))
+	var ab=p(view,host,0,height,back(host));var bb=p(view,host,length,height,back(host))
+	var bottom_back=p(view,host,length,0,back(host))
+	return {"front":PackedVector2Array([a,b,bh,ah]),"cap":PackedVector2Array([ah,bh,bb,ab]),"near_end":PackedVector2Array([b,bottom_back,bb,bh]),
+		"edges":PackedVector2Array([a,b,b,bh,bh,ah,ah,a,ah,ab,ab,bb,bb,bh,b,bottom_back,bottom_back,bb])}
 static func draw_shell(view,host:Dictionary,attachments:Array,base_color,panel_color):
+	if host.has("segment_runs"):
+		draw_shell_runs(view,host,attachments,base_color,panel_color);return
 	var panels=Geometry.solid_panels(host,view.game.model.built_walls,attachments)
 	for panel in panels:face(view,host,panel.from,panel.to,panel.bottom,panel.top,base_color,panel_color)
 	var length=host.a.distance_to(host.b);cap(view,host,0,length)
 	for panel in panels:
 		if float(panel.to)>=length-.00001:end_face(view,host,length,panel.bottom,panel.top)
+static func draw_shell_runs(view,root:Dictionary,attachments:Array,base_color,panel_color):
+	# Runs keep the original root origin, so texture UVs and aperture offsets
+	# never restart at a style boundary. No end face is added at equal heights.
+	var runs:Array=root.segment_runs;var length=root.a.distance_to(root.b)
+	for index in runs.size():
+		var run:Dictionary=runs[index];var host=root.duplicate(true)
+		host.height=run.height;host.material=run.material
+		var a=float(run.from);var b=float(run.to)
+		var panels=Geometry.solid_panels(host,view.game.model.built_walls,attachments)
+		for panel in panels:
+			face(view,host,maxf(a,float(panel.from)),minf(b,float(panel.to)),panel.bottom,panel.top,base_color,panel_color)
+		cap(view,host,a,b)
+		if b>=length-.00001:
+			for panel in panels:
+				if float(panel.to)>=length-.00001:end_face(view,host,length,panel.bottom,panel.top)
+		elif index+1<runs.size():
+			var next:Dictionary=runs[index+1]
+			if run.height=="full" and next.height=="half":end_face(view,host,b,58,128)
+			elif run.height=="half" and next.height=="full":
+				var tall=root.duplicate(true);tall.height=next.height;tall.material=next.material;end_face(view,tall,b,58,128)
 static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
 	var wall:Dictionary=piece.entry
 	var host=Geometry.wall_host(wall)
