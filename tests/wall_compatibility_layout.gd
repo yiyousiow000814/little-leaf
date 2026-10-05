@@ -36,6 +36,29 @@ func region(control:Control)->Dictionary:
  var rect=control.get_global_rect()
  check(control.is_visible_in_tree() and Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(rect),"bounded visible OCR region "+str(control.name))
  return {"x":floor(rect.position.x),"y":floor(rect.position.y),"width":ceil(rect.size.x),"height":ceil(rect.size.y)}
+func text_region(control:Control)->Dictionary:
+ var bounds=control.get_global_rect()
+ if control is Button:
+  var button=control as Button
+  var font=button.get_theme_font("font");var size=button.get_theme_font_size("font_size")
+  var measured=font.get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,size)
+  var at=bounds.get_center()-measured*.5
+  var style=button.get_theme_stylebox("normal")
+  if button.alignment==HORIZONTAL_ALIGNMENT_LEFT:at.x=bounds.position.x+style.get_margin(SIDE_LEFT)
+  elif button.alignment==HORIZONTAL_ALIGNMENT_RIGHT:at.x=bounds.end.x-style.get_margin(SIDE_RIGHT)-measured.x
+  bounds=Rect2(at,measured).grow(2)
+ check(control.is_visible_in_tree() and Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(bounds),"bounded visible text OCR region "+str(control.name))
+ return {"x":floor(bounds.position.x),"y":floor(bounds.position.y),"width":ceil(bounds.size.x),"height":ceil(bounds.size.y),"psm":7 if control is Button else 6,"scale":3}
+func find_label(node:Node,words:String)->Label:
+ if node is Label and (node as Label).text==words:return node as Label
+ for child in node.get_children():
+  var found=find_label(child,words)
+  if found!=null:return found
+ return null
+func label_region(node:Node,words:String)->Dictionary:
+ var label=find_label(node,words)
+ check(label!=null,"required rendered label exists: "+words)
+ return text_region(label) if label!=null else {}
 func click(name:String,control:Control):
  result.points[name]=point(control)
  var event=InputEventMouseButton.new();event.position=control.get_global_rect().get_center();event.button_index=MOUSE_BUTTON_LEFT;event.pressed=true
@@ -65,12 +88,17 @@ func run():
   var ui=game.compact_ui
   check(ui.finishes.visible,"real native wall card opens product picker")
   result.points.height=point(ui.wall_heights)
-  # The browser selects the first native OptionButton item with Home/Enter.
+  # A mouse-opened OptionButton focuses no item; Down/Enter selects its first item.
   ui.wall_heights.select(0);ui.wall_heights.item_selected.emit(0)
   ui.wall_papers.select(0);ui.wall_papers.item_selected.emit(0)
   await settle()
   result.points.paper=point(ui.wall_papers)
   result.regions.product=region(ui.finishes)
+  result.regions.product_label=label_region(ui.finishes,"Wall style · included")
+  result.regions.product_target=text_region(ui.wall_use_button)
+  result.regions.height=text_region(ui.wall_heights)
+  result.regions.paper=text_region(ui.wall_papers)
+  result.regions.price=text_region(ui.wall_price_label)
   await click("choose_target",ui.wall_use_button)
   var target=game.illustration.iso(2.5,0,70)
   var hit=game.illustration.hit_wall_host(target)
@@ -80,6 +108,8 @@ func run():
   check(ui.wall_review.visible and ui.pending_wall.get("key","")=="shell:back#2","exact segment opens replacement review")
   check(not ui.wall_confirm_button.disabled,"replacement is valid with restored actors")
   result.regions.review=region(ui.wall_review)
+  result.regions.review_heading=label_region(ui.wall_review,"Replace wall")
+  result.regions.review_text=text_region(ui.wall_review_text)
   var before=game.model.coins
   await click("confirm",ui.wall_confirm_button)
   check(game.save_calls==1 and game.model.coins==before-35,"normal confirm invokes one save and one 35 coin charge")

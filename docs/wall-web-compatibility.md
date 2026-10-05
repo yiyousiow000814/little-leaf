@@ -59,8 +59,14 @@ ambiguous OCR text fails the gate and retains its screenshot, crop and OCR outpu
 
 Case B verifies the rendered Build catalog, wall picker, selected half-wall product,
 and exact one-tile confirmation before continuing. Native preflight supplies the
-bounded OCR rectangles. Only idempotent Build category selection may retry while
+bounded OCR rectangles, including text-only control bounds rather than decorated
+panel borders. Small labels use a separately retained 3× nearest-neighbor OCR
+input; raw screenshots and crops remain unchanged. The detached processing canvas
+does not change game rendering, state, input, or storage. Only idempotent Build
+category selection may retry while
 the real opening tween still disables input; the confirmation is clicked once.
+A pointer-opened native picker uses ArrowDown then Enter to select its first item;
+Godot 4.6.3 does not implement Home selection in PopupMenu.
 The gate requires zero new-client saves before that verified confirmation and
 retains the expected/actual wall segment if the final state assertion fails.
 

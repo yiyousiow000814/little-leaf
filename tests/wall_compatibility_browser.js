@@ -252,8 +252,11 @@ async function main() {
       check(true, name + ' rendered Help text verified by local OCR');
     };
     const screenUiText = async (page, name, region, phrases, retryTarget = null) => {
-      const clip = layouts.new.regions?.[region];
-      assert(clip && clip.width > 0 && clip.height > 0, 'Derived UI region ' + region);
+      const regions = (Array.isArray(region) ? region : [region]).map(key => {
+        const spec = layouts.new.regions?.[key];
+        assert(spec && spec.width > 0 && spec.height > 0, 'Derived UI region ' + key);
+        return {key, ...spec};
+      });
       const deadline = Date.now() + 45000;
       let lastError;
       do {
@@ -263,11 +266,33 @@ async function main() {
         if (retryTarget) await click(page, 'new', retryTarget, 0);
         await page.waitForTimeout(400);
         await page.screenshot({path: path.join(output, name + '.png')});
-        const crop = path.join(output, name + '-crop.png');
-        await page.screenshot({path: crop, clip});
-        const text = cp.execFileSync(tesseract, [crop, 'stdout', '-l', 'eng', '--psm', '6'],
-          {encoding: 'utf8', timeout: Math.max(1000, Math.min(30000, deadline - Date.now())),
-            env: {...process.env, OMP_THREAD_LIMIT: '1'}});
+        const texts = [];
+        for (const spec of regions) {
+          const {x, y, width, height} = spec;
+          const crop = path.join(output, name + '-' + spec.key + '-crop.png');
+          const png = await page.screenshot({path: crop, clip: {x, y, width, height}});
+          let input = crop;
+          if (spec.scale > 1) {
+            // Preserve raw evidence. This separate OCR input repeats each
+            // original pixel exactly, using an unattached canvas. It does not
+            // change the game canvas, DOM, storage, or production code.
+            const bytes = await page.evaluate(async ({base64, scale}) => {
+              const raw = Uint8Array.from(atob(base64), character => character.charCodeAt(0));
+              const bitmap = await createImageBitmap(new Blob([raw], {type: 'image/png'}));
+              const canvas = new OffscreenCanvas(bitmap.width * scale, bitmap.height * scale);
+              const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
+              context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+              const blob = await canvas.convertToBlob({type: 'image/png'});
+              return Array.from(new Uint8Array(await blob.arrayBuffer()));
+            }, {base64: png.toString('base64'), scale: spec.scale});
+            input = path.join(output, name + '-' + spec.key + '-ocr-input.png');
+            fs.writeFileSync(input, Buffer.from(bytes));
+          }
+          texts.push(cp.execFileSync(tesseract, [input, 'stdout', '-l', 'eng', '--psm', String(spec.psm || 6)],
+            {encoding: 'utf8', timeout: Math.max(1000, Math.min(30000, deadline - Date.now())),
+              env: {...process.env, OMP_THREAD_LIMIT: '1'}}));
+        }
+        const text = texts.join('\n');
         fs.writeFileSync(path.join(output, name + '-ocr.txt'), text);
         try {
           requireVisibleText(text, phrases);
@@ -356,14 +381,14 @@ async function main() {
         await click(newPage, 'new', 'decorate', 0);
         await screenUiText(newPage, 'case-b-build-catalog', 'catalog', ['Wall', 'Door', 'Window'], 'build');
         await click(newPage, 'new', 'wall', 0);
-        await screenUiText(newPage, 'case-b-wall-picker', 'product', ['Wall style', 'Choose target']);
+        await screenUiText(newPage, 'case-b-wall-picker', ['product_label', 'product_target'], ['Wall style', 'Choose target']);
         for (const name of ['height', 'paper']) {
-          await click(newPage, 'new', name); await newPage.keyboard.press('Home'); await newPage.keyboard.press('Enter'); await newPage.waitForTimeout(150);
+          await click(newPage, 'new', name); await newPage.keyboard.press('ArrowDown'); await newPage.keyboard.press('Enter'); await newPage.waitForTimeout(150);
         }
-        await screenUiText(newPage, 'case-b-selected-wall', 'product', ['Half wall', 'Sage panels', '35 coins', 'Choose target']);
+        await screenUiText(newPage, 'case-b-selected-wall', ['height', 'paper', 'price', 'product_target'], ['Half wall', 'Sage panels', '35 coins', 'Choose target']);
         await click(newPage, 'new', 'choose_target');
         await click(newPage, 'new', 'segment');
-        await screenUiText(newPage, 'case-b-new-confirmation', 'review',
+        await screenUiText(newPage, 'case-b-new-confirmation', ['review_heading', 'review_text'],
           ['Replace wall', 'Selected one-tile wall', 'Half wall', 'Sage panels', 'You pay 35 coins']);
         check((await observation(newPage)).saveStarts === 0, 'New picker/target actions cause no save before the verified wall confirmation');
         await click(newPage, 'new', 'confirm'); await idle(newPage);
