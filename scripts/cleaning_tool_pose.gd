@@ -2,12 +2,13 @@ extends RefCounted
 ## Compact paws grip the handles; long handles bridge the distance to the floor.
 ## All points use the same mirrored character-local ground plane.
 const ARM_LENGTH=10.5
-const TABLE_TOP_RADII=Vector2(26,11.5)
+const DiningPlacement=preload("res://scripts/dining_placement.gd")
+const TABLE_TOP_RADII=DiningPlacement.ROUND_TOP-Vector2(3,2.5)
 static func table_inset(heading:Vector2)->float:
  # The back-facing worker is in front of the table and steps up to its rim.
- # From behind the table the raised far paw already reaches at the aisle
- # stance; moving that body farther forward would hide its face in the top.
- return .55 if heading.x+heading.y<0 else .12
+ # The lower, compact top needs a modest front approach too. This is only
+ # the visual wiping stance; logical cells and service clocks stay unchanged.
+ return .55 if heading.x+heading.y<0 else .34
 static func short_hand(shoulder:Vector2,target:Vector2)->Vector2:
  return shoulder+(target-shoulder).normalized()*ARM_LENGTH
 static func table_pose(near_shoulder:Vector2,far_shoulder:Vector2,table_top:Vector2,phase:float)->Dictionary:

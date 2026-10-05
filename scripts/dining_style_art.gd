@@ -1,13 +1,15 @@
 extends RefCounted
 ## Original native geometry shared by placed furniture, placement ghosts and cards.
-## Cosmetic only: all tops remain 33px high and seats 18px high. No collision,
+## Cosmetic only: dining tops share a lower plane; seats remain 18px high. No collision,
 ## service points, guest poses, texture files or resource-loader branches live here.
+const Placement=preload("res://scripts/dining_placement.gd")
+var table_geometry=false
 var a:Node2D
 var p:Vector2
 var r:int
 func point(x:float,z:float,h:float,basis:float=34.0)->Vector2:
  var q=Vector2(x,z).rotated(r*PI/2.0)
- return p+Vector2((q.x-q.y)*basis,(q.x+q.y)*basis*.5-h)
+ return p+Vector2((q.x-q.y)*basis,(q.x+q.y)*basis*.5-(Placement.table_height(h) if table_geometry else h))
 func edge(x:Vector2,y:Vector2,c,w:float=1.0):a.line(x,y,c,w)
 func face(points:Array,c,rounding:float=1.5):a.rounded_poly(points,rounding,c)
 func ring(cx:float,cz:float,h:float,rx:float,rz:float,c):
@@ -26,7 +28,7 @@ func slab(corners:Array,h:float,thickness:float,top,front,side):
  face(surface,top,2.3)
 func table(artist:Node2D,at:Vector2,rotation:int,style:String)->bool:
  if style=="basic":return false
- a=artist;p=at;r=posmod(rotation,4)
+ a=artist;p=at;r=posmod(rotation,4);table_geometry=true
  match style:
   "cottage":_cottage_table()
   "retro":_retro_table()
@@ -35,7 +37,7 @@ func table(artist:Node2D,at:Vector2,rotation:int,style:String)->bool:
  return true
 func chair(artist:Node2D,at:Vector2,rotation:int,back_only:bool,style:String)->bool:
  if style=="basic":return false
- a=artist;p=at;r=posmod(rotation,4)
+ a=artist;p=at;r=posmod(rotation,4);table_geometry=false
  match style:
   "cottage":_cottage_chair(back_only)
   "retro":_retro_chair(back_only)
@@ -58,13 +60,13 @@ func _cottage_table():
  for z in [-.13,.13]:edge(point(-.35,z,33.2),point(.35,z,33.2),"e0d6b5",.6)
 func _retro_table():
  # A low chrome disk and single pedestal contrast with every four-leg set.
- a.ellipse(p+Vector2(0,-1),Vector2(15,6.5),"8a9c95")
- a.outlined_ellipse(p+Vector2(0,-2.7),Vector2(14.5,6.1),"c9d4c8","768d84",.8)
- edge(p+Vector2(0,-3),p+Vector2(0,-29),"829c92",6.0)
- edge(p+Vector2(-1,-4),p+Vector2(-1,-29),"e0e4d1",2.0)
- a.ellipse(p+Vector2(0,-29),Vector2(29,14),"718f84")
- a.outlined_ellipse(p+Vector2(0,-33),Vector2(29,14),"8ebdab","5f897b",1.1)
- a.ellipse(p+Vector2(0,-33.7),Vector2(26.3,11.7),"add0b6")
+ a.ellipse(p+Vector2(0,-Placement.table_height(1)),Vector2(15,6.5),"8a9c95")
+ a.outlined_ellipse(p+Vector2(0,-Placement.table_height(2.7)),Vector2(14.5,6.1),"c9d4c8","768d84",.8)
+ edge(p+Vector2(0,-Placement.table_height(3)),p+Vector2(0,-Placement.table_height(29)),"829c92",6.0)
+ edge(p+Vector2(-1,-Placement.table_height(4)),p+Vector2(-1,-Placement.table_height(29)),"e0e4d1",2.0)
+ a.ellipse(p+Vector2(0,-Placement.table_height(29)),Placement.ROUND_TOP,"718f84")
+ a.outlined_ellipse(p+Vector2(0,-Placement.table_height(33)),Placement.ROUND_TOP,"8ebdab","5f897b",1.1)
+ a.ellipse(p+Vector2(0,-Placement.table_height(33.7)),Vector2(22.3,9.7),"add0b6")
  # Gentle curved laminate motif, without baked light/glow or a shadow layer.
  edge(point(-.27,.04,34),point(.09,.30,34),"8db9a1",.85)
  edge(point(-.30,-.04,34),point(-.05,.20,34),"c0dac1",.8)
