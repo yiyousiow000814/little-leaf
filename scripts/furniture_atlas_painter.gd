@@ -15,6 +15,6 @@ func _draw():
 		for rotation in atlas.rotations_for(part):
 			var region: Rect2=atlas.regions[atlas.key(part,rotation)]
 			var anchor: Vector2=region.position-atlas.bounds(part).position*atlas.BAKE_SCALE
-			draw_set_transform(anchor,0,Vector2.ONE*atlas.BAKE_SCALE)
+			art_transform(anchor,0,Vector2.ONE*atlas.BAKE_SCALE)
 			furniture_art.draw_static_part(self,part,Vector2.ZERO,rotation)
-	draw_set_transform(Vector2.ZERO)
+	art_transform(Vector2.ZERO)

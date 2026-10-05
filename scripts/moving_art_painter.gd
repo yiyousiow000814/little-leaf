@@ -8,7 +8,7 @@ func _draw():
 	bake_draws+=1;opacity=1;use_cached_moving_art=false;use_cached_heads=false;ui_scale=1;zoom=1
 	for entry in atlas.entries:
 		var region:Rect2=atlas.regions[entry.key]
-		draw_set_transform(region.position-entry.bounds.position*atlas.BAKE_SCALE,0,Vector2.ONE*atlas.BAKE_SCALE)
+		art_transform(region.position-entry.bounds.position*atlas.BAKE_SCALE,0,Vector2.ONE*atlas.BAKE_SCALE)
 		match entry.type:
 			"limb":_round_limb_legacy(Vector2.ZERO,Vector2(0,entry.length),entry.color,entry.width)
 			"foot":_foot_legacy(Vector2.ZERO)
@@ -18,4 +18,4 @@ func _draw():
 			"tree":_tree_crown_legacy(Vector2.ZERO,1.0)
 			"bin":_bin_body_legacy(Vector2.ZERO,int(entry.rotation))
 			"body":_body_shape_legacy(Vector2.ZERO,entry.shirt,entry.seated,entry.fwd,entry.side)
-	draw_set_transform(Vector2.ZERO)
+	art_transform(Vector2.ZERO)

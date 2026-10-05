@@ -49,6 +49,7 @@ SUITES = [
     ("test_simple_kitchen", "SIMPLE_KITCHEN_TESTS"),
     ("test_pan_handle_workface", "PAN_HANDLE_WORKFACE_TESTS"),
     ("test_chef_hat", "CHEF_HAT_TESTS"),
+    ("test_art_raster_strokes", "ART_RASTER_STROKE_TESTS"),
     ("test_customer_litter", "@json"),
     ("test_litter_visibility", "@json"),
 ]
