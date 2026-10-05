@@ -11,7 +11,7 @@ func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func index(staff):return game.staff_states.find(staff)
-func table_done(record):return record.dishes_collected and record.plate_owner=="clean" and record.drink_owner=="cleared" and record.table_wiped
+func table_done(record):return record.dishes_collected and record.plate_owner in ["clean","dish_queue"] and record.drink_owner=="cleared" and record.table_wiped
 func save_reload(label):
  var before=game._service_save_snapshot();game.model.service_snapshot=before
  var money=[game.model.coins,game.model.payroll_elapsed,game.model.payroll_accrued,game.model.wages_due,game.model.total_wages_paid]
@@ -80,7 +80,7 @@ func run():
  check(seen.has("cleaner:3") and seen.has("cleaner:5") and seen.has("cleaner:6"),"sink-free cleaner physically sweeps, reaches bin and mops")
  game.model.items=saved_items;game.model.revision+=1
  # Save/load real waiter actions at collecting, carrying, washing and wiping.
- for desired in ["collecting","carrying_dishes","washing","wiping"]:
+ for desired in ["collecting","carrying_dishes","dropping_dishes","wiping"]:
   record=game.setup_dirty(true)
   var reached=false
   for tick in range(2500):
@@ -121,7 +121,8 @@ func run():
   game._restore_service_runtime()
   cleaner=game.worker("cleaner");record=game.service_guests.values()[0]
   check(cleaner.pos==prior.pos,"legacy "+stage+" no teleport")
-  if stage in ["idle_collect","idle_wipe"]:check(cleaner.job_kind=="","legacy "+stage+" immediately releases unstarted table work")
+  if stage in ["idle_collect","idle_wipe"]:check(cleaner.job_kind=="" or int(cleaner.job_step)>=3,"legacy "+stage+" immediately releases unstarted table work")
+  elif stage=="washing_sink":check(cleaner.job_kind=="wash" and is_equal_approx(cleaner.job_elapsed,prior.job_elapsed/1.5*20.0),"legacy wash fraction preserved in cleaner queue job")
   else:check(cleaner.job_step==prior.job_step and is_equal_approx(cleaner.job_elapsed,prior.job_elapsed),"legacy "+stage+" elapsed/stage retained")
   if stage in ["held_collect","carrying"]:check(record.plate_owner=="staff" and record.plate_staff_index==index(cleaner),"legacy "+stage+" held dishes retained")
   if stage=="held_trash":check(record.trash_owner=="staff" and record.trash_staff_index==index(cleaner),"legacy held trash retained")

@@ -43,8 +43,12 @@ func run():
     var exact=game.Money.amount(amount);var font=game.top_text.get_theme_font_size("font_size")
     var fits=hud.font_bold.get_string_size(exact,HORIZONTAL_ALIGNMENT_LEFT,-1,font).x<=game.top_text.size.x
     var rendered_width=hud.font_bold.get_string_size(game.top_text.text,HORIZONTAL_ALIGNMENT_LEFT,-1,font).x
-    check(absf(game.top_text.get_global_rect().get_center().x-hud.wallet_title.get_global_rect().get_center().x)<.01,label+" amount and Coins share center")
-    check(absf(game.top_text.position.x-(hud.wallet_box.size.x-game.top_text.size.x)*.5)<.01 and game.top_text.size.x<hud.wallet_box.size.x,label+" symmetric clearance from painted coins and pins")
+    if not hud.layout_host.get_meta("mobile_layout",false):
+     check(absf(game.top_text.get_global_rect().get_center().x-hud.wallet_title.get_global_rect().get_center().x)<.01,label+" amount and Coins share center")
+     check(absf(game.top_text.position.x-(hud.wallet_box.size.x-game.top_text.size.x)*.5)<.01 and game.top_text.size.x<hud.wallet_box.size.x,label+" symmetric clearance from painted coins and pins")
+    else:
+     check(hud.wallet_box.get_global_rect().encloses(game.top_text.get_global_rect()),label+" mobile digits inside status chip")
+     check(game.top_text.get_theme_font_size("font_size")==18,label+" mobile balance readable18px")
     check(rendered_width<=game.top_text.size.x,label+" amount fits without clipping")
     check((game.top_text.text==exact)==fits,label+" exact digits kept whenever they fit")
     check(hud.wallet.tooltip_text==exact+" Leaf Coins",label+" exact hover amount")

@@ -1,5 +1,6 @@
 extends Node2D
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
+const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
@@ -43,6 +44,8 @@ var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/illustrated_walls.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
+const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
+var street_pedestrians=StreetPedestrians.new()
 const GroundArt=preload("res://scripts/illustrated_ground.gd")
 var ground_art=GroundArt.new()
 # Test-only comparison switch; normal rendering always uses cached ground.
@@ -57,6 +60,9 @@ var tile = Vector2(39,19.5)
 var origin = Vector2(630,260)
 var ink = Color("6d7859")
 var opacity = 1.0
+# Only submerged sink plates set this local-space aperture during their draw.
+var _plate_clip = PackedVector2Array()
+var _plate_transform=Transform2D.IDENTITY
 var _art_transform := Transform2D.IDENTITY
 var _stroke_to_raster := Transform2D.IDENTITY
 var _stroke_from_raster := Transform2D.IDENTITY
@@ -120,8 +126,43 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	_update_street_pedestrians(delta)
 	update_motion(delta)
 	queue_redraw()
+func _update_street_pedestrians(delta:float):
+	if not is_instance_valid(game):return
+	var active=not game.editing and not game.paused and not game.save_recovery_blocked
+	if game.cafe_intro!=null and game.cafe_intro.active:active=false
+	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
+	var step=delta*game.speed if active else 0.0
+	street_pedestrians.advance(step)
+	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
+	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
+
+func _draw_street_people(show_service:bool):
+	# Street traffic and exterior customers share the original scale and wall
+	# occlusion. Sort their ground depth together before drawing the shell.
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
+	for guest in game.model.customers:
+		if not show_service:break
+		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
+		var position=Vector2(float(guest.x),float(guest.z))
+		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(get_viewport_rect()):continue
+		entries.append({"position":position,"guest":guest})
+	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
+	for entry in entries:
+		var is_guest=entry.has("guest")
+		var actor=entry.guest if is_guest else entry
+		var key="guest_%s"%actor.id if is_guest else str(actor.key)
+		var pose=motion.sample(key) if is_guest else street_pedestrians.motion.sample(key)
+		var heading=pose.heading if pose.blend>.02 else actor.get("heading",Vector2.ZERO)
+		var facing=character_facings.get(key,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
+		var face=float(facing.mirror)
+		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
+		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
+		art_transform(Vector2.ZERO)
+
 func _prune_departed_guest_motion():
 	# Only rendering history is retired. Keep dirty-table/service/floor-effect
 	# owners until their authoritative records are gone; staff keys never enter
@@ -183,12 +224,13 @@ func update_motion(delta: float):
 		var staff=game.staff_states[i]
 		var key="staff_%s"%i
 		var docking=Vector2.ZERO
-		if str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
+		if str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
 			var target=staff.get("art_target",staff.pos)
 			var station=game.model.get_item(int(staff.get("art_target_id",-1)))
 			# A table has no tall cabinet: keep the worker on its aisle side so
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
+			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
 			# this job steps close to the edge; serving keeps its small aisle lean.
@@ -426,14 +468,23 @@ func rounded_poly(points: Array,r: float,c):
 			smooth.append((1-t)*(1-t)*a+2*(1-t)*t*vertex+t*t*b)
 	poly(smooth,c)
 func line(a: Vector2,b: Vector2,c,width=1.0): art_line(a,b,col(c),width)
+func _plate_clipped_shape(points:PackedVector2Array,fill:Color,border:Color,width:float):
+	for polygon in Geometry2D.intersect_polygons(points,_plate_clip):
+		draw_colored_polygon(polygon,fill)
+		polygon.append(polygon[0]);art_polyline(polygon,border,width)
+
 func ellipse(p: Vector2,size: Vector2,c):
 	var points=_ellipse_vertices(p,size)
+	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
+	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(c),.7);return
 	var tint=col(c)
 	draw_colored_polygon(points,tint)
 	points.append(points[0])
 	art_polyline(points,tint,0.7)
 func outlined_ellipse(p: Vector2,size: Vector2,c,edge,width=1.0):
 	var points=_ellipse_vertices(p,size)
+	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
+	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(edge),width);return
 	draw_colored_polygon(points,col(c))
 	points.append(points[0])
 	# The explicit border already supplies the antialiased silhouette. A
@@ -506,20 +557,7 @@ func _draw():
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
-	# Exterior guests are behind the wall plane and are occluded correctly;
-	# the doorway opening still reveals them as they enter or leave.
-	for guest in game.model.customers:
-		if not show_service:break
-		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]: continue
-		var p=iso(float(guest.x),float(guest.z))
-		var pose=motion.sample("guest_%s"%guest.id)
-		var heading=pose.heading if pose.blend>.02 else guest.get("heading",Vector2.ZERO)
-		var facing=character_facings.get("guest_%s"%guest.id,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
-		var face=float(facing.mirror)
-		art_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-		character(Vector2.ZERO,int(guest.id),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
-		art_transform(Vector2.ZERO)
+	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
 	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
@@ -563,7 +601,7 @@ func _draw():
 		var body_depth=render_pos.x+render_pos.y+.15
 		var target=game.model.get_item(int(staff.get("art_target_id",-1)))
 		var staff_action=str(staff.get("art_action",""))
-		var interacting=staff_action in ["preparing_food","cooking","plating","preparing_drink","placing_plate","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]
+		var interacting=staff_action in ["preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]
 		var target_depth=float(target.get("x",-100)+target.get("z",-100))+1.0
 		var split=interacting and body_depth<target_depth
 		entities.append({"depth":body_depth,"type":"staff","entry":staff,"index":i,"hide_reach":split})
@@ -670,6 +708,16 @@ func _draw():
 						# The compact arm aims toward the top and meets its near edge;
 						# the character painter owns the fixed-length contact stroke.
 						surface=Vector2(0,-34)
+				elif kind=="sink" and action=="washing":
+					var wash=SinkWashArt.state(game,int(target_item.id))
+					if not wash.is_empty():
+						var wash_geometry=SinkWashArt.geometry(int(target_item.rot),float(wash.seconds),int(wash.count))
+						surface=wash_geometry.center
+						var axes:Transform2D=wash_geometry.basis
+						pose["washing_basis"]=Transform2D(Vector2(axes.x.x*face,axes.x.y),Vector2(axes.y.x*face,axes.y.y),Vector2.ZERO)
+						pose["washing_seconds"]=float(wash.seconds)
+						var ref=SinkWashArt.geometry(int(target_item.rot),1.0,int(wash.count));var ref_axes:Transform2D=ref.basis
+						pose["washing_grip_reference"]={"center":(ground+ref.center)*Vector2(face,1),"basis":Transform2D(ref_axes.x*Vector2(face,1),ref_axes.y*Vector2(face,1),Vector2.ZERO)}
 				elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
 				elif kind=="bin":surface=Vector2(0,-25)
 				elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
@@ -678,7 +726,7 @@ func _draw():
 				if action=="cooking":anchor=Vector2.ZERO
 				elif action=="preparing_food":anchor=Vector2(4,6)
 				elif action=="eating":anchor=Vector2(1,5)
-				elif action in ["wiping","paying","taking_payment"]:anchor=Vector2.ZERO
+				elif action in ["wiping","paying","taking_payment","washing"]:anchor=Vector2.ZERO
 				elif payload=="trash" or action=="disposing_trash":anchor=Vector2(3,-3)
 				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
 				var contact=ground+surface
@@ -1022,7 +1070,7 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 	if direction.length_squared()<.01:direction=staff.get("art_heading",Vector2(1,-1))
 	# Once a work action begins, face its station immediately. A decaying walk
 	# blend must not flip the body/held order halfway through the .65 handoff.
-	var working=str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","sweeping","mopping","taking_payment"]
+	var working=str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","sweeping","mopping","taking_payment"]
 	if not working and float(pose.get("blend",0))>.02:direction=pose.get("heading",direction)
 	# Rendering reads these values; it never writes the routing heading back.
 	return direction
@@ -1040,7 +1088,7 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1245,15 +1293,38 @@ func _table_vase_point(_table_id:int) -> Vector2:
 func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role="chef") -> Vector2:
 	var bounds=DirectionalCharacter.head_bounds(posmod(id,3),false,staff and role=="chef")
 	var body=DirectionalCharacter.body_offset(pose,moving,float(pose.get("phase",0)))
-	# Keep the body anchor mirrored, but place the oval slightly screen-right
-	# for every facing. Its -5px tail tip still points to the head center.
-	# The tail extends 13px below the center; retain the 5px ear/hat gap.
-	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+5.0,body.y+bounds.position.y-18.0)
+	# The oval sits beside the upper-right ear/hat, not directly overhead.
+	# Mirror only the owner's body offset; this UI placement stays screen-right.
+	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+32.0,body.y+bounds.position.y-7.0)
 
 func bubble(p: Vector2,words: String):
 	ellipse(p,Vector2(13,10),"fff6d9")
-	poly([p+Vector2(-4,7),p+Vector2(1,7),p+Vector2(-5,13)],"fff6d9")
-	draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+	# The leftward tail returns to the owner's upper-right head edge, with
+	# clear space beside the ear/hat rather than moving the old tail wholesale.
+	poly([p+Vector2(-11,4),p+Vector2(-7,8),p+Vector2(-16,12)],"fff6d9")
+	var mark=bubble_symbol_geometry(words)
+	if mark.is_empty():
+		draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+		return
+	# Optically centered vector marks replace the old left-aligned font glyphs.
+	# Submit in final raster coordinates so AA remains one pixel at any zoom.
+	var raster=_stroke_raster_scale>0.0
+	if raster:draw_set_transform_matrix(_stroke_from_raster)
+	var scale=_stroke_raster_scale if raster else 1.0
+	var tint=col("829270")
+	for point in mark.dots:
+		var center=_stroke_to_raster*(p+point) if raster else p+point
+		draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
+	if mark.has("stem"):
+		var start=_stroke_to_raster*(p+mark.stem[0]) if raster else p+mark.stem[0]
+		var finish=_stroke_to_raster*(p+mark.stem[1]) if raster else p+mark.stem[1]
+		draw_line(start,finish,tint,float(mark.width)*scale,true)
+	if raster:draw_set_transform_matrix(_art_transform)
+
+static func bubble_symbol_geometry(words:String)->Dictionary:
+	if words=="…":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
+	if words=="!":return {"dots":[Vector2(0,4.0)],"radius":.8,"stem":[Vector2(0,-4.0),Vector2(0,1.5)],"width":1.5}
+	return {}
 func _meal(table_id: int):
 	if game==null: return
 	for guest in game.model.customers:
@@ -1312,8 +1383,12 @@ func _chair(p: Vector2,r: int,back_only: bool,style:String="basic"):
 		line(a,b,"b89964",1)
 		return
 	ellipse(p+Vector2(0,1),Vector2(14,6),Color(.45,.39,.23,.06))
+	# Ground contacts belong to this chair-local transform, so a visual dining
+	# dock carries its feet and shadows together without changing the model cell.
 	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
-		line(_chair_point(p,d.x*1.1,d.y*1.1,1,r),_chair_point(p,d.x,d.y,17,r),"ad8c55",2.6)
+		ellipse(_chair_point(p,d.x*1.1,d.y*1.1,0,r),Vector2(2.2,1.1),Color(.45,.39,.23,.14))
+	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
+		line(_chair_point(p,d.x*1.1,d.y*1.1,0,r),_chair_point(p,d.x,d.y,17,r),"ad8c55",2.6)
 	var points=[]
 	for d in [Vector2(-.35,-.35),Vector2(.35,-.35),Vector2(.35,.35),Vector2(-.35,.35)]: points.append(_chair_point(p,d.x,d.y,18,r))
 	var lower=[]
@@ -1365,7 +1440,7 @@ func _action_prop(p: Vector2,hand_offset: Vector2,action: String,t: float,payloa
 		var cloth=p+work_hand
 		rounded_poly([cloth+Vector2(-4,0),cloth+Vector2(3,-3),cloth+Vector2(7,1),cloth+Vector2(0,4)],1.5,"c2d1b2")
 	elif action=="washing":
-		for i in range(3):ellipse(hand+Vector2(i*3-1,-3-sin(t*TAU+i)*2),Vector2(1.7,1.7),Color(.87,.93,.83,.72))
+		pass # Sink-anchored water/foam and solved hand contact own this action.
 	elif action=="cooking":
 		line(hand,hand+Vector2(2,5),"a78c58",1.7)
 		ellipse(hand+Vector2(2,5),Vector2(2.4,1.3),"b69b64")
@@ -1414,12 +1489,33 @@ func _draw_floor_tools(at:Vector2,pose:Dictionary,action:String,payload:String):
 
 
 func _sink_dishes(sink_id: int):
-	for record in game.service_guests.values()+game.floor_tasks.messes.values():
-		if str(record.get("plate_owner",""))=="sink" and int(record.get("plate_target_id",-1))==sink_id:
-			var sink=game.model.get_item(sink_id)
-			var at=FurnitureArt.KitchenGeometry.surface(Vector2(-.12,.035),31,int(sink.get("rot",0)))
-			_plate(at,0.0,true)
-			ellipse(at+Vector2(0,-1),Vector2(6,2.5),"c2c8ac")
+	var sink=game.model.get_item(sink_id)
+	var count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
+	if not "dishwashing" in game:
+		for record in game.service_guests.values():
+			if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
+	if count<=0:return
+	var rotation=int(sink.get("rot",0));var geometry=FurnitureArt.KitchenGeometry
+	var aperture=geometry.sink_outline(geometry.SINK_BASIN_INNER,geometry.SINK_OPENING_HEIGHT,rotation)
+	var at=geometry.sink_plate_anchor(rotation)
+	var wash=SinkWashArt.state(game,sink_id)
+	var stored=count-1 if not wash.is_empty() else count
+	for index in range(stored):
+		_plate_clip=aperture if geometry.height(geometry.SINK_STACK_HEIGHT)+index*2.2<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
+		_plate(at+Vector2(0,-index*2.2),0.0,true)
+	_plate_clip=PackedVector2Array()
+	if not wash.is_empty():
+		var action_geometry=SinkWashArt.geometry(rotation,float(wash.seconds),count)
+		_plate_transform=action_geometry.transform
+		_plate_clip=aperture if float(action_geometry.height)<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
+		_plate(Vector2.ZERO,-1.0,false)
+		var dirt=float(action_geometry.dirt)
+		if dirt>.001:
+			for q in [Vector2(-4,1),Vector2(5,1),Vector2(-1,-2)]:ellipse(q,Vector2(.9,.6),Color(.70,.64,.46,dirt))
+		_plate_transform=Transform2D.IDENTITY;_plate_clip=PackedVector2Array()
+		SinkWashArt.draw_water(self,wash,action_geometry)
+		SinkWashArt.draw_foam(self,action_geometry)
+	furniture_art.draw_sink_foreground(self,Vector2.ZERO,rotation)
 
 func _drink_in_hand(_guest,_record) -> bool:
 	# Dining uses a tiny nod/gesture. The cup stays on its tabletop anchor.

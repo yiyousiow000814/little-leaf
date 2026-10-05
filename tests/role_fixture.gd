@@ -7,7 +7,7 @@ func _load_startup():
  paused=true
 func _save():return true
 func setup_dirty(with_floor=true):
- model.customers.clear();service_guests.clear();floor_tasks.messes.clear();floor_tasks.walks.clear()
+ model.customers.clear();service_guests.clear();floor_tasks.messes.clear();floor_tasks.walks.clear();dishwashing.dishes.clear();dishwashing.completed=0
  for staff in staff_states:
   _clear_service_job(staff);staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100)
   staff.on_duty=true;staff.duty_pending=false

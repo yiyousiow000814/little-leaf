@@ -22,7 +22,8 @@ func run():
  for player in cafe.audio_players.values():player.stop()
  check(not cafe.save_recovery_blocked and cafe.model.dining_sets.size()==4,"fully synthetic four-table fixture initializes")
  var actors=cafe.interaction._staff_positions()
- for tick in 3600:
+ # Two admitted cohorts now walk from the fixed street ends at normal speed.
+ for tick in 7200:
   cafe._tick_live_service(1.0/30.0);cafe._animate_staff(1.0/30.0);cafe.animation_time+=1.0/30.0
   if cafe.model.customers.size()==4 and cafe.model.customers.all(func(g):return cafe.model._customer_admitted(g)):break
   if tick%120==0:await process_frame
@@ -39,7 +40,7 @@ func run():
     if worker.job_kind=="" or payload=="none":continue
     var before=ledger(cafe)
     var cell=Vector2i(worker.pos.floor());actors=cafe.interaction._staff_positions()
-    # This fixture exercises repathing while service continues. Optional stove
+    # This fixture exercises repathing while service continues. Legacy stove
     # blockage and recovery have their own pause-service test.
     if not cafe.model.placement_access_issues("plant",cell.x,cell.y).is_empty():continue
     var field=cafe.interaction.edit_plan
@@ -56,9 +57,9 @@ func run():
     cafe._rebuild_furniture();cafe.editing=false;relocated=true;payload_seen=payload
     cafe.model.service_snapshot=cafe._service_save_snapshot()
     var path="user://staff-relocation-roundtrip.json"
-    check(cafe.model.save(path),"joint edit produces a valid runtime save")
+    check(cafe.model.save(path),"joint edit produces a valid runtime save: "+cafe.model.last_error)
     var loaded=Model.new()
-    check(loaded.load_save(path),"saved relocated staff and furniture restore")
+    check(loaded.load_save(path),"saved relocated staff and furniture restore: "+loaded.last_error)
     if not loaded.service_snapshot.is_empty():
      for staff in loaded.service_snapshot.staff:check(field.StaffRelocation.point_clear(loaded,staff.pos,loaded.items),"restored staff has no furniture overlap")
     break
@@ -66,8 +67,8 @@ func run():
   if cafe.model.customers.is_empty() and cafe.floor_tasks.messes.is_empty() and cafe.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(relocated,"real carrying-worker relocation was exercised")
  check(done and cafe.model.served==4 and cafe.model.total_cleaned==4,"all four generated visits finish and clean exactly once after repath")
- check(cafe.model.total_earned==1000,"no duplicate payments")
- check(cafe.model.coins==before_coins+1000-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
+ check(cafe.model.total_earned==4*cafe.Model.MEAL_PAYMENT,"no duplicate payments")
+ check(cafe.model.coins==before_coins+4*cafe.Model.MEAL_PAYMENT-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
  print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}))
  for tween in get_processed_tweens():tween.kill()
  cafe.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

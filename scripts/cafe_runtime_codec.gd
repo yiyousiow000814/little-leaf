@@ -7,8 +7,9 @@ const CHECKOUT_STAGES=["checkout_wait","checkout_walk","paying"]
 const NONE=Vector2i(-100,-100)
 const PAYMENT_SECONDS=1.6
 const FloorTasks=preload("res://scripts/cafe_floor_tasks.gd")
-const JOB_LENGTHS={"floor":4,"":1,"order":1,"cook":4,"brew":3,"deliver_meal":2,"deliver_drink":2,"cleanup":7,"take_payment":1}
-const PLATE_OWNERS=["kitchen","station","staff","counter","table","sink","clean"]
+const Dishwashing=preload("res://scripts/cafe_dishwashing.gd")
+const JOB_LENGTHS={"wash":1,"floor":4,"":1,"order":1,"cook":4,"brew":3,"deliver_meal":2,"deliver_drink":2,"cleanup":7,"take_payment":1}
+const PLATE_OWNERS=["kitchen","station","staff","counter","table","sink","dish_queue","clean"]
 const DRINK_OWNERS=["beverage","station","staff","table","cleared"]
 # Staff ownership means litter is contained in the carried dustpan. Legacy
 # hand-held litter uses the same owner/index and resumes without a reset.
@@ -66,6 +67,45 @@ func _integer(value,low:int,high:int)->bool:
 # small bounded margin beyond that edge (furthest current arrival x=19.76).
 func _point(value)->bool:
 	return value is Vector2 and value.is_finite() and value.x>=-6 and value.x<=24 and value.y>=-6 and value.y<=28
+func _street_point(value)->bool:
+	return value is Vector2 and value.is_finite() and absf(value.x+2.76)<.00001 and value.y>=-82.0 and value.y<=82.0
+func _street_path_valid(guest:Dictionary)->bool:
+	var has_marker=guest.has("street_route_format") or guest.has("street_origin_z")
+	if has_marker:
+		if guest.get("street_route_format")!="little_leaf.street_endpoints.v1" or not _number(guest.get("street_origin_z"),-82,82) or absf(float(guest.street_origin_z))!=82.0:return false
+	var extended_allowed=has_marker and (guest.phase=="arriving" or (guest.phase=="leaving" and bool(guest.get("withdrawn",false))))
+	for index in range(guest.route.size()):
+		var point=guest.route[index]
+		if _point(point):continue
+		if not has_marker or not _street_point(point) or signf(point.y)!=signf(float(guest.street_origin_z)):return false
+		if not extended_allowed and index>=int(guest.route_index):return false
+	# Rerouting may retain a consumed outer-lane waypoint after the guest is
+	# seated. Validate that history as one contiguous same-end approach; it
+	# grants no permission for an extended current or remaining service route.
+	if has_marker:
+		var history:Array=guest.route.duplicate()
+		if guest.phase=="leaving" and bool(guest.get("withdrawn",false)):history.reverse()
+		if not _street_prefix_valid(history,float(guest.street_origin_z)):return false
+	var points=[Vector2(float(guest.x),float(guest.z))]
+	points.append_array(guest.route.slice(int(guest.route_index)))
+	if not extended_allowed:
+		for point in points:
+			if not _point(point):return false
+		return true
+	# An arriving path has one outer prefix. A withdrawn path has the same
+	# single lane as its final suffix back to the original road end.
+	if guest.phase=="leaving":points.reverse()
+	return _street_prefix_valid(points,float(guest.street_origin_z))
+func _street_prefix_valid(points:Array,origin:float)->bool:
+	var entered_old_bounds=false
+	var previous_extended=false
+	for point in points:
+		if _point(point):
+			if previous_extended and absf(point.x+2.76)>.00001:return false
+			entered_old_bounds=true;previous_extended=false;continue
+		if entered_old_bounds or not _street_point(point) or signf(point.y)!=signf(origin):return false
+		previous_extended=true
+	return true
 func _cell(value,allow_none=false)->bool:
 	return value is Vector2i and ((allow_none and value==Vector2i(-100,-100)) or (value.x>=-6 and value.x<=24 and value.y>=-6 and value.y<=28))
 func _fail(reason:String)->Dictionary:
@@ -249,7 +289,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not _integer(guest.table_id,1,1000000000) or not _integer(guest.chair_id,1,1000000000):return _fail("Invalid guest furnishing identity")
 		if not item_map.has(int(guest.table_id)) or item_map[int(guest.table_id)].kind!="table" or not item_map.has(int(guest.chair_id)) or item_map[int(guest.chair_id)].kind not in ["chair","bench"]:return _fail("Guest references a missing table or seat")
 		if not guest.phase is String or not phases.has(guest.phase):return _fail("Invalid customer phase")
-		if not _number(guest.x,-6,24) or not _number(guest.z,-6,28) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
+		if not _number(guest.x,-6,24) or not _number(guest.z,-82,82) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
 		for key in ["paid","seated","waiting","exterior_exit","departure_blocked"]:
 			if not guest[key] is bool:return _fail("Invalid guest flag: "+key)
 		for key in ["admitted","withdrawn","exit_completed"]:
@@ -265,7 +305,8 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if not _cell(guest[key]):return _fail("Invalid guest cell field: "+key)
 		if not guest.route is Array or guest.route.size()>512 or not _integer(guest.route_index,0,guest.route.size()):return _fail("Invalid guest route index")
 		for point in guest.route:
-			if not _point(point):return _fail("Invalid saved route point")
+			if not _point(point) and not _street_point(point):return _fail("Invalid saved route point")
+		if not _street_path_valid(guest):return _fail("Invalid street endpoint route")
 		var egress_fields=0
 		for key in ["dismounting","egress_cell","dismount_progress"]:
 			if guest.has(key):egress_fields+=1
@@ -314,7 +355,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	# always supplies the full ledger below before saving active jobs.
 	if service.is_empty():return _validated_state(state,source_version)
 	if SaveContract.has_checkout(source_version):
-		if service.get("version")!=SaveContract.SERVICE_VERSION or service.get("checkout_format")!=SaveContract.CHECKOUT_FORMAT:return _fail("Invalid cashier service format")
+		if not _integer(service.get("version"),SaveContract.LEGACY_SERVICE_VERSION,SaveContract.SERVICE_VERSION) or service.get("checkout_format")!=SaveContract.CHECKOUT_FORMAT:return _fail("Invalid cashier service format")
 	elif not _integer(service.get("version"),1,2):return _fail("Legacy save contains a newer service format")
 	if not _integer(service.get("serial"),0,1000000000) or not _number(service.get("animation_time"),0,1000000000):return _fail("Invalid service version or clock")
 	if not service.get("records") is Array or service.records.size()!=guests.size() or not service.get("staff") is Array or service.staff.size() not in [0,expected_total]:return _fail("Invalid service record/staff count")
@@ -367,12 +408,16 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if record.pass_reserved and (int(record.meal_pass_id)<0 or item_map[int(record.meal_pass_id)].kind!="counter"):return _fail("Pass reservation has no counter")
 		if record.floor_debris=="none" and record.trash_owner!="none":return _fail("Garbage owner exists without debris")
 		if record.spill_cleaned and float(record.spill_remaining)>.000001:return _fail("Clean floor retains spill amount")
-		if record.cleanup_done and (record.plate_owner!="clean" or record.drink_owner!="cleared" or not record.table_wiped or record.trash_owner not in ["none","disposed"] or not record.spill_cleaned or not record.floor_cleaned or record.floor_dirty):return _fail("Completed cleanup retains unfinished work")
+		if record.cleanup_done and (record.plate_owner not in ["clean","dish_queue"] or record.drink_owner!="cleared" or not record.table_wiped or record.trash_owner not in ["none","disposed"] or not record.spill_cleaned or not record.floor_cleaned or record.floor_dirty):return _fail("Completed cleanup retains unfinished work")
 		if record.plate_owner=="counter":
 			var slot=int(record.plate_target_id)
 			if slot<0 or item_map[slot].kind!="counter" or counter_slots.has(slot):return _fail("Invalid or duplicated pass-counter plate")
 			counter_slots[slot]=true
 		records[int(record.guest_id)]=record
+	if int(service.version)>=4 and not service.has("dishwashing"):return _fail("Missing dishwashing ledger")
+	if int(service.version)<4 and service.has("dishwashing"):return _fail("Legacy service contains newer dishwashing state")
+	var dish_checked=Dishwashing.validate_snapshot(service.get("dishwashing",{"format":Dishwashing.FORMAT,"next_id":1,"completed":0,"dishes":[]}),service.staff,records,item_map,self)
+	if not dish_checked.ok:return _fail(dish_checked.error)
 	var duty_actual={"chef":0,"waiter":0,"cleaner":0,"cashier":0}
 	var payment_claims={};var register_jobs={}
 	var floor_job_claims={}
@@ -388,7 +433,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		for cell in staff.path:
 			if not _cell(cell):return _fail("Invalid staff path cell")
 		if not JOB_LENGTHS.has(staff.get("job_kind")) or not _integer(staff.get("job_step"),0,int(JOB_LENGTHS[staff.job_kind])-1) or not _number(staff.get("job_elapsed"),0,3600):return _fail("Invalid saved work stage")
-		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink","cleanup"],"cleaner":["","cleanup","floor"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
+		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink","cleanup"],"cleaner":["","cleanup","floor","wash"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
 		if staff.has("table_face_id") and (not _integer(staff.table_face_id,-1,1000000000) or (int(staff.table_face_id)!=-1 and (not item_map.has(int(staff.table_face_id)) or item_map[int(staff.table_face_id)].kind!="table"))):return _fail("Invalid reserved table face")
 		if staff.has("table_face_cell") and not _cell(staff.table_face_cell):return _fail("Invalid table face cell")
 		if not _integer(staff.get("station_id"),-1,1000000000) or (int(staff.station_id)!=-1 and not item_map.has(int(staff.station_id))):return _fail("Missing saved work station")
@@ -400,7 +445,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if not _integer(staff.get("job_mess_id"),1,1000000000) or not floor_checked.records.has(int(staff.job_mess_id)) or int(staff.job_token)!=int(floor_checked.records[int(staff.job_mess_id)].token):return _fail("Floor job token mismatch")
 			if floor_job_claims.has(int(staff.job_mess_id)):return _fail("Two workers own the same floor job")
 			floor_job_claims[int(staff.job_mess_id)]=true
-		elif staff.job_kind!="" and (not records.has(int(staff.job_guest_id)) or int(staff.job_token)!=int(records[int(staff.job_guest_id)].token)):return _fail("Job token does not match guest")
+		elif staff.job_kind not in ["","wash"] and (not records.has(int(staff.job_guest_id)) or int(staff.job_token)!=int(records[int(staff.job_guest_id)].token)):return _fail("Job token does not match guest")
 		if staff.job_kind=="take_payment":
 			var id=int(staff.job_guest_id);var guest=guests[id];var record=records[id];var register_id=int(staff.station_id)
 			if not _number(staff.job_elapsed,0,PAYMENT_SECONDS) or not item_map.has(register_id) or item_map[register_id].kind!="register" or register_id!=int(guest.checkout_register_id):return _fail("Invalid cashier station or payment progress")
@@ -439,5 +484,6 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	if source_version>=10 and not service.staff.is_empty() and not duty.is_empty():
 		for role in duty_actual:
 			if int(duty_actual[role])!=int(duty.get(role,0 if role=="cashier" and source_version<=SaveContract.LEGACY_MAX_VERSION else -1)):return _fail("Payroll disagrees with active shifts")
+	if int(service.version)<4:Dishwashing.migrate_snapshot(service)
 	service.version=SaveContract.SERVICE_VERSION;service.checkout_format=SaveContract.CHECKOUT_FORMAT
 	return _validated_state(state,source_version)
