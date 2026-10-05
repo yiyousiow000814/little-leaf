@@ -3,6 +3,7 @@
 // localhost-only, synthetic, and discarded. No security flags are disabled.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const {installEngineLaunchHook}=require('./engine_launch_hook');
 const root=path.resolve(__dirname,'..');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),output=arg('--output'),layoutFile=arg('--layout-report');
@@ -10,6 +11,10 @@ if(!web||!output||!layoutFile)throw Error('--web-build, --output and --layout-re
 fs.mkdirSync(output,{recursive:true});
 const layout=JSON.parse(fs.readFileSync(layoutFile,'utf8'));assert(!layout.failures.length);const points=layout.web_input_points;
 const report={synthetic_only:true,checks:[],source_sha256:{}};
+report.export_js_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'index.js'))).digest('hex');
+report.web_template_sha256=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json'),'utf8')).web_template_sha256;
+report.launch_hook_scope='Pass through the original feature check; wrap only the actual shell instance startup with official clock arguments';
+report.source_sha256['tests/engine_launch_hook.js']=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'engine_launch_hook.js'))).digest('hex');
 const sources={};for(const [key,file] of Object.entries({old:'tests/fixtures/inbox-vault-018.js',vault:'web/little_leaf_vault.js',markers:'web/little_leaf_inbox.js',suite:'tests/compensation_inbox_suite.js'})){sources[key]=fs.readFileSync(path.join(root,file),'utf8');report.source_sha256[file]=crypto.createHash('sha256').update(sources[key]).digest('hex');}
 const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
 (async()=>{
@@ -42,18 +47,10 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   // Supply an official runtime launch argument through the exported Engine
   // API. Zero simulation delta removes slow-CI autosave timing races while
   // keeping native GUI input, rendering, vault commits and read markers real.
-  await page.addInitScript(() => {
-   Object.defineProperty(window,'Engine',{configurable:true,set(Engine){
-    const prototype=Object.getPrototypeOf(new Engine({})),start=prototype.startGame;
-    prototype.startGame=function(options){
-     window.inboxTestLaunchArgs=['--time-scale','0'];
-     return start.call(this,{...options,args:[...(options?.args||[]),...window.inboxTestLaunchArgs]});
-    };
-    Object.defineProperty(window,'Engine',{configurable:true,writable:true,value:Engine});
-   }});
-  });
+  await page.addInitScript(installEngineLaunchHook,{args:['--time-scale','0'],reportKey:'inboxTestLaunch'});
   await page.goto(url+'/index.html');await page.waitForFunction(()=>!document.getElementById('status'),null,{timeout:60000});await page.waitForTimeout(1500);
-  check(await page.evaluate(()=>JSON.stringify(window.inboxTestLaunchArgs)==='[\"--time-scale\",\"0\"]'),'exported Engine accepts controlled test clock arguments');
+  report.launch_hook=await page.evaluate(()=>window.inboxTestLaunch);
+  check(report.launch_hook?.launchCalls===1&&JSON.stringify(report.launch_hook.launchArgs)==='[\"--time-scale\",\"0\"]','exported Engine accepts controlled test clock arguments');
   check(await page.evaluate(()=>JSON.parse(__littleLeafVault.snapshotJson()).paid.length===1),'actual exported shell retains historical snapshot on reload');
   const click=async name=>{assert(points[name]&&points[name].length===2);await page.mouse.click(...points[name]);await page.waitForTimeout(150);};
   await click('settings');await click('inbox');

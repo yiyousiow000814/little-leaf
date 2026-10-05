@@ -84,6 +84,16 @@ snapshot data and must not be described as browser-persistence proof.
    legitimately advance the progress revision. It saves screenshots and
    source/hash evidence before the artifact upload step.
 
+   The launch helper binds the actual shell instance after its original feature
+   check returns and before `startGame` runs. Godot 4.6 SafeEngine deliberately
+   creates a different prototype for every instance, so a throwaway instance
+   cannot supply a shared startup hook. The helper returns feature results and
+   the real startup return value unchanged; it adds only the official test
+   arguments. A regression executes the exact exported JavaScript with Wasm
+   startup stubbed, checking both supported and missing-feature results and
+   per-instance isolation. CI retains its report, the export/template hashes,
+   and the separate real-browser launch and storage evidence.
+
 Example after the normal engine suite and Web export:
 
 ```

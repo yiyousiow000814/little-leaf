@@ -42,6 +42,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
+          node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           google-chrome --version
