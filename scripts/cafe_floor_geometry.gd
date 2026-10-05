@@ -161,10 +161,10 @@ static func nearest_boundary(point:Vector2,outline:Array)->Vector2:
 static func outside(point:Vector2,outline:Array,clearance=BODY_CLEARANCE)->bool:
 	return outline.size()>=3 and not Geometry2D.is_point_in_polygon(point,PackedVector2Array(outline)) and point.distance_to(nearest_boundary(point,outline))>=clearance
 
-func work_cells(entry:Dictionary)->Array:
+func work_cells(entry:Dictionary,action:String="")->Array:
 	var shape=ensure(entry);var result=[]
 	if not layout_clear(shape):return result
-	var action="sweeping" if str(entry.get("trash_owner","none"))=="floor" and str(entry.get("floor_debris","none")) in ["banana","crumbs"] else "mopping"
+	if action=="":action="sweeping" if str(entry.get("trash_owner","none"))=="floor" and str(entry.get("floor_debris","none")) in ["banana","crumbs"] else "mopping"
 	var cache_key=hash([shape,action])
 	if work_cell_cache.has(cache_key):return work_cell_cache[cache_key]
 	var anchor:Vector2=shape.center;var base=Vector2i(floori(anchor.x),floori(anchor.y))
@@ -205,8 +205,8 @@ func available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
 			if bool(other_mess.get("floor_dirty",false)) and not bool(other_mess.get("floor_cleaned",false)) and other_mess.has("mess_shape") and not outside(point,other_mess.mess_shape.outline):return false
 	return true
 
-func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
-	var cells=work_cells(entry)
+func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:
+	var cells=work_cells(entry,action)
 	var pinned:Vector2i=entry.get("floor_work_cell",NO_CELL)
 	if cells.has(pinned) and available(pinned,staff,claimed) and (from==pinned or not game._static_service_path(from,pinned).is_empty()):return pinned
 	var best=NO_CELL;var shortest=1000000

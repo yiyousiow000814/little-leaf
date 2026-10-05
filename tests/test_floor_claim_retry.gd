@@ -91,6 +91,17 @@ func run():
  roundtrip("partial sweep")
  cleaner=game.worker("cleaner");advance(.1)
  check(cleaner.job_kind=="floor" and int(cleaner.job_mess_id)==first and cleaner.job_elapsed==.35,"partial sweeping is never discarded or reassigned")
+ # Compatibility saves can own trash before their elapsed sweep has ended.
+ # Obstruction must preserve that exact stage, clock and hand through reload.
+ reset_fixture();first=litter(Vector2i(4,6));cleaner=game.worker("cleaner")
+ var held_index=game.staff_states.find(cleaner)
+ game.floor_tasks.assign(cleaner,held_index)
+ game.floor_tasks.contact(cleaner,held_index,"sweeping",game.floor_tasks.target(cleaner),1.0);cleaner.job_elapsed=.35
+ furniture=cover(Vector2i(4,6));roundtrip("held partial sweep")
+ cleaner=game.worker("cleaner");advance(.1)
+ check(cleaner.job_kind=="floor" and int(cleaner.job_mess_id)==first and cleaner.job_step==0 and cleaner.job_elapsed==.35,"held partial sweep keeps its saved stage and exact clock")
+ check(game.floor_tasks.messes[first].trash_owner=="staff" and game.floor_tasks.messes[first].trash_staff_index==held_index,"held partial sweep retains exact trash ownership")
+ check(cleaner.art_action not in ["sweeping","mopping"],"inaccessible held partial sweep never draws a through-obstacle cleaning gesture")
  # Held litter/disposal must keep the worker until ownership reaches the bin.
  reset_fixture();first=litter(Vector2i(4,6));cleaner=game.worker("cleaner")
  var index=game.staff_states.find(cleaner)
