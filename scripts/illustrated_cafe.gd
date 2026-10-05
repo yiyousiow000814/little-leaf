@@ -1252,7 +1252,30 @@ func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role
 func bubble(p: Vector2,words: String):
 	ellipse(p,Vector2(13,10),"fff6d9")
 	poly([p+Vector2(-4,7),p+Vector2(1,7),p+Vector2(-5,13)],"fff6d9")
-	draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+	var mark=bubble_symbol_geometry(words)
+	if mark.is_empty():
+		draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+		return
+	# These two status marks keep their original small-font footprint, but
+	# are vector shapes rather than a 13px glyph texture enlarged by zoom.
+	# Submit in final raster coordinates so AA remains one pixel at any zoom.
+	var raster=_stroke_raster_scale>0.0
+	if raster:draw_set_transform_matrix(_stroke_from_raster)
+	var scale=_stroke_raster_scale if raster else 1.0
+	var tint=col("829270")
+	for point in mark.dots:
+		var center=_stroke_to_raster*(p+point) if raster else p+point
+		draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
+	if mark.has("stem"):
+		var start=_stroke_to_raster*(p+mark.stem[0]) if raster else p+mark.stem[0]
+		var finish=_stroke_to_raster*(p+mark.stem[1]) if raster else p+mark.stem[1]
+		draw_line(start,finish,tint,float(mark.width)*scale,true)
+	if raster:draw_set_transform_matrix(_art_transform)
+
+static func bubble_symbol_geometry(words:String)->Dictionary:
+	if words=="…":return {"dots":[Vector2(-4,1.5),Vector2(-.5,1.5),Vector2(3,1.5)],"radius":.85}
+	if words=="!":return {"dots":[Vector2(-4.25,2.0)],"radius":.8,"stem":[Vector2(-4.25,-6.0),Vector2(-4.25,-.5)],"width":1.5}
+	return {}
 func _meal(table_id: int):
 	if game==null: return
 	for guest in game.model.customers:
