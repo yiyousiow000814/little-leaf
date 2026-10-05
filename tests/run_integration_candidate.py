@@ -60,6 +60,7 @@ SUITES = [
     ("test_chef_hat", "CHEF_HAT_TESTS"),
     ("test_character_bubble", "CHARACTER_BUBBLE_RESULT"),
     ("test_arm_occlusion", "ARM_OCCLUSION_RESULT"),
+    ("test_bubble_symbol_clarity", "BUBBLE_SYMBOL_CLARITY_RESULT"),
     ("test_art_raster_strokes", "ART_RASTER_STROKE_TESTS"),
     ("test_customer_litter", "@json"),
     ("test_litter_visibility", "@json"),
