@@ -140,7 +140,6 @@ func refresh(screen: Vector2):
 
 func cancel(clear_selection = true):
 	edit_plan.invalidate()
-	if game.has_method("_dismiss_edit_feedback"):game._dismiss_edit_feedback()
 	_clear_gesture()
 	_middle_down = false
 	preview_active = false
@@ -181,7 +180,6 @@ func rotate_selection():
 			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
-			game._notify(str(game.model.last_error))
 	else:
 		game.rotation_step = next
 
@@ -243,7 +241,6 @@ func _move_left(screen: Vector2):
 	refresh(screen)
 
 func _start_drag():
-	if game.has_method("_dismiss_edit_feedback"):game._dismiss_edit_feedback()
 	_gesture = "drag"
 	drag_active = true
 	preview_active = true
@@ -258,7 +255,7 @@ func _start_drag():
 		# Pick up at the visible hit point, rather than snapping a tall item
 		# several cells backward when its upper surface was clicked.
 		_grab_offset = game.illustration.iso(float(item.x) + 0.5, float(item.z) + 0.5) - _press_pointer
-		_select_item(item, false)
+		_select_item(item)
 		drag_rotation = game.model.logical_rotation(int(item.id))
 		_press_selected_id = drag_item_id
 
@@ -267,29 +264,18 @@ func _release_left(screen: Vector2):
 	if not _left_down: return
 	if _gesture == "drag":
 		if drag_valid: _commit_preview()
-		else: game._notify(drag_reason)
 	elif _gesture == "pending" and game.editing and _press_editing and _press_parcel_id != "" and _point_in_view(screen) and not _over_ui(screen):
 		if _hit_parcel(screen) == _press_parcel_id and game.has_method("_buy_parcel"):
 			game._buy_parcel(_press_parcel_id)
 	elif _gesture == "pending" and game.editing and _point_in_view(screen) and not _over_ui(screen):
 		if _press_kind != "":
 			if drag_valid: _commit_preview()
-			else: game._notify(drag_reason)
 		elif _press_item_id >= 0:
 			_select_item(game.model.get_item(_press_item_id))
-		elif int(game.selected_id) >= 0:
-			# A tap only selects. Moving requires holding the same pointer on
-			# the furnishing, crossing the drag threshold, then releasing.
-			pass
-		else:
-			var cell: Vector2i = game._floor_cell(screen)
-			var parcel: Dictionary = game.model.parcel_at(cell)
-			if not parcel.is_empty() and not bool(parcel.owned) and bool(parcel.get("visible",true)):
-				game._notify("Choose a FOR SALE sign")
 	_clear_gesture()
 	refresh(screen)
 
-func _select_item(item: Dictionary, notify = true):
+func _select_item(item: Dictionary):
 	if item.is_empty(): return
 	item=game.model.get_item(game.model.logical_item_id(int(item.id)))
 	game.selected_id = int(item.id)
@@ -300,7 +286,6 @@ func _select_item(item: Dictionary, notify = true):
 	if game.compact_ui != null: display_name = str(game.compact_ui.SHORT_NAMES.get(kind, display_name))
 	if is_instance_valid(game.tool_text):
 		game.tool_text.text = "Selected %s · hold and drag to move · R rotates" % display_name
-	if notify: game._notify("Selected %s" % display_name)
 	game._update_ui()
 
 func _update_validity(screen: Vector2):
@@ -329,24 +314,18 @@ func _commit_preview():
 	# Repeat the same validation at commit time. Previewing never purchases,
 	# moves, increments revision, rebuilds service routes, or saves.
 	_update_validity(last_pointer)
-	if not drag_valid: game._notify(drag_reason); return
-	var kind = drag_kind
-	var warning = drag_warning
+	if not drag_valid:return
 	var was_move = drag_item_id >= 0
 	if was_move:
 		var current: Dictionary = game.model.get_item(drag_item_id)
 		if int(current.x) == drag_cell.x and int(current.z) == drag_cell.y and game.model.logical_rotation(drag_item_id) == drag_rotation:
 			return
 	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions(),game._apply_edit_staff_positions)
-	if not success:
-		game._notify(str(game.model.last_error)); return
+	if not success:return
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	if not game._save():return
-	var message = "Furniture moved" if was_move else "Placed %s" % kind.capitalize()
-	if warning != "": message += " · " + warning
-	game._notify(message)
+	if game._save():game.settings_controls.play_sfx("place")
 
 func _clear_gesture():
 	if drag_active and drag_item_id >= 0 and game != null:

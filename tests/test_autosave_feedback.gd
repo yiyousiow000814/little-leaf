@@ -26,9 +26,7 @@ class FakeGame extends Node:
  var startup_notice=""
  var paused=false
  var web_lifecycle=null
- var notices=[]
  var followup_saves=0
- func _notify(words):notices.append(words)
  func _update_people():pass
  func _service_save_snapshot():return {}
  func _update_ui():pass
@@ -49,7 +47,6 @@ func run():
  var game=FakeGame.new();root.add_child(game)
  var save=controller(game)
  check(not save.request_save() and save.pending and game.progress_unsaved,"submitted save stays pending, never premature success")
- check(game.notices.is_empty(),"background submission is silent")
  save.request_save()
  check(save.queued and save.api.writes==1,"edits coalesce behind in-flight write")
  acknowledge(save)
@@ -57,40 +54,43 @@ func run():
  await process_frame
  check(game.followup_saves==1,"newer generation schedules next save")
  save.request_save();acknowledge(save)
- check(not game.progress_unsaved and game.progress_save_error=="" and game.notices.is_empty(),"latest durable save clears state silently")
+ check(not game.progress_unsaved and game.progress_save_error=="","latest durable save clears state silently")
  save.request_save();save._on_commit([JSON.stringify({"ok":false,"error":"Browser storage is full","code":"QUOTA"})])
  check(game.progress_unsaved and game.progress_save_error=="Browser storage is full" and save.ready,"transient failure retains edits and permits retries")
- check(game.notices.is_empty(),"failure uses persistent warning rather than restarting toast")
  save.request_save()
  check(game.progress_save_error=="Browser storage is full","retry keeps existing warning while pending")
  save._on_commit([JSON.stringify({"ok":false,"error":"Browser storage is full","code":"QUOTA"})])
- check(game.notices.is_empty(),"identical repeated failure emits no toast spam")
+ check(game.progress_unsaved and game.progress_save_error=="Browser storage is full","repeated failure retains the same recoverable error")
  save.request_save();acknowledge(save)
  check(not game.progress_unsaved and game.progress_save_error=="","successful retry clears warning only after durability")
  game.model.save_ok=false
  save.request_save()
- check(game.progress_save_error=="Storage unavailable" and not save.pending and game.notices.is_empty(),"native validation/staging failure uses same stable warning")
+ check(game.progress_save_error=="Storage unavailable" and not save.pending,"native validation/staging failure retains the same recoverable error")
  game.model.save_ok=true
  # Loaded-save conflicts remain fail-closed; this patch does not turn them into startup retries.
  for code in ["REVISION_CONFLICT","CORRUPT_AUTHORITY","NOT_READY"]:
   game.save_recovery_blocked=false;game.save_writes_suppressed=false
   save=controller(game);save.request_save();save._on_commit([JSON.stringify({"ok":false,"code":code,"error":"Original progress preserved"})])
   check(not save.ready and game.save_recovery_blocked and game.save_writes_suppressed and game.paused,"fail-closed unchanged for "+code)
-  check(game.progress_unsaved and game.progress_save_error!="","hard failure stays visible for "+code)
+  check(game.progress_unsaved and game.progress_save_error!="","hard failure retains diagnostic for "+code)
  game.save_recovery_blocked=false;game.save_writes_suppressed=false
  save=controller(game);save.request_save();acknowledge(save,{"durable":false})
  check(not save.ready and game.save_recovery_blocked and game.progress_unsaved,"non-durable acknowledgement cannot clear failure")
  game.save_recovery_blocked=false;game.save_writes_suppressed=false
  save=controller(game);save.api.credit=100;save.request_save();acknowledge(save,{"creditedCoins":100})
- check(game.model.coins==1300 and game.notices.size()==1 and game.notices[0]=="100 coins of compensation added","durable compensation still has its own meaningful notice")
- game.notices.clear();save.request_save();acknowledge(save,{"creditedCoins":100,"campaignDeferred":["future"]})
- game.notices.clear();save.api.credit=0;save.request_save();acknowledge(save,{"campaignDeferred":["future"]})
- check(game.notices.size()==1 and "compensation is waiting" in game.notices[0],"deferred compensation still announces once")
+ check(game.model.coins==1300 and not game.progress_unsaved and save.revision==1,"durable compensation credits the exact amount only after commit")
+ save.request_save();acknowledge(save,{"creditedCoins":100,"campaignDeferred":["future"]})
+ check(game.model.coins==1400 and save.revision==2,"second independent durable compensation credits exactly its receipt")
+ save.api.credit=0;save.request_save();acknowledge(save,{"campaignDeferred":["future"]})
+ check(game.model.coins==1400 and not game.progress_unsaved and save.ready,"deferred compensation does not invent wallet credit or block a durable save")
  save.request_save();acknowledge(save,{"campaignDeferred":["future"]})
- check(game.notices.size()==1,"repeated deferred compensation does not spam")
+ check(game.model.coins==1400 and save.revision==4,"repeated deferred compensation leaves wallet unchanged")
+ var committed_revision=save.revision
+ save._on_commit([JSON.stringify({"ok":true,"profileId":"synthetic","revision":committed_revision,"durable":true,"creditedCoins":100})])
+ check(game.model.coins==1400 and game.save_recovery_blocked and not save.ready,"replayed receipt cannot duplicate compensation")
  var scene=Main.new()
  scene.progress_unsaved=true
- check(scene._unsaved_progress_message()=="","routine in-flight save has no status warning")
+ check(scene._unsaved_progress_message()=="","routine in-flight save has no error detail")
  scene.progress_save_error="Disk full"
  check("Keep the game open; saving will retry" in scene._unsaved_progress_message(),"native failure has an actionable next step")
  scene.web_save=save

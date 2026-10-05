@@ -235,6 +235,3 @@ func show_storage_status(web_runtime:bool,persistent:bool):
 				record.body.add_child(storage_note)
 				record.body.move_child(storage_note,1)
 				break
-	# Use the existing width-bounded notice. Recovery notices keep priority.
-	if not game.save_recovery_blocked:
-		game._notify(TEMPORARY_PROGRESS);game.status_text.text=TEMPORARY_PROGRESS;game.toast_lifetime=9.0

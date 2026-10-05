@@ -349,7 +349,6 @@ func sync(width:float):
  var notice_y=layout_host.get_global_rect().end.y+8
  ui.earnings.position=Vector2(clampf(game.top_text.get_global_rect().get_center().x-60,insets.x+8,width-insets.z-132),notice_y)
  if ui.wallet_notice!=null:ui.wallet_notice.sync_position()
- if ui.status_notice!=null:ui.status_notice.sync_position()
 
 func _setup_speed_capsule():
  # Preserve the two real ButtonGroup buttons and their existing set_speed
@@ -446,7 +445,7 @@ func _after_edit_toggle():
 func cancel_edit_action():
  if not has_edit_action():return
  # Existing atomic actions are already committed; only the live selection/preview is discarded.
- _close_pending_edit_popovers();game._cancel_selection();game._dismiss_edit_feedback();ui.sync();game.illustration.queue_redraw()
+ _close_pending_edit_popovers();game._cancel_selection();ui.sync();game.illustration.queue_redraw()
 func popup_right()->float:
  var view=game.get_viewport().get_visible_rect().size;var insets=_safe_insets()
  var safe_right=view.x-insets.z-12

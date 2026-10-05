@@ -6,7 +6,6 @@ const StaffPanel=preload("res://scripts/cafe_staff_panel.gd")
 const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
-const StatusNotice=preload("res://scripts/cafe_status_notice.gd")
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -19,7 +18,6 @@ var shop_layout_view=Vector2(-1,-1)
 var shop_layout_insets=Vector4(INF,INF,INF,INF)
 var hud
 var wallet_notice
-var status_notice
 var update_notes
 var update_badges=[]
 var staff_panel
@@ -164,7 +162,7 @@ func setup():
  move_button=_small_button("Move",_move_opening);context.add_child(move_button)
  finish_button=_small_button("Replace",show_finishes);context.add_child(finish_button)
  remove_button=_small_button("Remove",_remove_selected,92);context.add_child(remove_button)
- cancel_button=_small_button("×",func():game._cancel_selection();game._dismiss_edit_feedback();sync(),42);context.add_child(cancel_button)
+ cancel_button=_small_button("×",func():game._cancel_selection();sync(),42);context.add_child(cancel_button)
  context.hide()
  # A wall is one product: height and wallpaper are chosen together.
  for key in ["half","paint","remove","move_opening","remove_opening"]:game.build_tools.tool_buttons[key].hide()
@@ -266,7 +264,6 @@ func setup():
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  wallet_notice=WalletNotice.new(self);wallet_notice.setup(earnings,earnings_text)
- status_notice=StatusNotice.new(self);status_notice.setup()
  _build_viewport_guard()
  for control in [hud.layout_host,game.catalog_scroll,build_scroll]:control.resized.connect(_sync_viewport_guard.call_deferred)
  sync()
@@ -352,6 +349,7 @@ func sync():
  # Staff.show() refreshes before opening. Closed cards must not repeatedly
  # query hiring/workface eligibility (including stove pathfinding).
  if staff_panel.panel.visible:staff_panel.sync()
+ if help_panel.visible:_sync_help_content()
  var upgrade=game.model.stove_upgrade_cost(game.selected_id)
  upgrade_button.text="Stove upgrade · %s"%Money.amount(upgrade) if upgrade>=0 else ("Max level" if item.get("kind","")=="stove" else "Select a stove")
  upgrade_button.disabled=upgrade<0 or game.save_recovery_blocked
@@ -476,7 +474,6 @@ func _set_tray_reveal(value:float):
  var travel=(bottom_gap-top)*(1.0-tray_reveal)
  game.tray.offset_top=top+travel;game.tray.offset_bottom=-bottom_gap+travel
  game.tray.modulate.a=tray_reveal
- if status_notice!=null:status_notice.sync_position()
 func show_earnings(amount:int):
  if amount<=0:return
  wallet_notice.show_earned(amount)
@@ -484,15 +481,13 @@ func show_wage_payment(amount:int):wallet_notice.show_wages(amount)
 func show_wages_due(amount:int):wallet_notice.show_due(amount)
 func tick_earnings(delta:float):
  if wallet_notice!=null:wallet_notice.tick(delta)
- if status_notice!=null:status_notice.sync_position()
 func _show_work_blockage():
  var target=WorkfaceGuidance.blocked_station(game)
  if target.is_empty():return
  game.settings.hide();_hide_popups()
  if not game.editing:game._toggle_edit()
  game._set_catalog_category(game._catalog_group(str(target.kind)))
- game.interaction._select_item(target,false)
- game._notify("Counter needs both sides clear" if target.kind=="counter" else "Keep the marked work tile clear")
+ game.interaction._select_item(target)
  game.illustration.queue_redraw();sync()
 
 func _camera_action(amount:float):
@@ -533,12 +528,11 @@ func _confirm_starter_floor_repair():
  # A dismissed or blocked review cannot become a late repair/save.
  if not floor_repair_review.visible or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
  floor_repair_review.hide()
- if game.model.repair_starter_floor_gap()>0:game.build_tools._changed(str(game.model.last_event))
+ if game.model.repair_starter_floor_gap()>0:game.build_tools._changed()
  _sync_floor_product();sync()
 func _use_floor_product():
  var b=game.build_tools;b.floor_material=b.FLOOR_STYLES[maxi(0,b.floor_option.selected)]
  floor_panel.hide();b.choose("floor");sync();update_pointer()
- game._notify("Click one owned tile to buy flooring · drag to pan · Esc cancels")
 
 func _paper_selected(_index:int):
  _sync_wall_product()
@@ -573,7 +567,6 @@ func _use_wall_product():
  var height="half" if wall_heights.selected==0 else "full"
  game.build_tools.material="original" if wall_papers.selected==3 else game.model.WallGeometry.MATERIALS[maxi(0,wall_papers.selected)]
  finishes.hide();game.build_tools.choose(height);sync()
- game._notify("Click an existing wall to replace it, or an empty edge to build")
 func review_wall_replacement(key:String,height:String,paper:String):
  pending_wall={"key":key,"height":height,"material":paper}
  var quote=game.model.wall_replacement_quote(key,height,paper,game.build_tools.actor_positions())
@@ -587,34 +580,39 @@ func _confirm_wall_replacement():
  if not wall_review.visible or not game.editing or game.save_recovery_blocked or viewport_too_small or pending_wall.is_empty():return
  var chosen=pending_wall.duplicate(true)
  if not game.model.replace_wall(chosen.key,chosen.height,chosen.material,game.build_tools.actor_positions()):
-  review_wall_replacement(chosen.key,chosen.height,chosen.material);game._notify(game.model.last_error);return
+  review_wall_replacement(chosen.key,chosen.height,chosen.material);return
  pending_wall={};wall_review.hide();game.build_tools.cancel()
  selected_shell=chosen.key if chosen.key in game.model.OpeningGeometry.SHELL_HOSTS else ""
  selected_wall=chosen.key if selected_shell=="" else ""
- game.build_tools._changed(str(game.model.last_event));sync()
+ game.build_tools._changed();sync()
 func _rotate_selected():
  var wall=game.model.get_wall(selected_wall)
  if wall.is_empty():game._rotate();return
  var key=selected_wall;var axis="z" if wall.axis=="x" else "x"
  if game.model.move_wall(key,axis,int(wall.x),int(wall.z),game.build_tools.actor_positions()):
-  selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed("Wall rotated")
- else:game._notify(game.model.last_error)
+  selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed()
  sync()
 func show_management():
  game.settings.hide();sync();_popup_at(management)
 func show_help():
  help_returns_to_settings=false;help_done.text="Done"
  game.settings.hide()
+ _sync_help_content()
+ _popup_at(help_panel,340)
+ if help_retry.visible and not help_retry.disabled:help_retry.grab_focus()
+func _sync_help_content():
  help_retry.visible=game.web_save!=null and game.web_save.startup_error!=""
  help_retry.disabled=help_retry.visible and game.web_save.retrying
  help_retry.text="Loading saved café…" if help_retry.disabled else "Try loading again"
  var save_detail=""
  if game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
+ elif game.progress_unsaved:
+  save_detail=game._unsaved_progress_message()+"\n\n"
+ elif game.paused and game.startup_notice!="":
+  save_detail=game.startup_notice+"\n\n"
  help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Floor buys one tile at a time. New land starts bare; previews show the price and any refund.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
- _popup_at(help_panel,340)
- if help_retry.visible and not help_retry.disabled:help_retry.grab_focus()
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
 func return_to_help():
@@ -631,8 +629,7 @@ func _remove_selected():
  if not opening.is_empty():ok=game.model.remove_wall_attachment(int(opening.id),game.build_tools.actor_positions())
  elif selected_wall!="":ok=game.model.remove_wall(selected_wall)
  else:game._sell();sync();return
- if ok:game._cancel_selection();game._save();game._update_ui();game.illustration.queue_redraw();game._notify("Removed")
- else:game._notify(game.model.last_error)
+ if ok:game._cancel_selection();game._save();game._update_ui();game.illustration.queue_redraw()
  sync()
 func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
@@ -668,7 +665,6 @@ func handle_unhandled_input(event:InputEvent)->bool:
  return false
 func short_reason(text:String)->String:
  var t=text.to_lower()
- if t.begins_with("your team serves automatically"):return text
  if t.contains("already occupies"):return "Opening already here"
  if t.contains("empty floor") or t.contains("not a host"):return "Place a wall first"
  if t.contains("full-height") or t.contains("half wall"):return "Needs a full wall"
@@ -679,7 +675,6 @@ func short_reason(text:String)->String:
  if t.contains("saved café needs") or t.contains("recovery"):return "Save needs recovery"
  if t.contains("current row"):return "Finish this row first"
  if t.contains("plot in front"):return "Buy the front plot first"
- if t.begins_with("plot bought"):return text
  if t.contains("buy") and t.contains("plot"):return "Buy this plot first"
  if t.contains("outside"):return "Outside your café"
  if t.contains("counter back blocked"):return "Chef side blocked"
@@ -687,10 +682,6 @@ func short_reason(text:String)->String:
  if t.contains("front blocked"):return "Front blocked"
  if t.contains("seal") or t.contains("reachable") or t.contains("walking route"):return "Keep a path open"
  if t.contains("in use") or t.contains("using") or t.contains("finish using"):return "In use"
- if t.begins_with("service resumed"):return ""
- if t.begins_with("decorating pauses"):return "" # Done state in the wooden HUD already communicates this mode
- if t.begins_with("no new arrivals"):return "Closing · guests may finish"
- if t.begins_with("open ·"):return "Open"
 
  var short=text.split(" · ")[0]
  return short if short.length()<=44 else short.left(41)+"…"
@@ -718,9 +709,3 @@ func update_pointer():
  var view=game.get_viewport().get_visible_rect().size
  hint.position=Vector2(clampf(pointer.x+18,12,maxf(12,view.x-hint.size.x-12)),clampf(pointer.y-58,82,maxf(82,game.tray.position.y-48)))
  hint.show()
-func refresh_status():
- if game.editing and hint.visible:game.status_text.hide();return
- if game.status_text.visible:
-  var raw=game.status_text.text
-  var short=short_reason(raw)
-  if raw!=short:last_detail=raw;game.status_text.text=short

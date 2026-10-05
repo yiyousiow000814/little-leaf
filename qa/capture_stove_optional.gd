@@ -7,11 +7,11 @@ var game
 var rows=[]
 func _initialize():run.call_deferred()
 func capture(label):
- game.toast_lifetime=0;game._process(0);game._update_ui();game.illustration.queue_redraw()
+ game._process(0);game._update_ui();game.illustration.queue_redraw()
  for frame in 5:await process_frame
  await RenderingServer.frame_post_draw
  root.get_texture().get_image().save_png(OS.get_environment("OUTPUT")+"/"+OS.get_environment("PHASE")+"-"+label+"-1360x880.png")
- rows.append({"label":label,"editing":game.editing,"warning":game._service_warning(),"issue":game.workface_guidance.access_message(),"chef_action":game.staff_states[0].art_action,"chef_reason":game.staff_states[0].art_block_reason,"saves":game.saves})
+ rows.append({"label":label,"editing":game.editing,"access_issues":game.model.layout_access_issues(),"ground_markers":game.workface_guidance.describe(game),"chef_action":game.staff_states[0].art_action,"chef_reason":game.staff_states[0].art_block_reason,"saves":game.saves})
 func run():
  root.size=Vector2i(1360,880);game=TestMain.new();root.add_child(game);game.set_process(false)
  await process_frame
@@ -24,7 +24,7 @@ func run():
  # Direct fixture construction avoids relying on the old prohibition.
  game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
  game._rebuild_furniture();game.illustration.zoom=1;game.illustration.pan_offset=Vector2.ZERO;game.illustration.update_projection()
- game._toggle_edit();await capture("decorate-blocked")
+ game._toggle_edit();game.selected_id=int(stove.id);await capture("decorate-blocked")
  game._toggle_edit()
  for step in 90:game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
  await capture("play-blocked")

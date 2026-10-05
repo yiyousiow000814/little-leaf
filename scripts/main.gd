@@ -39,7 +39,6 @@ var ui = CanvasLayer.new()
 var tray: PanelContainer
 var top_text: Label
 var state_badge: Label
-var status_text: Label
 var tool_text: Label
 var business_button: Button
 var catalog_prices={}
@@ -52,7 +51,6 @@ var catalog_scroll:ScrollContainer
 var startup_save_source=""
 var fresh_start=false
 var startup_notice=""
-var _save_problem_shown=false
 var edit_button: Button
 var expand_button: Button
 var pause_button: Button
@@ -113,7 +111,6 @@ var illustration: Node2D
 var interaction
 var workface_guidance
 var settings_controls
-var toast_lifetime=0.0
 var responsive_view=Vector2(-1,-1)
 
 func _ready():
@@ -144,16 +141,13 @@ func _ready():
 	web_lifecycle=WebLifecycle.new(self)
 	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
-	var loaded_startup_notice=startup_notice
 	_ensure_checkout_deployment()
-	if OS.has_feature("web") and loaded_startup_notice!="":startup_notice=loaded_startup_notice
 	world.visible=false; furnishings.visible=false; people.visible=false
 	_update_ui()
 	print("NATIVE_READY children=",get_child_count()," world=",world.get_child_count()," ui=",ui.get_child_count())
 	if "--capture-diagnostics" in OS.get_cmdline_user_args():
 		get_tree().create_timer(3).timeout.connect(_capture)
-	if save_recovery_blocked or startup_notice!="":
-		_notify(_recovery_notice() if save_recovery_blocked else startup_notice)
+	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
 	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
 	cafe_intro.start(self)
@@ -174,13 +168,9 @@ func _resume_loaded_cafe():
 	staff_states.clear();service_guests.clear()
 	floor_tasks=FloorTasks.new(self)
 	_rebuild_room();_rebuild_furniture();_restore_service_runtime()
-	var loaded_notice=startup_notice
 	_ensure_checkout_deployment()
-	startup_notice=loaded_notice
-	_save_problem_shown=false
 	compact_ui.help_panel.hide()
 	_update_ui();illustration.queue_redraw()
-	_notify(startup_notice if startup_notice!="" else "Saved café loaded. You can continue playing.")
 
 func _exit_tree():
 	if web_lifecycle!=null:web_lifecycle.stop()
@@ -205,7 +195,7 @@ func _load_startup():
 	if source!="":
 		if model.load_save(source):
 			if model.included_bin_pending:
-				model.ensure_basic_bin();startup_notice=model.last_event if not model.included_bin_pending else model.last_error
+				model.ensure_basic_bin()
 			return
 		# Never skip a corrupt primary/import source or treat it as absent.
 		# Recovery preserves both profile files and prevents all progress writes.
@@ -520,7 +510,6 @@ func _build_ui():
 	business_button.tooltip_text="Stop new arrivals; current guests finish and staff keep working"
 	edit_button=button("Decorate",_toggle_edit); row.add_child(edit_button)
 	row.add_child(button("Settings",func(): settings.visible=not settings.visible))
-	status_text=label("",14,Color("3c5d46")); status_text.position=Vector2(32,91); ui.add_child(status_text)
 	settings_controls=SettingsControls.new(self,SAVE_FILE)
 	settings=settings_controls.build()
 	ui.add_child(settings)
@@ -577,18 +566,12 @@ func _toggle_business():
 	if save_recovery_blocked:return
 	model.set_operating_open(not model.operating_open)
 	_sync_service_guests();_update_ui();_save()
-	_notify("Open · welcoming new guests" if model.operating_open else "No new arrivals · existing guests finish and staff keep working")
 
 func _toggle_edit():
-	if save_recovery_blocked:
-		_notify(_recovery_notice());return
+	if save_recovery_blocked:return
 	editing=not editing
 	_cancel_selection()
-	if editing: _notify("Decorating pauses service. Select furniture to move it; the door stays clear.")
-	else:
-		# Guidance belongs to the completed Decorate action, never to launch or UI sync.
-		_notify("Your team serves automatically.\nTable set in Decorate · %s coins."%Money.amount(model.price_of("table_set")))
-		_save()
+	if not editing:_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
 
@@ -622,30 +605,22 @@ func _expand():
 	for parcel in model.expansion_parcels():
 		if not parcel.owned:
 			_buy_parcel(str(parcel.id));return
-	_notify("All plots owned")
 
 func _buy_parcel(parcel_id: String):
 	if not editing:return
-	if save_recovery_blocked:
-		_notify(_recovery_notice());return
+	if save_recovery_blocked:return
 	if model.buy_parcel(parcel_id):
 		_cancel_selection();_rebuild_room();_update_ui();_save()
-		_notify(model.last_event)
-	else: _notify(str(model.last_error))
 
 func _hire():_hire_staff("chef")
 func _hire_staff(role:String):
 	if save_recovery_blocked:return
-	if model.hire_staff(role):_update_people();_sync_staff_duty();_notify(model.last_event);_update_ui();_save()
-	else:_notify(model.last_error)
+	if model.hire_staff(role):_update_people();_sync_staff_duty();_update_ui();_save()
 func _change_staff_duty(role:String,change:int):
 	if save_recovery_blocked:return
 	if model.request_duty(role,change):
 		_sync_staff_duty()
-		var words=model.last_event
-		if change<0 and int(model.duty_counts[role])==int(model.duty_targets[role]):words="Off duty"
-		_notify(words);_update_ui();_save()
-	else:_notify(model.last_error)
+		_update_ui();_save()
 func _sync_staff_duty():
 	model.checkout_staff_claims.clear()
 	for worker in staff_states:
@@ -668,18 +643,14 @@ func _staff_on_duty()->bool:
 	return false
 
 func _upgrade():
-	if selected_id<0: _notify("Select a stove first"); return
-	if model.upgrade_stove(selected_id): _notify("Stove upgraded"); _update_ui(); _save()
-	else: _notify("Select a stove with an available upgrade and enough coins")
+	if selected_id<0:return
+	if model.upgrade_stove(selected_id):_update_ui();_save()
 
 func _sell():
-	if selected_id>=0 and _item_service_locked(selected_id):
-		_notify("Let staff finish using this station before removing it"); return
-	if selected_id<0: _notify("Select furniture first"); return
+	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
 		_cancel_selection(); _rebuild_furniture(); _update_ui()
-		if _save():_notify("Item sold")
-	else: _notify(model.last_error)
+		_save()
 
 func _update_ui():
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
@@ -693,43 +664,11 @@ func _update_ui():
 		expand_button.disabled=model.expanded or save_recovery_blocked
 		var next_plot=model.next_parcel()
 		expand_button.text="All plots owned" if next_plot.is_empty() else "Next plot · %s"%Money.amount(int(next_plot.cost))
-	var warning=_service_warning()
-	var needs_space=warning.contains("Decorate") or warning.to_lower().contains("blocked")
-	if is_instance_valid(state_badge): state_badge.text="Recovery" if save_recovery_blocked else ("Unsaved" if progress_unsaved else ("Decorating" if editing else ("Paused" if paused else ("Needs space" if needs_space and model.operating_open else model.operating_status()))))
+	if is_instance_valid(state_badge): state_badge.text="Recovery" if save_recovery_blocked else ("Unsaved" if progress_unsaved else ("Decorating" if editing else ("Paused" if paused else model.operating_status())))
 	if settings_controls!=null: settings_controls.sync()
 	if build_tools!=null:build_tools.sync()
 	if compact_ui!=null:compact_ui.sync()
 
-func _service_warning() -> String:
-	if model.included_checkout_pending:return Checkout.PENDING_NOTICE
-	for guest in model.checkout_queue():
-		if str(guest.get("checkout_reason",""))!="":return str(guest.checkout_reason)
-	var first=""
-	for staff in staff_states:
-		var reason=str(staff.get("art_block_reason",""))
-		var blocked=model.get_item(int(staff.get("blocked_target_id",-1)))
-		if not editing and str(blocked.get("kind",""))=="stove" and reason.to_lower().contains("blocked"):continue
-		if reason=="": continue
-		if first=="": first=reason
-		if reason.contains("Decorate") or reason.to_lower().contains("blocked"): return reason
-	return first
-
-func _notify(words: String):
-	if settings_controls!=null and (words.begins_with("Placed") or words.begins_with("Furniture moved") or words.begins_with("Moved")): settings_controls.play_sfx("place")
-	status_text.text=compact_ui.short_reason(words) if compact_ui!=null else words
-	if compact_ui!=null:
-		compact_ui.last_detail=words
-		if save_recovery_blocked and not _save_problem_shown:
-			_save_problem_shown=true
-			compact_ui.show_help()
-	toast_lifetime=3.0
-	status_text.show()
-func _dismiss_edit_feedback():
-	# A past rejected drop must not contradict a new valid preview/cancel.
-	# Recovery and live work-access guidance are reapplied independently.
-	if save_recovery_blocked:return
-	toast_lifetime=0.0
-	status_text.hide()
 func _service_save_snapshot()->Dictionary:
 	_sync_staff_duty();_sync_service_guests()
 	var records=[]
@@ -801,13 +740,13 @@ func _on_window_close():
 	# Persist the same validated runtime transaction before an ordinary close.
 	# Isolated QA suppresses all writes and can still exit its own process.
 	if _save():get_tree().quit()
+	elif compact_ui!=null:compact_ui.show_help()
 
 func _recovery_notice()->String:
 	return startup_notice if startup_notice!="" else "Saved café needs recovery · original file kept untouched"
 
 func _unsaved_progress_message()->String:
-	# Pending background writes are silent. A real failure stays in one warning
-	# until the latest changes have a durable acknowledgement.
+	# Existing Help shows failure details; pending and successful saves stay silent.
 	if not progress_unsaved or progress_save_error=="":return ""
 	var action="Open Settings → Quick help" if save_recovery_blocked else "Keep this page open; saving will retry" if web_save!=null else "Keep the game open; saving will retry"
 	return "Unsaved changes · "+progress_save_error+" · "+action
@@ -894,8 +833,6 @@ func _process(delta):
 	if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
 	if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(delta)
-	toast_lifetime=maxf(0,toast_lifetime-delta)
-	status_text.visible=toast_lifetime>0
 	if not editing and not paused and not save_recovery_blocked: _tick_live_service(delta*speed)
 	visual_timer+=delta
 	save_timer+=delta
@@ -906,15 +843,11 @@ func _process(delta):
 	if not editing and not paused and not save_recovery_blocked: _animate_staff(delta*speed)
 	animation_time+=delta if not editing and not paused else 0.0
 	_music_tick(delta)
-	if not save_recovery_blocked and toast_lifetime<=0:
-		var warning=_service_warning()
-		if warning!="": status_text.text=warning;status_text.show()
 	if is_instance_valid(ghost):
 		hover_cell=_floor_cell(get_viewport().get_mouse_position())
 		ghost.position=Vector3(hover_cell.x+.5,.04,hover_cell.y+.5)
 		ghost.rotation.y=rotation_step*PI/2
 		ghost.visible=model.is_floor_owned(hover_cell)
-	if compact_ui!=null:compact_ui.refresh_status()
 
 func _person(color: Color,apron=false) -> Node3D:
 	var n=Node3D.new()
@@ -976,8 +909,7 @@ func _ensure_checkout_deployment():
 	var actors=[]
 	for staff in staff_states:actors.append(staff.pos)
 	if model.ensure_basic_register(actors):
-		_update_people();_sync_staff_duty();_rebuild_furniture();startup_notice=model.last_event
-	else:startup_notice=Checkout.PENDING_NOTICE
+		_update_people();_sync_staff_duty();_rebuild_furniture()
 
 func _add_staff(role: String, restored_position=null) -> bool:
 	var cashier_start=Vector2.ZERO
@@ -1236,10 +1168,8 @@ func _tick_live_service(delta: float):
 	var payroll=model.advance_payroll(delta,_staff_on_duty())
 	if payroll.paid>0:
 		if compact_ui!=null:compact_ui.show_wage_payment(int(payroll.paid))
-		else:_notify("Wages −%s"%Money.amount(int(payroll.paid)))
 	elif payroll.charged>0 and payroll.due>0:
 		if compact_ui!=null:compact_ui.show_wages_due(int(payroll.due))
-		else:_notify("Wages due %s"%Money.amount(int(payroll.due)))
 	for entry in held:
 		if str(entry.guest.phase)==entry.phase:
 			entry.guest.duration=entry.duration
@@ -1826,10 +1756,10 @@ func _capture():
 	if not _save(): return
 	var directory="user://diagnostics"
 	if DirAccess.make_dir_recursive_absolute(directory)!=OK:
-		_notify("Could not create diagnostic folder");return
+		push_error("Could not create diagnostic folder");return
 	var path=directory+"/LittleLeaf_Runtime.png"
 	if get_viewport().get_texture().get_image().save_png(path)!=OK:
-		_notify("Could not save diagnostic screenshot");return
+		push_error("Could not save diagnostic screenshot");return
 	var diagnostics={"engine":Engine.get_version_info().string,"rendered_frames":Engine.get_frames_drawn(),"served":model.served,"coins":model.coins,"expanded":model.expanded,"music_state":music_state,"music_enabled":music_enabled,"audio_streams":[]}
 	for state in audio_players:
 		var player=audio_players[state]
@@ -1837,12 +1767,12 @@ func _capture():
 	var diagnostics_path=directory+"/runtime_diagnostics.json"
 	var file=FileAccess.open(diagnostics_path,FileAccess.WRITE)
 	if file==null:
-		_notify("Screenshot saved; diagnostic details could not be written");return
+		push_error("Screenshot saved; diagnostic details could not be written");return
 	var diagnostics_text=JSON.stringify(diagnostics,"\t")
 	file.store_string(diagnostics_text);file.flush()
 	var write_error=file.get_error();file.close()
 	var details_saved=write_error==OK and FileAccess.get_file_as_string(diagnostics_path)==diagnostics_text
-	_notify("Diagnostic screenshot saved" if details_saved else "Screenshot saved; diagnostic details could not be written")
+	print("Diagnostic screenshot saved" if details_saved else "Screenshot saved; diagnostic details could not be written")
 
 func _toggle_wall_detail():
 	wall_detail=not wall_detail
@@ -1851,12 +1781,10 @@ func _toggle_wall_detail():
 		camera.size=7.8
 		camera.position=Vector3(12,12,19)
 		camera.look_at(Vector3(0.5,0.8,6.5))
-		_notify("Wall detail · visible end thickness, top cap and doorway reveal")
 	else:
 		camera.size=16.5
 		camera.position=Vector3(20,20,24)
 		camera.look_at(Vector3(5.2,0,4.7))
-		_notify("Cafe overview")
 
 func _blocked_guest_ids() -> Dictionary:
 	# Compatibility diagnostic: staff bodies never pause guest movement.

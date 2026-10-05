@@ -701,7 +701,6 @@ func _draw():
 	if game.editing and game.model.has_method("expansion_parcels"):
 		for parcel in game.model.expansion_parcels():
 				if not parcel.owned and parcel.visible:_parcel_sign(parcel)
-	if game.workface_guidance!=null:game.workface_guidance.draw_access_focus(self)
 	# Do not expose the presentation offset to resize anchoring or input projection.
 	origin = gameplay_origin
 func _draw_legacy_pavement(ground_view: Rect2):
