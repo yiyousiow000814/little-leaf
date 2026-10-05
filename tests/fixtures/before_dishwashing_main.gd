@@ -16,7 +16,6 @@ const BuildTools = preload("res://scripts/cafe_build_tools.gd")
 const SettingsControls = preload("res://scripts/cafe_settings.gd")
 const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/cafe_floor_tasks.gd")
-const Dishwashing = preload("res://scripts/cafe_dishwashing.gd")
 const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
 var compact_ui
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
@@ -79,7 +78,6 @@ var staff_states = []
 # model guest, and each bounded action must reach its real furnishing first.
 var service_guests = {}
 var floor_tasks=FloorTasks.new(self)
-var dishwashing=Dishwashing.new(self)
 var service_serial = 0
 var active_staff_passages = {}
 var static_service_paths = {}
@@ -87,13 +85,12 @@ var static_service_revision = -1
 const SERVICE_STEPS = {
 	"take_payment": [{"kind":"register","action":"taking_payment","seconds":Checkout.PAYMENT_SECONDS}],
 	"floor": FloorTasks.STEPS,
-	"wash": Dishwashing.STEPS,
 	"order": [{"kind":"table","action":"taking_order","seconds":Model.ORDER_TAKING_SECONDS}],
 	"cook": [{"kind":"stove","action":"preparing_food","seconds":1.5},{"kind":"stove","action":"cooking","seconds":Model.BASE_COOK_SECONDS},{"kind":"stove","action":"plating","seconds":1.5},{"kind":"counter","action":"placing_plate","seconds":.8}],
 	"brew": [{"kind":"beverage","action":"preparing_drink","seconds":3.5},{"kind":"beverage","action":"collecting_drink","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
 	"deliver_meal": [{"kind":"counter","action":"collecting_plate","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
 	"deliver_drink": [{"kind":"beverage","action":"collecting_drink","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
-	"cleanup": [{"kind":"table","action":"collecting","seconds":.75},{"kind":"sink","action":"dropping_dishes","seconds":Dishwashing.DROP_SECONDS},{"kind":"table","action":"wiping","seconds":1.2},{"kind":"table","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"table","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"table","action":"mopping","seconds":1.5}]
+	"cleanup": [{"kind":"table","action":"collecting","seconds":.75},{"kind":"sink","action":"washing","seconds":1.5},{"kind":"table","action":"wiping","seconds":1.2},{"kind":"table","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"table","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"table","action":"mopping","seconds":1.5}]
 }
 const ROLE_JOBS={"chef":["cook"],"waiter":["order","deliver_meal","brew","deliver_drink","cleanup"],"cleaner":["cleanup"],"cashier":["take_payment"]}
 var idle_home_revision=-1
@@ -170,7 +167,6 @@ func _resume_loaded_cafe():
 	for staff in staff_states:staff.node.queue_free()
 	staff_states.clear();service_guests.clear()
 	floor_tasks=FloorTasks.new(self)
-	dishwashing=Dishwashing.new(self)
 	_rebuild_room();_rebuild_furniture();_restore_service_runtime()
 	_ensure_checkout_deployment()
 	compact_ui.help_panel.hide()
@@ -641,7 +637,7 @@ func _sync_staff_duty():
 	if not staff_states.is_empty():model.duty_counts=counts
 	if changed:idle_home_revision=-1
 func _staff_on_duty()->bool:
-	if model.operating_open or not model.customers.is_empty() or not floor_tasks.messes.is_empty() or not dishwashing.dishes.is_empty():return true
+	if model.operating_open or not model.customers.is_empty() or not floor_tasks.messes.is_empty():return true
 	for staff in staff_states:
 		if staff.job_kind!="":return true
 	return false
@@ -681,21 +677,19 @@ func _service_save_snapshot()->Dictionary:
 	var staff=[]
 	for source in staff_states:
 		var state={}
-		for key in ["role","on_duty","duty_pending","pos","destination","path","index","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_dish_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell"]:
+		for key in ["role","on_duty","duty_pending","pos","destination","path","index","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell"]:
 			if source.has(key):state[key]=source[key].duplicate(true) if source[key] is Array or source[key] is Dictionary else source[key]
 		staff.append(state)
-	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
+	return {"version":3,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot()}
 
 func _restore_service_runtime():
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
-		dishwashing.restore({})
 		_update_people()
 		if fresh_start and not save_recovery_blocked:_place_fresh_staff_at_posts()
 		_sync_service_guests();return
 	service_serial=int(snapshot.serial);animation_time=float(snapshot.animation_time)
 	floor_tasks.restore(snapshot.get("floor_tasks",{}))
-	dishwashing.restore(snapshot.get("dishwashing",{}))
 	service_guests.clear()
 	for saved in snapshot.records:
 		for guest in model.customers:
@@ -712,7 +706,6 @@ func _restore_service_runtime():
 		for key in saved:staff[key]=saved[key].duplicate(true) if saved[key] is Array or saved[key] is Dictionary else saved[key]
 		staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
 	_update_people();_sync_service_guests()
-	dishwashing.migrate_legacy()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		if staff.job_kind=="":_set_staff_art(staff,"idle",{},0.0,"none");continue
@@ -977,7 +970,7 @@ func _sync_service_guests():
 			"order_done":phase in ["cooking","drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"meal_ready":phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"drink_ready":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],"meal_station_id":-1,"meal_pass_id":-1,"pass_reserved":false,"drink_station_id":-1,"floor_cleaned":false,"floor_dirty":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
 			"meal_done":phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
 			"drink_done":phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"],
-			"dishes_collected":false,"table_wiped":false,"cleanup_done":false,"dish_sink_id":-1,"dish_id":-1,
+			"dishes_collected":false,"table_wiped":false,"cleanup_done":false,
 			"plate_owner":"table" if phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"] else "kitchen",
 			"plate_staff_index":-1,"plate_target_id":int(guest.table_id) if phase in ["drinking","eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"] else -1,
 			"drink_owner":"table" if phase in ["eating","checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"] else "beverage",
@@ -1078,7 +1071,6 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 	if str(item.get("kind",""))=="table":return _table_service_destination(staff,item,from,claimed)
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
-	if str(item.get("kind",""))=="sink" and not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
 	return _service_cell(item,from,claimed,str(staff.role))
 
 func _update_floor_state(record:Dictionary):
@@ -1095,7 +1087,7 @@ func _update_floor_state(record:Dictionary):
 func _cleanup_step_needed(record:Dictionary,action:String,debris_kind="")->bool:
 	match action:
 		"collecting":return not record.dishes_collected
-		"dropping_dishes":return record.plate_owner=="staff"
+		"washing":return record.plate_owner!="clean"
 		"wiping":return not record.table_wiped
 		"sweeping":return record.floor_debris in ["banana","crumbs"] and record.trash_owner=="floor" and (debris_kind=="" or record.floor_debris==debris_kind)
 		"disposing_trash":return record.trash_owner in ["staff","bin"]
@@ -1113,7 +1105,7 @@ func _sync_cleanup_completion(record:Dictionary):
 	# Either worker may finish first. Never erase the other role's work.
 	record.floor_cleaned=record.trash_owner in ["none","disposed"] and record.spill_cleaned
 	record.floor_dirty=not record.floor_cleaned
-	record.cleanup_done=record.dishes_collected and record.plate_owner in ["clean","dish_queue"] and record.drink_owner=="cleared" and record.table_wiped and record.floor_cleaned
+	record.cleanup_done=record.dishes_collected and record.plate_owner=="clean" and record.drink_owner=="cleared" and record.table_wiped and record.floor_cleaned
 
 func _prepare_cleanup_step(staff:Dictionary,index:int):
 	if staff.job_kind!="cleanup" or not service_guests.has(int(staff.job_guest_id)):return
@@ -1121,36 +1113,36 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 	var current_action=str(SERVICE_STEPS.cleanup[mini(int(staff.job_step),SERVICE_STEPS.cleanup.size()-1)].action)
 	var held_dishes=record.plate_owner=="staff" and int(record.plate_staff_index)==index
 	var held_trash=record.trash_owner=="staff" and int(record.trash_staff_index)==index
-	var elapsed=float(staff.job_elapsed);var desired=int(staff.job_step)
-	# A legacy cleaner may finish an already-started gesture/transport, but
-	# every newly assigned table task belongs to a waiter.
+	var elapsed=float(staff.job_elapsed)
+	var desired=int(staff.job_step)
+	# Migration exception: an old cleaner finishes an already-started table
+	# gesture and physically carries/washes its dishes. No new table work is
+	# assigned to cleaners. Sink ownership also survives a mid-wash reload.
 	var legacy_table=staff.role=="cleaner" and int(staff.job_step)<3
+	if legacy_table and elapsed<=0.0 and not held_dishes and not (current_action=="washing" and record.plate_owner=="sink"):
+		_sync_cleanup_completion(record);_clear_service_job(staff);return
+	# Held objects always reach their real destination before another tool.
 	if held_dishes:
 		if current_action!="collecting" or elapsed<=0.0:desired=1
 	elif held_trash:
 		if current_action!="sweeping" or elapsed<=0.0:desired=5
-	elif legacy_table and elapsed>0.0:
+	elif legacy_table and (elapsed>0.0 or record.plate_owner=="sink"):
 		pass
-	elif elapsed<=0.0:desired=_cleanup_role_step(record,str(staff.role))
+	elif elapsed<=0.0:
+		desired=_cleanup_role_step(record,str(staff.role))
 	if desired!=int(staff.job_step):
 		staff.job_step=desired;staff.job_elapsed=0.0;staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100)
 		staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if int(staff.job_step)>=SERVICE_STEPS.cleanup.size():
 		_sync_cleanup_completion(record);_clear_service_job(staff);return
 	var step=SERVICE_STEPS.cleanup[int(staff.job_step)]
-	if int(staff.job_step) in [0,1] and record.plate_owner not in ["dish_queue","clean"]:
-		var sink=dishwashing.reserve(record,staff)
-		if sink.is_empty():
-			staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
-			staff.blocked_reason="Sinks full or blocked · waiting for space" if model.count_kind("sink")>0 else "Add a sink in Decorate"
-			return
-		staff.station_id=int(sink.id) if int(staff.job_step)==1 else -1
-		staff.blocked_reason="";return
 	if step.kind=="table":staff.station_id=-1;return
+	if step.kind=="sink" and record.plate_owner=="sink":staff.station_id=int(record.plate_target_id)
 	var current=model.get_item(int(staff.station_id))
 	if not current.is_empty() and current.kind==step.kind:return
 	var station=_service_station(str(step.kind),Vector2i(floori(staff.pos.x),floori(staff.pos.y)),index)
-	if not station.is_empty():staff.station_id=int(station.id);staff.blocked_reason="";return
+	if not station.is_empty():
+		staff.station_id=int(station.id);staff.blocked_reason="";return
 	staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
 	for item in model.items:
 		if item.kind==step.kind:staff.blocked_target_id=int(item.id);break
@@ -1233,7 +1225,7 @@ func _service_cell(item: Dictionary, from=Vector2i(7,1), claimed=[], role="") ->
 	return Vector2i(-1,-1)
 
 func _item_service_locked(id: int) -> bool:
-	if Checkout.busy(model,id) or dishwashing.busy(id):return true
+	if Checkout.busy(model,id):return true
 	# The paused decorating UI cannot remove the surface currently holding an
 	# action or a dish. Unused stations remain freely editable.
 	for staff in staff_states:
@@ -1249,22 +1241,17 @@ func _item_service_locked(id: int) -> bool:
 	return false
 
 func _service_target(staff: Dictionary) -> Dictionary:
-	if staff.job_kind=="wash":return dishwashing.target(staff)
 	if staff.job_kind=="floor":return floor_tasks.target(staff)
 	if staff.job_kind=="" or not service_guests.has(int(staff.job_guest_id)): return {}
 	var steps=SERVICE_STEPS[staff.job_kind]
 	if int(staff.job_step)<0 or int(staff.job_step)>=steps.size():return {}
 	var kind=str(steps[int(staff.job_step)].kind)
-	if staff.job_kind=="cleanup" and int(staff.job_step)==0 and int(service_guests[int(staff.job_guest_id)].get("dish_sink_id",-1))<0:return {}
 	var guest=service_guests[int(staff.job_guest_id)].guest
 	if kind=="counter" and staff.role=="chef": return model.get_item(int(service_guests[int(staff.job_guest_id)].meal_pass_id))
 	return model.get_item(int(guest.table_id) if kind=="table" else int(staff.station_id))
 
 func _clear_service_job(staff: Dictionary):
-	if staff.job_kind=="cleanup" and service_guests.has(int(staff.job_guest_id)):
-		var record=service_guests[int(staff.job_guest_id)]
-		if record.plate_owner!="staff":record.dish_sink_id=-1
-	staff.job_guest_id=-1; staff.job_mess_id=-1;staff.job_dish_id=-1;staff.job_token=-1; staff.job_kind=""; staff.job_step=0; staff.job_elapsed=0.0; staff.station_id=-1
+	staff.job_guest_id=-1; staff.job_mess_id=-1;staff.job_token=-1; staff.job_kind=""; staff.job_step=0; staff.job_elapsed=0.0; staff.station_id=-1
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	_retire_service_station_references()
 
@@ -1343,7 +1330,6 @@ func _assign_service_job(staff: Dictionary, index: int):
 	if not bool(staff.get("on_duty",true)) or bool(staff.get("duty_pending",false)):return
 	staff.blocked_reason="";staff.blocked_target_id=-1;staff.blocked_guest_id=-1
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-	if dishwashing.assign(staff,index):return
 	for kind in ROLE_JOBS[str(staff.role)]:
 		for guest in model.customers:
 			if bool(guest.get("withdrawn",false)):continue
@@ -1546,7 +1532,6 @@ func _staff_payload(staff: Dictionary, index: int) -> String:
 	return "none"
 
 func _service_contact(staff: Dictionary, index: int, action: String, target: Dictionary, phase: float):
-	if staff.job_kind=="wash":dishwashing.contact(staff);return
 	if staff.job_kind=="floor":floor_tasks.contact(staff,index,action,target,phase);return
 	var record=service_guests[int(staff.job_guest_id)]
 	if action=="plating" and phase>=.65:
@@ -1577,8 +1562,9 @@ func _service_contact(staff: Dictionary, index: int, action: String, target: Dic
 	elif action=="mopping":
 		record.spill_remaining=minf(float(record.spill_remaining),1.0-smoothstep(0.0,1.0,phase))
 		if phase>=1.0:record.spill_cleaned=true;record.spill_remaining=0.0
-	elif action=="dropping_dishes" and phase>=.65:
-		dishwashing.deposit(record,staff,index,target)
+	elif action=="washing" and phase>=.55:
+		record.plate_owner="clean" if phase>=1.0 else "sink"
+		record.plate_staff_index=-1;record.plate_target_id=int(target.id) if phase<1.0 else -1
 
 func _set_staff_art(staff: Dictionary, action: String, target: Dictionary, phase: float, payload="none"):
 	staff.art_action=action; staff.art_phase=clampf(phase,0.0,1.0); staff.art_payload=payload
@@ -1586,7 +1572,7 @@ func _set_staff_art(staff: Dictionary, action: String, target: Dictionary, phase
 	staff.art_service_kind={"cook":"meal","deliver_meal":"meal","brew":"drink","deliver_drink":"drink"}.get(str(staff.job_kind),str(staff.job_kind))
 	staff.art_role=str(staff.role)
 	staff.art_block_reason=str(staff.blocked_reason)
-	staff.art_contact=phase>=float({"serving":.65,"placing_plate":.65,"collecting":.65,"collecting_plate":.65,"collecting_drink":.65,"washing":.0,"dropping_dishes":.65,"plating":.65,"preparing_drink":1.0,"sweeping":1.0,"disposing_trash":.65,"mopping":1.0}.get(action,1.0))
+	staff.art_contact=phase>=float({"serving":.65,"placing_plate":.65,"collecting":.65,"collecting_plate":.65,"collecting_drink":.65,"washing":.55,"plating":.65,"preparing_drink":1.0,"sweeping":1.0,"disposing_trash":.65,"mopping":1.0}.get(action,1.0))
 	staff.art_guest_id=int(staff.job_guest_id)
 	staff.art_guest_phase=str(service_guests[int(staff.job_guest_id)].guest.phase) if service_guests.has(int(staff.job_guest_id)) else ""
 	staff.art_target=Vector2(target.x+.5,target.z+.5) if not target.is_empty() else staff.pos
@@ -1607,9 +1593,6 @@ func _animate_staff(delta: float):
 	# Drop only stale runtime jobs (guest removed/reset or its furnishing gone).
 	for staff in staff_states:
 		if staff.job_kind=="": continue
-		if staff.job_kind=="wash":
-			if dishwashing.entry(staff).is_empty():_clear_service_job(staff)
-			continue
 		if staff.job_kind=="floor":
 			if floor_tasks.record(staff).is_empty():_clear_service_job(staff)
 			continue
@@ -1630,7 +1613,7 @@ func _animate_staff(delta: float):
 		var destination=_service_destination(staff,target_item,from,claimed) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
 		var interaction_available=destination!=Vector2i(-1,-1)
 		if not target_item.is_empty() and _service_destination(staff,target_item,from)==Vector2i(-1,-1):
-			staff.blocked_reason="Waiting for the sink" if str(target_item.kind)=="sink" and not dishwashing.workface_available(staff,int(target_item.id)) else ("Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate"));staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
+			staff.blocked_reason="Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate");staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
 		elif not target_item.is_empty(): staff.blocked_reason=""
 		if not interaction_available: destination=_staff_idle_cell(index,claimed,str(target_item.get("kind",""))!="stove")
 		# v13 may restore an old avoidance timer; it has no effect on work now.
@@ -1694,7 +1677,7 @@ func _animate_staff(delta: float):
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
 		var station_busy=worked_stations.has(int(target_item.id))
-		if str(step.kind) not in ["table","sink"]:
+		if str(step.kind)!="table":
 			for other_index in staff_states.size():
 				if other_index==index: continue
 				var other=staff_states[other_index]
@@ -1714,7 +1697,6 @@ func _animate_staff(delta: float):
 		_set_staff_art(staff,str(step.action),target_item,phase,payload)
 		staff.node.rotation.y=atan2(staff.art_target.x-staff.pos.x,staff.art_target.y-staff.pos.y)
 		if staff.job_elapsed+0.000001<action_seconds: continue
-		if staff.job_kind=="wash":dishwashing.complete(staff);continue
 		if staff.job_kind=="floor":floor_tasks.complete_step(staff,index);continue
 		var record=service_guests[int(staff.job_guest_id)]
 		if staff.job_kind=="take_payment":

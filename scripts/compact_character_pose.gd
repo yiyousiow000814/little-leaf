@@ -19,7 +19,7 @@ static func gesture(action:String,t:float,swing:float,seated:bool,payload:String
 	var nod := 0.0
 	if seated:hand=Vector2(15,-22);other=Vector2(-10,-18)
 	if payload!="none":hand=carry;other=Vector2(-10,-19)
-	if action in ["serving","placing_plate","collecting","collecting_plate","collecting_drink","plating","disposing_trash","collecting_trash","picking_up_trash","picking_litter"]:
+	if action in ["serving","placing_plate","dropping_dishes","collecting","collecting_plate","collecting_drink","plating","disposing_trash","collecting_trash","picking_up_trash","picking_litter"]:
 		var beat := smoothstep(.10,.65,t)*(1.0-smoothstep(.65,1.0,t))
 		hand=Vector2(11,-18).lerp(Vector2(19,-26),beat)
 		nod=beat*.7

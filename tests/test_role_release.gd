@@ -14,7 +14,7 @@ func run():
  var cleaned=game.model.total_cleaned;var served=game.model.served;var earned=game.model.total_earned
  game.worker("cleaner").on_duty=false
  for tick in range(1000):game._tick_live_service(.05);game.advance()
- check(record.table_wiped and record.plate_owner=="clean","real phase loop completes waiter table work")
+ check(record.table_wiped and record.plate_owner=="dish_queue","real phase loop completes waiter table work")
  check(game.model.customers.size()==1 and game.service_guests.size()==1 and not record.cleanup_done,"cleaning phase retains guest/table while floor unfinished")
  check(game.model.total_cleaned==cleaned,"partial cleanup never increments cleaned count")
  game.worker("cleaner").on_duty=true
