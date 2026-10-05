@@ -24,6 +24,8 @@ SUITES = [
     ("test_hud_layout", "HUD_LAYOUT_RESULT"),
     ("test_wallet_alignment", "WALLET_ALIGNMENT_RESULT"),
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
+    ("test_build_tiles_ui", "BUILD_TILES_UI_RESULT"),
+    ("test_staff_header_done", "STAFF_HEADER_DONE_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),
     ("test_no_bottom_notifications", "NO_BOTTOM_NOTIFICATIONS_RESULT"),
     ("test_starter_geometry", "STARTER_GEOMETRY_RESULT"),

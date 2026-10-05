@@ -4,6 +4,7 @@ extends RefCounted
 const Illustration=preload("res://scripts/illustrated_cafe.gd")
 const ThumbnailAtlas=preload("res://scripts/furniture_static_atlas.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
+const GroundArt=preload("res://scripts/illustrated_ground.gd")
 const DECOR_THUMBNAILS=["plant","lamp","bookshelf","rug","divider"]
 var owner_ref:WeakRef
 var ui:
@@ -26,6 +27,32 @@ var price_icons={}
 var scroll_tweens={}
 var affordability_labels={}
 var build_previews={}
+var build_cards={}
+var tile_cards={}
+var tiles_card:Button
+var tiles_back:Button
+var tiles_title:Label
+var tiles_heading:Control
+var build_page="products"
+var action_copy:HBoxContainer
+var price_label:Label
+var action_layout_key=""
+
+class TileIcon extends Control:
+ var style="warm_oak"
+ var collection=false
+ func _draw():
+  var styles=["warm_oak","cream_tile","sage_tile"] if collection else [style]
+  for index in styles.size():
+   var shift=Vector2((index-1)*15,abs(index-1)*5) if collection else Vector2.ZERO
+   var center=Vector2(42,26)+shift
+   var span=Vector2(19,9.5) if collection else Vector2(31,15.5)
+   var corners=PackedVector2Array([center-Vector2(0,span.y),center+Vector2(span.x,0),center+Vector2(0,span.y),center-Vector2(span.x,0)])
+   draw_colored_polygon(corners,GroundArt.floor_palette(styles[index])[0])
+   var outline=corners.duplicate();outline.append(corners[0]);draw_polyline(outline,GroundArt.floor_line(styles[index]),1.2,true)
+   if styles[index]=="warm_oak":
+    draw_line(center+Vector2(-span.x*.5,0),center+Vector2(0,span.y*.5),GroundArt.floor_line(styles[index]),1,true)
+
 var product_shelf=Rect2()
 var product_snap_timers={}
 var product_contacts={}
@@ -101,7 +128,7 @@ func setup():
   button.alignment=HORIZONTAL_ALIGNMENT_CENTER;button.add_theme_font_size_override("font_size",14)
   button.tooltip_text=category+" furniture" if category!="Build" else "Walls, doors, windows and flooring"
   category_icons[category]=_illustration(button,kinds[category])
- game.catalog_scroll.reparent(root);ui.build_scroll.reparent(root);ui.context.reparent(root);ui.wall_quote_label.reparent(root)
+ game.catalog_scroll.reparent(root);ui.build_scroll.reparent(root);ui.context.reparent(root)
  action_background=background.duplicate();root.add_child(action_background);root.move_child(action_background,0);action_background.mouse_filter=Control.MOUSE_FILTER_STOP;action_background.hide()
  for scroll in [game.catalog_scroll,ui.build_scroll]:
   scroll.follow_focus=true;scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_SHOW_NEVER;_scroll_skin(scroll);scroll.minimum_size_changed.connect(_queue_rail_fit)
@@ -136,7 +163,7 @@ func setup():
   price_label.reparent(price_row);price_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;price_label.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   var availability=ui.hud._label(column,"",11,Color("93482e"));availability.custom_minimum_size.y=16;availability.size_flags_horizontal=Control.SIZE_EXPAND_FILL;affordability_labels[kind]=availability
  for key in ["full","door","window"]:
-  var card:Button=game.build_tools.tool_buttons[key];_style(card);card.custom_minimum_size=Vector2(148,140)
+  var card:Button=game.build_tools.tool_buttons[key];build_cards[key]=card;_style(card);card.custom_minimum_size=Vector2(148,140)
   var column:VBoxContainer=card.get_child(0);column.add_theme_constant_override("separation",2);column.offset_left=8;column.offset_right=-8;column.offset_top=4;column.offset_bottom=-4
   var image=column.get_child(0);image.custom_minimum_size.y=54
   var holder=Control.new();holder.custom_minimum_size=Vector2(84,54);holder.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(holder);column.move_child(holder,0);image.reparent(holder)
@@ -147,18 +174,70 @@ func setup():
   var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   price.reparent(price_row);price.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   var availability=ui.hud._label(column,"",11);availability.custom_minimum_size.y=16
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button,ui.floor_access]:_style(button)
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:_style(button)
  footer_hint=ui.hud._label(root,"",13);footer_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
- ui.floor_access.reparent(root)
- ui.context_label.clip_text=true;ui.context_label.custom_minimum_size.x=0;ui.context_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;ui.context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;ui.context.alignment=BoxContainer.ALIGNMENT_CENTER
+ ui.context_label.clip_text=true;ui.context_label.custom_minimum_size.x=0;ui.context_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;ui.context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;ui.context_label.add_theme_font_override("font",ui.hud.font_bold);ui.context_label.add_theme_color_override("font_color",ui.hud.INK)
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button,ui.floor_access]:button.custom_minimum_size.y=44
- ui.wall_quote_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.wall_quote_label.clip_text=true;ui.wall_quote_label.add_theme_font_size_override("font_size",11)
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:button.custom_minimum_size.y=44
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
+ _setup_tiles()
+ action_copy=HBoxContainer.new();action_copy.mouse_filter=Control.MOUSE_FILTER_IGNORE;action_copy.add_theme_constant_override("separation",8);ui.context.add_child(action_copy)
+ ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
+
  root.resized.connect(func():background.size=root.size)
  game.get_window().focus_exited.connect(_cancel_product_contacts)
  game.tree_exiting.connect(_dispose_product_scroll)
+func _setup_tiles():
+ tiles_card=_make_tile_card("tiles","Tiles",str(game.build_tools.FLOOR_STYLES.size())+" styles","warm_oak",show_tiles,true)
+ for index in game.build_tools.FLOOR_STYLES.size():
+  var style=game.build_tools.FLOOR_STYLES[index]
+  tile_cards[style]=_make_tile_card(style,game.build_tools.FLOOR_NAMES[index],ui.Money.amount(game.model.floor_price(style)),style,choose_floor_style.bind(style))
+ tiles_back=_nav("Build",show_build_products);tiles_back.accessibility_name="Back to Build from Tiles";tiles_back.add_theme_font_size_override("font_size",14);tiles_back.draw.connect(_draw_tiles_back);tiles_back.hide()
+ tiles_heading=Control.new();tiles_heading.mouse_filter=Control.MOUSE_FILTER_IGNORE;root.add_child(tiles_heading);tiles_heading.hide()
+ var face=Panel.new();face.mouse_filter=Control.MOUSE_FILTER_IGNORE;face.add_theme_stylebox_override("panel",ui.hud.texture_style("green_face",14));face.material=ui.hud._art_material(2);tiles_heading.add_child(face);face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ var tile=TileIcon.new();tile.style="cream_tile";tile.mouse_filter=Control.MOUSE_FILTER_IGNORE;tile.size=Vector2(84,54);tile.scale=Vector2.ONE*.38;tile.position=Vector2(5,12);tiles_heading.add_child(tile)
+ tiles_title=ui.hud._label(tiles_heading,"Tiles",16,ui.hud.CREAM);tiles_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;tiles_title.clip_text=false
+ _sync_build_page()
+func _draw_tiles_back():
+ # Pair the chevron with the native 14px caption. Raster bounds place their
+ # combined ink on the button center; the caption ink sits 1px above mid-height.
+ var center=Vector2(tiles_back.size.x*.5-23,tiles_back.size.y*.5-1)
+ var ink=ui.hud.CREAM if tiles_back.is_pressed() else ui.hud.INK
+ tiles_back.draw_polyline(PackedVector2Array([center+Vector2(3,-5),center-Vector2(2,0),center+Vector2(3,5)]),ink,1.8,true)
+func _make_tile_card(key:String,title:String,price:String,style:String,callback:Callable,collection=false)->Button:
+ var card=ui._small_button("",callback);_style(card);card.toggle_mode=not collection;game.build_panel.add_child(card);build_cards[key]=card
+ var body=Control.new();body.mouse_filter=Control.MOUSE_FILTER_IGNORE;card.add_child(body);card.move_child(body,0);body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ body.offset_left=8;body.offset_top=4;body.offset_right=-8;body.offset_bottom=-4
+ var holder=Control.new();holder.mouse_filter=Control.MOUSE_FILTER_IGNORE;body.add_child(holder)
+ var preview=TileIcon.new();preview.style=style;preview.collection=collection;preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;holder.add_child(preview);build_previews[key]={"holder":holder,"image":preview}
+ var name_label=ui.hud._label(body,title,13);name_label.add_theme_font_override("font",ui.hud.font_bold)
+ var price_row=HBoxContainer.new();price_row.alignment=BoxContainer.ALIGNMENT_BEGIN;price_row.add_theme_constant_override("separation",5);price_row.mouse_filter=Control.MOUSE_FILTER_IGNORE;body.add_child(price_row)
+ var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;coin.visible=not collection
+ var cost=ui.hud._label(price_row,price,18);cost.clip_text=false;cost.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+ var status=ui.hud._label(body,"Choose a style" if collection else "per tile",11);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
+ card.tooltip_text="Browse tile styles" if collection else title+" · "+price+" coins per tile"
+ card.accessibility_name="Browse Tiles" if collection else title+", "+price+" coins per tile"
+ return card
+func _sync_build_page():
+ for key in build_cards:
+  build_cards[key].visible=(key in tile_cards) if build_page=="tiles" else (key not in tile_cards)
+func show_tiles():
+ if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
+ game._cancel_selection();ui._hide_popups();build_page="tiles";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
+func show_build_products():
+ game._cancel_selection();build_page="products";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
+func choose_floor_style(style:String):
+ if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small or style not in tile_cards:return
+ game.build_tools.floor_material=style;game.build_tools.choose("floor");ui.sync();ui.update_pointer()
+func _visible_build_keys()->Array:
+ var keys=[]
+ for key in build_cards:
+  if build_cards[key].visible:keys.append(key)
+ return keys
+
 func _setup_category_picker():
  category_picker=ui._small_button("",_toggle_category_picker,112);_style(category_picker);category_picker.add_theme_font_size_override("font_size",13);category_picker.accessibility_name="Choose furniture category";root.add_child(category_picker);category_picker.hide()
  category_picker.draw.connect(_draw_category_picker_arrow)
@@ -199,20 +278,35 @@ func _flatten_card(card:Button):
  old.queue_free()
 func _layout_product_card(card:Button,width:float,height:float,short_landscape:bool=false):
  var body=card.get_child(0);var image=body.get_child(0);var tiny=width<180 or short_landscape
- var art_width=44.0 if tiny else 56.0;var text_x=art_width+6;var text_width=width-16.0-text_x
- var title:Label=body.get_child(1);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
- title.clip_text=false;title.autowrap_mode=TextServer.AUTOWRAP_OFF if tiny else TextServer.AUTOWRAP_WORD_SMART
- # Narrow and short-landscape cards give the full name the whole top row. The image and
- # price/status sit beside each other below, preserving readable type.
- _put(title,Rect2(0 if tiny else text_x,0 if tiny else 1,width-16 if tiny else text_width,0))
- var title_end=title.position.y+title.get_combined_minimum_size().y
- var price=body.get_child(2);price.alignment=BoxContainer.ALIGNMENT_BEGIN
- var price_y=title_end+2;var price_height=maxf(24,price.get_combined_minimum_size().y)
- _put(price,Rect2(text_x,price_y,text_width,price_height))
- var status=body.get_child(3);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
- _put(status,Rect2(text_x,price_y+price_height+2,text_width,maxf(16,status.get_combined_minimum_size().y)))
- var image_height=minf(42,height-8-price_y) if tiny else minf(58,height-16)
- _put(image,Rect2(0,price_y if tiny else (height-8-image_height)*.5,art_width,image_height))
+ var body_width=width-16.0;var body_height=height-8.0
+ var art_width=44.0 if tiny else 56.0;var text_x=art_width+6;var text_width=body_width-text_x
+ var title:Label=body.get_child(1);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.clip_text=false
+ title.autowrap_mode=TextServer.AUTOWRAP_OFF if tiny else TextServer.AUTOWRAP_WORD_SMART
+ var title_width=body_width if tiny else text_width
+ _put(title,Rect2(0 if tiny else text_x,0,title_width,0))
+ var title_height=title.get_combined_minimum_size().y
+ var price=body.get_child(2);price.alignment=BoxContainer.ALIGNMENT_CENTER
+ var price_height=maxf(24,price.get_combined_minimum_size().y)
+ var status:Label=body.get_child(3);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+ var has_status=status.text!="";status.visible=has_status;var status_height=maxf(16,status.get_combined_minimum_size().y) if has_status else 0.0
+ var copy_height=title_height+2+price_height+(2+status_height if has_status else 0)
+ if tiny:
+  var row_height=maxf(42,price_height+(2+status_height if has_status else 0))
+  var block_height=title_height+4+row_height
+  var top=maxf(0,(body_height-block_height)*.5)
+  _put(title,Rect2(0,top,body_width,title_height))
+  var row_y=top+title_height+4;var price_block=price_height+(2+status_height if has_status else 0)
+  var price_y=row_y+(row_height-price_block)*.5
+  _put(price,Rect2(text_x,price_y,text_width,price_height))
+  _put(status,Rect2(text_x,price_y+price_height+2,text_width,status_height))
+  _put(image,Rect2(0,row_y,art_width,row_height))
+ else:
+  var top=maxf(0,(body_height-copy_height)*.5)
+  _put(title,Rect2(text_x,top,text_width,title_height))
+  _put(price,Rect2(text_x,top+title_height+2,text_width,price_height))
+  _put(status,Rect2(text_x,top+title_height+price_height+4,text_width,status_height))
+  var image_height=minf(58,body_height)
+  _put(image,Rect2(0,(body_height-image_height)*.5,art_width,image_height))
 func _active_products()->ScrollContainer:return ui.build_scroll if game.catalog_category=="Build" else game.catalog_scroll
 func _scroll_to(scroll:ScrollContainer,target:float):
  var bar=scroll.get_h_scroll_bar();target=clampf(target,0,maxf(0,bar.max_value-bar.page))
@@ -234,56 +328,80 @@ func _reveal_category():
 func _restore_browse_offset():
  if ui==null:return
  category_scroll.scroll_horizontal=browse_offset
-func sync_quote(original_text=""):
- if ui==null or not ui.wall_quote_label.visible:return
- var b=game.build_tools;var quote={}
- if not b.active() or b.mode not in ["half","full","floor"]:ui.wall_quote_label.hide();return
- if b.mode=="floor":quote=b.floor_quote
- elif b.replacing:quote=b.replacement_quote
- var text=""
- if b.mode=="floor" and not b.floor_preview.is_empty() and game.model.floor_style_at(Vector2i(int(b.floor_preview.x),int(b.floor_preview.z)))==b.floor_material:
-  text="Already installed · no charge"
- elif not quote.is_empty():
-  text="Pay %s · new %s, refund %s"%[ui.Money.amount(int(quote.net)),ui.Money.amount(int(quote.new_cost)),ui.Money.amount(int(quote.refund))]
-  if quote.has("units"):text+=" · %d tiles"%int(quote.units)
- elif b.mode=="floor":text="Floor · %s / tile"%ui.Money.amount(game.model.floor_price(b.floor_material))
- else:text="Wall · %s / tile"%ui.Money.amount(game.model.wall_price(b.mode))
- ui.wall_quote_label.text=text
- ui.context_label.text=("Pay "+ui.Money.amount(int(quote.net))) if not quote.is_empty() else ("No charge" if text.begins_with("Already") else text)
- ui.context_label.tooltip_text=text
- if original_text!="":ui.wall_quote_label.tooltip_text=original_text
- ui.wall_quote_label.custom_minimum_size.x=0
- ui.wall_quote_label.size=Vector2.ZERO;ui.wall_quote_label.hide();_layout_context()
-
-func _layout_context(available_width:float=-1.0):
- if not ui.context.visible:return
- var used=0.0;var count=0
- for child in ui.context.get_children():
-  if child!=ui.context_label and child.visible:
-   used+=child.get_combined_minimum_size().x;count+=1
- var natural=ui.hud.font_bold.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x+8
- var budget=available_width if available_width>=0 else float(ui.context.get_meta("available_width",ui.context.size.x))
- ui.context_label.custom_minimum_size.x=minf(natural,maxf(0,budget-used-count*6))
+func sync_action_details():
+ if ui==null or not is_instance_valid(price_label):return
+ ui.context.visible=game.editing and ui.hud.has_edit_action();ui.cancel_button.visible=ui.context.visible
+ var b=game.build_tools;var price="";var detail=""
+ # Both periodic UI sync and pointer refresh consume this same presentation.
+ # Price never replaces the product title, and label visibility is not state.
+ if b.active():
+  if b.mode in ["half","full","floor"]:
+   ui.context_label.text=b.floor_name() if b.mode=="floor" else ("Half wall" if b.mode=="half" else "Full wall")
+   var quote=b.floor_quote if b.mode=="floor" else (b.replacement_quote if b.replacing else {})
+   var unit_cost=game.model.floor_price(b.floor_material) if b.mode=="floor" else game.model.wall_price(b.mode)
+   price=ui.Money.amount(unit_cost)+" / tile"
+   if not quote.is_empty():
+    if int(quote.get("new_cost",-1))==0 and int(quote.get("net",-1))==0:price="No charge"
+    elif bool(quote.get("valid",false)):price="Pay "+ui.Money.amount(int(quote.net))
+    elif str(quote.get("reason","")).begins_with("Not enough coins"):price="Need "+ui.Money.amount(maxi(0,int(quote.net)-game.model.coins))
+    detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(quote.new_cost)),ui.Money.amount(int(quote.refund)),ui.Money.amount(int(quote.net))]
+    if quote.has("units"):detail+=" · %d tiles"%int(quote.units)
+   if b.preview_reason!="":detail+=("\n" if detail!="" else "")+b.preview_reason
+  elif b.mode in ["door","window"]:
+   ui.context_label.text=b.mode.capitalize();price=ui.Money.amount(game.model.attachment_price(b.mode))+" coins"
+  elif b.mode=="move_opening":ui.context_label.text="Move opening"
+ price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
+ ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
+ action_background.tooltip_text=ui.context_label.tooltip_text
+ _layout_action_board(root.size.x)
 
 func _layout_action_board(width:float):
  action_background.visible=ui.context.visible
  if not ui.context.visible:return
- var used=0.0;var count=0
+ var actions=[];var used=0.0;var gap=6.0
  for child in ui.context.get_children():
-  if child==ui.context_label or not child.visible:continue
-  child.custom_minimum_size=Vector2(44,48)
-  used+=child.get_combined_minimum_size().x;count+=1
- var name_width=ui.hud.font_bold.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x+8
- var board_width=minf(width,maxf(180,used+name_width+count*6+48))
- var short_landscape=root.size.y<ViewportLayout.SHORT_SHOP_HEIGHT
- var board=Rect2((width-board_width)*.5,-60 if short_landscape else -72,board_width,56 if short_landscape else 64)
+  if child==action_copy or not child.visible:continue
+  if child.custom_minimum_size!=Vector2(44,44):child.custom_minimum_size=Vector2(44,44)
+  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+   var style=child.get_theme_stylebox(state)
+   if style.content_margin_left!=10:style.content_margin_left=10
+   if style.content_margin_right!=10:style.content_margin_right=10
+   if style.content_margin_top!=4:style.content_margin_top=4
+   if style.content_margin_bottom!=4:style.content_margin_bottom=4
+  var face=child.get_node_or_null("PaintedSurface")
+  if face!=null:face.offset_top=4;face.offset_bottom=-4
+  actions.append(child);used+=child.get_combined_minimum_size().x
+ var signature=str([width,ui.context_label.text,price_label.text,ui.context_label.get_theme_font_size("font_size"),actions.map(func(button):return [button.get_instance_id(),button.text,button.get_combined_minimum_size()])])
+ if signature==action_layout_key:return
+ action_layout_key=signature
+ var font=ui.hud.font_bold;var title_width=ceilf(font.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x)
+ var cost_width=ceilf(font.get_string_size(price_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,price_label.get_theme_font_size("font_size")).x) if price_label.visible else 0.0
+ var text_width=title_width+(cost_width+8 if price_label.visible else 0)+2
+ var pad=36.0;var text_gap=12.0;var row_width=used+maxi(0,actions.size()-1)*gap
+ var inner_limit=maxf(44,width-pad*2);var stacked=text_width+text_gap+row_width>inner_limit
+ var board_width=minf(width,maxf(180,(maxf(text_width,row_width) if stacked else text_width+text_gap+row_width)+pad*2))
+ var inner_width=board_width-pad*2
+ var copy_width=inner_width if stacked else text_width
+ # Exact glyph measurements happen before placing children. No stale-price budget.
+ ui.context_label.custom_minimum_size=Vector2(minf(title_width,maxf(0,copy_width-(cost_width+8 if price_label.visible else 0))),0);price_label.custom_minimum_size=Vector2(cost_width,0)
+ action_copy.custom_minimum_size=Vector2.ZERO
+ var copy_height=maxf(22,maxf(ui.context_label.get_theme_font("font").get_height(ui.context_label.get_theme_font_size("font_size")),price_label.get_theme_font("font").get_height(price_label.get_theme_font_size("font_size")) if price_label.visible else 0))
+ var x=0.0 if stacked else copy_width+text_gap
+ var y=copy_height+4 if stacked else 0.0
+ var last_y=y
+ for action in actions:
+  var action_width=maxf(44,action.get_combined_minimum_size().x)
+  if stacked and x>0 and x+action_width>inner_width:x=0;y+=44+gap
+  action.position=Vector2(x,y);action.size=Vector2(action_width,44);x+=action_width+gap;last_y=y
+ var content_height=maxf(copy_height,last_y+44)
+ _put(action_copy,Rect2(0,0 if stacked else (content_height-copy_height)*.5,copy_width,copy_height))
+ var vertical_pad=22.0 if stacked else 10.0
+ var board_height=content_height+vertical_pad*2
+ var board=Rect2((width-board_width)*.5,-board_height-8,board_width,board_height)
  action_background.position=board.position;action_background.size=board.size
- var available_width=board_width-48
- # A previous selection label must not inflate this HBox before fitting.
- ui.context_label.custom_minimum_size.x=0
- ui.context.set_meta("available_width",available_width)
- _layout_context(available_width)
- _put(ui.context,Rect2(board.position+Vector2(24,4 if short_landscape else 8),Vector2(available_width,48)))
+ _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad),Vector2(inner_width,content_height)))
+ ui.context.set_meta("available_width",inner_width)
+
 func _product_scroll_finished(scroll:ScrollContainer):
  product_rest_offsets[scroll.get_instance_id()]=scroll.scroll_horizontal
  _queue_product_snap(scroll)
@@ -389,8 +507,8 @@ func _short_landscape_card_width()->float:
  # Fit the actual names and availability text before choosing a whole-card page.
  var width=168.0
  if game.catalog_category=="Build":
-  for key in ["full","door","window"]:
-   var title:Label=game.build_tools.tool_buttons[key].get_child(0).get_child(1)
+  for key in _visible_build_keys():
+   var title:Label=build_cards[key].get_child(0).get_child(1)
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
  else:
   for kind in game.catalog_cards:
@@ -405,6 +523,8 @@ func _short_landscape_card_width()->float:
  return width
 
 func sync(width:float):
+ if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
+ ui._sync_starter_floor_repair()
  var insets=ui.hud._safe_insets();var available_width=width-insets.x-insets.z;var narrow=available_width<650
  var tray_style=game.tray.get_theme_stylebox("panel");tray_style.content_margin_left=0;tray_style.content_margin_right=0;tray_style.content_margin_top=0;tray_style.content_margin_bottom=0
  var w=minf(940,available_width-20)
@@ -428,14 +548,11 @@ func sync(width:float):
  ui.cancel_button.visible=header_active
  ui.cancel_button.text="Cancel"
  ui.context_label.visible=true
- ui.floor_access.visible=game.catalog_category=="Build" and not header_active or game.build_tools.mode=="floor"
- var floor_header=ui.floor_access.visible
+ var nested=game.catalog_category=="Build" and build_page=="tiles"
  var tiny=w<440
  var show_help=short_landscape or not (tiny and game.catalog_category=="Build")
- var floor_width=maxf(48,ceilf(ui.hud.font_bold.get_string_size(ui.floor_access.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16) if picker_landscape else 66.0
- for state in ["normal","hover","pressed","hover_pressed","disabled"]:
-  var style=ui.floor_access.get_theme_stylebox(state);style.content_margin_left=8 if picker_landscape else 6;style.content_margin_right=8 if picker_landscape else 6
- var tail=(52 if show_help else 0)+(floor_width+8 if game.catalog_category=="Build" else 0)
+ var repair_width=110.0 if ui.floor_repair_button.visible else 0.0
+ var tail=(52 if show_help else 0)+(repair_width+8 if repair_width>0 else 0)
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
  var categories_overflow=short_landscape or 6*minimum_chip+30>w-category_margin*2-tail
@@ -456,19 +573,26 @@ func sync(width:float):
  _put(category_picker,Rect2(category_margin,header_y,112,44))
  _put(category_scroll,Rect2(category_x,header_y,category_width,44));_put(category_back,Rect2(category_margin,header_y,44,44));_put(category_more,Rect2(category_x+category_width+8,header_y,44,44))
  _put(ui.help_access,Rect2(w-category_margin-44 if short_landscape else w-76,header_y,44,44));ui.help_access.add_theme_font_size_override("font_size",20)
- var floor_parent=ui.context if floor_header and header_active else root
- if ui.floor_access.get_parent()!=floor_parent:ui.floor_access.reparent(floor_parent)
- if floor_header and header_active:ui.floor_access.custom_minimum_size=Vector2(66,44)
- if floor_header and not header_active:_put(ui.floor_access,Rect2(w-category_margin-(52 if show_help else 0)-floor_width if short_landscape else w-(150 if show_help else 98),header_y,floor_width,44))
+ tiles_back.visible=nested;tiles_heading.visible=nested
+ if nested:
+  category_scroll.hide();category_back.hide();category_more.hide();category_picker.hide();category_panel.hide()
+ for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+  var style=tiles_back.get_theme_stylebox(state);style.content_margin_left=30;style.content_margin_right=10
+ _put(tiles_back,Rect2(category_margin,header_y,104,44))
+ var heading_x=category_margin+112;var heading_width=112.0
+ tiles_heading.visible=nested and (w-category_margin-tail-(heading_x+heading_width+12)>=210 if short_landscape else heading_x+heading_width+8<=w-category_margin-tail)
+ _put(tiles_heading,Rect2(heading_x,header_y,heading_width,44));_put(tiles_title,Rect2(35,0,heading_width-43,44))
+ _put(ui.floor_repair_button,Rect2(w-category_margin-(52 if show_help else 0)-repair_width,header_y,repair_width,44))
  if last_category!=game.catalog_category or not is_equal_approx(last_layout_width,category_width):
   last_category=game.catalog_category;last_layout_width=category_width;_reveal_category.call_deferred()
  var count=0
  for card in game.catalog_cards.values():
   if card.visible:count+=1
- if game.catalog_category=="Build":count=3
+ if game.catalog_category=="Build":count=_visible_build_keys().size()
  var card_w=_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0)
  var margin=16 if picker_landscape else (24 if short_landscape else (22 if tiny else 32))
  var product_left=category_x+category_width+(12 if picker_landscape else 64) if short_landscape else float(margin)
+ if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible else category_margin+116
  var product_right=w-margin-tail if short_landscape else w-margin
  var product_width=product_right-product_left
  var product_gap=_active_products().get_child(0).get_theme_constant("separation")
@@ -483,7 +607,7 @@ func sync(width:float):
   next_page_items=maxi(1,floori((shelf_width+product_gap)/((card_w if short_landscape else 168.0)+product_gap)))
   card_w=floori((shelf_width-product_gap*(next_page_items-1))/next_page_items)
   shelf_width=card_w*next_page_items+product_gap*(next_page_items-1)
- var next_key=str([game.catalog_category,narrow,short_landscape,card_w,shelf_width])
+ var next_key=str([game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:
   var index=roundi(_active_products().scroll_horizontal/product_stride) if product_stride>0 and last_product_category==game.catalog_category else 0
   for scroll in [game.catalog_scroll,ui.build_scroll]:_stop_product_scroll(scroll);product_contacts.erase(scroll.get_instance_id())
@@ -491,10 +615,11 @@ func sync(width:float):
  product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=(narrow or short_landscape) and arrows
  var card_h=h-(product_vertical_padding if short_landscape else 70.0);var image_h=minf(58,card_h-16)
  var name_h=18;var price_h=24
- for key in ["full","door","window"]:
-  var card=game.build_tools.tool_buttons[key];card.custom_minimum_size=Vector2(card_w,card_h)
+ for key in _visible_build_keys():
+  var card=build_cards[key];card.custom_minimum_size=Vector2(card_w,card_h)
+  if key in tile_cards:card.set_pressed_no_signal(game.build_tools.mode=="floor" and game.build_tools.floor_material==key)
   var column=card.get_child(0);var selected_color=ui.hud.CREAM if card.button_pressed else ui.hud.INK
-  column.get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(2).get_child(1).add_theme_color_override("font_color",selected_color)
+  column.get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(2).get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(3).add_theme_color_override("font_color",selected_color)
   var holder=build_previews[key].holder;var preview=build_previews[key].image
   holder.custom_minimum_size=Vector2(56,image_h)
   preview.size=Vector2(84,54);preview.scale=Vector2.ONE*minf(float(image_h)/54.0,56.0/84.0);preview.position=Vector2((56-84*preview.scale.x)/2,(image_h-54*preview.scale.y)/2);preview.queue_redraw()
@@ -535,22 +660,13 @@ func sync(width:float):
  for kind in game.catalog_cards:
   var card=game.catalog_cards[kind];_layout_product_card(card,card_w,card_h,short_landscape)
   var holder=card.get_child(0).get_child(0);_fit_thumbnail(kind,holder.get_child(0),holder.size)
- for key in ["full","door","window"]:
-  _layout_product_card(game.build_tools.tool_buttons[key],card_w,card_h,short_landscape)
+ for key in _visible_build_keys():
+  _layout_product_card(build_cards[key],card_w,card_h,short_landscape)
   var holder=build_previews[key].holder;var preview=build_previews[key].image
   preview.scale=Vector2.ONE*minf(holder.size.x/84.0,holder.size.y/54.0)
   preview.position=(holder.size-Vector2(84,54)*preview.scale)*.5
- for action in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button]:
-  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
-   var style=action.get_theme_stylebox(state);style.content_margin_left=8 if narrow else 12;style.content_margin_right=8 if narrow else 12
- _put(ui.context,Rect2(32,header_y,w-64,44));ui.context_label.add_theme_font_size_override("font_size",14 if narrow else 16)
- if game.build_tools.mode in ["door","window"]:
-  ui.context_label.text=str(game.build_tools.mode).capitalize()+" · "+ui.Money.amount(game.model.attachment_price(game.build_tools.mode))
- elif game.build_tools.mode=="move_opening":ui.context_label.text="Move opening"
- ui.context_label.tooltip_text=ui.context_label.text
- _layout_action_board(w)
+ ui.context_label.add_theme_font_size_override("font_size",14 if narrow else 16)
+ sync_action_details()
  _position_category_panel()
  footer_hint.hide()
- if ui.wall_quote_label.visible:sync_quote()
- _layout_context()
  _sync_scroll_buttons.call_deferred();_queue_rail_fit();ui._set_tray_reveal(ui.tray_reveal)
