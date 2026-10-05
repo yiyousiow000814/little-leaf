@@ -25,9 +25,20 @@ func fresh_intro():
 	game.cafe_intro = intro
 	return intro
 
+func visible_alpha(item: CanvasItem) -> float:
+	if not item.is_visible_in_tree():return 0.0
+	var alpha = item.self_modulate.a
+	var ancestor = item
+	while ancestor is CanvasItem:
+		alpha *= ancestor.modulate.a
+		ancestor = ancestor.get_parent()
+	return alpha
+
 func check_restored(intro, label):
 	check(not intro.active and intro.hud_alpha == 1.0, label + " releases intro and HUD")
 	check(not intro.cover.visible, label + " hides overlay")
+	for item in [intro.title, intro.welcome, intro.hint]:
+		check(visible_alpha(item) == 0.0, label + " hides artwork and both text lines")
 	check(intro.render_offset(view.size) == Vector2.ZERO, label + " has no presentation offset")
 	for control in intro.hud_colors:
 		if is_instance_valid(control):
@@ -50,6 +61,7 @@ func run():
 	check(game.cafe_intro.title is TextureRect and game.cafe_intro.title.texture != null, "approved artwork is a live texture")
 	check(game.cafe_intro.title.texture.get_size() == Vector2(783, 518), "approved transparent crop dimensions")
 	check(game.cafe_intro.welcome.text == "Welcome to", "greeting remains independent live text")
+	check(game.cafe_intro.hint.text == "Tap or press any key to skip", "skip instruction keeps English copy")
 	var intro = game.cafe_intro
 	var zoom = game.illustration.zoom
 	var pan = game.illustration.pan_offset
@@ -66,7 +78,7 @@ func run():
 		check(is_equal_approx(intro.elapsed, time), "timeline advances " + str(time))
 		check(is_equal_approx(intro.descent, smoothstep(1.0, 6.5, time)), "original eased descent " + str(time))
 		if time < 6.5:
-			check(is_equal_approx(intro.title_group.modulate.a, 1.0 - smoothstep(1.5, 3.9, time)), "original title fade " + str(time))
+			check(is_equal_approx(visible_alpha(intro.title), 1.0 - smoothstep(1.5, 3.9, time)), "original effective title fade " + str(time))
 			check(is_equal_approx(intro.sky_alpha, 1.0 - smoothstep(1.4, 4.8, time)), "original sky fade " + str(time))
 			check(is_equal_approx(intro.hud_alpha, smoothstep(4.8, 6.5, time)), "original HUD fade " + str(time))
 	check_restored(intro, "natural 6.5 second completion")
@@ -76,6 +88,19 @@ func run():
 	var repeat = Intro.new()
 	repeat.start(game)
 	check(not repeat.active and repeat.cover == null, "same-session recreation does not replay")
+
+	# Sample the entire reveal at 60 fps. Compare effective inherited opacity,
+	# so a sibling hint with a delayed fade or a doubled child fade fails here.
+	intro = fresh_intro()
+	check(visible_alpha(intro.title) == 1.0 and visible_alpha(intro.hint) == 1.0, "intro artwork and hint start fully visible")
+	for frame in range(391):
+		intro._process(1.0 / 60.0)
+		var title_alpha = visible_alpha(intro.title)
+		check(is_equal_approx(visible_alpha(intro.welcome), title_alpha), "greeting shares title fade at frame " + str(frame))
+		check(is_equal_approx(visible_alpha(intro.hint), title_alpha), "skip hint shares title fade at frame " + str(frame))
+		if intro.elapsed >= 3.9:
+			check(is_zero_approx(title_alpha) and is_zero_approx(visible_alpha(intro.hint)), "no lingering text after title fade at frame " + str(frame))
+	check_restored(intro, "60 fps natural completion")
 
 	for kind in ["mouse", "touch", "key", "joypad"]:
 		intro = fresh_intro()

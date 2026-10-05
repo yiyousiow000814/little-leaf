@@ -11,6 +11,7 @@ var held = {}
 var hud_colors = {}
 var hud_alpha = 1.0
 var cover: Control
+var content_group: Control
 var title: TextureRect
 var welcome: Label
 var title_group: Control
@@ -29,6 +30,7 @@ func start(owner_game):
 	for control in game.ui.get_children():
 		if control is CanvasItem:hud_colors[control] = control.modulate
 	cover = Control.new()
+	content_group = Control.new()
 	title_group = Control.new()
 	title = TextureRect.new()
 	welcome = Label.new()
@@ -36,9 +38,11 @@ func start(owner_game):
 	add_child(cover)
 	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cover.draw.connect(_draw_sky)
-	cover.add_child(title_group)
+	cover.add_child(content_group)
+	content_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content_group.add_child(title_group)
 	title_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# User-approved pixels; sky and UI copy remain live, independently fading UI.
+	# Artwork and live copy share one fade; the sky keeps its own timeline.
 	title.texture = TITLE_TEXTURE
 	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -46,7 +50,7 @@ func start(owner_game):
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title_group.add_child(title)
 	for label in [welcome, hint]:
-		(title_group if label == welcome else cover).add_child(label)
+		(title_group if label == welcome else content_group).add_child(label)
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.add_theme_font_override("font", game.compact_ui.hud.font_bold)
@@ -69,12 +73,13 @@ func _process(delta):
 func _present():
 	var view = get_viewport().get_visible_rect().size
 	cover.size = view
+	content_group.size = view
+	content_group.modulate.a = 1.0 - smoothstep(1.5, 3.9, elapsed)
 	# Match the accepted portrait composition; cap by height for short landscapes.
 	var width = minf(minf(view.x * 783.0 / 853.0, 620.0), view.y * .60 * TITLE_ASPECT)
 	var art_size = Vector2(width, width / TITLE_ASPECT)
 	title_group.position = Vector2((view.x - width) * .5, view.y * .428 - art_size.y * .5)
 	title_group.size = art_size
-	title_group.modulate.a = 1.0 - smoothstep(1.5, 3.9, elapsed)
 	title.position = Vector2.ZERO
 	title.size = art_size
 	welcome.position = Vector2(-title_group.position.x, -18)
@@ -83,7 +88,6 @@ func _present():
 	hint.position = Vector2(16, view.y - 58)
 	hint.size = Vector2(maxf(0, view.x - 32), 40)
 	hint.add_theme_font_size_override("font_size", 12 if view.x < 700 else 14)
-	hint.modulate.a = 1.0 - smoothstep(3.0, 5.0, elapsed)
 	_fade_hud(smoothstep(4.8, DURATION, elapsed))
 	cover.queue_redraw()
 
