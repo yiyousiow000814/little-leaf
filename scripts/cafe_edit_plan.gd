@@ -16,7 +16,7 @@ func stamp(model,actors:Array)->Array:
   # Owner and layout, including direct changes that have no notification.
   model.get_instance_id(),model.revision,
   hash(model.items),hash(model.dining_sets),hash(model.built_walls),
-  hash(model.wall_attachments),hash(model.shell_products),model.shell_material,
+  hash(model.wall_attachments),hash(model.shell_products),hash(model.shell_segment_products),model.shell_material,
   hash(model.owned_parcels),model.width,model.depth,
   # Runtime routes, physical reservations, and directional safety policy.
   hash(model.customers),hash(model.wall_actor_positions),

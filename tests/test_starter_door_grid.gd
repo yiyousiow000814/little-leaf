@@ -128,6 +128,7 @@ func _init():
  model=legacy();check(model.save(OUT+"/legacy-base.json"),"legacy base save")
  for version in [1,3,5,11,15]:
   var data=read(OUT+"/legacy-base.json");data.version=version
+  data.wall_format=1;data.erase("shell_segment_format");data.erase("shell_segment_products")
   if version<15:data.erase("layout_motion_format");data.runtime.erase("layout_motion_format")
   if version<13:data.duty_counts.erase("cashier");data.duty_targets.erase("cashier");data.runtime.erase("checkout_format");data.runtime.erase("next_checkout_ticket")
   var path=OUT+"/legacy-v%d.json"%version;write(path,data);var hash=FileAccess.get_sha256(path)
