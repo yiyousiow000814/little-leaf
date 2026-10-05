@@ -1,0 +1,57 @@
+name: Reusable Web build
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        description: Empty for CI; exact version tag for release verification
+        type: string
+        default: ''
+    outputs:
+      artifact_id:
+        description: Exact artifact from this tested source
+        value: ${{ jobs.build.outputs.artifact_id }}
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify metadata and CI guard tests
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          python3 ci/release_metadata.py --tag "$RELEASE_TAG"
+          python3 -m unittest discover -s ci -p 'test_*.py' -v
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Run all engine regression suites in disposable profiles
+        run: python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/engine-evidence"
+      - name: Export exact source and verify packed resources
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Keep tested Web artifact
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-web-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/web-build/web/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Keep test and export evidence (never profiles or credentials)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/engine-evidence/*.json
+            ${{ runner.temp }}/engine-evidence/*.log
+            ${{ runner.temp }}/web-build/evidence/
+          if-no-files-found: warn
+          retention-days: 7

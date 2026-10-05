@@ -15,3 +15,7 @@ For experiments, use copied saves in a separate profile.
 See [asset licenses and credits](docs/repository-notes.md#assets-and-licenses) before reusing assets. No repository-wide open-source license has been selected.
 
 [Source baseline, recovery and development notes](docs/repository-notes.md)
+
+## Checked Web builds and releases
+
+[GitHub Actions setup, release trigger, evidence, and recovery guide](docs/github-release.md)
