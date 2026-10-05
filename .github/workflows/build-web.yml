@@ -30,6 +30,8 @@ jobs:
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/legacy_byte_storage.js
           node tests/compensation_inbox_storage.js
+          node tests/wall_compatibility_helpers_test.js
+          node --check tests/wall_compatibility_browser.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -46,6 +48,20 @@ jobs:
           path: ${{ runner.temp }}/web-build/web/
           if-no-files-found: error
           retention-days: 7
+      - name: Check out the exact historical wall-format-1 client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          path: .compatibility-old
+          persist-credentials: false
+      - name: Test and export the unchanged historical client once
+        run: |
+          test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          cmp ci/toolchain.json .compatibility-old/ci/toolchain.json
+          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence"
+          python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
+      - name: Bind compatibility inputs and derive UI coordinates
+        run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
       - name: Verify compensation history in sandboxed Chromium
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -57,6 +73,11 @@ jobs:
           google-chrome --version
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
+      - name: Verify actual old and new Web save compatibility
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -66,5 +87,8 @@ jobs:
             ${{ runner.temp }}/engine-evidence/*.json
             ${{ runner.temp }}/engine-evidence/*.log
             ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/old-engine-evidence/*.json
+            ${{ runner.temp }}/old-engine-evidence/*.log
+            ${{ runner.temp }}/old-web-build/evidence/
           if-no-files-found: warn
           retention-days: 7

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "old_commit": "9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc",
+  "fixture_generator_commit": "c796a671c47214a080db387c88fd4629631f763b",
+  "fixture_sha256": {
+    "old-format1.json": "28c1b3c62b8ea174071d3ed40f765e832ce577adf6d23c0a2f4303de8b10e611",
+    "new-format2.json": "0b53ab29e40ae32ac76fdaac01bfcc047a14533f11705455574061a346f0a125"
+  },
+  "old_vault_sha256": "ce050fe7e4ba6e56086f8d2c976d04cf14976128523871d933200c4b8def716d",
+  "candidate_required_sources": [
+    "web/little_leaf_vault.js",
+    "web/little_leaf_shell.html",
+    "scripts/cafe_web_save.gd",
+    "scripts/cafe_model.gd",
+    "scripts/cafe_shell_segments.gd"
+  ],
+  "note": "Historical source and fixture bytes remain pinned. Candidate production hashes are freshly bound from the clean checked-out commit to the staged source and verified export, then retained in preflight.json and required by the browser gate. The current candidate vault includes the Inbox projection and is not claimed byte-identical to the historical vault. Browser execution is recorded only by the runtime receipt."
+}
