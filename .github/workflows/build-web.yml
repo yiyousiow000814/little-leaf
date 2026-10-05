@@ -39,9 +39,12 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
       - name: Verify compensation history in sandboxed Chromium
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.57.0
-          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps chromium
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
       - name: Keep tested Web artifact

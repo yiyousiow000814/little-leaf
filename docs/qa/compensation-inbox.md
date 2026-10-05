@@ -67,7 +67,13 @@ snapshot data and must not be described as browser-persistence proof.
    Native screenshots require a working display and remain synthetic-only.
 3. The normal Web CI job freshly imports the exact source, runs the full engine
    suite, exports it, then runs `compensation_inbox_browser.js` under Xvfb with
-   Chromium's sandbox enabled. The browser test uses new disposable contexts and
+   Chromium's sandbox enabled. Ubuntu 24.04 CI selects the runner's installed
+   stable Chrome channel, which has the supported AppArmor sandbox profile;
+   it never disables sandboxing or changes host security settings. The evidence
+   records the selected channel, actual browser version and pinned Playwright
+   1.63.0 version. Local runs default
+   to bundled Chromium, or can set `PLAYWRIGHT_CHROMIUM_CHANNEL=chrome` when
+   stable Chrome is installed. The browser test uses new disposable contexts and
    a localhost-only fixture server. It runs the same suite on real IndexedDB and
    localStorage, seeds only synthetic history, starts the actual export, opens
    Inbox via layout points from the exact engine test, reads a detail and reopens

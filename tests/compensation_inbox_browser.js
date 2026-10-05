@@ -17,7 +17,9 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
  try{
   server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;if(pathname==='/fixture'){res.setHeader('Content-Type','text/html');return res.end('<title>Disposable Inbox storage test</title>');}const file=path.resolve(web,'.'+pathname);if(!file.startsWith(web+path.sep)||!fs.existsSync(file)){res.writeHead(404);return res.end();}res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(fs.readFileSync(file));});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  browser=await chromium.launch({headless:false,chromiumSandbox:true});
+  const channel=process.env.PLAYWRIGHT_CHROMIUM_CHANNEL||undefined;
+  browser=await chromium.launch({headless:false,chromiumSandbox:true,channel});
+  report.browser={channel:channel||'bundled Chromium',version:browser.version(),playwright:require(path.join(process.env.PLAYWRIGHT_MODULE||'playwright','package.json')).version,sandbox:true};
   const context=await browser.newContext({viewport:{width:1360,height:880}}),page=await context.newPage(),url='http://127.0.0.1:'+server.address().port;
   await page.goto(url+'/fixture');
   await page.addScriptTag({content:sources.old});await page.evaluate(()=>window.oldVault=LittleLeafVault);
