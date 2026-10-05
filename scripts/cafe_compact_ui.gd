@@ -28,7 +28,7 @@ const SHORT_NAMES={"table_set":"Table set","table":"Table","chair":"Chair","stov
 var game
 var column
 var categories
-var context:HBoxContainer
+var context:Control
 var context_label:Label
 var rotate_button:Button
 var move_button:Button
@@ -70,16 +70,11 @@ var wall_heights:OptionButton
 var wall_preview:Control
 var wall_price_label:Label
 var wall_use_button:Button
-var floor_panel:PanelContainer
-var floor_access:Button
-var floor_price_label:Label
-var floor_use_button:Button
 var floor_repair_button:Button
 var floor_repair_review:PanelContainer
 var floor_repair_text:Label
 var floor_repair_confirm:Button
 var product_target=""
-var wall_quote_label:Label
 var wall_review:PanelContainer
 var wall_review_text:Label
 var wall_confirm_button:Button
@@ -144,7 +139,7 @@ func _hide_popups():
  for p in _popup_panels():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
- var panels=[finishes,floor_panel,floor_repair_review,wall_review,management,help_panel,play_panel]
+ var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
@@ -163,7 +158,7 @@ func setup():
  var stretch=Control.new();stretch.size_flags_horizontal=Control.SIZE_EXPAND_FILL;categories.add_child(stretch)
  manage_access=_small_button("Manage",show_management,74);categories.add_child(manage_access)
  help_access=_small_button("?",show_help,44);categories.add_child(help_access)
- context=HBoxContainer.new();context.add_theme_constant_override("separation",6);column.add_child(context);column.move_child(context,2)
+ context=Control.new();context.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(context);column.move_child(context,2)
  context_label=game.label("",13);context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;context.add_child(context_label)
  rotate_button=_small_button("Rotate",_rotate_selected);context.add_child(rotate_button)
  move_button=_small_button("Move",_move_opening);context.add_child(move_button)
@@ -196,29 +191,20 @@ func setup():
  var actions=BoxContainer.new();finish_box.add_child(actions);popup_action_rows.append(actions)
  wall_use_button=_small_button("Use wall",_use_wall_product,144);actions.add_child(wall_use_button)
  actions.add_child(_small_button("Cancel",func():finishes.hide(),78))
- floor_panel=_panel();var floor_box=VBoxContainer.new();floor_box.add_theme_constant_override("separation",9);floor_panel.add_child(floor_box)
- floor_box.add_child(game.label("Flooring",18))
- var floor_row=game.build_tools.surface_options.get_child(0);floor_row.reparent(floor_box)
- floor_price_label=game.label("",13);floor_price_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;floor_price_label.custom_minimum_size=Vector2(250,0);floor_box.add_child(floor_price_label)
- game.build_tools.floor_option.item_selected.connect(func(_index):_sync_floor_product())
- var floor_actions=BoxContainer.new();floor_box.add_child(floor_actions);popup_action_rows.append(floor_actions)
- floor_use_button=_small_button("Use flooring",_use_floor_product,144);floor_actions.add_child(floor_use_button)
- floor_actions.add_child(_small_button("Cancel",func():floor_panel.hide(),78))
- floor_repair_button=_small_button("Finish starter floor",_review_starter_floor_repair);floor_box.add_child(floor_repair_button)
+ floor_repair_button=_small_button("Finish floor",_review_starter_floor_repair,100);categories.add_child(floor_repair_button)
  floor_repair_review=_panel();var repair_box=VBoxContainer.new();repair_box.add_theme_constant_override("separation",12);floor_repair_review.add_child(repair_box)
  repair_box.add_child(game.label("Finish starter floor",18))
  floor_repair_text=game.label("",15);floor_repair_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;floor_repair_text.custom_minimum_size=Vector2(250,0);repair_box.add_child(floor_repair_text)
  var repair_actions=BoxContainer.new();repair_box.add_child(repair_actions);popup_action_rows.append(repair_actions)
  floor_repair_confirm=_small_button("Finish floor",_confirm_starter_floor_repair,140);repair_actions.add_child(floor_repair_confirm)
  repair_actions.add_child(_small_button("Cancel",func():floor_repair_review.hide(),80))
- floor_access=_small_button("Floor",show_floor_product,66);context.add_child(floor_access);context.move_child(floor_access,context.get_child_count()-2)
  wall_review=_panel();var review_box=VBoxContainer.new();review_box.add_theme_constant_override("separation",12);wall_review.add_child(review_box)
  review_box.add_child(game.label("Replace wall",20))
  wall_review_text=game.label("",15);wall_review_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;wall_review_text.custom_minimum_size=Vector2(250,0);review_box.add_child(wall_review_text)
  var review_actions=BoxContainer.new();review_box.add_child(review_actions);popup_action_rows.append(review_actions)
  wall_confirm_button=_small_button("Replace",_confirm_wall_replacement,140);review_actions.add_child(wall_confirm_button)
  review_actions.add_child(_small_button("Cancel",func():wall_review.hide();pending_wall={},80))
- wall_quote_label=game.label("",13);wall_quote_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;wall_quote_label.custom_minimum_size=Vector2(0,0);column.add_child(wall_quote_label);column.move_child(wall_quote_label,3);wall_quote_label.hide()
+
  build_scroll=ScrollContainer.new();build_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;build_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
  column.add_child(build_scroll);game.build_panel.reparent(build_scroll);build_scroll.hide()
  for kind in game.catalog_cards:
@@ -272,7 +258,7 @@ func setup():
    if c.text=="Changes are saved automatically":c.hide()
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
- for popup in [finishes,floor_panel,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
+ for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
   hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  update_notes=UpdateNotes.new(self);update_notes.setup()
@@ -344,8 +330,6 @@ func sync():
  move_button.visible=not opening.is_empty() and b.mode!="move_opening"
  finish_button.visible=not wall.is_empty() or selected_shell!="" or edge
  finish_button.text="Style" if edge else "Replace"
- floor_access.visible=game.catalog_category=="Build" and (not selected or flooring)
- floor_access.text="Style" if flooring else "Floor"
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false
  var refund=0
@@ -376,7 +360,7 @@ func sync():
  var next_plot=game.model.next_parcel()
  plot_button.text="Next plot · %s"%Money.amount(int(next_plot.cost)) if not next_plot.is_empty() else "All plots owned";plot_button.disabled=next_plot.is_empty() or game.save_recovery_blocked
  var width=game.get_viewport().get_visible_rect().size.x
- for picker in [wall_heights,wall_papers,game.build_tools.floor_option]:picker.custom_minimum_size.y=42 if width<650 else 29
+ for picker in [wall_heights,wall_papers]:picker.custom_minimum_size.y=42 if width<650 else 29
  compact_play=false # Pause and speed stay visible; Open has one action at every width.
  var controls_parent=play_panel_box if compact_play else (hud.layout_host if hud!=null else top_row)
  if play_controls.get_parent()!=controls_parent:
@@ -564,26 +548,16 @@ func _camera_action(amount:float):
   game.interaction._zoom_step_at(Vector2(size.x*.5,(hud.layout_host.get_global_rect().end.y+shop_ui.browse_rect().position.y)*.5),signf(amount))
  sync()
 
-func show_floor_product():
- game.settings.hide();game.build_tools.on_focus_lost()
- game.build_tools.floor_option.select(game.build_tools.FLOOR_STYLES.find(game.build_tools.floor_material))
- _sync_floor_product();_popup_at(floor_panel,320)
-func _sync_floor_product():
- if not is_instance_valid(floor_price_label):return
- var b=game.build_tools;var chosen=b.FLOOR_STYLES[maxi(0,b.floor_option.selected)]
- floor_price_label.text="%s coins per tile\n\nClick one owned tile to install. You can floor underneath furniture.\n\nReplacing a floor refunds half its paid cost. Starter and inherited floors have no refund. The tile preview shows what you pay."%Money.amount(game.model.floor_price(chosen))
- floor_use_button.disabled=game.save_recovery_blocked
- _sync_starter_floor_repair()
 func _sync_starter_floor_repair():
  if not is_instance_valid(floor_repair_button):return
  var gaps=game.model.starter_floor_gap_cells()
- floor_repair_button.visible=not gaps.is_empty()
+ floor_repair_button.visible=not gaps.is_empty() and game.editing and game.catalog_category=="Build" and shop_ui!=null and shop_ui.build_page=="tiles"
  var blocked=game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build"
  floor_repair_button.disabled=blocked
  floor_repair_confirm.disabled=blocked or gaps.is_empty()
  if gaps.is_empty():floor_repair_review.hide()
 func _review_starter_floor_repair():
- if not floor_panel.visible or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
+ if not floor_repair_button.is_visible_in_tree() or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
  var gaps=game.model.starter_floor_gap_cells()
  if gaps.is_empty():_sync_starter_floor_repair();return
  floor_repair_text.text="Complete %d missing starter-row tiles with warm oak for free.\n\nExisting flooring stays as it is."%gaps.size()
@@ -593,11 +567,7 @@ func _confirm_starter_floor_repair():
  if not floor_repair_review.visible or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
  floor_repair_review.hide()
  if game.model.repair_starter_floor_gap()>0:game.build_tools._changed()
- _sync_floor_product();sync()
-func _use_floor_product():
- var b=game.build_tools;b.floor_material=b.FLOOR_STYLES[maxi(0,b.floor_option.selected)]
- floor_panel.hide();b.choose("floor");sync();update_pointer()
-
+ _sync_starter_floor_repair();sync()
 func _paper_selected(_index:int):
  _sync_wall_product()
 func show_finishes():
@@ -675,7 +645,7 @@ func _sync_help_content():
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Floor buys one tile at a time. New land starts bare; previews show the price and any refund.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
@@ -730,6 +700,7 @@ func handle_unhandled_input(event:InputEvent)->bool:
  return false
 func short_reason(text:String)->String:
  var t=text.to_lower()
+ if t.begins_with("the original cafe shell is already here"):return "Wall already here"
  if t.contains("already occupies"):return "Opening already here"
  if t.contains("empty floor") or t.contains("not a host"):return "Place a wall first"
  if t.contains("full-height") or t.contains("half wall"):return "Needs a full wall"
@@ -753,17 +724,7 @@ func short_reason(text:String)->String:
 func update_pointer():
  if not is_instance_valid(hint):return
  var reason="";var b=game.build_tools
- wall_quote_label.visible=game.editing and b.active() and b.mode in ["half","full","floor"]
- if wall_quote_label.visible:
-  # Give wrapped prices their real width before Container sorts this frame.
-  # Otherwise a newly shown label can briefly force the tray over the world.
-  wall_quote_label.custom_minimum_size.x=maxf(120,game.tray.size.x-36)
-  wall_quote_label.size.x=wall_quote_label.custom_minimum_size.x
-  if b.mode=="floor":wall_quote_label.text=b.floor_price_text()
-  else:
-   wall_quote_label.text=b.replacement_price_text() if b.replacing else "Wall · "+Money.amount(game.model.wall_price(b.mode))+" coins per tile · click an edge or wall"
-   if b.replacing and b.replacement_quote.has("units"):wall_quote_label.text+=" · entire %d-tile wall"%b.replacement_quote.units
-  if shop_ui!=null:shop_ui.sync_quote(wall_quote_label.text)
+ if shop_ui!=null:shop_ui.sync_action_details()
  if game.editing and b.active() and b.mode!="select_opening" and not b.preview_valid and b.preview_reason!="":reason=b.preview_reason
  elif game.editing and game.interaction!=null and game.interaction.preview_active:
   if not game.interaction.drag_valid:reason=game.interaction.drag_reason

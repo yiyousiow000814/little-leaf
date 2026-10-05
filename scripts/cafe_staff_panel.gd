@@ -21,11 +21,9 @@ var payroll_card:PanelContainer
 var summary:Label
 var clock_label:Label
 var rows={}
-var details:Label
 var scroll:ScrollContainer
 var role_body:VBoxContainer
 var footnote:Label
-var help_button:Button
 var done_button:Button
 var fit_queued=false
 var bottom_fade:TextureRect
@@ -34,7 +32,7 @@ func build():
  panel=compact._panel();layout_box=VBoxContainer.new();layout_box.add_theme_constant_override("separation",8);panel.add_child(layout_box)
  var heading=HBoxContainer.new();heading.add_theme_constant_override("separation",12);layout_box.add_child(heading)
  title=game.label("Staff",22,INK);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;title.size_flags_vertical=Control.SIZE_SHRINK_CENTER;heading.add_child(title)
- help_button=compact._small_button("?",_toggle_details,44);help_button.custom_minimum_size=Vector2(44,44);help_button.tooltip_text="Hiring, shifts and pay";help_button.accessibility_name="Staff help";heading.add_child(help_button)
+ done_button=compact._small_button("Done",func():panel.hide();compact.sync(),70);done_button.custom_minimum_size=Vector2(70,44);done_button.add_theme_font_size_override("font_size",14);done_button.accessibility_name="Close Staff";heading.add_child(done_button)
  payroll_card=PanelContainer.new();layout_box.add_child(payroll_card)
  var payroll=VBoxContainer.new();payroll.add_theme_constant_override("separation",3);payroll_card.add_child(payroll)
  summary=game.label("",15,INK);summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;payroll.add_child(summary)
@@ -44,7 +42,6 @@ func build():
  # clip edge. Two real content pixels keep its full frame reachable.
  var content_inset=MarginContainer.new();content_inset.add_theme_constant_override("margin_bottom",2);content_inset.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(content_inset)
  role_body=VBoxContainer.new();role_body.add_theme_constant_override("separation",10);role_body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;content_inset.add_child(role_body)
- details=game.label("Hire fees are paid once. Off duty is free and has no refund; Resume is free. Extra staff finish their current job before resting, with no lost dishes or orders. One core worker per role stays on duty. Wages run only while open or finishing work. Pause, Decorate and fully idle Closed stop wages; there are no offline charges. Any amount due is paid once from later income.",13,MUTED);details.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;details.hide();role_body.add_child(details)
  # Cards use real roster data, but optional model APIs do not silently expose
  # unfinished roles. Extend this presentation list only with an approved role.
  for role_value in game.model.staff_roster():
@@ -74,7 +71,6 @@ func build():
    rest.tooltip_text="An extra worker finishes their job, then rests. No fee or refund."
   rows[role]={"name":name,"heading":role_heading,"purpose":purpose,"wage":wage,"hire":hire,"rest":rest,"resume":resume,"included":included,"status":status,"portrait":portrait,"card":card,"controls":controls}
  footnote=game.label("Game minutes · no offline wages",11,MUTED);footnote.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;layout_box.add_child(footnote)
- done_button=compact._small_button("Done",func():panel.hide();compact.sync());done_button.custom_minimum_size.y=44;layout_box.add_child(done_button)
  game.get_viewport().size_changed.connect(_queue_fit)
  panel.minimum_size_changed.connect(_queue_fit)
  bottom_fade=TextureRect.new();bottom_fade.mouse_filter=Control.MOUSE_FILTER_IGNORE;bottom_fade.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;bottom_fade.z_index=22;game.ui.add_child(bottom_fade);bottom_fade.hide()
@@ -89,8 +85,7 @@ func apply_theme(hud):
  hud.theme_panel(payroll_card,false,10)
  hud.theme_scroll(scroll)
  for label in [title,summary]:label.add_theme_font_override("font",hud.font_bold)
- for label in [details,footnote]:label.add_theme_color_override("font_color",hud.INK)
- hud.theme_button(help_button)
+ footnote.add_theme_color_override("font_color",hud.INK)
  hud.theme_button(done_button)
  for row in rows.values():
   hud.theme_panel(row.card,false,10)
@@ -115,7 +110,7 @@ func _fit():
  var width=minf(PANEL_WIDTH,maxf(0,view.x-insets.x-insets.z-24))
  var available=compact.hud.popup_height_budget() if compact.hud!=null else maxf(0,view.y-top-insets.w-12)
  # Short landscape screens keep wages readable in the scrolling content
- # instead of letting fixed chrome push Done below the safe bottom edge.
+ # instead of letting fixed chrome consume the role viewport.
  var short_view=available<320
  if short_view and payroll_card.get_parent()!=role_body:
   payroll_card.reparent(role_body);role_body.move_child(payroll_card,0)
@@ -123,7 +118,7 @@ func _fit():
   payroll_card.reparent(layout_box);layout_box.move_child(payroll_card,1)
  footnote.visible=not short_view
  # A vertical action stack on narrow screens keeps every label and 44px
- # target intact. Extra roles and expanded help stay inside the same scroll.
+ # target intact. All role cards stay inside the same scroll.
  var panel_style=panel.get_theme_stylebox("panel")
  for row in rows.values():
   var needed=0.0;var count=0
@@ -143,8 +138,6 @@ func _sync_fade():
  var bar=scroll.get_v_scroll_bar();bottom_fade.visible=panel.visible and bar.max_value>bar.page and bar.value<bar.max_value-bar.page-.5
  if bottom_fade.visible:
   var rect=scroll.get_global_rect();bottom_fade.position=Vector2(rect.position.x,rect.end.y-12);bottom_fade.size=Vector2(rect.size.x-(bar.size.x if bar.visible else 0),12)
-func _toggle_details():
- details.visible=not details.visible;scroll.scroll_vertical=0;help_button.text="×" if details.visible else "?";help_button.accessibility_name="Close staff help" if details.visible else "Staff help";_queue_fit()
 func sync():
  if not is_instance_valid(panel):return
  summary.text="Team wages · %s / min"%Money.amount(game.model.wage_rate())
@@ -184,5 +177,5 @@ func sync():
    if str(game.staff_states[index].role)==role:
     row.portrait.set_member(index);break
 func show():
- details.hide();help_button.text="?";help_button.accessibility_name="Staff help";scroll.scroll_vertical=0
+ scroll.scroll_vertical=0
  game.settings.hide();sync();compact._popup_at(panel,PANEL_WIDTH);_fit();_queue_fit()
