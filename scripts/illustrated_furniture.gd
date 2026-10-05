@@ -216,14 +216,27 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 static func stove_food_surface(rotation:int)->Vector2:
 	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
 
+static func stove_handle_points(rotation:int)->PackedVector2Array:
+	# Staff use the rotated local +z workface. One handle follows that same
+	# side and meets the existing rim; it never points across the pan at -z.
+	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH),41,rotation),KitchenGeometry.surface(Vector2(0,.24*PAN_WIDTH),41,rotation)])
+
+static func stove_handle_in_front(rotation:int)->bool:
+	return posmod(rotation,4) in [0,3]
+
+func _stove_pan_handle():
+	var handle=stove_handle_points(turn)
+	edge(origin+handle[0],origin+handle[1],"536e5f",2.2)
+
 func stove_pan():
 	var c=point(0,0,34)
-	edge(point(0,-.17*PAN_WIDTH,38),point(0,-.32*PAN_WIDTH,38),"536e5f",2.2)
-	edge(point(0,.15*PAN_WIDTH,38),point(0,.31*PAN_WIDTH,38),"536e5f",2.2)
+	var handle_in_front=stove_handle_in_front(turn)
+	if not handle_in_front:_stove_pan_handle()
 	a.rounded_poly([c+Vector2(-8*PAN_WIDTH,-7),c+Vector2(8*PAN_WIDTH,-7),c+Vector2(7*PAN_WIDTH,0),c+Vector2(-6*PAN_WIDTH,0)],2,"9eac94")
 	a.ellipse(c+Vector2(0,-.5),Vector2(7*PAN_WIDTH,1.4),"8ea08b")
 	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH),"607d6b","dce0c9",1.2)
 	a.ellipse(c+Vector2(0,-7),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"718c77")
+	if handle_in_front:_stove_pan_handle()
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
