@@ -4,6 +4,11 @@ extends RefCounted
 # at their saved elapsed time. Already-held litter is now contained in a pan.
 const STEPS=[{"kind":"floor","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"floor","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"floor","action":"mopping","seconds":1.5}]
 const MAX_MESSES=24
+const MAX_NEW_LITTER=12
+const DROP_CHANCE_PERCENT=10
+const LITTER_SCALE=1.08
+const WALKING_PHASES=["arriving","checkout_walk","leaving"]
+const KITCHEN_KINDS=["stove","beverage","sink","counter"]
 const Geometry=preload("res://scripts/cafe_floor_geometry.gd")
 var geometry
 var game
@@ -11,6 +16,9 @@ var messes={}
 var walks={}
 var next_id=1
 var completed=0
+# Layout owners can exclude future toilets or staff-only zones with rectangles.
+# This is a spawn policy, not saved state; old jobs keep their physical targets.
+var litter_exclusions:Array[Rect2i]=[]
 func _init(owner=null):game=owner;geometry=Geometry.new(owner)
 func snapshot()->Dictionary:return {"next_id":next_id,"completed":completed,"messes":messes.values().duplicate(true),"walks":walks.values().duplicate(true)}
 func restore(data:Dictionary):
@@ -24,26 +32,41 @@ func observe_walks():
   var id=int(guest.id);live[id]=true;var pos=Vector2(float(guest.x),float(guest.z));var cell=Vector2i(floori(pos.x),floori(pos.y))
   if not walks.has(id):walks[id]={"guest_id":id,"pos":pos,"cell":cell,"inside_steps":0,"dropped":false};continue
   var track=walks[id];var old_cell:Vector2i=track.cell;var moved=pos.distance_to(track.pos)>.00001
-  if moved and cell!=old_cell and str(guest.phase) in ["arriving","leaving"] and game._staff_walkable(old_cell):
+  var adjacent=absi(cell.x-old_cell.x)+absi(cell.y-old_cell.y)==1
+  if moved and adjacent and str(guest.phase) in WALKING_PHASES and not bool(guest.get("withdrawn",false)) and not game.model.segment_blocked(track.pos,pos) and litter_allowed(old_cell):
    track.inside_steps+=1
-   # One in five visits may leave one small mess, after three actual owned
-   # floor crossings. No eating timer, table offset or stationary spawning.
-   if not track.dropped and posmod(id,5)==1 and int(track.inside_steps)>=3:
-    var kind=["spill","banana","crumbs"][posmod(int(id/5),3)]
+   # Each eligible crossing offers a small repeatable chance, so aggregate
+   # frequency grows with customer traffic, not an every-footstep guarantee.
+   var roll=posmod(id*53+int(track.inside_steps)*17,100)
+   if not track.dropped and int(track.inside_steps)>=3 and roll<DROP_CHANCE_PERCENT:
+    var kind=["banana","crumbs"][posmod(id+int(track.inside_steps),2)]
     var spawned=spawn(old_cell,kind,id,int(track.inside_steps))
     if spawned>=0:track.dropped=true
   track.pos=pos;track.cell=cell
  for id in walks.keys():
   if not live.has(id):walks.erase(id)
 func spawn(cell:Vector2i,kind:String,guest_id=-1,path_step=0)->int:
- if messes.size()>=MAX_MESSES or kind not in ["spill","banana","crumbs"] or not game._staff_walkable(cell):return -1
+ if messes.size()>=MAX_NEW_LITTER or kind not in ["banana","crumbs"] or not litter_allowed(cell):return -1
  for entry in messes.values():
-  if entry.floor_cell==cell:return -1
+  var separation:Vector2i=entry.floor_cell-cell
+  if absi(separation.x)<=1 and absi(separation.y)<=1:return -1
  var center=Vector2(cell)+Vector2(.5,.5);var id=next_id
  var entry={"id":id,"token":id,"floor_cell":cell,"floor_target":center,"debris_target":center+Vector2(.1,-.08),"spill_target":center+Vector2(-.1,.08),"floor_debris":"none" if kind=="spill" else kind,"floor_spill":kind=="spill","spill_remaining":1.0 if kind=="spill" else 0.0,"spill_cleaned":kind!="spill","trash_owner":"none" if kind=="spill" else "floor","trash_staff_index":-1,"trash_target_id":-1,"floor_dirty":true,"floor_cleaned":false,"source_guest_id":guest_id,"spawn_path_step":path_step}
- if not geometry.generate(entry,posmod(id*47+int(guest_id)*13,1000000000)):return -1
+ if not geometry.generate(entry,posmod(id*47+int(guest_id)*13,1000000000),LITTER_SCALE,true):return -1
+ # Every visible piece must stay inside the actually traversed eligible tile.
+ for point in entry.mess_shape.outline:
+  if Vector2i(floori(point.x),floori(point.y))!=cell:return -1
  messes[id]=entry;next_id+=1
  return id
+func litter_allowed(cell:Vector2i)->bool:
+ if not game._staff_walkable(cell) or game._is_station_workface(cell):return false
+ for zone in litter_exclusions:
+  if zone.has_point(cell):return false
+ # There are no persisted zone labels in this baseline. Reserve the kitchen
+ # station neighborhoods; future explicit zones use litter_exclusions above.
+ for item in game.model.items:
+  if str(item.kind) in KITCHEN_KINDS and Rect2i(Vector2i(int(item.x)-1,int(item.z)-1),Vector2i(3,3)).has_point(cell):return false
+ return true
 func record(staff:Dictionary)->Dictionary:return messes.get(int(staff.get("job_mess_id",-1)),{})
 func needed(entry:Dictionary,action:String,debris_kind="")->bool:
  match action:

@@ -88,22 +88,21 @@ static func _draw_dry_piece(art,piece:Dictionary,unit:float):
 			_face(art,piece,[Vector2(-.031,-.019),Vector2(-.012,-.039),Vector2(.041,-.011),Vector2(.003,.009)],"d5a362",true)
 
 static func _draw_meal_remnants(art,piece:Dictionary,unit:float):
-	# Larger uneven lunch remnants stay within the saved cleanup hull. The
-	# cutlet's warm brown values separate them from pale tiles without an outline.
-	_surface(art,piece,[Vector3(-0.1457,-0.0057,0),Vector3(-0.107,-0.0592,0),Vector3(-0.0103,-0.0501,0),Vector3(0.0272,0.0102,0),Vector3(-0.0524,0.0477,0)],"946b46",unit,"",true)
-	_surface(art,piece,[Vector3(-0.1366,-0.008,0.728),Vector3(-0.1036,-0.0501,1.183),Vector3(-0.0149,-0.0433,1.092),Vector3(0.0147,0.0045,0.546),Vector3(-0.0547,0.0375,0.455)],"aa7548",unit,"",true)
-	_surface(art,piece,[Vector3(-0.1036,-0.0501,1.183),Vector3(-0.0149,-0.0433,1.092),Vector3(-0.0365,-0.0068,1.274),Vector3(-0.1013,-0.0012,1.274)],"d5a362",unit,"",true)
-	_surface(art,piece,[Vector3(0.0701,0.1127,0),Vector3(0.1017,0.0622,0),Vector3(0.1727,0.0733,0),Vector3(0.1881,0.1169,0),Vector3(0.1368,0.1494,0)],"946b46",unit,"",true)
-	_surface(art,piece,[Vector3(0.0795,0.1101,0.378),Vector3(0.1043,0.0716,0.63),Vector3(0.1667,0.0802,0.504),Vector3(0.177,0.1127,0.315),Vector3(0.1342,0.14,0.252)],"aa7548",unit,"",true)
-	_surface(art,piece,[Vector3(0.1043,0.0716,0.63),Vector3(0.1667,0.0802,0.504),Vector3(0.1428,0.1015,0.693),Vector3(0.1026,0.0964,0.693)],"d5a362",unit,"",true)
+	# Loose fragments have individual contact edges, never a bag/box backing.
+	_surface(art,piece,[Vector3(-0.1094,-0.00455,0),Vector3(-0.0873,-0.0351,0),Vector3(-0.03205,-0.0299,0),Vector3(-0.0106,0.00455,0),Vector3(-0.0561,0.026,0)],"aa895d",unit,"",true)
+	_surface(art,piece,[Vector3(-0.1042,-0.00585,0.52),Vector3(-0.08535,-0.0299,0.845),Vector3(-0.03465,-0.026,0.78),Vector3(-0.01775,0.0013,0.39),Vector3(-0.0574,0.02015,0.325)],"d5a362",unit,"",true)
+	_surface(art,piece,[Vector3(-0.08535,-0.0299,0.845),Vector3(-0.03465,-0.026,0.78),Vector3(-0.047,-0.0052,0.91),Vector3(-0.08405,-0.00195,0.91)],"e3bd80",unit,"",true)
+	_surface(art,piece,[Vector3(0.09895,0.1095,0),Vector3(0.1156,0.08295,0),Vector3(0.15295,0.0888,0),Vector3(0.16105,0.11175,0),Vector3(0.13405,0.12885,0)],"aa895d",unit,"",true)
+	_surface(art,piece,[Vector3(0.1039,0.10815,0.27),Vector3(0.11695,0.0879,0.45),Vector3(0.1498,0.0924,0.36),Vector3(0.1552,0.1095,0.225),Vector3(0.1327,0.1239,0.18)],"d5a362",unit,"",true)
+	_surface(art,piece,[Vector3(0.11695,0.0879,0.45),Vector3(0.1498,0.0924,0.36),Vector3(0.1372,0.10365,0.495),Vector3(0.11605,0.10095,0.495)],"e3bd80",unit,"",true)
 	# Cream grains reuse the rice and subtle warm underside from the plated meal.
-	_surface(art,piece,[Vector3(-0.1935,0.0548,0),Vector3(-0.1875,0.0435,0),Vector3(-0.1057,0.0735,0),Vector3(-0.1118,0.0877,0)],"ad9670",unit,"",true)
-	_surface(art,piece,[Vector3(-0.1875,0.0518,0.4375),Vector3(-0.1808,0.048,0.5),Vector3(-0.111,0.0742,0.4375),Vector3(-0.1163,0.0825,0.3125)],"fff5da",unit,"",true)
-	_surface(art,piece,[Vector3(0.007,-0.1179,0),Vector3(0.0152,-0.1295,0),Vector3(0.0722,-0.1047,0),Vector3(0.0639,-0.089,0)],"ad9670",unit,"",true)
-	_surface(art,piece,[Vector3(0.0136,-0.1138,0.4125),Vector3(0.0194,-0.1237,0.55),Vector3(0.0664,-0.1047,0.4125),Vector3(0.0606,-0.0948,0.3438)],"fff5da",unit,"",true)
+	_surface(art,piece,[Vector3(-0.179,0.0585,0),Vector3(-0.175,0.051,0),Vector3(-0.1205,0.071,0),Vector3(-0.1245,0.0805,0)],"d4c7a7",unit,"",true)
+	_surface(art,piece,[Vector3(-0.175,0.0565,0.35),Vector3(-0.1705,0.054,0.4),Vector3(-0.124,0.0715,0.35),Vector3(-0.1275,0.077,0.25)],"fff5da",unit,"",true)
+	_surface(art,piece,[Vector3(0.018,-0.11495,0),Vector3(0.0235,-0.12265,0),Vector3(0.06145,-0.10615,0),Vector3(0.05595,-0.0957,0)],"d4c7a7",unit,"",true)
+	_surface(art,piece,[Vector3(0.0224,-0.1122,0.33),Vector3(0.02625,-0.1188,0.44),Vector3(0.0576,-0.10615,0.33),Vector3(0.05375,-0.09955,0.275)],"fff5da",unit,"",true)
 
-	_surface(art,piece,[Vector3(0.1146,-0.0414,0),Vector3(0.1308,-0.0683,0),Vector3(0.1794,-0.0319,0),Vector3(0.1632,-0.0116,0)],"ad9670",unit,"",true)
-	_surface(art,piece,[Vector3(0.1227,-0.04,0.4375),Vector3(0.1322,-0.0576,0.625),Vector3(0.1713,-0.0292,0.4375),Vector3(0.1618,-0.0198,0.3125)],"fff5da",unit,"",true)
+	_surface(art,piece,[Vector3(.123,-.041,0),Vector3(.135,-.061,0),Vector3(.171,-.034,0),Vector3(.159,-.019,0)],"d4c7a7",unit,"",true)
+	_surface(art,piece,[Vector3(.129,-.040,.35),Vector3(.136,-.053,.5),Vector3(.165,-.032,.35),Vector3(.158,-.025,.25)],"fff5da",unit,"",true)
 
 static func _cubic_outline(start:Vector3,curves:Array)->Array:
 	var points=[start];var previous=start
