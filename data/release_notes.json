@@ -1,13 +1,12 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.8",
+  "version": "0.1.9-alpha-1",
   "date": "2026-10-05",
-  "label": "Café interface cleanup",
-  "new": [],
-  "fixed": [
-    "Centered the Coins balance and improved large-number display with an exact-balance hint.",
-    "Shifted character bubbles slightly right while keeping their tails aligned with their characters.",
-    "Removed the bottom notification feature and its repeated status messages."
-  ]
+  "label": "Save inspection diagnostic",
+  "new": [
+    "Added Settings → Log to inspect whether this browser has a save and review save/load diagnostics.",
+    "Temporary diagnostic based on 0.1.8. This build helps inspect the reported save loss; it does not claim to fix it."
+  ],
+  "fixed": []
 }

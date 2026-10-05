@@ -18,6 +18,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_save_log", "SAVE_LOG_RESULT"),
     ("test_intro_lifecycle_headless", "INTRO_LIFECYCLE_RESULT"),
     ("test_intro_cli_bypass", "INTRO_CLI_RESULT"),
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),

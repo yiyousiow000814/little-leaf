@@ -1,4 +1,5 @@
 extends Node3D
+const SaveLog=preload("res://scripts/cafe_save_log.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
@@ -177,6 +178,7 @@ func _exit_tree():
 	if web_save!=null:web_save.stop()
 
 func _load_startup():
+	SaveLog.record("boot_requested",{"layer":"controller" if OS.has_feature("web") else "native"})
 	if OS.has_feature("web"):
 		web_save=WebSave.new(self)
 		web_save.load_startup()
@@ -184,6 +186,7 @@ func _load_startup():
 	var args=OS.get_cmdline_user_args()
 	save_writes_suppressed="--visual-qa" in args or "--fresh-review" in args or "--review-checkpoint" in args
 	if "--fresh-review" in args:
+		SaveLog.record("read_accepted",{"layer":"native","source":"review"})
 		fresh_start=true;MinimalStart.apply(model);return
 	if "--review-checkpoint" in args:
 		if not model.load_save("res://docs/reconstructed_runtime_save.json"): MinimalStart.apply(model)
@@ -194,13 +197,16 @@ func _load_startup():
 	startup_save_source=source
 	if source!="":
 		if model.load_save(source):
+			SaveLog.record("read_accepted",{"layer":"native","source":"native-primary" if source==SAVE_FILE else "native-import"})
 			if model.included_bin_pending:
 				model.ensure_basic_bin()
 			return
 		# Never skip a corrupt primary/import source or treat it as absent.
 		# Recovery preserves both profile files and prevents all progress writes.
+		SaveLog.record("read_failure",{"layer":"native","code":"VALIDATION_FAILED"})
 		save_recovery_blocked=true;paused=true
 		MinimalStart.apply(model);return
+	SaveLog.record("read_accepted",{"layer":"native","source":"fresh"})
 	fresh_start=true;MinimalStart.apply(model)
 
 func material(color: Color) -> StandardMaterial3D:
@@ -753,14 +759,18 @@ func _unsaved_progress_message()->String:
 
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
+	SaveLog.record("save_requested",{"layer":"native"})
 	save_timer=0.0
-	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args(): return true
+	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args():
+		SaveLog.record("save_skipped",{"layer":"native","code":"RECOVERY_BLOCKED" if save_recovery_blocked else "WRITES_SUPPRESSED"});return true
 	# Only this version's profile is mutable. Older import sources and the
 	# reconstructed source checkpoint remain byte-for-byte untouched.
 	_update_people()
 	model.service_snapshot=_service_save_snapshot()
 	if not model.save(SAVE_FILE):
+		SaveLog.record("save_failure",{"layer":"native","code":"NATIVE_SAVE_FAILED"})
 		progress_unsaved=true;progress_save_error=model.last_error;return false
+	SaveLog.record("save_accepted",{"layer":"native"})
 	progress_unsaved=false;progress_save_error=""
 	return true
 

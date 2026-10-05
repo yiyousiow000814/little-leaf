@@ -7,6 +7,52 @@ import re
 import subprocess
 
 STABLE = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+DIAGNOSTIC_VERSION = "0.1.9-alpha-1"
+DIAGNOSTIC_TAG = "v" + DIAGNOSTIC_VERSION
+DIAGNOSTIC_BRANCH = "release/0.1.8-save-diagnostic"
+DIAGNOSTIC_BASE_TAG = "v0.1.8"
+DIAGNOSTIC_BASE_SHA = "9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc"
+
+
+def release_kind(tag):
+    if tag == DIAGNOSTIC_TAG:
+        return "diagnostic"
+    if re.fullmatch("v" + STABLE, tag):
+        return "stable"
+    raise ValueError("Expected a stable vX.Y.Z tag or the exact v0.1.9-alpha-1 diagnostic tag")
+
+
+def git_value(root, *arguments):
+    result = subprocess.run(["git", "-C", str(root), *arguments], capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError("Required release source ref or history is missing")
+    return result.stdout.strip()
+
+
+def require_reviewed_source(root, tag):
+    if release_kind(tag) == "stable":
+        require_main_ancestor(root)
+        return
+    head = git_value(root, "rev-parse", "HEAD")
+    base = git_value(root, "rev-parse", DIAGNOSTIC_BASE_TAG + "^{commit}")
+    branch = git_value(root, "rev-parse", "refs/remotes/origin/" + DIAGNOSTIC_BRANCH)
+    tagged = git_value(root, "rev-parse", DIAGNOSTIC_TAG + "^{commit}")
+    parents = git_value(root, "show", "-s", "--format=%P", "HEAD").split()
+    if base != DIAGNOSTIC_BASE_SHA or parents != [DIAGNOSTIC_BASE_SHA]:
+        raise ValueError("Diagnostic must be one reviewed squash commit directly on the pinned v0.1.8 source")
+    if branch != head or tagged != head:
+        raise ValueError("Diagnostic tag must equal the reviewed maintenance branch tip and checked-out source")
+
+
+def fetch_reviewed_source(root, tag):
+    # Only these fixed source routes exist. Never accept a branch/ref override.
+    refs = ["main"] if release_kind(tag) == "stable" else [
+        "refs/heads/" + DIAGNOSTIC_BRANCH + ":refs/remotes/origin/" + DIAGNOSTIC_BRANCH,
+        "refs/tags/" + DIAGNOSTIC_BASE_TAG + ":refs/tags/" + DIAGNOSTIC_BASE_TAG,
+        "refs/tags/" + DIAGNOSTIC_TAG + ":refs/tags/" + DIAGNOSTIC_TAG,
+    ]
+    subprocess.run(["git", "-C", str(root), "fetch", "--no-tags", "origin", *refs], check=True)
+    require_reviewed_source(root, tag)
 
 
 def require_main_ancestor(root):
@@ -21,15 +67,17 @@ def require_main_ancestor(root):
 def version(root, tag=""):
     project = (root / "project.godot").read_text()
     matches = re.findall(r'^config/version="([^"]+)"$', project, re.MULTILINE)
-    if len(matches) != 1 or not re.fullmatch(STABLE, matches[0]):
-        raise ValueError("project.godot must have one stable X.Y.Z config/version")
+    if len(matches) != 1:
+        raise ValueError("project.godot must have exactly one config/version")
+    release_kind("v" + matches[0])
     value = matches[0]
     notes = json.loads((root / "data/release_notes.json").read_text())
     if notes.get("version") != value:
         raise ValueError("project.godot and data/release_notes.json versions disagree")
     if tag:
+        release_kind(tag)
         if tag != "v" + value:
-            raise ValueError("Release tag must be vX.Y.Z and match both project and release notes")
+            raise ValueError("Release tag must match both project and release notes")
         if notes.get("status") != "released":
             raise ValueError("Release notes must be marked released before publishing")
         if date.fromisoformat(notes["date"]) > date.today():
@@ -44,7 +92,12 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--tag", default="")
     parser.add_argument("--require-main-ancestor", action="store_true")
+    parser.add_argument("--fetch-reviewed-source", action="store_true",
+                        help="Fetch and verify the fixed main or one-off diagnostic source route")
     args = parser.parse_args()
+    release_version = version(args.root, args.tag)
+    if args.fetch_reviewed_source:
+        fetch_reviewed_source(args.root, args.tag)
     if args.require_main_ancestor:
         require_main_ancestor(args.root)
-    print(version(args.root, args.tag))
+    print(release_version)

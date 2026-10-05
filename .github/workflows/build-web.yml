@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify metadata and CI guard tests
         env:
@@ -29,6 +30,8 @@ jobs:
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/legacy_byte_storage.js
+          node tests/save_log_observers.js
+          node tests/save_log_privacy.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles

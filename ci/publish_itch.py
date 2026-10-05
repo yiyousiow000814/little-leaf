@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from release_metadata import STABLE
+from release_metadata import STABLE, DIAGNOSTIC_VERSION, release_kind
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers
@@ -15,6 +15,18 @@ TARGET = "siowyiyou/little-leaf:html5"
 PRERELEASE_ID = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
 PRERELEASE = PRERELEASE_ID + r"(?:\." + PRERELEASE_ID + r")*"
 BUILD_METADATA = r"[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*"
+
+
+def version_order(value):
+    match = re.fullmatch(f"v?({STABLE})(?:-({PRERELEASE}))?(?:\\+{BUILD_METADATA})?", value)
+    if not match:
+        raise ValueError("itch baseline has an empty/unrecognized userVersion. Confirm the live build and give it a normal version before enabling this release; no upload attempted")
+    core = tuple(map(int, match[1].split(".")))
+    # SemVer: numeric prerelease identifiers sort before text, a shorter shared
+    # prefix sorts first, build metadata is ignored, stable sorts after prerelease.
+    prerelease = tuple((0, int(part)) if part.isdigit() else (1, part)
+                       for part in (match[2] or "").split("."))
+    return core, match[2] is None, prerelease if match[2] is not None else ()
 
 
 def parse_result(text):
@@ -53,6 +65,7 @@ def channel(status):
 
 
 def check_previous(status, new_version):
+    release_kind("v" + new_version)
     current = channel(status)
     if current.get("pending"):
         raise ValueError("itch already has a pending build. Wait/review it before another release")
@@ -60,20 +73,18 @@ def check_previous(status, new_version):
     if head.get("state") != "completed":
         raise ValueError("itch channel has no completed baseline; review it before publishing")
     previous = head.get("userVersion", "")
-    # Recognize the existing 0.1.5-dev.1 baseline as well as stable releases.
-    match = re.fullmatch(f"v?({STABLE})(?:-({PRERELEASE}))?(?:\\+{BUILD_METADATA})?", previous)
-    if not match:
-        raise ValueError("itch baseline has an empty/unrecognized userVersion. Confirm the live build and give it a normal version before enabling this release; no upload attempted")
-    old = tuple(map(int, match[1].split(".")))
-    new = tuple(map(int, new_version.split(".")))
-    if old > new or (old == new and match[2] is None):
+    old, new = version_order(previous), version_order(new_version)
+    if old >= new:
         raise ValueError("This version or a newer version is already on itch; refusing a duplicate or rollback")
+    if new_version == DIAGNOSTIC_VERSION and old != version_order("0.1.8"):
+        raise ValueError("The one-off diagnostic may only replace the completed 0.1.8 HTML5 baseline")
     return head["id"]
 
 
 def verify_artifact(web, tag, sha):
-    if not re.fullmatch("v" + STABLE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise ValueError("Expected a stable version tag and exact commit SHA")
+    release_kind(tag)
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("Expected an exact commit SHA")
     manifest = json.loads((web / "release-manifest.json").read_text())
     if (manifest.get("source_commit") != sha or manifest.get("tag") != tag
             or manifest.get("version") != tag[1:] or manifest.get("packed_smoke") != "passed"

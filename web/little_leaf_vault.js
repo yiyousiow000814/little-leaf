@@ -1,6 +1,10 @@
 /* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */
 (function (root) {
   'use strict';
+  // This observer never participates in a transaction or changes a result.
+  function observe(event, fields = {}) {
+    try { if (root.LittleLeafSaveLog) root.LittleLeafSaveLog.record(event, { layer: 'vault', ...fields }); } catch (_) {}
+  }
   const DB_NAME = 'little-leaf.authoritative.v1';
   const STORE = 'profiles';
   const ACTIVE = 'active';
@@ -175,6 +179,7 @@
       bootJson: '',
       async boot() {
         if (opening) return opening;
+        observe('boot_requested');
         opening = (async () => {
           try {
             campaigns = campaignConfig(options.campaigns === undefined ? CAMPAIGNS : options.campaigns);
@@ -197,14 +202,16 @@
             await verifyRecord(record);
             if (!record.revision) legacy = await readLegacy(factory);
             const result = { ok: true, profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
+            observe('read_result', { source: result.source, profileId: result.profileId, revision: result.revision });
             client.bootJson = JSON.stringify(result); return result;
-          } catch (error) { faulted = true; const result = resultError(error); client.bootJson = JSON.stringify(result); return result; }
+          } catch (error) { faulted = true; const result = resultError(error); observe('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result; }
         })();
         return opening;
       },
       async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
-        if (!record || faulted) return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover'));
-        if (busy) return resultError(fail('SAVE_BUSY', 'A save is still pending'));
+        observe('save_requested', { profileId: expectedProfileId, revision: expectedRevision });
+        if (!record || faulted) { observe('save_failure', { code: 'NOT_READY' }); return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover')); }
+        if (busy) { observe('save_failure', { code: 'SAVE_BUSY' }); return resultError(fail('SAVE_BUSY', 'A save is still pending')); }
         busy = true;
         try {
           parsePayload(payload, 15);
@@ -217,6 +224,7 @@
           const previous = record.revision ? { ...record, previous: null } : null;
           const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
           candidate.digest = await hash(fingerprint(candidate));
+          observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
           const next = await transaction(db, 'readwrite', (store, resolve, abort) => {
             const identityRequest = store.get(IDENTITY);
             const request = store.get(ACTIVE);
@@ -230,14 +238,17 @@
                 // bytes even when their stale checksum/revision survived damage.
                 if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
                 store.put(candidate, ACTIVE); resolve(candidate);
+                observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision });
               } catch (error) { abort(error); }
             };
           });
           record = next;
+          observe('save_confirmed', { profileId: next.profileId, revision: next.revision });
           client.bootJson = JSON.stringify({ ok: true, profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
           return { ok: true, profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
         } catch (error) {
           if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
+          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code });
           return resultError(error);
         } finally { busy = false; }
       },

@@ -21,20 +21,17 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Require a version tag from reviewed main history
+      - name: Require a newly created version tag
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
           REF_TYPE: ${{ github.ref_type }}
         run: |
           test "$REF_TYPE" = tag
-          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo '::error::Expected a stable vX.Y.Z release tag.'; exit 1; }
-          git fetch --no-tags origin main
-      - name: Check version binding
+      - name: Fetch reviewed source and check version binding
         id: metadata
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          VERSION=$(python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
+          VERSION=$(python3 ci/release_metadata.py --tag "$RELEASE_TAG" --fetch-reviewed-source)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build:
@@ -50,6 +47,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.gate.outputs.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Refuse missing credentials before any upload
         env:
@@ -71,6 +69,5 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_SHA: ${{ needs.gate.outputs.sha }}
         run: |
-          git fetch --no-tags origin main
-          python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 ci/release_metadata.py --tag "$RELEASE_TAG" --fetch-reviewed-source
           python3 ci/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA"

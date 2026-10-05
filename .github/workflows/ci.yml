@@ -2,7 +2,7 @@ name: Check and build Web
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, release/0.1.8-save-diagnostic]
   workflow_dispatch:
 permissions:
   contents: read
