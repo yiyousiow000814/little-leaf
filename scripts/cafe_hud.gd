@@ -437,7 +437,7 @@ func has_edit_action()->bool:
  return game.selected_kind!="" or game.selected_id>=0 or game.build_tools.active() or ui.selected_wall!="" or ui.selected_shell!="" or not ui.pending_wall.is_empty() or game.interaction.drag_active or game.interaction.preview_active
 func _close_pending_edit_popovers():
  ui.pending_wall={}
- for popup in [ui.finishes,ui.floor_panel,ui.wall_review]:
+ for popup in [ui.finishes,ui.floor_repair_review,ui.wall_review]:
   if is_instance_valid(popup):popup.hide()
 func _after_edit_toggle():
  if game.editing:return
