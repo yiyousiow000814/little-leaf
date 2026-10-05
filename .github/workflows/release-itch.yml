@@ -1,0 +1,76 @@
+name: Release Web to itch.io
+on:
+  push:
+    tags: ['v*']
+# No PR, main-push, workflow_run, or manual dispatch can publish.
+permissions:
+  contents: read
+concurrency:
+  group: itch-production-html5
+  cancel-in-progress: false
+jobs:
+  gate:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.created && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      sha: ${{ steps.metadata.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a version tag from reviewed main history
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$REF_TYPE" = tag
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || { echo '::error::Expected a stable vX.Y.Z release tag.'; exit 1; }
+          git fetch --no-tags origin main
+      - name: Check version binding
+        id: metadata
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  build:
+    needs: gate
+    uses: ./.github/workflows/build-web.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+  publish:
+    needs: [gate, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: Refuse missing credentials before any upload
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: |
+          test -n "$BUTLER_API_KEY" || { echo '::error::Missing BUTLER_API_KEY. The owner must personally add the legitimate itch credential in GitHub Actions Secrets; never paste it in chat or commit it.'; exit 1; }
+      - name: Download this run's exact tested artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: ${{ runner.temp }}/release-web
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install checksum-pinned official Butler
+        run: python3 ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+      - name: Recheck source, refuse duplicate/older releases, publish and await processing
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          git fetch --no-tags origin main
+          python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 ci/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA"

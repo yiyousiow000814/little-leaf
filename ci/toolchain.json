@@ -1,0 +1,20 @@
+{
+  "godot": {
+    "version": "4.6.3",
+    "url": "https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable/Godot_v4.6.3-stable_linux.x86_64.zip",
+    "sha256": "d0bc2113065e481c9c2c2b2c37daa4e8be3fe9e27f0ab9ab0b6096e9a37907f3",
+    "member": "Godot_v4.6.3-stable_linux.x86_64",
+    "runtime_prefix": "4.6.3.stable.official."
+  },
+  "templates": {
+    "url": "https://github.com/godotengine/godot-builds/releases/download/4.6.3-stable/Godot_v4.6.3-stable_export_templates.tpz",
+    "sha256": "3fbe2c0e2dec9d537ab9ec97bcf8da91dcf23357fc51f67092dd068d839290a8",
+    "member": "templates/web_nothreads_release.zip"
+  },
+  "butler": {
+    "version": "15.31.0",
+    "url": "https://github.com/itchio/butler/releases/download/v15.31.0/butler-linux-amd64.zip",
+    "sha256": "1e536377187894ef5fe7f35edfb29df256df63e50e7f6b97ebd54bc5aba4c055",
+    "member": "linux-amd64/butler"
+  }
+}
