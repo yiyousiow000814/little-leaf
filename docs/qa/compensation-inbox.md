@@ -78,7 +78,7 @@ snapshot data and must not be described as browser-persistence proof.
    localStorage, seeds only synthetic history, starts the actual export, opens
    Inbox via layout points from the exact engine test, reads a detail and reopens
    the modal, comparing authoritative records byte-for-byte. The official
-   `--time-scale 0` engine launch argument removes ordinary autosave timing races
+   `--time-scale 0 -- --skip-intro` engine launch arguments remove ordinary autosave timing races
    without replacing the vault or UI path. A subsequent browser reload verifies
    persisted read status, wallet and receipt; its normal page-hide save may
    legitimately advance the progress revision. It saves screenshots and
@@ -93,6 +93,13 @@ snapshot data and must not be described as browser-persistence proof.
    startup stubbed, checking both supported and missing-feature results and
    per-instance isolation. CI retains its report, the export/template hashes,
    and the separate real-browser launch and storage evidence.
+
+   Intro is skipped through its existing command-line option, matching the
+   native coordinate fixture: a zero simulation clock cannot finish the intro.
+   Every Settings/list/detail step requires screenshot-visible text before the
+   receipt assertions. Detail acknowledgement uses a bounded persisted-state
+   wait, and failures retain the current screenshot and exact stage. No input
+   signal or read marker is invoked directly by the test.
 
 Example after the normal engine suite and Web export:
 

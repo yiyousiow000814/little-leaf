@@ -1,7 +1,7 @@
 'use strict';
 // CI-only real Chromium + exported Web check under Xvfb. Every browser context is fresh,
 // localhost-only, synthetic, and discarded. No security flags are disabled.
-const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict'),cp=require('node:child_process');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const {installEngineLaunchHook}=require('./engine_launch_hook');
 const root=path.resolve(__dirname,'..');
@@ -18,14 +18,32 @@ report.source_sha256['tests/engine_launch_hook.js']=crypto.createHash('sha256').
 const sources={};for(const [key,file] of Object.entries({old:'tests/fixtures/inbox-vault-018.js',vault:'web/little_leaf_vault.js',markers:'web/little_leaf_inbox.js',suite:'tests/compensation_inbox_suite.js'})){sources[key]=fs.readFileSync(path.join(root,file),'utf8');report.source_sha256[file]=crypto.createHash('sha256').update(sources[key]).digest('hex');}
 const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
 (async()=>{
- let browser,server;
+ let browser,server,page;
  try{
   server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;if(pathname==='/fixture'){res.setHeader('Content-Type','text/html');return res.end('<title>Disposable Inbox storage test</title>');}const file=path.resolve(web,'.'+pathname);if(!file.startsWith(web+path.sep)||!fs.existsSync(file)){res.writeHead(404);return res.end();}res.setHeader('Content-Type',({'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png'})[path.extname(file)]||'application/octet-stream');res.end(fs.readFileSync(file));});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const channel=process.env.PLAYWRIGHT_CHROMIUM_CHANNEL||undefined;
   browser=await chromium.launch({headless:false,chromiumSandbox:true,channel});
   report.browser={channel:channel||'bundled Chromium',version:browser.version(),playwright:require(path.join(process.env.PLAYWRIGHT_MODULE||'playwright','package.json')).version,sandbox:true};
-  const context=await browser.newContext({viewport:{width:1360,height:880}}),page=await context.newPage(),url='http://127.0.0.1:'+server.address().port;
+  const context=await browser.newContext({viewport:{width:1360,height:880}}),url='http://127.0.0.1:'+server.address().port;page=await context.newPage();
+  const tesseract=process.env.TESSERACT_BIN||'tesseract';
+  report.ocr_version=cp.execFileSync(tesseract,['--version'],{encoding:'utf8'}).split('\n')[0];
+  report.rendered_stages={};
+  const normalize=text=>text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const visible=async(stage,phrases)=>{
+   report.stage=stage;const deadline=Date.now()+15000;let observed='',attempts=0;
+   const file=path.join(output,stage+'.png');
+   do{
+    attempts++;await page.screenshot({path:file});
+    observed=cp.execFileSync(tesseract,[file,'stdout','--psm','11'],{encoding:'utf8',timeout:5000,stdio:['ignore','pipe','pipe']});
+    fs.writeFileSync(path.join(output,stage+'.txt'),observed);
+    if(phrases.every(phrase=>normalize(observed).includes(normalize(phrase)))){
+     report.rendered_stages[stage]={phrases,observed,attempts};check(true,'rendered '+stage+' contains its required visible text');return;
+    }
+    await page.waitForTimeout(100);
+   }while(Date.now()<deadline);
+   report.rendered_stages[stage]={phrases,observed,attempts};throw Error('Rendered '+stage+' text did not appear within 15s');
+  };
   await page.goto(url+'/fixture');
   await page.addScriptTag({content:sources.old});await page.evaluate(()=>window.oldVault=LittleLeafVault);
   for(const key of ['vault','markers','suite'])await page.addScriptTag({content:sources[key]});
@@ -47,20 +65,26 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   // Supply an official runtime launch argument through the exported Engine
   // API. Zero simulation delta removes slow-CI autosave timing races while
   // keeping native GUI input, rendering, vault commits and read markers real.
-  await page.addInitScript(installEngineLaunchHook,{args:['--time-scale','0'],reportKey:'inboxTestLaunch'});
+  // The native fixture also skips intro. At time scale zero the presentation
+  // cannot finish itself and otherwise consumes the first Settings click.
+  await page.addInitScript(installEngineLaunchHook,{args:['--time-scale','0','--','--skip-intro'],reportKey:'inboxTestLaunch'});
   await page.goto(url+'/index.html');await page.waitForFunction(()=>!document.getElementById('status'),null,{timeout:60000});await page.waitForTimeout(1500);
   report.launch_hook=await page.evaluate(()=>window.inboxTestLaunch);
-  check(report.launch_hook?.launchCalls===1&&JSON.stringify(report.launch_hook.launchArgs)==='[\"--time-scale\",\"0\"]','exported Engine accepts controlled test clock arguments');
+  check(report.launch_hook?.launchCalls===1&&JSON.stringify(report.launch_hook.launchArgs)==='[\"--time-scale\",\"0\",\"--\",\"--skip-intro\"]','exported Engine accepts exact clock and intro fixture arguments');
   check(await page.evaluate(()=>JSON.parse(__littleLeafVault.snapshotJson()).paid.length===1),'actual exported shell retains historical snapshot on reload');
-  const click=async name=>{assert(points[name]&&points[name].length===2);await page.mouse.click(...points[name]);await page.waitForTimeout(150);};
-  await click('settings');await click('inbox');
+  const click=async name=>{report.stage='click-'+name;assert(points[name]&&points[name].length===2);await page.mouse.click(...points[name]);};
+  await click('settings');await visible('settings',['Settings','Inbox']);
+  await click('inbox');await visible('inbox-list',['Inbox','Letters are kept for 14 days']);
   check(await page.evaluate(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return !__littleLeafInbox.isRead(s.profileId,r.id,r.revision);}), 'opening actual Inbox list does not consume unread receipt');
   await page.screenshot({path:path.join(output,'exported-inbox-history.png')});
   await click('first_message');
+  await visible('inbox-detail',['Dear café owner','Paid','0.1.5 update']);
+  await page.waitForFunction(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return r&&__littleLeafInbox.isRead(s.profileId,r.id,r.revision);},null,{timeout:15000});
   check(await page.evaluate(()=>{const s=JSON.parse(__littleLeafVault.snapshotJson()),r=s.paid[0];return __littleLeafInbox.isRead(s.profileId,r.id,r.revision);}), 'opening actual message detail acknowledges its paid receipt');
   await page.screenshot({path:path.join(output,'exported-inbox-detail.png')});
   await page.keyboard.press('Escape');
-  await click('settings');await click('inbox');await page.keyboard.press('Escape');
+  await click('settings');await visible('reopened-settings',['Settings','Inbox']);
+  await click('inbox');await visible('reopened-inbox',['Inbox','Letters are kept for 14 days']);await page.keyboard.press('Escape');
   check(await readRecords()===before,'actual Inbox open/read/reopen/Escape leaves authority byte-identical');
   report.authority_after_inbox_sha256=crypto.createHash('sha256').update(await readRecords()).digest('hex');
   await page.reload();await page.waitForFunction(()=>!document.getElementById('status'),null,{timeout:60000});
@@ -73,6 +97,6 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   check(errors.length===0,'exported engine runs without script/browser exceptions');
   await page.screenshot({path:path.join(output,'exported-inbox-startup.png')});
   await context.close();report.passed=true;
- }catch(error){report.passed=false;report.error=error.stack;process.exitCode=1;}
+ }catch(error){report.passed=false;report.error=error.stack;process.exitCode=1;if(page&&!page.isClosed()){try{await page.screenshot({path:path.join(output,'failure-state.png')});}catch(captureError){report.failure_capture_error=String(captureError);}}}
  finally{if(browser)await browser.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}fs.mkdirSync(output,{recursive:true});fs.writeFileSync(path.join(output,'compensation-inbox-browser.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));}
 })();
