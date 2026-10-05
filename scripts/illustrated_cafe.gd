@@ -573,6 +573,11 @@ func _draw():
 			if e.type=="staff":
 				var held:Vector2=carry_hand_offsets.get(key,Vector2(17*face,-23))
 				pose["carry_hand"]=Vector2(held.x*face,held.y)
+				# Presentation reads the existing work clock; it never changes the
+				# recipe duration, normalized completion progress, or saved state.
+				pose["cooking_elapsed"]=float(d.get("job_elapsed",0.0))
+				var cooking_progress=float(d.get("art_phase",0.0))
+				pose["cooking_remaining"]=float(pose.cooking_elapsed)*(1.0-cooking_progress)/cooking_progress if cooking_progress>.000001 else -1.0
 			pose["hide_reach"]=bool(e.get("hide_reach",false))
 			pose["reach_overlay"]=bool(e.get("reach_overlay",false))
 			draw_set_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
@@ -969,7 +974,8 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":10.5,"leg_length":9.5,"limb_segments":1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	var cooking_pose=geometry.get("cooking_pose",{})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1386,9 +1392,34 @@ func _stove_food_remaining(item_id:int) -> float:
 		return 1.0 if action=="cooking" else clampf(1.0-float(staff.get("art_phase",0))/.65,0,1)
 	return 0.0
 
+func _stove_heat_state(item_id:int)->Dictionary:
+	if not is_instance_valid(game) or game.editing:return {}
+	for staff in game.staff_states:
+		if str(staff.get("art_action",""))!="cooking" or str(staff.get("job_kind",""))!="cook" or int(staff.get("job_step",-1))!=1:continue
+		if int(staff.get("art_target_id",-1))!=item_id or int(staff.get("station_id",-1))!=item_id:continue
+		var record=game.service_guests.get(int(staff.get("job_guest_id",-1)),{})
+		if int(record.get("meal_station_id",-1))!=item_id or str(record.get("plate_owner",""))!="kitchen":continue
+		return {"elapsed":float(staff.get("job_elapsed",0.0))}
+	return {}
+
+func _stove_heat(item_id:int,rotation:int):
+	var heat=_stove_heat_state(item_id)
+	if not heat.is_empty():furniture_art.draw_stove_heat(self,Vector2.ZERO,rotation,heat.elapsed)
+
+func _cooking_food_owned_by_pose(item_id:int)->bool:
+	if not is_instance_valid(game) or game.editing:return false
+	for staff in game.staff_states:
+		if str(staff.get("art_action",""))!="cooking" or int(staff.get("art_target_id",-1))!=item_id:continue
+		var record=game.service_guests.get(int(staff.get("art_guest_id",-1)),{})
+		if int(record.get("meal_station_id",-1))==item_id and str(record.get("plate_owner",""))=="kitchen":return true
+	return false
+
 func _stove_food(item_id:int,rotation:int):
 	var remaining=_stove_food_remaining(item_id)
-	if remaining>.001:furniture_art.draw_stove_food(self,Vector2.ZERO,rotation,remaining)
+	# The working chef owns the ingredient and blade layer order together.
+	# Never leave a second stationary copy underneath the moving portion.
+	if remaining>.001 and not _cooking_food_owned_by_pose(item_id):
+		furniture_art.draw_stove_food(self,Vector2.ZERO,rotation,remaining)
 
 func _drink_surface_point(rotation:int) -> Vector2:
 	# Cup bottom is a local point on the worktop, shared with the reaching hand.

@@ -171,6 +171,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  var blend=0.0 if bool(settings.get("dismounting",false)) else clampf(float(settings.get("blend",1.0 if walking else 0.0)),0,1)*(1.0-seat_mix)
  swing*=blend
  var legs=leg_pose(settings,walking,phase,back,profile)
+ if staff and action=="cooking":
+  # A small upper-body weight transfer drives the scoop while the shoes stay
+  # planted. Solve the short legs back to their original ground anchors.
+  legs=CookingPose.apply_body_weight(legs,float(settings.get("cooking_elapsed",0.0)),LEG_LENGTH,float(settings.get("cooking_remaining",-1.0)))
  origin+=legs.body
  if not overlay:ellipse(Vector2(2*seat_mix,2)-legs.body,Vector2(10,3.1),Color(.37,.42,.29,.12))
  # Far arm and far leg are behind the torso; near parts are in front.
@@ -190,7 +194,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   near_tip=waiter_tablet.near_hand;far_tip=waiter_tablet.far_hand
  var cooking_pose={}
  if staff and action=="cooking":
-  cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,t)
+  cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)))
   near_tip=cooking_pose.hand
  var cleaning_pose={}
  var disposal_pose={}
