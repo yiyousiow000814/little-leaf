@@ -69,7 +69,8 @@
             if(candidates.length>1)throw Error('Several legacy preference profiles were found; no profile was guessed');
             if(!candidates.length){done(null,null);return;}
             const bytes=candidates[0].entry&&candidates[0].entry.contents;
-            if(!(bytes instanceof Uint8Array)||bytes.byteLength>LIMIT)throw Error('Legacy preferences are unreadable or too large');
+            // IDBFS may retain the signed HEAP8 view used by native writes.
+            if(!(bytes instanceof Uint8Array || bytes instanceof Int8Array)||bytes.byteLength>LIMIT)throw Error('Legacy preferences are unreadable or too large');
             done(null,new TextDecoder('utf-8',{fatal:true}).decode(bytes));
           }catch(error){done(error);}
         };
