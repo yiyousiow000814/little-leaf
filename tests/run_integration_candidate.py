@@ -28,6 +28,7 @@ SUITES = [
     ("test_no_bottom_notifications", "NO_BOTTOM_NOTIFICATIONS_RESULT"),
     ("test_starter_geometry", "STARTER_GEOMETRY_RESULT"),
     ("test_starter_door_grid", "STARTER_DOOR_GRID_RESULT"),
+    ("test_opening_jamb_occlusion", "OPENING_JAMB_RESULT"),
     ("test_expansion_visibility", "EXPANSION_VISIBILITY_RESULT"),
     ("test_expansion_ring_prices", "EXPANSION_RING_PRICES_RESULT"),
     ("test_expansion_tree_visibility", "EXPANSION_TREE_RESULT"),
