@@ -1,0 +1,57 @@
+name: Synthetic browser storage diagnosis
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/check-storage.yml'
+      - 'tests/safari_storage_browser.js'
+      - 'tests/storage_reset_diagnosis.js'
+      - 'tests/fixtures/inbox-vault-018.js'
+      - 'tests/fixtures/startup-retry-v15.json'
+      - 'web/little_leaf_vault.js'
+      - 'web/little_leaf_shell.html'
+permissions:
+  contents: read
+jobs:
+  storage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [webkit, chromium]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check source and deterministic storage regressions
+        run: |
+          node --check tests/safari_storage_browser.js
+          node tests/storage_reset_diagnosis.js
+          node tests/legacy_byte_storage.js
+          node tests/compensation_inbox_storage.js
+      - name: Install official pinned Playwright browser
+        env:
+          STORAGE_BROWSER: ${{ matrix.browser }}
+        run: |
+          npm install --prefix "$RUNNER_TEMP/storage-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          if [ "$STORAGE_BROWSER" = webkit ]; then
+            "$RUNNER_TEMP/storage-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
+          else
+            "$RUNNER_TEMP/storage-browser-tools/node_modules/.bin/playwright" install-deps chromium
+            google-chrome --version
+          fi
+      - name: Diagnose real storage in isolated synthetic browser contexts
+        env:
+          STORAGE_BROWSER: ${{ matrix.browser }}
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/storage-browser-tools/node_modules/playwright" STORAGE_REPORT="$RUNNER_TEMP/storage-evidence/${STORAGE_BROWSER}.json" node tests/safari_storage_browser.js
+      - name: Retain synthetic storage findings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: synthetic-storage-${{ matrix.browser }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/storage-evidence/
+          if-no-files-found: warn
+          retention-days: 7
