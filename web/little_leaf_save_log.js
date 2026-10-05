@@ -3,7 +3,8 @@
   'use strict';
   const LIMIT = 240;
   const events = [];
-  const allowedEvents = new Set(['boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested']);
+  const allowedEvents = new Set(['boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested', 'connection_opened', 'connection_closed', 'connection_reopen_requested']);
+  const allowedStages = new Set(['boot_open', 'transaction_create', 'object_store', 'get_identity', 'get_active', 'active_result', 'identity_result', 'compare_authority', 'put', 'transaction_complete', 'reopen_existing', 'versionchange', 'forced_close', 'save_prepare']);
   const allowedSources = new Set(['authority', 'legacy-v13', 'fresh', 'native-primary', 'native-import', 'review']);
   const allowedCodes = new Set(['CAMPAIGN_CONFIG', 'CORRUPT_AUTHORITY', 'INVALID_SAVE', 'STORAGE_BLOCKED', 'STORAGE_ABORT', 'LEGACY_UNREADABLE', 'AMBIGUOUS_LEGACY', 'STORAGE_UNAVAILABLE', 'NOT_READY', 'SAVE_BUSY', 'REVISION_CONFLICT', 'REVISION_LIMIT', 'QuotaExceededError', 'SecurityError', 'AbortError', 'UnknownError', 'InvalidStateError', 'VersionError', 'NotFoundError', 'DataError', 'TransactionInactiveError', 'ReadOnlyError', 'ConstraintError', 'STORAGE_ERROR', 'VALIDATION_FAILED', 'STAGING_FAILED', 'INVALID_ACK', 'INVALID_REVISION_ACK', 'INVALID_CREDIT_ACK', 'CREDIT_SYNC_REQUIRED', 'WRITES_SUPPRESSED', 'RECOVERY_BLOCKED', 'NATIVE_SAVE_FAILED', 'BRIDGE_MISSING']);
   let version = 'unknown', sequence = 0, dropped = 0, copyStatus = '', lastRead = null;
@@ -40,6 +41,8 @@
       const profile = fingerprint(fields.profileId); if (profile) entry.profile = profile;
       if (Number.isSafeInteger(fields.revision) && fields.revision >= 0) entry.revision = fields.revision;
       if (typeof fields.code === 'string' && fields.code) entry.code = allowedCodes.has(fields.code) ? fields.code : 'STORAGE_ERROR';
+      if (allowedStages.has(fields.stage)) entry.stage = fields.stage;
+      if (Number.isSafeInteger(fields.connectionGeneration) && fields.connectionGeneration >= 1) entry.connectionGeneration = fields.connectionGeneration;
       if (event === 'read_result' || event === 'read_accepted') lastRead = entry;
       events.push(Object.freeze(entry));
       if (events.length > LIMIT) { events.shift(); dropped++; }

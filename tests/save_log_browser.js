@@ -127,8 +127,11 @@ async function main() {
     check(copied.includes('origin=' + origin + ' | frame=top-level | referrerOrigin=' + origin + ' | browser=Chrome '), 'copied snapshot contains origin-only browser context');
     check(copied.includes('Latest read=') && copied.includes('read_accepted') && copied.includes('save_accepted'), 'copied snapshot retains the actual controller read and accepted save');
     for (const secret of [seeded.profileId, payload, stored.payload, 'PRIVATE_QUERY_SENTINEL', 'PRIVATE_FRAGMENT_SENTINEL', 'PRIVATE_REFERRER_SENTINEL', 'PRIVATE_TOKEN_SENTINEL', '"coins"', 'coins=', '42000']) check(!copied.includes(secret), 'snapshot omits synthetic private value ' + (secret.length > 40 ? '(payload)' : secret.startsWith('PRIVATE_') ? secret : '(identity/wallet)'));
-    const allowed = new Set(['sequence', 'timestamp', 'event', 'layer', 'source', 'profile', 'revision', 'code']);
+    const allowed = new Set(['sequence', 'timestamp', 'event', 'layer', 'source', 'profile', 'revision', 'code', 'stage', 'connectionGeneration']);
+    const allowedStages = new Set(['boot_open', 'transaction_create', 'object_store', 'get_identity', 'get_active', 'active_result', 'identity_result', 'compare_authority', 'put', 'transaction_complete', 'reopen_existing', 'versionchange', 'forced_close', 'save_prepare']);
     check(events.every(event => Object.keys(event).every(key => allowed.has(key))), 'actual controller events contain only approved diagnostic fields');
+    check(events.every(event => !Object.hasOwn(event, 'stage') || allowedStages.has(event.stage)), 'connection stages use only the explicit sanitized stage allowlist');
+    check(events.every(event => !Object.hasOwn(event, 'connectionGeneration') || (Number.isSafeInteger(event.connectionGeneration) && event.connectionGeneration > 0)), 'connection generations are positive safe integers');
     await page.keyboard.press('Escape');
     await page.evaluate(() => navigator.clipboard.writeText('SECOND_COPY_SENTINEL'));
     await click('settings'); await click('log'); await click('copy');

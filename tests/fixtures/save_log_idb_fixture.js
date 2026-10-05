@@ -83,7 +83,7 @@ class FixtureTx {
 }
 class FixtureDB {
   constructor(factory, name, state) {
-    Object.assign(this, { factory, name, state, closed: false });
+    Object.assign(this, { factory, name, state, version: state.version, closed: false });
     this.objectStoreNames = { contains: name => state.stores.has(name) };
   }
   createObjectStore(name) {
