@@ -1,5 +1,8 @@
 extends RefCounted
 const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
+# Presentation only: the cooking assembly fills the existing range naturally.
+const PAN_WIDTH=1.35
+const PAN_DEPTH=1.15
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -93,15 +96,15 @@ func _stove_base():
 	box(0,0,.88,.78,1,29,"b7c4af","849e8c","708d7d","839a84")
 	box(0,0,.91,.81,29,31,"d9deca","adbca9","a2b3a0")
 	for burner in [Vector2.ZERO]:
-		top_ellipse(burner.x,burner.y,31.2,.155,.155,"536e61")
-		top_ellipse(burner.x,burner.y,31.4,.11,.11,"8f9f88")
-		top_ellipse(burner.x,burner.y,31.6,.063,.063,"5b7665")
+		top_ellipse(burner.x,burner.y,31.2,.155*PAN_WIDTH,.155*PAN_WIDTH,"536e61")
+		top_ellipse(burner.x,burner.y,31.4,.11*PAN_WIDTH,.11*PAN_WIDTH,"8f9f88")
+		top_ellipse(burner.x,burner.y,31.6,.063*PAN_WIDTH,.063*PAN_WIDTH,"5b7665")
 		for d in [Vector2.RIGHT,Vector2.DOWN]:
-			edge(point(burner.x-d.x*.18,burner.y-d.y*.18,31.8),point(burner.x+d.x*.18,burner.y+d.y*.18,31.8),"556e60",1.15)
+			edge(point(burner.x-d.x*.18*PAN_WIDTH,burner.y-d.y*.18*PAN_WIDTH,31.8),point(burner.x+d.x*.18*PAN_WIDTH,burner.y+d.y*.18*PAN_WIDTH,31.8),"556e60",1.15)
 
 	# A short raised grate supports the pan and leaves a real burner gap.
 	for q in [Vector2(-.13,0),Vector2(.13,0),Vector2(0,.13)]:
-		edge(point(q.x,q.y,31.5),point(q.x,q.y,34),"536e61",1.25)
+		edge(point(q.x*PAN_WIDTH,q.y*PAN_WIDTH,31.5),point(q.x*PAN_WIDTH,q.y*PAN_WIDTH,34),"536e61",1.25)
 
 func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
@@ -109,8 +112,8 @@ func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float)
 	# The live blue gas jets are below the pan, not painted over the food.
 	# Drawn before the pan layer, the upper tips are naturally occluded.
 	for i in range(3):
-		var x=-7.3+i*7.3
-		var at=base+Vector2(x,.6*(1.0-absf(x)/7.3))
+		var x=(-7.3+i*7.3)*PAN_WIDTH
+		var at=base+Vector2(x,.6*(1.0-absf(x)/(7.3*PAN_WIDTH)))
 		var height=3.1+.60*sin(elapsed_seconds*8.5+i*1.9)
 		a.rounded_poly([at+Vector2(-1.0,0),at+Vector2(-.65,-height*.55),at+Vector2(.12,-height),at+Vector2(.9,-height*.25),at+Vector2(.9,0)],.22,"59a9cf")
 		a.line(at+Vector2(0,-.05),at+Vector2(.1,-height*.60),"c2e4d5",.65)
@@ -215,12 +218,12 @@ static func stove_food_surface(rotation:int)->Vector2:
 
 func stove_pan():
 	var c=point(0,0,34)
-	edge(point(0,-.17,38),point(0,-.32,38),"536e5f",2.2)
-	edge(point(0,.15,38),point(0,.31,38),"536e5f",2.2)
-	a.rounded_poly([c+Vector2(-8,-7),c+Vector2(8,-7),c+Vector2(7,0),c+Vector2(-6,0)],2,"9eac94")
-	a.ellipse(c+Vector2(0,-.5),Vector2(7,1.4),"8ea08b")
-	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5,4.2),"607d6b","dce0c9",1.2)
-	a.ellipse(c+Vector2(0,-7),Vector2(6.8,2.8),"718c77")
+	edge(point(0,-.17*PAN_WIDTH,38),point(0,-.32*PAN_WIDTH,38),"536e5f",2.2)
+	edge(point(0,.15*PAN_WIDTH,38),point(0,.31*PAN_WIDTH,38),"536e5f",2.2)
+	a.rounded_poly([c+Vector2(-8*PAN_WIDTH,-7),c+Vector2(8*PAN_WIDTH,-7),c+Vector2(7*PAN_WIDTH,0),c+Vector2(-6*PAN_WIDTH,0)],2,"9eac94")
+	a.ellipse(c+Vector2(0,-.5),Vector2(7*PAN_WIDTH,1.4),"8ea08b")
+	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH),"607d6b","dce0c9",1.2)
+	a.ellipse(c+Vector2(0,-7),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"718c77")
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)

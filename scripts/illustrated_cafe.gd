@@ -967,11 +967,16 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 	# Rendering reads these values; it never writes the routing heading back.
 	return direction
 
+static func _kitchen_visual_action(action:String,staff:bool,role:String)->String:
+	return "idle" if staff and role=="chef" and action=="plating" else action
+
 func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=posmod(id,3);var away=bool(pose.get("view_back",look.x+look.y<-.5))
 	var shirt=["9cbbbd","c98e83","d6b16b","a9b78a"][id%4] if not staff else {"chef":"739c7f","waiter":"b99578","cleaner":"91b2ad","cashier":"b68b92"}.get(role,"739c7f")
 	var options=pose.duplicate()
-	options.merge({"role":role if staff else "customer","shirt":shirt,"action":action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
+	# Keep the existing ready-meal handoff timing, without a plating gesture.
+	var visual_action=_kitchen_visual_action(action,staff,role)
+	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
@@ -1316,8 +1321,6 @@ func _action_prop(p: Vector2,hand_offset: Vector2,action: String,t: float,payloa
 		else:rounded_poly([tip+Vector2(-5,-2),tip+Vector2(4,-2),tip+Vector2(6,3),tip+Vector2(-7,3)],1,"c9b57a")
 	elif action=="preparing_food":
 		line(hand,hand+Vector2(4,6),"d5cfad",2)
-	elif action=="plating" and payload=="none":
-		line(hand+Vector2(0,4),hand+Vector2(4,-2),"d5cfad",2)
 
 
 func _dustpan(at:Vector2,grip:Vector2,axis:Vector2,loaded:bool):
@@ -1362,16 +1365,10 @@ func _drink_in_hand(_guest,_record) -> bool:
 
 func _station_payloads(item_id: int,kind: String,rotation: int=0):
 	if game==null or ("editing" in game and game.editing):return
+	# Kitchen cooking has no empty plate or staged assembly on the worktop.
+	# Ready meals still appear through the existing staff/counter ownership.
+	if kind=="stove":return
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
-		if kind=="stove" and str(record.get("plate_owner",""))=="kitchen" and int(record.get("meal_station_id",-1))==item_id:
-			var surface=_stove_plate_point(rotation)
-			var plated=0.0
-			var active=false
-			for staff in game.staff_states:
-				if int(staff.get("art_guest_id",-1))!=int(record.guest.id) or int(staff.get("art_target_id",-1))!=item_id:continue
-				if str(staff.art_action) in ["preparing_food","cooking","plating"]:active=true
-				if str(staff.art_action)=="plating":plated=clampf(float(staff.art_phase)/.65,0,1)
-			if active:_plate(surface,plated if plated>0 else -1.0,false)
 		if kind=="counter" and str(record.get("plate_owner",""))=="counter" and int(record.get("plate_target_id",-1))==item_id:
 			_plate(FurnitureArt.KitchenGeometry.surface(Vector2.ZERO,31),1.0,false)
 		if kind=="beverage" and str(record.get("drink_owner","")) in ["beverage","station"] and int(record.get("drink_station_id",-1))==item_id:
@@ -1389,7 +1386,8 @@ func _stove_food_remaining(item_id:int) -> float:
 		if action not in ["cooking","plating"]:continue
 		var record=game.service_guests.get(int(staff.get("art_guest_id",-1)),{})
 		if int(record.get("meal_station_id",-1))!=item_id or str(record.get("plate_owner",""))!="kitchen":continue
-		return 1.0 if action=="cooking" else clampf(1.0-float(staff.get("art_phase",0))/.65,0,1)
+		# Hold the finished ingredients until the authoritative ready-meal handoff.
+		return 1.0
 	return 0.0
 
 func _stove_heat_state(item_id:int)->Dictionary:
