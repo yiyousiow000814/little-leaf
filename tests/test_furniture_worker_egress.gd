@@ -94,12 +94,12 @@ func model_cases():
   check(m.place("rug",6,6,0,[actor]),spec.label+" unrelated legacy edit remains allowed")
   check(m.move(id,7,7,0,[actor]),spec.label+" outward repair remains allowed")
   check(m._furniture_actor_component(Model.ENTRY_LANDING,m.items).has(cell),spec.label+" repair restores staff route")
- # Record the existing warning-only station-front policy without changing it.
- m=blank();check(m.place("stove",6,1,0),"front-warning fixture stove places")
- check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"authoritative policy rejects a newly blocked stove front")
+ # Required appliance access remains protected with or without strict workfaces.
+ m=blank();check(m.place("beverage",6,1,0),"required-front beverage fixture places")
+ check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"authoritative policy rejects a newly blocked beverage front")
  check("front blocked" in m.placement_warning("table_set",6,2,-1,3),"rejected front retains its precise diagnostic")
  m.strict_workfaces=true
- check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"strict model policy rejects the same blocked stove front")
+ check(not m.can_place("table_set",6,2,-1,3,[Vector2(9.5,7.5)]),"strict model policy rejects the same blocked beverage front")
 func frames(n=2):
  for unused in range(n):await process_frame
 func mouse(point:Vector2,pressed:bool):
@@ -161,9 +161,10 @@ func ui_cases():
  var actors=cafe.interaction._staff_positions()
  check(field.prepare(cafe.model,"table_set",id,1,Vector2i(2,0),actors).ok,"own unchanged group footprint remains valid")
  cafe.selected_kind="table_set";cafe.selected_id=-1;cafe.rotation_step=0
- for at in [Vector2i(7,3),Vector2i(7,4),Vector2i(8,2),Vector2i(5,4)]:
+ for at in [Vector2i(7,3),Vector2i(7,4),Vector2i(5,4)]:
   var receipt_at=field.prepare(cafe.model,"table_set",-1,0,at,actors)
   check(not receipt_at.ok and "blocked" in receipt_at.error,"workface remains blocked despite relocation "+str(at))
+ check(field.prepare(cafe.model,"table_set",-1,0,Vector2i(8,2),actors).ok,"optional stove access can be occupied after safe staff relocation")
  # A sealed old room cannot be escaped by teleporting through its walls.
  var enclosed=blank()
  for spec in [["x",3,3],["x",4,3],["x",3,4],["x",4,4],["z",3,3],["z",5,3]]:enclosed.place_wall(spec[0],spec[1],spec[2])

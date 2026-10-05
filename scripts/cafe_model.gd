@@ -1247,7 +1247,7 @@ func _workface_open_in(item: Dictionary, layout: Array[Dictionary]) -> bool:
 
 func _workfaces_preserved(proposed: Array[Dictionary], changed_id: int) -> bool:
 	for item in proposed:
-		if not str(item.kind) in ["stove","beverage","sink"]: continue
+		if not str(item.kind) in ["beverage","sink"]: continue
 		if _workface_open_in(item,proposed): continue
 		var previous=get_item(int(item.id))
 		# Preserve existing saves with blocked legacy stations, but no mutation
@@ -1524,7 +1524,7 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 			reachable[neighbor] = true
 			queue.append(neighbor)
 	for item in layout:
-		if item.kind not in SERVICE_KINDS:
+		if item.kind not in SERVICE_KINDS or item.kind=="stove":
 			continue
 		var accessible := false
 		for offset in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:

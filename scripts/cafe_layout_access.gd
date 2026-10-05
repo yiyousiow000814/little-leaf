@@ -1,6 +1,6 @@
 extends RefCounted
 ## The same structural workface facts drive preview, commit, and issue navigation.
-static func requires_access(_kind:String)->bool:return true
+static func requires_access(kind:String)->bool:return kind!="stove"
 
 static func issues(model,layout:Array)->Array:
  var typed_layout:Array[Dictionary]=[];typed_layout.assign(layout)
@@ -33,5 +33,7 @@ static func introduced(model,layout:Array)->Dictionary:
  var previous={}
  for issue in issues(model,model.items):previous[str(issue.item_id)+":"+str(issue.side)]=true
  for issue in issues(model,layout):
+  # A stove may intentionally be decorative or temporarily unusable.
+  if not requires_access(str(issue.kind)):continue
   if not previous.has(str(issue.item_id)+":"+str(issue.side)):return issue
  return {}

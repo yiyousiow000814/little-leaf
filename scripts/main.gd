@@ -709,6 +709,8 @@ func _service_warning() -> String:
 	var first=""
 	for staff in staff_states:
 		var reason=str(staff.get("art_block_reason",""))
+		var blocked=model.get_item(int(staff.get("blocked_target_id",-1)))
+		if not editing and str(blocked.get("kind",""))=="stove" and reason.to_lower().contains("blocked"):continue
 		if reason=="": continue
 		if first=="": first=reason
 		if reason.contains("Decorate") or reason.to_lower().contains("blocked"): return reason
@@ -1467,19 +1469,28 @@ func _refresh_idle_homes():
 	if idle_home_revision==model.revision and idle_home_count==staff_states.size():return
 	idle_home_revision=model.revision;idle_home_count=staff_states.size()
 	var reserved=[];var stoves=[]
+	var reachable=model._sale_reachable_in(model.items)
 	for item in model.items:
-		if item.kind=="stove":stoves.append(item)
-	for staff in staff_states:
+		if item.kind=="stove" and model._sale_station_usable_in(item,model.items,reachable):stoves.append(item)
+	# Keep every still-usable home before assigning a replacement. Otherwise an
+	# earlier blocked chef can steal a later chef's working stove by array order.
+	var retained={}
+	for index in range(staff_states.size()):
+		var staff=staff_states[index]
 		if staff.role!="chef" or not bool(staff.get("on_duty",true)):continue
-		var home={}
 		for stove in stoves:
-			if int(stove.id)==int(staff.get("idle_home_id",-1)) and not reserved.has(model.workface_cell(stove)):home=stove;break
+			if int(stove.id)==int(staff.get("idle_home_id",-1)) and not reserved.has(model.workface_cell(stove)):
+				retained[index]=stove;reserved.append(model.workface_cell(stove));break
+	for index in range(staff_states.size()):
+		var staff=staff_states[index]
+		if staff.role!="chef" or not bool(staff.get("on_duty",true)):continue
+		var home:Dictionary=retained.get(index,{})
 		if home.is_empty():
 			for stove in stoves:
-				if not reserved.has(model.workface_cell(stove)):home=stove;break
+				if not reserved.has(model.workface_cell(stove)):
+					home=stove;reserved.append(model.workface_cell(stove));break
 		staff.idle_home_id=int(home.id) if not home.is_empty() else -1
 		staff.idle_home_cell=model.workface_cell(home) if not home.is_empty() else Vector2i(-1,-1)
-		if not home.is_empty():reserved.append(staff.idle_home_cell)
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		if staff.role=="chef" and bool(staff.get("on_duty",true)):continue
@@ -1514,16 +1525,16 @@ func _idle_obstructs_guest(_point:Vector2,_guest:Dictionary)->bool:
 	# Compatibility helper: people can pass through other people.
 	return false
 
-func _staff_idle_cell(index: int, claimed: Array) -> Vector2i:
+func _staff_idle_cell(index: int, claimed: Array, allow_home:bool=true) -> Vector2i:
 	_refresh_idle_homes()
 	var staff=staff_states[index]
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 	var home:Vector2i=staff.get("idle_home_cell",Vector2i(-1,-1))
 	var station=model.get_item(int(staff.get("idle_home_id",-1)))
-	var physical_home_ok=home!=Vector2i(-1,-1) and _staff_walkable(home) and not _static_service_path(from,home).is_empty()
+	var physical_home_ok=allow_home and home!=Vector2i(-1,-1) and _staff_walkable(home) and not _static_service_path(from,home).is_empty()
 	if staff.role=="chef" and bool(staff.get("on_duty",true)) and not station.is_empty():physical_home_ok=physical_home_ok and not model.edge_blocked(home,Vector2i(int(station.x),int(station.z)))
-	if staff.role=="chef" and bool(staff.get("on_duty",true)) and staff.job_kind=="" and not physical_home_ok and staff.blocked_reason=="":
-		staff.blocked_reason="Stove front blocked" if not station.is_empty() else "Add a stove"
+	if staff.role=="chef" and bool(staff.get("on_duty",true)) and staff.job_kind=="" and not physical_home_ok and staff.blocked_reason=="" and model.count_kind("stove")==0:
+		staff.blocked_reason="Add a stove"
 		staff.blocked_target_id=int(station.get("id",-1))
 	if physical_home_ok and _idle_cell_clear(home,index,claimed):
 		if float(staff.get("idle_return_delay",0.0))<=0.0:return home
@@ -1677,7 +1688,7 @@ func _animate_staff(delta: float):
 		if not target_item.is_empty() and _service_destination(staff,target_item,from)==Vector2i(-1,-1):
 			staff.blocked_reason="Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate");staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
 		elif not target_item.is_empty(): staff.blocked_reason=""
-		if not interaction_available: destination=_staff_idle_cell(index,claimed)
+		if not interaction_available: destination=_staff_idle_cell(index,claimed,str(target_item.get("kind",""))!="stove")
 		# v13 may restore an old avoidance timer; it has no effect on work now.
 		staff.yield_time=0.0
 		claimed.append(destination)
@@ -1716,7 +1727,9 @@ func _animate_staff(delta: float):
 		staff.node.position=Vector3(staff.pos.x,abs(sin(animation_time*11+index))*.025 if moved else 0.0,staff.pos.y)
 		if staff.blocked_reason!="" and (not moved or target_item.is_empty()):
 			var blocked_item=model.get_item(int(staff.blocked_target_id))
-			_set_staff_art(staff,"blocked",blocked_item,0.0,payload)
+			# An intentionally unavailable stove is quiet during service.
+			var action="idle" if str(blocked_item.get("kind",""))=="stove" and not editing else "blocked"
+			_set_staff_art(staff,action,blocked_item,0.0,payload)
 			if staff.job_kind=="":
 				staff.art_guest_id=int(staff.blocked_guest_id)
 				staff.art_guest_phase=str(service_guests[int(staff.blocked_guest_id)].guest.phase) if service_guests.has(int(staff.blocked_guest_id)) else ""
