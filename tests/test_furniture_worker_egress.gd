@@ -163,7 +163,7 @@ func ui_cases():
  for at in [Vector2i(7,3),Vector2i(7,4),Vector2i(5,4)]:
   var receipt_at=field.prepare(cafe.model,"table_set",-1,0,at,actors)
   check(not receipt_at.ok and "blocked" in receipt_at.error,"workface remains blocked despite relocation "+str(at))
- check(field.prepare(cafe.model,"table_set",-1,0,Vector2i(8,2),actors).ok,"optional stove access can be occupied after safe staff relocation")
+ check(not field.prepare(cafe.model,"table_set",-1,0,Vector2i(8,2),actors).ok,"safe staff relocation cannot give away the reserved stove workface")
  # A sealed old room cannot be escaped by teleporting through its walls.
  var enclosed=blank()
  for spec in [["x",3,3],["x",4,3],["x",3,4],["x",4,4],["z",3,3],["z",5,3]]:enclosed.place_wall(spec[0],spec[1],spec[2])

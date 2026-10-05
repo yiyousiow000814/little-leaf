@@ -15,11 +15,10 @@ func run():
  check(not game.save_recovery_blocked and game.model.dining_sets.size()==4,"fresh public default plus explicit four-table fixture starts")
  check(game.model.place("stove",5,1),"second accessible stove places")
  game.model.cooks=2;game.model.duty_targets.chef=2;game.model.duty_counts.chef=2;game._update_people();game._sync_staff_duty()
- game.model._arrival_elapsed=-1000000
+ # Keep the actual bounded arrival clock valid for the mid-service save.
  var blocked_worker={};var held=[];var blocker_id=-1;var blocked_ticks=0;var restored=false;var done=false
  var other_completed=false;var stationary=0;var last=Vector2.INF
  for tick in 15000:
-  if game.model._next_customer_id<=4:game.model._spawn_customer()
   if game.model._next_customer_id==5 and game.model.customers.all(func(g):return bool(g.admitted)):game.model.set_operating_open(false)
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
   if blocked_worker.is_empty():
@@ -30,7 +29,9 @@ func run():
     # This service-only fixture moves the worker onto safe floor before editing.
     check(game._staff_walkable(Vector2i(2,7)) and not game.model.path_between(Vector2i(staff.pos.floor()),Vector2i(2,7)).is_empty(),"synthetic step-aside tile is clear and reachable")
     staff.pos=Vector2(2.5,7.5);staff.path=[];staff.index=0;staff.destination=Vector2i(-100,-100)
-    check(game.model.place("plant",face.x,face.y),"blocking an in-progress stove is allowed")
+    check(not game.model.place("plant",face.x,face.y),"new in-progress stove obstruction is rejected")
+    # Inject a legacy blocked-layout fixture to keep pause/recovery coverage.
+    game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
     blocker_id=int(game.model.items[-1].id);blocked_worker=staff
     held=[staff.job_kind,staff.job_guest_id,staff.job_token,staff.job_step,staff.job_elapsed,staff.station_id]
     game._rebuild_furniture();game.idle_home_revision=-1
@@ -39,9 +40,15 @@ func run():
    blocked_ticks+=1
    if blocked_ticks==300:
     game.model.service_snapshot=game._service_save_snapshot()
-    check(game.model.save("user://paused-stove.json"),"in-progress blocked meal saves")
+    var did_save=game.model.save("user://paused-stove.json")
+    check(did_save,"in-progress blocked meal saves: "+game.model.last_error)
+    if not did_save:
+     print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures}));quit(1);return
     var restored_model=Model.new()
-    check(restored_model.load_save("user://paused-stove.json"),"in-progress blocked meal reloads")
+    var did_load=restored_model.load_save("user://paused-stove.json")
+    check(did_load,"in-progress blocked meal reloads: "+restored_model.last_error)
+    if not did_load:
+     print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures}));quit(1);return
     var saved_worker={}
     for worker in restored_model.service_snapshot.staff:
      if int(worker.job_guest_id)==int(held[1]) and str(worker.job_kind)=="cook":saved_worker=worker;break
