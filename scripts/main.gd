@@ -856,7 +856,7 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func _process(delta):
-	if OS.has_feature("web"):
+	if OS.has_feature("web") and OS.has_feature("crazygames"):
 		var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
 		if platform!=null:
 			if not bool(platform.ready):
