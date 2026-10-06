@@ -118,6 +118,8 @@ def main():
         raise SystemExit("Use a new output directory to preserve prior evidence")
     qa = ROOT / "qa-project"
     qa.mkdir(exist_ok=True)
+    if qa.is_symlink():
+        raise RuntimeError("Disposable fixture root cannot be a symlink")
     godot = os.environ.get("GODOT_BIN", "godot")
     report = {"mode": "headless engine only", "source_commit": subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                     capture_output=True, text=True).stdout.strip() or "source archive",
@@ -139,8 +141,11 @@ def main():
             msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
         else:
             fcntl.flock(lock, fcntl.LOCK_EX)
-        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa) as temp:
+        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa,
+                                             ignore_cleanup_errors=(os.name == "nt")) as temp:
             temp = Path(temp).resolve()
+            if not temp.is_relative_to(qa.resolve()):
+                raise RuntimeError("Disposable fixture escaped its reviewed root")
             project = temp / "project"
             shutil.copytree(ROOT, project, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
@@ -251,6 +256,11 @@ def main():
                 report["total_checks"] = sum(r["checks"] for r in report["records"])
                 report["test_processes"] = len(report["records"]) - 1
                 save()
+    report["disposable_fixture_retained"] = temp.exists()
+    if temp.exists():
+        report["disposable_fixture_path"] = str(temp)
+        report["cleanup_note"] = "Windows may retain task-only fixture files while filesystem handles close; no process termination attempted"
+    save()
     print(json.dumps({k: report[k] for k in ["status", "total_checks", "test_processes"]}), flush=True)
 
 
