@@ -126,7 +126,7 @@ def main():
     source_files = [p for p in ROOT.rglob("*") if p.is_file() and
                     not any(part in {".git", ".godot", "qa-project", "__pycache__"}
                             for part in p.relative_to(ROOT).parts)]
-    report["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
+    report["source_sha256"] = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                                for p in sorted(source_files)}
 
     def save():
@@ -164,7 +164,7 @@ def main():
 
             def run(name, arguments, env, marker=None):
                 start = time.monotonic()
-                command = [godot, "--headless", "--path", str(project), *arguments]
+                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *arguments]
                 completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, timeout=300)
                 text = completed.stdout.decode("utf-8", errors="replace")
