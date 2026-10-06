@@ -63,6 +63,8 @@ var rotation_step = 0
 var editing = false
 var paused = false
 var platform_music
+var platform_autosave_dirty=false
+var platform_dirty_generation=0
 var speed = 1.0
 var ghost: Node3D
 var hover_cell = Vector2i(-100,-100)
@@ -136,6 +138,7 @@ func _ready():
 	_build_ui()
 	if OS.has_feature("crazygames"):
 		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
 	_connect_model_events()
@@ -164,7 +167,12 @@ func _ready():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
 
+func _mark_platform_dirty():
+	platform_dirty_generation+=1
+	platform_autosave_dirty=true
+
 func _connect_model_events():
+	if OS.has_feature("crazygames"):model.changed.connect(_mark_platform_dirty)
 	model.meal_completed.connect(func(_customer_id,payment):
 		settings_controls.play_sfx("coin")
 		compact_ui.show_earnings(payment))
@@ -872,11 +880,13 @@ func _process(delta):
 		_update_people()
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(delta*speed)
+		# Arrival/payroll/customer/staff timers advance saved state during play.
+		if OS.has_feature("crazygames"):_mark_platform_dirty()
 	visual_timer+=delta
 	save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui(); _update_service_props()
-	if save_timer>15 and (interaction==null or not interaction.drag_active): _save()
+	if preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_save()
 	_update_people()
 	animation_time+=delta if not editing and not paused else 0.0
 	_music_tick(delta)

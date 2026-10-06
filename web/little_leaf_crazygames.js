@@ -19,7 +19,7 @@
   }
   async function currentScope() {
     // A change witness only, never authentication or an account database selector.
-    if (!sdk.user.isUserAccountAvailable) return 'account-unavailable';
+    if (sdk.user.isUserAccountAvailable !== true) return 'account-unavailable';
     const user = await sdk.user.getUser();
     return user ? JSON.stringify([user.__dangerousUserId, user.username]) : 'guest';
   }
@@ -34,7 +34,7 @@
     await bounded(sdk.init(), 20000);
     if (!['local', 'crazygames'].includes(sdk.environment)) throw error('PLATFORM_STORAGE_ERROR', 'Open this version on CrazyGames or a local test server.');
     sdk.game.loadingStart(); loading = true;
-    sdk.user.addAuthListener(invalidate);
+    if (sdk.user.isUserAccountAvailable === true) sdk.user.addAuthListener(invalidate);
     scope = await currentScope();
   }
   function ready() {
@@ -125,7 +125,8 @@
     },
     writeText(text) {
       try {
-        ready(); if (sdk.data.getItem(KEY) !== revisionText) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform progress changed. Reload.'); }
+        ready(); if ((sdk.user.isUserAccountAvailable === true) !== (scope !== 'account-unavailable')) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform account availability changed. Reload.'); }
+        if (sdk.data.getItem(KEY) !== revisionText) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform progress changed. Reload.'); }
         if (typeof text !== 'string' || new TextEncoder().encode(text).length > 65536) throw error('INVALID_SAVE', 'Preferences are too large.');
         const value = JSON.stringify({ format: 1, text }); capacity(revisionText, value);
         sdk.data.setItem(PREFS, value); preferences.bootJson = JSON.stringify({ ok: true, source: 'preferences', text }); return true;

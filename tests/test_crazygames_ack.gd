@@ -8,6 +8,8 @@ class Api extends RefCounted:
 	var storageKind="crazygames-data"
 class Game extends Node:
 	var model=Model.new()
+	var platform_autosave_dirty=true
+	var platform_dirty_generation=3
 	var progress_unsaved=true
 	var progress_save_error=""
 	var save_recovery_blocked=false
@@ -22,10 +24,11 @@ func check(condition:bool,label:String):
 	if not condition:failures.append(label)
 func _init():call_deferred("run")
 func run():
-	for variant in ["accepted","ordinary","cloud_claim","wrong_storage","bad_revision"]:
+	for variant in ["accepted","newer_dirty","ordinary","cloud_claim","wrong_storage","bad_revision"]:
 		var game=Game.new();root.add_child(game)
-		var save=WebSave.new(game);save.api=Api.new();save.ready=true;save.profile_id="synthetic"
+		var save=WebSave.new(game);save.api=Api.new();save._platform_dirty_snapshot=3;save.ready=true;save.profile_id="synthetic"
 		var ack={"ok":true,"profileId":"synthetic","revision":1,"durable":false,"platformAccepted":true,"cloudConfirmed":false,"creditedCoins":0}
+		if variant=="newer_dirty":game.platform_dirty_generation=4
 		if variant=="ordinary":ack.erase("platformAccepted")
 		if variant=="cloud_claim":ack.cloudConfirmed=true
 		if variant=="wrong_storage":save.api.storageKind="other"
@@ -34,6 +37,8 @@ func run():
 		if variant=="accepted":
 			check(save.platform_managed and save.ready and save.revision==1,"explicit platform acceptance advances controller")
 			check(not game.progress_unsaved and game.model.last_event=="Progress submitted to CrazyGames","honest platform UI acknowledgement")
+		elif variant=="newer_dirty":
+			check(save.ready and game.platform_autosave_dirty and game.progress_unsaved,"new dirty generation survives older acceptance")
 		else:
 			check(not save.ready and game.progress_unsaved and game.save_recovery_blocked,"unsafe acknowledgement blocked: "+variant)
 		game.queue_free()

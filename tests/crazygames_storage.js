@@ -7,9 +7,9 @@ const payload = fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const KEY='little-leaf.cg.profile.v1', PREFS='little-leaf.cg.preferences.v1';
 let checks=0;const check=(condition,label)=>{assert(condition,label);checks++;};
 function harness(map=new Map()) {
-  const control={user:null,writes:0,events:[],getError:false,setError:false,initError:false,scopeHook:null};
+  const control={user:null,writes:0,events:[],getError:false,setError:false,initError:false,scopeHook:null,accountCalls:0,listenerCalls:0};
   const sdk={environment:'local',init:async()=>{if(control.initError)throw Error('Synthetic init failure');},
-    user:{isUserAccountAvailable:true,getUser:async()=>{control.scopeHook?.();return control.user;},addAuthListener:f=>{control.auth=f;}},
+    user:{isUserAccountAvailable:true,getUser:async()=>{control.accountCalls++;if(!sdk.user.isUserAccountAvailable)throw Error("Account API unavailable");control.scopeHook?.();return control.user;},addAuthListener:f=>{control.listenerCalls++;if(!sdk.user.isUserAccountAvailable)throw Error("Auth listener unavailable");control.auth=f;}},
     game:{settings:{muteAudio:false},loadingStart:()=>control.events.push('loadingStart'),loadingStop:()=>control.events.push('loadingStop'),gameplayStart:()=>control.events.push('gameplayStart'),gameplayStop:()=>control.events.push('gameplayStop')},
     data:{getItem:key=>{if(control.getError)throw Error('Synthetic read failure');return map.get(key)??null;},setItem:(key,value)=>{if(control.setError)throw Error('Synthetic set failure');map.set(key,value);control.writes++;}}
   };
@@ -58,6 +58,13 @@ function harness(map=new Map()) {
   h.c.LittleLeafPlatform.update(false);check(h.control.events.filter(e=>e==='gameplayStop').length===1,'menu/loading blocked state has no repeated stop');
   h.c.LittleLeafPlatform.update(true);check(h.control.events.filter(e=>e==='gameplayStart').length===2&&h.c.LittleLeafPlatform.firstGameplayAt===firstAt,'resize/menu resume preserves first real playable timestamp');
   h.control.auth();h.c.LittleLeafPlatform.update(true);check(!h.c.LittleLeafPlatform.playing&&h.control.events.filter(e=>e==='gameplayStart').length===2,'auth invalidation cannot fake resume');
+  h=harness();h.c.CrazyGames.SDK.user.isUserAccountAvailable=false;b=await h.client.boot();
+  check(b.ok&&h.control.accountCalls===0&&h.control.listenerCalls===0,'unavailable account system uses Data without unsupported user APIs');
+  check((await h.prefs.boot()).ok&&(await h.client.commit(payload,0,b.profileId)).ok,'guest Data progress/preferences remain usable without account APIs');
+  h.c.CrazyGames.SDK.user.isUserAccountAvailable=true;
+  check((await h.client.commit(payload,1,b.profileId)).code==='PLATFORM_ACCOUNT_CHANGED','unavailable to available blocks stale profile until reload');
+  h=harness();b=await h.client.boot();h.c.CrazyGames.SDK.user.isUserAccountAvailable=false;
+  check(!h.prefs.writeText('stale'),'availability transition blocks synchronous preference writes');
   check(!JSON.stringify(h.c.LittleLeafSaveLog.snapshot()).includes('syntheticPadding'),'no payload logging');
   const shell=fs.readFileSync('web/little_leaf_crazygames_shell.html','utf8');check(shell.includes(source('little_leaf_crazygames').trim()),'platform shell exact adapter');
   check(!shell.includes('async function readLegacy(factory){')&&!shell.includes('const KEY=\'little-leaf.preferences.v1\''),'legacy preferences probe absent');

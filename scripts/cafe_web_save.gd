@@ -18,6 +18,7 @@ var inflight_generation=0
 var _callback
 var startup_error=""
 var platform_managed=false
+var _platform_dirty_snapshot=0
 var retrying=false
 var _retry_callback
 var _credit_hold=false
@@ -136,6 +137,8 @@ func request_save()->bool:
 		_log("save_failure","VALIDATION_FAILED")
 		game.progress_save_error=game.model.last_error
 		return false
+	var dirty_generation=game.get("platform_dirty_generation")
+	if dirty_generation!=null:_platform_dirty_snapshot=int(dirty_generation)
 	_log("save_validated")
 	var payload=FileAccess.get_file_as_string(STAGING_FILE)
 	if payload=="":
@@ -214,12 +217,14 @@ func _on_commit(arguments:Array):
 	revision=int(result.revision)
 	_refresh_inbox(result)
 	platform_managed=platform_ack
+	if platform_ack and game.get("platform_dirty_generation")!=null:
+		game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
 	_log("platform_controller_accepted" if platform_ack else "save_accepted")
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
 		game.call_deferred("_save");return
-	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
+	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if platform_ack else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
 	game._update_ui()
 
 func _refresh_inbox(result:Dictionary):

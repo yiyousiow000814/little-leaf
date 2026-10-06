@@ -5,10 +5,13 @@ Requires Python 3 and Godot 4.6.3. Example:
   python3 tests/run_integration_candidate.py --output /tmp/little-leaf-qa
 """
 import argparse
-import fcntl
 import hashlib
 import json
 import os
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 import re
 from pathlib import Path
 import shutil
@@ -18,6 +21,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
+    ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
+    ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
     ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
@@ -126,8 +132,13 @@ def main():
     def save():
         (output / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
 
-    with args.lock.open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with args.lock.open("a+b") as lock:
+        if os.name == "nt":
+            lock.seek(0)
+            lock.write(b"\0"); lock.flush(); lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(lock, fcntl.LOCK_EX)
         with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa) as temp:
             temp = Path(temp).resolve()
             project = temp / "project"
@@ -146,9 +157,9 @@ def main():
             def env_for(name):
                 env = os.environ.copy()
                 for key in ["HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
-                    directory = temp / "profiles" / name / key.lower()
+                    directory = temp / "profiles" / name / ("windows-data" if os.name == "nt" else key.lower())
                     directory.mkdir(parents=True, exist_ok=True)
-                    env[key] = str(directory)
+                    env[key] = directory.as_posix()
                 return env
 
             def run(name, arguments, env, marker=None):
@@ -213,7 +224,7 @@ def main():
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
                 env = env_for("staff-start-generated-profile")
-                save_dir = Path(env["XDG_DATA_HOME"]) / "godot/app_userdata/Little Leaf Cafe"
+                save_dir = Path(env["XDG_DATA_HOME"]) / ("Godot/app_userdata/Little Leaf Cafe" if os.name == "nt" else "godot/app_userdata/Little Leaf Cafe")
                 save_file = save_dir / "little_leaf_cafe_layout_motion_v15.json"
                 for case in (["empty-profile", "fresh", "saved-load", "standalone-load", "bad-load"]
                              if "staff-start" in selected else []):
