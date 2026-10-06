@@ -8,6 +8,8 @@ func begin():
 	if requested:return
 	requested=true
 	request=HTTPRequest.new();game.add_child(request)
+	# Browser fetch already decodes Content-Encoding; avoid Godot double decoding.
+	request.accept_gzip=false
 	request.request_completed.connect(_loaded)
 	var url=str(JavaScriptBridge.eval('new URL("music.pck",location.href).href'))
 	if request.request(url)!=OK:
@@ -26,3 +28,5 @@ func _loaded(result:int,code:int,_headers:PackedStringArray,body:PackedByteArray
 	game._setup_music()
 	# Preserve current preferences; do not create a second SFX player.
 	game.settings_controls._apply_buses()
+
+	JavaScriptBridge.eval("globalThis.LittleLeafPlatform.musicReady="+str(game.audio_players.size()==3))

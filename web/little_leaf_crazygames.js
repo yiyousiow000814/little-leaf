@@ -134,13 +134,13 @@
     acceptLoaded() { return true; }
   };
   root.LittleLeafPlatform = {
-    ready: false, muteAudio: false,
+    ready: false, muteAudio: false, firstGameplayAt: 0, musicReady: false,
     update(active) {
       if (!sdk || faulted) return;
       try {
       this.muteAudio = !!sdk.game.settings.muteAudio;
       if (loading && active) { sdk.game.loadingStop(); loading = false; }
-      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; }
+      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; if (active && !this.firstGameplayAt) this.firstGameplayAt = Date.now(); }
       } catch (_) { invalidate(); }
     }
   };

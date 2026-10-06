@@ -1,0 +1,4 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+NATIVE_READY children=13 world=383 ui=24
+SAVE_LOG_RESULT {"checks":27,"failures":[],"web_input_points":{"copy":[843.018432617188,480.108428955078],"log":[888.018432617188,490.108428955078],"pause":[713.924987792969,52.5542144775391],"settings":[992.075012207031,52.5542144775391]},"web_viewport":{"height":880,"width":1360}}

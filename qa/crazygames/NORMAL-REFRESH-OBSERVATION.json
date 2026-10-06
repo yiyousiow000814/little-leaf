@@ -1,0 +1,148 @@
+{
+  "mode": "Real exported game, official CDN SDK, fresh synthetic Chrome profile; local SDK simulation only",
+  "synthetic_sdk": false,
+  "real_account": false,
+  "checks": {
+    "officialSdkLoaded": true,
+    "freshRuntimeSaved": true,
+    "submittedWithoutCloudClaim": true,
+    "refreshRestoredSameRecord": false,
+    "backgroundMusicLoaded": true,
+    "musicStartedAfterGameplay": true,
+    "initialCompressedBytesUnder20MB": true,
+    "noRuntimeExceptions": true
+  },
+  "passed": false,
+  "initialTransfer": {
+    "bytes": 17898865,
+    "basis": "CDP Network.loadingFinished encodedDataLength including response headers; requests started before first real gameplayStart; loopback gzip hosting, not CrazyGames CDN proof"
+  },
+  "before": {
+    "sdkPresent": true,
+    "environment": "local",
+    "platform": {
+      "ready": true,
+      "firstGameplayAt": 1791266532558,
+      "musicReady": true
+    },
+    "boot": {
+      "ok": true,
+      "revision": 1,
+      "source": "authority"
+    },
+    "record": {
+      "revision": 1,
+      "identityHash": "53fa44cedebfbec478bafa9b3afae113eab2a6069eeca3f3a1c31422f674a890",
+      "payloadHash": "f7f6d88f18ab9da802f75f2c0c2af393b5ac778e51fc831d64bcaa3a8e35a5b4",
+      "bytes": 24735
+    },
+    "log": "Little Leaf save log | app 0.1.9\nSession only. Copy before refreshing or closing this page.\nSubmitted is pending. Confirmed means IndexedDB transaction completed. Accepted means game controller accepted its acknowledgement. Platform acceptance does not confirm cloud sync.\norigin=http://127.0.0.1:63919 | frame=top-level | referrerOrigin=unknown | browser=Chrome 151.0.0.0\nLatest read={\"sequence\":5,\"timestamp\":\"2026-10-06T06:02:04.632Z\",\"event\":\"read_accepted\",\"layer\":\"controller\",\"source\":\"fresh\",\"profile\":\"fd0756fa\",\"revision\":0}\nEvents retained=10/240 | older events dropped=0\n2026-10-06T06:02:02.125Z #1 boot_requested layer=vault\n2026-10-06T06:02:02.333Z #2 read_result layer=vault source=fresh profile=fd0756fa revision=0\n2026-10-06T06:02:04.591Z #3 boot_requested layer=controller\n2026-10-06T06:02:04.592Z #4 boot_requested layer=controller revision=0\n2026-10-06T06:02:04.632Z #5 read_accepted layer=controller source=fresh profile=fd0756fa revision=0\n2026-10-06T06:02:27.679Z #6 save_requested layer=controller profile=fd0756fa revision=0\n2026-10-06T06:02:27.687Z #7 save_validated layer=controller profile=fd0756fa revision=0\n2026-10-06T06:02:27.688Z #8 save_submitted layer=controller profile=fd0756fa revision=0\n2026-10-06T06:02:27.711Z #9 platform_save_accepted layer=vault profile=fd0756fa revision=1\n2026-10-06T06:02:27.712Z #10 platform_controller_accepted layer=controller profile=fd0756fa revision=1"
+  },
+  "after": {
+    "sdkPresent": true,
+    "environment": "local",
+    "platform": {
+      "ready": true,
+      "firstGameplayAt": 0,
+      "musicReady": false
+    },
+    "boot": {
+      "ok": true,
+      "revision": 2,
+      "source": "authority"
+    },
+    "record": {
+      "revision": 2,
+      "identityHash": "53fa44cedebfbec478bafa9b3afae113eab2a6069eeca3f3a1c31422f674a890",
+      "payloadHash": "6b6d4cdd06b94a5f65f7798ef33e119d41cf4aa54365061cd973b7406a793801",
+      "bytes": 24736
+    },
+    "log": "Little Leaf save log | app 0.1.9\nSession only. Copy before refreshing or closing this page.\nSubmitted is pending. Confirmed means IndexedDB transaction completed. Accepted means game controller accepted its acknowledgement. Platform acceptance does not confirm cloud sync.\norigin=http://127.0.0.1:63919 | frame=top-level | referrerOrigin=unknown | browser=Chrome 151.0.0.0\nLatest read={\"sequence\":5,\"timestamp\":\"2026-10-06T06:02:32.546Z\",\"event\":\"read_accepted\",\"layer\":\"controller\",\"source\":\"authority\",\"profile\":\"fd0756fa\",\"revision\":2}\nEvents retained=5/240 | older events dropped=0\n2026-10-06T06:02:30.445Z #1 boot_requested layer=vault\n2026-10-06T06:02:30.662Z #2 read_result layer=vault source=authority profile=fd0756fa revision=2\n2026-10-06T06:02:32.540Z #3 boot_requested layer=controller\n2026-10-06T06:02:32.540Z #4 boot_requested layer=controller revision=0\n2026-10-06T06:02:32.546Z #5 read_accepted layer=controller source=authority profile=fd0756fa revision=2"
+  },
+  "lastAcceptedBeforeReload": null,
+  "responses": [
+    {
+      "url": "http://127.0.0.1:63919/index.html",
+      "startWall": 1791266521954.963,
+      "offset": 1787168758367.7358,
+      "status": 200,
+      "contentEncoding": "gzip",
+      "bytes": 15521,
+      "endWall": 1791266522016.9148
+    },
+    {
+      "url": "https://sdk.crazygames.com/crazygames-sdk-v3.js",
+      "startWall": 1791266522021.111,
+      "offset": 1787168758367.761,
+      "status": 200,
+      "contentEncoding": "br",
+      "bytes": 24225,
+      "endWall": 1791266522107.993
+    },
+    {
+      "url": "http://127.0.0.1:63919/index.png",
+      "startWall": 1791266522021.283,
+      "offset": 1787168758367.732,
+      "status": 200,
+      "contentEncoding": null,
+      "bytes": 21631,
+      "endWall": 1791266522027.811
+    },
+    {
+      "url": "http://127.0.0.1:63919/index.js",
+      "startWall": 1791266522021.332,
+      "offset": 1787168758367.739,
+      "status": 200,
+      "contentEncoding": "gzip",
+      "bytes": 78677,
+      "endWall": 1791266522034.451
+    },
+    {
+      "url": "http://127.0.0.1:63919/index.icon.png",
+      "startWall": 1791266522134.719,
+      "offset": 1787168758367.765,
+      "status": 200,
+      "contentEncoding": null,
+      "bytes": 5889,
+      "endWall": 1791266522140.087
+    },
+    {
+      "url": "http://127.0.0.1:63919/index.wasm",
+      "startWall": 1791266522334.827,
+      "offset": 1787168758367.8828,
+      "status": 200,
+      "contentEncoding": "gzip",
+      "bytes": 9400099,
+      "endWall": 1791266523454.5618
+    },
+    {
+      "url": "http://127.0.0.1:63919/index.pck",
+      "startWall": 1791266522335.0552,
+      "offset": 1787168758367.745,
+      "status": 200,
+      "contentEncoding": "gzip",
+      "bytes": 8352823,
+      "endWall": 1791266522529.2742
+    },
+    {
+      "url": "http://127.0.0.1:63919http://127.0.0.1:63919/7cf77d82-18fa-40ae-a53d-ece662387ebd",
+      "startWall": 1791266526327.926,
+      "offset": 1787168758367.76,
+      "status": 200,
+      "contentEncoding": null,
+      "bytes": 0,
+      "endWall": 1791266526328.354
+    },
+    {
+      "url": "http://127.0.0.1:63919/music.pck",
+      "startWall": 1791266532644.276,
+      "offset": 1787168758367.776,
+      "status": 200,
+      "contentEncoding": "gzip",
+      "bytes": 9024538,
+      "endWall": 1791266533157.021
+    }
+  ],
+  "errors": [],
+  "consoleProblems": []
+}

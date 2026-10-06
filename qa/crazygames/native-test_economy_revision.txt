@@ -1,0 +1,3 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+ECONOMY_REVISION_RESULT {"checks":175,"failures":[],"historical_oak_bases":[140,280],"meal_payment":200,"table_price":280,"wages":[18,11,10,11]}

@@ -1,0 +1,4 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+NATIVE_READY children=13 world=383 ui=24
+COMPENSATION_INBOX_RESULT {"checks":118,"failures":[],"native_synthetic_only":true,"web_input_points":{"back_to_inbox":[680.0,654.5],"back_to_settings":[680.0,582.0],"first_message":[680.0,452.0],"inbox":[888.018432617188,380.108428955078],"settings":[992.075012207031,52.5542144775391]},"web_visible_regions":{"detail":[506.0,281.5,348.0,315.0],"list":[484.0,334.0,392.0,60.0],"settings":[865.018432617188,364.608428955078,46.0,31.0]}}

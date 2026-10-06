@@ -1,0 +1,32 @@
+{
+  "synthetic_only": true,
+  "records": [
+    {
+      "suite": "crazygames_storage",
+      "passed": true,
+      "checks": 37
+    },
+    {
+      "suite": "connection_recovery",
+      "passed": true,
+      "checks": 116
+    },
+    {
+      "suite": "save_log_observers",
+      "passed": true,
+      "checks": 113
+    },
+    {
+      "suite": "save_log_privacy",
+      "passed": true,
+      "checks": 36
+    },
+    {
+      "suite": "legacy_byte_storage",
+      "passed": true,
+      "checks": 172
+    }
+  ],
+  "checks": 474,
+  "passed": true
+}

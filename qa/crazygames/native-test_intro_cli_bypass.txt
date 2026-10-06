@@ -1,0 +1,4 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+NATIVE_READY children=13 world=383 ui=24
+INTRO_CLI_RESULT {"checks":6,"failures":[]}

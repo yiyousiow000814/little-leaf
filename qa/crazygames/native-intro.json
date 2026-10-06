@@ -1,0 +1,12 @@
+{
+	"base": "2a0ff543cf4f81207bad1eb843130c832b0f6327",
+	"checks": 1448,
+	"failures": [],
+	"minimum_landscape_viewport": [
+		568,
+		300
+	],
+	"mode": "headless logic only",
+	"native_render_verified": false,
+	"save_dir": "C:/Users/yiyou/Documents/Codex/2026-10-06/task/crazygames-native-saveguard-tests3/synthetic-profiles/test_intro_lifecycle_headless/Godot/app_userdata/Little Leaf Cafe"
+}
