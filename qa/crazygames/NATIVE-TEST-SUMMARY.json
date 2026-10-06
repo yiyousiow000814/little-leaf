@@ -1,7 +1,8 @@
 {
   "synthetic_only": true,
   "real_cloud": false,
-  "source_commit": "6cab8c377b79e1c457600fa7ebeccb1d956e1439",
+  "source_base_commit": "60ea68922f347598cab505c9e851e9768931ebb8",
+  "viewport_fix_worktree_included": true,
   "dedicated_ack_test_additional": true,
   "records": [
     {
@@ -9,14 +10,14 @@
       "passed": true,
       "return_code": 0,
       "checks": 0,
-      "seconds": 6.3
+      "seconds": 7.7
     },
     {
       "test": "test_save_log",
       "passed": true,
       "return_code": 0,
       "checks": 27,
-      "seconds": 1.9
+      "seconds": 2.0
     },
     {
       "test": "test_economy_revision",
@@ -30,56 +31,56 @@
       "passed": true,
       "return_code": 0,
       "checks": 1448,
-      "seconds": 2.1
+      "seconds": 2.2
     },
     {
       "test": "test_intro_cli_bypass",
       "passed": true,
       "return_code": 0,
       "checks": 6,
-      "seconds": 1.6
+      "seconds": 1.7
     },
     {
       "test": "test_hud_layout",
       "passed": true,
       "return_code": 0,
       "checks": 806,
-      "seconds": 7.2
+      "seconds": 7.1
     },
     {
       "test": "test_startup_retry",
       "passed": true,
       "return_code": 0,
       "checks": 10,
-      "seconds": 0.5
+      "seconds": 0.6
     },
     {
       "test": "test_autosave_feedback",
       "passed": true,
       "return_code": 0,
       "checks": 26,
-      "seconds": 1.1
+      "seconds": 1.2
     },
     {
       "test": "test_autosave_feedback_adversarial",
       "passed": true,
       "return_code": 0,
       "checks": 31,
-      "seconds": 1.2
+      "seconds": 1.5
     },
     {
       "test": "test_inbox_save_cache",
       "passed": true,
       "return_code": 0,
       "checks": 9,
-      "seconds": 0.2
+      "seconds": 0.3
     },
     {
       "test": "test_compensation_inbox",
       "passed": true,
       "return_code": 0,
       "checks": 118,
-      "seconds": 3.2
+      "seconds": 2.7
     },
     {
       "test": "test_crazygames_ack",
@@ -87,8 +88,15 @@
       "return_code": 0,
       "checks": 6,
       "seconds": 0.2
+    },
+    {
+      "test": "test_platform_gameplay_gate",
+      "passed": true,
+      "return_code": 0,
+      "checks": 10,
+      "seconds": 0.2
     }
   ],
   "passed": true,
-  "total_checks": 2662
+  "total_checks": 2672
 }

@@ -24,7 +24,7 @@
     return user ? JSON.stringify([user.__dangerousUserId, user.username]) : 'guest';
   }
   function invalidate() {
-    epoch++; faulted = true; root.LittleLeafPlatform.ready = false;
+    epoch++; faulted = true; root.LittleLeafPlatform.ready = false; root.LittleLeafPlatform.playing = false;
     try { sdk.game.gameplayStop(); } catch (_) {}
     playing = false;
   }
@@ -134,13 +134,13 @@
     acceptLoaded() { return true; }
   };
   root.LittleLeafPlatform = {
-    ready: false, muteAudio: false, firstGameplayAt: 0, musicReady: false,
+    ready: false, playing: false, viewportPlayable: false, muteAudio: false, firstGameplayAt: 0, musicReady: false,
     update(active) {
-      if (!sdk || faulted) return;
+      if (!sdk || faulted || !this.ready) return;
       try {
       this.muteAudio = !!sdk.game.settings.muteAudio;
       if (loading && active) { sdk.game.loadingStop(); loading = false; }
-      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; if (active && !this.firstGameplayAt) this.firstGameplayAt = Date.now(); }
+      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; this.playing = active; if (active && !this.firstGameplayAt) this.firstGameplayAt = Date.now(); }
       } catch (_) { invalidate(); }
     }
   };

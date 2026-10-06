@@ -4,7 +4,7 @@
     {
       "suite": "crazygames_storage",
       "passed": true,
-      "checks": 37
+      "checks": 45
     },
     {
       "suite": "connection_recovery",
@@ -27,6 +27,6 @@
       "checks": 172
     }
   ],
-  "checks": 474,
+  "checks": 482,
   "passed": true
 }

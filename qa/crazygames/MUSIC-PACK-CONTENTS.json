@@ -1,5 +1,5 @@
 {
-  "pack_bytes": 9263516,
+  "pack_bytes": 9263628,
   "files": 16,
   "entries": [
     {
@@ -24,7 +24,7 @@
     },
     {
       "path": ".godot/uid_cache.bin",
-      "bytes": 10464,
+      "bytes": 10566,
       "offset": 9250688
     },
     {
@@ -80,7 +80,7 @@
     {
       "path": "project.binary",
       "bytes": 780,
-      "offset": 9261152
+      "offset": 9261264
     }
   ],
   "lossless_audio_checks": [

@@ -854,8 +854,10 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			platform.update(not paused and not editing and not save_recovery_blocked and not (cafe_intro!=null and cafe_intro.active) and not compact_ui.has_open_popup())
-			if platform_music!=null and not paused and not editing and not save_recovery_blocked and not (cafe_intro!=null and cafe_intro.active) and not compact_ui.has_open_popup():platform_music.begin()
+			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			platform.viewportPlayable=not compact_ui.viewport_too_small
+			platform.update(playable)
+			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
 			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
 	if cafe_intro!=null and cafe_intro.active:
 		_music_tick(delta);return

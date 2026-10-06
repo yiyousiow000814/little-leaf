@@ -50,6 +50,14 @@ function harness(map=new Map()) {
   h=harness();await h.client.boot();h.c.LittleLeafPlatform.update(true);h.c.LittleLeafPlatform.update(true);h.c.LittleLeafPlatform.update(false);
   check(h.control.events.filter(x=>x==='gameplayStart').length===1&&h.control.events.includes('loadingStop')&&h.control.events.includes('gameplayStop'),'loading/gameplay events sent on state edges');
   h.c.CrazyGames.SDK.game.settings.muteAudio=true;h.c.LittleLeafPlatform.update(false);check(h.c.LittleLeafPlatform.muteAudio,'platform mute propagated');
+  h=harness();h.c.LittleLeafPlatform.update(true);check(h.control.events.length===0,'no fake start before SDK or Data loading');
+  const opening=h.client.boot();await Promise.resolve();h.c.LittleLeafPlatform.update(true);check(!h.control.events.includes('gameplayStart'),'loading Data is not playable');await opening;
+  h.c.LittleLeafPlatform.update(false);check(!h.control.events.includes('loadingStop')&&!h.c.LittleLeafPlatform.firstGameplayAt,'too-small first viewport stays loading without fake start');
+  h.c.LittleLeafPlatform.update(true);check(h.c.LittleLeafPlatform.playing&&h.control.events.filter(e=>e==='gameplayStart').length===1,'too-small to valid starts exactly once');
+  const firstAt=h.c.LittleLeafPlatform.firstGameplayAt;h.c.LittleLeafPlatform.update(false);check(!h.c.LittleLeafPlatform.playing&&h.control.events.filter(e=>e==='gameplayStop').length===1,'valid to too-small stops gameplay');
+  h.c.LittleLeafPlatform.update(false);check(h.control.events.filter(e=>e==='gameplayStop').length===1,'menu/loading blocked state has no repeated stop');
+  h.c.LittleLeafPlatform.update(true);check(h.control.events.filter(e=>e==='gameplayStart').length===2&&h.c.LittleLeafPlatform.firstGameplayAt===firstAt,'resize/menu resume preserves first real playable timestamp');
+  h.control.auth();h.c.LittleLeafPlatform.update(true);check(!h.c.LittleLeafPlatform.playing&&h.control.events.filter(e=>e==='gameplayStart').length===2,'auth invalidation cannot fake resume');
   check(!JSON.stringify(h.c.LittleLeafSaveLog.snapshot()).includes('syntheticPadding'),'no payload logging');
   const shell=fs.readFileSync('web/little_leaf_crazygames_shell.html','utf8');check(shell.includes(source('little_leaf_crazygames').trim()),'platform shell exact adapter');
   check(!shell.includes('async function readLegacy(factory){')&&!shell.includes('const KEY=\'little-leaf.preferences.v1\''),'legacy preferences probe absent');

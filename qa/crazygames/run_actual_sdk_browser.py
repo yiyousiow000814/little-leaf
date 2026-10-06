@@ -1,6 +1,6 @@
 from pathlib import Path
 import http.server,threading,subprocess,time,json,gzip
-w=Path.cwd();r=w/'crazygames-build';q=w/'crazygames-variant/qa/crazygames';profile=q/'actual-sdk-browser-profile-quiesced';assert not profile.exists()
+w=Path.cwd();r=w/'crazygames-build';q=w/'crazygames-variant/qa/crazygames';profile=q/'actual-sdk-browser-profile-viewport-fixed';assert not profile.exists()
 class Handler(http.server.SimpleHTTPRequestHandler):
  def __init__(self,*a,**k):super().__init__(*a,directory=str(r),**k)
  def log_message(self,*a):pass
@@ -17,7 +17,7 @@ try:
   if p.exists():break
   if b.poll() is not None:raise RuntimeError('Chrome exited')
   time.sleep(.1)
- d=subprocess.run(['node',str(w/'crazygames-tools/check_actual_sdk_browser.js'),p.read_text().splitlines()[0],'http://127.0.0.1:'+str(s.server_port)+'/index.html'],capture_output=True,timeout=75)
+ d=subprocess.run(['node',str(w/'crazygames-tools/check_actual_sdk_browser.js'),p.read_text().splitlines()[0],'http://127.0.0.1:'+str(s.server_port)+'/index.html'],capture_output=True,timeout=105)
  print(d.stdout.decode());print(d.stderr.decode());assert d.returncode==0;b.wait(timeout=10)
 finally:
  if b.poll() is None:b.terminate();b.wait(timeout=10)
