@@ -1,0 +1,309 @@
+Godot Engine v4.6.3.stable.official.7d41c59c4 - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (26 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Nunito-ExtraBold.ttf[39m[0m
+[   3% ] [90m[1m_update_scan_actions[22m | Nunito-Variable.ttf[39m[0m
+[   7% ] [90m[1m_update_scan_actions[22m | coin.png[39m[0m
+[  11% ] [90m[1m_update_scan_actions[22m | cream_face.png[39m[0m
+[  14% ] [90m[1m_update_scan_actions[22m | decorate.png[39m[0m
+[  18% ] [90m[1m_update_scan_actions[22m | decorate_done.png[39m[0m
+[  22% ] [90m[1m_update_scan_actions[22m | green_face.png[39m[0m
+[  25% ] [90m[1m_update_scan_actions[22m | mobile_purse.png[39m[0m
+[  29% ] [90m[1m_update_scan_actions[22m | rail.png[39m[0m
+[  33% ] [90m[1m_update_scan_actions[22m | settings.png[39m[0m
+[  37% ] [90m[1m_update_scan_actions[22m | shop_frame.png[39m[0m
+[  40% ] [90m[1m_update_scan_actions[22m | sign.png[39m[0m
+[  44% ] [90m[1m_update_scan_actions[22m | staff.png[39m[0m
+[  48% ] [90m[1m_update_scan_actions[22m | wallet.png[39m[0m
+[  51% ] [90m[1m_update_scan_actions[22m | check.svg[39m[0m
+[  55% ] [90m[1m_update_scan_actions[22m | maximize.svg[39m[0m
+[  59% ] [90m[1m_update_scan_actions[22m | minus.svg[39m[0m
+[  62% ] [90m[1m_update_scan_actions[22m | player-pause.svg[39m[0m
+[  66% ] [90m[1m_update_scan_actions[22m | player-play.svg[39m[0m
+[  70% ] [90m[1m_update_scan_actions[22m | plus.svg[39m[0m
+[  74% ] [90m[1m_update_scan_actions[22m | decorate.png[39m[0m
+[  77% ] [90m[1m_update_scan_actions[22m | rail.png[39m[0m
+[  81% ] [90m[1m_update_scan_actions[22m | settings.png[39m[0m
+[  85% ] [90m[1m_update_scan_actions[22m | sign.png[39m[0m
+[  88% ] [90m[1m_update_scan_actions[22m | staff.png[39m[0m
+[  92% ] [90m[1m_update_scan_actions[22m | wallet.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1msavepack[22m | Started Packing (102 steps)[39m[0m
+[   1% ] [90m[1msavepack[22m | Storing File: res://assets/audio/MUSIC_PROVENANCE_ADDENDUM.json[39m[0m
+[   1% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/LICENSE[39m[0m
+[   2% ] [90m[1msavepack[22m | Storing File: res://assets/fonts/Nunito-OFL.txt[39m[0m
+[   2% ] [90m[1msavepack[22m | Storing File: res://assets/fonts/NOTICE.txt[39m[0m
+[   3% ] [90m[1msavepack[22m | Storing File: res://assets/audio/NEW_RELEASE_MUSIC_NOTICE.txt[39m[0m
+[   4% ] [90m[1msavepack[22m | Storing File: res://assets/audio/GeneralUser-GS-LICENSE.txt[39m[0m
+[   4% ] [90m[1msavepack[22m | Storing File: res://.godot/imported/little_leaf_approved_v3.png-f70d63c8093529b679fbeca0cd45b70d.ctex[39m[0m
+[   4% ] [90m[1msavepack[22m | Storing File: res://assets/branding/little_leaf_approved_v3.png.import[39m[0m
+[   5% ] [90m[1msavepack[22m | Storing File: res://assets/branding/PROVENANCE.json[39m[0m
+[   6% ] [90m[1msavepack[22m | Storing File: res://.godot/imported/NotoSans-Regular.ttf-674bcff8e78e1ac2b0101362155b4faa.fontdata[39m[0m
+[   6% ] [90m[1msavepack[22m | Storing File: res://assets/fonts/NotoSans-Regular.ttf.import[39m[0m
+[   6% ] [90m[1msavepack[22m | Storing File: res://assets/fonts/Nunito-ExtraBold.ttf[39m[0m
+[   7% ] [90m[1msavepack[22m | Storing File: res://assets/fonts/Nunito-Variable.ttf[39m[0m
+[   8% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/asset-manifest.json[39m[0m
+[   8% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/coin.png[39m[0m
+[   9% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/cream_face.png[39m[0m
+[  10% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/decorate.png[39m[0m
+[  10% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/decorate_done.png[39m[0m
+[  11% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/green_face.png[39m[0m
+[  12% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/mobile_purse.png[39m[0m
+[  12% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/rail.png[39m[0m
+[  13% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/settings.png[39m[0m
+[  14% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/shop_frame.png[39m[0m
+[  14% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/sign.png[39m[0m
+[  15% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/staff.png[39m[0m
+[  16% ] [90m[1msavepack[22m | Storing File: res://assets/ui/fidelity_hud/wallet.png[39m[0m
+[  16% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/check.svg[39m[0m
+[  17% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/maximize.svg[39m[0m
+[  17% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/minus.svg[39m[0m
+[  18% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/player-pause.svg[39m[0m
+[  19% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/player-play.svg[39m[0m
+[  19% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/icons/plus.svg[39m[0m
+[  20% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/asset_bounds.json[39m[0m
+[  21% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/decorate.png[39m[0m
+[  21% ] [90m[1msavepack[22m | Storing File: res://.godot/exported/133200997/export-3070c538c03ee49b7677ff960a3f5195-main.scn[39m[0m
+[  22% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/rail.png[39m[0m
+[  23% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/settings.png[39m[0m
+[  23% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/sign.png[39m[0m
+[  24% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/staff.png[39m[0m
+[  25% ] [90m[1msavepack[22m | Storing File: res://assets/ui/wood_hud/wallet.png[39m[0m
+[  25% ] [90m[1msavepack[22m | Storing File: res://data/release_notes.json[39m[0m
+[  26% ] [90m[1msavepack[22m | Storing File: res://data/release_notes.schema.json[39m[0m
+[  27% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_motion.gdc[39m[0m
+[  27% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_openings.gdc[39m[0m
+[  28% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_walls.gdc[39m[0m
+[  29% ] [90m[1msavepack[22m | Storing File: res://scripts/kitchen_worktop_geometry.gdc[39m[0m
+[  29% ] [90m[1msavepack[22m | Storing File: res://scripts/lamp_art.gdc[39m[0m
+[  30% ] [90m[1msavepack[22m | Storing File: res://scripts/main.gdc[39m[0m
+[  31% ] [90m[1msavepack[22m | Storing File: res://scripts/minimal_start.gdc[39m[0m
+[  31% ] [90m[1msavepack[22m | Storing File: res://scripts/moving_art_atlas.gdc[39m[0m
+[  32% ] [90m[1msavepack[22m | Storing File: res://scripts/moving_art_painter.gdc[39m[0m
+[  33% ] [90m[1msavepack[22m | Storing File: res://scripts/retained_aa_strokes.gdc[39m[0m
+[  33% ] [90m[1msavepack[22m | Storing File: res://scripts/street_pedestrians.gdc[39m[0m
+[  33% ] [90m[1msavepack[22m | Storing File: res://scripts/waiter_tablet_art.gdc[39m[0m
+[  33% ] [90m[1msavepack[22m | Storing File: res://shaders/soft_ui_material.gdshader[39m[0m
+[  34% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_grass_art.gdc[39m[0m
+[  35% ] [90m[1msavepack[22m | Storing File: res://scripts/directional_character_art.gdc[39m[0m
+[  35% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_style_art.gdc[39m[0m
+[  36% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_pose.gdc[39m[0m
+[  37% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_placement.gdc[39m[0m
+[  37% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_furniture.gdc[39m[0m
+[  38% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_cafe.gdc[39m[0m
+[  39% ] [90m[1msavepack[22m | Storing File: res://scripts/furniture_static_atlas.gdc[39m[0m
+[  39% ] [90m[1msavepack[22m | Storing File: res://scripts/furniture_atlas_painter.gdc[39m[0m
+[  40% ] [90m[1msavepack[22m | Storing File: res://scripts/floor_mess_art.gdc[39m[0m
+[  41% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_world_extent.gdc[39m[0m
+[  41% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_ground.gdc[39m[0m
+[  42% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_tree_art.gdc[39m[0m
+[  43% ] [90m[1msavepack[22m | Storing File: res://qa/crazygames/node-baseline-legacy.json[39m[0m
+[  43% ] [90m[1msavepack[22m | Storing File: res://qa/crazygames/node-baseline-observers.json[39m[0m
+[  44% ] [90m[1msavepack[22m | Storing File: res://qa/crazygames/node-log-privacy.json[39m[0m
+[  45% ] [90m[1msavepack[22m | Storing File: res://qa/crazygames/node-platform-storage.json[39m[0m
+[  45% ] [90m[1msavepack[22m | Storing File: res://qa/crazygames/TOOLCHAIN-RECEIPT.json[39m[0m
+[  46% ] [90m[1msavepack[22m | Storing File: res://qa/prototypes/shell_segment_contract.gdc[39m[0m
+[  47% ] [90m[1msavepack[22m | Storing File: res://qa/audit_guest_route.gdc[39m[0m
+[  47% ] [90m[1msavepack[22m | Storing File: res://qa/capture_arm_actions.gdc[39m[0m
+[  48% ] [90m[1msavepack[22m | Storing File: res://qa/capture_arm_game.gdc[39m[0m
+[  49% ] [90m[1msavepack[22m | Storing File: res://qa/capture_bubble_symbol_clarity.gdc[39m[0m
+[  49% ] [90m[1msavepack[22m | Storing File: res://qa/capture_build_tiles_ui.gdc[39m[0m
+[  50% ] [90m[1msavepack[22m | Storing File: res://qa/capture_chair_ground_contact.gdc[39m[0m
+[  50% ] [90m[1msavepack[22m | Storing File: res://qa/capture_character_bubble.gdc[39m[0m
+[  51% ] [90m[1msavepack[22m | Storing File: res://qa/capture_corrected_bubble.gdc[39m[0m
+[  52% ] [90m[1msavepack[22m | Storing File: res://qa/capture_departing_edit.gdc[39m[0m
+[  52% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining.gdc[39m[0m
+[  53% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_live.gdc[39m[0m
+[  54% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_natural.gdc[39m[0m
+[  54% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_service.gdc[39m[0m
+[  55% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_transition.gdc[39m[0m
+[  56% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dishwashing.gdc[39m[0m
+[  56% ] [90m[1msavepack[22m | Storing File: res://qa/capture_floor.gdc[39m[0m
+[  57% ] [90m[1msavepack[22m | Storing File: res://qa/capture_hud_optical_scale.gdc[39m[0m
+[  58% ] [90m[1msavepack[22m | Storing File: res://qa/capture_mobile_toolbar.gdc[39m[0m
+[  58% ] [90m[1msavepack[22m | Storing File: res://qa/capture_opening_jamb.gdc[39m[0m
+[  59% ] [90m[1msavepack[22m | Storing File: res://qa/capture_register_edge.gdc[39m[0m
+[  60% ] [90m[1msavepack[22m | Storing File: res://qa/capture_seated_proportions.gdc[39m[0m
+[  60% ] [90m[1msavepack[22m | Storing File: res://qa/capture_shell_segments.gdc[39m[0m
+[  61% ] [90m[1msavepack[22m | Storing File: res://qa/capture_single_guest_patience.gdc[39m[0m
+[  62% ] [90m[1msavepack[22m | Storing File: res://qa/capture_sink_basin.gdc[39m[0m
+[  62% ] [90m[1msavepack[22m | Storing File: res://qa/capture_sink_washing.gdc[39m[0m
+[  63% ] [90m[1msavepack[22m | Storing File: res://qa/capture_stove_optional.gdc[39m[0m
+[  64% ] [90m[1msavepack[22m | Storing File: res://qa/capture_street_pedestrians.gdc[39m[0m
+[  64% ] [90m[1msavepack[22m | Storing File: res://qa/capture_toolbar_help.gdc[39m[0m
+[  65% ] [90m[1msavepack[22m | Storing File: res://qa/capture_wallet_alignment.gdc[39m[0m
+[  66% ] [90m[1msavepack[22m | Storing File: res://qa/check_hud_fullscreen.gdc[39m[0m
+[  66% ] [90m[1msavepack[22m | Storing File: res://qa/verify_endpoint_old_loader.gdc[39m[0m
+[  66% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_action_help.gdc[39m[0m
+[  66% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_build_tools.gdc[39m[0m
+[  67% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_camera_bounds.gdc[39m[0m
+[  68% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_camera_gestures.gdc[39m[0m
+[  68% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_checkout.gdc[39m[0m
+[  69% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_checkout_art.gdc[39m[0m
+[  70% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_compact_ui.gdc[39m[0m
+[  70% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_dining_sets.gdc[39m[0m
+[  71% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_dishwashing.gdc[39m[0m
+[  72% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_edit_plan.gdc[39m[0m
+[  72% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_availability.gdc[39m[0m
+[  73% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_geometry.gdc[39m[0m
+[  74% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_tasks.gdc[39m[0m
+[  74% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_footprint.gdc[39m[0m
+[  75% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_furniture_motion.gdc[39m[0m
+[  76% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_hud.gdc[39m[0m
+[  76% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_inbox.gdc[39m[0m
+[  77% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_interaction.gdc[39m[0m
+[  78% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_intro.gdc[39m[0m
+[  78% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_layout_access.gdc[39m[0m
+[  79% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_model.gdc[39m[0m
+[  80% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_money.gdc[39m[0m
+[  80% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_runtime_codec.gdc[39m[0m
+[  81% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_contract.gdc[39m[0m
+[  82% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_log.gdc[39m[0m
+[  82% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_log_panel.gdc[39m[0m
+[  83% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_profiles.gdc[39m[0m
+[  83% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_settings.gdc[39m[0m
+[  84% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_shell_segments.gdc[39m[0m
+[  85% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_shop_ui.gdc[39m[0m
+[  85% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_sink_wash_art.gdc[39m[0m
+[  86% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_panel.gdc[39m[0m
+[  87% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_portrait.gdc[39m[0m
+[  87% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_relocation.gdc[39m[0m
+[  88% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_update_notes.gdc[39m[0m
+[  89% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_viewport_layout.gdc[39m[0m
+[  89% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_wallet_notice.gdc[39m[0m
+[  90% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_walls.gdc[39m[0m
+[  91% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_wall_openings.gdc[39m[0m
+[  91% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_lifecycle.gdc[39m[0m
+[  92% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_preferences.gdc[39m[0m
+[  93% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_save.gdc[39m[0m
+[  93% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_workface_guidance.gdc[39m[0m
+[  94% ] [90m[1msavepack[22m | Storing File: res://scripts/character_arm_occlusion.gdc[39m[0m
+[  95% ] [90m[1msavepack[22m | Storing File: res://scripts/character_head_atlas.gdc[39m[0m
+[  95% ] [90m[1msavepack[22m | Storing File: res://scripts/character_head_painter.gdc[39m[0m
+[  96% ] [90m[1msavepack[22m | Storing File: res://scripts/cleaning_tool_pose.gdc[39m[0m
+[  97% ] [90m[1msavepack[22m | Storing File: res://scripts/compact_character_pose.gdc[39m[0m
+[  97% ] [90m[1msavepack[22m | Storing File: res://scripts/cooking_tool_pose.gdc[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/crazygames_music.gdc[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://main.tscn.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_motion.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_openings.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_walls.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/kitchen_worktop_geometry.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/lamp_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/main.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/minimal_start.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/moving_art_atlas.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/moving_art_painter.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/retained_aa_strokes.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/street_pedestrians.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/waiter_tablet_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_grass_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/directional_character_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_style_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_pose.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/dining_placement.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_furniture.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_cafe.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/furniture_static_atlas.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/furniture_atlas_painter.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/floor_mess_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_world_extent.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/illustrated_ground.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/exterior_tree_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/prototypes/shell_segment_contract.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/audit_guest_route.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_arm_actions.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_arm_game.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_bubble_symbol_clarity.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_build_tiles_ui.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_chair_ground_contact.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_character_bubble.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_corrected_bubble.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_departing_edit.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_live.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_natural.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_service.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dining_transition.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_dishwashing.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_floor.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_hud_optical_scale.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_mobile_toolbar.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_opening_jamb.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_register_edge.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_seated_proportions.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_shell_segments.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_single_guest_patience.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_sink_basin.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_sink_washing.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_stove_optional.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_street_pedestrians.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_toolbar_help.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/capture_wallet_alignment.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/check_hud_fullscreen.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://qa/verify_endpoint_old_loader.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_action_help.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_build_tools.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_camera_bounds.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_camera_gestures.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_checkout.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_checkout_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_compact_ui.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_dining_sets.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_dishwashing.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_edit_plan.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_availability.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_geometry.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_floor_tasks.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_footprint.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_furniture_motion.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_hud.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_inbox.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_interaction.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_intro.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_layout_access.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_model.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_money.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_runtime_codec.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_contract.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_log.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_log_panel.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_save_profiles.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_settings.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_shell_segments.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_shop_ui.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_sink_wash_art.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_panel.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_portrait.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_staff_relocation.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_update_notes.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_viewport_layout.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_wallet_notice.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_walls.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_wall_openings.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_lifecycle.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_preferences.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_web_save.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cafe_workface_guidance.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/character_arm_occlusion.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/character_head_atlas.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/character_head_painter.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cleaning_tool_pose.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/compact_character_pose.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/cooking_tool_pose.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://scripts/crazygames_music.gd.remap[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://.godot/global_script_class_cache.cfg[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://.godot/uid_cache.bin[39m[0m
+[  98% ] [90m[1msavepack[22m | Storing File: res://project.binary[39m[0m
+[92m[ DONE ][39m [1msavepack[22m
+[0m

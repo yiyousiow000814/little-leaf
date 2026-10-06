@@ -1,9 +1,9 @@
 extends RefCounted
 ## Volatile diagnostics only. Never reads or writes a save or preferences file.
 const LIMIT=240
-const EVENTS=["boot_requested","read_result","read_accepted","read_failure","save_requested","save_queued","save_skipped","save_validated","save_submitted","save_confirmed","save_accepted","save_failure","retry_requested"]
+const EVENTS=["platform_controller_accepted","boot_requested","read_result","read_accepted","read_failure","save_requested","save_queued","save_skipped","save_validated","save_submitted","save_confirmed","save_accepted","save_failure","retry_requested"]
 const SOURCES=["authority","legacy-v13","fresh","native-primary","native-import","review"]
-const CODES=["VALIDATION_FAILED","STAGING_FAILED","INVALID_ACK","INVALID_REVISION_ACK","INVALID_CREDIT_ACK","CREDIT_SYNC_REQUIRED","WRITES_SUPPRESSED","RECOVERY_BLOCKED","NATIVE_SAVE_FAILED","BRIDGE_MISSING","NOT_READY","REVISION_CONFLICT","CORRUPT_AUTHORITY","STORAGE_BLOCKED","STORAGE_ABORT","STORAGE_UNAVAILABLE","INVALID_SAVE","SAVE_BUSY","REVISION_LIMIT","QuotaExceededError","SecurityError","AbortError","UnknownError","InvalidStateError"]
+const CODES=["PLATFORM_ACCOUNT_CHANGED","PLATFORM_STORAGE_ERROR","PLATFORM_DATA_LIMIT","VALIDATION_FAILED","STAGING_FAILED","INVALID_ACK","INVALID_REVISION_ACK","INVALID_CREDIT_ACK","CREDIT_SYNC_REQUIRED","WRITES_SUPPRESSED","RECOVERY_BLOCKED","NATIVE_SAVE_FAILED","BRIDGE_MISSING","NOT_READY","REVISION_CONFLICT","CORRUPT_AUTHORITY","STORAGE_BLOCKED","STORAGE_ABORT","STORAGE_UNAVAILABLE","INVALID_SAVE","SAVE_BUSY","REVISION_LIMIT","QuotaExceededError","SecurityError","AbortError","UnknownError","InvalidStateError"]
 static var entries:Array[String]=[]
 static var dropped=0
 static var sequence=0

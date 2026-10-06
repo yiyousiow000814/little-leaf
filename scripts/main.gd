@@ -62,6 +62,7 @@ var selected_id = -1
 var rotation_step = 0
 var editing = false
 var paused = false
+var platform_music
 var speed = 1.0
 var ghost: Node3D
 var hover_cell = Vector2i(-100,-100)
@@ -133,7 +134,9 @@ func _ready():
 	_setup_world()
 	build_tools=BuildTools.new(self)
 	_build_ui()
-	_setup_music()
+	if OS.has_feature("crazygames"):
+		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+	else:_setup_music()
 	settings_controls.setup_audio()
 	_connect_model_events()
 	_rebuild_room()
@@ -845,6 +848,15 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func _process(delta):
+	if OS.has_feature("web"):
+		var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
+		if platform!=null:
+			if not bool(platform.ready):
+				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
+				startup_notice="Platform account changed or storage failed. Reload to load progress."
+			platform.update(not paused and not editing and not save_recovery_blocked and not (cafe_intro!=null and cafe_intro.active) and not compact_ui.has_open_popup())
+			if platform_music!=null and not paused and not editing and not save_recovery_blocked and not (cafe_intro!=null and cafe_intro.active) and not compact_ui.has_open_popup():platform_music.begin()
+			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
 	if cafe_intro!=null and cafe_intro.active:
 		_music_tick(delta);return
 	if compact_ui!=null and compact_ui.viewport_too_small:return

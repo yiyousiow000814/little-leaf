@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<title>$GODOT_PROJECT_NAME</title>
@@ -695,87 +696,154 @@ body {
 
 </script>
 		<script>
-/* Preferences are independent from café progress and never use Godot IDBFS. */
-(function(root) {
+/* CrazyGames-only variant. SDK Data is the sole store; no local fallback/migration. */
+(function (root) {
   'use strict';
-  const KEY='little-leaf.preferences.v1';
-  const LIMIT=65536;
-  const failure=(code,error)=>({ok:false,code,error});
-  function valid(text){return typeof text==='string'&&new TextEncoder().encode(text).length<=LIMIT;}
-  function createClient(options={}) {
-    let storage=null, factory=null, text='', ready=false;
-    const api={bootJson:'',lastError:'',
-      async boot(){
+  const KEY = 'little-leaf.cg.profile.v1', PREFS = 'little-leaf.cg.preferences.v1';
+  const LIMIT = 1048576, reserve = 1024;
+  const codec = root.LittleLeafAuthorityCodec;
+  let sdk, opening, record, revisionText, scope, epoch = 0, faulted = false, busy = false;
+  let playing = false, loading = false;
+  const error = (code, message) => Object.assign(new Error(message), { code });
+  const failure = e => ({ ok: false, code: typeof e.code === 'string' ? e.code : 'PLATFORM_STORAGE_ERROR', error: e.message || 'Platform storage could not be opened' });
+  function log(event, fields = {}) { try { root.LittleLeafSaveLog?.record(event, { layer: 'vault', ...fields }); } catch (_) {} }
+  function bounded(promise, ms) {
+    let timer;
+    return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(error('PLATFORM_STORAGE_ERROR', 'Platform loading timed out. Reload to try again.')), ms); })]).finally(() => clearTimeout(timer));
+  }
+  function capacity(value, preferences) {
+    if (new TextEncoder().encode(JSON.stringify({ [KEY]: value, [PREFS]: preferences || '' })).length > LIMIT - reserve)
+      throw error('PLATFORM_DATA_LIMIT', 'This café exceeds the platform save limit. The previous save is unchanged.');
+  }
+  async function currentScope() {
+    // A change witness only, never authentication or an account database selector.
+    if (!sdk.user.isUserAccountAvailable) return 'account-unavailable';
+    const user = await sdk.user.getUser();
+    return user ? JSON.stringify([user.__dangerousUserId, user.username]) : 'guest';
+  }
+  function invalidate() {
+    epoch++; faulted = true; root.LittleLeafPlatform.ready = false;
+    try { sdk.game.gameplayStop(); } catch (_) {}
+    playing = false;
+  }
+  async function initialise() {
+    if (!root.CrazyGames?.SDK) throw error('PLATFORM_STORAGE_ERROR', 'The platform SDK could not load. Reload to try again.');
+    sdk = root.CrazyGames.SDK;
+    await bounded(sdk.init(), 20000);
+    if (!['local', 'crazygames'].includes(sdk.environment)) throw error('PLATFORM_STORAGE_ERROR', 'Open this version on CrazyGames or a local test server.');
+    sdk.game.loadingStart(); loading = true;
+    sdk.user.addAuthListener(invalidate);
+    scope = await currentScope();
+  }
+  function ready() {
+    if (!record || faulted) throw error('NOT_READY', 'Platform progress is paused. Reload before continuing.');
+  }
+  async function guard(generation) {
+    ready();
+    if (epoch !== generation || await currentScope() !== scope || faulted) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Your platform account changed. Reload to load its progress.'); }
+  }
+  const client = {
+    storageKind: 'crazygames-data', bootJson: '',
+    async boot() {
+      if (opening) return opening;
+      opening = (async () => {
+        log('boot_requested');
         try {
-          // Acquire browser storage only inside the error boundary: some
-          // privacy modes throw even while reading window.localStorage.
-          storage=options.localStorage||root.localStorage;
-          factory=options.indexedDB||root.indexedDB;
-          const raw=storage.getItem(KEY);
-          if(raw!==null){
-            let item;try{item=JSON.parse(raw)}catch(_){throw Error('Saved preferences are damaged');}
-            if(!item||item.format!==1||!valid(item.text))throw Error('Saved preferences have an unsupported format');
-            text=item.text;ready=true;
-            const result={ok:true,source:'preferences',text};api.bootJson=JSON.stringify(result);return result;
+          await initialise();
+          const generation = epoch;
+          const raw = sdk.data.getItem(KEY);
+          if (raw === null) {
+            const now = Date.now();
+            record = { format: 2, profileId: root.crypto.randomUUID(), revision: 0, createdAt: now, updatedAt: now, payload: null, digest: null, origin: null, previous: null, campaigns: {} };
+            revisionText = JSON.stringify(record);
+            await guard(generation);
+            capacity(revisionText, sdk.data.getItem(PREFS));
+            // Data-module acceptance, not an assertion of remote persistence.
+            sdk.data.setItem(KEY, revisionText);
+          } else {
+            if (typeof raw !== 'string') throw error('CORRUPT_AUTHORITY', 'Platform save data is unreadable.');
+            try { record = JSON.parse(raw); } catch (_) { throw error('CORRUPT_AUTHORITY', 'Platform save data is damaged.'); }
+            await codec.verifyRecord(record);
+            revisionText = raw;
+            await guard(generation);
           }
-          const legacy=await readLegacy(factory);
-          text=legacy||'';ready=true;
-          // Migration is read-only until Godot parses the CFG successfully and
-          // calls acceptLoaded; malformed settings cannot enter the new store.
-          const result={ok:true,source:legacy===null?'default':'legacy-readonly',text};api.bootJson=JSON.stringify(result);return result;
-        } catch(error){api.lastError=error.message||String(error);const result=failure(error.name||'PREFERENCES_ERROR',api.lastError);api.bootJson=JSON.stringify(result);return result;}
-      },
-      writeText(value){
-        if(!ready||!storage){api.lastError='Preferences storage is unavailable';return false;}
-        if(!valid(value)){api.lastError='Preferences are unreadable or too large';return false;}
-        try{storage.setItem(KEY,JSON.stringify({format:1,text:value}));text=value;api.lastError='';api.bootJson=JSON.stringify({ok:true,source:'preferences',text});return true}
-        catch(error){api.lastError=error.message||String(error);return false;}
-      },
-      acceptLoaded(){return api.writeText(text);}
-    };
-    return api;
-  }
-  function readLegacy(factory){
-    return new Promise((resolve,reject)=>{
-      let request,absent=false,settled=false;
-      const timer=setTimeout(()=>{settled=true;reject(Error('Legacy preference read timed out'))},10000);
-      function done(error,value){clearTimeout(timer);if(settled)return;settled=true;error?reject(error):resolve(value)}
-      try{request=factory.open('/userfs')}catch(error){done(error);return;}
-      request.onupgradeneeded=()=>{absent=true;request.transaction.abort()};
-      request.onerror=event=>{event.preventDefault();done(absent?null:request.error,null)};
-      request.onblocked=()=>done(Error('Legacy preferences are blocked by another browser tab'));
-      request.onsuccess=()=>{
-        const db=request.result;if(settled){db.close();return;}
-        if(!db.objectStoreNames.contains('FILE_DATA')){db.close();done(Error('Legacy preferences store is unreadable'));return;}
-        let tx;
-        try{tx=db.transaction('FILE_DATA','readonly')}catch(error){db.close();done(error);return;}
-        const profiles=[],settings=[];
-        tx.onabort=()=>{db.close();done(tx.error||Error('Legacy preference read failed'))};
-        tx.onerror=()=>{};
-        tx.objectStore('FILE_DATA').openCursor().onsuccess=event=>{
-          const c=event.target.result;if(!c)return;
-          const path=String(c.key);
-          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_cafe_v13\.json$/.test(path))profiles.push(path);
-          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_settings\.cfg$/.test(path))settings.push({path,entry:c.value});
-          c.continue();
-        };
-        tx.oncomplete=()=>{
-          db.close();
-          try{
-            const candidates=profiles.length===1?settings.filter(x=>x.path===profiles[0].replace(/[^/]+$/,'little_leaf_settings.cfg')):settings;
-            if(candidates.length>1)throw Error('Several legacy preference profiles were found; no profile was guessed');
-            if(!candidates.length){done(null,null);return;}
-            const bytes=candidates[0].entry&&candidates[0].entry.contents;
-            // IDBFS may retain the signed HEAP8 view used by native writes.
-            if(!(bytes instanceof Uint8Array || bytes instanceof Int8Array)||bytes.byteLength>LIMIT)throw Error('Legacy preferences are unreadable or too large');
-            done(null,new TextDecoder('utf-8',{fatal:true}).decode(bytes));
-          }catch(error){done(error);}
-        };
-      };
-    });
-  }
-  root.LittleLeafPreferences=Object.freeze({KEY,createClient});
-  root.__littleLeafPreferences=createClient();
+          root.LittleLeafPlatform.ready = true;
+          const result = { ok: true, source: record.revision ? 'authority' : 'fresh', profileId: record.profileId, revision: record.revision, payload: record.payload };
+          log('read_result', result); client.bootJson = JSON.stringify(result); return result;
+        } catch (e) {
+          invalidate(); const result = failure(e); log('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result;
+        }
+      })(); return opening;
+    },
+    creditForSave() { return 0; },
+    async commit(payload, expectedRevision, expectedProfileId) {
+      if (busy) return failure(error('SAVE_BUSY', 'A platform submission is still pending.'));
+      busy = true;
+      const generation = epoch;
+      try {
+        ready(); codec.parsePayload(payload, 15);
+        if (expectedProfileId !== record.profileId || expectedRevision !== record.revision) throw error('REVISION_CONFLICT', 'This page has an old save revision. Reload before continuing.');
+        if (expectedRevision >= Number.MAX_SAFE_INTEGER) throw error('REVISION_LIMIT', 'Save revision limit reached.');
+        const next = { ...record, revision: expectedRevision + 1, payload, updatedAt: Date.now(), previous: null, origin: record.origin || { source: 'fresh', legacyDigest: null, importedAt: Date.now() } };
+        next.digest = await codec.hash(codec.fingerprint(next));
+        const text = JSON.stringify(next);
+        await guard(generation);
+        // Synchronous comparison detects a changed SDK cache, not server CAS.
+        if (sdk.data.getItem(KEY) !== revisionText) throw error('REVISION_CONFLICT', 'Platform progress changed. Reload before continuing.');
+        capacity(text, sdk.data.getItem(PREFS));
+        sdk.data.setItem(KEY, text);
+        record = next; revisionText = text;
+        log('platform_save_accepted', { profileId: next.profileId, revision: next.revision });
+        const boot = { ok: true, source: 'authority', profileId: next.profileId, revision: next.revision, payload: next.payload };
+        client.bootJson = JSON.stringify(boot);
+        return { ok: true, profileId: next.profileId, revision: next.revision, durable: false, platformAccepted: true, cloudConfirmed: false, creditedCoins: 0 };
+      } catch (e) {
+        if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY', 'PLATFORM_ACCOUNT_CHANGED'].includes(e.code)) invalidate();
+        const result = failure(e); log('save_failure', { code: result.code }); return result;
+      } finally { busy = false; }
+    },
+    save(payload, revision, profileId, callback) { client.commit(payload, revision, profileId).then(result => callback(JSON.stringify(result))); },
+    close() { invalidate(); }
+  };
+  const preferences = {
+    bootJson: '', lastError: '',
+    async boot() {
+      try {
+        ready(); await guard(epoch);
+        const raw = sdk.data.getItem(PREFS);
+        let text = '';
+        if (raw !== null) {
+          let value; try { value = JSON.parse(raw); } catch (_) { throw error('PLATFORM_STORAGE_ERROR', 'Platform preferences are damaged.'); }
+          if (!value || value.format !== 1 || typeof value.text !== 'string' || new TextEncoder().encode(value.text).length > 65536) throw error('PLATFORM_STORAGE_ERROR', 'Platform preferences are unreadable.');
+          text = value.text;
+        }
+        const result = { ok: true, source: raw === null ? 'default' : 'preferences', text };
+        preferences.bootJson = JSON.stringify(result); return result;
+      } catch (e) { invalidate(); const result = failure(e); preferences.bootJson = JSON.stringify(result); return result; }
+    },
+    writeText(text) {
+      try {
+        ready(); if (sdk.data.getItem(KEY) !== revisionText) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform progress changed. Reload.'); }
+        if (typeof text !== 'string' || new TextEncoder().encode(text).length > 65536) throw error('INVALID_SAVE', 'Preferences are too large.');
+        const value = JSON.stringify({ format: 1, text }); capacity(revisionText, value);
+        sdk.data.setItem(PREFS, value); preferences.bootJson = JSON.stringify({ ok: true, source: 'preferences', text }); return true;
+      } catch (_) { preferences.lastError = 'Platform preferences could not be submitted.'; return false; }
+    },
+    acceptLoaded() { return true; }
+  };
+  root.LittleLeafPlatform = {
+    ready: false, muteAudio: false,
+    update(active) {
+      if (!sdk || faulted) return;
+      try {
+      this.muteAudio = !!sdk.game.settings.muteAudio;
+      if (loading && active) { sdk.game.loadingStop(); loading = false; }
+      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; }
+      } catch (_) { invalidate(); }
+    }
+  };
+  root.__littleLeafVault = client; root.__littleLeafPreferences = preferences;
+  root.LittleLeafVault = Object.freeze({ retry() { root.location.reload(); } });
 })(globalThis);
 
 </script>
@@ -871,7 +939,12 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 	} else {
 		setStatusMode('progress');
-		window.__littleLeafVault.boot().then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
+		window.__littleLeafVault.boot().then(result => {
+            if (!result.ok) throw new Error(result.error);
+            return window.__littleLeafPreferences.boot();
+        }).then(result => {
+            if (!result.ok) throw new Error(result.error);
+            return engine.startGame({
 			'onProgress': function (current, total) {
 				if (current > 0 && total > 0) {
 					statusProgress.value = current;
@@ -881,7 +954,7 @@ const engine = new Engine(GODOT_CONFIG);
 					statusProgress.removeAttribute('max');
 				}
 			},
-		})).then(() => {
+		}); }).then(() => {
 			setStatusMode('hidden');
 		}, displayFailureNotice);
 	}
