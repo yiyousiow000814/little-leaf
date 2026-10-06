@@ -1,6 +1,20 @@
-# CrazyGames local variant
+# CrazyGames review variant
 
-Base PR55 head 69188c10d3da549a957b593a0bf9c9fb980d3300, tree c3ff62eae4786816e09311113a2090a60b9b45a7. Row31 is absent. Separate branch local/crazygames-platform; existing sources, player saves and backups remain unchanged. No remote push, merge, live deployment, account creation, terms acceptance or platform submission.
+## Current review behavior
+
+The original `Web` preset is preserved as preset 0, with its original shell, audio resources and autosave timing. `CrazyGames` and `CrazyGamesMusic` are separate presets. CI retains the complete existing Web validation and compatibility gates, then validates and exports CrazyGames against that exact validated source commit/tree. The separate CrazyGames artifact does not replace the existing Web artifact.
+
+CrazyGames requests a save when progress is dirty and five seconds have elapsed. Pending saves, blocked storage and active dragging defer submission. A successful platform submission clears dirty state only if no newer change occurred while saving. Paused clean state does not repeatedly rewrite the same progress. Five seconds describes the game's submission cadence; it does not guarantee remote cloud confirmation. Native and ordinary Web retain their existing greater-than-fifteen-second autosave behavior.
+
+SDK initialization checks `user.isUserAccountAvailable` before calling `getUser` or registering authentication listeners. When account features are unavailable, SDK Data still owns progress/preferences, and unsupported user APIs are not called. Availability or scope changes invalidate stale writes. The local SDK simulation is useful for these contract checks but does not prove a real authenticated account or cross-device synchronization.
+
+The resumed local validation uses the full aggregate, all existing Node storage/logging/compatibility suites, separate exports, and muted disposable browser profiles. Aggregate evidence has 654,006 checks across 76 test processes. One existing Python symlink unit test requires a Windows privilege unavailable in the test environment; its Linux CI gate remains intact. Current final-commit receipts and distribution hashes accompany the source backup. Older `qa/crazygames` receipts below describe the earlier checkpoint and must not be treated as validation of later commits.
+
+The review branch is `feat/crazygames-review-019` for PR 56. An earlier checkpoint was pushed there; subsequent updates are authorized only after local validation, using a normal non-force push. No merge, tag, main-branch update, live deployment or CrazyGames submission is authorized. Local work authority ends 2026-10-06 16:00 UTC.
+
+## Earlier checkpoint evidence
+
+Base PR55 head 69188c10d3da549a957b593a0bf9c9fb980d3300, tree c3ff62eae4786816e09311113a2090a60b9b45a7. Row31 is absent. Separate branch local/crazygames-platform; existing sources, player saves and backups remain unchanged. The following receipts refer to the earlier local checkpoint, before its authorized review-branch push.
 
 Official JavaScript SDK v3 loads from https://sdk.crazygames.com/crazygames-sdk-v3.js. SDK.init completes before Data reads. SDK Data is the sole progress and preferences authority in this shell. The native/itch adapters retain their original behavior. No migration or local fallback. Missing platform key permits a fresh identity; failed or malformed existing loads stop engine startup. Account changes block stale progress and preferences until SDK reload. User IDs are change witnesses, never authentication or database selectors.
 
