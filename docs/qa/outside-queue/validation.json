@@ -1,0 +1,905 @@
+{
+  "status": "passed engine suites across split runs after fixture fixes",
+  "engine_processes": 77,
+  "engine_checks": 654122,
+  "player_save_used": false,
+  "source_binding": "implementation source hashes; working tree tested before feature commit",
+  "implementation_sha256": {
+    "scripts/cafe_model.gd": "da310221e86daa3042f5523f71d0174d42554076d10b89bf35c9e9b8c60e2840",
+    "scripts/cafe_outside_queue.gd": "144bafe1e67dfe16392e3e3f0d1455419d3eb28289788478c2e55d036e62fd33",
+    "scripts/illustrated_cafe.gd": "eaa154ed103bb9dc47ed1c2e98274eeeb671c3f475dd7dc0090f6f4043837f20",
+    "scripts/street_pedestrians.gd": "e4faf9727503a213c9c72aee6abf8d78a61efe2e389c637a627d54d6e0a3577d"
+  },
+  "engine_records": [
+    {
+      "test": "test_crazygames_ack",
+      "exit_code": 0,
+      "seconds": 0.41,
+      "checks": 7,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_crazygames_ack.log"
+    },
+    {
+      "test": "test_platform_gameplay_gate",
+      "exit_code": 0,
+      "seconds": 0.38,
+      "checks": 10,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_platform_gameplay_gate.log"
+    },
+    {
+      "test": "test_crazygames_autosave",
+      "exit_code": 0,
+      "seconds": 0.4,
+      "checks": 10,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_crazygames_autosave.log"
+    },
+    {
+      "test": "test_save_log",
+      "exit_code": 0,
+      "seconds": 2.74,
+      "checks": 27,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_save_log.log"
+    },
+    {
+      "test": "test_floor_claim_retry",
+      "exit_code": 0,
+      "seconds": 8.17,
+      "checks": 109,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_floor_claim_retry.log"
+    },
+    {
+      "test": "test_shell_segment_codec",
+      "exit_code": 0,
+      "seconds": 1.11,
+      "checks": 27214,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_shell_segment_codec.log"
+    },
+    {
+      "test": "test_shell_segment_model",
+      "exit_code": 0,
+      "seconds": 3.59,
+      "checks": 1169,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_shell_segment_model.log"
+    },
+    {
+      "test": "test_shell_segment_ui",
+      "exit_code": 0,
+      "seconds": 3.42,
+      "checks": 429,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_shell_segment_ui.log"
+    },
+    {
+      "test": "test_economy_revision",
+      "exit_code": 0,
+      "seconds": 2.22,
+      "checks": 175,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_economy_revision.log"
+    },
+    {
+      "test": "test_intro_lifecycle_headless",
+      "exit_code": 0,
+      "seconds": 3.45,
+      "checks": 1448,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_intro_lifecycle_headless.log"
+    },
+    {
+      "test": "test_intro_cli_bypass",
+      "exit_code": 0,
+      "seconds": 2.67,
+      "checks": 6,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_intro_cli_bypass.log"
+    },
+    {
+      "test": "test_hud_icon_scale",
+      "exit_code": 0,
+      "seconds": 2.76,
+      "checks": 58,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_hud_icon_scale.log"
+    },
+    {
+      "test": "test_hud_layout",
+      "exit_code": 0,
+      "seconds": 7.02,
+      "checks": 806,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_hud_layout.log"
+    },
+    {
+      "test": "test_toolbar_help",
+      "exit_code": 0,
+      "seconds": 50.89,
+      "checks": 3254,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_toolbar_help.log"
+    },
+    {
+      "test": "test_mobile_toolbar",
+      "exit_code": 0,
+      "seconds": 22.86,
+      "checks": 2214,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_mobile_toolbar.log"
+    },
+    {
+      "test": "test_wallet_alignment",
+      "exit_code": 0,
+      "seconds": 9.85,
+      "checks": 2246,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_wallet_alignment.log"
+    },
+    {
+      "test": "test_cancel_icon",
+      "exit_code": 0,
+      "seconds": 2.24,
+      "checks": 35,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_cancel_icon.log"
+    },
+    {
+      "test": "test_build_tiles_ui",
+      "exit_code": 0,
+      "seconds": 21.66,
+      "checks": 2156,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_build_tiles_ui.log"
+    },
+    {
+      "test": "test_staff_header_done",
+      "exit_code": 0,
+      "seconds": 5.69,
+      "checks": 76,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_staff_header_done.log"
+    },
+    {
+      "test": "test_startup_retry",
+      "exit_code": 0,
+      "seconds": 0.72,
+      "checks": 10,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_startup_retry.log"
+    },
+    {
+      "test": "test_no_bottom_notifications",
+      "exit_code": 0,
+      "seconds": 3.86,
+      "checks": 463,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_no_bottom_notifications.log"
+    },
+    {
+      "test": "test_starter_geometry",
+      "exit_code": 0,
+      "seconds": 1.08,
+      "checks": 119,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_starter_geometry.log"
+    },
+    {
+      "test": "test_starter_door_grid",
+      "exit_code": 0,
+      "seconds": 1.89,
+      "checks": 358,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_starter_door_grid.log"
+    },
+    {
+      "test": "test_opening_jamb_occlusion",
+      "exit_code": 0,
+      "seconds": 0.57,
+      "checks": 5991,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_opening_jamb_occlusion.log"
+    },
+    {
+      "test": "test_expansion_visibility",
+      "exit_code": 0,
+      "seconds": 0.68,
+      "checks": 1471,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_expansion_visibility.log"
+    },
+    {
+      "test": "test_expansion_ring_prices",
+      "exit_code": 0,
+      "seconds": 0.71,
+      "checks": 156,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_expansion_ring_prices.log"
+    },
+    {
+      "test": "test_expansion_tree_visibility",
+      "exit_code": 0,
+      "seconds": 0.9,
+      "checks": 38,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_expansion_tree_visibility.log"
+    },
+    {
+      "test": "test_role_boundaries",
+      "exit_code": 0,
+      "seconds": 71.89,
+      "checks": 160,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_role_boundaries.log"
+    },
+    {
+      "test": "test_role_release",
+      "exit_code": 0,
+      "seconds": 9.75,
+      "checks": 6,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_role_release.log"
+    },
+    {
+      "test": "test_dishwashing_queue",
+      "exit_code": 0,
+      "seconds": 14.72,
+      "checks": 1002,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dishwashing_queue.log"
+    },
+    {
+      "test": "test_single_guest_patience",
+      "exit_code": 0,
+      "seconds": 3.0,
+      "checks": 189,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_single_guest_patience.log"
+    },
+    {
+      "test": "test_sink_basin_visual",
+      "exit_code": 0,
+      "seconds": 0.38,
+      "checks": 3816,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_sink_basin_visual.log"
+    },
+    {
+      "test": "test_sink_wash_action",
+      "exit_code": 0,
+      "seconds": 2.04,
+      "checks": 80036,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_sink_wash_action.log"
+    },
+    {
+      "test": "test_floor_availability",
+      "exit_code": 0,
+      "seconds": 1.69,
+      "checks": 51,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_floor_availability.log"
+    },
+    {
+      "test": "test_furniture_worker_egress",
+      "exit_code": 0,
+      "seconds": 1.79,
+      "checks": 123,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_furniture_worker_egress.log"
+    },
+    {
+      "test": "test_staff_relocation_service",
+      "exit_code": 0,
+      "seconds": 4.01,
+      "checks": 17,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_staff_relocation_service.log"
+    },
+    {
+      "test": "test_autosave_feedback",
+      "exit_code": 0,
+      "seconds": 1.41,
+      "checks": 26,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_autosave_feedback.log"
+    },
+    {
+      "test": "test_autosave_feedback_adversarial",
+      "exit_code": 0,
+      "seconds": 1.33,
+      "checks": 31,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store.",
+        "ERROR: Parse JSON failed. Error at line 0: Expected 'true', 'false', or 'null', got 'not'"
+      ],
+      "log": "test_autosave_feedback_adversarial.log"
+    },
+    {
+      "test": "test_autosave_feedback_ui",
+      "exit_code": 0,
+      "seconds": 2.32,
+      "checks": 129,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_autosave_feedback_ui.log"
+    },
+    {
+      "test": "test_inbox_save_cache",
+      "exit_code": 0,
+      "seconds": 0.28,
+      "checks": 9,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_inbox_save_cache.log"
+    },
+    {
+      "test": "test_compensation_inbox",
+      "exit_code": 0,
+      "seconds": 2.8,
+      "checks": 118,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_compensation_inbox.log"
+    },
+    {
+      "test": "test_stove_optional",
+      "exit_code": 0,
+      "seconds": 1.6,
+      "checks": 29,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_stove_optional.log"
+    },
+    {
+      "test": "test_stove_work_reservation",
+      "exit_code": 0,
+      "seconds": 0.76,
+      "checks": 212,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_stove_work_reservation.log"
+    },
+    {
+      "test": "test_stove_reservation_ui",
+      "exit_code": 0,
+      "seconds": 1.97,
+      "checks": 162,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_stove_reservation_ui.log"
+    },
+    {
+      "test": "test_stove_pause_service",
+      "exit_code": 0,
+      "seconds": 8.84,
+      "checks": 19,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_stove_pause_service.log"
+    },
+    {
+      "test": "test_workface_ground_guidance",
+      "exit_code": 0,
+      "seconds": 1.78,
+      "checks": 49,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_workface_ground_guidance.log"
+    },
+    {
+      "test": "test_workface_single_tint",
+      "exit_code": 0,
+      "seconds": 1.61,
+      "checks": 30,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_workface_single_tint.log"
+    },
+    {
+      "test": "test_departing_route_edit",
+      "exit_code": 0,
+      "seconds": 1.18,
+      "checks": 67,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_departing_route_edit.log"
+    },
+    {
+      "test": "test_departing_route_service",
+      "exit_code": 0,
+      "seconds": 4.22,
+      "checks": 9,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_departing_route_service.log"
+    },
+    {
+      "test": "test_register_edge",
+      "exit_code": 0,
+      "seconds": 0.44,
+      "checks": 92,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_register_edge.log"
+    },
+    {
+      "test": "test_chef_fire",
+      "exit_code": 0,
+      "seconds": 3.13,
+      "checks": 6501,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_chef_fire.log"
+    },
+    {
+      "test": "test_food_contact",
+      "exit_code": 0,
+      "seconds": 0.44,
+      "checks": 59204,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_food_contact.log"
+    },
+    {
+      "test": "test_chair_ground_contact",
+      "exit_code": 0,
+      "seconds": 0.78,
+      "checks": 616,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_chair_ground_contact.log"
+    },
+    {
+      "test": "test_simple_kitchen",
+      "exit_code": 0,
+      "seconds": 2.93,
+      "checks": 47,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_simple_kitchen.log"
+    },
+    {
+      "test": "test_pan_handle_workface",
+      "exit_code": 0,
+      "seconds": 0.68,
+      "checks": 22316,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_pan_handle_workface.log"
+    },
+    {
+      "test": "test_chef_hat",
+      "exit_code": 0,
+      "seconds": 0.41,
+      "checks": 182,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_chef_hat.log"
+    },
+    {
+      "test": "test_character_bubble",
+      "exit_code": 0,
+      "seconds": 0.68,
+      "checks": 17286,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_character_bubble.log"
+    },
+    {
+      "test": "test_arm_occlusion",
+      "exit_code": 0,
+      "seconds": 0.49,
+      "checks": 1902,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_arm_occlusion.log"
+    },
+    {
+      "test": "test_dining_pose",
+      "exit_code": 0,
+      "seconds": 1.29,
+      "checks": 183197,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dining_pose.log"
+    },
+    {
+      "test": "test_seated_proportions",
+      "exit_code": 0,
+      "seconds": 0.48,
+      "checks": 1647,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_seated_proportions.log"
+    },
+    {
+      "test": "test_dining_service_plane",
+      "exit_code": 0,
+      "seconds": 2.1,
+      "checks": 80119,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dining_service_plane.log"
+    },
+    {
+      "test": "test_dining_placement",
+      "exit_code": 0,
+      "seconds": 0.57,
+      "checks": 47880,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dining_placement.log"
+    },
+    {
+      "test": "test_dining_docking",
+      "exit_code": 0,
+      "seconds": 2.29,
+      "checks": 1626,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dining_docking.log"
+    },
+    {
+      "test": "test_dining_occlusion",
+      "exit_code": 0,
+      "seconds": 0.41,
+      "checks": 1066,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_dining_occlusion.log"
+    },
+    {
+      "test": "test_bubble_symbol_clarity",
+      "exit_code": 0,
+      "seconds": 0.68,
+      "checks": 1834,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_bubble_symbol_clarity.log"
+    },
+    {
+      "test": "test_art_raster_strokes",
+      "exit_code": 0,
+      "seconds": 0.66,
+      "checks": 115,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_art_raster_strokes.log"
+    },
+    {
+      "test": "test_customer_litter",
+      "exit_code": 0,
+      "seconds": 0.79,
+      "checks": 57,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_customer_litter.log"
+    },
+    {
+      "test": "test_litter_visibility",
+      "exit_code": 0,
+      "seconds": 0.61,
+      "checks": 76530,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_litter_visibility.log"
+    },
+    {
+      "test": "test_street_pedestrians",
+      "exit_code": 0,
+      "seconds": 1.52,
+      "checks": 15246,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_street_pedestrians.log"
+    },
+    {
+      "test": "test_street_endpoints",
+      "exit_code": 0,
+      "seconds": 0.87,
+      "checks": 42,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_street_endpoints.log"
+    },
+    {
+      "test": "test_street_service_save",
+      "exit_code": 0,
+      "seconds": 2.67,
+      "checks": 73,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_street_service_save.log"
+    },
+    {
+      "test": "test_outside_queue",
+      "exit_code": 0,
+      "seconds": 2.16,
+      "checks": 116,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "test_outside_queue.log"
+    },
+    {
+      "test": "staff-start-empty-profile",
+      "exit_code": 0,
+      "seconds": 2.98,
+      "checks": 33,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "staff-start-empty-profile.log"
+    },
+    {
+      "test": "staff-start-fresh",
+      "exit_code": 0,
+      "seconds": 3.39,
+      "checks": 33,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "staff-start-fresh.log"
+    },
+    {
+      "test": "staff-start-saved-load",
+      "exit_code": 0,
+      "seconds": 1.92,
+      "checks": 6,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "staff-start-saved-load.log"
+    },
+    {
+      "test": "staff-start-standalone-load",
+      "exit_code": 0,
+      "seconds": 1.72,
+      "checks": 5,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "staff-start-standalone-load.log"
+    },
+    {
+      "test": "staff-start-bad-load",
+      "exit_code": 0,
+      "seconds": 1.8,
+      "checks": 6,
+      "failures": [],
+      "diagnostics": [
+        "ERROR: Failed to read the root certificate store."
+      ],
+      "log": "staff-start-bad-load.log"
+    }
+  ],
+  "node_records": [
+    {
+      "test": "crazygames_storage",
+      "exit_code": 0
+    },
+    {
+      "test": "legacy_byte_storage",
+      "exit_code": 0
+    },
+    {
+      "test": "save_log_observers",
+      "exit_code": 0
+    },
+    {
+      "test": "save_log_privacy",
+      "exit_code": 0
+    },
+    {
+      "test": "connection_recovery",
+      "exit_code": 0
+    },
+    {
+      "test": "compensation_inbox_storage",
+      "exit_code": 0
+    },
+    {
+      "test": "wall_compatibility_helpers_test",
+      "exit_code": 0
+    }
+  ],
+  "ci_guard_tests": {
+    "total": 54,
+    "passed": 53,
+    "blocked": 1,
+    "blocked_test": "ArtifactTests.test_symlink",
+    "reason": "Windows WinError1314 missing symlink privilege"
+  },
+  "diagnostic_note": "Godot Windows root certificate-store diagnostic retained; no script error/exit failure in accepted engine runs. Adversarial JSON parse diagnostic is expected invalid input.",
+  "not_verified": [
+    "full Web export and rendered browser gates",
+    "physical phone performance"
+  ]
+}
