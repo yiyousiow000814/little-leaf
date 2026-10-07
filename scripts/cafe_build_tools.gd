@@ -80,7 +80,7 @@ func _init(owner_game):game=owner_game
 
 func build()->Control:
 	var panel=HBoxContainer.new();panel.add_theme_constant_override("separation",12)
-	for spec in [["half","Half wall","35 coins"],["full","Full wall","55 coins"],["paint","Wallpaper","Free finish"],["remove","Remove wall","Half refund"],["door","Door","40 coins"],["window","Window","30 coins"],["move_opening","Move opening","Keeps item"],["remove_opening","Remove opening","Restores wall"]]:
+	for spec in [["half","Half wall","35 coins"],["full","Full wall","55 coins"],["paint","Wallpaper","Free finish"],["remove","Remove wall","Refund shown"],["door","Door","40 coins"],["window","Window","30 coins"],["move_opening","Move opening","Keeps item"],["remove_opening","Remove opening","Restores wall"]]:
 		var chosen=str(spec[0])
 		var card=game.button("",func():choose(chosen));card.toggle_mode=true;card.custom_minimum_size=Vector2(92,105);panel.add_child(card);tool_buttons[chosen]=card
 		var column=VBoxContainer.new();column.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);card.add_child(column)
@@ -207,7 +207,7 @@ func refresh(screen:Vector2):
 		if preview_valid:preview_reason=preview_warning if preview_warning!="" else "Build %s wall · %s coins · R turns · drag to pan"%[mode,Money.amount(int(Geometry.PRICES[mode]))]
 	elif mode=="remove":
 		preview_valid=game.model.can_remove_wall(key)
-		preview_reason="Remove this wall · half-price refund" if preview_valid else str(game.model.last_error)
+		preview_reason="Remove this wall · refund "+Money.amount(game.model.wall_refund(key)) if preview_valid else str(game.model.last_error)
 	else:preview_valid=false;preview_reason="Select a wall product first"
 	game.tool_text.text=preview_reason
 	if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
