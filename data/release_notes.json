@@ -6,7 +6,7 @@
   "label": "Cafe building, service and environment integration candidate",
   "new": [
     "Outside visitors wait in a separate queue before seated service begins.",
-    "Exterior environment candidate adds roadside scenery and ambient traffic; parking purchase and customer car arrivals remain disabled."
+    "Exterior environment candidate adds roadside scenery, ambient traffic and three presentation visitors walking/waiting/boarding/alighting at the sidewalk-connected bus stop; parking purchase and customer car arrivals remain disabled."
   ],
   "fixed": [
     "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",

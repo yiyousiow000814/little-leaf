@@ -16,9 +16,17 @@ const BUFFER_PLANTING=[Vector2(2.5,-3.35),Vector2(7.8,-3.35),Vector2(11.9,-2.4)]
 const BAY_CENTERS=[1.3,4.2,7.1,10.0]
 const TREES=[Vector3(-13.1,1.5,.86),Vector3(-.0,18.8,.95),Vector3(7.7,14.0,1.0),Vector3(16.0,-6.4,.90),Vector3(20.3,13.8,.85),Vector3(22.1,14.0,.62)]
 const TREE_VARIANTS=["oak","airy","oak","columnar","airy","sapling"]
-const SHELTER_ROOF=Rect2(-12.85,5.45,1.75,5.0)
+const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
-const SHELTER_BOARDING=Rect2(-11.1,5.3,.95,5.4)
+const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
+const STOP_CURB=-10.55
+const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
+const BOARDING_GAP=Vector2(9.65,10.7)
+const BUS_POSITION=Vector2(-9.55,8.1)
+const BUS_DOOR=Vector2(-10.345,10.1)
+const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
+const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
+const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
 const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func parking_hooks()->Dictionary:
@@ -33,9 +41,14 @@ static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 
 static func draw_ground(a):
 	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
-	quad(a,OPPOSITE_LEFT,Extent.PAVEMENT_Z_MIN,ROAD_LEFT,Extent.PAVEMENT_Z_MAX,"d7dcc2")
+	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
+		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
+	# The shelter widens the SAME level pavement to the lawn side, not a
+	# disconnected raised slab. Its tile rows meet the original sidewalk rows.
+	for z in range(4,12):
+		quad(a,STOP_PAD.position.x,maxf(z,STOP_PAD.position.y),OPPOSITE_LEFT,minf(z+1,STOP_PAD.end.y),"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
 	# Short opposite-side bus lay-by, leaving the through lane unobstructed.
-	quad(a,-10.15,4.9,ROAD_LEFT,11.3,"8b9b90")
+	a.poly([a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8)],"8b9b90")
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
@@ -46,42 +59,53 @@ static func draw_ground(a):
 	# Open lawn separates the lot from the wall; only one short pedestrian link.
 	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
-		var p=a.iso(OPPOSITE_LEFT,z);var q=a.iso(ROAD_LEFT,z)
+		var near_stop=z>=5 and z<=11
+		var p=a.iso(STOP_PAD.position.x if near_stop else OPPOSITE_LEFT,z)
+		var q=a.iso(STOP_CURB if near_stop else ROAD_LEFT,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
+	for x in [-12.76,-11.76,-10.76]:a.line(a.iso(x,4.9),a.iso(x,11.3),"c5cbb3",.7)
+	# A continuous curb edge bends into the bay; the door opening is flush.
+	a.line(a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),"bdc7af",1.4*a.ui_scale)
+	a.line(a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,BOARDING_GAP.x),"bdc7af",1.4*a.ui_scale)
+	a.line(a.iso(STOP_CURB,BOARDING_GAP.y),a.iso(STOP_CURB,11.3),"bdc7af",1.4*a.ui_scale)
+	a.line(a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8),"bdc7af",1.4*a.ui_scale)
 
 static func draw_crossing(a):
 	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
 	# A clear continuous pedestrian strip passes over the flush driveway.
 	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
-static func draw_props(a):
+static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable()):
 	# All low ground plants precede elevated structures. Never paint a ground
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
 	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-7.15),1,"a2b3b3" if i==2 else "ddcdb0")
-	draw_shelter(a)
-	draw_bus(a,Vector2(-9.4,8.1))
+	draw_shelter(a,under_roof)
+	if front_people.is_valid():front_people.call()
+	draw_bus(a,BUS_POSITION)
 
-static func draw_shelter(a):
+static func draw_shelter(a,under_roof:Callable=Callable()):
 	var scale=a.ui_scale*a.zoom
-	# A small level pad joins the public pavement. The front stays open, with
-	# an uninterrupted .95-tile boarding corridor outside the canopy supports.
-	quad(a,-13,5.3,-10.15,10.7,"d1d8be")
+	# Ground was drawn with the continuous public sidewalk. Back structure,
+	# waiting people, front posts and roof have separate occlusion passes.
 	for z in [5.75,10.15]:
-		for x in [-12.65,-11.35]:
-			a.ellipse(a.iso(x,z),Vector2(4,2)*scale,"a8b59b")
-			a.line(a.iso(x,z),a.iso(x,z,SHELTER_HEIGHT),"789270",3*scale)
+		a.ellipse(a.iso(-13.3,z),Vector2(4,2)*scale,"a8b59b")
+		a.line(a.iso(-13.3,z),a.iso(-13.3,z,SHELTER_HEIGHT),"789270",3*scale)
 	# Quiet back and end glazing remain connected to the posts and roof beam.
-	a.poly([a.iso(-12.65,5.75,5),a.iso(-12.65,10.15,5),a.iso(-12.65,10.15,73),a.iso(-12.65,5.75,73)],Color(.62,.72,.68,.26))
-	a.poly([a.iso(-12.65,5.75,5),a.iso(-11.35,5.75,5),a.iso(-11.35,5.75,73),a.iso(-12.65,5.75,73)],Color(.69,.77,.71,.22))
-	a.line(a.iso(-12.65,6.05,62),a.iso(-12.65,7.05,69),Color(.90,.93,.81,.65),1.5*scale)
+	a.poly([a.iso(-13.3,5.75,5),a.iso(-13.3,10.15,5),a.iso(-13.3,10.15,73),a.iso(-13.3,5.75,73)],Color(.62,.72,.68,.26))
+	a.poly([a.iso(-13.3,5.75,5),a.iso(-11.8,5.75,5),a.iso(-11.8,5.75,73),a.iso(-13.3,5.75,73)],Color(.69,.77,.71,.22))
+	a.line(a.iso(-13.3,6.05,62),a.iso(-13.3,7.05,69),Color(.90,.93,.81,.65),1.5*scale)
 	# A wood seat has an actual seat plane, backrest and two grounded leg pairs.
 	for z in [6.55,9.2]:
-		for x in [-12.35,-11.95]:a.line(a.iso(x,z),a.iso(x,z,18),"8f8c6c",2.3*scale)
-	quad_height(a,-12.4,6.3,-11.85,9.5,18,"b3a079")
-	a.poly([a.iso(-12.4,6.3,20),a.iso(-12.4,9.5,20),a.iso(-12.4,9.5,34),a.iso(-12.4,6.3,34)],"b8a581")
-	a.line(a.iso(-11.85,6.3,18),a.iso(-11.85,9.5,18),"948968",2*scale)
+		for x in [-13.0,-12.6]:a.line(a.iso(x,z),a.iso(x,z,18),"8f8c6c",2.3*scale)
+	quad_height(a,-13.05,6.3,-12.5,9.5,18,"b3a079")
+	a.poly([a.iso(-13.05,6.3,20),a.iso(-13.05,9.5,20),a.iso(-13.05,9.5,34),a.iso(-13.05,6.3,34)],"b8a581")
+	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
+	if under_roof.is_valid():under_roof.call()
+	for z in [5.75,10.15]:
+		a.ellipse(a.iso(-11.8,z),Vector2(4,2)*scale,"a8b59b")
+		a.line(a.iso(-11.8,z),a.iso(-11.8,z,SHELTER_HEIGHT),"789270",3*scale)
 	# Thin fascia connects the full roof edge to all four support tops.
 	var r=SHELTER_ROOF
 	a.poly([a.iso(r.position.x,r.position.y,74),a.iso(r.end.x,r.position.y,74),a.iso(r.end.x,r.position.y,78),a.iso(r.position.x,r.position.y,78)],"d2c6a7")
@@ -130,6 +154,11 @@ static func draw_bus(a,p:Vector2):
 	quad(a,p.x-.85,p.y-2.7,p.x+.85,p.y+2.7,Color(.35,.42,.33,.16))
 	for z in [-1.72,1.66]:
 		a.ellipse(bus_point(a,p,-half,z,8),Vector2(6.8,9.0)*scale,"627064")
+	# The curb-side door is drawn behind the visible body, never on the
+	# through-road side. Boarding people pass behind the bus at this same edge.
+	bus_face(a,p,-half,-length,length,7,53,"d7d2b4",4)
+	bus_face(a,p,-half-.025,1.65,2.37,14,47,"6f857b",2)
+	for z in [1.72,2.05]:bus_face(a,p,-half-.03,z,z+.25,18,45,"bbc8b8",1)
 	# Cream body, sage lower skirt, rounded front and shallow cream roof.
 	bus_face(a,p,half,-length,length,7,53,"e1d9bb",4)
 	bus_face(a,p,half,-length,length,8,26,"8ca17d",3)
@@ -138,14 +167,10 @@ static func draw_bus(a,p:Vector2):
 	a.rounded_poly([bus_point(a,p,-half,length,8),bus_point(a,p,half,length,8),bus_point(a,p,half,length,26),bus_point(a,p,-half,length,26)],3*scale,"90a47d")
 	a.rounded_poly([bus_point(a,p,-half,-length,53),bus_point(a,p,half,-length,53),bus_point(a,p,half,length,53),bus_point(a,p,-half,length,53)],6*scale,"eee4c8")
 	# Four distinct passenger windows, with quiet reflection and cream mullions.
-	for z in [-2.27,-1.31,-.35,.61]:
+	for z in [-2.27,-1.31,-.35,.61,1.57]:
 		bus_face(a,p,half+.012,z,z+.77,30,47,"748d88",2)
 		bus_face(a,p,half+.018,z+.07,z+.70,33,45,"b1c0b5",1.5)
 		a.line(bus_point(a,p,half+.025,z+.13,43),bus_point(a,p,half+.025,z+.55,43),"cdd6c1",.8*scale)
-	# Tall glazed folding door beside the front axle; sill stays above the skirt.
-	bus_face(a,p,half+.025,1.65,2.37,14,47,"6f857b",2)
-	for z in [1.72,2.05]:bus_face(a,p,half+.03,z,z+.25,18,45,"bbc8b8",1)
-	a.line(bus_point(a,p,half+.04,2.02,16),bus_point(a,p,half+.04,2.02,46),"83977f",1*scale)
 	# Wide upright windscreen, destination board and small paired front lights.
 	a.rounded_poly([bus_point(a,p,-.61,length+.01,29),bus_point(a,p,.61,length+.01,29),bus_point(a,p,.61,length+.01,45),bus_point(a,p,-.61,length+.01,45)],3*scale,"748d88")
 	a.rounded_poly([bus_point(a,p,-.55,length+.02,31),bus_point(a,p,.55,length+.02,31),bus_point(a,p,.55,length+.02,43),bus_point(a,p,-.55,length+.02,43)],2*scale,"afc0b4")

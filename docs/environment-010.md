@@ -11,7 +11,7 @@ pockets. There is no second road or extended parking driveway.
 The ordinary bus shelter has a plain cream roof connected to four sage posts,
 quiet back/end glazing, a wood seat/backrest with grounded legs, and a separate
 bus pictogram sign beyond its open boarding side. Its clear boarding corridor is
-0.95 tiles wide. Ground planting draws before elevated shelter parts, preventing
+1.0 tiles wide. Ground planting draws before elevated shelter parts, preventing
 the previous bush-over-roof overpaint. No green roof is intended.
 
 Six sparse tree positions retain the existing depth/owned-land rules. Four tree
@@ -124,3 +124,44 @@ could not be transferred (HTTP 403); no caption substituted for its unseen pixel
 The independently rendered existing scene directly demonstrated the roof
 overpaint and unsupported-seat defects. Pixel review supplements the behavior
 tests; stylistic acceptance remains a user review decision.
+
+## Continuous bus-stop sidewalk and bounded pedestrians
+
+The opposite sidewalk continues into the shelter using the same alternating tile
+colours and seam rows at ground height zero. Its lawnward extension overlaps the
+existing sidewalk; no separate raised slab or seam crosses the bus bay. A continuous
+curb at x=-10.55 has a flush opening at z=9.65..10.7, aligned with the actual
+curb-side bus door (-10.345,10.1). The bus's visible road-facing side has windows.
+The bench/glazing sit behind waiting positions; posts/sign leave a one-tile
+through corridor and unobstructed paths between sidewalk, waiting area and door.
+
+`bus_stop_pedestrians.gd` owns exactly three presentation visitors rendered by the
+existing original illustrated character/motion system. They approach along
+x=-11.35, wait at x=-12, board through the flush door opening, remain hidden
+aboard, and alight back to the sidewalk. They recycle at unchanged remote street
+endpoints, with at most three motion rigs. The clock follows the existing activity
+gate and freezes offscreen. They do not enter cafe admissions, queues, wallets,
+seats, reservations or saves. `test_bus_stop.gd` verifies an hour of route bounds,
+0.35-tile obstacle clearance, all five states, invalid time/offscreen freeze,
+frame slicing and unchanged authoritative model state.
+
+Actual same-angle [revision before](environment-010/layout-before-stop.png) and
+[after](environment-010/after.png), plus lossless native APNG [detail before](environment-010/stop-before-motion.png)
+and [detail after](environment-010/stop-after-motion.png), show the connection and
+waiting/walking. Download the APNGs for single-play animation if a web preview
+shows only their first frame. The separate native Library review ZIP
+`libfile_5f6e2f768a508191b06efe1eeb02e488` contains 64 raw frames, an HTML replay/scrub
+viewer, four APNGs, exact position records and a hash manifest (16,627,470 bytes;
+SHA-256 `f768792688ba4f3a8c6f44a41e560c60993f7d354307eb7cc9ad3165f98e74c0`).
+There are sixteen real samples at 0.5-second intervals: eight seconds of normal
+presentation, without interpolation. Cafe authority is frozen while only ambient
+presentation clocks advance. The rejected art-direction sample is not used.
+
+To reproduce, use `tests/capture_stop_motion.gd` in a disposable project/profile,
+with STOP_BEFORE_ART and STOP_BEFORE_ENV pointing at archived fc3ad12 comparison
+fixtures, and STOP_MOTION_OUTPUT pointing at an existing workspace folder. The
+normal projection matches previous captures; the native close-up is 1240x760,
+origin (2200,600), tile (78,39), scale 2. Coordinate a graphics slot first.
+Full final engine regression: 78 processes, 1,186,448 checks passed. Focused stop,
+environment, expansion and street checks: 534,028 passed. Tests establish behavior;
+they do not establish user visual acceptance.

@@ -14,23 +14,27 @@ or permission to merge. Baseline v0.1.9 is exactly
 - PR #61: `f68a425f642c71ab891db150feb82c1cdd953bba`
 - PR #62: `58172e27469b281c466748a41cbfead26d04c58d`
 - PR #63: `790b059cdcaba0f051990c00f14b7b5440b4ea34`
-- PR #64: `fc3ad12c5d050a51cb76ef7d39317a21b3191f1e`, extending checkpoint
+- PR #64: `07e9ab194a26c03f941b21663eacbe9393cfc576`, extending checkpoints
+  `fc3ad12c5d050a51cb76ef7d39317a21b3191f1e` and
   `bf7cfaf45882dc1fb6412981993929aeed6e2f0f`
 - PR #65: `7e473d96977843b6389f1a6b79aa549af43fc588`
 
 Merge ancestry includes #60 through #63 and #59 through #65 once each. The
-v0.1.9 baseline already contains the 54–56 stack; none is retargeted or remotely
+v0.1.9 baseline already contains the 54-56 stack; none is retargeted or remotely
 merged. #57 pauses only the itch publisher. No remote PR is merged by this work.
 
 ## Conflict resolution
 
 The 57+58+59 stage retains 76 registered suites plus five startup cases (81
 test processes). The full combination retains every suite from each source:
-83 registered suites plus five startup cases (88 processes). The exporter
+84 registered suites plus five startup cases (89 processes). The exporter
 continues to require the exact complete manifest, with no entries removed.
 
 Renderer conflict resolution preserves queue-aware pedestrian advance and
-ambient traffic advance. Staff body depth includes cleaning stance offsets.
+ambient traffic advance. Bus-stop presentation advances exactly once with the
+same active-game delta, while street pedestrians retain queue-aware advance.
+The fixed three bus visitors use connected sidewalk/pad/curb-door routes and
+never enter the authoritative cafe queue, customer, economy or save state. Staff body depth includes cleaning stance offsets.
 The original rear tree draws before the shell; the original corner tree and
 new environment trees share depth sorting with props and people using one
 position/scale schema. Final PR64 greenery retains each TREE_VARIANTS identity

@@ -2,22 +2,22 @@
   "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
   "full_engine": {
     "status": "passed",
-    "checks": 769241,
-    "processes": 77,
-    "note": "Complete rerun after shelter construction/layering and deterministic vegetation variety",
-    "tested_working_source_base": "bf7cfaf45882dc1fb6412981993929aeed6e2f0f",
-    "source_hashes_match": true
+    "checks": 1186448,
+    "processes": 78,
+    "tested_working_source_base": "fc3ad12c5d050a51cb76ef7d39317a21b3191f1e",
+    "source_hashes_match": true,
+    "note": "Complete rerun after continuous stop paving, curb-side door and bounded original-character waiting/walking"
   },
   "final_focused_engine": {
     "status": "passed",
-    "checks": 116901,
+    "checks": 534028,
     "processes": 5,
     "suites": [
       "test_environment",
+      "test_bus_stop",
       "test_expansion_visibility",
-      "test_expansion_tree_visibility",
-      "test_art_raster_strokes",
-      "test_street_endpoints"
+      "test_street_endpoints",
+      "test_street_service_save"
     ]
   },
   "javascript": {
@@ -52,7 +52,7 @@
     "exit_code": 0,
     "native_pixels_inspected": true,
     "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
-    "after_sha256": "b9336923648e3a45ff35ac7dccb702bd08f7ed2b50b5d3efb5dafd57cf45d6ea"
+    "after_sha256": "f26f6c57ef3a0fb9c0b00bad4fe4dfaebd345c4fb392e413fbd305aef2d02ddf"
   },
   "constraints": {
     "purchase_enabled": false,
@@ -63,14 +63,17 @@
     "deployed": false
   },
   "sources": {
-    "scripts/illustrated_cafe.gd": "b33edc3ee7cbfbc76e6bda909bac2303bbe5c9c7f29d50a960252b1182d8e606",
-    "scripts/exterior_environment.gd": "cca32d914c243700d008bf2d03932ab39dea3204dfcfacec478bf391358fffd0",
+    "scripts/illustrated_cafe.gd": "50ffc3fcb47ac0adc52fe774749e1273cbd4127bba9bc50017d1827f4735cb0a",
+    "scripts/exterior_environment.gd": "da78c0957bc99f25b92c22d2595d38c2f3b6300940c4ef1de6705a0bad1f93b1",
     "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
     "tests/test_environment.gd": "87a24f67c57fdd6048d238100230632ce7a68779fee0244df3792acba79a0483",
     "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
     "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8",
     "scripts/environment_greenery.gd": "1daa01c48523cc57d985c45c3f58ddc29d05765ab0587a1b438c017d23342c30",
-    "tests/capture_shelter_review.gd": "ed27c66b8973c4c1aa119c71e3ad31b64bb6c2fb3b84d771b4462d97b04e8a67"
+    "tests/capture_shelter_review.gd": "ed27c66b8973c4c1aa119c71e3ad31b64bb6c2fb3b84d771b4462d97b04e8a67",
+    "scripts/bus_stop_pedestrians.gd": "7981ffe6159265b5e7e419a8f9af7bbd9294056190d4987c755d6dc598dcc487",
+    "tests/test_bus_stop.gd": "2cab230b019cf229d7684d42b72600056de31842aec2a2fe68c3f72a0b211281",
+    "tests/capture_stop_motion.gd": "47e51a0f9306ab27c5797d1c04d6e6ae2987a8782b80f2cefa53009dc1616dbe"
   },
   "bus_revision": {
     "feedback": "Dedicated illustrated bus; modest narrow gap behind cafe instead of touching wall",
@@ -193,5 +196,72 @@
     },
     "library_after_version": 3,
     "style_acceptance": "User review; behavior tests do not establish stylistic acceptance"
+  },
+  "stop_connectivity_motion_revision": {
+    "before_source_commit": "fc3ad12c5d050a51cb76ef7d39317a21b3191f1e",
+    "graphics_sessions": 1,
+    "samples": 16,
+    "interval_seconds": 0.5,
+    "presentation_seconds": 8,
+    "frame_interpolation": false,
+    "normal_viewport": [
+      1654,
+      951
+    ],
+    "detail_viewport": [
+      1240,
+      760
+    ],
+    "native_pixels_inspected": true,
+    "cafe_authority_frozen": true,
+    "original_save_used": false,
+    "fixed_visitors": 3,
+    "motion_rigs_max": 3,
+    "clear_corridor_tiles": 1.0,
+    "ground_height": 0,
+    "curb_x": -10.55,
+    "door": [
+      -10.345,
+      10.1
+    ],
+    "boarding_gap_z": [
+      9.65,
+      10.7
+    ],
+    "walking_x": -11.35,
+    "waiting_points": [
+      [
+        -12,
+        6.95
+      ],
+      [
+        -12,
+        8.3
+      ],
+      [
+        -12,
+        9.5
+      ]
+    ],
+    "states": [
+      "approaching",
+      "waiting",
+      "boarding",
+      "aboard",
+      "alighting"
+    ],
+    "motion_library_file_id": "libfile_5f6e2f768a508191b06efe1eeb02e488",
+    "motion_zip_sha256": "f768792688ba4f3a8c6f44a41e560c60993f7d354307eb7cc9ad3165f98e74c0",
+    "motion_zip_bytes": 16627470,
+    "after_library_version": 4,
+    "sample_style_status": "Rejected; sample not used in runtime",
+    "style_acceptance": "Actual implementation remains subject to user review",
+    "images": {
+      "after.png": "f26f6c57ef3a0fb9c0b00bad4fe4dfaebd345c4fb392e413fbd305aef2d02ddf",
+      "layout-before-stop.png": "d0260baa5b5c53ee8eadfaf63234fcf5b55efefbfac1f137d956cd1366cd7c11",
+      "stop-before-motion.png": "6e002a7140b99aae4c08050aebad4de4764071debc13a754493a1729b67b9f79",
+      "stop-after-motion.png": "db4eae26af0ff0b892e3fa6279848ac4346bdf85b6b8f7d7402bc314e7b223b2",
+      "stop-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
+    }
   }
 }
