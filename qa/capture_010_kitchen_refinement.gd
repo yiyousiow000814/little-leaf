@@ -14,7 +14,7 @@ class Props extends "res://scripts/illustrated_cafe.gd":
   for rotation in range(4):
    draw_string(ThemeDB.fallback_font,Vector2(50,260+rotation*425),"R%d"%rotation,HORIZONTAL_ALIGNMENT_LEFT,-1,26,Color("466b57"))
    for column in range(2):
-    art_transform(Vector2(450+column*900,300+rotation*425),0,Vector2.ONE*5.0)
+    art_transform(Vector2(450+column*900,350+rotation*425),0,Vector2.ONE*5.0)
     furniture_art.draw_item(self,"stove" if column==0 else "beverage",Vector2.ZERO,rotation,0)
     art_transform(Vector2.ZERO)
 func _initialize():run.call_deferred()
