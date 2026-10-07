@@ -1,8 +1,9 @@
 name: Release Web to itch.io
 on:
-  push:
-    tags: ['v*']
-# No PR, main-push, workflow_run, or manual dispatch can publish.
+  workflow_dispatch:
+# Retained for source history only: itch publication is paused while CrazyGames
+# is the active target. No tag, PR, or branch push starts this workflow.
+# The constant-false gate also prevents a manual dispatch from publishing.
 permissions:
   contents: read
 concurrency:
@@ -10,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   gate:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.created && !github.event.deleted
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
