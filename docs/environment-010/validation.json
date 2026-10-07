@@ -1,0 +1,140 @@
+{
+  "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
+  "full_engine": {
+    "status": "passed",
+    "checks": 769231,
+    "processes": 77,
+    "note": "Complete rerun after final projection-clear parking and low green buffer",
+    "tested_working_source_base": "7b442bdb18dde8316cc32871059699ba2ed87f4e",
+    "source_hashes_match": true
+  },
+  "final_focused_engine": {
+    "status": "passed",
+    "checks": 116738,
+    "processes": 3,
+    "suites": [
+      "test_environment",
+      "test_expansion_visibility",
+      "test_street_endpoints"
+    ]
+  },
+  "javascript": {
+    "suites": 7,
+    "status": "passed",
+    "source_bytes": "canonical Git blobs; Windows checkout autocrlf mismatch bypassed for validation then restored"
+  },
+  "python_ci": {
+    "tests": 54,
+    "passed": 53,
+    "blocked": 1,
+    "blocker": "Existing test_release.ArtifactTests.test_symlink requires unavailable Windows symlink privilege (WinError1314)"
+  },
+  "captures": {
+    "synthetic": true,
+    "seed": 8124,
+    "viewport": [
+      1654,
+      951
+    ],
+    "origin": [
+      800,
+      345
+    ],
+    "tile": [
+      33.54,
+      16.77
+    ],
+    "zoom": 1.0,
+    "ui_scale": 0.86,
+    "frames": 16,
+    "exit_code": 0,
+    "native_pixels_inspected": true,
+    "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
+    "after_sha256": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388"
+  },
+  "constraints": {
+    "purchase_enabled": false,
+    "customer_parking_enabled": false,
+    "price": null,
+    "original_save_used": false,
+    "merged": false,
+    "deployed": false
+  },
+  "sources": {
+    "scripts/illustrated_cafe.gd": "6e289c1fa32a5ad18823162c8b6ca195c888e17f953e62cd6e8f46a6d00d78e0",
+    "scripts/exterior_environment.gd": "9a5f9c4ac3446d36e7162616bb9a7873a3ab084a5c0caa068a70924b24aa5bdb",
+    "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
+    "tests/test_environment.gd": "ff32a0c22ec790a2a655ff08439e0247da326ed5ffd759a59746ac22ba8295d0",
+    "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
+    "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8"
+  },
+  "bus_revision": {
+    "feedback": "Dedicated illustrated bus; modest narrow gap behind cafe instead of touching wall",
+    "lot": [
+      -0.26,
+      -6.0,
+      12.26,
+      4.9
+    ],
+    "rear_wall_gap_tiles": 1.1,
+    "graphic_sessions": 1,
+    "frames": 16,
+    "exit_code": 0,
+    "detail_viewport": [
+      720,
+      460
+    ],
+    "detail_origin": [
+      360,
+      270
+    ],
+    "detail_tile": [
+      85.8,
+      42.9
+    ],
+    "detail_scale": 2.2,
+    "before_source_commit": "38618c1874326f4f694dd626f83d8c778064d6c6",
+    "images": {
+      "layout-before-bus-revision.png": "f8fe17364c7cf67ded93295ca3cd4e16e9f70ec9179cd875544311c13b210431",
+      "bus-before.png": "9cd5c13a05b56a4ebd8a4fe8a9bc3403549496626a149c5173b603617b5482da",
+      "bus-after.png": "30efa8eda6bc2240c1c78645ef9085256b21d62537176bdde57c6f1acb499679"
+    },
+    "initial_focused": {
+      "processes": 3,
+      "checks": 116734,
+      "status": "passed"
+    },
+    "full_regression": {
+      "status": "passed",
+      "processes": 77,
+      "checks": 769227
+    }
+  },
+  "parking_buffer_revision": {
+    "feedback": "Move lot beyond rear-wall silhouette and add restrained low greenery",
+    "lot": [
+      -0.26,
+      -8.7,
+      12.26,
+      4.9
+    ],
+    "rear_wall_gap_tiles": 3.8,
+    "projected_ground_clearance_px": 20.2,
+    "pedestrian_link": [
+      -0.26,
+      -3.8,
+      1.2,
+      3.54
+    ],
+    "low_planting_pockets": 3,
+    "frames": 16,
+    "exit_code": 0,
+    "before_source_commit": "7b442bdb18dde8316cc32871059699ba2ed87f4e",
+    "before_sha256": "58bb7bded156b25a62a15901a74583fe02dfb8b60088e010dcf38b3c237ca04b",
+    "after_sha256": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388",
+    "actual_native_pixels_inspected": true,
+    "after_library_version": 2,
+    "full_checks": 769231,
+    "focused_checks": 116738
+  }
+}
