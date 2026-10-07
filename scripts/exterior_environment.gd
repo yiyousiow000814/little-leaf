@@ -29,6 +29,19 @@ const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
 const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
 const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
+static func inspection_bounds(tile:Vector2)->Rect2:
+	# Bounded authored landmarks may be inspected with normal pan controls.
+	# This affects traversal only; Fit continues to frame the owned cafe.
+	var bounds=Rect2(Vector2.ZERO,Vector2.ZERO)
+	var first=true
+	for ground in [LOT,MOUTH,PEDESTRIAN_LINK,STOP_PAD,SHELTER_ROOF]:
+		for point in [ground.position,Vector2(ground.end.x,ground.position.y),ground.end,Vector2(ground.position.x,ground.end.y)]:
+			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
+			bounds=Rect2(projected,Vector2.ZERO) if first else bounds.expand(projected)
+			first=false
+	# Include the shelter/people silhouette and a small inspection edge.
+	return bounds.grow_individual(24*tile.x/39.0,(SHELTER_HEIGHT+24)*tile.x/39.0,24*tile.x/39.0,24*tile.x/39.0)
+
 static func parking_hooks()->Dictionary:
 	# A future Decorate product must supply an approved parcel/price policy.
 	# These anchors are geometry, never admission routes or owned cafe tiles.

@@ -27,7 +27,7 @@ merged. #57 pauses only the itch publisher. No remote PR is merged by this work.
 
 The 57+58+59 stage retains 76 registered suites plus five startup cases (81
 test processes). The full combination retains every suite from each source:
-84 registered suites plus five startup cases (89 processes). The exporter
+85 registered suites plus five startup cases (90 processes), including ordinary mouse/touch environment camera access. The exporter
 continues to require the exact complete manifest, with no entries removed.
 
 Renderer conflict resolution preserves queue-aware pedestrian advance and
@@ -66,3 +66,13 @@ engine/log/userdata directories. The checked-in suite runner creates disposable
 synthetic profiles. Run ci/build_web.py only with complete exact-commit evidence,
 then ci/build_crazygames.py against that Web build; all browser gates in
 .github/workflows/build-web.yml remain mandatory. Do not invoke publishers.
+
+## Environment camera follow-up
+
+The previous combined head 6dd49dadfd5ee8f22c96722b4ed1673578587cf1
+clamped panning to cafe land: close views could not reach the bus stop or lot
+edge. The follow-up widens traversal only to bounded authored stop/parking
+geometry. Cafe-only Home/Fit and camera stability on Decorate/Done remain.
+The regression exercises real input dispatch, minimum/maximum zoom, supported
+portrait/landscape/desktop layouts and safe insets with synthetic state.
+This does not resolve frying-pan/cup visual rejection or accept environment art.

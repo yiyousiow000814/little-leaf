@@ -10,6 +10,7 @@
   ],
   "fixed": [
     "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",
+    "Normal pan and touch controls can inspect the authored bus stop and parking without changing cafe-only Fit or jumping on Decorate.",
     "Cleaning approaches use stance-aware work positions and tools; repeated dense geometry checks are cached with model, revision, position, contact and stance invalidation.",
     "Decoration refunds apply within the active build session and reset on Done and session boundaries.",
     "Live shell geometry queries reuse revision-bound cache results; explicit proposed geometry remains uncached."

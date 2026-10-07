@@ -440,7 +440,7 @@ func update_projection(clamp_camera:bool=true):
 	elif resize_anchor.is_finite():
 		pan_offset+=inspection.get_center()-iso(resize_anchor.x,resize_anchor.y)
 	if clamp_camera:
-		pan_offset=CameraBounds.clamp_pan(pan_offset,base_origin,tile,map_width,map_depth,size,available.position.y,safe)
+		pan_offset=CameraBounds.clamp_pan(pan_offset,base_origin,tile,map_width,map_depth,size,available.position.y,safe,Neighborhood.inspection_bounds(tile))
 	origin=base_origin+pan_offset
 	_camera_view_size=size;_camera_inspection_rect=inspection;_camera_max_zoom=limits.y
 	_camera_safe_rect=safe;_camera_fit_zoom=camera_fit_zoom()
