@@ -49,6 +49,9 @@ const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
 var street_pedestrians=StreetPedestrians.new()
+const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const RoadTraffic=preload("res://scripts/ambient_road_traffic.gd")
+var road_traffic=RoadTraffic.new()
 const GroundArt=preload("res://scripts/illustrated_ground.gd")
 var ground_art=GroundArt.new()
 # Test-only comparison switch; normal rendering always uses cached ground.
@@ -138,6 +141,7 @@ func _update_street_pedestrians(delta:float):
 	if game.cafe_intro!=null and game.cafe_intro.active:active=false
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta*game.speed if active else 0.0
+	road_traffic.advance(step,origin,tile,get_viewport_rect())
 	street_pedestrians.advance(step)
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
@@ -562,16 +566,13 @@ func _draw():
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
 	draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
 	_grass(size)
-	# Street and pavement only on the entrance side, not around the front.
-	poly([iso(-5.5,ExteriorExtent.STREET_Z_MIN),iso(PAVEMENT_EDGE,ExteriorExtent.STREET_Z_MIN),iso(PAVEMENT_EDGE,ExteriorExtent.STREET_Z_MAX),iso(-5.5,ExteriorExtent.STREET_Z_MAX)],"8ea395")
-	for z in range(ExteriorExtent.MARK_Z_MIN,ExteriorExtent.MARK_Z_MAX,3):
-		var start=iso(-4.38,z);var finish=iso(-4.38,z+.85)
-		if Rect2(start,Vector2.ZERO).expand(finish).grow(ui_scale+1.5).intersects(ground_view):
-			line(start,finish,"b9c8ae",2.0*ui_scale)
+	Neighborhood.draw_ground(self)
 	ground_art.prepare(game.model)
 	if use_batched_ground:ground_art.draw_pavement(self)
 	else:_draw_legacy_pavement(ground_view)
-	_scenery_tree(Vector2(.6,-2.7),.86)
+	Neighborhood.draw_crossing(self)
+	Neighborhood.draw_props(self)
+	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
@@ -608,6 +609,9 @@ func _draw():
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
 	game.build_tools.draw_shell_selection(self)
 	var entities=[]
+	for tree in Neighborhood.TREES:
+		var world=Vector2(tree.x,tree.y)
+		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z})
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
@@ -665,6 +669,8 @@ func _draw():
 			entities.append({"depth":maxf(body_depth,target_depth)+.04,"type":"stove_foreground","entry":target})
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:
+		if e.type=="scenery_tree":
+			_tree(iso(e.position.x,e.position.y),e.scale);continue
 		if e.type=="opening_frame":
 			OpeningArt.casing(self,e.entry,e.part,.65 if bool(e.entry.get("preview",false)) else 1.0,Color("c6e1ae") if bool(e.entry.get("preview",false)) else Color.WHITE);continue
 		if e.type=="built_wall":
@@ -794,8 +800,6 @@ func _draw():
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
-	_scenery_tree(Vector2(13.5,-.5),1.10)
-	_scenery_tree(Vector2(14.5,11.5),.78)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):

@@ -1,0 +1,72 @@
+{
+  "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
+  "full_engine": {
+    "status": "passed",
+    "checks": 769223,
+    "processes": 77,
+    "note": "Full implementation regression before final vehicle drawing/lay-by/hook refinements"
+  },
+  "final_focused_engine": {
+    "status": "passed",
+    "checks": 132246,
+    "processes": 7,
+    "suites": [
+      "test_environment",
+      "test_expansion_visibility",
+      "test_expansion_ring_prices",
+      "test_expansion_tree_visibility",
+      "test_street_pedestrians",
+      "test_street_endpoints",
+      "test_street_service_save"
+    ]
+  },
+  "javascript": {
+    "suites": 7,
+    "status": "passed",
+    "source_bytes": "canonical Git blobs; Windows checkout autocrlf mismatch bypassed for validation then restored"
+  },
+  "python_ci": {
+    "tests": 54,
+    "passed": 53,
+    "blocked": 1,
+    "blocker": "Existing test_release.ArtifactTests.test_symlink requires unavailable Windows symlink privilege (WinError1314)"
+  },
+  "captures": {
+    "synthetic": true,
+    "seed": 8124,
+    "viewport": [
+      1654,
+      951
+    ],
+    "origin": [
+      800,
+      345
+    ],
+    "tile": [
+      33.54,
+      16.77
+    ],
+    "zoom": 1.0,
+    "ui_scale": 0.86,
+    "frames": 16,
+    "exit_code": 0,
+    "native_pixels_inspected": true,
+    "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
+    "after_sha256": "f8fe17364c7cf67ded93295ca3cd4e16e9f70ec9179cd875544311c13b210431"
+  },
+  "constraints": {
+    "purchase_enabled": false,
+    "customer_parking_enabled": false,
+    "price": null,
+    "original_save_used": false,
+    "merged": false,
+    "deployed": false
+  },
+  "sources": {
+    "scripts/illustrated_cafe.gd": "6e289c1fa32a5ad18823162c8b6ca195c888e17f953e62cd6e8f46a6d00d78e0",
+    "scripts/exterior_environment.gd": "0508eea8db3d5f719406c2567dbb145a2a2ba3268cfa85d5666d253f8b8fc92e",
+    "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
+    "tests/test_environment.gd": "21ca823b8fafb16e81ceef18e6059dab044d54205c9ee4788315aa162d708129",
+    "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300"
+  }
+}
