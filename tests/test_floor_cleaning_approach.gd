@@ -12,6 +12,7 @@ class Fixture extends Node:
 	var floor_tasks={"messes":{}}
 	var editing=false
 	var paused=false
+	var speed=1.0
 var checks=0
 var failures=[]
 var lengths=[]
