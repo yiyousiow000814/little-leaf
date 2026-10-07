@@ -2,19 +2,21 @@
   "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
   "full_engine": {
     "status": "passed",
-    "checks": 769231,
+    "checks": 769241,
     "processes": 77,
-    "note": "Complete rerun after final projection-clear parking and low green buffer",
-    "tested_working_source_base": "7b442bdb18dde8316cc32871059699ba2ed87f4e",
+    "note": "Complete rerun after shelter construction/layering and deterministic vegetation variety",
+    "tested_working_source_base": "bf7cfaf45882dc1fb6412981993929aeed6e2f0f",
     "source_hashes_match": true
   },
   "final_focused_engine": {
     "status": "passed",
-    "checks": 116738,
-    "processes": 3,
+    "checks": 116901,
+    "processes": 5,
     "suites": [
       "test_environment",
       "test_expansion_visibility",
+      "test_expansion_tree_visibility",
+      "test_art_raster_strokes",
       "test_street_endpoints"
     ]
   },
@@ -50,7 +52,7 @@
     "exit_code": 0,
     "native_pixels_inspected": true,
     "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
-    "after_sha256": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388"
+    "after_sha256": "b9336923648e3a45ff35ac7dccb702bd08f7ed2b50b5d3efb5dafd57cf45d6ea"
   },
   "constraints": {
     "purchase_enabled": false,
@@ -61,12 +63,14 @@
     "deployed": false
   },
   "sources": {
-    "scripts/illustrated_cafe.gd": "6e289c1fa32a5ad18823162c8b6ca195c888e17f953e62cd6e8f46a6d00d78e0",
-    "scripts/exterior_environment.gd": "9a5f9c4ac3446d36e7162616bb9a7873a3ab084a5c0caa068a70924b24aa5bdb",
+    "scripts/illustrated_cafe.gd": "b33edc3ee7cbfbc76e6bda909bac2303bbe5c9c7f29d50a960252b1182d8e606",
+    "scripts/exterior_environment.gd": "cca32d914c243700d008bf2d03932ab39dea3204dfcfacec478bf391358fffd0",
     "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
-    "tests/test_environment.gd": "ff32a0c22ec790a2a655ff08439e0247da326ed5ffd759a59746ac22ba8295d0",
+    "tests/test_environment.gd": "87a24f67c57fdd6048d238100230632ce7a68779fee0244df3792acba79a0483",
     "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
-    "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8"
+    "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8",
+    "scripts/environment_greenery.gd": "1daa01c48523cc57d985c45c3f58ddc29d05765ab0587a1b438c017d23342c30",
+    "tests/capture_shelter_review.gd": "ed27c66b8973c4c1aa119c71e3ad31b64bb6c2fb3b84d771b4462d97b04e8a67"
   },
   "bus_revision": {
     "feedback": "Dedicated illustrated bus; modest narrow gap behind cafe instead of touching wall",
@@ -136,5 +140,58 @@
     "after_library_version": 2,
     "full_checks": 769231,
     "focused_checks": 116738
+  },
+  "shelter_vegetation_revision": {
+    "before_source_commit": "bf7cfaf45882dc1fb6412981993929aeed6e2f0f",
+    "graphics_sessions": 1,
+    "frames": 16,
+    "exit_code": 0,
+    "detail_viewport": [
+      960,
+      640
+    ],
+    "normal_viewport": [
+      1654,
+      951
+    ],
+    "actual_pixels_inspected": true,
+    "green_roof_intended": false,
+    "diagnosis": "Ground planting drawn after elevated roof caused false roof planting; original seat lacked supports",
+    "shelter_height": 78,
+    "supports": 4,
+    "boarding_width_tiles": 0.95,
+    "tree_positions": 6,
+    "tree_silhouettes": [
+      "oak",
+      "airy",
+      "columnar",
+      "sapling"
+    ],
+    "low_plant_silhouettes": [
+      "fan",
+      "shrub",
+      "fern"
+    ],
+    "lawn_forms": [
+      "fan",
+      "upright",
+      "wind-swept"
+    ],
+    "deterministic": true,
+    "user_attachment": {
+      "library_file_id": "libfile_cdbcf7ab4df88191bc51ffc16ec8cc9d",
+      "transfer_status": 403,
+      "pixels_inspected": false,
+      "no_retry_or_bypass": true
+    },
+    "images": {
+      "layout-before-shelter.png": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388",
+      "after.png": "b9336923648e3a45ff35ac7dccb702bd08f7ed2b50b5d3efb5dafd57cf45d6ea",
+      "shelter-before.png": "1541495875c557bdbaa573f43c4446e7c10a092706d5d2f1dfcf5fb027b456fc",
+      "shelter-after.png": "7687a478422defc163c3333388af996ae3437dabaa5b4fd4253aed6a51bc19ad",
+      "greenery-after.png": "dfdfbe485b30cbbf1d6778494a8ca70c4fe12edcc54b6e816eb59321118f7474"
+    },
+    "library_after_version": 3,
+    "style_acceptance": "User review; behavior tests do not establish stylistic acceptance"
   }
 }

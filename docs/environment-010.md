@@ -2,10 +2,22 @@
 
 The approved concept places a compact four-bay lot just behind the cafe, with an open low-planted buffer,
 directly joining the existing entrance-side road. This implementation keeps the
-game's original 2D vector illustration, muted sage/cream colours and tree artwork.
+game's original 2D vector illustration and muted sage/cream colours. Original oak
+art sits alongside authored airy, columnar and sapling silhouettes.
 It widens the single road, adds its opposite sidewalk, bus shelter and short bus
 lay-by, and adds six irregularly spaced scenery trees and small low planting
 pockets. There is no second road or extended parking driveway.
+
+The ordinary bus shelter has a plain cream roof connected to four sage posts,
+quiet back/end glazing, a wood seat/backrest with grounded legs, and a separate
+bus pictogram sign beyond its open boarding side. Its clear boarding corridor is
+0.95 tiles wide. Ground planting draws before elevated shelter parts, preventing
+the previous bush-over-roof overpaint. No green roof is intended.
+
+Six sparse tree positions retain the existing depth/owned-land rules. Four tree
+silhouettes and three low planting forms (fan grass, shrub and fern) vary branch
+structure, leaf direction, height and density. Lawn marks have deterministic fan,
+upright and wind-swept forms. There is no added RNG or denser forest.
 
 ## Ownership and integration
 
@@ -102,3 +114,13 @@ Latest parking/green-buffer review: [layout before](environment-010/layout-befor
 [layout after](environment-010/after.png). Both are actual normal-angle game renders
 with identical fixed capture settings. The latest isolated 16-frame capture shows
 all bays and parked cars clear of the rear wall, with low planting in the open lawn.
+
+Shelter/vegetation review: [whole scene before](environment-010/layout-before-shelter.png),
+[whole scene after](environment-010/after.png), [shelter before](environment-010/shelter-before.png),
+[shelter after](environment-010/shelter-after.png), [vegetation gallery](environment-010/greenery-after.png).
+Close-ups are native 960x640 renders from the same isolated 16-frame session.
+The user's additional screenshot `libfile_cdbcf7ab4df88191bc51ffc16ec8cc9d`
+could not be transferred (HTTP 403); no caption substituted for its unseen pixels.
+The independently rendered existing scene directly demonstrated the roof
+overpaint and unsupported-seat defects. Pixel review supplements the behavior
+tests; stylistic acceptance remains a user review decision.
