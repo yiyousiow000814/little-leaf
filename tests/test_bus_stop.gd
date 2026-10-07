@@ -15,6 +15,20 @@ func _init():
 	check(Neighborhood.STOP_PAD.position.x<Neighborhood.OPPOSITE_LEFT and Neighborhood.STOP_PAD.end.x>Neighborhood.OPPOSITE_LEFT,"same-level shelter paving overlaps original sidewalk rather than isolated slab")
 	check(Neighborhood.BUS_DOOR.x<Neighborhood.BUS_POSITION.x and Neighborhood.BUS_DOOR.y>Neighborhood.BOARDING_GAP.x and Neighborhood.BUS_DOOR.y<Neighborhood.BOARDING_GAP.y,"curb-facing bus door meets flush boarding opening")
 	check(Neighborhood.SHELTER_BOARDING.size.x>=.88,"continuous full pedestrian-width bypass outside canopy posts")
+	for z in [Neighborhood.STOP_APPROACH.x,Neighborhood.STOP_APPROACH.y]:
+		var edges=Neighborhood.pavement_edges(z)
+		check(is_equal_approx(edges.x,Neighborhood.OPPOSITE_LEFT) and is_equal_approx(edges.y,Neighborhood.ROAD_LEFT),"both flare ends rejoin original sidewalk without gaps")
+		var slope=(Neighborhood.pavement_edges(z+.001)-Neighborhood.pavement_edges(z-.001))/.002
+		check(slope.length()<.003,"both curved connections have tangent continuity at original sidewalk")
+	for z in [Neighborhood.STOP_PAD.position.y,Neighborhood.STOP_PAD.end.y]:
+		var slope=(Neighborhood.pavement_edges(z+.001)-Neighborhood.pavement_edges(z-.001))/.002
+		check(slope.length()<.003,"curves ease into shelter rectangle without sharp shoulders")
+	for n in range(1341):
+		var edges=Neighborhood.pavement_edges(1.9+n*.01)
+		check(edges.y-edges.x>=2.999 and edges.y<=Neighborhood.ROAD_LEFT,"flare preserves full sidewalk width and through-road lane")
+	for row in Neighborhood.stop_paving:check(Geometry2D.triangulate_polygon(PackedVector2Array(row.points)).size()>0,"cached curved tile polygons triangulate without crossing")
+	check(Geometry2D.triangulate_polygon(PackedVector2Array(Neighborhood.stop_edges)).size()>0,"curved bus bay triangulates without crossing")
+	check(Neighborhood.POCKETS[0].x<Neighborhood.pavement_edges(Neighborhood.POCKETS[0].y).x-.35,"existing low planting stays on lawn beyond new curved paving")
 	var still=stop.actors.duplicate(true)
 	for invalid in [0.0,-1.0,NAN,INF]:stop.advance(invalid,origin,tile,view)
 	check(stop.actors==still and stop.elapsed==0,"pause/invalid delta keeps all people unchanged")

@@ -158,10 +158,50 @@ presentation, without interpolation. Cafe authority is frozen while only ambient
 presentation clocks advance. The rejected art-direction sample is not used.
 
 To reproduce, use `tests/capture_stop_motion.gd` in a disposable project/profile,
-with STOP_BEFORE_ART and STOP_BEFORE_ENV pointing at archived fc3ad12 comparison
+with STOP_BEFORE_ART and STOP_BEFORE_ENV pointing at archived previous-revision comparison
 fixtures, and STOP_MOTION_OUTPUT pointing at an existing workspace folder. The
 normal projection matches previous captures; the native close-up is 1240x760,
 origin (2200,600), tile (78,39), scale 2. Coordinate a graphics slot first.
 Full final engine regression: 78 processes, 1,186,448 checks passed. Focused stop,
 environment, expansion and street checks: 534,028 passed. Tests establish behavior;
 they do not establish user visual acceptance.
+
+## Authoritative annotated connection refinement
+
+The user supplied `libfile_5fc5f6982cbc8191a5fbde0aae7a2af8`,
+image(20261007-085459).png (1354x957, 155,658 bytes). The supported Library
+transfer succeeded, and its actual pixels were inspected against the native
+07e9ab1 scene. SHA-256: `4ea6b331ae2e40c0e489596322bf2139c3cdbc0e1ff977411e5d5acfefa37c0b`
+The exact identity and hash are also recorded in validation.json.
+Its four black annotations describe curved transitions along both the lawn-side
+pavement edge and the curb/bus-bay edge. Existing straight apron corners and short
+bay wedges have been replaced by smooth easing curves at both ends. Shelter,
+bus, waiting positions, parking layout and original illustrated palette stay fixed.
+
+Both edges start from ordinary sidewalk at z=1.9, reach the unchanged shelter
+plateau at z=4.9, leave it at z=11.3 and rejoin ordinary sidewalk at z=15.3.
+The cubic transition has zero slope at all joins and shoulders. Width stays at
+least three tiles; no paving enters the road's through lanes. Cached tile-row
+polygons and longitudinal seams follow the same curves, at height zero. The flush
+door gap and exactly three bounded original-character visitors remain intact.
+Walking checks now use the actual curved pavement boundary.
+
+Actual same-angle [normal before](environment-010/layout-before-curve.png) /
+[after](environment-010/after.png), [close-up before](environment-010/curve-before.png) /
+[after](environment-010/curve-after.png), and single-play native APNG
+[before](environment-010/curve-before-motion.png) / [after](environment-010/curve-after-motion.png)
+are preserved. Both sides include identical walking/waiting people. The native
+Library motion ZIP `libfile_8d3b0ba6c9d48191bafa11209986d60e` retains all 64 raw
+frames, four lossless APNGs, state records, a replay/scrub HTML viewer and SHA
+manifest: 18,291,766 bytes; SHA-256
+`a1fcd0e3f0fc3d84b253094fd6c8fbb9a1feb1cca4dea3eb174c7e0fc4614da2`.
+It contains sixteen actual samples at 0.5-second intervals, eight seconds at
+normal presentation speed, without interpolation. For reproduction, the current
+capture script uses archived 07e9ab1 before fixtures; older source archive versions
+retain their matching earlier capture scripts and comparison fixtures.
+
+Full final engine regression: 78 processes, 1,187,812 checks passed. Focused
+environment/stop/expansion/street suites: 535,392 checks passed. New checks cover
+join tangents, minimum pavement width, through-road preservation and valid tile/bay
+triangulation, alongside the full hour of bounded pedestrian routes. User visual
+acceptance is separate from these checks. No cafe model/economy/save changes.

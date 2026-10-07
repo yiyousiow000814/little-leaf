@@ -20,6 +20,10 @@ const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
 const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
 const STOP_CURB=-10.55
+const STOP_APPROACH=Vector2(1.9,15.3)
+const STOP_CURVE_STEPS=8
+static var stop_paving=build_stop_paving()
+static var stop_edges=build_stop_edges()
 const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
 const BOARDING_GAP=Vector2(9.65,10.7)
 const BUS_POSITION=Vector2(-9.55,8.1)
@@ -27,7 +31,7 @@ const BUS_DOOR=Vector2(-10.345,10.1)
 const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
 const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
 const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
-const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
+const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func parking_hooks()->Dictionary:
 	# A future Decorate product must supply an approved parcel/price policy.
@@ -39,16 +43,54 @@ static func parking_hooks()->Dictionary:
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 	a.poly([a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)],color)
 
+static func stop_blend(z:float)->float:
+	var t=1.0
+	if z<STOP_PAD.position.y:t=clampf((z-STOP_APPROACH.x)/(STOP_PAD.position.y-STOP_APPROACH.x),0,1)
+	elif z>STOP_PAD.end.y:t=clampf((STOP_APPROACH.y-z)/(STOP_APPROACH.y-STOP_PAD.end.y),0,1)
+	return t*t*(3.0-2.0*t)
+
+static func pavement_edges(z:float)->Vector2:
+	var blend=stop_blend(z)
+	return Vector2(lerpf(OPPOSITE_LEFT,STOP_PAD.position.x,blend),lerpf(ROAD_LEFT,STOP_CURB,blend))
+
+static func build_stop_paving()->Array[Dictionary]:
+	# Cached world polygons retain ordinary tile rows while both edges ease
+	# into the stop. No disconnected rectangular apron or sharp bay wedges.
+	var rows:Array[Dictionary]=[]
+	for z in range(floori(STOP_APPROACH.x),ceili(STOP_APPROACH.y)):
+		var start=maxf(z,STOP_APPROACH.x);var finish=minf(z+1,STOP_APPROACH.y)
+		var left=[];var right=[]
+		for i in range(STOP_CURVE_STEPS+1):
+			var depth=lerpf(start,finish,float(i)/STOP_CURVE_STEPS);var edges=pavement_edges(depth)
+			left.append(Vector2(edges.x,depth));right.push_front(Vector2(edges.y,depth))
+		rows.append({"points":left+right,"color":"dfe0c8" if posmod(z,2)==0 else "d7dcc2"})
+	return rows
+
+static func build_stop_edges()->Array[Vector2]:
+	var points:Array[Vector2]=[]
+	var cuts=[STOP_APPROACH.x,STOP_PAD.position.y,STOP_PAD.end.y,STOP_APPROACH.y]
+	for segment in range(3):
+		var count=ceili((cuts[segment+1]-cuts[segment])*STOP_CURVE_STEPS)
+		for i in range(count):
+			var z=lerpf(cuts[segment],cuts[segment+1],float(i)/count)
+			points.append(Vector2(pavement_edges(z).y,z))
+	points.append(Vector2(ROAD_LEFT,STOP_APPROACH.y))
+	return points
+
+static func projected(a,points:Array)->Array:
+	var result=[]
+	for point in points:result.append(a.iso(point.x,point.y))
+	return result
+
 static func draw_ground(a):
 	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
-	# The shelter widens the SAME level pavement to the lawn side, not a
-	# disconnected raised slab. Its tile rows meet the original sidewalk rows.
-	for z in range(4,12):
-		quad(a,STOP_PAD.position.x,maxf(z,STOP_PAD.position.y),OPPOSITE_LEFT,minf(z+1,STOP_PAD.end.y),"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
-	# Short opposite-side bus lay-by, leaving the through lane unobstructed.
-	a.poly([a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8)],"8b9b90")
+	# The reference's four marked edges ease into the same public sidewalk.
+	# The bay first clears original paving; curved tile strips then cover its
+	# lawn side. The through road and shelter/waiting positions stay fixed.
+	a.poly(projected(a,stop_edges),"8b9b90")
+	for row in stop_paving:a.poly(projected(a,row.points),row.color)
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
@@ -59,16 +101,20 @@ static func draw_ground(a):
 	# Open lawn separates the lot from the wall; only one short pedestrian link.
 	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
-		var near_stop=z>=5 and z<=11
-		var p=a.iso(STOP_PAD.position.x if near_stop else OPPOSITE_LEFT,z)
-		var q=a.iso(STOP_CURB if near_stop else ROAD_LEFT,z)
+		var edges=pavement_edges(z)
+		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
-	for x in [-12.76,-11.76,-10.76]:a.line(a.iso(x,4.9),a.iso(x,11.3),"c5cbb3",.7)
-	# A continuous curb edge bends into the bay; the door opening is flush.
-	a.line(a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,BOARDING_GAP.x),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,BOARDING_GAP.y),a.iso(STOP_CURB,11.3),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8),"bdc7af",1.4*a.ui_scale)
+	for column in [.89,1.89,2.89]:
+		var points=[]
+		for edge in stop_edges:points.append(a.iso(pavement_edges(edge.y).x+column,edge.y))
+		a.art_polyline(PackedVector2Array(points),a.col("c5cbb3"),.7)
+	# A smooth continuous curb follows the reference; its door gap stays flush.
+	var before=[];var after=[]
+	for edge in stop_edges:
+		if edge.y<BOARDING_GAP.x:before.append(a.iso(edge.x,edge.y))
+		elif edge.y>BOARDING_GAP.y:after.append(a.iso(edge.x,edge.y))
+	before.append(a.iso(STOP_CURB,BOARDING_GAP.x));after.push_front(a.iso(STOP_CURB,BOARDING_GAP.y))
+	for points in [before,after]:a.art_polyline(PackedVector2Array(points),a.col("bdc7af"),1.4*a.ui_scale)
 
 static func draw_crossing(a):
 	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
