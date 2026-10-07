@@ -134,6 +134,7 @@ static func place(model,x:int,z:int,rot:int,variant:String="oak_single",actor_po
  created[0].id=model._next_item_id;created[1].id=model._next_item_id+1
  model._next_item_id+=2;model.items.append_array(created);model.coins-=price
  model.dining_sets.append({"id":int(created[0].id),"table_id":int(created[0].id),"seat_id":int(created[1].id),"variant":variant,"rot":posmod(rot,4),"paid_cost":price})
+ model.record_decoration_purchase(int(created[0].id),price)
  model.rebuild_dining_sets();model.last_event="Placed %s set · −%s"%[VARIANTS[variant].name,Money.amount(price)];model._notify();return true
 static func move(model,id:int,x:int,z:int,rot:int,actor_positions:Array=[])->bool:
  var group=group_for(model.dining_sets,id)
@@ -154,8 +155,9 @@ static func remove(model,id:int,refund_value:bool)->bool:
   if model._item_in_use(member):return model._fail("Wait until this table set is cleaned")
  var essential_error=model._essential_removal_error([int(group.table_id),int(group.seat_id)])
  if essential_error!="":return model._fail(essential_error)
- var returned=refund(model,id) if refund_value else 0
+ var returned=model.logical_refund(id) if refund_value else 0
  var kept:Array[Dictionary]=[]
  for item in model.items:
   if int(item.id) not in [int(group.table_id),int(group.seat_id)]:kept.append(item)
+ model.consume_decoration_purchase([int(group.table_id),int(group.seat_id)])
  model.items.assign(kept);model.dining_sets.erase(group);model.coins+=returned;model.last_error="";model.last_event="Sold table set · +%s"%Money.amount(returned);model._notify();return true

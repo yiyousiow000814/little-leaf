@@ -353,9 +353,9 @@ func sync():
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false
  var refund=0
- if not opening.is_empty():refund=int(int(opening.paid_cost)/2)
+ if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
  elif not wall.is_empty():
-  refund=int(game.model.wall_price(str(wall.height))/2)
+  refund=game.model.wall_refund(selected_wall)
   remove_button.disabled=not game.model.can_remove_wall(selected_wall)
   if remove_button.disabled:context_label.text="Move opening first"
  elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
