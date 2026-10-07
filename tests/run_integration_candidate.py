@@ -22,6 +22,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
     ("test_environment", "ENVIRONMENT_RESULT"),
+    ("test_bus_stop", "BUS_STOP_RESULT"),
     ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
     ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
