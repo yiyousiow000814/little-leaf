@@ -1,6 +1,6 @@
 # v0.1.10 environment groundwork
 
-The approved concept places a compact four-bay lot just behind the cafe, with a narrow clear gap,
+The approved concept places a compact four-bay lot just behind the cafe, with an open low-planted buffer,
 directly joining the existing entrance-side road. This implementation keeps the
 game's original 2D vector illustration, muted sage/cream colours and tree artwork.
 It widens the single road, adds its opposite sidewalk, bus shelter and short bus
@@ -9,12 +9,16 @@ pockets. There is no second road or extended parking driveway.
 
 ## Ownership and integration
 
-The rear lot is render-only: world `Rect2(-0.26,-6.0,12.26,4.9)`. Its entire depth
+The rear lot is render-only: world `Rect2(-0.26,-8.7,12.26,4.9)`. Its entire depth
 is negative, outside all current cafe floor/expansion cells. The mouth is
-`Rect2(-3.26,-3.0,3.0,1.8)`: one short flush crossing over the existing sidewalk,
-with a pedestrian strip marked through it. Aisle and bays lie within the lot. The lot ends at z=-1.1, leaving a
-clear 1.1-tile separation from the rear wall; a narrow pavement connection
-occupies z=-1.1..-0.26, with no extra vehicle access road.
+`Rect2(-3.26,-5.7,3.0,1.8)`: one short flush crossing over the existing sidewalk,
+with a pedestrian strip marked through it. Aisle and bays lie within the lot. The lot ends at z=-3.8. At the normal isometric ratio, a full-height rear wall
+rises 128 pixels while each negative-z tile separates ground from that wall
+silhouette by 39 pixels. The front lot edge therefore clears the projected wall
+by 20.2 pixels before camera scaling, so the entire lot and cars can be seen.
+The intervening strip remains lawn with three restrained low planting pockets.
+A 1.2-tile-wide pedestrian link occupies x=-0.26..0.94, z=-3.8..-0.26;
+no tall trees, planting obstacle or extra vehicle access road occupies it.
 Three parked vehicles are static scenery; the first bay remains visibly empty.
 They do not represent admitted customers or purchased parking.
 
@@ -86,10 +90,15 @@ to this fixture. See the accompanying validation receipt for final results.
 Same-angle actual game renders: [before](environment-010/before.png),
 [after](environment-010/after.png). See [validation receipt](environment-010/validation.json).
 
-Latest bus/spacing review: [layout before](environment-010/layout-before-bus-revision.png),
-[layout after](environment-010/after.png), [enlarged bus before](environment-010/bus-before.png),
+Bus review: [layout before](environment-010/layout-before-bus-revision.png),
+[enlarged bus before](environment-010/bus-before.png),
 [enlarged bus after](environment-010/bus-after.png). Both detail images are native
 720x460 Godot renders at the same projection, not image edits. The single review
 session captures the layout and both bus details in 16 frames. For a before
 comparison, supply BUS_BEFORE_SCRIPT with the previous 38618c1 environment source
 in a disposable fixture; this legacy fixture is not runtime game code.
+
+Latest parking/green-buffer review: [layout before](environment-010/layout-before-green-buffer.png),
+[layout after](environment-010/after.png). Both are actual normal-angle game renders
+with identical fixed capture settings. The latest isolated 16-frame capture shows
+all bays and parked cars clear of the rear wall, with low planting in the open lawn.

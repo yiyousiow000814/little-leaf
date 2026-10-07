@@ -4,8 +4,13 @@ const Extent=preload("res://scripts/exterior_world_extent.gd")
 const ROAD_LEFT=-8.76
 const ROAD_RIGHT=-3.26
 const OPPOSITE_LEFT=-11.76
-const LOT=Rect2(-.26,-6.0,12.26,4.9)
-const MOUTH=Rect2(-3.26,-3.0,3.0,1.8)
+const LOT=Rect2(-.26,-8.7,12.26,4.9)
+const MOUTH=Rect2(-3.26,-5.7,3.0,1.8)
+const PEDESTRIAN_LINK=Rect2(-.26,-3.8,1.2,3.54)
+const BUFFER_PLANTING=[Vector2(2.5,-3.35),Vector2(7.8,-3.35),Vector2(11.9,-2.4)]
+# Normal projection: a rear-wall point rises128px while each negative-z tile
+# separates ground from its silhouette by39px. z=-3.8 leaves20.2px clearance
+# before camera scaling. This exposes the entire lot, not just vehicle roofs.
 const BAY_CENTERS=[1.3,4.2,7.1,10.0]
 const TREES=[Vector3(-13.1,1.5,.86),Vector3(-.0,18.8,.95),Vector3(7.7,14.0,1.0),Vector3(16.0,-6.4,.90),Vector3(20.3,13.8,.85),Vector3(22.1,14.0,.62)]
 const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
@@ -14,8 +19,8 @@ static func parking_hooks()->Dictionary:
 	# A future Decorate product must supply an approved parcel/price policy.
 	# These anchors are geometry, never admission routes or owned cafe tiles.
 	var bays:Array[Vector2]=[]
-	for x in BAY_CENTERS:bays.append(Vector2(x,-4.45))
-	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":false,"customer_parking_enabled":false,"price":null,"parcel_policy":"pending"}
+	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
+	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":false,"customer_parking_enabled":false,"price":null,"parcel_policy":"pending"}
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 	a.poly([a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)],color)
@@ -30,10 +35,10 @@ static func draw_ground(a):
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
 	# Flush vehicle crossing across the existing public sidewalk; no access road.
 	quad(a,LOT.position.x,LOT.position.y,LOT.end.x,LOT.end.y,"919f92")
-	for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-5.75),a.iso(x,-3.05),"dce0ca",1.3*a.ui_scale)
-	a.line(a.iso(0,-5.75),a.iso(11.6,-5.75),"dce0ca",1.3*a.ui_scale)
-	# Narrow clear separation from the rear wall; a quiet pedestrian connection.
-	quad(a,-.26,-1.1,12.0,-.26,"d7dcc2")
+	for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-8.45),a.iso(x,-5.75),"dce0ca",1.3*a.ui_scale)
+	a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
+	# Open lawn separates the lot from the wall; only one short pedestrian link.
+	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		var p=a.iso(OPPOSITE_LEFT,z);var q=a.iso(ROAD_LEFT,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
@@ -41,10 +46,10 @@ static func draw_ground(a):
 static func draw_crossing(a):
 	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
 	# A clear continuous pedestrian strip passes over the flush driveway.
-	for z in [-2.79,-2.43,-2.07,-1.71,-1.35]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
+	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
 static func draw_props(a):
-	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-4.45),1,"a2b3b3" if i==2 else "ddcdb0")
+	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-7.15),1,"a2b3b3" if i==2 else "ddcdb0")
 	# Opposite-side stop: cream canopy, sage frame, bench, bus on road.
 	quad(a,-13.0,5.3,-11.1,10.7,"c9d2b6")
 	for z in [5.7,10.1]:a.line(a.iso(-12.5,z),a.iso(-12.5,z,62),"789270",3*a.ui_scale)
@@ -56,6 +61,7 @@ static func draw_props(a):
 	a.draw_rect(Rect2(sign-Vector2(9,65)*a.ui_scale*a.zoom,Vector2(18,15)*a.ui_scale*a.zoom),Color("879fa4"))
 	draw_bus(a,Vector2(-9.4,8.1))
 	for p in POCKETS:draw_pocket(a,p)
+	for p in BUFFER_PLANTING:draw_pocket(a,p)
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
