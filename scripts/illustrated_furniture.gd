@@ -3,6 +3,7 @@ const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
 # Presentation only: the cooking assembly fills the existing range naturally.
 const PAN_WIDTH=1.35
 const PAN_DEPTH=1.15
+const PAN_HANDLE_HEIGHT=39.0
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -46,7 +47,14 @@ static func part_sequence(kind: String,rotation: int) -> Array:
 	var r := posmod(rotation,4)
 	match kind:
 		"stove": return ["stove_base","heat","payload","stove_pan","stove_controls"] if r in [0,1] else ["stove_base","heat","stove_pan","payload","stove_controls"]
-		"beverage": return ["beverage_base","beverage_machine","payload","beverage_accessories"] if r in [0,3] else ["beverage_base","payload","beverage_machine","beverage_accessories"]
+		"beverage":
+			var parts:Array=["beverage_base"]
+			if not beverage_accessories_in_front(r):parts.append("beverage_accessories")
+			if r in [1,2]:parts.append("payload")
+			parts.append("beverage_machine")
+			if r in [0,3]:parts.append("payload")
+			if beverage_accessories_in_front(r):parts.append("beverage_accessories")
+			return parts
 		"bench": return ["bench_back","bench_seat"] if r in [1,2] else ["bench_seat","bench_back"]
 		"counter","sink","bookshelf","divider","rug": return [kind]
 		_: return []
@@ -121,10 +129,7 @@ func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float)
 func _stove_controls():
 	if front_visible():
 		var z=.404
-		face([point(-.34,z,5),point(.34,z,5),point(.34,z,21),point(-.34,z,21)],"607f6d",2)
-		face([point(-.27,z+.005,8),point(.27,z+.005,8),point(.27,z+.005,18),point(-.27,z+.005,18)],"405d52",1)
-		edge(point(-.21,z+.01,15),point(.15,z+.01,17),"819386",.8)
-		edge(point(-.26,z+.02,21.5),point(.26,z+.02,21.5),"d6ddc7",2.2)
+		# Plain standalone burner pedestal: no oven window or door handle.
 		for x in [-.25,-.08,.09,.26]:
 			a.ellipse(point(x,z,26),Vector2(1.8,1.8),"f0e5c7")
 			# A one-pixel indicator is smaller than the generic AA feather. Draw
@@ -190,10 +195,51 @@ func espresso():
 	box(.08,-.13,.47,.38,53,55,"8ca58f","6f8e79","698570")
 	top_ellipse(.08,-.13,56,.065,.065,"b9c7aa")
 	if front_visible():
-		edge(point(.17,.06,43),point(.17,.20,43),"5e7d69",2.4)
-		edge(point(.17,.20,43),point(.17,.20,40),"5e7d69",2.4)
-		edge(point(.17,.08,43),point(.17,.08,47),"466b57",1.7)
-		a.ellipse(point(.17,.08,47),Vector2(2.3,1.5),"527862")
+		var path=beverage_spout_path(turn)
+		# One welded silhouette follows a tangent fillet; separate AA line ends
+		# previously made the elbow look like several disconnected blocks.
+		var vertices:Array=[]
+		for q in beverage_spout_silhouette(turn):vertices.append(origin+q)
+		a.poly(vertices,"5e7d69")
+		edge(point(.17,.08,43),point(.17,.08,48),"466b57",1.1)
+		a.ellipse(point(.17,.08,48),Vector2(1.7,1.0),"527862")
+static func beverage_spout_path(rotation:int)->PackedVector2Array:
+	var start=KitchenGeometry.surface(Vector2(.17,.06),43,rotation)
+	var elbow=KitchenGeometry.surface(Vector2(.17,.24),43,rotation)
+	var end=KitchenGeometry.surface(Vector2(.17,.24),39.5,rotation)
+	var incoming=elbow-(elbow-start).normalized()*1.2
+	var outgoing=elbow+(end-elbow).normalized()*1.2
+	var path=PackedVector2Array([start,incoming])
+	for index in range(1,13):
+		var t=float(index)/12
+		path.append((1-t)*(1-t)*incoming+2*(1-t)*t*elbow+t*t*outgoing)
+	path.append(end)
+	return path
+static func beverage_spout_silhouette(rotation:int)->PackedVector2Array:
+	# Float coordinates retain subpixel tube width; polygon offsets rounded
+	# this small equipment to coarse corners in the native closeup.
+	var path=beverage_spout_path(rotation)
+	var normals=PackedVector2Array()
+	for index in range(path.size()):
+		var tangent=path[min(index+1,path.size()-1)]-path[max(index-1,0)]
+		normals.append(tangent.normalized().orthogonal())
+	var result=PackedVector2Array()
+	for index in range(path.size()):result.append(path[index]+normals[index]*.70)
+	var end_axis=(path[-1]-path[-2]).normalized()
+	for index in range(1,17):
+		var angle=index*PI/16
+		result.append(path[-1]+(cos(angle)*normals[-1]+sin(angle)*end_axis)*.70)
+	for index in range(path.size()-2,-1,-1):result.append(path[index]-normals[index]*.70)
+	var start_axis=(path[1]-path[0]).normalized()
+	for index in range(1,16):
+		var angle=index*PI/16
+		result.append(path[0]+(-cos(angle)*normals[0]-sin(angle)*start_axis)*.70)
+	return result
+
+static func beverage_accessories_in_front(rotation:int)->bool:
+	# Compare countertop ground depth, not the cup's elevated screen position.
+	return Vector2(-.40,.28).rotated(posmod(rotation,4)*PI/2).dot(Vector2.ONE)>0.0
+
 func beverage_accessories():
 	# A small stack of clean tumblers stays beside, not in front of, the tap.
 	var spare=point(-.32,.15,30)
@@ -205,37 +251,71 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 	kitchen_height=true
 	prepare_cache(artist)
 	if _can_cache(artist,p):
+		if not beverage_accessories_in_front(rotation):_cached_part(artist,"beverage_accessories",p,rotation)
 		_cached_part(artist,"beverage_machine",p,rotation)
-		_cached_part(artist,"beverage_accessories",p,rotation)
+		if beverage_accessories_in_front(rotation):_cached_part(artist,"beverage_accessories",p,rotation)
 		return
 	# A rear-side reaching hand is above the cabinet but behind the machine.
 	# Keep this same occlusion before and after the cup enters the hand.
 	a=artist;origin=p;turn=posmod(rotation,4)
+	if not beverage_accessories_in_front(turn):beverage_accessories()
 	espresso()
-	beverage_accessories()
+	if beverage_accessories_in_front(turn):beverage_accessories()
 static func stove_food_surface(rotation:int)->Vector2:
 	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
 
 static func stove_handle_points(rotation:int)->PackedVector2Array:
-	# Staff use the rotated local +z workface. One handle follows that same
-	# side and meets the existing rim; it never points across the pan at -z.
-	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH),41,rotation),KitchenGeometry.surface(Vector2(0,.24*PAN_WIDTH),41,rotation)])
+	# The collar belongs to the upper SIDEWALL, below the lip/food plane.
+	# A lip-height mount looked detached above the far edge in R1/R2.
+	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH),PAN_HANDLE_HEIGHT,rotation),KitchenGeometry.surface(Vector2(0,.26*PAN_WIDTH),PAN_HANDLE_HEIGHT,rotation)])
 
 static func stove_handle_in_front(rotation:int)->bool:
 	return posmod(rotation,4) in [0,3]
 
+static func stove_collar_visible_start(rotation:int)->Vector2:
+	var handle=stove_handle_points(rotation)
+	if stove_handle_in_front(rotation):return handle[0]
+	# Recover only the exterior neck after the thick lip's AA border. Its
+	# hidden mount stays on the sidewall; no shaft is painted over the bowl.
+	var radius=Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH)
+	var relative=(handle[0]-stove_food_surface(rotation))/radius
+	var direction=(handle[1]-handle[0])/radius
+	var aa=direction.dot(direction);var bb=2*relative.dot(direction)
+	var cc=relative.dot(relative)-1
+	var fraction=(-bb+sqrt(bb*bb-4*aa*cc))/(2*aa)
+	return handle[0].lerp(handle[1],fraction)
+
 func _stove_pan_handle():
 	var handle=stove_handle_points(turn)
-	edge(origin+handle[0],origin+handle[1],"536e5f",2.2)
+	var mount=origin+handle[0];var tip=origin+handle[1]
+	var grip=mount.lerp(tip,.68)
+	# A short metal collar joins the rim to a rounded, matte wood grip.
+	# The highlight follows the same axis; no tiny texture or animated layer.
+	edge(mount,mount.lerp(tip,.80),"6d8475",2.2)
+	edge(grip,tip,"79674e",2.2)
+	for end in [grip,tip]:a.ellipse(end,Vector2.ONE*1.1,"79674e")
+	var light=Vector2(-.25,-.35)
+	edge(grip+light,tip+light,"b49b73",.65)
 
 func stove_pan():
 	var c=point(0,0,34)
 	var handle_in_front=stove_handle_in_front(turn)
 	if not handle_in_front:_stove_pan_handle()
-	a.rounded_poly([c+Vector2(-8*PAN_WIDTH,-7),c+Vector2(8*PAN_WIDTH,-7),c+Vector2(7*PAN_WIDTH,0),c+Vector2(-6*PAN_WIDTH,0)],2,"9eac94")
-	a.ellipse(c+Vector2(0,-.5),Vector2(7*PAN_WIDTH,1.4),"8ea08b")
+	# Joined upper/back and lower/front arcs form a continuous tapered vessel,
+	# rather than a rounded trapezoid with a separate oval painted on it.
+	var body:Array=[]
+	for index in range(33):
+		var angle=PI+index*PI/32
+		body.append(c+Vector2(cos(angle)*8.5*PAN_WIDTH,-7+sin(angle)*4.2*PAN_DEPTH))
+	for index in range(33):
+		var angle=index*PI/32
+		body.append(c+Vector2(cos(angle)*7*PAN_WIDTH,sin(angle)*1.4*PAN_DEPTH))
+	a.poly(body,"9eac94")
 	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH),"607d6b","dce0c9",1.2)
 	a.ellipse(c+Vector2(0,-7),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"718c77")
+	if not handle_in_front:
+		var handle=stove_handle_points(turn)
+		edge(origin+stove_collar_visible_start(turn),origin+handle[0].lerp(handle[1],.80),"6d8475",2.2)
 	if handle_in_front:_stove_pan_handle()
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
@@ -339,10 +419,11 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			_stove_controls()
 		"beverage":
 			_beverage_base()
+			if not beverage_accessories_in_front(turn):beverage_accessories()
 			if not front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
 			espresso()
 			if front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
-			beverage_accessories()
+			if beverage_accessories_in_front(turn):beverage_accessories()
 		"sink":
 			cabinet(.94,.82,29,"bac4aa","99ad98","cbd7be")
 			# Recessed floor, side walls and front lip, all on the same sink.
