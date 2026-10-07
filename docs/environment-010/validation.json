@@ -2,22 +2,18 @@
   "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
   "full_engine": {
     "status": "passed",
-    "checks": 769223,
+    "checks": 769227,
     "processes": 77,
-    "note": "Full implementation regression before final vehicle drawing/lay-by/hook refinements"
+    "note": "Complete rerun after illustrated bus and narrow parking gap revision"
   },
   "final_focused_engine": {
     "status": "passed",
-    "checks": 132246,
-    "processes": 7,
+    "checks": 116734,
+    "processes": 3,
     "suites": [
       "test_environment",
       "test_expansion_visibility",
-      "test_expansion_ring_prices",
-      "test_expansion_tree_visibility",
-      "test_street_pedestrians",
-      "test_street_endpoints",
-      "test_street_service_save"
+      "test_street_endpoints"
     ]
   },
   "javascript": {
@@ -52,7 +48,7 @@
     "exit_code": 0,
     "native_pixels_inspected": true,
     "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
-    "after_sha256": "f8fe17364c7cf67ded93295ca3cd4e16e9f70ec9179cd875544311c13b210431"
+    "after_sha256": "58bb7bded156b25a62a15901a74583fe02dfb8b60088e010dcf38b3c237ca04b"
   },
   "constraints": {
     "purchase_enabled": false,
@@ -64,9 +60,52 @@
   },
   "sources": {
     "scripts/illustrated_cafe.gd": "6e289c1fa32a5ad18823162c8b6ca195c888e17f953e62cd6e8f46a6d00d78e0",
-    "scripts/exterior_environment.gd": "0508eea8db3d5f719406c2567dbb145a2a2ba3268cfa85d5666d253f8b8fc92e",
+    "scripts/exterior_environment.gd": "1ddc7c3433a59c7372c6b42e0c6bdb149c98954ccfe1886fba98347914f70252",
     "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
-    "tests/test_environment.gd": "21ca823b8fafb16e81ceef18e6059dab044d54205c9ee4788315aa162d708129",
-    "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300"
+    "tests/test_environment.gd": "fc2123bef13b89fa36ed0a98b2385639778d7c7aa8d395cfab877bf2245421c9",
+    "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
+    "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8"
+  },
+  "bus_revision": {
+    "feedback": "Dedicated illustrated bus; modest narrow gap behind cafe instead of touching wall",
+    "lot": [
+      -0.26,
+      -6.0,
+      12.26,
+      4.9
+    ],
+    "rear_wall_gap_tiles": 1.1,
+    "graphic_sessions": 1,
+    "frames": 16,
+    "exit_code": 0,
+    "detail_viewport": [
+      720,
+      460
+    ],
+    "detail_origin": [
+      360,
+      270
+    ],
+    "detail_tile": [
+      85.8,
+      42.9
+    ],
+    "detail_scale": 2.2,
+    "before_source_commit": "38618c1874326f4f694dd626f83d8c778064d6c6",
+    "images": {
+      "layout-before-bus-revision.png": "f8fe17364c7cf67ded93295ca3cd4e16e9f70ec9179cd875544311c13b210431",
+      "bus-before.png": "9cd5c13a05b56a4ebd8a4fe8a9bc3403549496626a149c5173b603617b5482da",
+      "bus-after.png": "30efa8eda6bc2240c1c78645ef9085256b21d62537176bdde57c6f1acb499679"
+    },
+    "initial_focused": {
+      "processes": 3,
+      "checks": 116734,
+      "status": "passed"
+    },
+    "full_regression": {
+      "status": "passed",
+      "processes": 77,
+      "checks": 769227
+    }
   }
 }

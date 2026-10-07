@@ -10,6 +10,7 @@ func _init():
 	var hooks=Neighborhood.parking_hooks()
 	check(not hooks.purchase_enabled and not hooks.customer_parking_enabled and hooks.price==null,"unapproved product never invents purchase or customer allocation")
 	check(Neighborhood.LOT.end.y<0,"rear parking never consumes existing buildable cafe tiles")
+	check(is_equal_approx(Neighborhood.LOT.end.y,-1.1),"parking leaves approved narrow rear-wall separation")
 	for bay in hooks.bay_centers:check(Neighborhood.LOT.has_point(bay),"future bay anchor stays inside separate lot")
 	check(is_equal_approx(Neighborhood.MOUTH.position.x,Neighborhood.ROAD_RIGHT) and is_equal_approx(Neighborhood.MOUTH.end.x,Neighborhood.LOT.position.x),"single short mouth directly joins existing road to lot")
 	check(Neighborhood.TREES.size()==6,"sparse authored trees")
