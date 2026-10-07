@@ -17,6 +17,7 @@ const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
+const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
@@ -106,6 +107,10 @@ var catalog: Array[Dictionary] = [
 
 var items: Array[Dictionary] = []
 var customers: Array[Dictionary] = []
+var outside_queue: Array[Dictionary] = []
+
+func visual_customers()->Array:
+	return customers+outside_queue
 var dining_sets:Array[Dictionary]=[]
 var built_walls: Array[Dictionary] = []
 var wall_attachments:Array[Dictionary]=[]
@@ -179,6 +184,7 @@ func reset_new() -> void:
 	items.clear()
 	dining_sets.clear()
 	customers.clear()
+	outside_queue.clear()
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
@@ -240,6 +246,7 @@ func set_operating_open(value:bool) -> bool:
 	if operating_open==value:return true
 	operating_open=value;_arrival_elapsed=0.0
 	if not value:
+		for visitor in outside_queue:OutsideQueue.cancel(visitor)
 		for guest in customers:
 			if str(guest.phase)=="arriving" and not _customer_admitted(guest):_withdraw_exterior_guest(guest)
 	last_event="Open · welcoming new guests" if value else "Closing · seated guests may finish; staff keep working"
@@ -1110,6 +1117,7 @@ func _tick_step(delta: float) -> void:
 			customer.duration = PHASE_SECONDS[customer.phase]
 	for customer in departing:
 		customers.erase(customer)
+	OutsideQueue.advance(self,delta)
 	if operating_open:_arrival_elapsed += delta
 	if operating_open and _arrival_elapsed + 0.000001 >= ARRIVAL_INTERVAL:
 		_arrival_elapsed = 0.0
@@ -1119,6 +1127,9 @@ func _tick_step(delta: float) -> void:
 func _spawn_customer() -> void:
 	if not operating_open:return
 	if count_kind("stove") == 0 or count_kind("beverage") == 0 or count_kind("sink") == 0:
+		return
+	if not outside_queue.is_empty():
+		for attempt in range(2):OutsideQueue.add(self)
 		return
 	var used_tables: Dictionary = {}
 	var used_chairs: Dictionary = {}
@@ -1132,7 +1143,7 @@ func _spawn_customer() -> void:
 	var added := 0
 	for pair in _seating_pairs():
 		if added >= 2 or arriving >= MAX_ARRIVING:
-			return
+			break
 		if used_tables.has(int(pair.table_id)) or used_chairs.has(int(pair.chair_id)):
 			continue
 		var chair := get_item(int(pair.chair_id))
@@ -1163,6 +1174,33 @@ func _spawn_customer() -> void:
 		_next_customer_id += 1
 		added += 1
 		arriving += 1
+	if added==0:
+		for attempt in range(2):OutsideQueue.add(self)
+
+func _admit_queued_visitor(visitor:Dictionary)->bool:
+	if not operating_open or customers.filter(func(g):return g.phase=="arriving").size()>=MAX_ARRIVING:return false
+	var used_tables={};var used_chairs={}
+	for guest in customers:
+		if bool(guest.get("withdrawn",false)):continue
+		used_tables[int(guest.table_id)]=true;used_chairs[int(guest.chair_id)]=true
+	var position=Vector2(float(visitor.x),float(visitor.z))
+	for pair in _seating_pairs():
+		if used_tables.has(int(pair.table_id)) or used_chairs.has(int(pair.chair_id)):continue
+		var access=guest_access_for(int(pair.chair_id),true,Vector2(ARRIVAL_LANE_X,position.y),12.5,int(pair.table_id),int(visitor.id))
+		if access.is_empty():continue
+		var route:Array[Vector2]=[Vector2(ARRIVAL_LANE_X,position.y)]
+		route.append_array(access.route)
+		var previous=position;var safe=true
+		for point in route:
+			if segment_blocked(previous,point):safe=false;break
+			previous=point
+		if not safe:continue
+		var guest={"id":visitor.id,"table_id":pair.table_id,"chair_id":pair.chair_id,"mobility":{},"phase":"arriving","elapsed":0.0,"duration":_route_length(position,route)/WALK_SPEED,"x":position.x,"z":position.y,"paid":false,"seated":false,"admitted":false,"withdrawn":false,"exit_completed":false,"meal_abandoned":false,"street_route_format":STREET_ROUTE_FORMAT,"street_origin_z":visitor.origin_z,"route":route,"route_index":0,"heading":Vector2.LEFT,"service_cell":access.approach,"waiting":false,"exterior_exit":false,"entry_cell":access.entry_cell,"entry_direction":access.entry_direction,"entry_outside":access.entry_outside,"departure_blocked":false,"dismounting":false,"egress_cell":Vector2i(-100,-100),"dismount_progress":0.0}
+		Checkout.init_guest(self,guest)
+		guest["table_service_direction"]=_table_service_direction_in(get_item(int(pair.table_id)),items)
+		customers.append(guest);outside_queue.erase(visitor)
+		return true
+	return false
 
 
 func table_service_direction(table_id: int) -> Vector2i:
@@ -1590,6 +1628,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
 	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
+	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
+	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
+	if not queue_check.ok:return _fail(str(queue_check.error))
 	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
 	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
@@ -1600,7 +1641,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
 		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
-		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,
+		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
@@ -1753,6 +1794,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
+	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
+	if not queue_check.ok:return _fail(str(queue_check.error))
+	if not saved_open and queue_check.visitors.any(func(v):return v.phase=="outside_queue"):return _fail("Closed cafe has an active outside request")
 	if saved_checkout_pending:
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
@@ -1804,6 +1848,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	total_cleaned = int(data.total_cleaned)
 	_next_item_id = int(data.next_item_id)
 	customers.assign(runtime_state.customers)
+	outside_queue.assign(queue_check.visitors)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
 	loaded_save_version=int(data.version)
