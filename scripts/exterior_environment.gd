@@ -1,6 +1,8 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
 const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Greenery=preload("res://scripts/environment_greenery.gd")
+static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
 const ROAD_RIGHT=-3.26
 const OPPOSITE_LEFT=-11.76
@@ -13,6 +15,10 @@ const BUFFER_PLANTING=[Vector2(2.5,-3.35),Vector2(7.8,-3.35),Vector2(11.9,-2.4)]
 # before camera scaling. This exposes the entire lot, not just vehicle roofs.
 const BAY_CENTERS=[1.3,4.2,7.1,10.0]
 const TREES=[Vector3(-13.1,1.5,.86),Vector3(-.0,18.8,.95),Vector3(7.7,14.0,1.0),Vector3(16.0,-6.4,.90),Vector3(20.3,13.8,.85),Vector3(22.1,14.0,.62)]
+const TREE_VARIANTS=["oak","airy","oak","columnar","airy","sapling"]
+const SHELTER_ROOF=Rect2(-12.85,5.45,1.75,5.0)
+const SHELTER_HEIGHT=78.0
+const SHELTER_BOARDING=Rect2(-11.1,5.3,.95,5.4)
 const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func parking_hooks()->Dictionary:
@@ -49,19 +55,45 @@ static func draw_crossing(a):
 	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
 static func draw_props(a):
+	# All low ground plants precede elevated structures. Never paint a ground
+	# pocket over the roof just because its projected anchor overlaps the canopy.
+	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
+	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
 	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-7.15),1,"a2b3b3" if i==2 else "ddcdb0")
-	# Opposite-side stop: cream canopy, sage frame, bench, bus on road.
-	quad(a,-13.0,5.3,-11.1,10.7,"c9d2b6")
-	for z in [5.7,10.1]:a.line(a.iso(-12.5,z),a.iso(-12.5,z,62),"789270",3*a.ui_scale)
-	a.poly([a.iso(-12.5,5.7,12),a.iso(-12.5,10.1,12),a.iso(-12.5,10.1,54),a.iso(-12.5,5.7,54)],Color(.55,.68,.62,.26))
-	a.rounded_poly([a.iso(-13.0,5.3,62),a.iso(-11.1,5.3,62),a.iso(-11.1,10.7,62),a.iso(-13.0,10.7,62)],5*a.ui_scale*a.zoom,"ede2c6")
-	a.line(a.iso(-12.2,6.2,18),a.iso(-12.2,9.6,18),"a6936b",5*a.ui_scale)
-	var sign=a.iso(-11.0,10.9)
-	a.line(sign,sign-Vector2(0,52)*a.ui_scale*a.zoom,"7a8c72",2*a.ui_scale)
-	a.draw_rect(Rect2(sign-Vector2(9,65)*a.ui_scale*a.zoom,Vector2(18,15)*a.ui_scale*a.zoom),Color("879fa4"))
+	draw_shelter(a)
 	draw_bus(a,Vector2(-9.4,8.1))
-	for p in POCKETS:draw_pocket(a,p)
-	for p in BUFFER_PLANTING:draw_pocket(a,p)
+
+static func draw_shelter(a):
+	var scale=a.ui_scale*a.zoom
+	# A small level pad joins the public pavement. The front stays open, with
+	# an uninterrupted .95-tile boarding corridor outside the canopy supports.
+	quad(a,-13,5.3,-10.15,10.7,"d1d8be")
+	for z in [5.75,10.15]:
+		for x in [-12.65,-11.35]:
+			a.ellipse(a.iso(x,z),Vector2(4,2)*scale,"a8b59b")
+			a.line(a.iso(x,z),a.iso(x,z,SHELTER_HEIGHT),"789270",3*scale)
+	# Quiet back and end glazing remain connected to the posts and roof beam.
+	a.poly([a.iso(-12.65,5.75,5),a.iso(-12.65,10.15,5),a.iso(-12.65,10.15,73),a.iso(-12.65,5.75,73)],Color(.62,.72,.68,.26))
+	a.poly([a.iso(-12.65,5.75,5),a.iso(-11.35,5.75,5),a.iso(-11.35,5.75,73),a.iso(-12.65,5.75,73)],Color(.69,.77,.71,.22))
+	a.line(a.iso(-12.65,6.05,62),a.iso(-12.65,7.05,69),Color(.90,.93,.81,.65),1.5*scale)
+	# A wood seat has an actual seat plane, backrest and two grounded leg pairs.
+	for z in [6.55,9.2]:
+		for x in [-12.35,-11.95]:a.line(a.iso(x,z),a.iso(x,z,18),"8f8c6c",2.3*scale)
+	quad_height(a,-12.4,6.3,-11.85,9.5,18,"b3a079")
+	a.poly([a.iso(-12.4,6.3,20),a.iso(-12.4,9.5,20),a.iso(-12.4,9.5,34),a.iso(-12.4,6.3,34)],"b8a581")
+	a.line(a.iso(-11.85,6.3,18),a.iso(-11.85,9.5,18),"948968",2*scale)
+	# Thin fascia connects the full roof edge to all four support tops.
+	var r=SHELTER_ROOF
+	a.poly([a.iso(r.position.x,r.position.y,74),a.iso(r.end.x,r.position.y,74),a.iso(r.end.x,r.position.y,78),a.iso(r.position.x,r.position.y,78)],"d2c6a7")
+	a.poly([a.iso(r.end.x,r.position.y,74),a.iso(r.end.x,r.end.y,74),a.iso(r.end.x,r.end.y,78),a.iso(r.end.x,r.position.y,78)],"c7bb9e")
+	a.rounded_poly([a.iso(r.position.x,r.position.y,78),a.iso(r.end.x,r.position.y,78),a.iso(r.end.x,r.end.y,78),a.iso(r.position.x,r.end.y,78)],3*scale,"ede2c6")
+	# Separate readable stop sign sits beyond the open boarding corridor.
+	var sign=a.iso(-10.7,11.05)
+	a.line(sign,a.iso(-10.7,11.05,58),"7a8c72",2.2*scale)
+	var top=a.iso(-10.7,11.05,66)
+	a.draw_rect(Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
+	a.draw_rect(Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
+	for x in [-3,3]:a.ellipse(top+Vector2(x,11)*scale,Vector2(1.1,1.1)*scale,"e5e3cb")
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
@@ -131,11 +163,4 @@ static func draw_bus(a,p:Vector2):
 		a.ellipse(bus_point(a,p,half+.06,z,8),Vector2(3.1,4.4)*scale,"adb79c")
 		a.ellipse(bus_point(a,p,half+.075,z,8),Vector2(1.3,1.7)*scale,"819179")
 
-static func draw_pocket(a,p:Vector2):
-	# Low, irregular illustration using the game's existing muted ink/palette.
-	for offset in [Vector2(-.35,0),Vector2(.1,.13),Vector2(.35,-.1)]:
-		var q=a.iso(p.x+offset.x,p.y+offset.y)
-		a.ellipse(q-Vector2(0,5)*a.ui_scale*a.zoom,Vector2(10,7)*a.ui_scale*a.zoom,"92a779")
-	for offset in [Vector2(-.2,.25),Vector2(.3,.2)]:
-		var q=a.iso(p.x+offset.x,p.y+offset.y)
-		a.ellipse(q-Vector2(0,8)*a.ui_scale*a.zoom,Vector2(2.5,2.5)*a.ui_scale*a.zoom,"e7dfc2")
+static func draw_pocket(a,p:Vector2,variant:int=0):greenery.draw_pocket(a,p,variant)

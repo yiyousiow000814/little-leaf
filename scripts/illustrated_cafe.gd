@@ -609,9 +609,10 @@ func _draw():
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
 	game.build_tools.draw_shell_selection(self)
 	var entities=[]
-	for tree in Neighborhood.TREES:
+	for i in range(Neighborhood.TREES.size()):
+		var tree=Neighborhood.TREES[i]
 		var world=Vector2(tree.x,tree.y)
-		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z})
+		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]})
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
@@ -670,7 +671,9 @@ func _draw():
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:
 		if e.type=="scenery_tree":
-			_tree(iso(e.position.x,e.position.y),e.scale);continue
+			if e.variant=="oak":_tree(iso(e.position.x,e.position.y),e.scale)
+			else:Neighborhood.greenery.draw_tree(self,iso(e.position.x,e.position.y),e.scale*ui_scale*zoom*(1.55 if game.wall_detail else 1.0),e.variant)
+			continue
 		if e.type=="opening_frame":
 			OpeningArt.casing(self,e.entry,e.part,.65 if bool(e.entry.get("preview",false)) else 1.0,Color("c6e1ae") if bool(e.entry.get("preview",false)) else Color.WHITE);continue
 		if e.type=="built_wall":
@@ -853,9 +856,21 @@ func prepare_grass(_size: Vector2):
 				var p=GroundArt.point(x+.20+float(seed%97)/162.0,z+.20+float((seed/97)%89)/149.0)
 				var height=3.2+float(seed%29)*.065
 				var spread=.80+float(seed%17)*.03
-				_grass_left.append(p);_grass_left.append(p+Vector2(-2.3*spread,-height*.80))
-				_grass_left.append(p+Vector2(.35,0));_grass_left.append(p+Vector2(.10,-height))
-				_grass_right.append(p);_grass_right.append(p+Vector2(2.4*spread,-height*.70))
+				var form=posmod(seed/11,3)
+				if form==0:
+					# Quiet three-blade fan.
+					_grass_left.append(p);_grass_left.append(p+Vector2(-2.3*spread,-height*.80))
+					_grass_left.append(p+Vector2(.35,0));_grass_left.append(p+Vector2(.10,-height))
+					_grass_right.append(p);_grass_right.append(p+Vector2(2.4*spread,-height*.70))
+				elif form==1:
+					# A looser upright clump, with staggered roots and leaning tips.
+					for j in range(4):
+						var root=p+Vector2(j*.75,0)
+						_grass_left.append(root);_grass_left.append(root+Vector2(-.9+j*.65,-height*(.65+j*.13)))
+				else:
+					# A low wind-swept pair; open space separates the two leaves.
+					_grass_left.append(p);_grass_left.append(p+Vector2(-3.8*spread,-height*.36))
+					_grass_right.append(p+Vector2(1.8,0));_grass_right.append(p+Vector2(5.2*spread,-height*.51))
 				if seed%3==0:
 					var nearby=p+Vector2(4.3*spread,1.2-float(seed%5)*.35)
 					_grass_left.append(nearby);_grass_left.append(nearby+Vector2(-1.6*spread,-height*.60))
