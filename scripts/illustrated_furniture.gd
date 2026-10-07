@@ -121,10 +121,7 @@ func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float)
 func _stove_controls():
 	if front_visible():
 		var z=.404
-		face([point(-.34,z,5),point(.34,z,5),point(.34,z,21),point(-.34,z,21)],"607f6d",2)
-		face([point(-.27,z+.005,8),point(.27,z+.005,8),point(.27,z+.005,18),point(-.27,z+.005,18)],"405d52",1)
-		edge(point(-.21,z+.01,15),point(.15,z+.01,17),"819386",.8)
-		edge(point(-.26,z+.02,21.5),point(.26,z+.02,21.5),"d6ddc7",2.2)
+		# Plain standalone burner pedestal: no oven window or door handle.
 		for x in [-.25,-.08,.09,.26]:
 			a.ellipse(point(x,z,26),Vector2(1.8,1.8),"f0e5c7")
 			# A one-pixel indicator is smaller than the generic AA feather. Draw
@@ -190,10 +187,10 @@ func espresso():
 	box(.08,-.13,.47,.38,53,55,"8ca58f","6f8e79","698570")
 	top_ellipse(.08,-.13,56,.065,.065,"b9c7aa")
 	if front_visible():
-		edge(point(.17,.06,43),point(.17,.20,43),"5e7d69",2.4)
-		edge(point(.17,.20,43),point(.17,.20,40),"5e7d69",2.4)
-		edge(point(.17,.08,43),point(.17,.08,47),"466b57",1.7)
-		a.ellipse(point(.17,.08,47),Vector2(2.3,1.5),"527862")
+		edge(point(.17,.06,43),point(.17,.24,43),"5e7d69",1.25)
+		edge(point(.17,.24,43),point(.17,.24,39.5),"5e7d69",1.25)
+		edge(point(.17,.08,43),point(.17,.08,48),"466b57",1.1)
+		a.ellipse(point(.17,.08,48),Vector2(1.7,1.0),"527862")
 func beverage_accessories():
 	# A small stack of clean tumblers stays beside, not in front of, the tap.
 	var spare=point(-.32,.15,30)

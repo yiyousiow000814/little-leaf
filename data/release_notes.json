@@ -1,26 +1,13 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "version": "0.1.9",
-  "date": "2026-10-05",
+  "status": "draft",
+  "version": "0.1.10",
+  "date": "2026-10-07",
   "label": "Café building and service polish",
-  "new": [
-    "An envelope Inbox shows compensation letters and reasons for 14 real days after delivery.",
-    "Select starter walls one tile at a time, with per-tile prices and thin gray outlines. Existing saves, doors and windows stay intact.",
-    "Stove work tiles are reserved and marked red.",
-    "Settings now has a Log panel with copyable save diagnostics without save contents or full profile identifiers."
-  ],
+  "new": [],
   "fixed": [
-    "Improved mobile toolbar and Help typography, Build and Tiles spacing, shorter action text, and the Staff Done button.",
-    "Corrected door jambs, arm layering and vertical rest poses, and crisp, centered character bubbles.",
-    "More natural bites, food portions that shrink as guests eat, visible leftovers, and better seated table and leg proportions.",
-    "Restored street-end walkers and pedestrian density.",
-    "Waiters drop off dishes; cleaners wash each plate in 20 game seconds. Each sink holds up to six plates.",
-    "Meals pay 200 coins, core-team wages total 50 coins per game minute, and new Basic oak sets cost 280. Historical costs and refunds stay intact.",
-    "Guests get angry after 70 game seconds and leave unpaid at 120 if their meal is not prepared. Anger lasts until food reaches them.",
-    "Cleaners skip blocked floor-cleaning tasks so reachable work can continue.",
-    "Corrected receipt layering on rear-facing registers.",
-    "The Welcome title, greeting and skip hint now fade together.",
-    "Browser saves can recover from a closing database connection by reopening the same database and rechecking the profile and revision before one retry."
+    "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",
+    "Rear and corner scenery use appropriate occlusion instead of painting over all furnishings.",
+    "Juice tap outlet and lever are separated; stove base no longer depicts an oven."
   ]
 }
