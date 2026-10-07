@@ -130,6 +130,8 @@ var _wall_index: Dictionary = {}
 var _wall_index_revision: int = -1
 var _collision_revision:int=-1
 var _solid_wall_segments:Array=[]
+var _fixed_edge_revision:int=-1
+var _fixed_edges:Dictionary={}
 var coins: int = INITIAL_COINS
 # Ownership, not the bounding rectangle, controls every walkable/placeable tile.
 # `expanded` is retained for callers: true only when ALL finite parcels are owned.
@@ -1895,11 +1897,21 @@ func _fixed_edge_blocked(a:Vector2i,b:Vector2i,openings=null,walls=null)->bool:
 	var on_back=a.y!=b.y and mini(a.y,b.y)==-1 and maxi(a.y,b.y)==0 and a.x>=0 and a.x<BASE_WIDTH
 	var on_west=a.x!=b.x and mini(a.x,b.x)==-1 and maxi(a.x,b.x)==0 and a.y>=0 and a.y<BASE_DEPTH
 	if not on_back and not on_west:return false
+	# Live navigation repeats the same shell edges across many BFS expansions.
+	# Revision is the same conservative invalidation used by the wall indexes.
+	# Proposed edit/save-validation geometry must always resolve its own inputs.
+	var live=openings==null and walls==null
+	var key=Vector2i(a.x,0) if on_back else Vector2i(-1,a.y)
+	if live:
+		if _fixed_edge_revision!=revision:
+			_fixed_edges.clear();_fixed_edge_revision=revision
+		if _fixed_edges.has(key):return _fixed_edges[key]
 	var effective_walls:Array=built_walls if walls==null else walls
 	var shell=OpeningGeometry.shell_hosts(shell_products,effective_walls)
 	var host=shell[0] if on_back else shell[1]
-	if on_west and a.y>=int(host.b.y):return false
-	return not OpeningGeometry.point_in_door((cell_center(a)+cell_center(b))*.5,host,effective_walls,wall_attachments if openings==null else openings,.23)
+	var blocked=not (on_west and a.y>=int(host.b.y)) and not OpeningGeometry.point_in_door((cell_center(a)+cell_center(b))*.5,host,effective_walls,wall_attachments if openings==null else openings,.23)
+	if live:_fixed_edges[key]=blocked
+	return blocked
 
 func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
 	var key=WallGeometry.edge_between(a,b)

@@ -26,6 +26,7 @@ SUITES = [
     ("test_fit_owned_cafe", "FIT_OWNED_CAFE_RESULT"),
     ("test_decoration_build_refund", "DECORATION_BUILD_REFUND_RESULT"),
     ("test_decoration_refund", "DECORATION_REFUND_RESULT"),
+    ("test_performance_shell_cache", "PERFORMANCE_SHELL_CACHE_RESULT"),
     ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
     ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
