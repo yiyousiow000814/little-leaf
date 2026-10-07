@@ -14,7 +14,8 @@ or permission to merge. Baseline v0.1.9 is exactly
 - PR #61: `f68a425f642c71ab891db150feb82c1cdd953bba`
 - PR #62: `58172e27469b281c466748a41cbfead26d04c58d`
 - PR #63: `790b059cdcaba0f051990c00f14b7b5440b4ea34`
-- PR #64: `bf7cfaf45882dc1fb6412981993929aeed6e2f0f`
+- PR #64: `fc3ad12c5d050a51cb76ef7d39317a21b3191f1e`, extending checkpoint
+  `bf7cfaf45882dc1fb6412981993929aeed6e2f0f`
 - PR #65: `7e473d96977843b6389f1a6b79aa549af43fc588`
 
 Merge ancestry includes #60 through #63 and #59 through #65 once each. The
@@ -32,7 +33,10 @@ Renderer conflict resolution preserves queue-aware pedestrian advance and
 ambient traffic advance. Staff body depth includes cleaning stance offsets.
 The original rear tree draws before the shell; the original corner tree and
 new environment trees share depth sorting with props and people using one
-position/scale schema. Beverage ordering remains rotation-specific across
+position/scale schema. Final PR64 greenery retains each TREE_VARIANTS identity
+and its precomputed authored contours; the original corner remains oak and the
+rear tree remains before the shell. Shelter construction/roof-ground ordering
+and deterministic three-form lawn geometry are retained. Beverage ordering remains rotation-specific across
 source, cache and foreground rendering. Cleaning cache invalidates on model
 identity, revision, position, contact and stance; live shell cache preserves
 the explicit-proposal bypass. Queue ledger is separate from customers and
