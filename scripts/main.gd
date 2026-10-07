@@ -593,6 +593,8 @@ func _toggle_business():
 func _toggle_edit():
 	if save_recovery_blocked:return
 	editing=not editing
+	if editing:model.begin_decoration_session()
+	else:model.finish_decoration_session()
 	_cancel_selection()
 	if not editing:_save()
 	_update_ui()

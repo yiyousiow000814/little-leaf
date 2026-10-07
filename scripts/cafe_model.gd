@@ -174,6 +174,7 @@ func _init() -> void:
 
 
 func reset_new() -> void:
+	decoration_session_active=false;decoration_purchases.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
@@ -335,7 +336,29 @@ func logical_rotation(id:int)->int:
 	var group=dining_set_for(id);return int(group.rot) if not group.is_empty() else int(get_item(id).get("rot",0))
 func logical_members(id:int)->Array:
 	var group=dining_set_for(id);return [int(group.table_id),int(group.seat_id)] if not group.is_empty() else [id]
-func logical_refund(id:int)->int:return DiningSets.refund(self,id)
+# Session receipts are deliberately memory-only: a reload finalizes interrupted edits.
+# IDs are stable through moves; only successful purchases/sales change this ledger.
+var decoration_session_active=false
+var decoration_purchases:Dictionary={}
+func begin_decoration_session():
+	if decoration_session_active:return
+	decoration_session_active=true;decoration_purchases.clear();_notify()
+func finish_decoration_session():
+	decoration_session_active=false;decoration_purchases.clear();_notify()
+func record_decoration_purchase(id:int,paid:int):
+	if decoration_session_active:decoration_purchases[id]=paid
+func consume_decoration_purchase(ids:Array):
+	for id in ids:decoration_purchases.erase(int(id))
+func decoration_refund_bonus(id:int)->int:
+	var bonus=0
+	for member in logical_members(id):
+		var paid=int(decoration_purchases.get(member,0))
+		bonus+=paid-int(paid/2)
+	return bonus if decoration_session_active else 0
+func logical_refund(id:int)->int:
+	if get_item(id).is_empty():return 0
+	if decoration_session_active and dining_set_for(id).is_empty() and decoration_purchases.has(id):return int(decoration_purchases[id])
+	return DiningSets.refund(self,id)+decoration_refund_bonus(id)
 func logical_item_count()->int:return items.size()-dining_sets.size()
 func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionary]:
 	if is_dining_product(kind) or not dining_set_for(id).is_empty():return DiningSets.parts(self,x,z,rot,id,DiningSets.variant_for_product(kind))
@@ -394,6 +417,7 @@ func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = 
 	if kind=="bin":included_bin_pending=false
 	_next_item_id += 1
 	coins -= price
+	record_decoration_purchase(int(item.id),price)
 	rebuild_dining_sets()
 	last_event = "Placed %s · −%s coins" % [kind, Money.amount(price)]
 	_notify()
@@ -460,7 +484,8 @@ func remove(id: int, refund: bool = true) -> bool:
 	var essential_error := _essential_removal_error([id])
 	if essential_error != "":
 		return _fail(essential_error)
-	var returned: int = int(price_of(str(item.kind)) / 2) if refund else 0
+	var returned: int = logical_refund(id) if refund else 0
+	consume_decoration_purchase([id])
 	items.erase(item)
 	coins += returned
 	last_error = ""
@@ -1742,6 +1767,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	# Validate the saved layout as written first. Narrow only a matching free
 	# starter when its new jambs leave every saved body and remaining route clear.
 	checked_attachments.attachments=_align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
+	finish_decoration_session()
 	items = validated
 	dining_sets.assign(saved_sets.groups)
 	built_walls.assign(checked_walls.walls)
