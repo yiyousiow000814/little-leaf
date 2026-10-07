@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_fit_owned_cafe", "FIT_OWNED_CAFE_RESULT"),
     ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),

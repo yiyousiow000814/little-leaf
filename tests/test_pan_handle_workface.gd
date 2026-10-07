@@ -44,16 +44,20 @@ func run():
   artist.calls.clear();furniture.turn=rot;furniture.stove_pan()
   var handles=[];var handle_index=-1;var rim_index=-1
   for i in range(artist.calls.size()):
-   if artist.calls[i].kind=="handle":handles.append(artist.calls[i]);handle_index=i
+   if artist.calls[i].kind=="handle":
+    handles.append(artist.calls[i]);handle_index=i
    if artist.calls[i].kind=="rim":rim_index=i
-  check(handles.size()==1,"Pan retains an opposite-side or duplicate handle")
-  if handles.size()==1:
-   check(handles[0].start.is_equal_approx(furniture.origin+handle[0]) and handles[0].finish.is_equal_approx(furniture.origin+handle[1]),"Renderer ignores verified handle geometry")
-   check(is_equal_approx(handles[0].width,2.2) and handles[0].color=="536e5f","Handle style changed beyond orientation repair")
+  check(handles.size()==3,"Handle must contain one collar, one grip and one highlight")
+  if handles.size()==3:
+   var mount_at=furniture.origin+handle[0];var tip_at=furniture.origin+handle[1]
+   check(handles[0].start.is_equal_approx(mount_at) and handles[0].finish.is_equal_approx(mount_at.lerp(tip_at,.32)),"Metal collar does not join the rim")
+   check(handles[1].start.is_equal_approx(mount_at.lerp(tip_at,.25)) and handles[1].finish.is_equal_approx(tip_at),"Grip does not overlap the metal collar")
+   check(handles[0].color=="aebca5" and handles[1].color=="79674e" and is_equal_approx(handles[1].width,2.2),"Grip material or thickness changed")
+   check((handles[2].finish-handles[2].start).is_equal_approx(handles[1].finish-handles[1].start) and handles[2].width<handles[1].width,"Highlight changes grip direction or silhouette")
   check((handle_index>rim_index)==Furniture.stove_handle_in_front(rot),"Handle is hidden by the wrong pan layer")
  # The far-side handle must stay clear of both the skull and the lower
  # muzzle while the chef leans through the entire cooking cycle. Include
- # all nine AA quads: 1.25px at each end and outside the 2.2px stroke.
+ # all nine AA quads: 1.25px at each end and outside the 2.2px grip.
  # Head bounds include the .7px outline plus a .25px real separation.
  for rot in [1,2]:
   var mirror=1.0 if rot==1 else -1.0

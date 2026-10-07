@@ -46,7 +46,14 @@ static func part_sequence(kind: String,rotation: int) -> Array:
 	var r := posmod(rotation,4)
 	match kind:
 		"stove": return ["stove_base","heat","payload","stove_pan","stove_controls"] if r in [0,1] else ["stove_base","heat","stove_pan","payload","stove_controls"]
-		"beverage": return ["beverage_base","beverage_machine","payload","beverage_accessories"] if r in [0,3] else ["beverage_base","payload","beverage_machine","beverage_accessories"]
+		"beverage":
+			var parts:Array=["beverage_base"]
+			if not beverage_accessories_in_front(r):parts.append("beverage_accessories")
+			if r in [1,2]:parts.append("payload")
+			parts.append("beverage_machine")
+			if r in [0,3]:parts.append("payload")
+			if beverage_accessories_in_front(r):parts.append("beverage_accessories")
+			return parts
 		"bench": return ["bench_back","bench_seat"] if r in [1,2] else ["bench_seat","bench_back"]
 		"counter","sink","bookshelf","divider","rug": return [kind]
 		_: return []
@@ -191,6 +198,10 @@ func espresso():
 		edge(point(.17,.24,43),point(.17,.24,39.5),"5e7d69",1.25)
 		edge(point(.17,.08,43),point(.17,.08,48),"466b57",1.1)
 		a.ellipse(point(.17,.08,48),Vector2(1.7,1.0),"527862")
+static func beverage_accessories_in_front(rotation:int)->bool:
+	# Compare countertop ground depth, not the cup's elevated screen position.
+	return Vector2(-.40,.28).rotated(posmod(rotation,4)*PI/2).dot(Vector2.ONE)>0.0
+
 func beverage_accessories():
 	# A small stack of clean tumblers stays beside, not in front of, the tap.
 	var spare=point(-.32,.15,30)
@@ -202,14 +213,16 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 	kitchen_height=true
 	prepare_cache(artist)
 	if _can_cache(artist,p):
+		if not beverage_accessories_in_front(rotation):_cached_part(artist,"beverage_accessories",p,rotation)
 		_cached_part(artist,"beverage_machine",p,rotation)
-		_cached_part(artist,"beverage_accessories",p,rotation)
+		if beverage_accessories_in_front(rotation):_cached_part(artist,"beverage_accessories",p,rotation)
 		return
 	# A rear-side reaching hand is above the cabinet but behind the machine.
 	# Keep this same occlusion before and after the cup enters the hand.
 	a=artist;origin=p;turn=posmod(rotation,4)
+	if not beverage_accessories_in_front(turn):beverage_accessories()
 	espresso()
-	beverage_accessories()
+	if beverage_accessories_in_front(turn):beverage_accessories()
 static func stove_food_surface(rotation:int)->Vector2:
 	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
 
@@ -223,7 +236,15 @@ static func stove_handle_in_front(rotation:int)->bool:
 
 func _stove_pan_handle():
 	var handle=stove_handle_points(turn)
-	edge(origin+handle[0],origin+handle[1],"536e5f",2.2)
+	var mount=origin+handle[0];var tip=origin+handle[1]
+	var grip=mount.lerp(tip,.25)
+	# A short metal collar joins the rim to a rounded, matte wood grip.
+	# The highlight follows the same axis; no tiny texture or animated layer.
+	edge(mount,mount.lerp(tip,.32),"aebca5",2.2)
+	edge(grip,tip,"79674e",2.2)
+	for end in [grip,tip]:a.ellipse(end,Vector2.ONE*1.1,"79674e")
+	var light=Vector2(-.25,-.35)
+	edge(grip+light,tip+light,"b49b73",.65)
 
 func stove_pan():
 	var c=point(0,0,34)
@@ -336,10 +357,11 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			_stove_controls()
 		"beverage":
 			_beverage_base()
+			if not beverage_accessories_in_front(turn):beverage_accessories()
 			if not front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
 			espresso()
 			if front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
-			beverage_accessories()
+			if beverage_accessories_in_front(turn):beverage_accessories()
 		"sink":
 			cabinet(.94,.82,29,"bac4aa","99ad98","cbd7be")
 			# Recessed floor, side walls and front lip, all on the same sink.
