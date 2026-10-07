@@ -2,15 +2,15 @@
   "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
   "full_engine": {
     "status": "passed",
-    "checks": 1187812,
+    "checks": 1188387,
     "processes": 78,
-    "tested_working_source_base": "07e9ab194a26c03f941b21663eacbe9393cfc576",
+    "tested_working_source_base": "cf89cda4db6183d4aa77f0b21322dbfd3bf7ba28",
     "source_hashes_match": true,
-    "note": "Complete rerun after authoritative four-edge curved sidewalk/bus-bay refinement"
+    "note": "Final fixed original square grid with perimeter clipping; no runtime changes after capture/full regression"
   },
   "final_focused_engine": {
     "status": "passed",
-    "checks": 535392,
+    "checks": 535967,
     "processes": 5,
     "suites": [
       "test_environment",
@@ -53,7 +53,7 @@
     "exit_code": 0,
     "native_pixels_inspected": true,
     "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
-    "after_sha256": "5b33b935ac0eb87f32b4ae37c19e7b979cda1bbf993403172b3385d4ad4aad91"
+    "after_sha256": "c4624eb2bcf85ca8e2f3e241d2c0b1b6d5022db99ec2fd1dae3c042ada5a4a9e"
   },
   "constraints": {
     "purchase_enabled": false,
@@ -65,7 +65,7 @@
   },
   "sources": {
     "scripts/illustrated_cafe.gd": "50ffc3fcb47ac0adc52fe774749e1273cbd4127bba9bc50017d1827f4735cb0a",
-    "scripts/exterior_environment.gd": "039ed37f60019b2765dfd5ba65c84ff4762ba395a5f77cff2c6febcc54496cb6",
+    "scripts/exterior_environment.gd": "88061fb75375105d36995191203b781ce7813ca41ca378aa41996b57e384712f",
     "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
     "tests/test_environment.gd": "87a24f67c57fdd6048d238100230632ce7a68779fee0244df3792acba79a0483",
     "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
@@ -73,7 +73,7 @@
     "scripts/environment_greenery.gd": "1daa01c48523cc57d985c45c3f58ddc29d05765ab0587a1b438c017d23342c30",
     "tests/capture_shelter_review.gd": "ed27c66b8973c4c1aa119c71e3ad31b64bb6c2fb3b84d771b4462d97b04e8a67",
     "scripts/bus_stop_pedestrians.gd": "5df8b736b0bf597a509acd0b904986d70044d7b9e30ba87f9ef11af79bb25c78",
-    "tests/test_bus_stop.gd": "ed817ed33da748969d52bfecdb4a92cfefbfa8dd4f2d81f0b08c0ad1f88b8d7e",
+    "tests/test_bus_stop.gd": "4d7e889a943b77264e5a744d689d21686f3aa5d41533122e96e563e3d1994638",
     "tests/capture_stop_motion.gd": "21883357290f660fd439a8eb645dd31a53745021450709db2b9deb895e8f087e"
   },
   "bus_revision": {
@@ -267,11 +267,11 @@
   },
   "previous_revision_full_engine": {
     "status": "passed",
-    "checks": 1186448,
+    "checks": 1187812,
     "processes": 78,
-    "tested_working_source_base": "fc3ad12c5d050a51cb76ef7d39317a21b3191f1e",
+    "tested_working_source_base": "07e9ab194a26c03f941b21663eacbe9393cfc576",
     "source_hashes_match": true,
-    "note": "Complete rerun after continuous stop paving, curb-side door and bounded original-character waiting/walking"
+    "note": "Complete rerun after authoritative four-edge curved sidewalk/bus-bay refinement"
   },
   "annotated_curve_revision": {
     "reference": {
@@ -361,5 +361,99 @@
       "curve-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
     },
     "style_acceptance": "User review; behavior pass does not claim stylistic acceptance"
+  },
+  "tile_grid_revision": {
+    "before_source_commit": "cf89cda4db6183d4aa77f0b21322dbfd3bf7ba28",
+    "actual_pixels_inspected": true,
+    "cause": "Longitudinal seams shifted x with curved left edge, bending/shearing full field tiles",
+    "correction": "Fixed original1x1 square world cells/grid phase; edge cells and straight seams clipped to unchanged curved row masks",
+    "x_grid_origin": -11.76,
+    "z_grid_origin": 0,
+    "world_cell_size": [
+      1,
+      1
+    ],
+    "curved_outline_preserved": true,
+    "ordinary_approaches_same_grid": true,
+    "normal_projection": [
+      33.54,
+      16.77
+    ],
+    "detail_projection": [
+      78,
+      39
+    ],
+    "detail_viewport": [
+      1240,
+      760
+    ],
+    "samples_per_view": 16,
+    "sample_interval_seconds": 0.5,
+    "duration_seconds": 8,
+    "interpolation": false,
+    "motion_bundle": {
+      "id": "libfile_3178101bd3348191ac144f699272a5e0",
+      "version": 0,
+      "bytes": 18443258,
+      "sha256": "644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd"
+    },
+    "artifacts": [
+      {
+        "path": "environment-layout/docs/environment-010/grid-before.png",
+        "id": "libfile_9287179122008191bd3ca5889b4bc4e7",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/grid-after.png",
+        "id": "libfile_00e06943070881919795fcc59bb5256a",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/layout-before-grid.png",
+        "id": "libfile_c78543d39a708191a576af741bb7dba8",
+        "version": 0
+      },
+      {
+        "path": "grid-motion-review/detail-before-motion.png",
+        "id": "libfile_9637a5e855648191ba8821786bcd2de0",
+        "version": 0
+      },
+      {
+        "path": "grid-motion-review/detail-after-motion.png",
+        "id": "libfile_1024948a495c81918aab3037c70fad16",
+        "version": 0
+      },
+      {
+        "path": "Little-Leaf-stop-motion-review-v3.zip",
+        "id": "libfile_3178101bd3348191ac144f699272a5e0",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/after.png",
+        "id": "libfile_5e6dabe2703c81918adb1eb88d068260",
+        "version": 7
+      }
+    ],
+    "hashes": {
+      "after.png": "c4624eb2bcf85ca8e2f3e241d2c0b1b6d5022db99ec2fd1dae3c042ada5a4a9e",
+      "layout-before-grid.png": "5b33b935ac0eb87f32b4ae37c19e7b979cda1bbf993403172b3385d4ad4aad91",
+      "grid-before.png": "f20e2eb3d15f3c5a2bc848eb33d88628effe7aae1b0e1495142551ed0ac92aa3",
+      "grid-after.png": "728012fa637144ba736eb9a80b4cb9c285cd5d0e545cb456e53d61852ae21d0f",
+      "grid-before-motion.png": "258047612707f816df9b9c806b1c027dd8b210e8db02716dba02e107d5756a44",
+      "grid-after-motion.png": "d9a368b14af1cd781556b5db28b3d43daa5b1a2a953eee3d99b2dfd111b11f92",
+      "grid-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
+    },
+    "cf89cda_checkpoint": {
+      "ci_run": 37599644500,
+      "ci_status": "success",
+      "archive_id": "libfile_edab5cebb3ec81918bdeebdb4ae6da74",
+      "version": 4,
+      "bytes": 27673352,
+      "sha256": "c34c2ef03378f3a4c271efeafc3d86e545885d6b68045083bcff2f154d3053d1",
+      "restore_receipt": "libfile_55b82734cc388191a7306decd78fe9f0",
+      "verified_files": 622
+    },
+    "visual_acceptance": "User review; dimensions/tests do not establish stylistic acceptance",
+    "concrete_or_curve_removal_selected": false
   }
 }

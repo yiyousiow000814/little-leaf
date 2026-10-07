@@ -29,6 +29,20 @@ func _init():
 	for row in Neighborhood.stop_paving:check(Geometry2D.triangulate_polygon(PackedVector2Array(row.points)).size()>0,"cached curved tile polygons triangulate without crossing")
 	check(Geometry2D.triangulate_polygon(PackedVector2Array(Neighborhood.stop_edges)).size()>0,"curved bus bay triangulates without crossing")
 	check(Neighborhood.POCKETS[0].x<Neighborhood.pavement_edges(Neighborhood.POCKETS[0].y).x-.35,"existing low planting stays on lawn beyond new curved paving")
+	var full_tiles=0
+	for tile_data in Neighborhood.stop_paving:
+		var bounds:Rect2=tile_data.bounds
+		check(bounds.size==Vector2.ONE and is_equal_approx(bounds.position.x-Neighborhood.OPPOSITE_LEFT,roundf(bounds.position.x-Neighborhood.OPPOSITE_LEFT)) and is_equal_approx(bounds.position.y,roundf(bounds.position.y)),"every tile uses fixed original one-by-one world grid")
+		for point in tile_data.points:check(bounds.grow(.00002).has_point(point),"curve clips tile inside square cell instead of stretching it")
+		if tile_data.full:
+			full_tiles+=1
+			for projection in [Vector2(33.54,16.77),Vector2(78,39)]:
+				var projected_bounds=Rect2(Vector2((tile_data.points[0].x-tile_data.points[0].y)*projection.x,(tile_data.points[0].x+tile_data.points[0].y)*projection.y),Vector2.ZERO)
+				for point in tile_data.points:projected_bounds=projected_bounds.expand(Vector2((point.x-point.y)*projection.x,(point.x+point.y)*projection.y))
+				check(projected_bounds.size.distance_to(projection*2)<.003,"uncut tiles retain original isometric dimensions at normal and close-up scales")
+	check(full_tiles>0,"actual interior includes complete original square tiles")
+	for seam in Neighborhood.stop_grid:
+		check(is_equal_approx(seam[0].x,seam[1].x) and seam[1].y-seam[0].y<=1.00002,"straight clipped seams never bend or stretch with transition")
 	var still=stop.actors.duplicate(true)
 	for invalid in [0.0,-1.0,NAN,INF]:stop.advance(invalid,origin,tile,view)
 	check(stop.actors==still and stop.elapsed==0,"pause/invalid delta keeps all people unchanged")

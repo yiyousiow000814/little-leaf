@@ -205,3 +205,42 @@ environment/stop/expansion/street suites: 535,392 checks passed. New checks cove
 join tangents, minimum pavement width, through-road preservation and valid tile/bay
 triangulation, alongside the full hour of bounded pedestrian routes. User visual
 acceptance is separate from these checks. No cafe model/economy/save changes.
+
+
+## Fixed original tile grid at curved edges
+
+The cf89cda close-up showed elongated tiles because each longitudinal seam was
+computed as the curved lawn edge plus a column offset. This moved a whole column
+sideways with every row, bending its grid and shearing the projected tiles. The
+actual before/after pixels were inspected; a generic geometry pass did not establish
+that the distorted grid looked correct. The cf89cda source, CI, image and restoration
+checkpoint remains preserved in native Library archive version4.
+
+The correction retains the same continuous outer curves, but places every field
+tile on the original fixed world grid: x origin -11.76, integer z rows, 1x1 cells.
+Cached cell polygons are intersections of those square cells with the unchanged
+curved row masks. Edge pieces are cut rather than enlarged. Longitudinal seams are
+straight constant-x segments clipped at the edge; shared seams are cached once.
+The ordinary approach sidewalk continues this same grid. Palette, ground height,
+shelter, bus, waiting positions, bounded people and parking are unchanged. No switch
+to concrete or removal of the approved outer transition was selected.
+
+Actual same-scale [enlarged before](environment-010/grid-before.png) /
+[after](environment-010/grid-after.png) show original regular isometric diamonds
+inside, with partial cut pieces only at the perimeter. [Normal before](environment-010/layout-before-grid.png) /
+[after](environment-010/after.png) retain the same camera. Lossless native single-play
+APNG [before](environment-010/grid-before-motion.png) /
+[after](environment-010/grid-after-motion.png) retain the same original characters.
+The native Library bundle `libfile_3178101bd3348191ac144f699272a5e0` contains all64 raw
+frames, four APNGs, HTML replay/scrub, position records and hash manifest:18,443,258
+bytes; SHA256 `644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd`.
+There are16 real samples at0.5-second intervals, eight seconds without interpolation.
+The before fixtures are exact cf89cda source with only fixed projection/reference
+preload changes. The current capture script supports that before/after comparison.
+
+Full final Godot regression:78 processes,1,188,387 checks passed. The five relevant
+suites within that run pass535,967 checks. New checks verify fixed1x1 cell bounds,
+clipping inside those cells, straight seams and unchanged original isometric tile
+sizes at both normal and enlarged projections. Actual pixel inspection supplements
+these checks; final user visual acceptance remains separate. No cafe economy, save,
+customer admission or authoritative queue changes.

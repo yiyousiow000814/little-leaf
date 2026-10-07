@@ -22,7 +22,9 @@ const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
 const STOP_CURB=-10.55
 const STOP_APPROACH=Vector2(1.9,15.3)
 const STOP_CURVE_STEPS=8
+static var stop_rows=build_stop_rows()
 static var stop_paving=build_stop_paving()
+static var stop_grid=build_stop_grid()
 static var stop_edges=build_stop_edges()
 const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
 const BOARDING_GAP=Vector2(9.65,10.7)
@@ -53,7 +55,7 @@ static func pavement_edges(z:float)->Vector2:
 	var blend=stop_blend(z)
 	return Vector2(lerpf(OPPOSITE_LEFT,STOP_PAD.position.x,blend),lerpf(ROAD_LEFT,STOP_CURB,blend))
 
-static func build_stop_paving()->Array[Dictionary]:
+static func build_stop_rows()->Array[Dictionary]:
 	# Cached world polygons retain ordinary tile rows while both edges ease
 	# into the stop. No disconnected rectangular apron or sharp bay wedges.
 	var rows:Array[Dictionary]=[]
@@ -65,6 +67,39 @@ static func build_stop_paving()->Array[Dictionary]:
 			left.append(Vector2(edges.x,depth));right.push_front(Vector2(edges.y,depth))
 		rows.append({"points":left+right,"color":"dfe0c8" if posmod(z,2)==0 else "d7dcc2"})
 	return rows
+
+static func build_stop_paving()->Array[Dictionary]:
+	# Square world cells keep the original grid phase/orientation. The same
+	# curved outline clips edge cells; it never drags a whole tile sideways.
+	var tiles:Array[Dictionary]=[]
+	for row in stop_rows:
+		var z=floori(row.points[0].y)
+		for column in range(floori(STOP_PAD.position.x-OPPOSITE_LEFT),ceili(ROAD_LEFT-OPPOSITE_LEFT)):
+			var bounds=Rect2(Vector2(OPPOSITE_LEFT+column,z),Vector2.ONE)
+			var square=PackedVector2Array([bounds.position,Vector2(bounds.end.x,bounds.position.y),bounds.end,Vector2(bounds.position.x,bounds.end.y)])
+			for polygon in Geometry2D.intersect_polygons(square,PackedVector2Array(row.points)):
+				var full=polygon.size()==4
+				for corner in square:
+					var found=false
+					for point in polygon:found=found or point.is_equal_approx(corner)
+					full=full and found
+				tiles.append({"points":Array(polygon),"color":row.color,"bounds":bounds,"full":full})
+	return tiles
+
+static func build_stop_grid()->Array:
+	# Only straight fixed-x seams. Integer-z cross seams are drawn by the
+	# existing sidewalk row loop. Shared tile edges are cached just once.
+	var seams=[];var seen={}
+	for tile in stop_paving:
+		for i in range(tile.points.size()):
+			var p:Vector2=tile.points[i];var q:Vector2=tile.points[(i+1)%tile.points.size()]
+			if absf(p.x-q.x)>.00001 or p.distance_to(q)<.00001:continue
+			if absf((p.x-OPPOSITE_LEFT)-roundf(p.x-OPPOSITE_LEFT))>.00001:continue
+			var low=minf(p.y,q.y);var high=maxf(p.y,q.y)
+			var key="%d/%d/%d"%[roundi(p.x*100000),roundi(low*100000),roundi(high*100000)]
+			if seen.has(key):continue
+			seen[key]=true;seams.append([Vector2(p.x,low),Vector2(p.x,high)])
+	return seams
 
 static func build_stop_edges()->Array[Vector2]:
 	var points:Array[Vector2]=[]
@@ -104,10 +139,11 @@ static func draw_ground(a):
 		var edges=pavement_edges(z)
 		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
-	for column in [.89,1.89,2.89]:
-		var points=[]
-		for edge in stop_edges:points.append(a.iso(pavement_edges(edge.y).x+column,edge.y))
-		a.art_polyline(PackedVector2Array(points),a.col("c5cbb3"),.7)
+	for seam in stop_grid:a.line(a.iso(seam[0].x,seam[0].y),a.iso(seam[1].x,seam[1].y),"c5cbb3",.7)
+	# The ordinary field keeps the same fixed square grid on both approaches.
+	for x in [OPPOSITE_LEFT+1,OPPOSITE_LEFT+2]:
+		for span in [Vector2(Extent.PAVEMENT_Z_MIN,STOP_APPROACH.x),Vector2(STOP_APPROACH.y,Extent.PAVEMENT_Z_MAX)]:
+			a.line(a.iso(x,span.x),a.iso(x,span.y),"c5cbb3",.7)
 	# A smooth continuous curb follows the reference; its door gap stays flush.
 	var before=[];var after=[]
 	for edge in stop_edges:
