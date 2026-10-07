@@ -877,7 +877,6 @@ func _process(delta):
 	if compact_ui!=null:compact_ui.tick_earnings(delta)
 	if not editing and not paused and not save_recovery_blocked:
 		_tick_live_service(delta*speed)
-		_update_people()
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(delta*speed)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
@@ -911,6 +910,25 @@ func _person(color: Color,apron=false) -> Node3D:
 	return n
 
 func _update_people():
+	# The illustrated view reads model customers directly. Staff synchronization
+	# below still runs, but the disabled legacy renderer needs no customer meshes.
+	if not get_viewport().disable_3d:_update_legacy_customers()
+	# Keep stable staff indices, including the former drink worker. Both
+	# waiters now take whole customer-facing tasks from start to finish.
+	var chef_count=0
+	for staff in staff_states:
+		if staff.role=="chef":chef_count+=1
+	while chef_count<model.cooks:
+		_add_staff("chef");chef_count+=1
+	for role in ["waiter","cleaner","cashier"]:
+		var present=0
+		for staff in staff_states:
+			if staff.role==role:present+=1
+		while present<model.staff_count(role):
+			if not _add_staff(role):break
+			present+=1
+
+func _update_legacy_customers():
 	var alive = {}
 	for customer in model.customers:
 		if str(customer.get("phase","")) in ["dirty","cleaning"]: continue
@@ -935,20 +953,6 @@ func _update_people():
 		if phase in ["arriving","leaving","checkout_walk"]: person.position.y=abs(sin(animation_time*10+id))*0.025
 	for id in actor_nodes.keys():
 		if not alive.has(id): actor_nodes[id].queue_free(); actor_nodes.erase(id)
-	# Keep stable staff indices, including the former drink worker. Both
-	# waiters now take whole customer-facing tasks from start to finish.
-	var chef_count=0
-	for staff in staff_states:
-		if staff.role=="chef":chef_count+=1
-	while chef_count<model.cooks:
-		_add_staff("chef");chef_count+=1
-	for role in ["waiter","cleaner","cashier"]:
-		var present=0
-		for staff in staff_states:
-			if staff.role==role:present+=1
-		while present<model.staff_count(role):
-			if not _add_staff(role):break
-			present+=1
 
 func _ensure_checkout_deployment():
 	if not model.included_checkout_pending:return
