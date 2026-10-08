@@ -32,7 +32,7 @@ static func settled(visitor)->bool:return int(visitor.route_index)>=visitor.rout
 
 static func advance(model,delta:float):
 	var retired=[]
-	for visitor in model.outside_queue:
+	for visitor in model.outside_queue.duplicate():
 		if not model.operating_open:cancel(visitor)
 		var position=Vector2(float(visitor.x),float(visitor.z))
 		var budget=model.WALK_SPEED*delta

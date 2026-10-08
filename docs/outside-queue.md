@@ -73,18 +73,6 @@ The actual historical-reader harness is
 the exact baseline and compares the complete wallet/dining runtime before and
 after that reader resaves the new synthetic queue file.
 
-Tracked [motion evidence](qa/outside-queue/before-after.gif) and its
-[one-second trace](qa/outside-queue/motion-trace.json) show zero baseline outside
-requests and six candidate requests by t=12. In the same full-room fixture,
-candidate visitor 3 seats at t=75 after cleanup; baseline visitor 3 is still on
-the long street approach at t=86. Both keep coins=1200 and served=0 throughout
-the controlled comparison. The GIF is accelerated; frame labels show actual
-simulation time. Initial samples t=0,4,12 precede every second from t=40 to86.
-
-`python tests/run_outside_queue_capture.py --output <new-directory>` runs the
-same native rendered fixture on exact v0.1.9 commit
-`11c1f8d904b0c4c9a2565cbd557d1552b4ba9401` and the candidate. Set `GODOT_BIN` to
-Godot 4.6.3. Both use disposable project copies and generated profiles. The full
-stock room holds meal progress for the comparison; first-table cleanup starts
-at t=64 and physically completes at t=68. This controlled fixture demonstrates
-motion and table release, not ordinary production throughput or staff service.
+This split retains the latest bubble-free queue rendering and Decorate/Done
+exterior visibility regression. Historical captures are not proof of this
+independent split; regenerate them with `run_outside_queue_capture.py`.

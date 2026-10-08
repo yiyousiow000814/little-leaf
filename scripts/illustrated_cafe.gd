@@ -148,7 +148,7 @@ func _update_street_pedestrians(delta:float):
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
-	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -167,7 +167,6 @@ func _draw_street_people(show_service:bool):
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
-		if is_guest and str(actor.phase)=="outside_queue" and bool(actor.waiting):bubble(_character_bubble_anchor(int(actor.id),false,false,pose),"...")
 		art_transform(Vector2.ZERO)
 
 func _prune_departed_guest_motion():
