@@ -93,7 +93,7 @@ jobs:
         run: |
           test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
           cmp ci/toolchain.json .compatibility-old/ci/toolchain.json
-          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence"
+          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
       - name: Bind compatibility inputs and derive UI coordinates
         run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
