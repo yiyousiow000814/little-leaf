@@ -95,6 +95,7 @@ SUITES = [
     ("test_street_pedestrians", "STREET_PEDESTRIANS_RESULT"),
     ("test_street_endpoints", "STREET_ENDPOINTS_RESULT"),
     ("test_street_service_save", "STREET_SERVICE_SAVE_RESULT"),
+    ("test_outside_queue", "OUTSIDE_QUEUE_RESULT"),
 ]
 EXCLUDE = shutil.ignore_patterns(
     ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",

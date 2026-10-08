@@ -29,11 +29,20 @@ func _init():
 		var phase=(float(rank)+(.24 if lane==0 else .73))/(COUNT/2.0)
 		walkers.append({"key":"street_%s"%index,"appearance":100+index,"position":Vector2(LANES[lane],lerpf(Z_MIN,Z_MAX,phase)),"heading":Vector2(0,-1 if lane==0 else 1),"speed":SPEEDS[lane]})
 
-func advance(delta:float):
+func advance(delta:float,queue_positions:Array=[]):
 	if not is_finite(delta) or delta<=0.0:return
 	elapsed+=delta
 	for walker in walkers:
 		var position:Vector2=walker.position
+		# Public pavement only: pass the real waiting spots on a clear parallel
+		# lane, easing back after the queue instead of walking through a diner.
+		var lane=posmod(int(walker.appearance)-100,2)
+		var desired=float(LANES[lane])
+		for obstacle in queue_positions:
+			if absf(position.y-obstacle.y)<2.2:
+				desired=-2.76 if lane==0 else -.4
+				break
+		position.x=move_toward(position.x,desired,delta*1.5)
 		position.y+=float(walker.heading.y)*float(walker.speed)*delta
 		if position.y<Z_MIN or position.y>Z_MAX:
 			# Keep the overshoot so cadence is independent of frame rate.

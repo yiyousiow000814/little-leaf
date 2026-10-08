@@ -140,15 +140,18 @@ func _update_street_pedestrians(delta:float):
 	if game.cafe_intro!=null and game.cafe_intro.active:active=false
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta*game.speed if active else 0.0
-	street_pedestrians.advance(step)
+	var queue_positions=[]
+	for visitor in game.model.outside_queue:
+		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
+	street_pedestrians.advance(step,queue_positions)
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
 
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
-	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
-	for guest in game.model.customers:
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
+	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
 		var position=Vector2(float(guest.x),float(guest.z))
@@ -173,7 +176,7 @@ func _prune_departed_guest_motion():
 	# owners until their authoritative records are gone; staff keys never enter
 	# this guest-only index. No actor, route, foot contact or ledger is mutated.
 	var retained={}
-	for guest in game.model.customers:retained[int(guest.id)]=true
+	for guest in game.model.visual_customers():retained[int(guest.id)]=true
 	for id in game.service_guests:retained[int(id)]=true
 	for record in game.floor_tasks.messes.values():
 		var id=int(record.get("source_guest_id",-1))
@@ -198,7 +201,7 @@ func update_motion(delta: float):
 		_update_meal_docking(0.0) # Seed load-time presentation without advancing a paused transition.
 		return
 	_update_meal_docking(delta)
-	for guest in game.model.customers:
+	for guest in game.model.visual_customers():
 		var key="guest_%s"%guest.id
 		var position=Vector2(float(guest.x),float(guest.z))
 		var docking=Vector2.ZERO
