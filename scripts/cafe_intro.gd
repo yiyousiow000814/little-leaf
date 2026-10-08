@@ -1,6 +1,7 @@
 extends CanvasLayer
 ## Startup presentation only. Never writes camera, save, pause or audio state.
 const DURATION = 6.5
+const DESCENT_START = 1.0
 static var shown_this_session = false
 var game
 var active = false
@@ -65,10 +66,16 @@ func _process(delta):
 	if delta > 1.0 or game.editing or game.settings.visible:
 		finish();return
 	elapsed += maxf(delta, 0.0)
-	descent = smoothstep(1.0, DURATION, elapsed)
+	descent = smoothstep(DESCENT_START, DURATION, elapsed)
 	sky_alpha = 1.0 - smoothstep(1.4, 4.8, elapsed)
 	_present()
 	if elapsed >= DURATION:finish()
+
+func motion_delta(delta: float) -> float:
+	# The title hold is not play time. Only the current frame's descending
+	# portion advances the world; there is no catch-up after a stall or tab hide.
+	if not is_finite(delta) or delta <= 0.0 or delta > 1.0:return 0.0
+	return clampf(elapsed + delta - DESCENT_START, 0.0, delta) if active else delta
 
 func _present():
 	var view = get_viewport().get_visible_rect().size

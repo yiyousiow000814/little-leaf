@@ -11,102 +11,272 @@ html, body, #canvas {
 	border: 0;
 }
 
-body {
-	color: white;
-	background-color: black;
-	overflow: hidden;
-	touch-action: none;
-}
-
-#canvas {
-	display: block;
-}
-
-#canvas:focus {
-	outline: none;
-}
-
-#status, #status-splash, #status-progress {
-	position: absolute;
-	left: 0;
-	right: 0;
-}
-
-#status, #status-splash {
-	top: 0;
-	bottom: 0;
-}
-
-#status {
-	background-color: $GODOT_SPLASH_COLOR;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	visibility: hidden;
-}
-
-#status-splash {
-	max-height: 100%;
-	max-width: 100%;
-	margin: auto;
-}
-
-#status-splash.show-image--false {
-	display: none;
-}
-
-#status-splash.fullsize--true {
-	height: 100%;
+html, body {
 	width: 100%;
-	object-fit: contain;
+	height: 100%;
+	background: #cce3e8;
 }
 
-#status-splash.use-filter--false {
-	image-rendering: pixelated;
+body {
+	color: #735f43;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	overflow: hidden;
 }
 
-#status-progress, #status-notice {
-	display: none;
+#canvas { display: block; touch-action: none; }
+#canvas:focus { outline: none; }
+
+/* This is visible before any engine, SDK or storage work can begin. */
+#status {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	background: #cce3e8;
+	overflow: auto;
+	touch-action: pan-y;
 }
 
+.status-cloud {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: rgba(255, 255, 250, .42);
+	transform: translate(-50%, -50%);
+}
+.status-cloud::before, .status-cloud::after {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	background: inherit;
+}
+.status-cloud::before { width: 46px; height: 46px; left: -17px; top: 13px; }
+.status-cloud::after { width: 50px; height: 50px; left: 37px; top: 13px; }
+.status-cloud:nth-child(1) { left: 16%; top: 18%; }
+.status-cloud:nth-child(2) { left: 78%; top: 23%; }
+.status-cloud:nth-child(3) { left: 60%; top: 68%; }
+
+/* Match cafe_intro.gd's opening composition, including short landscapes. */
+#status-brand {
+	position: absolute;
+	left: 50%;
+	top: 42.8%;
+	width: min(91.7937vw, 620px, 90.695vh);
+	aspect-ratio: 783 / 518;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+#status-welcome {
+	position: absolute;
+	left: 50%;
+	top: -18px;
+	transform: translateX(-50%);
+	width: 100vw;
+	margin: 0;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 34px;
+}
+#status-splash { display: block; width: 100%; height: 100%; object-fit: contain; }
+#status-brand-fallback {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	font: bold clamp(32px, 8vw, 64px) Georgia, serif;
+}
+#status-brand-fallback[hidden], #status-splash[hidden] { display: none; }
+
+#status-loading {
+	position: absolute;
+	left: 50%;
+	bottom: 9%;
+	transform: translateX(-50%);
+	width: min(70vw, 320px);
+	text-align: center;
+}
+#status-label { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
 #status-progress {
-	bottom: 10%;
-	width: 50%;
-	margin: 0 auto;
+	display: block;
+	width: 100%;
+	height: 12px;
+	box-sizing: border-box;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid #899b72;
+	border-radius: 999px;
+	background: #f6f3df;
+	color: #708749;
+	accent-color: #708749;
+	overflow: hidden;
 }
+#status-progress::-webkit-progress-bar { background: #f6f3df; border-radius: 999px; }
+#status-progress::-webkit-progress-value { background: #708749; border-radius: 999px; }
+#status-progress::-moz-progress-bar { background: #708749; border-radius: 999px; }
+/* Unknown totals have no invented percentage or time-based advancement. */
+#status-progress:indeterminate { opacity: .65; }
 
 #status-notice {
-	background-color: #5b3943;
-	border-radius: 0.5rem;
-	border: 1px solid #9b3943;
-	color: #e0e0e0;
-	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-	line-height: 1.3;
-	margin: 0 2rem;
-	overflow: hidden;
-	padding: 1rem;
-	text-align: center;
+	display: none;
+	position: relative;
 	z-index: 1;
+	box-sizing: border-box;
+	width: min(90%, 540px);
+	max-height: 80%;
+	overflow: auto;
+	margin: 10vh auto;
+	padding: 24px;
+	border: 1px solid #907853;
+	border-radius: 16px;
+	background: #fff9e9;
+	color: #56442f;
+	line-height: 1.5;
+	text-align: center;
+	touch-action: pan-y;
+}
+#status-notice h1 { font-size: 22px; margin: 0 0 12px; }
+#status-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+#status-retry {
+	min-height: 44px;
+	padding: 10px 24px;
+	border: 1px solid #596c3b;
+	border-radius: 12px;
+	background: #708749;
+	color: white;
+	font: inherit;
+	cursor: pointer;
+}
+#status-retry:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+#status[data-mode="notice"] #status-brand,
+#status[data-mode="notice"] #status-loading { display: none; }
+#status[data-mode="notice"] #status-notice { display: block; }
+#no-script {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-content: center;
+	padding: 24px;
+	background: #cce3e8;
+	text-align: center;
+	line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+	#status-progress:indeterminate { visibility: hidden; }
+}
+@media (max-width: 699px) { #status-welcome { font-size: 18px; } }
+@media (max-height: 340px) {
+	#status-loading { bottom: 5%; }
+	#status-label { font-size: 12px; margin-bottom: 6px; }
 }
 		</style>
 		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
-		<canvas id="canvas">
-			Your browser does not support the canvas tag.
+		<canvas id="canvas" aria-label="Little Leaf café game" aria-busy="true">
+			Little Leaf needs a browser with canvas support. Please use an up-to-date browser.
 		</canvas>
 
-		<noscript>
-			Your browser does not support JavaScript.
-		</noscript>
-
-		<div id="status">
-			<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
-			<progress id="status-progress"></progress>
-			<div id="status-notice"></div>
+		<div id="status" data-mode="progress" aria-label="Loading Little Leaf">
+			<div aria-hidden="true"><i class="status-cloud"></i><i class="status-cloud"></i><i class="status-cloud"></i></div>
+			<div id="status-brand">
+				<p id="status-welcome">Welcome to</p>
+				<img id="status-splash" src="$GODOT_SPLASH" width="783" height="518" alt="Little Leaf" fetchpriority="high">
+				<span id="status-brand-fallback" hidden>Little Leaf</span>
+			</div>
+			<div id="status-loading">
+				<p id="status-label" role="status" aria-live="polite">Preparing your café…</p>
+				<progress id="status-progress" aria-label="Downloading Little Leaf"></progress>
+			</div>
+			<section id="status-notice" role="alert" aria-labelledby="status-error-title">
+				<h1 id="status-error-title">Little Leaf couldn’t open yet</h1>
+				<p id="status-error"></p>
+				<p>Check your connection, then try reloading. If this keeps happening, try an up-to-date browser.</p>
+				<button id="status-retry" type="button">Reload Little Leaf</button>
+			</section>
 		</div>
+		<noscript><div id="no-script"><strong>Little Leaf</strong><p>JavaScript is needed to open your café. Enable JavaScript, then reload this page.</p></div></noscript>
 
+		<script>
+/* Little Leaf boot presentation only. No storage, gameplay, audio or SDK state. */
+(function (root) {
+	'use strict';
+	const overlay = document.getElementById('status');
+	const label = document.getElementById('status-label');
+	const progress = document.getElementById('status-progress');
+	const splash = document.getElementById('status-splash');
+	const canvas = document.getElementById('canvas');
+	let engineReady = false, frameReady = false, finished = false;
+	let frameWatchdog = null;
+	function stopWatching() {
+		root.clearTimeout(frameWatchdog);
+		document.removeEventListener('visibilitychange', watchForFrame);
+	}
+	function watchForFrame() {
+		root.clearTimeout(frameWatchdog);
+		// This is a failure diagnostic, never a minimum splash duration. Hidden
+		// tabs cannot render reliably, so allow a fresh visible observation window.
+		if (finished || frameReady || !engineReady || document.visibilityState === 'hidden') return;
+		frameWatchdog = root.setTimeout(() => fail('The café has not drawn its first frame yet. Reload to try again.'), 45000);
+	}
+	document.addEventListener('visibilitychange', watchForFrame);
+
+	function revealGame() {
+		if (finished || !engineReady || !frameReady) return;
+		finished = true;
+		stopWatching();
+		canvas.setAttribute('aria-busy', 'false');
+		overlay.remove();
+	}
+	function fail(error) {
+		if (finished) return;
+		finished = true;
+		stopWatching();
+		console.error(error);
+		const message = typeof error === 'string' ? error : error && error.message;
+		document.getElementById('status-error').textContent = message || 'The game could not finish starting. Please reload to try again.';
+		overlay.dataset.mode = 'notice';
+		canvas.setAttribute('aria-busy', 'false');
+		document.getElementById('status-retry').focus();
+	}
+	function showBrandFallback() {
+		splash.hidden = true;
+		document.getElementById('status-brand-fallback').hidden = false;
+	}
+	splash.addEventListener('error', showBrandFallback);
+	if (splash.complete && !splash.naturalWidth) showBrandFallback();
+	document.getElementById('status-retry').addEventListener('click', () => root.location.reload());
+	root.LittleLeafBoot = Object.freeze({
+		fail,
+		onProgress(current, total) {
+			if (finished) return;
+			if (Number.isFinite(current) && Number.isFinite(total) && current >= 0 && total > 0 && current <= total) {
+				progress.max = total;
+				progress.value = current;
+				label.textContent = current < total ? 'Downloading your café…' : 'Opening your café…';
+			} else {
+				progress.removeAttribute('value');
+				progress.removeAttribute('max');
+				label.textContent = 'Downloading your café…';
+			}
+		},
+		engineReady() {
+			if (finished) return;
+			engineReady = true;
+			watchForFrame();
+			progress.setAttribute('aria-label', 'Opening Little Leaf');
+			label.textContent = 'Opening your café…';
+			// Download completion is not a first rendered frame. Do not uncover the
+			// engine splash or an empty canvas, even on a fast/cache-hit launch.
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+			revealGame();
+		},
+		// Called once by main.gd after RenderingServer.frame_post_draw.
+		firstFrameReady() { frameReady = true; revealGame(); }
+	});
+})(window);
+		</script>
 		<script>
 /* Presentation-only letter retention and read markers. Never accesses IndexedDB or preferences. */
 (function (root) {
@@ -785,59 +955,26 @@ const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 // Do not mount old IDBFS: legacy data is read directly, never reconciled.
 GODOT_CONFIG.persistentPaths = [];
-const engine = new Engine(GODOT_CONFIG);
+let engine = null;
+try {
+	if (typeof Engine === 'function') engine = new Engine(GODOT_CONFIG);
+} catch (error) {
+	window.LittleLeafBoot.fail(error);
+}
 
 (function () {
-	const statusOverlay = document.getElementById('status');
-	const statusProgress = document.getElementById('status-progress');
-	const statusNotice = document.getElementById('status-notice');
-
-	let initializing = true;
-	let statusMode = '';
-
-	function setStatusMode(mode) {
-		if (statusMode === mode || !initializing) {
-			return;
-		}
-		if (mode === 'hidden') {
-			statusOverlay.remove();
-			initializing = false;
-			return;
-		}
-		statusOverlay.style.visibility = 'visible';
-		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
-		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-		statusMode = mode;
+	const boot = window.LittleLeafBoot;
+	if (!engine) {
+		boot.fail('The game engine could not download. Please check your connection and reload.');
+		return;
 	}
-
-	function setStatusNotice(text) {
-		while (statusNotice.lastChild) {
-			statusNotice.removeChild(statusNotice.lastChild);
-		}
-		const lines = text.split('\n');
-		lines.forEach((line) => {
-			statusNotice.appendChild(document.createTextNode(line));
-			statusNotice.appendChild(document.createElement('br'));
-		});
+	let missing;
+	try {
+		missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	} catch (error) {
+		boot.fail(error);
+		return;
 	}
-
-	function displayFailureNotice(err) {
-		console.error(err);
-		if (err instanceof Error) {
-			setStatusNotice(err.message);
-		} else if (typeof err === 'string') {
-			setStatusNotice(err);
-		} else {
-			setStatusNotice('An unknown error occurred.');
-		}
-		setStatusMode('notice');
-		initializing = false;
-	}
-
-	const missing = Engine.getMissingFeatures({
-		threads: GODOT_THREADS_ENABLED,
-	});
-
 	if (missing.length !== 0) {
 		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
 			let serviceWorkerRegistrationPromise;
@@ -846,45 +983,22 @@ const engine = new Engine(GODOT_CONFIG);
 			} catch (err) {
 				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
 			}
-			// There's a chance that installing the service worker would fix the issue
+			// Preserve the export template's recovery path and timeout.
 			Promise.race([
 				serviceWorkerRegistrationPromise.then((registration) => {
-					if (registration != null) {
-						return Promise.reject(new Error('Service worker already exists.'));
-					}
+					if (registration != null) return Promise.reject(new Error('Service worker already exists.'));
 					return registration;
 				}).then(() => engine.installServiceWorker()),
-				// For some reason, `getRegistration()` can stall
-				new Promise((resolve) => {
-					setTimeout(() => resolve(), 2000);
-				}),
-			]).then(() => {
-				// Reload if there was no error.
-				window.location.reload();
-			}).catch((err) => {
-				console.error('Error while registering service worker:', err);
-			});
+				new Promise((resolve) => { setTimeout(() => resolve(), 2000); }),
+			]).then(() => window.location.reload()).catch(boot.fail);
 		} else {
-			// Display the message as usual
-			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
-			displayFailureNotice(missingMsg + missing.join('\n'));
+			boot.fail('This browser is missing features Little Leaf needs:\n' + missing.join('\n'));
 		}
-	} else {
-		setStatusMode('progress');
-		window.__littleLeafVault.boot().then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
-			'onProgress': function (current, total) {
-				if (current > 0 && total > 0) {
-					statusProgress.value = current;
-					statusProgress.max = total;
-				} else {
-					statusProgress.removeAttribute('value');
-					statusProgress.removeAttribute('max');
-				}
-			},
-		})).then(() => {
-			setStatusMode('hidden');
-		}, displayFailureNotice);
+		return;
 	}
+	window.__littleLeafVault.boot().then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
+		'onProgress': boot.onProgress,
+	})).then(boot.engineReady, boot.fail);
 }());
 		</script>
 	</body>

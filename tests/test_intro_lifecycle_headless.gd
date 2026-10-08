@@ -2,6 +2,19 @@ extends SceneTree
 ## Logic/projection checks only. Native rendering and real audio remain separate.
 const Main = preload("res://scripts/main.gd")
 const Intro = preload("res://scripts/cafe_intro.gd")
+class ProbedMain extends Main:
+	var service_seconds=0.0
+	var staff_seconds=0.0
+	var autosave_calls=0
+	func _tick_live_service(delta:float):
+		service_seconds+=delta
+		super(delta)
+	func _animate_staff(delta:float):
+		staff_seconds+=delta
+		super(delta)
+	func _autosave():
+		autosave_calls+=1
+
 var checks = 0
 var failures = []
 var game
@@ -44,6 +57,81 @@ func check_restored(intro, label):
 		if is_instance_valid(control):
 			check(control.modulate.is_equal_approx(intro.hud_colors[control]), label + " restores HUD child " + str(control.name))
 
+func check_live_motion_guards():
+	var intro=fresh_intro()
+	intro.elapsed=.9
+	check(is_equal_approx(intro.motion_delta(.2),.1), "boundary frame advances only its descending portion")
+	intro.elapsed=2.0
+	for delta in [0.0,-1.0,1.01,300.0,INF,NAN]:
+		check(intro.motion_delta(delta)==0.0, "invalid/stalled elapsed time never catches up during descent")
+	var before_service=game.service_seconds
+	var before_staff=game.staff_seconds
+	var before_animation=game.animation_time
+	var before_street=game.illustration.street_pedestrians.walkers.duplicate(true)
+	for reason in ["paused","editing","recovery","viewport","background"]:
+		game.paused=reason=="paused"
+		game.editing=reason=="editing"
+		game.save_recovery_blocked=reason=="recovery"
+		game.compact_ui.viewport_too_small=reason=="viewport"
+		game.browser_suspended=reason=="background"
+		game._process(.25)
+		game.illustration._process(.25)
+		check(game.service_seconds==before_service and game.staff_seconds==before_staff and game.animation_time==before_animation, reason+" prevents live simulation during intro")
+		check(game.illustration.street_pedestrians.walkers==before_street, reason+" prevents ambient intro movement")
+	game.paused=false;game.editing=false;game.save_recovery_blocked=false
+	game.compact_ui.viewport_too_small=false;game.browser_suspended=false
+	game._resume_frame=Engine.get_process_frames()+1
+	game._process(300.0);game.illustration._process(300.0)
+	check(game.service_seconds==before_service and game.animation_time==before_animation and game.illustration.street_pedestrians.walkers==before_street, "first resumed frame discards background elapsed time")
+	game._resume_frame=-1
+	game.speed=2.0
+	game._process(.25);game.illustration._process(.25)
+	check(is_equal_approx(game.service_seconds-before_service,.5) and is_equal_approx(game.staff_seconds-before_staff,.5), "descent honors speed once without double ticking")
+	check(is_equal_approx(game.animation_time-before_animation,.25), "character clock remains presentation-rate")
+	game.speed=1.0
+	var held_timer=game.save_timer
+	game.save_timer=100.0
+	game._process(.25)
+	check(game.autosave_calls==0 and game.save_timer==100.0, "even an already-due autosave waits until descent completes")
+	game.save_timer=held_timer
+	var previous_origin=game.illustration.origin
+	var previous_tile=game.illustration.tile
+	game.illustration.origin=Vector2(300,300)
+	game.illustration.tile=Vector2(10,5)
+	var road_time=game.illustration.road_traffic.elapsed
+	var bus_time=game.illustration.bus_stop_pedestrians.elapsed
+	game.illustration._update_street_pedestrians(.25)
+	check(game.illustration.road_traffic.elapsed>road_time, "visible road traffic remains live in the descending scene")
+	check(game.illustration.bus_stop_pedestrians.elapsed>bus_time, "visible bus-stop people remain live in the descending scene")
+	game.illustration.origin=previous_origin;game.illustration.tile=previous_tile
+	# A generated visitor provides live position evidence, independent of arrival cadence.
+	game.model._spawn_customer()
+	var visitors=game.model.visual_customers()
+	check(not visitors.is_empty(), "generated moving guest is available during reveal")
+	if not visitors.is_empty():
+		var visitor=visitors[-1]
+		var position=Vector2(visitor.x,visitor.z)
+		game._process(.25);game.illustration._process(.25)
+		check(Vector2(visitor.x,visitor.z)!=position, "restaurant visitor keeps walking while camera descends")
+	intro.finish()
+	before_service=game.service_seconds
+	game._process(.25)
+	check(is_equal_approx(game.service_seconds-before_service,.25), "arrival resumes normal processing once with no accumulated catch-up")
+	# Seed in-progress service, as in a returning cafe, without using a player save.
+	var walking_worker={}
+	for frame in range(900):
+		game._tick_live_service(.1);game._animate_staff(.1)
+		for worker in game.staff_states:
+			if worker.job_kind!="" and int(worker.index)<worker.path.size():walking_worker=worker;break
+		if not walking_worker.is_empty():break
+	check(not walking_worker.is_empty(), "generated in-progress staff trip is available for returning-cafe reveal")
+	if not walking_worker.is_empty():
+		intro=fresh_intro();intro.elapsed=2.0
+		var worker_position:Vector2=walking_worker.pos
+		game._process(.1);game.illustration._process(.1)
+		check(walking_worker.pos!=worker_position, "working staff keep walking throughout a returning-cafe descent")
+		intro.finish()
+
 func run():
 	var data_root = OS.get_environment("XDG_DATA_HOME")
 	check(not data_root.is_empty() and OS.get_user_data_dir().begins_with(data_root), "disposable save profile")
@@ -53,7 +141,7 @@ func run():
 	view.disable_3d = true
 	root.add_child(view)
 	Intro.shown_this_session = false
-	game = Main.new()
+	game = ProbedMain.new()
 	game.process_mode = Node.PROCESS_MODE_DISABLED
 	view.add_child(game)
 	await process_frame
@@ -68,12 +156,16 @@ func run():
 	var audio = game.audio_players.duplicate()
 	var paused = game.paused
 	var music_enabled = game.music_enabled
-	var coins = game.model.coins
+	var street_start=game.illustration.street_pedestrians.walkers[0].position
 	var save_timer = game.save_timer
 	var animation_time = game.animation_time
 	for i in range(13):
 		game._process(.5)
+		game.illustration._process(.5)
 		intro._process(.5)
+		if i<2:
+			check(game.service_seconds==0.0 and game.staff_seconds==0.0 and game.animation_time==animation_time, "opening title hold never advances live service")
+			check(game.illustration.street_pedestrians.walkers[0].position==street_start, "opening title hold freezes ambient motion")
 		var time = (i + 1) * .5
 		check(is_equal_approx(intro.elapsed, time), "timeline advances " + str(time))
 		check(is_equal_approx(intro.descent, smoothstep(1.0, 6.5, time)), "original eased descent " + str(time))
@@ -82,12 +174,16 @@ func run():
 			check(is_equal_approx(intro.sky_alpha, 1.0 - smoothstep(1.4, 4.8, time)), "original sky fade " + str(time))
 			check(is_equal_approx(intro.hud_alpha, smoothstep(4.8, 6.5, time)), "original HUD fade " + str(time))
 	check_restored(intro, "natural 6.5 second completion")
-	check(game.model.coins == coins and game.save_timer == save_timer and game.animation_time == animation_time, "intro suspends gameplay and autosave timing")
+	check(is_equal_approx(game.service_seconds,5.5) and is_equal_approx(game.staff_seconds,5.5), "descent advances customer/service and staff exactly once per live frame")
+	check(is_equal_approx(game.animation_time-animation_time,5.5), "character animation stays live for the 5.5 second descent")
+	check(game.illustration.street_pedestrians.walkers[0].position!=street_start, "street pedestrians walk during camera descent")
+	check(game.save_timer==save_timer and game.autosave_calls==0, "intro defers periodic autosaves until entry")
 	check(game.illustration.zoom == zoom and game.illustration.pan_offset.is_equal_approx(pan), "natural completion preserves camera")
 	check(game.audio_players == audio and game.music_enabled == music_enabled and game.paused == paused, "natural completion preserves audio identity and user flags")
 	var repeat = Intro.new()
 	repeat.start(game)
 	check(not repeat.active and repeat.cover == null, "same-session recreation does not replay")
+	check_live_motion_guards()
 
 	# Sample the entire reveal at 60 fps. Compare effective inherited opacity,
 	# so a sibling hint with a delayed fade or a doubled child fade fails here.
@@ -205,7 +301,7 @@ func run():
 	for i in range(13): intro._process(.5)
 	check_restored(intro, "paused muted completion")
 	check(game.paused and not game.music_enabled and game.audio_players == audio, "paused/muted preference retained")
-	var result = {"checks": checks, "failures": failures, "mode": "headless logic only", "base": "2a0ff543cf4f81207bad1eb843130c832b0f6327", "save_dir": OS.get_user_data_dir(), "native_render_verified": false, "minimum_landscape_viewport": [minimum_landscape_size.x, minimum_landscape_size.y]}
+	var result = {"checks": checks, "failures": failures, "mode": "headless logic only", "base": "0dd4db11caf54e2166dd70b499664788d5d89de2", "save_dir": OS.get_user_data_dir(), "native_render_verified": false, "minimum_landscape_viewport": [minimum_landscape_size.x, minimum_landscape_size.y]}
 	print("INTRO_LIFECYCLE_RESULT ", JSON.stringify(result))
 	if not result_path.is_empty():
 		var output = FileAccess.open(result_path, FileAccess.WRITE)
