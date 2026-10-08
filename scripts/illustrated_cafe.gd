@@ -1,8 +1,8 @@
 extends Node2D
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
-const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
+const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
 const MovingAtlas=preload("res://scripts/moving_art_atlas.gd")
