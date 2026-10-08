@@ -905,29 +905,36 @@ func _process(delta):
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
 			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
-	if cafe_intro!=null and cafe_intro.active:
+	var intro_active=cafe_intro!=null and cafe_intro.active
+	var world_delta=cafe_intro.motion_delta(delta) if intro_active else delta
+	if compact_ui!=null and compact_ui.viewport_too_small:
+		if intro_active:_music_tick(delta)
+		return
+	if intro_active and world_delta<=0.0:
 		_music_tick(delta);return
-	if compact_ui!=null and compact_ui.viewport_too_small:return
 	_sync_staff_duty()
-	if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())
-	if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
-	if compact_ui!=null:compact_ui.update_pointer()
-	if compact_ui!=null:compact_ui.tick_earnings(delta)
+	# The descent reveals live service, but still owns all player interaction.
+	if not intro_active:
+		if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())
+		if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
+		if compact_ui!=null:compact_ui.update_pointer()
+	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		_tick_live_service(delta*speed)
+		_tick_live_service(world_delta*speed)
 		# Resolve cooking/contact before deadlines and before any autosave.
-		_animate_staff(delta*speed)
+		_animate_staff(world_delta*speed)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
 		if OS.has_feature("crazygames"):_mark_platform_dirty()
-	visual_timer+=delta
-	save_timer+=delta
+	visual_timer+=world_delta
+	# First periodic save remains after entry, never during the title/descent.
+	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui(); _update_service_props()
-	if preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
-	animation_time+=delta if not editing and not paused and not save_recovery_blocked else 0.0
+	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
-	if is_instance_valid(ghost):
+	if not intro_active and is_instance_valid(ghost):
 		hover_cell=_floor_cell(get_viewport().get_mouse_position())
 		ghost.position=Vector3(hover_cell.x+.5,.04,hover_cell.y+.5)
 		ghost.rotation.y=rotation_step*PI/2

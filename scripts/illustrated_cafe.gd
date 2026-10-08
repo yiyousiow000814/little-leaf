@@ -151,12 +151,16 @@ func _process(delta):
 		set_process(false)
 		return
 	_update_street_pedestrians(delta)
-	update_motion(delta)
+	var motion_delta=delta
+	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
+		motion_delta=game.cafe_intro.motion_delta(delta)
+		if game.save_recovery_blocked or (game.compact_ui!=null and game.compact_ui.viewport_too_small):motion_delta=0.0
+	update_motion(motion_delta)
 	if not use_idle_retention or render_idle.needs_redraw(self):queue_redraw()
 func _update_street_pedestrians(delta:float):
 	if not is_instance_valid(game):return
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
-	if game.cafe_intro!=null and game.cafe_intro.active:active=false
+	if game.cafe_intro!=null and game.cafe_intro.active:delta=game.cafe_intro.motion_delta(delta)
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta*game.speed if active else 0.0
 	var queue_positions=[]

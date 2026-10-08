@@ -33,6 +33,7 @@ jobs:
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
+          node tests/boot_presentation.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
           node tests/web_performance_lifecycle.js
