@@ -17,7 +17,7 @@ class DetailArt extends "res://scripts/illustrated_cafe.gd":
 				var p=Vector2(110+i*220,390)
 				if i==0:_tree(p,1)
 				else:Neighborhood.greenery.draw_tree(self,p,2.0,variants[i])
-			for i in range(3):Neighborhood.greenery.draw_layers(self,Neighborhood.greenery.pockets[i],Vector2(170+i*270,555),2.0)
+			for i in range(3):Neighborhood.greenery.draw_layers(self,Neighborhood.greenery.pockets[i],Vector2(170+i*270,555),2.0,Neighborhood.greenery.pocket_bounds[i])
 			return
 		var artist=Neighborhood if previous_art==null else previous_art
 		artist.draw_ground(self)

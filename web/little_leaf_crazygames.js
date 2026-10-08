@@ -44,6 +44,13 @@
     ready();
     if (epoch !== generation || await currentScope() !== scope || faulted) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Your platform account changed. Reload to load its progress.'); }
   }
+  function inboxSnapshot() {
+    // The platform's verified envelope is also the only source of letters.
+    // This adapter issues no compensation; never infer delivery from coins.
+    const paid = Object.entries(record.campaigns || {}).map(([id, receipt]) => ({ id, ...receipt }));
+    paid.sort((a, b) => b.grantedAt - a.grantedAt || b.revision - a.revision || a.id.localeCompare(b.id));
+    return { ok: true, profileId: record.profileId, revision: record.revision, paid, deferred: [] };
+  }
   const client = {
     storageKind: 'crazygames-data', bootJson: '',
     async boot() {
@@ -70,7 +77,7 @@
             await guard(generation);
           }
           root.LittleLeafPlatform.ready = true;
-          const result = { ok: true, source: record.revision ? 'authority' : 'fresh', profileId: record.profileId, revision: record.revision, payload: record.payload };
+          const result = { ok: true, inbox: inboxSnapshot(), source: record.revision ? 'authority' : 'fresh', profileId: record.profileId, revision: record.revision, payload: record.payload };
           log('read_result', result); client.bootJson = JSON.stringify(result); return result;
         } catch (e) {
           invalidate(); const result = failure(e); log('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result;
@@ -96,9 +103,9 @@
         sdk.data.setItem(KEY, text);
         record = next; revisionText = text;
         log('platform_save_accepted', { profileId: next.profileId, revision: next.revision });
-        const boot = { ok: true, source: 'authority', profileId: next.profileId, revision: next.revision, payload: next.payload };
+        const boot = { ok: true, inbox: inboxSnapshot(), source: 'authority', profileId: next.profileId, revision: next.revision, payload: next.payload };
         client.bootJson = JSON.stringify(boot);
-        return { ok: true, profileId: next.profileId, revision: next.revision, durable: false, platformAccepted: true, cloudConfirmed: false, creditedCoins: 0 };
+        return { ok: true, inbox: inboxSnapshot(), profileId: next.profileId, revision: next.revision, durable: false, platformAccepted: true, cloudConfirmed: false, creditedCoins: 0 };
       } catch (e) {
         if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY', 'PLATFORM_ACCOUNT_CHANGED'].includes(e.code)) invalidate();
         const result = failure(e); log('save_failure', { code: result.code }); return result;

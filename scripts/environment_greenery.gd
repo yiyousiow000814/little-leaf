@@ -1,6 +1,9 @@
 extends RefCounted
 ## Small deterministic collection of authored 2D contours, sampled once.
 ## Ground anchors and palette are shared; silhouettes are not scaled copies.
+const Visibility=preload("res://scripts/cafe_render_visibility.gd")
+var tree_bounds={}
+var pocket_bounds=[]
 var trees={}
 var pockets=[]
 func _init():
@@ -44,6 +47,8 @@ func _init():
 			fern.append(leaf_shape("a3b585",base,base+Vector2(side*3,-6-i*.7),2.0))
 	fern.append(leaf_shape("98ad7d",Vector2(0,2),Vector2(-2,-17),2.2))
 	pockets.append(fern)
+	for variant in trees:tree_bounds[variant]=bounds_for(trees[variant])
+	for pocket in pockets:pocket_bounds.append(bounds_for(pocket))
 func shape(color:String,start:Vector2,curves:Array)->Array:
 	var vertices=PackedVector2Array([start]);var previous=start
 	for c in curves:
@@ -61,11 +66,22 @@ func crown(color:String,center:Vector2,radius:Vector2)->Array:
 func leaf_shape(color:String,base:Vector2,tip:Vector2,width:float)->Array:
 	var axis=tip-base;var side=axis.normalized().orthogonal()*width
 	return shape(color,base,[[base.x+axis.x*.3+side.x,base.y+axis.y*.3+side.y,tip.x+side.x,tip.y+side.y,tip.x,tip.y],[tip.x-side.x,tip.y-side.y,base.x+axis.x*.3-side.x,base.y+axis.y*.3-side.y,base.x,base.y]])
-func draw_layers(a,items:Array,ground:Vector2,scale:float):
+func bounds_for(items:Array)->Rect2:
+	var bounds=Rect2();var first=true
+	for item in items:
+		var part=Visibility.points_bounds(item[1])
+		bounds=part if first else bounds.merge(part);first=false
+	return bounds
+func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2):
+	var bounds=Visibility.local_bounds(ground,scale,local_bounds)
+	if a.has_method("render_bounds_visible"):
+		if not a.render_bounds_visible(bounds):return
+	elif a.has_method("get_viewport_rect") and not Visibility.visible(bounds,a.get_viewport_rect(),6.0):return
 	var transform=Transform2D(Vector2(scale,0),Vector2(0,scale),ground)
 	for item in items:a.poly(Array(transform*item[1]),item[0])
 func draw_tree(a,ground:Vector2,scale:float,variant:String):
 	a.ellipse(ground+Vector2(2,0),Vector2(31,9)*scale,Color(.45,.57,.32,.12))
-	draw_layers(a,trees[variant],ground,scale)
+	draw_layers(a,trees[variant],ground,scale,tree_bounds[variant])
 func draw_pocket(a,p:Vector2,variant:int):
-	draw_layers(a,pockets[posmod(variant,pockets.size())],a.iso(p.x,p.y),a.ui_scale*a.zoom*.75)
+	var index=posmod(variant,pockets.size())
+	draw_layers(a,pockets[index],a.iso(p.x,p.y),a.ui_scale*a.zoom*.75,pocket_bounds[index])

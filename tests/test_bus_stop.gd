@@ -2,6 +2,10 @@ extends SceneTree
 const Stop=preload("res://scripts/bus_stop_pedestrians.gd")
 const Neighborhood=preload("res://scripts/exterior_environment.gd")
 const Model=preload("res://scripts/cafe_model.gd")
+class KerbProjection:
+	var scale:float
+	func _init(value:float):scale=value
+	func iso(x:float,z:float,h:float=0.0)->Vector2:return Vector2((x-z)*39.0,(x+z)*19.5)*scale-Vector2(0,h*scale)
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -43,6 +47,23 @@ func _init():
 	check(full_tiles>0,"actual interior includes complete original square tiles")
 	for seam in Neighborhood.stop_grid:
 		check(is_equal_approx(seam[0].x,seam[1].x) and seam[1].y-seam[0].y<=1.00002,"straight clipped seams never bend or stretch with transition")
+	check(Neighborhood.SHELTER_BOARDING.size.x-Neighborhood.KERB_WIDTH>=.88,"kerb leaves a full pedestrian-width clear boarding bypass")
+	check(Neighborhood.stop_kerb.size()<70,"cached kerb samples only curves rather than subdividing entire street")
+	for strip in Neighborhood.stop_kerb:
+		check(strip.outer[1].y<=Neighborhood.BOARDING_GAP.x or strip.outer[0].y>=Neighborhood.BOARDING_GAP.y,"no kerb top or face crosses flush bus doorway")
+		for i in range(2):
+			var point:Vector2=strip.outer[i]
+			check(is_equal_approx(point.x,Neighborhood.pavement_edges(point.y).y),"kerb preserves existing pavement and road boundary")
+			check(is_equal_approx(strip.inner[i].x,point.x-Neighborhood.KERB_WIDTH) and is_equal_approx(strip.inner[i].y,point.y),"kerb cap stays inside paving without drifting grid or widening bay")
+			check(strip.drop[i]>=0 and strip.drop[i]<=Neighborhood.KERB_DROP,"road face is bounded beneath original pavement plane")
+	for z in [Neighborhood.BOARDING_GAP.x,Neighborhood.BUS_DOOR.y,Neighborhood.BOARDING_GAP.y]:check(is_zero_approx(Neighborhood.kerb_drop(z)),"boarding opening remains genuinely flush")
+	for scale in [.86,2.0]:
+		var planes=Neighborhood.kerb_planes(KerbProjection.new(scale))
+		check(planes.size()==2,"kerb has just two continuous runs split by doorway")
+		for plane in planes:
+			for surface in [plane.top,plane.face]:
+				check(Geometry2D.triangulate_polygon(PackedVector2Array(surface)).size()>0,"filled cap and road face triangulate at both review scales")
+			check(plane.top!=plane.face,"kerb top and side are distinct coherent filled planes")
 	var still=stop.actors.duplicate(true)
 	for invalid in [0.0,-1.0,NAN,INF]:stop.advance(invalid,origin,tile,view)
 	check(stop.actors==still and stop.elapsed==0,"pause/invalid delta keeps all people unchanged")

@@ -1,6 +1,8 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
+const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/exterior_world_extent.gd")
+const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const Greenery=preload("res://scripts/environment_greenery.gd")
 static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
@@ -22,12 +24,16 @@ const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
 const STOP_CURB=-10.55
 const STOP_APPROACH=Vector2(1.9,15.3)
 const STOP_CURVE_STEPS=8
+const KERB_WIDTH=.10
+const KERB_DROP=3.5
+const KERB_RAMP=.30
+const BOARDING_GAP=Vector2(9.65,10.7)
 static var stop_rows=build_stop_rows()
 static var stop_paving=build_stop_paving()
 static var stop_grid=build_stop_grid()
 static var stop_edges=build_stop_edges()
+static var stop_kerb=build_stop_kerb()
 const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
-const BOARDING_GAP=Vector2(9.65,10.7)
 const BUS_POSITION=Vector2(-9.55,8.1)
 const BUS_DOOR=Vector2(-10.345,10.1)
 const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
@@ -35,15 +41,22 @@ const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
 const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
 const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
-static func parking_hooks()->Dictionary:
-	# A future Decorate product must supply an approved parcel/price policy.
-	# These anchors are geometry, never admission routes or owned cafe tiles.
-	var bays:Array[Vector2]=[]
-	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
-	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":false,"customer_parking_enabled":false,"price":null,"parcel_policy":"pending"}
+static func inspection_bounds(tile:Vector2)->Rect2:
+	return CameraLandmarks.inspection_bounds(tile)
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
-	a.poly([a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)],color)
+	var points=[a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)]
+	if not screen_visible(a,Visibility.points_bounds(points)):return
+	a.poly(points,color)
+static func screen_visible(a,bounds:Rect2)->bool:
+	return a.render_bounds_visible(bounds) if a.has_method("render_bounds_visible") else Visibility.visible(bounds,a.get_viewport_rect(),6.0)
+static func world_bounds(a,footprint:Rect2,height:float)->Rect2:
+	var points=[]
+	for x in [footprint.position.x,footprint.end.x]:
+		for z in [footprint.position.y,footprint.end.y]:
+			points.append(a.iso(x,z));points.append(a.iso(x,z,height))
+	return Visibility.points_bounds(points).grow(12*a.ui_scale*a.zoom)
+
 
 static func stop_blend(z:float)->float:
 	var t=1.0
@@ -112,6 +125,51 @@ static func build_stop_edges()->Array[Vector2]:
 	points.append(Vector2(ROAD_LEFT,STOP_APPROACH.y))
 	return points
 
+static func kerb_drop(z:float)->float:
+	# Short dropped-kerb shoulders terminate at a genuinely flush bus door.
+	if z>=BOARDING_GAP.x and z<=BOARDING_GAP.y:return 0.0
+	var distance=BOARDING_GAP.x-z if z<BOARDING_GAP.x else z-BOARDING_GAP.y
+	return KERB_DROP*clampf(distance/KERB_RAMP,0.0,1.0)
+
+static func build_stop_kerb()->Array[Dictionary]:
+	var strips:Array[Dictionary]=[]
+	# Retain the same boundary right along the straight approaches. Exact
+	# ramp and opening endpoints prevent a small sliver across the doorway.
+	var cuts=[float(Extent.PAVEMENT_Z_MIN),STOP_APPROACH.x,STOP_PAD.position.y,BOARDING_GAP.x-KERB_RAMP,BOARDING_GAP.x,BOARDING_GAP.y,BOARDING_GAP.y+KERB_RAMP,STOP_PAD.end.y,STOP_APPROACH.y,float(Extent.PAVEMENT_Z_MAX)]
+	for segment in range(cuts.size()-1):
+		var start:float=cuts[segment];var finish:float=cuts[segment+1]
+		if start>=BOARDING_GAP.x and finish<=BOARDING_GAP.y:continue
+		var curved=(start>=STOP_APPROACH.x and finish<=STOP_PAD.position.y) or (start>=STOP_PAD.end.y and finish<=STOP_APPROACH.y)
+		var count=maxi(1,ceili((finish-start)*STOP_CURVE_STEPS)) if curved else 1
+		for i in range(count):
+			var z0=lerpf(start,finish,float(i)/count);var z1=lerpf(start,finish,float(i+1)/count)
+			var p=Vector2(pavement_edges(z0).y,z0);var q=Vector2(pavement_edges(z1).y,z1)
+			strips.append({"outer":[p,q],"inner":[p-Vector2(KERB_WIDTH,0),q-Vector2(KERB_WIDTH,0)],"drop":Vector2(kerb_drop(z0),kerb_drop(z1))})
+	return strips
+
+static func kerb_planes(a)->Array[Dictionary]:
+	var planes:Array[Dictionary]=[]
+	for span in [Vector2(Extent.PAVEMENT_Z_MIN,BOARDING_GAP.x),Vector2(BOARDING_GAP.y,Extent.PAVEMENT_Z_MAX)]:
+		var outer=[];var inner=[];var lower=[]
+		for strip in stop_kerb:
+			if strip.outer[0].y<span.x or strip.outer[1].y>span.y:continue
+			for i in range(2):
+				var p:Vector2=strip.outer[i];var q:Vector2=strip.inner[i]
+				var top=a.iso(p.x,p.y)
+				if not outer.is_empty() and outer.back()==top:continue
+				outer.append(top);inner.push_front(a.iso(q.x,q.y))
+				# Do not duplicate flush endpoints in the tapered face polygon.
+				if strip.drop[i]>0:lower.push_front(a.iso(p.x,p.y,-strip.drop[i]))
+		planes.append({"top":outer+inner,"face":outer+lower})
+	return planes
+
+static func draw_kerb(a):
+	# Four continuous filled polygons avoid the AA cross-lines that separate
+	# tiny outlined quads would leave along a curved kerb.
+	for plane in kerb_planes(a):
+		if screen_visible(a,Visibility.points_bounds(plane.face)):a.poly(plane.face,"a4b09b")
+		if screen_visible(a,Visibility.points_bounds(plane.top)):a.poly(plane.top,"d0d4be")
+
 static func projected(a,points:Array)->Array:
 	var result=[]
 	for point in points:result.append(a.iso(point.x,point.y))
@@ -124,17 +182,16 @@ static func draw_ground(a):
 	# The reference's four marked edges ease into the same public sidewalk.
 	# The bay first clears original paving; curved tile strips then cover its
 	# lawn side. The through road and shelter/waiting positions stay fixed.
-	a.poly(projected(a,stop_edges),"8b9b90")
-	for row in stop_paving:a.poly(projected(a,row.points),row.color)
+	var stop_polygon=projected(a,stop_edges)
+	# At distant zoomed-in map edges this long curve is fully offscreen.
+	# Skip its needless large-coordinate triangulation, as for nearby quads.
+	if screen_visible(a,Visibility.points_bounds(stop_polygon)):a.poly(stop_polygon,"8b9b90")
+	for row in stop_paving:
+		var points=projected(a,row.points)
+		if screen_visible(a,Visibility.points_bounds(points)):a.poly(points,row.color)
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
-	# Flush vehicle crossing across the existing public sidewalk; no access road.
-	quad(a,LOT.position.x,LOT.position.y,LOT.end.x,LOT.end.y,"919f92")
-	for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-8.45),a.iso(x,-5.75),"dce0ca",1.3*a.ui_scale)
-	a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
-	# Open lawn separates the lot from the wall; only one short pedestrian link.
-	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		var edges=pavement_edges(z)
 		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
@@ -144,30 +201,25 @@ static func draw_ground(a):
 	for x in [OPPOSITE_LEFT+1,OPPOSITE_LEFT+2]:
 		for span in [Vector2(Extent.PAVEMENT_Z_MIN,STOP_APPROACH.x),Vector2(STOP_APPROACH.y,Extent.PAVEMENT_Z_MAX)]:
 			a.line(a.iso(x,span.x),a.iso(x,span.y),"c5cbb3",.7)
-	# A smooth continuous curb follows the reference; its door gap stays flush.
-	var before=[];var after=[]
-	for edge in stop_edges:
-		if edge.y<BOARDING_GAP.x:before.append(a.iso(edge.x,edge.y))
-		elif edge.y>BOARDING_GAP.y:after.append(a.iso(edge.x,edge.y))
-	before.append(a.iso(STOP_CURB,BOARDING_GAP.x));after.push_front(a.iso(STOP_CURB,BOARDING_GAP.y))
-	for points in [before,after]:a.art_polyline(PackedVector2Array(points),a.col("bdc7af"),1.4*a.ui_scale)
-
-static func draw_crossing(a):
-	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
-	# A clear continuous pedestrian strip passes over the flush driveway.
-	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
+	# Paving remains at its existing level. A narrow cap occupies only the
+	# pavement edge; its road-facing riser drops below that plane, so there is
+	# no floating raised strip or change to the authored sidewalk silhouette.
+	draw_kerb(a)
 
 static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable()):
 	# All low ground plants precede elevated structures. Never paint a ground
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
-	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-7.15),1,"a2b3b3" if i==2 else "ddcdb0")
 	draw_shelter(a,under_roof)
 	if front_people.is_valid():front_people.call()
 	draw_bus(a,BUS_POSITION)
 
 static func draw_shelter(a,under_roof:Callable=Callable()):
+	if not screen_visible(a,world_bounds(a,Rect2(-14,5,4,7),88)):
+		# People keep their own visibility and the same depth-order callback.
+		if under_roof.is_valid():under_roof.call()
+		return
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -205,6 +257,7 @@ static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
 
 static func draw_car(a,p:Vector2,direction:int,color):
+	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
 	var half=.60;var length=1.1
 	quad(a,p.x-half,p.y-length,p.x+half,p.y+length,Color(.35,.42,.33,.14))
 	for z in [-length*.67,length*.67]:
@@ -231,6 +284,7 @@ static func bus_face(a,p:Vector2,x:float,z0:float,z1:float,h0:float,h1:float,col
 	a.rounded_poly([bus_point(a,p,x,z0,h0),bus_point(a,p,x,z1,h0),bus_point(a,p,x,z1,h1),bus_point(a,p,x,z0,h1)],radius*a.ui_scale*a.zoom,color)
 
 static func draw_bus(a,p:Vector2):
+	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(1,2.85),Vector2(2,5.7)),60)):return
 	# A dedicated original 2D illustration, not an elongated passenger car.
 	var scale=a.ui_scale*a.zoom;var half=.77;var length=2.60
 	quad(a,p.x-.85,p.y-2.7,p.x+.85,p.y+2.7,Color(.35,.42,.33,.16))

@@ -15,11 +15,21 @@ func run():
  check(not game.save_recovery_blocked and game.model.dining_sets.size()==4,"fresh public default plus explicit four-table fixture starts")
  check(game.model.place("stove",5,1),"second accessible stove places")
  game.model.cooks=2;game.model.duty_targets.chef=2;game.model.duty_counts.chef=2;game._update_people();game._sync_staff_duty()
- # Keep the actual bounded arrival clock valid for the mid-service save.
+ # Request exactly four dining visits in the original two street-approach
+ # batches. Extra outside demand belongs to the queue suite; an earlier
+ # queue admission would change this fixture's concurrent service workload.
  var blocked_worker={};var held=[];var blocker_id=-1;var blocked_ticks=0;var restored=false;var done=false
  var other_completed=false;var other_progressed=false;var stationary=0;var last=Vector2.INF
+ var admitted_visits={};var requested_visits={}
  for tick in 15000:
-  if game.model._next_customer_id==5 and game.model.customers.all(func(g):return bool(g.admitted)):game.model.set_operating_open(false)
+  game.model._arrival_elapsed=0.0 # Valid saved clock; no extra automatic requests.
+  if requested_visits.size()<4 and not game.model.customers.any(func(g):return g.phase=="arriving"):
+   game.model._spawn_customer()
+  for guest in game.model.customers:requested_visits[int(guest.id)]=true
+  # Outside requests share the ID allocator but do not count as dining visits.
+  for guest in game.model.customers:
+   if bool(guest.admitted):admitted_visits[int(guest.id)]=true
+  if admitted_visits.size()>=4:game.model.set_operating_open(false)
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
   if blocked_worker.is_empty():
    for staff in game.staff_states:
@@ -73,7 +83,7 @@ func run():
     check(repaired,"clear stove without cancelling meal: "+game.model.last_error)
     if not repaired:break
     game._rebuild_furniture();restored=true
-  elif game.model._next_customer_id==5 and game.model.customers.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):
+  elif admitted_visits.size()==4 and game.model.customers.is_empty() and game.model.outside_queue.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):
    done=true;break
   if tick%180==0:await process_frame
  var state=[]
