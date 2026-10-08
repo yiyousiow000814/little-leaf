@@ -3,6 +3,7 @@ extends RefCounted
 # stays available for regression tests; saved restaurants are never replaced.
 static func apply(model):
 	model.reset_new()
+	model.first_guest_pending=true
 	var basics:Array[Dictionary]=[]
 	for item in model.items:
 		if int(item.id) in [1,2,3,4,6,7]:

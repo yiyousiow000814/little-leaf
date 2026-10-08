@@ -1,18 +1,19 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Little Leaf Café offline release notes",
-  "description": "The release owner supplies the actual shipped version, date, and bullets before changing status to released. Pending data is never shown as a new release.",
+  "description": "The release owner supplies the actual shipped version, date, and bullets before changing status to released. Pending and draft data are never shown as a new release. Draft metadata and review notes remain internal until publication is approved.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "status", "version", "date", "label", "new", "fixed"],
   "properties": {
     "schema_version": {"const": 1},
-    "status": {"enum": ["pending", "released"]},
+    "status": {"enum": ["pending", "draft", "released"]},
     "version": {"type": ["string", "null"]},
     "date": {"type": ["string", "null"]},
     "label": {"type": ["string", "null"]},
     "new": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}},
-    "fixed": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}}
+    "fixed": {"type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}},
+    "review_pending": {"description": "Internal review gaps; never displayed as shipped release notes.", "type": "array", "items": {"type": "string", "minLength": 1, "pattern": "\\S"}}
   },
   "allOf": [
     {

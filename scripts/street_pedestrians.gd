@@ -57,14 +57,26 @@ func advance(delta:float,queue_positions:Array=[]):
 			motion.remove(walker.key);active_motion.erase(walker.key)
 			departures.erase(id)
 
-func observe_customers(customers:Array,delta:float,walk_speed:float):
+func observe_customers(customers:Array,delta:float,walk_speed:float,parking_visits:Array=[]):
 	# The simulation has already completed the real exit and released its
 	# service ownership. Continue exactly that animal down the same pavement
 	# lane without extending a bill, table reservation, or cleaning clock.
 	var live={}
 	var next={}
+	var parking_ids={}
+	for visit in parking_visits:parking_ids[int(visit.id)]=true
+	for guest in customers:
+		if bool(guest.get("parking_visit",false)):parking_ids[int(guest.id)]=true
+	# Parking owns the return walk and vehicle departure. Retire an old visual
+	# handoff too, including its motion rig, when loading/reconciling that owner.
+	for id in parking_ids:
+		observed_leaving.erase(id)
+		if departures.has(id):
+			var key=str(departures[id].key)
+			motion.remove(key);active_motion.erase(key);departures.erase(id)
 	for guest in customers:
 		live[int(guest.id)]=guest
+		if parking_ids.has(int(guest.id)):continue
 		if str(guest.phase)!="leaving" or guest.route.is_empty():continue
 		var position=Vector2(float(guest.x),float(guest.z))
 		var end:Vector2=guest.route[-1]

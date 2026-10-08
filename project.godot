@@ -13,7 +13,14 @@ config_version=5
 run/max_fps=60
 
 config/name="Little Leaf Cafe"
-config/version="0.1.8"
+config/icon="res://assets/branding/little_leaf_approved_v3.png"
+boot_splash/bg_color=Color(0.8, 0.89, 0.91, 1)
+boot_splash/image="res://assets/branding/little_leaf_approved_v3.png"
+boot_splash/minimum_display_time=0
+boot_splash/show_image=true
+boot_splash/stretch_mode=0
+boot_splash/use_filter=true
+config/version="0.1.10"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 

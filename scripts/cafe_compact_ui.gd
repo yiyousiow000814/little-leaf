@@ -85,7 +85,6 @@ var wall_review_text:Label
 var wall_confirm_button:Button
 var pending_wall={}
 var manage_access:Button
-var help_access:Button
 var earnings:PanelContainer
 var earnings_text:Label
 var earnings_seconds=0.0
@@ -147,6 +146,7 @@ func _popup_panels()->Array:
  var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
  if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
+ if shop_ui!=null and is_instance_valid(shop_ui.parking_review):panels.append(shop_ui.parking_review)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
@@ -164,7 +164,6 @@ func setup():
  for b in game.category_buttons.values():b.custom_minimum_size=Vector2(61,40);b.add_theme_font_size_override("font_size",13)
  var stretch=Control.new();stretch.size_flags_horizontal=Control.SIZE_EXPAND_FILL;categories.add_child(stretch)
  manage_access=_small_button("Manage",show_management,74);categories.add_child(manage_access)
- help_access=_small_button("?",show_help,44);categories.add_child(help_access)
  context=Control.new();context.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(context);column.move_child(context,2)
  context_label=game.label("",13);context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;context.add_child(context_label)
  rotate_button=_small_button("Rotate",_rotate_selected);context.add_child(rotate_button)
@@ -180,7 +179,7 @@ func setup():
   var labels=card.get_child(0).get_children()
   labels[-1].text=Money.amount(game.model.wall_price("half"))+"–"+Money.amount(game.model.wall_price("full")) if key=="full" else Money.amount(game.model.attachment_price(key))
   labels[-2].text="Wall" if key=="full" else str(key).capitalize()
-  card.tooltip_text="Choose height and style, then place or replace one wall tile" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
+  card.tooltip_text="Browse wall styles, then place or replace one wall tile" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
  var wall_card=game.build_tools.tool_buttons["full"]
  for signal_link in wall_card.pressed.get_connections():wall_card.pressed.disconnect(signal_link.callable)
  wall_card.pressed.connect(func():product_target="";show_wall_product())
@@ -260,13 +259,13 @@ func setup():
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
  settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox);settings_box.move_child(settings_inbox,settings_box.get_child_count()-2)
- settings_help=_small_button("Help & updates",_show_help_from_settings);settings_help.accessibility_name="Help and update notes";settings_box.add_child(settings_help);settings_box.move_child(settings_help,settings_box.get_child_count()-2)
+ settings_help=_small_button("Help & Updates",_show_help_from_settings);settings_help.accessibility_name="Help and update notes";settings_box.add_child(settings_help);settings_box.move_child(settings_help,settings_box.get_child_count()-2)
  for c in settings_box.get_children():
   if c is Label:
    if c.text=="Changes are saved automatically":c.hide()
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
- for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
+ for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
   hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
@@ -275,7 +274,7 @@ func setup():
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
- _add_update_badge(help_access);_add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
+ _add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -404,7 +403,7 @@ func sync():
   var tab=game.category_buttons[k];tab.custom_minimum_size.x=44 if width<650 else 68
   tab.text=k
   tab.add_theme_font_size_override("font_size",12 if width<650 else 13)
- manage_access.hide();help_access.show();management.hide()
+ manage_access.hide();management.hide()
  manage_access.text="Manage";manage_access.custom_minimum_size.x=74;manage_access.tooltip_text="Upgrades and plots"
  # Secondary game actions stay with Decorate, including on narrow screens.
  categories.add_theme_constant_override("h_separation",3 if width<650 else 4)
@@ -509,6 +508,9 @@ func _set_help_modal(enabled:bool):
 func _help_tab(event:InputEventKey)->bool:
  if not help_panel.visible or event.keycode!=KEY_TAB:return false
  var controls=[help_scroll]
+ if game.get("tutorial")!=null:
+  for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
+   if button.visible and not button.disabled:controls.append(button)
  if help_retry.visible and not help_retry.disabled:controls.append(help_retry)
  controls.append_array([help_overview,help_notes,help_done])
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
@@ -595,6 +597,8 @@ func show_finishes():
  product_target=selected_shell if selected_shell!="" else selected_wall
  show_wall_product()
 func show_wall_product():
+ if shop_ui!=null:
+  shop_ui.show_walls(product_target);return
  game.settings.hide()
  wall_papers.clear()
  for name in game.build_tools.MATERIAL_NAMES:wall_papers.add_item(name)
@@ -666,7 +670,7 @@ func _sync_help_content():
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"

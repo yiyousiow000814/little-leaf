@@ -69,6 +69,51 @@ class MetadataTests(unittest.TestCase):
             (self.root / "project.godot").write_text(text)
             with self.assertRaises(ValueError): version(self.root)
 
+    def test_stable_019_metadata_never_accepts_diagnostic_tags(self):
+        (self.root / "project.godot").write_text('config/version="0.1.9"\n')
+        self.notes["version"] = "0.1.9"; self.save()
+        self.assertEqual(version(self.root, "v0.1.9"), "0.1.9")
+        for tag in ["v0.1.9-alpha-1", "v0.1.9-alpha-2", "v0.1.9-alpha-3", "v0.1.8", "v0.1.10"]:
+            with self.subTest(tag=tag), self.assertRaises(ValueError): version(self.root, tag)
+        for value in ["0.1.9-alpha-1", "0.1.9-alpha-2"]:
+            (self.root / "project.godot").write_text('config/version="' + value + '"\n')
+            self.notes["version"] = value; self.save()
+            with self.subTest(value=value), self.assertRaises(ValueError): version(self.root, "v" + value)
+
+
+class ReleaseNotesContractTests(unittest.TestCase):
+    """Guard the checked-in draft contract without adding CI dependencies."""
+    root = Path(__file__).resolve().parents[1]
+
+    def test_checked_in_document_uses_declared_schema_fields_and_status(self):
+        notes = json.loads((self.root / "data/release_notes.json").read_text())
+        schema = json.loads((self.root / "data/release_notes.schema.json").read_text())
+        self.assertFalse(schema["additionalProperties"])
+        self.assertTrue(set(schema["required"]).issubset(notes))
+        self.assertTrue(set(notes).issubset(schema["properties"]))
+        self.assertIn(notes["status"], schema["properties"]["status"]["enum"])
+        self.assertEqual(schema["properties"]["schema_version"]["const"], notes["schema_version"])
+        self.assertIn("draft", schema["properties"]["status"]["enum"])
+        review = schema["properties"]["review_pending"]
+        self.assertEqual(review["type"], "array")
+        self.assertEqual(review["items"], {"type": "string", "minLength": 1, "pattern": r"\S"})
+        for item in notes.get("review_pending", []):
+            self.assertIsInstance(item, str)
+            self.assertTrue(item.strip())
+
+    def test_draft_with_populated_review_metadata_is_never_publishable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "data").mkdir()
+            (root / "project.godot").write_text('config/version="0.1.10"\n')
+            notes = {"schema_version": 1, "status": "draft", "version": "0.1.10",
+                     "date": "2026-01-01", "label": "Candidate", "new": ["Candidate change"],
+                     "fixed": [], "review_pending": ["Visual acceptance still open"]}
+            (root / "data/release_notes.json").write_text(json.dumps(notes))
+            self.assertEqual(version(root), "0.1.10")
+            with self.assertRaisesRegex(ValueError, "marked released"):
+                version(root, "v0.1.10")
+
 
 class MainHistoryTests(unittest.TestCase):
     def setUp(self):
@@ -104,6 +149,26 @@ class MainHistoryTests(unittest.TestCase):
 
 
 class ItchGuardTests(unittest.TestCase):
+    def test_completed_alpha2_can_promote_to_stable_019(self):
+        self.assertEqual(check_previous(status("0.1.9-alpha-2"), "0.1.9"), 55)
+
+    def test_stable_019_still_rejects_duplicate_or_newer_baselines(self):
+        for value in ["0.1.9", "v0.1.9", "0.1.9+build.2", "0.1.10-alpha-2", "0.1.10", "0.2.0"]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                check_previous(status(value), "0.1.9")
+
+    def test_alpha2_promotion_requires_completed_idle_channel(self):
+        for state in ["failed", "started", "processing", "queued", "canceled"]:
+            with self.subTest(state=state), self.assertRaises(ValueError):
+                check_previous(status("0.1.9-alpha-2", state=state), "0.1.9")
+        with self.assertRaises(ValueError):
+            check_previous(status("0.1.9-alpha-2", pending={"id": 56, "state": "processing"}), "0.1.9")
+
+    def test_alpha2_promotion_still_rejects_malformed_baselines(self):
+        for value in ["0.1.9-alpha-2.", "0.1.9-alpha-2+", "0.1.9-alpha-2.01", "0.1.9-alpha-2\n"]:
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                check_previous(status(value), "0.1.9")
+
     def test_upgrade(self):
         self.assertEqual(check_previous(status(), "0.1.6"), 55)
 
@@ -219,6 +284,18 @@ class ArtifactTests(unittest.TestCase):
         return verify_artifact(self.web, "v0.1.6", SHA)
 
     def test_valid(self): self.assertEqual(self.verify(), self.manifest)
+
+    def test_stable_019_requires_exact_stable_artifact(self):
+        self.manifest.update(tag="v0.1.9", version="0.1.9"); self.save()
+        self.assertEqual(verify_artifact(self.web, "v0.1.9", SHA), self.manifest)
+        self.manifest.update(tag="v0.1.9-alpha-2", version="0.1.9-alpha-2"); self.save()
+        with self.assertRaises(ValueError): verify_artifact(self.web, "v0.1.9", SHA)
+
+    def test_diagnostic_artifacts_remain_ineligible_for_stable_publisher(self):
+        for value in ["0.1.9-alpha-1", "0.1.9-alpha-2", "0.1.9-alpha-3"]:
+            self.manifest.update(tag="v" + value, version=value); self.save()
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                verify_artifact(self.web, "v" + value, SHA)
 
     def test_wrong_commit(self):
         self.manifest["source_commit"] = "b" * 40; self.save()

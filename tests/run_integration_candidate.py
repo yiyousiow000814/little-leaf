@@ -5,10 +5,13 @@ Requires Python 3 and Godot 4.6.3. Example:
   python3 tests/run_integration_candidate.py --output /tmp/little-leaf-qa
 """
 import argparse
-import fcntl
 import hashlib
 import json
 import os
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 import re
 from pathlib import Path
 import shutil
@@ -18,6 +21,16 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_fresh_service", "FRESH_SERVICE_RESULT"),
+    ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
+    ("test_first_guest", "FIRST_GUEST_RESULT"),
+    ("test_parking", "PARKING_RESULT"),
+    ("test_parking_decor_ui", "PARKING_DECOR_UI_RESULT"),
+    ("test_parking_render", "PARKING_RENDER_RESULT"),
+    ("test_parking_service", "PARKING_SERVICE_RESULT"),
+    ("test_parking_validation", "PARKING_VALIDATION_RESULT"),
+    ("test_background_cache", "BACKGROUND_CACHE_RESULT"),
+
     ("test_shell_draw_cache", "SHELL_DRAW_CACHE_RESULT"),
     ("test_render_idle", "RENDER_IDLE_RESULT"),
     ("test_render_visibility", "RENDER_VISIBILITY_RESULT"),
@@ -36,6 +49,18 @@ SUITES = [
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
     ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
+    ("test_ambient_traffic_culling", "AMBIENT_TRAFFIC_CULLING_RESULT"),
+    ("test_environment_scope", "ENVIRONMENT_SCOPE_RESULT"),
+    ("test_environment", "ENVIRONMENT_RESULT"),
+    ("test_bus_stop", "BUS_STOP_RESULT"),
+    ("test_environment_camera_access", "ENVIRONMENT_CAMERA_ACCESS_RESULT"),
+
+    ("test_fit_owned_cafe", "FIT_OWNED_CAFE_RESULT"),
+    ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
+    ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
+    ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
+
+    ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
     ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
     ("test_shell_segment_model", "SHELL_SEGMENT_MODEL_RESULT"),
@@ -46,10 +71,14 @@ SUITES = [
     ("test_hud_icon_scale", "HUD_ICON_SCALE_RESULT"),
     ("test_hud_layout", "HUD_LAYOUT_RESULT"),
     ("test_toolbar_help", "TOOLBAR_HELP_RESULT"),
+    ("test_update_notes", "UPDATE_NOTES_RESULT"),
     ("test_mobile_toolbar", "MOBILE_TOOLBAR_RESULT"),
     ("test_wallet_alignment", "WALLET_ALIGNMENT_RESULT"),
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_build_tiles_ui", "BUILD_TILES_UI_RESULT"),
+    ("test_build_actor_positions", "BUILD_ACTOR_POSITIONS_RESULT"),
+    ("test_existing_wall_actions", "EXISTING_WALL_ACTIONS_RESULT"),
+    ("test_build_wall_ui", "BUILD_WALL_UI_RESULT"),
     ("test_staff_header_done", "STAFF_HEADER_DONE_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),
     ("test_no_bottom_notifications", "NO_BOTTOM_NOTIFICATIONS_RESULT"),
@@ -130,6 +159,8 @@ def main():
         raise SystemExit("Use a new output directory to preserve prior evidence")
     qa = ROOT / "qa-project"
     qa.mkdir(exist_ok=True)
+    if qa.is_symlink():
+        raise RuntimeError("Disposable fixture root cannot be a symlink")
     godot = os.environ.get("GODOT_BIN", "godot")
     report = {"mode": "headless engine only", "source_commit": subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                     capture_output=True, text=True).stdout.strip() or "source archive",
@@ -138,16 +169,24 @@ def main():
     source_files = [p for p in ROOT.rglob("*") if p.is_file() and
                     not any(part in {".git", ".godot", "qa-project", "__pycache__"}
                             for part in p.relative_to(ROOT).parts)]
-    report["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
+    report["source_sha256"] = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                                for p in sorted(source_files)}
 
     def save():
         (output / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
 
-    with args.lock.open("a") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa) as temp:
+    with args.lock.open("a+b") as lock:
+        if os.name == "nt":
+            lock.seek(0)
+            lock.write(b"\0"); lock.flush(); lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
+        else:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa,
+                                             ignore_cleanup_errors=(os.name == "nt")) as temp:
             temp = Path(temp).resolve()
+            if not temp.is_relative_to(qa.resolve()):
+                raise RuntimeError("Disposable fixture escaped its reviewed root")
             project = temp / "project"
             shutil.copytree(ROOT, project, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
@@ -164,14 +203,14 @@ def main():
             def env_for(name):
                 env = os.environ.copy()
                 for key in ["HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
-                    directory = temp / "profiles" / name / key.lower()
+                    directory = temp / "profiles" / name / ("windows-data" if os.name == "nt" else key.lower())
                     directory.mkdir(parents=True, exist_ok=True)
-                    env[key] = str(directory)
+                    env[key] = directory.as_posix()
                 return env
 
             def run(name, arguments, env, marker=None):
                 start = time.monotonic()
-                command = [godot, "--headless", "--path", str(project), *arguments]
+                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *arguments]
                 completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, timeout=300)
                 text = completed.stdout.decode("utf-8", errors="replace")
@@ -200,6 +239,11 @@ def main():
                           "failures": [f for p in payloads for f in p.get("failures", [])],
                           "diagnostics": [l for l in text.splitlines() if "WARNING" in l or "ERROR" in l],
                           "log": name + ".log"}
+                # Bind derived UI receipts to the exact aggregate report used
+                # by the export manifest, rather than trusting a loose JSON file.
+                result_file = env.get("LL_UI_RESULT")
+                if result_file and Path(result_file).is_file():
+                    record["result_sha256"] = hashlib.sha256(Path(result_file).read_bytes()).hexdigest()
                 report["records"].append(record)
                 save()
                 print(json.dumps(record), flush=True)
@@ -217,6 +261,8 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script != "test_interactive_tutorial":
+                        flags.append("--skip-tutorial")
                     if script != "test_intro_lifecycle_headless":
                         flags.append("--skip-intro")
                     # These controller fixtures never create the game scene. The
@@ -231,7 +277,7 @@ def main():
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
                 env = env_for("staff-start-generated-profile")
-                save_dir = Path(env["XDG_DATA_HOME"]) / "godot/app_userdata/Little Leaf Cafe"
+                save_dir = Path(env["XDG_DATA_HOME"]) / ("Godot/app_userdata/Little Leaf Cafe" if os.name == "nt" else "godot/app_userdata/Little Leaf Cafe")
                 save_file = save_dir / "little_leaf_cafe_layout_motion_v15.json"
                 for case in (["empty-profile", "fresh", "saved-load", "standalone-load", "bad-load"]
                              if "staff-start" in selected else []):
@@ -245,7 +291,7 @@ def main():
                         shutil.copy2(save_dir / "staff-start-standalone.json", save_file)
                     elif case == "bad-load":
                         save_file.write_text("not a valid cafe")
-                    flags = ["--visual-qa", "--skip-intro"]
+                    flags = ["--visual-qa", "--skip-intro", "--skip-tutorial"]
                     if case == "fresh":
                         flags.append("--fresh-review")
                     run("staff-start-" + case, ["--script", "res://tests/test_staff_start.gd", "--", *flags],
@@ -258,6 +304,11 @@ def main():
                 report["total_checks"] = sum(r["checks"] for r in report["records"])
                 report["test_processes"] = len(report["records"]) - 1
                 save()
+    report["disposable_fixture_retained"] = temp.exists()
+    if temp.exists():
+        report["disposable_fixture_path"] = str(temp)
+        report["cleanup_note"] = "Windows may retain task-only fixture files while filesystem handles close; no process termination attempted"
+    save()
     print(json.dumps({k: report[k] for k in ["status", "total_checks", "test_processes"]}), flush=True)
 
 

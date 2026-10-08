@@ -16,8 +16,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     # Existing two-engine/compatibility budget plus Log (5m), recovery (9m),
-    # and WebKit provisioning headroom. Every gate remains mandatory.
-    timeout-minutes: 50
+    # fresh tutorial (6m), and WebKit provisioning headroom. All gates remain mandatory.
+    timeout-minutes: 55
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
@@ -33,12 +33,16 @@ jobs:
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
+          node tests/boot_presentation.js
+          node tests/fresh_tutorial_browser_test.js
+          node --check tests/fresh_tutorial_browser.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
           node tests/web_performance_lifecycle.js
           node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
           node tests/wall_compatibility_helpers_test.js
+          node tests/wall_compatibility_ocr_test.js
           node --check tests/wall_compatibility_browser.js
           node --check tests/save_log_browser.js
           node --check tests/connection_recovery_browser.js
@@ -67,20 +71,6 @@ jobs:
           path: ${{ runner.temp }}/web-build/web/
           if-no-files-found: error
           retention-days: 7
-      - name: Check out the exact historical wall-format-1 client
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
-          path: .compatibility-old
-          persist-credentials: false
-      - name: Test and export the unchanged historical client once
-        run: |
-          test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
-          cmp ci/toolchain.json .compatibility-old/ci/toolchain.json
-          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence"
-          python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
-      - name: Bind compatibility inputs and derive UI coordinates
-        run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -96,10 +86,32 @@ jobs:
           node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        timeout-minutes: 6
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Check out the exact historical wall-format-1 client
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          path: .compatibility-old
+          persist-credentials: false
+      - name: Test and export the unchanged historical client once
+        run: |
+          test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+          cmp ci/toolchain.json .compatibility-old/ci/toolchain.json
+          python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
+          python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
+      - name: Bind compatibility inputs and derive UI coordinates
+        run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
       - name: Verify actual old and new Web save compatibility
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
+          node tests/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Verify exported save diagnostic in sandboxed Chromium
         timeout-minutes: 5

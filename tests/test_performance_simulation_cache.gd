@@ -1,6 +1,9 @@
 extends SceneTree
 const Model=preload("res://scripts/cafe_model.gd")
 const Main=preload("res://scripts/main.gd")
+class AdmissionModel extends "res://scripts/cafe_model.gd":
+ var attempts=0
+ func _try_admit_queued_visitor(_visitor:Dictionary)->bool:attempts+=1;return false
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -36,4 +39,26 @@ func run():
  check(game._staff_route_invalid(staff,m.navigation_signature()),"changed route cannot reuse old validation")
  for node in [game.world,game.furnishings,game.people,game.camera,game.ui]:node.free()
  game.free()
+ var admission=AdmissionModel.new();admission.customers.clear()
+ var visitor={"id":99,"x":-1.6,"z":7.5}
+ for i in 10:admission._admit_queued_visitor(visitor)
+ check(admission.attempts==1,"unchanged failed FIFO request retries only once")
+ admission.customers.append({"id":1,"table_id":1,"chair_id":2,"phase":"arriving"});admission._admit_queued_visitor(visitor)
+ check(admission.attempts==2,"arrival slot occupancy invalidates")
+ admission.customers[0].phase="eating";admission._admit_queued_visitor(visitor)
+ check(admission.attempts==3,"freeing arrival slot invalidates")
+ admission.customers[0].elapsed=123.0;admission._admit_queued_visitor(visitor)
+ check(admission.attempts==3,"elapsed-only change preserves failed admission cache")
+ admission.customers[0].withdrawn=true;admission._admit_queued_visitor(visitor)
+ check(admission.attempts==4,"withdrawal releases seat and invalidates")
+ admission.items[0].rot+=1;admission._admit_queued_visitor(visitor)
+ check(admission.attempts==5,"rotation invalidates admission")
+ admission.wall_attachments.clear();admission._admit_queued_visitor(visitor)
+ check(admission.attempts==6,"door removal invalidates admission")
+ admission.shell_products["west"]="half";admission._admit_queued_visitor(visitor)
+ check(admission.attempts==7,"shell host change invalidates admission")
+ visitor.id=100;admission._admit_queued_visitor(visitor)
+ check(admission.attempts==8,"new FIFO head invalidates admission")
+ admission.operating_open=false;admission._admit_queued_visitor(visitor)
+ check(admission.attempts==9,"closed cafe invalidates admission")
  print("PERFORMANCE_SIMULATION_CACHE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"status":"passed" if failures.is_empty() else "failed"}));quit(0 if failures.is_empty() else 1)

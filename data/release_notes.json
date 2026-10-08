@@ -1,13 +1,24 @@
 {
   "schema_version": 1,
-  "status": "released",
-  "version": "0.1.8",
-  "date": "2026-10-05",
-  "label": "Café interface cleanup",
-  "new": [],
+  "status": "draft",
+  "version": "0.1.10",
+  "date": "2026-10-08",
+  "label": "Developer preview",
+  "new": [
+    "Outside visitors wait in a separate queue before seated service begins.",
+    "Add a four-bay parking upgrade for 2,000 coins in Decorate. Customers park, visit the cafe, then return to their cars and drive away.",
+    "Roadside scenery, passing traffic and bus-stop visitors."
+  ],
   "fixed": [
-    "Centered the Coins balance and improved large-number display with an exact-balance hint.",
-    "Shifted character bubbles slightly right while keeping their tails aligned with their characters.",
-    "Removed the bottom notification feature and its repeated status messages."
+    "Welcome now leads into a moving cafe, with Little Leaf branding while the game loads.",
+    "Browse Wall styles in the Build tray, with improved placement and replacement of walls, doors and windows.",
+    "Decorate hides outside people and uses the original Play camera range.",
+    "Clearer controls, softer wall-selection outlines, rounded coin icons and better frame-rate selector spacing.",
+    "Improved Inbox history after CrazyGames progress submission.",
+    "More reliable service, cleaning, work positions and build-session refunds, with less repeated rendering and route work."
+  ],
+  "review_pending": [
+    "Interactive tutorial and authentic fresh-customer flow are under developer validation.",
+    "Official submission and publication are on hold until the revised quality scope is ready."
   ]
 }
