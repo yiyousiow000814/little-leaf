@@ -5,6 +5,7 @@ const BODY_CLEARANCE=.27
 const MAX_REACH=1.15
 const NO_CELL=Vector2i(-1,-1)
 const DIRECTIONS=[Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP]
+const FloorApproach=preload("res://scripts/floor_cleaning_approach.gd")
 var game
 var layout_revision=-1
 var layout_cache={}
@@ -160,10 +161,11 @@ static func nearest_boundary(point:Vector2,outline:Array)->Vector2:
 static func outside(point:Vector2,outline:Array,clearance=BODY_CLEARANCE)->bool:
 	return outline.size()>=3 and not Geometry2D.is_point_in_polygon(point,PackedVector2Array(outline)) and point.distance_to(nearest_boundary(point,outline))>=clearance
 
-func work_cells(entry:Dictionary)->Array:
+func work_cells(entry:Dictionary,action:String="")->Array:
 	var shape=ensure(entry);var result=[]
 	if not layout_clear(shape):return result
-	var cache_key=hash(shape)
+	if action=="":action="sweeping" if str(entry.get("trash_owner","none"))=="floor" and str(entry.get("floor_debris","none")) in ["banana","crumbs"] else "mopping"
+	var cache_key=hash([shape,action])
 	if work_cell_cache.has(cache_key):return work_cell_cache[cache_key]
 	var anchor:Vector2=shape.center;var base=Vector2i(floori(anchor.x),floori(anchor.y))
 	for dz in range(-2,3):
@@ -177,7 +179,13 @@ func work_cells(entry:Dictionary)->Array:
 			var clear=true;var samples=maxi(1,ceili(center.distance_to(contact)/.1))
 			for step in range(samples+1):
 				if not _point_clear(center.lerp(contact,step/float(samples))):clear=false;break
-			if clear:result.append(cell)
+			if not clear:continue
+			# A reachable tool endpoint is not enough: the cleaner must also
+			# fit the bounded physical approach. The existing destination/claim
+			# policy chooses another side or leaves the unchanged mess pending.
+			var actual_contact=_contact_from(entry,shape,center,action)
+			if FloorApproach.solve(center,actual_contact,game.model).obstruction!="":continue
+			result.append(cell)
 	work_cell_cache[cache_key]=result
 	return result
 
@@ -197,8 +205,8 @@ func available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
 			if bool(other_mess.get("floor_dirty",false)) and not bool(other_mess.get("floor_cleaned",false)) and other_mess.has("mess_shape") and not outside(point,other_mess.mess_shape.outline):return false
 	return true
 
-func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
-	var cells=work_cells(entry)
+func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:
+	var cells=work_cells(entry,action)
 	var pinned:Vector2i=entry.get("floor_work_cell",NO_CELL)
 	if cells.has(pinned) and available(pinned,staff,claimed) and (from==pinned or not game._static_service_path(from,pinned).is_empty()):return pinned
 	var best=NO_CELL;var shortest=1000000
@@ -213,10 +221,14 @@ func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array)-
 	return best
 
 func contact_target(entry:Dictionary,staff:Dictionary,action:String)->Vector2:
-	var shape=ensure(entry);var outline:Array=shape.spill_outline if action=="mopping" else shape.outline
-	if outline.is_empty():return entry.spill_target if action=="mopping" else entry.debris_target
+	var shape=ensure(entry)
 	var cell:Vector2i=entry.get("floor_work_cell",NO_CELL)
 	var from=Vector2(cell)+Vector2(.5,.5) if cell!=NO_CELL else Vector2(staff.pos)
+	return _contact_from(entry,shape,from,action)
+
+static func _contact_from(entry:Dictionary,shape:Dictionary,from:Vector2,action:String)->Vector2:
+	var outline:Array=shape.spill_outline if action=="mopping" else shape.outline
+	if outline.is_empty():return entry.spill_target if action=="mopping" else entry.debris_target
 	# A fixed near-edge point keeps the cleaner's facing stable while the
 	# painted spill shrinks. The animation moves only the tool around it.
 	var edge=nearest_boundary(from,outline)

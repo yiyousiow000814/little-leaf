@@ -15,12 +15,15 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Existing two-engine/compatibility budget plus Log (5m), recovery (9m),
+    # and WebKit provisioning headroom. Every gate remains mandatory.
+    timeout-minutes: 50
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify metadata and CI guard tests
         env:
@@ -28,10 +31,16 @@ jobs:
         run: |
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
+          node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
+          node tests/save_log_observers.js
+          node tests/save_log_privacy.js
+          node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
           node tests/wall_compatibility_helpers_test.js
           node --check tests/wall_compatibility_browser.js
+          node --check tests/save_log_browser.js
+          node --check tests/connection_recovery_browser.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -40,6 +49,15 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Export separate CrazyGames variant after the unchanged complete Web gate
+        run: python3 ci/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+      - name: Retain separate CrazyGames export for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/web/
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain engine-tested Web export before browser validation
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -62,15 +80,19 @@ jobs:
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
       - name: Bind compatibility inputs and derive UI coordinates
         run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+      - name: Install shared pinned browser tools
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
       - name: Verify compensation history in sandboxed Chromium
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
-          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
-          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
-          google-chrome --version
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
       - name: Verify actual old and new Web save compatibility
@@ -78,6 +100,18 @@ jobs:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser"
+      - name: Verify exported save diagnostic in sandboxed Chromium
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
+      - name: Verify closed-connection recovery in actual exported WebKit game
+        timeout-minutes: 9
+        env:
+          RUNTIME_BROWSER: webkit
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Keep test and export evidence (never profiles or credentials)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -87,6 +121,7 @@ jobs:
             ${{ runner.temp }}/engine-evidence/*.json
             ${{ runner.temp }}/engine-evidence/*.log
             ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
             ${{ runner.temp }}/old-engine-evidence/*.json
             ${{ runner.temp }}/old-engine-evidence/*.log
             ${{ runner.temp }}/old-web-build/evidence/

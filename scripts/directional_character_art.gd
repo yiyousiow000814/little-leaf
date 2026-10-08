@@ -250,6 +250,11 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   waiter_tablet.draw_hands(a,origin,fur,shadow)
   if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
  if not overlay:
+  if back and not hide and not cleaning_pose.is_empty():
+   # Floor work faces away from the viewer. Shafts, floor heads and the far
+   # grip must be behind the intact torso/head, not painted across its back.
+   a._draw_floor_tools(origin,cleaning_pose,action,payload)
+   if action=="sweeping":ellipse(far_tip,Vector2(2.0,2.0),shadow)
   if not washing_pose.is_empty():washing_arm(washing_pose.far,shadow,4.4,species,false)
   else:paw(far_shoulder,far_tip,shadow,4.4)
  var far_hip:Vector2=legs.far_hip;var near_hip:Vector2=legs.near_hip
@@ -326,9 +331,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    CheckoutArt.hand_prop(a,origin+payment_pose.hand,t,action=="taking_payment")
    ellipse(payment_pose.hand,Vector2(1.8,1.8),fur if payment_pose.use_near else shadow)
   elif not cleaning_pose.is_empty():
-   a._draw_floor_tools(origin,cleaning_pose,action,payload)
-   # Paws sit over the shafts, making the grip visible at any facing.
-   if action=="sweeping":ellipse(far_tip,Vector2(2.0,2.0),shadow)
+   if not back:
+    a._draw_floor_tools(origin,cleaning_pose,action,payload)
+    if action=="sweeping":ellipse(far_tip,Vector2(2.0,2.0),shadow)
+   # Only the near grip is in front; the far grip was masked by the body.
    ellipse(near_tip,Vector2(2.1,2.1),fur)
   elif payload=="trash" or tool=="dustpan":
    var carried=disposal_pose if not disposal_pose.is_empty() else CleaningPose.carried_pan(near_tip,back,0.0,false)

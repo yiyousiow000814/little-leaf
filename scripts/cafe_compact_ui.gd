@@ -7,6 +7,8 @@ const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/cafe_inbox.gd")
+const SaveLogPanel=preload("res://scripts/cafe_save_log_panel.gd")
+var save_log_panel
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -143,6 +145,7 @@ func _hide_popups():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
  var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
+ if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
@@ -266,6 +269,8 @@ func setup():
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
   hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
+ save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
+ var log_entry=save_log_panel.make_menu_entry();settings_box.add_child(log_entry);settings_box.move_child(log_entry,settings_box.get_child_count()-2)
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
@@ -348,9 +353,9 @@ func sync():
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false
  var refund=0
- if not opening.is_empty():refund=int(int(opening.paid_cost)/2)
+ if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
  elif not wall.is_empty():
-  refund=int(game.model.wall_price(str(wall.height))/2)
+  refund=game.model.wall_refund(selected_wall)
   remove_button.disabled=not game.model.can_remove_wall(selected_wall)
   if remove_button.disabled:context_label.text="Move opening first"
  elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
@@ -654,6 +659,7 @@ func _sync_help_content():
  help_retry.disabled=help_retry.visible and game.web_save.retrying
  help_retry.text="Loading saved café…" if help_retry.disabled else "Try loading again"
  var save_detail=""
+ if game.web_save!=null and game.web_save.platform_managed:save_detail="Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here.\n\n"
  if game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:
