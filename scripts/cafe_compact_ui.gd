@@ -7,6 +7,8 @@ const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/cafe_inbox.gd")
+const SaveLogPanel=preload("res://scripts/cafe_save_log_panel.gd")
+var save_log_panel
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -143,6 +145,7 @@ func _hide_popups():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
  var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
+ if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
@@ -266,6 +269,8 @@ func setup():
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
   hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
+ save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
+ var log_entry=save_log_panel.make_menu_entry();settings_box.add_child(log_entry);settings_box.move_child(log_entry,settings_box.get_child_count()-2)
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
