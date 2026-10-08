@@ -32,6 +32,24 @@ cp docs/third-party/GODOT-AA-LICENSE.txt build/web/
 
 Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
 
+## Repository boundaries
+
+- `scripts/`: gameplay state, UI, rendering, and engine-side adapters. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
+- `web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
+- `tests/`: repeatable regression suites, browser harnesses, and small source-bound fixtures. State whether a check covers engine behavior, browser behavior, or rendered output.
+- `qa/`: reusable capture, profiling, and diagnostic helpers. Generated screenshots, traces, logs, exports, and disposable profiles belong in ignored output directories, not beside the helpers.
+- `ci/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
+- `.github/workflows/`: orchestration of checks, builds, GitHub Releases, and platform publication. Keep release creation and platform deployment as distinct operations.
+- `docs/`: current development guidance and feature contracts; `docs/archive/` keeps historical review and recovery context. Link from this guide when adding an enduring development workflow.
+
+## Branch and review hygiene
+
+Keep each work branch tied to a focused PR. State its purpose, base, scope, validation, and any dependent PRs. Retire completed or superseded branches after their source and useful evidence are durably preserved.
+
+A temporary integration or preview branch needs a clearly marked tracking draft with pinned source references and an explicit retirement plan. It does not replace separately reviewed feature or platform PRs, and must not become a bundled merge shortcut.
+
+Keep runtime changes, platform integration, test-only repairs, and deployment changes independently reviewable. Prefer a small documentation update to an unrelated cleanup or file move. Preserve asset inputs, history, and recovery evidence before removing obsolete material.
+
 ## Project files
 
 Keep asset inputs, `.import` settings and script `.uid` files tracked. Some fonts and HUD assets use `importer="keep"`; preserve those settings. Generated `.godot/` files, exports and player saves stay out of Git.
