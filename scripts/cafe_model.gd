@@ -313,6 +313,25 @@ func name_of(kind:String)->String:
 func dining_variant_for(id:int)->String:
 	return str(dining_set_for(id).get("variant","oak_single"))
 
+# Transient navigation facts contain no item Dictionary references. Content
+# signatures also cover direct fixture edits/replacements that omit _notify().
+var _navigation_signature:Array=[]
+var _navigation_cells:Dictionary={}
+func navigation_signature()->Array:
+	return [revision,hash(items),hash(owned_parcels),hash(built_walls),hash(wall_attachments),hash(shell_products),hash(shell_segment_products),width,depth]
+
+func navigation_cells()->Dictionary:
+	var signature=navigation_signature()
+	if signature!=_navigation_signature:
+		_navigation_signature=signature
+		_navigation_cells.clear()
+		for item in items:
+			var cell=Vector2i(int(item.x),int(item.z))
+			if not _navigation_cells.has(cell):_navigation_cells[cell]=str(item.kind)!="rug"
+		# Live geometry caches must also notice direct replacement/mutation.
+		_fixed_edge_revision=-1;_wall_index_revision=-1;_collision_revision=-1
+	return _navigation_cells
+
 func get_item(id: int) -> Dictionary:
 	for item in items:
 		if int(item.id) == id:
@@ -1264,7 +1283,8 @@ func path_between(start: Vector2i, finish: Vector2i) -> Array[Vector2i]:
 	## Cardinal BFS over actual walkable grid cells. Both endpoints must be open.
 	## The route includes start/end. Exterior coordinates are deliberately rejected.
 	var empty: Array[Vector2i] = []
-	if not _walkable(start) or not _walkable(finish):
+	var occupied=navigation_cells()
+	if not is_floor_owned(start) or not is_floor_owned(finish) or bool(occupied.get(start,false)) or bool(occupied.get(finish,false)):
 		return empty
 	var previous: Dictionary = {start: start}
 	var queue: Array[Vector2i] = [start]
@@ -1280,7 +1300,7 @@ func path_between(start: Vector2i, finish: Vector2i) -> Array[Vector2i]:
 			return route
 		for direction in DIRECTIONS:
 			var next: Vector2i = current + direction
-			if not previous.has(next) and _walkable(next) and (built_walls.is_empty() or not edge_blocked(current,next)):
+			if not previous.has(next) and is_floor_owned(next) and not bool(occupied.get(next,false)) and (built_walls.is_empty() or not edge_blocked(current,next)):
 				previous[next] = current
 				queue.append(next)
 	return empty
@@ -1463,8 +1483,11 @@ func _guest_route_uses(cell: Vector2i) -> bool:
 
 func _seating_pairs() -> Array[Dictionary]:
 	var pairs: Array[Dictionary] = []
+	var by_id={}
+	for item in items:
+		if not by_id.has(int(item.id)):by_id[int(item.id)]=item
 	for group in dining_sets:
-		var table=get_item(int(group.table_id));var chair=get_item(int(group.seat_id))
+		var table:Dictionary=by_id.get(int(group.table_id),{});var chair:Dictionary=by_id.get(int(group.seat_id),{})
 		if table.is_empty() or chair.is_empty():continue
 		if not edge_blocked(Vector2i(int(table.x),int(table.z)),Vector2i(int(chair.x),int(chair.z))):pairs.append({"table_id":table.id,"chair_id":chair.id})
 	return pairs

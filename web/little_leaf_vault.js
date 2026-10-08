@@ -312,7 +312,6 @@
     };
     return client;
   }
-  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, verifyRecord, fingerprint, hash });
   let retrying = null;
   function retry(callback) {
     // A fresh client reopens storage after a transient boot failure. No saved

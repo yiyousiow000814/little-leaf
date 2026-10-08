@@ -81,10 +81,10 @@ const DOM_SOURCE = """
         }
         listen(document, 'visibilitychange', function () {
             if (document.visibilityState === 'hidden') hide('hidden');
-            else savedForHide = false;
+            else { savedForHide = false; notify('visible', false); }
         });
         listen(window, 'pagehide', function () { hide('pagehide'); });
-        listen(window, 'pageshow', function () { savedForHide = false; });
+        listen(window, 'pageshow', function () { savedForHide = false; if (document.visibilityState !== 'hidden') notify('visible', false); });
         const registration = {
             dispose: function () {
                 if (disposed) return;
@@ -99,6 +99,7 @@ const DOM_SOURCE = """
             }
         };
         api.current = registration;
+        if (document.visibilityState === 'hidden') hide('hidden');
         return registration;
     };
     window[key] = api;
@@ -156,10 +157,13 @@ func _on_browser_event(arguments:Array):
 	# Keep the previous quarantine through the buffer drain and input reset.
 	# New touches stay inert until DOM confirms every physical contact ended.
 	quarantined=bool(arguments[3]) if arguments.size()>3 else false
+	var reason=str(arguments[0]) if not arguments.is_empty() else ""
 	if arguments.size()>1 and bool(arguments[1]):
 		# Cancel previews before the validated runtime snapshot. This is not a
 		# synchronous IndexedDB flush, and page termination may interrupt it.
 		game._save()
+	if reason in ["hidden","pagehide"]:game.set_browser_suspended(true)
+	elif reason=="visible":game.set_browser_suspended(false)
 
 func _gui_nodes(node:Node,result:Array):
 	result.append(node)
