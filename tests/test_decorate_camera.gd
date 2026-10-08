@@ -32,7 +32,7 @@ func run():
       var original=play[directions.find(direction)]
       check(art.pan_offset.distance_to(original.pan)<.1 and art.origin.distance_to(original.origin)<.1 and art.tile.distance_to(original.tile)<.001 and is_equal_approx(art.zoom,original.zoom),"Decorate extrema exactly reuse Play range at matched zoom/viewport")
      var cuts=false;var viewport=Rect2(Vector2.ZERO,size)
-     for z in [art.ExteriorExtent.STREET_Z_MIN,art.ExteriorExtent.STREET_Z_MAX]:cuts=cuts or cutoff_visible(art.iso(-5.5,z),art.iso(art.PAVEMENT_EDGE,z),viewport)
+     for z in [art.ExteriorExtent.STREET_Z_MIN,art.ExteriorExtent.STREET_Z_MAX]:cuts=cuts or cutoff_visible(art.iso(art.Neighborhood.ROAD_LEFT,z),art.iso(art.Neighborhood.ROAD_RIGHT,z),viewport)
      check(not cuts,"original-range extrema never reveal road asset cutoffs")
      observations.append({"viewport":str(view),"editing":editing,"zoom":zoom,"direction":str(direction),"origin":str(art.origin),"pan":str(art.pan_offset),"cutoff_visible":cuts})
     art.queue_redraw();await process_frame

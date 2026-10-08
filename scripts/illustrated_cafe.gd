@@ -59,6 +59,11 @@ const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
 var street_pedestrians=StreetPedestrians.new()
+const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const RoadTraffic=preload("res://scripts/ambient_road_traffic.gd")
+var road_traffic=RoadTraffic.new()
+const BusStopPedestrians=preload("res://scripts/bus_stop_pedestrians.gd")
+var bus_stop_pedestrians=BusStopPedestrians.new()
 const GroundArt=preload("res://scripts/illustrated_ground.gd")
 var ground_art=GroundArt.new()
 # Test-only comparison switch; normal rendering always uses cached ground.
@@ -153,6 +158,8 @@ func _update_street_pedestrians(delta:float):
 	for visitor in game.model.outside_queue:
 		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
 	street_pedestrians.advance(step,queue_positions)
+	road_traffic.advance(step,origin,tile,get_viewport_rect())
+	bus_stop_pedestrians.advance(step,origin,tile,get_viewport_rect())
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
 
@@ -178,6 +185,17 @@ func _draw_street_people(show_service:bool):
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
+		art_transform(Vector2.ZERO)
+
+func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
+	if not show_people:return
+	for actor in bus_stop_pedestrians.entries(origin,tile,get_viewport_rect(),under_roof):
+		var pose=bus_stop_pedestrians.motion.sample(actor.key)
+		var heading=pose.heading if pose.blend>.02 else actor.heading
+		var face=-1.0 if heading.x-heading.y<-.01 else 1.0
+		art_transform(iso(actor.position.x,actor.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		pose["mirror"]=face;pose["view_back"]=heading.x+heading.y<0
+		character(Vector2.ZERO,actor.appearance,false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
 
 func _prune_departed_guest_motion():
@@ -597,16 +615,12 @@ func _draw():
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
 	draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
 	_grass(size)
-	# Street and pavement only on the entrance side, not around the front.
-	poly([iso(-5.5,ExteriorExtent.STREET_Z_MIN),iso(PAVEMENT_EDGE,ExteriorExtent.STREET_Z_MIN),iso(PAVEMENT_EDGE,ExteriorExtent.STREET_Z_MAX),iso(-5.5,ExteriorExtent.STREET_Z_MAX)],"8ea395")
-	for z in range(ExteriorExtent.MARK_Z_MIN,ExteriorExtent.MARK_Z_MAX,3):
-		var start=iso(-4.38,z);var finish=iso(-4.38,z+.85)
-		if Rect2(start,Vector2.ZERO).expand(finish).grow(ui_scale+1.5).intersects(ground_view):
-			line(start,finish,"b9c8ae",2.0*ui_scale)
+	Neighborhood.draw_ground(self)
 	ground_art.prepare(game.model)
 	if use_batched_ground:ground_art.draw_pavement(self)
 	else:_draw_legacy_pavement(ground_view)
-	_scenery_tree(Vector2(.6,-2.7),.86)
+	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
+	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
@@ -646,7 +660,11 @@ func _draw():
 	game.build_tools.draw_shell_selection(self)
 	var entities=[]
 	# Corner foliage shares the ground-depth order of props and people.
-	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1,"world":Vector2(14.5,11.5),"scale":.78}})
+	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
+	for i in range(Neighborhood.TREES.size()):
+		var tree=Neighborhood.TREES[i]
+		var world=Vector2(tree.x,tree.y)
+		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]})
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
@@ -710,7 +728,9 @@ func _draw():
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:
 		if e.type=="scenery_tree":
-			_scenery_tree(e.entry.world,float(e.entry.scale));continue
+			if e.variant=="oak":_scenery_tree(e.position,float(e.scale))
+			else:Neighborhood.greenery.draw_tree(self,iso(e.position.x,e.position.y),e.scale*ui_scale*zoom*(1.55 if game.wall_detail else 1.0),e.variant)
+			continue
 		if e.type=="opening_frame":
 			OpeningArt.casing(self,e.entry,e.part,.65 if bool(e.entry.get("preview",false)) else 1.0,Color("c6e1ae") if bool(e.entry.get("preview",false)) else Color.WHITE);continue
 		if e.type=="built_wall":
@@ -884,8 +904,8 @@ func prepare_grass(_size: Vector2):
 		# One finite field around the entire 18x18 map, with broad camera margins.
 		# Integer hashes supply stable gaps, offset, height and occasional paired
 		# tufts without RNG state, per-frame arrays, or physical/collision nodes.
-		for z in range(-32,52):
-			for x in range(-32,52):
+		for z in range(ExteriorExtent.GRASS_MIN,ExteriorExtent.GRASS_MAX):
+			for x in range(ExteriorExtent.GRASS_MIN,ExteriorExtent.GRASS_MAX):
 				# Leave the fixed street/pavement strip and its AA edge clear.
 				if x>=-6 and x<0:continue
 				var seed=posmod((x*73856093) ^ (z*19349663) ^ 41717,104729)
@@ -893,9 +913,21 @@ func prepare_grass(_size: Vector2):
 				var p=GroundArt.point(x+.20+float(seed%97)/162.0,z+.20+float((seed/97)%89)/149.0)
 				var height=3.2+float(seed%29)*.065
 				var spread=.80+float(seed%17)*.03
-				_grass_left.append(p);_grass_left.append(p+Vector2(-2.3*spread,-height*.80))
-				_grass_left.append(p+Vector2(.35,0));_grass_left.append(p+Vector2(.10,-height))
-				_grass_right.append(p);_grass_right.append(p+Vector2(2.4*spread,-height*.70))
+				var form=posmod(seed/11,3)
+				if form==0:
+					# Quiet three-blade fan.
+					_grass_left.append(p);_grass_left.append(p+Vector2(-2.3*spread,-height*.80))
+					_grass_left.append(p+Vector2(.35,0));_grass_left.append(p+Vector2(.10,-height))
+					_grass_right.append(p);_grass_right.append(p+Vector2(2.4*spread,-height*.70))
+				elif form==1:
+					# A looser upright clump, with staggered roots and leaning tips.
+					for j in range(4):
+						var root=p+Vector2(j*.75,0)
+						_grass_left.append(root);_grass_left.append(root+Vector2(-.9+j*.65,-height*(.65+j*.13)))
+				else:
+					# A low wind-swept pair; open space separates the two leaves.
+					_grass_left.append(p);_grass_left.append(p+Vector2(-3.8*spread,-height*.36))
+					_grass_right.append(p+Vector2(1.8,0));_grass_right.append(p+Vector2(5.2*spread,-height*.51))
 				if seed%3==0:
 					var nearby=p+Vector2(4.3*spread,1.2-float(seed%5)*.35)
 					_grass_left.append(nearby);_grass_left.append(nearby+Vector2(-1.6*spread,-height*.60))

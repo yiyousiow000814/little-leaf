@@ -36,6 +36,12 @@ SUITES = [
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
     ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
+    ("test_ambient_traffic_culling", "AMBIENT_TRAFFIC_CULLING_RESULT"),
+    ("test_environment_scope", "ENVIRONMENT_SCOPE_RESULT"),
+    ("test_environment", "ENVIRONMENT_RESULT"),
+    ("test_bus_stop", "BUS_STOP_RESULT"),
+    ("test_environment_camera_access", "ENVIRONMENT_CAMERA_ACCESS_RESULT"),
+
     ("test_fit_owned_cafe", "FIT_OWNED_CAFE_RESULT"),
     ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),

@@ -1,0 +1,459 @@
+{
+  "base_commit": "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401",
+  "full_engine": {
+    "status": "passed",
+    "checks": 1188387,
+    "processes": 78,
+    "tested_working_source_base": "cf89cda4db6183d4aa77f0b21322dbfd3bf7ba28",
+    "source_hashes_match": true,
+    "note": "Final fixed original square grid with perimeter clipping; no runtime changes after capture/full regression"
+  },
+  "final_focused_engine": {
+    "status": "passed",
+    "checks": 535967,
+    "processes": 5,
+    "suites": [
+      "test_environment",
+      "test_bus_stop",
+      "test_expansion_visibility",
+      "test_street_endpoints",
+      "test_street_service_save"
+    ],
+    "note": "Five relevant suites within completed final full regression"
+  },
+  "javascript": {
+    "suites": 7,
+    "status": "passed",
+    "source_bytes": "canonical Git blobs; Windows checkout autocrlf mismatch bypassed for validation then restored"
+  },
+  "python_ci": {
+    "tests": 54,
+    "passed": 53,
+    "blocked": 1,
+    "blocker": "Existing test_release.ArtifactTests.test_symlink requires unavailable Windows symlink privilege (WinError1314)"
+  },
+  "captures": {
+    "synthetic": true,
+    "seed": 8124,
+    "viewport": [
+      1654,
+      951
+    ],
+    "origin": [
+      800,
+      345
+    ],
+    "tile": [
+      33.54,
+      16.77
+    ],
+    "zoom": 1.0,
+    "ui_scale": 0.86,
+    "frames": 16,
+    "exit_code": 0,
+    "native_pixels_inspected": true,
+    "before_sha256": "38d6e222c03d55f18cbf8b74cf5e53cc8f8ac80770b56a6987d0c5ac5d3d24df",
+    "after_sha256": "c4624eb2bcf85ca8e2f3e241d2c0b1b6d5022db99ec2fd1dae3c042ada5a4a9e"
+  },
+  "constraints": {
+    "purchase_enabled": false,
+    "customer_parking_enabled": false,
+    "price": null,
+    "original_save_used": false,
+    "merged": false,
+    "deployed": false
+  },
+  "sources": {
+    "scripts/illustrated_cafe.gd": "50ffc3fcb47ac0adc52fe774749e1273cbd4127bba9bc50017d1827f4735cb0a",
+    "scripts/exterior_environment.gd": "88061fb75375105d36995191203b781ce7813ca41ca378aa41996b57e384712f",
+    "scripts/ambient_road_traffic.gd": "32ff74268e8bc1e6388a3b2ecca70fe341b1ffc0616bef0d4f70c05bc0dcec18",
+    "tests/test_environment.gd": "87a24f67c57fdd6048d238100230632ce7a68779fee0244df3792acba79a0483",
+    "tests/capture_environment.gd": "303c19dd5425f77eacf9ab949b8e071522614e3b54da9f4fcdc0c02b744dd300",
+    "tests/capture_environment_review.gd": "5b232b2d1638b05ca92a306d356b0ba0de4017a52cc820ea85df5ea3180f63e8",
+    "scripts/environment_greenery.gd": "1daa01c48523cc57d985c45c3f58ddc29d05765ab0587a1b438c017d23342c30",
+    "tests/capture_shelter_review.gd": "ed27c66b8973c4c1aa119c71e3ad31b64bb6c2fb3b84d771b4462d97b04e8a67",
+    "scripts/bus_stop_pedestrians.gd": "5df8b736b0bf597a509acd0b904986d70044d7b9e30ba87f9ef11af79bb25c78",
+    "tests/test_bus_stop.gd": "4d7e889a943b77264e5a744d689d21686f3aa5d41533122e96e563e3d1994638",
+    "tests/capture_stop_motion.gd": "21883357290f660fd439a8eb645dd31a53745021450709db2b9deb895e8f087e"
+  },
+  "bus_revision": {
+    "feedback": "Dedicated illustrated bus; modest narrow gap behind cafe instead of touching wall",
+    "lot": [
+      -0.26,
+      -6.0,
+      12.26,
+      4.9
+    ],
+    "rear_wall_gap_tiles": 1.1,
+    "graphic_sessions": 1,
+    "frames": 16,
+    "exit_code": 0,
+    "detail_viewport": [
+      720,
+      460
+    ],
+    "detail_origin": [
+      360,
+      270
+    ],
+    "detail_tile": [
+      85.8,
+      42.9
+    ],
+    "detail_scale": 2.2,
+    "before_source_commit": "38618c1874326f4f694dd626f83d8c778064d6c6",
+    "images": {
+      "layout-before-bus-revision.png": "f8fe17364c7cf67ded93295ca3cd4e16e9f70ec9179cd875544311c13b210431",
+      "bus-before.png": "9cd5c13a05b56a4ebd8a4fe8a9bc3403549496626a149c5173b603617b5482da",
+      "bus-after.png": "30efa8eda6bc2240c1c78645ef9085256b21d62537176bdde57c6f1acb499679"
+    },
+    "initial_focused": {
+      "processes": 3,
+      "checks": 116734,
+      "status": "passed"
+    },
+    "full_regression": {
+      "status": "passed",
+      "processes": 77,
+      "checks": 769227
+    }
+  },
+  "parking_buffer_revision": {
+    "feedback": "Move lot beyond rear-wall silhouette and add restrained low greenery",
+    "lot": [
+      -0.26,
+      -8.7,
+      12.26,
+      4.9
+    ],
+    "rear_wall_gap_tiles": 3.8,
+    "projected_ground_clearance_px": 20.2,
+    "pedestrian_link": [
+      -0.26,
+      -3.8,
+      1.2,
+      3.54
+    ],
+    "low_planting_pockets": 3,
+    "frames": 16,
+    "exit_code": 0,
+    "before_source_commit": "7b442bdb18dde8316cc32871059699ba2ed87f4e",
+    "before_sha256": "58bb7bded156b25a62a15901a74583fe02dfb8b60088e010dcf38b3c237ca04b",
+    "after_sha256": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388",
+    "actual_native_pixels_inspected": true,
+    "after_library_version": 2,
+    "full_checks": 769231,
+    "focused_checks": 116738
+  },
+  "shelter_vegetation_revision": {
+    "before_source_commit": "bf7cfaf45882dc1fb6412981993929aeed6e2f0f",
+    "graphics_sessions": 1,
+    "frames": 16,
+    "exit_code": 0,
+    "detail_viewport": [
+      960,
+      640
+    ],
+    "normal_viewport": [
+      1654,
+      951
+    ],
+    "actual_pixels_inspected": true,
+    "green_roof_intended": false,
+    "diagnosis": "Ground planting drawn after elevated roof caused false roof planting; original seat lacked supports",
+    "shelter_height": 78,
+    "supports": 4,
+    "boarding_width_tiles": 0.95,
+    "tree_positions": 6,
+    "tree_silhouettes": [
+      "oak",
+      "airy",
+      "columnar",
+      "sapling"
+    ],
+    "low_plant_silhouettes": [
+      "fan",
+      "shrub",
+      "fern"
+    ],
+    "lawn_forms": [
+      "fan",
+      "upright",
+      "wind-swept"
+    ],
+    "deterministic": true,
+    "user_attachment": {
+      "library_file_id": "libfile_cdbcf7ab4df88191bc51ffc16ec8cc9d",
+      "transfer_status": 403,
+      "pixels_inspected": false,
+      "no_retry_or_bypass": true
+    },
+    "images": {
+      "layout-before-shelter.png": "4cc4bd4d4a3d62fa3b3c28d4323e29b706d24e325b4a139dd064cae9c43ae388",
+      "after.png": "b9336923648e3a45ff35ac7dccb702bd08f7ed2b50b5d3efb5dafd57cf45d6ea",
+      "shelter-before.png": "1541495875c557bdbaa573f43c4446e7c10a092706d5d2f1dfcf5fb027b456fc",
+      "shelter-after.png": "7687a478422defc163c3333388af996ae3437dabaa5b4fd4253aed6a51bc19ad",
+      "greenery-after.png": "dfdfbe485b30cbbf1d6778494a8ca70c4fe12edcc54b6e816eb59321118f7474"
+    },
+    "library_after_version": 3,
+    "style_acceptance": "User review; behavior tests do not establish stylistic acceptance"
+  },
+  "stop_connectivity_motion_revision": {
+    "before_source_commit": "fc3ad12c5d050a51cb76ef7d39317a21b3191f1e",
+    "graphics_sessions": 1,
+    "samples": 16,
+    "interval_seconds": 0.5,
+    "presentation_seconds": 8,
+    "frame_interpolation": false,
+    "normal_viewport": [
+      1654,
+      951
+    ],
+    "detail_viewport": [
+      1240,
+      760
+    ],
+    "native_pixels_inspected": true,
+    "cafe_authority_frozen": true,
+    "original_save_used": false,
+    "fixed_visitors": 3,
+    "motion_rigs_max": 3,
+    "clear_corridor_tiles": 1.0,
+    "ground_height": 0,
+    "curb_x": -10.55,
+    "door": [
+      -10.345,
+      10.1
+    ],
+    "boarding_gap_z": [
+      9.65,
+      10.7
+    ],
+    "walking_x": -11.35,
+    "waiting_points": [
+      [
+        -12,
+        6.95
+      ],
+      [
+        -12,
+        8.3
+      ],
+      [
+        -12,
+        9.5
+      ]
+    ],
+    "states": [
+      "approaching",
+      "waiting",
+      "boarding",
+      "aboard",
+      "alighting"
+    ],
+    "motion_library_file_id": "libfile_5f6e2f768a508191b06efe1eeb02e488",
+    "motion_zip_sha256": "f768792688ba4f3a8c6f44a41e560c60993f7d354307eb7cc9ad3165f98e74c0",
+    "motion_zip_bytes": 16627470,
+    "after_library_version": 4,
+    "sample_style_status": "Rejected; sample not used in runtime",
+    "style_acceptance": "Actual implementation remains subject to user review",
+    "images": {
+      "after.png": "f26f6c57ef3a0fb9c0b00bad4fe4dfaebd345c4fb392e413fbd305aef2d02ddf",
+      "layout-before-stop.png": "d0260baa5b5c53ee8eadfaf63234fcf5b55efefbfac1f137d956cd1366cd7c11",
+      "stop-before-motion.png": "6e002a7140b99aae4c08050aebad4de4764071debc13a754493a1729b67b9f79",
+      "stop-after-motion.png": "db4eae26af0ff0b892e3fa6279848ac4346bdf85b6b8f7d7402bc314e7b223b2",
+      "stop-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
+    }
+  },
+  "previous_revision_full_engine": {
+    "status": "passed",
+    "checks": 1187812,
+    "processes": 78,
+    "tested_working_source_base": "07e9ab194a26c03f941b21663eacbe9393cfc576",
+    "source_hashes_match": true,
+    "note": "Complete rerun after authoritative four-edge curved sidewalk/bus-bay refinement"
+  },
+  "annotated_curve_revision": {
+    "reference": {
+      "library_file_id": "libfile_5fc5f6982cbc8191a5fbde0aae7a2af8",
+      "version": 0,
+      "file_name": "image(20261007-085459).png",
+      "bytes": 155658,
+      "sha256": "4ea6b331ae2e40c0e489596322bf2139c3cdbc0e1ff977411e5d5acfefa37c0b",
+      "dimensions": [
+        1354,
+        957
+      ],
+      "supported_transfer": "success",
+      "actual_pixels_inspected": true,
+      "interpretation": "Four black annotations mark curved/flared sidewalk lawn edge and curb/bus-bay edge at both ends; existing shelter, bus, waiting positions and original 2D palette retained"
+    },
+    "before_source_commit": "07e9ab194a26c03f941b21663eacbe9393cfc576",
+    "interpretation": "Only four annotated transition edges changed; shelter/bus/waiting/parking positions and original 2D style retained",
+    "world_transition_start_end_z": [
+      1.9,
+      15.3
+    ],
+    "shelter_plateau_z": [
+      4.9,
+      11.3
+    ],
+    "curve": "cubic smoothstep, zero slope at both joins and shoulders",
+    "minimum_sidewalk_width_tiles": 3.0,
+    "through_road_unchanged": true,
+    "cached_curved_tile_rows": 15,
+    "curve_samples_per_tile": 8,
+    "graphic_sessions": 1,
+    "native_samples_per_view": 16,
+    "sample_interval_seconds": 0.5,
+    "duration_seconds": 8,
+    "frame_interpolation": false,
+    "native_pixels_inspected": true,
+    "motion_bundle": {
+      "id": "libfile_8d3b0ba6c9d48191bafa11209986d60e",
+      "bytes": 18291766,
+      "sha256": "a1fcd0e3f0fc3d84b253094fd6c8fbb9a1feb1cca4dea3eb174c7e0fc4614da2"
+    },
+    "images": [
+      {
+        "path": "environment-layout/docs/environment-010/curve-before.png",
+        "id": "libfile_be8759a5fa5481918f81c145ac7ecf09",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/curve-after.png",
+        "id": "libfile_62d9039068e88191865273ac38b80f5e",
+        "version": 1
+      },
+      {
+        "path": "environment-layout/docs/environment-010/layout-before-curve.png",
+        "id": "libfile_eb33e940d47c819193894eb465efd452",
+        "version": 0
+      },
+      {
+        "path": "curve-motion-review/detail-before-motion.png",
+        "id": "libfile_283ab5dea6b88191819948b80c35a8c9",
+        "version": 0
+      },
+      {
+        "path": "curve-final-motion-review/detail-after-motion.png",
+        "id": "libfile_41c006c5d05c8191b9eb4c24b41141ef",
+        "version": 1
+      },
+      {
+        "path": "Little-Leaf-stop-motion-review-v2.zip",
+        "id": "libfile_8d3b0ba6c9d48191bafa11209986d60e",
+        "version": 1
+      },
+      {
+        "path": "environment-layout/docs/environment-010/after.png",
+        "id": "libfile_5e6dabe2703c81918adb1eb88d068260",
+        "version": 6
+      }
+    ],
+    "file_hashes": {
+      "after.png": "5b33b935ac0eb87f32b4ae37c19e7b979cda1bbf993403172b3385d4ad4aad91",
+      "layout-before-curve.png": "f26f6c57ef3a0fb9c0b00bad4fe4dfaebd345c4fb392e413fbd305aef2d02ddf",
+      "curve-before.png": "c3f5122a31fe7d3a27c98b2739d3e9f7f2a8a28b1cd3785fb0c2b68f9e22cbce",
+      "curve-after.png": "f20e2eb3d15f3c5a2bc848eb33d88628effe7aae1b0e1495142551ed0ac92aa3",
+      "curve-before-motion.png": "db4eae26af0ff0b892e3fa6279848ac4346bdf85b6b8f7d7402bc314e7b223b2",
+      "curve-after-motion.png": "258047612707f816df9b9c806b1c027dd8b210e8db02716dba02e107d5756a44",
+      "curve-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
+    },
+    "style_acceptance": "User review; behavior pass does not claim stylistic acceptance"
+  },
+  "tile_grid_revision": {
+    "before_source_commit": "cf89cda4db6183d4aa77f0b21322dbfd3bf7ba28",
+    "actual_pixels_inspected": true,
+    "cause": "Longitudinal seams shifted x with curved left edge, bending/shearing full field tiles",
+    "correction": "Fixed original1x1 square world cells/grid phase; edge cells and straight seams clipped to unchanged curved row masks",
+    "x_grid_origin": -11.76,
+    "z_grid_origin": 0,
+    "world_cell_size": [
+      1,
+      1
+    ],
+    "curved_outline_preserved": true,
+    "ordinary_approaches_same_grid": true,
+    "normal_projection": [
+      33.54,
+      16.77
+    ],
+    "detail_projection": [
+      78,
+      39
+    ],
+    "detail_viewport": [
+      1240,
+      760
+    ],
+    "samples_per_view": 16,
+    "sample_interval_seconds": 0.5,
+    "duration_seconds": 8,
+    "interpolation": false,
+    "motion_bundle": {
+      "id": "libfile_3178101bd3348191ac144f699272a5e0",
+      "version": 0,
+      "bytes": 18443258,
+      "sha256": "644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd"
+    },
+    "artifacts": [
+      {
+        "path": "environment-layout/docs/environment-010/grid-before.png",
+        "id": "libfile_9287179122008191bd3ca5889b4bc4e7",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/grid-after.png",
+        "id": "libfile_00e06943070881919795fcc59bb5256a",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/layout-before-grid.png",
+        "id": "libfile_c78543d39a708191a576af741bb7dba8",
+        "version": 0
+      },
+      {
+        "path": "grid-motion-review/detail-before-motion.png",
+        "id": "libfile_9637a5e855648191ba8821786bcd2de0",
+        "version": 0
+      },
+      {
+        "path": "grid-motion-review/detail-after-motion.png",
+        "id": "libfile_1024948a495c81918aab3037c70fad16",
+        "version": 0
+      },
+      {
+        "path": "Little-Leaf-stop-motion-review-v3.zip",
+        "id": "libfile_3178101bd3348191ac144f699272a5e0",
+        "version": 0
+      },
+      {
+        "path": "environment-layout/docs/environment-010/after.png",
+        "id": "libfile_5e6dabe2703c81918adb1eb88d068260",
+        "version": 7
+      }
+    ],
+    "hashes": {
+      "after.png": "c4624eb2bcf85ca8e2f3e241d2c0b1b6d5022db99ec2fd1dae3c042ada5a4a9e",
+      "layout-before-grid.png": "5b33b935ac0eb87f32b4ae37c19e7b979cda1bbf993403172b3385d4ad4aad91",
+      "grid-before.png": "f20e2eb3d15f3c5a2bc848eb33d88628effe7aae1b0e1495142551ed0ac92aa3",
+      "grid-after.png": "728012fa637144ba736eb9a80b4cb9c285cd5d0e545cb456e53d61852ae21d0f",
+      "grid-before-motion.png": "258047612707f816df9b9c806b1c027dd8b210e8db02716dba02e107d5756a44",
+      "grid-after-motion.png": "d9a368b14af1cd781556b5db28b3d43daa5b1a2a953eee3d99b2dfd111b11f92",
+      "grid-motion-records.json": "242fd72896bca3ae8a22ce90e2d775c97f027654511f3e812251970994e6e28a"
+    },
+    "cf89cda_checkpoint": {
+      "ci_run": 37599644500,
+      "ci_status": "success",
+      "archive_id": "libfile_edab5cebb3ec81918bdeebdb4ae6da74",
+      "version": 4,
+      "bytes": 27673352,
+      "sha256": "c34c2ef03378f3a4c271efeafc3d86e545885d6b68045083bcff2f154d3053d1",
+      "restore_receipt": "libfile_55b82734cc388191a7306decd78fe9f0",
+      "verified_files": 622
+    },
+    "visual_acceptance": "User review; dimensions/tests do not establish stylistic acceptance",
+    "concrete_or_curve_removal_selected": false
+  }
+}
