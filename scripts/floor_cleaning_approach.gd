@@ -10,6 +10,17 @@ const CONTACT_GAP=.50
 static func offset(position:Vector2,contact:Vector2,model,current:Vector2=Vector2.ZERO)->Vector2:
 	return solve(position,contact,model,current).offset
 
+static func cached_offset(position:Vector2,contact:Vector2,model,current:Vector2,cache:Dictionary)->Vector2:
+	# A settled cleaner repeats the identical swept-body query every frame.
+	# Cache one solve per actor, including the current stance: transitional
+	# sweeps and any layout/ownership change still run the original full solve.
+	if cache.get("model_id",-1)==model.get_instance_id() and cache.get("revision",-1)==model.revision and cache.get("position") == position and cache.get("contact") == contact and cache.get("current") == current:
+		return cache.offset
+	var result=offset(position,contact,model,current)
+	cache.model_id=model.get_instance_id();cache.revision=model.revision
+	cache.position=position;cache.contact=contact;cache.current=current;cache.offset=result
+	return result
+
 static func solve(position:Vector2,contact:Vector2,model,current:Vector2=Vector2.ZERO)->Dictionary:
 	var toward=contact-position
 	var distance=toward.length()

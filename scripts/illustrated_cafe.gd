@@ -15,6 +15,7 @@ const MotionArt=preload("res://scripts/illustrated_motion.gd")
 var motion=MotionArt.new()
 var seat_blends={}
 var stance_offsets={}
+var floor_approach_cache={}
 var carry_hand_offsets={}
 var guest_motion_cleanup_elapsed := 0.0
 const HeadAtlas=preload("res://scripts/character_head_atlas.gd")
@@ -225,7 +226,8 @@ func update_motion(delta: float):
 		var key="staff_%s"%i
 		var docking=Vector2.ZERO
 		if str(staff.get("art_action","")) in ["sweeping","mopping"]:
-			docking=FloorCleaningApproach.offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO))
+			if not floor_approach_cache.has(key):floor_approach_cache[key]={}
+			docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
 		elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
 			var target=staff.get("art_target",staff.pos)
 			var station=game.model.get_item(int(staff.get("art_target_id",-1)))
