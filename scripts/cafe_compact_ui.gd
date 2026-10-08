@@ -7,8 +7,6 @@ const Hud=preload("res://scripts/cafe_hud.gd")
 const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/cafe_inbox.gd")
-const SaveLogPanel=preload("res://scripts/cafe_save_log_panel.gd")
-var save_log_panel
 const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 var viewport_too_small=false
@@ -145,7 +143,6 @@ func _hide_popups():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
  var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
- if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
@@ -269,8 +266,6 @@ func setup():
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings]:
   hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
- save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
- var log_entry=save_log_panel.make_menu_entry();settings_box.add_child(log_entry);settings_box.move_child(log_entry,settings_box.get_child_count()-2)
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
  for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
@@ -659,14 +654,13 @@ func _sync_help_content():
  help_retry.disabled=help_retry.visible and game.web_save.retrying
  help_retry.text="Loading saved café…" if help_retry.disabled else "Try loading again"
  var save_detail=""
- if game.web_save!=null and game.web_save.platform_managed:save_detail="Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here.\n\n"
  if game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
