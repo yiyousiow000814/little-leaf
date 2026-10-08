@@ -41,7 +41,7 @@ var tiles_heading:Control
 var build_page="products"
 var action_copy:HBoxContainer
 var price_label:Label
-var action_layout_key=""
+var action_layout_key:Array=[]
 
 var parking_card:Button
 var parking_price:Label
@@ -174,7 +174,6 @@ func setup():
  product_back=_nav("‹",func():_page_products(-1));product_back.accessibility_name="Previous products"
  product_next=_nav("›",func():_page_products(1));product_next.accessibility_name="Next products"
  for arrow in [category_back,category_more,product_back,product_next]:arrow.add_theme_font_size_override("font_size",24)
- ui.help_access.reparent(root);_style(ui.help_access)
  _setup_category_picker()
  for kind in game.catalog_cards:
   var card:Button=game.catalog_cards[kind];_style(card)
@@ -489,6 +488,9 @@ func _layout_action_board(width:float):
  action_background.visible=ui.context.visible
  if not ui.context.visible:return
  var actions=[];var used=0.0;var gap=6.0
+ # Keep the per-pointer guard typed: stringifying nested button state did
+ # allocations and numeric formatting on every unchanged decorating frame.
+ var signature=[width,ui.context_label.text,price_label.text,ui.context_label.get_theme_font_size("font_size"),price_label.get_theme_font_size("font_size")]
  for child in ui.context.get_children():
   if child==action_copy or not child.visible:continue
   if child.custom_minimum_size!=Vector2(44,44):child.custom_minimum_size=Vector2(44,44)
@@ -500,8 +502,9 @@ func _layout_action_board(width:float):
    if style.content_margin_bottom!=4:style.content_margin_bottom=4
   var face=child.get_node_or_null("PaintedSurface")
   if face!=null:face.offset_top=4;face.offset_bottom=-4
-  actions.append(child);used+=child.get_combined_minimum_size().x
- var signature=str([width,ui.context_label.text,price_label.text,ui.context_label.get_theme_font_size("font_size"),actions.map(func(button):return [button.get_instance_id(),button.text,button.get_combined_minimum_size()])])
+  var minimum=child.get_combined_minimum_size()
+  actions.append(child);used+=minimum.x
+  signature.append(child.get_instance_id());signature.append(child.text);signature.append(minimum)
  if signature==action_layout_key:return
  action_layout_key=signature
  var font=ui.hud.font_bold;var title_width=ceilf(font.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x)
@@ -684,9 +687,8 @@ func sync(width:float):
  ui.context_label.visible=true
  var nested=game.catalog_category=="Build" and build_page in ["tiles","walls"]
  var tiny=w<440
- var show_help=short_landscape or not (tiny and game.catalog_category=="Build")
  var repair_width=110.0 if ui.floor_repair_button.visible else 0.0
- var tail=(52 if show_help else 0)+(repair_width+8 if repair_width>0 else 0)
+ var tail=repair_width+8 if repair_width>0 else 0.0
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
  var categories_overflow=short_landscape or 6*minimum_chip+30>w-category_margin*2-tail
@@ -694,7 +696,6 @@ func sync(width:float):
  category_picker.visible=picker_landscape;category_picker.text=game.catalog_category+"   "
  if not picker_landscape or not game.editing:category_panel.hide()
  for category in category_panel_buttons:category_panel_buttons[category].set_pressed_no_signal(category==game.catalog_category)
- ui.help_access.visible=show_help
  var category_width=112.0 if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_margin*2-tail-(104 if categories_overflow else 0))
  category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else 6)
  var chip_width=(category_width-6*(category_page_items-1))/category_page_items
@@ -706,7 +707,6 @@ func sync(width:float):
  var category_x=category_margin+(52 if categories_overflow and not picker_landscape else 0)
  _put(category_picker,Rect2(category_margin,header_y,112,44))
  _put(category_scroll,Rect2(category_x,header_y,category_width,44));_put(category_back,Rect2(category_margin,header_y,44,44));_put(category_more,Rect2(category_x+category_width+8,header_y,44,44))
- _put(ui.help_access,Rect2(w-category_margin-44 if short_landscape else w-76,header_y,44,44));ui.help_access.add_theme_font_size_override("font_size",20)
  tiles_back.visible=nested;tiles_heading.visible=nested
  if nested:
   category_scroll.hide();category_back.hide();category_more.hide();category_picker.hide();category_panel.hide()
@@ -716,7 +716,7 @@ func sync(width:float):
  var heading_x=category_margin+112;var heading_width=112.0
  tiles_heading.visible=nested and (w-category_margin-tail-(heading_x+heading_width+12)>=210 if short_landscape else heading_x+heading_width+8<=w-category_margin-tail)
  _put(tiles_heading,Rect2(heading_x,header_y,heading_width,44));_put(tiles_title,Rect2(35,0,heading_width-43,44))
- _put(ui.floor_repair_button,Rect2(w-category_margin-(52 if show_help else 0)-repair_width,header_y,repair_width,44))
+ _put(ui.floor_repair_button,Rect2(w-category_margin-repair_width,header_y,repair_width,44))
  if last_category!=game.catalog_category or not is_equal_approx(last_layout_width,category_width):
   last_category=game.catalog_category;last_layout_width=category_width;_reveal_category.call_deferred()
  var count=0
