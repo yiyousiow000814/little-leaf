@@ -174,7 +174,7 @@ func _init() -> void:
 
 
 func reset_new() -> void:
-	decoration_session_active=false;decoration_purchases.clear()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
@@ -340,11 +340,12 @@ func logical_members(id:int)->Array:
 # IDs are stable through moves; only successful purchases/sales change this ledger.
 var decoration_session_active=false
 var decoration_purchases:Dictionary={}
+var decoration_build_purchases:Dictionary={}
 func begin_decoration_session():
 	if decoration_session_active:return
-	decoration_session_active=true;decoration_purchases.clear();_notify()
+	decoration_session_active=true;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func finish_decoration_session():
-	decoration_session_active=false;decoration_purchases.clear();_notify()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func record_decoration_purchase(id:int,paid:int):
 	if decoration_session_active:decoration_purchases[id]=paid
 func consume_decoration_purchase(ids:Array):
@@ -355,6 +356,20 @@ func decoration_refund_bonus(id:int)->int:
 		var paid=int(decoration_purchases.get(member,0))
 		bonus+=paid-int(paid/2)
 	return bonus if decoration_session_active else 0
+func record_decoration_build_purchase(category:String,id:int,paid:int):
+	if decoration_session_active:decoration_build_purchases[category+":"+str(id)]=paid
+func wall_refund(key:String)->int:
+	var wall=get_wall(key)
+	if wall.is_empty():return 0
+	var receipt="wall:"+str(int(wall.id))
+	if decoration_session_active and decoration_build_purchases.has(receipt):return int(decoration_build_purchases[receipt])
+	return int(wall_price(str(wall.height))/2)
+func wall_attachment_refund(id:int)->int:
+	var attachment=get_wall_attachment(id)
+	if attachment.is_empty():return 0
+	var receipt="opening:"+str(id)
+	if decoration_session_active and decoration_build_purchases.has(receipt):return int(decoration_build_purchases[receipt])
+	return int(int(attachment.paid_cost)/2)
 func logical_refund(id:int)->int:
 	if get_item(id).is_empty():return 0
 	if decoration_session_active and dining_set_for(id).is_empty() and decoration_purchases.has(id):return int(decoration_purchases[id])
@@ -2065,6 +2080,7 @@ func place_wall(axis:String,x:int,z:int,height:String="full",material:String="sa
 	if coins<price:return _fail("Not enough coins · this wall needs %s"%Money.amount(price))
 	var wall=WallGeometry.make(axis,x,z,height,material);wall["id"]=_next_wall_id;_next_wall_id+=1
 	built_walls.append(wall);coins-=price
+	record_decoration_build_purchase("wall",int(wall.id),price)
 	last_error="";last_event="Built %s wall · −%s coins"%[height,Money.amount(price)]
 	_notify();return true
 
@@ -2113,6 +2129,8 @@ func replace_wall(key:String,height:String,material:String,actor_positions:Array
 		shell_segment_products[key]={"height":height,"material":material,"paid_cost":cost,"refund_credit":cost/2}
 	else:
 		var wall=get_wall(key);wall.height=height;wall.material=material
+		# Replacement keeps its existing half credit; only the new product receipt remains.
+		record_decoration_build_purchase("wall",int(wall.id),int(quote.new_cost))
 	# One commit and one notification. There is no intermediate sale, missing
 	# host, temporary refund or ID change for a failed/cancelled replacement.
 	coins-=int(quote.net)
@@ -2129,7 +2147,8 @@ func can_remove_wall(key:String) -> bool:
 func remove_wall(key:String,refund:bool=true) -> bool:
 	if not can_remove_wall(key):return false
 	var wall:=get_wall(key)
-	var returned:=int(wall_price(str(wall.height))/2) if refund else 0
+	var returned:=wall_refund(key) if refund else 0
+	decoration_build_purchases.erase("wall:"+str(int(wall.id)))
 	built_walls.erase(wall);coins+=returned
 	last_error="";last_event="Removed wall · +%s coins"%Money.amount(returned)
 	_notify();return true
@@ -2166,6 +2185,8 @@ func set_wall_height(key:String,height:String,actor_positions:Array=[]) -> bool:
 	# Height changes never move a solid edge or alter routes; no unsafe new
 	# footprint. Downgrading refunds the exact difference, so cycling is neutral.
 	wall.height=height;coins-=difference
+	var receipt="wall:"+str(int(wall.id))
+	if decoration_session_active and decoration_build_purchases.has(receipt):decoration_build_purchases[receipt]=int(decoration_build_purchases[receipt])+difference
 	last_error="";last_event="Wall height changed · %s coins"%Money.amount(-difference)
 	_notify();return true
 
@@ -2526,6 +2547,7 @@ func place_wall_attachment(kind:String,host_id:String,offset:float,actor_positio
 	var cost=attachment_price(kind)
 	if coins<cost:return _fail("Not enough coins · %s needs %s"%[kind,Money.amount(cost)])
 	wall_attachments.append({"id":_next_attachment_id,"kind":kind,"host_id":host_id,"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":cost})
+	record_decoration_build_purchase("opening",_next_attachment_id,cost)
 	_next_attachment_id+=1;coins-=cost;last_error="";last_event="Attached %s · −%s coins"%[kind,Money.amount(cost)];_notify();return true
 func can_move_wall_attachment(id:int,host_id:String,offset:float,actor_positions:Array=[])->bool:
 	last_error=""
@@ -2549,7 +2571,8 @@ func can_remove_wall_attachment(id:int,actor_positions:Array=[])->bool:
 	return true if reason=="" else _fail(reason)
 func remove_wall_attachment(id:int,actor_positions:Array=[],refund=true)->bool:
 	if not can_remove_wall_attachment(id,actor_positions):return false
-	var attachment=get_wall_attachment(id);var amount=int(int(attachment.paid_cost)/2) if refund else 0
+	var attachment=get_wall_attachment(id);var amount=wall_attachment_refund(id) if refund else 0
+	decoration_build_purchases.erase("opening:"+str(id))
 	var kind=str(attachment.kind);wall_attachments.erase(attachment);coins+=amount
 	last_error="";last_event="Removed %s · wall restored · +%s coins"%[kind,Money.amount(amount)];_notify();return true
 func host_for_attachment_width(host_id:String,width:float)->Dictionary:
