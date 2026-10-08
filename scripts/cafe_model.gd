@@ -187,7 +187,11 @@ var included_checkout_pending: bool = true
 var cashiers: int = 0
 var next_checkout_ticket: int = 1
 var service_snapshot: Dictionary = {}
+var tutorial_state: Dictionary = {}
 var loaded_save_version: int = SAVE_VERSION
+var first_guest_pending: bool = false
+# Transient view-derived start; never serialized or applied to existing actors.
+var first_guest_start: Vector2 = Vector2.INF
 var _arrival_elapsed: float = 0.0
 var _walking_customer_id: int = -1
 # Current staff centers are transient occupancy, never a permanent layout rule.
@@ -203,6 +207,8 @@ func _init() -> void:
 
 
 func reset_new() -> void:
+	tutorial_state.clear()
+	first_guest_pending=false;first_guest_start=Vector2.INF
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
@@ -1173,11 +1179,16 @@ func _tick_step(delta: float) -> void:
 
 func _spawn_customer() -> void:
 	if not parking_owned:
-		_spawn_walkers(2);return
-	if not operating_open or count_kind("stove")==0 or count_kind("beverage")==0 or count_kind("sink")==0:return
-	for attempt in range(2):
-		if _next_customer_id%2==0 and Parking.reserve(self):continue
-		_spawn_walkers(1)
+		_spawn_walkers(2)
+	else:
+		if not operating_open or count_kind("stove")==0 or count_kind("beverage")==0 or count_kind("sink")==0:return
+		for attempt in range(2):
+			if _next_customer_id%2==0 and Parking.reserve(self):continue
+			_spawn_walkers(1)
+	# The first actual request consumes this once, even if a changed layout
+	# sends it to the ordinary outside queue instead of a table.
+	if _next_customer_id>1:
+		first_guest_pending=false;first_guest_start=Vector2.INF
 
 func _spawn_walkers(limit:int) -> void:
 	if not operating_open:return
@@ -1203,6 +1214,8 @@ func _spawn_walkers(limit:int) -> void:
 			continue
 		var chair := get_item(int(pair.chair_id))
 		var start := _arrival_start_position()
+		var nearby=first_guest_pending and _next_customer_id==1 and first_guest_start.is_finite() and absf(first_guest_start.x-ARRIVAL_LANE_X)<.0001 and first_guest_start.y>=10.8 and first_guest_start.y<=26.0
+		if nearby:start=first_guest_start
 		var access := guest_access_for(int(chair.id),true,start,12.5,int(pair.table_id))
 		if access.is_empty():
 			continue
@@ -1219,6 +1232,9 @@ func _spawn_walkers(limit:int) -> void:
 			"entry_outside": access.entry_outside, "departure_blocked": false,
 			"dismounting": false, "egress_cell": Vector2i(-100,-100), "dismount_progress": 0.0,
 		}
+		if nearby:
+			# Already-supported bounded short route; no invented endpoint history.
+			customer.erase("street_route_format");customer.erase("street_origin_z")
 		Checkout.init_guest(self,customer)
 		customers.append(customer)
 		# A visit owns its tableware/service side until cleanup ends. Blocking
@@ -1692,6 +1708,7 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 
 
 func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
+	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
 	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
@@ -1727,6 +1744,8 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
+	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
+	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
 	if not walls_check.ok:return _fail("Could not save walls: "+str(walls_check.error))
 	var floors_check=_validate_saved_floors(data,owned_parcels,floor_style)
@@ -1876,6 +1895,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		runtime_state=checked.state
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
+	var saved_first_guest=data.get("first_guest_pending",false)
+	if not saved_first_guest is bool:return _fail("Invalid first-visit eligibility")
+	if saved_first_guest and (int(runtime_state.next_customer_id)!=1 or not runtime_state.customers.is_empty() or not queue_check.visitors.is_empty() or int(data.served)!=0 or int(data.total_earned)!=0):return _fail("First-visit eligibility disagrees with progress")
 	if not saved_open and queue_check.visitors.any(func(v):return v.phase=="outside_queue"):return _fail("Closed cafe has an active outside request")
 	var parking_check=Parking.validate(data.get("parking",Parking.empty_state()),runtime_state.customers,queue_check.visitors,int(runtime_state.next_customer_id),saved_open)
 	if not parking_check.ok:return _fail(str(parking_check.error))
@@ -1934,6 +1956,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
+	tutorial_state=preload("res://scripts/cafe_tutorial_state.gd").read(data.get("tutorial"))
+	if int(tutorial_state.get("baseline_served",0))>served:tutorial_state.clear()
+	first_guest_pending=saved_first_guest;first_guest_start=Vector2.INF
 	loaded_save_version=int(data.version)
 	_next_customer_id=int(runtime_state.next_customer_id)
 	_arrival_elapsed=float(runtime_state.arrival_elapsed)
