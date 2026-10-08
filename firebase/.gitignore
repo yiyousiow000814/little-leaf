@@ -1,0 +1,5 @@
+node_modules/
+public/
+.firebase/
+*-debug.log
+# Approved public Web app configuration is tracked; never place private credentials here.
