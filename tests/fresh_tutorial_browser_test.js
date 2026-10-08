@@ -1,7 +1,7 @@
 'use strict';
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('./wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
@@ -98,5 +98,42 @@ try {
 } finally {
   cp.execFileSync = exec;
   fs.rmSync(temp, {recursive: true, force: true});
+}
+// The fallback must inspect the same image and retain the same exact phrases.
+try {
+  const calls = [];
+  cp.execFileSync = (command, args) => {
+    calls.push(args);
+    assert.equal(command, 'tesseract');
+    assert.equal(args[0], 'same-captured-frame.png');
+    assert.equal(args[args.indexOf('--psm') + 1], '11');
+    return args.includes('thresholding_method=2') ? 'Tap to open\nSkip & open\n' : 'Unrelated scene text';
+  };
+  const result = recognizeCue('same-captured-frame.png', ['Tap to open', 'Skip'], 'tesseract', Date.now() + 10000);
+  assert(result.matched);
+  assert.deepEqual(result.attempts.map(a => a.mode), ['sparse', 'sparse-sauvola']);
+  assert.equal(calls.length, 2);
+  const absent = recognizeCue('same-captured-frame.png', ['First order complete'], 'tesseract', Date.now() + 10000);
+  assert(!absent.matched, 'Fallback must not loosen the requested visible text');
+  calls.length = 0;
+  assert(!recognizeCue('same-captured-frame.png', ['Tap'], 'tesseract', Date.now() + 500).matched);
+  assert.equal(calls.length, 0, 'Do not start OCR with a subsecond remaining budget');
+  cp.execFileSync = () => {throw Object.assign(new Error('Synthetic OCR timeout'), {code: 'ETIMEDOUT'});};
+  assert.throws(() => recognizeCue('same-captured-frame.png', ['Tap'], 'tesseract', Date.now() + 10000),
+    error => error.ocr_evidence.attempts[0].mode === 'sparse' && /timeout/.test(error.ocr_evidence.attempts[0].error));
+} finally {cp.execFileSync = exec;}
+if (process.argv.includes('--ocr-fixtures')) {
+  const folder = path.join(__dirname, 'fixtures/tutorial-ocr');
+  const fixtures = JSON.parse(fs.readFileSync(path.join(folder, 'provenance.json'), 'utf8'));
+  const tesseract = process.env.TESSERACT_BIN || 'tesseract';
+  const results = fixtures.images.map(fixture => {
+    const file = path.join(folder, fixture.file);
+    assert.equal(hash(fs.readFileSync(file)), fixture.sha256, 'Captured OCR fixture bytes are unchanged');
+    const result = recognizeCue(file, fixture.phrases, tesseract, Date.now() + 15000);
+    assert(result.matched, fixture.file + ' must expose every required phrase: ' + JSON.stringify(result));
+    return {file: fixture.file, ...result};
+  });
+  console.log(JSON.stringify({ocr_fixture_checks: 'passed', images_unmodified: true, browser_runtime_exercised: false,
+    tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0], results}, null, 2));
 }
 console.log('Fresh tutorial browser contract and source-binding checks passed (browser runtime not exercised)');

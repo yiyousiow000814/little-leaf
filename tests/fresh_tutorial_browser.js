@@ -11,6 +11,30 @@ const root = path.resolve(__dirname, '..');
 const VIEWPORT = {width: 1360, height: 880};
 const FLOW_MS = 220000;
 
+function recognizeCue(file, phrases, tesseract, deadline) {
+  const result = {observed: '', matched: false, attempts: []};
+  // Compact cards mix a main cue, small progress and an action label. Sparse
+  // segmentation keeps those separate; block mode merged them in CI #100.
+  // The fallback reads the SAME captured pixels with adaptive thresholding.
+  for (const mode of ['sparse', 'sparse-sauvola']) {
+    if (deadline - Date.now() < 1000) break;
+    const args = [file, 'stdout', '-l', 'eng', '--psm', '11'];
+    if (mode === 'sparse-sauvola') args.push('-c', 'thresholding_method=2');
+    try {
+      result.observed = cp.execFileSync(tesseract, args, {encoding: 'utf8',
+        timeout: Math.min(5000, deadline - Date.now()), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
+      result.attempts.push({mode, observed: result.observed});
+      result.matched = phrases.every(text => normalizedText(result.observed).includes(normalizedText(text)));
+      if (result.matched) break;
+    } catch (error) {
+      result.attempts.push({mode, error: String(error)});
+      error.ocr_evidence = result;
+      throw error;
+    }
+  }
+  return result;
+}
+
 function validateLayout(result) {
   assert(result.checks > 0 && result.player_save_used === false);
   assert.deepEqual(result.failures, [], 'Engine tutorial fixture passed');
@@ -158,25 +182,35 @@ async function main() {
     const visible = async (name, phrases, region, limit = 25000) => {
       report.stage = name;
       const deadline = Math.min(flowDeadline, Date.now() + limit);
-      let observed = '', attempts = 0;
       const clip = region ? {x: Math.floor(region[0]), y: Math.floor(region[1]), width: Math.min(VIEWPORT.width - Math.floor(region[0]), Math.ceil(region[2]) + 1), height: Math.min(VIEWPORT.height - Math.floor(region[1]), Math.ceil(region[3]) + 1)} : {x: 0, y: 0, ...VIEWPORT};
       const file = path.join(output, name + '-text.png');
+      const evidence = report.rendered_stages[name] = {phrases, observed: '', attempts: 0, clip, ocr_attempts: [], matched: false};
       do {
-        attempts++;
+        // Preserve the last useful OCR result instead of beginning a capture
+        // with only a few hundred milliseconds left and masking the cause.
+        if (deadline - Date.now() < 1000) break;
+        evidence.attempts++;
         await snapshot();
-        await page.screenshot({path: file, clip, timeout: Math.min(10000, Math.max(1, deadline - Date.now()))});
-        observed = cp.execFileSync(tesseract, [file, 'stdout', '--psm', region ? '6' : '11'], {encoding: 'utf8', timeout: Math.min(5000, Math.max(1, deadline - Date.now())), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
-        fs.writeFileSync(path.join(output, name + '.txt'), observed);
-        if (phrases.every(text => normalizedText(observed).includes(normalizedText(text)))) {
-          report.rendered_stages[name] = {wall_seconds: elapsed(), phrases, observed, attempts, clip};
-          await page.screenshot({path: path.join(output, name + '.png')});
-          check(true, 'Actual rendered pixels show ' + name);
-          return;
+        if (deadline - Date.now() < 1000) break;
+        try {
+          await page.screenshot({path: file, clip, timeout: Math.min(10000, deadline - Date.now())});
+          const ocr = recognizeCue(file, phrases, tesseract, deadline);
+          if (ocr.attempts.length === 0) {evidence.ocr_budget_exhausted = true; break;}
+          Object.assign(evidence, {observed: ocr.observed, matched: ocr.matched, ocr_attempts: ocr.attempts, wall_seconds: elapsed()});
+          fs.writeFileSync(path.join(output, name + '.txt'), evidence.observed);
+          if (evidence.matched) {
+            await page.screenshot({path: path.join(output, name + '.png'), timeout: Math.max(1, Math.min(10000, deadline - Date.now()))});
+            check(true, 'Actual rendered pixels show ' + name);
+            return;
+          }
+        } catch (error) {
+          if (error.ocr_evidence) Object.assign(evidence, {observed: error.ocr_evidence.observed, ocr_attempts: error.ocr_evidence.attempts});
+          evidence.last_attempt_error = String(error);
+          if (evidence.matched || (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT')) throw error;
         }
         await page.waitForTimeout(150);
       } while (Date.now() < deadline);
-      report.rendered_stages[name] = {phrases, observed, attempts, clip};
-      throw Error('Required rendered text did not appear for ' + name + ': ' + phrases.join(', '));
+      throw Error('Required rendered text was not detected for ' + name + ': ' + phrases.join(', ') + '; last OCR=' + JSON.stringify(evidence.observed) + (evidence.last_attempt_error ? '; last operation=' + evidence.last_attempt_error : ''));
     };
     const stage = name => layout.stages[name];
     const click = async name => {
@@ -232,4 +266,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue};

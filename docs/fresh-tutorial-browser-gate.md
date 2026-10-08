@@ -51,11 +51,23 @@ The report, OCR text, stage screenshots, and failure screenshot are retained in
 `web-build/evidence/fresh-tutorial-browser/`. Existing compatibility, Inbox,
 save-log, and WebKit recovery gates are unchanged and remain mandatory.
 
+The compact guide mixes a cue, small progress text and a separate action label.
+OCR uses sparse segmentation (`--psm 11`). If the required phrases are absent,
+one adaptive-threshold attempt reads the same unchanged screenshot. CI checks
+the exact failed-run card crop and a native ordering screenshot before the live
+journey; their source and byte hashes are in `tests/fixtures/tutorial-ocr/`.
+Those image regressions prove recognition only. They cannot prove browser play.
+Each live stage records its crop, attempts, both OCR outputs and any operation
+error before another wait; it does not start a new capture with less than one
+second remaining. Exact text, real control, normal-time and economy requirements
+are unchanged.
+
 ## Local checks without a display
 
 ```sh
 node --check tests/fresh_tutorial_browser.js
 node tests/fresh_tutorial_browser_test.js
+node tests/fresh_tutorial_browser_test.js --ocr-fixtures # needs Tesseract English
 node tests/wall_compatibility_helpers_test.js
 python3 -m unittest discover -s ci -p 'test_*.py' -v
 python3 tests/run_integration_candidate.py --only test_interactive_tutorial \

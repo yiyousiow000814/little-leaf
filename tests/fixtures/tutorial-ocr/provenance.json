@@ -1,0 +1,27 @@
+{
+  "purpose": "Unmodified captured pixels for OCR segmentation regression, not gameplay or browser-pass evidence.",
+  "images": [
+    {
+      "file": "fresh-closed-ci-100.png",
+      "source_commit": "df2a8617b362e20271ac5c1072c56c7ff3ee2507",
+      "source_tree": "7dffdb23d3140dbf5598414e0b844384301b2f05",
+      "source": "https://github.com/yiyousiow000814/little-leaf/actions/runs/37759603955",
+      "capture": "web-build/evidence/fresh-tutorial-browser/fresh-closed-text.png",
+      "phrases": [
+        "Tap to open",
+        "Skip"
+      ],
+      "sha256": "e83e66f942f6ef119e4ce4ba0763ccfc921958ced04ee28229116ceac3bdfb8c"
+    },
+    {
+      "file": "ordering-native-c6d0.png",
+      "source_commit": "c6d0713a3c936c677843d01757e73869865b14ec",
+      "source": "Native Godot capture, generated disposable tutorial fixture",
+      "capture": "real-ordering-mobile.png",
+      "phrases": [
+        "Your waiter takes the order"
+      ],
+      "sha256": "b8aeceae5524442853b4f6e0df54ae012f54d8d659d6d38143e14d6533b4db4c"
+    }
+  ]
+}
