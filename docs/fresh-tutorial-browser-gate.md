@@ -85,6 +85,56 @@ extending service time. Deterministic clock regressions cover late valid payment
 expired service, missing completion text, phase expiry and the overall ceiling;
 the original exact-label negative fixtures and economy assertions still apply.
 
+## Transient moving-cue evidence
+
+The order guide initially says `Guest on the way…` while the natural guest is
+arriving. `Your waiter takes the order` is visible only between that phase and
+the genuine `order_done` transition, which changes the guide to `Meal on the way`.
+Serial full-frame OCR can spend that entire interval recognizing an older frame.
+The retained final frame from run 37839992841 shows the meal cue and a seated
+customer; the run overwrote earlier captures, so it cannot prove what those
+pixels showed or measure how long the waiter cue was readable.
+
+After the real return click, the gate immediately starts a raw screenshot
+sequence, with 500 ms between captures, concurrently with one asynchronous
+Tesseract process. It reads only ordinary acknowledged saves. On the first
+saved seated order, OCR revisits unread frames immediately preceding that save,
+newest first. Both moving phrases still need their own exact rendered evidence;
+a later meal, order, or payment never proves that the waiter cue was visible.
+The matched waiter frame must precede a distinct matched meal frame, regardless
+of which OCR result finishes first.
+Scaling occurs only when recognizing an archived image, on the same detached
+2× nearest-neighbor canvas. A first-mode OCR timeout still permits the bounded
+adaptive attempt on those same pixels. Gameplay continues naturally throughout.
+
+The return save keeps its 30 s limit. Arrival OCR has 45 s from the return click;
+order observation has at most 45 s after arrival recognition; the meal has 20 s
+from its first genuinely observed order. Earlier observations do not restart
+those deadlines. Both capture and OCR must finish within the unchanged 220 s
+service budget. The existing 80 s completion and 300 s overall caps, real final
+Done control and payment/economy assertions are unchanged. Snapshot, capture,
+and recognition callbacks also have operation deadlines; a failed observer
+cancels its peer and any pending OCR subprocess. Late callbacks cannot resume
+writing evidence after cancellation.
+
+Every raw capture has a unique filename, capture start/end timestamps,
+before/after acknowledged-save revisions, SHA-256, and the verified
+source/export binding hash. Processed frames retain each OCR mode/output,
+recognition time, and separately hashed 2× input. Successful stage aliases copy
+the matched frame rather than taking a later screenshot. Failures retain the
+whole sequence, including unrecognized frames. The sequence is bounded by 220
+raw frames and a 128 MiB evidence-size limit (checked after each write), and never
+runs more than one OCR process. These are failure bounds, not new gameplay time.
+
+Fast regressions exercise delayed recognition across a short cue, independent
+wrong/missing labels, missing genuine saves/orders, capture/input/source
+binding failures, hung callbacks, reversed/same-frame cues, frame/byte bounds,
+and expired local/service budgets. Existing
+real OCR fixtures remain unchanged. Synthetic timing tests and retained image
+recognition are not a live browser pass. Hosted CI must establish the actual
+ordinary-Web journey. The new timestamps can help investigate cue readability;
+sparse matched samples alone must not be reported as its full visible duration.
+
 ## Local checks without a display
 
 ```sh
