@@ -81,6 +81,40 @@ class MetadataTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError): version(self.root, "v" + value)
 
 
+class ReleaseNotesContractTests(unittest.TestCase):
+    """Guard the checked-in draft contract without adding CI dependencies."""
+    root = Path(__file__).resolve().parents[1]
+
+    def test_checked_in_document_uses_declared_schema_fields_and_status(self):
+        notes = json.loads((self.root / "data/release_notes.json").read_text())
+        schema = json.loads((self.root / "data/release_notes.schema.json").read_text())
+        self.assertFalse(schema["additionalProperties"])
+        self.assertTrue(set(schema["required"]).issubset(notes))
+        self.assertTrue(set(notes).issubset(schema["properties"]))
+        self.assertIn(notes["status"], schema["properties"]["status"]["enum"])
+        self.assertEqual(schema["properties"]["schema_version"]["const"], notes["schema_version"])
+        self.assertIn("draft", schema["properties"]["status"]["enum"])
+        review = schema["properties"]["review_pending"]
+        self.assertEqual(review["type"], "array")
+        self.assertEqual(review["items"], {"type": "string", "minLength": 1, "pattern": r"\S"})
+        for item in notes.get("review_pending", []):
+            self.assertIsInstance(item, str)
+            self.assertTrue(item.strip())
+
+    def test_draft_with_populated_review_metadata_is_never_publishable(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "data").mkdir()
+            (root / "project.godot").write_text('config/version="0.1.10"\n')
+            notes = {"schema_version": 1, "status": "draft", "version": "0.1.10",
+                     "date": "2026-01-01", "label": "Candidate", "new": ["Candidate change"],
+                     "fixed": [], "review_pending": ["Visual acceptance still open"]}
+            (root / "data/release_notes.json").write_text(json.dumps(notes))
+            self.assertEqual(version(root), "0.1.10")
+            with self.assertRaisesRegex(ValueError, "marked released"):
+                version(root, "v0.1.10")
+
+
 class MainHistoryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
