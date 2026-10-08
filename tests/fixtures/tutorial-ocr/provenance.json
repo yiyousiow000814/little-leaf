@@ -1,0 +1,75 @@
+{
+  "purpose": "Unmodified captured pixels for OCR segmentation regression, not gameplay or browser-pass evidence.",
+  "images": [
+    {
+      "file": "fresh-closed-ci-100.png",
+      "source_commit": "df2a8617b362e20271ac5c1072c56c7ff3ee2507",
+      "source_tree": "7dffdb23d3140dbf5598414e0b844384301b2f05",
+      "source": "https://github.com/yiyousiow000814/little-leaf/actions/runs/37759603955",
+      "capture": "web-build/evidence/fresh-tutorial-browser/fresh-closed-text.png",
+      "phrases": [
+        "Tap to open",
+        "Skip"
+      ],
+      "sha256": "e83e66f942f6ef119e4ce4ba0763ccfc921958ced04ee28229116ceac3bdfb8c"
+    },
+    {
+      "file": "ordering-native-c6d0.png",
+      "source_commit": "c6d0713a3c936c677843d01757e73869865b14ec",
+      "source": "Native Godot capture, generated disposable tutorial fixture",
+      "capture": "real-ordering-mobile.png",
+      "phrases": [
+        "Your waiter takes the order"
+      ],
+      "sha256": "b8aeceae5524442853b4f6e0df54ae012f54d8d659d6d38143e14d6533b4db4c"
+    },
+    {
+      "file": "done-button-ci-101-2x.png",
+      "source_commit": "b3a412d6c2c841beb34a0bd6b83ef4b0d2696edf",
+      "source": "https://github.com/yiyousiow000814/little-leaf/actions/runs/37765372369",
+      "capture": "first-order-complete-text.png",
+      "raw_fixture": "complete-card-ci-101.png",
+      "raw_sha256": "cfda865f0adc0b3999f9b2de34aa5fb615db89bb6d30e18e7dc8c89c8e40a51e",
+      "transform": {
+        "crop_ltrb": [
+          185,
+          10,
+          230,
+          55
+        ],
+        "pixel_scale": 2,
+        "resampling": "nearest, each original pixel repeated exactly"
+      },
+      "phrases": [
+        "Done"
+      ],
+      "exact_label": true,
+      "expected_match": true,
+      "sha256": "317da4cddaa1b63d137a80eff469d1e7eee3b417331f23b07cafe366ef24a29b"
+    },
+    {
+      "file": "complete-title-no-button-ci-101-2x.png",
+      "source_commit": "b3a412d6c2c841beb34a0bd6b83ef4b0d2696edf",
+      "source": "https://github.com/yiyousiow000814/little-leaf/actions/runs/37765372369",
+      "capture": "first-order-complete-text.png",
+      "raw_fixture": "complete-card-ci-101.png",
+      "raw_sha256": "cfda865f0adc0b3999f9b2de34aa5fb615db89bb6d30e18e7dc8c89c8e40a51e",
+      "transform": {
+        "crop_ltrb": [
+          0,
+          0,
+          185,
+          65
+        ],
+        "pixel_scale": 2,
+        "resampling": "nearest, each original pixel repeated exactly"
+      },
+      "phrases": [
+        "Done"
+      ],
+      "exact_label": true,
+      "expected_match": false,
+      "sha256": "6c62ed21ff90d594d2a461f529ea29bcd37f80dacac160ba86505597278460fa"
+    }
+  ]
+}

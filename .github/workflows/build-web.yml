@@ -34,6 +34,8 @@ jobs:
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
           node tests/boot_presentation.js
+          node tests/fresh_tutorial_browser_test.js
+          node --check tests/fresh_tutorial_browser.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
           node tests/web_performance_lifecycle.js
@@ -68,6 +70,21 @@ jobs:
           path: ${{ runner.temp }}/web-build/web/
           if-no-files-found: error
           retention-days: 7
+      - name: Install shared pinned browser tools
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Check out the exact historical wall-format-1 client
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,14 +99,6 @@ jobs:
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
       - name: Bind compatibility inputs and derive UI coordinates
         run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
-      - name: Install shared pinned browser tools
-        timeout-minutes: 10
-        run: |
-          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
-          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
-          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
-          google-chrome --version
       - name: Verify compensation history in sandboxed Chromium
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome

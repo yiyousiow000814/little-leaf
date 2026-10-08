@@ -510,6 +510,9 @@ func _set_help_modal(enabled:bool):
 func _help_tab(event:InputEventKey)->bool:
  if not help_panel.visible or event.keycode!=KEY_TAB:return false
  var controls=[help_scroll]
+ if game.get("tutorial")!=null:
+  for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
+   if button.visible and not button.disabled:controls.append(button)
  if help_retry.visible and not help_retry.disabled:controls.append(help_retry)
  controls.append_array([help_overview,help_notes,help_done])
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
