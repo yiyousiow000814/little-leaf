@@ -109,6 +109,10 @@ async function main() {
       });} finally {db.close();}
     });
     check(stored.revision === accepted.revision && stored.profileId === seeded.profileId, 'independent IndexedDB read confirms the revision the real controller accepted');
+    // Return through the matching real lifecycle event before interacting with
+    // the page. Performance suspension intentionally disables GUI processing
+    // after pagehide until pageshow/visible, even with simulation time frozen.
+    await page.evaluate(() => window.dispatchEvent(new Event('pageshow')));
     await page.evaluate(() => navigator.clipboard.writeText('UNTOUCHED_CLIPBOARD_SENTINEL'));
     const click = async name => {
       const point = layout.web_input_points[name];
