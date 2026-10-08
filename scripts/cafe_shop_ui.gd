@@ -38,6 +38,30 @@ var action_copy:HBoxContainer
 var price_label:Label
 var action_layout_key=""
 
+var parking_card:Button
+var parking_price:Label
+var parking_status:Label
+var parking_coin:TextureRect
+var parking_preview:Control
+var parking_review:PanelContainer
+var parking_review_text:Label
+var parking_sell:Button
+var parking_cancel:Button
+
+class ParkingIcon extends Control:
+ func _draw():
+  # Four marked bays, using the same compact 84 x 54 art slot as Build.
+  var a=Vector2(5,18);var b=Vector2(58,4);var c=Vector2(79,35);var d=Vector2(26,49)
+  draw_colored_polygon(PackedVector2Array([a+Vector2(0,3),b+Vector2(0,3),c+Vector2(0,3),d+Vector2(0,3)]),Color("65736a"))
+  draw_colored_polygon(PackedVector2Array([a,b,c,d]),Color("98a395"))
+  draw_polyline(PackedVector2Array([a,b,c,d,a]),Color("5f7164"),1.3,true)
+  var left=a.lerp(d,.2);var right=b.lerp(c,.2)
+  var bottom_left=a.lerp(d,.84);var bottom_right=b.lerp(c,.84)
+  draw_line(left,right,Color("f5eed8"),1.8,true)
+  for bay in 5:
+   var t=float(bay)/4
+   draw_line(left.lerp(right,t),bottom_left.lerp(bottom_right,t),Color("f5eed8"),1.8,true)
+
 class TileIcon extends Control:
  var style="warm_oak"
  var collection=false
@@ -182,6 +206,7 @@ func setup():
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
  _setup_tiles()
+ _setup_parking()
  action_copy=HBoxContainer.new();action_copy.mouse_filter=Control.MOUSE_FILTER_IGNORE;action_copy.add_theme_constant_override("separation",8);ui.context.add_child(action_copy)
  ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -190,6 +215,74 @@ func setup():
  root.resized.connect(func():background.size=root.size)
  game.get_window().focus_exited.connect(_cancel_product_contacts)
  game.tree_exiting.connect(_dispose_product_scroll)
+func _setup_parking():
+ # This fixed exterior upgrade deliberately stays outside the furniture
+ # catalog: it can never start a placement preview or become a movable item.
+ parking_card=ui._small_button("",_choose_parking);parking_card.name="ParkingUpgradeCard";_style(parking_card)
+ parking_card.mouse_filter=Control.MOUSE_FILTER_PASS;game.catalog_scroll.get_child(0).add_child(parking_card)
+ var body=Control.new();body.mouse_filter=Control.MOUSE_FILTER_IGNORE;parking_card.add_child(body);parking_card.move_child(body,0)
+ body.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);body.offset_left=8;body.offset_top=4;body.offset_right=-8;body.offset_bottom=-4
+ var holder=Control.new();holder.mouse_filter=Control.MOUSE_FILTER_IGNORE;body.add_child(holder)
+ parking_preview=ParkingIcon.new();parking_preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;parking_preview.size=Vector2(84,54);holder.add_child(parking_preview)
+ var title=ui.hud._label(body,"Parking · 4 bays",13);title.add_theme_font_override("font",ui.hud.font_bold)
+ var price_row=HBoxContainer.new();price_row.alignment=BoxContainer.ALIGNMENT_CENTER;price_row.add_theme_constant_override("separation",5);price_row.mouse_filter=Control.MOUSE_FILTER_IGNORE;body.add_child(price_row)
+ parking_coin=ui.hud._picture(price_row,ui.hud._texture("coin"));parking_coin.custom_minimum_size=Vector2(21,21);parking_coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+ parking_price=ui.hud._label(price_row,"",18);parking_price.clip_text=false;parking_price.size_flags_vertical=Control.SIZE_SHRINK_CENTER;parking_price.add_theme_font_override("font",ui.hud.font_bold)
+ parking_status=ui.hud._label(body,"",11);parking_status.custom_minimum_size.y=16
+ parking_review=ui._panel();parking_review.name="ParkingSaleReview"
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",12);parking_review.add_child(box)
+ box.add_child(game.label("Parking · 4 bays",20))
+ parking_review_text=game.label("",15);parking_review_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;parking_review_text.custom_minimum_size=Vector2(250,0);box.add_child(parking_review_text)
+ var actions=BoxContainer.new();box.add_child(actions);ui.popup_action_rows.append(actions)
+ parking_sell=ui._small_button("Sell parking",_sell_parking,140);actions.add_child(parking_sell)
+ parking_cancel=ui._small_button("Cancel",func():parking_review.hide();ui.sync(),80);actions.add_child(parking_cancel)
+func _parking_action_allowed()->bool:
+ return game.editing and game.catalog_category=="Decor" and not game.save_recovery_blocked and not ui.viewport_too_small
+func _choose_parking():
+ if not _parking_action_allowed() or ui.has_open_popup():return
+ game._cancel_selection()
+ if game.model.parking_owned:
+  ui._popup_at(parking_review,320);_sync_parking_review();ui.sync();return
+ if game.model.buy_parking():game._update_ui();game._save()
+ else:ui.sync()
+func _sell_parking():
+ if not parking_review.visible or not _parking_action_allowed() or not game.model.parking_owned or not game.model.parking_visits.is_empty():return
+ if game.model.sell_parking():
+  parking_review.hide();game._cancel_selection();game._update_ui();game._save()
+ else:_sync_parking_review();ui.sync()
+func _sync_parking_review():
+ if not parking_review.visible:return
+ if not game.editing or game.catalog_category!="Decor" or not game.model.parking_owned:parking_review.hide();return
+ var occupied=game.model.parking_visits.size();var refund=int(game.model.parking_refund())
+ var reason="Wait until all cars have left before selling." if occupied>0 else "Sell this fixed upgrade for %s coins."%ui.Money.amount(refund)
+ if game.save_recovery_blocked:reason="Resolve save recovery before selling."
+ parking_review_text.text="Owned · 4 bays\n%d of 4 bays reserved or occupied.\n\n%s"%[occupied,reason]
+ if occupied==0 and not game.save_recovery_blocked:
+  parking_review_text.text+="\nFull purchase refund this Decorate session." if refund==int(game.model.parking_paid_cost) else "\nHalf of the amount originally paid."
+ parking_sell.text="Sell +"+ui.Money.amount(refund)
+ parking_sell.disabled=occupied>0 or game.save_recovery_blocked or ui.viewport_too_small
+ parking_sell.tooltip_text=reason;parking_sell.accessibility_description=reason
+func _sync_parking_card():
+ parking_card.visible=game.catalog_category=="Decor"
+ var owned=bool(game.model.parking_owned);var occupied=game.model.parking_visits.size()
+ var shortfall=maxi(0,int(game.model.parking_price())-int(game.model.coins))
+ parking_price.text="Owned" if owned else ui.Money.amount(game.model.parking_price());parking_coin.visible=not owned
+ parking_status.text="%d/4 in use"%occupied if owned else ("Need "+ui.Money.amount(shortfall) if shortfall>0 else "Fixed upgrade")
+ parking_card.disabled=game.save_recovery_blocked or (not owned and shortfall>0)
+ if game.save_recovery_blocked:parking_status.text="Save recovery"
+ parking_price.add_theme_color_override("font_color",Color("93482e") if shortfall>0 and not owned else ui.hud.INK)
+ parking_status.add_theme_color_override("font_color",Color("93482e") if parking_card.disabled else ui.hud.INK)
+ var detail="Owned parking, four fixed bays. %d bays reserved or occupied. "%occupied if owned else "Buy four fixed parking bays for %s coins. No placement needed. "%ui.Money.amount(game.model.parking_price())
+ detail+=("Wait until all cars have left before selling." if occupied>0 else "Click to review selling for %s coins."%ui.Money.amount(game.model.parking_refund())) if owned else ("Need %s more coins."%ui.Money.amount(shortfall) if shortfall>0 else "Click to buy.")
+ if game.save_recovery_blocked:detail="Resolve save recovery before changing parking."
+ parking_card.accessibility_name="Owned parking, four bays" if owned else "Buy parking, four bays"
+ parking_card.accessibility_description=detail;parking_card.tooltip_text=detail
+ _sync_parking_review()
+func _layout_parking_card(width:float,height:float,short_landscape:bool):
+ parking_card.custom_minimum_size=Vector2(width,height);parking_status.add_theme_font_size_override("font_size",13 if short_landscape else 11)
+ _layout_product_card(parking_card,width,height,short_landscape)
+ var holder=parking_preview.get_parent();parking_preview.scale=Vector2.ONE*minf(holder.size.x/84.0,holder.size.y/54.0)
+ parking_preview.position=(holder.size-Vector2(84,54)*parking_preview.scale)*.5
 func _setup_tiles():
  tiles_card=_make_tile_card("tiles","Tiles",str(game.build_tools.FLOOR_STYLES.size())+" styles","warm_oak",show_tiles,true)
  for index in game.build_tools.FLOOR_STYLES.size():
@@ -520,10 +613,14 @@ func _short_landscape_card_width()->float:
    var status="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
    if kind=="register":status="Counter + cashier" if game.model.included_checkout_pending else "Move it in the café"
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(status,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+66.0)
+  if parking_card.visible:
+   width=maxf(width,ceilf(ui.hud.font_bold.get_string_size("Parking · 4 bays",HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
+   width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(parking_status.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+66.0)
  return width
 
 func sync(width:float):
  if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
+ _sync_parking_card()
  ui._sync_starter_floor_repair()
  var insets=ui.hud._safe_insets();var available_width=width-insets.x-insets.z;var narrow=available_width<650
  var tray_style=game.tray.get_theme_stylebox("panel");tray_style.content_margin_left=0;tray_style.content_margin_right=0;tray_style.content_margin_top=0;tray_style.content_margin_bottom=0
@@ -588,6 +685,7 @@ func sync(width:float):
  var count=0
  for card in game.catalog_cards.values():
   if card.visible:count+=1
+ if parking_card.visible:count+=1
  if game.catalog_category=="Build":count=_visible_build_keys().size()
  var card_w=_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0)
  var margin=16 if picker_landscape else (24 if short_landscape else (22 if tiny else 32))
@@ -660,6 +758,7 @@ func sync(width:float):
  for kind in game.catalog_cards:
   var card=game.catalog_cards[kind];_layout_product_card(card,card_w,card_h,short_landscape)
   var holder=card.get_child(0).get_child(0);_fit_thumbnail(kind,holder.get_child(0),holder.size)
+ _layout_parking_card(card_w,card_h,short_landscape)
  for key in _visible_build_keys():
   _layout_product_card(build_cards[key],card_w,card_h,short_landscape)
   var holder=build_previews[key].holder;var preview=build_previews[key].image

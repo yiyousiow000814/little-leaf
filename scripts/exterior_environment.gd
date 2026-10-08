@@ -2,6 +2,7 @@ extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Parking=preload("res://scripts/cafe_parking.gd")
 const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const Greenery=preload("res://scripts/environment_greenery.gd")
 static var greenery=Greenery.new()
@@ -43,6 +44,13 @@ const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2
 
 static func inspection_bounds(tile:Vector2)->Rect2:
 	return CameraLandmarks.inspection_bounds(tile)
+
+static func parking_hooks()->Dictionary:
+	# Fixed exterior upgrade metadata; ownership and all real admissions live
+	# in the model. These anchors never become owned cafe floor tiles.
+	var bays:Array[Vector2]=[]
+	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
+	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 	var points=[a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)]
@@ -175,7 +183,7 @@ static func projected(a,points:Array)->Array:
 	for point in points:result.append(a.iso(point.x,point.y))
 	return result
 
-static func draw_ground(a):
+static func draw_ground(a,parking_owned:bool=false):
 	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
@@ -192,6 +200,13 @@ static func draw_ground(a):
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
+	if parking_owned:
+		# Flush vehicle crossing across the existing public sidewalk; no access road.
+		quad(a,LOT.position.x,LOT.position.y,LOT.end.x,LOT.end.y,"919f92")
+		for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-8.45),a.iso(x,-5.75),"dce0ca",1.3*a.ui_scale)
+		a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
+		# Open lawn separates the lot from the wall; only one short pedestrian link.
+		quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		var edges=pavement_edges(z)
 		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
@@ -205,6 +220,12 @@ static func draw_ground(a):
 	# pavement edge; its road-facing riser drops below that plane, so there is
 	# no floating raised strip or change to the authored sidewalk silhouette.
 	draw_kerb(a)
+
+static func draw_crossing(a,parking_owned:bool=false):
+	if not parking_owned:return
+	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
+	# A clear continuous pedestrian strip passes over the flush driveway.
+	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
 static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable()):
 	# All low ground plants precede elevated structures. Never paint a ground
@@ -255,6 +276,52 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
+
+# The existing passenger-car illustration is shared with ambient road traffic.
+# Parking routes turn between the road, transverse aisle and longitudinal bays;
+# transform world anchors, not the finished isometric image, so height stays up.
+class CarProjection extends RefCounted:
+	var source
+	var position:Vector2
+	var transverse=Vector2.RIGHT
+	var longitudinal=Vector2.DOWN
+	var direction=1
+	var ui_scale:float
+	var zoom:float
+	func _init(artist,at:Vector2,heading:Vector2):
+		source=artist;position=at;ui_scale=artist.ui_scale;zoom=artist.zoom
+		if absf(heading.x)>absf(heading.y):
+			transverse=Vector2.DOWN;longitudinal=Vector2.RIGHT
+			direction=-1 if heading.x<0 else 1
+		else:direction=-1 if heading.y<0 else 1
+	func iso(x:float,z:float,h:float=0.0)->Vector2:
+		var point=position+transverse*x+longitudinal*z
+		return source.iso(point.x,point.y,h)
+	func render_bounds_visible(bounds:Rect2)->bool:
+		return not source.has_method("render_bounds_visible") or source.render_bounds_visible(bounds)
+	func poly(points:Array,color):source.poly(points,color)
+	func rounded_poly(points:Array,radius:float,color):source.rounded_poly(points,radius,color)
+	func ellipse(point:Vector2,size:Vector2,color):source.ellipse(point,size,color)
+
+static func parking_cars(visits:Array)->Array[Dictionary]:
+	# No decorative stand-ins: one visible vehicle follows each live visit from
+	# arrival until the authoritative return drive releases the bay.
+	var entries:Array[Dictionary]=[]
+	for visit in visits:
+		if str(visit.get("phase","")) not in Parking.PHASES:continue
+		var position=visit.get("car_position")
+		var heading=visit.get("car_heading",Vector2.DOWN)
+		if not position is Vector2 or not heading is Vector2:continue
+		if not position.is_finite() or not heading.is_finite():continue
+		var id=int(visit.id)
+		entries.append({"parking_car":true,"id":id,"position":position,"heading":heading,"color":"a2b3b3" if posmod(id,3)==0 else "ddcdb0"})
+	return entries
+
+static func draw_oriented_car(a,p:Vector2,heading:Vector2,color):
+	var projection=CarProjection.new(a,p,heading)
+	# draw_car's conservative bounds pass through the same world transform;
+	# horizontal cars cannot disappear because of a vertical-only culling box.
+	draw_car(projection,Vector2.ZERO,projection.direction,color)
 
 static func draw_car(a,p:Vector2,direction:int,color):
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
