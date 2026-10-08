@@ -26,6 +26,15 @@ SUITES = [
     ("test_performance_simulation_cache", "PERFORMANCE_SIMULATION_CACHE_RESULT"),
     ("test_performance_shell_cache", "PERFORMANCE_SHELL_CACHE_RESULT"),
     ("test_legacy_3d_suppression", "LEGACY_3D_SUPPRESSION_RESULT"),
+    ("test_decoration_build_refund", "DECORATION_BUILD_REFUND_RESULT"),
+    ("test_decoration_refund", "DECORATION_REFUND_RESULT"),
+    ("test_floor_approach_cache", "FLOOR_APPROACH_CACHE_RESULT"),
+    ("test_floor_cleaning_approach", "FLOOR_CLEANING_APPROACH_RESULT"),
+    ("test_floor_tool_depth", "FLOOR_TOOL_DEPTH_RESULT"),
+    ("test_floor_work_side", "FLOOR_WORK_SIDE_RESULT"),
+    ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
+    ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
+    ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
     ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
@@ -94,6 +103,7 @@ SUITES = [
     ("test_street_pedestrians", "STREET_PEDESTRIANS_RESULT"),
     ("test_street_endpoints", "STREET_ENDPOINTS_RESULT"),
     ("test_street_service_save", "STREET_SERVICE_SAVE_RESULT"),
+    ("test_outside_queue", "OUTSIDE_QUEUE_RESULT"),
 ]
 EXCLUDE = shutil.ignore_patterns(
     ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",

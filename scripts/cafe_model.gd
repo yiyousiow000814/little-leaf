@@ -17,6 +17,7 @@ const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
+const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
@@ -106,6 +107,10 @@ var catalog: Array[Dictionary] = [
 
 var items: Array[Dictionary] = []
 var customers: Array[Dictionary] = []
+var outside_queue: Array[Dictionary] = []
+
+func visual_customers()->Array:
+	return customers+outside_queue
 var dining_sets:Array[Dictionary]=[]
 var built_walls: Array[Dictionary] = []
 var wall_attachments:Array[Dictionary]=[]
@@ -176,10 +181,12 @@ func _init() -> void:
 
 
 func reset_new() -> void:
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
 	customers.clear()
+	outside_queue.clear()
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
@@ -241,6 +248,7 @@ func set_operating_open(value:bool) -> bool:
 	if operating_open==value:return true
 	operating_open=value;_arrival_elapsed=0.0
 	if not value:
+		for visitor in outside_queue:OutsideQueue.cancel(visitor)
 		for guest in customers:
 			if str(guest.phase)=="arriving" and not _customer_admitted(guest):_withdraw_exterior_guest(guest)
 	last_event="Open · welcoming new guests" if value else "Closing · seated guests may finish; staff keep working"
@@ -356,7 +364,44 @@ func logical_rotation(id:int)->int:
 	var group=dining_set_for(id);return int(group.rot) if not group.is_empty() else int(get_item(id).get("rot",0))
 func logical_members(id:int)->Array:
 	var group=dining_set_for(id);return [int(group.table_id),int(group.seat_id)] if not group.is_empty() else [id]
-func logical_refund(id:int)->int:return DiningSets.refund(self,id)
+# Session receipts are deliberately memory-only: a reload finalizes interrupted edits.
+# IDs are stable through moves; only successful purchases/sales change this ledger.
+var decoration_session_active=false
+var decoration_purchases:Dictionary={}
+var decoration_build_purchases:Dictionary={}
+func begin_decoration_session():
+	if decoration_session_active:return
+	decoration_session_active=true;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
+func finish_decoration_session():
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
+func record_decoration_purchase(id:int,paid:int):
+	if decoration_session_active:decoration_purchases[id]=paid
+func consume_decoration_purchase(ids:Array):
+	for id in ids:decoration_purchases.erase(int(id))
+func decoration_refund_bonus(id:int)->int:
+	var bonus=0
+	for member in logical_members(id):
+		var paid=int(decoration_purchases.get(member,0))
+		bonus+=paid-int(paid/2)
+	return bonus if decoration_session_active else 0
+func record_decoration_build_purchase(category:String,id:int,paid:int):
+	if decoration_session_active:decoration_build_purchases[category+":"+str(id)]=paid
+func wall_refund(key:String)->int:
+	var wall=get_wall(key)
+	if wall.is_empty():return 0
+	var receipt="wall:"+str(int(wall.id))
+	if decoration_session_active and decoration_build_purchases.has(receipt):return int(decoration_build_purchases[receipt])
+	return int(wall_price(str(wall.height))/2)
+func wall_attachment_refund(id:int)->int:
+	var attachment=get_wall_attachment(id)
+	if attachment.is_empty():return 0
+	var receipt="opening:"+str(id)
+	if decoration_session_active and decoration_build_purchases.has(receipt):return int(decoration_build_purchases[receipt])
+	return int(int(attachment.paid_cost)/2)
+func logical_refund(id:int)->int:
+	if get_item(id).is_empty():return 0
+	if decoration_session_active and dining_set_for(id).is_empty() and decoration_purchases.has(id):return int(decoration_purchases[id])
+	return DiningSets.refund(self,id)+decoration_refund_bonus(id)
 func logical_item_count()->int:return items.size()-dining_sets.size()
 func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionary]:
 	if is_dining_product(kind) or not dining_set_for(id).is_empty():return DiningSets.parts(self,x,z,rot,id,DiningSets.variant_for_product(kind))
@@ -415,6 +460,7 @@ func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = 
 	if kind=="bin":included_bin_pending=false
 	_next_item_id += 1
 	coins -= price
+	record_decoration_purchase(int(item.id),price)
 	rebuild_dining_sets()
 	last_event = "Placed %s · −%s coins" % [kind, Money.amount(price)]
 	_notify()
@@ -481,7 +527,8 @@ func remove(id: int, refund: bool = true) -> bool:
 	var essential_error := _essential_removal_error([id])
 	if essential_error != "":
 		return _fail(essential_error)
-	var returned: int = int(price_of(str(item.kind)) / 2) if refund else 0
+	var returned: int = logical_refund(id) if refund else 0
+	consume_decoration_purchase([id])
 	items.erase(item)
 	coins += returned
 	last_error = ""
@@ -1091,6 +1138,7 @@ func _tick_step(delta: float) -> void:
 			customer.duration = PHASE_SECONDS[customer.phase]
 	for customer in departing:
 		customers.erase(customer)
+	OutsideQueue.advance(self,delta)
 	if operating_open:_arrival_elapsed += delta
 	if operating_open and _arrival_elapsed + 0.000001 >= ARRIVAL_INTERVAL:
 		_arrival_elapsed = 0.0
@@ -1100,6 +1148,9 @@ func _tick_step(delta: float) -> void:
 func _spawn_customer() -> void:
 	if not operating_open:return
 	if count_kind("stove") == 0 or count_kind("beverage") == 0 or count_kind("sink") == 0:
+		return
+	if not outside_queue.is_empty():
+		for attempt in range(2):OutsideQueue.add(self)
 		return
 	var used_tables: Dictionary = {}
 	var used_chairs: Dictionary = {}
@@ -1113,7 +1164,7 @@ func _spawn_customer() -> void:
 	var added := 0
 	for pair in _seating_pairs():
 		if added >= 2 or arriving >= MAX_ARRIVING:
-			return
+			break
 		if used_tables.has(int(pair.table_id)) or used_chairs.has(int(pair.chair_id)):
 			continue
 		var chair := get_item(int(pair.chair_id))
@@ -1144,6 +1195,33 @@ func _spawn_customer() -> void:
 		_next_customer_id += 1
 		added += 1
 		arriving += 1
+	if added==0:
+		for attempt in range(2):OutsideQueue.add(self)
+
+func _admit_queued_visitor(visitor:Dictionary)->bool:
+	if not operating_open or customers.filter(func(g):return g.phase=="arriving").size()>=MAX_ARRIVING:return false
+	var used_tables={};var used_chairs={}
+	for guest in customers:
+		if bool(guest.get("withdrawn",false)):continue
+		used_tables[int(guest.table_id)]=true;used_chairs[int(guest.chair_id)]=true
+	var position=Vector2(float(visitor.x),float(visitor.z))
+	for pair in _seating_pairs():
+		if used_tables.has(int(pair.table_id)) or used_chairs.has(int(pair.chair_id)):continue
+		var access=guest_access_for(int(pair.chair_id),true,Vector2(ARRIVAL_LANE_X,position.y),12.5,int(pair.table_id),int(visitor.id))
+		if access.is_empty():continue
+		var route:Array[Vector2]=[Vector2(ARRIVAL_LANE_X,position.y)]
+		route.append_array(access.route)
+		var previous=position;var safe=true
+		for point in route:
+			if segment_blocked(previous,point):safe=false;break
+			previous=point
+		if not safe:continue
+		var guest={"id":visitor.id,"table_id":pair.table_id,"chair_id":pair.chair_id,"mobility":{},"phase":"arriving","elapsed":0.0,"duration":_route_length(position,route)/WALK_SPEED,"x":position.x,"z":position.y,"paid":false,"seated":false,"admitted":false,"withdrawn":false,"exit_completed":false,"meal_abandoned":false,"street_route_format":STREET_ROUTE_FORMAT,"street_origin_z":visitor.origin_z,"route":route,"route_index":0,"heading":Vector2.LEFT,"service_cell":access.approach,"waiting":false,"exterior_exit":false,"entry_cell":access.entry_cell,"entry_direction":access.entry_direction,"entry_outside":access.entry_outside,"departure_blocked":false,"dismounting":false,"egress_cell":Vector2i(-100,-100),"dismount_progress":0.0}
+		Checkout.init_guest(self,guest)
+		guest["table_service_direction"]=_table_service_direction_in(get_item(int(pair.table_id)),items)
+		customers.append(guest);outside_queue.erase(visitor)
+		return true
+	return false
 
 
 func table_service_direction(table_id: int) -> Vector2i:
@@ -1575,6 +1653,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
 	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
+	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
+	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
+	if not queue_check.ok:return _fail(str(queue_check.error))
 	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
 	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
@@ -1585,7 +1666,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
 		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
-		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,
+		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
@@ -1738,6 +1819,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
+	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
+	if not queue_check.ok:return _fail(str(queue_check.error))
+	if not saved_open and queue_check.visitors.any(func(v):return v.phase=="outside_queue"):return _fail("Closed cafe has an active outside request")
 	if saved_checkout_pending:
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
@@ -1767,6 +1851,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	# Validate the saved layout as written first. Narrow only a matching free
 	# starter when its new jambs leave every saved body and remaining route clear.
 	checked_attachments.attachments=_align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
+	finish_decoration_session()
 	items = validated
 	dining_sets.assign(saved_sets.groups)
 	built_walls.assign(checked_walls.walls)
@@ -1788,6 +1873,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	total_cleaned = int(data.total_cleaned)
 	_next_item_id = int(data.next_item_id)
 	customers.assign(runtime_state.customers)
+	outside_queue.assign(queue_check.visitors)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
 	loaded_save_version=int(data.version)
@@ -2074,6 +2160,7 @@ func place_wall(axis:String,x:int,z:int,height:String="full",material:String="sa
 	if coins<price:return _fail("Not enough coins · this wall needs %s"%Money.amount(price))
 	var wall=WallGeometry.make(axis,x,z,height,material);wall["id"]=_next_wall_id;_next_wall_id+=1
 	built_walls.append(wall);coins-=price
+	record_decoration_build_purchase("wall",int(wall.id),price)
 	last_error="";last_event="Built %s wall · −%s coins"%[height,Money.amount(price)]
 	_notify();return true
 
@@ -2122,6 +2209,8 @@ func replace_wall(key:String,height:String,material:String,actor_positions:Array
 		shell_segment_products[key]={"height":height,"material":material,"paid_cost":cost,"refund_credit":cost/2}
 	else:
 		var wall=get_wall(key);wall.height=height;wall.material=material
+		# Replacement keeps its existing half credit; only the new product receipt remains.
+		record_decoration_build_purchase("wall",int(wall.id),int(quote.new_cost))
 	# One commit and one notification. There is no intermediate sale, missing
 	# host, temporary refund or ID change for a failed/cancelled replacement.
 	coins-=int(quote.net)
@@ -2138,7 +2227,8 @@ func can_remove_wall(key:String) -> bool:
 func remove_wall(key:String,refund:bool=true) -> bool:
 	if not can_remove_wall(key):return false
 	var wall:=get_wall(key)
-	var returned:=int(wall_price(str(wall.height))/2) if refund else 0
+	var returned:=wall_refund(key) if refund else 0
+	decoration_build_purchases.erase("wall:"+str(int(wall.id)))
 	built_walls.erase(wall);coins+=returned
 	last_error="";last_event="Removed wall · +%s coins"%Money.amount(returned)
 	_notify();return true
@@ -2175,6 +2265,8 @@ func set_wall_height(key:String,height:String,actor_positions:Array=[]) -> bool:
 	# Height changes never move a solid edge or alter routes; no unsafe new
 	# footprint. Downgrading refunds the exact difference, so cycling is neutral.
 	wall.height=height;coins-=difference
+	var receipt="wall:"+str(int(wall.id))
+	if decoration_session_active and decoration_build_purchases.has(receipt):decoration_build_purchases[receipt]=int(decoration_build_purchases[receipt])+difference
 	last_error="";last_event="Wall height changed · %s coins"%Money.amount(-difference)
 	_notify();return true
 
@@ -2535,6 +2627,7 @@ func place_wall_attachment(kind:String,host_id:String,offset:float,actor_positio
 	var cost=attachment_price(kind)
 	if coins<cost:return _fail("Not enough coins · %s needs %s"%[kind,Money.amount(cost)])
 	wall_attachments.append({"id":_next_attachment_id,"kind":kind,"host_id":host_id,"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":cost})
+	record_decoration_build_purchase("opening",_next_attachment_id,cost)
 	_next_attachment_id+=1;coins-=cost;last_error="";last_event="Attached %s · −%s coins"%[kind,Money.amount(cost)];_notify();return true
 func can_move_wall_attachment(id:int,host_id:String,offset:float,actor_positions:Array=[])->bool:
 	last_error=""
@@ -2558,7 +2651,8 @@ func can_remove_wall_attachment(id:int,actor_positions:Array=[])->bool:
 	return true if reason=="" else _fail(reason)
 func remove_wall_attachment(id:int,actor_positions:Array=[],refund=true)->bool:
 	if not can_remove_wall_attachment(id,actor_positions):return false
-	var attachment=get_wall_attachment(id);var amount=int(int(attachment.paid_cost)/2) if refund else 0
+	var attachment=get_wall_attachment(id);var amount=wall_attachment_refund(id) if refund else 0
+	decoration_build_purchases.erase("opening:"+str(id))
 	var kind=str(attachment.kind);wall_attachments.erase(attachment);coins+=amount
 	last_error="";last_event="Removed %s · wall restored · +%s coins"%[kind,Money.amount(amount)];_notify();return true
 func host_for_attachment_width(host_id:String,width:float)->Dictionary:

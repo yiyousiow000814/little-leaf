@@ -8,6 +8,7 @@ var render_idle=preload("res://scripts/cafe_render_idle.gd").new()
 
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
+const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
@@ -21,6 +22,7 @@ const MotionArt=preload("res://scripts/illustrated_motion.gd")
 var motion=MotionArt.new()
 var seat_blends={}
 var stance_offsets={}
+var floor_approach_cache={}
 var carry_hand_offsets={}
 var guest_motion_cleanup_elapsed := 0.0
 const HeadAtlas=preload("res://scripts/character_head_atlas.gd")
@@ -146,15 +148,18 @@ func _update_street_pedestrians(delta:float):
 	if game.cafe_intro!=null and game.cafe_intro.active:active=false
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta*game.speed if active else 0.0
-	street_pedestrians.advance(step)
+	var queue_positions=[]
+	for visitor in game.model.outside_queue:
+		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
+	street_pedestrians.advance(step,queue_positions)
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
 
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
-	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
-	for guest in game.model.customers:
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
+	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
 		var position=Vector2(float(guest.x),float(guest.z))
@@ -179,7 +184,7 @@ func _prune_departed_guest_motion():
 	# owners until their authoritative records are gone; staff keys never enter
 	# this guest-only index. No actor, route, foot contact or ledger is mutated.
 	var retained={}
-	for guest in game.model.customers:retained[int(guest.id)]=true
+	for guest in game.model.visual_customers():retained[int(guest.id)]=true
 	for id in game.service_guests:retained[int(id)]=true
 	for record in game.floor_tasks.messes.values():
 		var id=int(record.get("source_guest_id",-1))
@@ -204,7 +209,7 @@ func update_motion(delta: float):
 		_update_meal_docking(0.0) # Seed load-time presentation without advancing a paused transition.
 		return
 	_update_meal_docking(delta)
-	for guest in game.model.customers:
+	for guest in game.model.visual_customers():
 		var key="guest_%s"%guest.id
 		var position=Vector2(float(guest.x),float(guest.z))
 		var docking=Vector2.ZERO
@@ -231,7 +236,10 @@ func update_motion(delta: float):
 		var staff=game.staff_states[i]
 		var key="staff_%s"%i
 		var docking=Vector2.ZERO
-		if str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
+		if str(staff.get("art_action","")) in ["sweeping","mopping"]:
+			if not floor_approach_cache.has(key):floor_approach_cache[key]={}
+			docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
+		elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
 			var target=staff.get("art_target",staff.pos)
 			var station=game.model.get_item(int(staff.get("art_target_id",-1)))
 			# A table has no tall cabinet: keep the worker on its aisle side so
@@ -1146,6 +1154,7 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 		var last:Vector2=staff.get("art_heading",Vector2.ZERO)
 		if last.length_squared()>.000025:return last.normalized()
 	var direction:Vector2=staff.get("art_station",staff.pos+Vector2(1,-1))-staff.pos
+	if str(staff.get("art_action","")) in ["sweeping","mopping"]:direction=staff.get("art_target",staff.pos)-staff.pos
 	if direction.length_squared()<.01:direction=staff.get("art_heading",Vector2(1,-1))
 	# Once a work action begins, face its station immediately. A decaying walk
 	# blend must not flip the body/held order halfway through the .65 handoff.

@@ -19,9 +19,13 @@ func run():
  var id=int(game.model.items[-1].id);game.model._arrival_elapsed=-1000000
  var initial_coins=game.model.coins;var initial_wages=game.model.total_wages_paid
  var moved=false;var done=false;var repro_position=Vector2.ZERO
+ var requested_visits={};var admitted_visits={}
  for tick in 18000:
-  if game.model._next_customer_id<=4:game.model._spawn_customer()
-  if game.model._next_customer_id==5 and game.model.customers.all(func(g):return bool(g.admitted)):game.model.set_operating_open(false)
+  if requested_visits.size()<4:game.model._spawn_customer()
+  for visitor in game.model.visual_customers():requested_visits[int(visitor.id)]=true
+  for guest in game.model.customers:
+   if bool(guest.admitted):admitted_visits[int(guest.id)]=true
+  if admitted_visits.size()>=4:game.model.set_operating_open(false)
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
   for guest in game.model.customers:
    if guest.get("meal_abandoned",false):abandoned_visits[int(guest.id)]=true
@@ -38,7 +42,7 @@ func run():
     check(guest==before and game.model.coins==coins,"paid guest tail/clock/body and wallet remain unchanged")
     game._rebuild_furniture();moved=true;break
   if tick%180==0:await process_frame
-  if moved and game.model.customers.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):done=true;break
+  if moved and game.model.customers.is_empty() and game.model.outside_queue.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):done=true;break
  check(moved,"boundary epsilon case occurs in generated real traffic")
  check(done and game.model.served+abandoned_visits.size()==4 and game.model.total_cleaned==4,"all four served or abandoned visits depart and clean once after the edit")
  check(duplicate_payments.is_empty() and paid_visits.size()==game.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and game.model.total_earned==paid_visits.size()*game.Model.MEAL_PAYMENT,"served diners pay exactly once and abandoned diners never pay")
