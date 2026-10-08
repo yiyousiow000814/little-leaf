@@ -170,11 +170,13 @@ func _update_street_pedestrians(delta:float):
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
 
-func _parking_visits()->Array:
-	# Historical fixture controllers may use an older model. An unowned lot
-	# keeps its empty markings and never falls back to decorative parked cars.
+func _parking_owned()->bool:
+	# Historical fixture controllers without parking retain the unbought lawn.
 	var owned=game.model.get("parking_owned")
-	if not owned is bool or not owned:return []
+	return owned is bool and owned
+
+func _parking_visits()->Array:
+	if not _parking_owned():return []
 	var visits=game.model.get("parking_visits")
 	return visits if visits is Array else []
 
@@ -638,10 +640,10 @@ func _draw():
 	if not use_background_cache or not background_cache.update(self):
 		draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
 		_grass(size)
-		Neighborhood.draw_ground(self)
+		Neighborhood.draw_ground(self,_parking_owned())
 		if use_batched_ground:ground_art.draw_pavement(self)
 		else:_draw_legacy_pavement(ground_view)
-		Neighborhood.draw_crossing(self)
+		Neighborhood.draw_crossing(self,_parking_owned())
 	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
 	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)

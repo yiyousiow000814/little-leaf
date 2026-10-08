@@ -39,3 +39,6 @@ qa/crazygames/*profile*/
 qa/*.gd.uid
 tests/*.gd.uid
 docs/**/*.import
+
+# Disposable historical compatibility checkout
+/.compatibility-old/

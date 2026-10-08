@@ -198,7 +198,7 @@ static func projected(a,points:Array)->Array:
 	for point in points:result.append(a.iso(point.x,point.y))
 	return result
 
-static func draw_ground(a):
+static func draw_ground(a,parking_owned:bool=false):
 	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
@@ -215,12 +215,13 @@ static func draw_ground(a):
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
-	# Flush vehicle crossing across the existing public sidewalk; no access road.
-	quad(a,LOT.position.x,LOT.position.y,LOT.end.x,LOT.end.y,"919f92")
-	for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-8.45),a.iso(x,-5.75),"dce0ca",1.3*a.ui_scale)
-	a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
-	# Open lawn separates the lot from the wall; only one short pedestrian link.
-	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
+	if parking_owned:
+		# Flush vehicle crossing across the existing public sidewalk; no access road.
+		quad(a,LOT.position.x,LOT.position.y,LOT.end.x,LOT.end.y,"919f92")
+		for x in [0.0,2.9,5.8,8.7,11.6]:a.line(a.iso(x,-8.45),a.iso(x,-5.75),"dce0ca",1.3*a.ui_scale)
+		a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
+		# Open lawn separates the lot from the wall; only one short pedestrian link.
+		quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		var edges=pavement_edges(z)
 		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
@@ -235,7 +236,8 @@ static func draw_ground(a):
 	# no floating raised strip or change to the authored sidewalk silhouette.
 	draw_kerb(a)
 
-static func draw_crossing(a):
+static func draw_crossing(a,parking_owned:bool=false):
+	if not parking_owned:return
 	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
 	# A clear continuous pedestrian strip passes over the flush driveway.
 	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")

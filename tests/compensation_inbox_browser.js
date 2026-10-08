@@ -12,6 +12,7 @@ fs.mkdirSync(output,{recursive:true});
 const layout=JSON.parse(fs.readFileSync(layoutFile,'utf8'));assert(!layout.failures.length);const points=layout.web_input_points;
 const regions=layout.web_visible_regions;assert(regions&&regions.settings&&regions.list&&regions.detail,'exact engine-derived text regions are required');
 const report={synthetic_only:true,checks:[],source_sha256:{}};
+report.export_manifest_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'release-manifest.json'))).digest('hex');
 report.export_js_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'index.js'))).digest('hex');
 report.web_template_sha256=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json'),'utf8')).web_template_sha256;
 report.launch_hook_scope='Pass through the original feature check; wrap only the actual shell instance startup with official clock arguments';

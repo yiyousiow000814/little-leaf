@@ -1,0 +1,16 @@
+name: Stage Firebase preview
+on:
+  workflow_dispatch:
+  push:
+    branches: ['integration/firebase-preview-ci']
+permissions:
+  contents: read
+concurrency:
+  group: firebase-fresh-source-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fresh:
+    if: github.repository == 'yiyousiow000814/little-leaf'
+    uses: ./.github/workflows/build-web.yml
+    with:
+      firebase_preview: true

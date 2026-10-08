@@ -55,7 +55,7 @@ func original(art):
 	art.commands=[]
 	var size=art.get_viewport_rect().size
 	art.record_draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
-	art._grass(size);Neighborhood.draw_ground(art);art.ground_art.draw_pavement(art);Neighborhood.draw_crossing(art)
+	art._grass(size);Neighborhood.draw_ground(art,art._parking_owned());art.ground_art.draw_pavement(art);Neighborhood.draw_crossing(art,art._parking_owned())
 func settle(art):
 	for frame in 8:art._process(1.0/60);await process_frame
 func run():
@@ -86,6 +86,13 @@ func run():
 	var before=cache.rebuilds
 	game.animation_time+=1;game.model.revision+=1;art.ground_art.prepare(game.model)
 	cache.update(art);check(cache.rebuilds==before,"simulation and unchanged terrain do not rebuild background")
+	for owned in [true,false,true,false]:
+		game.model.parking_owned=owned
+		before=cache.rebuilds
+		original(art);cache.update(art)
+		check(cache.rebuilds==before+1,"parking purchase or sale invalidates static background")
+		check(art.commands==server.commands,"owned and unowned cached/uncached exact parity")
+		cache.update(art);check(cache.rebuilds==before+1,"unchanged parking retains background")
 	for property in ["material","use_parent_material","self_modulate","clip_children","light_mask","visibility_layer","y_sort_enabled","use_batched_ground","use_grass_mesh","transform"]:
 		var old=art.get(property)
 		var value={"material":CanvasItemMaterial.new(),"use_parent_material":true,"self_modulate":Color(.8,1,1),"clip_children":CanvasItem.CLIP_CHILDREN_AND_DRAW,"light_mask":2,"visibility_layer":2,"y_sort_enabled":true,"use_batched_ground":false,"use_grass_mesh":false,"transform":Transform2D(0,Vector2(2,2))}[property]

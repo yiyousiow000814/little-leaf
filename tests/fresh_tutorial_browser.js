@@ -11,6 +11,41 @@ const root = path.resolve(__dirname, '..');
 const VIEWPORT = {width: 1360, height: 880};
 const FLOW_MS = 220000;
 
+function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
+  assert(!exactLabel || phrases.length === 1, 'Exact button OCR requires one label');
+  const result = {observed: '', matched: false, attempts: []};
+  // Compact cards mix a main cue, small progress and an action label. Sparse
+  // segmentation keeps those separate; block mode can merge their small labels.
+  // The fallback reads the SAME captured pixels with adaptive thresholding.
+  for (const mode of ['sparse', 'sparse-sauvola']) {
+    if (deadline - Date.now() < 1000) break;
+    const args = [file, 'stdout', '-l', 'eng', '--psm', '11'];
+    if (mode === 'sparse-sauvola') args.push('-c', 'thresholding_method=2');
+    try {
+      result.observed = cp.execFileSync(tesseract, args, {encoding: 'utf8',
+        timeout: Math.min(5000, deadline - Date.now()), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
+      result.attempts.push({mode, observed: result.observed});
+      result.matched = exactLabel ? normalizedText(result.observed) === normalizedText(phrases[0])
+        : phrases.every(text => normalizedText(result.observed).includes(normalizedText(text)));
+      if (result.matched) break;
+    } catch (error) {
+      result.attempts.push({mode, error: String(error)});
+      error.ocr_evidence = result;
+      throw error;
+    }
+  }
+  return result;
+}
+
+function completionButtonRegion(stage) {
+  const [x, y] = stage.point, [left, top, width, height] = stage.guide;
+  // The existing native fixture verifies the active action is at least44×44.
+  // Read only that centered target, inside the source-bound completion card.
+  assert(x - 22 >= left && y - 22 >= top && x + 22 <= left + width && y + 22 <= top + height,
+    'Completion action target must lie fully within its source-bound guide');
+  return [x - 22, y - 22, 44, 44];
+}
+
 function validateLayout(result) {
   assert(result.checks > 0 && result.player_save_used === false);
   assert.deepEqual(result.failures, [], 'Engine tutorial fixture passed');
@@ -155,28 +190,53 @@ async function main() {
       } while (Date.now() < deadline);
       throw Error(name + ' did not reach the required genuine saved state within its bounded wait; last=' + JSON.stringify(report.snapshots.at(-1)));
     };
-    const visible = async (name, phrases, region, limit = 25000) => {
+    const visible = async (name, phrases, region, limit = 25000, options = {}) => {
       report.stage = name;
       const deadline = Math.min(flowDeadline, Date.now() + limit);
-      let observed = '', attempts = 0;
       const clip = region ? {x: Math.floor(region[0]), y: Math.floor(region[1]), width: Math.min(VIEWPORT.width - Math.floor(region[0]), Math.ceil(region[2]) + 1), height: Math.min(VIEWPORT.height - Math.floor(region[1]), Math.ceil(region[3]) + 1)} : {x: 0, y: 0, ...VIEWPORT};
       const file = path.join(output, name + '-text.png');
+      const evidence = report.rendered_stages[name] = {phrases, observed: '', attempts: 0, clip, ocr_attempts: [], matched: false};
       do {
-        attempts++;
+        // Preserve the last useful OCR result instead of beginning a capture
+        // with only a few hundred milliseconds left and masking the cause.
+        if (deadline - Date.now() < 1000) break;
+        evidence.attempts++;
         await snapshot();
-        await page.screenshot({path: file, clip, timeout: Math.min(10000, Math.max(1, deadline - Date.now()))});
-        observed = cp.execFileSync(tesseract, [file, 'stdout', '--psm', region ? '6' : '11'], {encoding: 'utf8', timeout: Math.min(5000, Math.max(1, deadline - Date.now())), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
-        fs.writeFileSync(path.join(output, name + '.txt'), observed);
-        if (phrases.every(text => normalizedText(observed).includes(normalizedText(text)))) {
-          report.rendered_stages[name] = {wall_seconds: elapsed(), phrases, observed, attempts, clip};
-          await page.screenshot({path: path.join(output, name + '.png')});
-          check(true, 'Actual rendered pixels show ' + name);
-          return;
+        if (deadline - Date.now() < 1000) break;
+        try {
+          const png = await page.screenshot({path: file, clip, timeout: Math.min(10000, deadline - Date.now())});
+          let input = file;
+          if (options.pixelScale === 2) {
+            // Preserve the raw crop. Repeat each pixel in a detached canvas;
+            // never alter the live game, its canvas, model or storage.
+            const bytes = await page.evaluate(async base64 => {
+              const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+              const bitmap = await createImageBitmap(new Blob([raw], {type: 'image/png'}));
+              const canvas = new OffscreenCanvas(bitmap.width * 2, bitmap.height * 2);
+              const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
+              context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+              return Array.from(new Uint8Array(await (await canvas.convertToBlob({type: 'image/png'})).arrayBuffer()));
+            }, png.toString('base64'));
+            input = path.join(output, name + '-ocr-input.png'); fs.writeFileSync(input, Buffer.from(bytes));
+            evidence.pixel_scale = 2; evidence.ocr_input = input;
+          }
+          const ocr = recognizeCue(input, phrases, tesseract, deadline, options.exactLabel === true);
+          if (ocr.attempts.length === 0) {evidence.ocr_budget_exhausted = true; break;}
+          Object.assign(evidence, {observed: ocr.observed, matched: ocr.matched, ocr_attempts: ocr.attempts, wall_seconds: elapsed()});
+          fs.writeFileSync(path.join(output, name + '.txt'), evidence.observed);
+          if (evidence.matched) {
+            await page.screenshot({path: path.join(output, name + '.png'), timeout: Math.max(1, Math.min(10000, deadline - Date.now()))});
+            check(true, 'Actual rendered pixels show ' + name);
+            return;
+          }
+        } catch (error) {
+          if (error.ocr_evidence) Object.assign(evidence, {observed: error.ocr_evidence.observed, ocr_attempts: error.ocr_evidence.attempts});
+          evidence.last_attempt_error = String(error);
+          if (evidence.matched || (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT')) throw error;
         }
         await page.waitForTimeout(150);
       } while (Date.now() < deadline);
-      report.rendered_stages[name] = {phrases, observed, attempts, clip};
-      throw Error('Required rendered text did not appear for ' + name + ': ' + phrases.join(', '));
+      throw Error('Required rendered text was not detected for ' + name + ': ' + phrases.join(', ') + '; last OCR=' + JSON.stringify(evidence.observed) + (evidence.last_attempt_error ? '; last operation=' + evidence.last_attempt_error : ''));
     };
     const stage = name => layout.stages[name];
     const click = async name => {
@@ -212,7 +272,9 @@ async function main() {
     const paid = await waitState('natural-payment', s => s.served > 0 && s.tutorial.step === 7, 150000);
     report.first_payment_seconds = elapsed();
     check(paid.tutorial.status === 'active', 'Genuine payment unlocks completion but does not dismiss the guide');
-    await visible('first-order-complete', [stage('complete').text, 'Done'], stage('complete').guide);
+    await visible('first-order-complete', [stage('complete').text], stage('complete').guide);
+    await visible('completion-done-button', ['Done'], completionButtonRegion(stage('complete')), 25000,
+      {pixelScale: 2, exactLabel: true});
     await click('complete');
     const finished = await waitState('tutorial-completed', s => s.tutorial.status === 'completed' && s.tutorial.step === 7);
     check(finished.served === paid.served && finished.earned === paid.earned && finished.coins + finished.wages === paid.coins + paid.wages, 'Real final Done completes tutorial without an extra reward');
@@ -232,4 +294,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion};

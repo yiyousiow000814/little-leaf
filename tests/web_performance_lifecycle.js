@@ -30,6 +30,23 @@ document.visibilityState = 'hidden';
 window.__littleLeafLifecycleV1.install((reason, save) => events.push([reason, save]));
 assert.deepEqual(events.at(-1), ['hidden', true]);
 console.log(JSON.stringify({ checks: 4, failures: [], scope: 'mock DOM lifecycle; repeated install/dispose and initial hidden tab' }));
+// The hosted Log fixture saves through pagehide, then returns before GUI input.
+// A hidden page must not receive a premature resume or another hide-save.
+document.visibilityState = 'visible';
+const returnEvents = [];
+window.__littleLeafLifecycleV1.install((reason, save) => returnEvents.push([reason, save]));
+window.fire('pagehide');
+assert.deepEqual(returnEvents, [['pagehide', true]], 'pagehide alone must not emit a resume');
+window.fire('pagehide');
+assert.deepEqual(returnEvents.at(-1), ['pagehide', false], 'repeated hide must not request another save');
+document.visibilityState = 'hidden';
+window.fire('pageshow');
+assert.equal(returnEvents.length, 2, 'pageshow while still hidden must not resume GUI processing');
+document.visibilityState = 'visible';
+window.fire('pageshow');
+assert.deepEqual(returnEvents.at(-1), ['visible', false], 'foreground return resumes without an extra save');
+window.__littleLeafLifecycleV1.current.dispose();
+console.log(JSON.stringify({ checks: 4, failures: [], scope: 'pagehide/foreground-return order and negative hidden resume' }));
 (async () => {
   const preferences = fs.readFileSync(path.join(__dirname, '../web/little_leaf_preferences.js'), 'utf8');
   const oldText = '[audio]\nbgm_enabled=false\nbgm_volume=37\n[play]\nspeed=2\n';

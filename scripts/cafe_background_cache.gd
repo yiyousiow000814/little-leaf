@@ -52,7 +52,8 @@ func update(artist)->bool:
 	var size=artist.get_viewport_rect().size
 	artist.prepare_grass(size)
 	artist.ground_art.prepare_pavement_strokes(artist.tile.x/39.0)
-	var key=[artist.origin,artist.tile,artist.ui_scale,artist.zoom,artist.opacity,size,artist.game.wall_detail,artist.use_screen_culling,artist.grass_mesh,artist.ground_art.pavement_mesh,artist.ground_art.pavement_stroke_mesh]
+	var parking_owned=artist._parking_owned()
+	var key=[parking_owned,artist.origin,artist.tile,artist.ui_scale,artist.zoom,artist.opacity,size,artist.game.wall_detail,artist.use_screen_culling,artist.grass_mesh,artist.ground_art.pavement_mesh,artist.ground_art.pavement_stroke_mesh]
 	if not canvas.is_valid():
 		canvas=server.canvas_item_create()
 		server.canvas_item_set_parent(canvas,artist.get_canvas_item())
@@ -64,9 +65,9 @@ func update(artist)->bool:
 		painter.server=server
 		painter.draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
 		painter.art_transform(artist.origin,0,Vector2.ONE*(artist.tile.x/39.0));painter.draw_mesh(artist.grass_mesh,null);painter.art_transform(Vector2.ZERO)
-		Neighborhood.draw_ground(painter)
+		Neighborhood.draw_ground(painter,parking_owned)
 		artist.ground_art.draw_pavement(painter)
-		Neighborhood.draw_crossing(painter)
+		Neighborhood.draw_crossing(painter,parking_owned)
 		command_count=painter.commands;signature=key.duplicate();rebuilds+=1
 	server.canvas_item_set_visible(canvas,true);used=true
 	return true

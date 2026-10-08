@@ -23,6 +23,6 @@ func advance(delta:float,origin:Vector2,tile:Vector2,viewport:Rect2):
 		car.position.y=Extent.STREET_Z_MIN+fposmod(car.position.y-Extent.STREET_Z_MIN+car.direction*2.8*delta,Extent.STREET_Z_MAX-Extent.STREET_Z_MIN)
 func draw(a):
 	for car in cars:
-		var anchor=a.iso(car.position.x,car.position.y)
-		if not Rect2(anchor-Vector2(60,75)*a.ui_scale*a.zoom,Vector2(120,150)*a.ui_scale*a.zoom).intersects(a.get_viewport_rect()):continue
+		# The car renderer owns conservative projected-footprint culling. A fixed
+		# anchor box clips edge-visible bodywork, especially at detail zoom.
 		Neighborhood.draw_car(a,car.position,car.direction,car.color)

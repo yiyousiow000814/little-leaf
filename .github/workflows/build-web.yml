@@ -6,10 +6,20 @@ on:
         description: Empty for CI; exact version tag for release verification
         type: string
         default: ''
+      firebase_preview:
+        description: Stage Firebase from this complete fresh run; never deploy
+        type: boolean
+        default: false
     outputs:
       artifact_id:
         description: Exact artifact from this tested source
         value: ${{ jobs.build.outputs.artifact_id }}
+      firebase_artifact_id:
+        description: Same-run Firebase preview after all gates passed
+        value: ${{ jobs.build.outputs.firebase_artifact_id }}
+      firebase_manifest_sha256:
+        description: Exact newly generated Firebase manifest hash
+        value: ${{ jobs.build.outputs.firebase_manifest_sha256 }}
 permissions:
   contents: read
 jobs:
@@ -20,6 +30,8 @@ jobs:
     timeout-minutes: 55
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      firebase_artifact_id: ${{ steps.firebase_upload.outputs.artifact-id }}
+      firebase_manifest_sha256: ${{ steps.firebase_prepare.outputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -104,6 +116,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
+          node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify actual old and new Web save compatibility
         env:
@@ -122,6 +135,46 @@ jobs:
           RUNTIME_BROWSER: webkit
         run: |
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Check Firebase adapter and fresh staging contracts
+        if: inputs.firebase_preview
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate adapter.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate delayed-network.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate staging-tests.log --output "$RUNNER_TEMP/firebase-focused"
+          node --check web/little_leaf_firebase_boot.mjs
+      - name: Verify Firebase rules and SDK CAS in a disposable local emulator
+        if: inputs.firebase_preview
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
+          python3 ci/run_firebase_focused.py --gate rules.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Stage Firebase only from this exact fresh all-gates build
+        if: inputs.firebase_preview
+        id: firebase_prepare
+        run: |
+          python3 ci/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused"
+      - name: Retain the fresh tested Firebase preview without publication
+        if: inputs.firebase_preview
+        id: firebase_upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.firebase_prepare.outputs.artifact_name }}
+          path: ${{ runner.temp }}/firebase-variant/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record fresh preview handoff
+        if: inputs.firebase_preview
+        env:
+          ARTIFACT_ID: ${{ steps.firebase_upload.outputs.artifact-id }}
+          MANIFEST_SHA256: ${{ steps.firebase_prepare.outputs.manifest_sha256 }}
+        run: |
+          printf 'Fresh source: %s\nRun: %s\nArtifact ID: %s\nManifest SHA256: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$ARTIFACT_ID" "$MANIFEST_SHA256" >> "$GITHUB_STEP_SUMMARY"
+          printf 'All existing native/export/browser gates and focused Firebase/emulator checks passed in this run. No historical CI artifact reuse, deployment, or hosted/device acceptance is claimed.\n' >> "$GITHUB_STEP_SUMMARY"
       - name: Keep test and export evidence (never profiles or credentials)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -134,5 +187,6 @@ jobs:
             ${{ runner.temp }}/old-engine-evidence/*.json
             ${{ runner.temp }}/old-engine-evidence/*.log
             ${{ runner.temp }}/old-web-build/evidence/
+            ${{ runner.temp }}/firebase-focused/
           if-no-files-found: warn
           retention-days: 7
