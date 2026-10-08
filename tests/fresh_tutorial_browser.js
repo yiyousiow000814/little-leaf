@@ -34,6 +34,11 @@ function flowBudget(started, now = Date.now) {
   return budget;
 }
 
+function matchesCue(observed, phrases, exactLabel = false) {
+  return exactLabel ? normalizedText(observed) === normalizedText(phrases[0])
+    : phrases.every(text => (' ' + normalizedText(observed) + ' ').includes(' ' + normalizedText(text) + ' '));
+}
+
 function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
   assert(!exactLabel || phrases.length === 1, 'Exact button OCR requires one label');
   const result = {observed: '', matched: false, attempts: []};
@@ -48,8 +53,7 @@ function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
       result.observed = cp.execFileSync(tesseract, args, {encoding: 'utf8',
         timeout: Math.min(5000, deadline - Date.now()), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
       result.attempts.push({mode, observed: result.observed});
-      result.matched = exactLabel ? normalizedText(result.observed) === normalizedText(phrases[0])
-        : phrases.every(text => (' ' + normalizedText(result.observed) + ' ').includes(' ' + normalizedText(text) + ' '));
+      result.matched = matchesCue(result.observed, phrases, exactLabel);
       if (result.matched) break;
     } catch (error) {
       result.attempts.push({mode, error: String(error)});
@@ -58,6 +62,164 @@ function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
     }
   }
   return result;
+}
+
+// One OCR process at a time, outside the capture loop. Both exact moving labels
+// are inspected on the same immutable frame; neither can stand in for the other.
+const MOVING_PHRASES = ['Your waiter takes the order', 'Meal on the way'];
+async function recognizeMovingFrame(file, tesseract, deadline, signal) {
+  const result = {observed: '', matches: [], attempts: []};
+  for (const mode of ['sparse', 'sparse-sauvola']) {
+    signal?.throwIfAborted();
+    if (deadline - Date.now() < 1000) break;
+    const args = [file, 'stdout', '-l', 'eng', '--psm', '11'];
+    if (mode === 'sparse-sauvola') args.push('-c', 'thresholding_method=2');
+    try {
+      result.observed = await new Promise((resolve, reject) => cp.execFile(tesseract, args,
+        {encoding: 'utf8', timeout: Math.min(5000, deadline - Date.now()),
+          env: {...process.env, OMP_THREAD_LIMIT: '1'}, maxBuffer: 1024 * 1024, signal},
+        (error, stdout) => error ? reject(error) : resolve(stdout)));
+      result.attempts.push({mode, observed: result.observed});
+      result.matches = MOVING_PHRASES.filter(text => matchesCue(result.observed, [text]));
+      if (result.matches.length) break;
+    } catch (error) {
+      result.attempts.push({mode, error: String(error)});
+      error.ocr_evidence = result;
+      signal?.throwIfAborted();
+      // Preserve this uniquely captured frame after a recoverable first-mode
+      // timeout: the same pixels still get their bounded adaptive attempt.
+      if (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT' && !error.killed) throw error;
+    }
+  }
+  return result;
+}
+
+async function observeMovingCues({budget, binding, capture, recognize, snapshot, sleep,
+  evidence, now = Date.now}) {
+  const began = now(), arrivalDeadline = budget.deadline(45000), returnDeadline = budget.deadline(SAVE_MS);
+  const bindingHash = hash(canonical(binding));
+  assert(/^[a-f0-9]{40}$/.test(binding.source_commit), 'Moving frames require the verified source binding');
+  for (const name of ['engine_report_sha256', 'layout_sha256', 'export_manifest_sha256'])
+    assert(/^[a-f0-9]{64}$/.test(binding[name]), 'Moving frames require verified ' + name);
+  // Worst case: arrival45s + order45s + meal20s, still inside service220s.
+  // PNGs live on disk; retain every capture, with only one OCR process in flight.
+  Object.assign(evidence, {binding_sha256: bindingHash, capture_interval_ms: 500,
+    max_frames: 220, max_bytes: 128 * 1024 * 1024, bytes: 0, frames: [], cues: {}});
+  let returned, order, orderDeadline, mealDeadline, replayThrough, stopped = false, failure;
+  const cancellation = new AbortController();
+  const observedAll = Error('Moving cue observations complete');
+  // page.evaluate has no Playwright operation timeout. Bound every asynchronous
+  // adapter as well as the subprocess; abort a peer immediately on failure.
+  const bounded = (operation, end) => new Promise((resolve, reject) => {
+    const signal = cancellation.signal;
+    let timer;
+    const cleanup = () => {clearTimeout(timer); signal.removeEventListener('abort', abort);};
+    const abort = () => {cleanup(); reject(signal.reason);};
+    if (signal.aborted) {abort(); return;}
+    signal.addEventListener('abort', abort, {once: true});
+    timer = setTimeout(() => {cleanup(); reject(Error('Moving cue operation deadline exceeded'));}, budget.remaining(end));
+    Promise.resolve().then(() => operation(signal)).then(value => {cleanup(); resolve(value);},
+      error => {cleanup(); reject(error);});
+  });
+  const complete = () => returned && order && MOVING_PHRASES.every(text => evidence.cues[text]);
+  const limits = () => [!returned && returnDeadline, !evidence.cues[MOVING_PHRASES[0]] && arrivalDeadline,
+    !order && orderDeadline, order && !evidence.cues[MOVING_PHRASES[1]] && mealDeadline].filter(Number.isFinite);
+  const deadline = () => Math.min(budget.deadline(110000), ...limits());
+  const enforce = () => {
+    budget.remaining();
+    for (const end of limits()) budget.remaining(end);
+  };
+  const remember = state => {
+    if (!state) return;
+    if (!returned && state.tutorial.step === 5) {
+      budget.remaining(returnDeadline); returned = state;
+      evidence.returned_to_service_ms = now() - began;
+    }
+    if (!order && state.tutorial.step === 6 && state.orders.length > 0 && state.guests.some(g => g.seated)) {
+      if (orderDeadline) budget.remaining(orderDeadline);
+      order = state; mealDeadline = budget.deadline(20000);
+      replayThrough = evidence.frames.length;
+      evidence.first_order_ms = now() - began;
+    }
+  };
+  const verifyFrame = frame => {
+    assert.equal(frame.binding_sha256, bindingHash, 'Captured frame belongs to this exact source/export');
+    assert.equal(hash(fs.readFileSync(frame.file)), frame.sha256, 'Retained raw frame bytes are unchanged');
+  };
+  const captureLoop = async () => {
+    while (!stopped && !complete()) {
+      enforce();
+      assert(evidence.frames.length < evidence.max_frames, 'Moving cue frame limit exceeded');
+      const before = await bounded(snapshot, deadline()); remember(before); enforce();
+      if (complete()) break;
+      const index = evidence.frames.length + 1, captureStarted = now();
+      const captureDeadline = deadline();
+      const frame = await bounded(signal => capture(index, captureDeadline, signal), captureDeadline);
+      enforce();
+      Object.assign(frame, {index, binding_sha256: bindingHash, capture_started_ms: captureStarted - began,
+        captured_ms: now() - began, before_revision: before?.revision ?? null});
+      verifyFrame(frame);
+      evidence.bytes += fs.statSync(frame.file).size;
+      assert(evidence.bytes <= evidence.max_bytes, 'Moving cue evidence byte limit exceeded');
+      evidence.frames.push(frame);
+      const after = await bounded(snapshot, deadline()); frame.after_revision = after?.revision ?? null; remember(after); enforce();
+      if (!complete()) await bounded(() => sleep(Math.min(evidence.capture_interval_ms, budget.remaining(deadline()))), deadline());
+    }
+  };
+  const recognizeLoop = async () => {
+    while (!stopped && !complete()) {
+      enforce();
+      if (MOVING_PHRASES.every(text => evidence.cues[text])) {await bounded(() => sleep(25), deadline()); continue;}
+      const pending = evidence.frames.filter(frame => !frame.ocr);
+      // Once the ordinary acknowledged order arrives, revisit preceding frames
+      // newest first. Slow OCR must not discard a short cue it did not yet read.
+      const frame = (!evidence.cues[MOVING_PHRASES[0]] && replayThrough !== undefined
+        ? pending.filter(item => item.index <= replayThrough).at(-1) : null) || pending.at(-1);
+      if (!frame) {await bounded(() => sleep(25), deadline()); continue;}
+      verifyFrame(frame);
+      const recognitionDeadline = deadline();
+      try {
+        frame.ocr = await bounded(signal => recognize(frame, recognitionDeadline, signal), recognitionDeadline);
+      } catch (error) {
+        if (error === observedAll) throw error;
+        frame.ocr = error.ocr_evidence || {attempts: []};
+        frame.ocr.error = String(error);
+        if (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT' && !error.killed) throw error;
+      }
+      frame.recognized_ms = now() - began;
+      verifyFrame(frame);
+      if (frame.ocr_input) {
+        assert.equal(hash(fs.readFileSync(frame.ocr_input)), frame.ocr_input_sha256, 'OCR input bytes are unchanged');
+        evidence.bytes += fs.statSync(frame.ocr_input).size;
+        assert(evidence.bytes <= evidence.max_bytes, 'Moving cue evidence byte limit exceeded');
+      }
+      enforce(); // Late recognition cannot unlock a new allowance.
+      for (const phrase of MOVING_PHRASES) {
+        // Inspect the retained OCR text ourselves, never trust a callback's flag.
+        const attempt = frame.ocr.attempts.find(item => typeof item.observed === 'string' && matchesCue(item.observed, [phrase]));
+        if (!attempt || evidence.cues[phrase]) continue;
+        evidence.cues[phrase] = {frame: frame.index, file: frame.file, sha256: frame.sha256,
+          captured_ms: frame.captured_ms, recognized_ms: frame.recognized_ms, observed: attempt.observed};
+        if (phrase === MOVING_PHRASES[0]) orderDeadline = budget.deadline(45000);
+      }
+    }
+  };
+  const guarded = async fn => {
+    try {await fn();} catch (error) {
+      if (error !== observedAll) {failure ||= error; cancellation.abort(failure);}
+    } finally {
+      stopped = true;
+      if (complete() && !failure) cancellation.abort(observedAll);
+    }
+  };
+  await Promise.all([guarded(captureLoop), guarded(recognizeLoop)]);
+  evidence.duration_ms = now() - began;
+  if (failure) throw failure;
+  enforce();
+  assert(complete(), 'Both exact moving cues and genuine returned/order saves are required');
+  assert(evidence.cues[MOVING_PHRASES[0]].frame < evidence.cues[MOVING_PHRASES[1]].frame,
+    'The waiter cue must precede the independent meal frame');
+  return {returned, order};
 }
 
 function cuePixelScale(region, requested = 1) {
@@ -202,8 +364,10 @@ async function main() {
     const boot = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
     check(boot.ok && boot.source === 'fresh' && boot.revision === 0 && boot.payload === null, 'Unmodified exported shell boots a genuinely fresh ordinary-Web profile');
     let initial, lastRevision = -1;
-    const snapshot = async () => {
-      const state = summarize(await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson)));
+    const snapshot = async signal => {
+      const ack = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
+      signal?.throwIfAborted();
+      const state = summarize(ack);
       if (state) {
         validateProgress(state, layout, initial);
         if (state.revision !== lastRevision) {lastRevision = state.revision; report.snapshots.push({wall_seconds: elapsed(), ...state});}
@@ -222,6 +386,14 @@ async function main() {
       }
       throw Error(name + ' did not reach the required genuine saved state within its bounded wait; last=' + JSON.stringify(report.snapshots.at(-1)));
     };
+    const scalePixels = png => page.evaluate(async base64 => {
+      const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([raw], {type: 'image/png'}));
+      const canvas = new OffscreenCanvas(bitmap.width * 2, bitmap.height * 2);
+      const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
+      return Array.from(new Uint8Array(await (await canvas.convertToBlob({type: 'image/png'})).arrayBuffer()));
+    }, png.toString('base64'));
     const visible = async (name, phrases, region, limit = CUE_MS, options = {}) => {
       report.stage = name;
       const deadline = budget.deadline(limit);
@@ -242,14 +414,7 @@ async function main() {
           if (pixelScale === 2) {
             // Preserve the raw crop. Repeat each pixel in a detached canvas;
             // never alter the live game, its canvas, model or storage.
-            const bytes = await page.evaluate(async base64 => {
-              const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-              const bitmap = await createImageBitmap(new Blob([raw], {type: 'image/png'}));
-              const canvas = new OffscreenCanvas(bitmap.width * 2, bitmap.height * 2);
-              const context = canvas.getContext('2d'); context.imageSmoothingEnabled = false;
-              context.drawImage(bitmap, 0, 0, canvas.width, canvas.height); bitmap.close();
-              return Array.from(new Uint8Array(await (await canvas.convertToBlob({type: 'image/png'})).arrayBuffer()));
-            }, png.toString('base64'));
+            const bytes = await scalePixels(png);
             input = path.join(output, name + '-ocr-input.png'); fs.writeFileSync(input, Buffer.from(bytes));
             evidence.pixel_scale = 2; evidence.ocr_input = input;
           }
@@ -298,16 +463,43 @@ async function main() {
     await visible('return-to-cafe', [stage('return').text], stage('return').guide);
     await waitState('decorating', s => s.tutorial.step === 4);
     await click('return');
-    await waitState('returned-to-service', s => s.tutorial.step === 5);
-    // The guest-following guide moves with the actual actor, so OCR the canvas
-    // rather than guessing a fixed position or reading inaccessible engine state.
-    // Both moving cues use the same lossless 2x evidence scaling as Done; the
-    // untouched full frame remains alongside each separate OCR input.
-    await visible('natural-arrival', ['Your waiter takes the order'], null, 45000);
-    const order = await waitState('natural-order', s => s.tutorial.step === 6 && s.orders.length > 0 && s.guests.some(g => g.seated), 45000);
+    // Capture immediately after the real return click, before waiting for its
+    // acknowledged save. OCR runs concurrently; gameplay is never suspended.
+    report.stage = 'natural-moving-cues';
+    const moving = report.moving_cues = {};
+    const movingStarted = elapsed();
+    const {order} = await observeMovingCues({budget, binding, snapshot,
+      evidence: moving, sleep: ms => page.waitForTimeout(ms),
+      capture: async (index, deadline, signal) => {
+        const file = path.join(output, 'moving-' + String(index).padStart(3, '0') + '.png');
+        const bytes = await page.screenshot({timeout: Math.min(10000, budget.remaining(deadline))});
+        signal.throwIfAborted();
+        fs.writeFileSync(file, bytes);
+        return {file, sha256: hash(bytes)};
+      },
+      recognize: async (frame, deadline, signal) => {
+        const bytes = await scalePixels(fs.readFileSync(frame.file));
+        signal.throwIfAborted();
+        frame.ocr_input = frame.file.replace(/\.png$/, '-2x.png');
+        fs.writeFileSync(frame.ocr_input, Buffer.from(bytes));
+        frame.ocr_input_sha256 = hash(Buffer.from(bytes));
+        return recognizeMovingFrame(frame.ocr_input, tesseract, deadline, signal);
+      },
+    });
+    for (const [index, name] of ['natural-arrival', 'natural-meal'].entries()) {
+      const phrase = MOVING_PHRASES[index], cue = moving.cues[phrase];
+      const frame = moving.frames.find(item => item.index === cue.frame);
+      report.rendered_stages[name] = {...cue, phrases: [phrase], matched: true,
+        pixel_scale: 2, ocr_input: frame.ocr_input, ocr_input_sha256: frame.ocr_input_sha256,
+        ocr_attempts: frame.ocr.attempts, wall_seconds: movingStarted + cue.captured_ms / 1000};
+      // These aliases copy the matched frame, never a later screenshot.
+      fs.copyFileSync(frame.file, path.join(output, name + '-text.png'));
+      fs.copyFileSync(frame.ocr_input, path.join(output, name + '-ocr-input.png'));
+      fs.writeFileSync(path.join(output, name + '.txt'), cue.observed);
+      check(true, 'Actual rendered pixels show ' + name);
+    }
     check(order.served === 0 && order.earned === 0 && order.tutorial.status === 'active', 'A naturally seated guest has a genuine order, with no premature payment or tutorial completion');
-    report.first_order_seconds = elapsed();
-    await visible('natural-meal', ['Meal on the way'], null, 20000);
+    report.first_order_seconds = movingStarted + moving.first_order_ms / 1000;
     const paid = await waitState('natural-payment', s => s.served > 0 && s.tutorial.step === 7, 150000);
     report.first_payment_seconds = elapsed();
     check(paid.tutorial.status === 'active', 'Genuine payment unlocks completion but does not dismiss the guide');
@@ -337,4 +529,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, recognizeMovingFrame, observeMovingCues};
