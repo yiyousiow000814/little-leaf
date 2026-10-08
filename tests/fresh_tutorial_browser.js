@@ -9,7 +9,30 @@ const cp = require('node:child_process');
 const {hash, canonical, verifyExport, normalizedText} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '..');
 const VIEWPORT = {width: 1360, height: 880};
-const FLOW_MS = 220000;
+const SERVICE_MS = 220000, CUE_MS = 25000, SAVE_MS = 30000;
+const COMPLETION_MS = CUE_MS * 2 + SAVE_MS;
+
+function flowBudget(started, now = Date.now) {
+  const serviceDeadline = started + SERVICE_MS;
+  const overallDeadline = serviceDeadline + COMPLETION_MS;
+  let phaseDeadline = serviceDeadline, completing = false;
+  const budget = {
+    deadline: limit => Math.min(phaseDeadline, overallDeadline, now() + limit),
+    remaining(deadline = phaseDeadline) {
+      const left = Math.min(deadline, phaseDeadline, overallDeadline) - now();
+      assert(left > 0, 'Fresh tutorial ' + (completing ? 'completion' : 'service') + ' deadline exceeded');
+      return left;
+    },
+    startCompletion() {
+      assert(!completing, 'Completion allowance cannot be restarted');
+      budget.remaining(); // Payment must arrive within the unchanged service cap.
+      completing = true;
+      phaseDeadline = Math.min(overallDeadline, now() + COMPLETION_MS);
+      return phaseDeadline;
+    },
+  };
+  return budget;
+}
 
 function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
   assert(!exactLabel || phrases.length === 1, 'Exact button OCR requires one label');
@@ -139,7 +162,7 @@ async function main() {
     launch_arguments: [], manual_ticks: false, forced_guests: false, gameplay_state_mutated_by_harness: false,
     state_observation: 'Readonly copies of production vault bootJson, updated only by genuine acknowledged saves',
     checks: [], snapshots: [], rendered_stages: {}, errors: []};
-  let browser, server, page, started, flowDeadline;
+  let browser, server, page, started, budget;
   const check = (ok, label) => {assert(ok, label); report.checks.push(label);};
   const elapsed = () => ((Date.now() - started) / 1000);
   try {
@@ -172,7 +195,8 @@ async function main() {
     await page.goto(url + '/empty');
     const empty = await page.evaluate(async () => ({databases: await indexedDB.databases(), local: localStorage.length, session: sessionStorage.length}));
     check(empty.databases.length === 0 && empty.local === 0 && empty.session === 0, 'Browser profile and origin contain no existing saves or seeded fixtures');
-    started = Date.now(); flowDeadline = started + FLOW_MS;
+    started = Date.now(); budget = flowBudget(started);
+    report.budget_ms = {service: SERVICE_MS, completion: COMPLETION_MS, overall: SERVICE_MS + COMPLETION_MS};
     await page.goto(url + '/index.html');
     await page.waitForFunction(() => !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
     const boot = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
@@ -187,19 +211,20 @@ async function main() {
       assert(report.errors.length === 0, 'Exported game raised a script/browser error');
       return state;
     };
-    const waitState = async (name, predicate, limit = 30000) => {
+    const waitState = async (name, predicate, limit = SAVE_MS) => {
       report.stage = name;
-      const deadline = Math.min(flowDeadline, Date.now() + limit);
-      do {
+      const deadline = budget.deadline(limit);
+      while (Date.now() < deadline) {
         const state = await snapshot();
+        budget.remaining(deadline);
         if (state && predicate(state)) return state;
         await page.waitForTimeout(250);
-      } while (Date.now() < deadline);
+      }
       throw Error(name + ' did not reach the required genuine saved state within its bounded wait; last=' + JSON.stringify(report.snapshots.at(-1)));
     };
-    const visible = async (name, phrases, region, limit = 25000, options = {}) => {
+    const visible = async (name, phrases, region, limit = CUE_MS, options = {}) => {
       report.stage = name;
-      const deadline = Math.min(flowDeadline, Date.now() + limit);
+      const deadline = budget.deadline(limit);
       const clip = region ? {x: Math.floor(region[0]), y: Math.floor(region[1]), width: Math.min(VIEWPORT.width - Math.floor(region[0]), Math.ceil(region[2]) + 1), height: Math.min(VIEWPORT.height - Math.floor(region[1]), Math.ceil(region[3]) + 1)} : {x: 0, y: 0, ...VIEWPORT};
       const pixelScale = cuePixelScale(region, options.pixelScale ?? 1);
       const file = path.join(output, name + '-text.png');
@@ -234,6 +259,7 @@ async function main() {
           fs.writeFileSync(path.join(output, name + '.txt'), evidence.observed);
           if (evidence.matched) {
             await page.screenshot({path: path.join(output, name + '.png'), timeout: Math.max(1, Math.min(10000, deadline - Date.now()))});
+            budget.remaining(deadline);
             check(true, 'Actual rendered pixels show ' + name);
             return;
           }
@@ -244,13 +270,16 @@ async function main() {
         }
         await page.waitForTimeout(150);
       } while (Date.now() < deadline);
-      throw Error('Required rendered text was not detected for ' + name + ': ' + phrases.join(', ') + '; last OCR=' + JSON.stringify(evidence.observed) + (evidence.last_attempt_error ? '; last operation=' + evidence.last_attempt_error : ''));
+      if (evidence.ocr_attempts.length === 0 && deadline - Date.now() < 1000) evidence.ocr_budget_exhausted = true;
+      const failure = evidence.ocr_budget_exhausted ? 'OCR budget exhausted for ' : 'Required rendered text was not detected for ';
+      throw Error(failure + name + ': ' + phrases.join(', ') + '; OCR attempts=' + evidence.ocr_attempts.length + '; last OCR=' + JSON.stringify(evidence.observed) + (evidence.last_attempt_error ? '; last operation=' + evidence.last_attempt_error : ''));
     };
     const stage = name => layout.stages[name];
     const click = async name => {
-      assert(Date.now() < flowDeadline, 'Whole fresh flow exceeded 220 seconds');
+      budget.remaining();
       report.stage = 'click-' + name;
       await page.mouse.click(...stage(name).point);
+      budget.remaining();
     };
     // Wait for the unskipped intro and the ordinary first autosave while CLOSED.
     await visible('fresh-closed', ['Tap to open', 'Skip'], stage('open').guide);
@@ -282,14 +311,18 @@ async function main() {
     const paid = await waitState('natural-payment', s => s.served > 0 && s.tutorial.step === 7, 150000);
     report.first_payment_seconds = elapsed();
     check(paid.tutorial.status === 'active', 'Genuine payment unlocks completion but does not dismiss the guide');
+    // Separate verification time from natural gameplay. Title, exact Done OCR,
+    // real click and saved completion share their existing 25s + 25s + 30s cap.
+    report.completion_deadline_seconds = (budget.startCompletion() - started) / 1000;
     await visible('first-order-complete', [stage('complete').text], stage('complete').guide);
-    await visible('completion-done-button', ['Done'], completionButtonRegion(stage('complete')), 25000,
+    await visible('completion-done-button', ['Done'], completionButtonRegion(stage('complete')), CUE_MS,
       {pixelScale: 2, exactLabel: true});
     await click('complete');
     const finished = await waitState('tutorial-completed', s => s.tutorial.status === 'completed' && s.tutorial.step === 7);
     check(finished.served === paid.served && finished.earned === paid.earned && finished.coins + finished.wages === paid.coins + paid.wages, 'Real final Done completes tutorial without an extra reward');
     check(finished.open, 'Completed tutorial leaves the cafe open for ordinary play');
-    await page.screenshot({path: path.join(output, 'tutorial-completed.png')});
+    await page.screenshot({path: path.join(output, 'tutorial-completed.png'), timeout: Math.min(10000, budget.remaining())});
+    budget.remaining();
     check(report.errors.length === 0, 'No exported engine or browser errors');
     report.duration_seconds = elapsed(); report.status = 'passed'; report.browser_verified = true;
     await context.close();
@@ -304,4 +337,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget};
