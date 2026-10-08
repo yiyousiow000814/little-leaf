@@ -55,6 +55,7 @@ const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
 var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/illustrated_walls.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
+const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
 var street_pedestrians=StreetPedestrians.new()
@@ -346,23 +347,29 @@ func camera_play_rect()->Rect2:
 		hud_top=game.compact_ui.hud.layout_host.get_global_rect().end.y+8.0
 	return CameraBounds.play_rect(view,hud_top)
 
-func camera_safe_rect()->Rect2:
+func camera_safe_rect(reserve_shop:bool=true)->Rect2:
 	var view=get_viewport_rect().size;var insets=camera_insets()
 	var browse_top=-1.0;var hud_top=camera_play_rect().position.y
 	if is_instance_valid(game) and game.get("compact_ui")!=null:
 		if game.compact_ui.hud!=null:
 			hud_top=game.compact_ui.hud.layout_host.get_global_rect().end.y+CameraBounds.ViewportLayout.edge_gap(view,insets)
 		if game.compact_ui.shop_ui!=null:browse_top=game.compact_ui.shop_ui.browse_rect().position.y
-	return CameraBounds.safe_rect(view,hud_top,insets,browse_top)
+	return CameraBounds.safe_rect(view,hud_top,insets,browse_top,reserve_shop)
+
+func camera_fit_rect()->Rect2:
+	return camera_safe_rect(not is_instance_valid(game) or game.editing)
 
 func camera_world_bounds()->Rect2:
 	var width=12.0;var depth=17.0
 	if is_instance_valid(game) and game.get("model")!=null:
 		width=float(game.model.visible_land_width());depth=float(game.model.visible_land_depth())
+		if not game.editing:
+			width=float(game.model._width_for(game.model.owned_parcels))
+			depth=float(game.model._depth_for(game.model.owned_parcels))
 	return Rect2(Vector2(-depth*39,-128),Vector2((width+depth)*39,128+(width+depth)*19.5))
 
 func camera_fit_zoom()->float:
-	var safe=camera_safe_rect();var bounds=camera_world_bounds()
+	var safe=camera_fit_rect();var bounds=camera_world_bounds()
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
 	return minf(safe.size.x/bounds.size.x,safe.size.y/bounds.size.y)/maxf(.000001,ui_scale*detail)
 
@@ -420,11 +427,11 @@ func update_projection(clamp_camera:bool=true):
 	origin=base_origin+pan_offset
 	if keep_fit and not keep_close:
 		var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
-		pan_offset+=safe.get_center()-(origin+bounds.get_center()*ui_scale*zoom*detail)
+		pan_offset+=camera_fit_rect().get_center()-(origin+camera_world_bounds().get_center()*ui_scale*zoom*detail)
 	elif resize_anchor.is_finite():
 		pan_offset+=inspection.get_center()-iso(resize_anchor.x,resize_anchor.y)
 	if clamp_camera:
-		pan_offset=CameraBounds.clamp_pan(pan_offset,base_origin,tile,map_width,map_depth,size,available.position.y,safe)
+		pan_offset=CameraBounds.clamp_pan(pan_offset,base_origin,tile,map_width,map_depth,size,available.position.y,safe,CameraLandmarks.inspection_bounds(tile))
 	origin=base_origin+pan_offset
 	_camera_view_size=size;_camera_inspection_rect=inspection;_camera_max_zoom=limits.y
 	_camera_safe_rect=safe;_camera_fit_zoom=camera_fit_zoom()
@@ -445,7 +452,7 @@ func fit_overview():
 	update_projection()
 	zoom=camera_fit_zoom();update_projection(false)
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
-	pan_offset+=camera_safe_rect().get_center()-(origin+camera_world_bounds().get_center()*ui_scale*zoom*detail)
+	pan_offset+=camera_fit_rect().get_center()-(origin+camera_world_bounds().get_center()*ui_scale*zoom*detail)
 	update_projection();queue_redraw()
 
 func col(c):
@@ -628,6 +635,8 @@ func _draw():
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
+	# Exterior rear foliage sits behind the cafe shell and its furnishings.
+	_scenery_tree(Vector2(13.5,-.5),1.10)
 	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
 	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
@@ -636,6 +645,8 @@ func _draw():
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
 	game.build_tools.draw_shell_selection(self)
 	var entities=[]
+	# Corner foliage shares the ground-depth order of props and people.
+	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1,"world":Vector2(14.5,11.5),"scale":.78}})
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
@@ -698,6 +709,8 @@ func _draw():
 			entities.append({"depth":maxf(body_depth,target_depth)+.04,"type":"stove_foreground","entry":target})
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:
+		if e.type=="scenery_tree":
+			_scenery_tree(e.entry.world,float(e.entry.scale));continue
 		if e.type=="opening_frame":
 			OpeningArt.casing(self,e.entry,e.part,.65 if bool(e.entry.get("preview",false)) else 1.0,Color("c6e1ae") if bool(e.entry.get("preview",false)) else Color.WHITE);continue
 		if e.type=="built_wall":
@@ -827,8 +840,6 @@ func _draw():
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
-	_scenery_tree(Vector2(13.5,-.5),1.10)
-	_scenery_tree(Vector2(14.5,11.5),.78)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):
