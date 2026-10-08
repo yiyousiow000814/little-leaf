@@ -121,6 +121,7 @@ var browser_suspended=false
 var _browser_process_mode=Node.PROCESS_MODE_INHERIT
 var _resume_frame=-1
 var cafe_intro
+var tutorial
 var illustration: Node2D
 var interaction
 var workface_guidance
@@ -168,6 +169,8 @@ func _ready():
 	web_lifecycle.start()
 	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
 	cafe_intro.start(self)
+	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
+	tutorial.setup(self)
 	if OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
 	if "--self-check" in OS.get_cmdline_user_args():
@@ -826,6 +829,12 @@ func _input(event):
 		get_viewport().set_input_as_handled();return
 	if camera_gestures!=null and camera_gestures.handle_input(event):
 		get_viewport().set_input_as_handled();return
+	# Touch ownership must see releases first. A world drag released over the
+	# guide is canceled before its GUI button receives input, never left held.
+	if tutorial!=null and tutorial.owns_pointer(event):
+		if interaction!=null:interaction.on_focus_lost()
+		if build_tools!=null:build_tools.on_focus_lost()
+		return
 	if compact_ui!=null and compact_ui.handle_input(event):
 		get_viewport().set_input_as_handled();return
 	# Modal Controls keep GUI dispatch, but world tools never own their input.
@@ -920,6 +929,7 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta*speed+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta*speed)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta*speed)

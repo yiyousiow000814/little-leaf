@@ -12,10 +12,13 @@ and a reviewed workflow change.
 
 CrazyGames is the current export target; CI produces a separate variant for
 review, not an automatic deployment. See [the variant guide](crazygames-variant.md).
-The `0.1.10` candidate remains `draft`, with outstanding `review_pending` items.
-Draft metadata is available to build checks but appears in Help only as
-“Release details are being prepared.” It has no released-version label or unread
-update badge. Neither draft notes nor test success grants publication approval.
+The `0.1.10` developer preview uses `draft` notes dated `2026-10-08`.
+The prepared release was not published. Interactive tutorial and authentic
+fresh-customer quality work must be validated before official submission.
+Draft metadata suppresses the released-version label and unread update badge;
+source, export, browser and portal acceptance remain separate checks.
+The itch.io workflow remains disabled, and neither metadata nor test success
+reenables it.
 
 ## Daily development
 

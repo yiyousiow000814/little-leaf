@@ -21,6 +21,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
+    ("test_first_guest", "FIRST_GUEST_RESULT"),
     ("test_shell_draw_cache", "SHELL_DRAW_CACHE_RESULT"),
     ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_legacy_3d_suppression", "LEGACY_3D_SUPPRESSION_RESULT"),
@@ -63,7 +65,6 @@ SUITES = [
     ("test_existing_wall_actions", "EXISTING_WALL_ACTIONS_RESULT"),
     ("test_build_wall_ui", "BUILD_WALL_UI_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
-    ("test_full_map_camera_access", "FULL_MAP_CAMERA_ACCESS_RESULT"),
     ("test_staff_header_done", "STAFF_HEADER_DONE_RESULT"),
     ("test_startup_retry", "STARTUP_RETRY_RESULT"),
     ("test_no_bottom_notifications", "NO_BOTTOM_NOTIFICATIONS_RESULT"),
@@ -233,6 +234,11 @@ def main():
                           "failures": [f for p in payloads for f in p.get("failures", [])],
                           "diagnostics": [l for l in text.splitlines() if "WARNING" in l or "ERROR" in l],
                           "log": name + ".log"}
+                # Bind derived UI receipts to the exact aggregate report used
+                # by the export manifest, rather than trusting a loose JSON file.
+                result_file = env.get("LL_UI_RESULT")
+                if result_file and Path(result_file).is_file():
+                    record["result_sha256"] = hashlib.sha256(Path(result_file).read_bytes()).hexdigest()
                 report["records"].append(record)
                 save()
                 print(json.dumps(record), flush=True)
@@ -250,6 +256,8 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script != "test_interactive_tutorial":
+                        flags.append("--skip-tutorial")
                     if script != "test_intro_lifecycle_headless":
                         flags.append("--skip-intro")
                     # These controller fixtures never create the game scene. The
@@ -278,7 +286,7 @@ def main():
                         shutil.copy2(save_dir / "staff-start-standalone.json", save_file)
                     elif case == "bad-load":
                         save_file.write_text("not a valid cafe")
-                    flags = ["--visual-qa", "--skip-intro"]
+                    flags = ["--visual-qa", "--skip-intro", "--skip-tutorial"]
                     if case == "fresh":
                         flags.append("--fresh-review")
                     run("staff-start-" + case, ["--script", "res://tests/test_staff_start.gd", "--", *flags],

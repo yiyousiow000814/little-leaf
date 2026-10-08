@@ -16,8 +16,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     # Existing two-engine/compatibility budget plus Log (5m), recovery (9m),
-    # and WebKit provisioning headroom. Every gate remains mandatory.
-    timeout-minutes: 50
+    # fresh tutorial (5m), and WebKit provisioning headroom. All gates remain mandatory.
+    timeout-minutes: 55
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
@@ -43,6 +43,8 @@ jobs:
           node --check tests/wall_compatibility_browser.js
           node --check tests/save_log_browser.js
           node --check tests/connection_recovery_browser.js
+          node tests/fresh_tutorial_browser_test.js
+          node --check tests/fresh_tutorial_browser.js
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -97,6 +99,12 @@ jobs:
           node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        timeout-minutes: 5
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify actual old and new Web save compatibility
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome

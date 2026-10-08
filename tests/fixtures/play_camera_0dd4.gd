@@ -1,4 +1,6 @@
 extends RefCounted
+## Frozen pre-change Play range oracle: 0dd4db11. Test-only, never runtime.
+const Neighborhood=preload("res://scripts/exterior_environment.gd")
 const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
 ## Finite map framing on both screen axes, independent of Decorate's tray.
 static func play_rect(viewport:Vector2,hud_top:float=104.0)->Rect2:
@@ -50,3 +52,22 @@ static func clamp_pan(pan:Vector2,base_origin:Vector2,tile:Vector2,width:float,d
 		var inspection_slack=minf(view.size.y*.35,240.0) if axis==1 else 0.0
 		result[axis]=clampf(result[axis],minf(near_edge,far_edge)-inspection_slack,maxf(near_edge,far_edge)+inspection_slack)
 	return result
+
+static func inspection_bounds(tile:Vector2)->Rect2:
+	# Bounded authored landmarks may be inspected with normal pan controls.
+	# This affects traversal only; Fit continues to frame the owned cafe.
+	var bounds=Rect2(Vector2.ZERO,Vector2.ZERO)
+	var first=true
+	for ground in [Neighborhood.LOT,Neighborhood.MOUTH,Neighborhood.PEDESTRIAN_LINK,Neighborhood.STOP_PAD,Neighborhood.SHELTER_ROOF]:
+		for point in [ground.position,Vector2(ground.end.x,ground.position.y),ground.end,Vector2(ground.position.x,ground.end.y)]:
+			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
+			bounds=Rect2(projected,Vector2.ZERO) if first else bounds.expand(projected)
+			first=false
+	# Curved approaches extend beyond Neighborhood.STOP_PAD. Traverse their actual cached
+	# pavement vertices so both ends remain reachable through normal controls.
+	for row in Neighborhood.stop_rows:
+		for point in row.points:
+			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
+			bounds=bounds.expand(projected)
+	# Include the shelter/people silhouette and a small inspection edge.
+	return bounds.grow_individual(24*tile.x/39.0,(Neighborhood.SHELTER_HEIGHT+24)*tile.x/39.0,24*tile.x/39.0,24*tile.x/39.0)

@@ -2,24 +2,23 @@
   "schema_version": 1,
   "status": "draft",
   "version": "0.1.10",
-  "date": "2026-10-07",
-  "label": "Cafe building, service and environment integration candidate",
+  "date": "2026-10-08",
+  "label": "Developer preview",
   "new": [
     "Outside visitors wait in a separate queue before seated service begins.",
-    "Decorate offers a fixed four-bay parking upgrade for 2,000 coins. Real customers park, walk into the cafe or its existing queue, then return and drive away.",
-    "Exterior environment candidate adds roadside scenery, ambient traffic and three presentation visitors walking/waiting/boarding/alighting at the sidewalk-connected bus stop."
+    "Add a four-bay parking upgrade for 2,000 coins in Decorate. Customers park, visit the cafe, then return to their cars and drive away.",
+    "Roadside scenery, passing traffic and bus-stop visitors."
   ],
   "fixed": [
-    "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",
-    "Normal pan and touch controls can inspect the authored bus stop and parking without changing cafe-only Fit or jumping on Decorate.",
-    "Cleaning approaches use stance-aware work positions and tools; repeated dense geometry checks are cached with model, revision, position, contact and stance invalidation.",
-    "Decoration refunds apply within the active build session and reset on Done and session boundaries.",
-    "Live shell geometry queries reuse revision-bound cache results; explicit proposed geometry remains uncached."
+    "Welcome now leads into a moving cafe, with Little Leaf branding while the game loads.",
+    "Browse Wall styles in the Build tray, with improved placement and replacement of walls, doors and windows.",
+    "Decorate hides outside people and uses the original Play camera range.",
+    "Clearer controls, softer wall-selection outlines, rounded coin icons and better frame-rate selector spacing.",
+    "Improved Inbox history after CrazyGames progress submission.",
+    "More reliable service, cleaning, work positions and build-session refunds, with less repeated rendering and route work."
   ],
   "review_pending": [
-    "Pan reference images are available. Actual local before/after renders cover the bounded 2c993eda source plus pan-handle, outside-queue bubble and single-control stove corrections through c66fa72; full cloud-candidate, cup and environment visual acceptance remains open.",
-    "Environment layout and appearance await user review.",
-    "Combined integration tests do not constitute visual approval or a physical phone heat measurement.",
-    "itch.io publishing remains paused. No release or deployment is authorized by this candidate."
+    "Interactive tutorial and authentic fresh-customer flow are under developer validation.",
+    "Official submission and publication are on hold until the revised quality scope is ready."
   ]
 }

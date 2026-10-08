@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('./engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, progress, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '..');
 const fixtureDir = path.join(__dirname, 'fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -176,7 +176,7 @@ async function main() {
     for (const label of ['old', 'new']) {
       const file = fs.readFileSync(path.join(layoutDir, label + '-layout.json'));
       assert.equal(hash(file), preflight.layouts[label].sha256);
-      layouts[label] = JSON.parse(file); assert.equal(layouts[label].failures.length, 0);
+      layouts[label] = JSON.parse(file); verifyLayout(layouts[label], label);
     }
     const fixtures = {};
     for (const [name, digest] of Object.entries(contract.fixture_sha256)) {
@@ -378,19 +378,10 @@ async function main() {
         // post-commit old mutation, even if it happened on a focus transition.
         await oldPage.evaluate(() => {__wallCompatibility.writes = []; __wallCompatibility.transactions = []; __wallCompatibility.saves = []; __wallCompatibility.saveStarts = 0;});
         await boot(newPage, 'new', revision);
-        await click(newPage, 'new', 'decorate', 0);
-        await screenUiText(newPage, 'case-b-build-catalog', 'catalog', ['Wall', 'Door', 'Window'], 'build');
-        await click(newPage, 'new', 'wall', 0);
-        await screenUiText(newPage, 'case-b-wall-picker', ['product_label', 'product_target'], ['Wall style', 'Choose target']);
-        for (const name of ['height', 'paper']) {
-          await click(newPage, 'new', name); await newPage.keyboard.press('ArrowDown'); await newPage.keyboard.press('Enter'); await newPage.waitForTimeout(150);
-        }
-        await screenUiText(newPage, 'case-b-selected-wall', ['height', 'paper', 'price', 'product_target'], ['Half wall', 'Sage panels', '35 coins', 'Choose target']);
-        await click(newPage, 'new', 'choose_target');
-        await click(newPage, 'new', 'segment');
-        await screenUiText(newPage, 'case-b-new-confirmation', ['review_heading', 'review_text'],
-          ['Replace wall', 'Selected one-tile wall', 'Half wall', 'Sage panels', 'You pay 35 coins']);
-        check((await observation(newPage)).saveStarts === 0, 'New picker/target actions cause no save before the verified wall confirmation');
+        await selectWallReplacement(
+          (name, delay) => click(newPage, 'new', name, delay),
+          (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget));
+        check((await observation(newPage)).saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
         await click(newPage, 'new', 'confirm'); await idle(newPage);
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
