@@ -18,6 +18,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_decoration_refund", "DECORATION_REFUND_RESULT"),
     ("test_floor_approach_cache", "FLOOR_APPROACH_CACHE_RESULT"),
     ("test_floor_cleaning_approach", "FLOOR_CLEANING_APPROACH_RESULT"),
     ("test_floor_tool_depth", "FLOOR_TOOL_DEPTH_RESULT"),
