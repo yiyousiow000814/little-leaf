@@ -75,7 +75,15 @@ func _texture(name:String)->Texture2D:
  if textures.has(name):return textures[name]
  var faithful="res://assets/ui/fidelity_hud/"+name+".png"
  if FileAccess.file_exists(faithful):
-  var source=Image.new();source.load_png_from_buffer(FileAccess.get_file_as_bytes(faithful));source.generate_mipmaps()
+  var source=Image.new();source.load_png_from_buffer(FileAccess.get_file_as_bytes(faithful))
+  if name=="coin":
+   # The original coin reaches all four image edges. A transparent sampling
+   # guard prevents linear/mipmap filtering from clamping its outer rim flat.
+   # Keep every painted source pixel unchanged, and center the 63px-wide art.
+   var side=maxi(source.get_width(),source.get_height())+8
+   var guarded=Image.create(side,side,false,Image.FORMAT_RGBA8);guarded.fill(Color.TRANSPARENT)
+   guarded.blit_rect(source,Rect2i(Vector2i.ZERO,source.get_size()),Vector2i((side-source.get_width())/2,(side-source.get_height())/2));source=guarded
+  source.generate_mipmaps()
   var result=ImageTexture.create_from_image(source);textures[name]=result;return result
  var image=Image.load_from_file(ASSETS+name+".png")
  # Original artwork stays intact on disk. Keep runtime HUD textures small;

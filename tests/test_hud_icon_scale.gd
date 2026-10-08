@@ -12,6 +12,19 @@ func run():
  await process_frame
  game.set_process(false);game.paused=true
  var hud=game.compact_ui.hud
+ var coin=hud._texture("coin").get_image()
+ var original=Image.new();original.load_png_from_buffer(FileAccess.get_file_as_bytes("res://assets/ui/fidelity_hud/coin.png"))
+ check(coin!=null and coin.get_size()==Vector2i(72,72),"coin texture has four-pixel transparent sampling guard")
+ if coin!=null:
+  var intact=true;var clear_edges=true
+  for y in coin.get_height():
+   for x in coin.get_width():
+    if x>=4 and x<4+original.get_width() and y>=4 and y<4+original.get_height():
+     if coin.get_pixel(x,y)!=original.get_pixel(x-4,y-4):intact=false
+    elif coin.get_pixel(x,y).a!=0:clear_edges=false
+  check(intact,"all original coin pixels preserved unchanged")
+  check(clear_edges,"coin outer sampling guard is fully transparent")
+  check(coin.has_mipmaps(),"padded coin retains minification mipmaps")
  for view in [Vector2i(1360,880),Vector2i(960,540),Vector2i(850,600),Vector2i(849,600),Vector2i(800,600),Vector2i(566,360),Vector2i(390,844),Vector2i(1360,880)]:
   root.size=view;game.editing=false;game._update_ui()
   for frame in 4:await process_frame

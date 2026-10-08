@@ -57,6 +57,7 @@ SUITES = [
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
 
+    ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
     ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),
     ("test_shell_segment_model", "SHELL_SEGMENT_MODEL_RESULT"),
