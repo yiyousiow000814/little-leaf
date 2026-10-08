@@ -41,9 +41,15 @@ xvfb-run -a node tests/fresh_tutorial_browser.js \
 ```
 
 Use the workflow's checksum-pinned Godot and official Web template, pinned
-Playwright 1.63.0, sandboxed Chrome under Xvfb, and Tesseract English. The entire
-flow is bounded to 220 seconds (five-minute CI step including setup/cleanup).
-Each UI/state wait also has its own deadline. Normal autosave latency is over
+Playwright 1.63.0, sandboxed Chrome under Xvfb, and Tesseract English. Startup,
+opening, arrival, order and genuine payment retain their 220-second service cap
+and all existing per-stage deadlines. Only a payment observed before that cap
+starts a separate completion allowance: 25 seconds for the title, 25 seconds for
+exact Done OCR, and 30 seconds for the completed save, at most 80 seconds total.
+The real final click and final screenshot must also fit that allowance. It cannot
+be restarted; the complete journey is capped at 300 seconds. The six-minute CI
+step includes retained-image OCR, setup and cleanup; the job remains 55 minutes.
+Normal autosave latency is over
 15 seconds; tutorial transitions also save normally. Expect roughly two minutes
 of real gameplay including startup and the initial closed autosave.
 
@@ -71,6 +77,13 @@ The original real click, durable completed-state check and unchanged payment
 balance check still follow. Retained CI #101 pixels supply positive and
 title-only negative image regressions; recognition tests alone do not establish
 successful dismissal in a browser.
+
+CI run 37823116282 reached genuine payment at 211.731 seconds, but its remaining
+220-second shared budget expired before Done OCR could attempt recognition.
+The separate completion allowance fixes that verification-budget defect without
+extending service time. Deterministic clock regressions cover late valid payment,
+expired service, missing completion text, phase expiry and the overall ceiling;
+the original exact-label negative fixtures and economy assertions still apply.
 
 ## Local checks without a display
 

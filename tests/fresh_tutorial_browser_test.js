@@ -1,7 +1,7 @@
 'use strict';
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('./wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
@@ -61,6 +61,77 @@ assert.deepEqual(summarize(orderAck).guests, [{id: 1, phase: 'cooking', seated: 
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), cp = require('node:child_process');
 const root = path.resolve(__dirname, '..'), temp = fs.mkdtempSync(path.join(os.tmpdir(), 'fresh-tutorial-binding-'));
 const exec = cp.execFileSync;
+// Exercise the same phase/step budget and exact OCR used by the browser with a
+// deterministic clock. Synthetic recognition proves timing, not real gameplay.
+const realNow = Date.now;
+try {
+  const started = 100000;
+  let now = started;
+  Date.now = () => now;
+  const budget = flowBudget(started);
+  assert.equal(budget.deadline(25000), started + 25000, 'Opening cue retains its own limit');
+  assert.equal(budget.deadline(30000), started + 30000, 'Saved-state waits retain their own limit');
+  now = started + 80759;
+  assert.equal(budget.deadline(45000), now + 45000, 'Arrival/order allowance is unchanged');
+  assert.equal(budget.deadline(20000), now + 20000, 'Meal cue allowance is unchanged');
+  const paymentDeadline = budget.deadline(150000);
+  assert.equal(paymentDeadline, started + 220000, 'Payment cannot borrow completion time');
+  now = started + 211731; // Exact late-but-valid payment time in failed CI #157.
+  assert.equal(budget.remaining(paymentDeadline), 8269);
+  const completionDeadline = budget.startCompletion();
+  assert.equal(completionDeadline, now + 25000 + 25000 + 30000);
+  let calls = 0;
+  cp.execFileSync = () => {calls++; return 'First order complete!';};
+  assert(recognizeCue('completion-title.png', ['First order complete!'], 'tesseract', budget.deadline(25000)).matched);
+  now += 12000; // Title/evidence work has crossed the old 220-second ceiling.
+  const doneDeadline = budget.deadline(25000);
+  assert.equal(doneDeadline, now + 25000, 'Done receives its bounded OCR window after late payment');
+  cp.execFileSync = () => {calls++; return 'Done\n';};
+  const done = recognizeCue('completion-action-2x.png', ['Done'], 'tesseract', doneDeadline, true);
+  assert(done.matched && done.attempts.length > 0, 'Late valid payment must permit actual exact Done OCR attempts');
+  assert.equal(calls, 2);
+  budget.remaining(); // The real click is allowed only inside completion time.
+  now += 5000;
+  const saveDeadline = budget.deadline(30000);
+  now += 20000;
+  assert(budget.remaining(saveDeadline) > 0, 'A normal completed autosave fits after the final click');
+  assert.throws(() => budget.startCompletion(), /cannot be restarted/);
+  now = completionDeadline;
+  assert.throws(() => budget.remaining(), /completion.*deadline exceeded/);
+
+  for (const overdue of [220000, 220001, 299999]) {
+    now = started + overdue;
+    const expiredService = flowBudget(started);
+    assert.throws(() => expiredService.remaining(paymentDeadline), /service.*deadline exceeded/);
+    assert.throws(() => expiredService.startCompletion(), /service.*deadline exceeded/,
+      'An expired payment observation cannot unlock completion grace');
+  }
+  now = started + 100000;
+  const stepLimited = flowBudget(started), stepDeadline = stepLimited.deadline(30000);
+  now = stepDeadline;
+  assert.throws(() => stepLimited.remaining(stepDeadline), /service.*deadline exceeded/,
+    'A matching save observed after its local wait expired must also fail');
+
+  for (const phrase of ['First order complete!', 'Done']) {
+    now = started + 219999;
+    const missing = flowBudget(started), end = missing.startCompletion();
+    assert.equal(end, started + 299999, 'Even the latest valid payment stays below the fixed 300s cap');
+    const cueDeadline = missing.deadline(25000);
+    cp.execFileSync = () => {now += 5000; return 'Unrelated scene text';};
+    while (now < cueDeadline) {
+      assert(!recognizeCue('missing-completion.png', [phrase], 'tesseract', cueDeadline, phrase === 'Done').matched,
+        'Missing completion content cannot pass within the extra allowance');
+    }
+    assert.throws(() => missing.remaining(cueDeadline), /completion.*deadline exceeded/);
+    now = started + 300000;
+    assert.throws(() => missing.remaining(), /completion.*deadline exceeded/);
+    assert.throws(() => missing.startCompletion(), /cannot be restarted/);
+    calls = 0;
+    cp.execFileSync = () => {calls++; return phrase;};
+    assert(!recognizeCue('too-late.png', [phrase], 'tesseract', missing.deadline(25000), phrase === 'Done').matched);
+    assert.equal(calls, 0, 'Missing completion cannot cause OCR to run beyond the overall cap');
+  }
+} finally {Date.now = realNow; cp.execFileSync = exec;}
 let dirty = false;
 try {
   const commit = 'a'.repeat(40);
