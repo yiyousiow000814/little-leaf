@@ -16,6 +16,10 @@ var progress_profile=""
 var loaded_preferences_source=""
 var last_seen_update_version=""
 var speed_buttons=[]
+var frame_rate=60
+var frame_rate_choice:OptionButton
+var preference_timer:Timer
+var preferences_dirty=false
 var audio_rows={}
 var sfx_player:AudioStreamPlayer
 var effects={}
@@ -51,9 +55,11 @@ func load_preferences():
 		sfx_enabled=bool(cfg.get_value("audio","sfx_enabled",true))
 		bgm_volume=clampf(float(cfg.get_value("audio","bgm_volume",70)),0,100)
 		sfx_volume=clampf(float(cfg.get_value("audio","sfx_volume",55)),0,100)
+		frame_rate=120 if cfg.get_value("display","frame_rate",60)==120 else 60
 		var seen=cfg.get_value("updates","last_seen_version","")
 		last_seen_update_version=seen if seen is String else ""
 		if game!=null:game.speed=2.0 if int(cfg.get_value("play","speed",1))==2 else 1.0
+	Engine.max_fps=frame_rate
 	_apply_buses()
 func _review_mode()->bool:
 	var args=OS.get_cmdline_user_args()
@@ -66,6 +72,7 @@ func save_preferences()->bool:
 	cfg.set_value("audio","bgm_enabled",bgm_enabled);cfg.set_value("audio","sfx_enabled",sfx_enabled)
 	cfg.set_value("audio","bgm_volume",bgm_volume);cfg.set_value("audio","sfx_volume",sfx_volume)
 	cfg.set_value("play","speed",int(game.speed) if game!=null else 1)
+	cfg.set_value("display","frame_rate",frame_rate)
 	cfg.set_value("updates","last_seen_version",last_seen_update_version)
 	if OS.has_feature("web") and config_path=="user://little_leaf_settings.cfg":
 		var saved=web_preferences!=null and web_preferences.save_from(cfg)
@@ -112,6 +119,10 @@ func _make_effect(kind:String) -> AudioStreamWAV:
 func play_sfx(kind="click"):
 	if not sfx_enabled or sfx_volume<=0 or not is_instance_valid(sfx_player):return
 	if effects.has(kind):sfx_player.stream=effects[kind];sfx_player.play()
+func set_frame_rate(value:int):
+	frame_rate=120 if value==120 else 60
+	Engine.max_fps=frame_rate
+	sync();save_preferences()
 func set_speed(value:float):
 	game.speed=2.0 if value>=2 else 1.0
 	sync();save_preferences()
@@ -127,7 +138,15 @@ func set_audio_enabled(kind:String,value:bool):
 func set_audio_volume(kind:String,value:float):
 	if kind=="BGM":bgm_volume=clampf(value,0,100)
 	else:sfx_volume=clampf(value,0,100)
-	_apply_buses();sync();save_preferences()
+	_apply_buses();sync();queue_preferences_save()
+func queue_preferences_save():
+	preferences_dirty=true
+	if is_instance_valid(preference_timer):preference_timer.start()
+	else:flush_preferences()
+func flush_preferences():
+	if not preferences_dirty:return
+	if is_instance_valid(preference_timer):preference_timer.stop()
+	if save_preferences():preferences_dirty=false
 func _rail(color:Color) -> StyleBoxFlat:
 	var rail=StyleBoxFlat.new();rail.bg_color=color;rail.set_corner_radius_all(3);rail.content_margin_top=3;rail.content_margin_bottom=3;return rail
 func _thumb() -> Texture2D:
@@ -135,6 +154,8 @@ func _thumb() -> Texture2D:
 	img.load_svg_from_string('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><circle cx="8" cy="8" r="6" fill="#78916c" stroke="#f5efd8" stroke-width="2"/></svg>')
 	return ImageTexture.create_from_image(img)
 func build() -> PanelContainer:
+	preference_timer=Timer.new();preference_timer.one_shot=true;preference_timer.wait_time=.2
+	game.add_child(preference_timer);preference_timer.timeout.connect(flush_preferences)
 	panel=PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	panel.offset_left=-352;panel.offset_right=-22;panel.offset_top=88;panel.offset_bottom=480
@@ -160,10 +181,21 @@ func build() -> PanelContainer:
 		var value=game.label("",13,Color("758368"));value.custom_minimum_size.x=42;value.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;volumes.add_child(value)
 		audio_rows[kind]={"toggle":toggle,"slider":slider,"value":value}
 		slider.value_changed.connect(func(v):set_audio_volume(kind,v))
+		slider.drag_ended.connect(func(_changed):flush_preferences())
+	var frames=HBoxContainer.new();box.add_child(frames)
+	var frame_title=game.label("Frame rate",15);frame_title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;frames.add_child(frame_title)
+	frame_rate_choice=OptionButton.new();frame_rate_choice.add_item("60 FPS",60);frame_rate_choice.add_item("120 FPS",120)
+	frame_rate_choice.custom_minimum_size=Vector2(112,44);frame_rate_choice.alignment=HORIZONTAL_ALIGNMENT_CENTER
+	frame_rate_choice.add_theme_constant_override("h_separation",8);frames.add_child(frame_rate_choice)
+	frame_rate_choice.resized.connect(_center_frame_rate_content)
+	frame_rate_choice.theme_changed.connect(_center_frame_rate_content)
+	frame_rate_choice.item_selected.connect(func(index):set_frame_rate(frame_rate_choice.get_item_id(index));_center_frame_rate_content())
+	var frame_note=game.label("120 FPS may use more battery and produce more heat. Actual FPS depends on your device.",11,Color("8b937b"))
+	frame_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(frame_note)
 	preference_storage_note=game.label("Changes are saved automatically",11,Color("8b937b"))
 	preference_storage_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(preference_storage_note)
-	box.add_child(game.button("Close",func():panel.hide()))
+	box.add_child(game.button("Close",func():flush_preferences();panel.hide()))
 	sync();panel.hide();return panel
 func build_play_controls() -> HBoxContainer:
 	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",5)
@@ -183,6 +215,16 @@ func build_play_controls() -> HBoxContainer:
 		b.add_theme_color_override("font_pressed_color",Color("fff3d8"))
 		controls.add_child(b);speed_buttons.append(b)
 	sync();return controls
+func _center_frame_rate_content():
+	if not is_instance_valid(frame_rate_choice):return
+	# Center the selected label and native chevron as one group. Godot already
+	# reserves the arrow width + h_separation beside centered Button text.
+	var font=frame_rate_choice.get_theme_font("font")
+	var text_width=font.get_string_size(frame_rate_choice.text,HORIZONTAL_ALIGNMENT_LEFT,-1,frame_rate_choice.get_theme_font_size("font_size")).x
+	var arrow_width=frame_rate_choice.get_theme_icon("arrow").get_width()
+	var gap=frame_rate_choice.get_theme_constant("h_separation")
+	var inset=maxi(12,roundi((frame_rate_choice.size.x-text_width-arrow_width-gap)*.5))
+	if frame_rate_choice.get_theme_constant("arrow_margin")!=inset:frame_rate_choice.add_theme_constant_override("arrow_margin",inset)
 func _sync_preference_storage_notice():
 	if not is_instance_valid(preference_storage_note):return
 	preference_storage_note.text="Changes are saved automatically" if web_preferences==null or web_preferences.last_error=="" else "Preferences not saved · "+web_preferences.last_error
@@ -190,6 +232,10 @@ func _sync_preference_storage_notice():
 func sync():
 	if game==null:return
 	_sync_preference_storage_notice()
+	if is_instance_valid(frame_rate_choice):
+		var selected=1 if frame_rate==120 else 0
+		if frame_rate_choice.selected!=selected:
+			frame_rate_choice.select(selected);_center_frame_rate_content()
 	if is_instance_valid(game.pause_button):game.pause_button.text="Resume" if game.paused else "Pause"
 	for i in range(speed_buttons.size()):speed_buttons[i].set_pressed_no_signal(int(game.speed)==i+1)
 	for kind in audio_rows:

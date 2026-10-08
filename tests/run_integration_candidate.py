@@ -18,6 +18,14 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_shell_draw_cache", "SHELL_DRAW_CACHE_RESULT"),
+    ("test_render_idle", "RENDER_IDLE_RESULT"),
+    ("test_render_visibility", "RENDER_VISIBILITY_RESULT"),
+    ("test_frame_rate_alignment", "FRAME_RATE_ALIGNMENT_RESULT"),
+    ("test_web_performance", "WEB_PERFORMANCE_RESULT"),
+    ("test_performance_simulation_cache", "PERFORMANCE_SIMULATION_CACHE_RESULT"),
+    ("test_performance_shell_cache", "PERFORMANCE_SHELL_CACHE_RESULT"),
+    ("test_legacy_3d_suppression", "LEGACY_3D_SUPPRESSION_RESULT"),
     ("test_decoration_build_refund", "DECORATION_BUILD_REFUND_RESULT"),
     ("test_decoration_refund", "DECORATION_REFUND_RESULT"),
     ("test_floor_approach_cache", "FLOOR_APPROACH_CACHE_RESULT"),

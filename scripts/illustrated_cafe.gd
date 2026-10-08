@@ -1,4 +1,11 @@
 extends Node2D
+const RenderVisibility=preload("res://scripts/cafe_render_visibility.gd")
+# Comparison switch; normal gameplay always culls conservatively.
+var use_screen_culling=true
+var use_idle_retention=true
+var shell_draw_cache=preload("res://scripts/cafe_shell_draw_cache.gd").new()
+var render_idle=preload("res://scripts/cafe_render_idle.gd").new()
+
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
@@ -121,6 +128,7 @@ func _ready():
 		if use_cached_heads:head_atlas.request(self)
 
 func _process(delta):
+	if is_instance_valid(game) and game.has_method("effective_frame_delta"):delta=game.effective_frame_delta(delta)
 	# Shop artwork is static. CanvasItem already schedules its initial draw;
 	# the retained commands stay valid when the tray is hidden/shown again.
 	if icon_kind!="":
@@ -133,7 +141,7 @@ func _process(delta):
 		return
 	_update_street_pedestrians(delta)
 	update_motion(delta)
-	queue_redraw()
+	if not use_idle_retention or render_idle.needs_redraw(self):queue_redraw()
 func _update_street_pedestrians(delta:float):
 	if not is_instance_valid(game):return
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
@@ -548,6 +556,17 @@ func screen_to_world(p:Vector2)->Vector2:
 func screen_to_cell(p: Vector2) -> Vector2i:
 	return Vector2i(screen_to_world(p).floor())
 
+func render_bounds_visible(bounds:Rect2)->bool:
+	# Standalone/atlas artists and transformed inspection sheets retain artwork.
+	return not use_screen_culling or not is_instance_valid(game) or icon_kind!="" or _art_transform!=Transform2D.IDENTITY or RenderVisibility.visible(bounds,get_viewport_rect(),6.0)
+func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
+	# Wide guard includes shadows, tall heads, bubbles and tools. Include the
+	# target so reaching foregrounds survive when the owner's feet are outside.
+	var scale=ui_scale*zoom*(1.55 if is_instance_valid(game) and game.wall_detail else 1.0)
+	var bounds=RenderVisibility.local_bounds(anchor,scale,Rect2(-128,-192,256,272))
+	if extra.is_finite():bounds=bounds.merge(RenderVisibility.local_bounds(extra,scale,Rect2(-128,-192,256,272)))
+	return render_bounds_visible(bounds)
+
 func _draw():
 	render_contacts.clear()
 	if icon_kind!="":
@@ -556,7 +575,8 @@ func _draw():
 		item(icon_kind,Vector2.ZERO,icon_rotation,0)
 		art_transform(Vector2.ZERO)
 		return
-	if not is_instance_valid(game): return
+	if not is_instance_valid(game):
+		return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
@@ -610,8 +630,8 @@ func _draw():
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
 	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
-	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
-	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
+	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
+	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
 	var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
 	game.build_tools.draw_shell_selection(self)
@@ -632,6 +652,7 @@ func _draw():
 			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
 	for entry in render_items:
 		var meal_offset=_meal_chair_offset(entry)
+		if not _render_anchor_visible(iso(entry.x+.5+meal_offset.x,entry.z+.5+meal_offset.y)):continue
 		var item_depth=float(entry.x+entry.z)+1+meal_offset.x+meal_offset.y
 		entities.append({"depth":-100 if entry.kind=="rug" else item_depth,"type":"item","entry":entry,"meal_offset":meal_offset})
 		if entry.kind in ["chair","bench"]:
@@ -643,6 +664,8 @@ func _draw():
 		if float(guest.x)>=0 and float(guest.z)>=0 and not str(guest.phase) in ["dirty","cleaning"]:
 			var dining=CheckoutArt.guest_action(guest,game.service_guests.get(int(guest.id),{}))=="eating"
 			var surface=game.model.get_item(int(guest.table_id) if dining else int(guest.get("checkout_register_id",-1)))
+			var target=Vector2.INF if surface.is_empty() else iso(float(surface.x)+.5,float(surface.z)+.5)
+			if not _render_anchor_visible(iso(render_pos.x,render_pos.y),target):continue
 			var body_depth=render_pos.x+render_pos.y+.15
 			var surface_depth=float(surface.get("x",-100)+surface.get("z",-100))+1.0
 			# Keep the torso behind the table, but its spoon above the real dish.
@@ -655,6 +678,8 @@ func _draw():
 		var render_pos=_render_position("staff_%s"%i,staff.pos)
 		var body_depth=render_pos.x+render_pos.y+.15
 		var target=game.model.get_item(int(staff.get("art_target_id",-1)))
+		var contact=staff.get("art_target",staff.get("art_station",staff.pos))
+		if not _render_anchor_visible(iso(render_pos.x,render_pos.y),iso(contact.x,contact.y)):continue
 		var staff_action=str(staff.get("art_action",""))
 		var interacting=staff_action in ["preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]
 		var target_depth=float(target.get("x",-100)+target.get("z",-100))+1.0
@@ -918,6 +943,9 @@ func _tree(p: Vector2,s: float):
 	# value-only transforms preserve ground anchors and add no draw calls.
 	var horizontal_scale := -1.0 if is_equal_approx(s,.86) else (.92 if is_equal_approx(s,.78) else 1.0)
 	s*=ui_scale*zoom*(1.55 if is_instance_valid(game) and game.wall_detail else 1.0)
+	var crown_bounds=RenderVisibility.local_bounds(p,s,Rect2(-58,-145,116,152))
+	var shadow_bounds=Rect2(p+Vector2(2,0)-Vector2(35,11)*s,Vector2(70,22)*s)
+	if not render_bounds_visible(crown_bounds.merge(shadow_bounds)):return
 	# Its old two-pixel shadow offset is screen-relative, so keep it live.
 	ellipse(p+Vector2(2,0),Vector2(35,11)*s,Color(.45,.57,.32,.12))
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():

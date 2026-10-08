@@ -10,6 +10,8 @@ config_version=5
 
 [application]
 
+run/max_fps=60
+
 config/name="Little Leaf Cafe"
 config/version="0.1.8"
 run/main_scene="res://main.tscn"

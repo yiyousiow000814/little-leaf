@@ -194,7 +194,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertTrue(save.lstrip().startswith('if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false'))
         controller = (REPO / "scripts/cafe_web_save.gd").read_text()
         self.assertIn('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"', controller)
-        for initial in ['var pending=false', 'var queued=false']:
+        for initial in ['var pending=false', 'var queued=false', 'var _confirmed_payload=""', 'var _inflight_payload=""']:
             self.assertIn(initial, controller)
         self.assertIn('api=JavaScriptBridge.get_interface("__littleLeafVault")', controller)
         self.assertIn('var result=JSON.parse_string(str(api.bootJson))', controller)

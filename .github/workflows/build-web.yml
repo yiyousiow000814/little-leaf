@@ -35,6 +35,7 @@ jobs:
           node tests/legacy_byte_storage.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
+          node tests/web_performance_lifecycle.js
           node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
           node tests/wall_compatibility_helpers_test.js
