@@ -1,7 +1,7 @@
 'use strict';
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('./wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
@@ -123,12 +123,91 @@ try {
     assert(!recognizeCue('same-captured-frame.png', ['Done'], 'tesseract', Date.now() + 10000, true).matched,
       'Exact button label rejects ' + wrong);
   }
+  for (const wrong of ['Mealontheway', 'Meal on the wax', 'Meal on the wayward', 'Premeal on the way', 'Meal on way', 'Meals on the way']) {
+    cp.execFileSync = () => wrong;
+    assert(!recognizeCue('same-captured-frame.png', ['Meal on the way'], 'tesseract', Date.now() + 10000).matched,
+      'Exact spaced cue rejects ' + wrong);
+  }
+  for (const correct of ['Meal on the way', 'Meal\non the way', '5/6\nMeal on the way.\nSkip']) {
+    cp.execFileSync = () => correct;
+    assert(recognizeCue('same-captured-frame.png', ['Meal on the way'], 'tesseract', Date.now() + 10000).matched);
+  }
   cp.execFileSync = () => 'Done\n';
   assert(recognizeCue('same-captured-frame.png', ['Done'], 'tesseract', Date.now() + 10000, true).matched);
   cp.execFileSync = () => {throw Object.assign(new Error('Synthetic OCR timeout'), {code: 'ETIMEDOUT'});};
   assert.throws(() => recognizeCue('same-captured-frame.png', ['Tap'], 'tesseract', Date.now() + 10000),
     error => error.ocr_evidence.attempts[0].mode === 'sparse' && /timeout/.test(error.ocr_evidence.attempts[0].error));
 } finally {cp.execFileSync = exec;}
+assert.equal(cuePixelScale(null), 2, 'Every moving full-frame cue receives exact 2x pixels');
+assert.equal(cuePixelScale(undefined), 2);
+assert.equal(cuePixelScale([10, 10, 100, 64]), 1, 'Existing native-bound card evidence remains unchanged');
+assert.equal(cuePixelScale([10, 10, 44, 44], 2), 2, 'Done uses the same nearest-neighbor scaling');
+assert.throws(() => cuePixelScale(null, 3), /exact 2x/);
+const browserSource = fs.readFileSync(path.join(__dirname, 'fresh_tutorial_browser.js'), 'utf8');
+assert(browserSource.includes('const pixelScale = cuePixelScale(region, options.pixelScale ?? 1)'));
+assert(browserSource.includes('if (pixelScale === 2)'));
+assert(browserSource.includes('context.imageSmoothingEnabled = false'));
+assert(browserSource.includes('new OffscreenCanvas(bitmap.width * 2, bitmap.height * 2)'));
+assert(browserSource.includes("await visible('natural-arrival', ['Your waiter takes the order'], null, 45000)"));
+assert(browserSource.includes("await visible('natural-meal', ['Meal on the way'], null, 20000)"));
+for (const guard of [
+  'Browser profile and origin contain no existing saves or seeded fixtures',
+  'A naturally seated guest has a genuine order, with no premature payment or tutorial completion',
+  'Genuine payment unlocks completion but does not dismiss the guide',
+  'Real final Done completes tutorial without an extra reward',
+  'Completed tutorial leaves the cafe open for ordinary play',
+  "await click('complete')", "await waitState('natural-payment'",
+  'Exact tested harness source ', 'Exact exported production source ',
+]) assert(browserSource.includes(guard), 'Preserve complete fresh gameplay and source binding: ' + guard);
+
+// New regression PNGs contain only RGB pixels and dimensions, without metadata.
+// Keep the raw capture and verify that the distinct OCR input duplicates every
+// pixel exactly, matching the detached browser canvas with smoothing disabled.
+function retainedRgb(file) {
+  const bytes = fs.readFileSync(file), data = [];
+  assert(bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])));
+  let offset = 8, width, height;
+  while (offset < bytes.length) {
+    const length = bytes.readUInt32BE(offset), kind = bytes.toString('ascii', offset + 4, offset + 8);
+    assert(offset + length + 12 <= bytes.length);
+    const body = bytes.subarray(offset + 8, offset + 8 + length);
+    assert(['IHDR', 'IDAT', 'IEND'].includes(kind), 'No retained-image metadata');
+    if (kind === 'IHDR') {
+      width = body.readUInt32BE(0); height = body.readUInt32BE(4);
+      assert.deepEqual([...body.subarray(8)], [8, 2, 0, 0, 0]);
+    } else if (kind === 'IDAT') data.push(body);
+    offset += length + 12;
+  }
+  const stride = width * 3, scanlines = require('node:zlib').inflateSync(Buffer.concat(data));
+  assert.equal(scanlines.length, (stride + 1) * height);
+  const pixels = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    assert.equal(scanlines[y * (stride + 1)], 0);
+    scanlines.copy(pixels, y * stride, y * (stride + 1) + 1, (y + 1) * (stride + 1));
+  }
+  return {width, height, pixels};
+}
+const retainedFolder = path.join(__dirname, 'fixtures/tutorial-ocr');
+for (const name of ['opening-card-compact', 'staff-card', 'staff-done-card', 'decorate-card', 'return-card', 'completion-title']) {
+  retainedRgb(path.join(retainedFolder, name + '.png'));
+}
+for (const name of ['arrival-frame', 'meal-frame', 'arrival-frame-alternate', 'meal-frame-alternate', 'completion-action']) {
+  const raw = retainedRgb(path.join(retainedFolder, name + '.png'));
+  const scaled = retainedRgb(path.join(retainedFolder, name + '-2x.png'));
+  assert.deepEqual([scaled.width, scaled.height], [raw.width * 2, raw.height * 2]);
+  assert.deepEqual([raw.width, raw.height], name === 'completion-action' ? [45, 45] : [1360, 880]);
+  for (let y = 0; y < raw.height; y++) {
+    const repeated = Buffer.alloc(raw.width * 6);
+    for (let x = 0; x < raw.width; x++) {
+      const pixel = raw.pixels.subarray((y * raw.width + x) * 3, (y * raw.width + x + 1) * 3);
+      pixel.copy(repeated, x * 6); pixel.copy(repeated, x * 6 + 3);
+    }
+    for (const row of [2 * y, 2 * y + 1]) {
+      assert(scaled.pixels.subarray(row * scaled.width * 3, (row + 1) * scaled.width * 3).equals(repeated),
+        name + ' OCR input contains only exact 2x repeated source pixels');
+    }
+  }
+}
 const completeTarget = {point: [765.5, 145.1084], guide: [558.5, 113.1084, 243, 64]};
 completionButtonRegion(completeTarget).forEach((value, index) =>
   assert(Math.abs(value - [743.5, 123.1084, 44, 44][index]) < 1e-8));
@@ -144,6 +223,24 @@ if (process.argv.includes('--ocr-fixtures')) {
     {file: 'ordering-guide.png', phrases: ['Your waiter takes the order']},
     {file: 'completion-done-2x.png', raw_fixture: 'completion-card.png', phrases: ['Done'], exact_label: true},
     {file: 'completion-title-negative-2x.png', raw_fixture: 'completion-card.png', phrases: ['Done'], exact_label: true, expected_match: false},
+    {file: 'opening-card-compact.png', phrases: ['Tap to open', 'Skip']},
+    {file: 'staff-card.png', phrases: ['Meet your team']},
+    {file: 'staff-done-card.png', phrases: ['Ready? Tap Done']},
+    {file: 'decorate-card.png', phrases: ['Try Decorate']},
+    {file: 'return-card.png', phrases: ['Back to café']},
+    {file: 'arrival-frame-2x.png', raw_fixture: 'arrival-frame.png', phrases: ['Your waiter takes the order']},
+    {file: 'meal-frame-2x.png', raw_fixture: 'meal-frame.png', phrases: ['Meal on the way']},
+    {file: 'arrival-frame-alternate-2x.png', raw_fixture: 'arrival-frame-alternate.png', phrases: ['Your waiter takes the order']},
+    {file: 'meal-frame-alternate-2x.png', raw_fixture: 'meal-frame-alternate.png', phrases: ['Meal on the way']},
+    {file: 'completion-title.png', phrases: ['First order complete!']},
+    {file: 'completion-action-2x.png', raw_fixture: 'completion-action.png', phrases: ['Done'], exact_label: true},
+    {file: 'arrival-frame-2x.png', phrases: ['Meal on the way'], expected_match: false},
+    {file: 'meal-frame-2x.png', phrases: ['Your waiter takes the order'], expected_match: false},
+    {file: 'staff-card.png', phrases: ['Try Decorate'], expected_match: false},
+    {file: 'decorate-card.png', phrases: ['Back to café'], expected_match: false},
+    {file: 'return-card.png', phrases: ['First order complete!'], expected_match: false},
+    {file: 'completion-title.png', phrases: ['Done'], exact_label: true, expected_match: false},
+    {file: 'completion-action-2x.png', phrases: ['Skip'], exact_label: true, expected_match: false},
   ]};
   const tesseract = process.env.TESSERACT_BIN || 'tesseract';
   const results = fixtures.images.map(fixture => {

@@ -26,7 +26,7 @@ function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
         timeout: Math.min(5000, deadline - Date.now()), env: {...process.env, OMP_THREAD_LIMIT: '1'}, stdio: ['ignore', 'pipe', 'pipe']});
       result.attempts.push({mode, observed: result.observed});
       result.matched = exactLabel ? normalizedText(result.observed) === normalizedText(phrases[0])
-        : phrases.every(text => normalizedText(result.observed).includes(normalizedText(text)));
+        : phrases.every(text => (' ' + normalizedText(result.observed) + ' ').includes(' ' + normalizedText(text) + ' '));
       if (result.matched) break;
     } catch (error) {
       result.attempts.push({mode, error: String(error)});
@@ -35,6 +35,13 @@ function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
     }
   }
   return result;
+}
+
+function cuePixelScale(region, requested = 1) {
+  assert(requested === 1 || requested === 2, 'Only unchanged or exact 2x evidence pixels');
+  // Moving actor cues require full-frame OCR. Apply one policy to every such
+  // cue, while keeping native-bound static cards and the explicit Done crop.
+  return region ? requested : 2;
 }
 
 function completionButtonRegion(stage) {
@@ -194,8 +201,9 @@ async function main() {
       report.stage = name;
       const deadline = Math.min(flowDeadline, Date.now() + limit);
       const clip = region ? {x: Math.floor(region[0]), y: Math.floor(region[1]), width: Math.min(VIEWPORT.width - Math.floor(region[0]), Math.ceil(region[2]) + 1), height: Math.min(VIEWPORT.height - Math.floor(region[1]), Math.ceil(region[3]) + 1)} : {x: 0, y: 0, ...VIEWPORT};
+      const pixelScale = cuePixelScale(region, options.pixelScale ?? 1);
       const file = path.join(output, name + '-text.png');
-      const evidence = report.rendered_stages[name] = {phrases, observed: '', attempts: 0, clip, ocr_attempts: [], matched: false};
+      const evidence = report.rendered_stages[name] = {phrases, observed: '', attempts: 0, clip, ocr_attempts: [], matched: false, pixel_scale: pixelScale};
       do {
         // Preserve the last useful OCR result instead of beginning a capture
         // with only a few hundred milliseconds left and masking the cause.
@@ -206,7 +214,7 @@ async function main() {
         try {
           const png = await page.screenshot({path: file, clip, timeout: Math.min(10000, deadline - Date.now())});
           let input = file;
-          if (options.pixelScale === 2) {
+          if (pixelScale === 2) {
             // Preserve the raw crop. Repeat each pixel in a detached canvas;
             // never alter the live game, its canvas, model or storage.
             const bytes = await page.evaluate(async base64 => {
@@ -264,6 +272,8 @@ async function main() {
     await waitState('returned-to-service', s => s.tutorial.step === 5);
     // The guest-following guide moves with the actual actor, so OCR the canvas
     // rather than guessing a fixed position or reading inaccessible engine state.
+    // Both moving cues use the same lossless 2x evidence scaling as Done; the
+    // untouched full frame remains alongside each separate OCR input.
     await visible('natural-arrival', ['Your waiter takes the order'], null, 45000);
     const order = await waitState('natural-order', s => s.tutorial.step === 6 && s.orders.length > 0 && s.guests.some(g => g.seated), 45000);
     check(order.served === 0 && order.earned === 0 && order.tutorial.status === 'active', 'A naturally seated guest has a genuine order, with no premature payment or tutorial completion');
@@ -294,4 +304,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale};
