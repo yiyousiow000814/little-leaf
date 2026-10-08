@@ -20,6 +20,9 @@ const HeadAtlas=preload("res://scripts/character_head_atlas.gd")
 static var head_atlas=HeadAtlas.new()
 var use_cached_heads=true
 var render_contacts=[]
+const DiningPlacement=preload("res://scripts/dining_placement.gd")
+var meal_chair_offsets={}
+var table_dining_directions={}
 const DirectionalCharacter=preload("res://scripts/directional_character_art.gd")
 var directional_character=DirectionalCharacter.new()
 var character_facings={}
@@ -189,29 +192,25 @@ func update_motion(delta: float):
 	if guest_motion_cleanup_elapsed>=1.0:
 		guest_motion_cleanup_elapsed=0.0
 		_prune_departed_guest_motion()
-	if game.editing or game.paused:return
+	if game.editing or game.paused:
+		_update_meal_docking(0.0) # Seed load-time presentation without advancing a paused transition.
+		return
+	_update_meal_docking(delta)
 	for guest in game.model.customers:
 		var key="guest_%s"%guest.id
 		var position=Vector2(float(guest.x),float(guest.z))
 		var docking=Vector2.ZERO
 		if bool(guest.get("seated",false)):
-			var table=game.model.get_item(int(guest.table_id))
-			if not table.is_empty():
-				var anchor=position
-				var dock_weight=1.0
-				if bool(guest.get("dismounting",false)):
-					var chair=game.model.get_item(int(guest.chair_id))
-					if not chair.is_empty():anchor=Vector2(chair.x+.5,chair.z+.5)
-					# Do not add an abrupt dock withdrawal to the first exit step.
-					# Lower over the seat edge first, then ease the offset away.
-					dock_weight=1.0-smoothstep(.35,1.0,float(guest.get("dismount_progress",0.0)))
-				docking=(Vector2(table.x+.5,table.z+.5)-anchor).normalized()*.12*dock_weight
+			docking=_guest_seated_offset(guest,position)
 		elif guest.phase=="paying":
 			var register=game.model.get_item(int(guest.get("checkout_register_id",-1)))
 			if not register.is_empty():
 				var toward=Vector2(register.x+.5,register.z+.5)-position
 				docking=toward.normalized()*CheckoutArt.payment_inset(toward,int(register.rot),false)
-		stance_offsets[key]=(stance_offsets.get(key,Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
+		# Keep meal/chair interpolation coupled at faster simulation speeds.
+		# Unseated walking and register stances retain their existing visual rate.
+		var stance_speed=float(game.speed) if bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)) else 1.0
+		stance_offsets[key]=(stance_offsets.get(key,docking if bool(guest.get("seated",false)) else Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5*stance_speed)
 		motion.update(key,position+stance_offsets[key],delta)
 		var target=_seat_blend_target(guest)
 		seat_blends[int(guest.id)]=target if bool(guest.get("dismounting",false)) else move_toward(float(seat_blends.get(int(guest.id),0.0)),target,delta*(4.0 if target>0 else 8.0))
@@ -274,8 +273,52 @@ func _seat_blend_target(guest:Dictionary) -> float:
 		return clampf(1.0-remaining/.40,0,1)
 	return 0.0
 
+func _update_meal_docking(delta:float):
+	var visual_delta=maxf(delta,0)*float(game.speed)
+	var active={}
+	for guest in game.model.customers:
+		var chair=game.model.get_item(int(guest.chair_id));var table=game.model.get_item(int(guest.table_id))
+		if chair.is_empty() or table.is_empty():continue
+		var id=int(chair.id);active[id]=true
+		var toward=Vector2(table.x-chair.x,table.z-chair.z).normalized()
+		table_dining_directions[int(table.id)]=-toward
+		var eating=str(guest.phase)=="eating" and bool(guest.get("seated",false)) and not bool(guest.get("dismounting",false))
+		var target=DiningPlacement.target_dock(toward,eating)
+		meal_chair_offsets[id]=(meal_chair_offsets.get(id,target) as Vector2).move_toward(target,visual_delta*DiningPlacement.DOCK_SPEED)
+	for id in meal_chair_offsets.keys():
+		if active.has(id):continue
+		meal_chair_offsets[id]=(meal_chair_offsets[id] as Vector2).move_toward(Vector2.ZERO,visual_delta*DiningPlacement.DOCK_SPEED)
+		if (meal_chair_offsets[id] as Vector2).length_squared()<.000001:meal_chair_offsets.erase(id)
+	for id in table_dining_directions.keys():
+		if game.model.get_item(int(id)).is_empty():table_dining_directions.erase(id)
+
+func _meal_chair_offset(entry:Dictionary)->Vector2:
+	if not is_instance_valid(game) or game.editing or bool(entry.get("preview",false)) or str(entry.get("kind","")) not in ["chair","bench"]:return Vector2.ZERO
+	var id=int(entry.id)
+	if meal_chair_offsets.has(id):return meal_chair_offsets[id]
+	# A paused/load-at-mealtime first frame starts at its state-derived pose.
+	for guest in game.model.customers:
+		if int(guest.chair_id)!=id or str(guest.phase)!="eating" or not bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)):continue
+		var table=game.model.get_item(int(guest.table_id))
+		if not table.is_empty():return DiningPlacement.target_dock(Vector2(table.x-entry.x,table.z-entry.z),true)
+	return Vector2.ZERO
+
+func _guest_seated_offset(guest:Dictionary,position:Vector2)->Vector2:
+	var table=game.model.get_item(int(guest.table_id));var chair=game.model.get_item(int(guest.chair_id))
+	if table.is_empty():return Vector2.ZERO
+	var anchor=position;var weight=1.0
+	if bool(guest.get("dismounting",false)):
+		if not chair.is_empty():anchor=Vector2(chair.x+.5,chair.z+.5)
+		weight=1.0-smoothstep(.35,1.0,float(guest.get("dismount_progress",0)))
+	return (Vector2(table.x+.5,table.z+.5)-anchor).normalized()*.12*weight+_meal_chair_offset(chair)
+
 func _render_position(key:String,position:Vector2) -> Vector2:
-	return position+stance_offsets.get(key,Vector2.ZERO)
+	if stance_offsets.has(key):return position+stance_offsets[key]
+	if is_instance_valid(game) and key.begins_with("guest_"):
+		for guest in game.model.customers:
+			if key=="guest_%s"%guest.id and bool(guest.get("seated",false)):return position+_guest_seated_offset(guest,position)
+	return position
+
 func camera_insets()->Vector4:
 	if is_instance_valid(game) and game.get("compact_ui")!=null and game.compact_ui.hud!=null:
 		return game.compact_ui.hud._safe_insets()
@@ -580,20 +623,24 @@ func _draw():
 			var entry=part.duplicate();entry["preview"]=true
 			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
 	for entry in render_items:
-		entities.append({"depth":-100 if entry.kind=="rug" else float(entry.x+entry.z)+1,"type":"item","entry":entry})
+		var meal_offset=_meal_chair_offset(entry)
+		var item_depth=float(entry.x+entry.z)+1+meal_offset.x+meal_offset.y
+		entities.append({"depth":-100 if entry.kind=="rug" else item_depth,"type":"item","entry":entry,"meal_offset":meal_offset})
 		if entry.kind in ["chair","bench"]:
 			var r=_chair_rotation(entry)
-			entities.append({"depth":float(entry.x+entry.z)+1+(.38 if r in [0,3] else -.38),"type":"chair_back","entry":entry,"rot":r})
+			entities.append({"depth":item_depth+(.38 if r in [0,3] else -.38),"type":"chair_back","entry":entry,"rot":r,"meal_offset":meal_offset})
 	for guest in game.model.customers:
 		if not show_service:break
 		var render_pos=_render_position("guest_%s"%guest.id,Vector2(float(guest.x),float(guest.z)))
 		if float(guest.x)>=0 and float(guest.z)>=0 and not str(guest.phase) in ["dirty","cleaning"]:
-			var register=game.model.get_item(int(guest.get("checkout_register_id",-1)))
+			var dining=CheckoutArt.guest_action(guest,game.service_guests.get(int(guest.id),{}))=="eating"
+			var surface=game.model.get_item(int(guest.table_id) if dining else int(guest.get("checkout_register_id",-1)))
 			var body_depth=render_pos.x+render_pos.y+.15
-			var register_depth=float(register.get("x",-100)+register.get("z",-100))+1.0
-			var split=guest.phase=="paying" and not register.is_empty() and body_depth<register_depth
+			var surface_depth=float(surface.get("x",-100)+surface.get("z",-100))+1.0
+			# Keep the torso behind the table, but its spoon above the real dish.
+			var split=(guest.phase=="paying" or dining) and not surface.is_empty() and body_depth<surface_depth
 			entities.append({"depth":body_depth,"type":"guest","entry":guest,"hide_reach":split})
-			if split:entities.append({"depth":register_depth+.02,"type":"guest","entry":guest,"reach_overlay":true})
+			if split:entities.append({"depth":surface_depth+.02,"type":"guest","entry":guest,"reach_overlay":true})
 	for i in range(game.staff_states.size()):
 		if not show_service:break
 		var staff=game.staff_states[i]
@@ -631,7 +678,8 @@ func _draw():
 			_door_front(); continue
 		if e.type in ["item","chair_back","beverage_foreground","stove_foreground"]:
 			var d=e.entry
-			var p=iso(d.x+.5,d.z+.5)
+			var meal_offset:Vector2=e.get("meal_offset",Vector2.ZERO)
+			var p=iso(d.x+.5+meal_offset.x,d.z+.5+meal_offset.y)
 			opacity=.63 if bool(d.get("preview",false)) else 1.0
 			art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 			if e.type=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
@@ -707,7 +755,7 @@ func _draw():
 					if action=="wiping":
 						# The compact arm aims toward the top and meets its near edge;
 						# the character painter owns the fixed-length contact stroke.
-						surface=Vector2(0,-34)
+						surface=Vector2(0,-DiningPlacement.TABLE_HEIGHT-1.0)
 				elif kind=="sink" and action=="washing":
 					var wash=SinkWashArt.state(game,int(target_item.id))
 					if not wash.is_empty():
@@ -725,7 +773,7 @@ func _draw():
 				var anchor=Vector2(2,-2) if drink_job else Vector2(4,0 if payload=="dishes" or action in ["collecting","washing"] else -2)
 				if action=="cooking":anchor=Vector2.ZERO
 				elif action=="preparing_food":anchor=Vector2(4,6)
-				elif action=="eating":anchor=Vector2(1,5)
+				elif action=="eating":anchor=Vector2.ZERO
 				elif action in ["wiping","paying","taking_payment","washing"]:anchor=Vector2.ZERO
 				elif payload=="trash" or action=="disposing_trash":anchor=Vector2(3,-3)
 				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
@@ -1028,11 +1076,11 @@ func _table_body(p:Vector2):
 	if furniture_art.try_draw_static(self,"table_body",p,0):return
 	ellipse(p+Vector2(1,1),Vector2(25,10),Color(.45,.39,.23,.09))
 	for d in [Vector2(-17,-5),Vector2(18,-5),Vector2(-16,6),Vector2(17,6)]:
-		line(p+d,p+d+Vector2(0,-30),"947340",3)
-		line(p+d+Vector2(1,-1),p+d+Vector2(1,-29),"b3915b",1)
-	ellipse(p+Vector2(0,-29),Vector2(29,14),"b38c55")
-	outlined_ellipse(p+Vector2(0,-33),Vector2(29,14),"d1ad74","bb9966",1.0)
-	ellipse(p+Vector2(0,-34),Vector2(26,11.5),"dbb984")
+		line(p+d,p+d+Vector2(0,-DiningPlacement.table_height(30)),"947340",3)
+		line(p+d+Vector2(1,-1),p+d+Vector2(1,-DiningPlacement.table_height(29)),"b3915b",1)
+	ellipse(p+Vector2(0,-DiningPlacement.table_height(29)),DiningPlacement.ROUND_TOP,"b38c55")
+	outlined_ellipse(p+Vector2(0,-DiningPlacement.table_height(33)),DiningPlacement.ROUND_TOP,"d1ad74","bb9966",1.0)
+	ellipse(p+Vector2(0,-DiningPlacement.table_height(34)),Vector2(22,9.5),"dbb984")
 
 func _lamp(p:Vector2):
 	if furniture_art.try_draw_static(self,"lamp",p,0):return
@@ -1091,7 +1139,8 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	var dining_pose=geometry.get("dining_pose",{})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1282,16 +1331,16 @@ func _table_guest_direction(table_id:int) -> Vector2:
 		if int(guest.table_id)==table_id:
 			var chair=game.model.get_item(int(guest.chair_id))
 			if not chair.is_empty():return (Vector2(chair.x+.5,chair.z+.5)-center).normalized()
+	if table_dining_directions.has(table_id):return table_dining_directions[table_id]
 	for chair in game.model.items:
 		if str(chair.kind) in ["chair","bench"] and abs(int(chair.x)-int(table.x))+abs(int(chair.z)-int(table.z))==1:
 			return Vector2(int(chair.x)-int(table.x),int(chair.z)-int(table.z))
 	return Vector2.DOWN
-func _table_surface_point(_table_id:int,drink=false) -> Vector2:
-	# A quiet, fixed tabletop composition works from every service face.
-	# Symbolic gestures do not require dishes to move toward a worker or diner.
-	return Vector2(16,-36) if drink else Vector2(-5,-32.5)
-func _table_vase_point(_table_id:int) -> Vector2:
-	return Vector2(-12,-42)
+func _table_surface_point(table_id:int,drink=false) -> Vector2:
+	var layout=DiningPlacement.layout(_table_guest_direction(table_id))
+	return layout.cup if drink else layout.plate
+func _table_vase_point(table_id:int) -> Vector2:
+	return DiningPlacement.layout(_table_guest_direction(table_id)).vase
 
 func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role="chef") -> Vector2:
 	var bounds=DirectionalCharacter.head_bounds(posmod(id,3),false,staff and role=="chef")
@@ -1352,7 +1401,7 @@ func _meal(table_id: int):
 		var meal_at=_table_surface_point(table_id)
 		var cup_at=_table_surface_point(table_id,true)
 		if plate:
-			var remaining=1.0-clampf(float(guest.elapsed)/maxf(.01,float(guest.duration)),0,1) if str(guest.phase)=="eating" else 1.0
+			var remaining=DirectionalCharacter.DiningPose.remaining(float(guest.elapsed)/maxf(.01,float(guest.duration))) if str(guest.phase)=="eating" else 1.0
 			_plate(meal_at,remaining,dirty)
 		if drink:_cup(cup_at)
 
@@ -1611,22 +1660,23 @@ func _plate(at:Vector2,remaining=1.0,dirty=false):
 	ellipse(at+Vector2(0,.8),Vector2(14.0,6.4),"d4c7a7")
 	outlined_ellipse(at,Vector2(14.0,6.4),"faf0d8","e3d7b8",.7)
 	ellipse(at+Vector2(0,-.15),Vector2(11.2,4.7),"eee3c7")
-	if dirty or (remaining>=0 and remaining<.04):
-		ellipse(at+Vector2(2,-.6),Vector2(3.5,1.1),"cbbb93")
-		for q in [Vector2(-4,1),Vector2(5,1),Vector2(-1,-2)]:ellipse(at+q,Vector2(.9,.6),"b4a376")
-	elif remaining>=0:
-		if remaining>.12:
-			var rice_scale=clampf(remaining*1.3,.25,1)
-			ellipse(at+Vector2(-4,-1.6),Vector2(5.3,3.1)*rice_scale,"fff5da")
-			for q in [Vector2(-6,-2),Vector2(-3,-3),Vector2(-2,-1)]:
-				if remaining>.48:line(at+q,at+q+Vector2(.8,.2),"ded9b5",.65)
-		if remaining>.30:
+	var eaten=1.0 if dirty else (1.0-clampf(remaining,0,1) if remaining>=0 else 0.0)
+	if eaten>0.0:
+		ellipse(at+Vector2(2,-.6),Vector2(3.5,1.1)*lerpf(.45,1.0,eaten),"cbbb93")
+		var crumbs=[Vector2(-4,1),Vector2(5,1),Vector2(-1,-2)]
+		for i in range(ceili(eaten*3.0)):ellipse(at+crumbs[i],Vector2(.9,.6),"b4a376")
+	if not dirty and remaining>0:
+		var rice_scale=clampf(remaining*1.3,.25,1)
+		ellipse(at+Vector2(-4,-1.6),Vector2(5.3,3.1)*rice_scale,"fff5da")
+		for q in [Vector2(-6,-2),Vector2(-3,-3),Vector2(-2,-1)]:
+			if remaining>.48:line(at+q,at+q+Vector2(.8,.2),"ded9b5",.65)
+		if remaining>.25:
 			ellipse(at+Vector2(3,-1.5),Vector2(5.5,2.8),"aa7548")
 			ellipse(at+Vector2(3,-2),Vector2(5.0,2.4),"d5a362")
 			for x in [0.5,3,5.5]:line(at+Vector2(x-1,-3.2),at+Vector2(x+1,-.8),"b6834e",.85)
-		if remaining>.55:
+		if remaining>.50:
 			for q in [Vector2(-2,-4),Vector2(0,-4.6),Vector2(-.6,-3.6)]:ellipse(at+q,Vector2(2.3,1.3),"88a068")
-		if remaining>.74:
+		if remaining>.75:
 			for q in [Vector2(7,1),Vector2(5.2,2)]:outlined_ellipse(at+q,Vector2(1.8,1.1),"e1a561","c88a50",.5)
 
 func _bin(p:Vector2,rotation:int,id:int):

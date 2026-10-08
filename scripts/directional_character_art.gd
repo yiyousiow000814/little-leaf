@@ -3,6 +3,7 @@ const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 ## Standalone original character study. Four isometric directions rotate the
 ## entire body, not a front-facing paper doll with a different face.
 ## The production renderer now uses this reviewed directional construction.
+const DiningPose=preload("res://scripts/dining_pose.gd")
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const ArmOcclusion=preload("res://scripts/character_arm_occlusion.gd")
 const CleaningPose=preload("res://scripts/cleaning_tool_pose.gd")
@@ -13,6 +14,7 @@ const CLOTH=["95b9bb","c78f80","d6b16b"]
 const EYE_PAIR_SIZE=Vector2(1.3,1.65)
 const EYE_LINE=-40.2
 const LEG_LENGTH=9.5
+const SEATED_LEG_REACH=6.0
 # Rounded leg caps overlap the shirt hem. Their centers may sit this far
 # below the nominal socket without leaving a gap or changing limb length.
 const HIP_COVER=1.25
@@ -30,6 +32,15 @@ static func walking_lift_accent(settings:Dictionary,walking:bool,side_profile:bo
  # Extra corner clearance is already supplied by the contact controller.
  # Fade this purely visual accent out rather than amplify those high steps.
  return WALK_CLEARANCE_ACCENT*minf(lift,1.0)*(1.0-smoothstep(1.0,2.0,lift))*clampf(float(settings.get("blend",0.0)),0.0,1.0)
+
+static func seated_hip(near:bool,facing_back:bool)->Vector2:
+ # Short figurine legs share the chair plane and project beyond its front edge.
+ # The unchanged actor/body inset is subtracted to express the socket locally.
+ var depth=-1.0 if facing_back else 1.0
+ var along=Vector2(25,depth*12.5)
+ var across=Vector2(-depth*25,12.5)
+ var on_seat=along*.20+across*(.15 if near else -.15)+Vector2(0,-18)
+ return on_seat-Vector2(4.68,depth*2.34)-Vector2(2,-5.5)
 
 static func leg_pose(settings:Dictionary,walking:bool,phase:float,facing_back:bool,side_profile=false)->Dictionary:
  var seated=clampf(float(settings.get("seat_mix",0.0)),0,1)
@@ -95,11 +106,16 @@ static func leg_pose(settings:Dictionary,walking:bool,phase:float,facing_back:bo
   near_angle=-angle;far_angle=angle
   body.y=-absf(sin(phase*TAU))*.40*blend if walking else 0.0
  body=body.lerp(Vector2(2,-5.5),seated)
- near_angle=lerpf(near_angle,.55,seated);far_angle=lerpf(far_angle,.43,seated)
- var seated_axis=Vector2(1,-.48 if facing_back else .48).normalized()
- near_axis=near_axis.lerp(seated_axis,seated).normalized();far_axis=far_axis.lerp(seated_axis,seated).normalized()
+ near_hip=near_hip.lerp(seated_hip(true,facing_back),seated)
+ far_hip=far_hip.lerp(seated_hip(false,facing_back),seated)
+ # Two short legs project along the seat perspective, as in the figure's
+ # annotated pose. Feet remain suspended; no extra knee/shin anatomy is added.
+ var seat_axis=Vector2(1,-.5 if facing_back else .5).normalized()
+ near_axis=near_axis.lerp(seat_axis,seated).normalized();far_axis=far_axis.lerp(seat_axis,seated).normalized()
  var near_foot=near_hip+Vector2(sin(near_angle),cos(near_angle))*LEG_LENGTH
  var far_foot=far_hip+Vector2(sin(far_angle),cos(far_angle))*LEG_LENGTH
+ near_foot=near_foot.lerp(near_hip+seat_axis*SEATED_LEG_REACH,seated)
+ far_foot=far_foot.lerp(far_hip+seat_axis*SEATED_LEG_REACH,seated)
  return {"body":body,"near_hip":near_hip,"far_hip":far_hip,"near_foot":near_foot,"far_foot":far_foot,"near_axis":near_axis,"far_axis":far_axis,"near_slot":near_slot,"far_slot":far_slot}
 
 static func body_offset(settings:Dictionary,walking:bool,phase:float) -> Vector2:
@@ -153,17 +169,8 @@ func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  else:
   var vamp=center+axis*.65-Vector2(0,.55)
   line(vamp-across*1.15,vamp+across*1.15,"b1a782",.7)
-func leg(hip:Vector2,ankle:Vector2,color,width:float,seat_mix:float,axis:Vector2):
- if seat_mix<.01:
-  a._round_limb(origin+hip,origin+ankle,color,width);return
- # One soft, short leg shape: the upper section emerges over the seat edge,
- # then drops toward the ankle. No exposed knee joint or lengthened limb.
- var middle=hip.lerp(ankle,.45)+Vector2(axis.x*1.8,-1.2)*seat_mix
- var points=PackedVector2Array()
- for index in range(9):
-  var u=float(index)/8.0;points.append(origin+(1-u)*(1-u)*hip+2*(1-u)*u*middle+u*u*ankle)
- a.art_polyline(points,a.col(color),width)
- a.ellipse(origin+hip,Vector2.ONE*width*.5,color);a.ellipse(origin+ankle,Vector2.ONE*width*.5,color)
+func leg(hip:Vector2,ankle:Vector2,color,width:float,_seat_mix:float,_axis:Vector2):
+ a._round_limb(origin+hip,origin+ankle,color,width)
 
 func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,phase=0.0,staff=false,side_profile=false,settings:Dictionary={}):
  a=artist;origin=at;back=facing_back;profile=side_profile;swing=sin(phase*TAU)*2.0 if walking else 0.0
@@ -194,13 +201,18 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  if payload!="none":near_target=carry
  elif action in ["cooking","preparing_food","preparing_drink","washing"]:near_target=near_shoulder+Vector2(8,1+sin(t*TAU*2)*.6)
  elif action in ["serving","placing_plate","dropping_dishes","collecting","collecting_plate","collecting_drink","plating","taking_order"]:near_target=near_shoulder+Vector2(7,3)
- elif action in ["eating","drinking","standby"]:near_target=near_shoulder+Vector2(3,8+sin(t*TAU)*.4)
+ elif action in ["drinking","standby"]:near_target=near_shoulder+Vector2(3,8+sin(t*TAU)*.4)
  elif action in ["mopping","sweeping"]:near_target=near_shoulder+Vector2(7,4+sin(t*TAU*2))
  if relaxed:near_target=near_shoulder+Vector2.DOWN
  var near_tip=near_shoulder+(near_target-near_shoulder).normalized()*10.5
  waiter_tablet.update(staff,str(settings.get("role","")),action,payload,tool,t,back,near_shoulder,far_shoulder)
  if waiter_tablet.ordering:
   near_tip=waiter_tablet.near_hand;far_tip=waiter_tablet.far_hand
+ var dining_pose={}
+ if not staff and action=="eating" and seat_mix>.99 and payload=="none":
+  dining_pose=DiningPose.pose(near_shoulder,far_shoulder,settings.get("reach",Vector2(30,-40))-origin,t,back,near_tip if back else far_tip,float(settings.get("mirror",1.0)))
+  if dining_pose.use_near:near_tip=dining_pose.hand
+  else:far_tip=dining_pose.hand
  var cooking_pose={}
  if staff and action=="cooking":
   cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)))
@@ -278,10 +290,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
    waiter_tablet.draw_tablet(a,origin)
    waiter_tablet.draw_case(a,origin)
- var far_work=(not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
+ var far_work=(not dining_pose.is_empty() and not dining_pose.use_near) or (not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
  if hide and not overlay and far_work:paw(near_shoulder,near_tip,fur,4.8)
  if not hide:
-  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work) and washing_pose.is_empty():paw(near_shoulder,near_tip,fur,4.8)
+  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work) and washing_pose.is_empty() and (dining_pose.is_empty() or not dining_pose.use_near):paw(near_shoulder,near_tip,fur,4.8)
   var work_hand=far_tip if payload!="none" and tool in ["cloth","mop","broom"] else near_tip
   var floor:Vector2=settings.get("reach",Vector2(22,2))-origin+Vector2(3,-3) if tool in ["mop","broom"] else Vector2(22,2)
   if waiter_tablet.enabled and action=="taking_order":
@@ -289,6 +301,11 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    elif not back:
     # The far arm remains behind the torso; only fingers cover the device.
     waiter_tablet.draw_hands(a,origin,fur,shadow)
+  elif not dining_pose.is_empty():
+   if not overlay or dining_pose.over_table:
+    if dining_pose.use_near:paw(dining_pose.shoulder,dining_pose.hand,fur,4.8)
+    elif overlay:far_overlay_paw(dining_pose.shoulder,dining_pose.hand,shadow,4.4,species,dining_pose.head_offset)
+    if back or overlay:DiningPose.draw(a,origin,dining_pose,fur,shadow)
   elif not washing_pose.is_empty():
    washing_arm(washing_pose.near,fur,4.8,species,false)
    if overlay:washing_arm(washing_pose.far,shadow,4.4,species,true)
@@ -327,9 +344,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    origin+=Vector2(-.25,.85)*head_attention
    head(species)
    origin=head_origin
-  else:a._draw_head(origin,species,back,blink,chef_hat,blocked,2 if profile else (3 if back else 0))
+  else:a._draw_head(origin+(dining_pose.head_offset if not dining_pose.is_empty() else Vector2.ZERO),species,back,blink,chef_hat,blocked,2 if profile else (3 if back else 0))
+  if not dining_pose.is_empty() and not back and (not hide or not dining_pose.over_table):DiningPose.draw(a,origin,dining_pose,fur,shadow)
   head_attention=0.0
- return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"washing_pose":washing_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}
+ return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"washing_pose":washing_pose,"dining_pose":dining_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}
 func washing_arm(part:Dictionary,color,width:float,species:int,masked:bool):
  if masked:
   far_overlay_paw(part.shoulder,part.elbow,color,width,species)
