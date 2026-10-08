@@ -11,102 +11,272 @@ html, body, #canvas {
 	border: 0;
 }
 
-body {
-	color: white;
-	background-color: black;
-	overflow: hidden;
-	touch-action: none;
-}
-
-#canvas {
-	display: block;
-}
-
-#canvas:focus {
-	outline: none;
-}
-
-#status, #status-splash, #status-progress {
-	position: absolute;
-	left: 0;
-	right: 0;
-}
-
-#status, #status-splash {
-	top: 0;
-	bottom: 0;
-}
-
-#status {
-	background-color: $GODOT_SPLASH_COLOR;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	visibility: hidden;
-}
-
-#status-splash {
-	max-height: 100%;
-	max-width: 100%;
-	margin: auto;
-}
-
-#status-splash.show-image--false {
-	display: none;
-}
-
-#status-splash.fullsize--true {
-	height: 100%;
+html, body {
 	width: 100%;
-	object-fit: contain;
+	height: 100%;
+	background: #cce3e8;
 }
 
-#status-splash.use-filter--false {
-	image-rendering: pixelated;
+body {
+	color: #735f43;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	overflow: hidden;
 }
 
-#status-progress, #status-notice {
-	display: none;
+#canvas { display: block; touch-action: none; }
+#canvas:focus { outline: none; }
+
+/* This is visible before any engine, SDK or storage work can begin. */
+#status {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	background: #cce3e8;
+	overflow: auto;
+	touch-action: pan-y;
 }
 
+.status-cloud {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: rgba(255, 255, 250, .42);
+	transform: translate(-50%, -50%);
+}
+.status-cloud::before, .status-cloud::after {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	background: inherit;
+}
+.status-cloud::before { width: 46px; height: 46px; left: -17px; top: 13px; }
+.status-cloud::after { width: 50px; height: 50px; left: 37px; top: 13px; }
+.status-cloud:nth-child(1) { left: 16%; top: 18%; }
+.status-cloud:nth-child(2) { left: 78%; top: 23%; }
+.status-cloud:nth-child(3) { left: 60%; top: 68%; }
+
+/* Match cafe_intro.gd's opening composition, including short landscapes. */
+#status-brand {
+	position: absolute;
+	left: 50%;
+	top: 42.8%;
+	width: min(91.7937vw, 620px, 90.695vh);
+	aspect-ratio: 783 / 518;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+#status-welcome {
+	position: absolute;
+	left: 50%;
+	top: -18px;
+	transform: translateX(-50%);
+	width: 100vw;
+	margin: 0;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 34px;
+}
+#status-splash { display: block; width: 100%; height: 100%; object-fit: contain; }
+#status-brand-fallback {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	font: bold clamp(32px, 8vw, 64px) Georgia, serif;
+}
+#status-brand-fallback[hidden], #status-splash[hidden] { display: none; }
+
+#status-loading {
+	position: absolute;
+	left: 50%;
+	bottom: 9%;
+	transform: translateX(-50%);
+	width: min(70vw, 320px);
+	text-align: center;
+}
+#status-label { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
 #status-progress {
-	bottom: 10%;
-	width: 50%;
-	margin: 0 auto;
+	display: block;
+	width: 100%;
+	height: 12px;
+	box-sizing: border-box;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid #899b72;
+	border-radius: 999px;
+	background: #f6f3df;
+	color: #708749;
+	accent-color: #708749;
+	overflow: hidden;
 }
+#status-progress::-webkit-progress-bar { background: #f6f3df; border-radius: 999px; }
+#status-progress::-webkit-progress-value { background: #708749; border-radius: 999px; }
+#status-progress::-moz-progress-bar { background: #708749; border-radius: 999px; }
+/* Unknown totals have no invented percentage or time-based advancement. */
+#status-progress:indeterminate { opacity: .65; }
 
 #status-notice {
-	background-color: #5b3943;
-	border-radius: 0.5rem;
-	border: 1px solid #9b3943;
-	color: #e0e0e0;
-	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
-	line-height: 1.3;
-	margin: 0 2rem;
-	overflow: hidden;
-	padding: 1rem;
-	text-align: center;
+	display: none;
+	position: relative;
 	z-index: 1;
+	box-sizing: border-box;
+	width: min(90%, 540px);
+	max-height: 80%;
+	overflow: auto;
+	margin: 10vh auto;
+	padding: 24px;
+	border: 1px solid #907853;
+	border-radius: 16px;
+	background: #fff9e9;
+	color: #56442f;
+	line-height: 1.5;
+	text-align: center;
+	touch-action: pan-y;
+}
+#status-notice h1 { font-size: 22px; margin: 0 0 12px; }
+#status-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+#status-retry {
+	min-height: 44px;
+	padding: 10px 24px;
+	border: 1px solid #596c3b;
+	border-radius: 12px;
+	background: #708749;
+	color: white;
+	font: inherit;
+	cursor: pointer;
+}
+#status-retry:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+#status[data-mode="notice"] #status-brand,
+#status[data-mode="notice"] #status-loading { display: none; }
+#status[data-mode="notice"] #status-notice { display: block; }
+#no-script {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-content: center;
+	padding: 24px;
+	background: #cce3e8;
+	text-align: center;
+	line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+	#status-progress:indeterminate { visibility: hidden; }
+}
+@media (max-width: 699px) { #status-welcome { font-size: 18px; } }
+@media (max-height: 340px) {
+	#status-loading { bottom: 5%; }
+	#status-label { font-size: 12px; margin-bottom: 6px; }
 }
 		</style>
 		$GODOT_HEAD_INCLUDE
 	</head>
 	<body>
-		<canvas id="canvas">
-			Your browser does not support the canvas tag.
+		<canvas id="canvas" aria-label="Little Leaf café game" aria-busy="true">
+			Little Leaf needs a browser with canvas support. Please use an up-to-date browser.
 		</canvas>
 
-		<noscript>
-			Your browser does not support JavaScript.
-		</noscript>
-
-		<div id="status">
-			<img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
-			<progress id="status-progress"></progress>
-			<div id="status-notice"></div>
+		<div id="status" data-mode="progress" aria-label="Loading Little Leaf">
+			<div aria-hidden="true"><i class="status-cloud"></i><i class="status-cloud"></i><i class="status-cloud"></i></div>
+			<div id="status-brand">
+				<p id="status-welcome">Welcome to</p>
+				<img id="status-splash" src="$GODOT_SPLASH" width="783" height="518" alt="Little Leaf" fetchpriority="high">
+				<span id="status-brand-fallback" hidden>Little Leaf</span>
+			</div>
+			<div id="status-loading">
+				<p id="status-label" role="status" aria-live="polite">Preparing your café…</p>
+				<progress id="status-progress" aria-label="Downloading Little Leaf"></progress>
+			</div>
+			<section id="status-notice" role="alert" aria-labelledby="status-error-title">
+				<h1 id="status-error-title">Little Leaf couldn’t open yet</h1>
+				<p id="status-error"></p>
+				<p>Check your connection, then try reloading. If this keeps happening, try an up-to-date browser.</p>
+				<button id="status-retry" type="button">Reload Little Leaf</button>
+			</section>
 		</div>
+		<noscript><div id="no-script"><strong>Little Leaf</strong><p>JavaScript is needed to open your café. Enable JavaScript, then reload this page.</p></div></noscript>
 
+		<script>
+/* Little Leaf boot presentation only. No storage, gameplay, audio or SDK state. */
+(function (root) {
+	'use strict';
+	const overlay = document.getElementById('status');
+	const label = document.getElementById('status-label');
+	const progress = document.getElementById('status-progress');
+	const splash = document.getElementById('status-splash');
+	const canvas = document.getElementById('canvas');
+	let engineReady = false, frameReady = false, finished = false;
+	let frameWatchdog = null;
+	function stopWatching() {
+		root.clearTimeout(frameWatchdog);
+		document.removeEventListener('visibilitychange', watchForFrame);
+	}
+	function watchForFrame() {
+		root.clearTimeout(frameWatchdog);
+		// This is a failure diagnostic, never a minimum splash duration. Hidden
+		// tabs cannot render reliably, so allow a fresh visible observation window.
+		if (finished || frameReady || !engineReady || document.visibilityState === 'hidden') return;
+		frameWatchdog = root.setTimeout(() => fail('The café has not drawn its first frame yet. Reload to try again.'), 45000);
+	}
+	document.addEventListener('visibilitychange', watchForFrame);
+
+	function revealGame() {
+		if (finished || !engineReady || !frameReady) return;
+		finished = true;
+		stopWatching();
+		canvas.setAttribute('aria-busy', 'false');
+		overlay.remove();
+	}
+	function fail(error) {
+		if (finished) return;
+		finished = true;
+		stopWatching();
+		console.error(error);
+		const message = typeof error === 'string' ? error : error && error.message;
+		document.getElementById('status-error').textContent = message || 'The game could not finish starting. Please reload to try again.';
+		overlay.dataset.mode = 'notice';
+		canvas.setAttribute('aria-busy', 'false');
+		document.getElementById('status-retry').focus();
+	}
+	function showBrandFallback() {
+		splash.hidden = true;
+		document.getElementById('status-brand-fallback').hidden = false;
+	}
+	splash.addEventListener('error', showBrandFallback);
+	if (splash.complete && !splash.naturalWidth) showBrandFallback();
+	document.getElementById('status-retry').addEventListener('click', () => root.location.reload());
+	root.LittleLeafBoot = Object.freeze({
+		fail,
+		onProgress(current, total) {
+			if (finished) return;
+			if (Number.isFinite(current) && Number.isFinite(total) && current >= 0 && total > 0 && current <= total) {
+				progress.max = total;
+				progress.value = current;
+				label.textContent = current < total ? 'Downloading your café…' : 'Opening your café…';
+			} else {
+				progress.removeAttribute('value');
+				progress.removeAttribute('max');
+				label.textContent = 'Downloading your café…';
+			}
+		},
+		engineReady() {
+			if (finished) return;
+			engineReady = true;
+			watchForFrame();
+			progress.setAttribute('aria-label', 'Opening Little Leaf');
+			label.textContent = 'Opening your café…';
+			// Download completion is not a first rendered frame. Do not uncover the
+			// engine splash or an empty canvas, even on a fast/cache-hit launch.
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+			revealGame();
+		},
+		// Called once by main.gd after RenderingServer.frame_post_draw.
+		firstFrameReady() { frameReady = true; revealGame(); }
+	});
+})(window);
+		</script>
 		<script>
 /* Presentation-only letter retention and read markers. Never accesses IndexedDB or preferences. */
 (function (root) {
@@ -695,149 +865,193 @@ body {
 
 </script>
 		<script>
-/* Preferences are independent from café progress and never use Godot IDBFS. */
-(function(root) {
+/* CrazyGames-only variant. SDK Data is the sole store; no local fallback/migration. */
+(function (root) {
   'use strict';
-  const KEY='little-leaf.preferences.v1';
-  const LIMIT=65536;
-  const failure=(code,error)=>({ok:false,code,error});
-  function valid(text){return typeof text==='string'&&new TextEncoder().encode(text).length<=LIMIT;}
-  function createClient(options={}) {
-    let storage=null, factory=null, text='', ready=false;
-    const api={bootJson:'',lastError:'',
-      async boot(){
+  const KEY = 'little-leaf.cg.profile.v1', PREFS = 'little-leaf.cg.preferences.v1';
+  const LIMIT = 1048576, reserve = 1024;
+  const codec = root.LittleLeafAuthorityCodec;
+  let sdk, opening, record, revisionText, scope, epoch = 0, faulted = false, busy = false;
+  let playing = false, loading = false;
+  const error = (code, message) => Object.assign(new Error(message), { code });
+  const failure = e => ({ ok: false, code: typeof e.code === 'string' ? e.code : 'PLATFORM_STORAGE_ERROR', error: e.message || 'Platform storage could not be opened' });
+  function log(event, fields = {}) { try { root.LittleLeafSaveLog?.record(event, { layer: 'vault', ...fields }); } catch (_) {} }
+  function bounded(promise, ms) {
+    let timer;
+    return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(error('PLATFORM_STORAGE_ERROR', 'Platform loading timed out. Reload to try again.')), ms); })]).finally(() => clearTimeout(timer));
+  }
+  function capacity(value, preferences) {
+    if (new TextEncoder().encode(JSON.stringify({ [KEY]: value, [PREFS]: preferences || '' })).length > LIMIT - reserve)
+      throw error('PLATFORM_DATA_LIMIT', 'This café exceeds the platform save limit. The previous save is unchanged.');
+  }
+  async function currentScope() {
+    // A change witness only, never authentication or an account database selector.
+    if (sdk.user.isUserAccountAvailable !== true) return 'account-unavailable';
+    const user = await sdk.user.getUser();
+    return user ? JSON.stringify([user.__dangerousUserId, user.username]) : 'guest';
+  }
+  function invalidate() {
+    epoch++; faulted = true; root.LittleLeafPlatform.ready = false; root.LittleLeafPlatform.playing = false;
+    try { sdk.game.gameplayStop(); } catch (_) {}
+    playing = false;
+  }
+  async function initialise() {
+    if (!root.CrazyGames?.SDK) throw error('PLATFORM_STORAGE_ERROR', 'The platform SDK could not load. Reload to try again.');
+    sdk = root.CrazyGames.SDK;
+    await bounded(sdk.init(), 20000);
+    if (!['local', 'crazygames'].includes(sdk.environment)) throw error('PLATFORM_STORAGE_ERROR', 'Open this version on CrazyGames or a local test server.');
+    sdk.game.loadingStart(); loading = true;
+    if (sdk.user.isUserAccountAvailable === true) sdk.user.addAuthListener(invalidate);
+    scope = await currentScope();
+  }
+  function ready() {
+    if (!record || faulted) throw error('NOT_READY', 'Platform progress is paused. Reload before continuing.');
+  }
+  async function guard(generation) {
+    ready();
+    if (epoch !== generation || await currentScope() !== scope || faulted) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Your platform account changed. Reload to load its progress.'); }
+  }
+  function inboxSnapshot() {
+    // The platform's verified envelope is also the only source of letters.
+    // This adapter issues no compensation; never infer delivery from coins.
+    const paid = Object.entries(record.campaigns || {}).map(([id, receipt]) => ({ id, ...receipt }));
+    paid.sort((a, b) => b.grantedAt - a.grantedAt || b.revision - a.revision || a.id.localeCompare(b.id));
+    return { ok: true, profileId: record.profileId, revision: record.revision, paid, deferred: [] };
+  }
+  const client = {
+    storageKind: 'crazygames-data', bootJson: '',
+    async boot() {
+      if (opening) return opening;
+      opening = (async () => {
+        log('boot_requested');
         try {
-          // Acquire browser storage only inside the error boundary: some
-          // privacy modes throw even while reading window.localStorage.
-          storage=options.localStorage||root.localStorage;
-          factory=options.indexedDB||root.indexedDB;
-          const raw=storage.getItem(KEY);
-          if(raw!==null){
-            let item;try{item=JSON.parse(raw)}catch(_){throw Error('Saved preferences are damaged');}
-            if(!item||item.format!==1||!valid(item.text))throw Error('Saved preferences have an unsupported format');
-            text=item.text;ready=true;
-            const result={ok:true,source:'preferences',text};api.bootJson=JSON.stringify(result);return result;
+          await initialise();
+          const generation = epoch;
+          const raw = sdk.data.getItem(KEY);
+          if (raw === null) {
+            const now = Date.now();
+            record = { format: 2, profileId: root.crypto.randomUUID(), revision: 0, createdAt: now, updatedAt: now, payload: null, digest: null, origin: null, previous: null, campaigns: {} };
+            revisionText = JSON.stringify(record);
+            await guard(generation);
+            capacity(revisionText, sdk.data.getItem(PREFS));
+            // Data-module acceptance, not an assertion of remote persistence.
+            sdk.data.setItem(KEY, revisionText);
+          } else {
+            if (typeof raw !== 'string') throw error('CORRUPT_AUTHORITY', 'Platform save data is unreadable.');
+            try { record = JSON.parse(raw); } catch (_) { throw error('CORRUPT_AUTHORITY', 'Platform save data is damaged.'); }
+            await codec.verifyRecord(record);
+            revisionText = raw;
+            await guard(generation);
           }
-          const legacy=await readLegacy(factory);
-          text=legacy||'';ready=true;
-          // Migration is read-only until Godot parses the CFG successfully and
-          // calls acceptLoaded; malformed settings cannot enter the new store.
-          const result={ok:true,source:legacy===null?'default':'legacy-readonly',text};api.bootJson=JSON.stringify(result);return result;
-        } catch(error){api.lastError=error.message||String(error);const result=failure(error.name||'PREFERENCES_ERROR',api.lastError);api.bootJson=JSON.stringify(result);return result;}
-      },
-      writeText(value){
-        if(!ready||!storage){api.lastError='Preferences storage is unavailable';return false;}
-        if(!valid(value)){api.lastError='Preferences are unreadable or too large';return false;}
-        try{storage.setItem(KEY,JSON.stringify({format:1,text:value}));text=value;api.lastError='';api.bootJson=JSON.stringify({ok:true,source:'preferences',text});return true}
-        catch(error){api.lastError=error.message||String(error);return false;}
-      },
-      acceptLoaded(){return api.writeText(text);}
-    };
-    return api;
-  }
-  function readLegacy(factory){
-    return new Promise((resolve,reject)=>{
-      let request,absent=false,settled=false;
-      const timer=setTimeout(()=>{settled=true;reject(Error('Legacy preference read timed out'))},10000);
-      function done(error,value){clearTimeout(timer);if(settled)return;settled=true;error?reject(error):resolve(value)}
-      try{request=factory.open('/userfs')}catch(error){done(error);return;}
-      request.onupgradeneeded=()=>{absent=true;request.transaction.abort()};
-      request.onerror=event=>{event.preventDefault();done(absent?null:request.error,null)};
-      request.onblocked=()=>done(Error('Legacy preferences are blocked by another browser tab'));
-      request.onsuccess=()=>{
-        const db=request.result;if(settled){db.close();return;}
-        if(!db.objectStoreNames.contains('FILE_DATA')){db.close();done(Error('Legacy preferences store is unreadable'));return;}
-        let tx;
-        try{tx=db.transaction('FILE_DATA','readonly')}catch(error){db.close();done(error);return;}
-        const profiles=[],settings=[];
-        tx.onabort=()=>{db.close();done(tx.error||Error('Legacy preference read failed'))};
-        tx.onerror=()=>{};
-        tx.objectStore('FILE_DATA').openCursor().onsuccess=event=>{
-          const c=event.target.result;if(!c)return;
-          const path=String(c.key);
-          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_cafe_v13\.json$/.test(path))profiles.push(path);
-          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_settings\.cfg$/.test(path))settings.push({path,entry:c.value});
-          c.continue();
-        };
-        tx.oncomplete=()=>{
-          db.close();
-          try{
-            const candidates=profiles.length===1?settings.filter(x=>x.path===profiles[0].replace(/[^/]+$/,'little_leaf_settings.cfg')):settings;
-            if(candidates.length>1)throw Error('Several legacy preference profiles were found; no profile was guessed');
-            if(!candidates.length){done(null,null);return;}
-            const bytes=candidates[0].entry&&candidates[0].entry.contents;
-            // IDBFS may retain the signed HEAP8 view used by native writes.
-            if(!(bytes instanceof Uint8Array || bytes instanceof Int8Array)||bytes.byteLength>LIMIT)throw Error('Legacy preferences are unreadable or too large');
-            done(null,new TextDecoder('utf-8',{fatal:true}).decode(bytes));
-          }catch(error){done(error);}
-        };
-      };
-    });
-  }
-  root.LittleLeafPreferences=Object.freeze({KEY,createClient});
-  root.__littleLeafPreferences=createClient();
+          root.LittleLeafPlatform.ready = true;
+          const result = { ok: true, inbox: inboxSnapshot(), source: record.revision ? 'authority' : 'fresh', profileId: record.profileId, revision: record.revision, payload: record.payload };
+          log('read_result', result); client.bootJson = JSON.stringify(result); return result;
+        } catch (e) {
+          invalidate(); const result = failure(e); log('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result;
+        }
+      })(); return opening;
+    },
+    creditForSave() { return 0; },
+    async commit(payload, expectedRevision, expectedProfileId) {
+      if (busy) return failure(error('SAVE_BUSY', 'A platform submission is still pending.'));
+      busy = true;
+      const generation = epoch;
+      try {
+        ready(); codec.parsePayload(payload, 15);
+        if (expectedProfileId !== record.profileId || expectedRevision !== record.revision) throw error('REVISION_CONFLICT', 'This page has an old save revision. Reload before continuing.');
+        if (expectedRevision >= Number.MAX_SAFE_INTEGER) throw error('REVISION_LIMIT', 'Save revision limit reached.');
+        const next = { ...record, revision: expectedRevision + 1, payload, updatedAt: Date.now(), previous: null, origin: record.origin || { source: 'fresh', legacyDigest: null, importedAt: Date.now() } };
+        next.digest = await codec.hash(codec.fingerprint(next));
+        const text = JSON.stringify(next);
+        await guard(generation);
+        // Synchronous comparison detects a changed SDK cache, not server CAS.
+        if (sdk.data.getItem(KEY) !== revisionText) throw error('REVISION_CONFLICT', 'Platform progress changed. Reload before continuing.');
+        capacity(text, sdk.data.getItem(PREFS));
+        sdk.data.setItem(KEY, text);
+        record = next; revisionText = text;
+        log('platform_save_accepted', { profileId: next.profileId, revision: next.revision });
+        const boot = { ok: true, inbox: inboxSnapshot(), source: 'authority', profileId: next.profileId, revision: next.revision, payload: next.payload };
+        client.bootJson = JSON.stringify(boot);
+        return { ok: true, inbox: inboxSnapshot(), profileId: next.profileId, revision: next.revision, durable: false, platformAccepted: true, cloudConfirmed: false, creditedCoins: 0 };
+      } catch (e) {
+        if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY', 'PLATFORM_ACCOUNT_CHANGED'].includes(e.code)) invalidate();
+        const result = failure(e); log('save_failure', { code: result.code }); return result;
+      } finally { busy = false; }
+    },
+    save(payload, revision, profileId, callback) { client.commit(payload, revision, profileId).then(result => callback(JSON.stringify(result))); },
+    close() { invalidate(); }
+  };
+  const preferences = {
+    bootJson: '', lastError: '',
+    async boot() {
+      try {
+        ready(); await guard(epoch);
+        const raw = sdk.data.getItem(PREFS);
+        let text = '';
+        if (raw !== null) {
+          let value; try { value = JSON.parse(raw); } catch (_) { throw error('PLATFORM_STORAGE_ERROR', 'Platform preferences are damaged.'); }
+          if (!value || value.format !== 1 || typeof value.text !== 'string' || new TextEncoder().encode(value.text).length > 65536) throw error('PLATFORM_STORAGE_ERROR', 'Platform preferences are unreadable.');
+          text = value.text;
+        }
+        const result = { ok: true, source: raw === null ? 'default' : 'preferences', text };
+        preferences.bootJson = JSON.stringify(result); return result;
+      } catch (e) { invalidate(); const result = failure(e); preferences.bootJson = JSON.stringify(result); return result; }
+    },
+    writeText(text) {
+      try {
+        ready(); if ((sdk.user.isUserAccountAvailable === true) !== (scope !== 'account-unavailable')) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform account availability changed. Reload.'); }
+        if (sdk.data.getItem(KEY) !== revisionText) { invalidate(); throw error('PLATFORM_ACCOUNT_CHANGED', 'Platform progress changed. Reload.'); }
+        if (typeof text !== 'string' || new TextEncoder().encode(text).length > 65536) throw error('INVALID_SAVE', 'Preferences are too large.');
+        const value = JSON.stringify({ format: 1, text }); capacity(revisionText, value);
+        sdk.data.setItem(PREFS, value); preferences.bootJson = JSON.stringify({ ok: true, source: 'preferences', text }); return true;
+      } catch (_) { preferences.lastError = 'Platform preferences could not be submitted.'; return false; }
+    },
+    acceptLoaded() { return true; }
+  };
+  root.LittleLeafPlatform = {
+    ready: false, playing: false, viewportPlayable: false, muteAudio: false, firstGameplayAt: 0, musicReady: false,
+    update(active) {
+      if (!sdk || faulted || !this.ready) return;
+      try {
+      this.muteAudio = !!sdk.game.settings.muteAudio;
+      if (loading && active) { sdk.game.loadingStop(); loading = false; }
+      if (active !== playing) { active ? sdk.game.gameplayStart() : sdk.game.gameplayStop(); playing = active; this.playing = active; if (active && !this.firstGameplayAt) this.firstGameplayAt = Date.now(); }
+      } catch (_) { invalidate(); }
+    }
+  };
+  root.__littleLeafVault = client; root.__littleLeafPreferences = preferences;
+  root.LittleLeafVault = Object.freeze({ retry() { root.location.reload(); } });
 })(globalThis);
 
 </script>
+		<!-- Load the SDK after the visible branded shell, before storage boot. -->
+		<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
 		<script src="$GODOT_URL"></script>
 		<script>
 const GODOT_CONFIG = $GODOT_CONFIG;
 const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 // Do not mount old IDBFS: legacy data is read directly, never reconciled.
 GODOT_CONFIG.persistentPaths = [];
-const engine = new Engine(GODOT_CONFIG);
+let engine = null;
+try {
+	if (typeof Engine === 'function') engine = new Engine(GODOT_CONFIG);
+} catch (error) {
+	window.LittleLeafBoot.fail(error);
+}
 
 (function () {
-	const statusOverlay = document.getElementById('status');
-	const statusProgress = document.getElementById('status-progress');
-	const statusNotice = document.getElementById('status-notice');
-
-	let initializing = true;
-	let statusMode = '';
-
-	function setStatusMode(mode) {
-		if (statusMode === mode || !initializing) {
-			return;
-		}
-		if (mode === 'hidden') {
-			statusOverlay.remove();
-			initializing = false;
-			return;
-		}
-		statusOverlay.style.visibility = 'visible';
-		statusProgress.style.display = mode === 'progress' ? 'block' : 'none';
-		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
-		statusMode = mode;
+	const boot = window.LittleLeafBoot;
+	if (!engine) {
+		boot.fail('The game engine could not download. Please check your connection and reload.');
+		return;
 	}
-
-	function setStatusNotice(text) {
-		while (statusNotice.lastChild) {
-			statusNotice.removeChild(statusNotice.lastChild);
-		}
-		const lines = text.split('\n');
-		lines.forEach((line) => {
-			statusNotice.appendChild(document.createTextNode(line));
-			statusNotice.appendChild(document.createElement('br'));
-		});
+	let missing;
+	try {
+		missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	} catch (error) {
+		boot.fail(error);
+		return;
 	}
-
-	function displayFailureNotice(err) {
-		console.error(err);
-		if (err instanceof Error) {
-			setStatusNotice(err.message);
-		} else if (typeof err === 'string') {
-			setStatusNotice(err);
-		} else {
-			setStatusNotice('An unknown error occurred.');
-		}
-		setStatusMode('notice');
-		initializing = false;
-	}
-
-	const missing = Engine.getMissingFeatures({
-		threads: GODOT_THREADS_ENABLED,
-	});
-
 	if (missing.length !== 0) {
 		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
 			let serviceWorkerRegistrationPromise;
@@ -846,45 +1060,26 @@ const engine = new Engine(GODOT_CONFIG);
 			} catch (err) {
 				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
 			}
-			// There's a chance that installing the service worker would fix the issue
+			// Preserve the export template's recovery path and timeout.
 			Promise.race([
 				serviceWorkerRegistrationPromise.then((registration) => {
-					if (registration != null) {
-						return Promise.reject(new Error('Service worker already exists.'));
-					}
+					if (registration != null) return Promise.reject(new Error('Service worker already exists.'));
 					return registration;
 				}).then(() => engine.installServiceWorker()),
-				// For some reason, `getRegistration()` can stall
-				new Promise((resolve) => {
-					setTimeout(() => resolve(), 2000);
-				}),
-			]).then(() => {
-				// Reload if there was no error.
-				window.location.reload();
-			}).catch((err) => {
-				console.error('Error while registering service worker:', err);
-			});
+				new Promise((resolve) => { setTimeout(() => resolve(), 2000); }),
+			]).then(() => window.location.reload()).catch(boot.fail);
 		} else {
-			// Display the message as usual
-			const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
-			displayFailureNotice(missingMsg + missing.join('\n'));
+			boot.fail('This browser is missing features Little Leaf needs:\n' + missing.join('\n'));
 		}
-	} else {
-		setStatusMode('progress');
-		window.__littleLeafVault.boot().then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
-			'onProgress': function (current, total) {
-				if (current > 0 && total > 0) {
-					statusProgress.value = current;
-					statusProgress.max = total;
-				} else {
-					statusProgress.removeAttribute('value');
-					statusProgress.removeAttribute('max');
-				}
-			},
-		})).then(() => {
-			setStatusMode('hidden');
-		}, displayFailureNotice);
+		return;
 	}
+	window.__littleLeafVault.boot().then(result => {
+		if (!result.ok) throw new Error(result.error);
+		return window.__littleLeafPreferences.boot();
+	}).then(result => {
+		if (!result.ok) throw new Error(result.error);
+		return engine.startGame({ 'onProgress': boot.onProgress });
+	}).then(boot.engineReady, boot.fail);
 }());
 		</script>
 	</body>

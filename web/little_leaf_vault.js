@@ -1,6 +1,10 @@
 /* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */
 (function (root) {
   'use strict';
+  // This observer never participates in a transaction or changes a result.
+  function observe(event, fields = {}) {
+    try { if (root.LittleLeafSaveLog) root.LittleLeafSaveLog.record(event, { layer: 'vault', ...fields }); } catch (_) {}
+  }
   const DB_NAME = 'little-leaf.authoritative.v1';
   const STORE = 'profiles';
   const ACTIVE = 'active';
@@ -121,18 +125,21 @@
   }
   function transaction(db, mode, action) {
     return new Promise((resolve, reject) => {
-      let tx, value, actionError;
+      let tx, value, actionError, stage = 'transaction_create';
+      const mark = value => { stage = value; };
+      const tagged = error => Object.assign(new Error(resultError(error).error), { code: resultError(error).code, storageStage: stage, transactionCreated: !!tx });
       try {
         // Strict durability asks supported browsers to flush before completion.
         // Browsers without the options overload retain atomic transaction semantics.
         try { tx = db.transaction(STORE, mode, mode === 'readwrite' ? { durability: 'strict' } : undefined); }
         catch (error) { if (!(error instanceof TypeError)) throw error; tx = db.transaction(STORE, mode); }
-        tx.oncomplete = () => resolve(value);
+        tx.oncomplete = () => { mark('transaction_complete'); resolve(value); };
         tx.onerror = () => {}; // Abort is the authoritative failure boundary.
-        tx.onabort = () => reject(actionError || tx.error || fail('STORAGE_ABORT', 'Save transaction aborted; previous progress is unchanged'));
-        const rejectAction = error => { actionError = error; tx.abort(); };
-        action(tx.objectStore(STORE), result => { value = result; }, rejectAction);
-      } catch (error) { if (tx) { actionError = error; try { tx.abort(); } catch (_) {} } reject(error); }
+        tx.onabort = () => reject(actionError || tagged(tx.error || fail('STORAGE_ABORT', 'Save transaction aborted; previous progress is unchanged')));
+        const rejectAction = error => { actionError = tagged(error); try { tx.abort(); } catch (_) { reject(actionError); } };
+        mark('object_store');
+        action(tx.objectStore(STORE), result => { value = result; }, rejectAction, mark);
+      } catch (error) { const failure = tagged(error); if (tx) { actionError = failure; try { tx.abort(); } catch (_) {} } reject(failure); }
     });
   }
   async function readLegacy(factory) {
@@ -180,43 +187,77 @@
     let factory = options.indexedDB, campaigns = null;
     let db = null, record = null, legacy = null, opening = null, busy = false, faulted = false;
     let inboxJson = JSON.stringify({ ok: false });
+    let connectionGeneration = 0;
+    function installConnection(connection, stage) {
+      db = connection;
+      const generation = ++connectionGeneration;
+      observe('connection_opened', { stage, connectionGeneration: generation });
+      connection.onversionchange = () => {
+        observe('connection_closed', { stage: 'versionchange', connectionGeneration: generation });
+        connection.close();
+      };
+      connection.onclose = () => observe('connection_closed', { stage: 'forced_close', connectionGeneration: generation });
+    }
+    function readCurrent(store, resolve, abort, mark) {
+      mark('get_identity'); const identityRequest = store.get(IDENTITY);
+      identityRequest.onerror = () => mark('get_identity');
+      mark('get_active'); const request = store.get(ACTIVE);
+      request.onerror = () => mark('get_active');
+      request.onsuccess = () => {
+        try {
+          mark('active_result'); const current = validRecord(request.result);
+          mark('identity_result'); const identity = identityRequest.result;
+          if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
+          resolve(current);
+        } catch (error) { abort(error); }
+      };
+    }
+    function compareCurrent(current, expectedRevision, expectedProfileId) {
+      if (current.profileId !== expectedProfileId || current.revision !== expectedRevision || current.digest !== record.digest) throw fail('REVISION_CONFLICT', 'Another tab saved newer progress; this tab was not saved. Reload before continuing');
+      if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
+    }
+    async function reopenExisting(expectedRevision, expectedProfileId) {
+      observe('connection_reopen_requested', { code: 'InvalidStateError', stage: 'transaction_create', connectionGeneration });
+      db.close();
+      const connection = await openDB(factory, DB_NAME, false);
+      if (!connection) throw fail('CORRUPT_AUTHORITY', 'Saved café storage is missing; keep this page open for recovery');
+      try {
+        if (connection.version !== 1 || !connection.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Saved café storage changed format; keep this page open for recovery');
+        const current = await transaction(connection, 'readonly', readCurrent);
+        await verifyRecord(current);
+        compareCurrent(current, expectedRevision, expectedProfileId);
+        installConnection(connection, 'reopen_existing');
+      } catch (error) { connection.close(); throw error; }
+    }
     const client = {
       bootJson: '',
       // A serialized copy cannot mutate the authority or its previous record.
       snapshotJson() { return inboxJson; },
       async boot() {
         if (opening) return opening;
+        observe('boot_requested');
         opening = (async () => {
           try {
             campaigns = campaignConfig(options.campaigns === undefined ? CAMPAIGNS : options.campaigns);
             if (!factory) factory = root.indexedDB;
             if (!factory || !root.crypto || !root.crypto.subtle) throw fail('STORAGE_UNAVAILABLE', 'Durable browser storage is unavailable');
-            db = await openDB(factory, DB_NAME, true);
+            installConnection(await openDB(factory, DB_NAME, true), 'boot_open');
             if (!db.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save store is missing');
-            record = await transaction(db, 'readonly', (store, resolve, abort) => {
-              const identityRequest = store.get(IDENTITY);
-              const request = store.get(ACTIVE);
-              request.onsuccess = () => {
-                try {
-                  const current = validRecord(request.result);
-                  const identity = identityRequest.result;
-                  if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
-                  resolve(current);
-                } catch (error) { abort(error); }
-              };
-            });
+            record = await transaction(db, 'readonly', readCurrent);
             await verifyRecord(record);
             if (!record.revision) legacy = await readLegacy(factory);
             inboxJson = JSON.stringify(inboxSnapshot(record, campaigns));
             const result = { ok: true, inbox: JSON.parse(inboxJson), profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
+            observe('read_result', { source: result.source, profileId: result.profileId, revision: result.revision });
             client.bootJson = JSON.stringify(result); return result;
-          } catch (error) { faulted = true; const result = resultError(error); client.bootJson = JSON.stringify(result); return result; }
+          } catch (error) { faulted = true; const result = resultError(error); observe('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result; }
         })();
         return opening;
       },
       async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
-        if (!record || faulted) return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover'));
-        if (busy) return resultError(fail('SAVE_BUSY', 'A save is still pending'));
+        observe('save_requested', { profileId: expectedProfileId, revision: expectedRevision });
+        if (!record || faulted) { observe('save_failure', { code: 'NOT_READY' }); return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover')); }
+        if (busy) { observe('save_failure', { code: 'SAVE_BUSY' }); return resultError(fail('SAVE_BUSY', 'A save is still pending')); }
         busy = true;
         try {
           parsePayload(payload, 15);
@@ -229,28 +270,31 @@
           const previous = record.revision ? { ...record, previous: null } : null;
           const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
           candidate.digest = await hash(fingerprint(candidate));
-          const next = await transaction(db, 'readwrite', (store, resolve, abort) => {
-            const identityRequest = store.get(IDENTITY);
-            const request = store.get(ACTIVE);
-            request.onsuccess = () => {
-              try {
-                const current = validRecord(request.result);
-                const identity = identityRequest.result;
-                if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
-                if (current.profileId !== expectedProfileId || current.revision !== expectedRevision || current.digest !== record.digest) throw fail('REVISION_CONFLICT', 'Another tab saved newer progress; this tab was not saved. Reload before continuing');
-                // Compare the entire prior payload too. Never overwrite corrupted
-                // bytes even when their stale checksum/revision survived damage.
-                if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
-                store.put(candidate, ACTIVE); resolve(candidate);
-              } catch (error) { abort(error); }
-            };
+          observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
+          const write = () => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
+            readCurrent(store, current => {
+              mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
+              mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
+              observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
+            }, abort, mark);
           });
+          let next;
+          try { next = await write(); }
+          catch (error) {
+            // Only a synchronous failure before a transaction exists is replayed.
+            // Never retry a get/result/put/abort failure or an unknown write outcome.
+            if (error.code !== 'InvalidStateError' || error.storageStage !== 'transaction_create' || error.transactionCreated) throw error;
+            await reopenExisting(expectedRevision, expectedProfileId);
+            next = await write(); // One retry, preserving the exact pending candidate.
+          }
           record = next;
+          observe('save_confirmed', { profileId: next.profileId, revision: next.revision });
           inboxJson = JSON.stringify(inboxSnapshot(next, campaigns));
           client.bootJson = JSON.stringify({ ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
           return { ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
         } catch (error) {
           if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
+          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code, stage: error.storageStage || 'save_prepare', connectionGeneration });
           return resultError(error);
         } finally { busy = false; }
       },
@@ -268,6 +312,7 @@
     };
     return client;
   }
+  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, verifyRecord, fingerprint, hash });
   let retrying = null;
   function retry(callback) {
     // A fresh client reopens storage after a transient boot failure. No saved

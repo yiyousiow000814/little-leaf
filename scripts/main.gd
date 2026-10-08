@@ -1,4 +1,5 @@
 extends Node3D
+const SaveLog=preload("res://scripts/cafe_save_log.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
@@ -61,6 +62,9 @@ var selected_id = -1
 var rotation_step = 0
 var editing = false
 var paused = false
+var platform_music
+var platform_autosave_dirty=false
+var platform_dirty_generation=0
 var speed = 1.0
 var ghost: Node3D
 var hover_cell = Vector2i(-100,-100)
@@ -132,7 +136,10 @@ func _ready():
 	_setup_world()
 	build_tools=BuildTools.new(self)
 	_build_ui()
-	_setup_music()
+	if OS.has_feature("crazygames"):
+		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		_mark_platform_dirty()
+	else:_setup_music()
 	settings_controls.setup_audio()
 	_connect_model_events()
 	_rebuild_room()
@@ -156,11 +163,22 @@ func _ready():
 	web_lifecycle.start()
 	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
 	cafe_intro.start(self)
+	if OS.has_feature("web"):
+		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
 
+func _notify_first_web_frame():
+	# The HTML loader waits for a real frame, not just a resolved engine promise.
+	JavaScriptBridge.eval("if (window.LittleLeafBoot) window.LittleLeafBoot.firstFrameReady();")
+
+func _mark_platform_dirty():
+	platform_dirty_generation+=1
+	platform_autosave_dirty=true
+
 func _connect_model_events():
+	if OS.has_feature("crazygames"):model.changed.connect(_mark_platform_dirty)
 	model.meal_completed.connect(func(_customer_id,payment):
 		settings_controls.play_sfx("coin")
 		compact_ui.show_earnings(payment))
@@ -183,6 +201,7 @@ func _exit_tree():
 	if web_save!=null:web_save.stop()
 
 func _load_startup():
+	SaveLog.record("boot_requested",{"layer":"controller" if OS.has_feature("web") else "native"})
 	if OS.has_feature("web"):
 		web_save=WebSave.new(self)
 		web_save.load_startup()
@@ -190,6 +209,7 @@ func _load_startup():
 	var args=OS.get_cmdline_user_args()
 	save_writes_suppressed="--visual-qa" in args or "--fresh-review" in args or "--review-checkpoint" in args
 	if "--fresh-review" in args:
+		SaveLog.record("read_accepted",{"layer":"native","source":"review"})
 		fresh_start=true;MinimalStart.apply(model);return
 	if "--review-checkpoint" in args:
 		if not model.load_save("res://docs/reconstructed_runtime_save.json"): MinimalStart.apply(model)
@@ -200,13 +220,16 @@ func _load_startup():
 	startup_save_source=source
 	if source!="":
 		if model.load_save(source):
+			SaveLog.record("read_accepted",{"layer":"native","source":"native-primary" if source==SAVE_FILE else "native-import"})
 			if model.included_bin_pending:
 				model.ensure_basic_bin()
 			return
 		# Never skip a corrupt primary/import source or treat it as absent.
 		# Recovery preserves both profile files and prevents all progress writes.
+		SaveLog.record("read_failure",{"layer":"native","code":"VALIDATION_FAILED"})
 		save_recovery_blocked=true;paused=true
 		MinimalStart.apply(model);return
+	SaveLog.record("read_accepted",{"layer":"native","source":"fresh"})
 	fresh_start=true;MinimalStart.apply(model)
 
 func material(color: Color) -> StandardMaterial3D:
@@ -763,14 +786,18 @@ func _unsaved_progress_message()->String:
 
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
+	SaveLog.record("save_requested",{"layer":"native"})
 	save_timer=0.0
-	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args(): return true
+	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args():
+		SaveLog.record("save_skipped",{"layer":"native","code":"RECOVERY_BLOCKED" if save_recovery_blocked else "WRITES_SUPPRESSED"});return true
 	# Only this version's profile is mutable. Older import sources and the
 	# reconstructed source checkpoint remain byte-for-byte untouched.
 	_update_people()
 	model.service_snapshot=_service_save_snapshot()
 	if not model.save(SAVE_FILE):
+		SaveLog.record("save_failure",{"layer":"native","code":"NATIVE_SAVE_FAILED"})
 		progress_unsaved=true;progress_save_error=model.last_error;return false
+	SaveLog.record("save_accepted",{"layer":"native"})
 	progress_unsaved=false;progress_save_error=""
 	return true
 
@@ -835,6 +862,17 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func _process(delta):
+	if OS.has_feature("web") and OS.has_feature("crazygames"):
+		var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
+		if platform!=null:
+			if not bool(platform.ready):
+				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
+				startup_notice="Platform account changed or storage failed. Reload to load progress."
+			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			platform.viewportPlayable=not compact_ui.viewport_too_small
+			platform.update(playable)
+			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
+			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
 	if cafe_intro!=null and cafe_intro.active:
 		_music_tick(delta);return
 	if compact_ui!=null and compact_ui.viewport_too_small:return
@@ -848,11 +886,13 @@ func _process(delta):
 		_update_people()
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(delta*speed)
+		# Arrival/payroll/customer/staff timers advance saved state during play.
+		if OS.has_feature("crazygames"):_mark_platform_dirty()
 	visual_timer+=delta
 	save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui(); _update_service_props()
-	if save_timer>15 and (interaction==null or not interaction.drag_active): _save()
+	if preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_save()
 	_update_people()
 	animation_time+=delta if not editing and not paused else 0.0
 	_music_tick(delta)
