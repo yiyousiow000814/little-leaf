@@ -1,6 +1,7 @@
 extends Node2D
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
+const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
@@ -223,7 +224,9 @@ func update_motion(delta: float):
 		var staff=game.staff_states[i]
 		var key="staff_%s"%i
 		var docking=Vector2.ZERO
-		if str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
+		if str(staff.get("art_action","")) in ["sweeping","mopping"]:
+			docking=FloorCleaningApproach.offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO))
+		elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
 			var target=staff.get("art_target",staff.pos)
 			var station=game.model.get_item(int(staff.get("art_target_id",-1)))
 			# A table has no tall cabinet: keep the worker on its aisle side so
@@ -1118,6 +1121,7 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 		var last:Vector2=staff.get("art_heading",Vector2.ZERO)
 		if last.length_squared()>.000025:return last.normalized()
 	var direction:Vector2=staff.get("art_station",staff.pos+Vector2(1,-1))-staff.pos
+	if str(staff.get("art_action","")) in ["sweeping","mopping"]:direction=staff.get("art_target",staff.pos)-staff.pos
 	if direction.length_squared()<.01:direction=staff.get("art_heading",Vector2(1,-1))
 	# Once a work action begins, face its station immediately. A decaying walk
 	# blend must not flip the body/held order halfway through the .65 handoff.

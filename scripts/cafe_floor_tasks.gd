@@ -132,9 +132,15 @@ func target(staff:Dictionary)->Dictionary:
 func destination(staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
  var entry=record(staff)
  if entry.is_empty():return Vector2i(-1,-1)
- return geometry.destination(entry,staff,from,claimed)
+ return geometry.destination(entry,staff,from,claimed,str(STEPS[int(staff.job_step)].action))
 func destination_for_record(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
- return geometry.destination(entry,staff,from,claimed)
+ var action=""
+ # This also ranks unassigned records. Only a matching active cleanup may
+ # override first-needed inference with its saved in-progress floor step.
+ if staff.get("job_kind","")=="cleanup" and entry.has("guest") and int(staff.get("job_guest_id",-1))==int(entry.guest.id) and int(staff.get("job_token",-1))==int(entry.token):
+  var current=str(game.SERVICE_STEPS.cleanup[int(staff.job_step)].action)
+  if current in ["sweeping","mopping"]:action=current
+ return geometry.destination(entry,staff,from,claimed,action)
 func contact_target(entry:Dictionary,staff:Dictionary,action:String)->Vector2:
  return geometry.contact_target(entry,staff,action)
 static func validate_geometry(entry:Dictionary,codec)->String:
