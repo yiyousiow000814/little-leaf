@@ -29,6 +29,11 @@ static func floor_pose(near_shoulder:Vector2,far_shoulder:Vector2,ground:Vector2
  var brush=pan-axis*(5.0+maxf(0.0,stroke)*5.0) if sweeping else ground+axis*stroke*2.5
  var near_hand=short_hand(near_shoulder,Vector2(brush.x*.45+5,-17))
  var far_hand=short_hand(far_shoulder,Vector2(pan.x,-16))
+ if back:
+  # A receding floor contact can project at waist height. Grip above that
+  # contact, beside the shoulder, instead of aiming down across the back.
+  near_hand=short_hand(near_shoulder,Vector2(maxf(near_shoulder.x+6,brush.x*.45+5),minf(-20,brush.y-14)))
+  far_hand=short_hand(far_shoulder,Vector2(pan.x*.4-5,minf(-21,pan.y-14)))
  return {"axis":axis,"pan":pan,"brush":brush,"near_hand":near_hand,"far_hand":far_hand,"shaft_top":near_hand+(near_hand-brush).normalized()*6.0}
 static func relaxed_pan_hand(back:bool)->Vector2:
  var shoulder=Vector2(7,-24) if back else Vector2(-7,-24)
