@@ -32,3 +32,6 @@ __pycache__/
 .env.*
 .DS_Store
 Thumbs.db
+
+# Disposable historical compatibility checkout
+/.compatibility-old/
