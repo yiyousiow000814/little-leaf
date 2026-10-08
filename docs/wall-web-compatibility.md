@@ -1,8 +1,10 @@
 # Actual Web wall-save compatibility gate
 
-Implementation status: local offline guards and syntax checks only. The new native
-layout preflight and actual browser scenarios have **not been executed**. A passing
-native suite or deterministic storage fixture is not real browser proof.
+Implementation status: the bottom-Wall-tray route has passed focused, isolated
+native layout checks and offline browser-helper guards. Actual browser scenarios
+for this corrected route have **not been executed**. The complete exact-export
+preflight and browser gates still must pass in CI. A passing native suite or
+deterministic storage fixture is not real browser proof.
 
 The required CI job now builds the candidate once, checks out historical source
 `9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc` separately, runs that checkout's own
@@ -52,21 +54,24 @@ ambiguous OCR text fails the gate and retains its screenshot, crop and OCR outpu
    normal UI save while preserving walls, openings, wallet and receipt
 2. An actual old engine first proves normal format-1 UI saves. It remains loaded at
    R while the actual new engine edits back segment 2 through the ordinary wall
-   picker and confirmation UI, saving exactly R+1. The old normal UI action must
+   tray and confirmation UI, saving exactly R+1. The old normal UI action must
    receive `REVISION_CONFLICT`, show existing protection Help, and suppress repeated
    UI/lifecycle attempts. Old reload must reject the new format; new reload must
    validate and preserve it without compensation or opening changes
 
-Case B verifies the rendered Build catalog, wall picker, selected half-wall product,
-and exact one-tile confirmation before continuing. Native preflight supplies the
+Case B verifies the rendered Build catalog, bottom Wall tray and Build back
+control, the visible Half wall / Sage panels / 35 product card, the selected
+half-wall action and unit price, and exact one-tile confirmation before continuing.
+It pages with the real product arrow before selecting the card, rather than
+clicking a partly clipped card. The native preflight uses real pointer events for
+this same route, including the world target, and rejects hidden or clipped controls.
+The historical client retains its separate recovery/toolbar route. Native preflight supplies the
 bounded OCR rectangles, including text-only control bounds rather than decorated
 panel borders. Small labels use a separately retained 3× nearest-neighbor OCR
 input; raw screenshots and crops remain unchanged. The detached processing canvas
 does not change game rendering, state, input, or storage. Only idempotent Build
 category selection may retry while
 the real opening tween still disables input; the confirmation is clicked once.
-A pointer-opened native picker uses ArrowDown then Enter to select its first item;
-Godot 4.6.3 does not implement Home selection in PopupMenu.
 The gate requires zero new-client saves before that verified confirmation and
 retains the expected/actual wall segment if the final state assertion fails.
 
