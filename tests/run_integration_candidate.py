@@ -18,6 +18,13 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_parking", "PARKING_RESULT"),
+    ("test_parking_decor_ui", "PARKING_DECOR_UI_RESULT"),
+    ("test_parking_render", "PARKING_RENDER_RESULT"),
+    ("test_parking_service", "PARKING_SERVICE_RESULT"),
+    ("test_parking_validation", "PARKING_VALIDATION_RESULT"),
+    ("test_background_cache", "BACKGROUND_CACHE_RESULT"),
+
     ("test_shell_draw_cache", "SHELL_DRAW_CACHE_RESULT"),
     ("test_render_idle", "RENDER_IDLE_RESULT"),
     ("test_render_visibility", "RENDER_VISIBILITY_RESULT"),

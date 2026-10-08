@@ -18,6 +18,7 @@ const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
 const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
+const Parking=preload("res://scripts/cafe_parking.gd")
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
@@ -108,9 +109,29 @@ var catalog: Array[Dictionary] = [
 var items: Array[Dictionary] = []
 var customers: Array[Dictionary] = []
 var outside_queue: Array[Dictionary] = []
+var parking_owned=false
+var parking_paid_cost=0
+var parking_visits:Array[Dictionary]=[]
+var _parking_session_purchase=false
+
+func parking_price()->int:return Parking.PRICE
+func parking_refund()->int:return parking_paid_cost if decoration_session_active and _parking_session_purchase else int(parking_paid_cost/2)
+func buy_parking()->bool:
+	if not decoration_session_active:return _fail("Open Decorate to buy parking")
+	if parking_owned:return _fail("Parking already owned")
+	if coins<parking_price():return _fail("Not enough coins · %s needed"%Money.amount(parking_price()))
+	parking_paid_cost=parking_price();coins-=parking_paid_cost;parking_owned=true;_parking_session_purchase=true
+	last_error="";last_event="Four parking bays bought · −%s"%Money.amount(parking_paid_cost);_notify();return true
+func sell_parking()->bool:
+	if not decoration_session_active:return _fail("Open Decorate to sell parking")
+	if not parking_owned:return _fail("Parking is not owned")
+	if not parking_visits.is_empty():return _fail("Parking occupied · wait for every car to leave")
+	var refund=parking_refund();coins+=refund;parking_owned=false;parking_paid_cost=0;_parking_session_purchase=false
+	last_error="";last_event="Parking sold · +%s"%Money.amount(refund);_notify();return true
 
 func visual_customers()->Array:
-	return customers+outside_queue
+	var visible=customers.filter(func(guest):return not (guest.get("parking_visit",false) and guest.phase in ["dirty","cleaning"]))
+	return visible+outside_queue+Parking.visual_walkers(self)
 var dining_sets:Array[Dictionary]=[]
 var built_walls: Array[Dictionary] = []
 var wall_attachments:Array[Dictionary]=[]
@@ -130,6 +151,7 @@ var _wall_index: Dictionary = {}
 var _wall_index_revision: int = -1
 var _collision_revision:int=-1
 var _solid_wall_segments:Array=[]
+var _admission_signature:Array=[]
 var _fixed_edge_revision:int=-1
 var _fixed_edges:Dictionary={}
 var coins: int = INITIAL_COINS
@@ -187,6 +209,7 @@ func reset_new() -> void:
 	dining_sets.clear()
 	customers.clear()
 	outside_queue.clear()
+	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
@@ -248,6 +271,7 @@ func set_operating_open(value:bool) -> bool:
 	if operating_open==value:return true
 	operating_open=value;_arrival_elapsed=0.0
 	if not value:
+		Parking.close(self)
 		for visitor in outside_queue:OutsideQueue.cancel(visitor)
 		for guest in customers:
 			if str(guest.phase)=="arriving" and not _customer_admitted(guest):_withdraw_exterior_guest(guest)
@@ -267,7 +291,7 @@ func _withdraw_exterior_guest(guest:Dictionary):
 	if route.is_empty() and absf(position.x-ARRIVAL_LANE_X)>.001:route.append(Vector2(ARRIVAL_LANE_X,position.y))
 	# An arrival still on the first pavement segment simply keeps walking
 	# outward; do not turn a rear queued guest back into an exiting peer.
-	var destination=float(guest.street_origin_z) if guest.get("street_route_format","")==STREET_ROUTE_FORMAT else maxf(ARRIVAL_START_Z+3.0,position.y+2.0)
+	var destination=Parking.HANDOFF.y if guest.get("parking_visit",false) else (float(guest.street_origin_z) if guest.get("street_route_format","")==STREET_ROUTE_FORMAT else maxf(ARRIVAL_START_Z+3.0,position.y+2.0))
 	route.append(Vector2(ARRIVAL_LANE_X,destination))
 	guest.phase="leaving";guest.seated=false;guest.waiting=false
 	guest["withdrawn"]=true;guest["admitted"]=false;guest["exit_completed"]=false
@@ -373,6 +397,7 @@ func begin_decoration_session():
 	if decoration_session_active:return
 	decoration_session_active=true;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func finish_decoration_session():
+	_parking_session_purchase=false
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func record_decoration_purchase(id:int,paid:int):
 	if decoration_session_active:decoration_purchases[id]=paid
@@ -1138,6 +1163,7 @@ func _tick_step(delta: float) -> void:
 			customer.duration = PHASE_SECONDS[customer.phase]
 	for customer in departing:
 		customers.erase(customer)
+	Parking.advance(self,delta)
 	OutsideQueue.advance(self,delta)
 	if operating_open:_arrival_elapsed += delta
 	if operating_open and _arrival_elapsed + 0.000001 >= ARRIVAL_INTERVAL:
@@ -1146,11 +1172,19 @@ func _tick_step(delta: float) -> void:
 
 
 func _spawn_customer() -> void:
+	if not parking_owned:
+		_spawn_walkers(2);return
+	if not operating_open or count_kind("stove")==0 or count_kind("beverage")==0 or count_kind("sink")==0:return
+	for attempt in range(2):
+		if _next_customer_id%2==0 and Parking.reserve(self):continue
+		_spawn_walkers(1)
+
+func _spawn_walkers(limit:int) -> void:
 	if not operating_open:return
 	if count_kind("stove") == 0 or count_kind("beverage") == 0 or count_kind("sink") == 0:
 		return
-	if not outside_queue.is_empty():
-		for attempt in range(2):OutsideQueue.add(self)
+	if not outside_queue.is_empty() or Parking.pending_count(self)>0:
+		for attempt in range(limit):OutsideQueue.add(self)
 		return
 	var used_tables: Dictionary = {}
 	var used_chairs: Dictionary = {}
@@ -1163,7 +1197,7 @@ func _spawn_customer() -> void:
 			arriving += 1
 	var added := 0
 	for pair in _seating_pairs():
-		if added >= 2 or arriving >= MAX_ARRIVING:
+		if added >= limit or arriving >= MAX_ARRIVING:
 			break
 		if used_tables.has(int(pair.table_id)) or used_chairs.has(int(pair.chair_id)):
 			continue
@@ -1196,9 +1230,24 @@ func _spawn_customer() -> void:
 		added += 1
 		arriving += 1
 	if added==0:
-		for attempt in range(2):OutsideQueue.add(self)
+		for attempt in range(limit):OutsideQueue.add(self)
 
 func _admit_queued_visitor(visitor:Dictionary)->bool:
+	var oldest=Parking.oldest_pending(self)
+	if oldest>=0 and oldest<int(visitor.id):return false
+	var eligibility=[]
+	for guest in customers:eligibility.append([int(guest.id),int(guest.table_id),int(guest.chair_id),bool(guest.get("withdrawn",false)),guest.phase=="arriving"])
+	var signature=[navigation_signature(),hash(dining_sets),operating_open,eligibility,int(visitor.id),float(visitor.x),float(visitor.z)]
+	if signature==_admission_signature:return false
+	_admission_signature=signature
+	# A failed admission is stable until layout, seat ownership, arrival slots,
+	# or this FIFO request changes. Queue movement/wait timers still tick.
+	navigation_cells()
+	var admitted=_try_admit_queued_visitor(visitor)
+	if admitted:_admission_signature=[]
+	return admitted
+
+func _try_admit_queued_visitor(visitor:Dictionary)->bool:
 	if not operating_open or customers.filter(func(g):return g.phase=="arriving").size()>=MAX_ARRIVING:return false
 	var used_tables={};var used_chairs={}
 	for guest in customers:
@@ -1220,6 +1269,7 @@ func _admit_queued_visitor(visitor:Dictionary)->bool:
 		Checkout.init_guest(self,guest)
 		guest["table_service_direction"]=_table_service_direction_in(get_item(int(pair.table_id)),items)
 		customers.append(guest);outside_queue.erase(visitor)
+		Parking.admitted(self,guest)
 		return true
 	return false
 
@@ -1472,6 +1522,7 @@ func _advance_walk(customer: Dictionary, delta: float) -> void:
 	if int(customer.route_index) < route.size():
 		return
 	if bool(customer.get("withdrawn",false)):
+		Parking.start_return(self,int(customer.id),position)
 		customer["exit_completed"]=true
 		customer.waiting=false
 		return
@@ -1481,6 +1532,7 @@ func _advance_walk(customer: Dictionary, delta: float) -> void:
 		customer.phase = "ordering"
 		customer.seated = true
 	else:
+		Parking.start_return(self,int(customer.id),position)
 		customer.phase = "dirty"
 		customer.seated = false
 	customer.elapsed = 0.0
@@ -1656,6 +1708,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
 	if not queue_check.ok:return _fail(str(queue_check.error))
+	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
+	var parking_check=Parking.validate(parking,customers,outside_queue,_next_customer_id,operating_open)
+	if not parking_check.ok:return _fail(str(parking_check.error))
 	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
 	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
@@ -1666,7 +1721,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
 		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
-		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,
+		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,"parking":parking,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
@@ -1822,6 +1877,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
 	if not saved_open and queue_check.visitors.any(func(v):return v.phase=="outside_queue"):return _fail("Closed cafe has an active outside request")
+	var parking_check=Parking.validate(data.get("parking",Parking.empty_state()),runtime_state.customers,queue_check.visitors,int(runtime_state.next_customer_id),saved_open)
+	if not parking_check.ok:return _fail(str(parking_check.error))
 	if saved_checkout_pending:
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
@@ -1874,6 +1931,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	_next_item_id = int(data.next_item_id)
 	customers.assign(runtime_state.customers)
 	outside_queue.assign(queue_check.visitors)
+	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
 	loaded_save_version=int(data.version)

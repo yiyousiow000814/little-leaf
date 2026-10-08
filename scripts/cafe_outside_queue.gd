@@ -12,8 +12,8 @@ const FORMAT="little_leaf.outside_queue.v1"
 static func target(slot:int)->Vector2:return Vector2(LANE_X,HEAD_Z+slot*SPACING)
 
 static func add(model)->bool:
-	if model.outside_queue.size()>=CAPACITY:return false
-	var slots={}
+	if model.outside_queue.size()+model.Parking.pending_count(model)>=CAPACITY:return false
+	var slots=model.Parking.reserved_slots(model)
 	for visitor in model.outside_queue:slots[int(visitor.slot)]=true
 	var slot=0
 	while slots.has(slot):slot+=1
@@ -33,7 +33,9 @@ static func settled(visitor)->bool:return int(visitor.route_index)>=visitor.rout
 static func advance(model,delta:float):
 	var retired=[]
 	for visitor in model.outside_queue.duplicate():
-		if not model.operating_open:cancel(visitor)
+		if not model.operating_open:
+			if model.Parking.return_queued(model,visitor):continue
+			cancel(visitor)
 		var position=Vector2(float(visitor.x),float(visitor.z))
 		var budget=model.WALK_SPEED*delta
 		while budget>.000001 and not settled(visitor):
@@ -48,7 +50,8 @@ static func advance(model,delta:float):
 		if not settled(visitor):continue
 		if visitor.phase=="outside_return":retired.append(visitor);continue
 		visitor.waiting=true;visitor.wait_seconds+=delta
-		if not model.operating_open or visitor.wait_seconds+ .000001>=WAIT_SECONDS:cancel(visitor)
+		if not model.operating_open or visitor.wait_seconds+ .000001>=WAIT_SECONDS:
+			if not model.Parking.return_queued(model,visitor):cancel(visitor)
 	for visitor in retired:model.outside_queue.erase(visitor)
 	if not model.operating_open:return
 	# Strict FIFO among live requests: a later endpoint arrival cannot overtake.

@@ -21,7 +21,11 @@ func _init():
   var expected=[footprint.position,Vector2(footprint.end.x,footprint.position.y),footprint.end,Vector2(footprint.position.x,footprint.end.y)]
   check(not a.polygons.has(expected),"no parking lot, driveway, or link ground before parking feature")
  for x in [0.0,2.9,5.8,8.7,11.6]:check(not a.lines.has([Vector2(x,-8.45),Vector2(x,-5.75)]),"no early parking bay markings")
- check(not Neighborhood.new().has_method("parking_hooks"),"no enabled parking purchase hooks")
+ var owned=Recorder.new();Neighborhood.draw_ground(owned,true);Neighborhood.draw_crossing(owned,true)
+ for footprint in [Camera.LOT,Camera.MOUTH,Camera.PEDESTRIAN_LINK]:
+  var expected=[footprint.position,Vector2(footprint.end.x,footprint.position.y),footprint.end,Vector2(footprint.position.x,footprint.end.y)]
+  check(owned.polygons.has(expected),"owned parking enables lot, crossing and pedestrian link")
+ for x in [0.0,2.9,5.8,8.7,11.6]:check(owned.lines.has([Vector2(x,-8.45),Vector2(x,-5.75)]),"owned parking enables four bay markings")
  for tile in [Vector2(13.65,6.825),Vector2(39,19.5),Vector2(156,78)]:
   check(Neighborhood.inspection_bounds(tile)==Camera.inspection_bounds(tile),"environment preserves accepted camera bounds exactly")
  print("ENVIRONMENT_SCOPE_RESULT ",JSON.stringify({"checks":checks,"failures":failures}));quit(0 if failures.is_empty() else 1)

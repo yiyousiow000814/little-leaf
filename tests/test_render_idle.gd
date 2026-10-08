@@ -54,7 +54,18 @@ func run():
 	changed("selected shell",func():game.compact_ui.selected_shell="shell:west#0",func():game.compact_ui.selected_shell="")
 	changed("camera pan",func():art.pan_offset+=Vector2(5,5),func():art.pan_offset-=Vector2(5,5))
 	changed("docking",func():art.meal_chair_offsets[-44]=Vector2.ONE,func():art.meal_chair_offsets.erase(-44))
+	changed("outside queue",func():m.outside_queue.append({"id":-44}),func():m.outside_queue.pop_back())
+	changed("parking ownership",func():m.parking_owned=true,func():m.parking_owned=false)
+	changed("parking paid basis",func():m.parking_paid_cost=2000,func():m.parking_paid_cost=0)
+	changed("parking ledger",func():m.parking_visits.append({"id":-44}),func():m.parking_visits.pop_back())
+	m.parking_visits.append({"id":-44,"phase":"car_arriving","car_position":Vector2(1,-4.8),"car_heading":Vector2.RIGHT})
+	changed("parking car position",func():m.parking_visits[0].car_position.x+=1,func():m.parking_visits[0].car_position.x-=1)
+	changed("parking car heading",func():m.parking_visits[0].car_heading=Vector2.LEFT,func():m.parking_visits[0].car_heading=Vector2.RIGHT)
+	changed("parking visit phase",func():m.parking_visits[0].phase="dining",func():m.parking_visits[0].phase="car_arriving")
+	m.parking_visits.clear()
 	changed("street actor",func():art.street_pedestrians.walkers[0].position.y+=1,func():art.street_pedestrians.walkers[0].position.y-=1)
+	changed("bus actor",func():art.bus_stop_pedestrians.actors[0].position.y+=1,func():art.bus_stop_pedestrians.actors[0].position.y-=1)
+	changed("traffic",func():art.road_traffic.cars[0].position.y+=1,func():art.road_traffic.cars[0].position.y-=1)
 	changed("cache mode",func():art.use_cached_heads=false,func():art.use_cached_heads=true)
 	# Custom controllers do not implement the complete snapshot contract.
 	# The real historical fixture is exercised by test_role_boundaries.

@@ -3,7 +3,9 @@ const RenderVisibility=preload("res://scripts/cafe_render_visibility.gd")
 # Comparison switch; normal gameplay always culls conservatively.
 var use_screen_culling=true
 var use_idle_retention=true
+var use_background_cache=true
 var shell_draw_cache=preload("res://scripts/cafe_shell_draw_cache.gd").new()
+var background_cache=preload("res://scripts/cafe_background_cache.gd").new()
 var render_idle=preload("res://scripts/cafe_render_idle.gd").new()
 
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -133,6 +135,9 @@ func _ready():
 		use_cached_heads=not "--legacy-heads" in OS.get_cmdline_user_args()
 		if use_cached_heads:head_atlas.request(self)
 
+func _exit_tree():
+	background_cache.release()
+
 func _process(delta):
 	if is_instance_valid(game) and game.has_method("effective_frame_delta"):delta=game.effective_frame_delta(delta)
 	# Shop artwork is static. CanvasItem already schedules its initial draw;
@@ -160,13 +165,24 @@ func _update_street_pedestrians(delta:float):
 	street_pedestrians.advance(step,queue_positions)
 	road_traffic.advance(step,origin,tile,get_viewport_rect())
 	bus_stop_pedestrians.advance(step,origin,tile,get_viewport_rect())
-	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
+	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
+
+func _parking_owned()->bool:
+	# Historical fixture controllers without parking retain the unbought lawn.
+	var owned=game.model.get("parking_owned")
+	return owned is bool and owned
+
+func _parking_visits()->Array:
+	if not _parking_owned():return []
+	var visits=game.model.get("parking_visits")
+	return visits if visits is Array else []
 
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
+	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -175,6 +191,9 @@ func _draw_street_people(show_service:bool):
 		entries.append({"position":position,"guest":guest})
 	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
 	for entry in entries:
+		if bool(entry.get("parking_car",false)):
+			Neighborhood.draw_oriented_car(self,entry.position,entry.heading,entry.color)
+			continue
 		var is_guest=entry.has("guest")
 		var actor=entry.guest if is_guest else entry
 		var key="guest_%s"%actor.id if is_guest else str(actor.key)
@@ -595,13 +614,14 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 func _draw():
 	render_contacts.clear()
 	if icon_kind!="":
+		background_cache.hide()
 		ui_scale=1; tile=Vector2(39,19.5); origin=Vector2.ZERO
 		art_transform(Vector2(49,57),0,Vector2(.80,.80))
 		item(icon_kind,Vector2.ZERO,icon_rotation,0)
 		art_transform(Vector2.ZERO)
 		return
 	if not is_instance_valid(game):
-		return
+		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
@@ -613,12 +633,15 @@ func _draw():
 	var gameplay_origin = origin
 	if game.cafe_intro!=null:origin+=game.cafe_intro.render_offset(size)
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
-	draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
-	_grass(size)
-	Neighborhood.draw_ground(self)
 	ground_art.prepare(game.model)
-	if use_batched_ground:ground_art.draw_pavement(self)
-	else:_draw_legacy_pavement(ground_view)
+	if not use_background_cache:background_cache.hide()
+	if not use_background_cache or not background_cache.update(self):
+		draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
+		_grass(size)
+		Neighborhood.draw_ground(self,_parking_owned())
+		if use_batched_ground:ground_art.draw_pavement(self)
+		else:_draw_legacy_pavement(ground_view)
+		Neighborhood.draw_crossing(self,_parking_owned())
 	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
 	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
