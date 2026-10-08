@@ -2267,9 +2267,10 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	# opening spanning two segments) before touching either model or wallet.
 	var reason="" if Footprint.is_extension_wall(wall) else _wall_edge_error(proposed_wall,owned_parcels)
 	if reason=="":reason=_attachment_layout_error(proposed,wall_attachments)
-	if reason=="":reason=_stove_wall_edit_error(proposed)
-	if reason=="":reason=_chair_egress_error(proposed,items,owned_parcels,customers)
-	if reason=="":reason=_wall_egress_error(proposed,_wall_actor_list(actor_positions),items,owned_parcels,customers)
+	# A replacement retains this solid edge and every hosted aperture. Height
+	# and finish never change walkability (both half/full walls block the edge).
+	# Support validation above still prevents lowering an attached door/window.
+	# Unrelated pre-existing route problems cannot invalidate a cosmetic edit.
 	if reason!="":quote.reason=reason;return quote
 	if coins<int(quote.net):quote.reason="Not enough coins · replacement needs "+Money.amount(int(quote.net))+" after refund";return quote
 	quote.valid=true
@@ -2683,6 +2684,11 @@ func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
 func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	var reason=_attachment_layout_error(built_walls,proposed)
 	if reason!="":return reason
+	# Adding a door only removes collision; windows never alter ground-level
+	# collision. If every existing doorway survives unchanged, no route, body
+	# clearance, seat exit or workface can become worse. Do not re-reject an
+	# unrelated existing obstruction elsewhere in the cafe for such an edit.
+	if _preserves_existing_doorways(proposed):return ""
 	reason=_stove_wall_edit_error(built_walls,proposed)
 	if reason!="":return reason
 	var actors=_wall_actor_list(actor_positions)
@@ -2698,6 +2704,16 @@ func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	var chair_error:=_chair_egress_error(built_walls,items,owned_parcels,customers,proposed)
 	if chair_error!="":return chair_error
 	return _wall_egress_error(built_walls,actors,items,owned_parcels,customers,proposed)
+
+func _preserves_existing_doorways(proposed:Array)->bool:
+	for existing in wall_attachments:
+		if existing.kind!="door":continue
+		var retained=false
+		for candidate in proposed:
+			if candidate.kind=="door" and candidate.host_id==existing.host_id and float(candidate.offset)==float(existing.offset) and float(candidate.width)>=float(existing.width):
+				retained=true;break
+		if not retained:return false
+	return true
 func can_place_wall_attachment(kind:String,host_id:String,offset:float,actor_positions:Array=[])->bool:
 	last_error=""
 	if attachment_price(kind)<0:return _fail("Choose a door or window")

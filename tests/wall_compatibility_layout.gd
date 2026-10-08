@@ -11,7 +11,7 @@ class LayoutMain extends "res://scripts/main.gd":
   if model.included_bin_pending:model.ensure_basic_bin()
  func _save():save_calls+=1;return true
 var game
-var result={"checks":0,"failures":[],"viewport":[1360,880],"points":{},"regions":{}}
+var result={"checks":0,"failures":[],"viewport":[1360,880],"points":{},"regions":{},"ui_route":"historical-recovery"}
 var output=""
 var fixture=""
 var newer=false
@@ -59,11 +59,15 @@ func label_region(node:Node,words:String)->Dictionary:
  var label=find_label(node,words)
  check(label!=null,"required rendered label exists: "+words)
  return text_region(label) if label!=null else {}
+func click_at(name:String,position:Vector2):
+ result.points[name]=[position.x,position.y]
+ var motion=InputEventMouseMotion.new();motion.position=position;motion.global_position=position;root.push_input(motion,true)
+ for pressed in [true,false]:
+  var event=InputEventMouseButton.new();event.position=position;event.global_position=position;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed;root.push_input(event,true)
+ await settle()
 func click(name:String,control:Control):
- result.points[name]=point(control)
- var event=InputEventMouseButton.new();event.position=control.get_global_rect().get_center();event.button_index=MOUSE_BUTTON_LEFT;event.pressed=true
- Input.parse_input_event(event);await process_frame
- event=event.duplicate();event.pressed=false;Input.parse_input_event(event);await settle()
+ point(control)
+ await click_at(name,control.get_global_rect().get_center())
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use disposable saveguard profile");quit(2);return
  root.size=Vector2i(1360,880)
@@ -75,6 +79,8 @@ func run():
  result.points.decorate=point(game.edit_button)
  result.points.settings=point(game.compact_ui.settings_button)
  if newer:
+  var before_selection=game.model.coins
+  var attachments=game.model.wall_attachments.duplicate(true)
   # Validate both preserved inputs with the candidate's exact model.
   var model=game.Model.new()
   check(model.load_save("res://tests/wall-fixture-new.json"),"new fixture loads through exact candidate codec")
@@ -86,34 +92,46 @@ func run():
   result.regions.catalog=region(game.tray)
   await click("wall",game.build_tools.tool_buttons["full"])
   var ui=game.compact_ui
-  check(ui.finishes.visible,"real native wall card opens product picker")
-  result.points.height=point(ui.wall_heights)
-  # A mouse-opened OptionButton focuses no item; Down/Enter selects its first item.
-  ui.wall_heights.select(0);ui.wall_heights.item_selected.emit(0)
-  ui.wall_papers.select(0);ui.wall_papers.item_selected.emit(0)
-  await settle()
-  result.points.paper=point(ui.wall_papers)
-  result.regions.product=region(ui.finishes)
-  result.regions.product_label=label_region(ui.finishes,"Wall style · included")
-  result.regions.product_target=text_region(ui.wall_use_button)
-  result.regions.height=text_region(ui.wall_heights)
-  result.regions.paper=text_region(ui.wall_papers)
-  result.regions.price=text_region(ui.wall_price_label)
-  await click("choose_target",ui.wall_use_button)
+  var shop=ui.shop_ui
+  result.ui_route="wall-bottom-tray"
+  check(shop.build_page=="walls" and not ui.has_open_popup(),"real native Wall card opens bottom tray without a popup")
+  check(shop._visible_build_keys().size()==6,"Wall tray exposes six complete height and finish products")
+  result.regions.wall_heading=text_region(shop.tiles_title)
+  # The back button has asymmetric icon padding. Its full native bounds keep
+  # the complete label; a font-centered text estimate clips the final letter.
+  result.regions.wall_back=region(shop.tiles_back)
+  result.regions.wall_back.psm=7
+  result.regions.wall_back.scale=3
+  # The desired half-wall card starts partly clipped. Page via the real arrow,
+  # just as the browser does; do not derive a point from a hidden/clipped card.
+  await click("wall_next",shop.product_next)
+  var card=shop.wall_cards["wall:half:sage_panels"]
+  check(ui.build_scroll.get_global_rect().encloses(card.get_global_rect()),"half Sage panels card is fully inside the visible product rail")
+  result.regions.style_name=label_region(card,"Sage panels")
+  result.regions.style_height=label_region(card,"Half wall")
+  result.regions.style_price=label_region(card,"35")
+  await click("wall_style",card)
+  check(game.build_tools.mode=="half" and game.build_tools.material=="sage_panels" and card.button_pressed,"real native card selects the half Sage panels product")
+  check(shop.build_page=="walls" and not ui.has_open_popup(),"selected product keeps the Wall tray and world available")
+  check(game.save_calls==0 and game.model.coins==before_selection,"browsing and selecting a Wall product never saves or charges")
+  result.regions.selected_height=text_region(ui.context_label)
+  result.regions.selected_price=text_region(shop.price_label)
   var target=game.illustration.iso(2.5,0,70)
   var hit=game.illustration.hit_wall_host(target)
   check(hit.get("segment_key","")=="shell:back#2","derived world point hits exact back segment")
-  result.points.segment=[target.x,target.y]
-  game.build_tools.refresh(target);game.build_tools._commit();await settle()
+  check(root.get_visible_rect().has_point(target) and not game.interaction._over_ui(target),"derived segment is a visible unobstructed world target")
+  await click_at("segment",target)
   check(ui.wall_review.visible and ui.pending_wall.get("key","")=="shell:back#2","exact segment opens replacement review")
   check(not ui.wall_confirm_button.disabled,"replacement is valid with restored actors")
   result.regions.review=region(ui.wall_review)
   result.regions.review_heading=label_region(ui.wall_review,"Replace wall")
   result.regions.review_text=text_region(ui.wall_review_text)
+  check(game.save_calls==0 and game.model.coins==before_selection,"target and replacement review never save or charge before confirmation")
   var before=game.model.coins
   await click("confirm",ui.wall_confirm_button)
   check(game.save_calls==1 and game.model.coins==before-35,"normal confirm invokes one save and one 35 coin charge")
-  check(game.model.shell_segment_products["shell:back#2"].height=="half","new model has requested half segment")
+  check(game.model.shell_segment_products["shell:back#2"].height=="half" and game.model.shell_segment_products["shell:back#2"].material=="sage_panels","new model has requested half Sage panels segment")
+  check(game.model.wall_attachments==attachments,"wall replacement preserves paid opening geometry and ownership")
   result.expected_segment=game.model.shell_segment_products["shell:back#2"].duplicate(true)
   result.expected_cost=35
   game.compact_ui._hide_popups()

@@ -181,7 +181,7 @@ func setup():
   var labels=card.get_child(0).get_children()
   labels[-1].text=Money.amount(game.model.wall_price("half"))+"–"+Money.amount(game.model.wall_price("full")) if key=="full" else Money.amount(game.model.attachment_price(key))
   labels[-2].text="Wall" if key=="full" else str(key).capitalize()
-  card.tooltip_text="Choose height and style, then place or replace one wall tile" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
+  card.tooltip_text="Browse wall styles, then place or replace one wall tile" if key=="full" else labels[-2].text+" · "+labels[-1].text+" coins · requires a full wall"
  var wall_card=game.build_tools.tool_buttons["full"]
  for signal_link in wall_card.pressed.get_connections():wall_card.pressed.disconnect(signal_link.callable)
  wall_card.pressed.connect(func():product_target="";show_wall_product())
@@ -599,6 +599,8 @@ func show_finishes():
  product_target=selected_shell if selected_shell!="" else selected_wall
  show_wall_product()
 func show_wall_product():
+ if shop_ui!=null:
+  shop_ui.show_walls(product_target);return
  game.settings.hide()
  wall_papers.clear()
  for name in game.build_tools.MATERIAL_NAMES:wall_papers.add_item(name)

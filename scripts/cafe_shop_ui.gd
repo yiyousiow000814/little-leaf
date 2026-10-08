@@ -29,6 +29,11 @@ var affordability_labels={}
 var build_previews={}
 var build_cards={}
 var tile_cards={}
+var wall_cards={}
+var wall_styles={}
+var wall_target=""
+var tiles_heading_icon:Control
+var walls_heading_icon:Control
 var tiles_card:Button
 var tiles_back:Button
 var tiles_title:Label
@@ -206,6 +211,7 @@ func setup():
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
  _setup_tiles()
+ _setup_walls()
  _setup_parking()
  action_copy=HBoxContainer.new();action_copy.mouse_filter=Control.MOUSE_FILTER_IGNORE;action_copy.add_theme_constant_override("separation",8);ui.context.add_child(action_copy)
  ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -291,7 +297,8 @@ func _setup_tiles():
  tiles_back=_nav("Build",show_build_products);tiles_back.accessibility_name="Back to Build from Tiles";tiles_back.add_theme_font_size_override("font_size",14);tiles_back.draw.connect(_draw_tiles_back);tiles_back.hide()
  tiles_heading=Control.new();tiles_heading.mouse_filter=Control.MOUSE_FILTER_IGNORE;root.add_child(tiles_heading);tiles_heading.hide()
  var face=Panel.new();face.mouse_filter=Control.MOUSE_FILTER_IGNORE;face.add_theme_stylebox_override("panel",ui.hud.texture_style("green_face",14));face.material=ui.hud._art_material(2);tiles_heading.add_child(face);face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- var tile=TileIcon.new();tile.style="cream_tile";tile.mouse_filter=Control.MOUSE_FILTER_IGNORE;tile.size=Vector2(84,54);tile.scale=Vector2.ONE*.38;tile.position=Vector2(5,12);tiles_heading.add_child(tile)
+ var tile=TileIcon.new();tile.style="cream_tile";tile.mouse_filter=Control.MOUSE_FILTER_IGNORE;tile.size=Vector2(84,54);tile.scale=Vector2.ONE*.38;tile.position=Vector2(5,12);tiles_heading.add_child(tile);tiles_heading_icon=tile
+ walls_heading_icon=game.build_tools.WallIcon.new();walls_heading_icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;walls_heading_icon.size=Vector2(84,54);walls_heading_icon.scale=Vector2.ONE*.38;walls_heading_icon.position=Vector2(5,10);tiles_heading.add_child(walls_heading_icon);walls_heading_icon.hide()
  tiles_title=ui.hud._label(tiles_heading,"Tiles",16,ui.hud.CREAM);tiles_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;tiles_title.clip_text=false
  _sync_build_page()
 func _draw_tiles_back():
@@ -314,14 +321,44 @@ func _make_tile_card(key:String,title:String,price:String,style:String,callback:
  card.tooltip_text="Browse tile styles" if collection else title+" · "+price+" coins per tile"
  card.accessibility_name="Browse Tiles" if collection else title+", "+price+" coins per tile"
  return card
+func _setup_walls():
+ # Walls browse in the same bottom rail as Tiles. Every card is a complete
+ # height/finish product; picking it starts placement without a modal form.
+ for height in ["full","half"]:
+  for index in range(game.build_tools.MATERIAL_NAMES.size()+1):
+   var material=game.build_tools.Geometry.MATERIALS[index] if index<game.build_tools.MATERIAL_NAMES.size() else "original"
+   var title=game.build_tools.MATERIAL_NAMES[index] if material!="original" else "Original room"
+   var key="wall:"+height+":"+material
+   var card=_make_tile_card(key,title,ui.Money.amount(game.model.wall_price(height)),"cream_tile",choose_wall_style.bind(height,material))
+   var holder=build_previews[key].holder;var old=build_previews[key].image;holder.remove_child(old);old.queue_free()
+   var preview=game.build_tools.WallIcon.new();preview.height=height;preview.wall_material=material if material!="original" else "sage_panels";preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;holder.add_child(preview)
+   build_previews[key].image=preview;wall_cards[key]=card;wall_styles[key]={"height":height,"material":material}
+   var height_name="Full wall" if height=="full" else "Half wall"
+   card.get_child(0).get_child(3).text=height_name
+   card.tooltip_text=title+" · "+height_name+" · "+ui.Money.amount(game.model.wall_price(height))+" coins per tile"
+   card.accessibility_name=card.tooltip_text
+ _sync_build_page()
 func _sync_build_page():
  for key in build_cards:
-  build_cards[key].visible=(key in tile_cards) if build_page=="tiles" else (key not in tile_cards)
+  if build_page=="tiles":build_cards[key].visible=key in tile_cards
+  elif build_page=="walls":build_cards[key].visible=key in wall_cards and (wall_styles[key].material!="original" or not game.model.ShellSegments.parse_key(wall_target).is_empty())
+  else:build_cards[key].visible=key not in tile_cards and key not in wall_cards
+ if is_instance_valid(tiles_title):tiles_title.text="Wall" if build_page=="walls" else "Tiles"
+ if is_instance_valid(tiles_heading_icon):tiles_heading_icon.visible=build_page!="walls"
+ if is_instance_valid(walls_heading_icon):walls_heading_icon.visible=build_page=="walls"
+ if is_instance_valid(tiles_back):tiles_back.accessibility_name="Back to Build from "+("Wall" if build_page=="walls" else "Tiles")
+func show_walls(target:String=""):
+ if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
+ game.settings.hide();game._cancel_selection();ui._hide_popups();wall_target=target;build_page="walls";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
+func choose_wall_style(height:String,material:String):
+ var key="wall:"+height+":"+material
+ if not game.editing or game.catalog_category!="Build" or build_page!="walls" or game.save_recovery_blocked or ui.viewport_too_small or not wall_cards.has(key) or not wall_cards[key].visible:return
+ game.build_tools.material=material;game.build_tools.choose(height);ui.sync();ui.update_pointer()
 func show_tiles():
  if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
  game._cancel_selection();ui._hide_popups();build_page="tiles";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
 func show_build_products():
- game._cancel_selection();build_page="products";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
+ game._cancel_selection();wall_target="";build_page="products";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
 func choose_floor_style(style:String):
  if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small or style not in tile_cards:return
  game.build_tools.floor_material=style;game.build_tools.choose("floor");ui.sync();ui.update_pointer()
@@ -645,7 +682,7 @@ func sync(width:float):
  ui.cancel_button.visible=header_active
  ui.cancel_button.text="Cancel"
  ui.context_label.visible=true
- var nested=game.catalog_category=="Build" and build_page=="tiles"
+ var nested=game.catalog_category=="Build" and build_page in ["tiles","walls"]
  var tiny=w<440
  var show_help=short_landscape or not (tiny and game.catalog_category=="Build")
  var repair_width=110.0 if ui.floor_repair_button.visible else 0.0
@@ -716,6 +753,7 @@ func sync(width:float):
  for key in _visible_build_keys():
   var card=build_cards[key];card.custom_minimum_size=Vector2(card_w,card_h)
   if key in tile_cards:card.set_pressed_no_signal(game.build_tools.mode=="floor" and game.build_tools.floor_material==key)
+  elif key in wall_cards:card.set_pressed_no_signal(game.build_tools.mode==wall_styles[key].height and game.build_tools.material==wall_styles[key].material)
   var column=card.get_child(0);var selected_color=ui.hud.CREAM if card.button_pressed else ui.hud.INK
   column.get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(2).get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(3).add_theme_color_override("font_color",selected_color)
   var holder=build_previews[key].holder;var preview=build_previews[key].image

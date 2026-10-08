@@ -42,6 +42,7 @@ jobs:
           node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
           node tests/wall_compatibility_helpers_test.js
+          node tests/wall_compatibility_ocr_test.js
           node --check tests/wall_compatibility_browser.js
           node --check tests/save_log_browser.js
           node --check tests/connection_recovery_browser.js
@@ -110,6 +111,7 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
+          node tests/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Verify exported save diagnostic in sandboxed Chromium
         timeout-minutes: 5

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, verifyLayout, selectWallReplacement, assertPreserved} = require('./wall_compatibility_helpers');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const fixtures = path.join(__dirname, 'fixtures/wall-compatibility');
@@ -49,4 +49,55 @@ for (const [name, mutate] of [
   assert.throws(() => assertPreserved(record, {...record, payload: JSON.stringify(value)}));
 });
 check('reload guard catches a second receipt', () => assert.throws(() => assertPreserved(record, {...record, campaigns: {...record.campaigns, extra: {coins: 1000}}})));
-console.log(JSON.stringify({passed: true, checks, browser_verified: false, method: 'pure offline gate guards'}));
+// Synthetic receipts test the consumer contract, separately from native output.
+const region = {x: 10, y: 10, width: 100, height: 30};
+const oldLayout = {viewport: [1360, 880], checks: 9, failures: [], ui_route: 'historical-recovery',
+  points: Object.fromEntries(['business', 'decorate', 'settings', 'retry'].map(name => [name, [100, 100]])), help_rect: region};
+const newLayout = structuredClone(oldLayout);
+newLayout.ui_route = 'wall-bottom-tray'; newLayout.checks = 53;
+for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm']) newLayout.points[name] = [100, 100];
+newLayout.regions = Object.fromEntries(['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text'].map(name => [name, {...region}]));
+newLayout.expected_cost = 35; newLayout.expected_segment = {height: 'half', material: 'sage_panels', paid_cost: 35, refund_credit: 17};
+check('historical recovery layout needs no current Wall tray controls', () => verifyLayout(oldLayout, 'old'));
+check('current bottom Wall tray coordinates and OCR regions bind', () => verifyLayout(newLayout, 'new'));
+for (const [label, mutate] of [
+  ['old floating-picker route', layout => {layout.ui_route = 'floating-wall-picker';}],
+  ['absent product paging target', layout => {delete layout.points.wall_next;}],
+  ['absent real wall card target', layout => {delete layout.points.wall_style;}],
+  ['non-finite pointer', layout => {layout.points.wall_style[0] = NaN;}],
+  ['offscreen pointer', layout => {layout.points.wall_style[0] = 1360;}],
+  ['offscreen card OCR', layout => {layout.regions.style_name.x = 1300;}],
+  ['missing selected product OCR', layout => {delete layout.regions.selected_height;}],
+  ['empty native result', layout => {layout.checks = 0;}],
+  ['failed native result', layout => {layout.failures = ['not visible'];}],
+  ['changed price', layout => {layout.expected_cost = 55;}],
+  ['wrong wall height', layout => {layout.expected_segment.height = 'full';}],
+  ['wrong wall material', layout => {layout.expected_segment.material = 'cream_stripe';}]
+]) check('layout contract rejects ' + label, () => {
+  const changed = structuredClone(newLayout); mutate(changed);
+  assert.throws(() => verifyLayout(changed, 'new'));
+});
+
+(async () => {
+  const calls = [];
+  await selectWallReplacement(async (name, delay) => {
+    assert(newLayout.points[name], 'Every browser action consumes a derived current-layout point');
+    calls.push(['click', name, delay]);
+  }, async (name, regions, phrases, retryTarget) => {
+    for (const key of Array.isArray(regions) ? regions : [regions]) assert(newLayout.regions[key], 'Every OCR guard consumes a derived visible region');
+    if (retryTarget) assert(newLayout.points[retryTarget]);
+    calls.push(['ocr', name, phrases, retryTarget]);
+  });
+  check('browser route pages before selecting the real card and opens review without paying', () => {
+    assert.deepEqual(calls.filter(call => call[0] === 'click').map(call => call[1]), ['decorate', 'wall', 'wall_next', 'wall_style', 'segment']);
+    assert.deepEqual(calls.map(call => call[0]), ['click', 'ocr', 'click', 'ocr', 'click', 'ocr', 'click', 'ocr', 'click', 'ocr']);
+    assert.deepEqual(calls.filter(call => call[0] === 'ocr').map(call => call[3]).filter(Boolean), ['build'], 'Only idempotent Build navigation is retried');
+    assert(calls.at(-1)[2].includes('You pay 35 coins'));
+  });
+  const stopped = [];
+  await assert.rejects(() => selectWallReplacement(async name => {stopped.push(name);}, async name => {
+    if (name === 'case-b-wall-product') throw Error('Missing visible half-wall product');
+  }), /Missing visible half-wall product/);
+  check('failed product visibility blocks selection, target and payment', () => assert.deepEqual(stopped, ['decorate', 'wall', 'wall_next']));
+  console.log(JSON.stringify({passed: true, checks, browser_verified: false, method: 'pure offline gate guards'}));
+})().catch(error => {console.error(error); process.exitCode = 1;});

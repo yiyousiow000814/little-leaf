@@ -143,10 +143,13 @@ func rotate():
 
 func actor_positions()->Array:
 	var result=[]
-	for index in game.staff_states.size():
-		var staff=game.staff_states[index];result.append(game.illustration._render_position("staff_%s"%index,staff.pos))
+	# Build validation uses occupied simulation cells, just like furniture edits.
+	# Visual service leans can cross a tile boundary (washing is .55 tiles)
+	# without moving the worker. Treating that pose as occupancy falsely seals
+	# the worker inside their sink/table and rejects unrelated walls/openings.
+	for staff in game.staff_states:result.append(staff.pos)
 	for guest in game.model.customers:
-		if str(guest.phase) not in ["dirty","cleaning"]:result.append(game.illustration._render_position("guest_%s"%guest.id,Vector2(float(guest.x),float(guest.z))))
+		if str(guest.phase) not in ["dirty","cleaning"]:result.append(Vector2(float(guest.x),float(guest.z)))
 	return result
 
 func _world(screen:Vector2)->Vector2:
@@ -229,8 +232,8 @@ func draw_shell_selection(view):
 	if host.is_empty():return
 	var shape=OpeningArt.segment_selection_geometry(view,host)
 	# Points are already projected to display coordinates. Subpixel coverage
-	# keeps this dark-gray outline light at every zoom, without a highlight fill.
-	view.draw_multiline(shape.edges,Color("444744"),.35,true)
+	# keeps this soft-gray outline light at every zoom, without a highlight fill.
+	view.draw_multiline(shape.edges,Color("8a8d88"),.35,true)
 
 func replacement_price_text()->String:
 	if replacement_quote.is_empty():return ""
