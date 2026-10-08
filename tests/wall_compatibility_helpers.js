@@ -43,6 +43,11 @@ function requireVisibleText(text, phrases) {
   const normalized = normalizedText(text);
   for (const phrase of phrases) assert(normalized.includes(normalizedText(phrase)), 'OCR inconclusive: required rendered text not found: ' + phrase);
 }
+// The back-button crop must contain the complete label as its own token.
+// Arrow punctuation is harmless; clipped "Buil", "Builder" and "Rebuild" are not.
+function requireWallBackText(text) {
+  assert(normalizedText(text).split(' ').includes('build'), 'OCR inconclusive: required complete back-button label not found: Build');
+}
 // Fail before opening a browser if a receipt describes an obsolete/hidden UI
 // route. The historical client only needs its unchanged recovery/toolbar path.
 function verifyLayout(layout, label) {
@@ -97,4 +102,4 @@ function progress(record) {
 function assertPreserved(before, after) {
   assert.equal(canonical(progress(after)), canonical(progress(before)), 'Wall products, openings, wallet, identity, provenance and receipts must survive');
 }
-module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, normalizedText, requireVisibleText, verifyLayout, selectWallReplacement, progress, assertPreserved};
+module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved};

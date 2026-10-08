@@ -97,7 +97,11 @@ func run():
   check(shop.build_page=="walls" and not ui.has_open_popup(),"real native Wall card opens bottom tray without a popup")
   check(shop._visible_build_keys().size()==6,"Wall tray exposes six complete height and finish products")
   result.regions.wall_heading=text_region(shop.tiles_title)
-  result.regions.wall_back=text_region(shop.tiles_back)
+  # The back button has asymmetric icon padding. Its full native bounds keep
+  # the complete label; a font-centered text estimate clips the final letter.
+  result.regions.wall_back=region(shop.tiles_back)
+  result.regions.wall_back.psm=7
+  result.regions.wall_back.scale=3
   # The desired half-wall card starts partly clipped. Page via the real arrow,
   # just as the browser does; do not derive a point from a hidden/clipped card.
   await click("wall_next",shop.product_next)

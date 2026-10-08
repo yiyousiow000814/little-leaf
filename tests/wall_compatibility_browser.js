@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('./engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '..');
 const fixtureDir = path.join(__dirname, 'fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -189,7 +189,8 @@ async function main() {
     report.inputs = {old_commit: contract.old_commit, new_commit: newCommit, fixture_sha256: contract.fixture_sha256,
       old_vault_sha256: hash(oldSource), new_vault_sha256: hash(newSource),
       export_files: {old: manifests.old.files, new: manifests.new.files}, preflight_sha256: hash(fs.readFileSync(path.join(layoutDir, 'preflight.json')))};
-    report.ocr = {version: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0]};
+    report.ocr = {version: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0],
+      wall_back: {psm: 7, scale: 3, thresholding_method: 2, thresholding_mode: 'sauvola'}};
     server = http.createServer((req, res) => {
       try {
         const pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
@@ -288,13 +289,18 @@ async function main() {
             input = path.join(output, name + '-' + spec.key + '-ocr-input.png');
             fs.writeFileSync(input, Buffer.from(bytes));
           }
-          texts.push(cp.execFileSync(tesseract, [input, 'stdout', '-l', 'eng', '--psm', String(spec.psm || 6)],
+          // The complete back button includes its illustrated border. Use a
+          // fixed local threshold mode for that crop only, never looser text.
+          const threshold = spec.key === 'wall_back' ? ['-c', 'thresholding_method=2'] : [];
+          texts.push(cp.execFileSync(tesseract, [input, 'stdout', '-l', 'eng', '--psm', String(spec.psm || 6), ...threshold],
             {encoding: 'utf8', timeout: Math.max(1000, Math.min(30000, deadline - Date.now())),
               env: {...process.env, OMP_THREAD_LIMIT: '1'}}));
         }
         const text = texts.join('\n');
         fs.writeFileSync(path.join(output, name + '-ocr.txt'), text);
         try {
+          const backIndex = regions.findIndex(spec => spec.key === 'wall_back');
+          if (backIndex >= 0) requireWallBackText(texts[backIndex]);
           requireVisibleText(text, phrases);
           check(true, name + ' rendered UI state verified before the next action');
           return;
