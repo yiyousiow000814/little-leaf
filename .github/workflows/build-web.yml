@@ -31,6 +31,8 @@ jobs:
         run: |
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
+          node tests/web_performance_lifecycle.js
+          node tests/boot_presentation.js
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
           node tests/save_log_observers.js

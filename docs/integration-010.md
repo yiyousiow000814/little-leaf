@@ -14,9 +14,11 @@ or permission to merge. Baseline v0.1.9 is exactly
 - PR #61: `f68a425f642c71ab891db150feb82c1cdd953bba`
 - PR #62: `58172e27469b281c466748a41cbfead26d04c58d`
 - PR #63: `790b059cdcaba0f051990c00f14b7b5440b4ea34`
-- PR #64: `07e9ab194a26c03f941b21663eacbe9393cfc576`, extending checkpoints
-  `fc3ad12c5d050a51cb76ef7d39317a21b3191f1e` and
-  `bf7cfaf45882dc1fb6412981993929aeed6e2f0f`
+- PR #64: `c3069e296044d7d2553c42faecccea8edf6de8f6`, extending
+  `cf89cda4db6183d4aa77f0b21322dbfd3bf7ba28` and previously integrated
+  `07e9ab194a26c03f941b21663eacbe9393cfc576`.
+- Cloud-only kerb refinement: `e58d9eb6de6ea6e02c8729b2fb6a8f90b5e65128`
+  from the isolated environment branch (locally reapplied as `033b240`).
 - PR #65: `7e473d96977843b6389f1a6b79aa549af43fc588`
 
 Merge ancestry includes #60 through #63 and #59 through #65 once each. The
@@ -48,9 +50,14 @@ seated patience remains 70/120 seconds. Refund session resets and Done remain.
 
 ## Open review gaps
 
-- Pan/cup visual rejections remain unresolved: the annotated image returned 403.
-- Environment review is pending. Parking purchase and customer car arrival are
-  unimplemented/disabled; static parked cars are scenery, not arrivals.
+- Pan reference images are now available. Actual local before/after renders
+  have been delivered for the bounded `2c993eda` source plus the pan-handle,
+  outside-queue bubble and single-control stove corrections through `c66fa72`.
+  These are not renders of the full cloud performance candidate; full-candidate,
+  cup and environment visual acceptance remains open.
+- Environment and parking visual review is pending. The four-bay fixed Decorate
+  purchase and same-ID customer car/queue/dining/return lifecycle are implemented;
+  see [parking](parking.md). Focused engine checks are not rendered acceptance.
 - Local Windows exports using --local-tools are smoke artifacts and cannot
   qualify as checksum-pinned release exports. Mandatory Linux CI remains.
 - Synthetic CPU profiles measure update work, not physical phone temperature.
@@ -76,3 +83,52 @@ geometry. Cafe-only Home/Fit and camera stability on Decorate/Done remain.
 The regression exercises real input dispatch, minimum/maximum zoom, supported
 portrait/landscape/desktop layouts and safe insets with synthetic state.
 This does not resolve frying-pan/cup visual rejection or accept environment art.
+
+## New cloud candidate, October 7 2026
+
+This candidate starts from remote PR66 `2ce3b2b`, imports the verified curve/grid
+changes above, and adds the cloud-only road-facing kerb refinement. It does not
+restore or overwrite the newer Windows-only `2c993eda` source or native media.
+That checkpoint has no confirmed cloud-readable source handoff; its exact
+unpushed diff remains unknown. The historical 55,202,137-byte recovery archive
+is bound to `2ce3b2b`, not `2c993eda`.
+
+The kerb adds continuous filled top/road-facing planes, with tapered dropped
+shoulders and a flush boarding opening. Fixed square paving, original palette,
+presentation visitors were retained in that earlier geometry checkpoint. The
+subsequent [parking integration](parking.md) adds separate customer authority.
+
+Independent integration regressions add both edges of both curved approach
+ends to ordinary min/max zoom, safe-inset, mouse pan, two-finger pan and pinch
+coverage. At `ea3d328`, these produced 15 reach failures. The new repair projects
+the actual cached pavement vertices into inspection bounds; `15df60b` passes
+all 1,228 checks. Cafe-only Fit, Decorate/Done camera stability and model
+authority are still asserted. This is newly implemented cloud source, not an
+assertion that it is byte-identical to the Windows repair.
+
+The untouched cloud baseline passed all 90 engine processes / 1,213,052 checks.
+Final candidate aggregate/export receipts must be bound to this new candidate;
+prior remote CI is not inherited evidence. New cloud graphical capture remains
+unverified because the available display/browser launch is blocked. The
+checked-in curve/grid images are historical feature evidence, not pictures of
+the new kerb. See the October 8 update below for later bounded local captures;
+full cloud-candidate visual acceptance remains open.
+
+No remote push, merge, release or deployment is part of this cloud checkpoint.
+
+## Bounded local visual follow-up, October 8 2026
+
+Checkpoint `c66fa723a789628fb61ac2ae041cf2dc93f03a4b` preserves the earlier
+rear-handle placement, removes outside-waiting queue bubbles, stops repainting
+the rear metal collar over the pan/wood grip, and uses one centered stove control.
+The checkpoint records 98 passing headless engine processes / 1,228,339 checks
+and 54 passing Python CI guards on that commit. This is historical evidence
+for `c66fa72`, not validation of later edits.
+
+Eight actual local synthetic before/after images were delivered for the bounded
+`2c993eda` source plus the prior handle correction and new three-fix production
+delta. The pan references are no longer blocked by the earlier HTTP 403. These
+images do not establish a full-source handoff of `2c993eda`, render the entire
+cloud performance candidate, or grant user acceptance of cups, environment art
+or the full candidate. Graphical performance and physical phone heat remain
+unverified. Release notes stay draft, and itch publication stays paused.

@@ -5,6 +5,17 @@ const Codec=preload("res://scripts/cafe_runtime_codec.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;model.reset_new();model.ensure_basic_bin();model.ensure_basic_register()
+class StreetDrawGame extends Node:
+ var model
+ var wall_detail=false
+class StreetDrawProbe extends "res://scripts/illustrated_cafe.gd":
+ var drawn_ids=[]
+ var bubbles=[]
+ func _ready():set_process(false)
+ func _draw():pass
+ func art_transform(_offset:Vector2,_rotation:float=0.0,_scale:Vector2=Vector2.ONE):pass
+ func character(_p:Vector2,id:int,_staff=false,_moving=false,_seated=false,_action="idle",_progress=0.0,_reach=Vector2(18,-28),_look=Vector2(1,0),_payload="none",_tool="none",_pose={},_role="chef"):drawn_ids.append(id)
+ func bubble(_p:Vector2,words:String):bubbles.append(words)
 var checks=0
 var failures=[]
 var roundtrips=0
@@ -34,6 +45,32 @@ func full_room():
  return model
 func queue_step(model,seconds:float):
  for frame in range(ceili(seconds/.1)):Queue.advance(model,.1)
+func check_queue_drawing(model):
+ # Exercise the actual exterior draw path without drawing pixels or loading a
+ # player profile. Removing a bubble must not hide its waiting customer.
+ var previous_size=root.size;root.size=Vector2i(1360,880)
+ var game=StreetDrawGame.new();game.model=model
+ var art=StreetDrawProbe.new();art.game=game;art.origin=Vector2(750,200);art.tile=Vector2(30,15)
+ root.add_child(art)
+ var before=encoded({"queue":model.outside_queue,"customers":model.customers})
+ check(model.outside_queue.all(func(v):return v.waiting),"bubble regression exercises settled waiting visitors")
+ for detail in [false,true]:
+  game.wall_detail=detail
+  for redraw in range(3):
+   art.drawn_ids.clear();art.bubbles.clear();art._draw_street_people(true)
+   for visitor in model.outside_queue:
+    check(art.drawn_ids.count(int(visitor.id))==1,"outside waiting visitor remains drawn exactly once")
+   check(art.bubbles.is_empty(),"outside queue never draws overhead waiting bubbles, including repeated/detail draws")
+ var visible_ids=art.drawn_ids.duplicate()
+ art.drawn_ids.clear();art.bubbles.clear();art._draw_street_people(false)
+ check(not model.outside_queue.any(func(v):return art.drawn_ids.has(int(v.id))),"hidden service still suppresses exterior customer bodies")
+ check(art.drawn_ids.is_empty(),"Decorate suppresses ambient pedestrians as well as exterior customers")
+ check(art.bubbles.is_empty(),"hidden service does not leave an orphan waiting bubble")
+ art._draw_street_people(true)
+ check(art.drawn_ids==visible_ids,"Done restores the same ambient pedestrians and exterior customers")
+ check(art.bubbles.is_empty(),"restoring exterior people does not restore waiting bubbles")
+ check(same(before,encoded({"queue":model.outside_queue,"customers":model.customers})),"bubble-free drawing preserves all queue and customer state")
+ art.free();game.free();root.size=previous_size
 func roundtrip(model,label:String):
  var path="user://outside-"+label+".json"
  check(model.save(path),label+" saves: "+model.last_error)
@@ -97,6 +134,7 @@ func run():
   slots[visitor.slot]=true
  check(slots.size()==6,"outside slots remain distinct")
  check(model.coins==wallet and model.total_earned==earned and model.served==served,"outside approach/wait creates no reward")
+ check_queue_drawing(model)
  roundtrip(model,"settled")
  var head=model.outside_queue[0];var at=Vector2(head.x,head.z);var id=int(head.id)
  var finished=model.customers[0];var freed_table=int(finished.table_id)

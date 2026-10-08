@@ -43,10 +43,11 @@ static func clamp_pan(pan:Vector2,base_origin:Vector2,tile:Vector2,width:float,d
 	var margin=Vector2(40,32)
 	var result=pan if pan.is_finite() else Vector2.ZERO
 	for axis in [0,1]:
-		var near_edge=view.position[axis]+margin[axis]-content.position[axis]
-		var far_edge=view.end[axis]-margin[axis]-content.end[axis]
-		# Large maps traverse the safe viewport; small maps may align within it.
-		# A fixed centre +/-32 clamp made low corner plots unreachable behind UI.
-		var inspection_slack=minf(view.size.y*.35,240.0) if axis==1 else 0.0
-		result[axis]=clampf(result[axis],minf(near_edge,far_edge)-inspection_slack,maxf(near_edge,far_edge)+inspection_slack)
+		# Let every content edge travel through the clear working area. Pinning
+		# the content's near edge to the view's near edge stops a drag while a
+		# wall is still beside the screen edge or behind the Decorate tray.
+		# Retain a finite overlap so the world cannot be lost offscreen.
+		var minimum=view.position[axis]+margin[axis]-content.end[axis]
+		var maximum=view.end[axis]-margin[axis]-content.position[axis]
+		result[axis]=clampf(result[axis],minf(minimum,maximum),maxf(minimum,maximum))
 	return result

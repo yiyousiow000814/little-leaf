@@ -21,7 +21,7 @@ upright and wind-swept forms. There is no added RNG or denser forest.
 
 ## Ownership and integration
 
-The rear lot is render-only: world `Rect2(-0.26,-8.7,12.26,4.9)`. Its entire depth
+The fixed exterior lot is a separately purchasable upgrade: world `Rect2(-0.26,-8.7,12.26,4.9)`. Its entire depth
 is negative, outside all current cafe floor/expansion cells. The mouth is
 `Rect2(-3.26,-5.7,3.0,1.8)`: one short flush crossing over the existing sidewalk,
 with a pedestrian strip marked through it. Aisle and bays lie within the lot. The lot ends at z=-3.8. At the normal isometric ratio, a full-height rear wall
@@ -31,24 +31,15 @@ by 20.2 pixels before camera scaling, so the entire lot and cars can be seen.
 The intervening strip remains lawn with three restrained low planting pockets.
 A 1.2-tile-wide pedestrian link occupies x=-0.26..0.94, z=-3.8..-0.26;
 no tall trees, planting obstacle or extra vehicle access road occupies it.
-Three parked vehicles are static scenery; the first bay remains visibly empty.
-They do not represent admitted customers or purchased parking.
+The initial unowned lot is empty. Its former three static parked props have been
+removed; after purchase only authoritative customer trips occupy the four bays.
 
-`exterior_environment.gd::parking_hooks()` exposes the lot, mouth, bay anchors and
-pedestrian exit. Both purchase and customer-parking flags are false, price is
-null, and parcel policy is pending. No catalog product, price, land purchase,
-save schema or customer allocation is added. The queue/customer worker must
-connect a later approved parking lifecycle to authoritative admissions; ambient
-cars must never be repurposed as guests without that integration.
-
-The suggested next decision is a dedicated exterior parking parcel covering this
-negative-depth lot. It preserves existing owned tiles and every expansion option.
-Approve its land price and fit-out price separately; neither is selected here.
-An alternative is an exterior permit that retains municipal parcel ownership,
-with only the parking fit-out purchased in Decorate. This also preserves cafe
-land, but requires a decision on whether the permit expires or remains permanent.
-Reusing any current cafe expansion parcel would require relocating the approved
-lot, so it does not match this layout.
+`exterior_environment.gd::parking_hooks()` exposes unchanged geometry with
+purchase/customer-parking enabled and the configurable 2,000-coin price. The
+selected product is a permanent fixed exterior upgrade, not a cafe expansion
+parcel or movable furniture. It has no separate land fee or recurring charge.
+See [parking behavior and save contract](parking.md) for same-session refunds,
+resale guards, shared demand/queue bounds and persistence.
 
 ## Runtime boundary
 
@@ -57,7 +48,9 @@ They recycle only at the unchanged remote road endpoints. The clock freezes
 when the road is offscreen and follows the existing edit/pause/intro/recovery/
 small-viewport activity gate. Drawing culls individual offscreen vehicles. The
 bus stands in a short lay-by outside those lanes. There are no physical bodies,
-timers, service records, reservations, wallet entries or saved traffic state.
+timers, service records, reservations, wallet entries or saved ambient traffic state.
+Real customer parking is separately owned by `cafe_parking.gd` and continues
+offscreen under the simulation clock.
 
 Trees join the existing depth-sorted entity list. The original owned-floor and
 visible-Decorate-parcel suppression applies to their ground anchors; planting
@@ -158,10 +151,89 @@ presentation, without interpolation. Cafe authority is frozen while only ambient
 presentation clocks advance. The rejected art-direction sample is not used.
 
 To reproduce, use `tests/capture_stop_motion.gd` in a disposable project/profile,
-with STOP_BEFORE_ART and STOP_BEFORE_ENV pointing at archived fc3ad12 comparison
+with STOP_BEFORE_ART and STOP_BEFORE_ENV pointing at archived previous-revision comparison
 fixtures, and STOP_MOTION_OUTPUT pointing at an existing workspace folder. The
 normal projection matches previous captures; the native close-up is 1240x760,
 origin (2200,600), tile (78,39), scale 2. Coordinate a graphics slot first.
 Full final engine regression: 78 processes, 1,186,448 checks passed. Focused stop,
 environment, expansion and street checks: 534,028 passed. Tests establish behavior;
 they do not establish user visual acceptance.
+
+## Authoritative annotated connection refinement
+
+The user supplied `libfile_5fc5f6982cbc8191a5fbde0aae7a2af8`,
+image(20261007-085459).png (1354x957, 155,658 bytes). The supported Library
+transfer succeeded, and its actual pixels were inspected against the native
+07e9ab1 scene. SHA-256: `4ea6b331ae2e40c0e489596322bf2139c3cdbc0e1ff977411e5d5acfefa37c0b`
+The exact identity and hash are also recorded in validation.json.
+Its four black annotations describe curved transitions along both the lawn-side
+pavement edge and the curb/bus-bay edge. Existing straight apron corners and short
+bay wedges have been replaced by smooth easing curves at both ends. Shelter,
+bus, waiting positions, parking layout and original illustrated palette stay fixed.
+
+Both edges start from ordinary sidewalk at z=1.9, reach the unchanged shelter
+plateau at z=4.9, leave it at z=11.3 and rejoin ordinary sidewalk at z=15.3.
+The cubic transition has zero slope at all joins and shoulders. Width stays at
+least three tiles; no paving enters the road's through lanes. Cached tile-row
+polygons and longitudinal seams follow the same curves, at height zero. The flush
+door gap and exactly three bounded original-character visitors remain intact.
+Walking checks now use the actual curved pavement boundary.
+
+Actual same-angle [normal before](environment-010/layout-before-curve.png) /
+[after](environment-010/after.png), [close-up before](environment-010/curve-before.png) /
+[after](environment-010/curve-after.png), and single-play native APNG
+[before](environment-010/curve-before-motion.png) / [after](environment-010/curve-after-motion.png)
+are preserved. Both sides include identical walking/waiting people. The native
+Library motion ZIP `libfile_8d3b0ba6c9d48191bafa11209986d60e` retains all 64 raw
+frames, four lossless APNGs, state records, a replay/scrub HTML viewer and SHA
+manifest: 18,291,766 bytes; SHA-256
+`a1fcd0e3f0fc3d84b253094fd6c8fbb9a1feb1cca4dea3eb174c7e0fc4614da2`.
+It contains sixteen actual samples at 0.5-second intervals, eight seconds at
+normal presentation speed, without interpolation. For reproduction, the current
+capture script uses archived 07e9ab1 before fixtures; older source archive versions
+retain their matching earlier capture scripts and comparison fixtures.
+
+Full final engine regression: 78 processes, 1,187,812 checks passed. Focused
+environment/stop/expansion/street suites: 535,392 checks passed. New checks cover
+join tangents, minimum pavement width, through-road preservation and valid tile/bay
+triangulation, alongside the full hour of bounded pedestrian routes. User visual
+acceptance is separate from these checks. No cafe model/economy/save changes.
+
+
+## Fixed original tile grid at curved edges
+
+The cf89cda close-up showed elongated tiles because each longitudinal seam was
+computed as the curved lawn edge plus a column offset. This moved a whole column
+sideways with every row, bending its grid and shearing the projected tiles. The
+actual before/after pixels were inspected; a generic geometry pass did not establish
+that the distorted grid looked correct. The cf89cda source, CI, image and restoration
+checkpoint remains preserved in native Library archive version4.
+
+The correction retains the same continuous outer curves, but places every field
+tile on the original fixed world grid: x origin -11.76, integer z rows, 1x1 cells.
+Cached cell polygons are intersections of those square cells with the unchanged
+curved row masks. Edge pieces are cut rather than enlarged. Longitudinal seams are
+straight constant-x segments clipped at the edge; shared seams are cached once.
+The ordinary approach sidewalk continues this same grid. Palette, ground height,
+shelter, bus, waiting positions, bounded people and parking are unchanged. No switch
+to concrete or removal of the approved outer transition was selected.
+
+Actual same-scale [enlarged before](environment-010/grid-before.png) /
+[after](environment-010/grid-after.png) show original regular isometric diamonds
+inside, with partial cut pieces only at the perimeter. [Normal before](environment-010/layout-before-grid.png) /
+[after](environment-010/after.png) retain the same camera. Lossless native single-play
+APNG [before](environment-010/grid-before-motion.png) /
+[after](environment-010/grid-after-motion.png) retain the same original characters.
+The native Library bundle `libfile_3178101bd3348191ac144f699272a5e0` contains all64 raw
+frames, four APNGs, HTML replay/scrub, position records and hash manifest:18,443,258
+bytes; SHA256 `644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd`.
+There are16 real samples at0.5-second intervals, eight seconds without interpolation.
+The before fixtures are exact cf89cda source with only fixed projection/reference
+preload changes. The current capture script supports that before/after comparison.
+
+Full final Godot regression:78 processes,1,188,387 checks passed. The five relevant
+suites within that run pass535,967 checks. New checks verify fixed1x1 cell bounds,
+clipping inside those cells, straight seams and unchanged original isometric tile
+sizes at both normal and enlarged projections. Actual pixel inspection supplements
+these checks; final user visual acceptance remains separate. No cafe economy, save,
+customer admission or authoritative queue changes.

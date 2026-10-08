@@ -77,6 +77,7 @@ var visual_timer = 0.0
 var material_cache = {}
 var item_nodes = {}
 var actor_nodes = {}
+var _legacy_staff_sync_pending=true
 var loading = false
 var staff_states = []
 # Runtime-only service ledger. No decorative loops: every job belongs to a live
@@ -115,6 +116,10 @@ var music_enabled = true
 var music_toggle: Button
 var detail_stats: Label
 var music_tween: Tween
+var music_positions={}
+var browser_suspended=false
+var _browser_process_mode=Node.PROCESS_MODE_INHERIT
+var _resume_frame=-1
 var cafe_intro
 var illustration: Node2D
 var interaction
@@ -163,9 +168,15 @@ func _ready():
 	web_lifecycle.start()
 	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
 	cafe_intro.start(self)
+	if OS.has_feature("web"):
+		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
+
+func _notify_first_web_frame():
+	# The HTML loader waits for a real frame, not just a resolved engine promise.
+	JavaScriptBridge.eval("if (window.LittleLeafBoot) window.LittleLeafBoot.firstFrameReady();")
 
 func _mark_platform_dirty():
 	platform_dirty_generation+=1
@@ -766,6 +777,7 @@ func _place_fresh_staff_at_posts():
 		_set_staff_art(staff,"standby",station,0.0,"none")
 
 func _on_window_close():
+	if settings_controls!=null:settings_controls.flush_preferences()
 	# Persist the same validated runtime transaction before an ordinary close.
 	# Isolated QA suppresses all writes and can still exit its own process.
 	if _save():get_tree().quit()
@@ -779,6 +791,11 @@ func _unsaved_progress_message()->String:
 	if not progress_unsaved or progress_save_error=="":return ""
 	var action="Open Settings → Quick help" if save_recovery_blocked else "Keep this page open; saving will retry" if web_save!=null else "Keep the game open; saving will retry"
 	return "Unsaved changes · "+progress_save_error+" · "+action
+
+func _autosave():
+	if OS.has_feature("web") and not OS.has_feature("crazygames") and web_save!=null:
+		return web_save.request_save(true)
+	return _save()
 
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
@@ -857,7 +874,26 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	if point==null: return Vector2i(-100,-100)
 	return Vector2i(floori(point.x),floori(point.z))
 
+func effective_frame_delta(delta:float)->float:
+	# Background time is never applied to simulation, earnings or presentation.
+	return 0.0 if browser_suspended or Engine.get_process_frames()<=_resume_frame else delta
+
+func set_browser_suspended(value:bool):
+	if value==browser_suspended:return
+	browser_suspended=value
+	if value:
+		if settings_controls!=null:settings_controls.flush_preferences()
+		_browser_process_mode=process_mode
+		if OS.has_feature("crazygames"):
+			var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
+			if platform!=null:platform.update(false)
+		process_mode=Node.PROCESS_MODE_DISABLED
+	else:
+		_resume_frame=Engine.get_process_frames()+1
+		process_mode=_browser_process_mode
+
 func _process(delta):
+	delta=effective_frame_delta(delta)
 	if OS.has_feature("web") and OS.has_feature("crazygames"):
 		var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
 		if platform!=null:
@@ -869,29 +905,36 @@ func _process(delta):
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
 			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
-	if cafe_intro!=null and cafe_intro.active:
+	var intro_active=cafe_intro!=null and cafe_intro.active
+	var world_delta=cafe_intro.motion_delta(delta) if intro_active else delta
+	if compact_ui!=null and compact_ui.viewport_too_small:
+		if intro_active:_music_tick(delta)
+		return
+	if intro_active and world_delta<=0.0:
 		_music_tick(delta);return
-	if compact_ui!=null and compact_ui.viewport_too_small:return
 	_sync_staff_duty()
-	if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())
-	if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
-	if compact_ui!=null:compact_ui.update_pointer()
-	if compact_ui!=null:compact_ui.tick_earnings(delta)
+	# The descent reveals live service, but still owns all player interaction.
+	if not intro_active:
+		if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())
+		if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
+		if compact_ui!=null:compact_ui.update_pointer()
+	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		_tick_live_service(delta*speed)
+		_tick_live_service(world_delta*speed)
 		# Resolve cooking/contact before deadlines and before any autosave.
-		_animate_staff(delta*speed)
+		_animate_staff(world_delta*speed)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
 		if OS.has_feature("crazygames"):_mark_platform_dirty()
-	visual_timer+=delta
-	save_timer+=delta
+	visual_timer+=world_delta
+	# First periodic save remains after entry, never during the title/descent.
+	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui(); _update_service_props()
-	if preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_save()
+	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
-	animation_time+=delta if not editing and not paused else 0.0
+	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
-	if is_instance_valid(ghost):
+	if not intro_active and is_instance_valid(ghost):
 		hover_cell=_floor_cell(get_viewport().get_mouse_position())
 		ghost.position=Vector3(hover_cell.x+.5,.04,hover_cell.y+.5)
 		ghost.rotation.y=rotation_step*PI/2
@@ -914,7 +957,10 @@ func _person(color: Color,apron=false) -> Node3D:
 func _update_people():
 	# The illustrated view reads model customers directly. Staff synchronization
 	# below still runs, but the disabled legacy renderer needs no customer meshes.
-	if not get_viewport().disable_3d:_update_legacy_customers()
+	if not get_viewport().disable_3d:
+		_update_legacy_customers()
+		_ensure_legacy_staff_visuals()
+	else:_legacy_staff_sync_pending=true
 	# Keep stable staff indices, including the former drink worker. Both
 	# waiters now take whole customer-facing tasks from start to finish.
 	var chef_count=0
@@ -929,6 +975,27 @@ func _update_people():
 		while present<model.staff_count(role):
 			if not _add_staff(role):break
 			present+=1
+
+func _legacy_staff_person(role:String)->Node3D:
+	return _person({"chef":Color("6d8b67"),"waiter":Color("ae8a5c"),"cleaner":Color("7d99a2"),"cashier":Color("b68b92")}[role],true)
+
+func _ensure_legacy_staff_visuals():
+	# Keep the stable placeholder Node3D identity used by restores/relocation.
+	# An explicitly enabled legacy view can lazily acquire its original art.
+	for staff in staff_states:
+		if _legacy_staff_sync_pending or staff.node.get_child_count()==0:
+			staff.node.position=Vector3(staff.pos.x,0.0,staff.pos.y)
+			var facing:Vector2=staff.get("art_heading",Vector2.ZERO)
+			if str(staff.get("art_action","idle")) not in ["walking","carrying_to_pass","carrying_plate","carrying_drink","carrying_dishes","carrying_trash"]:
+				var toward:Vector2=staff.get("art_target",staff.pos)-staff.pos
+				if toward.length_squared()>.000001:facing=toward
+			if facing.length_squared()>.000001:staff.node.rotation.y=atan2(facing.x,facing.y)
+		if staff.node.get_child_count()>0:continue
+		var visual=_legacy_staff_person(str(staff.role))
+		for child in visual.get_children():
+			visual.remove_child(child);staff.node.add_child(child)
+		visual.free()
+	_legacy_staff_sync_pending=false
 
 func _update_legacy_customers():
 	var alive = {}
@@ -976,7 +1043,7 @@ func _add_staff(role: String, restored_position=null) -> bool:
 			if staff.pos.distance_to(cashier_start)<.9:return false
 		for guest in model.customers:
 			if guest.phase not in ["dirty","cleaning"] and Checkout.point(guest).distance_to(cashier_start)<.9:return false
-	var n=_person({"chef":Color("6d8b67"),"waiter":Color("ae8a5c"),"cleaner":Color("7d99a2"),"cashier":Color("b68b92")}[role],true)
+	var n=Node3D.new() if get_viewport().disable_3d else _legacy_staff_person(role)
 	people.add_child(n)
 	var start=Vector2(7.5,1.5)
 	var found=false
@@ -1312,8 +1379,9 @@ func _staff_walkable(cell: Vector2i) -> bool:
 func _static_service_path(from: Vector2i, to: Vector2i) -> Array:
 	# Furniture-only reachability is stable while a layout is unchanged. Cache
 	# it with a hard size cap; actor bodies are not part of navigation.
-	if static_service_revision!=model.revision:
-		static_service_paths.clear();static_service_revision=model.revision
+	var geometry_key=hash(model.navigation_signature())
+	if static_service_revision!=geometry_key:
+		static_service_paths.clear();static_service_revision=geometry_key
 	var key=Vector4i(from.x,from.y,to.x,to.y)
 	if static_service_paths.has(key): return static_service_paths[key]
 	if static_service_paths.size()>=4096: static_service_paths.clear()
@@ -1626,6 +1694,7 @@ func _staff_route(index: int, destination: Vector2i) -> Array:
 	var staff=staff_states[index]
 	var start=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 	# Transit is constrained only by owned floor, furniture and walls.
+	var occupied=model.navigation_cells()
 	var frontier=[start]
 	var came={start:start}
 	var cursor=0
@@ -1639,7 +1708,7 @@ func _staff_route(index: int, destination: Vector2i) -> Array:
 			return path
 		for direction in [Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP]:
 			var next=cell+direction
-			if not _staff_walkable(next) or came.has(next) or model.edge_blocked(cell,next): continue
+			if next.x<1 or not model.is_floor_owned(next) or bool(occupied.get(next,false)) or came.has(next) or model.edge_blocked(cell,next): continue
 			came[next]=cell; frontier.append(next)
 	return []
 
@@ -1727,7 +1796,20 @@ func _set_staff_art(staff: Dictionary, action: String, target: Dictionary, phase
 			if action in ["sweeping","mopping"]:staff.art_target=floor_tasks.contact_target(floor_record,staff,action)
 	staff.art_station=staff.art_target
 
+func _staff_route_invalid(staff:Dictionary,geometry:Array)->bool:
+	var signature=[geometry,hash(staff.path)]
+	if staff.get("validated_route_signature",[])==signature:return false
+	var point:Vector2=staff.pos
+	for index in range(int(staff.index),staff.path.size()):
+		var cell:Vector2i=staff.path[index]
+		var next=Vector2(cell.x+.5,cell.y+.5)
+		if not _staff_walkable(cell) or model.segment_blocked(point,next):return true
+		point=next
+	staff.validated_route_signature=signature
+	return false
+
 func _animate_staff(delta: float):
+	if get_viewport().disable_3d:_legacy_staff_sync_pending=true
 	_sync_service_guests()
 	_refresh_idle_homes()
 	for staff in staff_states:staff.idle_return_delay=maxf(0.0,float(staff.get("idle_return_delay",0.0))-delta)
@@ -1756,6 +1838,8 @@ func _animate_staff(delta: float):
 	active_staff_passages.clear() # Retained runtime field; no physical transit claims.
 	var claimed=[]
 	var worked_stations={}
+	model.navigation_cells()
+	var route_geometry=model.navigation_signature()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		var target_item=_service_target(staff)
@@ -1770,13 +1854,7 @@ func _animate_staff(delta: float):
 		staff.yield_time=0.0
 		claimed.append(destination)
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
-		var route_invalid=false
-		var route_point:Vector2=staff.pos
-		for route_index in range(int(staff.index),staff.path.size()):
-			var route_cell:Vector2i=staff.path[route_index]
-			var next_point=Vector2(route_cell.x+.5,route_cell.y+.5)
-			if not _staff_walkable(route_cell) or model.segment_blocked(route_point,next_point): route_invalid=true; break
-			route_point=next_point
+		var route_invalid=_staff_route_invalid(staff,route_geometry)
 		if route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size()))):
 			staff.destination=destination
 			staff.path=_staff_route(index,destination)
@@ -1794,14 +1872,15 @@ func _animate_staff(delta: float):
 			if not blocked:
 				var direction=point-staff.pos
 				if direction.length()>.005:
-					staff.node.rotation.y=atan2(direction.x,direction.y); staff.art_heading=direction
+					if not get_viewport().disable_3d:staff.node.rotation.y=atan2(direction.x,direction.y)
+					staff.art_heading=direction
 				moved=staff.pos.distance_to(proposed)>.0001; staff.pos=proposed; staff.blocked_time=0.0
 				if staff.pos.distance_to(point)<.015: staff.index+=1
 			else:
 				staff.blocked_time+=delta
 		elif not at_destination: staff.blocked_time+=delta
 		staff.stalled_time=float(staff.get("stalled_time",0.0))+delta if not moved and not at_destination else 0.0
-		staff.node.position=Vector3(staff.pos.x,abs(sin(animation_time*11+index))*.025 if moved else 0.0,staff.pos.y)
+		if not get_viewport().disable_3d:staff.node.position=Vector3(staff.pos.x,abs(sin(animation_time*11+index))*.025 if moved else 0.0,staff.pos.y)
 		if staff.blocked_reason!="" and (not moved or target_item.is_empty()):
 			var blocked_item=model.get_item(int(staff.blocked_target_id))
 			# An intentionally unavailable stove is quiet during service.
@@ -1845,7 +1924,7 @@ func _animate_staff(delta: float):
 		_service_contact(staff,index,str(step.action),target_item,phase)
 		payload=_staff_payload(staff,index)
 		_set_staff_art(staff,str(step.action),target_item,phase,payload)
-		staff.node.rotation.y=atan2(staff.art_target.x-staff.pos.x,staff.art_target.y-staff.pos.y)
+		if not get_viewport().disable_3d:staff.node.rotation.y=atan2(staff.art_target.x-staff.pos.x,staff.art_target.y-staff.pos.y)
 		if staff.job_elapsed+0.000001<action_seconds: continue
 		if staff.job_kind=="wash":dishwashing.complete(staff);continue
 		if staff.job_kind=="floor":floor_tasks.complete_step(staff,index);continue
@@ -1878,6 +1957,11 @@ func _find_path(start: Vector2i,goal: Vector2i) -> Array:
 	return path
 
 func _update_service_props():
+	# Illustrated tableware reads the service ledger, never these hidden meshes.
+	if get_viewport().disable_3d:
+		for prop in service_props.values():prop.node.queue_free()
+		service_props.clear()
+		return
 	var present={}
 	for customer in model.customers:
 		var record=service_guests.get(int(customer.id),{})
@@ -1989,10 +2073,21 @@ func _switch_music(state: String):
 	for key in audio_players:
 		var p=audio_players[key]
 		if key==state:
-			if not p.playing: p.play()
+			if not p.playing: p.play(float(music_positions.get(key,0.0)))
 			music_tween.tween_property(p,"volume_db",-17.0,1.2)
 		else:
 			music_tween.tween_property(p,"volume_db",-60.0,1.2)
+	music_tween.finished.connect(_finish_music_crossfade.bind(state),CONNECT_ONE_SHOT)
+
+func _finish_music_crossfade(state:String):
+	# Killed/replaced fades must never stop the newly selected soundtrack.
+	if state!=music_state:return
+	for key in audio_players:
+		if key==state:continue
+		var player=audio_players[key]
+		if player.playing:
+			music_positions[key]=player.get_playback_position()
+			player.stop()
 
 func _music_tick(delta: float):
 	# Decorating pauses service, not its soundtrack. Leave the active player,

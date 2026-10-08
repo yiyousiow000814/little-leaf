@@ -176,11 +176,14 @@ static func advance(m,delta:float):
  if item.is_empty():
   for guest in waiting:guest.checkout_reason="Add the included register in Decorate"
   return
- var front=m.workface_cell(item);var back=rear(m,item);var slot=_optional_wait(m,item)
+ var front=m.workface_cell(item);var back=rear(m,item);var slot=NONE;var slot_checked=false
  for rank in range(waiting.size()):
   var guest:Dictionary=waiting[rank]
   guest.checkout_register_id=int(item.id)
   if not guest.get("mobility",{}).is_empty() or guest.phase in ["paying","checkout_walk"]:continue
+  # The optional standing slot cannot affect an already moving/paying guest,
+  # the head of the queue, or guests waiting seated beyond rank one.
+  if rank==1 and not slot_checked:slot=_optional_wait(m,item);slot_checked=true
   var destination=front if rank==0 else (slot if rank==1 else NONE)
   if destination==NONE:
    guest.checkout_reason="Waiting seated for the register";continue

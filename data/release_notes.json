@@ -6,7 +6,8 @@
   "label": "Cafe building, service and environment integration candidate",
   "new": [
     "Outside visitors wait in a separate queue before seated service begins.",
-    "Exterior environment candidate adds roadside scenery, ambient traffic and three presentation visitors walking/waiting/boarding/alighting at the sidewalk-connected bus stop; parking purchase and customer car arrivals remain disabled."
+    "Decorate offers a fixed four-bay parking upgrade for 2,000 coins. Real customers park, walk into the cafe or its existing queue, then return and drive away.",
+    "Exterior environment candidate adds roadside scenery, ambient traffic and three presentation visitors walking/waiting/boarding/alighting at the sidewalk-connected bus stop."
   ],
   "fixed": [
     "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",
@@ -16,7 +17,7 @@
     "Live shell geometry queries reuse revision-bound cache results; explicit proposed geometry remains uncached."
   ],
   "review_pending": [
-    "Pan handles and cups remain visually unapproved; the annotated rejection image returned HTTP 403.",
+    "Pan reference images are available. Actual local before/after renders cover the bounded 2c993eda source plus pan-handle, outside-queue bubble and single-control stove corrections through c66fa72; full cloud-candidate, cup and environment visual acceptance remains open.",
     "Environment layout and appearance await user review.",
     "Combined integration tests do not constitute visual approval or a physical phone heat measurement.",
     "itch.io publishing remains paused. No release or deployment is authorized by this candidate."

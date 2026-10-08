@@ -73,8 +73,8 @@ func entries(origin:Vector2,tile:Vector2,view:Rect2,under_roof:bool)->Array[Dict
 	result.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
 	return result
 static func walkable(p:Vector2)->bool:
-	if Neighborhood.STOP_PAD.has_point(p):return true
-	if p.y<4.9 or p.y>11.3:return p.x>=Neighborhood.OPPOSITE_LEFT and p.x<=Neighborhood.ROAD_LEFT and p.y>=Street.Z_MIN and p.y<=Street.Z_MAX
+	var edges=Neighborhood.pavement_edges(p.y)
+	if p.x>=edges.x and p.x<=edges.y and p.y>=Street.Z_MIN and p.y<=Street.Z_MAX:return true
 	return p.x>=Neighborhood.STOP_CURB and p.x<=Neighborhood.BUS_DOOR.x+.01 and p.y>=Neighborhood.BOARDING_GAP.x and p.y<=Neighborhood.BOARDING_GAP.y
 static func obstacles()->Array[Rect2]:
 	var shapes:Array[Rect2]=[Neighborhood.STOP_BENCH,Rect2(-13.34,5.75,.08,4.4),Rect2(-13.3,5.71,1.5,.08),Rect2(-10.77,10.98,.14,.14)]

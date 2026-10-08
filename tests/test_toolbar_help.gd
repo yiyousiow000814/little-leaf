@@ -28,10 +28,18 @@ func click(point:Vector2,touch=false):
    var event=InputEventMouseButton.new();event.position=point;event.global_position=point;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed;Input.parse_input_event(event)
   Input.flush_buffered_events();await process_frame
  await settle()
+func question_buttons(node:Node)->Array:
+ var found=[]
+ if node is Button and node.text=="?":found.append(node)
+ for child in node.get_children():found.append_array(question_buttons(child))
+ return found
 func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  await process_frame
  var ui=game.compact_ui;var hud=ui.hud
+ check(ui.settings_help.text=="Help & Updates","Settings capitalizes Updates")
+ check(question_buttons(game.ui).is_empty(),"removed catalogue question-mark control is not instantiated")
+ check(ui.update_badges.size()==3,"only Settings, Inbox and Settings Help keep unread badges")
  var cases=[Vector2i(960,540),Vector2i(1360,880),Vector2i(390,844),Vector2i(566,360),Vector2i(640,480),Vector2i(344,680),Vector2i(369,700),Vector2i(370,700),Vector2i(565,700),Vector2i(566,700),Vector2i(849,599),Vector2i(850,599),Vector2i(960,599),Vector2i(960,600),Vector2i(606,400)]
  for view in cases:
   root.size=view
@@ -47,6 +55,9 @@ func run():
    check(hud.wallet.get_global_rect().encloses(game.top_text.get_global_rect()),label+" balance text stays inside wallet")
    for editing in [false,true]:
     game.editing=editing;await settle()
+    check(question_buttons(ui.shop_ui.root).is_empty(),label+" no rightmost catalogue help control after layout")
+    if editing and view.x==1360 and not safe:
+     check(absf(ui.shop_ui.category_scroll.position.x-32)<.1 and absf(ui.shop_ui.category_scroll.size.x-(ui.shop_ui.root.size.x-64))<.1,label+" category strip reclaims removed help space")
     var controls=[game.business_button,game.pause_button,game.settings_controls.speed_buttons[0],game.settings_controls.speed_buttons[1],game.edit_button,ui.staff_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
     for i in controls.size():
@@ -86,7 +97,11 @@ func run():
    check(ui.help_panel.visible,label+" keyboard overview retains Help")
    await key(KEY_ESCAPE);check(not ui.help_panel.visible and not ui.help_scrim.visible,label+" Escape dismisses Help and scrim")
    check(hud.layout_host.mouse_behavior_recursive==Control.MOUSE_BEHAVIOR_INHERITED,label+" toolbar restored")
-   ui._show_help_from_settings();await settle()
+   game.settings.show();await settle()
+   for record in ui.themed_popups:
+    if record.panel==game.settings:record.scroll.ensure_control_visible(ui.settings_help)
+   await settle()
+   await click(ui.settings_help.get_global_rect().get_center(),safe)
    check(ui.help_done.text=="Back to Settings",label+" Settings return label")
    await click(ui.help_done.get_global_rect().get_center(),safe)
    check(game.settings.visible and not ui.help_panel.visible,label+" mouse/touch Back to Settings")

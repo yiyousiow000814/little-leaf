@@ -1,4 +1,12 @@
 extends Node2D
+const RenderVisibility=preload("res://scripts/cafe_render_visibility.gd")
+# Comparison switch; normal gameplay always culls conservatively.
+var use_screen_culling=true
+var use_idle_retention=true
+var use_background_cache=true
+var shell_draw_cache=preload("res://scripts/cafe_shell_draw_cache.gd").new()
+var background_cache=preload("res://scripts/cafe_background_cache.gd").new()
+var render_idle=preload("res://scripts/cafe_render_idle.gd").new()
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
@@ -125,7 +133,11 @@ func _ready():
 		use_cached_heads=not "--legacy-heads" in OS.get_cmdline_user_args()
 		if use_cached_heads:head_atlas.request(self)
 
+func _exit_tree():
+	background_cache.release()
+
 func _process(delta):
+	if is_instance_valid(game) and game.has_method("effective_frame_delta"):delta=game.effective_frame_delta(delta)
 	# Shop artwork is static. CanvasItem already schedules its initial draw;
 	# the retained commands stay valid when the tray is hidden/shown again.
 	if icon_kind!="":
@@ -137,12 +149,16 @@ func _process(delta):
 		set_process(false)
 		return
 	_update_street_pedestrians(delta)
-	update_motion(delta)
-	queue_redraw()
+	var motion_delta=delta
+	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
+		motion_delta=game.cafe_intro.motion_delta(delta)
+		if game.save_recovery_blocked or (game.compact_ui!=null and game.compact_ui.viewport_too_small):motion_delta=0.0
+	update_motion(motion_delta)
+	if not use_idle_retention or render_idle.needs_redraw(self):queue_redraw()
 func _update_street_pedestrians(delta:float):
 	if not is_instance_valid(game):return
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
-	if game.cafe_intro!=null and game.cafe_intro.active:active=false
+	if game.cafe_intro!=null and game.cafe_intro.active:delta=game.cafe_intro.motion_delta(delta)
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta*game.speed if active else 0.0
 	var queue_positions=[]
@@ -151,13 +167,22 @@ func _update_street_pedestrians(delta:float):
 	street_pedestrians.advance(step,queue_positions)
 	road_traffic.advance(step,origin,tile,get_viewport_rect())
 	bus_stop_pedestrians.advance(step,origin,tile,get_viewport_rect())
-	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED)
+	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
+
+func _parking_visits()->Array:
+	# Historical fixture controllers may use an older model. An unowned lot
+	# keeps its empty markings and never falls back to decorative parked cars.
+	var owned=game.model.get("parking_owned")
+	if not owned is bool or not owned:return []
+	var visits=game.model.get("parking_visits")
+	return visits if visits is Array else []
 
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
-	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect())
+	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
+	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -166,6 +191,9 @@ func _draw_street_people(show_service:bool):
 		entries.append({"position":position,"guest":guest})
 	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
 	for entry in entries:
+		if bool(entry.get("parking_car",false)):
+			Neighborhood.draw_oriented_car(self,entry.position,entry.heading,entry.color)
+			continue
 		var is_guest=entry.has("guest")
 		var actor=entry.guest if is_guest else entry
 		var key="guest_%s"%actor.id if is_guest else str(actor.key)
@@ -176,10 +204,10 @@ func _draw_street_people(show_service:bool):
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
-		if is_guest and str(actor.phase)=="outside_queue" and bool(actor.waiting):bubble(_character_bubble_anchor(int(actor.id),false,false,pose),"...")
 		art_transform(Vector2.ZERO)
 
-func _draw_bus_stop_people(under_roof:bool):
+func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
+	if not show_people:return
 	for actor in bus_stop_pedestrians.entries(origin,tile,get_viewport_rect(),under_roof):
 		var pose=bus_stop_pedestrians.motion.sample(actor.key)
 		var heading=pose.heading if pose.blend>.02 else actor.heading
@@ -572,15 +600,28 @@ func screen_to_world(p:Vector2)->Vector2:
 func screen_to_cell(p: Vector2) -> Vector2i:
 	return Vector2i(screen_to_world(p).floor())
 
+func render_bounds_visible(bounds:Rect2)->bool:
+	# Standalone/atlas artists and transformed inspection sheets retain artwork.
+	return not use_screen_culling or not is_instance_valid(game) or icon_kind!="" or _art_transform!=Transform2D.IDENTITY or RenderVisibility.visible(bounds,get_viewport_rect(),6.0)
+func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
+	# Wide guard includes shadows, tall heads, bubbles and tools. Include the
+	# target so reaching foregrounds survive when the owner's feet are outside.
+	var scale=ui_scale*zoom*(1.55 if is_instance_valid(game) and game.wall_detail else 1.0)
+	var bounds=RenderVisibility.local_bounds(anchor,scale,Rect2(-128,-192,256,272))
+	if extra.is_finite():bounds=bounds.merge(RenderVisibility.local_bounds(extra,scale,Rect2(-128,-192,256,272)))
+	return render_bounds_visible(bounds)
+
 func _draw():
 	render_contacts.clear()
 	if icon_kind!="":
+		background_cache.hide()
 		ui_scale=1; tile=Vector2(39,19.5); origin=Vector2.ZERO
 		art_transform(Vector2(49,57),0,Vector2(.80,.80))
 		item(icon_kind,Vector2.ZERO,icon_rotation,0)
 		art_transform(Vector2.ZERO)
 		return
-	if not is_instance_valid(game): return
+	if not is_instance_valid(game):
+		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
@@ -592,14 +633,16 @@ func _draw():
 	var gameplay_origin = origin
 	if game.cafe_intro!=null:origin+=game.cafe_intro.render_offset(size)
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
-	draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
-	_grass(size)
-	Neighborhood.draw_ground(self)
 	ground_art.prepare(game.model)
-	if use_batched_ground:ground_art.draw_pavement(self)
-	else:_draw_legacy_pavement(ground_view)
-	Neighborhood.draw_crossing(self)
-	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true),_draw_bus_stop_people.bind(false))
+	if not use_background_cache:background_cache.hide()
+	if not use_background_cache or not background_cache.update(self):
+		draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
+		_grass(size)
+		Neighborhood.draw_ground(self)
+		if use_batched_ground:ground_art.draw_pavement(self)
+		else:_draw_legacy_pavement(ground_view)
+		Neighborhood.draw_crossing(self)
+	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
 	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
@@ -633,8 +676,8 @@ func _draw():
 	_scenery_tree(Vector2(13.5,-.5),1.10)
 	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
-	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
-	OpeningArt.draw_shell(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
+	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
+	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
 	var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
 	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
 	game.build_tools.draw_shell_selection(self)
@@ -661,6 +704,7 @@ func _draw():
 			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
 	for entry in render_items:
 		var meal_offset=_meal_chair_offset(entry)
+		if not _render_anchor_visible(iso(entry.x+.5+meal_offset.x,entry.z+.5+meal_offset.y)):continue
 		var item_depth=float(entry.x+entry.z)+1+meal_offset.x+meal_offset.y
 		entities.append({"depth":-100 if entry.kind=="rug" else item_depth,"type":"item","entry":entry,"meal_offset":meal_offset})
 		if entry.kind in ["chair","bench"]:
@@ -672,6 +716,8 @@ func _draw():
 		if float(guest.x)>=0 and float(guest.z)>=0 and not str(guest.phase) in ["dirty","cleaning"]:
 			var dining=CheckoutArt.guest_action(guest,game.service_guests.get(int(guest.id),{}))=="eating"
 			var surface=game.model.get_item(int(guest.table_id) if dining else int(guest.get("checkout_register_id",-1)))
+			var target=Vector2.INF if surface.is_empty() else iso(float(surface.x)+.5,float(surface.z)+.5)
+			if not _render_anchor_visible(iso(render_pos.x,render_pos.y),target):continue
 			var body_depth=render_pos.x+render_pos.y+.15
 			var surface_depth=float(surface.get("x",-100)+surface.get("z",-100))+1.0
 			# Keep the torso behind the table, but its spoon above the real dish.
@@ -684,6 +730,8 @@ func _draw():
 		var render_pos=_render_position("staff_%s"%i,staff.pos)
 		var body_depth=render_pos.x+render_pos.y+.15
 		var target=game.model.get_item(int(staff.get("art_target_id",-1)))
+		var contact=staff.get("art_target",staff.get("art_station",staff.pos))
+		if not _render_anchor_visible(iso(render_pos.x,render_pos.y),iso(contact.x,contact.y)):continue
 		var staff_action=str(staff.get("art_action",""))
 		var interacting=staff_action in ["preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]
 		var target_depth=float(target.get("x",-100)+target.get("z",-100))+1.0
@@ -879,8 +927,8 @@ func prepare_grass(_size: Vector2):
 		# One finite field around the entire 18x18 map, with broad camera margins.
 		# Integer hashes supply stable gaps, offset, height and occasional paired
 		# tufts without RNG state, per-frame arrays, or physical/collision nodes.
-		for z in range(-32,52):
-			for x in range(-32,52):
+		for z in range(ExteriorExtent.GRASS_MIN,ExteriorExtent.GRASS_MAX):
+			for x in range(ExteriorExtent.GRASS_MIN,ExteriorExtent.GRASS_MAX):
 				# Leave the fixed street/pavement strip and its AA edge clear.
 				if x>=-6 and x<0:continue
 				var seed=posmod((x*73856093) ^ (z*19349663) ^ 41717,104729)
@@ -961,6 +1009,9 @@ func _tree(p: Vector2,s: float):
 	# value-only transforms preserve ground anchors and add no draw calls.
 	var horizontal_scale := -1.0 if is_equal_approx(s,.86) else (.92 if is_equal_approx(s,.78) else 1.0)
 	s*=ui_scale*zoom*(1.55 if is_instance_valid(game) and game.wall_detail else 1.0)
+	var crown_bounds=RenderVisibility.local_bounds(p,s,Rect2(-58,-145,116,152))
+	var shadow_bounds=Rect2(p+Vector2(2,0)-Vector2(35,11)*s,Vector2(70,22)*s)
+	if not render_bounds_visible(crown_bounds.merge(shadow_bounds)):return
 	# Its old two-pixel shadow offset is screen-relative, so keep it live.
 	ellipse(p+Vector2(2,0),Vector2(35,11)*s,Color(.45,.57,.32,.12))
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():

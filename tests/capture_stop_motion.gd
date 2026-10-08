@@ -14,8 +14,7 @@ class DetailArt extends "res://scripts/illustrated_cafe.gd":
 		var environment=before_environment if before else Neighborhood
 		environment.draw_ground(self)
 		environment.quad(self,-3.26,-30,-.26,30,"d7dcc2")
-		if before:environment.draw_props(self)
-		else:environment.draw_props(self,_draw_bus_stop_people.bind(true),_draw_bus_stop_people.bind(false))
+		environment.draw_props(self,_draw_bus_stop_people.bind(true),_draw_bus_stop_people.bind(false))
 func scene(before:bool)->Dictionary:
 	var view=SubViewport.new();view.size=Vector2i(1654,951);view.disable_3d=true;view.render_target_update_mode=SubViewport.UPDATE_ALWAYS
 	root.add_child(view);var game=CaptureGame.new();view.add_child(game);game.set_process(false);game.paused=false
@@ -26,7 +25,7 @@ func detail(before:bool,game)->Dictionary:
 	var view=SubViewport.new();view.size=Vector2i(1240,760);view.disable_3d=true;view.render_target_update_mode=SubViewport.UPDATE_ALWAYS
 	root.add_child(view);var art=DetailArt.new();art.game=game;art.before=before
 	if before:art.before_environment=load(OS.get_environment("STOP_BEFORE_ENV"))
-	if not before:art.bus_stop_pedestrians=game.illustration.bus_stop_pedestrians
+	art.bus_stop_pedestrians=game.illustration.bus_stop_pedestrians
 	view.add_child(art);return {"view":view,"art":art}
 func _initialize():run.call_deferred()
 func run():

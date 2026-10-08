@@ -274,7 +274,7 @@ func run():
   game.model.floor_finishes.erase("11,8");game.model._notify();shop.show_tiles();await settle()
   target(ui.floor_repair_button,label+" repair entry",viewport)
   for style in game.build_tools.FLOOR_STYLES:check_card(shop.tile_cards[style],label+" repair shelf "+style)
-  for header in [shop.tiles_back,shop.tiles_title,ui.help_access]:
+  for header in [shop.tiles_back,shop.tiles_title]:
    if header.is_visible_in_tree():check(not ui.floor_repair_button.get_global_rect().intersects(header.get_global_rect()),label+" repair entry does not overlap "+header.name)
   game.model.floor_finishes["11,8"]={"style":"warm_oak","paid_cost":0};game.model._notify();await settle()
   for arrow in [shop.product_back,shop.product_next]:

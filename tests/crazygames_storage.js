@@ -20,19 +20,32 @@ function harness(map=new Map()) {
 }
 (async()=>{
   let h=harness(),b=await h.client.boot();check(b.ok&&b.source==='fresh'&&b.revision===0,'fresh means SDK key truly absent');
+  check(b.inbox?.ok&&b.inbox.profileId===b.profileId&&b.inbox.revision===0&&b.inbox.paid.length===0&&b.inbox.deferred.length===0,'fresh verified platform save projects a true empty Inbox');
   check((await h.prefs.boot()).ok,'preferences boot exclusively through SDK');
   const result=await h.client.commit(payload,0,b.profileId);
   check(result.ok&&result.platformAccepted&&result.durable===false&&result.cloudConfirmed===false,'SDK acceptance never claims cloud or durability');
   check(result.revision===1,'submission advances guarded revision');
+  check(result.inbox?.ok&&result.inbox.profileId===b.profileId&&result.inbox.revision===1&&result.inbox.paid.length===0,'platform save acknowledgement retains empty Inbox at accepted revision');
+  check(JSON.parse(h.client.bootJson).inbox.revision===1,'serialized platform boot includes matching Inbox after save');
   check(!h.c.LittleLeafSaveLog.snapshot().some(e=>e.event==='save_confirmed'),'no false IndexedDB transaction confirmation');
   const original=h.map.get(KEY),restored=harness(h.map),r=await restored.client.boot();
   check(r.ok&&r.profileId===b.profileId&&r.revision===1&&r.payload===payload,'new fixture session restores exact SDK identity/revision/payload');
+  check(r.inbox?.ok&&r.inbox.revision===1&&r.inbox.paid.length===0,'reloaded empty platform Inbox remains available');
+  const receiptRecord=JSON.parse(original);
+  receiptRecord.campaigns={older:{coins:200,grantedAt:100,revision:1,status:'granted'},newer:{coins:300,grantedAt:200,revision:1,status:'granted'}};
+  receiptRecord.digest=await h.c.LittleLeafAuthorityCodec.hash(h.c.LittleLeafAuthorityCodec.fingerprint(receiptRecord));
+  const receiptMap=new Map([[KEY,JSON.stringify(receiptRecord)]]),letters=harness(receiptMap),letterBoot=await letters.client.boot();
+  check(letterBoot.ok&&letterBoot.inbox?.paid.map(x=>x.id).join(',')==='newer,older','only verified stored receipts become sorted platform letters');
+  check(letters.control.writes===0&&letterBoot.payload===payload,'reading platform letters never saves or credits money');
+  letterBoot.inbox.paid[0].coins=999;
+  const letterSave=await letters.client.commit(payload,1,letterBoot.profileId);
+  check(letterSave.inbox.paid[0].coins===300&&letterSave.creditedCoins===0&&letterSave.inbox.deferred.length===0,'display snapshot is detached and never grants compensation');
   check(h.prefs.writeText('[audio]\nvolume=42'),'preferences written through SDK');
   check(JSON.parse(h.map.get(PREFS)).text.includes('42'),'preferences in platform key');
   check((await h.client.commit(payload,0,b.profileId)).code==='REVISION_CONFLICT','stale revision cannot write');
   for(const mode of ['init','read','corrupt','nonstring']){
     const x=harness();if(mode==='init')x.control.initError=true;if(mode==='read')x.control.getError=true;if(mode==='corrupt')x.map.set(KEY,'{broken');if(mode==='nonstring')x.map.set(KEY,{});
-    const boot=await x.client.boot();check(!boot.ok&&!x.c.LittleLeafPlatform.ready,'load failure blocks fresh gameplay: '+mode);check(x.control.writes===0,'load failure never writes empty replacement: '+mode);
+    const boot=await x.client.boot();check(!boot.ok&&!x.c.LittleLeafPlatform.ready,'load failure blocks fresh gameplay: '+mode);check(!boot.inbox,'failed platform read cannot pretend Inbox is empty: '+mode);check(x.control.writes===0,'load failure never writes empty replacement: '+mode);
   }
   h=harness();b=await h.client.boot();let before=h.map.get(KEY);h.control.setError=true;
   check(!(await h.client.commit(payload,0,b.profileId)).ok,'SDK write exception stays failure');check(h.map.get(KEY)===before,'write failure leaves prior value');

@@ -1,6 +1,8 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
+const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Parking=preload("res://scripts/cafe_parking.gd")
 const Greenery=preload("res://scripts/environment_greenery.gd")
 static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
@@ -20,48 +22,201 @@ const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
 const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
 const STOP_CURB=-10.55
-const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
+const STOP_APPROACH=Vector2(1.9,15.3)
+const STOP_CURVE_STEPS=8
+const KERB_WIDTH=.10
+const KERB_DROP=3.5
+const KERB_RAMP=.30
 const BOARDING_GAP=Vector2(9.65,10.7)
+static var stop_rows=build_stop_rows()
+static var stop_paving=build_stop_paving()
+static var stop_grid=build_stop_grid()
+static var stop_edges=build_stop_edges()
+static var stop_kerb=build_stop_kerb()
+const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
 const BUS_POSITION=Vector2(-9.55,8.1)
 const BUS_DOOR=Vector2(-10.345,10.1)
 const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
 const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
 const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
-const POCKETS=[Vector2(-13,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
+const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func inspection_bounds(tile:Vector2)->Rect2:
-	# Bounded authored landmarks may be inspected with normal pan controls.
+	# The entire finite painted scene remains inspectable at every zoom, not
+	# only the cafe and nearby landmarks. Reuse the actual drawing extents so
+	# the far street, both pavements and grass cannot disappear behind a clamp.
 	# This affects traversal only; Fit continues to frame the owned cafe.
 	var bounds=Rect2(Vector2.ZERO,Vector2.ZERO)
 	var first=true
-	for ground in [LOT,MOUTH,PEDESTRIAN_LINK,STOP_PAD,SHELTER_ROOF]:
+	var street=Rect2(ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT-ROAD_LEFT,Extent.STREET_Z_MAX-Extent.STREET_Z_MIN).grow(1.25)
+	var pavements=Rect2(OPPOSITE_LEFT,Extent.PAVEMENT_Z_MIN,-OPPOSITE_LEFT,Extent.PAVEMENT_Z_MAX-Extent.PAVEMENT_Z_MIN)
+	var grass=Rect2(Extent.GRASS_MIN,Extent.GRASS_MIN,Extent.GRASS_MAX-Extent.GRASS_MIN,Extent.GRASS_MAX-Extent.GRASS_MIN)
+	for ground in [street,pavements,grass,LOT,MOUTH,PEDESTRIAN_LINK,STOP_PAD,SHELTER_ROOF]:
 		for point in [ground.position,Vector2(ground.end.x,ground.position.y),ground.end,Vector2(ground.position.x,ground.end.y)]:
 			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
 			bounds=Rect2(projected,Vector2.ZERO) if first else bounds.expand(projected)
 			first=false
+	# Curved approaches extend beyond STOP_PAD. Traverse their actual cached
+	# pavement vertices so both ends remain reachable through normal controls.
+	for row in stop_rows:
+		for point in row.points:
+			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
+			bounds=bounds.expand(projected)
 	# Include the shelter/people silhouette and a small inspection edge.
 	return bounds.grow_individual(24*tile.x/39.0,(SHELTER_HEIGHT+24)*tile.x/39.0,24*tile.x/39.0,24*tile.x/39.0)
 
 static func parking_hooks()->Dictionary:
-	# A future Decorate product must supply an approved parcel/price policy.
-	# These anchors are geometry, never admission routes or owned cafe tiles.
+	# Fixed exterior upgrade metadata; ownership and all real admissions live
+	# in the model. These anchors never become owned cafe floor tiles.
 	var bays:Array[Vector2]=[]
 	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
-	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":false,"customer_parking_enabled":false,"price":null,"parcel_policy":"pending"}
+	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
-	a.poly([a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)],color)
+	var points=[a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)]
+	if not screen_visible(a,Visibility.points_bounds(points)):return
+	a.poly(points,color)
+static func screen_visible(a,bounds:Rect2)->bool:
+	return not a.has_method("render_bounds_visible") or a.render_bounds_visible(bounds)
+static func world_bounds(a,footprint:Rect2,height:float)->Rect2:
+	var points=[]
+	for x in [footprint.position.x,footprint.end.x]:
+		for z in [footprint.position.y,footprint.end.y]:
+			points.append(a.iso(x,z));points.append(a.iso(x,z,height))
+	return Visibility.points_bounds(points).grow(12*a.ui_scale*a.zoom)
+
+
+static func stop_blend(z:float)->float:
+	var t=1.0
+	if z<STOP_PAD.position.y:t=clampf((z-STOP_APPROACH.x)/(STOP_PAD.position.y-STOP_APPROACH.x),0,1)
+	elif z>STOP_PAD.end.y:t=clampf((STOP_APPROACH.y-z)/(STOP_APPROACH.y-STOP_PAD.end.y),0,1)
+	return t*t*(3.0-2.0*t)
+
+static func pavement_edges(z:float)->Vector2:
+	var blend=stop_blend(z)
+	return Vector2(lerpf(OPPOSITE_LEFT,STOP_PAD.position.x,blend),lerpf(ROAD_LEFT,STOP_CURB,blend))
+
+static func build_stop_rows()->Array[Dictionary]:
+	# Cached world polygons retain ordinary tile rows while both edges ease
+	# into the stop. No disconnected rectangular apron or sharp bay wedges.
+	var rows:Array[Dictionary]=[]
+	for z in range(floori(STOP_APPROACH.x),ceili(STOP_APPROACH.y)):
+		var start=maxf(z,STOP_APPROACH.x);var finish=minf(z+1,STOP_APPROACH.y)
+		var left=[];var right=[]
+		for i in range(STOP_CURVE_STEPS+1):
+			var depth=lerpf(start,finish,float(i)/STOP_CURVE_STEPS);var edges=pavement_edges(depth)
+			left.append(Vector2(edges.x,depth));right.push_front(Vector2(edges.y,depth))
+		rows.append({"points":left+right,"color":"dfe0c8" if posmod(z,2)==0 else "d7dcc2"})
+	return rows
+
+static func build_stop_paving()->Array[Dictionary]:
+	# Square world cells keep the original grid phase/orientation. The same
+	# curved outline clips edge cells; it never drags a whole tile sideways.
+	var tiles:Array[Dictionary]=[]
+	for row in stop_rows:
+		var z=floori(row.points[0].y)
+		for column in range(floori(STOP_PAD.position.x-OPPOSITE_LEFT),ceili(ROAD_LEFT-OPPOSITE_LEFT)):
+			var bounds=Rect2(Vector2(OPPOSITE_LEFT+column,z),Vector2.ONE)
+			var square=PackedVector2Array([bounds.position,Vector2(bounds.end.x,bounds.position.y),bounds.end,Vector2(bounds.position.x,bounds.end.y)])
+			for polygon in Geometry2D.intersect_polygons(square,PackedVector2Array(row.points)):
+				var full=polygon.size()==4
+				for corner in square:
+					var found=false
+					for point in polygon:found=found or point.is_equal_approx(corner)
+					full=full and found
+				tiles.append({"points":Array(polygon),"color":row.color,"bounds":bounds,"full":full})
+	return tiles
+
+static func build_stop_grid()->Array:
+	# Only straight fixed-x seams. Integer-z cross seams are drawn by the
+	# existing sidewalk row loop. Shared tile edges are cached just once.
+	var seams=[];var seen={}
+	for tile in stop_paving:
+		for i in range(tile.points.size()):
+			var p:Vector2=tile.points[i];var q:Vector2=tile.points[(i+1)%tile.points.size()]
+			if absf(p.x-q.x)>.00001 or p.distance_to(q)<.00001:continue
+			if absf((p.x-OPPOSITE_LEFT)-roundf(p.x-OPPOSITE_LEFT))>.00001:continue
+			var low=minf(p.y,q.y);var high=maxf(p.y,q.y)
+			var key="%d/%d/%d"%[roundi(p.x*100000),roundi(low*100000),roundi(high*100000)]
+			if seen.has(key):continue
+			seen[key]=true;seams.append([Vector2(p.x,low),Vector2(p.x,high)])
+	return seams
+
+static func build_stop_edges()->Array[Vector2]:
+	var points:Array[Vector2]=[]
+	var cuts=[STOP_APPROACH.x,STOP_PAD.position.y,STOP_PAD.end.y,STOP_APPROACH.y]
+	for segment in range(3):
+		var count=ceili((cuts[segment+1]-cuts[segment])*STOP_CURVE_STEPS)
+		for i in range(count):
+			var z=lerpf(cuts[segment],cuts[segment+1],float(i)/count)
+			points.append(Vector2(pavement_edges(z).y,z))
+	points.append(Vector2(ROAD_LEFT,STOP_APPROACH.y))
+	return points
+
+static func kerb_drop(z:float)->float:
+	# Short dropped-kerb shoulders terminate at a genuinely flush bus door.
+	if z>=BOARDING_GAP.x and z<=BOARDING_GAP.y:return 0.0
+	var distance=BOARDING_GAP.x-z if z<BOARDING_GAP.x else z-BOARDING_GAP.y
+	return KERB_DROP*clampf(distance/KERB_RAMP,0.0,1.0)
+
+static func build_stop_kerb()->Array[Dictionary]:
+	var strips:Array[Dictionary]=[]
+	# Retain the same boundary right along the straight approaches. Exact
+	# ramp and opening endpoints prevent a small sliver across the doorway.
+	var cuts=[float(Extent.PAVEMENT_Z_MIN),STOP_APPROACH.x,STOP_PAD.position.y,BOARDING_GAP.x-KERB_RAMP,BOARDING_GAP.x,BOARDING_GAP.y,BOARDING_GAP.y+KERB_RAMP,STOP_PAD.end.y,STOP_APPROACH.y,float(Extent.PAVEMENT_Z_MAX)]
+	for segment in range(cuts.size()-1):
+		var start:float=cuts[segment];var finish:float=cuts[segment+1]
+		if start>=BOARDING_GAP.x and finish<=BOARDING_GAP.y:continue
+		var curved=(start>=STOP_APPROACH.x and finish<=STOP_PAD.position.y) or (start>=STOP_PAD.end.y and finish<=STOP_APPROACH.y)
+		var count=maxi(1,ceili((finish-start)*STOP_CURVE_STEPS)) if curved else 1
+		for i in range(count):
+			var z0=lerpf(start,finish,float(i)/count);var z1=lerpf(start,finish,float(i+1)/count)
+			var p=Vector2(pavement_edges(z0).y,z0);var q=Vector2(pavement_edges(z1).y,z1)
+			strips.append({"outer":[p,q],"inner":[p-Vector2(KERB_WIDTH,0),q-Vector2(KERB_WIDTH,0)],"drop":Vector2(kerb_drop(z0),kerb_drop(z1))})
+	return strips
+
+static func kerb_planes(a)->Array[Dictionary]:
+	var planes:Array[Dictionary]=[]
+	for span in [Vector2(Extent.PAVEMENT_Z_MIN,BOARDING_GAP.x),Vector2(BOARDING_GAP.y,Extent.PAVEMENT_Z_MAX)]:
+		var outer=[];var inner=[];var lower=[]
+		for strip in stop_kerb:
+			if strip.outer[0].y<span.x or strip.outer[1].y>span.y:continue
+			for i in range(2):
+				var p:Vector2=strip.outer[i];var q:Vector2=strip.inner[i]
+				var top=a.iso(p.x,p.y)
+				if not outer.is_empty() and outer.back()==top:continue
+				outer.append(top);inner.push_front(a.iso(q.x,q.y))
+				# Do not duplicate flush endpoints in the tapered face polygon.
+				if strip.drop[i]>0:lower.push_front(a.iso(p.x,p.y,-strip.drop[i]))
+		planes.append({"top":outer+inner,"face":outer+lower})
+	return planes
+
+static func draw_kerb(a):
+	# Four continuous filled polygons avoid the AA cross-lines that separate
+	# tiny outlined quads would leave along a curved kerb.
+	for plane in kerb_planes(a):
+		if screen_visible(a,Visibility.points_bounds(plane.face)):a.poly(plane.face,"a4b09b")
+		if screen_visible(a,Visibility.points_bounds(plane.top)):a.poly(plane.top,"d0d4be")
+
+static func projected(a,points:Array)->Array:
+	var result=[]
+	for point in points:result.append(a.iso(point.x,point.y))
+	return result
 
 static func draw_ground(a):
 	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
 		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
-	# The shelter widens the SAME level pavement to the lawn side, not a
-	# disconnected raised slab. Its tile rows meet the original sidewalk rows.
-	for z in range(4,12):
-		quad(a,STOP_PAD.position.x,maxf(z,STOP_PAD.position.y),OPPOSITE_LEFT,minf(z+1,STOP_PAD.end.y),"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
-	# Short opposite-side bus lay-by, leaving the through lane unobstructed.
-	a.poly([a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8)],"8b9b90")
+	# The reference's four marked edges ease into the same public sidewalk.
+	# The bay first clears original paving; curved tile strips then cover its
+	# lawn side. The through road and shelter/waiting positions stay fixed.
+	var stop_polygon=projected(a,stop_edges)
+	# At distant zoomed-in map edges this long curve is fully offscreen.
+	# Skip its needless large-coordinate triangulation, as for nearby quads.
+	if screen_visible(a,Visibility.points_bounds(stop_polygon)):a.poly(stop_polygon,"8b9b90")
+	for row in stop_paving:
+		var points=projected(a,row.points)
+		if screen_visible(a,Visibility.points_bounds(points)):a.poly(points,row.color)
 	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
@@ -72,16 +227,18 @@ static func draw_ground(a):
 	# Open lawn separates the lot from the wall; only one short pedestrian link.
 	quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
 	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
-		var near_stop=z>=5 and z<=11
-		var p=a.iso(STOP_PAD.position.x if near_stop else OPPOSITE_LEFT,z)
-		var q=a.iso(STOP_CURB if near_stop else ROAD_LEFT,z)
+		var edges=pavement_edges(z)
+		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
-	for x in [-12.76,-11.76,-10.76]:a.line(a.iso(x,4.9),a.iso(x,11.3),"c5cbb3",.7)
-	# A continuous curb edge bends into the bay; the door opening is flush.
-	a.line(a.iso(ROAD_LEFT,4.4),a.iso(STOP_CURB,4.9),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,4.9),a.iso(STOP_CURB,BOARDING_GAP.x),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,BOARDING_GAP.y),a.iso(STOP_CURB,11.3),"bdc7af",1.4*a.ui_scale)
-	a.line(a.iso(STOP_CURB,11.3),a.iso(ROAD_LEFT,11.8),"bdc7af",1.4*a.ui_scale)
+	for seam in stop_grid:a.line(a.iso(seam[0].x,seam[0].y),a.iso(seam[1].x,seam[1].y),"c5cbb3",.7)
+	# The ordinary field keeps the same fixed square grid on both approaches.
+	for x in [OPPOSITE_LEFT+1,OPPOSITE_LEFT+2]:
+		for span in [Vector2(Extent.PAVEMENT_Z_MIN,STOP_APPROACH.x),Vector2(STOP_APPROACH.y,Extent.PAVEMENT_Z_MAX)]:
+			a.line(a.iso(x,span.x),a.iso(x,span.y),"c5cbb3",.7)
+	# Paving remains at its existing level. A narrow cap occupies only the
+	# pavement edge; its road-facing riser drops below that plane, so there is
+	# no floating raised strip or change to the authored sidewalk silhouette.
+	draw_kerb(a)
 
 static func draw_crossing(a):
 	quad(a,MOUTH.position.x,MOUTH.position.y,MOUTH.end.x,MOUTH.end.y,"919f92")
@@ -93,12 +250,15 @@ static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Ca
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
-	for i in range(1,4):draw_car(a,Vector2(BAY_CENTERS[i],-7.15),1,"a2b3b3" if i==2 else "ddcdb0")
 	draw_shelter(a,under_roof)
 	if front_people.is_valid():front_people.call()
 	draw_bus(a,BUS_POSITION)
 
 static func draw_shelter(a,under_roof:Callable=Callable()):
+	if not screen_visible(a,world_bounds(a,Rect2(-14,5,4,7),88)):
+		# People keep their own visibility and the same depth-order callback.
+		if under_roof.is_valid():under_roof.call()
+		return
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -135,7 +295,54 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
 
+# The existing passenger-car illustration is shared with ambient road traffic.
+# Parking routes turn between the road, transverse aisle and longitudinal bays;
+# transform world anchors, not the finished isometric image, so height stays up.
+class CarProjection extends RefCounted:
+	var source
+	var position:Vector2
+	var transverse=Vector2.RIGHT
+	var longitudinal=Vector2.DOWN
+	var direction=1
+	var ui_scale:float
+	var zoom:float
+	func _init(artist,at:Vector2,heading:Vector2):
+		source=artist;position=at;ui_scale=artist.ui_scale;zoom=artist.zoom
+		if absf(heading.x)>absf(heading.y):
+			transverse=Vector2.DOWN;longitudinal=Vector2.RIGHT
+			direction=-1 if heading.x<0 else 1
+		else:direction=-1 if heading.y<0 else 1
+	func iso(x:float,z:float,h:float=0.0)->Vector2:
+		var point=position+transverse*x+longitudinal*z
+		return source.iso(point.x,point.y,h)
+	func render_bounds_visible(bounds:Rect2)->bool:
+		return not source.has_method("render_bounds_visible") or source.render_bounds_visible(bounds)
+	func poly(points:Array,color):source.poly(points,color)
+	func rounded_poly(points:Array,radius:float,color):source.rounded_poly(points,radius,color)
+	func ellipse(point:Vector2,size:Vector2,color):source.ellipse(point,size,color)
+
+static func parking_cars(visits:Array)->Array[Dictionary]:
+	# No decorative stand-ins: one visible vehicle follows each live visit from
+	# arrival until the authoritative return drive releases the bay.
+	var entries:Array[Dictionary]=[]
+	for visit in visits:
+		if str(visit.get("phase","")) not in Parking.PHASES:continue
+		var position=visit.get("car_position")
+		var heading=visit.get("car_heading",Vector2.DOWN)
+		if not position is Vector2 or not heading is Vector2:continue
+		if not position.is_finite() or not heading.is_finite():continue
+		var id=int(visit.id)
+		entries.append({"parking_car":true,"id":id,"position":position,"heading":heading,"color":"a2b3b3" if posmod(id,3)==0 else "ddcdb0"})
+	return entries
+
+static func draw_oriented_car(a,p:Vector2,heading:Vector2,color):
+	var projection=CarProjection.new(a,p,heading)
+	# draw_car's conservative bounds pass through the same world transform;
+	# horizontal cars cannot disappear because of a vertical-only culling box.
+	draw_car(projection,Vector2.ZERO,projection.direction,color)
+
 static func draw_car(a,p:Vector2,direction:int,color):
+	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
 	var half=.60;var length=1.1
 	quad(a,p.x-half,p.y-length,p.x+half,p.y+length,Color(.35,.42,.33,.14))
 	for z in [-length*.67,length*.67]:
@@ -162,6 +369,7 @@ static func bus_face(a,p:Vector2,x:float,z0:float,z1:float,h0:float,h1:float,col
 	a.rounded_poly([bus_point(a,p,x,z0,h0),bus_point(a,p,x,z1,h0),bus_point(a,p,x,z1,h1),bus_point(a,p,x,z0,h1)],radius*a.ui_scale*a.zoom,color)
 
 static func draw_bus(a,p:Vector2):
+	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(1,2.85),Vector2(2,5.7)),60)):return
 	# A dedicated original 2D illustration, not an elongated passenger car.
 	var scale=a.ui_scale*a.zoom;var half=.77;var length=2.60
 	quad(a,p.x-.85,p.y-2.7,p.x+.85,p.y+2.7,Color(.35,.42,.33,.16))

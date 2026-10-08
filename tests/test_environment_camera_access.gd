@@ -78,7 +78,7 @@ func run():
    for close in [false,true]:
     key(KEY_HOME)
     for tick in range(48):key(KEY_PLUS if close else KEY_MINUS)
-    for landmark in [["stop",Vector2(-12,8.3)],["door",Vector2(-10.345,10.1)],["stop far corner",Vector2(-13.65,11.3)],["parking",Vector2(6,-6.5)],["parking far corner",Vector2(12,-8.7)]]:
+    for landmark in [["stop",Vector2(-12,8.3)],["door",Vector2(-10.345,10.1)],["stop far corner",Vector2(-13.65,11.3)],["parking",Vector2(6,-6.5)],["parking far corner",Vector2(12,-8.7)],["approach start lawn edge",Vector2(-11.76,1.9)],["approach start road edge",Vector2(-8.76,1.9)],["approach end lawn edge",Vector2(-11.76,15.3)],["approach end road edge",Vector2(-8.76,15.3)]]:
      var safe=art.camera_safe_rect()
      drag(landmark[1])
      check(is_equal_approx(art.zoom,art.camera_zoom_limits().y if close else art.camera_zoom_limits().x),"pan preserves minimum/maximum inspection zoom")
@@ -97,7 +97,7 @@ func run():
      check(signature()==original,"camera inspection preserves model authority")
      rows.append({"viewport":str(view),"close":close,"landmark":landmark[0],"zoom":art.zoom,"scale":art.ui_scale*art.zoom,"at":str(at),"safe":str(safe),"reachable":safe.grow(-12).has_point(at),"over_ui":game.interaction._over_ui(at)})
    if view.x<650:
-    for target in [Vector2(-12,8.3),Vector2(-13.65,11.3),Vector2(6,-6.5),Vector2(12,-8.7)]:
+    for target in [Vector2(-12,8.3),Vector2(-13.65,11.3),Vector2(6,-6.5),Vector2(12,-8.7),Vector2(-11.76,1.9),Vector2(-8.76,1.9),Vector2(-11.76,15.3),Vector2(-8.76,15.3)]:
      key(KEY_HOME)
      for tick in range(48):key(KEY_MINUS)
      touch_pan(target)
