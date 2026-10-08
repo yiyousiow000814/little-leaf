@@ -18,6 +18,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
+    ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
+    ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
     ("test_shell_segment_codec", "SHELL_SEGMENT_CODEC_RESULT"),

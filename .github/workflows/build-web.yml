@@ -31,6 +31,7 @@ jobs:
         run: |
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
+          node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
@@ -48,6 +49,15 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Export separate CrazyGames variant after the unchanged complete Web gate
+        run: python3 ci/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+      - name: Retain separate CrazyGames export for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/web/
+          if-no-files-found: error
+          retention-days: 7
       - name: Retain engine-tested Web export before browser validation
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -111,6 +121,7 @@ jobs:
             ${{ runner.temp }}/engine-evidence/*.json
             ${{ runner.temp }}/engine-evidence/*.log
             ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
             ${{ runner.temp }}/old-engine-evidence/*.json
             ${{ runner.temp }}/old-engine-evidence/*.log
             ${{ runner.temp }}/old-web-build/evidence/

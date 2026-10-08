@@ -17,6 +17,8 @@ var generation=0
 var inflight_generation=0
 var _callback
 var startup_error=""
+var platform_managed=false
+var _platform_dirty_snapshot=0
 var retrying=false
 var _retry_callback
 var _credit_hold=false
@@ -135,6 +137,8 @@ func request_save()->bool:
 		_log("save_failure","VALIDATION_FAILED")
 		game.progress_save_error=game.model.last_error
 		return false
+	var dirty_generation=game.get("platform_dirty_generation")
+	if dirty_generation!=null:_platform_dirty_snapshot=int(dirty_generation)
 	_log("save_validated")
 	var payload=FileAccess.get_file_as_string(STAGING_FILE)
 	if payload=="":
@@ -143,8 +147,8 @@ func request_save()->bool:
 		return false
 	# Keep an existing failure visible while the retry is in flight. Clearing it
 	# here makes every automatic retry flash the same warning again.
-	pending=true;queued=false;inflight_generation=generation
 	_credit_expected=int(api.creditForSave(payload))
+	pending=true;queued=false;inflight_generation=generation
 	if _credit_expected>0:_hold_for_credit()
 	game.model.last_event="Saving café progress"
 	_log("save_submitted")
@@ -188,7 +192,8 @@ func _on_commit(arguments:Array):
 			game.startup_notice="Unsaved changes · "+reason
 		game.progress_save_error=reason
 		return
-	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not bool(result.get("durable",false)):
+	var platform_ack=bool(result.get("platformAccepted",false)) and str(api.storageKind)=="crazygames-data" and result.get("cloudConfirmed",true)==false
+	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not (bool(result.get("durable",false)) or platform_ack):
 		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 		_log("save_failure","INVALID_REVISION_ACK")
 		game.progress_save_error="Invalid browser save revision; reload to recover"
@@ -211,12 +216,15 @@ func _on_commit(arguments:Array):
 	_credit_expected=0
 	revision=int(result.revision)
 	_refresh_inbox(result)
-	_log("save_accepted")
+	platform_managed=platform_ack
+	if platform_ack and game.get("platform_dirty_generation")!=null:
+		game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
+	_log("platform_controller_accepted" if platform_ack else "save_accepted")
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
 		game.call_deferred("_save");return
-	game.progress_unsaved=false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Café progress saved"
+	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if platform_ack else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
 	game._update_ui()
 
 func _refresh_inbox(result:Dictionary):
