@@ -66,7 +66,7 @@ func run():
  check(game.staff_states[0].pos==Vector2(8.5,2.5),"chef begins at stove front")
  check(game.staff_states[3].pos==game.model.cell_center(game.model.checkout_rear(game.model.checkout_register())),"cashier remains behind register")
  check(not game.staff_states.slice(0,3).all(func(s):return s.pos.y==.5),"initial workers no longer line up along back wall")
- check(game.model.coins==Model.INITIAL_COINS and game.model.served==0 and game.model.customers.is_empty(),"placement does not advance gameplay, charge or spawn guests")
+ check(game.model.coins==Model.INITIAL_COINS and game.model.served==0 and game.model.customers.is_empty() and game.model.outside_queue.is_empty(),"placement does not advance gameplay, charge or spawn guests")
  check(game.model.save("user://staff-start-standalone.json"),"standalone model fixture saves")
  var initial=game._service_save_snapshot()
  game._animate_staff(.001)
@@ -95,7 +95,7 @@ func run():
  var finished=false
  for tick in 9000:
   game._tick_live_service(1.0/30.0);game._animate_staff(1.0/30.0);game.animation_time+=1.0/30.0
-  if game.model.customers.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):finished=true;break
+  if game.model.customers.is_empty() and game.model.outside_queue.is_empty() and game.floor_tasks.messes.is_empty() and game.staff_states.all(func(s):return s.job_kind==""):finished=true;break
   if tick%120==0:await process_frame
  check(finished and game.model.served==1 and game.model.total_cleaned==1,"restored visit finishes and cleans once")
  end()

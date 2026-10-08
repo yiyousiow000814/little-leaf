@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "status": "draft",
-  "version": "0.1.10",
-  "date": "2026-10-07",
-  "label": "Café building and service polish",
+  "status": "released",
+  "version": "0.1.8",
+  "date": "2026-10-05",
+  "label": "Café interface cleanup",
   "new": [],
   "fixed": [
-    "Fit in Play frames owned cafe land using the visible HUD; Decorate retains sale-land overview.",
-    "Rear and corner scenery use appropriate occlusion instead of painting over all furnishings.",
-    "Juice tap outlet and lever are separated; stove base no longer depicts an oven."
+    "Centered the Coins balance and improved large-number display with an exact-balance hint.",
+    "Shifted character bubbles slightly right while keeping their tails aligned with their characters.",
+    "Removed the bottom notification feature and its repeated status messages."
   ]
 }

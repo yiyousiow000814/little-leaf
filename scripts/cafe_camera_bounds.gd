@@ -35,9 +35,10 @@ static func zoom_limits(viewport:Vector2,base_tile:Vector2,hud_top:float=104.0,i
 	var tile_area=maxf(.0001,2.0*base_tile.x*base_tile.y)
 	return Vector2(minimum,maxf(minimum,sqrt(area/(4.0*tile_area))))
 
-static func clamp_pan(pan:Vector2,base_origin:Vector2,tile:Vector2,width:float,depth:float,viewport:Vector2,hud_top:float=104.0,safe_area:Rect2=Rect2())->Vector2:
+static func clamp_pan(pan:Vector2,base_origin:Vector2,tile:Vector2,width:float,depth:float,viewport:Vector2,hud_top:float=104.0,safe_area:Rect2=Rect2(),inspection_bounds:Rect2=Rect2())->Vector2:
 	var scale=tile.x/39.0
 	var content=Rect2(base_origin+Vector2(-depth*tile.x,-128.0*scale),Vector2((width+depth)*tile.x,128.0*scale+(width+depth)*tile.y))
+	if inspection_bounds.has_area():content=content.merge(Rect2(base_origin+inspection_bounds.position,inspection_bounds.size))
 	var view=safe_area if safe_area.has_area() else safe_rect(viewport,hud_top)
 	var margin=Vector2(40,32)
 	var result=pan if pan.is_finite() else Vector2.ZERO

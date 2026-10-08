@@ -4,6 +4,10 @@ const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
 const PAN_WIDTH=1.35
 const PAN_DEPTH=1.15
 const PAN_HANDLE_HEIGHT=39.0
+# The annotated rear views need a lower, slightly more exterior attachment.
+# Keep the front views and the vessel itself at their established positions.
+const PAN_REAR_HANDLE_DROP=2.0
+const PAN_REAR_HANDLE_OUTSET=.02*PAN_WIDTH
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -128,17 +132,15 @@ func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float)
 
 func _stove_controls():
 	if front_visible():
-		var z=.404
-		# Plain standalone burner pedestal: no oven window or door handle.
-		for x in [-.25,-.08,.09,.26]:
-			a.ellipse(point(x,z,26),Vector2(1.8,1.8),"f0e5c7")
-			# A one-pixel indicator is smaller than the generic AA feather. Draw
-			# its real capsule silhouette so HD/4x atlas views cannot turn it
-			# into a pinched square. Keep center, color and knob bounds intact.
-			var marker=point(x,z,26)
-			a._face_line(marker,marker+Vector2(0,-1),"73806a",.7)
-			for tip in [marker,marker+Vector2(0,-1)]:
-				a._face_ellipse(tip,Vector2.ONE*.35,"73806a")
+		# One centered control for the single burner; this pedestal has no oven.
+		var marker=point(0,.404,26)
+		a.ellipse(marker,Vector2(1.8,1.8),"f0e5c7")
+		# A one-pixel indicator is smaller than the generic AA feather. Draw
+		# its real capsule silhouette so HD/4x atlas views cannot turn it
+		# into a pinched square. Keep its color and knob bounds intact.
+		a._face_line(marker,marker+Vector2(0,-1),"73806a",.7)
+		for tip in [marker,marker+Vector2(0,-1)]:
+			a._face_ellipse(tip,Vector2.ONE*.35,"73806a")
 
 func _beverage_base():
 	cabinet(.90,.78,29,"b7bd9d","9fab8f","e9dfc0")
@@ -264,26 +266,18 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 static func stove_food_surface(rotation:int)->Vector2:
 	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
 
+static func stove_handle_height(rotation:int)->float:
+	return PAN_HANDLE_HEIGHT if stove_handle_in_front(rotation) else PAN_HANDLE_HEIGHT-PAN_REAR_HANDLE_DROP
+
 static func stove_handle_points(rotation:int)->PackedVector2Array:
-	# The collar belongs to the upper SIDEWALL, below the lip/food plane.
-	# A lip-height mount looked detached above the far edge in R1/R2.
-	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH),PAN_HANDLE_HEIGHT,rotation),KitchenGeometry.surface(Vector2(0,.26*PAN_WIDTH),PAN_HANDLE_HEIGHT,rotation)])
+	# Both ends move together: the grip stays the same length, material and
+	# thickness while its collar meets the sidewall below the rear lip.
+	var outset=0.0 if stove_handle_in_front(rotation) else PAN_REAR_HANDLE_OUTSET
+	var height=stove_handle_height(rotation)
+	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH+outset),height,rotation),KitchenGeometry.surface(Vector2(0,.26*PAN_WIDTH+outset),height,rotation)])
 
 static func stove_handle_in_front(rotation:int)->bool:
 	return posmod(rotation,4) in [0,3]
-
-static func stove_collar_visible_start(rotation:int)->Vector2:
-	var handle=stove_handle_points(rotation)
-	if stove_handle_in_front(rotation):return handle[0]
-	# Recover only the exterior neck after the thick lip's AA border. Its
-	# hidden mount stays on the sidewall; no shaft is painted over the bowl.
-	var radius=Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH)
-	var relative=(handle[0]-stove_food_surface(rotation))/radius
-	var direction=(handle[1]-handle[0])/radius
-	var aa=direction.dot(direction);var bb=2*relative.dot(direction)
-	var cc=relative.dot(relative)-1
-	var fraction=(-bb+sqrt(bb*bb-4*aa*cc))/(2*aa)
-	return handle[0].lerp(handle[1],fraction)
 
 func _stove_pan_handle():
 	var handle=stove_handle_points(turn)
@@ -300,6 +294,8 @@ func _stove_pan_handle():
 func stove_pan():
 	var c=point(0,0,34)
 	var handle_in_front=stove_handle_in_front(turn)
+	# The far-side collar belongs behind the vessel. Do not repaint it over
+	# the lip or wood grip after the pan has occluded the attachment.
 	if not handle_in_front:_stove_pan_handle()
 	# Joined upper/back and lower/front arcs form a continuous tapered vessel,
 	# rather than a rounded trapezoid with a separate oval painted on it.
@@ -313,9 +309,6 @@ func stove_pan():
 	a.poly(body,"9eac94")
 	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH),"607d6b","dce0c9",1.2)
 	a.ellipse(c+Vector2(0,-7),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"718c77")
-	if not handle_in_front:
-		var handle=stove_handle_points(turn)
-		edge(origin+stove_collar_visible_start(turn),origin+handle[0].lerp(handle[1],.80),"6d8475",2.2)
 	if handle_in_front:_stove_pan_handle()
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):

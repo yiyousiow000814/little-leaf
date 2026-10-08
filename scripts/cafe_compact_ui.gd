@@ -353,9 +353,9 @@ func sync():
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false
  var refund=0
- if not opening.is_empty():refund=int(int(opening.paid_cost)/2)
+ if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
  elif not wall.is_empty():
-  refund=int(game.model.wall_price(str(wall.height))/2)
+  refund=game.model.wall_refund(selected_wall)
   remove_button.disabled=not game.model.can_remove_wall(selected_wall)
   if remove_button.disabled:context_label.text="Move opening first"
  elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
@@ -666,7 +666,7 @@ func _sync_help_content():
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / − zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
