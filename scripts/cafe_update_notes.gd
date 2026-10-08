@@ -170,10 +170,10 @@ static func validate_document(document:Variant)->Dictionary:
  if not document is Dictionary:return _invalid("Expected a JSON object")
  if document.get("schema_version",0)!=1:return _invalid("Unsupported release-notes schema")
  var status=document.get("status","")
- if status=="pending":
-  # Draft strings never become visible release claims or unread badges.
-  return {"valid":true,"status":"pending","version":"","date":"","label":"","new":[],"fixed":[]}
- if status!="released":return _invalid("Expected pending or released status")
+ if status in ["pending","draft"]:
+  # Unpublished metadata and review notes never become release claims or badges.
+  return {"valid":true,"status":status,"version":"","date":"","label":"","new":[],"fixed":[]}
+ if status!="released":return _invalid("Expected pending, draft or released status")
  var version=document.get("version",null)
  if not version is String or version.strip_edges()=="":return _invalid("Released notes need a version")
  version=version.strip_edges()
