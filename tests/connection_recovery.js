@@ -12,6 +12,19 @@ const logSource = fs.readFileSync(path.join(root, 'web/little_leaf_save_log.js')
 const payload = fs.readFileSync(path.join(__dirname, 'fixtures/startup-retry-v15.json'), 'utf8');
 const report = {synthetic_only:true, real_browser:false, checks:[], cases:[]};
 function check(ok, label) {assert(ok,label);report.checks.push(label);}
+async function waitForHeldCompletion(completed, pending) {
+  // WebCrypto runs outside the fixture's microtask queue. Event-loop turn
+  // counts cannot tell us when hashing and the durable transaction have ended.
+  // The timer is only a missing-event watchdog, not the readiness signal.
+  let timeout;
+  try {
+    await Promise.race([
+      completed,
+      pending.then(() => {throw new Error('Save settled before its held transaction completion');}),
+      new Promise((_, reject) => {timeout = setTimeout(() => reject(new Error('Timed out waiting for held transaction completion')), 5000);})
+    ]);
+  } finally {clearTimeout(timeout);}
+}
 async function harness(code = source, legacy = false) {
   const factory = new FixtureIDB(), connections=[];
   const control = {onConnection:null};
@@ -140,17 +153,18 @@ async function harness(code = source, legacy = false) {
   report.cases.push('retry bounded to once; legacy award exactly once');
   h=await harness(source,true);
   const uncommittedInbox=h.client.snapshotJson(),uncommittedBoot=h.client.bootJson;
-  let acceptReceipt,receiptSettled=false;
+  let acceptReceipt,receiptSettled=false,receiptComplete;
+  const receiptCompleted=new Promise(resolve=>{receiptComplete=resolve;});
   h.control.onConnection=(db,count)=>{
     if(count!==2)return;const transaction=db.transaction.bind(db);
     db.transaction=(...args)=>{
       const tx=transaction(...args);
-      if(args[1]==='readwrite'){let complete;Object.defineProperty(tx,'oncomplete',{set(fn){complete=fn;},get(){return event=>{acceptReceipt=()=>complete(event);};}});}
+      if(args[1]==='readwrite'){let complete;Object.defineProperty(tx,'oncomplete',{set(fn){complete=fn;},get(){return event=>{acceptReceipt=()=>complete(event);receiptComplete();};}});}
       return tx;
     };
   };
   h.close();const receiptPending=h.save().then(value=>{receiptSettled=true;return value;});
-  for(let i=0;i<50&&!acceptReceipt;i++)await new Promise(resolve=>setImmediate(resolve));
+  await waitForHeldCompletion(receiptCompleted,receiptPending);
   check(!!acceptReceipt&&!receiptSettled&&h.active().revision===1,'recovered receipt transaction can complete before its acknowledgement is delivered');
   check(h.client.snapshotJson()===uncommittedInbox&&h.client.bootJson===uncommittedBoot,'pending recovered save cannot advance the accepted Inbox or boot projection');
   acceptReceipt();result=await receiptPending;
@@ -187,14 +201,15 @@ async function harness(code = source, legacy = false) {
   oldConnection.onclose();oldConnection.onversionchange();result=await h.save(h.active().payload);
   check(result.ok&&h.connections.length===2&&h.events().filter(e=>e.event==='connection_reopen_requested').length===1,'late events from an old handle cannot close or replace the current connection');
   check(h.events().some(e=>e.event==='connection_closed'&&e.stage==='forced_close'&&e.connectionGeneration===1),'forced-close diagnostics use a static stage and the affected generation');h.client.close();
-  h=await harness();let release,settled=false;const heldDb=h.connections[0],heldTransaction=heldDb.transaction.bind(heldDb);
+  h=await harness();let release,settled=false,transactionComplete;const heldDb=h.connections[0],heldTransaction=heldDb.transaction.bind(heldDb);
+  const transactionCompleted=new Promise(resolve=>{transactionComplete=resolve;});
   heldDb.transaction=(...args)=>{
     const tx=heldTransaction(...args);
-    if(args[1]==='readwrite'){let complete;Object.defineProperty(tx,'oncomplete',{set(fn){complete=fn;},get(){return event=>{release=()=>complete(event);};}});}
+    if(args[1]==='readwrite'){let complete;Object.defineProperty(tx,'oncomplete',{set(fn){complete=fn;},get(){return event=>{release=()=>complete(event);transactionComplete();};}});}
     return tx;
   };
   const pending=h.save().then(value=>{settled=true;return value;});
-  for(let i=0;i<50&&!release;i++)await new Promise(resolve=>setImmediate(resolve));
+  await waitForHeldCompletion(transactionCompleted,pending);
   check(!!release&&!settled&&h.active().revision===1,'native completion can precede its delivered acknowledgement');
   heldDb.close();const busy=await h.save();
   check(!busy.ok&&busy.code==='SAVE_BUSY'&&h.connections.length===1,'an unknown pending write outcome is not reopened or replayed');
