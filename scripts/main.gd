@@ -163,9 +163,15 @@ func _ready():
 	web_lifecycle.start()
 	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
 	cafe_intro.start(self)
+	if OS.has_feature("web"):
+		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")
 		get_tree().quit()
+
+func _notify_first_web_frame():
+	# The HTML loader waits for a real frame, not just a resolved engine promise.
+	JavaScriptBridge.eval("if (window.LittleLeafBoot) window.LittleLeafBoot.firstFrameReady();")
 
 func _mark_platform_dirty():
 	platform_dirty_generation+=1

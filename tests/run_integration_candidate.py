@@ -5,13 +5,10 @@ Requires Python 3 and Godot 4.6.3. Example:
   python3 tests/run_integration_candidate.py --output /tmp/little-leaf-qa
 """
 import argparse
+import fcntl
 import hashlib
 import json
 import os
-if os.name == "nt":
-    import msvcrt
-else:
-    import fcntl
 import re
 from pathlib import Path
 import shutil
@@ -118,8 +115,6 @@ def main():
         raise SystemExit("Use a new output directory to preserve prior evidence")
     qa = ROOT / "qa-project"
     qa.mkdir(exist_ok=True)
-    if qa.is_symlink():
-        raise RuntimeError("Disposable fixture root cannot be a symlink")
     godot = os.environ.get("GODOT_BIN", "godot")
     report = {"mode": "headless engine only", "source_commit": subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
                     capture_output=True, text=True).stdout.strip() or "source archive",
@@ -128,24 +123,16 @@ def main():
     source_files = [p for p in ROOT.rglob("*") if p.is_file() and
                     not any(part in {".git", ".godot", "qa-project", "__pycache__"}
                             for part in p.relative_to(ROOT).parts)]
-    report["source_sha256"] = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+    report["source_sha256"] = {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
                                for p in sorted(source_files)}
 
     def save():
         (output / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
 
-    with args.lock.open("a+b") as lock:
-        if os.name == "nt":
-            lock.seek(0)
-            lock.write(b"\0"); lock.flush(); lock.seek(0)
-            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
-        else:
-            fcntl.flock(lock, fcntl.LOCK_EX)
-        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa,
-                                             ignore_cleanup_errors=(os.name == "nt")) as temp:
+    with args.lock.open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with tempfile.TemporaryDirectory(prefix="integration-saveguard-", dir=qa) as temp:
             temp = Path(temp).resolve()
-            if not temp.is_relative_to(qa.resolve()):
-                raise RuntimeError("Disposable fixture escaped its reviewed root")
             project = temp / "project"
             shutil.copytree(ROOT, project, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
@@ -162,14 +149,14 @@ def main():
             def env_for(name):
                 env = os.environ.copy()
                 for key in ["HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
-                    directory = temp / "profiles" / name / ("windows-data" if os.name == "nt" else key.lower())
+                    directory = temp / "profiles" / name / key.lower()
                     directory.mkdir(parents=True, exist_ok=True)
-                    env[key] = directory.as_posix()
+                    env[key] = str(directory)
                 return env
 
             def run(name, arguments, env, marker=None):
                 start = time.monotonic()
-                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *arguments]
+                command = [godot, "--headless", "--path", str(project), *arguments]
                 completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, timeout=300)
                 text = completed.stdout.decode("utf-8", errors="replace")
@@ -229,7 +216,7 @@ def main():
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
                 env = env_for("staff-start-generated-profile")
-                save_dir = Path(env["XDG_DATA_HOME"]) / ("Godot/app_userdata/Little Leaf Cafe" if os.name == "nt" else "godot/app_userdata/Little Leaf Cafe")
+                save_dir = Path(env["XDG_DATA_HOME"]) / "godot/app_userdata/Little Leaf Cafe"
                 save_file = save_dir / "little_leaf_cafe_layout_motion_v15.json"
                 for case in (["empty-profile", "fresh", "saved-load", "standalone-load", "bad-load"]
                              if "staff-start" in selected else []):
@@ -256,11 +243,6 @@ def main():
                 report["total_checks"] = sum(r["checks"] for r in report["records"])
                 report["test_processes"] = len(report["records"]) - 1
                 save()
-    report["disposable_fixture_retained"] = temp.exists()
-    if temp.exists():
-        report["disposable_fixture_path"] = str(temp)
-        report["cleanup_note"] = "Windows may retain task-only fixture files while filesystem handles close; no process termination attempted"
-    save()
     print(json.dumps({k: report[k] for k in ["status", "total_checks", "test_processes"]}), flush=True)
 
 

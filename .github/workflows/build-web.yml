@@ -121,6 +121,7 @@ jobs:
             ${{ runner.temp }}/engine-evidence/*.json
             ${{ runner.temp }}/engine-evidence/*.log
             ${{ runner.temp }}/web-build/evidence/
+            ${{ runner.temp }}/crazygames-build/evidence/
             ${{ runner.temp }}/old-engine-evidence/*.json
             ${{ runner.temp }}/old-engine-evidence/*.log
             ${{ runner.temp }}/old-web-build/evidence/

@@ -32,10 +32,3 @@ __pycache__/
 .env.*
 .DS_Store
 Thumbs.db
-
-export_templates/
-qa/crazygames/*profile*/
-
-qa/*.gd.uid
-tests/*.gd.uid
-docs/**/*.import

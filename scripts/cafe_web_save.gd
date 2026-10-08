@@ -147,8 +147,8 @@ func request_save()->bool:
 		return false
 	# Keep an existing failure visible while the retry is in flight. Clearing it
 	# here makes every automatic retry flash the same warning again.
-	pending=true;queued=false;inflight_generation=generation
 	_credit_expected=int(api.creditForSave(payload))
+	pending=true;queued=false;inflight_generation=generation
 	if _credit_expected>0:_hold_for_credit()
 	game.model.last_event="Saving café progress"
 	_log("save_submitted")
