@@ -175,6 +175,15 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertNotIn("position:fixed", cg.PREVIEW_NOTICE)
         self.assertIn("pointer-events:none", cg.PREVIEW_NOTICE)
 
+    def test_platform_help_explains_submission_without_claiming_cloud_confirmation(self):
+        ui = (REPO / "scripts/cafe_compact_ui.gd").read_text()
+        body = ui.split("func _sync_help_content():", 1)[1].split("\nfunc ", 1)[0]
+        expected = "Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here."
+        self.assertIn(expected, body)
+        self.assertIn("if game.web_save!=null and game.web_save.platform_managed:save_detail=", body)
+        self.assertLess(body.index(expected), body.index("if game.save_recovery_blocked:"))
+        self.assertLess(body.index(expected), body.index("elif game.progress_unsaved:"))
+
     def test_web_save_routes_have_no_native_or_persistent_pending_fallback(self):
         # Source contracts supplement the actual embedded-JS fixtures; this is
         # not an engine/runtime claim. Web branches return before native paths.
