@@ -4,8 +4,9 @@ const Start=preload("res://scripts/minimal_start.gd")
 const Plan=preload("res://scripts/cafe_edit_plan.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
+ var save_success=true
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
- func _save():saves+=1;return true
+ func _save():saves+=1;return save_success
 var checks=0
 var failures=[]
 var observations=[]
@@ -73,12 +74,43 @@ func run():
  check(m.place("bin",3,6) and m.logical_refund(id)==0,"free included bin has zero session refund")
  check(m.remove(id) and m.coins==wallet,"free item cannot produce current-session money")
  m.reset_new();check(not m.decoration_session_active and m.decoration_purchases.is_empty(),"new profile clears session")
+ # Reset a nonempty receipt ledger, then reuse the exact physical ID.
+ m=fresh();m.begin_decoration_session();id=m._next_item_id;check(m.place("plant",3,6),"reset case eligible odd-priced plant")
+ check(m.logical_refund(id)==45 and not m.decoration_purchases.is_empty(),"reset starts with nonempty receipt")
+ Start.apply(m);check(not m.decoration_session_active and m.decoration_purchases.is_empty() and m._next_item_id==id,"fresh profile clears nonempty receipt and reuses counter")
+ check(m.place("plant",3,6) and m.logical_refund(id)==22,"reused ID outside session cannot inherit45 refund")
+ # Included free bin retains explicitly approved existing resale after Done.
+ m=fresh();m.begin_decoration_session();m.included_bin_pending=true;id=m._next_item_id;check(m.place("bin",3,6),"free bin Done fixture")
+ check(m.logical_refund(id)==0,"included bin0 before Done");m.finish_decoration_session();check(m.logical_refund(id)==32,"included bin existing32 after Done")
+ # Upgrade charges remain separate from the base furnishing purchase receipt.
+ m=fresh();m.begin_decoration_session();id=m._next_item_id;wallet=m.coins
+ check(m.place("stove",3,6) and m.upgrade_stove(id) and m.coins==wallet-400,"stove220 plus separate level2 upgrade180")
+ check(m.logical_refund(id)==220 and m.remove(id) and m.coins==wallet-180,"sale refunds base220 only, upgrade180 remains spent")
+ # Failed removal of the eligible NEW item retains its receipt until unblocked.
+ m=fresh();m.begin_decoration_session();id=m._next_item_id;wallet=m.coins;check(m.place("stove",3,6),"eligible new stove")
+ var old_stove=int(m.items.filter(func(i):return i.kind=="stove" and int(i.id)!=id)[0].id)
+ check(m.remove(old_stove),"remove old stove with new usable replacement")
+ wallet=m.coins;check(not m.remove(id) and m.coins==wallet and m.logical_refund(id)==220,"essential guard rejects eligible new item atomically")
+ check(m.place("stove",8,6),"unblock essential guard")
+ wallet=m.coins;check(m.remove(id) and m.coins==wallet+220,"unblocked eligible sale credits once")
+ m=fresh();m.begin_decoration_session();id=m._next_item_id;check(m.place("table_set",3,6),"eligible in-use group")
+ m.customers.append({"table_id":id,"chair_id":id+1});wallet=m.coins
+ check(not m.remove(id+1) and m.coins==wallet and m.logical_refund(id)==280,"in-use guard retains eligible receipt")
+ m.customers.clear();check(m.remove(id+1) and m.coins==wallet+280,"unblocked group sale credits once")
+ m=fresh();m.begin_decoration_session();id=m._next_item_id;check(m.place("plant",3,6),"malformed load receipt")
+ var malformed=FileAccess.open("user://malformed-decoration.json",FileAccess.WRITE);malformed.store_string("not json");malformed.close();wallet=m.coins
+ check(not m.load_save("user://malformed-decoration.json") and m.coins==wallet and m.logical_refund(id)==45,"malformed load retains current receipt")
+ m.coins=44;var next_id=m._next_item_id;var ledger=m.decoration_purchases.duplicate(true)
+ check(not m.place("plant",8,6) and m.coins==44 and m._next_item_id==next_id and m.decoration_purchases==ledger,"insufficient funds no receipt charge or ID")
+ m.coins=10000;var stale_sale=Plan.new();var stale_receipt=stale_sale.prepare(m,"plant",-1,0,Vector2i(8,6))
+ check(stale_receipt.ok and m.remove(id),"sale between preview and commit")
+ wallet=m.coins;check(not stale_sale.commit(m,stale_receipt) and m.coins==wallet and m.decoration_purchases.is_empty(),"stale planner after sale cannot republish spent receipt")
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true;await process_frame
  game._toggle_edit();check(game.editing and game.model.decoration_session_active,"controller Decorate enters session")
  id=game.model._next_item_id;game.model.coins=10000;check(game.model.place("table_set",3,6),"controller purchase")
  game._cancel_selection();check(game.model.logical_refund(id)==280,"selection cancel keeps receipt")
- var before=game.saves;game._toggle_edit()
- check(not game.editing and not game.model.decoration_session_active and game.model.logical_refund(id)==140 and game.saves==before+1,"Done finalizes before save")
+ var before=game.saves;game.save_success=false;game._toggle_edit()
+ check(not game.editing and not game.model.decoration_session_active and game.model.logical_refund(id)==140 and game.saves==before+1,"Done finalizes even when requested save fails")
  game._toggle_edit();check(game.model.logical_refund(id)==140,"controller reentry normal resale")
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

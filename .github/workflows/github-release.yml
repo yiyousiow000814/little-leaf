@@ -1,0 +1,129 @@
+name: Create GitHub Release
+# GitHub metadata only. Platform publishing is a separate workflow.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable vX.Y.Z tag (never created or moved here)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: github-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'yiyousiow000814/little-leaf' && (github.event_name == 'workflow_dispatch' || (github.event.created && !github.event.deleted))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.notes.outputs.tag }}
+      sha: ${{ steps.notes.outputs.sha }}
+      tag_object: ${{ steps.notes.outputs.tag_object }}
+      notes: ${{ steps.notes.outputs.notes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate exact tagged metadata and render notes
+        id: notes
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64, datetime, json, os, re, subprocess
+          stable = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+          tag = os.environ['RELEASE_TAG']
+          match = re.fullmatch(stable, tag)
+          if not match:
+              raise ValueError('Expected an existing stable vX.Y.Z tag')
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          ref = 'refs/tags/' + tag
+          tag_object = git('rev-parse', '--verify', ref)
+          sha = git('rev-parse', '--verify', ref + '^{commit}')
+          if not re.fullmatch(r'[0-9a-f]{40}', sha + '') or not re.fullmatch(r'[0-9a-f]{40}', tag_object):
+              raise ValueError('Invalid source or tag object')
+          if os.environ['EVENT_NAME'] == 'push' and sha != os.environ['EVENT_SHA']:
+              raise ValueError('Tag no longer matches the triggering source')
+          # Read data, never execute scripts from the tagged game source.
+          project = git('show', sha + ':project.godot')
+          notes = json.loads(git('show', sha + ':data/release_notes.json'))
+          version = tag[1:]
+          if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [version]:
+              raise ValueError('Tag and project version disagree')
+          if notes.get('schema_version') != 1 or notes.get('version') != version or notes.get('status') != 'released':
+              raise ValueError('Release metadata must match the stable tag and be released')
+          if datetime.date.fromisoformat(notes['date']) > datetime.datetime.now(datetime.timezone.utc).date():
+              raise ValueError('Release date is in the future')
+          lines = []
+          for key, heading in [('new', 'New Features'), ('fixed', 'Bug Fixes')]:
+              items = notes.get(key, [])
+              if not isinstance(items, list) or len(items) > 100:
+                  raise ValueError('Expected a bounded list of release notes')
+              if items:
+                  lines.extend(['## ' + heading])
+              for item in items:
+                  if not isinstance(item, str) or not item.strip() or len(item) > 1000 or any(ord(c) < 32 for c in item):
+                      raise ValueError('Notes must be nonempty single-line strings')
+                  lines.append('- ' + item)
+              if items:
+                  lines.append('')
+          if not lines:
+              raise ValueError('Release notes must describe changes')
+          current = tuple(map(int, match.groups()))
+          previous = []
+          for candidate in git('tag', '--list').splitlines():
+              m = re.fullmatch(stable, candidate)
+              if m and tuple(map(int, m.groups())) < current:
+                  previous.append((tuple(map(int, m.groups())), candidate))
+          repo = os.environ['GITHUB_REPOSITORY']
+          url = 'https://github.com/' + repo
+          changelog = url + '/commit/' + sha
+          if previous:
+              changelog = url + '/compare/' + max(previous)[1] + '...' + tag
+          lines.extend(['------', '', '## Changelog', '- chore: record ' + tag + ' source at ' + sha + '.', '', 'Full Changelog: ' + changelog, '', 'Source: ' + sha + '.', '', 'This GitHub Release records tagged source; platform approval and deployment are separate.'])
+          encoded = base64.b64encode(('\n'.join(lines) + '\n').encode()).decode()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              for key, value in [('tag', tag), ('sha', sha), ('tag_object', tag_object), ('notes', encoded)]:
+                  out.write(key + '=' + value + '\n')
+          PY
+  release:
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+      SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
+      TAG_OBJECT: ${{ needs.prepare.outputs.tag_object }}
+      NOTES_BASE64: ${{ needs.prepare.outputs.notes }}
+    steps:
+      - name: Preserve existing releases and verify tag has not moved
+        shell: bash
+        run: |
+          remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
+          test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed; refusing publication.'; exit 1; }
+          response="$RUNNER_TEMP/release-response.txt"
+          if gh api --include "repos/$GH_REPO/releases/tags/$RELEASE_TAG" > "$response"; then
+            echo "Existing $RELEASE_TAG release retained unchanged." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Only an explicit not-found response permits creation. Auth/network failures stop.
+          grep -Eq '^HTTP/[0-9.]+ 404([[:space:]]|$)' "$response" || { echo '::error::Cannot establish release absence.'; exit 1; }
+          printf '%s' "$NOTES_BASE64" | base64 --decode > "$RUNNER_TEMP/github-release-notes.md"
+          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" --latest=false --title "Little Leaf $RELEASE_TAG" --notes-file "$RUNNER_TEMP/github-release-notes.md"
+          remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
+          test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed during publication; investigate without retrying.'; exit 1; }
+          echo "Created $RELEASE_TAG from $SOURCE_SHA. No platform deployment was performed." >> "$GITHUB_STEP_SUMMARY"
