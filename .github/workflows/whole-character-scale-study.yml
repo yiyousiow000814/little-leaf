@@ -1,0 +1,40 @@
+name: Whole character scale study
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/whole-character-scale-study.yml'
+      - 'ci/capture_whole_character_scale.py'
+      - 'scripts/illustrated_cafe.gd'
+      - 'scripts/illustrated_furniture.gd'
+      - 'scripts/directional_character_art.gd'
+      - 'tests/capture_whole_character_scale.gd'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: whole-character-scale-study-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'study/whole-character-scale-011'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/proportion-tools"
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Render controlled whole-character scales
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 ci/capture_whole_character_scale.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/proportion-study"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: character-proportions-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/proportion-study/
+          if-no-files-found: error
+          retention-days: 7

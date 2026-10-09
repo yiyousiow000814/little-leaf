@@ -107,7 +107,17 @@ func draw_static_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 
 func _stove_base():
 	# The initial range has one centered burner and one cooking surface.
-	box(0,0,STOVE_TILE_SPAN-.025,STOVE_TILE_SPAN-.025,1,29,"b7c4af","849e8c","708d7d","839a84")
+	if "game" in a and is_instance_valid(a.game) and bool(a.game.get_meta("stove_toe_recess_study",false)):
+		# Explicit comparison fixture only: same safe toe space for all scales.
+		for x in [-1.0,1.0]:
+			for z in [-1.0,1.0]:
+				var edge=STOVE_TILE_SPAN*.5-.07
+				top_ellipse(x*edge,z*edge,.05,.068,.055,Color(.32,.37,.28,.16))
+				box(x*edge,z*edge,.09,.09,0,6.1,"899f8e","718c7b","657f70")
+		box(0,0,STOVE_TILE_SPAN*.66,STOVE_TILE_SPAN*.66,1,6,"899f8e","718c7b","657f70")
+		box(0,0,STOVE_TILE_SPAN-.025,STOVE_TILE_SPAN-.025,6,29,"b7c4af","849e8c","708d7d","839a84")
+	else:
+		box(0,0,STOVE_TILE_SPAN-.025,STOVE_TILE_SPAN-.025,1,29,"b7c4af","849e8c","708d7d","839a84")
 	box(0,0,STOVE_TILE_SPAN,STOVE_TILE_SPAN,29,31,"d9deca","adbca9","a2b3a0")
 	for burner in [Vector2.ZERO]:
 		top_ellipse(burner.x,burner.y,31.2,.155*PAN_WIDTH,.155*PAN_WIDTH,"536e61")
