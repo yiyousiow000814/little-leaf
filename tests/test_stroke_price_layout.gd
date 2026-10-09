@@ -15,6 +15,14 @@ func run():
   for control in [ui.context_label,shop.action_coin,shop.price_label]:check(board.encloses(control.get_global_rect()),str(view)+" summary inside action board")
   check(not shop.action_coin.get_global_rect().intersects(shop.price_label.get_global_rect()),str(view)+" icon and number do not overlap")
   check(shop.price_label.accessibility_name=="40 coins",str(view)+" accessible currency")
+  check(absf(board.get_center().x-view.x*.5)<1.0,str(view)+" floating board horizontally centered")
+  var coin_center=shop.action_coin.get_global_rect().get_center().y
+  check(absf(ui.context_label.get_global_rect().get_center().y-coin_center)<=1.0,str(view)+" quantity vertically centered with coin")
+  check(absf(shop.price_label.get_global_rect().get_center().y-coin_center)<=1.0,str(view)+" price vertically centered with coin")
+  check(absf(ui.cancel_button.get_global_rect().get_center().y-coin_center)<=1.0,str(view)+" Cancel shares vertical center")
+  var left_gap=shop.action_copy.get_global_rect().position.x-board.position.x
+  var right_gap=board.end.x-ui.cancel_button.get_global_rect().end.x
+  check(absf(left_gap-right_gap)<=2.0,str(view)+" balanced left and right padding around summary and Cancel")
  b.cancel();await settle();check(not shop.action_coin.visible,"cancel removes price icon")
  check(game.model.coins==money and game.saves==saves,"presentation does not change funds or saves")
  print("STROKE_PRICE_LAYOUT_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))

@@ -10,12 +10,14 @@ Furniture availability and active placement use opaque mint/red colors with
 contrasting outlines. They do not alpha-blend with installed flooring. Active
 previews also use a check/cross marker. Tiles browsing still suppresses the
 availability layer. Tile-paint previews show the selected finish at full color,
-with a border/check/cross instead of a green/red material tint.
+with a single fine outer perimeter instead of per-tile borders, checkmarks or a green/red material tint. Adjacent preview tiles reuse the installed floor palette, seams and oak grain so they join naturally.
 
 Model validation, ownership, prices, revisions, atomic commit and cancel behavior
 are unchanged. All captures use synthetic cafes and suppressed player saves.
 
-Focused verification: 2,496 native checks across6 suites pass (feedback colors20,
-stroke price layout37, stroke UI36, floor inspection180, build/tiles UI2144,
-editing feedback79). Native color counts are compared across all3 installed
+Focused verification: 2,677 native checks across7 suites pass (feedback colors20,
+stroke price layout62, tile perimeter156, stroke UI36, floor inspection180,
+build/tiles UI2144, editing feedback79). Native color counts are compared across all3 installed
 floor styles, and the real four-tile preview is captured before committing.
+
+Centering checks cover390×844,440×700,566×360,844×390 and1360×880. The board is horizontally centered; quantity, coin, price and Cancel share a vertical center, with balanced left/right padding. Native portrait and landscape captures confirm the same four-tile,40-coin preview.

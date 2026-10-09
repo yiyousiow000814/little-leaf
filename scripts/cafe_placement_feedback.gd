@@ -1,6 +1,6 @@
 extends RefCounted
 ## Opaque feedback has the same meaning over every installed floor finish.
-## Tile painting passes fill=false so its chosen material remains visible.
+## Furniture feedback only; tile painting owns a separate material/perimeter preview.
 const VALID_FILL=Color("b7d9c6")
 const INVALID_FILL=Color("e7b3aa")
 const VALID_EDGE=Color("2b6951")

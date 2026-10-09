@@ -72,13 +72,10 @@ func finish(point:Vector2)->bool:
  return changed
 func draw_floor(view):
  if not active or mode!="floor":return
+ var visible=[]
  for target in receipt.get("targets",[]):
-  var x=float(target.x);var z=float(target.z)
-  if x<0 or z<0 or x>=owner.game.model.MAX_WIDTH or z>=owner.game.model.MAX_DEPTH:continue
-  var points=[view.iso(x+.04,z+.04),view.iso(x+.96,z+.04),view.iso(x+.96,z+.96),view.iso(x+.04,z+.96)]
-  var color=owner.FLOOR_COLORS[maxi(0,owner.FLOOR_STYLES.find(material))];color.a=1.0
-  view.poly(points,color)
-  preload("res://scripts/cafe_placement_feedback.gd").draw_cell(view,points,bool(receipt.ok),true,false)
+  if int(target.x)>=0 and int(target.z)>=0 and int(target.x)<owner.game.model.MAX_WIDTH and int(target.z)<owner.game.model.MAX_DEPTH:visible.append(target)
+ preload("res://scripts/cafe_tile_paint_preview.gd").draw(view,visible,material,bool(receipt.ok))
 func draw_walls(view):
  if not active or mode=="floor":return
  for target in receipt.get("targets",[]):
