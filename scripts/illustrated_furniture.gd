@@ -6,12 +6,18 @@ const PAN_DEPTH=1.62
 const PAN_HANDLE_HEIGHT=39.0
 # Artwork uses a 34px basis; the live grid uses 39px. This is exactly one tile.
 const STOVE_TILE_SPAN=39.0/34.0
+# Modular cabinet tops use the same one-cell ground diamond as the range.
+# Equipment, usable slots, model occupancy and prices are independent.
+const CABINET_TILE_SPAN=39.0/34.0
+# Plain full-cell cabinet body reaches the floor, with no feet or styled base.
+const CABINET_SOLID_BODY=true
 # The enlarged rear handle keeps its lower collar but no extra ground outset.
 # This keeps its full anti-alias envelope inside the single occupied tile.
 const PAN_REAR_HANDLE_DROP=2.0
 const PAN_REAR_HANDLE_OUTSET=0.0
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
+var checkout_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 # Original rotatable isometric furniture. Geometry and use-side details share
 # the floor's 2:1 ground basis; height is never screen-rotated.
@@ -66,6 +72,7 @@ static func part_sequence(kind: String,rotation: int) -> Array:
 		_: return []
 
 func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
+	checkout_height=false
 	if kind=="register":
 		kitchen_height=false
 		return CheckoutArt.draw_register(self,artist,p,rotation,id)
@@ -87,6 +94,7 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 # Every atlas cell is rendered from these original procedural helpers. Keep
 # quarter-turn geometry, static subparts and live payload slots independent.
 func draw_static_part(artist: Node2D,part: String,p: Vector2,rotation: int):
+	checkout_height=false
 	kitchen_height=KitchenGeometry.is_kitchen_part(part)
 	a=artist;origin=p;turn=posmod(rotation,4)
 	match part:
@@ -145,14 +153,14 @@ func _stove_controls():
 			a._face_ellipse(tip,Vector2.ONE*.35,"73806a")
 
 func _beverage_base():
-	cabinet(.90,.78,29,"b7bd9d","9fab8f","e9dfc0")
+	cabinet(CABINET_TILE_SPAN,CABINET_TILE_SPAN,29,"b7bd9d","9fab8f","e9dfc0")
 	# Drip tray has the same rotated front as the cup's actual preparation slot.
 	box(.17,.26,.27,.22,29,30,"aebba6","8c9f8d","91a18e")
 	for x in [.09,.15,.21,.27]:edge(point(x,.17,30.4),point(x,.34,30.4),"7e9380",.7)
 
 func point(x: float,z: float,h: float=0.0) -> Vector2:
 	var q=Vector2(x,z).rotated(turn*PI/2.0)
-	var height=KitchenGeometry.height(h) if kitchen_height else h
+	var height=KitchenGeometry.height(h) if kitchen_height else (CheckoutArt.height(h) if checkout_height else h)
 	return origin+Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
 func front_visible() -> bool:
 	return Vector2(0,1).rotated(turn*PI/2.0).dot(Vector2.ONE)>0
@@ -173,14 +181,14 @@ func box(x: float,z: float,w: float,d: float,lo: float,hi: float,top,front,side,
 	var pts=[]
 	for q in corners:pts.append(point(q.x,q.y,hi))
 	face(pts,top,2.0)
-func cabinet(w=.85,d=.75,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
-	box(0,0,w,d,1,h,top,paint,side,paint)
+func cabinet(w=CABINET_TILE_SPAN,d=CABINET_TILE_SPAN,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
+	box(0,0,w,d,0,h,top,paint,side,paint)
 	if not front_visible():return
 	var z=d/2+.006
 	for part in [-1,1]:
-		var l=(-w/2+.07) if part<0 else .018
-		var r=-.018 if part<0 else (w/2-.07)
-		face([point(l,z,5),point(r,z,5),point(r,z,h-5),point(l,z,h-5)],"bc9a63",1)
+		var l=(-w/2+w*.08235) if part<0 else w*.02118
+		var r=-w*.02118 if part<0 else (w/2-w*.08235)
+		face([point(l,z,8),point(r,z,8),point(r,z,h-5),point(l,z,h-5)],"bc9a63",1)
 		edge(point(l+.025,z,h-5),point(r-.025,z,h-5),"d4b782",.75)
 		edge(point((r-.055) if part<0 else (l+.055),z,16),point((r-.055) if part<0 else (l+.055),z,20),"8f7950",1.6)
 func cup(x: float,z: float,h: float):
@@ -336,10 +344,10 @@ func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
 func _sink_faucet():
 	# One centered tap serves the full basin; there is no decorative rack.
 	var x=KitchenGeometry.SINK_BASIN_CENTER.x
-	var back=-.35
+	var back=KitchenGeometry.SINK_TAP_BACK
 	top_ellipse(x,back,30.2,.045,.050,"819b88")
 	top_ellipse(x,back,30.4,.033,.038,"c2d3bc")
-	var pipe=[point(x,back,30),point(x,back,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_OUTLET_HEIGHT)]
+	var pipe=[point(x,back,30),point(x,back,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,KitchenGeometry.SINK_TAP_OUTLET_Z,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,KitchenGeometry.SINK_TAP_OUTLET_Z,KitchenGeometry.SINK_TAP_OUTLET_HEIGHT)]
 	for i in range(pipe.size()-1):a._face_line(pipe[i],pipe[i+1],"93ac9c",2.5)
 	for joint in pipe:a._face_ellipse(joint,Vector2.ONE*1.25,"93ac9c")
 
@@ -404,6 +412,7 @@ func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
 	if KitchenGeometry.sink_tap_in_front(turn):_sink_faucet()
 
 func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=0):
+	checkout_height=false
 	kitchen_height=kind in ["counter","stove","beverage","sink"]
 	a=artist;origin=p;turn=posmod(rotation,4)
 	match kind:
@@ -425,7 +434,7 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			if front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
 			if beverage_accessories_in_front(turn):beverage_accessories()
 		"sink":
-			cabinet(.94,.82,29,"bac4aa","99ad98","cbd7be")
+			cabinet(CABINET_TILE_SPAN,CABINET_TILE_SPAN,29,"bac4aa","99ad98","cbd7be")
 			# Recessed floor, side walls and front lip, all on the same sink.
 			_sink_cavity()
 			_sink_faucet()

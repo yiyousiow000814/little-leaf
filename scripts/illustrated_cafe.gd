@@ -301,11 +301,12 @@ func update_motion(delta: float):
 			# A table has no tall cabinet: keep the worker on its aisle side so
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
+			if str(station.get("kind","")) in ["counter","sink","beverage"]:inset=.27
 			# One planted approach for the whole owned stove job. Changing the
 			# inset at the prep/cook boundary produces a short backwards step,
 			# leaving the gait facing away from the stove after it settles.
 			if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
-			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
+			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.work_inset(int(station.get("rot",0)))
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
 			# this job steps close to the edge; serving keeps its small aisle lean.
