@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_atlas_warmup_queue", "ATLAS_WARMUP_QUEUE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),

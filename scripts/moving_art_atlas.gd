@@ -63,7 +63,7 @@ func is_ready()->bool:return state=="ready" and texture!=null
 func request(artist:Node2D):
 	if state!="cold" or not artist.is_inside_tree():return
 	if DisplayServer.get_name()=="headless":state="headless_fallback";stats.state=state;return
-	state="warming";stats.state=state;_started_us=Time.get_ticks_usec();_build.call_deferred(artist.get_tree())
+	state="warming";stats.state=state;_started_us=Time.get_ticks_usec();preload("res://scripts/cafe_atlas_warmup.gd").enqueue(self,artist.get_tree())
 func _viewport(tree:SceneTree)->SubViewport:
 	var v=SubViewport.new();v.size=size;v.disable_3d=true;v.transparent_bg=true
 	v.render_target_update_mode=SubViewport.UPDATE_ONCE;v.render_target_clear_mode=SubViewport.CLEAR_MODE_ALWAYS;tree.root.add_child(v);return v

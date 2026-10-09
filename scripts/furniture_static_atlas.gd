@@ -80,7 +80,7 @@ func request(artist: Node2D):
 		return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
-	_build.call_deferred(artist.get_tree())
+	preload("res://scripts/cafe_atlas_warmup.gd").enqueue(self,artist.get_tree())
 
 func _viewport(tree: SceneTree) -> SubViewport:
 	var viewport := SubViewport.new()
