@@ -26,6 +26,50 @@ body {
 #canvas { display: block; touch-action: none; }
 #canvas:focus { outline: none; }
 
+/* itch entry is a choice before local save boot, never an embedded login. */
+#itch-entry[hidden], #canvas[hidden], #status[hidden] { display: none; }
+#itch-entry {
+	position: fixed;
+	inset: 0;
+	z-index: 30;
+	display: grid;
+	place-items: center;
+	box-sizing: border-box;
+	padding: 20px;
+	background: #cce3e8;
+	overflow: auto;
+	touch-action: pan-y;
+}
+#itch-entry-card {
+	box-sizing: border-box;
+	width: min(100%, 480px);
+	margin: auto;
+	padding: clamp(20px, 5vw, 32px);
+	border: 1px solid #907853;
+	border-radius: 16px;
+	background: #fff9e9;
+	color: #56442f;
+	text-align: center;
+	line-height: 1.5;
+}
+#itch-entry-card h1 { margin: 0 0 12px; font: bold 32px Georgia, serif; }
+#itch-entry-card p { margin: 12px 0; }
+#itch-entry-card a, #itch-entry-card button {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	margin-top: 12px;
+	padding: 12px;
+	border: 1px solid #596c3b;
+	border-radius: 12px;
+	font: inherit;
+	cursor: pointer;
+}
+#itch-account { background: #708749; color: white; text-decoration: none; }
+#itch-local { background: #fff9e9; color: #56442f; }
+#itch-entry-card a:focus-visible, #itch-entry-card button:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+
 /* This is visible before any engine, SDK or storage work can begin. */
 #status {
 	position: fixed;
@@ -195,8 +239,40 @@ body {
 				<button id="status-retry" type="button">Reload Little Leaf</button>
 			</section>
 		</div>
+		<section id="itch-entry" hidden aria-labelledby="itch-entry-title" aria-describedby="itch-progress-note">
+			<div id="itch-entry-card">
+				<h1 id="itch-entry-title">Little Leaf</h1>
+				<p>Choose where to open your caf&eacute;.</p>
+				<a id="itch-account" href="https://little-leaf-41e5d.firebaseapp.com/" target="_blank" rel="noopener noreferrer">Play with Google &mdash; opens a new tab</a>
+				<p id="itch-progress-note">Sign in on the official account game for cloud saves. Account progress is separate: your existing itch progress does not transfer automatically.</p>
+				<button id="itch-local" type="button">Continue local play on itch</button>
+				<p>Your itch caf&eacute; stays in this browser. You can return here to keep playing it.</p>
+			</div>
+		</section>
 		<noscript><div id="no-script"><strong>Little Leaf</strong><p>JavaScript is needed to open your café. Enable JavaScript, then reload this page.</p></div></noscript>
 
+		<script>
+/* Little Leaf itch entry only. No account, SDK, network or storage access. */
+(function (root) {
+	'use strict';
+	const hostname = root.location.hostname;
+	const onItch = hostname === 'itch.io' || hostname.endsWith('.itch.io') || hostname === 'itch.zone' || hostname.endsWith('.itch.zone');
+	root.LittleLeafItchEntryReady = onItch ? new Promise(resolve => {
+		const entry = document.getElementById('itch-entry');
+		const local = document.getElementById('itch-local');
+		entry.hidden = false;
+		document.getElementById('canvas').hidden = true;
+		document.getElementById('status').hidden = true;
+		local.addEventListener('click', () => {
+			entry.hidden = true;
+			document.getElementById('canvas').hidden = false;
+			document.getElementById('status').hidden = false;
+			document.getElementById('canvas').focus();
+			resolve();
+		}, {once: true});
+	}) : Promise.resolve();
+})(window);
+		</script>
 		<script>
 /* Little Leaf boot presentation only. No storage, gameplay, audio or SDK state. */
 (function (root) {
@@ -1002,7 +1078,7 @@ try {
 		}
 		return;
 	}
-	window.__littleLeafVault.boot().then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
+	(window.LittleLeafItchEntryReady || Promise.resolve()).then(() => window.__littleLeafVault.boot()).then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
 		'onProgress': boot.onProgress,
 	})).then(boot.engineReady, boot.fail);
 }());
