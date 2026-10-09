@@ -43,7 +43,7 @@ func run():
    check(overlap<.00001,"Adjacent full-tile tops share only their boundary")
   for sample in range(64):
    var angle=sample*TAU/64.0
-   var q=Vector2(cos(angle)*8.5*Furniture.PAN_WIDTH,sin(angle)*4.2*Furniture.PAN_DEPTH)
+   var q=Vector2(cos(angle)*8.5*Furniture.PAN_WIDTH,sin(angle)*4.2*Furniture.PAN_DEPTH)+Furniture.KitchenGeometry.surface(Furniture.StoveLayout.POT_CENTER,0,rotation)
    var tile=Vector2((q.x/39.0+q.y/19.5)*.5,(q.y/19.5-q.x/39.0)*.5)
    check(absf(tile.x)<.5 and absf(tile.y)<.5,"Enlarged pot rim remains within one tile")
   # Include the actual wood/metal anti-alias envelope, not only endpoints.

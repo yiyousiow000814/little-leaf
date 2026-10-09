@@ -1,4 +1,5 @@
 extends RefCounted
+const Layout=preload("res://scripts/cafe_stove_layout.gd")
 ## One physical output slot per stove. Legacy reservations finish in place;
 ## purchased counters are retained and never refunded or discarded on load.
 static func output_id(record:Dictionary)->int:
@@ -14,7 +15,7 @@ static func prepared(record:Dictionary)->bool:
  return str(record.get("plate_owner",""))=="station" and int(record.get("plate_target_id",-1))==int(record.get("meal_station_id",-2))
 
 static func plate_anchor(rotation:int)->Vector2:
- return preload("res://scripts/kitchen_worktop_geometry.gd").surface(Vector2(0,.43),31.0,rotation)
+ return preload("res://scripts/kitchen_worktop_geometry.gd").surface(Layout.OUTPUT_CENTER,31.0,rotation)
 
 static func needs_pickup_space(station_id:int,records:Dictionary,workers:Array)->bool:
  for record in records.values():

@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_stove_output_geometry", "STOVE_OUTPUT_GEOMETRY_RESULT"),
     ("test_stove_output_reuse", "STOVE_OUTPUT_REUSE_RESULT"),
     ("test_chef_pickup_pose", "CHEF_PICKUP_POSE_RESULT"),
     ("capture_chef_pickup", "CHEF_PICKUP_CAPTURE_RESULT"),

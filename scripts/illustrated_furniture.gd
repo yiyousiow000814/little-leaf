@@ -1,4 +1,5 @@
 extends RefCounted
+const StoveLayout=preload("res://scripts/cafe_stove_layout.gd")
 const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
 # Presentation only: the cooking assembly fills the existing range naturally.
 const PAN_WIDTH=1.90
@@ -117,7 +118,7 @@ func _stove_base():
 	# The initial range has one centered burner and one cooking surface.
 	box(0,0,STOVE_TILE_SPAN-.025,STOVE_TILE_SPAN-.025,1,29,"b7c4af","849e8c","708d7d","839a84")
 	box(0,0,STOVE_TILE_SPAN,STOVE_TILE_SPAN,29,31,"d9deca","adbca9","a2b3a0")
-	for burner in [Vector2.ZERO]:
+	for burner in [StoveLayout.POT_CENTER]:
 		top_ellipse(burner.x,burner.y,31.2,.155*PAN_WIDTH,.155*PAN_WIDTH,"536e61")
 		top_ellipse(burner.x,burner.y,31.4,.11*PAN_WIDTH,.11*PAN_WIDTH,"8f9f88")
 		top_ellipse(burner.x,burner.y,31.6,.063*PAN_WIDTH,.063*PAN_WIDTH,"5b7665")
@@ -126,11 +127,11 @@ func _stove_base():
 
 	# A short raised grate supports the pan and leaves a real burner gap.
 	for q in [Vector2(-.13,0),Vector2(.13,0),Vector2(0,.13)]:
-		edge(point(q.x*PAN_WIDTH,q.y*PAN_WIDTH,31.5),point(q.x*PAN_WIDTH,q.y*PAN_WIDTH,34),"536e61",1.25)
+		edge(point(StoveLayout.POT_CENTER.x+q.x*PAN_WIDTH,StoveLayout.POT_CENTER.y+q.y*PAN_WIDTH,31.5),point(StoveLayout.POT_CENTER.x+q.x*PAN_WIDTH,StoveLayout.POT_CENTER.y+q.y*PAN_WIDTH,34),"536e61",1.25)
 
 func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
-	var base=point(0,0,34)+Vector2(0,2.15)
+	var base=point(StoveLayout.POT_CENTER.x,StoveLayout.POT_CENTER.y,34)+Vector2(0,2.15)
 	# The live blue gas jets are below the pan, not painted over the food.
 	# Drawn before the pan layer, the upper tips are naturally occluded.
 	for i in range(3):
@@ -274,17 +275,23 @@ func draw_beverage_foreground(artist:Node2D,p:Vector2,rotation:int):
 	espresso()
 	if beverage_accessories_in_front(turn):beverage_accessories()
 static func stove_food_surface(rotation:int)->Vector2:
-	return KitchenGeometry.surface(Vector2.ZERO,41,rotation)
+	return KitchenGeometry.surface(StoveLayout.POT_CENTER,41,rotation)
 
 static func stove_handle_height(rotation:int)->float:
 	return PAN_HANDLE_HEIGHT if stove_handle_in_front(rotation) else PAN_HANDLE_HEIGHT-PAN_REAR_HANDLE_DROP
 
+const PAN_GRIP_LENGTH=2.311199861544 # Original projected .10*PAN_WIDTH stem × .32 grip.
 static func stove_handle_points(rotation:int)->PackedVector2Array:
-	# Both ends move together: the grip stays the same length, material and
-	# thickness while its collar meets the sidewall below the rear lip.
+	# A radial metal stem connects the repositioned pan to the same reachable
+	# front grip. Preserve grip size/material; its end moves inward <1px.
 	var outset=0.0 if stove_handle_in_front(rotation) else PAN_REAR_HANDLE_OUTSET
 	var height=stove_handle_height(rotation)
-	return PackedVector2Array([KitchenGeometry.surface(Vector2(0,.16*PAN_WIDTH+outset),height,rotation),KitchenGeometry.surface(Vector2(0,.26*PAN_WIDTH+outset),height,rotation)])
+	var tip=StoveLayout.HANDLE_GRIP+Vector2(0,outset)
+	var axis=(tip-StoveLayout.POT_CENTER).normalized()
+	var projected=KitchenGeometry.surface(axis,0,rotation)
+	var rim_radius=1.0/sqrt(pow(projected.x/(8.5*PAN_WIDTH),2)+pow(projected.y/(4.2*PAN_DEPTH),2))
+	var mount=StoveLayout.POT_CENTER+axis*rim_radius
+	return PackedVector2Array([KitchenGeometry.surface(mount,height,rotation),KitchenGeometry.surface(tip,height,rotation)])
 
 static func stove_handle_in_front(rotation:int)->bool:
 	return posmod(rotation,4) in [0,3]
@@ -292,17 +299,17 @@ static func stove_handle_in_front(rotation:int)->bool:
 func _stove_pan_handle():
 	var handle=stove_handle_points(turn)
 	var mount=origin+handle[0];var tip=origin+handle[1]
-	var grip=mount.lerp(tip,.68)
+	var grip=tip-(tip-mount).normalized()*PAN_GRIP_LENGTH
 	# A short metal collar joins the rim to a rounded, matte wood grip.
 	# The highlight follows the same axis; no tiny texture or animated layer.
-	edge(mount,mount.lerp(tip,.80),"6d8475",2.2)
+	edge(mount,grip.lerp(tip,.375),"6d8475",2.2)
 	edge(grip,tip,"79674e",2.2)
 	for end in [grip,tip]:a.ellipse(end,Vector2.ONE*1.1,"79674e")
 	var light=Vector2(-.25,-.35)
 	edge(grip+light,tip+light,"b49b73",.65)
 
 func stove_pan():
-	var c=point(0,0,34)
+	var c=point(StoveLayout.POT_CENTER.x,StoveLayout.POT_CENTER.y,34)
 	var handle_in_front=stove_handle_in_front(turn)
 	# The far-side collar belongs behind the vessel. Do not repaint it over
 	# the lip or wood grip after the pan has occluded the attachment.
@@ -323,7 +330,7 @@ func stove_pan():
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
-	CookingFood.draw_rest_food(artist,point(0,0,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
+	CookingFood.draw_rest_food(artist,point(StoveLayout.POT_CENTER.x,StoveLayout.POT_CENTER.y,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
 
 func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
 	var motion={"pot":Vector2.ZERO,"lid":Vector2.ZERO}
@@ -331,7 +338,7 @@ func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
 	kitchen_height=true;a=artist;turn=posmod(rotation,4);origin=p+motion.pot
 	stove_pan()
 	# Reuse the vessel's original palette and elliptical rim geometry.
-	var lid=point(0,0,34)+Vector2(0,-7.6)+motion.lid-motion.pot
+	var lid=point(StoveLayout.POT_CENTER.x,StoveLayout.POT_CENTER.y,34)+Vector2(0,-7.6)+motion.lid-motion.pot
 	a.outlined_ellipse(lid,Vector2(8.4*PAN_WIDTH,4.1*PAN_DEPTH),"b5c2a7","dce0c9",1.0)
 	a.ellipse(lid+Vector2(0,-.6),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"c9d1b7")
 	a.line(lid+Vector2(0,-1.0),lid+Vector2(0,-3.0),"6d8475",1.6)

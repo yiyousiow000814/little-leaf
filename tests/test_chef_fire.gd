@@ -47,7 +47,7 @@ func run():
  for rot in range(4):
   var parts=Furniture.part_sequence("stove",rot)
   check(parts.find("heat")>parts.find("stove_base") and parts.find("heat")<parts.find("stove_pan"),"Flame must be behind the pan")
-  check(Furniture.stove_food_surface(rot).is_equal_approx(Furniture.KitchenGeometry.surface(Vector2.ZERO,41,rot)),"Pan/food/utensil target mismatch")
+  check(Furniture.stove_food_surface(rot).is_equal_approx(Furniture.KitchenGeometry.surface(Furniture.StoveLayout.POT_CENTER,41,rot)),"Pan/food/utensil target mismatch")
  for level in range(1,4):
   seed(123456)
   var game=GeneratedMain.new();game.set_process(false);root.add_child(game)

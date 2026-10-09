@@ -1,14 +1,17 @@
 extends RefCounted
 ## Presentation-only stove handoff. Ownership still changes in service contact.
+const Layout=preload("res://scripts/cafe_stove_layout.gd")
 const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 const Pickup=preload("res://scripts/cafe_chef_pickup.gd")
 const INSET=.32
 const UPPER=5.5
 const LOWER=6.5
+static func work_offset(rotation:int)->Vector2:
+ return Vector2(Layout.PICKUP_LATERAL,-INSET).rotated(posmod(rotation,4)*PI/2)
 static func grip(rotation:int)->Vector2:
- return Geometry.surface(Vector2(0,.70),31.0,rotation)
-static func pose(near:Vector2,far:Vector2,carry:Vector2,target:Vector2,plate_target:Vector2,progress:float,picking_up:bool)->Dictionary:
- var use_near=near.distance_to(target)<=far.distance_to(target)
+ return Geometry.surface(Layout.OUTPUT_GRIP,31.0,rotation)
+static func pose(near:Vector2,far:Vector2,carry:Vector2,target:Vector2,plate_target:Vector2,progress:float,picking_up:bool,use_near_hint:int=-1)->Dictionary:
+ var use_near=bool(use_near_hint) if use_near_hint>=0 else near.distance_to(target)<=far.distance_to(target)
  var shoulder=near if use_near else far
  var contact=smoothstep(.08,.65,progress) if progress<=.65 else 1.0-smoothstep(.65,1.0,progress)
  var hand=carry.lerp(target,contact)

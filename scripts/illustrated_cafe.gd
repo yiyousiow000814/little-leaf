@@ -314,6 +314,7 @@ func update_motion(delta: float):
 			# this job steps close to the edge; serving keeps its small aisle lean.
 			if str(station.get("kind",""))=="table" and str(staff.get("art_action",""))=="wiping":inset=DirectionalCharacter.CleaningPose.table_inset(target-staff.pos)
 			if target.distance_to(staff.pos)>.1:docking=(target-staff.pos).normalized()*inset
+			if str(station.get("kind",""))=="stove" and str(staff.get("art_action","")) in ["placing_plate","collecting_plate"]:docking=ChefPickupArt.work_offset(int(station.rot))
 		stance_offsets[key]=(stance_offsets.get(key,Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
 		motion.update(key,staff.pos+stance_offsets[key],delta)
 		var direction=_staff_visual_heading(staff,motion.sample(key))

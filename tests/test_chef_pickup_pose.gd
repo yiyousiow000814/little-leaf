@@ -10,14 +10,15 @@ func _initialize():
  for rotation in range(4):
   var heading=-Vector2.DOWN.rotated(rotation*PI/2)
   var mirror=-1.0 if heading.x-heading.y<0 else 1.0;var back=heading.x+heading.y<0
-  var ground=Vector2((heading.x-heading.y)*39,(heading.x+heading.y)*19.5)*(1.0-Art.INSET)
+  var to_stove=heading-Art.work_offset(rotation)
+  var ground=Vector2((to_stove.x-to_stove.y)*39,(to_stove.x+to_stove.y)*19.5)
   var near=Vector2(7,-24) if back else Vector2(-7,-24);var far=Vector2(-6,-26.5) if back else Vector2(6,-26.5)
   var grip=(ground+Art.grip(rotation))*Vector2(mirror,1)
   var plate=(ground+Pickup.plate_anchor(rotation))*Vector2(mirror,1)
   var carry=Character.carry_anchor(back)
   for pickup in [false,true]:
    for step in range(101):
-    var pose=Art.pose(near,far,carry,grip,plate,step*.01,pickup)
+    var pose=Art.pose(near,far,carry,grip,plate,step*.01,pickup,1 if back else 0)
     check(absf(pose.shoulder.distance_to(pose.elbow)-Art.UPPER)<.0001,"fixed upper arm")
     check(absf(pose.elbow.distance_to(pose.hand)-Art.LOWER)<.0001,"fixed lower arm")
     if step==65:

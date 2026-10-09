@@ -211,7 +211,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   near_tip=waiter_tablet.near_hand;far_tip=waiter_tablet.far_hand
  var pickup_pose={}
  if staff and action in ["placing_plate","collecting_plate"] and settings.has("pickup_grip"):
-  pickup_pose=PickupArt.pose(near_shoulder,far_shoulder,carry,settings.pickup_grip-origin,settings.pickup_plate-origin,t,action=="collecting_plate")
+  pickup_pose=PickupArt.pose(near_shoulder,far_shoulder,carry,settings.pickup_grip-origin,settings.pickup_plate-origin,t,action=="collecting_plate",1 if back else 0)
   if pickup_pose.use_near:near_tip=pickup_pose.hand
   else:far_tip=pickup_pose.hand
  var dining_pose={}

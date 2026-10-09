@@ -32,3 +32,11 @@ stored-plate anchor before its owner changes. Production visual CI captures
 56 frozen frames across four rotations and two zoom levels. It records actual
 paths, ownership and contact geometry, and round-trips generated saves before
 and after waiter contact. Pixel review remains a separate acceptance step.
+
+Physical output support is verified independently of draw order. The original
+14×6.4 meal plate and original pan use opposite supported worktop corners;
+burner, pot, lid and food share the pot anchor. Ceramic and pot outlines remain
+inside the one-tile top and do not intersect in any rotation. The metal stem
+connects the displaced pot to the reachable front grip while keeping its wood
+grip dimensions. The pickup stance shifts slightly sideways within its original
+work tile. Plate size is unchanged at the stove, in hand, on the table and sink.

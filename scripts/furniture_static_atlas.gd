@@ -11,7 +11,7 @@ const PARTS := ["counter","stove_base","stove_pan","stove_controls","beverage_ba
 # and move those crops with it so the lower machine cannot be clipped.
 const PART_BOUNDS := {
 	"counter":Rect2(-43,-47,86,69), "stove_base":Rect2(-43,-49,86,69),
-	"stove_pan":Rect2(-29,-46,58,40), "stove_controls":Rect2(-28,-30,56,40),
+	"stove_pan":Rect2(-36,-51,72,47), "stove_controls":Rect2(-28,-30,56,40),
 	"beverage_base":Rect2(-43,-49,86,71), "beverage_machine":Rect2(-27,-61,54,56),
 	"beverage_accessories":Rect2(-27,-51,54,47), "sink":Rect2(-43,-60,86,82),
 	"bookshelf":Rect2(-26,-80,52,96), "bench_seat":Rect2(-28,-35,56,50),
