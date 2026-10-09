@@ -1827,9 +1827,9 @@ func _service_contact(staff: Dictionary, index: int, action: String, target: Dic
 		record.dishes_collected=true
 		record.plate_owner="staff";record.plate_staff_index=index;record.plate_target_id=-1
 		record.drink_owner="cleared";record.drink_staff_index=-1;record.drink_target_id=-1
-	elif action=="sweeping" and phase>=1.0:
+	elif action=="sweeping" and phase>=1.0 and record.trash_owner=="floor":
 		record.trash_owner="staff";record.trash_staff_index=index;record.trash_target_id=-1
-	elif action=="disposing_trash" and phase>=1.0:
+	elif action=="disposing_trash" and phase>=1.0 and record.trash_owner in ["staff","bin"]:
 		record.trash_owner="disposed"
 		record.trash_staff_index=-1;record.trash_target_id=-1
 	elif action=="mopping":

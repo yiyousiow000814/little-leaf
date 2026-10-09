@@ -67,9 +67,12 @@ func run():
  check(cleaner.job_kind!="floor","manual completion releases NPC floor claim")
  record=game.setup_dirty();identity=game.ground_mess_identity("guest",int(record.guest.id))
  var plate_owner=record.plate_owner;var table_wiped=record.table_wiped
+ var stale_cleaner=game.legacy_job(record,3,.3).duplicate(true)
  check(game.complete_ground_mess(identity),"manual guest-ground completion accepted")
  check(record.plate_owner==plate_owner and record.table_wiped==table_wiped and not record.cleanup_done,"manual guest completion preserves unfinished waiter work")
  check(not game.complete_ground_mess(identity),"manual guest repeat has no second effect")
+ game._service_contact(stale_cleaner,game.staff_states.find(game.worker("cleaner")),"sweeping",{},1.0)
+ check(record.trash_owner=="disposed" and record.trash_staff_index==-1,"stale NPC sweep contact cannot reopen manually settled trash")
  id=game.floor_tasks.spawn(Vector2i(4,6),"crumbs");floor_identity=game.ground_mess_identity("floor",id)
  var saved_floor=game.floor_tasks.snapshot();game.floor_tasks.restore(saved_floor)
  check(not game.complete_ground_mess(floor_identity),"floor-only restore rejects old callback identity")

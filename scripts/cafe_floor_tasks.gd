@@ -158,8 +158,8 @@ func payload(staff:Dictionary,index:int)->String:
 func contact(staff:Dictionary,index:int,action:String,target_item:Dictionary,phase:float):
  var entry=record(staff)
  if entry.is_empty():return
- if action=="sweeping" and phase>=1.0:entry.trash_owner="staff";entry.trash_staff_index=index;entry.trash_target_id=-1
- elif action=="disposing_trash" and phase>=1.0:
+ if action=="sweeping" and phase>=1.0 and entry.trash_owner=="floor":entry.trash_owner="staff";entry.trash_staff_index=index;entry.trash_target_id=-1
+ elif action=="disposing_trash" and phase>=1.0 and entry.trash_owner in ["staff","bin"]:
   entry.trash_owner="disposed";entry.trash_staff_index=-1;entry.trash_target_id=-1
  elif action=="mopping":
   entry.spill_remaining=minf(float(entry.spill_remaining),1.0-smoothstep(0.0,1.0,phase))
