@@ -19,7 +19,7 @@ async function save(c,p=payload){let b=JSON.parse(c.bootJson);return c.commit(p,
   c=h.client();let b=await c.boot();assert.equal(b.source,'fresh');assert.equal(h.writes(),0,'boot never creates cloud doc');
   let r=await save(c);assert.equal(r.durable,true);assert.equal(r.cloudConfirmed,false);assert(c.states.includes('pending'));await c.sync();assert.equal(h.writes(),1);assert.equal(c.states.at(-1),'saved');
   let reload=h.client();assert.equal((await reload.boot()).payload,payload,'cloud reload');
-  h.setOffline(true);assert.equal((await save(reload)).ok,true);await reload.sync();assert.equal(reload.states.at(-1),'pending');assert.equal(h.cloud.get('alice').revision,1);
+  h.setOffline(true);assert.equal((await save(reload)).ok,true);await reload.sync();assert.equal(reload.states.at(-1),'offline');assert.equal(h.cloud.get('alice').revision,1);
   let off=h.client();assert.equal((await off.boot()).revision,2,'offline same UID resumes journal');h.setUid('bob');let bob=h.client();assert.equal((await bob.boot()).ok,false,'other UID cannot borrow offline profile');assert.equal(h.local.has('bob'),false);
   h.setUid('alice');h.setOffline(false);let online=h.client();assert.equal((await online.boot()).revision,2);assert.equal(h.cloud.get('alice').revision,2);assert.equal(online.states.at(-1),'saved');
   assert.equal((await online.commit(payload,1,b.profileId)).code,'REVISION_CONFLICT','stale local revision');
