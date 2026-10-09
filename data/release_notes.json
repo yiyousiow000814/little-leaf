@@ -5,7 +5,7 @@
   "date": "2026-10-09",
   "label": "Developer preview",
   "new": [
-    "A skippable tutorial for opening your café, managing staff and decorating.",
+    "A shorter, skippable tutorial with quick service explanations.",
     "Customers now queue outside when your café is full.",
     "Buy a four-space parking lot for 2,000 coins and welcome customers arriving by car.",
     "More street scenery, passing traffic and bus-stop visitors.",
@@ -13,12 +13,12 @@
     "Google-account cloud saves are available as a preview."
   ],
   "fixed": [
-    "Smoother loading and Welcome animation.",
+    "Clearer sign-in and loading guidance.",
     "Improved camera movement, Fit and decorating visibility.",
     "Improved wall, door and window placement, replacement and decoration refunds.",
     "Fixed layering and details for trees, cookware, drink machines and cleaning tools.",
-    "Improved coin icons, compact layouts and controls.",
-    "More reliable saves, reduced repeated processing and safer background pause/resume.",
+    "Simpler Pause-only controls, with saving status moved into Settings.",
+    "More reliable saves, direct cleanup without bin trips, and safer background pause/resume.",
     "This is a developer preview. Cross-device cloud saves and device compatibility are still being verified."
   ]
 }
