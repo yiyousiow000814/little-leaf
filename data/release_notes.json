@@ -1,24 +1,24 @@
 {
   "schema_version": 1,
-  "status": "draft",
+  "status": "released",
   "version": "0.1.10",
-  "date": "2026-10-08",
+  "date": "2026-10-09",
   "label": "Developer preview",
   "new": [
-    "Outside visitors wait in a separate queue before seated service begins.",
-    "Add a four-bay parking upgrade for 2,000 coins in Decorate. Customers park, visit the cafe, then return to their cars and drive away.",
-    "Roadside scenery, passing traffic and bus-stop visitors."
+    "A skippable tutorial for opening your café, managing staff and decorating.",
+    "Customers now queue outside when your café is full.",
+    "Buy a four-space parking lot for 2,000 coins and welcome customers arriving by car.",
+    "More street scenery, passing traffic and bus-stop visitors.",
+    "New 60/120 FPS options and a diagnostic log in Settings.",
+    "Google-account cloud saves are available as a preview."
   ],
   "fixed": [
-    "Welcome now leads into a moving cafe, with Little Leaf branding while the game loads.",
-    "Browse Wall styles in the Build tray, with improved placement and replacement of walls, doors and windows.",
-    "Decorate hides outside people and uses the original Play camera range.",
-    "Clearer controls, softer wall-selection outlines, rounded coin icons and better frame-rate selector spacing.",
-    "Improved Inbox history after CrazyGames progress submission.",
-    "More reliable service, cleaning, work positions and build-session refunds, with less repeated rendering and route work."
-  ],
-  "review_pending": [
-    "Interactive tutorial and authentic fresh-customer flow are under developer validation.",
-    "Official submission and publication are on hold until the revised quality scope is ready."
+    "Smoother loading and Welcome animation.",
+    "Improved camera movement, Fit and decorating visibility.",
+    "Improved wall, door and window placement, replacement and decoration refunds.",
+    "Fixed layering and details for trees, cookware, drink machines and cleaning tools.",
+    "Improved coin icons, compact layouts and controls.",
+    "More reliable saves, reduced repeated processing and safer background pause/resume.",
+    "This is a developer preview. Cross-device cloud saves and device compatibility are still being verified."
   ]
 }
