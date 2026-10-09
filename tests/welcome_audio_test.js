@@ -8,7 +8,7 @@ const cp = require('node:child_process');
 const {hash} = require('./wall_compatibility_helpers');
 const {installWelcomeAudioObserver} = require('./welcome_audio_observer');
 const {preferences, MODES, GESTURES, PREFERENCE_KEY, sustainedSignal, analyzeTrial, compareTrials,
-  launchOptions, verifyBrowserArguments, verifySource, SERVICE_MP3} = require('./welcome_audio_helpers');
+  launchOptions, verifyBrowserArguments, verifySource, SERVICE_MP3, classifyActivation, activationCoverage} = require('./welcome_audio_helpers');
 let checks = 0;
 function test(name, fn) {fn(); checks++; console.log('ok ' + name);}
 function fails(fn, message) {assert.throws(fn, message);}
@@ -18,7 +18,7 @@ function fixture(mode = 'enabled', gesture = 'click') {
   for (let time = 1000; time <= 8000; time += 20) samples.push({tap: 0, at: time,
     audioTime: Math.max(0, (time - at) / 1000), state: time < at ? 'suspended' : 'running',
     acRms: mode === 'enabled' && time > at ? 0.01 : 0, rms: 0.01, peak: 0.02});
-  return {mode, gesture, screenshots: [{name: 'early-welcome', before: 1900, after: 2000}], raw: {
+  return {mode, gesture, profile_kind: 'audio-measurement', early_audio_observation: {kind: 'nonvisual-audio-observation', at: 1900}, raw: {
     firstVisible: 1000, errors: [], disconnects: [], taps: [{id: 0, context: 0}],
     contexts: [{id: 0, states: [{at: 900, state: 'suspended'}, {at, state: 'running'}]}],
     frames: Array.from({length: 450}, (_, i) => 1000 + i * 16.7), samples,
@@ -26,6 +26,17 @@ function fixture(mode = 'enabled', gesture = 'click') {
       ...(gesture === 'touch' ? [{type: 'touchend', at: at + 20, trusted: true, active: true}] : [])]}};
 }
 const suite = () => GESTURES.flatMap(gesture => MODES.map(mode => fixture(mode, gesture)));
+function autoplayFixture(mode = 'enabled', gesture = 'click') {
+  const row = fixture(mode, gesture);
+  row.raw.contexts[0].states = [{at: 900, state: 'running'}];
+  row.raw.samples.forEach(sample => {
+    sample.state = 'running'; sample.audioTime = sample.at / 1000;
+    sample.acRms = mode === 'enabled' ? 0.01 : 0;
+  });
+  return row;
+}
+const autoplaySuite = () => GESTURES.flatMap(gesture => MODES.map(mode => autoplayFixture(mode, gesture)));
+
 async function preferenceTests() {
   for (const mode of MODES) {
     const store = new Map([[PREFERENCE_KEY, JSON.stringify(preferences(mode))]]);
@@ -51,8 +62,8 @@ test('unactivated input rejected', () => {const row = fixture(); row.raw.events[
 test('prior click before Enter rejected', () => {const row = fixture('enabled', 'Enter'); row.raw.events.unshift({type: 'mousedown', at: 1100}); fails(() => analyzeTrial(row), /earlier/);});
 test('repeated first gesture rejected', () => {const row = fixture(); row.raw.events.push({...row.raw.events[0], at: 1300}); fails(() => analyzeTrial(row), /Exactly one/);});
 test('late gesture rejected', () => {const row = fixture(); row.raw.events[0].at = 2100; fails(() => analyzeTrial(row), /initial welcome/);});
-test('already running context rejected', () => {const row = fixture(); row.raw.contexts[0].states[0].state = 'running'; fails(() => analyzeTrial(row), /begin suspended/);});
-test('early auto-resumption rejected', () => {const row = fixture(); row.raw.contexts[0].states[1].at = 1100; fails(() => analyzeTrial(row), /before/);});
+test('contradictory running state and suspended samples unresolved', () => {const row = fixture(); row.raw.contexts[0].states[0].state = 'running'; fails(() => analyzeTrial(row), /unresolved/);});
+test('mixed early autoresumption observations unresolved', () => {const row = fixture(); row.raw.contexts[0].states[1].at = 1100; fails(() => analyzeTrial(row), /unresolved/);});
 test('missing context or output rejected', () => {const row = fixture(); row.raw.taps = []; fails(() => analyzeTrial(row), /destination-bound/);});
 test('multiple independent output contexts are inconclusive', () => {const row = fixture(); row.raw.taps.push({id: 1, context: 1}); fails(() => analyzeTrial(row), /One summed/);});
 test('running silent graph alone never passes', () => {const row = fixture(); row.raw.samples.forEach(x => x.acRms = 0); fails(() => analyzeTrial(row), /Sustained/);});
@@ -133,12 +144,89 @@ for (const mode of ['disabled', 'zero']) {
     assert(measured(row).length >= 20); analyzeTrial(row);
   });
 }
+test('gesture-unlocked coverage requires suspended quiet baseline and has no autoplay claim', () => {
+  const result = activationCoverage(compareTrials(suite()));
+  assert.deepEqual(result, {observed_path: 'gesture-unlocked', gesture_unlocked_path: 'verified', default_autoplay_path: 'unverified-not-exercised'});
+});
+test('default autoplay signal and controls pass without claiming blocked-context unlock', () => {
+  const result = activationCoverage(compareTrials(autoplaySuite()));
+  assert.deepEqual(result, {observed_path: 'default-autoplay-allowed', gesture_unlocked_path: 'unverified-not-exercised', default_autoplay_path: 'verified'});
+});
+test('initially suspended but running before visible baseline is classified autoplay', () => {
+  const row = autoplayFixture(); row.raw.contexts[0].states.unshift({at: 500, state: 'suspended'});
+  assert.equal(analyzeTrial(row).activation.path, 'default-autoplay-allowed');
+});
+test('autoplay still needs sustained post-input enabled signal', () => {
+  const row = autoplayFixture(); row.raw.samples.filter(x => x.at >= 1200).forEach(x => x.acRms = 0);
+  fails(() => analyzeTrial(row), /Sustained/);
+});
+for (const mode of ['disabled', 'zero']) {
+  test(mode + ' autoplay control rejects pre-input noise', () => {
+    const row = autoplayFixture(mode); row.raw.samples[0].acRms = 0.01;
+    fails(() => analyzeTrial(row), /quiet before input/);
+  });
+  test(mode + ' autoplay control rejects suspended measured sample', () => {
+    const row = autoplayFixture(mode); row.raw.samples[30].state = 'suspended';
+    fails(() => analyzeTrial(row), /samples must all be running/);
+  });
+  test(mode + ' autoplay control rejects frozen measured clock', () => {
+    const row = autoplayFixture(mode); row.raw.samples.filter(x => x.at >= 1250).forEach(x => x.audioTime = 1);
+    fails(() => analyzeTrial(row), /audio clock must advance/);
+  });
+}
+test('missing state history is unresolved', () => {
+  const row = fixture(); row.raw.contexts[0].states = [];
+  fails(() => analyzeTrial(row), /unresolved/);
+});
+test('unknown or closed context cannot earn an activation claim', () => {
+  for (const state of ['bogus', 'closed']) {
+    const row = autoplayFixture(); row.raw.contexts[0].states.push({at: 1100, state});
+    fails(() => analyzeTrial(row), /unresolved/);
+  }
+});
+test('unobserved extra context is unresolved', () => {
+  const row = fixture(); row.raw.contexts.push({id: 1, states: []});
+  fails(() => analyzeTrial(row), /unresolved/);
+});
+test('mixed pre-input running and suspended samples are unresolved', () => {
+  const row = autoplayFixture(); row.raw.samples[0].state = 'suspended';
+  fails(() => analyzeTrial(row), /unresolved/);
+});
+test('inter-sample pre-input suspension is unresolved', () => {
+  const row = autoplayFixture(); row.raw.contexts[0].states.push({at: 1101, state: 'suspended'}, {at: 1119, state: 'running'});
+  fails(() => analyzeTrial(row), /unresolved/);
+});
+test('running samples without matching running history are unresolved', () => {
+  const row = autoplayFixture(); row.raw.contexts[0].states = [{at: 900, state: 'suspended'}];
+  assert.equal(classifyActivation(row.raw, 1200).path, 'unresolved');
+});
+test('no resume within signal window is unresolved', () => {
+  const row = fixture(); row.raw.contexts[0].states[1].at = 3500;
+  fails(() => analyzeTrial(row), /unresolved/);
+});
+test('mixed nine-case activation paths cannot earn combined pass', () => {
+  const rows = suite(); rows[0] = autoplayFixture();
+  fails(() => compareTrials(rows), /Mixed activation/);
+});
+test('unresolved coverage cannot earn combined pass', () => {
+  const rows = compareTrials(suite());
+  for (const row of rows) for (const mode of Object.values(row.modes)) mode.activation.path = 'unresolved';
+  fails(() => activationCoverage(rows), /Unresolved/);
+});
+test('visual-only profiles cannot satisfy audio acceptance', () => {
+  const row = fixture(); row.profile_kind = 'visual-only'; fails(() => analyzeTrial(row), /measurement profiles/);
+});
+test('early screenshot cannot replace nonvisual audio anchor', () => {
+  const row = fixture(); delete row.early_audio_observation;
+  row.screenshots = [{name: 'early-welcome', before: 1900, after: 2000}];
+  fails(() => analyzeTrial(row), /Early nonvisual/);
+});
 test('missing control cannot imply causality', () => fails(() => compareTrials(suite().slice(1)), /independent control/));
 test('destination disconnect invalidates samples', () => {const row = fixture(); row.raw.disconnects.push({at: 1500}); fails(() => analyzeTrial(row), /stable/);});
 test('observer errors fail closed', () => {const row = fixture(); row.raw.errors.push('tap failed'); fails(() => analyzeTrial(row), /errors/);});
 test('frame stall makes intro timing inconclusive', () => {const row = fixture(); row.raw.frames = row.raw.frames.filter(t => t < 1300 || t > 2500); fails(() => analyzeTrial(row), /Stall/);});
-test('late evidence cannot prove welcome audio', () => {const row = fixture(); row.screenshots[0].after = 4000; fails(() => analyzeTrial(row), /Early screenshot/);});
-test('signal after screenshot cannot prove welcome audio', () => {const row = fixture(); row.raw.samples.filter(x => x.at < 2000).forEach(x => x.acRms = 0); fails(() => analyzeTrial(row), /Sustained/);});
+test('late evidence cannot prove welcome audio', () => {const row = fixture(); row.early_audio_observation.at = 4000; fails(() => analyzeTrial(row), /Early nonvisual/);});
+test('signal after nonvisual anchor cannot prove timely audio', () => {const row = fixture(); row.raw.samples.filter(x => x.at < 2000).forEach(x => x.acRms = 0); fails(() => analyzeTrial(row), /Sustained/);});
 function mockBrowser() {
   let now = 0, timer, frame, resumeCalls = 0;
   const events = new Map(), connections = [];
@@ -157,7 +245,7 @@ function mockBrowser() {
     document: {getElementById: () => now < 100 ? {} : null}, addEventListener: (type, fn) => events.set(type, fn),
     requestAnimationFrame: fn => {frame = fn;}, setInterval: fn => {timer = fn; return 1;}, clearInterval() {}, Float32Array};
   vm.runInNewContext('(' + installWelcomeAudioObserver.toString() + ')()', sandbox);
-  return {sandbox, connections, events, setNow(value) {now = value;}, frame() {frame(now);}, tick() {timer();}, resumes: () => resumeCalls};
+  return {sandbox, connections, events, setNow(value) {now = value;}, frame(timestamp = now) {frame(timestamp);}, tick() {timer();}, resumes: () => resumeCalls};
 }
 test('observer retains original graph destination and return value', () => {
   const m = mockBrowser(), context = new m.sandbox.AudioContext(), node = new m.sandbox.AudioNode(context);
@@ -200,6 +288,12 @@ test('observer records context states, raw output and trusted input without resu
   assert.equal(raw.samples[0].state, 'running'); assert(Math.abs(raw.samples[0].acRms - 0.1) < 1e-6);
   assert.equal(raw.events[0].trusted, true); assert.equal(m.resumes(), 0);
   node.disconnect(context.destination); assert.equal(raw.disconnects.length, 1);
+});
+test('visibility and frame clocks use callback time while retaining raw rAF timestamps', () => {
+  const m = mockBrowser(); m.frame(); m.setNow(100); m.frame(25);
+  const raw = m.sandbox.__welcomeAudioQA;
+  assert.equal(raw.firstVisible, 100); assert.equal(raw.firstVisibleRaf, 25);
+  assert.equal(raw.frames.at(-1), 100); assert.equal(raw.rafTimestamps.at(-1), 25);
 });
 test('observer instrumentation failure does not alter original successful connect', () => {
   const m = mockBrowser(), context = new m.sandbox.AudioContext(), node = new m.sandbox.AudioNode(context);

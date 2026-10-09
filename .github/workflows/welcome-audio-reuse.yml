@@ -38,6 +38,7 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=no)"
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/welcome_audio_test.js
+          node tests/welcome_audio_capture_test.js
           node tests/welcome_audio_browser_identity_test.js
           node --check tests/welcome_audio_browser.js
       - name: Retrieve only the pinned ordinary-Web artifact and run metadata
@@ -60,7 +61,7 @@ jobs:
           "$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends xvfb xauth tesseract-ocr tesseract-ocr-eng
           /opt/google/chrome/chrome --version
-      - name: Run unchanged nine gesture and silent-control trials
+      - name: Run nine audio comparisons and independent early-visual profiles
         timeout-minutes: 6
         env:
           WELCOME_AUDIO_BROWSER: system-chrome

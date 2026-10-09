@@ -2,8 +2,8 @@
 // Test-only parallel tap: existing connections/return values remain untouched.
 // Analyser outputs stay unconnected. No resume(), playback or gain mutation.
 function installWelcomeAudioObserver() {
-  const state = {version: 1, started: performance.now(), firstVisible: null,
-    frames: [], contexts: [], taps: [], samples: [], events: [], errors: [], disconnects: [], stopped: false};
+  const state = {version: 2, started: performance.now(), firstVisible: null, firstVisibleRaf: null,
+    frames: [], rafTimestamps: [], contexts: [], taps: [], samples: [], events: [], errors: [], disconnects: [], stopped: false};
   const contexts = new Map(), taps = [], links = [];
   const originalConnect = AudioNode.prototype.connect;
   const originalDisconnect = AudioNode.prototype.disconnect;
@@ -64,10 +64,15 @@ function installWelcomeAudioObserver() {
       target: event.target?.tagName || null, active: navigator.userActivation?.isActive ?? null}), {capture: true, passive: true});
   }
   let hadStatus = false;
-  function frame(now) {
+  function frame(rafTimestamp) {
+    const observedAt = performance.now();
     if (document.getElementById('status')) hadStatus = true;
-    if (state.firstVisible === null && hadStatus && !document.getElementById('status')) state.firstVisible = now;
-    state.frames.push(now);
+    if (state.firstVisible === null && hadStatus && !document.getElementById('status')) {
+      state.firstVisible = observedAt; state.firstVisibleRaf = rafTimestamp;
+    }
+    // rAF's supplied timestamp can precede a delayed callback. All deadlines
+    // use the same observed performance.now clock as input and audio samples.
+    state.frames.push(observedAt); state.rafTimestamps.push(rafTimestamp);
     if (!state.stopped) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
