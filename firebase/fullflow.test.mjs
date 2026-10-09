@@ -88,7 +88,12 @@ async function setup(uid,entry=null){
  await page.addInitScript(installEngineLaunchHook,{args:['--','--skip-intro'],reportKey:'__fullflowEngine'});
  return {context,page,uid};
 }
-async function launch(device){await device.page.goto(origin+'/index.html');await device.page.waitForFunction(()=>!document.getElementById('status')&&globalThis.__fullflowEngine?.launchCalls===1,null,{timeout:90000});return device;}
+async function launch(device){await device.page.goto(origin+'/index.html');await device.page.waitForFunction(()=>!document.getElementById('status')&&globalThis.__fullflowEngine?.launchCalls===1,null,{timeout:90000});await device.page.evaluate(()=>{
+ globalThis.__qaAdapterResults=[];const client=globalThis.__littleLeafVault;
+ for(const name of ['boot','requestTakeover','finishTakeover','forceTakeover','preserveOwnerRuntime']){
+  const original=client[name];client[name]=function(...args){const promise=original.apply(this,args);promise.then(result=>globalThis.__qaAdapterResults.push({method:name,result}),error=>globalThis.__qaAdapterResults.push({method:name,error:String(error)}));return promise;};
+ }
+});return device;}
 const snapshot=p=>p.evaluate(()=>JSON.parse(LittleLeafVault.recoverySnapshot()));
 async function shot(p,name){await p.screenshot({path:path.join(out,name+'.png')});report.screenshots.push(name+'.png');}
 function rectangle(mode,button){const r=recoveryLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.mode===mode);assert(r?.buttons?.[button],mode+' '+button+' native geometry');return r.buttons[button];}
@@ -102,7 +107,7 @@ async function click(p,mode,button){
  const measured=JSON.parse(fs.readFileSync(output));assert(measured.buttons[button],mode+' '+button+' visible in exact snapshot geometry');
  const [x,y,w,h]=measured.buttons[button];await p.mouse.click(x+w/2,y+h/2);nativeMessages.set(p,'');
 }
-async function nativeSave(d){await d.page.waitForFunction(()=>globalThis.__littleLeafLifecycleV1?.current);await d.page.waitForTimeout(350);const before=await journal(d.page,d.uid);await d.page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));await until(async()=>{const e=await journal(d.page,d.uid);return e?.record.revision>before.record.revision && e;},'native lifecycle durable save');const saved=await journal(d.page,d.uid);await d.page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));return saved;}
+async function nativeSave(d){await d.page.waitForFunction(()=>globalThis.__littleLeafLifecycleV1?.current);await d.page.waitForTimeout(350);const before=await until(async()=>{const entry=await journal(d.page,d.uid),state=await snapshot(d.page);return entry?.record && !state.ownershipPaused && !state.busy && entry;},'resumed native account journal',30000);await d.page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));await until(async()=>{const e=await journal(d.page,d.uid);return e?.record.revision>before.record.revision && e;},'native lifecycle durable save');const saved=await journal(d.page,d.uid);await d.page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));return saved;}
 async function confirmedClick(p,mode,button,accept){let finish;const handled=new Promise(resolve=>finish=resolve);p.once('dialog',async dialog=>{assert.equal(dialog.type(),'confirm');await (accept?dialog.accept():dialog.dismiss());finish();});await click(p,mode,button);let timer;try{await Promise.race([handled,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Expected native confirmation dialog')),10000);})]);}finally{clearTimeout(timer);}if(!accept)nativeMessages.set(p,'Choose either save when you are ready.');await p.waitForTimeout(100);}
 async function resumeProof(d,coins){const e=await nativeSave(d);check(JSON.parse(e.record.payload).coins===coins,'native model really resumed chosen coins '+coins);return e;}
 async function updateClick(p,button,error=false){await p.waitForTimeout(350);const r=updateLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.error===error);assert(r?.buttons?.[button],'update native geometry');const [x,y,w,h]=r.buttons[button];await p.mouse.click(x+w/2,y+h/2);}
@@ -157,7 +162,7 @@ try{
  report.failure=String(error.stack||error);report.failureStates=[];
  for(const context of contexts)for(const page of context.pages()){
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot())});await shot(page,'failure-'+report.failureStates.length);
+   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson)});await shot(page,'failure-'+report.failureStates.length);
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
  }
  throw error;

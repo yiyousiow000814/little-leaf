@@ -7,7 +7,24 @@ const env=await initializeTestEnvironment({projectId:'demo-little-leaf',firestor
 const sessions=[];
 try{
   // Same JavaScript realm as the actual SDK; no VM prototype normalization.
-  for(const name of ['little_leaf_firebase','little_leaf_firebase_session'])vm.runInThisContext(readFileSync(`../web/${name}.js`,'utf8'));
+  for(const name of ['little_leaf_vault','little_leaf_firebase','little_leaf_firebase_session'])vm.runInThisContext(readFileSync(`../web/${name}.js`,'utf8'));
+  // Actual SDK + adapter: an initially blocked new runtime must resume after
+  // acknowledged takeover, including when it has no local journal yet.
+  {
+    const account='session-adapter-resume',sdk={doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot};
+    const database=env.authenticatedContext(account,{firebase:{sign_in_provider:'google.com'}}).firestore();
+    const clone=v=>v==null?null:JSON.parse(JSON.stringify(v));
+    function device(label){
+      const ownership=LittleLeafFirebaseSession.createSession({uid:account,currentUid:()=>account,deviceLabel:label,remote:LittleLeafFirebaseSession.createRemote(database,sdk,account)});sessions.push(ownership);let local=null;
+      const journal={async read(){return clone(local);},async replace(uid,expected,next){assert.deepEqual(local,clone(expected));local=clone(next);},async readRecoveryBackup(){return null;}};
+      const client=LittleLeafFirebase.createClient({uid:account,currentUid:()=>account,codec:LittleLeafAuthorityCodec,ownership,journal,remote:LittleLeafFirebase.createRemote(database,sdk,ownership),status(){}});return {ownership,client,local:()=>local};
+    }
+    const first=device('Mac'),second=device('iPhone');await first.ownership.start();const boot=await first.client.boot();assert(boot.ok);
+    const payload=readFileSync('../tests/fixtures/startup-retry-v15.json','utf8');assert((await first.client.commit(payload,0,boot.profileId)).ok);
+    await second.ownership.start();assert.equal((await second.client.boot()).code,'OWNERSHIP_LOST');assert.equal(second.local(),null);
+    assert((await second.client.requestTakeover()).ok);await first.ownership.refresh();assert((await first.client.preserveOwnerRuntime(payload,1,boot.profileId)).cloudConfirmed);
+    await second.ownership.refresh();const resumed=await second.client.finishTakeover();assert(resumed.ok,JSON.stringify(resumed));assert.equal(resumed.payload,payload);assert(second.local());
+  }
   const uid='session-suite',google={firebase:{sign_in_provider:'google.com'}};
   const db=env.authenticatedContext(uid,google).firestore(),other=env.authenticatedContext('other',google).firestore();
   const sessionRef=database=>doc(database,'players',uid,'session','owner'),saveRef=doc(db,'players',uid,'saves','cafe');
