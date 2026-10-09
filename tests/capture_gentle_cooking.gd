@@ -38,6 +38,7 @@ func run():
   var expected_inset=(target-logical).normalized()*inset
   var rendered=game.illustration._render_position(actor_key,logical)
   var actual_inset=rendered-logical
+  var settled_pose=game.illustration.motion.sample(actor_key)
   if actual_inset.distance_to(expected_inset)>.001:
    printerr("Work inset did not settle: ",actual_inset," expected ",expected_inset);quit(1);return
   print("CAPTURE_COOKING_READY ",rotation," logical=",logical," rendered=",rendered," inset=",actual_inset)
@@ -65,7 +66,7 @@ func run():
     art.queue_redraw();await process_frame;await RenderingServer.frame_post_draw
     var name="rot%d-%s-t%.1f.png"%[rotation,scale_name,moment]
     root.get_texture().get_image().save_png(output.path_join(name))
-    records.append({"file":name,"rotation":rotation,"elapsed":moment,"zoom":art.zoom,"plate_owner":game.service_guests[chef.job_guest_id].plate_owner,"logical_position":[logical.x,logical.y],"rendered_position":[rendered.x,rendered.y],"work_inset":[actual_inset.x,actual_inset.y],"motion_update_seconds":.1,"camera_origin":[art.origin.x,art.origin.y]})
+    records.append({"file":name,"rotation":rotation,"elapsed":moment,"zoom":art.zoom,"plate_owner":game.service_guests[chef.job_guest_id].plate_owner,"logical_position":[logical.x,logical.y],"rendered_position":[rendered.x,rendered.y],"work_inset":[actual_inset.x,actual_inset.y],"motion_update_seconds":.1,"left_shoe_axis":[settled_pose.left_axis.x,settled_pose.left_axis.y],"right_shoe_axis":[settled_pose.right_axis.x,settled_pose.right_axis.y],"left_lift":settled_pose.left_lift,"right_lift":settled_pose.right_lift,"camera_origin":[art.origin.x,art.origin.y]})
   game.free();await process_frame
  if validate_only:print("CAPTURE_FIXTURE_VALIDATED rotations=4");quit();return
  await capture_context(records)

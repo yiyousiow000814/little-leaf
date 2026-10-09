@@ -109,6 +109,7 @@ SUITES = [
     ("test_stove_work_reservation", "STOVE_WORK_RESERVATION_RESULT"),
     ("test_stove_reservation_ui", "STOVE_RESERVATION_UI_RESULT"),
     ("test_stove_pause_service", "STOVE_PAUSE_SERVICE_RESULT"),
+    ("test_stove_work_transition", "STOVE_WORK_TRANSITION"),
     ("test_workface_ground_guidance", "WORKFACE_GROUND_GUIDANCE_RESULT"),
     ("test_workface_single_tint", "WORKFACE_SINGLE_TINT_RESULT"),
     ("test_departing_route_edit", "DEPARTING_ROUTE_RESULT"),
