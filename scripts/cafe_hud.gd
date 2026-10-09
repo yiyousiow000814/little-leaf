@@ -20,19 +20,10 @@ var rail_art:Control
 var sign_art:TextureRect
 var action_art={}
 var action_captions={}
+const PLAY_CONTROL_WIDTH=44.0
 var pause_face:Panel
 var pause_art:TextureRect
 var pause_caption:Label
-var speed_capsule:Control
-var speed_rail:Panel
-var speed_thumb:Panel
-var speed_tween:Tween
-var speed_selected=-1
-var speed_geometry=Rect2()
-var speed_cell=0.0
-var speed_inset=0.0
-var speed_text=[]
-var speed_front_text=[]
 var font_bold:Font
 var last_coins=-1
 var coin_tween:Tween
@@ -183,9 +174,9 @@ func theme_button(button:Button,accent:bool=false):
  button.custom_minimum_size.y=maxf(44,button.custom_minimum_size.y);_soft_button(button)
 func theme_panel_contents(node:Node):
  for child in node.get_children():
-  if child==speed_capsule or child==game.pause_button:continue
+  if child==game.pause_button:continue
   if child is Button:
-   if child!=game.pause_button and child not in game.settings_controls.speed_buttons:theme_button(child)
+   theme_button(child)
   elif child is Label:
    if child.get_theme_font_size("font_size")>=18:child.add_theme_font_override("font",font_bold);child.add_theme_color_override("font_color",INK)
    if child.autowrap_mode!=TextServer.AUTOWRAP_OFF:child.custom_minimum_size.x=0;child.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -295,7 +286,6 @@ func setup():
  game.pause_button.add_theme_stylebox_override("focus",focus)
  pause_face=Panel.new();pause_face.material=_art_material(1);pause_face.mouse_filter=Control.MOUSE_FILTER_IGNORE;pause_face.add_theme_stylebox_override("panel",texture_style("cream_face",14));game.pause_button.add_child(pause_face)
  pause_art=_picture(game.pause_button,_icon("player-pause"));pause_caption=_label(game.pause_button,"Pause",13);_bind_motion(game.pause_button)
- _setup_speed_capsule()
  game.business_button.accessibility_name="Café service controls";game.edit_button.accessibility_name="Decorate café";ui.staff_access.accessibility_name="Staff";ui.settings_button.accessibility_name="Settings"
  layout_host=Control.new();layout_host.mouse_filter=Control.MOUSE_FILTER_IGNORE;game.ui.add_child(layout_host)
  for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:control.reparent(layout_host)
@@ -365,57 +355,6 @@ func sync(width:float):
  ui.earnings.position=Vector2(clampf(game.top_text.get_global_rect().get_center().x-60,insets.x+8,width-insets.z-132),notice_y)
  if ui.wallet_notice!=null:ui.wallet_notice.sync_position()
 
-func _setup_speed_capsule():
- # Preserve the two real ButtonGroup buttons and their existing set_speed
- # callbacks. One connected cream surface and one moving sage thumb own art.
- speed_capsule=Control.new();speed_capsule.name="SpeedSelector";speed_capsule.mouse_filter=Control.MOUSE_FILTER_IGNORE;speed_capsule.size_flags_vertical=Control.SIZE_SHRINK_CENTER;ui.play_controls.add_child(speed_capsule)
- speed_rail=Panel.new();speed_rail.material=_art_material(1);speed_rail.mouse_filter=Control.MOUSE_FILTER_IGNORE;speed_rail.add_theme_stylebox_override("panel",texture_style("cream_face",18));speed_capsule.add_child(speed_rail)
- speed_thumb=Panel.new();speed_thumb.mouse_filter=Control.MOUSE_FILTER_IGNORE;speed_thumb.clip_children=CanvasItem.CLIP_CHILDREN_AND_DRAW;speed_thumb.z_index=2
- var thumb_style=_surface(Color("5b6d58"),Color.TRANSPARENT,14,0);thumb_style.set_border_width_all(0);speed_thumb.add_theme_stylebox_override("panel",thumb_style);speed_capsule.add_child(speed_thumb)
- for index in range(game.settings_controls.speed_buttons.size()):
-  var button:Button=game.settings_controls.speed_buttons[index];button.reparent(speed_capsule);button.z_index=3
-  for state in ["normal","disabled"]:button.add_theme_stylebox_override(state,StyleBoxEmpty.new())
-  button.add_theme_stylebox_override("hover",_surface(Color(1,.95,.77,.12),Color.TRANSPARENT,14,0))
-  for state in ["pressed","hover_pressed"]:button.add_theme_stylebox_override(state,_surface(Color(.24,.20,.13,.08),Color.TRANSPARENT,14,0))
-  var focus=_surface(Color.TRANSPARENT,Color("725237"),14,0);focus.set_border_width_all(2);button.add_theme_stylebox_override("focus",focus)
-  for color in ["font_color","font_hover_color","font_pressed_color","font_hover_pressed_color","font_focus_color","font_disabled_color"]:button.add_theme_color_override(color,Color.TRANSPARENT)
-  button.add_theme_font_size_override("font_size",1)
-  button.accessibility_name="Normal speed · 1×" if index==0 else "Fast speed · 2×"
-  button.accessibility_description="Choose service speed. Left and right arrow keys switch between 1× and 2×."
-  button.tooltip_text=button.accessibility_name
-  var label=_label(speed_capsule,button.text,22);label.z_index=1;speed_text.append(label)
-  speed_front_text.append(_label(speed_thumb,button.text,22,CREAM))
-  button.pressed.connect(_speed_pressed)
-  button.gui_input.connect(_speed_keyboard.bind(index))
- speed_capsule.tree_exiting.connect(_stop_speed_tween)
-
-func _layout_speed_capsule(s:float,compact:bool):
- speed_capsule.custom_minimum_size=Vector2(154,98)*s
- var next=Rect2(Vector2(0,6 if compact else 15)*s,Vector2(152,64)*s)
- var changed=not speed_geometry.is_equal_approx(next)
- speed_geometry=next;speed_cell=76*s;speed_inset=4*s
- speed_rail.position=next.position;speed_rail.size=next.size
- speed_thumb.size=Vector2(speed_cell-2*speed_inset,next.size.y-2*speed_inset)
- (speed_thumb.get_theme_stylebox("panel") as StyleBoxFlat).set_corner_radius_all(roundi(18-speed_inset))
- for index in range(game.settings_controls.speed_buttons.size()):
-  var button:Button=game.settings_controls.speed_buttons[index]
-  _place(button,Rect2(next.position+Vector2(speed_cell*index,0),Vector2(speed_cell,next.size.y)))
-  var label:Label=speed_text[index];label.position=button.position;label.size=button.size;_font(label,roundi(25*s))
-  var front:Label=speed_front_text[index];front.size=button.size;_font(front,roundi(25*s))
- _position_speed_thumb(speed_thumb.position)
- _sync_speed_state(not changed)
-
-func _speed_pressed():
- _sync_speed_state(true)
-
-func _speed_keyboard(event:InputEvent,index:int):
- if not event is InputEventKey or not event.pressed or event.echo:return
- if event.keycode not in [KEY_LEFT,KEY_RIGHT,KEY_HOME,KEY_END]:return
- var target=0 if event.keycode in [KEY_LEFT,KEY_HOME] else 1
- var button:Button=game.settings_controls.speed_buttons[target]
- if not button.disabled:button.pressed.emit();button.grab_focus()
- game.settings_controls.speed_buttons[index].accept_event()
-
 func _reduced_motion_requested()->bool:
  if game.has_meta("hud_reduce_motion"):return bool(game.get_meta("hud_reduce_motion"))
  # Godot4.6 exposes the operating-system preference on supported platforms.
@@ -423,29 +362,6 @@ func _reduced_motion_requested()->bool:
  if OS.has_feature("web") and Engine.has_singleton("JavaScriptBridge"):
   return bool(Engine.get_singleton("JavaScriptBridge").eval("window.matchMedia('(prefers-reduced-motion: reduce)').matches"))
  return false
-
-func _stop_speed_tween():
- if is_instance_valid(speed_tween):speed_tween.kill()
- speed_tween=null
-
-func _position_speed_thumb(position:Vector2):
- speed_thumb.position=position
- for index in range(speed_front_text.size()):speed_front_text[index].position=speed_text[index].position-position
-
-func _sync_speed_state(animate:bool):
- if speed_thumb==null or speed_geometry.size==Vector2.ZERO:return
- var selected=clampi(int(game.speed)-1,0,1)
- var target=speed_geometry.position+Vector2(speed_inset+speed_cell*selected,speed_inset)
- var reduced=_reduced_motion_requested()
- for index in range(speed_text.size()):
-  speed_text[index].add_theme_color_override("font_color",INK)
-  speed_text[index].modulate=Color(1,1,1,.45) if game.settings_controls.speed_buttons[index].disabled else Color.WHITE
-  speed_front_text[index].modulate=speed_text[index].modulate
- if selected==speed_selected and animate and not reduced:return
- var had_selection=speed_selected>=0;speed_selected=selected;_stop_speed_tween()
- if not animate or not had_selection or reduced or not speed_capsule.is_visible_in_tree():_position_speed_thumb(target);return
- speed_tween=game.create_tween();speed_tween.set_trans(Tween.TRANS_CUBIC);speed_tween.set_ease(Tween.EASE_OUT)
- speed_tween.tween_method(_position_speed_thumb,speed_thumb.position,target,.18)
 
 func has_edit_action()->bool:
  if not game.editing:return false
@@ -530,10 +446,10 @@ func _layout_unified_toolbar(width:float):
  if not wrapped:
   var identity_limit=280.0 if game.get_viewport().get_visible_rect().size.y-inset.y-inset.w<600.0 else 380.0
   var outer_margin=0.0 if usable<650.0 else 16.0
-  var identity_width=minf(identity_limit,usable-outer_margin-(136+group_gap+max_action_width+gap*2+end_padding))
+  var identity_width=minf(identity_limit,usable-outer_margin-(PLAY_CONTROL_WIDTH+group_gap+max_action_width+gap*2+end_padding))
   sign_width=maxf(76,identity_width*120.0/380.0)
   wallet_width=identity_width-sign_width
- var design_width=wallet_width+sign_width+gap*2+136+group_gap+action_width+end_padding
+ var design_width=wallet_width+sign_width+gap*2+PLAY_CONTROL_WIDTH+group_gap+action_width+end_padding
  var w=minf(430,usable if usable<370.0 else usable-16) if wrapped else design_width
  var wallet_height=wallet_width*155.0/415.0*scale
  var h=108.0 if wrapped else maxf(56*scale,wallet_height)+4.0
@@ -570,7 +486,7 @@ func _layout_unified_toolbar(width:float):
  game.business_button.accessibility_name="Close café admissions" if game.model.operating_open else "Reopen café admissions"
  game.business_button.accessibility_description="Current guests can finish" if game.model.operating_open else "Welcome new guests"
  game.business_button.tooltip_text=game.business_button.accessibility_name
- var controls_width=136+group_gap+action_width
+ var controls_width=PLAY_CONTROL_WIDTH+group_gap+action_width
  var controls_x=(w-controls_width)*.5 if wrapped else wallet_width+sign_width+gap*2
  if wrapped:
   var cap=minf(w*.22,rail_art.size.y*1.2)
@@ -578,9 +494,9 @@ func _layout_unified_toolbar(width:float):
   controls_x=minf(controls_x,w-wood_inset-(8 if usable<370.0 else 12)-controls_width)
  var controls_y=52.0 if wrapped else maxf(2,(h-56*scale)*.5)
  _layout_unified_play_controls(scale)
- _place(ui.play_controls,Rect2(controls_x,controls_y,136,56))
+ _place(ui.play_controls,Rect2(controls_x,controls_y,PLAY_CONTROL_WIDTH,56))
  var center_y=controls_y+28
- var action_x=controls_x+136+group_gap
+ var action_x=controls_x+PLAY_CONTROL_WIDTH+group_gap
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -624,7 +540,7 @@ func _layout_mobile_toolbar(width:float):
  game.business_button.tooltip_text=game.business_button.accessibility_name
  var tool_y=48.0 if wrapped else 0.0
  _layout_unified_play_controls(1.0,true)
- _place(ui.play_controls,Rect2(0 if wrapped else 198,tool_y,136,44))
+ _place(ui.play_controls,Rect2(0 if wrapped else 198,tool_y,PLAY_CONTROL_WIDTH,44))
  var action_width=44.0;var gap=6.0
  var action_count=(2 if wrapped else 3)+(1 if game.editing else 0)
  var action_x=w-action_count*action_width-(action_count-1)*gap
@@ -678,12 +594,3 @@ func _layout_unified_play_controls(s:float,mobile:bool=false):
  ui.play_controls.add_theme_constant_override("separation",roundi(4*s));ui.play_controls.alignment=BoxContainer.ALIGNMENT_BEGIN
  game.pause_button.custom_minimum_size=Vector2(44,target_height)*s
  pause_face.position=Vector2(0,top)*s;pause_face.size=Vector2(44,44)*s;pause_art.position=Vector2(12,top+12)*s;pause_art.size=Vector2(20,20)*s;pause_caption.hide()
- speed_capsule.custom_minimum_size=Vector2(88,target_height)*s
- var next=Rect2(Vector2(0,top)*s,Vector2(88,44)*s);var changed=not speed_geometry.is_equal_approx(next)
- speed_geometry=next;speed_cell=44*s;speed_inset=3*s;speed_rail.position=next.position;speed_rail.size=next.size
- speed_thumb.size=Vector2(speed_cell-2*speed_inset,next.size.y-2*speed_inset)
- for index in range(game.settings_controls.speed_buttons.size()):
-  var button=game.settings_controls.speed_buttons[index];_place(button,Rect2(next.position+Vector2(speed_cell*index,0),Vector2(speed_cell,next.size.y)))
-  speed_text[index].position=button.position;speed_text[index].size=button.size;_font(speed_text[index],roundi(18*s))
-  speed_front_text[index].size=button.size;_font(speed_front_text[index],roundi(18*s))
- _position_speed_thumb(speed_thumb.position);_sync_speed_state(not changed)

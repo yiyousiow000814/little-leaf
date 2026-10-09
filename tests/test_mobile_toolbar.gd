@@ -41,7 +41,7 @@ func run():
     check(not hud.mobile_coin.visible,label+" desktop coin restored")
    for editing in [false,true]:
     game.editing=editing;await settle()
-    var controls=[hud.wallet,game.business_button,game.pause_button,game.settings_controls.speed_buttons[0],game.settings_controls.speed_buttons[1],game.edit_button,ui.staff_access,ui.settings_button]
+    var controls=[hud.wallet,game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
     for i in controls.size():
      check(controls[i].size.x>=43.9 and controls[i].size.y>=43.9,label+" 44px "+controls[i].accessibility_name)
@@ -49,8 +49,6 @@ func run():
      for j in range(i+1,controls.size()):check(not controls[i].get_global_rect().intersects(controls[j].get_global_rect()),label+" separate targets %d/%d"%[i,j])
    game.editing=false;await settle()
    var paused=game.paused;await click(game.pause_button);check(paused!=game.paused,label+" pause works")
-   await click(game.settings_controls.speed_buttons[1]);check(game.speed==2,label+" 2x works")
-   await click(game.settings_controls.speed_buttons[0]);check(game.speed==1,label+" 1x works")
    await click(game.edit_button);check(game.editing,label+" decorate opens")
    game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="",label+" cancel works")
    await click(game.edit_button);expected_save_callbacks+=1;check(not game.editing,label+" done works")

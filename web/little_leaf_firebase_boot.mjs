@@ -9,14 +9,29 @@ export async function start(config) {
   const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;button.style.marginLeft='8px';panel.append(label,button);document.body.append(panel);
   const messages={ready:'Account ready · first save pending',saved:'Cloud saved',pending:'Saved on this device · cloud pending',offline:'Offline · account progress on this device',conflict:'Cloud conflict · pending progress preserved · reload required',blocked:'Cloud unavailable · progress not loaded','signed-out':'Signed out'};
   let client,uid,loginBusy=false;
+  function startup(message,waiting=false){
+    const caption=document.getElementById('status-label'),progress=document.getElementById('status-progress');
+    if(caption)caption.textContent=message;
+    if(progress)progress.hidden=waiting;
+  }
+  const signInPrompt='Sign in with Google to open your café.';
+  startup('Checking your sign-in…');
   function state(value){label.textContent=messages[value] || value;}
   button.textContent='Sign in with Google';label.textContent='Sign in to load your café across devices';
-  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;client?.close();await signOut(auth);location.reload();}else{await signInWithRedirect(auth,new GoogleAuthProvider());}}catch(e){state(e.message);}finally{loginBusy=false;button.disabled=false;}};
-  await setPersistence(auth,browserLocalPersistence);
-  await getRedirectResult(auth);
-  await auth.authStateReady();
+  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;client?.close();await signOut(auth);location.reload();}else{startup('Opening Google sign-in…',true);await signInWithRedirect(auth,new GoogleAuthProvider());if(!auth.currentUser)startup(signInPrompt,true);}}catch(e){state('Sign-in did not finish. Please try again.');if(!auth.currentUser)startup('Sign-in did not finish. Try Sign in with Google again.',true);}finally{loginBusy=false;button.disabled=false;}};
+  try {
+    await setPersistence(auth,browserLocalPersistence);
+    await getRedirectResult(auth);
+    await auth.authStateReady();
+  } catch (_) {
+    throw Error('Sign-in could not finish. Reload Little Leaf and try Sign in with Google again.');
+  }
   button.disabled=false;
-  if(!auth.currentUser) await new Promise(resolve=>{const stop=onAuthStateChanged(auth,user=>{if(user){stop();resolve();}});});
+  if(!auth.currentUser){
+    startup(signInPrompt,true);
+    await new Promise(resolve=>{const stop=onAuthStateChanged(auth,user=>{if(user){stop();resolve();}});});
+  }
+  startup('Loading your saved café…');
   if(auth.currentUser.isAnonymous)throw Error('Sign in with Google for cross-device progress.');
   uid=auth.currentUser.uid;button.textContent='Sign out';
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction});

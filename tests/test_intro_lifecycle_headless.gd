@@ -84,11 +84,11 @@ func check_live_motion_guards():
 	game._process(300.0);game.illustration._process(300.0)
 	check(game.service_seconds==before_service and game.animation_time==before_animation and game.illustration.street_pedestrians.walkers==before_street, "first resumed frame discards background elapsed time")
 	game._resume_frame=-1
-	game.speed=2.0
+
 	game._process(.25);game.illustration._process(.25)
-	check(is_equal_approx(game.service_seconds-before_service,.5) and is_equal_approx(game.staff_seconds-before_staff,.5), "descent honors speed once without double ticking")
+	check(is_equal_approx(game.service_seconds-before_service,.25) and is_equal_approx(game.staff_seconds-before_staff,.25), "descent advances normal time once without double ticking")
 	check(is_equal_approx(game.animation_time-before_animation,.25), "character clock remains presentation-rate")
-	game.speed=1.0
+
 	var held_timer=game.save_timer
 	game.save_timer=100.0
 	game._process(.25)

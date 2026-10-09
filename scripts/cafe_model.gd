@@ -1646,8 +1646,7 @@ static func stove_speed_multiplier(item: Dictionary) -> float:
 
 
 static func cooking_seconds(speed_multiplier: float = 1.0) -> float:
-	# A 2x stove takes 45 / 2 = 22.5 simulation seconds. Global game speed
-	# is applied to delta by Main, so do not multiply it a second time here.
+	# Stove upgrades shorten this recipe only; they never scale global time.
 	return BASE_COOK_SECONDS / maxf(speed_multiplier, 0.01)
 
 
