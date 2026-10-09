@@ -16,11 +16,11 @@ func _ready():
   var game=SyntheticMain.new();viewport.add_child(game);game.cafe_intro.finish();game.paused=true;game.set_process(false);game.illustration.set_process(false)
   for x in 12:
    for z in 9:game.model.floor_finishes["%d,%d"%[x,z]]={"style":style,"paid_cost":0}
-  game.model._notify();game._toggle_edit();game._set_catalog_category("Tables");game.compact_ui._set_tray_reveal(1)
+  game.model._notify();game._toggle_edit();game.category_buttons["Decor"].pressed.emit();game.compact_ui._set_tray_reveal(1)
   await get_tree().create_timer(1.0).timeout
   game.illustration.zoom=1.25;game.illustration.update_projection()
   game.interaction._pan_by(game.illustration.camera_safe_rect().get_center()-game.illustration.iso(5.5,5.5))
-  game.selected_kind="plant";game.interaction.refresh(game.illustration.iso(7.5,7.5));game.illustration.queue_redraw()
+  game.catalog_cards["plant"].pressed.emit();game.interaction.refresh(game.illustration.iso(7.5,7.5));game.illustration.queue_redraw()
   observations.append({"style":style,"valid_preview":game.interaction.drag_valid,"cell":str(game.interaction.drag_cell)})
   await shot(viewport,style+"-valid",game)
   var occupied=game.model.items[0];game.interaction.refresh(game.illustration.iso(occupied.x+.5,occupied.z+.5));game.illustration.queue_redraw()
