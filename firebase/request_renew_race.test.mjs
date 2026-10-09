@@ -26,10 +26,16 @@ try{
  clearTimeout(timer);await a.renew();const renewed=await sdk.getDocFromServer(a.sessionRef);assert(renewed.data().updatedAt.toMillis()>before.data().updatedAt.toMillis());release();
  report.first=await attempt;const requested=events.find(e=>e.event==='callback'&&e.writes.some(w=>w.value?.request));report.request_callback_attempts=requested?events.filter(e=>e.transaction===requested.transaction&&e.event==='callback').length:0;const after=(await sdk.getDocFromServer(a.sessionRef)).data();report.after=summary(after);assert.equal(after.updatedAt.toMillis(),renewed.data().updatedAt.toMillis(),'request preserves renewed owner timestamp');
  assert.equal(after.owner,before.data().owner);assert.equal(after.epoch,before.data().epoch);checks.push('racing request cannot transfer or regress owner epoch');
- if(!report.first.ok){assert.equal(report.first.code,'permission-denied');assert.equal(after.request,null);checks.push('denied stale request leaves no invented acknowledgement or request');
-  // Represents a second explicit player action, not automatic production retry.
-  await b.requestTakeover();const retried=(await sdk.getDocFromServer(a.sessionRef)).data();assert(retried.request);assert.equal(retried.owner,after.owner);assert.equal(retried.updatedAt.toMillis(),renewed.data().updatedAt.toMillis(),'explicit retry preserves renewed owner timestamp');report.explicit_retry=summary(retried);checks.push('fresh explicit retry can ask without weakening server rules');
- }else{assert(after.request);checks.push('request committed a valid request after prescribed owner renewal');}
+ assert.equal(report.first.ok,true,'one explicit request must survive verified renewal contention');
+ const requestWrites=events.filter(e=>e.event==='callback'&&e.writes.some(w=>w.value?.request));
+ assert.equal(requestWrites.length,2,'exactly initial attempt and one bounded retry');
+ assert.equal(new Set(requestWrites.map(e=>e.transaction)).size,2,'retry is one fresh transaction');
+ const requestIds=requestWrites.flatMap(e=>e.writes.filter(w=>w.value?.request).map(w=>w.value.request.id));
+ assert.equal(new Set(requestIds).size,1,'both transactions retain the same explicit request ID');
+ assert(requestIds[0]);assert.equal(after.request.id,requestIds[0]);assert.equal(after.ack,null);
+ report.request_write_callbacks=requestWrites.length;report.request_transactions=new Set(requestWrites.map(e=>e.transaction)).size;
+ checks.push('one explicit request retries verified renewal contention once with the same ID');
+ checks.push('bounded retry preserves owner epoch timestamp and creates no acknowledgement');
  report.passed=true;
 }catch(e){report.passed=false;report.failure='Synthetic race assertion failed';report.failureMetadata=boundedFailure(e);throw Error('Synthetic request-renew race failed; see bounded diagnostic receipt.');}
 finally{clearTimeout(timer);release?.();for(const s of sessions)s.close();await env.cleanup();if(process.env.REQUEST_RENEW_REPORT)fs.writeFileSync(process.env.REQUEST_RENEW_REPORT,JSON.stringify(report,null,2));console.log(JSON.stringify(report));}

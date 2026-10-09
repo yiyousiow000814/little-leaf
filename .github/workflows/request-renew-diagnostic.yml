@@ -7,6 +7,9 @@ on:
       - 'firebase/fullflow.test.mjs'
       - 'firebase/transaction_observer*'
       - 'firebase/request_renew_race.test.mjs'
+      - 'web/little_leaf_firebase_session.js'
+      - 'tests/firebase_request_retry.js'
+      - 'tests/firebase_session.js'
 permissions:
   contents: read
   actions: read
@@ -24,7 +27,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify QA-only source and observer negative controls
+      - name: Verify diagnostic overlay and reviewed session override
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -33,12 +36,13 @@ jobs:
           test "$(git rev-parse 8d63f936245602628386026732a6dd030dce0fc9^{tree})" = 08bd2d87c4969dce910c7907682f4653b0110b65
           python3 - <<'PY'
           import subprocess
-          allowed={'.github/workflows/request-renew-diagnostic.yml','ci/prepare_request_race_diagnostic.py','ci/test_prepare_request_race_diagnostic.py','firebase/fullflow.test.mjs','firebase/transaction_observer.mjs','firebase/transaction_observer.test.mjs','firebase/request_renew_race.test.mjs'}
+          allowed={'.github/workflows/request-renew-diagnostic.yml','ci/prepare_request_race_diagnostic.py','ci/test_prepare_request_race_diagnostic.py','firebase/fullflow.test.mjs','firebase/transaction_observer.mjs','firebase/transaction_observer.test.mjs','firebase/request_renew_race.test.mjs','web/little_leaf_firebase_session.js','tests/firebase_request_retry.js','tests/firebase_session.js'}
           changed=set(subprocess.check_output(['git','diff','--name-only','8d63f936245602628386026732a6dd030dce0fc9','HEAD'],text=True).splitlines())
-          assert changed<=allowed,'Non-QA changes detected'
+          assert changed<=allowed,'Unexpected diagnostic or runtime changes detected'
           PY
           python3 -m unittest discover -s ci -p test_prepare_request_race_diagnostic.py -v
           node firebase/transaction_observer.test.mjs
+          node tests/firebase_session.js
           node --check firebase/fullflow.test.mjs
           node --check firebase/request_renew_race.test.mjs
       - name: Verify exact final compiled export and matching native evidence

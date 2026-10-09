@@ -39,7 +39,7 @@
     };
   }
   function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{}}){
-    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null;
+    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
     const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
@@ -126,8 +126,12 @@
       }return snapshot();
     }
     async function requestTakeover(){
-      guard();requestId=root.crypto.randomUUID();
-      await change((value,save,stamp)=>{
+      guard();const generation=++requestGeneration,id=root.crypto.randomUUID();requestId=id;
+      const requestGuard=()=>{guard();if(generation!==requestGeneration)throw fail('REQUEST_CANCELLED','The device switch request was canceled. Progress remains paused.');};
+      let attempted=null;
+      const requestChange=async action=>{requestGuard();const result=await remote.change(action,requestGuard);requestGuard();receive(result);return result;};
+      try {await requestChange((value,save,stamp)=>{
+        attempted=null;
         if(!value)throw fail('OWNERSHIP_UNAVAILABLE','Save ownership is unavailable.');
         if(value.owner===sessionId)return {...value,updatedAt:stamp(),request:null,ack:null};
         // Explicit retry can recover an abandoned request after the server
@@ -135,8 +139,26 @@
         if(now()-millis(value.updatedAt)>=LEASE_MS)return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
         if(value.request && value.request.requester!==sessionId)throw fail('HANDOFF_BUSY','Another device is already waiting. No progress was replaced.');
         if(value.request)return value;
-        return {...value,request:{id:requestId,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
-      });return snapshot();
+        attempted={owner:value.owner,epoch:value.epoch,device:value.device,updatedAt:millis(value.updatedAt)};
+        return {...value,request:{id,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
+      });}catch(error){
+        requestGuard();
+        // Firestore may reject a request racing an owner's renewal rather than
+        // retrying its transaction. Permission denial alone is never retryable.
+        if(error.code!=='permission-denied'||!attempted)throw error;
+        const latest=await remote.read();requestGuard();
+        const renewed=value=>value&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
+          &&Number.isFinite(attempted.updatedAt)&&Number.isFinite(millis(value.updatedAt))&&millis(value.updatedAt)>attempted.updatedAt&&value.request===null&&value.ack===null;
+        if(!renewed(latest))throw error;
+        const confirmedAt=millis(latest.updatedAt);
+        // At most one fresh request transaction for the same explicit intent.
+        // Never reuse the stale timestamp, acquire an expired lease or force
+        // transfer here. A second race/denial stays paused for player retry.
+        await requestChange((value,save,stamp)=>{
+          requestGuard();if(!renewed(value)||millis(value.updatedAt)!==confirmedAt)throw fail('HANDOFF_CHANGED','The device switch changed. Review it and try again.');
+          return {...value,request:{id,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
+        });
+      }return snapshot();
     }
     async function acknowledge(digest,revision){
       const fence=assertActive(true),id=current.request?.id;
@@ -159,7 +181,7 @@
     return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,
       async refresh(){guard();receive(await remote.read());return snapshot();},
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
-      close(){closed=true;status='offline';if(unsubscribe)unsubscribe();}};
+      close(){requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
   }
   root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload});
 })(globalThis);
