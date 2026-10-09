@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   capture:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'fix/cloud-conflict-recovery-010a'
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'fix/cloud-conflict-recovery-010a' || github.head_ref == 'fix/cloud-save-choice-handoff-010a'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
