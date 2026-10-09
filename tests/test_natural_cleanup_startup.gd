@@ -7,6 +7,7 @@ func write_result(status:String,_reason:String):
  var failures=[]
  if status!="inconclusive":failures.append("short natural window should explicitly remain inconclusive")
  if wall_seconds()<1.9 or game.animation_time<=0.0 or game.animation_time>wall_seconds()*1.2:failures.append("real normal-speed game time must advance with wall time")
- if samples.size()<2 or not initial.get("open",false):failures.append("actual fresh operating startup and samples required")
- print("NATURAL_CLEANUP_STARTUP_RESULT ",JSON.stringify({"checks":3,"failures":failures,"wall_seconds":wall_seconds(),"game_seconds":game.animation_time,"cleanup_sufficiency_verified":false,"player_save_used":false}))
+ if samples.size()<2 or not initial.get("observed_open",false):failures.append("actual fresh operating startup and samples required")
+ if not initial.get("open",false) and not opened_for_observation:failures.append("closed public startup must use normal open action")
+ print("NATURAL_CLEANUP_STARTUP_RESULT ",JSON.stringify({"checks":4,"failures":failures,"wall_seconds":wall_seconds(),"game_seconds":game.animation_time,"cleanup_sufficiency_verified":false,"player_save_used":false}))
  quit(0 if failures.is_empty() else 1)

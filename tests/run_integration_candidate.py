@@ -274,6 +274,8 @@ def main():
                     # exercise _save rather than suppress it via --visual-qa.
                     if script in {"test_autosave_feedback", "test_autosave_feedback_adversarial"}:
                         flags = ["--skip-intro"]
+                    if script == "test_natural_cleanup_startup":
+                        flags = ["--skip-intro", "--visual-qa"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
                     run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
