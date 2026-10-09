@@ -4,11 +4,124 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      diagnostic_run_id:
+        description: Optional completed CI run to diagnose; nonempty skips the full build for this manual run only
+        required: false
+        default: ''
+        type: string
+      diagnostic_web_artifact_id:
+        description: Exact ordinary Web artifact ID from that run
+        required: false
+        default: ''
+        type: string
+      diagnostic_evidence_artifact_id:
+        description: Exact native/browser evidence artifact ID from that run
+        required: false
+        default: ''
+        type: string
+      diagnostic_source_sha:
+        description: Actual exported source SHA from the artifact manifest (may be a synthetic PR merge)
+        required: false
+        default: ''
+        type: string
+      diagnostic_source_tree:
+        description: Actual exported source tree from the artifact manifest
+        required: false
+        default: ''
+        type: string
 permissions:
   contents: read
 concurrency:
-  group: web-ci-${{ github.ref }}
+  group: web-ci-${{ github.ref }}-${{ inputs.diagnostic_run_id != '' && 'diagnostic' || 'full' }}
   cancel-in-progress: true
 jobs:
   web:
+    if: github.event_name != 'workflow_dispatch' || inputs.diagnostic_run_id == ''
     uses: ./.github/workflows/build-web.yml
+  diagnostic:
+    name: Cloud Settings diagnostic only (not a release gate)
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_run_id != '' && github.repository == 'yiyousiow000814/little-leaf'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    env:
+      BASE_RUN: ${{ inputs.diagnostic_run_id }}
+      BASE_WEB: ${{ inputs.diagnostic_web_artifact_id }}
+      BASE_EVIDENCE: ${{ inputs.diagnostic_evidence_artifact_id }}
+      BASE_SHA: ${{ inputs.diagnostic_source_sha }}
+      BASE_TREE: ${{ inputs.diagnostic_source_tree }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Bind both selected artifacts to the exact completed same-repository CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$BASE_RUN" =~ ^[1-9][0-9]*$ ]]
+          [[ "$BASE_WEB" =~ ^[1-9][0-9]*$ ]]
+          [[ "$BASE_EVIDENCE" =~ ^[1-9][0-9]*$ ]]
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASE_TREE" =~ ^[0-9a-f]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BASE_RUN" > "$RUNNER_TEMP/base-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$BASE_WEB" > "$RUNNER_TEMP/base-web.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$BASE_EVIDENCE" > "$RUNNER_TEMP/base-evidence.json"
+          python3 - <<'PYTHON'
+          import json, os, pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP']);run=json.loads((p/'base-run.json').read_text())
+          import sys
+          sys.path.insert(0,'ci')
+          from verify_cloud_settings_diagnostic import validate_selection
+          validate_selection(run,json.loads((p/'base-web.json').read_text()),json.loads((p/'base-evidence.json').read_text()),os.environ['BASE_RUN'],os.environ['BASE_WEB'],os.environ['BASE_EVIDENCE'],os.environ['BASE_SHA'])
+          PYTHON
+      - name: Download exact unchanged ordinary Web
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.diagnostic_web_artifact_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.diagnostic_run_id }}
+          path: ${{ runner.temp }}/diagnostic-web
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Download exact native evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.diagnostic_evidence_artifact_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.diagnostic_run_id }}
+          path: ${{ runner.temp }}/diagnostic-base-evidence
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Refuse changed production, native tests, toolchain or export bytes
+        run: |
+          python3 -m unittest discover -s ci -p 'test_cloud_settings_diagnostic.py' -v
+          python3 ci/verify_cloud_settings_diagnostic.py --web "$RUNNER_TEMP/diagnostic-web" --evidence "$RUNNER_TEMP/diagnostic-base-evidence" --source-sha "$BASE_SHA" --source-tree "$BASE_TREE" --run-id "$BASE_RUN" --output "$RUNNER_TEMP/diagnostic-result/provenance.json"
+      - name: Install only the pinned Chromium and OCR diagnostic dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/diagnostic-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/diagnostic-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Exercise current harness against unchanged engine export
+        timeout-minutes: 8
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/cloud_settings_browser_helpers.js --test
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/diagnostic-tools/node_modules/playwright" xvfb-run -a node tests/cloud_settings_browser.js --diagnostic-provenance "$RUNNER_TEMP/diagnostic-result/provenance.json" --web-build "$RUNNER_TEMP/diagnostic-web" --output "$RUNNER_TEMP/diagnostic-result/cloud-settings" --layout-report "$RUNNER_TEMP/diagnostic-base-evidence/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/diagnostic-base-evidence/engine-evidence/summary.json"
+      - name: Record diagnostic scope and retain evidence
+        if: always()
+        run: echo 'Browser-harness diagnostic only. No full CI qualification, release, merge or deployment is implied.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep diagnostic result separately from all release artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-cloud-settings-diagnostic-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/diagnostic-result/
+          if-no-files-found: warn
+          retention-days: 7
