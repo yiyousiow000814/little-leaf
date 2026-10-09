@@ -1,5 +1,7 @@
 extends RefCounted
 const SaveProfiles=preload("res://scripts/cafe_save_profiles.gd")
+const CloudSettings=preload("res://scripts/cafe_cloud_settings.gd")
+var cloud_settings
 const WebPreferences=preload("res://scripts/cafe_web_preferences.gd")
 var web_preferences
 var preference_storage_note:Label
@@ -195,6 +197,9 @@ func build() -> PanelContainer:
 	preference_storage_note=game.label("Changes are saved automatically",11,Color("8b937b"))
 	preference_storage_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(preference_storage_note)
+	cloud_settings=CloudSettings.new(game)
+	var cloud_box=cloud_settings.build()
+	if cloud_box!=null:box.add_child(cloud_box)
 	box.add_child(game.button("Close",func():flush_preferences();panel.hide()))
 	sync();panel.hide();return panel
 func build_play_controls() -> HBoxContainer:
@@ -232,6 +237,7 @@ func _sync_preference_storage_notice():
 func sync():
 	if game==null:return
 	_sync_preference_storage_notice()
+	if cloud_settings!=null:cloud_settings.sync()
 	if is_instance_valid(frame_rate_choice):
 		var selected=1 if frame_rate==120 else 0
 		if frame_rate_choice.selected!=selected:
