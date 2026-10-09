@@ -1,0 +1,40 @@
+'use strict';
+const assert = require('node:assert/strict');
+const {EventEmitter} = require('node:events');
+const vm = require('node:vm');
+const {passiveReader, waitForPassive, failureKind, recordPageLogs} = require('./welcome_audio_driver');
+async function main() {
+  let calls = [], reads = 0;
+  const read = passiveReader({send: async (method, params) => {
+    calls.push({method, params});
+    assert.equal(params.userGesture, false, 'Observation must never grant browser activation');
+    return {result: {value: await vm.runInNewContext(params.expression)}};
+  }});
+  assert.deepEqual(JSON.parse(JSON.stringify(await read(value => value, {text: 'quotes " and \\ and newline\n', n: 42}))), {text: 'quotes " and \\ and newline\n', n: 42});
+  assert.equal(await read(async () => 7), 7);
+  assert.equal(await read(value => value === undefined), true);
+  assert(calls.every(call => call.method === 'Runtime.evaluate' && call.params.awaitPromise && call.params.returnByValue));
+  await assert.rejects(passiveReader({send: async () => ({exceptionDetails: {text: 'detached context'}})})(() => 0), /detached context/);
+  await assert.rejects(passiveReader({send: async () => {throw Error('session closed');}})(() => 0), /session closed/);
+  await waitForPassive(async () => ++reads === 3, () => true, 1000, async () => {});
+  assert.equal(reads, 3);
+  await assert.rejects(waitForPassive(async () => false, () => true, 0, async () => {}), /timed out/);
+  assert.equal(failureKind(Error('No usable sandbox!'), 'browser-launch'), 'browser-infrastructure');
+  assert.equal(failureKind(Error('OCR inconclusive'), 'visual-ocr'), 'visual-evidence');
+  assert.equal(failureKind(Error('Passive readiness timed out'), 'readiness'), 'observation');
+  assert.equal(failureKind(Error('Muted control must remain silent'), 'audio-comparison'), 'acceptance-or-runtime');
+  const page = new EventEmitter(), rows = [], errors = [];
+  recordPageLogs(page, row => rows.push(row), errors);
+  page.emit('console', {text: () => 'AudioContext needs a gesture', type: () => 'warning', location: () => ({lineNumber: 7})});
+  page.emit('console', {text: () => 'NATIVE_READY', type: () => 'log', location: () => ({})});
+  page.emit('console', {text: () => 'SCRIPT ERROR: missing stream', type: () => 'error', location: () => ({})});
+  page.emit('pageerror', Error('runtime failure'));
+  page.emit('requestfailed', {url: () => 'http://localhost/index.pck', failure: () => ({errorText: 'net::ERR_FAILED'})});
+  page.emit('response', {url: () => 'http://localhost/index.wasm', status: () => 500});
+  page.emit('crash');
+  assert.deepEqual(rows.map(row => row.kind), ['console', 'console', 'console', 'pageerror', 'requestfailed', 'response', 'crash']);
+  assert.equal(rows[0].level, 'warning'); assert.equal(rows[0].location.lineNumber, 7);
+  assert.deepEqual(errors, ['SCRIPT ERROR: missing stream', 'Error: runtime failure', 'Browser page crashed']);
+  console.log('Welcome audio driver: passive reads, error propagation, readiness and complete page-log checks passed');
+}
+main().catch(error => {console.error(error); process.exitCode = 1;});

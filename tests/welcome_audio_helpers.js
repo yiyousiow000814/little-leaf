@@ -44,7 +44,7 @@ function verifyBrowserArguments(args) {
   assert(!args.some(arg => /--(?:no-sandbox|disable-setuid-sandbox|mute-audio)(?:=|$)/.test(arg)), 'Unmuted sandboxed browser required');
   assert(!args.some(arg => /autoplay|media-engagement/i.test(arg)), 'No autoplay policy or engagement override permitted');
 }
-function gestureTime(raw, gesture) {
+function primaryGestureTime(raw, gesture) {
   const type = gesture === 'Enter' ? 'keydown' : gesture === 'touch' ? 'touchstart' : 'mousedown';
   const candidates = raw.events.filter(event => event.type === type && (gesture !== 'Enter' || event.key === 'Enter'));
   assert.equal(candidates.length, 1, 'Exactly one ordinary primary gesture required');
@@ -56,10 +56,47 @@ function gestureTime(raw, gesture) {
     'Trusted active gesture completion required');
   assert.equal(raw.events.filter(item => ['keydown', 'mousedown', 'touchstart'].includes(item.type) && item.at < event.at).length, 0,
     'No earlier primary input may unlock audio');
-  assert(Number.isFinite(raw.firstVisible) && event.at >= raw.firstVisible && event.at - raw.firstVisible < 1000,
-    'First gesture must occur while the initial welcome is visible');
   return event.at;
 }
+function gestureTime(raw, gesture) {
+  const at = primaryGestureTime(raw, gesture);
+  assert(Number.isFinite(raw.firstVisible) && at >= raw.firstVisible && at - raw.firstVisible < 1000,
+    'First gesture must occur while the initial welcome is visible');
+  return at;
+}
+function visualGestureTime(raw, gesture) {
+  const at = primaryGestureTime(raw, gesture);
+  assert(Number.isFinite(raw.firstVisible) && at >= raw.firstVisible, 'Visual-only input must follow actual first visibility');
+  return at;
+}
+function classifyActivation(raw, at) {
+  const unresolved = reason => ({path: 'unresolved', reason});
+  if (raw.contexts.length !== 1 || raw.taps.length !== 1 || raw.contexts[0].id !== raw.taps[0].context)
+    return unresolved('Mixed or missing context identity');
+  const states = raw.contexts[0].states;
+  if (!states.length || !states.every((row, i) => Number.isFinite(row.at) &&
+      ['suspended', 'running', 'closed'].includes(row.state) && (i === 0 || row.at >= states[i - 1].at)))
+    return unresolved('Context history must have ordered finite timestamps and known states');
+  const before = raw.samples.filter(row => row.at >= raw.firstVisible && row.at < at);
+  if (!before.length) return unresolved('Missing pre-gesture baseline');
+  if (states.some(row => row.state === 'closed' && row.at <= at + 2200))
+    return unresolved('Closed context cannot establish an activation path');
+  const priorRunning = states.some(row => row.state === 'running' && row.at < at);
+  const runningSamples = before.some(row => row.state === 'running');
+  if (priorRunning || runningSamples) {
+    if (!priorRunning || !runningSamples || before.some(row => row.state !== 'running' ||
+        states.filter(state => state.at <= row.at).at(-1)?.state !== 'running') ||
+        states.filter(row => row.at >= before[0].at && row.at < at).some(row => row.state !== 'running'))
+      return unresolved('Mixed or contradictory pre-gesture context observations');
+    return {path: 'default-autoplay-allowed', reason: 'Context state and output samples were running before the sole trusted input; no unlock claim'};
+  }
+  if (states[0].state !== 'suspended' || before.some(row => row.state !== 'suspended'))
+    return unresolved('No consistent suspended pre-gesture context');
+  if (!states.some(row => row.state === 'running' && row.at >= at && row.at <= at + 2200))
+    return unresolved('Context did not run after first gesture within the measurement window');
+  return {path: 'gesture-unlocked', reason: 'Initially suspended, no earlier running context, running transition after trusted input; quiet baseline and signal still required'};
+}
+
 function sustainedSignal(samples, start, end, floor = SIGNAL_FLOOR) {
   const byTap = new Map();
   for (const sample of samples) {
@@ -99,37 +136,36 @@ function requireRunningControl(raw, samples, start, end) {
     'Silent control context must remain running throughout the measurement window');
 }
 function analyzeTrial(trial) {
+  assert.equal(trial.profile_kind, 'audio-measurement', 'Only measurement profiles can establish audio acceptance');
   const raw = trial.raw, at = gestureTime(raw, trial.gesture);
   assert.deepEqual(raw.errors, [], 'Observer must not have errors');
   assert.deepEqual(raw.disconnects, [], 'Tapped destination route must remain stable');
   assert(raw.contexts.length > 0 && raw.taps.length > 0, 'Actual WebAudio contexts and destination-bound output required');
   assert.equal(raw.taps.length, 1, 'One summed destination context required; cross-context output is inconclusive');
-  const contextIds = new Set(raw.taps.map(tap => tap.context));
-  for (const id of contextIds) {
-    const states = raw.contexts.find(context => context.id === id)?.states || [];
-    assert(states.length > 0 && states[0].state === 'suspended', 'Fresh-origin context must begin suspended');
-    assert(!states.some(row => row.state === 'running' && row.at < at), 'Audio must not unlock before the ordinary gesture');
-    assert(states.some(row => row.state === 'running' && row.at >= at && row.at <= at + 2200), 'AudioContext must run after first gesture');
-  }
   const before = raw.samples.filter(row => row.at < at && row.at >= raw.firstVisible);
   assert(before.length > 0, 'Need sampled pre-gesture baseline');
-  assert(before.every(row => row.acRms <= QUIET_CEILING), 'No pre-gesture signal');
+  assert(before.every(row => [row.at, row.acRms, row.audioTime].every(Number.isFinite)), 'Finite pre-gesture observations required');
+  const activation = classifyActivation(raw, at);
+  assert.notEqual(activation.path, 'unresolved', 'Activation unresolved: ' + activation.reason);
+  if (activation.path === 'gesture-unlocked') assert(before.every(row => row.acRms <= QUIET_CEILING), 'No pre-gesture signal on gesture-unlocked path');
+  else if (trial.mode !== 'enabled') assert(before.every(row => row.acRms <= QUIET_CEILING), 'Autoplay-allowed silent control must remain quiet before input');
   const after = raw.samples.filter(row => row.at >= at + 50 && row.at <= at + 2200);
   assert(after.length >= 20, 'Enough observed output samples required');
   assert(after.every(row => [row.at, row.acRms, row.rms, row.peak, row.audioTime].every(Number.isFinite)), 'Finite output observations required');
   const activeFrames = raw.frames.filter(t => t >= raw.firstVisible && t <= at + 2500);
   assert(activeFrames.length > 20, 'Need real rendered frame observations');
   assert(activeFrames.slice(1).every((t, i) => t - activeFrames[i] < 250), 'Stall makes intro timing ambiguous');
-  const early = trial.screenshots.find(row => row.name === 'early-welcome');
-  assert(early && early.before >= at && early.after <= at + 2500, 'Early screenshot must precede normal 5.5-second descent completion');
-  const signal = sustainedSignal(after, at, early.before);
-  if (trial.mode === 'enabled') assert(signal, 'Sustained BGM-correlated output required before the early welcome screenshot');
+  const early = trial.early_audio_observation;
+  assert(early?.kind === 'nonvisual-audio-observation' && Number.isFinite(early.at) && early.at >= at && early.at <= at + 2500,
+    'Early nonvisual observation must precede normal 5.5-second descent completion');
+  const signal = sustainedSignal(after, at, early.at);
+  if (trial.mode === 'enabled') assert(signal, 'Sustained BGM-correlated output required before the early nonvisual observation');
   else {
     requireRunningControl(raw, after, at + 50, at + 2200);
     assert(after.every(row => row.acRms <= QUIET_CEILING), 'Muted control must remain silent with the same running audio graph');
   }
   return {gesture_at: at, gesture_after_visible_ms: at - raw.firstVisible,
-    signal, peak_ac_rms: Math.max(...after.map(row => row.acRms)), sample_count: after.length};
+    activation, signal, peak_ac_rms: Math.max(...after.map(row => row.acRms)), sample_count: after.length};
 }
 function compareTrials(trials) {
   const results = [];
@@ -144,8 +180,20 @@ function compareTrials(trials) {
     assert(group.enabled.peak_ac_rms >= control * RATIO, 'Enabled output must exceed both isolated controls by at least 20 dB');
     results.push({gesture, modes: group, contrast_ratio: group.enabled.peak_ac_rms / control});
   }
+  const paths = new Set(results.flatMap(row => Object.values(row.modes).map(mode => mode.activation.path)));
+  assert.equal(paths.size, 1, 'Mixed activation paths are inconclusive; retain the per-case evidence without a combined pass');
   return results;
+}
+function activationCoverage(comparisons) {
+  const paths = new Set(comparisons.flatMap(row => Object.values(row.modes).map(mode => mode.activation.path)));
+  assert.equal(comparisons.length, GESTURES.length, 'Complete gesture comparisons required');
+  assert.equal(paths.size, 1, 'Mixed activation paths cannot earn a combined pass');
+  const path = [...paths][0];
+  assert(['gesture-unlocked', 'default-autoplay-allowed'].includes(path), 'Unresolved activation cannot pass');
+  return {observed_path: path,
+    gesture_unlocked_path: path === 'gesture-unlocked' ? 'verified' : 'unverified-not-exercised',
+    default_autoplay_path: path === 'default-autoplay-allowed' ? 'verified' : 'unverified-not-exercised'};
 }
 module.exports = {PLAYWRIGHT_VERSION, SERVICE_MP3, PREFERENCE_KEY, MODES, GESTURES,
   SIGNAL_FLOOR, QUIET_CEILING, preferences, verifySource, launchOptions, verifyBrowserArguments,
-  gestureTime, sustainedSignal, analyzeTrial, compareTrials};
+  gestureTime, visualGestureTime, classifyActivation, activationCoverage, sustainedSignal, analyzeTrial, compareTrials};

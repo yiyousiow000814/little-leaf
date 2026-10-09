@@ -1,0 +1,81 @@
+name: Diagnostic welcome audio on official Chrome
+on:
+  push:
+    branches: [qa/welcome-system-chrome-artifact]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: welcome-audio-reuse-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnostic-only:
+    if: github.ref == 'refs/heads/qa/welcome-system-chrome-artifact'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: qa
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0 # Existing historical-source guard reads its immutable prior commit.
+          persist-credentials: false
+          path: qa
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: a6b8a3de4fb0f39529886b426fd7820a2c3c2ddc
+          persist-credentials: false
+          path: exact-source
+      - name: Check offline gates and exact QA checkout
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          python3 -m unittest discover -s ci -p 'test_*.py' -v
+          node tests/welcome_audio_test.js
+          node tests/welcome_audio_capture_test.js
+          node tests/welcome_audio_driver_test.js
+          node tests/welcome_audio_browser_identity_test.js
+          node --check tests/welcome_audio_browser.js
+      - name: Retrieve only the pinned ordinary-Web artifact and run metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/welcome-audio-diagnostic"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11618320268 > "$RUNNER_TEMP/welcome-audio-diagnostic/artifact.json"
+          gh api repos/yiyousiow000814/little-leaf/actions/runs/37933440818 > "$RUNNER_TEMP/welcome-audio-diagnostic/run.json"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11618320268/zip > "$RUNNER_TEMP/welcome-audio-artifact.zip"
+      - name: Verify immutable ZIP, merge tree and complete production byte maps
+        run: |
+          python3 ci/welcome_audio_reuse.py --artifact-metadata "$RUNNER_TEMP/welcome-audio-diagnostic/artifact.json" --run-metadata "$RUNNER_TEMP/welcome-audio-diagnostic/run.json" --archive "$RUNNER_TEMP/welcome-audio-artifact.zip" --source-root ../exact-source --qa-root . --output "$RUNNER_TEMP/welcome-audio-exact-web" --receipt "$RUNNER_TEMP/welcome-audio-diagnostic/preflight.json"
+      - name: Install pinned driver and use the runner's official system Chrome154
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/welcome-audio-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends xvfb xauth tesseract-ocr tesseract-ocr-eng python3-pil
+          python3 tests/welcome_audio_ocr_test.py
+          /opt/google/chrome/chrome --version
+      - name: Run nine audio comparisons and independent early-visual profiles
+        timeout-minutes: 6
+        env:
+          WELCOME_AUDIO_BROWSER: system-chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/welcome-audio-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1600x1000x24' node tests/welcome_audio_browser.js --source-root "$GITHUB_WORKSPACE/exact-source" --web-build "$RUNNER_TEMP/welcome-audio-exact-web" --output "$RUNNER_TEMP/welcome-audio-diagnostic/browser"
+      - name: Retain diagnostic-only identity, source binding and raw evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-audio-diagnostic-only-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/welcome-audio-diagnostic/
+          if-no-files-found: error
+          retention-days: 7

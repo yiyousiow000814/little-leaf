@@ -10,6 +10,7 @@ URL-policy denial. It is prepared for an authorized CI browser environment.
 
 ```
 node tests/welcome_audio_test.js
+node tests/welcome_audio_capture_test.js
 node --check tests/welcome_audio_browser.js
 node --check tests/welcome_audio_observer.js
 node --check tests/welcome_audio_helpers.js
@@ -44,7 +45,7 @@ is not a browser pass, music identification, listening test or visual acceptance
        --output "$RUNNER_TEMP/web-build/evidence/welcome-audio"
    ```
 
-4. Budget four minutes for the nine browser cases after installation. Preserve
+4. Budget six minutes for nine measurement and nine independent visual profiles after installation. Preserve
    the evidence directory on failure as well as success. Review the screenshots
    before claiming visual acceptance. The branch-scoped workflow below runs the
    offline commands and actual browser command after the exact Web export.
@@ -71,8 +72,16 @@ is not a browser pass, music identification, listening test or visual acceptance
   The gate requires one summed destination context. Every touched destination
   must remain connected throughout the trial; any
   disconnect makes the result inconclusive and fails the gate.
-- Audio must initially be suspended and quiet, then run only after the first
-  gesture. Observed AC RMS must exceed 0.0001 for at least 200 ms on an advancing
+- Activation is classified separately from signal/settings acceptance. The
+  `gesture-unlocked` path requires an initially suspended, quiet baseline with
+  no running context before the sole trusted input, followed by a running state
+  within the existing signal window. `default-autoplay-allowed` requires
+  consistent running context/sample observations before input; enabled output
+  may already be present, but both silent controls must remain quiet before
+  input. Missing, contradictory or mixed context evidence is `unresolved` and
+  fails closed. Mixed activation paths across the nine measurements cannot earn
+  a combined pass. No browser policy is changed to select either path.
+- On either valid path, observed AC RMS must exceed 0.0001 for at least 200 ms on an advancing
   audio clock, with no sample gap over 100 ms. DC and isolated spikes do not count.
   Both silent controls must remain at or below 0.00001 throughout the fixed
   50–2200 ms post-gesture interval. Every measured sample must report `running`,
@@ -84,26 +93,47 @@ is not a browser pass, music identification, listening test or visual acceptance
   frozen clocks, sparse samples or uncovered interval edges are inconclusive.
   The enabled/control peak ratio must be at least 10 (20 dB amplitude contrast).
   These are conservative detection thresholds, not loudness measurements.
-- The first gesture must occur within one second of loader removal. The confirmed
-  signal must precede an early screenshot no later than 2.5 seconds after input,
-  well inside the normal 5.5-second descent. Early pixels must still OCR as
-  `Welcome to` and `Tap again`. Frames with gaps of 250 ms or greater fail closed
-  rather than treating a stall-triggered intro finish as successful descent.
-- Full screenshots cover before input, early welcome/audio, three seconds after
-  input, and 6.5 seconds after input. Every screenshot has before/after browser
-  monotonic timestamps and a hash. OCR must find the initial welcome/hint, then
-  the post-input welcome/hint, and must no longer find the welcome title in the
-  last screenshot. Final motion and visual quality still require review.
+- In each measurement profile, the first gesture must occur within one second
+  of observed loader removal. The observer records callback `performance.now()`
+  for visibility and frames, preserving the original rAF argument separately as
+  `firstVisibleRaf` and `rafTimestamps`. All audio/input deadlines share the
+  observed clock; a stale rAF argument cannot backdate first visibility.
+- Measured profiles have no screenshots before input or through the complete
+  2.5-second guarded interval. Enter focus occurs before readiness. Sustained
+  signal must precede a timestamped `nonvisual-audio-observation` no later than
+  2.5 seconds after input, within the unchanged 50–2200 ms signal window. This
+  anchor proves observation time, not visible pixels. Frames with gaps of
+  250 ms or greater still fail closed. Sampling remains on the main thread at
+  the original requested 20 ms interval; no coverage limit is loosened.
+- Nine independent `visual-only` profiles use the same bound export, preferences
+  and gestures. They capture the true pre-input welcome/hint and an early image
+  finishing within 2.5 seconds after their own trusted input. Their pre-input
+  screenshot may delay input; that profile does not satisfy the measured
+  one-second gesture gate or provide measured audio acceptance. OCR must find
+  `Welcome to` / `Esc to skip` before input and `Welcome to` / `Tap again` after.
+  No post-input image can be relabeled as pre-input.
+- Measurement stops after input+2500 ms, before the images at input+3000 ms and
+  input+6500 ms. The last image must no longer contain the welcome title.
+  Every screenshot retains its actual profile kind, before/after timestamps and
+  hash. Initial boot is snapshotted in the existing readiness callback before
+  input; later boot/preferences reads are timestamped after capture.
+  Early visual and audio evidence come from different profiles: there is no
+  same-profile early image/audio proof. Final motion and appearance need review.
 - The report binds the harness files, source commit, exact export manifest and
   service MP3 SHA-256. It records pinned Chromium revision/version and actual
   command-line checks for sandboxing, absence of mute and autoplay overrides.
 
 ## What a future pass would and would not establish
 
-A `passed-bgm-correlated-signal` report establishes destination-bound non-DC
-WebAudio signal after ordinary activation, causally associated with BGM controls
-and captured while welcome pixels remain visible. It does not establish sound
-at the OS mixer, physical speaker or a listener's ears. Screenshots/taps add
+A `passed-gesture-unlocked-signal-settings` report establishes the strict
+suspended-to-running path plus timely destination-bound non-DC signal and BGM
+settings comparisons. A `passed-default-autoplay-signal-settings` report
+establishes timely signal/settings behavior in a default-autoplay-allowed
+browser, with the blocked-context gesture-unlock path explicitly
+`unverified-not-exercised`. Neither label proves the unexercised policy path.
+Early welcome pixels are established only in separate visual profiles, not in
+the audio-measured profile. It does not establish sound
+at the OS mixer, physical speaker or a listener's ears. Observer taps and driver reads add
 observation overhead, so this is not a startup performance test.
 
 Exact stream identity is explicitly `unproven`: binding the MP3 source bytes does
@@ -115,7 +145,7 @@ reference-matching or listening test before claiming service-track identity.
 
 Analyser time-domain data is downmixed; phase-cancelling stereo can produce a
 false negative. A blocked/silent output device can also differ from graph output.
-A disconnect, failed OCR, timing stall, missing tap, unexpected activation policy
+A disconnect, failed OCR, timing stall, missing tap, unresolved activation evidence
 or active noise in a silent control fails closed. Diagnose using retained raw
 observations; do not lower the gate or add a resume/autoplay bypass to get a pass.
 
@@ -153,7 +183,7 @@ measurements do not establish user-hardware FPS.
 `.github/workflows/welcome-audio.yml` is branch-scoped to
 `fix/10a-ready-welcome`. It runs the complete disposable-profile engine gate,
 checksum-pinned ordinary-Web export and packed smoke, then nine sandboxed,
-pinned bundled-Chromium gesture/control cases. Corrected silent-control coverage
+pinned bundled-Chromium gesture/control cases plus separate visual profiles. Corrected silent-control coverage
 from `d32402e` remains mandatory. It uploads source-bound logs/observations and
 screenshots, never profiles. Passing does not establish physical audibility or
 exact decoded-track identity.
@@ -177,18 +207,19 @@ CI results confer no merge, release, deployment or live-player-data permission.
   namespace restrictions prevent launch, report the failure; do not disable the
   sandbox or change host security settings to obtain a pass.
 - The production shell must remove `#status` after its first rendered frame. The
-  passive observer uses that removal as its initial-visibility timestamp, and
-  the initial screenshot must actually contain the welcome and hint.
-- Default fresh-origin autoplay behavior must create a suspended context, then
-  normal input must activate it in every case, including both silent controls.
-  A control must stay running for the complete measured interval, with the
+  passive observer records the actual callback observation time and preserves
+  raw rAF timestamps. The separate initial image must show the welcome/hint.
+- Default fresh-origin autoplay behavior is observed, never overridden. Only
+  consistent suspended-to-running trials verify gesture unlock; consistent
+  already-running trials report autoplay-allowed signal/settings coverage.
+  Mixed or unresolved evidence cannot pass. A control must stay running for the complete measured interval, with the
   advancing-clock and gap/edge coverage checks above. A prior running transition
   followed by suspended or frozen samples is inconclusive, not a pass.
 - The engine must expose one stable summed destination route. Missing routes,
-  multiple contexts, source disconnects, DC-only output, silence, premature
-  output or nonfinite observations fail; no graph repairs or test tones.
-- Screenshot overhead, software rendering, font rasterization or OCR may fail
-  the existing less-than-one-second first-input, 2.5-second early-evidence,
+  multiple contexts, source disconnects, DC-only output, silence, unclassified
+  activation or nonfinite observations fail; no graph repairs or test tones.
+- Software rendering, observation scheduling or visual-profile OCR may fail
+  the existing less-than-one-second measured input, 2.5-second early-evidence,
   100-ms sample-gap or 250-ms frame-gap contracts. Retain and diagnose those
   observations. Do not relax thresholds, fade timing, or OCR to make CI green.
 
