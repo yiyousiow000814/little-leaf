@@ -1,0 +1,88 @@
+name: Diagnose released pending migration (synthetic only)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/legacy-pending-migration-diagnostic.yml'
+      - 'ci/prepare_legacy_pending_diagnostic.py'
+      - 'ci/test_prepare_legacy_pending_diagnostic.py'
+      - 'firebase/fullflow.test.mjs'
+      - 'firebase/legacy_pending*'
+      - 'tests/fixtures/released-0.1.10/**'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: legacy-pending-migration-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  synthetic-migration:
+    if: github.head_ref == 'qa/legacy-pending-migration-010a' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify QA-only changes and immutable historical source objects
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse 8d63f936245602628386026732a6dd030dce0fc9^{tree})" = 08bd2d87c4969dce910c7907682f4653b0110b65
+          git cat-file -e b8b80eea57ac3cb141cb5c771b375207a284436a:web/little_leaf_firebase.js
+          python3 - <<'PY'
+          import subprocess
+          allowed={'.github/workflows/legacy-pending-migration-diagnostic.yml','ci/prepare_legacy_pending_diagnostic.py','ci/test_prepare_legacy_pending_diagnostic.py','firebase/fullflow.test.mjs','firebase/legacy_pending_fixture.mjs','firebase/legacy_pending_fixture.test.mjs','firebase/legacy_pending_flow.mjs','firebase/LEGACY_PENDING_DIAGNOSTIC.md','tests/fixtures/released-0.1.10/final-binding.json','tests/fixtures/released-0.1.10/manifest.json','tests/fixtures/released-0.1.10/little_leaf_firebase.js','tests/fixtures/released-0.1.10/little_leaf_vault.js'}
+          changed=set(subprocess.check_output(['git','diff','--name-only','8d63f936245602628386026732a6dd030dce0fc9','HEAD'],text=True).splitlines())
+          assert changed<=allowed, 'Non-QA changes: '+str(sorted(changed-allowed))
+          PY
+          python3 -m unittest discover -s ci -p test_prepare_legacy_pending_diagnostic.py -v
+          node firebase/legacy_pending_fixture.test.mjs
+          node --check firebase/fullflow.test.mjs
+          node --check firebase/legacy_pending_flow.mjs
+      - name: Fetch exact existing final export and matching native evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/legacy-retained"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11618320268/zip > "$RUNNER_TEMP/legacy-retained/web.zip"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11617553429/zip > "$RUNNER_TEMP/legacy-retained/evidence.zip"
+          python3 ci/prepare_legacy_pending_diagnostic.py --artifacts "$RUNNER_TEMP/legacy-retained"
+      - name: Prepare exact disposable native geometry and pinned test tools
+        run: |
+          set -euo pipefail
+          python3 ci/install_tools.py godot --output "$RUNNER_TEMP/legacy-godot"
+          "$RUNNER_TEMP/legacy-godot/godot" --version
+          GODOT_BIN="$RUNNER_TEMP/legacy-godot/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/legacy-geometry"
+          npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/legacy-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/legacy-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+      - name: Run only legacy pending migration against local emulator and real final UI
+        timeout-minutes: 10
+        env:
+          GODOT_BIN: ${{ runner.temp }}/legacy-godot/godot
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/legacy-geometry/project
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/legacy-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd firebase
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --legacy-pending-only --diagnostic-only --web-build '$RUNNER_TEMP/legacy-retained/web' --engine-report '$RUNNER_TEMP/legacy-retained/evidence/engine-evidence/summary.json' --output '$RUNNER_TEMP/legacy-output'"
+      - name: Retain bounded diagnostic receipts and screenshots only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: legacy-pending-diagnostic-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/legacy-retained/legacy-binding.json
+            ${{ runner.temp }}/legacy-output/firebase-fullflow.json
+            ${{ runner.temp }}/legacy-output/*.png
+          if-no-files-found: warn
+          retention-days: 7

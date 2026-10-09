@@ -11,18 +11,24 @@ import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
 import {isConnectivityProbe} from './fullflow_network.mjs';
+import {releasedFixture,legacyHtml,FINAL_TREE,finalBinding} from './legacy_pending_fixture.mjs';
+import {legacyPendingFlow} from './legacy_pending_flow.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const {installEngineLaunchHook}=require('../tests/engine_launch_hook.js');
 const root=path.resolve(import.meta.dirname,'..');
+const legacyOnly=process.argv.includes('--legacy-pending-only');
+if(legacyOnly)assert(process.argv.includes('--diagnostic-only'),'legacy-only is a bounded diagnostic, not the complete release gate');
+const legacy=legacyOnly?releasedFixture(root):null;
 const arg=name=>{const i=process.argv.indexOf(name);assert(i>=0 && process.argv[i+1],name+' required');return path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),native=arg('--engine-report');
 const geometryProject=process.env.CLOUD_GEOMETRY_PROJECT;assert(geometryProject,'disposable native geometry required');
 const geometryBinding=JSON.parse(fs.readFileSync(path.join(geometryProject,'../binding.json')));
 for(const [name,digest] of Object.entries(geometryBinding.source_sha256))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),digest,'geometry source '+name);
 const engine=JSON.parse(fs.readFileSync(native)),manifest=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json')));
+if(legacyOnly){assert.equal(manifest.source_tree,FINAL_TREE,'exact final10a compiled tree');assert.equal(manifest.test_report_sha256,crypto.createHash('sha256').update(fs.readFileSync(native)).digest('hex'),'native report bound to export');}
 assert.equal(engine.status,'passed');assert.equal(engine.source_commit,manifest.source_commit);assert.equal(engine.player_save_used,false);
 function nativeResult(name,marker){const log=fs.readFileSync(path.join(path.dirname(native),name+'.log'),'utf8');const rows=log.split('\n').filter(line=>line.startsWith(marker+' '));assert.equal(rows.length,1,'one exact native geometry result');return JSON.parse(rows[0].slice(marker.length+1));}
 const recoveryLayout=nativeResult('test_cloud_recovery_ui','CLOUD_RECOVERY_UI_RESULT');
@@ -33,6 +39,7 @@ for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.re
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
 const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+if(legacyOnly){report.legacy_source=legacy.manifest;report.final_binding=finalBinding(root);report.legacy_harness_sha256=Object.fromEntries(['firebase/legacy_pending_fixture.mjs','firebase/legacy_pending_flow.mjs','tests/fixtures/released-0.1.10/manifest.json','tests/fixtures/released-0.1.10/final-binding.json'].map(name=>[name,sha(fs.readFileSync(path.join(root,name)))]));}
 const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
@@ -64,6 +71,8 @@ const server=http.createServer((req,res)=>{
  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Embedder-Policy','require-corp');res.setHeader('Cache-Control','no-store');
  let body,type='text/javascript';
  if(p==='/index.html'){body=html;type='text/html';}
+ else if(legacyOnly && p==='/legacy.html'){body=legacyHtml;type='text/html';}
+ else if(legacyOnly && p.startsWith('/legacy/') && Object.hasOwn(legacy.sources,p.slice(8)))body=legacy.sources[p.slice(8)];
  else if(p==='/seed.html'){body='<!doctype html><title>Synthetic fixture setup</title>';type='text/html';}
  else if(p==='/hosting-release.json'){body=JSON.stringify(release);type='application/json';}
  else if(p==='/sdk/auth.js')body=auth;
@@ -123,6 +132,7 @@ async function resumeProof(d,coins){const e=await nativeSave(d);check(JSON.parse
 async function updateClick(p,button,error=false){await foreground(p);const r=updateLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.error===error);assert(r?.buttons?.[button],'update native geometry');const [x,y,w,h]=r.buttons[button];await p.mouse.click(x+w/2,y+h/2);}
 try{
  browser=await chromium.launch({headless:false,chromiumSandbox:true,channel:process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || 'chrome'});
+ if(legacyOnly){await legacyPendingFlow({record,seed,read,setup,launch,journal,snapshot,until,check,shot,confirmedClick,resumeProof,origin,report,checkpoint});}else{
  // Old cache has proven no pending branch: cloud wins without upload or prompt.
  {const uid='fullflow-cache',base=await record(1,41000),cloud=await record(8,42000,base.profileId);await seed(uid,cloud);
  const d=await launch(await setup(uid,{record:base,base:base.digest,pending:false,device:'Mac'}));
@@ -167,15 +177,16 @@ try{
  {release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};const uid='fullflow-update-success',r=await record(1,42000);await seed(uid,r);const d=await launch(await setup(uid));let navigations=0;d.page.on('framenavigated',frame=>{if(frame===d.page.mainFrame())navigations++;});
  release={schema_version:1,version:'9.0.2',source_commit:'c'.repeat(40)};await d.page.evaluate(()=>LittleLeafUpdate.poll());await updateClick(d.page,'update');await until(()=>navigations===1,'confirmed native update reload',45000);
  await d.page.waitForFunction(()=>globalThis.__littleLeafVault?.storageKind==='firebase-firestore' && !document.getElementById('status'),null,{timeout:90000});await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'),null,{timeout:30000});check((await snapshot(d.page)).status==='active','updated same tab resumes native play with a fresh fenced epoch');const saved=await journal(d.page,uid);check(!saved.pending && saved.record.digest===(await read(uid)).digest,'successful native update reload follows exact cloud confirmation');check(navigations===1,'successful update reloads once');await shot(d.page,'update-confirmed-reloaded');await d.context.close();}
+ }
  check(errors.length===0,'compiled runtime reports no script or page errors: '+errors.join('; '));report.passed=true;
 }catch(error){
- report.failure=String(error.stack||error);report.failureStates=[];
+ report.failure=legacyOnly?'Legacy pending diagnostic failed ('+error.name+'; operator='+(error.operator || 'none')+'). Last completed check: '+(report.checks.at(-1) || 'none'):String(error.stack||error);report.failureStates=[];
  for(const context of contexts)for(const page of context.pages()){
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
+   if(legacyOnly){const local=await journal(page,uid),cloud=await read(uid);report.failureStates.push({uid,snapshot:await snapshot(page),journal_sha256:sha(JSON.stringify(local)),journal_digest:local?.record?.digest,journal_revision:local?.record?.revision,pending:local?.pending,cloud_digest:cloud?.digest,cloud_revision:cloud?.revision});}else{report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});}await shot(page,'failure-'+report.failureStates.length);
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
  }
- throw error;
+ if(legacyOnly)throw Error(report.failure);throw error;
 }finally{
  report.errors=errors;fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
  for(const context of contexts)await context.close().catch(()=>{});await browser?.close();await new Promise(resolve=>server.close(resolve));await env.cleanup();

@@ -1,0 +1,15 @@
+{
+  "candidate_local_commit": "a0c320ba062cef37554e12e38fb9e8a9014c0a08",
+  "candidate_remote_commit": "8d63f936245602628386026732a6dd030dce0fc9",
+  "candidate_tree": "08bd2d87c4969dce910c7907682f4653b0110b65",
+  "source_sha256": {
+    "web/little_leaf_vault.js": "c85110f26a0a3e694da418d5a2381856cc98082a366e80ea77d553a4859fa9da",
+    "web/little_leaf_firebase.js": "f4e857c5ed5c05859029cbba68691caf093e687f9cf73d6576297bcfaf726210",
+    "web/little_leaf_firebase_session.js": "e54774b33f057d66be3e99bf4b9783a683d87fbda6a350ec5ad4fcd7fb312bd9",
+    "web/little_leaf_firebase_boot.mjs": "c891f84a189f922846895eb4e432abf3024579b7860337462e784f690b3a5b8f",
+    "web/little_leaf_update.js": "804faf98cd494c060d497c03b7b95df19c9f3b7ae339ebefb6e780c0c420af54",
+    "firebase/firestore.rules": "54b8c54ca686839b0dde12ef2de5aaf6f3dc9ed4410bb052dcf5c5e89e3895f5",
+    "tests/fixtures/startup-retry-v15.json": "9b321c8e81c497176a9c17b18164adf4608fae442e2e4e66c7c9e038bc4b03c8",
+    "tests/engine_launch_hook.js": "9b9d8efb5b4896a83a5f7461b26c4190b69fa12ecc04efb0ae0670f264289a15"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "source_commit": "b8b80eea57ac3cb141cb5c771b375207a284436a",
+  "source_version": "0.1.10",
+  "files": {
+    "little_leaf_firebase.js": {
+      "source_path": "web/little_leaf_firebase.js",
+      "sha256": "04774d3495b891c95e00a5525b6d74fab93aa6eb2b84199e065a82369d0fa6bc"
+    },
+    "little_leaf_vault.js": {
+      "source_path": "web/little_leaf_vault.js",
+      "sha256": "c85110f26a0a3e694da418d5a2381856cc98082a366e80ea77d553a4859fa9da"
+    }
+  }
+}
