@@ -101,8 +101,13 @@ const snapshot=p=>p.evaluate(()=>JSON.parse(LittleLeafVault.recoverySnapshot()))
 async function shot(p,name){await p.screenshot({path:path.join(out,name+'.png')});report.screenshots.push(name+'.png');}
 function rectangle(mode,button){const r=recoveryLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.mode===mode);assert(r?.buttons?.[button],mode+' '+button+' native geometry');return r.buttons[button];}
 const nativeMessages=new WeakMap();let geometrySequence=0;
-async function click(p,mode,button){
+async function foreground(p){
+ await p.bringToFront();await p.locator('#canvas').focus();
+ await p.waitForFunction(()=>document.visibilityState==='visible' && document.hasFocus() && document.activeElement===document.getElementById('canvas'));
  await p.waitForTimeout(350);
+}
+async function click(p,mode,button){
+ await foreground(p);
  const directory=process.env.CLOUD_GEOMETRY_PROJECT;assert(directory,'source-bound disposable native geometry project required');
  const id=++geometrySequence,input=path.join(out,'geometry-'+id+'-input.json'),output=path.join(out,'geometry-'+id+'-result.json');
  const observations=await p.evaluate(()=>globalThis.__qaAdapterResults||[]);
@@ -110,12 +115,12 @@ async function click(p,mode,button){
  fs.writeFileSync(input,JSON.stringify({viewport:p.viewportSize(),snapshot:await snapshot(p),recoveryMessage:nativeMessages.get(p)||'',nativeCallback}));
  await promisify(execFile)(process.env.GODOT_BIN||'godot',['--headless','--audio-driver','Dummy','--path',directory,'--script','res://tests/probe_cloud_recovery_geometry.gd','--',input,output],{timeout:30000,env:{...process.env,XDG_DATA_HOME:path.join(out,'native-data'),XDG_CONFIG_HOME:path.join(out,'native-config'),XDG_CACHE_HOME:path.join(out,'native-cache')}});
  const measured=JSON.parse(fs.readFileSync(output));assert(measured.buttons[button],mode+' '+button+' visible in exact snapshot geometry');
- const [x,y,w,h]=measured.buttons[button];await p.mouse.click(x+w/2,y+h/2);nativeMessages.set(p,'');
+ const [x,y,w,h]=measured.buttons[button];await p.mouse.click(x+w/2,y+h/2,{delay:50});nativeMessages.set(p,'');
 }
 async function nativeSave(d,beforeOverride=null){await d.page.waitForFunction(()=>globalThis.__littleLeafLifecycleV1?.current);await d.page.waitForTimeout(350);const before=beforeOverride || await until(async()=>{const entry=await journal(d.page,d.uid),state=await snapshot(d.page);return entry?.record && !state.ownershipPaused && !state.busy && entry;},'resumed native account journal',30000);await d.page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));await until(async()=>{const e=await journal(d.page,d.uid);return e?.record.revision>before.record.revision && e;},'native lifecycle durable save');const saved=await journal(d.page,d.uid);await d.page.evaluate(()=>window.dispatchEvent(new Event('pageshow')));return saved;}
 async function confirmedClick(p,mode,button,accept){let finish;const handled=new Promise(resolve=>finish=resolve);p.once('dialog',async dialog=>{assert.equal(dialog.type(),'confirm');await (accept?dialog.accept():dialog.dismiss());finish();});await click(p,mode,button);let timer;try{await Promise.race([handled,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Expected native confirmation dialog')),10000);})]);}finally{clearTimeout(timer);}if(!accept)nativeMessages.set(p,'Choose either save when you are ready.');await p.waitForTimeout(100);}
 async function resumeProof(d,coins){const e=await nativeSave(d);check(JSON.parse(e.record.payload).coins===coins,'native model really resumed chosen coins '+coins);return e;}
-async function updateClick(p,button,error=false){await p.waitForTimeout(350);const r=updateLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.error===error);assert(r?.buttons?.[button],'update native geometry');const [x,y,w,h]=r.buttons[button];await p.mouse.click(x+w/2,y+h/2);}
+async function updateClick(p,button,error=false){await foreground(p);const r=updateLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.error===error);assert(r?.buttons?.[button],'update native geometry');const [x,y,w,h]=r.buttons[button];await p.mouse.click(x+w/2,y+h/2);}
 try{
  browser=await chromium.launch({headless:false,chromiumSandbox:true,channel:process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || 'chrome'});
  // Old cache has proven no pending branch: cloud wins without upload or prompt.
@@ -167,7 +172,7 @@ try{
  report.failure=String(error.stack||error);report.failureStates=[];
  for(const context of contexts)for(const page of context.pages()){
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson)});await shot(page,'failure-'+report.failureStates.length);
+   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
  }
  throw error;
