@@ -60,7 +60,8 @@ func run():
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
  for section in ["new","fixed"]:
   for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
- check(str(checked.new[-1]).begins_with("Preview limits:"),"acceptance limits are in visible notes rather than ignored review metadata")
+ check(checked.new.size()==6 and checked.fixed.size()==7,"concise preview has six New changes and six Fixed changes plus its visible notice")
+ check(str(checked.fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified.","acceptance limits are in visible notes rather than ignored review metadata")
  preferences.last_seen_update_version="8.0.0"
  var original_config_exists=FileAccess.file_exists(preferences.config_path)
  for status in ["pending","draft"]:

@@ -5,25 +5,20 @@
   "date": "2026-10-09",
   "label": "Developer preview",
   "new": [
-    "A skippable, saved first-day tutorial guides opening, staff, Decorate and a real first order through payment. Resume or replay it from Help.",
-    "Real outside visitors queue before entering, with first-in-first-out admission, limited space and a waiting timeout.",
-    "Buy a fixed four-bay parking lot for 2,000 coins in Decorate. The same customers park, queue, dine, return to their cars and drive away; visits survive reloading.",
-    "Roadside greenery, passing traffic and bus-stop visitors, with connected curved pavement and kerbs.",
-    "Choose 60 or 120 FPS in Settings. The default is 60; higher frame rates can use more battery and produce more heat.",
-    "Copy a private, session-only diagnostic Log from Settings to help report save problems.",
-    "Separate platform builds support CrazyGames saves and a Firebase Google-account cloud-save preview. Ordinary Web progress stays separate.",
-    "Preview limits: live account and cross-device saves, final visuals and physical-device performance still need acceptance. This is not a formal release or a CrazyGames publication."
+    "A skippable tutorial for opening your café, managing staff and decorating.",
+    "Customers now queue outside when your café is full.",
+    "Buy a four-space parking lot for 2,000 coins and welcome customers arriving by car.",
+    "More street scenery, passing traffic and bus-stop visitors.",
+    "New 60/120 FPS options and a diagnostic log in Settings.",
+    "Google-account cloud saves are available as a preview."
   ],
   "fixed": [
-    "Welcome stays animated, with Little Leaf branding shown until the game is ready.",
-    "Play and Decorate share the camera range and preserve your view. Fit frames your owned cafe in Play and clears the shop in Decorate.",
-    "Decorate hides outside people. Unowned parking stays hidden; occupied or reserved parking cannot be sold.",
-    "Eligible purchases returned in the same Decorate session receive a full refund, including furniture, walls, doors, windows and parking. Later resale uses the original paid cost.",
-    "Browse full and half Wall styles in the Build tray; replace existing walls and place doors and windows with clearer controls and softer selection outlines.",
-    "Correct tree depth, pan-handle direction and layering, the single stove control, the connected drink spout and rotated cup-accessory depth.",
-    "Improve cleaner approach positions, obstacle clearance and rear-facing hand/tool layering, while reusing unchanged cleaning calculations.",
-    "Round coin-icon edges correctly at smaller sizes, improve compact controls and frame-rate spacing, and keep Help & Updates in Settings.",
-    "Recover safely from a closing browser save connection. CrazyGames save acknowledgements, pending changes and Inbox history follow confirmed progress.",
-    "Reduce repeated hidden-character, background and UI work. Web play suspends in the background and resumes without simulating the missed time."
+    "Smoother loading and Welcome animation.",
+    "Improved camera movement, Fit and decorating visibility.",
+    "Improved wall, door and window placement, replacement and decoration refunds.",
+    "Fixed layering and details for trees, cookware, drink machines and cleaning tools.",
+    "Improved coin icons, compact layouts and controls.",
+    "More reliable saves, reduced repeated processing and safer background pause/resume.",
+    "This is a developer preview. Cross-device cloud saves and device compatibility are still being verified."
   ]
 }
