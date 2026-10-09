@@ -2,6 +2,8 @@
 import argparse
 import hashlib
 import json
+import io
+import zipfile
 import os
 import platform
 import shutil
@@ -23,6 +25,21 @@ def summarize(samples):
            for limit in [33333, 50000, 100000]}}
 
 
+def verify_snapshot(project, originals, output):
+    current = {str(p.relative_to(project)): hashlib.sha256(p.read_bytes()).hexdigest()
+               for p in project.rglob('*') if p.is_file() and '.godot' not in p.relative_to(project).parts}
+    changed = [name for name, digest in originals.items() if current.get(name) != digest]
+    generated = {name: digest for name, digest in current.items() if name not in originals}
+    unexpected = [name for name in generated if not (
+        (name.endswith('.gd.uid') and name[:-4] in originals) or
+        (name.endswith('.png.import') and name[:-7] in originals))]
+    (output / 'import-metadata.json').write_text(json.dumps({
+        'changed_original_files': changed, 'generated_metadata_sha256': generated,
+        'unexpected_generated_files': unexpected}, indent=2))
+    if changed or unexpected:
+        raise RuntimeError('Snapshot import or execution changed source unexpectedly; inspect import-metadata.json')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
@@ -32,16 +49,11 @@ def main():
     args = parser.parse_args()
     head = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
     if args.expected_head:
-        # Godot may create missing script UID sidecars on first import. They are
-        # generated references, not altered runtime source; all are hashed below.
-        tracked = subprocess.check_output(['git', '-C', str(ROOT), 'diff', 'HEAD', '--name-only'])
-        untracked = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '--others', '--exclude-standard'], text=True).splitlines()
-        unexpected = [p for p in untracked if not (p.endswith('.gd.uid') and (ROOT / p[:-4]).is_file())]
-        if head != args.expected_head or tracked or unexpected:
+        if head != args.expected_head or subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain']):
             raise RuntimeError('Expected an exact, clean source checkout')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    files = [p for d in ['scripts', 'shaders', 'assets'] for p in (ROOT / d).rglob('*') if p.is_file()]
+    files = [p for d in ['scripts', 'shaders', 'assets', 'data'] for p in (ROOT / d).rglob('*') if p.is_file()]
     files += [ROOT / 'project.godot', ROOT / 'main.tscn', Path(__file__), ROOT / 'qa/profile_startup_transition.gd']
     manifest = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
     binding = {'source_commit': head, 'os': platform.platform(),
@@ -57,22 +69,39 @@ def main():
         raise RuntimeError('CI requires the checksum-pinned toolchain receipt')
     (output / 'source-binding.json').write_text(json.dumps(binding, indent=2))
     with tempfile.TemporaryDirectory(prefix='startup-saveguard-') as temp:
+        project = ROOT
+        archive_sources = {}
+        if args.expected_head:
+            project = Path(temp) / 'project'
+            archive = subprocess.check_output(['git', '-C', str(ROOT), 'archive', '--format=zip', head])
+            with zipfile.ZipFile(io.BytesIO(archive)) as source:
+                for name in source.namelist():
+                    if Path(name).is_absolute() or '..' in Path(name).parts:
+                        raise RuntimeError('Unsafe source archive path')
+                source.extractall(project)
+            archive_sources = {str(p.relative_to(project)): hashlib.sha256(p.read_bytes()).hexdigest() for p in project.rglob('*') if p.is_file()}
+            binding['archive_source_sha256'] = archive_sources
+            (output / 'source-binding.json').write_text(json.dumps(binding, indent=2))
         env = os.environ.copy()
         for key in ['HOME', 'APPDATA', 'LOCALAPPDATA', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME']:
             directory = Path(temp) / key.lower(); directory.mkdir(); env[key] = str(directory)
         env['OUTPUT'] = str(output)
-        if args.import_project:
+        if args.import_project or args.expected_head:
             with (output / 'import.log').open('wb') as log_file:
-                imported = subprocess.run([env.get('GODOT_BIN', 'godot'), '--headless', '--path', str(ROOT), '--editor', '--import', '--quit'], env=env, stdout=log_file, stderr=subprocess.STDOUT, timeout=300)
+                imported = subprocess.run([env.get('GODOT_BIN', 'godot'), '--headless', '--path', str(project), '--editor', '--import', '--quit'], env=env, stdout=log_file, stderr=subprocess.STDOUT, timeout=300)
             if imported.returncode or 'ERROR:' in (output / 'import.log').read_text():
                 raise RuntimeError('Project import failed; inspect import.log')
+        if archive_sources:
+            verify_snapshot(project, archive_sources, output)
         command = [env.get('GODOT_BIN', 'godot'), '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility']
         if args.headless:
             command += ['--headless']
-        command += ['--path', str(ROOT), '--script', 'res://qa/profile_startup_transition.gd', '--', '--visual-qa', '--fresh-review']
+        command += ['--path', str(project), '--script', 'res://qa/profile_startup_transition.gd', '--', '--visual-qa', '--fresh-review']
         with (output / 'engine.log').open('wb') as log_file:
             result = subprocess.run(command, env=env, stdout=log_file, stderr=subprocess.STDOUT, timeout=90)
         log = (output / 'engine.log').read_text(errors='replace')
+        if archive_sources:
+            verify_snapshot(project, archive_sources, output)
         if result.returncode or 'SCRIPT ERROR:' in log or 'ERROR:' in log:
             raise RuntimeError('Startup probe failed; inspect engine.log. No performance conclusion.')
     report = json.loads((output / 'startup-profile.json').read_text())
