@@ -9,7 +9,8 @@ const cp = require('node:child_process');
 const {hash, requireVisibleText, normalizedText} = require('./wall_compatibility_helpers');
 const {installWelcomeAudioObserver} = require('./welcome_audio_observer');
 const {PLAYWRIGHT_VERSION, PREFERENCE_KEY, MODES, GESTURES, preferences,
-  verifySource, launchOptions, verifyBrowserArguments, gestureTime, sustainedSignal, compareTrials} = require('./welcome_audio_helpers');
+  verifySource, gestureTime, sustainedSignal, compareTrials} = require('./welcome_audio_helpers');
+const {browserIdentity, browserCommandLine, verifyIdentity} = require('./welcome_audio_browser_identity');
 async function main() {
   const args = process.argv.slice(2);
   function option(name, fallback) {
@@ -26,7 +27,7 @@ async function main() {
     scope: 'Destination-bound WebAudio samples, context state and isolated BGM controls after trusted input. No speaker recording, human listening, MP3 reference match or device acceptance.',
     instrumentation: 'Parallel unconnected AnalyserNode taps only. Existing graph routes, gain, playback, context state and autoplay policy are not changed.',
     qa_source_commit: cp.execFileSync('git', ['rev-parse', 'HEAD'], {cwd: __dirname, encoding: 'utf8'}).trim(),
-    qa_sha256: Object.fromEntries(['welcome_audio_browser.js', 'welcome_audio_helpers.js', 'welcome_audio_observer.js']
+    qa_sha256: Object.fromEntries(['welcome_audio_browser.js', 'welcome_audio_helpers.js', 'welcome_audio_observer.js', 'welcome_audio_browser_identity.js']
       .map(name => [name, hash(fs.readFileSync(path.join(__dirname, name)))]))};
   let server, browser;
   const persist = () => fs.writeFileSync(path.join(output, 'welcome-audio-browser.json'), JSON.stringify(report, null, 2));
@@ -37,10 +38,7 @@ async function main() {
     const moduleName = process.env.PLAYWRIGHT_MODULE || 'playwright';
     const playwright = require(moduleName), moduleDir = path.dirname(require.resolve(moduleName));
     assert.equal(require(path.join(moduleDir, 'package.json')).version, PLAYWRIGHT_VERSION, 'Pinned Playwright package required');
-    const core = path.dirname(require.resolve('playwright-core/package.json', {paths: [moduleDir]}));
-    const pin = JSON.parse(fs.readFileSync(path.join(core, 'browsers.json'))).browsers.find(row => row.name === 'chromium');
-    assert(pin?.revision && pin.browserVersion, 'Pinned bundled Chromium metadata required');
-    assert(fs.existsSync(playwright.chromium.executablePath()), 'Install the pinned bundled Chromium; do not substitute a system browser');
+    const identity = browserIdentity(playwright, moduleDir, process.env.WELCOME_AUDIO_BROWSER || 'bundled-chromium');
     server = http.createServer((req, res) => {
       const pathname = new URL(req.url, 'http://localhost').pathname;
       if (pathname === '/empty') {res.setHeader('Content-Type', 'text/html'); return res.end('<title>Disposable audio QA origin</title>');}
@@ -51,13 +49,14 @@ async function main() {
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const origin = 'http://127.0.0.1:' + server.address().port;
-    browser = await playwright.chromium.launch(launchOptions());
-    assert.equal(browser.version(), pin.browserVersion, 'Actual browser must match Playwright bundled revision');
+    report.browser_request = identity;
+    browser = await playwright.chromium.launch(identity.options);
     const session = await browser.newBrowserCDPSession();
-    const command = await session.send('Browser.getBrowserCommandLine');
-    await session.detach(); verifyBrowserArguments(command.arguments);
-    report.browser = {playwright: PLAYWRIGHT_VERSION, chromium_revision: pin.revision,
-      version: browser.version(), sandbox: true, arguments: command.arguments};
+    let command;
+    try {command = await browserCommandLine(session);} finally {await session.detach();}
+    verifyIdentity(identity, browser.version(), command);
+    report.browser = {playwright: PLAYWRIGHT_VERSION, ...identity,
+      version: browser.version(), sandbox: true, ...command};
     for (const gesture of GESTURES) {
       for (const mode of MODES) {
         const context = await browser.newContext({viewport: {width: 1360, height: 880}, deviceScaleFactor: 1, hasTouch: gesture === 'touch'});
