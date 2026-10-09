@@ -9,11 +9,18 @@ function phraseBox(tsv,phrase){
 }
 function allowedRequest(url,origin){try{return new URL(url).origin===origin;}catch{return false;}}
 function bind(provenance,manifest,expected){assert.equal(provenance.release_qualified,false);assert.equal(provenance.purpose,'browser-harness-diagnostic-only');assert.equal(provenance.export_source_commit,manifest.source_commit);assert.equal(provenance.export_source_tree,manifest.source_tree);assert.equal(String(provenance.export_run_id),String(manifest.workflow_run));assert.equal(provenance.export_manifest_sha256,expected);}
-module.exports={normalize,phraseBox,allowedRequest,bind};
+function panelClip(settingsPoint){assert.equal(settingsPoint.length,2);assert(settingsPoint.every(Number.isFinite));
+  // Fixed 1360x880 diagnostic viewport; offsets verified against the retained
+  // exact-export Settings frame and anchored to its native Settings button.
+  const clip={x:Math.floor(settingsPoint[0]-255),y:Math.floor(settingsPoint[1]+72),width:310,height:660};
+  assert(clip.x>=0&&clip.y>=0&&clip.x+clip.width<=1360&&clip.y+clip.height<=880);return clip;
+}
+module.exports={normalize,phraseBox,allowedRequest,bind,panelClip};
 if(process.argv.includes('--test')){
   const t='level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n5\t1\t1\t1\t1\t1\t10\t20\t30\t15\t99\tSaved';
   assert(phraseBox(t,'Saved'));assert.equal(phraseBox(t,'Save'),null);assert.equal(phraseBox(t,'Not saved'),null);
   assert(allowedRequest('http://127.0.0.1:123/a','http://127.0.0.1:123'));for(const url of ['https://firebase.googleapis.com','http://127.0.0.1:124','https://evil.invalid/?x=1','file:///tmp/a'])assert.equal(allowedRequest(url,'http://127.0.0.1:123'),false);
   const p={release_qualified:false,purpose:'browser-harness-diagnostic-only',export_source_commit:'a',export_source_tree:'b',export_run_id:'17',export_manifest_sha256:'c'},m={source_commit:'a',source_tree:'b',workflow_run:'17'};bind(p,m,'c');for(const [k,v] of [['source_commit','wrong'],['source_tree','wrong'],['workflow_run','18']])assert.throws(()=>bind(p,{...m,[k]:v},'c'));assert.throws(()=>bind(p,m,'wrong'));
+  assert.deepEqual(panelClip([946.075,52.554]),{x:691,y:124,width:310,height:660});assert.throws(()=>panelClip([0,0]));
   console.log('Cloud Settings diagnostic source/hash, exact-label and external-network negative guards passed');
 }

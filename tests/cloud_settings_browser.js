@@ -2,7 +2,7 @@
 // Diagnostic only: unchanged exported Godot + real adapter/boot module, mocked SDK transport.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),cp=require('node:child_process'),assert=require('node:assert/strict');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const {phraseBox,allowedRequest,bind}=require('./cloud_settings_browser_helpers');
+const {phraseBox,allowedRequest,bind,panelClip}=require('./cloud_settings_browser_helpers');
 const arg=n=>{const i=process.argv.indexOf(n);return i<0?null:path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),layoutPath=arg('--layout-report'),provenancePath=arg('--diagnostic-provenance');
 for(const p of [web,out,layoutPath,provenancePath])assert(p,'required diagnostic paths');fs.mkdirSync(out,{recursive:true});
@@ -42,7 +42,13 @@ function installSynthetic({adapter,boot,payload}){
   page=await context.newPage();page.on('pageerror',e=>report.errors.push(String(e)));page.on('console',m=>{if(/SCRIPT ERROR|ERROR:/.test(m.text()))report.errors.push(m.text());});let acceptSignout=false;page.on('dialog',dialog=>acceptSignout?dialog.accept():dialog.dismiss());
   await page.addInitScript(installSynthetic,{adapter:fs.readFileSync('web/little_leaf_firebase.js','utf8'),boot:fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8'),payload:fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8')});
   await page.goto(origin+'/index.html');await page.waitForFunction(()=>!document.getElementById('status'),null,{timeout:60000});check(await page.evaluate(()=>document.getElementById('cloud-account').hidden),'No signed-in account strip covers actual gameplay');
-  async function visible(name,phrase){const deadline=Date.now()+15000;let text='';do{assert(!report.errors.length,report.errors.join('\n'));const file=path.join(out,name+'.png');await page.screenshot({path:file});text=cp.execFileSync('tesseract',[file,'stdout','--psm','11','tsv'],{encoding:'utf8',timeout:10000,env:{...process.env,OMP_THREAD_LIMIT:'1'}});const box=phraseBox(text,phrase);if(box){fs.writeFileSync(path.join(out,name+'.tsv'),text);check(true,'Actual rendered '+name+' contains '+phrase);return box;}await page.waitForTimeout(150);}while(Date.now()<deadline);throw Error('Rendered '+phrase+' not found: '+name);}
+  const clip=panelClip(settingsPoint);report.ocr={clip,pixel_scale:2,method:'nearest-neighbor detached canvas',full_originals_retained:true};
+  async function visible(name,phrase){const deadline=Date.now()+15000;let text='';do{
+    assert(!report.errors.length,report.errors.join('\n'));const file=path.join(out,name+'.png');await page.screenshot({path:file});
+    const png=await page.screenshot({clip});const scaled=await page.evaluate(async base64=>{const raw=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));const bitmap=await createImageBitmap(new Blob([raw],{type:'image/png'}));const canvas=new OffscreenCanvas(bitmap.width*2,bitmap.height*2),ctx=canvas.getContext('2d');ctx.imageSmoothingEnabled=false;ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);return Array.from(new Uint8Array(await(await canvas.convertToBlob({type:'image/png'})).arrayBuffer()));},png.toString('base64'));
+    const input=path.join(out,name+'-ocr.png');fs.writeFileSync(input,Buffer.from(scaled));text=cp.execFileSync('tesseract',[input,'stdout','--psm','6','tsv'],{encoding:'utf8',timeout:10000,env:{...process.env,OMP_THREAD_LIMIT:'1'}});fs.writeFileSync(path.join(out,name+'.tsv'),text);const box=phraseBox(text,phrase);
+    if(box){check(true,'Actual rendered '+name+' contains '+phrase);return{x:clip.x+box.x/2,y:clip.y+box.y/2,width:box.width/2,height:box.height/2};}await page.waitForTimeout(150);
+  }while(Date.now()<deadline);throw Error('Rendered '+phrase+' not found: '+name);}
   const clickLabel=async(name,phrase)=>{const b=await visible(name,phrase);await page.mouse.click(b.x+b.width/2,b.y+b.height/2);};
   await page.mouse.click(...settingsPoint);await visible('settings-saved','Saved');
   await page.keyboard.press('Escape');await page.mouse.click(...settingsPoint);await visible('settings-reopened','Saved');
