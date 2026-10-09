@@ -42,46 +42,62 @@ def verify_snapshot(project, originals, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source-root', type=Path, default=ROOT, help='Exact product checkout; the running candidate supplies the common diagnostic harness')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--runtime-atlases', action='store_true', help='Exercise original procedural fallback behind preparation')
     parser.add_argument('--headless', action='store_true', help='Logic validation only; no renderer claim')
     parser.add_argument('--expected-head', help='CI requires this exact clean commit')
     parser.add_argument('--import-project', action='store_true')
     args = parser.parse_args()
-    head = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
+    probe = Path(__file__).with_name("profile_startup_transition.gd").read_bytes()
+    root = args.source_root.resolve()
+    head = subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip()
     if args.expected_head:
-        if head != args.expected_head or subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain']):
+        if head != args.expected_head or subprocess.check_output(['git', '-C', str(root), 'status', '--porcelain']):
             raise RuntimeError('Expected an exact, clean source checkout')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    files = [p for d in ['scripts', 'shaders', 'assets', 'data'] for p in (ROOT / d).rglob('*') if p.is_file()]
-    files += [ROOT / 'project.godot', ROOT / 'main.tscn', Path(__file__), ROOT / 'qa/profile_startup_transition.gd']
-    manifest = {p.relative_to(ROOT).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
+    files = [p for d in ['scripts', 'shaders', 'assets', 'data'] for p in (root / d).rglob('*') if p.is_file()]
+    files += [root / 'project.godot', root / 'main.tscn', root / 'qa/run_startup_profile.py', root / 'qa/profile_startup_transition.gd']
+    manifest = {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(files)}
     binding = {'source_commit': head, 'os': platform.platform(),
                'software_renderer_requested': os.environ.get('LIBGL_ALWAYS_SOFTWARE') == '1',
-               'source_sha256': manifest, 'headless': args.headless, 'player_data_used': False}
+               'source_sha256': manifest, 'headless': args.headless, 'player_data_used': False,
+               'diagnostic_runner_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+               'runtime_atlases_requested': args.runtime_atlases}
     receipt = os.environ.get('GODOT_TOOLCHAIN_RECEIPT')
     if receipt:
         binding['toolchain_receipt'] = json.loads(Path(receipt).read_text())
         engine = Path(shutil.which(os.environ.get('GODOT_BIN', 'godot')))
         if hashlib.sha256(engine.read_bytes()).hexdigest() != binding['toolchain_receipt']['godot']['member_sha256']:
             raise RuntimeError('Engine binary differs from checksum-pinned receipt')
-    elif args.expected_head:
+    elif args.expected_head and not args.headless:
         raise RuntimeError('CI requires the checksum-pinned toolchain receipt')
     (output / 'source-binding.json').write_text(json.dumps(binding, indent=2))
     with tempfile.TemporaryDirectory(prefix='startup-saveguard-') as temp:
-        project = ROOT
+        project = root
         archive_sources = {}
         if args.expected_head:
             project = Path(temp) / 'project'
-            archive = subprocess.check_output(['git', '-C', str(ROOT), 'archive', '--format=zip', head])
+            archive = subprocess.check_output(['git', '-C', str(root), 'archive', '--format=zip', head])
             with zipfile.ZipFile(io.BytesIO(archive)) as source:
                 for name in source.namelist():
                     if Path(name).is_absolute() or '..' in Path(name).parts:
                         raise RuntimeError('Unsafe source archive path')
                 source.extractall(project)
             archive_sources = {str(p.relative_to(project)): hashlib.sha256(p.read_bytes()).hexdigest() for p in project.rglob('*') if p.is_file()}
-            binding['archive_source_sha256'] = archive_sources
+            binding['archive_source_sha256'] = dict(archive_sources)
             (output / 'source-binding.json').write_text(json.dumps(binding, indent=2))
+        # Identical diagnostic code for all product commits, separate from product source.
+        # Archive-only injection is explicitly bound; no live checkout is modified.
+        if not args.expected_head:
+            raise RuntimeError('Common-harness profiling requires an exact clean archived head')
+        probe_name = 'qa/__startup_probe.gd'
+        (project / probe_name).write_bytes(probe)
+        probe_hash = hashlib.sha256(probe).hexdigest()
+        binding['diagnostic_overlay_sha256'] = {probe_name: probe_hash}
+        archive_sources[probe_name] = probe_hash
+        (output / 'source-binding.json').write_text(json.dumps(binding, indent=2))
         env = os.environ.copy()
         for key in ['HOME', 'APPDATA', 'LOCALAPPDATA', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME']:
             directory = Path(temp) / key.lower(); directory.mkdir(); env[key] = str(directory)
@@ -96,7 +112,9 @@ def main():
         command = [env.get('GODOT_BIN', 'godot'), '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility']
         if args.headless:
             command += ['--headless']
-        command += ['--path', str(project), '--script', 'res://qa/profile_startup_transition.gd', '--', '--visual-qa', '--fresh-review']
+        command += ['--path', str(project), '--script', 'res://qa/__startup_probe.gd', '--', '--visual-qa', '--fresh-review']
+        if args.runtime_atlases:
+            command += ['--runtime-atlases']
         with (output / 'engine.log').open('wb') as log_file:
             result = subprocess.run(command, env=env, stdout=log_file, stderr=subprocess.STDOUT, timeout=90)
         log = (output / 'engine.log').read_text(errors='replace')
@@ -110,6 +128,8 @@ def main():
     assert report['trials'][0]['atlas_instance_ids'] == report['trials'][1]['atlas_instance_ids']
     for trial in report['trials']:
         assert trial['save_writes_suppressed'] and not trial['player_data_used']
+        visible = [event['at_us'] for event in trial['post_draw_events'] if event['phase'] in {'welcome_hold', 'descent', 'restaurant'}]
+        trial['first_visible_game_post_draw_us'] = visible[0] if visible else None
         assert trial['renderer_measured'] == (not args.headless)
         if not args.headless:
             assert len(trial['post_draw_events']) > 1, 'No rendered frame interval evidence'

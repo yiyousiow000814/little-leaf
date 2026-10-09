@@ -24,6 +24,11 @@ func run():
 		while not (atlases[0].is_ready() and atlases[1].is_ready() and atlases[2].is_ready()):
 			if Time.get_ticks_msec() > deadline:push_error("Atlas timeout");quit(1);return
 			await process_frame
+		var readiness = game.get("startup_readiness")
+		while is_instance_valid(readiness) and not readiness.completed:
+			readiness._process(0.0)
+			if Time.get_ticks_msec() > deadline:push_error("Preparation timeout");quit(1);return
+			await process_frame
 		for elapsed in [0.0,2.375,3.75,5.125,6.5]:
 			var intro = game.cafe_intro
 			intro.elapsed = elapsed

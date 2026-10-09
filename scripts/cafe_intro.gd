@@ -5,6 +5,9 @@ const DESCENT_START = 1.0
 static var shown_this_session = false
 var game
 var active = false
+var preparing = false
+var finish_after_preparation = false
+var discard_preparation_delta = false
 var elapsed = 0.0
 var descent = 0.0
 var sky_alpha = 1.0
@@ -61,7 +64,10 @@ func start(owner_game):
 	_present()
 
 func _process(delta):
-	if not active:return
+	if not active or preparing:return
+	if discard_preparation_delta:
+		discard_preparation_delta = false
+		return
 	# A suspended tab or frame stall lands immediately instead of trapping input.
 	if delta > 1.0 or game.editing or game.settings.visible:
 		finish();return
@@ -74,6 +80,7 @@ func _process(delta):
 func motion_delta(delta: float) -> float:
 	# The title hold is not play time. Only the current frame's descending
 	# portion advances the world; there is no catch-up after a stall or tab hide.
+	if preparing or discard_preparation_delta:return 0.0
 	if not is_finite(delta) or delta <= 0.0 or delta > 1.0:return 0.0
 	return clampf(elapsed + delta - DESCENT_START, 0.0, delta) if active else delta
 
@@ -129,6 +136,11 @@ func handle_input(event) -> bool:
 		if not event.pressed:held.erase("touch_skip")
 		return true
 	if not active:return false
+	if preparing:
+		if token != "" and pressed:
+			held[token] = true
+			if event is InputEventScreenTouch:held["touch_skip"] = true
+		return true
 	if token != "" and pressed:
 		held[token] = true
 		if event is InputEventScreenTouch:held["touch_skip"] = true
@@ -137,6 +149,9 @@ func handle_input(event) -> bool:
 
 func finish():
 	if not active:return
+	if preparing:
+		finish_after_preparation = true
+		return
 	active = false
 	descent = 1.0
 	cover.hide()

@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_startup_readiness", "STARTUP_READINESS_RESULT"),
     ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
@@ -267,7 +268,7 @@ def main():
                     flags = ["--visual-qa", "--fresh-review"]
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
-                    if script != "test_intro_lifecycle_headless":
+                    if script not in {"test_intro_lifecycle_headless", "test_startup_readiness"}:
                         flags.append("--skip-intro")
                     # These controller fixtures never create the game scene. The
                     # adversarial native harness uses a zero-I/O model and must

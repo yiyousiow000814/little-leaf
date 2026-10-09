@@ -36,6 +36,11 @@ jobs:
           ref: 3291afc82244553d9958656aeb7c32809fff4009
           persist-credentials: false
           path: baseline
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: df115a085437633e3538ef5462401f57739fc935
+          persist-credentials: false
+          path: prebaked-control
       - name: Install existing checksum-pinned official engine
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/startup-tools"
       - name: Prepare Ubuntu native software renderer
@@ -49,9 +54,15 @@ jobs:
         run: |
           set -euo pipefail
           for pair in 1 2; do
-            (cd ../baseline && xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-pair-$pair")
+            xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --source-root ../baseline --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-pair-$pair"
+            xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --source-root ../prebaked-control --expected-head df115a085437633e3538ef5462401f57739fc935 --output "$RUNNER_TEMP/startup-profile/prebaked-control-pair-$pair"
             xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/startup-profile/candidate-pair-$pair"
           done
+      - name: Measure procedural fallback hidden behind preparation
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --runtime-atlases --output "$RUNNER_TEMP/startup-profile/runtime-fallback"
       - name: Separately check exact atlas pixels and production scene positions
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}

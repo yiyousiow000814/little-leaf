@@ -61,6 +61,8 @@ function harness(html, options = {}) {
     }
     {
       const h = harness(html);
+      h.boot.artWarmup(1, 3); check(h.dom['status-label'].textContent === 'Preparing café art · 1/3 ready' && !Object.hasOwn(h.dom['status-progress'], 'value'), 'actual readiness count remains indeterminate rather than fake percentage');
+      h.boot.artWarmup(4, 3); check(h.dom['status-label'].textContent === 'Preparing café art · 1/3 ready', 'invalid readiness count ignored');
       h.boot.onProgress(0, 200); check(h.dom['status-progress'].value === 0 && h.dom['status-progress'].max === 200, 'zero-byte known total honest');
       h.boot.onProgress(50, 200); check(h.dom['status-progress'].value === 50, 'engine byte progress passed through');
       h.boot.onProgress(200, 200); check(h.dom['status-label'].textContent === 'Opening your café…' && !h.dom.status.removals, '100% download still waits for scene');

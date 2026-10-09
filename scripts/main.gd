@@ -121,6 +121,8 @@ var browser_suspended=false
 var _browser_process_mode=Node.PROCESS_MODE_INHERIT
 var _resume_frame=-1
 var cafe_intro
+var startup_readiness
+var startup_preparation_report = {}
 var tutorial
 var illustration: Node2D
 var interaction
@@ -171,7 +173,10 @@ func _ready():
 	cafe_intro.start(self)
 	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
 	tutorial.setup(self)
-	if OS.has_feature("web"):
+	if DisplayServer.get_name() != "headless" and cafe_intro.active:
+		startup_readiness = preload("res://scripts/cafe_startup_readiness.gd").new()
+		startup_readiness.start(self)
+	elif OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
 	if "--self-check" in OS.get_cmdline_user_args():
 		print("SCENE_READY furniture=", model.items.size(), " wall_thickness=0.24 expansion_parcels=24 parcel_tiles=9")

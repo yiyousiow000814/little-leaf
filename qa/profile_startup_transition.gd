@@ -52,6 +52,7 @@ func run():
 	var art=game.illustration
 	atlas_ids=[art.furniture_art.static_atlas.get_instance_id(),art.head_atlas.get_instance_id(),art.moving_atlas.get_instance_id()]
 func phase()->String:
+	if is_instance_valid(game.get("startup_readiness")) and not game.get("startup_readiness").completed:return "opening_preparation"
 	if game.cafe_intro.active:
 		return "welcome_hold" if game.cafe_intro.elapsed<game.cafe_intro.DESCENT_START else "descent"
 	return "restaurant"
@@ -68,9 +69,9 @@ func after_draw():
 	if not finished and game!=null and game.cafe_intro!=null:rendered.append({"at_us":Time.get_ticks_usec()-started_us,"phase":phase()})
 func finish():
 	var art=game.illustration
-	var report={"trial":trial_name,"engine":Engine.get_version_info().string,"display":DisplayServer.get_name(),"renderer_measured":DisplayServer.get_name()!="headless","player_data_used":false,"save_writes_suppressed":game.save_writes_suppressed,"viewport":[1360,880],"os":OS.get_name(),"video_adapter":RenderingServer.get_video_adapter_name(),"rendering_method":RenderingServer.get_current_rendering_method(),"audio_driver":AudioServer.get_driver_name(),"texture_memory_bytes":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED),"sampled_peak_texture_memory_bytes":peak_texture_bytes,"static_memory_peak_bytes":OS.get_static_memory_peak_usage(),"initial_atlas_states":initial_atlases,"atlas_instance_ids":atlas_ids,"started_us":started_us,"startup_us":startup_us,"initialization_stages":game.stages,"process_frames":frames,"post_draw_events":rendered,"atlas_stats":{"furniture":art.furniture_art.static_atlas.stats.duplicate(true),"heads":art.head_atlas.stats.duplicate(true),"moving":art.moving_atlas.stats.duplicate(true)},"scope":"Source-bound generated fresh model. Native process/draw event intervals, not browser FPS or audible audio. Script preload time is outside startup_us."}
+	var report={"trial":trial_name,"engine":Engine.get_version_info().string,"display":DisplayServer.get_name(),"renderer_measured":DisplayServer.get_name()!="headless","player_data_used":false,"save_writes_suppressed":game.save_writes_suppressed,"viewport":[1360,880],"os":OS.get_name(),"video_adapter":RenderingServer.get_video_adapter_name(),"rendering_method":RenderingServer.get_current_rendering_method(),"audio_driver":AudioServer.get_driver_name(),"texture_memory_bytes":RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED),"sampled_peak_texture_memory_bytes":peak_texture_bytes,"static_memory_peak_bytes":OS.get_static_memory_peak_usage(),"initial_atlas_states":initial_atlases,"atlas_instance_ids":atlas_ids,"started_us":started_us,"startup_us":startup_us,"opening_preparation":game.get("startup_preparation_report"),"initialization_stages":game.stages,"process_frames":frames,"post_draw_events":rendered,"atlas_stats":{"furniture":art.furniture_art.static_atlas.stats.duplicate(true),"heads":art.head_atlas.stats.duplicate(true),"moving":art.moving_atlas.stats.duplicate(true)},"scope":"Source-bound generated fresh model. Native process/draw event intervals, not browser FPS or audible audio. Script preload time is outside startup_us."}
 	trials.append(report)
-	print("STARTUP_PROFILE_TRIAL ",JSON.stringify({"trial":trial_name,"frames":frames.size(),"draw_events":rendered.size(),"renderer_measured":report.renderer_measured,"startup_us":startup_us,"initialization_stages":game.stages}))
+	print("STARTUP_PROFILE_TRIAL ",JSON.stringify({"trial":trial_name,"frames":frames.size(),"draw_events":rendered.size(),"renderer_measured":report.renderer_measured,"startup_us":startup_us,"opening_preparation":game.get("startup_preparation_report"),"initialization_stages":game.stages}))
 	game.queue_free();await process_frame;game=null
 	if trial_name=="cold_atlases":
 		trial_name="warm_atlases";run.call_deferred();return
