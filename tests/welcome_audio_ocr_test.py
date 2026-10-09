@@ -28,6 +28,17 @@ class HintCropTests(unittest.TestCase):
                 crop_hint(source, output)
             self.assertFalse(output.exists())
 
+    def test_title_crop_and_unknown_region(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, output = Path(folder) / 'source.png', Path(folder) / 'title.png'
+            Image.new('RGB', (1360, 880)).save(source)
+            receipt = crop_hint(source, output, 'title')
+            self.assertEqual(receipt['box'], [540, 140, 820, 185])
+            with Image.open(output) as crop:
+                self.assertEqual(crop.size, (280, 45))
+            with self.assertRaisesRegex(ValueError, 'Unknown'):
+                crop_hint(source, output, 'unknown')
+
 
 if __name__ == '__main__':
     unittest.main()

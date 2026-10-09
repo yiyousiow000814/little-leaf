@@ -89,7 +89,7 @@ async function main() {
             await context.addInitScript(installWelcomeAudioObserver);
             await page.goto(origin + '/index.html', {waitUntil: 'domcontentloaded'});
             // Focus before readiness, never by clicking or inside the timed phase.
-            if (gesture === 'Enter') await page.locator('#canvas').focus();
+            if (gesture === 'Enter') await observe(() => document.querySelector('#canvas').focus());
             stage('readiness', trial);
             await waitForPassive(observe, captureReadyBaseline);
             const read = () => observe(() => window.__welcomeAudioQA);
@@ -140,15 +140,17 @@ async function main() {
               const text = cp.execFileSync(process.env.TESSERACT_BIN || 'tesseract', [path.join(output, shot.file), 'stdout', '-l', 'eng', '--psm', '11'],
                 {encoding: 'utf8', timeout: 10000, env: {...process.env, OMP_THREAD_LIMIT: '1'}});
               shot.ocr = text;
-              requireVisibleText(text, ['Welcome to']);
-              // Whole-screen sparse OCR misses the small bottom hint next to
-              // the large illustrated logo. Read its exact-pixel crop instead.
-              const hintFile = shot.file.replace(/\.png$/, '-hint.png');
-              shot.hint_crop = JSON.parse(cp.execFileSync(process.env.PYTHON_BIN || 'python3',
-                [path.join(__dirname, 'welcome_audio_ocr.py'), path.join(output, shot.file), path.join(output, hintFile)], {encoding: 'utf8', timeout: 10000}));
-              shot.hint_ocr = cp.execFileSync(process.env.TESSERACT_BIN || 'tesseract',
-                [path.join(output, hintFile), 'stdout', '-l', 'eng', '--psm', '7'],
-                {encoding: 'utf8', timeout: 10000, env: {...process.env, OMP_THREAD_LIMIT: '1'}});
+              // Sparse full-image OCR misses text near the illustrated logo.
+              // Preserve it, then check exact-pixel text regions independently.
+              for (const region of ['title', 'hint']) {
+                const file = shot.file.replace(/\.png$/, '-' + region + '.png');
+                shot[region + '_crop'] = JSON.parse(cp.execFileSync(process.env.PYTHON_BIN || 'python3',
+                  [path.join(__dirname, 'welcome_audio_ocr.py'), path.join(output, shot.file), path.join(output, file), '--region', region], {encoding: 'utf8', timeout: 10000}));
+                shot[region + '_ocr'] = cp.execFileSync(process.env.TESSERACT_BIN || 'tesseract',
+                  [path.join(output, file), 'stdout', '-l', 'eng', '--psm', '7'],
+                  {encoding: 'utf8', timeout: 10000, env: {...process.env, OMP_THREAD_LIMIT: '1'}});
+              }
+              requireVisibleText(shot.title_ocr, ['Welcome to']);
               requireVisibleText(shot.hint_ocr, name === 'early-welcome' ? ['Tap again', 'Esc to skip'] : ['Tap or press Enter to enter', 'Esc to skip']);
             }
             if (profile_kind === 'audio-measurement') {
