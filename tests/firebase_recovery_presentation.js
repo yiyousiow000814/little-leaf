@@ -1,0 +1,36 @@
+'use strict';
+// Real Firebase boot bridge, synthetic SDK/DOM and account-scoped fake client only.
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\n/gm,'').replace('export async function start','async function start');
+const flush=()=>new Promise(resolve=>setImmediate(resolve));
+let checks=0;function check(value,message){checks++;assert(value,message);}
+function fixture(options={}){
+ const nodes=new Map(),downloads=[],blobs=[],confirms=[],calls=[];
+ const auth={currentUser:{uid:'synthetic-current-account',isAnonymous:false},authStateReady:async()=>{}};
+ let snapshot={available:true,busy:false,canExport:true,cloudRevision:8,pendingRevision:6,expectedCloudDigest:'a'.repeat(64),reason:''};
+ const client={sync(){},close(){},recoverySnapshot:()=>snapshot,
+  async recoverCloud(token){calls.push(['recover',token]);if(options.wait)await options.wait;return options.result || {ok:true,source:'authority',profileId:'synthetic-profile',revision:8,payload:'synthetic payload'};},
+  async exportRecovery(){calls.push(['export']);if(options.wait)await options.wait;return {ok:true,fileName:'must-not-expose-account-id.json',text:'{"record":"exact preserved pending café"}'};}};
+ const element=tag=>({tag,textContent:'',hidden:false,disabled:false,style:{},children:[],setAttribute(){},append(...children){this.children.push(...children);},click(){downloads.push({name:this.download,href:this.href});},remove(){}});
+ nodes.set('status-label',element('span'));nodes.set('status-progress',element('progress'));
+ const win={addEventListener(){},__littleLeafVault:{close(){}},LittleLeafAuthorityCodec:{},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){return{};},createClient(){return client;}}};win.top=win.self=win;
+ const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(node){if(node.id)nodes.set(node.id,node);}}};
+ const context={window:win,document,location:{hostname:'demo.firebaseapp.com',reload(){calls.push(['reload']);}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>null,signInWithRedirect:async()=>{},signOut:async()=>{},onAuthStateChanged:()=>()=>{},setInterval(){},setTimeout(fn){fn();},doc(){},getDocFromServer(){},runTransaction(){},confirm(text){confirms.push(text);if(options.onConfirm)options.onConfirm();return options.confirm!==false;},Blob:class{constructor(parts,type){this.parts=parts;this.type=type;}},URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic-only';},revokeObjectURL(){}}};
+ vm.createContext(context);vm.runInContext(source,context);
+ return {start:()=>context.start({authDomain:'demo.firebaseapp.com'}),win,client,auth,calls,confirms,downloads,blobs,setSnapshot(value){snapshot=value;},getSnapshot:()=>snapshot};
+}
+const invoke=(f,name)=>new Promise(resolve=>f.win.LittleLeafVault[name](json=>resolve(JSON.parse(json))));
+(async()=>{
+ const cancelled=fixture({confirm:false});await cancelled.start();const before=cancelled.getSnapshot();
+ check((await invoke(cancelled,'recoverCloud')).code==='RECOVERY_CANCELLED','cancellation is explicit');check(cancelled.calls.length===0,'cancel never invokes adapter mutation');check(cancelled.getSnapshot()===before,'cancel retains exact preview');
+ const stale=fixture({result:{ok:false,code:'RECOVERY_CHANGED',error:'raw secret detail'}});await stale.start();const failed=await invoke(stale,'recoverCloud');
+ check(stale.calls[0][1]==='a'.repeat(64),'confirmation is bound to exact cloud digest');check(failed.code==='RECOVERY_CHANGED' && failed.error.includes('confirm again'),'changed cloud requires another review');check(!JSON.stringify(failed).includes('secret'),'raw adapter error never enters native UI');check(stale.confirms[0].includes('preserved') && stale.confirms[0].includes('not be overwritten'),'confirmation states preservation and no cloud overwrite');
+ const malformed=fixture();await malformed.start();malformed.setSnapshot({...malformed.getSnapshot(),expectedCloudDigest:'not-verified'});check(!JSON.parse(malformed.win.LittleLeafVault.recoverySnapshot()).available,'malformed preview cannot offer cloud load');await invoke(malformed,'recoverCloud');check(malformed.calls.length===0 && malformed.confirms.length===0,'unverified metadata cannot invoke recovery');
+ let finish;const pending=fixture({wait:new Promise(resolve=>{finish=resolve;})});await pending.start();const first=invoke(pending,'recoverCloud');await flush();check(JSON.parse(pending.win.LittleLeafVault.recoverySnapshot()).busy,'inflight operation shown busy');await invoke(pending,'recoverCloud');pending.win.LittleLeafVault.retry();check(pending.calls.length===1,'repeat action and reload cannot interrupt active recovery');finish();const accepted=await first;check(accepted.ok && accepted.source==='authority' && accepted.revision===8,'normal boot receipt is passed unchanged to native validation');check(!JSON.parse(pending.win.LittleLeafVault.recoverySnapshot()).busy,'success releases busy guard');check(!JSON.parse(pending.win.LittleLeafVault.recoverySnapshot()).reason.includes('loaded'),'browser receipt never claims native payload validation succeeded');
+ const exported=fixture();await exported.start();const exportResult=await invoke(exported,'exportRecovery');check(exportResult.ok && exported.downloads.length===1,'explicit export click prepares one download');check(exported.downloads[0].name==='little-leaf-pending-cafe.json','filename contains no user or account ID');check(exported.blobs[0].parts[0]==='{"record":"exact preserved pending café"}','download preserves exact export bytes');check(!JSON.stringify(exportResult).includes('record'),'native export acknowledgment never includes save payload');
+ let release;const switched=fixture({wait:new Promise(resolve=>{release=resolve;})});await switched.start();const download=invoke(switched,'exportRecovery');await flush();switched.auth.currentUser={uid:'different-account'};release();check(!(await download).ok && switched.downloads.length===0,'account change during export never downloads previous account data');check(!JSON.parse(switched.win.LittleLeafVault.recoverySnapshot()).canExport,'account change removes export capability');
+ const full=fixture({result:{ok:false,code:'RECOVERY_ARCHIVE_FULL'}});await full.start();check((await invoke(full,'recoverCloud')).error.includes('Export'),'full archive fails closed with export guidance');
+ const badReceipt=fixture({result:{ok:true}});await badReceipt.start();check((await invoke(badReceipt,'recoverCloud')).code==='INVALID_ACK','malformed success cannot reach native load path');
+ const ordinary=fixture();delete ordinary.client.recoverySnapshot;delete ordinary.client.recoverCloud;delete ordinary.client.exportRecovery;await ordinary.start();check(!JSON.parse(ordinary.win.LittleLeafVault.recoverySnapshot()).available,'old adapter has no recovery option');
+ console.log(JSON.stringify({passed:true,checks,player_save_used:false,real_browser:false}));
+})().catch(error=>{console.error(error);process.exitCode=1;});

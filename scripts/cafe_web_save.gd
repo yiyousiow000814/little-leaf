@@ -23,6 +23,12 @@ var platform_managed=false
 var _platform_dirty_snapshot=0
 var retrying=false
 var _retry_callback
+var _recovery_callback
+var _recovery_generation=0
+var recovery_busy=false
+var recovery_action=""
+var recovery_message=""
+var _recovery_api
 var _credit_hold=false
 var _held_paused=false
 var _held_input=false
@@ -89,10 +95,69 @@ func _accept_boot(result:Dictionary)->bool:
 	_callback=JavaScriptBridge.create_callback(_on_commit)
 	return true
 
+func _recovery_bridge():
+	if _recovery_api!=null:return _recovery_api
+	if not OS.has_feature("web"):return null
+	if not JavaScriptBridge.eval("typeof window.LittleLeafVault === 'object' && window.LittleLeafVault !== null && typeof window.LittleLeafVault.recoverySnapshot === 'function'"):return null
+	_recovery_api=JavaScriptBridge.get_interface("LittleLeafVault")
+	return _recovery_api
+
+func recovery_snapshot()->Dictionary:
+	var bridge=_recovery_bridge()
+	if bridge==null:return {}
+	var value=JSON.parse_string(str(bridge.recoverySnapshot()))
+	if not value is Dictionary:return {}
+	value["busy"]=recovery_busy or retrying or pending or bool(value.get("busy",false))
+	value["operation"]=recovery_action
+	# A loaded café may contain unsaved edits. Startup recovery never replaces it.
+	value["available"]=bool(value.get("available",false)) and game.save_recovery_blocked and startup_error!=""
+	return value
+
+func _make_recovery_callback(handler:Callable):
+	return JavaScriptBridge.create_callback(handler)
+
+func recover_cloud():
+	var snapshot=recovery_snapshot()
+	if bool(snapshot.get("busy",false)) or not bool(snapshot.get("available",false)):return
+	recovery_busy=true;recovery_action="load";recovery_message="";_recovery_generation+=1
+	_recovery_callback=_make_recovery_callback(_on_cloud_recovery.bind(_recovery_generation))
+	_recovery_bridge().recoverCloud(_recovery_callback)
+	game.compact_ui._sync_help_content()
+
+func export_pending_cafe():
+	var snapshot=recovery_snapshot()
+	if bool(snapshot.get("busy",false)) or not bool(snapshot.get("canExport",false)):return
+	recovery_busy=true;recovery_action="export";recovery_message="";_recovery_generation+=1
+	_recovery_callback=_make_recovery_callback(_on_recovery_export.bind(_recovery_generation))
+	_recovery_bridge().exportRecovery(_recovery_callback)
+	game.compact_ui._sync_help_content()
+
+func _on_cloud_recovery(arguments:Array,request_generation:int):
+	if request_generation!=_recovery_generation or not recovery_busy:return
+	recovery_busy=false;recovery_action=""
+	if game==null or not game.is_inside_tree():return
+	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	if result is Dictionary and result.get("code","")=="RECOVERY_CANCELLED":
+		game.compact_ui._sync_help_content();return
+	# The existing retry path validates the complete payload before unblocking play.
+	_on_retry(arguments)
+	if result is Dictionary and bool(result.get("ok",false)) and ready and not game.save_recovery_blocked:
+		recovery_message="Cloud café loaded. Your pending café is preserved on this device. Export it from Help if you need a copy."
+	else:recovery_message=game.startup_notice
+	game.compact_ui._sync_help_content()
+
+func _on_recovery_export(arguments:Array,request_generation:int):
+	if request_generation!=_recovery_generation or not recovery_busy:return
+	recovery_busy=false;recovery_action=""
+	if game==null or not game.is_inside_tree():return
+	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	recovery_message="Pending café export prepared." if result is Dictionary and bool(result.get("ok",false)) else "Export could not finish. Your pending café is unchanged. Try again."
+	game.compact_ui._sync_help_content()
+
 func retry_startup():
 	# A failed save of an already loaded café may have unsaved edits. Never
 	# reload those edits through the startup retry or bypass revision guards.
-	if retrying or startup_error=="" or pending:return
+	if retrying or recovery_busy or startup_error=="" or pending:return
 	_log("retry_requested")
 	retrying=true
 	_retry_callback=JavaScriptBridge.create_callback(_on_retry)
@@ -184,6 +249,7 @@ func _release_credit_hold():
 	_held_viewport=null
 
 func stop():
+	_recovery_generation+=1;recovery_busy=false;recovery_action=""
 	_release_credit_hold();ready=false
 
 func _on_commit(arguments:Array):

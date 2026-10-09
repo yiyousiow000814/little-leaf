@@ -1,0 +1,57 @@
+name: Cloud recovery paired visuals
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cloud-recovery-visual.yml'
+      - 'ci/capture_cloud_recovery_ui.py'
+      - 'tests/capture_cloud_recovery_ui.gd'
+      - 'tests/test_cloud_recovery_ui.gd'
+      - 'scripts/cafe_web_save.gd'
+      - 'web/little_leaf_firebase_boot.mjs'
+      - 'web/little_leaf_firebase.js'
+      - 'scripts/cafe_cloud_settings.gd'
+      - 'scripts/cafe_compact_ui.gd'
+      - 'scripts/cafe_hud.gd'
+      - 'scripts/cafe_save_log_panel.gd'
+      - 'scripts/cafe_update_notes.gd'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-recovery-visual-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'fix/cloud-conflict-recovery-010a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install existing checksum-pinned official engine
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/panel-tools"
+      - name: Prepare Ubuntu native software renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Check geometry and navigation in disposable profiles
+        run: python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/panel-engine" --lock "$RUNNER_TEMP/panel-engine.lock" --only test_cloud_recovery_ui test_cloud_settings test_toolbar_help test_startup_retry test_autosave_feedback_ui
+      - name: Render pinned baseline and exact candidate
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LL_ENGINE_LOCK: ${{ runner.temp }}/panel-engine.lock
+        run: python3 ci/capture_cloud_recovery_ui.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/panel-paired"
+      - name: Retain actual screenshots and exact source receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloud-recovery-paired-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/panel-paired/
+            ${{ runner.temp }}/panel-engine/
+          if-no-files-found: error
+          retention-days: 7

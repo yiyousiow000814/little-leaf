@@ -63,7 +63,7 @@ BROWSER_GATES = {
     'save-log': ('save-log-browser/save-log-browser.json', 'passed', True),
     'webkit-recovery': ('connection-recovery-browser/connection-recovery-browser.json', 'passed', True),
 }
-FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'staging-tests.log', 'rules.log']
+FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'recovery.log', 'recovery-presentation.log', 'recovery-browser.log', 'staging-tests.log', 'rules.log']
 
 def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt):
     if not re.fullmatch(r'[1-9][0-9]*', str(run_id)) or not re.fullmatch(r'[1-9][0-9]*', str(attempt)):

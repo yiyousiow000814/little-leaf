@@ -47,7 +47,7 @@ var help_panel:PanelContainer
 var help_text:Label
 var help_box:VBoxContainer
 var help_scroll:ScrollContainer
-var help_footer:VBoxContainer
+var help_footer:GridContainer
 var help_heading:Label
 var help_overview:Button
 var help_notes:Button
@@ -55,6 +55,8 @@ var help_scrim:ColorRect
 var help_modal=false
 var help_done:Button
 var help_retry:Button
+var help_load_cloud:Button
+var help_export_pending:Button
 var settings_help:Button
 var help_returns_to_settings=false
 var hire_button:Button
@@ -229,8 +231,11 @@ func setup():
  help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
  var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
  help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
- help_retry=_small_button("Try loading again",func():game.web_save.retry_startup());help_content.add_child(help_retry);help_retry.hide()
- help_footer=VBoxContainer.new();help_footer.add_theme_constant_override("separation",8);help_box.add_child(help_footer)
+ help_retry=_small_button("Try loading again",func():game.web_save.retry_startup());help_retry.hide()
+ help_footer=GridContainer.new();help_footer.columns=1;help_footer.add_theme_constant_override("h_separation",8);help_footer.add_theme_constant_override("v_separation",8);help_box.add_child(help_footer)
+ help_load_cloud=_small_button("Load cloud café",func():game.web_save.recover_cloud());help_footer.add_child(help_load_cloud);help_load_cloud.hide()
+ help_export_pending=_small_button("Export pending café",func():game.web_save.export_pending_cafe());help_footer.add_child(help_export_pending);help_export_pending.hide()
+ help_footer.add_child(help_retry)
  help_overview=_small_button("Show whole café",func():_camera_action(0));help_footer.add_child(help_overview)
  help_done=_small_button("Done",_close_help);help_footer.add_child(help_done)
  help_scrim=ColorRect.new();help_scrim.name="QuickHelpModalBackdrop";help_scrim.color=Color(0.12,0.16,0.10,0.28);help_scrim.z_index=49;game.ui.add_child(help_scrim);help_scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);help_scrim.hide()
@@ -271,8 +276,8 @@ func setup():
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
  var log_entry=save_log_panel.make_menu_entry();settings_box.add_child(log_entry);settings_box.move_child(log_entry,settings_box.get_child_count()-2)
  update_notes=UpdateNotes.new(self);update_notes.setup()
- help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,1)
- for button in [help_overview,help_notes,help_done,help_retry]:button.add_theme_font_size_override("font_size",14)
+ help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,help_overview.get_index()+1)
+ for button in [help_overview,help_notes,help_done,help_retry,help_load_cloud,help_export_pending]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
  _add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
@@ -477,8 +482,18 @@ func _fit_themed_popups():
 func _fit_help_panel():
  if not is_instance_valid(help_panel) or not help_panel.visible:return
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
- var width=minf(340,maxf(0,view.x-insets.x-insets.z-24))
  var padding=help_panel.get_theme_stylebox("panel").get_minimum_size()
+ # The text scrollbar never changes action widths. Short recovery screens use
+ # equal-width columns so the details still have a readable scroll viewport.
+ var compact_actions=(help_retry.visible or help_load_cloud.visible or help_export_pending.visible) and view.y-insets.y-insets.w<500
+ var action_width=0.0
+ for button in help_footer.get_children():
+  if button.visible:action_width=maxf(action_width,button.get_minimum_size().x)
+ var target_width=maxf(340,padding.x+action_width*2+8) if compact_actions else 340.0
+ var width=minf(target_width,maxf(0,view.x-insets.x-insets.z-24))
+ compact_actions=compact_actions and width-padding.x>=action_width*2+8
+ help_footer.columns=2 if compact_actions else 1
+ for button in help_footer.get_children():button.custom_minimum_size.x=action_width if compact_actions else 0.0
  var top=hud.layout_host.get_global_rect().end.y+10
  var footer_height=help_footer.get_combined_minimum_size().y
  var fixed_height=padding.y+help_heading.get_combined_minimum_size().y+footer_height+16
@@ -511,7 +526,8 @@ func _help_tab(event:InputEventKey)->bool:
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
- if help_retry.visible and not help_retry.disabled:controls.append(help_retry)
+ for button in [help_load_cloud,help_export_pending,help_retry]:
+  if button.visible and not button.disabled:controls.append(button)
  controls.append_array([help_overview,help_notes,help_done])
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
  index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())
@@ -659,17 +675,27 @@ func show_help():
  _popup_at(help_panel,340);help_scroll.scroll_vertical=0;_fit_help_panel();help_scroll.grab_focus()
  if help_retry.visible and not help_retry.disabled:help_retry.grab_focus()
 func _sync_help_content():
- help_retry.visible=game.web_save!=null and game.web_save.startup_error!=""
- help_retry.disabled=help_retry.visible and game.web_save.retrying
+ var recovery=game.web_save.recovery_snapshot() if game.web_save!=null else {}
+ var recovery_busy=bool(recovery.get("busy",false))
+ help_load_cloud.visible=bool(recovery.get("available",false));help_load_cloud.disabled=recovery_busy
+ help_load_cloud.text="Loading cloud café…" if recovery_busy and recovery.get("operation","")!="export" else "Load cloud café"
+ help_export_pending.visible=bool(recovery.get("canExport",false));help_export_pending.disabled=recovery_busy
+ help_export_pending.text="Preparing export…" if recovery_busy and recovery.get("operation","")=="export" else "Export pending café"
+ help_retry.visible=game.web_save!=null and game.web_save.startup_error!="" and not help_load_cloud.visible
+ help_retry.disabled=help_retry.visible and (game.web_save.retrying or recovery_busy)
  help_retry.text="Loading saved café…" if help_retry.disabled else "Try loading again"
  var save_detail=""
  if game.web_save!=null and game.web_save.platform_managed:save_detail="Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here.\n\n"
- if game.save_recovery_blocked:
+ if game.save_recovery_blocked and help_load_cloud.visible:
+  save_detail="This device has pending progress that differs from the cloud café. You can export the pending café, or load the cloud café after preserving a local recovery copy. The cloud save will not be overwritten.\n\nCloud save: %d · Pending save: %d\n\n"%[int(recovery.get("cloudRevision",0)),int(recovery.get("pendingRevision",0))]
+ elif game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
+ if str(recovery.get("reason",""))!="" and not str(recovery.reason) in save_detail:save_detail+=str(recovery.reason)+"\n\n"
+ if game.web_save!=null and game.web_save.recovery_message!="" and game.web_save.recovery_message!=str(recovery.get("reason","")):save_detail+=game.web_save.recovery_message+"\n\n"
  help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():

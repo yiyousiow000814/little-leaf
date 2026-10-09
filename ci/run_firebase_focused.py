@@ -4,6 +4,9 @@ from pathlib import Path
 from build_web import ROOT,sha256
 COMMANDS={'adapter.log':['node','tests/firebase_storage.js'],
  'delayed-network.log':['node','tests/firebase_delayed_network.js'],
+ 'recovery.log':['node','tests/firebase_recovery.js'],
+ 'recovery-presentation.log':['node','tests/firebase_recovery_presentation.js'],
+ 'recovery-browser.log':['node','tests/firebase_recovery_browser.js'],
  'staging-tests.log':[sys.executable,'tests/test_firebase_build.py'],
  'rules.log':['npm','--prefix','firebase','run','test:rules']}
 def run(name,output):
@@ -11,7 +14,7 @@ def run(name,output):
     receipt=output/(name+'.json');receipt.unlink(missing_ok=True)
     command=COMMANDS[name]
     with (output/name).open('w') as log:
-        result=subprocess.run(command,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT)
+        result=subprocess.run(command,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT,timeout=120 if name=='recovery-browser.log' else None)
     print((output/name).read_text(),end='')
     if result.returncode:raise SystemExit(result.returncode)
     git=lambda value:subprocess.check_output(['git','-C',str(ROOT),'rev-parse',value],text=True).strip()

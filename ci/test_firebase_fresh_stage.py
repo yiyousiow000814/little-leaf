@@ -77,6 +77,14 @@ class FreshStageTests(unittest.TestCase):
         p.write_text('fixture');self.native.write_text('{}')
         with self.assertRaises(ValueError):self.verify()
 
+    def test_recovery_gates_are_required_same_source_evidence(self):
+        for name in ['recovery.log', 'recovery-presentation.log', 'recovery-browser.log']:
+            self.assertIn(name, FOCUSED_LOGS)
+            path=self.logs/name;old=path.read_text();path.unlink()
+            with self.subTest(name=name),self.assertRaisesRegex(ValueError, 'focused'):self.verify()
+            path.write_text(old)
+        self.assertEqual(COMMANDS['recovery-browser.log'], ['node', 'tests/firebase_recovery_browser.js'])
+
     def test_browser_binding_mismatches_rejected(self):
         for name in BROWSER_GATES:
             p=self.build/'evidence'/BROWSER_GATES[name][0];old=p.read_text();r=json.loads(old)
@@ -155,6 +163,24 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(tail.count('        if: inputs.firebase_preview'),5)
         self.assertNotIn('always()',tail)
         self.assertLess(tail.index('--require-fresh-ci'),tail.index('id: firebase_upload'))
+
+    def test_recovery_browser_gate_is_bounded_and_not_skippable(self):
+        text=(ROOT/'.github/workflows/build-web.yml').read_text()
+        section=text[text.index('      - name: Verify cloud recovery in real IndexedDB before merge'):text.index('      - name: Verify compensation history')]
+        self.assertLess(text.index('      - name: Install shared pinned browser tools'),text.index(section))
+        self.assertNotIn('        if:',section)
+        self.assertNotIn('continue-on-error',section)
+        self.assertIn('PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright"',section)
+        self.assertIn('${{ runner.temp }}/firebase-focused/',text)
+        for gate in ['adapter.log','delayed-network.log','recovery.log','recovery-presentation.log','recovery-browser.log']:
+            self.assertEqual(text.count('--gate '+gate+' --output'),1)
+            self.assertIn('--gate '+gate,section)
+        self.assertIn('timeout-minutes: 4', section)
+        self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', section)
+        for gate in ['recovery.log', 'recovery-presentation.log', 'recovery-browser.log']:
+            self.assertIn('--gate '+gate, section)
+        runner=(ROOT/'ci/run_firebase_focused.py').read_text()
+        self.assertIn("timeout=120 if name=='recovery-browser.log' else None", runner)
 
     def test_public_config_contains_only_approved_public_app_fields(self):
         x=json.loads((ROOT/'firebase/public-config.json').read_text())
