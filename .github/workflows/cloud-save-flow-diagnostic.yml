@@ -23,7 +23,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Check retained diagnostic eligibility without qualifying a release
+        id: eligibility
+        run: python3 ci/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
       - name: Fetch exact retained a7 artifacts and verify all bytes and source inputs
+        if: steps.eligibility.outputs.eligible == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -33,15 +37,18 @@ jobs:
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11602076197/zip > "$RUNNER_TEMP/retained/evidence.zip"
           python3 ci/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
       - name: Install pinned native geometry tool and prepare disposable probe
+        if: steps.eligibility.outputs.eligible == 'true'
         run: |
           python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
           GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
       - name: Install pinned test dependencies
+        if: steps.eligibility.outputs.eligible == 'true'
         run: |
           npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
           npm install --prefix "$RUNNER_TEMP/browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/browser-tools/node_modules/.bin/playwright" install-deps chromium
       - name: Exercise actual compiled UI and current adapter against synthetic emulator
+        if: steps.eligibility.outputs.eligible == 'true'
         timeout-minutes: 12
         env:
           CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
@@ -61,4 +68,5 @@ jobs:
           path: |
             ${{ runner.temp }}/diagnostic-output
             ${{ runner.temp }}/retained/diagnostic-binding.json
+            ${{ runner.temp }}/retained/diagnostic-eligibility.json
           retention-days: 7
