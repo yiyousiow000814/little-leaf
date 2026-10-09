@@ -18,6 +18,8 @@ Use a new output directory for each run. Set `GODOT_BIN` if the executable is no
 
 The runner uses a disposable project and generated saves. It checks engine behavior, not browser storage or rendered visuals.
 
+[0.1.11 approved design directions and pending implementation](design-011-approved-plan.md): staff accessories and trousers, eight-direction routing, and coordinated save-capability gates; documentation only, with runtime and visual acceptance pending.
+
 ## Build
 
 For automated builds and publishing, see [GitHub Web builds and releases](github-release.md).
