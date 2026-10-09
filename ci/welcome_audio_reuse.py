@@ -44,6 +44,9 @@ def unpack(archive, output):
         names = set()
         assert len(z.infolist()) <= 1000 and sum(i.file_size for i in z.infolist()) <= 512 * 1024 * 1024, 'Unexpected archive bounds'
         for item in z.infolist():
+            # ZipInfo normalizes backslashes on Windows. Validate retained raw
+            # archive spelling before trusting the normalized filename.
+            assert item.orig_filename == item.filename and '\\' not in item.orig_filename, 'Unsafe archive member'
             name = PurePosixPath(item.filename)
             assert item.filename and not name.is_absolute() and '..' not in name.parts and '\\' not in item.filename, 'Unsafe archive member'
             assert str(name) == item.filename.rstrip('/'), 'Noncanonical archive member'

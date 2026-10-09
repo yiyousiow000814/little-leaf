@@ -91,7 +91,11 @@ class ArtifactReuseTests(unittest.TestCase):
     def archive(self, names):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, 'w') as z:
-            for name in names: z.writestr(name, b'synthetic')
+            for name in names:
+                # Preserve raw archive spelling on Windows as well as Linux.
+                entry = zipfile.ZipInfo()
+                entry.filename = entry.orig_filename = name
+                z.writestr(entry, b'synthetic')
         archive = self.root / 'artifact.zip'; archive.write_bytes(buffer.getvalue()); return archive
 
     def test_exact_zip_digest_is_required_before_unpack(self):
