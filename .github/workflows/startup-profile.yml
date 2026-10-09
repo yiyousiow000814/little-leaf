@@ -6,6 +6,12 @@ on:
       - 'qa/profile_startup_transition.gd'
       - 'qa/run_startup_profile.py'
       - 'qa/STARTUP_PROFILING.md'
+      - 'qa/*startup*'
+      - 'qa/check_atlas_warmup_parity.gd'
+      - 'scripts/**'
+      - 'assets/cache/**'
+      - 'data/prebaked_atlas_manifest.json'
+      - 'ci/verify_prebaked_atlases.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,25 +22,45 @@ jobs:
   profile:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: candidate
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+          path: candidate
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 3291afc82244553d9958656aeb7c32809fff4009
+          persist-credentials: false
+          path: baseline
       - name: Install existing checksum-pinned official engine
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/startup-tools"
       - name: Prepare Ubuntu native software renderer
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
-      - name: Measure two isolated cold and retained-warm pairs
+      - name: Measure paired baseline and candidate on the same runner
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           set -euo pipefail
-          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --import-project --output "$RUNNER_TEMP/startup-profile/pair-1"
-          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/startup-profile/pair-2"
+          for pair in 1 2; do
+            (cd ../baseline && xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-pair-$pair")
+            xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/startup-profile/candidate-pair-$pair"
+          done
+      - name: Separately check exact atlas pixels and production scene positions
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_visual_checks.py --source-root ../baseline --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-visuals"
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_visual_checks.py --source-root . --expected-head "$EXPECTED_HEAD" --atlas-parity --output "$RUNNER_TEMP/startup-profile/candidate-visuals"
+          python3 qa/compare_startup_positions.py "$RUNNER_TEMP/startup-profile/baseline-visuals" "$RUNNER_TEMP/startup-profile/candidate-visuals"
       - name: Retain source receipts and raw rendered intervals
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -7,7 +7,7 @@ const COLUMNS:=10
 const CELL:=Vector2i(160,216)
 const SIZE:=Vector2i(1600,1728)
 var state:="cold"
-var texture:ImageTexture
+var texture:Texture2D
 var entries:Array=[]
 var regions:Dictionary={}
 var stats:Dictionary={"state":"cold","parts":78,"bake_scale":4,"width":1600,"height":1728,"retained_rgba_bytes_estimate":11059200,"warmup_ms":0.0,"conversion":"GPU straight-alpha; native alpha-edge repair; level-zero RGBA8"}
@@ -35,6 +35,7 @@ func request(artist:Node2D):
 	if state!="cold" or not artist.is_inside_tree():return
 	if DisplayServer.get_name()=="headless":
 		state="headless_fallback";stats.state=state;return
+	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"heads",SIZE):return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
 	_build.call_deferred(artist.get_tree())

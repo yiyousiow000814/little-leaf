@@ -7,7 +7,7 @@ const SHIRTS=["9cbbbd","c98e83","d6b16b","a9b78a","739c7f","b99578","91b2ad","d2
 const ARM_LENGTH=10.5
 const LEG_LENGTH=9.5
 var state="cold"
-var texture:ImageTexture
+var texture:Texture2D
 var size=Vector2i(WIDTH,0)
 var entries:Array=[]
 var regions={}
@@ -63,6 +63,7 @@ func is_ready()->bool:return state=="ready" and texture!=null
 func request(artist:Node2D):
 	if state!="cold" or not artist.is_inside_tree():return
 	if DisplayServer.get_name()=="headless":state="headless_fallback";stats.state=state;return
+	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"moving",size):return
 	state="warming";stats.state=state;_started_us=Time.get_ticks_usec();_build.call_deferred(artist.get_tree())
 func _viewport(tree:SceneTree)->SubViewport:
 	var v=SubViewport.new();v.size=size;v.disable_3d=true;v.transparent_bg=true

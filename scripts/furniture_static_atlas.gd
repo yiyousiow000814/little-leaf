@@ -25,7 +25,7 @@ const BAKE_SCALE := 4
 const PACK_WIDTH := 1280
 var size := Vector2i(PACK_WIDTH,0)
 var state := "cold"
-var texture: ImageTexture
+var texture: Texture2D
 # Historical filtering control only; ordinary opt-in uses level zero.
 var use_mipmaps_for_qa := false
 var regions: Dictionary = {}
@@ -78,6 +78,7 @@ func request(artist: Node2D):
 	if DisplayServer.get_name()=="headless":
 		state="headless_fallback";stats.state=state
 		return
+	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"furniture",size):return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
 	_build.call_deferred(artist.get_tree())
