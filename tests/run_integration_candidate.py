@@ -117,6 +117,8 @@ SUITES = [
     ("test_stove_full_tile", "STOVE_FULL_TILE_RESULT"),
     ("test_food_contact", "FOOD_CONTACT_TESTS"),
     ("test_chair_ground_contact", "CHAIR_GROUND_CONTACT_RESULT"),
+    ("test_table_ground_contact", "TABLE_GROUND_CONTACT_RESULT"),
+    ("test_table_ground_capture", "TABLE_CAPTURE_RESULT"),
     ("test_simple_kitchen", "SIMPLE_KITCHEN_TESTS"),
     ("test_pan_handle_workface", "PAN_HANDLE_WORKFACE_TESTS"),
     ("test_chef_hat", "CHEF_HAT_TESTS"),
