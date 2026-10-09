@@ -38,7 +38,7 @@ func sample():
   if worker.role=="cleaner":staff.append({"job":worker.job_kind,"step":worker.job_step,"blocked":worker.blocked_reason})
  samples.append({"phase":phase,"wall_seconds":seconds,"game_seconds":game.animation_time,"served":game.model.served,"customers":game.model.customers.size(),"independent_messes":game.floor_tasks.messes.size(),"independent_completed":game.floor_tasks.completed,"visible_targets":current.size(),"oldest_visible_seconds":oldest,"dishes":game.dishwashing.dishes.size(),"cleaners":staff})
 func write_result(status:String,reason:String):
- var report={"status":status,"reason":reason,"source_head":OS.get_environment("EXPECTED_HEAD"),"generated_profile":true,"player_save_used":false,"arrival_injection":false,"mess_injection":false,"manual_cleanup":false,"engine_time_scale":Engine.time_scale,"speed":game.speed,"wall_seconds":wall_seconds(),"game_seconds":game.animation_time,"initial":initial,"final_coins":game.model.coins,"served":game.model.served,"natural_targets_seen":seen,"targets_no_longer_visible":cleared,"independent_completed":game.floor_tasks.completed,"samples":samples}
+ var report={"status":status,"reason":reason,"source_head":OS.get_environment("EXPECTED_HEAD"),"generated_profile":true,"player_save_used":false,"arrival_injection":false,"mess_injection":false,"manual_cleanup":false,"engine_time_scale":Engine.time_scale,"simulation_rate":"normal-only","wall_seconds":wall_seconds(),"game_seconds":game.animation_time,"initial":initial,"final_coins":game.model.coins,"served":game.model.served,"natural_targets_seen":seen,"targets_no_longer_visible":cleared,"independent_completed":game.floor_tasks.completed,"samples":samples}
  var output=OS.get_environment("NATURAL_CLEANUP_OUTPUT")
  if output!="":FileAccess.open(output+"/natural-cleanup.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
  print("NATURAL_CLEANUP_RESULT ",JSON.stringify(report))
@@ -48,12 +48,12 @@ func run():
  if isolated=="" or not OS.get_user_data_dir().begins_with(isolated):push_error("Generated isolated profile required");quit(2);return
  root.size=Vector2i(1360,880);Engine.max_fps=30;started=Time.get_ticks_msec()
  game=Main.new();root.add_child(game);await process_frame
- if not game.fresh_start or game.save_recovery_blocked or game.paused or game.speed!=1.0:write_result("failed","Fresh 1x operating start unavailable");return
+ if not game.fresh_start or game.save_recovery_blocked or game.paused:write_result("failed","Fresh 1x operating start unavailable");return
  initial={"coins":game.model.coins,"items":game.model.items.duplicate(true),"staff":game.model.staff_roster(),"open":game.model.operating_open}
  while true:
   await create_timer(1.0).timeout
   sample()
-  if game.speed!=1.0 or Engine.time_scale!=1.0 or game.paused or game.save_recovery_blocked:write_result("failed","Observation left uninterrupted normal-speed play");return
+  if Engine.time_scale!=1.0 or game.paused or game.save_recovery_blocked:write_result("failed","Observation left uninterrupted normal-speed play");return
   if phase=="observing":
    if game.model.served>=3 and not cleared.is_empty():
     phase="draining";close_at=wall_seconds()
