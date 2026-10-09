@@ -18,8 +18,10 @@ const MovingAtlas=preload("res://scripts/moving_art_atlas.gd")
 static var moving_atlas=MovingAtlas.new()
 var use_cached_moving_art=true
 const ExteriorGrassArt=preload("res://scripts/exterior_grass_art.gd")
+const PolygonTriangulation=preload("res://scripts/cafe_polygon_triangulation.gd")
 const ExteriorTreeArt=preload("res://scripts/exterior_tree_art.gd")
 static var exterior_tree_art=ExteriorTreeArt.new()
+static var overview_oak_triangles:Array=[]
 const MotionArt=preload("res://scripts/illustrated_motion.gd")
 var motion=MotionArt.new()
 var seat_blends={}
@@ -411,11 +413,19 @@ func camera_fit_zoom()->float:
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
 	return minf(safe.size.x/bounds.size.x,safe.size.y/bounds.size.y)/maxf(.000001,ui_scale*detail)
 
+func camera_neighborhood_zoom()->float:
+	# The whole bounded square can fit below the HUD, including portrait.
+	# This only lowers manual zoom; Home/Fit still frames the owned cafe.
+	var safe=camera_safe_rect(false)
+	var bounds=CameraLandmarks.inspection_bounds(Vector2(39,19.5))
+	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
+	return minf(maxf(1.0,safe.size.x-80.0)/bounds.size.x,maxf(1.0,safe.size.y-64.0)/bounds.size.y)/maxf(.000001,ui_scale*detail)
+
 func camera_zoom_limits()->Vector2:
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
 	var limits=CameraBounds.zoom_limits(get_viewport_rect().size,Vector2(39,19.5)*ui_scale*detail,camera_play_rect().position.y,camera_insets())
 	# Fit is always reachable, including short landscape and inset displays.
-	limits.x=minf(limits.x,camera_fit_zoom())
+	limits.x=minf(limits.x,minf(camera_fit_zoom(),camera_neighborhood_zoom()))
 	return limits
 
 func update_projection(clamp_camera:bool=true):
@@ -553,10 +563,23 @@ func art_line(start:Vector2,finish:Vector2,tint:Color,width:float):
 	draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
 	draw_set_transform_matrix(_art_transform)
 
+func art_fill_polygon(points:PackedVector2Array,tint:Color):
+	if tile.x/39.0>=.35:
+		draw_colored_polygon(points,tint);return
+	var indices=PolygonTriangulation.indices(points)
+	if not indices.is_empty():RenderingServer.canvas_item_add_triangle_array(get_canvas_item(),indices,points,PackedColorArray([tint]))
+
+func art_indexed_poly(points:Array,c,indices:PackedInt32Array):
+	var vertices=PackedVector2Array(points);var tint=col(c)
+	if indices.is_empty():
+		push_error("Authored overview contour has no source triangles");return
+	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(),indices,vertices,PackedColorArray([tint]))
+	vertices.append(vertices[0]);art_polyline(vertices,tint,.7)
+
 func poly(points: Array,c):
 	var vertices=PackedVector2Array(points)
 	var tint=col(c)
-	draw_colored_polygon(vertices,tint)
+	art_fill_polygon(vertices,tint)
 	vertices.append(vertices[0])
 	art_polyline(vertices,tint,0.7)
 func rounded_poly(points: Array,r: float,c):
@@ -574,7 +597,7 @@ func rounded_poly(points: Array,r: float,c):
 func line(a: Vector2,b: Vector2,c,width=1.0): art_line(a,b,col(c),width)
 func _plate_clipped_shape(points:PackedVector2Array,fill:Color,border:Color,width:float):
 	for polygon in Geometry2D.intersect_polygons(points,_plate_clip):
-		draw_colored_polygon(polygon,fill)
+		art_fill_polygon(polygon,fill)
 		polygon.append(polygon[0]);art_polyline(polygon,border,width)
 
 func ellipse(p: Vector2,size: Vector2,c):
@@ -582,14 +605,14 @@ func ellipse(p: Vector2,size: Vector2,c):
 	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
 	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(c),.7);return
 	var tint=col(c)
-	draw_colored_polygon(points,tint)
+	art_fill_polygon(points,tint)
 	points.append(points[0])
 	art_polyline(points,tint,0.7)
 func outlined_ellipse(p: Vector2,size: Vector2,c,edge,width=1.0):
 	var points=_ellipse_vertices(p,size)
 	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
 	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(edge),width);return
-	draw_colored_polygon(points,col(c))
+	art_fill_polygon(points,col(c))
 	points.append(points[0])
 	# The explicit border already supplies the antialiased silhouette. A
 	# second same-fill-color border underneath it was redundant draw work.
@@ -892,7 +915,8 @@ func _draw():
 	# Do not expose the presentation offset to resize anchoring or input projection.
 	origin = gameplay_origin
 func _draw_legacy_pavement(ground_view: Rect2):
-	for z in range(ExteriorExtent.PAVEMENT_Z_MIN,ExteriorExtent.PAVEMENT_Z_MAX):
+	var rows=Neighborhood.visible_pavement_rows(self)
+	for z in range(maxi(rows.x,ExteriorExtent.PAVEMENT_Z_MIN),mini(rows.y,ExteriorExtent.PAVEMENT_Z_MAX)):
 		for x in [PAVEMENT_EDGE, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH*2]:
 			if not _ground_cell_visible(x,z,ground_view):continue
 			poly([iso(x,z),iso(x+PAVEMENT_ROW_WIDTH,z),iso(x+PAVEMENT_ROW_WIDTH,z+1),iso(x,z+1)],"d7dcc2" if z%2 else "dfe0c8")
@@ -1027,6 +1051,16 @@ func _tree(p: Vector2,s: float):
 			return
 	_tree_crown_legacy(p,s,horizontal_scale)
 func _tree_crown_legacy(p:Vector2,s:float,horizontal_scale:float=1.0):
+	# Tiny curved oak samples can cross after screen-coordinate rounding.
+	# Triangulate the unchanged authored contours before projection, once.
+	if absf(s)<.5:
+		if overview_oak_triangles.is_empty():
+			for layer in exterior_tree_art.layers:overview_oak_triangles.append(PolygonTriangulation.indices(layer[1]))
+		var transform=Transform2D(Vector2(s*horizontal_scale,0),Vector2(0,s),p)
+		for index in exterior_tree_art.layers.size():
+			var layer=exterior_tree_art.layers[index]
+			art_indexed_poly(Array(transform*layer[1]),layer[0],overview_oak_triangles[index])
+		return
 	# Both the cached atlas and fallback share the same authored tree contours.
 	exterior_tree_art.draw_tree(self,p,s,horizontal_scale)
 func _parcel_ground():
@@ -1357,7 +1391,7 @@ func _draw_head(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked
 func _face_ellipse(p:Vector2,size:Vector2,c):
 	# Facial marks must not inherit the general helper's0.7px AA outline.
 	# At play scale that outline made a tiny catchlight fill the entire eye.
-	draw_colored_polygon(_ellipse_vertices(p,size),col(c))
+	art_fill_polygon(_ellipse_vertices(p,size),col(c))
 func _face_line(a:Vector2,b:Vector2,c,width:float):draw_line(a,b,col(c),width,false)
 
 func _draw_head_legacy(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):

@@ -12,6 +12,7 @@ class TestGame extends "res://scripts/main.gd":
 func recording_script():
 	var script=GDScript.new()
 	var code=FileAccess.get_file_as_string("res://scripts/illustrated_cafe.gd")
+	code=code.replace("RenderingServer.canvas_item_add_triangle_array(get_canvas_item(),","record_draw_triangle_array(")
 	for name in ["_ready","_draw","_process"]:code=code.replace("func "+name+"(","func disabled"+name+"(")
 	for name in ["draw_set_transform_matrix","draw_rect","draw_mesh","draw_colored_polygon","draw_polyline","draw_line"]:code=code.replace(name+"(","record_"+name+"(")
 	code+="""
@@ -19,6 +20,7 @@ var commands=[]
 func record_draw_set_transform_matrix(value):commands.append(["transform",value])
 func record_draw_rect(rect,color,_filled=true,_width=-1.0,_antialiased=false):commands.append(["rect",rect,color])
 func record_draw_mesh(mesh,_texture,_transform=Transform2D.IDENTITY,_modulate=Color.WHITE):commands.append(["mesh",mesh.get_rid()])
+func record_draw_triangle_array(indices,points,colors):commands.append(["triangles",indices,points,colors])
 func record_draw_colored_polygon(points,color,_uvs=PackedVector2Array(),_texture=null):commands.append(["polygon",points,PackedColorArray([color])])
 func record_draw_polyline(points,color,width=-1.0,antialiased=false):commands.append(["polyline",points,PackedColorArray([color]),width,antialiased])
 func record_draw_line(a,b,color,width=-1.0,antialiased=false):commands.append(["line",a,b,color,width,antialiased])
@@ -42,6 +44,7 @@ class ServerRecorder extends RefCounted:
 	func canvas_item_add_set_transform(_rid,value):commands.append(["transform",value])
 	func canvas_item_add_rect(_rid,rect,color):commands.append(["rect",rect,color])
 	func canvas_item_add_mesh(_rid,mesh):commands.append(["mesh",mesh])
+	func canvas_item_add_triangle_array(_rid,indices,points,colors):commands.append(["triangles",indices,points,colors])
 	func canvas_item_add_polygon(_rid,points,colors):commands.append(["polygon",points,colors])
 	func canvas_item_add_polyline(_rid,points,colors,width,antialiased):commands.append(["polyline",points,colors,width,antialiased])
 	func canvas_item_add_line(_rid,a,b,color,width,antialiased):commands.append(["line",a,b,color,width,antialiased])
@@ -66,7 +69,7 @@ func run():
 	var cases=0
 	for size in [Vector2i(390,844),Vector2i(1360,880),Vector2i(844,390)]:
 		root.size=size
-		for scale in [.25,.5,1.0,2.0,4.0]:
+		for scale in [.05,.1,.25,.5,1.0,2.0,4.0]:
 			for detail in [false,true]:
 				game.wall_detail=detail
 				for origin in [Vector2.ZERO,Vector2(390,250),Vector2(-1100,-700)]:
