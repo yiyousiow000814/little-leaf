@@ -6,7 +6,7 @@ const INSET=.32
 const UPPER=5.5
 const LOWER=6.5
 static func grip(rotation:int)->Vector2:
- return Geometry.surface(Vector2(0,.46),31.0,rotation)
+ return Geometry.surface(Vector2(0,.70),31.0,rotation)
 static func pose(near:Vector2,far:Vector2,carry:Vector2,target:Vector2,plate_target:Vector2,progress:float,picking_up:bool)->Dictionary:
  var use_near=near.distance_to(target)<=far.distance_to(target)
  var shoulder=near if use_near else far

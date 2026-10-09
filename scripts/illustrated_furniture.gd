@@ -58,7 +58,7 @@ func try_draw_static(artist: Node2D,part: String,p: Vector2,rotation=0) -> bool:
 static func part_sequence(kind: String,rotation: int) -> Array:
 	var r := posmod(rotation,4)
 	match kind:
-		"stove": return ["stove_base","heat","payload","stove_pan","stove_controls"] if r in [0,1] else ["stove_base","heat","stove_pan","payload","stove_controls"]
+		"stove": return ["stove_base","heat","payload","stove_pan","stove_controls"] if r in [1,2] else ["stove_base","heat","stove_pan","payload","stove_controls"]
 		"beverage":
 			var parts:Array=["beverage_base"]
 			if not beverage_accessories_in_front(r):parts.append("beverage_accessories")
@@ -420,11 +420,11 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 		"stove":
 			_stove_base()
 			if a.has_method("_stove_heat"):a._stove_heat(_id,turn)
-			# Local plate (-.20,.30) is behind the raised pan in these views.
+			# The front-center output lip is behind the pan only in rear views.
 			# Match sub-object depth, rather than painting every dish last.
-			if turn in [0,1] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
+			if turn in [1,2] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
 			draw_stove_vessel(artist,p,turn,_id)
-			if turn in [2,3] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
+			if turn in [0,3] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
 			_stove_controls()
 		"beverage":
 			_beverage_base()

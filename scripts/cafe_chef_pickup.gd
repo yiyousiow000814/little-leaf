@@ -14,7 +14,7 @@ static func prepared(record:Dictionary)->bool:
  return str(record.get("plate_owner",""))=="station" and int(record.get("plate_target_id",-1))==int(record.get("meal_station_id",-2))
 
 static func plate_anchor(rotation:int)->Vector2:
- return preload("res://scripts/kitchen_worktop_geometry.gd").surface(Vector2(-.20,.30),31.0,rotation)
+ return preload("res://scripts/kitchen_worktop_geometry.gd").surface(Vector2(0,.43),31.0,rotation)
 
 static func needs_pickup_space(station_id:int,records:Dictionary,workers:Array)->bool:
  for record in records.values():
