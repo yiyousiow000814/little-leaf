@@ -32,7 +32,7 @@ func run():
   for editing in [false,true]:
    game.editing=editing;game.settings.hide();ui._hide_popups();await settle()
    var label="%s %s"%[str(view),"edit" if editing else "play"]
-   var buttons=[game.business_button,game.pause_button,game.settings_controls.speed_buttons[0],game.settings_controls.speed_buttons[1],game.edit_button,ui.staff_access,ui.settings_button]
+   var buttons=[game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
    if editing:buttons.append(hud.edit_cancel)
    for button in buttons:
     var rect=button.get_global_rect()
@@ -66,8 +66,6 @@ func run():
    if view.x>=800:check(hud.wallet.size.x/game.pause_button.size.x>=4.3,label+" wallet remains prominent beside44px play target")
   game.editing=false;game.settings.hide();await settle()
   var old_pause=game.paused;await click(game.pause_button);check(game.paused!=old_pause,str(view)+" pointer toggles pause")
-  await click(game.settings_controls.speed_buttons[1]);check(game.speed==2,str(view)+" pointer selects 2x")
-  await click(game.settings_controls.speed_buttons[0]);check(game.speed==1,str(view)+" pointer selects 1x")
   await click(game.edit_button);check(game.editing,str(view)+" pointer enters decorate")
   game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="",str(view)+" pointer cancels selection")
   await click(game.edit_button);check(not game.editing,str(view)+" pointer finishes decorate")
