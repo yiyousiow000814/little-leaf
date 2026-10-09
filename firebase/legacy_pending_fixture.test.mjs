@@ -8,6 +8,8 @@ const root=path.resolve(import.meta.dirname,'..');
 const old=releasedFixture(root),binding=finalBinding(root);
 for(const [name,source] of Object.entries(old.sources))assert.equal(source,execFileSync('git',['show',RELEASED_SOURCE+':web/'+name],{cwd:root,encoding:'utf8'}),'fixture matches exact released Git blob');
 for(const name of Object.keys(binding.source_sha256))assert.equal(fs.readFileSync(path.join(root,name),'utf8'),execFileSync('git',['show',binding.candidate_tree+':'+name],{cwd:root,encoding:'utf8'}),'runtime matches final candidate Git blob');
+assert(legacyHtml.includes("import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js'"),'share canonical app registry with real Firestore module');
+assert(!legacyHtml.includes("from '/sdk/firebase-app.js'"),'no second app registry');
 assert(legacyHtml.includes('await compare(...args)'));assert(legacyHtml.includes("sdk.connectFirestoreEmulator(db,'127.0.0.1',8080"));assert(!legacyHtml.includes('withSecurityRulesDisabled'));
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'legacy-pending-guards-'));
 try{
@@ -20,3 +22,14 @@ try{
  finalBinding(tmp);fs.appendFileSync(path.join(tmp,'firebase/firestore.rules'),'\n// altered');assert.throws(()=>finalBinding(tmp),/exact final runtime firebase\/firestore.rules/);
 }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 console.log('PASS: exact released Git blobs, final runtime bindings, local-emulator-only route, tampered legacy source/commit/rules rejected.');
+
+const sdkIndex=process.argv.indexOf('--firestore-sdk');
+if(sdkIndex>=0){
+ const sdk=fs.readFileSync(process.argv[sdkIndex+1],'utf8');
+ const sdkApp=sdk.match(/from["'](https:\/\/www\.gstatic\.com\/firebasejs\/[^"']+\/firebase-app\.js)["']/)?.[1];
+ assert(sdkApp,'real pinned Firestore SDK imports a canonical App module');
+ const shared=html=>assert.equal(html.match(/import \{initializeApp\} from ['"]([^'"]+)['"]/)[1],sdkApp,'legacy loader and actual Firestore SDK must share App registry URL');
+ shared(legacyHtml);
+ assert.throws(()=>shared(legacyHtml.replace(sdkApp,'/sdk/firebase-app.js')),/share App registry URL/);
+ console.log('PASS: actual pinned Firestore SDK and legacy loader share canonical App URL; second-registry negative control rejected.');
+}

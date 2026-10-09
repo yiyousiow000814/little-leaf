@@ -59,6 +59,7 @@ jobs:
           "$RUNNER_TEMP/legacy-godot/godot" --version
           GODOT_BIN="$RUNNER_TEMP/legacy-godot/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/legacy-geometry"
           npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
+          node firebase/legacy_pending_fixture.test.mjs --firestore-sdk firebase/node_modules/firebase/firebase-firestore.js
           npm install --prefix "$RUNNER_TEMP/legacy-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/legacy-browser-tools/node_modules/.bin/playwright" install-deps chromium
           google-chrome --version

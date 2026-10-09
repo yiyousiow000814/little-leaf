@@ -25,7 +25,7 @@ export function releasedFixture(root){
 export const legacyHtml=`<!doctype html><title>Released 0.1.10 synthetic pending migration</title>
 <script src="/legacy/little_leaf_vault.js"></script><script src="/legacy/little_leaf_firebase.js"></script>
 <script type="module">
-import {initializeApp} from '/sdk/firebase-app.js';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import * as sdk from '/sdk/firebase-firestore.js';
 const uid=globalThis.__qaUid;
 if(!/^fullflow-legacy-(auto|local|cloud)$/.test(uid))throw Error('Synthetic account required');
