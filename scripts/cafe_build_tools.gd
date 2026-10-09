@@ -3,6 +3,8 @@ extends RefCounted
 ## Dragging the background still pans; GUI, cancel and lost-focus never charge.
 const Geometry=preload("res://scripts/cafe_walls.gd")
 const WallArt=preload("res://scripts/illustrated_walls.gd")
+const PaintStroke=preload("res://scripts/cafe_paint_stroke.gd")
+var paint_stroke
 const Money=preload("res://scripts/cafe_money.gd")
 const OpeningArt=preload("res://scripts/illustrated_openings.gd")
 const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
@@ -39,6 +41,7 @@ var _dragging=false
 var _press_point=Vector2.ZERO
 var _last_point=Vector2.ZERO
 var _press_key=""
+var _press_device=0
 var _cache_key=""
 var successful_point=Vector2(INF,INF)
 var successful_key=""
@@ -77,7 +80,7 @@ class OpeningIcon extends Control:
 		OpeningArt.threshold(self,opening)
 		for part in ["start","middle","end"]:OpeningArt.casing(self,opening,part)
 
-func _init(owner_game):game=owner_game
+func _init(owner_game):game=owner_game;paint_stroke=PaintStroke.new(self)
 
 func build()->Control:
 	var panel=HBoxContainer.new();panel.add_theme_constant_override("separation",12)
@@ -131,15 +134,18 @@ func choose(tool:String):
 	game._cancel_selection();mode=tool;preferred_axis="";_cache_key="";sync();refresh(game.get_viewport().get_mouse_position())
 
 func cancel():
+	paint_stroke.reset()
 	if mode=="move_wall" and game.compact_ui!=null:game.compact_ui.clear_selection()
 	if "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null:game.compact_ui.shop_ui.reset_inspection()
 	successful_key="";successful_point=Vector2(INF,INF)
 	mode="";wall_source_key="";floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};opening_source_id=-1;opening_hit_id=-1;_render_attachments=[];_render_preview_active=false;selected_key="";_pressed=false;_dragging=false;_cache_key="";sync()
 
 func on_focus_lost():
+	paint_stroke.reset()
 	_pressed=false;_dragging=false;floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};_render_attachments=[];_render_preview_active=false;_cache_key=""
 
 func rotate():
+	if paint_stroke.active:on_focus_lost()
 	if not active() or mode not in ["half","full","move_wall"]:return
 	preferred_axis="z" if (preferred_axis if preferred_axis!="" else str(preview.get("axis","x")))=="x" else "x"
 	_cache_key="";refresh(pointer)
@@ -164,6 +170,9 @@ func _available(screen:Vector2)->bool:
 	return game.get_viewport().get_visible_rect().has_point(screen) and not game.interaction._over_ui(screen)
 
 func refresh(screen:Vector2):
+	if paint_stroke.active:
+		if not active() or game.save_recovery_blocked:on_focus_lost()
+		else:pointer=screen;game.tool_text.text=paint_stroke.message();return
 	if screen.distance_to(successful_point)>6:successful_key=""
 	pointer=screen
 	if not active() or not _available(screen):preview_valid=false;preview_reason="";preview={};floor_preview={};floor_quote={};preview_shell={};opening_preview={};_render_attachments=[];_render_preview_active=false;_cache_key="";return
@@ -212,7 +221,7 @@ func refresh(screen:Vector2):
 		preview_reason=str(game.model.last_error)
 		if preview_valid and int(game.model.coins)<int(Geometry.PRICES[mode]):preview_valid=false;preview_reason="Not enough coins · "+Money.amount(int(Geometry.PRICES[mode]))+" needed"
 		if preview_valid:preview_warning=game.model.wall_placement_warning(str(proposed.axis),int(proposed.x),int(proposed.z),mode,material,actors)
-		if preview_valid:preview_reason=preview_warning if preview_warning!="" else "Build %s wall · %s coins · R turns · drag to pan"%[mode,Money.amount(int(Geometry.PRICES[mode]))]
+		if preview_valid:preview_reason=preview_warning if preview_warning!="" else "Build %s wall · %s coins · R turns · click or drag to paint"%[mode,Money.amount(int(Geometry.PRICES[mode]))]
 	elif mode=="remove":
 		preview_valid=game.model.can_remove_wall(key)
 		preview_reason="Remove this wall · refund "+Money.amount(game.model.wall_refund(key)) if preview_valid else str(game.model.last_error)
@@ -221,15 +230,15 @@ func refresh(screen:Vector2):
 	if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
 
 func render_shell_host(key:String)->Dictionary:
-	return game.model.shell_render_host(key,preview_shell if active() and preview_valid else {})
+	return game.model.shell_render_host(key,preview_shell if active() and preview_valid and not paint_stroke.active else {})
 
 func render_shell_corner_height(key:String)->float:
 	var host=game.model.get_wall_host(key+"#0")
-	if active() and preview_valid and not preview_shell.is_empty() and selected_key==key+"#0":host=preview_shell
+	if active() and preview_valid and not paint_stroke.active and not preview_shell.is_empty() and selected_key==key+"#0":host=preview_shell
 	return 0.0 if host.is_empty() else float(Geometry.HEIGHT_PIXELS[host.height])
 
 func draw_shell_selection(view):
-	if not game.editing:return
+	if not game.editing or paint_stroke.active:return
 	var host={}
 	if active() and not preview_shell.is_empty():
 		host=preview_shell
@@ -245,14 +254,24 @@ func replacement_price_text()->String:
 	return "New %s · refund %s · pay %s"%[Money.amount(int(replacement_quote.new_cost)),Money.amount(int(replacement_quote.refund)),Money.amount(int(replacement_quote.net))]
 
 func handle_input(event:InputEvent)->bool:
-	if not active():return false
+	if not active():
+		if _pressed:on_focus_lost()
+		return false
+	if _pressed and event is InputEventMouse and event.device!=_press_device:return true
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode==KEY_ESCAPE:cancel();return true
 		if event.keycode==KEY_R:rotate();return true
 	if event is InputEventMouseButton:
-		if mode=="floor" and _pressed and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:on_focus_lost()
+		if event.canceled:on_focus_lost();return true
+		if paint_stroke.eligible() and _pressed and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:on_focus_lost()
 		if event.button_index==MOUSE_BUTTON_RIGHT and event.pressed:cancel();return true
 		if event.button_index==MOUSE_BUTTON_LEFT and not event.pressed and _pressed:
+			if paint_stroke.active:
+				var changed=paint_stroke.finish(event.position)
+				_pressed=false;_dragging=false
+				if changed:_changed()
+				refresh(event.position);return true
+			paint_stroke.reset()
 			refresh(event.position)
 			if not _dragging and _available(event.position) and selected_key==_press_key and (not preview.is_empty() or not preview_shell.is_empty() or mode in OPENING_MODES or mode=="floor"):
 				var same_price=mode!="floor" or _press_floor_quote==_floor_quote_signature()
@@ -262,6 +281,8 @@ func handle_input(event:InputEvent)->bool:
 		if _pressed and not (event.button_mask&MOUSE_BUTTON_MASK_LEFT):on_focus_lost()
 		if _pressed:
 			if event.position.distance_to(_press_point)>7:_dragging=true
+			if _dragging and paint_stroke.eligible():
+				paint_stroke.drag(event.position);_last_point=event.position;return true
 			if _dragging:game.interaction._pan_by(event.position-_last_point)
 			_last_point=event.position;refresh(event.position);return true
 		refresh(event.position)
@@ -270,10 +291,13 @@ func handle_input(event:InputEvent)->bool:
 func handle_unhandled_input(event:InputEvent)->bool:
 	if not active():return false
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
+		if _pressed:return true
+		_press_device=event.device
 		if mode=="floor" and not _available(event.position):on_focus_lost();return true
 		successful_key="";_cache_key=""
 		refresh(event.position);_pressed=true;_dragging=false;_press_point=event.position;_last_point=event.position;_press_key=selected_key
 		_press_floor_quote=_floor_quote_signature() if mode=="floor" else ""
+		if paint_stroke.eligible():paint_stroke.begin(event.position)
 		return true
 	return false
 
@@ -386,10 +410,10 @@ func floor_name()->String:
 
 func floor_price_text()->String:
 	var prefix=floor_name()+" · 1 tile"
-	if floor_quote.is_empty():return prefix+" · "+Money.amount(game.model.floor_price(floor_material))+" coins · click owned land"
+	if floor_quote.is_empty():return prefix+" · "+Money.amount(game.model.floor_price(floor_material))+" coins · click or drag owned land"
 	if not floor_preview.is_empty() and game.model.floor_style_at(Vector2i(int(floor_preview.x),int(floor_preview.z)))==floor_material:return prefix+" · Already installed · no charge"
 	var price="New %s · refund %s · pay %s"%[Money.amount(int(floor_quote.new_cost)),Money.amount(int(floor_quote.refund)),Money.amount(int(floor_quote.net))]
-	return prefix+" · "+price+("" if bool(floor_quote.valid) else "\n"+str(floor_quote.reason))
+	return prefix+" · "+price+(" · drag to paint a row" if bool(floor_quote.valid) else "\n"+str(floor_quote.reason))
 
 func _floor_quote_signature()->String:
 	return str([floor_material,floor_quote.get("new_cost",-1),floor_quote.get("refund",-1),floor_quote.get("net",-1)])
@@ -412,6 +436,7 @@ func _commit_floor():
 	refresh(pointer)
 
 func draw_floor_preview(artist):
+	if paint_stroke.active:paint_stroke.draw_floor(artist);return
 	if not active() or mode!="floor" or floor_preview.is_empty():return
 	var x=float(floor_preview.x);var z=float(floor_preview.z)
 	var corners=[artist.iso(x+.04,z+.04),artist.iso(x+.96,z+.04),artist.iso(x+.96,z+.96),artist.iso(x+.04,z+.96)]

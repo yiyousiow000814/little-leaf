@@ -52,6 +52,7 @@ static func snapshot(art)->Array:
 		values(m,["revision","items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits","dining_sets","built_walls","wall_attachments","floor_finishes","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","operating_open"]),
 		g.staff_states,g.service_guests,g.floor_tasks.messes,g.dishwashing.dishes,
 		values(g.interaction,["drag_active","drag_item_id","drag_kind","drag_rotation","drag_cell","drag_valid","preview_active"]),
+		[g.build_tools.paint_stroke.active,g.build_tools.paint_stroke.receipt.get("targets",[]),g.build_tools.paint_stroke.receipt.get("ok",false)],
 		values(g.build_tools,["mode","preview","preview_shell","preview_valid","preview_warning","selected_key","replacing","floor_material","floor_preview","opening_source_id","wall_source_key","opening_preview","_render_attachments","_render_preview_active"]),
 		values(g.compact_ui,["selected_shell","selected_wall","viewport_too_small"]),
 		values(g.compact_ui.shop_ui,["build_page","hide_objects"]),

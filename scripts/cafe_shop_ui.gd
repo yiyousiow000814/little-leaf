@@ -509,6 +509,12 @@ func sync_action_details():
   elif b.mode=="move_opening":
    var opening=ui._selected_opening()
    ui.context_label.text="Moving "+str(opening.get("kind","opening"))+" · choose a wall"
+ if b.paint_stroke!=null and b.paint_stroke.active and not b.paint_stroke.receipt.is_empty():
+  var stroke=b.paint_stroke.receipt
+  ui.context_label.text="%d %s"%[int(stroke.count),"tiles" if b.mode=="floor" else "walls"]
+  price="Pay "+ui.Money.amount(int(stroke.net)) if stroke.ok else "Cannot apply"
+  detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
+  if not stroke.ok:detail+=" · "+str(stroke.error)
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
  action_background.tooltip_text=ui.context_label.tooltip_text

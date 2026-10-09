@@ -677,7 +677,7 @@ func _sync_help_content():
   save_detail=game._unsaved_progress_message()+"\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground with no product selected. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles or Walls: choose a style, then click once or drag to preview a row. Release applies the whole row at the shown total; Esc cancels. Replacements show their refund.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"

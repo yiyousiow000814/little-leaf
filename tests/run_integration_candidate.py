@@ -80,6 +80,8 @@ SUITES = [
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_build_tiles_ui", "BUILD_TILES_UI_RESULT"),
     ("test_floor_inspection", "FLOOR_INSPECTION_RESULT"),
+    ("test_atomic_paint_plan", "ATOMIC_PAINT_PLAN_RESULT"),
+    ("test_paint_stroke_ui", "PAINT_STROKE_UI_RESULT"),
     ("test_build_actor_positions", "BUILD_ACTOR_POSITIONS_RESULT"),
     ("test_existing_wall_actions", "EXISTING_WALL_ACTIONS_RESULT"),
     ("test_build_wall_ui", "BUILD_WALL_UI_RESULT"),

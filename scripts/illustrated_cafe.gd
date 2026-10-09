@@ -719,7 +719,7 @@ func _draw():
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments() if show_objects else []:
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
-	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.preview.is_empty():
+	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.paint_stroke.active and not game.build_tools.preview.is_empty():
 		for piece in WallArt.depth_entries(game.build_tools.preview):
 			piece["wall_preview"]=true;piece.depth+=.001;entities.append(piece)
 	var render_items=[]
@@ -919,6 +919,7 @@ func _draw():
 	if game.editing and game.build_tools!=null:
 		for opening in openings:
 			if int(opening.id)==game.build_tools.opening_source_id:OpeningArt.selection_outline(self,opening)
+	if show_objects and game.build_tools!=null:game.build_tools.paint_stroke.draw_walls(self)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):
