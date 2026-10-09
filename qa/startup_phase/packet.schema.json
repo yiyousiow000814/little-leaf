@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Little Leaf diagnostic startup phase packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "kind", "diagnostic_only", "release_qualified", "mode", "source_commit", "source_tree", "overlay_id", "clock", "clock_origin", "marks", "buffer_overflow", "first_post_draw_ticks_us", "emit_started_ticks_us", "web_runtime", "renderer_measured", "display", "engine_version", "fresh_start", "save_recovery_blocked", "web_save_ready", "scope"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "little-leaf-startup-phases"},
+    "diagnostic_only": {"const": true},
+    "release_qualified": {"const": false},
+    "mode": {"const": "instrumented"},
+    "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "source_tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "overlay_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "clock": {"const": "Godot.Time.get_ticks_usec"},
+    "clock_origin": {"const": "engine_monotonic_timer_origin_not_browser_navigation"},
+    "marks": {"type": "array", "minItems": 16, "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["method", "boundary", "ticks_us"], "properties": {"method": {"enum": ["_ready", "_load_startup", "_setup_world", "_build_ui", "_setup_music", "_rebuild_room", "_rebuild_furniture", "_restore_service_runtime"]}, "boundary": {"enum": ["begin", "end"]}, "ticks_us": {"type": "integer", "minimum": 0}}}},
+    "buffer_overflow": {"const": false},
+    "first_post_draw_ticks_us": {"type": "integer", "minimum": 0},
+    "emit_started_ticks_us": {"type": "integer", "minimum": 0},
+    "web_runtime": {"type": "boolean"},
+    "renderer_measured": {"type": "boolean"},
+    "display": {"type": "string"},
+    "engine_version": {"type": "string"},
+    "fresh_start": {"const": true},
+    "save_recovery_blocked": {"const": false},
+    "web_save_ready": {"type": "boolean"},
+    "scope": {"type": "string"}
+  }
+}

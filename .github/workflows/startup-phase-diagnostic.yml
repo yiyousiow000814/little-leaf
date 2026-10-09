@@ -1,0 +1,71 @@
+name: Diagnostic-only startup phase packets
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: startup-phase-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  phase-packets:
+    if: github.event_name == 'pull_request' && github.head_ref == 'qa/startup-phase-attribution-10a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 6eaac7542c6df5c57ab6a8dc9f17b26e3dd4318e
+          persist-credentials: false
+          path: phase-source
+      - name: Verify pinned production tree and stage reviewed diagnostic helpers
+        run: |
+          set -euo pipefail
+          test "$(git -C phase-source rev-parse HEAD^{tree})" = bf1c2a8859da44c2c08daf24a34e4ab053fee5a3
+          cp -R qa/startup_phase phase-source/qa/startup_phase
+          cp -R tests/startup_phase phase-source/tests/startup_phase
+          python3 -m unittest discover -s tests/startup_phase -p 'test_*.py' -v
+          node tests/startup_phase/test_validate.js
+          git -C phase-source diff --exit-code
+      - name: Install existing checksum-pinned official engine and template
+        working-directory: phase-source
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/startup-phase-tools"
+      - name: Export diagnostic-only control and instrumented pair
+        working-directory: phase-source
+        run: |
+          python3 qa/startup_phase/prepare.py \
+            --expected-source 6eaac7542c6df5c57ab6a8dc9f17b26e3dd4318e \
+            --output "$RUNNER_TEMP/startup-phase-pair" --export \
+            --engine-lock "$RUNNER_TEMP/startup-phase-engine.lock" \
+            --godot "${GODOT_BIN:-godot}" --template "$GODOT_TEMPLATE" \
+            --toolchain-receipt "$GODOT_TOOLCHAIN_RECEIPT"
+          git diff --exit-code
+      - name: Install existing pinned browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/startup-phase-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/startup-phase-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+      - name: Collect actual source-bound phase packets and symmetric controls
+        working-directory: phase-source
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/startup-phase-browser-tools/node_modules/playwright
+        run: |
+          xvfb-run -a node qa/startup_phase/run_browser.js \
+            --source-root "$PWD" --pair "$RUNNER_TEMP/startup-phase-pair" \
+            --output "$RUNNER_TEMP/startup-phase-browser"
+      - name: Retain diagnostics, source manifests and logs without profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: startup-phase-diagnostic-only-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/startup-phase-pair/pair.json
+            ${{ runner.temp }}/startup-phase-pair/overlay-source/
+            ${{ runner.temp }}/startup-phase-pair/*/diagnostic-manifest.json
+            ${{ runner.temp }}/startup-phase-pair/*/evidence/
+            ${{ runner.temp }}/startup-phase-browser/
+          if-no-files-found: error
+          retention-days: 7
