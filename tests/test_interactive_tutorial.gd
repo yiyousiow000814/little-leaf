@@ -24,6 +24,8 @@ func settle():
  game._update_ui();game.illustration.update_projection();game.illustration.queue_redraw();game.tutorial.sync()
  for frame in 6:await process_frame
  game.tutorial.sync()
+ # Inspect a rendered layout, after containers apply the final guide size.
+ await process_frame;await process_frame
 func click(button:Control,touch=false):
  var center=button.get_global_rect().get_center()
  var motion=InputEventMouseMotion.new();motion.position=center;motion.global_position=center;root.push_input(motion,true)
@@ -70,6 +72,8 @@ func capture(name:String):
  if path=="" or DisplayServer.get_name()=="headless":return
  await process_frame;await RenderingServer.frame_post_draw
  var filename=path.path_join(name+".png");root.get_texture().get_image().save_png(filename);captures.append(filename)
+func gameplay_snapshot():
+ return JSON.stringify([game.paused,game.editing,game.model.operating_open,game.model._arrival_elapsed,game.model.coins,game.model.served,game.model.total_earned,game.model.payroll_elapsed,game.model.payroll_accrued,game.model.wages_due,game.model.total_wages_paid,game.model.customers,game._service_save_snapshot(),game.model.items])
 func snapshot():
  game.model.service_snapshot=game._service_save_snapshot()
  check(game.model.save("user://synthetic-tutorial.json"),"tutorial state saves with full real service: "+game.model.last_error)
@@ -93,7 +97,10 @@ func geometry(label:String):
  var guide=game.tutorial;var inset=game.compact_ui.hud._safe_insets();var bounds=Rect2(inset.x,inset.y,root.size.x-inset.x-inset.z,root.size.y-inset.y-inset.w);var panel=guide.panel.get_global_rect()
  check(bounds.encloses(panel),label+" tutorial fits viewport")
  var content=guide.content_rect()
- for control in [guide.copy,guide.progress,guide.skip_button if guide.skip_button.visible else guide.finish_button]:
+ var visible_controls=[guide.copy,guide.progress]
+ for button in [guide.skip_button,guide.next_button,guide.finish_button]:
+  if button.visible:visible_controls.append(button)
+ for control in visible_controls:
   check(content.encloses(control.get_global_rect()),label+" text/action inside actual opaque padded interior")
  check(guide.copy.get_theme_font_size("font_size")>=16,label+" cue remains readable16px")
  check(panel.size.y<=95,label+" compact hint height")
@@ -103,8 +110,8 @@ func geometry(label:String):
   check(guide.target_rect.encloses(guide.target_control.get_global_rect()),label+" highlight tracks actual control")
  layouts.append({"label":label,"panel":str(panel),"target":str(guide.target_rect),"tray":str(game.compact_ui.shop_ui.browse_rect())})
  if game.editing:check(not panel.intersects(game.compact_ui.shop_ui.browse_rect()),label+" catalogue controls unobscured")
- var live_action=guide.skip_button if guide.skip_button.visible else guide.finish_button
- check(live_action.size.x>=44 and live_action.size.y>=44,label+" visible dismiss target at least44 by44")
+ for button in [guide.skip_button,guide.next_button,guide.finish_button]:
+  if button.visible:check(button.size.x>=44 and button.size.y>=44,label+" visible action target at least44 by44")
 # Coordinate-only receipt for the fresh exported-Web gate. The browser uses
 # its own empty origin, ordinary clock, and real controls, never this save.
 func web_geometry(name:String,action:Control=null):
@@ -163,20 +170,40 @@ func run():
   root.size=view;await settle();geometry("decorate "+str(view));await capture("decorate-%dx%d"%[view.x,view.y])
  root.size=Vector2i(390,844);await settle()
  await click(game.edit_button,true)
- check(not game.editing and guide.step()==State.ORDER,"real Done exits Decorate and starts guest observation")
- await web_geometry("order")
+ check(not game.editing and guide.step()==State.ORDER,"real Done exits Decorate and starts the service explanation")
+ await web_geometry("order",guide.next_button)
  reload_state("active",State.ORDER)
  await load_game("user://synthetic-tutorial.json");guide=game.tutorial
  check(not game.fresh_start and guide.active() and guide.step()==State.ORDER and game.model.operating_open,"actual scene reload resumes interrupted order step")
- await click(game.pause_button)
- check(game.paused and guide.target_control==game.pause_button and guide.step()==State.ORDER,"paused interruption offers real Resume")
- await click(game.pause_button)
- await click(game.business_button)
- check(not game.model.operating_open and guide.target_control==game.business_button and guide.step()==State.ORDER,"closing admissions offers real Reopen without advancing")
- await click(game.business_button)
- await click(game.edit_button)
- check(game.editing and guide.target_control==game.edit_button,"early Decorate interruption offers real Done")
- await click(game.edit_button)
+ # Paused/closed service cannot block reading or mutate gameplay through Next.
+ await click(game.pause_button);await click(game.business_button)
+ check(game.paused and not game.model.operating_open and guide.next_button.visible,"service explanation remains available paused and closed")
+ var before_next=gameplay_snapshot()
+ for view in [Vector2i(344,680),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(1360,880)]:
+  root.size=view;await settle();geometry("service explanation "+str(view));await capture("service-%dx%d"%[view.x,view.y])
+ await click(guide.next_button,true)
+ check(guide.step()==State.PAYMENT and guide.next_button.visible,"real Next advances explanation without receiving an order")
+ reload_state("active",State.PAYMENT)
+ await load_game("user://synthetic-tutorial.json");guide=game.tutorial
+ check(guide.step()==State.PAYMENT and guide.next_button.visible,"old format-1 payment step resumes as an explanation")
+ # Pause is intentionally a session control, not saved tutorial metadata.
+ if not game.paused:await click(game.pause_button)
+ root.size=Vector2i(390,844);await settle();geometry("checkout explanation");await capture("checkout-explanation-mobile")
+ await click(guide.next_button,true)
+ check(guide.step()==State.COMPLETE and guide.finish_button.visible and game.model.served==0,"Next makes Done available before any meal or payment")
+ check(game.paused and not game.model.operating_open,"Next preserves pause and admissions state")
+ check(gameplay_snapshot()==before_next,"Next and reload preserve all economy, service, staff and layout state")
+ geometry("explanation completion");await capture("tutorial-ready-mobile")
+ await web_geometry("complete",guide.finish_button)
+ var balance=game.model.coins
+ await click(guide.finish_button,true)
+ check(not guide.active() and not guide.panel.visible and not guide.pointer.visible,"Done dismisses the guide without waiting for gameplay")
+ check(game.model.coins==balance and game.model.served==0 and game.model.total_earned==0,"tutorial completion grants no reward or fake meal")
+ guide.next();guide.finish();check(game.model.coins==balance and game.model.served==0,"repeated Next/Done is harmless after completion")
+ reload_state("completed",State.COMPLETE)
+ # Genuine natural-service regression is independent of tutorial completion.
+ await click(game.pause_button);await click(game.business_button)
+ check(not game.paused and game.model.operating_open,"ordinary service resumes only through real controls")
  # No spawn calls, guest phase writes, service timer rewinds or payment seeds.
  var seconds=0.0
  for frame in range(3000):
@@ -187,30 +214,38 @@ func run():
    if phase not in phases:
     phases.append(phase);times[phase]=seconds
     if phase in ["ordering","eating","checkout_walk","paying"]:await settle();await capture("real-"+phase+"-mobile")
-  if guide.step()==State.PAYMENT and not times.has("tutorial_payment"):
-   times.tutorial_payment=seconds;await settle();geometry("real order/payment "+str(root.size));await capture("03-real-order-mobile")
-   var guest=game.model.customers[0];var anchor=game.illustration._render_position("guest_%s"%guest.id,Vector2(guest.x,guest.z));var feet=game.illustration.iso(anchor.x,anchor.y)
-   check(guide.target_rect.get_center().y<feet.y-10 and guide.target_rect.end.y<=feet.y+10,"guest highlight follows rendered upper body instead of the floor")
   if game.model.served>0:break
   if frame%100==0:await process_frame
  await settle()
- check(game.model.served>0 and guide.step()==State.COMPLETE,"ordinary guest journey and actual checkout advance payment")
+ check(game.model.served>0 and not guide.active(),"ordinary guest journey and actual checkout work after the tutorial is dismissed")
  check("ordering" in phases and "eating" in phases and "paying" in phases,"real order, meal and checkout phases witnessed")
  check(game.model.total_earned==game.model.MEAL_PAYMENT*game.model.served,"only real meal payments credited")
  check(game.model.items==original_items,"onboarding never edits or purchases furniture")
- times.first_payment=seconds;geometry("real payment completion "+str(root.size));await capture("04-first-payment-mobile")
- await web_geometry("complete",guide.finish_button)
- var balance=game.model.coins
- await click(guide.finish_button,true)
- check(not guide.active() and not guide.panel.visible and not guide.pointer.visible,"Keep playing dismisses guide fully")
- check(game.model.coins==balance,"tutorial completion has no hidden reward")
+ times.first_payment=seconds;await capture("natural-payment-after-tutorial")
+ balance=game.model.coins
+ reload_state("completed",State.COMPLETE)
+ # Legacy format-1 waiting steps become explanations without auto-skipping
+ # even if the old baseline has already been passed by genuine gameplay.
+ var completed_state=game.model.tutorial_state.duplicate(true)
+ for legacy_step in [State.ORDER,State.PAYMENT]:
+  game.model.tutorial_state=State.read({"format":1,"status":"active","step":legacy_step,"baseline_served":0});guide.sync()
+  check(guide.step()==legacy_step and guide.next_button.visible,"legacy waiting step remains reviewable with Next")
+  snapshot();guide.sync()
+  check(guide.step()==legacy_step and game.model.served>0,"natural payment never auto-skips explanatory cards")
+  game.save_recovery_blocked=true;guide.next()
+  check(guide.step()==legacy_step,"recovery guard blocks tutorial metadata writes")
+  game.save_recovery_blocked=false;guide.sync()
+  if legacy_step==State.PAYMENT:await web_geometry("payment",guide.next_button)
+  var live_before=gameplay_snapshot();guide.next()
+  check(gameplay_snapshot()==live_before,"Next does not advance genuine in-flight service or payroll")
+ game.model.tutorial_state=completed_state;guide.sync()
  reload_state("completed",State.COMPLETE)
  # Replay is ordinary Help UI; completed/old saves never enroll automatically.
  game.compact_ui.show_help();await settle()
  check(not guide.panel.visible and guide.help_entry.text=="Replay tutorial","Help offers replay without overlay collision")
  await click(guide.help_entry,true)
  check(guide.active() and guide.step()==State.STAFF,"replay honors already-open café")
- check(int(game.model.tutorial_state.baseline_served)==game.model.served,"replay waits for a new real payment")
+ check(int(game.model.tutorial_state.baseline_served)==game.model.served,"replay preserves compatible baseline metadata without requiring payment")
  await click(guide.skip_button,true)
  check(not guide.active() and game.model.operating_open,"skip leaves normal open play")
  reload_state("skipped",State.STAFF)

@@ -11,6 +11,7 @@ var copy:Label
 var actions:HBoxContainer
 var skip_button:Button
 var finish_button:Button
+var next_button:Button
 var pointer:Control
 var target_rect=Rect2()
 var target_control:Control
@@ -34,6 +35,7 @@ func setup(owner):
  progress=game.label("",11,Color("65745b"));progress.mouse_filter=Control.MOUSE_FILTER_IGNORE;box.add_child(progress)
  actions=HBoxContainer.new();actions.add_theme_constant_override("separation",0);actions.size_flags_vertical=Control.SIZE_SHRINK_CENTER;row.add_child(actions)
  skip_button=_quiet_button("Skip",skip);actions.add_child(skip_button)
+ next_button=_quiet_button("Next",next);actions.add_child(next_button)
  finish_button=_quiet_button("Done",finish);actions.add_child(finish_button)
  pointer=Control.new();pointer.name="TutorialControlHighlight";pointer.mouse_filter=Control.MOUSE_FILTER_IGNORE;pointer.z_index=79;game.ui.add_child(pointer);pointer.draw.connect(_draw_pointer)
  var content=game.compact_ui.help_scroll.get_child(0)
@@ -91,11 +93,13 @@ func skip():
 func finish():
  if not active() or step()!=State.COMPLETE or game.save_recovery_blocked:return
  game.model.tutorial_state.status="completed";_commit();sync()
-func _order_received()->bool:
- if game.model.served>int(game.model.tutorial_state.baseline_served):return true
- for record in game.service_guests.values():
-  if bool(record.get("order_done",false)):return true
- return false
+func next():
+ if not active() or game.save_recovery_blocked:return
+ # Explanation advances metadata only, even while service is paused/closed.
+ # Saved ORDER/PAYMENT step IDs keep their format-1 continuation meaning.
+ if step()==State.ORDER:_advance(State.PAYMENT)
+ elif step()==State.PAYMENT:_advance(State.COMPLETE)
+ sync()
 func _advance_from_reality():
  match step():
   State.OPEN:
@@ -104,10 +108,6 @@ func _advance_from_reality():
    if game.compact_ui.staff_panel.panel.visible:_advance(State.STAFF_DONE)
   State.STAFF_DONE:
    if not game.compact_ui.staff_panel.panel.visible:_advance(State.DECORATE)
-  State.ORDER:
-   if _order_received():_advance(State.PAYMENT)
-  State.PAYMENT:
-   if game.model.served>int(game.model.tutorial_state.baseline_served):_advance(State.COMPLETE)
   State.DECORATE:
    if game.editing:_advance(State.DONE)
   State.DONE:
@@ -140,22 +140,13 @@ func sync():
   State.DONE:
    number=3;words="Back to café";target_control=game.edit_button
   State.ORDER:
-   number=4;words="Your waiter takes the order";_point_at_guest()
-   if game.model.customers.is_empty() or _guest_phase()=="arriving":words="Guest on the way…"
+   number=4;words="Your team cooks and serves meals."
   State.PAYMENT:
-   number=5;words="Meal on the way";_point_at_guest()
-   var phase=_guest_phase()
-   if phase in ["checkout_walk","checkout_wait","paying"]:words="Payment at checkout"
-   elif phase=="eating":words="Enjoying the first meal"
-   elif phase=="drinking":words="A drink with the meal"
+   number=5;words="Guests pay at checkout."
   State.COMPLETE:
-   number=6;words="First order complete!"
- if step() in [State.OPEN,State.STAFF,State.ORDER,State.PAYMENT,State.DECORATE] and game.editing:
+   number=6;words="You're ready to run your café!"
+ if step() in [State.OPEN,State.STAFF,State.DECORATE] and game.editing:
   words="Tap Done to continue";target_control=game.edit_button
- elif step() in [State.ORDER,State.PAYMENT] and game.paused:
-  words="Tap Play to continue";target_control=game.pause_button
- elif step() in [State.ORDER,State.PAYMENT] and not game.model.operating_open:
-  words="Tap to reopen";target_control=game.business_button
  title=words
  if target_control!=null:target_rect=target_control.get_global_rect().grow(3)
  var text_key=title+"\n"+words+str(number)+str(step())+str(game.model.operating_open)
@@ -164,21 +155,8 @@ func sync():
   _last_text=text_key;progress.text="%d / 6"%number;heading.text=title;copy.text=words
   skip_button.text="Skip" if game.model.operating_open else "Skip & open"
   skip_button.visible=step()!=State.COMPLETE;finish_button.visible=step()==State.COMPLETE
+  next_button.visible=step() in [State.ORDER,State.PAYMENT]
  _layout();pointer.queue_redraw()
-func _guest_phase()->String:
- for guest in game.model.customers:
-  if str(guest.phase) not in ["dirty","cleaning","leaving"]:return str(guest.phase)
- return ""
-func _point_at_guest():
- for guest in game.model.customers:
-  if str(guest.phase) in ["dirty","cleaning","leaving"]:continue
-  var art=game.illustration
-  var position=art._render_position("guest_%s"%guest.id,Vector2(float(guest.x),float(guest.z)))
-  var feet=art.iso(position.x,position.y)
-  var unit=art.ui_scale*art.zoom*(1.55 if game.wall_detail else 1.0)
-  var head=art.DirectionalCharacter.head_bounds(posmod(int(guest.id),3))
-  var top=(head.position.y-10)*unit
-  target_rect=Rect2(feet+Vector2(-23*unit,top),Vector2(46*unit,6*unit-top));return
 func content_rect()->Rect2:
  var style=panel.get_theme_stylebox("panel")
  return Rect2(panel.position+Vector2(style.content_margin_left,style.content_margin_top),panel.size-style.get_minimum_size())
@@ -189,9 +167,8 @@ func _layout():
  if game.editing:bottom=minf(bottom,game.compact_ui.shop_ui.browse_rect().position.y-10)
  var safe=Rect2(inset.x+12,top,view.x-inset.x-inset.z-24,maxf(0,bottom-top))
  var padding=panel.get_theme_stylebox("panel").get_minimum_size()
- var action=finish_button if finish_button.visible else skip_button
  var text_width=ceilf(copy.get_theme_font("font").get_string_size(copy.text,HORIZONTAL_ALIGNMENT_LEFT,-1,16).x)
- var action_width=maxf(44,action.get_combined_minimum_size().x)
+ var action_width=maxf(44,actions.get_combined_minimum_size().x)
  var width=minf(safe.size.x,text_width+action_width+12+padding.x)
  var inner=maxf(80,width-action_width-12-padding.x)
  copy.custom_minimum_size.x=inner;copy.size.x=inner;box.custom_minimum_size.x=inner

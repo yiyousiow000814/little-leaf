@@ -20,7 +20,7 @@ EXCLUDE = shutil.ignore_patterns('.git', '.godot', 'qa-project', '__pycache__',
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--preview-only', action='store_true', help='Capture only Open/Staff/Decorate before the service wait')
+    parser.add_argument('--preview-only', action='store_true', help='Capture only Open/Staff/Decorate before the service explanation')
     args = parser.parse_args()
     out = args.output.resolve()
     if out.exists():

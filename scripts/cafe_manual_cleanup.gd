@@ -45,15 +45,8 @@ func _occluded(screen:Vector2)->bool:
  var item_id=art.hit_item(screen)
  if item_id>=0 and str(game.model.get_item(item_id).get("kind",""))!="rug":return true
  if not art.hit_wall_host(screen).is_empty():return true
- # Ground is painted before people. Avoid activating litter through a body.
- var scale=art.ui_scale*art.zoom*(1.55 if game.wall_detail else 1.0)
- for staff in game.staff_states:
-  var p:Vector2=art.iso(staff.pos.x,staff.pos.y)
-  if Rect2(p+Vector2(-12,-45)*scale,Vector2(24,49)*scale).has_point(screen):return true
- for guest in game.model.customers:
-  var p:Vector2=art.iso(float(guest.x),float(guest.z))
-  if Rect2(p+Vector2(-12,-45)*scale,Vector2(24,49)*scale).has_point(screen):return true
- return false
+ return art.character_occludes(screen)
+
 func hit(screen:Vector2)->Dictionary:
  if not allowed() or not game.interaction._point_in_view(screen) or game.interaction._over_ui(screen):return {}
  var art=game.illustration

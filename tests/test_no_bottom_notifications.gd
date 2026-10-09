@@ -50,6 +50,14 @@ func run():
  root.size=Vector2i(1360,880)
  await start("fresh")
  check(game.fresh_start and not game.compact_ui.has_open_popup(),"fresh launch has no notification popup")
+ var guide_next=game.tutorial.next_button
+ check(NoBottom.unexpected_nodes(game.ui,game.compact_ui.blockage_button,guide_next).is_empty(),"only the actual tutorial Next is allowed")
+ var rogue=Button.new();rogue.text="Next";game.ui.add_child(rogue);rogue.hide()
+ check(not NoBottom.unexpected_nodes(game.ui,game.compact_ui.blockage_button,guide_next).is_empty(),"hidden legacy Next is still rejected")
+ rogue.reparent(game.tutorial.panel)
+ check(not NoBottom.unexpected_nodes(game.ui,game.compact_ui.blockage_button,guide_next).is_empty(),"an arbitrary Next inside the guide is not exempt")
+ rogue.free()
+
  await capture("01-fresh-start")
  var m=game.model;var checkout=game.Checkout;var register=m.checkout_register();var front=m.workface_cell(register);var slot=checkout._optional_wait(m,register)
  check(not register.is_empty() and slot!=checkout.NONE,"synthetic café has a register and waiting slot")

@@ -1,9 +1,9 @@
 'use strict';
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, recognizeMovingFrame, observeMovingCues} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('./wall_compatibility_helpers');
-const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, complete: 7})
+const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
 const receipt = {checks: 10, failures: [], player_save_used: false,
   web_layout: {viewport: [1360, 880], initial_coins: 1200, meal_payment: 200, stages}};
@@ -47,7 +47,15 @@ for (const mutate of [
   const bad = structuredClone(paid); mutate(bad);
   assert.throws(() => validateProgress(bad, layout, initial));
 }
-assert.throws(() => validateProgress({...initial, tutorial: {...initial.tutorial, step: 7}}, layout, initial));
+validateProgress({...initial, tutorial: {...initial.tutorial, step: 7}}, layout, initial);
+const explained = {...initial, tutorial: {...initial.tutorial, status: 'completed', step: 7}};
+validateProgress(explained, layout, initial); // Done is independent of any order/payment.
+const actualOrder = {...ordered, tutorial: explained.tutorial};
+validateNaturalPayment({...paid, tutorial: explained.tutorial}, actualOrder, layout, initial);
+assert.throws(() => validateNaturalPayment(explained, actualOrder, layout, initial), /genuine payment/);
+assert.throws(() => validateNaturalPayment({...paid, tutorial: explained.tutorial}, {...actualOrder, orders: []}, layout, initial), /actual seated order/);
+assert.throws(() => validateNaturalPayment({...paid, tutorial: explained.tutorial}, {...actualOrder, guests: []}, layout, initial), /actual seated order/);
+assert.throws(() => validateNaturalPayment({...paid, tutorial: explained.tutorial}, {...actualOrder, guests: [{id: 2, seated: true}]}, layout, initial), /actual seated order/);
 assert.throws(() => validateProgress({...initial, tutorial: {...initial.tutorial, status: 'completed'}}, layout, initial));
 const orderAck = structuredClone(ack), orderPayload = structuredClone(payload);
 orderPayload.runtime.customers = [{id: 1, phase: 'cooking', seated: true}];
@@ -69,6 +77,8 @@ try {
   let now = started;
   Date.now = () => now;
   const budget = flowBudget(started);
+  const natural = flowBudget(started + 120000, () => now, started + 300000);
+  assert.equal(natural.deadline(999999), started + 300000, 'Independent service cannot extend the whole-run cap');
   assert.equal(budget.deadline(25000), started + 25000, 'Opening cue retains its own limit');
   assert.equal(budget.deadline(30000), started + 30000, 'Saved-state waits retain their own limit');
   now = started + 80759;
@@ -203,6 +213,10 @@ try {
     cp.execFileSync = () => correct;
     assert(recognizeCue('same-captured-frame.png', ['Meal on the way'], 'tesseract', Date.now() + 10000).matched);
   }
+  for (const phrase of ['Your team cooks and serves meals.', 'Guests pay at checkout.', 'Next']) {
+    cp.execFileSync = () => phrase;
+    assert(recognizeCue('same-captured-frame.png', [phrase], 'tesseract', Date.now() + 10000, phrase === 'Next').matched);
+  }
   cp.execFileSync = () => 'Done\n';
   assert(recognizeCue('same-captured-frame.png', ['Done'], 'tesseract', Date.now() + 10000, true).matched);
   cp.execFileSync = () => {throw Object.assign(new Error('Synthetic OCR timeout'), {code: 'ETIMEDOUT'});};
@@ -219,18 +233,21 @@ assert(browserSource.includes('const pixelScale = cuePixelScale(region, options.
 assert(browserSource.includes('if (pixelScale === 2)'));
 assert(browserSource.includes('context.imageSmoothingEnabled = false'));
 assert(browserSource.includes('new OffscreenCanvas(bitmap.width * 2, bitmap.height * 2)'));
-assert(browserSource.indexOf("await click('return')") < browserSource.indexOf('await observeMovingCues({budget'));
-assert(browserSource.includes('return recognizeMovingFrame(frame.ocr_input, tesseract, deadline, signal)'));
-assert(browserSource.includes("fs.copyFileSync(frame.file, path.join(output, name + '-text.png'))"));
+assert(browserSource.indexOf("await click('complete')") < browserSource.indexOf("await waitState('natural-payment'"),
+  'Tutorial Done is tested before the independent natural payment wait');
+assert(!browserSource.includes('observeMovingCues'), 'No moving guest cue can delay Next');
+for (const name of ['service-next-button', 'checkout-next-button']) {
+  assert(browserSource.includes("await visible('" + name + "', ['Next'], completionButtonRegion"),
+    'Each Next button has its own exact-label 2x OCR gate');
+}
 for (const guard of [
   'Browser profile and origin contain no existing saves or seeded fixtures',
-  'A naturally seated guest has a genuine order, with no premature payment or tutorial completion',
-  'Genuine payment unlocks completion but does not dismiss the guide',
-  'Real final Done completes tutorial without an extra reward',
+  'Independent natural-service gate requires a new genuine payment',
   'Completed tutorial leaves the cafe open for ordinary play',
-  "await click('complete')", "await waitState('natural-payment'",
+  "await click('order')", "await click('payment')", "await click('complete')",
+  "await waitState('natural-payment'", 'validateNaturalPayment(paid, order, layout, initial)',
   'Exact tested harness source ', 'Exact exported production source ',
-]) assert(browserSource.includes(guard), 'Preserve complete fresh gameplay and source binding: ' + guard);
+]) assert(browserSource.includes(guard), 'Preserve short tutorial, genuine service and source binding: ' + guard);
 
 // New regression PNGs contain only RGB pixels and dimensions, without metadata.
 // Keep the raw capture and verify that the distinct OCR input duplicates every
@@ -329,182 +346,3 @@ if (process.argv.includes('--ocr-fixtures')) {
     tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0], results}, null, 2));
 }
 console.log('Fresh tutorial browser contract and source-binding checks passed (browser runtime not exercised)');
-
-
-async function movingSequenceChecks() {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'moving-cue-sequence-'));
-  const binding = {source_commit: 'a'.repeat(40), engine_report_sha256: 'b'.repeat(64),
-    layout_sha256: 'c'.repeat(64), export_manifest_sha256: 'd'.repeat(64)};
-  const waiter = 'Your waiter takes the order', meal = 'Meal on the way';
-  const yieldTurn = () => new Promise(resolve => setImmediate(resolve));
-  let serial = 0;
-  async function scenario(options = {}) {
-    const dir = path.join(folder, String(++serial)); fs.mkdirSync(dir);
-    let now = options.start ?? 1000, count = 0, inFlight = 0, peak = 0;
-    const began = now, evidence = {}, budget = flowBudget(options.serviceStart ?? began, () => now);
-    const captions = options.captions ?? ['Guest on the way', waiter, meal, meal];
-    const ctx = {evidence, setTime: value => now = value, budget, get count() {return count;}};
-    const promise = observeMovingCues({budget, binding: options.binding ?? binding, evidence,
-      now: () => now, sleep: async ms => {
-        await yieldTurn();
-        // Only the capture interval advances this virtual gameplay clock.
-        if (ms > 25) now += options.tick ?? 500;
-      },
-      snapshot: async () => {
-        if (options.snapshot) return options.snapshot(ctx);
-        if (options.noSave) return null;
-        return count >= (options.orderAt ?? 3) ? {...ordered, revision: 20} : {...ordered,
-          revision: 19, tutorial: {...ordered.tutorial, step: 5}, orders: [], guests: [{id: 1, seated: false, phase: 'arriving'}]};
-      },
-      capture: async (index, end) => {
-        assert(now < end, 'Every capture starts inside its bounded deadline');
-        count = index;
-        const caption = captions[Math.min(index - 1, captions.length - 1)];
-        const fixture = caption === waiter ? 'arrival-frame.png' : 'meal-frame.png';
-        const file = path.join(dir, 'frame-' + index + '.png');
-        fs.copyFileSync(path.join(retainedFolder, fixture), file);
-        const frame = {file, sha256: hash(fs.readFileSync(file)), synthetic_caption: caption};
-        if (options.capture) await options.capture(frame, ctx);
-        return frame;
-      },
-      recognize: async (frame, end) => {
-        inFlight++; peak = Math.max(peak, inFlight);
-        try {
-          if (options.recognize) return await options.recognize(frame, ctx, end);
-          // Hold the first recognition until the brief waiter cue has vanished.
-          if (frame.index === 1) while (count < 4 && now < end) await yieldTurn();
-          return {observed: frame.synthetic_caption, attempts: [{mode: 'synthetic', observed: frame.synthetic_caption}]};
-        } finally {inFlight--;}
-      },
-    });
-    try {return {result: await promise, evidence, peak, now};}
-    catch (error) {error.sequence_evidence = evidence; throw error;}
-  }
-  try {
-    const good = await scenario();
-    assert.equal(good.peak, 1, 'Slow OCR uses only one process at a time');
-    assert(good.evidence.frames.length >= 4, 'Captures continue during delayed OCR and a quick stage transition');
-    assert.equal(good.evidence.cues[waiter].frame, 2, 'The transient frame is replayed after the saved order arrives');
-    assert.equal(good.evidence.cues[meal].frame, 3, 'Meal is independently recognized on its own pixels');
-    assert.equal(good.result.returned.tutorial.step, 5);
-    assert.equal(good.result.order.tutorial.step, 6);
-    assert.equal(good.result.order.served, 0);
-    assert.equal(good.evidence.binding_sha256, hash(canonical(binding)));
-    for (const frame of good.evidence.frames) {
-      assert.equal(hash(fs.readFileSync(frame.file)), frame.sha256);
-      assert.equal(frame.binding_sha256, good.evidence.binding_sha256);
-      assert([19, 20].includes(frame.before_revision));
-      assert([19, 20].includes(frame.after_revision));
-      assert(frame.captured_ms >= frame.capture_started_ms);
-    }
-    let necessaryOcrCalls = 0;
-    const pendingSave = await scenario({captions: [waiter, meal], orderAt: 8,
-      recognize: async frame => {
-        assert(++necessaryOcrCalls <= 2, 'No extra OCR after both exact cue frames are recognized');
-        return {attempts: [{observed: frame.synthetic_caption}]};
-      }});
-    assert.equal(pendingSave.result.order.tutorial.step, 6, 'Wait for the genuine order after OCR is complete');
-    const pendingCapture = await scenario({captions: [waiter, meal], orderAt: 2,
-      capture: (frame, ctx) => ctx.count === 3 ? new Promise(() => {}) : undefined,
-      recognize: async (frame, ctx) => {
-        if (frame.synthetic_caption === meal) while (ctx.count < 3) await yieldTurn();
-        return {attempts: [{observed: frame.synthetic_caption}]};
-      }});
-    assert.equal(pendingCapture.evidence.frames.length, 2,
-      'Complete observations cancel an unnecessary pending capture without failing or adding evidence');
-    await assert.rejects(scenario({captions: [meal, waiter, 'Unrelated scene']}), /must precede/,
-      'Recognition may finish out of order, but captured cues must remain chronological');
-    await assert.rejects(scenario({captions: [waiter + '\n' + meal]}), /independent meal frame/,
-      'One frame containing both labels cannot replace independent cue stages');
-    for (const operation of ['snapshot', 'capture', 'recognize']) {
-      const began = Date.now();
-      await assert.rejects(scenario({start: 219950, serviceStart: 0,
-        [operation]: () => new Promise(() => {})}), /deadline exceeded/,
-        'A hung ' + operation + ' must be bounded and its peer canceled');
-      assert(Date.now() - began < 1000, 'No asynchronous adapter can hold the gate beyond its deadline');
-    }
-    // Stage6 and later meal pixels must never substitute for a missed waiter.
-    for (const caption of [meal, 'Your waiter takes order', 'Your waiter takes the orders', 'Unrelated scene']) {
-      await assert.rejects(scenario({captions: [caption]}), error => {
-        assert(!error.sequence_evidence.cues[waiter]);
-        assert(error.sequence_evidence.duration_ms <= 45500);
-        return /service.*deadline exceeded/.test(error.message);
-      });
-    }
-    await assert.rejects(scenario({captions: [waiter]}), error => {
-      assert(!error.sequence_evidence.cues[meal]);
-      assert(error.sequence_evidence.duration_ms <= 22500, 'Missing meal retains its20s local limit');
-      return /service.*deadline exceeded/.test(error.message);
-    });
-    await assert.rejects(scenario({noSave: true}), /service.*deadline exceeded/,
-      'Visible text without genuine acknowledged state cannot pass');
-    await assert.rejects(scenario({orderAt: Infinity}), /service.*deadline exceeded/,
-      'Visible text without a genuine seated order cannot pass');
-    await assert.rejects(scenario({binding: {...binding, source_commit: 'unbound'}}), /verified source binding/);
-    await assert.rejects(scenario({binding: {...binding, layout_sha256: ''}}), /verified layout_sha256/);
-    await assert.rejects(scenario({capture: frame => {frame.sha256 = '0'.repeat(64);}}), /raw frame bytes/);
-    await assert.rejects(scenario({recognize: async frame => {
-      fs.appendFileSync(frame.file, 'tampered');
-      return {attempts: [{observed: waiter}]};
-    }}), /raw frame bytes/);
-    await assert.rejects(scenario({recognize: async frame => {
-      frame.binding_sha256 = 'changed'; return {attempts: [{observed: waiter}]};
-    }}), /exact source\/export/);
-    await assert.rejects(scenario({recognize: async frame => {
-      frame.ocr_input = frame.file; frame.ocr_input_sha256 = '0'.repeat(64);
-      return {attempts: [{observed: waiter}]};
-    }}), /OCR input bytes/);
-    await assert.rejects(scenario({recognize: async () => ({matches: [waiter, meal], attempts: []})}),
-      /service.*deadline exceeded/, 'A recognition flag without actual exact OCR text cannot pass');
-    await assert.rejects(scenario({recognize: async (frame, ctx, end) => {
-      ctx.setTime(end); return {attempts: [{observed: waiter + '\n' + meal}]};
-    }}), /service.*deadline exceeded/, 'Late OCR cannot unlock a new allowance');
-    await assert.rejects(scenario({start: 219900, serviceStart: 0}), /service.*deadline exceeded/,
-      'Moving capture cannot borrow any completion allowance');
-    // Fast callbacks cannot run forever or grow evidence without an explicit cap.
-    await assert.rejects(scenario({tick: 0, orderAt: Infinity, captions: ['Unrelated scene']}), /frame limit exceeded/);
-    await assert.rejects(scenario({capture: (frame, ctx) => {ctx.evidence.max_bytes = 1;}}), /byte limit exceeded/);
-    console.log('Moving cue capture regressions passed: delayed OCR, transient replay, exact negatives, deadlines and binding (synthetic timing only)');
-  } finally {fs.rmSync(folder, {recursive: true, force: true});}
-
-  // Exercise the actual asynchronous subprocess path, not only the scheduler.
-  const asyncExec = cp.execFile;
-  let calls = 0, active = 0;
-  try {
-    cp.execFile = (command, args, options, callback) => {
-      calls++; active++;
-      assert.equal(command, 'tesseract');
-      assert.equal(args[0], 'same-recorded-frame.png');
-      assert.equal(options.env.OMP_THREAD_LIMIT, '1');
-      assert(options.timeout > 0 && options.timeout <= 5000);
-      setImmediate(() => {active--; callback(null, args.includes('thresholding_method=2') ? waiter : 'Unrelated scene');});
-    };
-    const running = recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 15000);
-    assert.equal(active, 1, 'OCR yields while its subprocess is pending');
-    const recognized = await running;
-    assert.deepEqual(recognized.matches, [waiter]);
-    assert.deepEqual(recognized.attempts.map(item => item.mode), ['sparse', 'sparse-sauvola']);
-    assert.equal(calls, 2);
-    assert.deepEqual((await recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 500)).matches, []);
-    assert.equal(calls, 2, 'Do not launch async OCR with less than one second remaining');
-    cp.execFile = (command, args, options, callback) => setImmediate(() =>
-      callback(Object.assign(new Error('Synthetic OCR timeout'), {killed: true})));
-    const timedOut = await recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 15000);
-    assert.deepEqual(timedOut.matches, []);
-    assert.deepEqual(timedOut.attempts.map(item => item.mode), ['sparse', 'sparse-sauvola']);
-    assert(timedOut.attempts.every(item => /timeout/.test(item.error)));
-    cp.execFile = (command, args, options, callback) => setImmediate(() => args.includes('thresholding_method=2')
-      ? callback(null, waiter) : callback(Object.assign(new Error('Synthetic OCR timeout'), {code: 'ETIMEDOUT'})));
-    const recovered = await recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 15000);
-    assert.deepEqual(recovered.matches, [waiter], 'A unique transient frame survives its first OCR-mode timeout');
-    assert.equal(recovered.attempts.length, 2);
-    cp.execFile = (command, args, options, callback) => setImmediate(() =>
-      callback(Object.assign(new Error('Missing OCR binary'), {code: 'ENOENT'})));
-    await assert.rejects(recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 15000), /Missing OCR binary/);
-    const canceled = new AbortController(); canceled.abort(Error('Capture canceled'));
-    await assert.rejects(recognizeMovingFrame('same-recorded-frame.png', 'tesseract', Date.now() + 15000, canceled.signal), /Capture canceled/);
-    for (const wrong of ['Meal on the way', 'Your waiter takes order', 'Your waiter takes the orders'])
-      assert(!matchesCue(wrong, [waiter]));
-  } finally {cp.execFile = asyncExec;}
-}
-movingSequenceChecks().catch(error => {console.error(error); process.exitCode = 1;});

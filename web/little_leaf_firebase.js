@@ -92,7 +92,7 @@
               entry={base:token(cloud),pending:false,record:record || {format:2,profileId:root.crypto.randomUUID(),revision:0,createdAt:time,updatedAt:time,payload:null,digest:null,origin:null,previous:null,campaigns:{}}};
               await journal.replace(uid,local,entry);
             }
-            if(entry.pending) { try { await upload(); } catch(e) { if(!offline(e)) throw e; state('pending'); } }
+            if(entry.pending) { try { await upload(); } catch(e) { if(!offline(e)) throw e; state('offline'); } }
             else state(entry.record.revision ? 'saved':'ready');
           } catch(e) {
             if(!offline(e) || !local) throw e;
@@ -117,10 +117,10 @@
           const next={...entry,pending:true,record};await journal.replace(uid,entry,next);entry=next;guard();state('pending');
           return {ok:true,durable:true,cloudConfirmed:false,profileId,revision:record.revision,creditedCoins:0};
           });
-        } catch(e) { if(['REVISION_CONFLICT','NOT_READY'].includes(e.code)){stopped=true;state('conflict');}return failure(e); }
+        } catch(e) { if(['REVISION_CONFLICT','NOT_READY'].includes(e.code)){stopped=true;state('conflict');}else state('blocked');return failure(e); }
         finally {busy=false;}
       },
-      async sync() { if(syncing || !bootReady || stopped || !entry?.pending || now()-lastAttempt<30000)return;syncing=true;try {await upload();}catch(e){if(offline(e))state('pending');else {stopped=true;state('conflict');}}finally{syncing=false;} },
+      async sync() { if(syncing || !bootReady || stopped || !entry?.pending || now()-lastAttempt<30000)return;syncing=true;try {await upload();}catch(e){if(offline(e))state('offline');else {stopped=true;state('conflict');}}finally{syncing=false;} },
       save(payload,revision,profileId,callback){client.commit(payload,revision,profileId).then(r=>callback(JSON.stringify(r)));},
       close(){stopped=true;state('signed-out');}
     };return client;
