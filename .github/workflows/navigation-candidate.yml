@@ -1,0 +1,33 @@
+name: Navigation candidate synthetic
+on:
+  pull_request:
+    paths:
+      - 'scripts/**'
+      - 'data/**'
+      - 'tests/test_navigation_candidate.gd'
+      - 'tests/run_navigation_candidate.py'
+      - 'ci/install_tools.py'
+      - 'ci/toolchain.json'
+      - '.github/workflows/navigation-candidate.yml'
+permissions:
+  contents: read
+jobs:
+  navigation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install existing checksum-pinned Godot toolchain
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/navigation-tools"
+      - name: Check isolated stage-2 foundation
+        run: python3 tests/run_navigation_candidate.py --output "$RUNNER_TEMP/navigation-evidence"
+      - name: Retain source-bound synthetic receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: navigation-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/navigation-evidence/
+          if-no-files-found: warn
+          retention-days: 7

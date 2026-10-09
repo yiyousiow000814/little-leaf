@@ -39,8 +39,11 @@ Snapshots capture the current one-cell furniture contract; proposed future
 multi-cell cabinet geometry requires its owner adapter before integration.
 
 Native pixels, Web/CG behavior and storage, business-state regression and FPS
-are **not_run**. No production switch, codec change, version number, deployment,
-release, push or PR was performed. The parent owns remote Draft PR coverage.
+are **not_run**. No production switch, codec change, version number, deployment
+or release was performed. The foundation is published only as an implementation
+Draft PR linked to [#119](https://github.com/yiyousiow000814/little-leaf/pull/119).
+The focused navigation CI runs the synthetic suite separately; the ordinary
+repository CI does not imply runtime integration or visual acceptance.
 
 The first development attempt found a test fixture Array typing error and
 incorrect door-jamb test coordinates; both were corrected before the successful

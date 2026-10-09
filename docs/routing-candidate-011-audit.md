@@ -49,7 +49,7 @@ rejection across native/Firebase/Web/CG; validate proposed edits and body sweeps
 run business regression, native pixels, browser storage and timed hardware QA.
 No native visual, browser, FPS, migration, release or deployment claim is made.
 
-Parent coordination attempted; the desktop API returned `thread not found`.
-Heavy tests are deferred to avoid
-competing with the parent's FPS task. No branch push or PR creation is performed
-here; parent owns Draft PR coverage.
+This foundation is tracked as a separate implementation draft against the
+[world/routing acceptance contract](https://github.com/yiyousiow000814/little-leaf/pull/119).
+Hardware and visual tests remain deferred. Publication for review does not
+activate the module in gameplay or satisfy the remaining integration gates.
