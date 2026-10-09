@@ -1,0 +1,48 @@
+name: Modular cabinet paired visuals
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/modular-cabinet-visual.yml'
+      - 'ci/capture_modular_cabinets.py'
+      - 'tests/capture_modular_cabinets.gd'
+      - 'scripts/illustrated_furniture.gd'
+      - 'scripts/cafe_sink_wash_art.gd'
+      - 'scripts/kitchen_worktop_geometry.gd'
+      - 'scripts/cafe_checkout_art.gd'
+      - 'scripts/furniture_static_atlas.gd'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: modular-cabinet-visual-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/modular-cabinet-footprints'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install existing checksum-pinned official engine
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/cabinet-tools"
+      - name: Prepare Ubuntu native software renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Render paired exact-source generated scenes
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python3 ci/capture_modular_cabinets.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/cabinet-paired"
+      - name: Retain real paired images and source receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: modular-cabinet-paired-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cabinet-paired/
+          if-no-files-found: error
+          retention-days: 7
