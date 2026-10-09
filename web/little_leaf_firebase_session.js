@@ -25,8 +25,13 @@
           const next=transition(current,saved.exists()?saved.data():null,sdk.serverTimestamp);guard();
           if(next!==current)tx.set(sessionRef,next);
         });
-        // Server-generated times must be read back, never inferred from local time.
-        return this.read();
+        // Confirm through a server transaction read, independent of queued
+        // document-listener/cache observations. This second transaction has
+        // no writes and cannot grant a fence from the intended local value.
+        return sdk.runTransaction(db,async tx=>{
+          guard();const confirmed=await tx.get(sessionRef);guard();
+          return confirmed.exists()?confirmed.data():null;
+        });
       },
       watch(receive,onError){return sdk.onSnapshot(sessionRef,{includeMetadataChanges:true},s=>{
         if(!s.metadata.fromCache && !s.metadata.hasPendingWrites)receive(s.exists()?s.data():null);
