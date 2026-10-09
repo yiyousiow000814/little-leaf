@@ -10,6 +10,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
+import {isConnectivityProbe} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -31,8 +32,9 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
-const check=(ok,label)=>{assert(ok,label);report.checks.push(label);};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
+const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
 vm.runInThisContext(fs.readFileSync(path.join(root,'web/little_leaf_vault.js'),'utf8'));
 const codec=globalThis.LittleLeafAuthorityCodec;
@@ -80,7 +82,8 @@ async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=
 async function setup(uid,entry=null){
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin || u.origin==='http://127.0.0.1:8080')return route.continue();
- const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}throw Error('Unexpected external request: '+u.origin);});
+ if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
+ const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
  await page.goto(origin+'/seed.html');
