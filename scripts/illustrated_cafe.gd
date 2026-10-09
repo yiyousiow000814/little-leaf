@@ -224,12 +224,6 @@ func _draw_street_people(show_service:bool):
 		var face=float(facing.mirror)
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-	var pivot=Vector2.ZERO
-	if seat_mix>.001:
-		var seated_pose=pose.duplicate();seated_pose["seat_mix"]=1.0
-		var seat_geometry=DirectionalCharacter.leg_pose(seated_pose,false,float(pose.phase),bool(facing.back),false)
-		pivot=((seat_geometry.near_hip+seat_geometry.far_hip)*.5+seat_geometry.body)*seat_mix
-	pose["whole_scale_pivot"]=pivot
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
 
@@ -875,6 +869,12 @@ func character_draw_state(e:Dictionary)->Dictionary:
 	var facing=character_facings.get(key,{"back":direction.x+direction.y<0,"mirror":-1.0 if direction.x-direction.y<-.01 else 1.0})
 	var face=float(facing.mirror)
 	pose["mirror"]=face;pose["view_back"]=bool(facing.back)
+	var pivot=Vector2.ZERO
+	if seat_mix>.001:
+		var seated_pose=pose.duplicate();seated_pose["seat_mix"]=1.0
+		var seat_geometry=DirectionalCharacter.leg_pose(seated_pose,false,float(pose.phase),bool(facing.back),false)
+		pivot=((seat_geometry.near_hip+seat_geometry.far_hip)*.5+seat_geometry.body)*seat_mix
+	pose["whole_scale_pivot"]=pivot
 	if e.type=="staff":
 		var held:Vector2=carry_hand_offsets.get(key,Vector2(17*face,-23))
 		pose["carry_hand"]=Vector2(held.x*face,held.y)
