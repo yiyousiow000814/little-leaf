@@ -1,6 +1,6 @@
 extends SceneTree
 const Character=preload("res://scripts/directional_character_art.gd")
-const Before=preload("res://tests/fixtures/chef_hat_before.gd")
+const Before=preload("res://tests/fixtures/head_polish_before.gd")
 const Atlas=preload("res://scripts/character_head_atlas.gd")
 class Recorder extends Node2D:
  var commands=[]
@@ -38,9 +38,13 @@ func _initialize():
     for blocked in [false,true]:
      var old=record(Before,species,view,false,blinked,blocked)
      var plain=record(Character,species,view,false,blinked,blocked)
-     check(old.commands==plain.commands,"Non-chef art changed")
-     old.free();plain.free()
+     var old_dressed=record(Before,species,view,true,blinked,blocked)
      var dressed=record(Character,species,view,true,blinked,blocked)
+     # Head polish intentionally changes the plain face. The fitted hat must
+     # still append the exact reviewed geometry, with unchanged ear ports.
+     check(old_dressed.commands.slice(old.commands.size())==dressed.commands.slice(plain.commands.size()),"Fitted hat geometry changed")
+     check(Character.head_bounds(species,view==2,false).grow(.8).encloses(plain.extents),"Polished plain head exceeds contact envelope")
+     old.free();old_dressed.free();plain.free()
      var bounds=Character.head_bounds(species,view==2,true)
      check(bounds.grow(.8).encloses(dressed.extents),"Head bounds clip chef species=%d view=%d"%[species,view])
      check(Atlas.ART_RECT.grow(-1).encloses(dressed.extents),"Head atlas has no transparent gutter")
