@@ -113,6 +113,8 @@ SUITES = [
     ("test_departing_route_service", "DEPARTING_ROUTE_SERVICE_RESULT"),
     ("test_register_edge", "REGISTER_EDGE_RESULT"),
     ("test_chef_fire", "CHEF_FIRE_TESTS"),
+    ("test_gentle_cooking", "GENTLE_COOKING_RESULT"),
+    ("test_stove_full_tile", "STOVE_FULL_TILE_RESULT"),
     ("test_food_contact", "FOOD_CONTACT_TESTS"),
     ("test_chair_ground_contact", "CHAIR_GROUND_CONTACT_RESULT"),
     ("test_simple_kitchen", "SIMPLE_KITCHEN_TESTS"),

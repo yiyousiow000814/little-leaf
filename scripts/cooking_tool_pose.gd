@@ -1,7 +1,6 @@
 extends RefCounted
-## A compact forearm ends in a wrap grip, separate from the head silhouette.
-## The hand follows the forearm; the utensil is held across the palm rather
-## than forcing the wrist to point exactly along the steep cooking shaft.
+## Small cooking gestures keep the existing compact arm and planted feet.
+## Only presentation uses this work clock; the covered pot hides ingredients.
 const BACK_REACH=10.5
 const UPPER_ARM=5.5
 const FOREARM=6.5
@@ -25,29 +24,28 @@ const PUSH_AHEAD=[.05,.45,.80]
 const PUSH_SIDE=[-.35,.40,.10]
 const CARRY_AT=[Vector2(-.65,-.35),Vector2(.45,-.75),Vector2(.10,.15)]
 
-static func stroke(elapsed_seconds:float,high_pan=false,remaining_seconds=-1.0)->Dictionary:
- # The real work clock supplies a deliberate gather/pause, scrape, scoop,
- # short lift and fold, then a soft settle. This never advances service.
+# Presentation-only gentle cycle. The real job clock remains authoritative.
+static func stroke(elapsed_seconds:float,high_pan=false,remaining_seconds=-1.0,strength=1.0)->Dictionary:
  var phase=fposmod(maxf(elapsed_seconds,0.0),FRY_SECONDS)/FRY_SECONDS
- var segment=0
- while segment<TIMES.size()-2 and phase>=TIMES[segment+1]:segment+=1
- var weight=smoothstep(TIMES[segment],TIMES[segment+1],phase)
- var rises=BACK_RISE if high_pan else FRONT_RISE
- var result={"phase":phase,"tip_y":lerpf(TIP_Y[segment],TIP_Y[segment+1],weight),"rise":lerpf(rises[segment],rises[segment+1],weight),"reach":BACK_REACH if high_pan else lerpf(FRONT_REACH[segment],FRONT_REACH[segment+1],weight),"blade_width":lerpf(BLADE_WIDTH[segment],BLADE_WIDTH[segment+1],weight),"load":lerpf(LOAD[segment],LOAD[segment+1],weight),"body":WEIGHT[segment].lerp(WEIGHT[segment+1],weight),"stage":STAGES[segment],"on_food_plane":segment in [0,1,2,5]}
- var finish=0.0 if remaining_seconds<0 else 1.0-smoothstep(0.0,.45,remaining_seconds)
- result["finish"]=finish
- result.rise=lerpf(result.rise,BACK_RISE[0] if high_pan else FRONT_RISE[0],finish)
- result.reach=lerpf(result.reach,BACK_REACH if high_pan else FRONT_REACH[0],finish)
- result.tip_y=lerpf(result.tip_y,TIP_Y[0],finish)
- result.blade_width=lerpf(result.blade_width,BLADE_WIDTH[0],finish)
- result.body=(result.body as Vector2).lerp(Vector2.ZERO,finish)
- return result
+ var envelope=smoothstep(0.0,.4,maxf(elapsed_seconds,0.0))*clampf(strength,0.0,1.0)
+ if remaining_seconds>=0:envelope*=smoothstep(0.0,.45,remaining_seconds)
+ var wave=sin(phase*TAU)*envelope
+ return {"phase":phase,"tip_y":.45+wave*.28,"rise":(.35 if high_pan else .38)+wave*.018,"reach":(BACK_REACH if high_pan else FRONT_REACH[0])+wave*.20,"blade_width":1.0,"load":0.0,"body":Vector2(wave*.16,wave*wave*.10),"stage":"settle","on_food_plane":true,"finish":1.0-envelope}
 
-static func body_weight(elapsed_seconds:float,remaining_seconds=-1.0)->Vector2:
- return stroke(elapsed_seconds,false,remaining_seconds).body
+static func vessel(elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->Dictionary:
+ var motion=stroke(elapsed_seconds,false,remaining_seconds,strength)
+ var envelope=1.0-float(motion.finish)
+ var wave=sin(float(motion.phase)*TAU)
+ # One brief, soft lid hop every three cycles; never a flying ingredient.
+ var hop_phase=fposmod(maxf(elapsed_seconds,0.0),FRY_SECONDS*3.0)/(FRY_SECONDS*3.0)
+ var hop=pow(sin(clampf((hop_phase-.72)/.10,0.0,1.0)*PI),2)
+ return {"pot":Vector2(wave*.22,-wave*wave*.35)*envelope,"lid":Vector2(-wave*.16,wave*wave*.18-hop*.85)*envelope}
 
-static func apply_body_weight(legs:Dictionary,elapsed_seconds:float,leg_length=9.5,remaining_seconds=-1.0)->Dictionary:
- var weight=body_weight(elapsed_seconds,remaining_seconds)
+static func body_weight(elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->Vector2:
+ return stroke(elapsed_seconds,false,remaining_seconds,strength).body
+
+static func apply_body_weight(legs:Dictionary,elapsed_seconds:float,leg_length=9.5,remaining_seconds=-1.0,strength=1.0)->Dictionary:
+ var weight=body_weight(elapsed_seconds,remaining_seconds,strength)
  legs.body+=weight
  for slot in ["near","far"]:
   var foot:Vector2=legs[slot+"_foot"]-weight
@@ -56,9 +54,9 @@ static func apply_body_weight(legs:Dictionary,elapsed_seconds:float,leg_length=9
   legs[slot+"_foot"]=foot;legs[slot+"_hip"]=hip
  return legs
 
-static func pose(shoulder:Vector2,pan:Vector2,elapsed_seconds:float,remaining_seconds=-1.0)->Dictionary:
+static func pose(shoulder:Vector2,pan:Vector2,elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->Dictionary:
  var high_pan=pan.y<shoulder.y-6.0
- var motion=stroke(elapsed_seconds,high_pan,remaining_seconds)
+ var motion=stroke(elapsed_seconds,high_pan,remaining_seconds,strength)
  var neutral_pan:Vector2=pan+motion.body
  var aim=(neutral_pan-shoulder).normalized()
  var facing=signf(aim.x)
@@ -167,20 +165,25 @@ static func draw(artist:Node2D,origin:Vector2,p:Dictionary,fur,shadow):
  artist.ellipse(origin+p.elbow,Vector2.ONE*1.85,fur)
  artist.rounded_poly([hand-arm*2.3-side*1.6,hand+arm*1.9-side*1.6,hand+arm*2.15+side*.8,hand+arm*.6+side*1.7,hand-arm*2.0+side*1.5],1.1,fur)
  artist.line(hand-arm*1.1+side*1.6,hand+arm*.5+side*1.7,shadow,.6)
- var pan:Vector2=origin+p.pan
- var parts=food_parts(p)
- _food_foundation(artist,pan)
- # Surface food covers an inserted blade. Only a raised blade crosses in
- # front of the resting pile. The carried portion always sits ON the blade.
- var under=blade_under_food(p)
- if not under:_draw_parts(artist,pan,parts,0,3)
- artist.line(origin+p.butt,origin+p.neck,"9a7c48",1.55)
- artist.line(origin+p.butt,hand+axis*1.2,"866b3e",2.0)
- var blade_width=float(p.motion.blade_width)
- artist.rounded_poly([tip-axis*2.1-across*.7,tip-axis*2.1+across*.7,tip+axis*.7+across*blade_width,tip+axis*.7-across*blade_width],.35,"c4ad79")
- artist.line(tip+axis*.65-across*blade_width*.85,tip+axis*.65+across*blade_width*.85,"ead6a0",.65)
- if under:_draw_parts(artist,pan,parts,0,3)
- _draw_parts(artist,pan,parts,3,6)
+ # A relaxed grip beside the covered pot; no utensil or food crosses its lid.
  artist._round_limb(hand-across*1.05-axis*.55,hand+across*.9-axis*.55,fur,1.25)
  artist._round_limb(hand-across*.95+axis*.4,hand+across*.65+axis*.4,fur,1.05)
  artist.ellipse(origin+p.thumb,Vector2(1.05,1.15),fur)
+
+const WORK_INSET=.32
+static func grip_pose(near_shoulder:Vector2,far_shoulder:Vector2,target:Vector2,elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->Dictionary:
+ # Choose the anatomically nearer arm instead of stretching across the torso.
+ var use_near=near_shoulder.distance_squared_to(target)<=far_shoulder.distance_squared_to(target)
+ var shoulder=near_shoulder if use_near else far_shoulder
+ var offset=target-shoulder
+ var reach=clampf(offset.length(),absf(UPPER_ARM-FOREARM)+.001,UPPER_ARM+FOREARM-.001)
+ var axis=offset.normalized() if offset.length_squared()>.000001 else Vector2.RIGHT
+ var hand=shoulder+axis*reach
+ var along=(UPPER_ARM*UPPER_ARM-FOREARM*FOREARM+reach*reach)/(2.0*reach)
+ var bend=sqrt(maxf(0.0,UPPER_ARM*UPPER_ARM-along*along))
+ var side=Vector2(-axis.y,axis.x)
+ if side.y<0:side=-side
+ var elbow=shoulder+axis*along+side*bend
+ var arm_axis=(hand-elbow).normalized()
+ var across=Vector2(-arm_axis.y,arm_axis.x)
+ return {"use_near":use_near,"shoulder":shoulder,"elbow":elbow,"hand":hand,"wrist":hand-arm_axis*2.0,"arm_axis":arm_axis,"contact":hand,"pan":target,"axis":arm_axis,"across":across,"thumb":hand+arm_axis*.55-across*.95,"motion":stroke(elapsed_seconds,false,remaining_seconds,strength),"grip_target":target,"grip_error":hand.distance_to(target)}
