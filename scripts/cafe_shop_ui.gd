@@ -478,6 +478,8 @@ func sync_action_details():
    if b.preview_reason!="":detail+=("\n" if detail!="" else "")+b.preview_reason
   elif b.mode in ["door","window"]:
    ui.context_label.text=b.mode.capitalize();price=ui.Money.amount(game.model.attachment_price(b.mode))+" coins"
+  elif b.mode=="move_wall":
+   ui.context_label.text="Moving wall · choose an edge";price="No charge";detail=b.preview_reason
   elif b.mode=="move_opening":
    var opening=ui._selected_opening()
    ui.context_label.text="Moving "+str(opening.get("kind","opening"))+" · choose a wall"

@@ -9,6 +9,7 @@ const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
 const OPENING_MODES=["door","window","move_opening","remove_opening","select_opening"]
 var opening_preview={}
 var opening_source_id=-1
+var wall_source_key=""
 var opening_hit_id=-1
 var _render_attachments:Array=[]
 var _render_preview_active=false
@@ -124,20 +125,21 @@ func sync():
 	if is_instance_valid(shell_option):shell_option.select((["original"]+Geometry.MATERIALS).find(str(game.model.shell_material)))
 	for key in tool_buttons:tool_buttons[key].button_pressed=key==mode
 
-func active()->bool:return game.editing and (game.catalog_category=="Build" or mode in ["select_opening","move_opening"]) and mode!="" and not game.save_recovery_blocked
+func active()->bool:return game.editing and (game.catalog_category=="Build" or mode in ["select_opening","move_opening","move_wall"]) and mode!="" and not game.save_recovery_blocked
 
 func choose(tool:String):
 	game._cancel_selection();mode=tool;preferred_axis="";_cache_key="";sync();refresh(game.get_viewport().get_mouse_position())
 
 func cancel():
+	if mode=="move_wall" and game.compact_ui!=null:game.compact_ui.clear_selection()
 	successful_key="";successful_point=Vector2(INF,INF)
-	mode="";floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};opening_source_id=-1;opening_hit_id=-1;_render_attachments=[];_render_preview_active=false;selected_key="";_pressed=false;_dragging=false;_cache_key="";sync()
+	mode="";wall_source_key="";floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};opening_source_id=-1;opening_hit_id=-1;_render_attachments=[];_render_preview_active=false;selected_key="";_pressed=false;_dragging=false;_cache_key="";sync()
 
 func on_focus_lost():
 	_pressed=false;_dragging=false;floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};_render_attachments=[];_render_preview_active=false;_cache_key=""
 
 func rotate():
-	if not active() or mode not in ["half","full"]:return
+	if not active() or mode not in ["half","full","move_wall"]:return
 	preferred_axis="z" if (preferred_axis if preferred_axis!="" else str(preview.get("axis","x")))=="x" else "x"
 	_cache_key="";refresh(pointer)
 
@@ -166,6 +168,8 @@ func refresh(screen:Vector2):
 	if not active() or not _available(screen):preview_valid=false;preview_reason="";preview={};floor_preview={};floor_quote={};preview_shell={};opening_preview={};_render_attachments=[];_render_preview_active=false;_cache_key="";return
 	if mode=="floor":
 		_refresh_floor(screen);return
+	if mode=="move_wall":
+		_refresh_moving_wall(screen);return
 	floor_preview={};floor_quote={}
 	if mode in OPENING_MODES:
 		_refresh_opening(screen)
@@ -221,7 +225,7 @@ func render_shell_host(key:String)->Dictionary:
 func render_shell_corner_height(key:String)->float:
 	var host=game.model.get_wall_host(key+"#0")
 	if active() and preview_valid and not preview_shell.is_empty() and selected_key==key+"#0":host=preview_shell
-	return float(Geometry.HEIGHT_PIXELS[host.height])
+	return 0.0 if host.is_empty() else float(Geometry.HEIGHT_PIXELS[host.height])
 
 func draw_shell_selection(view):
 	if not game.editing:return
@@ -273,6 +277,7 @@ func handle_unhandled_input(event:InputEvent)->bool:
 	return false
 
 func _commit():
+	if mode=="move_wall":_commit_moving_wall();return
 	if mode=="floor":_commit_floor();return
 	if mode in OPENING_MODES:_commit_opening();return
 	var ok=false
@@ -412,3 +417,36 @@ func draw_floor_preview(artist):
 	var color=FLOOR_COLORS[maxi(0,FLOOR_STYLES.find(floor_material))];color.a=.78 if preview_valid else .30
 	artist.poly(corners,color)
 	for i in range(4):artist.line(corners[i],corners[(i+1)%4],"527c58" if preview_valid else "b67561",2.0)
+
+func begin_wall_move(key:String):
+	if not game.editing or game.save_recovery_blocked:return
+	var source=game.model.get_editable_wall(key)
+	if source.is_empty():return
+	game._cancel_selection();wall_source_key=key;mode="move_wall"
+	preferred_axis=str(source.axis);_cache_key=""
+	if key.begins_with("shell:"):game.compact_ui.selected_shell=key
+	else:game.compact_ui.selected_wall=key
+	sync();refresh(game.get_viewport().get_mouse_position());game.compact_ui.sync()
+
+func _refresh_moving_wall(screen:Vector2):
+	preview_shell={};replacing=false;replacement_quote={};floor_preview={};preview_warning=""
+	var source=game.model.get_editable_wall(wall_source_key)
+	if source.is_empty():preview={};preview_valid=false;preview_reason="This wall is no longer available";return
+	preview=Geometry.nearest_edge(_world(screen),preferred_axis)
+	preview.height=source.height;preview.material=source.material;preview["id"]=int(source.id)
+	selected_key=Geometry.key_of(preview)
+	preview_valid=game.model.can_move_wall(wall_source_key,str(preview.axis),int(preview.x),int(preview.z),actor_positions())
+	preview_reason="Move wall here · no charge · R turns" if preview_valid else str(game.model.last_error)
+	game.tool_text.text=preview_reason
+
+func _commit_moving_wall():
+	if not active():return
+	if not preview_valid or preview.is_empty():return
+	var source=game.model.get_editable_wall(wall_source_key)
+	if source.is_empty():return
+	if str(source.axis)==str(preview.axis) and int(source.x)==int(preview.x) and int(source.z)==int(preview.z):return
+	var target_key=Geometry.key_of(preview)
+	if not game.model.move_wall(wall_source_key,str(preview.axis),int(preview.x),int(preview.z),actor_positions()):
+		preview_valid=false;preview_reason=str(game.model.last_error);return
+	cancel();game.compact_ui.selected_shell="";game.compact_ui.selected_wall=target_key
+	_changed();game.compact_ui.sync()

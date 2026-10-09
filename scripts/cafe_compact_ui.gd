@@ -329,13 +329,16 @@ func _sync_update_badges():
 func clear_selection():
  selected_wall="";selected_shell=""
  if is_instance_valid(context):context.hide()
+func _selected_wall_key()->String:return selected_shell if selected_shell!="" else selected_wall
+func _selected_editable_wall()->Dictionary:
+ return game.model.get_editable_wall(_selected_wall_key()) if game.model.has_method("get_editable_wall") else game.model.get_wall(selected_wall)
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
 func sync():
  if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
- var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=game.model.get_wall(selected_wall)
+ var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=_selected_editable_wall()
  var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode=="floor"
  var selected=not item.is_empty() or not opening.is_empty() or not wall.is_empty() or selected_shell!="" or placing or edge or flooring
  context.visible=game.editing and (selected or game.catalog_category=="Build")
@@ -345,19 +348,21 @@ func sync():
  elif not wall.is_empty() or selected_shell!="":context_label.text="Wall"
  elif edge:context_label.text="Half wall" if b.mode=="half" else "Full wall"
  elif flooring:context_label.text=b.floor_name()
- rotate_button.visible=(not item.is_empty() or placing or edge or not wall.is_empty()) and opening.is_empty() and selected_shell==""
- move_button.visible=not opening.is_empty() and b.mode!="move_opening"
+ rotate_button.visible=(not item.is_empty() or placing or edge or not wall.is_empty()) and opening.is_empty()
+ move_button.visible=(not opening.is_empty() or not wall.is_empty()) and b.mode not in ["move_opening","move_wall"]
+ move_button.disabled=game.save_recovery_blocked
  finish_button.visible=not wall.is_empty() or selected_shell!="" or edge
  finish_button.text="Style" if edge else "Replace"
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
- remove_button.disabled=false
+ remove_button.disabled=false;remove_button.tooltip_text=""
  var refund=0
  if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
  elif not wall.is_empty():
-  refund=game.model.wall_refund(selected_wall)
-  remove_button.disabled=not game.model.can_remove_wall(selected_wall)
-  if remove_button.disabled:context_label.text="Move opening first"
+  refund=game.model.wall_refund(_selected_wall_key())
+  remove_button.disabled=not game.model.can_remove_wall(_selected_wall_key())
+  remove_button.tooltip_text=game.model.last_error if remove_button.disabled else "Sell wall for "+Money.amount(refund)+" coins"
  elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
+ remove_button.disabled=remove_button.disabled or game.save_recovery_blocked
  remove_button.text="Sell +"+Money.amount(refund)
  for kind in game.catalog_prices:game.catalog_prices[kind].text=Money.amount(game.model.price_of(kind))
  build_scroll.visible=game.editing and game.catalog_category=="Build"
@@ -644,11 +649,13 @@ func _confirm_wall_replacement():
  selected_wall=chosen.key if selected_shell=="" else ""
  game.build_tools._changed();sync()
 func _rotate_selected():
- var wall=game.model.get_wall(selected_wall)
+ if not game.editing or game.save_recovery_blocked:return
+ if game.build_tools.mode=="move_wall":game.build_tools.rotate();sync();return
+ var wall=_selected_editable_wall()
  if wall.is_empty():game._rotate();return
- var key=selected_wall;var axis="z" if wall.axis=="x" else "x"
+ var key=_selected_wall_key();var axis="z" if wall.axis=="x" else "x"
  if game.model.move_wall(key,axis,int(wall.x),int(wall.z),game.build_tools.actor_positions()):
-  selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed()
+  selected_shell="";selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed()
  sync()
 func show_management():
  game.settings.hide();sync();_popup_at(management)
@@ -681,12 +688,16 @@ func _close_help():
  if help_returns_to_settings:game.settings.show();_fit_themed_popups()
  sync()
 func _move_opening():
- if _selected_opening().is_empty():return
+ if not game.editing or game.save_recovery_blocked:return
+ if _selected_opening().is_empty():
+  if not _selected_editable_wall().is_empty():game.build_tools.begin_wall_move(_selected_wall_key())
+  return
  game.build_tools.mode="move_opening";game.build_tools._cache_key="";game.build_tools.refresh(game.get_viewport().get_mouse_position());sync()
 func _remove_selected():
+ if not game.editing or game.save_recovery_blocked:return
  var opening=_selected_opening();var ok=false
  if not opening.is_empty():ok=game.model.remove_wall_attachment(int(opening.id),game.build_tools.actor_positions())
- elif selected_wall!="":ok=game.model.remove_wall(selected_wall)
+ elif _selected_wall_key()!="":ok=game.model.remove_wall(_selected_wall_key())
  else:game._sell();sync();return
  if ok:game._cancel_selection();game._save();game._update_ui();game.illustration.queue_redraw()
  sync()
