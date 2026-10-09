@@ -17,7 +17,7 @@ function harness(){
     // Models server commit followed by a lost/delayed response to this browser.
     if(mode==='after')await new Promise(r=>requests.push(r));
   }};
-  const make=()=>{const states=[],c=root.LittleLeafFirebase.createClient({uid,currentUid:()=>uid,codec:root.LittleLeafAuthorityCodec,journal,remote,now:()=>time,status:s=>states.push(s)});c.states=states;return c;};
+  const make=(deviceLabel='Unknown device')=>{const states=[],c=root.LittleLeafFirebase.createClient({deviceLabel,uid,currentUid:()=>uid,codec:root.LittleLeafAuthorityCodec,journal,remote,now:()=>time,status:s=>states.push(s)});c.states=states;return c;};
   return {make,local,cloud,requests,setMode:x=>mode=x,setUid:x=>uid=x,tick:()=>time+=30001,calls:()=>calls};
 }
 async function waiting(h){for(let i=0;i<100&&!h.requests.length;i++)await tick();assert(h.requests.length,'network request started');}
@@ -41,5 +41,9 @@ async function waiting(h){for(let i=0;i<100&&!h.requests.length;i++)await tick()
   h.setUid('alice');h.setMode('');assert.equal((await h.make().boot()).payload,changed);
   // A genuinely different remote revision must still block old pending edits.
   h=harness();c=h.make();b=await c.boot();await c.commit(payload,0,b.profileId);h.setMode('after');sync=c.sync();await waiting(h);await c.commit(changed,1,b.profileId);const savedLocal=clone(h.local.get('alice'));const server=clone(h.cloud.get('alice')),serverRecord=JSON.parse(server.record);serverRecord.revision=3;serverRecord.payload=JSON.stringify({...JSON.parse(payload),coins:999});serverRecord.digest=await root.LittleLeafAuthorityCodec.hash(root.LittleLeafAuthorityCodec.fingerprint(serverRecord));h.cloud.set('alice',{...server,revision:3,digest:serverRecord.digest,record:JSON.stringify(serverRecord)});c.close();h.requests.shift()();await sync;h.setMode('');assert.equal((await h.make().boot()).code,'REVISION_CONFLICT');assert.deepEqual(h.local.get('alice'),savedLocal);
+  // Replaying another device's durable snapshot does not relabel its origin.
+  h=harness();c=h.make('iPhone');b=await c.boot();await c.commit(payload,0,b.profileId);h.setMode('after');sync=c.sync();await waiting(h);
+  assert.equal(h.cloud.get('alice').device,'iPhone');await c.commit(changed,1,b.profileId);c.close();h.requests.shift()();await sync;h.setMode('');reopened=h.make('Mac');loaded=await reopened.boot();assert(loaded.ok);assert.equal(h.cloud.get('alice').device,'iPhone','replay retains the original device label');assert(!Object.hasOwn(JSON.parse(h.cloud.get('alice').record),'saveDevice'),'legacy record fingerprint is untouched');
+  await reopened.commit(payload,loaded.revision,loaded.profileId);h.tick();await reopened.sync();assert.equal(h.cloud.get('alice').device,'Mac','new commit uses current actual generic platform');
   console.log('Delayed upload/hide-save, lost acknowledgment reload, slow boot, account switch and foreign-cloud conflict regressions passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

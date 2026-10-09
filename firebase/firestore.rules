@@ -1,20 +1,75 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function owner(uid) { return request.auth != null && request.auth.uid == uid && request.auth.token.firebase.sign_in_provider == 'google.com'; }
+    function device(value) { return value in ['Unknown device','iPhone','iPad','Android device','Mac','Windows PC','ChromeOS device','Linux device']; }
+    function identifier(value) { return value is string && value.size() == 36; }
+    function digest(value) { return value is string && value.matches('^[a-f0-9]{64}$'); }
+    function validRequest(value) {
+      return value == null || value is map && value.keys().hasAll(['id','requester','device','at'])
+        && value.keys().hasOnly(['id','requester','device','at']) && identifier(value.id)
+        && identifier(value.requester) && device(value.device) && value.at is timestamp;
+    }
+    function validAck(value) {
+      return value == null || value is map && value.keys().hasAll(['requestId','digest','revision'])
+        && value.keys().hasOnly(['requestId','digest','revision']) && identifier(value.requestId)
+        && digest(value.digest) && value.revision is int && value.revision > 0;
+    }
+    function validSession(d) {
+      return d.keys().hasAll(['schema','owner','epoch','device','updatedAt','request','ack'])
+        && d.keys().hasOnly(['schema','owner','epoch','device','updatedAt','request','ack'])
+        && d.schema == 1 && identifier(d.owner) && d.epoch is int && d.epoch > 0 && d.epoch <= 9007199254740991
+        && device(d.device) && d.updatedAt is timestamp && validRequest(d.request) && validAck(d.ack)
+        && (d.request == null || d.request.requester != d.owner)
+        && (d.ack == null || d.request != null && d.ack.requestId == d.request.id);
+    }
+    match /players/{uid}/session/owner {
+      function sameOwner(a,b) { return a.owner == b.owner && a.epoch == b.epoch && a.device == b.device; }
+      function renew(a,b) { return sameOwner(a,b) && b.updatedAt == request.time && b.request == a.request && b.ack == a.ack; }
+      function cancelRequest(a,b) { return sameOwner(a,b) && a.request != null && b.request == null && b.ack == null && b.updatedAt == request.time; }
+      function ask(a,b) {
+        return sameOwner(a,b) && b.updatedAt == a.updatedAt && a.request == null && b.request != null
+          && b.request.at == request.time && b.ack == null;
+      }
+      function acknowledge(a,b) {
+        let saved = get(/databases/$(database)/documents/players/$(uid)/saves/cafe).data;
+        return sameOwner(a,b) && b.updatedAt == a.updatedAt && a.request != null && b.request == a.request
+          && b.ack != null && b.ack.requestId == a.request.id
+          && b.ack.digest == saved.digest && b.ack.revision == saved.revision
+          && saved.writerId == a.owner && saved.writerEpoch == a.epoch;
+      }
+      function takeOver(a,b) {
+        return b.epoch == a.epoch + 1 && b.updatedAt == request.time && b.request == null && b.ack == null
+          && ((a.request != null && b.owner == a.request.requester && b.device == a.request.device
+               && (a.ack != null || request.time >= a.request.at + duration.value(10,'s')))
+              || request.time >= a.updatedAt + duration.value(60,'s'));
+      }
+      allow get: if owner(uid);
+      allow create: if owner(uid) && validSession(request.resource.data) && request.resource.data.epoch == 1
+        && request.resource.data.updatedAt == request.time && request.resource.data.request == null && request.resource.data.ack == null;
+      allow update: if owner(uid) && validSession(request.resource.data)
+        && (renew(resource.data,request.resource.data) || cancelRequest(resource.data,request.resource.data) || ask(resource.data,request.resource.data)
+          || acknowledge(resource.data,request.resource.data) || takeOver(resource.data,request.resource.data));
+      allow list, delete: if false;
+    }
     match /players/{uid}/saves/cafe {
-      function owner() { return request.auth != null && request.auth.uid == uid && request.auth.token.firebase.sign_in_provider == 'google.com'; }
       function valid() {
         let d = request.resource.data;
-        return d.keys().hasAll(['schema','profileId','revision','digest','record'])
-          && d.keys().hasOnly(['schema','profileId','revision','digest','record'])
+        return d.keys().hasAll(['schema','profileId','revision','digest','record','writerId','writerEpoch'])
+          && d.keys().hasOnly(['schema','profileId','revision','digest','record','writerId','writerEpoch','device'])
           && d.schema == 1 && d.profileId is string && d.profileId.size() == 36
           && d.revision is int && d.revision > 0 && d.revision <= 9007199254740991
-          && d.digest is string && d.digest.matches('^[a-f0-9]{64}$')
-          && d.record is string && d.record.size() <= 900000;
+          && digest(d.digest) && d.record is string && d.record.size() <= 900000
+          && identifier(d.writerId) && d.writerEpoch is int && (!('device' in d) || device(d.device));
       }
-      allow get: if owner();
-      allow create: if owner() && valid();
-      allow update: if owner() && valid() && request.resource.data.profileId == resource.data.profileId
+      function currentWriter() {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        return request.resource.data.writerId == session.owner && request.resource.data.writerEpoch == session.epoch
+          && session.ack == null && request.time < session.updatedAt + duration.value(60,'s');
+      }
+      allow get: if owner(uid);
+      allow create: if owner(uid) && valid() && currentWriter();
+      allow update: if owner(uid) && valid() && currentWriter() && request.resource.data.profileId == resource.data.profileId
         && request.resource.data.revision > resource.data.revision;
       allow list, delete: if false;
     }

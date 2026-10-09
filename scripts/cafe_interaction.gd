@@ -159,6 +159,7 @@ func on_focus_lost():
 	drag_valid = false
 
 func rotate_selection():
+	if game.save_recovery_blocked:return
 	if not game.editing: return
 	var next = posmod(int(game.rotation_step) + 1, 4)
 	if drag_active or str(game.selected_kind) != "":
@@ -311,6 +312,7 @@ func _update_validity(screen: Vector2):
 	_last_valid_cell = drag_cell
 
 func _commit_preview():
+	if game.save_recovery_blocked:return
 	# Repeat the same validation at commit time. Previewing never purchases,
 	# moves, increments revision, rebuilds service routes, or saves.
 	_update_validity(last_pointer)

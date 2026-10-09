@@ -21,6 +21,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_cloud_recovery_ui", "CLOUD_RECOVERY_UI_RESULT"),
+    ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),

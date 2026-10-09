@@ -91,6 +91,21 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Verify cloud recovery in real IndexedDB before merge
+        timeout-minutes: 4
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate adapter.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate delayed-network.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate recovery.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate choice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate session.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate update-notice.log --output "$RUNNER_TEMP/firebase-focused"
+          python3 ci/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 ci/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
       - name: Verify compensation history in sandboxed Chromium
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -139,11 +154,12 @@ jobs:
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Check Firebase adapter and fresh staging contracts
         if: inputs.firebase_preview
+        timeout-minutes: 4
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/firebase-focused"
-          python3 ci/run_firebase_focused.py --gate adapter.log --output "$RUNNER_TEMP/firebase-focused"
-          python3 ci/run_firebase_focused.py --gate delayed-network.log --output "$RUNNER_TEMP/firebase-focused"
           python3 ci/run_firebase_focused.py --gate staging-tests.log --output "$RUNNER_TEMP/firebase-focused"
           node --check web/little_leaf_firebase_boot.mjs
       - name: Verify Firebase rules and SDK CAS in a disposable local emulator

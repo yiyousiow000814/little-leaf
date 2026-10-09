@@ -41,13 +41,13 @@ def stage(build, output, config):
     (public/'hosting-release.json').write_text(json.dumps(marker,indent=2)+'\n')
     for name in ['firebase.json','firestore.rules','firestore.indexes.json']:
         shutil.copy2(ROOT/'firebase'/name,output/name)
-    for name in ['little_leaf_firebase.js','little_leaf_firebase_boot.mjs']:
+    for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'web'/name,public/name)
     html=(public/'index.html').read_text()
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
-    injection='<script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
+    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     (public/'index.html').write_text(html)
@@ -63,7 +63,7 @@ BROWSER_GATES = {
     'save-log': ('save-log-browser/save-log-browser.json', 'passed', True),
     'webkit-recovery': ('connection-recovery-browser/connection-recovery-browser.json', 'passed', True),
 }
-FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'staging-tests.log', 'rules.log']
+FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'recovery.log', 'choice.log', 'session.log', 'update-notice.log', 'recovery-presentation.log', 'recovery-browser.log', 'staging-tests.log', 'rules.log']
 
 def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt):
     if not re.fullmatch(r'[1-9][0-9]*', str(run_id)) or not re.fullmatch(r'[1-9][0-9]*', str(attempt)):
