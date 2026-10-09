@@ -13,7 +13,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "f2456e6eccccf7b1c615505e1d21a8fbc80e367e"
+BASE = "b7394d43a0eb294f9ed55628648ec723e431a6dc"
 FIXTURE = "tests/capture_manual_cleanup.gd"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 

@@ -11,6 +11,11 @@ on:
       - 'scripts/cafe_interaction.gd'
       - 'scripts/illustrated_cafe.gd'
   workflow_dispatch:
+    inputs:
+      run_natural_observation:
+        description: Run the bounded real-time no-click observation
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -47,7 +52,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   natural-cleanup:
-    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/manual-ground-cleanup-011'
+    # Long observation is opt-in after its source-bound acceptance run.
+    if: github.event_name == 'workflow_dispatch' && inputs.run_natural_observation
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
