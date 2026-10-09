@@ -438,11 +438,7 @@ func _commit_floor():
 func draw_floor_preview(artist):
 	if paint_stroke.active:paint_stroke.draw_floor(artist);return
 	if not active() or mode!="floor" or floor_preview.is_empty():return
-	var x=float(floor_preview.x);var z=float(floor_preview.z)
-	var corners=[artist.iso(x+.04,z+.04),artist.iso(x+.96,z+.04),artist.iso(x+.96,z+.96),artist.iso(x+.04,z+.96)]
-	var color=FLOOR_COLORS[maxi(0,FLOOR_STYLES.find(floor_material))];color.a=.78 if preview_valid else .30
-	artist.poly(corners,color)
-	for i in range(4):artist.line(corners[i],corners[(i+1)%4],"527c58" if preview_valid else "b67561",2.0)
+	preload("res://scripts/cafe_tile_paint_preview.gd").draw(artist,[Vector2i(floor_preview.x,floor_preview.z)],floor_material,preview_valid)
 
 func begin_wall_move(key:String):
 	if not game.editing or game.save_recovery_blocked:return

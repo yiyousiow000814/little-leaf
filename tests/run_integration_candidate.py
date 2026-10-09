@@ -21,6 +21,10 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_selected_tile_resize", "SELECTED_TILE_RESIZE_RESULT"),
+    ("test_tile_paint_perimeter", "TILE_PAINT_PERIMETER_RESULT"),
+    ("test_stroke_price_layout", "STROKE_PRICE_LAYOUT_RESULT"),
+    ("test_placement_feedback_colors", "PLACEMENT_FEEDBACK_COLORS_RESULT"),
     ("capture_editor_acceptance", "EDITOR_CAPTURE_FIXTURE_RESULT"),
     ("capture_modular_cabinets", "CABINET_CAPTURE_FIXTURE_RESULT"),
     ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),

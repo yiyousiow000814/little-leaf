@@ -57,7 +57,7 @@ func _sample(point:Vector2):
  keys[key]=true;targets.append(target)
 func message()->String:
  if receipt.is_empty():return "Drag to preview a row"
- var text="%d %s · pay %s"%[int(receipt.count),"tiles" if mode=="floor" else "walls",Money.amount(int(receipt.net))]
+ var text="%d %s · %s coins"%[int(receipt.count),"tiles" if mode=="floor" else "walls",Money.amount(int(receipt.net))]
  return text+" · release to apply" if receipt.ok else text+" · "+str(receipt.error)
 func finish(point:Vector2)->bool:
  if not active:return false
@@ -72,13 +72,10 @@ func finish(point:Vector2)->bool:
  return changed
 func draw_floor(view):
  if not active or mode!="floor":return
+ var visible=[]
  for target in receipt.get("targets",[]):
-  var x=float(target.x);var z=float(target.z)
-  if x<0 or z<0 or x>=owner.game.model.MAX_WIDTH or z>=owner.game.model.MAX_DEPTH:continue
-  var points=[view.iso(x+.04,z+.04),view.iso(x+.96,z+.04),view.iso(x+.96,z+.96),view.iso(x+.04,z+.96)]
-  var color=owner.FLOOR_COLORS[maxi(0,owner.FLOOR_STYLES.find(material))];color.a=.78 if receipt.ok else .30
-  view.poly(points,color)
-  for index in 4:view.line(points[index],points[(index+1)%4],"527c58" if receipt.ok else "b67561",2.0)
+  if int(target.x)>=0 and int(target.z)>=0 and int(target.x)<owner.game.model.MAX_WIDTH and int(target.z)<owner.game.model.MAX_DEPTH:visible.append(target)
+ preload("res://scripts/cafe_tile_paint_preview.gd").draw(view,visible,material,bool(receipt.ok))
 func draw_walls(view):
  if not active or mode=="floor":return
  for target in receipt.get("targets",[]):

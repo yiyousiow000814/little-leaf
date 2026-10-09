@@ -44,6 +44,7 @@ var hide_objects=false
 var hide_objects_button:Button
 var action_copy:HBoxContainer
 var price_label:Label
+var action_coin:TextureRect
 var action_layout_key:Array=[]
 
 var parking_card:Button
@@ -217,6 +218,7 @@ func setup():
  _setup_parking()
  action_copy=HBoxContainer.new();action_copy.mouse_filter=Control.MOUSE_FILTER_IGNORE;action_copy.add_theme_constant_override("separation",8);ui.context.add_child(action_copy)
  ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ action_coin=ui.hud._picture(action_copy,ui.hud._texture("coin"));action_coin.custom_minimum_size=Vector2(21,21);action_coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;action_coin.hide()
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
  ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
 
@@ -487,6 +489,7 @@ func sync_action_details():
  if ui==null or not is_instance_valid(price_label):return
  ui.context.visible=game.editing and ui.hud.has_edit_action();ui.cancel_button.visible=ui.context.visible
  var b=game.build_tools;var price="";var detail=""
+ action_coin.hide()
  # Both periodic UI sync and pointer refresh consume this same presentation.
  # Price never replaces the product title, and label visibility is not state.
  if b.active():
@@ -512,9 +515,12 @@ func sync_action_details():
  if b.paint_stroke!=null and b.paint_stroke.active and not b.paint_stroke.receipt.is_empty():
   var stroke=b.paint_stroke.receipt
   ui.context_label.text="%d %s"%[int(stroke.count),"tiles" if b.mode=="floor" else "walls"]
-  price="Pay "+ui.Money.amount(int(stroke.net)) if stroke.ok else "Cannot apply"
+  price=ui.Money.amount(int(stroke.net)) if stroke.ok else "Cannot apply"
+  action_coin.visible=bool(stroke.ok)
   detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
   if not stroke.ok:detail+=" · "+str(stroke.error)
+ price_label.add_theme_font_size_override("font_size",18 if action_coin.visible else 12)
+ price_label.accessibility_name=price+(" coins" if action_coin.visible else "")
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
  action_background.tooltip_text=ui.context_label.tooltip_text
@@ -526,7 +532,7 @@ func _layout_action_board(width:float):
  var actions=[];var used=0.0;var gap=6.0
  # Keep the per-pointer guard typed: stringifying nested button state did
  # allocations and numeric formatting on every unchanged decorating frame.
- var signature=[width,ui.context_label.text,price_label.text,ui.context_label.get_theme_font_size("font_size"),price_label.get_theme_font_size("font_size")]
+ var signature=[width,ui.context_label.text,price_label.text,action_coin.visible,ui.context_label.get_theme_font_size("font_size"),price_label.get_theme_font_size("font_size")]
  for child in ui.context.get_children():
   if child==action_copy or not child.visible:continue
   if child.custom_minimum_size!=Vector2(44,44):child.custom_minimum_size=Vector2(44,44)
@@ -545,14 +551,15 @@ func _layout_action_board(width:float):
  action_layout_key=signature
  var font=ui.hud.font_bold;var title_width=ceilf(font.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x)
  var cost_width=ceilf(font.get_string_size(price_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,price_label.get_theme_font_size("font_size")).x) if price_label.visible else 0.0
- var text_width=title_width+(cost_width+8 if price_label.visible else 0)+2
+ var coin_width=29.0 if action_coin.visible else 0.0
+ var text_width=title_width+(cost_width+8 if price_label.visible else 0)+coin_width+2
  var pad=36.0;var text_gap=12.0;var row_width=used+maxi(0,actions.size()-1)*gap
  var inner_limit=maxf(44,width-pad*2);var stacked=text_width+text_gap+row_width>inner_limit
  var board_width=minf(width,maxf(180,(maxf(text_width,row_width) if stacked else text_width+text_gap+row_width)+pad*2))
  var inner_width=board_width-pad*2
  var copy_width=inner_width if stacked else text_width
  # Exact glyph measurements happen before placing children. No stale-price budget.
- ui.context_label.custom_minimum_size=Vector2(minf(title_width,maxf(0,copy_width-(cost_width+8 if price_label.visible else 0))),0);price_label.custom_minimum_size=Vector2(cost_width,0)
+ ui.context_label.custom_minimum_size=Vector2(minf(title_width,maxf(0,copy_width-coin_width-(cost_width+8 if price_label.visible else 0))),0);price_label.custom_minimum_size=Vector2(cost_width,0)
  action_copy.custom_minimum_size=Vector2.ZERO
  var copy_height=maxf(22,maxf(ui.context_label.get_theme_font("font").get_height(ui.context_label.get_theme_font_size("font_size")),price_label.get_theme_font("font").get_height(price_label.get_theme_font_size("font_size")) if price_label.visible else 0))
  var x=0.0 if stacked else copy_width+text_gap
@@ -568,7 +575,11 @@ func _layout_action_board(width:float):
  var board_height=content_height+vertical_pad*2
  var board=Rect2((width-board_width)*.5,-board_height-8,board_width,board_height)
  action_background.position=board.position;action_background.size=board.size
- _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad),Vector2(inner_width,content_height)))
+ # The stroke row uses Nunito14/18 and painted coin/button assets. Their visible
+ # ink centers 3px above the inset center despite centered Control rectangles.
+ # Calibrated from native1x pixels; shift this action row only, not HUD labels.
+ var ink_center_shift=3.0 if game.build_tools.paint_stroke.active else 0.0
+ _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad+ink_center_shift),Vector2(inner_width,content_height)))
  ui.context.set_meta("available_width",inner_width)
 
 func _product_scroll_finished(scroll:ScrollContainer):
@@ -794,6 +805,7 @@ func sync(width:float):
  var next_key=str([game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:
   var index=roundi(_active_products().scroll_horizontal/product_stride) if product_stride>0 and last_product_category==game.catalog_category else 0
+  if game.catalog_category=="Build" and build_page=="tiles" and game.build_tools.mode=="floor":index=maxi(0,_visible_build_keys().find(game.build_tools.floor_material))
   for scroll in [game.catalog_scroll,ui.build_scroll]:_stop_product_scroll(scroll);product_contacts.erase(scroll.get_instance_id())
   product_restore_index=index;product_layout_key=next_key;last_product_category=game.catalog_category
  product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=(narrow or short_landscape) and arrows
