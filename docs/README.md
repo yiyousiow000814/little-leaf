@@ -22,6 +22,8 @@ The runner uses a disposable project and generated saves. It checks engine behav
 
 For automated builds and publishing, see [GitHub Web builds and releases](github-release.md).
 
+For the unpublished shell-only account entry candidate, see [itch Google entry](itch-google-entry-010a.md).
+
 Use the **Web** export preset with Godot 4.6.3 and its matching non-threaded release template at `export_templates/web_nothreads_release.zip`.
 
 ```sh
