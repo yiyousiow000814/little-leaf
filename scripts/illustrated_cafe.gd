@@ -150,6 +150,8 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:
+		if game.interaction.manual_cleanup.tick(delta):queue_redraw()
 	_update_street_pedestrians(delta)
 	var motion_delta=delta
 	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
@@ -664,6 +666,7 @@ func _draw():
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
 		if not show_service:break
 		_draw_floor_mess(record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
 	var interaction=game.interaction if "interaction" in game else null
 	var preview=interaction!=null and interaction.preview_active
