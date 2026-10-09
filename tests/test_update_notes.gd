@@ -98,6 +98,27 @@ func run():
  check(preferences.last_seen_update_version=="8.0.0","review session never persists seen release")
  notes._back_to_help();await settle();ui.help_notes.pressed.emit();await settle()
  check(not notes.has_unread(),"reopening released notes does not restore unread badge")
+ var historical=released.duplicate(true)
+ historical.version="9.8.6";historical.new=["Historical major feature"]
+ var hotfix=released.duplicate(true)
+ hotfix.new=[];hotfix.fixed=["Synthetic small fix"];hotfix.history=[historical]
+ var unchanged=hotfix.duplicate(true)
+ check(Notes.validate_document(hotfix).valid,"hotfix supports complete prior release notes")
+ check(hotfix==unchanged,"history validation never mutates input")
+ for bad_history in ["bad",[null],[fixture("draft")],[released],[historical,historical]]:
+  var bad=hotfix.duplicate(true);bad.history=bad_history
+  check(not Notes.validate_document(bad).valid,"invalid or duplicate history rejected")
+ var nested=historical.duplicate(true);nested.history=[]
+ var bad_nested=hotfix.duplicate(true);bad_nested.history=[nested]
+ check(not Notes.validate_document(bad_nested).valid,"nested histories rejected")
+ await load_fixture(hotfix)
+ var history_words=words(notes.body)
+ check("Version 9.8.7 · 2026-01-01" in history_words and "Version 9.8.6 · 2026-01-01" in history_words,"both release headings render")
+ check(history_words.find("Synthetic small fix")<history_words.find("Historical major feature"),"new hotfix precedes preserved major notes")
+ check(notes.current_version()=="9.8.7","unread version remains latest hotfix")
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show();await settle()
+  check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),"history panel fits "+str(view))
  await load_fixture({"schema_version":1,"status":"broken"})
  check(notes.data_error!="" and notes.current_version()=="" and not notes.has_unread(),"malformed notes remain unavailable without badge")
  check("Update notes are unavailable in this build." in words(notes.body),"malformed notes retain unavailable copy")
