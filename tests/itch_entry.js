@@ -9,7 +9,7 @@ const startup = scripts.find(x => x.includes('const GODOT_CONFIG = $GODOT_CONFIG
   .replace('$GODOT_CONFIG', '{}').replace('$GODOT_THREADS_ENABLED', 'false');
 const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 function fixture(hostname) {
-  const nodes = Object.fromEntries(['itch-entry','itch-local','canvas','status'].map(id => [id, {
+  const nodes = Object.fromEntries(['itch-entry','itch-local','itch-copy','itch-copy-status','itch-account-address','canvas','status'].map(id => [id, {
     hidden: true, listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; }, focus() { this.focused = true; }
   }]));
   const calls = [];
@@ -35,7 +35,7 @@ function fixture(hostname) {
   assert.match(html, /Account progress is separate: your existing itch progress does not transfer automatically/);
   assert.match(html, /Continue local play on itch/);
   assert(!html.includes('little_leaf_firebase_boot.mjs'), 'ordinary shell must not initialize Firebase');
-  assert(!entry.includes('itch-account'), 'account link uses native user navigation without a script handler');
+  assert(!/getElementById\(['"]itch-account['"]\)/.test(entry), 'account link uses native user navigation without a script handler');
   assert.equal((html.match(/window\.__littleLeafVault\.boot\(\)/g) || []).length, 1, 'Firebase staging marker retained');
   for (const host of ['html-classic.itch.zone', 'itch.io', 'little-leaf.itch.io', 'itch.zone']) {
     const f = fixture(host); await flush();

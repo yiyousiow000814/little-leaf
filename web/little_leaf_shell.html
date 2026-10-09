@@ -68,7 +68,21 @@ body {
 }
 #itch-account { background: #708749; color: white; text-decoration: none; }
 #itch-local { background: #fff9e9; color: #56442f; }
-#itch-entry-card a:focus-visible, #itch-entry-card button:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+#itch-copy { background: #fff9e9; color: #56442f; }
+#itch-account-address {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px;
+	border: 1px solid #907853;
+	border-radius: 8px;
+	background: white;
+	color: #56442f;
+	font: inherit;
+}
+#itch-copy:disabled { cursor: wait; opacity: .7; }
+#itch-copy-status { min-height: 1.5em; font-size: 14px; }
+#itch-entry-card a:focus-visible, #itch-entry-card button:focus-visible, #itch-account-address:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
 
 /* This is visible before any engine, SDK or storage work can begin. */
 #status {
@@ -245,6 +259,10 @@ body {
 				<p>Choose where to open your caf&eacute;.</p>
 				<a id="itch-account" href="https://little-leaf-41e5d.firebaseapp.com/" target="_blank" rel="noopener noreferrer">Play with Google &mdash; opens a new tab</a>
 				<p id="itch-progress-note">Sign in on the official account game for cloud saves. Account progress is separate: your existing itch progress does not transfer automatically.</p>
+				<p id="itch-tab-help">If the account tab does not open, copy this address and open it in a new browser tab. Local play stays available below.</p>
+				<input id="itch-account-address" type="text" readonly value="https://little-leaf-41e5d.firebaseapp.com/" aria-label="Account game address" aria-describedby="itch-tab-help">
+				<button id="itch-copy" type="button">Copy account link</button>
+				<p id="itch-copy-status" role="status" aria-live="polite"></p>
 				<button id="itch-local" type="button">Continue local play on itch</button>
 				<p>Your itch caf&eacute; stays in this browser. You can return here to keep playing it.</p>
 			</div>
@@ -260,6 +278,26 @@ body {
 	root.LittleLeafItchEntryReady = onItch ? new Promise(resolve => {
 		const entry = document.getElementById('itch-entry');
 		const local = document.getElementById('itch-local');
+		const address = document.getElementById('itch-account-address');
+		const copy = document.getElementById('itch-copy');
+		const copyStatus = document.getElementById('itch-copy-status');
+		address.addEventListener('focus', () => address.select());
+		copy.addEventListener('click', async () => {
+			if (copy.disabled) return;
+			copy.disabled = true;
+			try {
+				await root.navigator.clipboard.writeText(address.value);
+				if (!entry.hidden) copyStatus.textContent = 'Link copied. Paste it into a new browser tab.';
+			} catch (_) {
+				if (!entry.hidden) {
+					copyStatus.textContent = 'Copy did not finish. The address is selected; copy it manually, then open it in a new browser tab.';
+					address.focus();
+					address.select();
+				}
+			} finally {
+				copy.disabled = false;
+			}
+		});
 		entry.hidden = false;
 		document.getElementById('canvas').hidden = true;
 		document.getElementById('status').hidden = true;
