@@ -43,5 +43,10 @@ func run():
 	for atlas in candidate:actual.append(digest(atlas))
 	for i in range(expected.size()):
 		if expected[i] != actual[i]:failures.append("Atlas %d differs" % i)
+		var output = OS.get_environment("OUTPUT")
+		if output != "" and failures.is_empty():
+			var filename = ["furniture", "moving", "heads"][i] + "-atlas.png"
+			if candidate[i].texture.get_image().save_png(output.path_join(filename)) != OK:
+				failures.append("Could not save " + filename)
 	print("ATLAS_RENDER_PARITY_RESULT ", JSON.stringify({"checks":3,"baseline_sha256":expected,"candidate_sha256":actual,"failures":failures}))
 	quit(0 if failures.is_empty() else 1)
