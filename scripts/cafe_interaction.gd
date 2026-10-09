@@ -415,8 +415,5 @@ func draw_floor_feedback(artist):
 	if "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.tiles_active():return
 	for cell in floor_availability.refresh(game.model,drag_item_id if preview_active and drag_active else -1):
 		var blocked=bool(floor_availability.cells[cell].blocked)
-		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
-		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
 		var corners=[artist.iso(cell.x+.04,cell.y+.04),artist.iso(cell.x+.96,cell.y+.04),artist.iso(cell.x+.96,cell.y+.96),artist.iso(cell.x+.04,cell.y+.96)]
-		artist.poly(corners,fill)
-		for edge in 4:artist.line(corners[edge],corners[(edge+1)%4],outline,.8)
+		preload("res://scripts/cafe_placement_feedback.gd").draw_cell(artist,corners,not blocked)
