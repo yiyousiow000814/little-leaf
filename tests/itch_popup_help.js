@@ -15,7 +15,8 @@ function fixture(html,clipboard){
   const entry=scripts.find(s=>s.includes('/* Little Leaf itch entry only.'));
   const startup=scripts.find(s=>s.includes('const GODOT_CONFIG = ')).replace('$GODOT_CONFIG','{}').replace('$GODOT_THREADS_ENABLED','false');
   const calls=[],nodes=Object.fromEntries(['itch-entry','itch-local','itch-copy','itch-copy-status','itch-account-address','canvas','status'].map(id=>[id,{
-    hidden:id==='itch-entry',disabled:false,textContent:'',value:id==='itch-account-address'?url:'',listeners:{},selected:0,focusCount:0,
+    hidden:id==='itch-entry',attrs:{},textContent:'',value:id==='itch-account-address'?url:'',listeners:{},selected:0,focusCount:0,
+    setAttribute(name,value){this.attrs[name]=value;},
     addEventListener(type,fn,opts){this.listeners[type]={fn,once:!!opts?.once};},
     dispatch(type){const h=this.listeners[type];if(h){if(h.once)delete this.listeners[type];return h.fn();}},
     focus(){this.focusCount++;this.dispatch('focus');},select(){this.selected++;}
@@ -40,11 +41,11 @@ function fixture(html,clipboard){
     {
       let writes=0,written;const pending=deferred(),f=fixture(html,{writeText(value){writes++;written=value;return pending.promise;}});await flush();
       f.nodes['itch-copy'].focus();const copying=f.nodes['itch-copy'].dispatch('click');f.nodes['itch-copy'].dispatch('click');
-      check(writes===1 && written===url && f.nodes['itch-copy'].disabled,'Repeated clicks coalesce while clipboard pending');
+      check(writes===1 && written===url && f.nodes['itch-copy'].attrs['aria-disabled']==='true','Repeated clicks coalesce while clipboard pending');
       check(f.calls.length===0 && !f.nodes['itch-entry'].hidden,'Copy cannot open account or local game');
       pending.resolve();await copying;await flush();
       check(f.nodes['itch-copy-status'].textContent==='Link copied. Paste it into a new browser tab.','Success describes copy only');
-      check(!f.nodes['itch-copy'].disabled && f.nodes['itch-copy'].focusCount===1 && f.nodes['itch-account-address'].focusCount===0,'Success restores control without stealing focus');
+      check(f.nodes['itch-copy'].attrs['aria-disabled']==='false' && f.nodes['itch-copy'].focusCount===1 && f.nodes['itch-account-address'].focusCount===0,'Success restores control without stealing focus');
       await f.nodes['itch-copy'].dispatch('click');check(writes===2,'A completed copy can be repeated');
       check(!/getElementById\(['"]itch-account['"]\)/.test(f.entry),'Account anchor remains native navigation');
       check(!f.entry.includes('permissions') && !f.entry.includes('execCommand'),'No permission request or legacy copy workaround');
@@ -52,7 +53,7 @@ function fixture(html,clipboard){
     for(const failure of ['unavailable','cancelled','rejected','throws']){
       const clipboard=failure==='unavailable'?undefined:{writeText(){if(failure==='throws')throw Error('Synthetic synchronous failure');return Promise.reject(Error(failure));}};
       const f=fixture(html,clipboard);await f.nodes['itch-copy'].dispatch('click');await flush();
-      check(!f.nodes['itch-copy'].disabled && f.nodes['itch-account-address'].focusCount===1 && f.nodes['itch-account-address'].selected>0,'Copy failure restores button and focuses/selects manual address');
+      check(f.nodes['itch-copy'].attrs['aria-disabled']==='false' && f.nodes['itch-account-address'].focusCount===1 && f.nodes['itch-account-address'].selected>0,'Copy failure restores button and focuses/selects manual address');
       check(f.nodes['itch-copy-status'].textContent.includes('Copy did not finish.') && f.nodes['itch-copy-status'].textContent.includes('copy it manually'),'Failure/cancellation has manual fallback');
       check(!f.nodes['itch-copy-status'].textContent.includes('blocked') && f.calls.length===0 && !f.nodes['itch-entry'].hidden,'Failure cannot invent blocked-popup state or launch game');
       f.nodes['itch-local'].dispatch('click');f.nodes['itch-local'].dispatch('click');await flush();

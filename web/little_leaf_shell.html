@@ -80,7 +80,7 @@ body {
 	color: #56442f;
 	font: inherit;
 }
-#itch-copy:disabled { cursor: wait; opacity: .7; }
+#itch-copy[aria-disabled="true"] { cursor: wait; opacity: .7; }
 #itch-copy-status { min-height: 1.5em; font-size: 14px; }
 #itch-entry-card a:focus-visible, #itch-entry-card button:focus-visible, #itch-account-address:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
 
@@ -281,10 +281,12 @@ body {
 		const address = document.getElementById('itch-account-address');
 		const copy = document.getElementById('itch-copy');
 		const copyStatus = document.getElementById('itch-copy-status');
+		let copyBusy = false;
 		address.addEventListener('focus', () => address.select());
 		copy.addEventListener('click', async () => {
-			if (copy.disabled) return;
-			copy.disabled = true;
+			if (copyBusy) return;
+			copyBusy = true;
+			copy.setAttribute('aria-disabled', 'true');
 			try {
 				await root.navigator.clipboard.writeText(address.value);
 				if (!entry.hidden) copyStatus.textContent = 'Link copied. Paste it into a new browser tab.';
@@ -295,7 +297,8 @@ body {
 					address.select();
 				}
 			} finally {
-				copy.disabled = false;
+				copyBusy = false;
+				copy.setAttribute('aria-disabled', 'false');
 			}
 		});
 		entry.hidden = false;
