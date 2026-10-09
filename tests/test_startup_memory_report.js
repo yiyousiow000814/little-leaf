@@ -11,5 +11,14 @@ const body=source.slice(source.indexOf('async function ownedProcessMemory'),sour
  assert.equal(report.processes[0].rss_bytes,1234*1024);assert.equal(report.processes[0].peak_rss_bytes,5678*1024);
  const unavailable=await sandbox.ownedProcessMemory({send:async()=>{throw Error('Unavailable');}});
  assert.match(unavailable.unavailable,/Unavailable/);
- console.log('STARTUP_MEMORY_REPORT_RESULT '+JSON.stringify({checks:5,failures:[]}));
+ for(const name of ['startup_timing_browser.js','startup_trace_browser.js']) {
+  const code=fs.readFileSync(require('node:path').join(__dirname,name),'utf8');
+  assert(!code.includes("send('Browser.getBrowserCommandLine')"),'Diagnostics must not require an automation-only CDP method');
+  const line=code.split('\n').find(row=>row.trim().startsWith('report.graphics_flags='));
+  const report={gpu:{commandLine:'/opt/chrome --enable-unsafe-swiftshader --use-angle=vulkan --no-sandbox --user-data-dir=/tmp/test'}};
+  vm.runInNewContext(line,{report});
+  assert.equal(JSON.stringify(report.graphics_flags),JSON.stringify(['--enable-unsafe-swiftshader','--use-angle=vulkan','--no-sandbox']));
+  const missing={gpu:{}};vm.runInNewContext(line,{report:missing});assert.equal(missing.graphics_flags.length,0);
+ }
+ console.log('STARTUP_MEMORY_REPORT_RESULT '+JSON.stringify({checks:11,failures:[]}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

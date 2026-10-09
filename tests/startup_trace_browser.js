@@ -36,8 +36,9 @@ function summarize(rows) {
   report.browser={version:browser.version(),sandbox:true};
   const browserSession=await browser.newBrowserCDPSession();
   report.gpu=await browserSession.send('SystemInfo.getInfo');
-  const launch=await browserSession.send('Browser.getBrowserCommandLine');
-  report.graphics_flags=launch.arguments.filter(x=>/gpu|angle|gl=|vulkan|swiftshader|sandbox/.test(x));
+  // SystemInfo already includes the launch command. Browser.getBrowserCommandLine
+  // requires --enable-automation, which the ordinary Chrome launcher may omit.
+  report.graphics_flags=(report.gpu.commandLine || '').match(/--[^\s]*(?:gpu|angle|gl=|vulkan|swiftshader|sandbox)[^\s]*/g) || [];
   const context=await browser.newContext({viewport:{width:1360,height:880}});
   await context.addInitScript(()=>{
    const p=window.startupTiming={frames:[],callbacks:[],marks:[],webgl_calls:{},webgl_long_calls:[],longTasks:[],firstVisible:null,loader_removed_at:null,started:performance.now()};

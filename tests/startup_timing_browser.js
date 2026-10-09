@@ -51,7 +51,9 @@ async function ownedProcessMemory(session) {
   report.browser={version:browser.version(),sandbox:true};
   const browserSession=await browser.newBrowserCDPSession();
   report.gpu=await browserSession.send('SystemInfo.getInfo');
-  report.graphics_flags=(await browserSession.send('Browser.getBrowserCommandLine')).arguments.filter(x=>/gpu|angle|gl=|vulkan|swiftshader|sandbox/.test(x));
+  // SystemInfo already includes the launch command. Browser.getBrowserCommandLine
+  // requires --enable-automation, which the ordinary Chrome launcher may omit.
+  report.graphics_flags=(report.gpu.commandLine || '').match(/--[^\s]*(?:gpu|angle|gl=|vulkan|swiftshader|sandbox)[^\s]*/g) || [];
   const context=await browser.newContext({viewport:{width:1360,height:880}});
   await context.addInitScript(()=>{
    const p=window.startupTiming={frames:[],callbacks:[],longTasks:[],firstVisible:null,loader_removed_at:null,started:performance.now()};
