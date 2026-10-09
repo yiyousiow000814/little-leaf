@@ -113,6 +113,9 @@
       await change((value,save,stamp)=>{
         if(!value)throw fail('OWNERSHIP_UNAVAILABLE','Save ownership is unavailable.');
         if(value.owner===sessionId)return {...value,updatedAt:stamp(),request:null,ack:null};
+        // Explicit retry can recover an abandoned request after the server
+        // lease expires. Rules, not the device clock, decide if it is expired.
+        if(now()-millis(value.updatedAt)>=LEASE_MS)return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
         if(value.request && value.request.requester!==sessionId)throw fail('HANDOFF_BUSY','Another device is already waiting. No progress was replaced.');
         if(value.request)return value;
         return {...value,request:{id:requestId,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};

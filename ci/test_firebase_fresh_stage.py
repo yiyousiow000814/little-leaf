@@ -34,7 +34,7 @@ class FreshStageTests(unittest.TestCase):
         for name,(relative,key,expected) in BROWSER_GATES.items():
             p=self.build/'evidence'/relative;p.parent.mkdir(parents=True,exist_ok=True)
             report={key:expected,'browser_verified':True,'binding':{'source_commit':SOURCE,'export_manifest_sha256':sha256(self.build/'web/release-manifest.json'),'engine_report_sha256':sha256(self.native)}}
-            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(ROOT/n) for n in ['firebase/fullflow.test.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
+            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,diagnostic_only=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(ROOT/n) for n in ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
             if name=='webkit-recovery':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),export_files=files)
             if name=='compatibility':report['inputs']={'new_commit':SOURCE,'export_files':{'new':files}}
             if name=='save-log':report['export_sha256']={k:v['sha256'] for k,v in files.items()}
@@ -46,6 +46,11 @@ class FreshStageTests(unittest.TestCase):
         (self.build/'evidence').mkdir(exist_ok=True)
         (self.build/'evidence/export-report.json').write_text(json.dumps({'manifest':self.base,'stages':[{'stage':'packed-smoke','exit_code':0}]}))
     def verify(self):return validate_fresh_ci(self.build,self.native,self.logs,SOURCE,TREE,'1','1')
+
+    def test_retained_compiled_diagnostic_cannot_qualify_release(self):
+        p=self.build/'evidence/firebase-fullflow/firebase-fullflow.json'
+        report=json.loads(p.read_text());report['diagnostic_only']=True;p.write_text(json.dumps(report))
+        with self.assertRaises(ValueError):self.verify()
 
     def test_complete_fresh_evidence_is_distinct_from_hosted_acceptance(self):
         result=self.verify();self.assertEqual(result['status'],'fresh-gates-passed')

@@ -64,6 +64,12 @@ try{
   await twinA.refresh();await twinB.refresh();assert.equal([twinA,twinB].filter(s=>s.snapshot().status==='active').length,1,'concurrent copied tickets grant exactly one writer');
   const winner=twinA.snapshot().status==='active'?twinA:twinB;assert.equal(winner.fence.writerEpoch,3);
   await assertFails(setDoc(reloadSave,{...reloadDocument,revision:3}));
+  const abandoned=newReload();await abandoned.start();await abandoned.requestTakeover();abandoned.close();
+  const retryPage=newReload();await retryPage.start();await assert.rejects(retryPage.requestTakeover(),e=>e.code==='HANDOFF_BUSY');
+  const ownerRef=doc(reloadDb,'players',reloadUid,'session','owner'),pendingOwner=(await getDocFromServer(ownerRef)).data();
+  await env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'players',reloadUid,'session','owner'),{...pendingOwner,updatedAt:Timestamp.fromMillis(Date.now()-61000)}));
+  const beforeRetry=(await getDocFromServer(reloadSave)).data();await retryPage.requestTakeover();assert.equal(retryPage.snapshot().status,'active');assert.equal(retryPage.fence.writerEpoch,4);assert.deepEqual((await getDocFromServer(reloadSave)).data(),beforeRetry,'explicit recovery after abandoned request only changes ownership');
+
 
   console.log('Actual Firestore session rules passed: old final-flush/ack ordering, exact ack proof, server stale-epoch rejection, explicit timeout, expired lease, legacy rejection, ownership isolation and canceled request.');
 }finally{for(const s of sessions)s.close();await env.cleanup();}

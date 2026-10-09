@@ -7,6 +7,7 @@ import http from 'node:http';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import {createRequire} from 'node:module';
+import {createFixtureStore} from './fullflow_fixtures.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -25,7 +26,7 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
 vm.runInThisContext(fs.readFileSync(path.join(root,'web/little_leaf_vault.js'),'utf8'));
@@ -36,9 +37,9 @@ async function record(revision,coins,profileId=crypto.randomUUID()){
 }
 const envelope=(r,device='iPhone')=>({schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r),device});
 const env=await initializeTestEnvironment({projectId:'demo-little-leaf',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(root,'firebase/firestore.rules'),'utf8')}});
-// Hold the context alive only inside callbacks; never persist an admin capability in the page.
-const read=async(uid,kind='save')=>env.withSecurityRulesDisabled(async c=>{const s=await getDocFromServer(doc(c.firestore(),'players',uid,...(kind==='save'?['saves','cafe']:['session','owner'])));return s.exists()?s.data():null;});
-const seed=async(uid,r)=>env.withSecurityRulesDisabled(c=>setDoc(doc(c.firestore(),'players',uid,'saves','cafe'),envelope(r)));
+const fixtureStore=createFixtureStore(env);
+const read=(uid,kind='save')=>fixtureStore.read(uid,kind);
+const seed=(uid,r)=>fixtureStore.seed(uid,envelope(r));
 const sdkRoot=path.dirname(require.resolve('firebase/package.json'));
 const source=name=>fs.readFileSync(path.join(root,'web',name),'utf8');
 let release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
