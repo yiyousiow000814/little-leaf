@@ -10,8 +10,17 @@ func run():
  root.size=Vector2i(int(input.viewport.width),int(input.viewport.height))
  var game=Fixture.TestMain.new();root.add_child(game);game.set_process(false);game.paused=true;await process_frame
  var controller=Fixture.Controller.new(game);game.web_save=controller
- controller.startup_error="Synthetic geometry only";controller.recovery_message=str(input.get("recoveryMessage",""))
+ controller.startup_error="Synthetic geometry only"
  controller.bridge.value=input.snapshot;game.save_recovery_blocked=true
+ # Replay the observed callback through the actual native controller so its
+ # protected-progress message participates in layout. No copied pixel offsets.
+ var callback=input.get("nativeCallback",{})
+ if callback is Dictionary and callback.get("method","") in ["preserveOwnerRuntime","preserveRuntime"]:
+  var receipt=callback.get("result",{})
+  if receipt is Dictionary and receipt.get("ok",false) and receipt.get("durable",false):
+   controller.profile_id=str(receipt.get("profileId",""));controller.revision=int(receipt.get("revision",0))-1;controller.recovery_busy=true
+   controller._on_runtime_preserved([JSON.stringify(receipt)],controller._recovery_generation,callback.method=="preserveOwnerRuntime")
+ if str(input.get("recoveryMessage",""))!="":controller.recovery_message=str(input.recoveryMessage)
  game.compact_ui.show_help();game._update_ui()
  for frame in 18:await process_frame
  var ui=game.compact_ui;var buttons={}

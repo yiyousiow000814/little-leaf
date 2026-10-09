@@ -15,14 +15,16 @@ def main():
  regressions=[]
  for width,height in [(1360,880),(390,844)]:
   previous=None
-  for label,reason in [('short','Paused.'),('wrapped','Your game was opened on another device. Current progress is protected while you choose where to continue.')]:
+  for label,reason in [('short','Paused.'),('wrapped','Your game was opened on another device. Current progress is protected while you choose where to continue.'),('protected','Your game was opened on another device.')]:
    name=f'{width}-{label}';input_file=out/(name+'-input.json');output_file=out/(name+'-result.json')
    value={'viewport':{'width':width,'height':height},'snapshot':{'available':False,'serverOwnership':True,'ownershipPaused':True,'status':'other-device','canRequestTakeover':True,'reason':reason}}
+   if label=='protected':value['nativeCallback']={'method':'preserveOwnerRuntime','result':{'ok':True,'durable':True,'profileId':'synthetic-profile','revision':2}}
    input_file.write_text(json.dumps(value))
    subprocess.run([godot,'--headless','--audio-driver','Dummy','--path',str(project),'--script','res://tests/probe_cloud_recovery_geometry.gd','--',str(input_file),str(output_file)],env=env,stdout=(out/(name+'.log')).open('w'),stderr=subprocess.STDOUT,timeout=30,check=True)
    result=json.loads(output_file.read_text());x,y,w,h=result['buttons']['switch']
    if reason not in result['text'] or not (0<=x<x+w<=width and 0<=y<y+h<=height):raise ValueError('Exact-message native geometry invalid')
-   if previous is not None and y==previous:raise ValueError('Wrapped-message regression did not change measured button location')
+   if label=='protected' and 'Current progress is protected on this device.' not in result['text']:raise ValueError('Native callback message missing')
+   if label=='wrapped' and previous is not None and y==previous:raise ValueError('Wrapped-message regression did not change measured button location')
    previous=y;regressions.append({'viewport':value['viewport'],'message':label,'switch':result['buttons']['switch']})
  (out/'regressions.json').write_text(json.dumps(regressions,indent=2)+'\n')
  receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(ROOT/n) for n in ['tests/probe_cloud_recovery_geometry.gd','tests/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/cafe_web_save.gd']},'project':str(project)}
