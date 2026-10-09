@@ -634,6 +634,9 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 	if extra.is_finite():bounds=bounds.merge(RenderVisibility.local_bounds(extra,scale,Rect2(-128,-192,256,272)))
 	return render_bounds_visible(bounds)
 
+func objects_hidden()->bool:
+	return is_instance_valid(game) and "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
+
 func _draw():
 	render_contacts.clear()
 	if icon_kind!="":
@@ -647,9 +650,10 @@ func _draw():
 		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
+	var show_objects=not objects_hidden()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
 	var openings=[]
-	for attachment in render_wall_attachments:
+	for attachment in render_wall_attachments if show_objects else []:
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
@@ -672,7 +676,7 @@ func _draw():
 	_parcel_ground()
 	if game.interaction!=null:game.interaction.draw_floor_feedback(self)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
-	if game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
+	if show_objects and game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
 		var selected=game.model.get_item(game.selected_id)
 		if not selected.is_empty():
 			for member in game.model.logical_members(game.selected_id):
@@ -685,7 +689,7 @@ func _draw():
 		_draw_floor_mess(record)
 	for opening in openings:OpeningArt.threshold(self,opening)
 	var interaction=game.interaction if "interaction" in game else null
-	var preview=interaction!=null and interaction.preview_active
+	var preview=show_objects and interaction!=null and interaction.preview_active
 	if preview:
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
@@ -694,16 +698,17 @@ func _draw():
 			poly(corners,Color(.32,.52,.30,.22) if interaction.drag_valid else Color(.66,.38,.29,.22))
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
-	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
+	if show_objects and game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
 	_scenery_tree(Vector2(13.5,-.5),1.10)
 	_draw_street_people(show_service)
 	# Existing shell and player walls share the same aperture geometry.
-	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
-	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
-	var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
-	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
-	game.build_tools.draw_shell_selection(self)
+	if show_objects:
+		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
+		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
+		var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
+		poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
+		game.build_tools.draw_shell_selection(self)
 	var entities=[]
 	# Corner foliage shares the ground-depth order of props and people.
 	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
@@ -712,14 +717,14 @@ func _draw():
 		var world=Vector2(tree.x,tree.y)
 		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]})
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
-	for wall in game.model.built_wall_segments():
+	for wall in game.model.built_wall_segments() if show_objects else []:
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
-	if game.build_tools!=null and game.build_tools.active() and not game.build_tools.preview.is_empty():
+	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.preview.is_empty():
 		for piece in WallArt.depth_entries(game.build_tools.preview):
 			piece["wall_preview"]=true;piece.depth+=.001;entities.append(piece)
 	var render_items=[]
 	var moving_members=game.model.logical_members(int(interaction.drag_item_id)) if preview and interaction.drag_active and int(interaction.drag_item_id)>=0 else []
-	for actual in game.model.items:
+	for actual in game.model.items if show_objects else []:
 		if int(actual.id) not in moving_members:render_items.append(actual)
 	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
@@ -1012,6 +1017,7 @@ func _wall(a: Vector2,b: Vector2,n: Vector2,c1,c2):
 	poly([iso(a.x,a.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(a.x+n.x,a.y+n.y,WALL_HEIGHT)],cap_color)
 
 func hit_wall(screen:Vector2)->Dictionary:
+	if objects_hidden():return {}
 	update_projection()
 	var walls=game.model.built_wall_segments()
 	walls.sort_custom(func(a,b):return int(a.x+a.z)>int(b.x+b.z))
@@ -1596,6 +1602,7 @@ func _chair(p: Vector2,r: int,back_only: bool,style:String="basic"):
 	rounded_poly(points,2.5,"d7bd89")
 
 func hit_item(screen: Vector2) -> int:
+	if objects_hidden():return -1
 	var ordered=game.model.items.duplicate()
 	ordered.sort_custom(func(a,b):
 		if (a.kind=="rug")!=(b.kind=="rug"): return b.kind=="rug"
@@ -1873,6 +1880,7 @@ func _draw_floor_mess(record:Dictionary):
 	FloorMessArt.draw(self,record)
 
 func hit_wall_host(screen:Vector2)->Dictionary:
+	if objects_hidden():return {}
 	update_projection()
 	var hosts=game.model.selectable_wall_hosts()
 	hosts.sort_custom(func(a,b):return float(a.a.x+a.a.y+a.b.x+a.b.y)>float(b.a.x+b.a.y+b.b.x+b.b.y))
@@ -1880,6 +1888,7 @@ func hit_wall_host(screen:Vector2)->Dictionary:
 		if OpeningArt.hit_host(self,screen,host):return host
 	return {}
 func hit_wall_attachment(screen:Vector2)->int:
+	if objects_hidden():return -1
 	update_projection()
 	var openings=game.model.wall_openings()
 	openings.sort_custom(func(a,b):return float(a.a.x+a.a.y+a.b.x+a.b.y)>float(b.a.x+b.a.y+b.b.x+b.b.y))

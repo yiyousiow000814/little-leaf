@@ -132,6 +132,7 @@ func choose(tool:String):
 
 func cancel():
 	if mode=="move_wall" and game.compact_ui!=null:game.compact_ui.clear_selection()
+	if "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null:game.compact_ui.shop_ui.reset_inspection()
 	successful_key="";successful_point=Vector2(INF,INF)
 	mode="";wall_source_key="";floor_preview={};floor_quote={};_press_floor_quote="";preview={};preview_shell={};replacing=false;replacement_quote={};opening_preview={};opening_source_id=-1;opening_hit_id=-1;_render_attachments=[];_render_preview_active=false;selected_key="";_pressed=false;_dragging=false;_cache_key="";sync()
 

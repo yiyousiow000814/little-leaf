@@ -39,6 +39,9 @@ var tiles_back:Button
 var tiles_title:Label
 var tiles_heading:Control
 var build_page="products"
+# Presentation only. No model, service, ownership or save state is changed.
+var hide_objects=false
+var hide_objects_button:Button
 var action_copy:HBoxContainer
 var price_label:Label
 var action_layout_key:Array=[]
@@ -299,6 +302,9 @@ func _setup_tiles():
  var tile=TileIcon.new();tile.style="cream_tile";tile.mouse_filter=Control.MOUSE_FILTER_IGNORE;tile.size=Vector2(84,54);tile.scale=Vector2.ONE*.38;tile.position=Vector2(5,12);tiles_heading.add_child(tile);tiles_heading_icon=tile
  walls_heading_icon=game.build_tools.WallIcon.new();walls_heading_icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;walls_heading_icon.size=Vector2(84,54);walls_heading_icon.scale=Vector2.ONE*.38;walls_heading_icon.position=Vector2(5,10);tiles_heading.add_child(walls_heading_icon);walls_heading_icon.hide()
  tiles_title=ui.hud._label(tiles_heading,"Tiles",16,ui.hud.CREAM);tiles_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;tiles_title.clip_text=false
+ hide_objects_button=_nav("Hide objects",toggle_objects);hide_objects_button.name="HideObjects";hide_objects_button.toggle_mode=true;hide_objects_button.hide()
+ hide_objects_button.accessibility_description="Temporarily hide café furniture, rugs, walls, doors and windows to inspect the floor. Ground, outdoor scenery and plot boundaries stay visible. Hidden objects cannot be selected."
+ hide_objects_button.tooltip_text=hide_objects_button.accessibility_description
  _sync_build_page()
 func _draw_tiles_back():
  # Pair the chevron with the native 14px caption. Raster bounds place their
@@ -353,6 +359,25 @@ func choose_wall_style(height:String,material:String):
  var key="wall:"+height+":"+material
  if not game.editing or game.catalog_category!="Build" or build_page!="walls" or game.save_recovery_blocked or ui.viewport_too_small or not wall_cards.has(key) or not wall_cards[key].visible:return
  game.build_tools.material=material;game.build_tools.choose(height);ui.sync();ui.update_pointer()
+func tiles_active()->bool:
+ return game.editing and game.catalog_category=="Build" and build_page=="tiles"
+func objects_hidden()->bool:
+ return tiles_active() and hide_objects
+func reset_inspection():
+ if not hide_objects:return
+ hide_objects=false
+ if is_instance_valid(hide_objects_button):hide_objects_button.set_pressed_no_signal(false)
+ if is_instance_valid(game.illustration):game.illustration.queue_redraw()
+func toggle_objects():
+ if not tiles_active() or game.save_recovery_blocked or ui.viewport_too_small:return
+ var next=not hide_objects
+ # Clear any selected furnishing/wall or in-flight click, but retain the chosen
+ # floor tool so the player can compare and place flooring with objects hidden.
+ if game.build_tools.mode!="floor":game._cancel_selection()
+ else:
+  game.build_tools.on_focus_lost()
+  game.interaction.cancel(false)
+ hide_objects=next;ui.sync();game.illustration.queue_redraw()
 func show_tiles():
  if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
  game._cancel_selection();ui._hide_popups();build_page="tiles";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
@@ -360,7 +385,8 @@ func show_build_products():
  game._cancel_selection();wall_target="";build_page="products";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
 func choose_floor_style(style:String):
  if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small or style not in tile_cards:return
- game.build_tools.floor_material=style;game.build_tools.choose("floor");ui.sync();ui.update_pointer()
+ var keep_hidden=objects_hidden()
+ game.build_tools.floor_material=style;game.build_tools.choose("floor");hide_objects=keep_hidden;ui.sync();ui.update_pointer()
 func _visible_build_keys()->Array:
  var keys=[]
  for key in build_cards:
@@ -663,6 +689,7 @@ func _short_landscape_card_width()->float:
  return width
 
 func sync(width:float):
+ if not tiles_active():reset_inspection()
  if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
  _sync_parking_card()
  ui._sync_starter_floor_repair()
@@ -691,7 +718,7 @@ func sync(width:float):
  ui.context_label.visible=true
  var nested=game.catalog_category=="Build" and build_page in ["tiles","walls"]
  var tiny=w<440
- var repair_width=110.0 if ui.floor_repair_button.visible else 0.0
+ var repair_width=(100.0 if tiny else 110.0) if ui.floor_repair_button.visible else 0.0
  var tail=repair_width+8 if repair_width>0 else 0.0
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
@@ -716,10 +743,22 @@ func sync(width:float):
   category_scroll.hide();category_back.hide();category_more.hide();category_picker.hide();category_panel.hide()
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
   var style=tiles_back.get_theme_stylebox(state);style.content_margin_left=30;style.content_margin_right=10
- _put(tiles_back,Rect2(category_margin,header_y,104,44))
- var heading_x=category_margin+112;var heading_width=112.0
+ var back_width=80.0 if tiny and tiles_active() and repair_width>0 else 104.0
+ _put(tiles_back,Rect2(category_margin,header_y,back_width,44))
+ var heading_x=category_margin+back_width+8;var heading_width=76.0 if tiny and repair_width>0 else 112.0
  tiles_heading.visible=nested and (w-category_margin-tail-(heading_x+heading_width+12)>=210 if short_landscape else heading_x+heading_width+8<=w-category_margin-tail)
+ var stacked_inspection=tiles_active() and short_landscape and not tiles_heading.visible
  _put(tiles_heading,Rect2(heading_x,header_y,heading_width,44));_put(tiles_title,Rect2(35,0,heading_width-43,44))
+ hide_objects_button.visible=tiles_active()
+ hide_objects_button.text=("Show\nobjects" if hide_objects else "Hide\nobjects") if heading_width<100 else ("Show objects" if hide_objects else "Hide objects")
+ hide_objects_button.accessibility_name="Show café objects" if hide_objects else "Hide café objects"
+ hide_objects_button.set_pressed_no_signal(hide_objects)
+ hide_objects_button.disabled=game.save_recovery_blocked or ui.viewport_too_small
+ _put(hide_objects_button,Rect2(heading_x,header_y,heading_width,44))
+ if stacked_inspection:
+  _put(tiles_back,Rect2(category_margin,(h-88)*.5,back_width,44))
+  _put(hide_objects_button,Rect2(category_margin,h*.5,back_width,44))
+ if tiles_active():tiles_heading.hide()
  _put(ui.floor_repair_button,Rect2(w-category_margin-repair_width,header_y,repair_width,44))
  if last_category!=game.catalog_category or not is_equal_approx(last_layout_width,category_width):
   last_category=game.catalog_category;last_layout_width=category_width;_reveal_category.call_deferred()
@@ -731,7 +770,7 @@ func sync(width:float):
  var card_w=_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0)
  var margin=16 if picker_landscape else (24 if short_landscape else (22 if tiny else 32))
  var product_left=category_x+category_width+(12 if picker_landscape else 64) if short_landscape else float(margin)
- if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible else category_margin+116
+ if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible or (hide_objects_button.visible and not stacked_inspection) else category_margin+back_width+12
  var product_right=w-margin-tail if short_landscape else w-margin
  var product_width=product_right-product_left
  var product_gap=_active_products().get_child(0).get_theme_constant("separation")

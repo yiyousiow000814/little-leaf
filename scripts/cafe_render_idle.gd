@@ -54,6 +54,7 @@ static func snapshot(art)->Array:
 		values(g.interaction,["drag_active","drag_item_id","drag_kind","drag_rotation","drag_cell","drag_valid","preview_active"]),
 		values(g.build_tools,["mode","preview","preview_shell","preview_valid","preview_warning","selected_key","replacing","floor_material","floor_preview","opening_source_id","wall_source_key","opening_preview","_render_attachments","_render_preview_active"]),
 		values(g.compact_ui,["selected_shell","selected_wall","viewport_too_small"]),
+		values(g.compact_ui.shop_ui,["build_page","hide_objects"]),
 		art.get_viewport_rect(),art.get_global_transform_with_canvas(),art.origin,art.tile,art.zoom,art.pan_offset,art.ui_scale,
 		art.camera_safe_rect(),art.get_viewport().get_mouse_position(),art.get_viewport().gui_get_hovered_control(),
 		g.interaction._over_ui(art.get_viewport().get_mouse_position()) if g.interaction!=null else false,
