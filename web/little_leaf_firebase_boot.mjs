@@ -18,7 +18,7 @@ export async function start(config) {
   let saveState='ready',accountError='';
   const primary={ready:'Not saved',saved:'Saved',pending:'Saving…',offline:'Not saved',conflict:'Not saved',blocked:'Not saved','signed-out':'Not saved'};
   const reasons={offline:'Offline. Progress on this device will sync when connected.',conflict:'Another save changed. Your pending progress is preserved. Reload to review.',blocked:'Saving is unavailable. Keep this page open and try again.'};
-  function state(value){saveState=value;label.textContent=primary[value] || 'Not saved';}
+  function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';}
   window.LittleLeafCloudSettings=Object.freeze({
     snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:saveState==='conflict',canSave:!['conflict','signed-out'].includes(saveState)});},
     signOut(){return button.onclick();},

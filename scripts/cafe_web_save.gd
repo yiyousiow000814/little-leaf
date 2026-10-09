@@ -75,7 +75,6 @@ func _accept_boot(result:Dictionary)->bool:
 				_block_startup(candidate.last_error);return false
 			requires_repair=true
 		if requires_repair:notice="Café paused for repair · Use Decorate to open a route for trapped staff, then save · Original progress is unchanged"
-		if candidate.included_bin_pending:candidate.ensure_basic_bin()
 	game.model=candidate
 	game.fresh_start=source=="fresh"
 	game.startup_save_source="isolated-browser-authority" if source=="authority" else "read-only-v13-import" if source=="legacy-v13" else ""

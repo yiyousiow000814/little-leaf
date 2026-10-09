@@ -1,5 +1,6 @@
 'use strict';
-// One ordinary exported-Web journey. Empty origin, natural wall time, real input.
+// Short interactive guide, then an independent natural-service regression.
+// Empty origin, normal wall time, real input throughout.
 // No fixtures, runtime hooks, launch flags, artificial guests, ticks or rewards.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,9 +13,9 @@ const VIEWPORT = {width: 1360, height: 880};
 const SERVICE_MS = 220000, CUE_MS = 25000, SAVE_MS = 30000;
 const COMPLETION_MS = CUE_MS * 2 + SAVE_MS;
 
-function flowBudget(started, now = Date.now) {
-  const serviceDeadline = started + SERVICE_MS;
-  const overallDeadline = serviceDeadline + COMPLETION_MS;
+function flowBudget(started, now = Date.now, hardDeadline = Infinity) {
+  const serviceDeadline = Math.min(started + SERVICE_MS, hardDeadline);
+  const overallDeadline = Math.min(started + SERVICE_MS + COMPLETION_MS, hardDeadline);
   let phaseDeadline = serviceDeadline, completing = false;
   const budget = {
     deadline: limit => Math.min(phaseDeadline, overallDeadline, now() + limit),
@@ -25,7 +26,7 @@ function flowBudget(started, now = Date.now) {
     },
     startCompletion() {
       assert(!completing, 'Completion allowance cannot be restarted');
-      budget.remaining(); // Payment must arrive within the unchanged service cap.
+      budget.remaining(); // The initial observation phase must finish within its fixed cap.
       completing = true;
       phaseDeadline = Math.min(overallDeadline, now() + COMPLETION_MS);
       return phaseDeadline;
@@ -64,164 +65,6 @@ function recognizeCue(file, phrases, tesseract, deadline, exactLabel = false) {
   return result;
 }
 
-// One OCR process at a time, outside the capture loop. Both exact moving labels
-// are inspected on the same immutable frame; neither can stand in for the other.
-const MOVING_PHRASES = ['Your waiter takes the order', 'Meal on the way'];
-async function recognizeMovingFrame(file, tesseract, deadline, signal) {
-  const result = {observed: '', matches: [], attempts: []};
-  for (const mode of ['sparse', 'sparse-sauvola']) {
-    signal?.throwIfAborted();
-    if (deadline - Date.now() < 1000) break;
-    const args = [file, 'stdout', '-l', 'eng', '--psm', '11'];
-    if (mode === 'sparse-sauvola') args.push('-c', 'thresholding_method=2');
-    try {
-      result.observed = await new Promise((resolve, reject) => cp.execFile(tesseract, args,
-        {encoding: 'utf8', timeout: Math.min(5000, deadline - Date.now()),
-          env: {...process.env, OMP_THREAD_LIMIT: '1'}, maxBuffer: 1024 * 1024, signal},
-        (error, stdout) => error ? reject(error) : resolve(stdout)));
-      result.attempts.push({mode, observed: result.observed});
-      result.matches = MOVING_PHRASES.filter(text => matchesCue(result.observed, [text]));
-      if (result.matches.length) break;
-    } catch (error) {
-      result.attempts.push({mode, error: String(error)});
-      error.ocr_evidence = result;
-      signal?.throwIfAborted();
-      // Preserve this uniquely captured frame after a recoverable first-mode
-      // timeout: the same pixels still get their bounded adaptive attempt.
-      if (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT' && !error.killed) throw error;
-    }
-  }
-  return result;
-}
-
-async function observeMovingCues({budget, binding, capture, recognize, snapshot, sleep,
-  evidence, now = Date.now}) {
-  const began = now(), arrivalDeadline = budget.deadline(45000), returnDeadline = budget.deadline(SAVE_MS);
-  const bindingHash = hash(canonical(binding));
-  assert(/^[a-f0-9]{40}$/.test(binding.source_commit), 'Moving frames require the verified source binding');
-  for (const name of ['engine_report_sha256', 'layout_sha256', 'export_manifest_sha256'])
-    assert(/^[a-f0-9]{64}$/.test(binding[name]), 'Moving frames require verified ' + name);
-  // Worst case: arrival45s + order45s + meal20s, still inside service220s.
-  // PNGs live on disk; retain every capture, with only one OCR process in flight.
-  Object.assign(evidence, {binding_sha256: bindingHash, capture_interval_ms: 500,
-    max_frames: 220, max_bytes: 128 * 1024 * 1024, bytes: 0, frames: [], cues: {}});
-  let returned, order, orderDeadline, mealDeadline, replayThrough, stopped = false, failure;
-  const cancellation = new AbortController();
-  const observedAll = Error('Moving cue observations complete');
-  // page.evaluate has no Playwright operation timeout. Bound every asynchronous
-  // adapter as well as the subprocess; abort a peer immediately on failure.
-  const bounded = (operation, end) => new Promise((resolve, reject) => {
-    const signal = cancellation.signal;
-    let timer;
-    const cleanup = () => {clearTimeout(timer); signal.removeEventListener('abort', abort);};
-    const abort = () => {cleanup(); reject(signal.reason);};
-    if (signal.aborted) {abort(); return;}
-    signal.addEventListener('abort', abort, {once: true});
-    timer = setTimeout(() => {cleanup(); reject(Error('Moving cue operation deadline exceeded'));}, budget.remaining(end));
-    Promise.resolve().then(() => operation(signal)).then(value => {cleanup(); resolve(value);},
-      error => {cleanup(); reject(error);});
-  });
-  const complete = () => returned && order && MOVING_PHRASES.every(text => evidence.cues[text]);
-  const limits = () => [!returned && returnDeadline, !evidence.cues[MOVING_PHRASES[0]] && arrivalDeadline,
-    !order && orderDeadline, order && !evidence.cues[MOVING_PHRASES[1]] && mealDeadline].filter(Number.isFinite);
-  const deadline = () => Math.min(budget.deadline(110000), ...limits());
-  const enforce = () => {
-    budget.remaining();
-    for (const end of limits()) budget.remaining(end);
-  };
-  const remember = state => {
-    if (!state) return;
-    if (!returned && state.tutorial.step === 5) {
-      budget.remaining(returnDeadline); returned = state;
-      evidence.returned_to_service_ms = now() - began;
-    }
-    if (!order && state.tutorial.step === 6 && state.orders.length > 0 && state.guests.some(g => g.seated)) {
-      if (orderDeadline) budget.remaining(orderDeadline);
-      order = state; mealDeadline = budget.deadline(20000);
-      replayThrough = evidence.frames.length;
-      evidence.first_order_ms = now() - began;
-    }
-  };
-  const verifyFrame = frame => {
-    assert.equal(frame.binding_sha256, bindingHash, 'Captured frame belongs to this exact source/export');
-    assert.equal(hash(fs.readFileSync(frame.file)), frame.sha256, 'Retained raw frame bytes are unchanged');
-  };
-  const captureLoop = async () => {
-    while (!stopped && !complete()) {
-      enforce();
-      assert(evidence.frames.length < evidence.max_frames, 'Moving cue frame limit exceeded');
-      const before = await bounded(snapshot, deadline()); remember(before); enforce();
-      if (complete()) break;
-      const index = evidence.frames.length + 1, captureStarted = now();
-      const captureDeadline = deadline();
-      const frame = await bounded(signal => capture(index, captureDeadline, signal), captureDeadline);
-      enforce();
-      Object.assign(frame, {index, binding_sha256: bindingHash, capture_started_ms: captureStarted - began,
-        captured_ms: now() - began, before_revision: before?.revision ?? null});
-      verifyFrame(frame);
-      evidence.bytes += fs.statSync(frame.file).size;
-      assert(evidence.bytes <= evidence.max_bytes, 'Moving cue evidence byte limit exceeded');
-      evidence.frames.push(frame);
-      const after = await bounded(snapshot, deadline()); frame.after_revision = after?.revision ?? null; remember(after); enforce();
-      if (!complete()) await bounded(() => sleep(Math.min(evidence.capture_interval_ms, budget.remaining(deadline()))), deadline());
-    }
-  };
-  const recognizeLoop = async () => {
-    while (!stopped && !complete()) {
-      enforce();
-      if (MOVING_PHRASES.every(text => evidence.cues[text])) {await bounded(() => sleep(25), deadline()); continue;}
-      const pending = evidence.frames.filter(frame => !frame.ocr);
-      // Once the ordinary acknowledged order arrives, revisit preceding frames
-      // newest first. Slow OCR must not discard a short cue it did not yet read.
-      const frame = (!evidence.cues[MOVING_PHRASES[0]] && replayThrough !== undefined
-        ? pending.filter(item => item.index <= replayThrough).at(-1) : null) || pending.at(-1);
-      if (!frame) {await bounded(() => sleep(25), deadline()); continue;}
-      verifyFrame(frame);
-      const recognitionDeadline = deadline();
-      try {
-        frame.ocr = await bounded(signal => recognize(frame, recognitionDeadline, signal), recognitionDeadline);
-      } catch (error) {
-        if (error === observedAll) throw error;
-        frame.ocr = error.ocr_evidence || {attempts: []};
-        frame.ocr.error = String(error);
-        if (error.name !== 'TimeoutError' && error.code !== 'ETIMEDOUT' && !error.killed) throw error;
-      }
-      frame.recognized_ms = now() - began;
-      verifyFrame(frame);
-      if (frame.ocr_input) {
-        assert.equal(hash(fs.readFileSync(frame.ocr_input)), frame.ocr_input_sha256, 'OCR input bytes are unchanged');
-        evidence.bytes += fs.statSync(frame.ocr_input).size;
-        assert(evidence.bytes <= evidence.max_bytes, 'Moving cue evidence byte limit exceeded');
-      }
-      enforce(); // Late recognition cannot unlock a new allowance.
-      for (const phrase of MOVING_PHRASES) {
-        // Inspect the retained OCR text ourselves, never trust a callback's flag.
-        const attempt = frame.ocr.attempts.find(item => typeof item.observed === 'string' && matchesCue(item.observed, [phrase]));
-        if (!attempt || evidence.cues[phrase]) continue;
-        evidence.cues[phrase] = {frame: frame.index, file: frame.file, sha256: frame.sha256,
-          captured_ms: frame.captured_ms, recognized_ms: frame.recognized_ms, observed: attempt.observed};
-        if (phrase === MOVING_PHRASES[0]) orderDeadline = budget.deadline(45000);
-      }
-    }
-  };
-  const guarded = async fn => {
-    try {await fn();} catch (error) {
-      if (error !== observedAll) {failure ||= error; cancellation.abort(failure);}
-    } finally {
-      stopped = true;
-      if (complete() && !failure) cancellation.abort(observedAll);
-    }
-  };
-  await Promise.all([guarded(captureLoop), guarded(recognizeLoop)]);
-  evidence.duration_ms = now() - began;
-  if (failure) throw failure;
-  enforce();
-  assert(complete(), 'Both exact moving cues and genuine returned/order saves are required');
-  assert(evidence.cues[MOVING_PHRASES[0]].frame < evidence.cues[MOVING_PHRASES[1]].frame,
-    'The waiter cue must precede the independent meal frame');
-  return {returned, order};
-}
-
 function cuePixelScale(region, requested = 1) {
   assert(requested === 1 || requested === 2, 'Only unchanged or exact 2x evidence pixels');
   // Moving actor cues require full-frame OCR. Apply one policy to every such
@@ -245,7 +88,7 @@ function validateLayout(result) {
   assert.deepEqual(layout?.viewport, [VIEWPORT.width, VIEWPORT.height]);
   assert(Number.isSafeInteger(layout.initial_coins) && layout.initial_coins > 0);
   assert(Number.isSafeInteger(layout.meal_payment) && layout.meal_payment > 0);
-  const expected = {open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, complete: 7};
+  const expected = {open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7};
   for (const [name, step] of Object.entries(expected)) {
     const stage = layout.stages?.[name];
     assert.equal(stage?.step, step, 'Engine-derived tutorial step ' + name);
@@ -253,7 +96,7 @@ function validateLayout(result) {
     const r = stage.guide;
     assert(Array.isArray(r) && r.length === 4 && r.every(Number.isFinite));
     assert(r[0] >= 0 && r[1] >= 0 && r[2] > 0 && r[3] > 0 && r[0] + r[2] <= VIEWPORT.width && r[1] + r[3] <= VIEWPORT.height);
-    if (name !== 'order') {
+    {
       const p = stage.point;
       assert(Array.isArray(p) && p.length === 2 && p.every(Number.isFinite));
       assert(p[0] >= 0 && p[0] < VIEWPORT.width && p[1] >= 0 && p[1] < VIEWPORT.height);
@@ -308,8 +151,21 @@ function validateProgress(state, layout, initial) {
   assert.deepEqual(state.paid_campaigns, [], 'Fresh profile receives no historical compensation');
   assert.equal(state.tutorial?.baseline_served, 0);
   assert(['active', 'completed'].includes(state.tutorial.status), 'Tutorial was never skipped');
-  if (state.tutorial.step >= 7 || state.tutorial.status === 'completed') assert(state.served > 0, 'Completion requires genuine payment');
+  assert(Number.isInteger(state.tutorial.step) && state.tutorial.step >= 0 && state.tutorial.step <= 7, 'Known tutorial step');
+  if (state.tutorial.status === 'completed') assert.equal(state.tutorial.step, 7, 'Done belongs to the final explanation');
   if (initial) assert.equal(state.items_sha256, initial.items_sha256, 'Tutorial does not buy, move or create furniture');
+}
+
+function hasSeatedOrder(state) {
+  return state.guests.some(g => g.seated && state.orders.includes(g.id));
+}
+function validateNaturalPayment(state, order, layout, initial) {
+  validateProgress(order, layout, initial); validateProgress(state, layout, initial);
+  assert.equal(order.tutorial.status, 'completed', 'Natural-service regression follows tutorial completion');
+  assert(hasSeatedOrder(order), 'An actual seated order precedes payment');
+  assert(state.served > order.served, 'Independent natural-service gate requires a new genuine payment');
+  assert.equal(state.earned - order.earned, (state.served - order.served) * layout.meal_payment,
+    'Natural payment earns exactly the real meal value');
 }
 
 async function main() {
@@ -464,58 +320,47 @@ async function main() {
     await visible('return-to-cafe', [stage('return').text], stage('return').guide);
     await waitState('decorating', s => s.tutorial.step === 4);
     await click('return');
-    // Capture immediately after the real return click, before waiting for its
-    // acknowledged save. OCR runs concurrently; gameplay is never suspended.
-    report.stage = 'natural-moving-cues';
-    const moving = report.moving_cues = {};
-    const movingStarted = elapsed();
-    const {order} = await observeMovingCues({budget, binding, snapshot,
-      evidence: moving, sleep: ms => page.waitForTimeout(ms),
-      capture: async (index, deadline, signal) => {
-        const file = path.join(output, 'moving-' + String(index).padStart(3, '0') + '.png');
-        const bytes = await page.screenshot({timeout: Math.min(10000, budget.remaining(deadline))});
-        signal.throwIfAborted();
-        fs.writeFileSync(file, bytes);
-        return {file, sha256: hash(bytes)};
-      },
-      recognize: async (frame, deadline, signal) => {
-        const bytes = await scalePixels(fs.readFileSync(frame.file));
-        signal.throwIfAborted();
-        frame.ocr_input = frame.file.replace(/\.png$/, '-2x.png');
-        fs.writeFileSync(frame.ocr_input, Buffer.from(bytes));
-        frame.ocr_input_sha256 = hash(Buffer.from(bytes));
-        return recognizeMovingFrame(frame.ocr_input, tesseract, deadline, signal);
-      },
-    });
-    for (const [index, name] of ['natural-arrival', 'natural-meal'].entries()) {
-      const phrase = MOVING_PHRASES[index], cue = moving.cues[phrase];
-      const frame = moving.frames.find(item => item.index === cue.frame);
-      report.rendered_stages[name] = {...cue, phrases: [phrase], matched: true,
-        pixel_scale: 2, ocr_input: frame.ocr_input, ocr_input_sha256: frame.ocr_input_sha256,
-        ocr_attempts: frame.ocr.attempts, wall_seconds: movingStarted + cue.captured_ms / 1000};
-      // These aliases copy the matched frame, never a later screenshot.
-      fs.copyFileSync(frame.file, path.join(output, name + '-text.png'));
-      fs.copyFileSync(frame.ocr_input, path.join(output, name + '-ocr-input.png'));
-      fs.writeFileSync(path.join(output, name + '.txt'), cue.observed);
-      check(true, 'Actual rendered pixels show ' + name);
-    }
-    check(order.served === 0 && order.earned === 0 && order.tutorial.status === 'active', 'A naturally seated guest has a genuine order, with no premature payment or tutorial completion');
-    report.first_order_seconds = movingStarted + moving.first_order_ms / 1000;
-    const paid = await waitState('natural-payment', s => s.served > 0 && s.tutorial.step === 7, 150000);
-    report.first_payment_seconds = elapsed();
-    check(paid.tutorial.status === 'active', 'Genuine payment unlocks completion but does not dismiss the guide');
-    // Separate verification time from natural gameplay. Title, exact Done OCR,
-    // real click and saved completion share their existing 25s + 25s + 30s cap.
+    await visible('service-explanation', [stage('order').text], stage('order').guide);
+    await visible('service-next-button', ['Next'], completionButtonRegion(stage('order')), CUE_MS,
+      {pixelScale: 2, exactLabel: true});
+    await waitState('service-explanation-saved', s => s.tutorial.step === 5);
+    await click('order');
+    await visible('checkout-explanation', [stage('payment').text], stage('payment').guide);
+    await visible('checkout-next-button', ['Next'], completionButtonRegion(stage('payment')), CUE_MS,
+      {pixelScale: 2, exactLabel: true});
+    await waitState('checkout-explanation-saved', s => s.tutorial.step === 6);
+    await click('payment');
+    await waitState('guide-ready', s => s.tutorial.step === 7);
     report.completion_deadline_seconds = (budget.startCompletion() - started) / 1000;
-    await visible('first-order-complete', [stage('complete').text], stage('complete').guide);
+    await visible('guide-ready-to-play', [stage('complete').text], stage('complete').guide);
     await visible('completion-done-button', ['Done'], completionButtonRegion(stage('complete')), CUE_MS,
       {pixelScale: 2, exactLabel: true});
     await click('complete');
     const finished = await waitState('tutorial-completed', s => s.tutorial.status === 'completed' && s.tutorial.step === 7);
-    check(finished.served === paid.served && finished.earned === paid.earned && finished.coins + finished.wages === paid.coins + paid.wages, 'Real final Done completes tutorial without an extra reward');
+    // Background service may run while the guide is read. Economic reconciliation
+    // rejects any extra tutorial reward without pretending genuine meals freeze.
+    validateProgress(finished, layout, initial);
     check(finished.open, 'Completed tutorial leaves the cafe open for ordinary play');
+    report.tutorial_completed_seconds = elapsed();
+    report.tutorial_completion = {requires_order: false, requires_payment: false, served: finished.served};
     await page.screenshot({path: path.join(output, 'tutorial-completed.png'), timeout: Math.min(10000, budget.remaining())});
     budget.remaining();
+
+    // This separate test must still witness a real seated order and subsequent
+    // checkout. It cannot delay the player's Next/Done or synthesize any work.
+    const naturalStarted = Date.now();
+    // Separate service evidence never extends the original five-minute cap.
+    budget = flowBudget(naturalStarted, Date.now, started + SERVICE_MS + COMPLETION_MS);
+    const order = await waitState('independent-natural-order', s => hasSeatedOrder(s), 90000);
+    check(order.tutorial.status === 'completed', 'Natural-service observation starts after the tutorial is dismissed');
+    await page.screenshot({path: path.join(output, 'natural-order-after-tutorial.png'), timeout: Math.min(10000, budget.remaining())});
+    const paid = await waitState('natural-payment', s => s.served > order.served, 150000);
+    validateNaturalPayment(paid, order, layout, initial);
+    check(true, 'Independent natural-service gate observed an actual order and genuine payment');
+    report.natural_service = {status: 'passed', seconds: (Date.now() - naturalStarted) / 1000,
+      ordered_served: order.served, paid_served: paid.served, earned_delta: paid.earned - order.earned};
+    report.first_payment_seconds = elapsed();
+    await page.screenshot({path: path.join(output, 'natural-payment-after-tutorial.png'), timeout: Math.min(10000, budget.remaining())});
     check(report.errors.length === 0, 'No exported engine or browser errors');
     report.duration_seconds = elapsed(); report.status = 'passed'; report.browser_verified = true;
     await context.close();
@@ -530,4 +375,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, recognizeMovingFrame, observeMovingCues};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue};

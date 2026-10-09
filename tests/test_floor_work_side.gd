@@ -62,7 +62,7 @@ func run():
 	# Loaded saves may already own trash while retaining an elapsed sweep.
 	# The current step, not ownership inferred from the record, chooses contact.
 	var probe=StageProbe.new(game);game.floor_tasks.geometry=probe
-	cleaner.job_kind="floor";cleaner.job_mess_id=id;cleaner.job_step=0;cleaner.job_elapsed=.35
+	cleaner.job_kind="floor";cleaner.job_mess_id=id;cleaner.job_token=entry.token;cleaner.job_step=0;cleaner.job_elapsed=.35
 	game.floor_tasks.destination(cleaner,Vector2i(5,6),[])
 	check(probe.actions[-1]=="sweeping","held standalone partial sweep keeps sweep eligibility")
 	cleaner.job_kind="cleanup";cleaner.job_step=3
@@ -82,7 +82,7 @@ func run():
 	game.model.items.clear();game.model.items.append({"id":999,"kind":"chair","x":6,"z":6,"rot":0});game.model.revision+=1
 	var legacy={"id":49,"token":49,"floor_cell":Vector2i(6,5),"floor_target":Vector2(6.5,5.5),"debris_target":Vector2(6.6,5.42),"spill_target":Vector2(6.4,5.58),"floor_debris":"banana","floor_spill":true,"spill_cleaned":false,"spill_remaining":1.0,"trash_owner":"staff","floor_work_cell":Vector2i(5,6)}
 	legacy.mess_shape=Tasks.Geometry._build(legacy,49,1.0)
-	game.floor_tasks.messes[49]=legacy;cleaner.pos=Vector2(5.5,6.5);cleaner.job_kind="floor";cleaner.job_mess_id=49;cleaner.job_step=0
+	game.floor_tasks.messes[49]=legacy;cleaner.pos=Vector2(5.5,6.5);cleaner.job_kind="floor";cleaner.job_mess_id=49;cleaner.job_token=legacy.token;cleaner.job_step=0
 	var actual=probe.contact_target(legacy,cleaner,"sweeping")
 	check(Approach.solve(cleaner.pos,actual,game.model).obstruction=="furniture 999","regression reproduces held sweep's unsafe original contact")
 	check(probe.work_cells(legacy,"mopping").has(Vector2i(5,6)) and not probe.work_cells(legacy,"sweeping").has(Vector2i(5,6)),"regression requires action-specific physical eligibility")

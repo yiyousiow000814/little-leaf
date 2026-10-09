@@ -7,6 +7,7 @@ const STAFF=1
 const STAFF_DONE=2
 const DECORATE=3
 const DONE=4
+## Keep these format-1 IDs: old waiting stages resume as explanatory cards.
 const ORDER=5
 const PAYMENT=6
 const COMPLETE=7
