@@ -575,7 +575,11 @@ func _layout_action_board(width:float):
  var board_height=content_height+vertical_pad*2
  var board=Rect2((width-board_width)*.5,-board_height-8,board_width,board_height)
  action_background.position=board.position;action_background.size=board.size
- _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad),Vector2(inner_width,content_height)))
+ # The stroke row uses Nunito14/18 and painted coin/button assets. Their visible
+ # ink centers 3px above the inset center despite centered Control rectangles.
+ # Calibrated from native1x pixels; shift this action row only, not HUD labels.
+ var ink_center_shift=3.0 if game.build_tools.paint_stroke.active else 0.0
+ _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad+ink_center_shift),Vector2(inner_width,content_height)))
  ui.context.set_meta("available_width",inner_width)
 
 func _product_scroll_finished(scroll:ScrollContainer):

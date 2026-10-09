@@ -7,6 +7,12 @@ func shot(viewport,label,game):
  for frame in 6:
   game._update_ui();game.compact_ui.update_pointer();await get_tree().process_frame
  await get_tree().create_timer(.7).timeout
+ var shop=game.compact_ui.shop_ui
+ var geometry={"file":"placement-"+label+".png"}
+ for name in {"board":shop.action_background,"quantity":game.compact_ui.context_label,"price":shop.price_label,"cancel":game.compact_ui.cancel_button,"coin":shop.action_coin}:
+  var control={"board":shop.action_background,"quantity":game.compact_ui.context_label,"price":shop.price_label,"cancel":game.compact_ui.cancel_button,"coin":shop.action_coin}[name]
+  var rect=control.get_global_rect();geometry[name]=[rect.position.x,rect.position.y,rect.size.x,rect.size.y]
+ observations.append(geometry)
  viewport.get_texture().get_image().save_png("res://placement-"+label+".png")
 func _ready():
  if not "saveguard" in OS.get_user_data_dir():
