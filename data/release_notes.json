@@ -1,24 +1,29 @@
 {
   "schema_version": 1,
-  "status": "draft",
+  "status": "released",
   "version": "0.1.10",
-  "date": "2026-10-08",
+  "date": "2026-10-09",
   "label": "Developer preview",
   "new": [
-    "Outside visitors wait in a separate queue before seated service begins.",
-    "Add a four-bay parking upgrade for 2,000 coins in Decorate. Customers park, visit the cafe, then return to their cars and drive away.",
-    "Roadside scenery, passing traffic and bus-stop visitors."
+    "A skippable, saved first-day tutorial guides opening, staff, Decorate and a real first order through payment. Resume or replay it from Help.",
+    "Real outside visitors queue before entering, with first-in-first-out admission, limited space and a waiting timeout.",
+    "Buy a fixed four-bay parking lot for 2,000 coins in Decorate. The same customers park, queue, dine, return to their cars and drive away; visits survive reloading.",
+    "Roadside greenery, passing traffic and bus-stop visitors, with connected curved pavement and kerbs.",
+    "Choose 60 or 120 FPS in Settings. The default is 60; higher frame rates can use more battery and produce more heat.",
+    "Copy a private, session-only diagnostic Log from Settings to help report save problems.",
+    "Separate platform builds support CrazyGames saves and a Firebase Google-account cloud-save preview. Ordinary Web progress stays separate.",
+    "Preview limits: live account and cross-device saves, final visuals and physical-device performance still need acceptance. This is not a formal release or a CrazyGames publication."
   ],
   "fixed": [
-    "Welcome now leads into a moving cafe, with Little Leaf branding while the game loads.",
-    "Browse Wall styles in the Build tray, with improved placement and replacement of walls, doors and windows.",
-    "Decorate hides outside people and uses the original Play camera range.",
-    "Clearer controls, softer wall-selection outlines, rounded coin icons and better frame-rate selector spacing.",
-    "Improved Inbox history after CrazyGames progress submission.",
-    "More reliable service, cleaning, work positions and build-session refunds, with less repeated rendering and route work."
-  ],
-  "review_pending": [
-    "Interactive tutorial and authentic fresh-customer flow are under developer validation.",
-    "Official submission and publication are on hold until the revised quality scope is ready."
+    "Welcome stays animated, with Little Leaf branding shown until the game is ready.",
+    "Play and Decorate share the camera range and preserve your view. Fit frames your owned cafe in Play and clears the shop in Decorate.",
+    "Decorate hides outside people. Unowned parking stays hidden; occupied or reserved parking cannot be sold.",
+    "Eligible purchases returned in the same Decorate session receive a full refund, including furniture, walls, doors, windows and parking. Later resale uses the original paid cost.",
+    "Browse full and half Wall styles in the Build tray; replace existing walls and place doors and windows with clearer controls and softer selection outlines.",
+    "Correct tree depth, pan-handle direction and layering, the single stove control, the connected drink spout and rotated cup-accessory depth.",
+    "Improve cleaner approach positions, obstacle clearance and rear-facing hand/tool layering, while reusing unchanged cleaning calculations.",
+    "Round coin-icon edges correctly at smaller sizes, improve compact controls and frame-rate spacing, and keep Help & Updates in Settings.",
+    "Recover safely from a closing browser save connection. CrazyGames save acknowledgements, pending changes and Inbox history follow confirmed progress.",
+    "Reduce repeated hidden-character, background and UI work. Web play suspends in the background and resumes without simulating the missed time."
   ]
 }
