@@ -1,0 +1,104 @@
+name: Compare lossless HUD import startup
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: hud-startup-compare-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnostic-comparison:
+    if: github.event_name == 'pull_request' && github.head_ref == 'perf/hud-import-startup-10a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: df115a085437633e3538ef5462401f57739fc935
+          persist-credentials: false
+          path: baseline
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 197b4190fcbea8a39d717cbde1f99c02b62247c6
+          persist-credentials: false
+          path: qa-tools
+      - name: Verify immutable controls and stage reviewed diagnostic-only overlays
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git -C baseline rev-parse HEAD^{tree})" = b30fb0c6b53e48a53d1e7f3b63628dd0ff8dd872
+          test "$(git -C qa-tools rev-parse HEAD^{tree})" = 6e1bcd1466bd622bfe348c41b96b93bb316bca03
+          python3 ci/verify_prebaked_atlases.py
+          (cd baseline && python3 ci/verify_prebaked_atlases.py)
+          python3 -m unittest discover -s qa-tools/tests/startup_phase -p 'test_*.py' -v
+          node qa-tools/tests/startup_phase/test_validate.js
+          node tests/test_hud_startup_browser.js
+          for root in . baseline; do
+            cp -R qa-tools/qa/startup_phase "$root/qa/startup_phase"
+            cp -R qa-tools/tests/startup_phase "$root/tests/startup_phase"
+          done
+          git diff --exit-code
+          git -C baseline diff --exit-code
+      - name: Install checksum-pinned official engine and Web template
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/hud-startup-tools"
+      - name: Check exact HUD mip pixels and export both fresh diagnostic pairs
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          export HOME="$RUNNER_TEMP/hud-import-saveguard"
+          export XDG_DATA_HOME="$HOME/data" XDG_CONFIG_HOME="$HOME/config" XDG_CACHE_HOME="$HOME/cache"
+          mkdir -p "$HOME" "$RUNNER_TEMP/hud-startup-pixels" "$RUNNER_TEMP/hud-import-pixel-project"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/hud-import-pixel-project"
+          godot --headless --path "$RUNNER_TEMP/hud-import-pixel-project" --editor --import --quit > "$RUNNER_TEMP/hud-startup-pixels/import.log" 2>&1
+          godot --headless --path "$RUNNER_TEMP/hud-import-pixel-project" --script res://tests/test_hud_imported_texture_parity.gd > "$RUNNER_TEMP/hud-startup-pixels/parity.log" 2>&1
+          for product in baseline candidate; do
+            root="$GITHUB_WORKSPACE"; expected="$EXPECTED_HEAD"
+            if [ "$product" = baseline ]; then root="$GITHUB_WORKSPACE/baseline"; expected=df115a085437633e3538ef5462401f57739fc935; fi
+            (cd "$root" && python3 qa/startup_phase/prepare.py --expected-source "$expected" \
+              --output "$RUNNER_TEMP/hud-startup-$product" --export \
+              --engine-lock "$RUNNER_TEMP/hud-startup-engine.lock" \
+              --godot "${GODOT_BIN:-godot}" --template "$GODOT_TEMPLATE" \
+              --toolchain-receipt "$GODOT_TOOLCHAIN_RECEIPT")
+          done
+          git diff --exit-code
+          git -C baseline diff --exit-code
+      - name: Install existing pinned browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/hud-startup-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/hud-startup-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+      - name: Observe symmetric cold and warm startup without screenshots or profiling
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/hud-startup-browser-tools/node_modules/playwright
+        run: |
+          xvfb-run -a node tests/hud_startup_browser.js \
+            --baseline-root "$PWD/baseline" --candidate-root "$PWD" --qa-tools "$PWD/qa-tools" \
+            --baseline-pair "$RUNNER_TEMP/hud-startup-baseline" \
+            --candidate-pair "$RUNNER_TEMP/hud-startup-candidate" \
+            --output "$RUNNER_TEMP/hud-startup-browser"
+      - name: Retain source-bound diagnostics only, never profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hud-startup-diagnostic-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/hud-startup-pixels/
+            ${{ runner.temp }}/hud-startup-baseline/pair.json
+            ${{ runner.temp }}/hud-startup-baseline/overlay-source/
+            ${{ runner.temp }}/hud-startup-baseline/*/diagnostic-manifest.json
+            ${{ runner.temp }}/hud-startup-baseline/*/evidence/
+            ${{ runner.temp }}/hud-startup-candidate/pair.json
+            ${{ runner.temp }}/hud-startup-candidate/overlay-source/
+            ${{ runner.temp }}/hud-startup-candidate/*/diagnostic-manifest.json
+            ${{ runner.temp }}/hud-startup-candidate/*/evidence/
+            ${{ runner.temp }}/hud-startup-browser/
+          if-no-files-found: error
+          retention-days: 7

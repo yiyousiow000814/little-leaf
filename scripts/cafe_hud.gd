@@ -65,6 +65,13 @@ func _init(compact):ui_ref=weakref(compact);game=compact.game
 func _texture(name:String)->Texture2D:
  if textures.has(name):return textures[name]
  var faithful="res://assets/ui/fidelity_hud/"+name+".png"
+ # Imported textures preserve the existing pixels and mip chain without rebuilding
+ # that chain during opening UI setup. Coin retains its authored padding path.
+ if name!="coin" and ResourceLoader.exists(faithful,"Texture2D"):
+  var imported=load(faithful) as Texture2D
+  if imported!=null:
+   textures[name]=imported
+   return imported
  if FileAccess.file_exists(faithful):
   var source=Image.new();source.load_png_from_buffer(FileAccess.get_file_as_bytes(faithful))
   if name=="coin":
@@ -234,7 +241,7 @@ func texture_style(name:String,corner=16.0,tint=Color.WHITE)->StyleBoxTexture:
 func _cream_button(button:Button,roundness:int=10):
  button.add_theme_stylebox_override("normal",texture_style("cream_face",roundness))
  button.add_theme_stylebox_override("hover",texture_style("cream_face",roundness,Color(1.08,1.06,1.02)))
- button.add_theme_stylebox_override("pressed",texture_style("green_face" if FileAccess.file_exists("res://assets/ui/fidelity_hud/green_face.png") else "cream_face",roundness))
+ button.add_theme_stylebox_override("pressed",texture_style("green_face" if ResourceLoader.exists("res://assets/ui/fidelity_hud/green_face.png","Texture2D") or FileAccess.file_exists("res://assets/ui/fidelity_hud/green_face.png") else "cream_face",roundness))
  button.add_theme_stylebox_override("hover_pressed",button.get_theme_stylebox("pressed"))
  button.add_theme_stylebox_override("disabled",texture_style("cream_face",roundness,Color(.74,.73,.69)))
  var focus=_surface(Color.TRANSPARENT,Color("fff8df"),roundness,4);focus.set_border_width_all(2);button.add_theme_stylebox_override("focus",focus)

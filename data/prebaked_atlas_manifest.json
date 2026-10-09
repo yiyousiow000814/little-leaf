@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "GitHub Actions run37895899863; commit ae5fc2d23681eb8e03bdce928e5d9e015b7e1428; artifact SHA256 a66fc771bbce7bdf7e9a9a496c5dcafdcc262333b6450a513fbecf71677ad5a0",
+  "provenance": "Native Godot 4.6.3 exact RGBA verification of HUD runtime 1a65b6822d396aaf4f800d42e0a978b4512c68aa, capture source c8b6307, 2026-10-09; 80 repeated HUD raster comparisons also exact",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -36,7 +36,7 @@
     "scripts/cafe_floor_tasks.gd": "7ec2ea0540fae530bab2da077bb29edcc4a41262b1a8b47a2f2ea4b4a28eaa1d",
     "scripts/cafe_footprint.gd": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c",
     "scripts/cafe_furniture_motion.gd": "f988ed9cf18c9ecc9f9e3812d0091c56c9604b00d34d4e9c08be3f370682728b",
-    "scripts/cafe_hud.gd": "91b19dba3077cb720ff3173d253553d684b77fabc7bc6ec6c6e27ffe470bab9e",
+    "scripts/cafe_hud.gd": "60950026d47d4210ea06750f55571cd533a207507487a3a57da2f23972212f39",
     "scripts/cafe_inbox.gd": "b219a075b2392a71f282acdac7bec0de3bb972d3559f0de49dc72ee0e00d2741",
     "scripts/cafe_interaction.gd": "ea6a9311b9c744fdfebbddac5b98958a741f1520c267cf73ff7427571920ea35",
     "scripts/cafe_intro.gd": "a55d6421986d04702116c9fa8c391747410b2948ebbdb8bb940ee83b194a24f9",
