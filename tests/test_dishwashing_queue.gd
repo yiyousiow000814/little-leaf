@@ -144,10 +144,14 @@ func run():
  # Additional sinks are selected automatically; unreachable ones are ignored.
  r=game.setup_dirty(false);duty("cleaner",false)
  var original=sink();fill(6,int(original.id))
- check(game.model.place("sink",7,1,0),"fixture adds second reachable sink")
+ # Use the normal actor-aware placement contract. The waiter's standby
+ # anchor follows stove pickup now; never place the synthetic sink under it.
+ check(game.model.place("sink",5,1,0,game.build_tools.actor_positions()),"fixture adds second reachable sink without trapping a worker")
  var second={}
  for item in game.model.items:
   if item.kind=="sink" and int(item.id)!=int(original.id):second=item
+ check(game.dishwashing.count_at(int(original.id))==game.dishwashing.CAPACITY,"original sink remains full for alternate-sink selection")
+ check(not second.is_empty() and game._service_cell(second,Vector2i(game.worker("waiter").pos.floor()),[],"waiter")!=Vector2i(-1,-1),"second sink is physically reachable from actual waiter position")
  for tick in 1200:
   game.advance()
   if r.plate_owner=="dish_queue":break

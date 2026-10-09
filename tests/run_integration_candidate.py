@@ -21,6 +21,11 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_stove_output_geometry", "STOVE_OUTPUT_GEOMETRY_RESULT"),
+    ("test_stove_output_reuse", "STOVE_OUTPUT_REUSE_RESULT"),
+    ("test_chef_pickup_pose", "CHEF_PICKUP_POSE_RESULT"),
+    ("capture_chef_pickup", "CHEF_PICKUP_CAPTURE_RESULT"),
+    ("test_direct_chef_pickup", "DIRECT_CHEF_PICKUP_RESULT"),
     ("capture_modular_cabinets", "CABINET_CAPTURE_FIXTURE_RESULT"),
     ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
@@ -267,6 +272,7 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script == "capture_chef_pickup":flags.append("--validate-fixture")
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
                     if script != "test_intro_lifecycle_headless":

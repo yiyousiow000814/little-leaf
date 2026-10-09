@@ -95,7 +95,7 @@ var catalog: Array[Dictionary] = [
 	{"kind": "stove", "name": "Stove", "price": 220},
 	{"kind": "beverage", "name": "Beverage station", "price": 160},
 	{"kind": "sink", "name": "Dishwashing sink", "price": 140},
-	{"kind": "counter", "name": "Service counter", "price": 90},
+	{"kind": "counter", "hidden":true, "name": "Legacy service counter", "price": 90},
 	{"kind": "bin", "name": "Trash bin", "price": 65},
 	{"kind": "register", "name": "Included cash register", "price": 0},
 	{"kind": "plant", "name": "Leafy plant", "price": 45},
@@ -440,6 +440,7 @@ func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionar
 
 func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, actor_positions: Array = []) -> bool:
 	last_error = "";last_placement_issue={}
+	if kind=="counter" and ignore_id<0:return _fail("Meals are collected directly from the stove")
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():return DiningSets.can_place(self,x,z,rot,ignore_id,actor_positions)
 	if kind=="register" and ignore_id<0 and not included_checkout_pending:return _fail("The included register is already placed")
 	if price_of(kind) < 0:

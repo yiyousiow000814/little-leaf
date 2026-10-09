@@ -9,6 +9,8 @@ class GeneratedMain extends "res://scripts/main.gd":
  var observed_saves=[]
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;paused=true;MinimalStart.apply(model)
+  # Explicit old-save asset for the legacy pass/cancellation cases below.
+  model.items.append({"id":model._next_item_id,"kind":"counter","x":8,"z":5,"rot":0});model._next_item_id+=1;model._notify()
  func _save():
   if not model.customers.is_empty():observed_saves.append({"guest":model.customers[0].duplicate(true),"service":_service_save_snapshot()})
   return true

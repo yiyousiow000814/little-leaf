@@ -1,4 +1,5 @@
 extends Node2D
+const ChefPickupArt=preload("res://scripts/cafe_chef_pickup_art.gd")
 const RenderVisibility=preload("res://scripts/cafe_render_visibility.gd")
 # Comparison switch; normal gameplay always culls conservatively.
 var use_screen_culling=true
@@ -306,12 +307,14 @@ func update_motion(delta: float):
 			# inset at the prep/cook boundary produces a short backwards step,
 			# leaving the gait facing away from the stove after it settles.
 			if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
+			if str(station.get("kind",""))=="stove" and str(staff.get("art_action","")) in ["placing_plate","collecting_plate"]:inset=ChefPickupArt.INSET
 			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.work_inset(int(station.get("rot",0)))
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
 			# this job steps close to the edge; serving keeps its small aisle lean.
 			if str(station.get("kind",""))=="table" and str(staff.get("art_action",""))=="wiping":inset=DirectionalCharacter.CleaningPose.table_inset(target-staff.pos)
 			if target.distance_to(staff.pos)>.1:docking=(target-staff.pos).normalized()*inset
+			if str(station.get("kind",""))=="stove" and str(staff.get("art_action","")) in ["placing_plate","collecting_plate"]:docking=ChefPickupArt.work_offset(int(station.rot))
 		stance_offsets[key]=(stance_offsets.get(key,Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
 		motion.update(key,staff.pos+stance_offsets[key],delta)
 		var direction=_staff_visual_heading(staff,motion.sample(key))
@@ -896,6 +899,9 @@ func _draw():
 				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
 				var contact=ground+surface
 				reach=Vector2(contact.x*face,contact.y)-anchor
+				if kind=="stove" and action in ["placing_plate","collecting_plate"]:
+					pose["pickup_grip"]=(ground+ChefPickupArt.grip(int(target_item.rot)))*Vector2(face,1)
+					pose["pickup_plate"]=(ground+game.ChefPickup.plate_anchor(int(target_item.rot)))*Vector2(face,1)
 			character(Vector2.ZERO,int(e.get("index",d.get("id",1))),e.type=="staff",moving,seated,action,progress,reach,direction,payload,str(d.get("art_tool","none")),pose,str(d.get("art_role",d.get("role","chef"))))
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
@@ -1271,7 +1277,7 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"pickup_pose":geometry.get("pickup_pose",{}),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1719,10 +1725,11 @@ func _drink_in_hand(_guest,_record) -> bool:
 
 func _station_payloads(item_id: int,kind: String,rotation: int=0):
 	if game==null or ("editing" in game and game.editing):return
-	# Kitchen cooking has no empty plate or staged assembly on the worktop.
-	# Ready meals still appear through the existing staff/counter ownership.
-	if kind=="stove":return
+	# Only the authoritative output owner paints a ready plate. Pickup moves
+	# ownership to the waiter at contact, so the dish is never drawn twice.
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
+		if kind=="stove" and str(record.get("plate_owner",""))=="station" and int(record.get("plate_target_id",-1))==item_id:
+			_plate(game.ChefPickup.plate_anchor(rotation),1.0,false)
 		if kind=="counter" and str(record.get("plate_owner",""))=="counter" and int(record.get("plate_target_id",-1))==item_id:
 			_plate(FurnitureArt.KitchenGeometry.surface(Vector2.ZERO,31),1.0,false)
 		if kind=="beverage" and str(record.get("drink_owner","")) in ["beverage","station"] and int(record.get("drink_station_id",-1))==item_id:
@@ -1783,7 +1790,7 @@ func _drink_surface_point(rotation:int) -> Vector2:
 	return FurnitureArt.KitchenGeometry.surface(Vector2(.17,.25),30,rotation)
 
 func _stove_plate_point(rotation:int) -> Vector2:
-	return FurnitureArt.KitchenGeometry.surface(Vector2(-.20,.30),30,rotation)
+	return game.ChefPickup.plate_anchor(rotation)
 
 func _stove_pan_point(rotation:int) -> Vector2:
 	# The blade and live food share one exact surface, in every rotation.

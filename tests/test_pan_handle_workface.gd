@@ -21,6 +21,7 @@ func check(ok,label):
  if not ok:failures.append(label);push_error(label)
 func _initialize():run.call_deferred()
 func run():
+ check(absf(Furniture.PAN_GRIP_LENGTH-Vector2(34,17).length()*.10*Furniture.PAN_WIDTH*.32)<.000001,"Original wood grip size preserved")
  var model=Model.new()
  var artist=PanSpy.new()
  var furniture=Furniture.new()
@@ -31,17 +32,14 @@ func run():
   var projected=Vector2((work.x-work.y)*34,(work.x+work.y)*17)
   var handle=Furniture.stove_handle_points(rot)
   var center=Furniture.stove_food_surface(rot)
-  var side_center=Furniture.KitchenGeometry.surface(Vector2.ZERO,Furniture.stove_handle_height(rot),rot)
+  var side_center=Furniture.KitchenGeometry.surface(Furniture.StoveLayout.POT_CENTER,Furniture.stove_handle_height(rot),rot)
   var mount=handle[0]-side_center;var tip=handle[1]-side_center
   check(handle.size()==2,"Handle must have one mount and one end")
   check(mount.dot(projected)>0 and tip.dot(projected)>mount.dot(projected),"Handle points away from chef workface")
-  check(absf((handle[1]-handle[0]).normalized().cross(projected.normalized()))<.00001,"Handle is not aligned with chef work side")
   var outset=0.0 if Furniture.stove_handle_in_front(rot) else Furniture.PAN_REAR_HANDLE_OUTSET
-  check(mount.distance_to(projected*(.16*Furniture.PAN_WIDTH+outset))<.00001 and tip.distance_to(projected*(.26*Furniture.PAN_WIDTH+outset))<.00001,"Handle uses a different attachment height or side")
-  var old_mount=Furniture.KitchenGeometry.surface(Vector2(0,.16*Furniture.PAN_WIDTH),39.0,rot)
-  var old_tip=Furniture.KitchenGeometry.surface(Vector2(0,.26*Furniture.PAN_WIDTH),39.0,rot)
-  var expected_shift=Vector2.ZERO if Furniture.stove_handle_in_front(rot) else projected*Furniture.PAN_REAR_HANDLE_OUTSET+Vector2(0,2)
-  check((handle[0]-old_mount).is_equal_approx(expected_shift) and (handle[1]-old_tip).is_equal_approx(expected_shift),"Annotated rear offset differs or unmarked front handle moved")
+  var old_tip=Furniture.KitchenGeometry.surface(Furniture.StoveLayout.HANDLE_GRIP+Vector2(0,outset),Furniture.stove_handle_height(rot),rot)
+  check(handle[1].is_equal_approx(old_tip),"Reachable front grip stays inside the supported worktop")
+  check(absf(mount.normalized().cross(tip.normalized()))<.00001,"Stem is radial from repositioned vessel center")
   var rim_distance=pow(mount.x/(8.5*Furniture.PAN_WIDTH),2)+pow(mount.y/(4.2*Furniture.PAN_DEPTH),2)
   if Furniture.stove_handle_in_front(rot):
    check(rim_distance>.9 and rim_distance<1.1,"Front handle ground location does not meet the vessel side")
@@ -51,8 +49,8 @@ func run():
   for equivalent in [rot-4,rot+4]:
    check(Furniture.stove_handle_points(equivalent)==handle,"Equivalent rotation changes pan attachment")
   check(is_equal_approx(side_center.y-center.y,2.0 if Furniture.stove_handle_in_front(rot) else 4.0),"Handle floats above the sidewall instead of below the lip")
-  check(center.is_equal_approx(Furniture.KitchenGeometry.surface(Vector2.ZERO,41,rot)),"Food contact anchor moved")
-  check(is_equal_approx((handle[1]-handle[0]).length(),Vector2(34,17).length()*.10*Furniture.PAN_WIDTH),"Handle length changes with rotation")
+  check(center.is_equal_approx(Furniture.KitchenGeometry.surface(Furniture.StoveLayout.POT_CENTER,41,rot)),"Food contact anchor moved")
+  check(handle[0].distance_to(handle[1])>Furniture.PAN_GRIP_LENGTH,"Radial collar accommodates unchanged wood grip")
   var bounds=Atlas.bounds("stove_pan")
   for point in handle:
    check(bounds.grow(-1.1-AA.FEATHER_SIZE).has_point(point),"Handle antialias edge leaves existing atlas bounds")
@@ -70,8 +68,8 @@ func run():
   check(handles.size()==3,"Handle must contain exactly one collar, grip and highlight, without a foreground collar repaint")
   if handles.size()>=3:
    var mount_at=furniture.origin+handle[0];var tip_at=furniture.origin+handle[1]
-   check(handles[0].start.is_equal_approx(mount_at) and handles[0].finish.is_equal_approx(mount_at.lerp(tip_at,.80)),"Metal collar does not join the rim")
-   check(handles[1].start.is_equal_approx(mount_at.lerp(tip_at,.68)) and handles[1].finish.is_equal_approx(tip_at),"Grip does not overlap the metal collar")
+   check(handles[0].start.is_equal_approx(mount_at) and handles[0].finish.is_equal_approx((tip_at-(tip_at-mount_at).normalized()*Furniture.PAN_GRIP_LENGTH).lerp(tip_at,.375)),"Metal collar does not join the rim")
+   check(handles[1].start.is_equal_approx(tip_at-(tip_at-mount_at).normalized()*Furniture.PAN_GRIP_LENGTH) and handles[1].finish.is_equal_approx(tip_at),"Grip does not overlap the metal collar")
    check(handles[0].color=="6d8475" and handles[1].color=="79674e" and is_equal_approx(handles[1].width,2.2),"Grip material or thickness changed")
    check((handles[2].finish-handles[2].start).is_equal_approx(handles[1].finish-handles[1].start) and handles[2].width<handles[1].width,"Highlight changes grip direction or silhouette")
   if Furniture.stove_handle_in_front(rot):
@@ -100,7 +98,7 @@ func run():
  for rot in [1,2]:
   var mirror=1.0 if rot==1 else -1.0
   var distance=1.0-Pose.WORK_INSET
-  var pan=Vector2(39.0*distance*mirror,19.5*distance-Furniture.KitchenGeometry.height(41))
+  var pan=Vector2(39.0*distance*mirror,19.5*distance)+Furniture.stove_food_surface(rot)
   var handle=Furniture.stove_handle_points(rot)
   var center=Furniture.stove_food_surface(rot)
   var start=pan+handle[0]-center

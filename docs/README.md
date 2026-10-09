@@ -18,6 +18,8 @@ Use a new output directory for each run. Set `GODOT_BIN` if the executable is no
 
 The runner uses a disposable project and generated saves. It checks engine behavior, not browser storage or rendered visuals.
 
+[Chef output pickup and legacy counter compatibility](chef-pickup.md).
+
 ## Build
 
 For automated builds and publishing, see [GitHub Web builds and releases](github-release.md).

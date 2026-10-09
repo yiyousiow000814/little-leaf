@@ -371,7 +371,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if staff is Dictionary and staff.get("role")=="barista":staff.role="waiter"
 	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,guests,self)
 	if not floor_checked.ok:return _fail(floor_checked.error)
-	var records={};var roles={};var tokens={};var counter_slots={}
+	var records={};var roles={};var tokens={};var counter_slots={};var stove_slots={}
 	for record in service.records:
 		if not record is Dictionary or not _integer(record.get("guest_id"),1,1000000000) or not guests.has(int(record.guest_id)) or records.has(int(record.guest_id)):return _fail("Invalid service guest identity")
 		if not _integer(record.get("token"),1,int(service.serial)) or tokens.has(int(record.token)):return _fail("Invalid service token")
@@ -423,6 +423,10 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if record.floor_debris=="none" and record.trash_owner!="none":return _fail("Garbage owner exists without debris")
 		if record.spill_cleaned and float(record.spill_remaining)>.000001:return _fail("Clean floor retains spill amount")
 		if record.cleanup_done and (record.plate_owner not in ["clean","dish_queue"] or record.drink_owner!="cleared" or not record.table_wiped or record.trash_owner not in ["none","disposed"] or not record.spill_cleaned or not record.floor_cleaned or record.floor_dirty):return _fail("Completed cleanup retains unfinished work")
+		if record.plate_owner=="station":
+			var stove=int(record.plate_target_id)
+			if stove_slots.has(stove) or stove!=int(record.meal_station_id):return _fail("Invalid or duplicated stove output plate")
+			stove_slots[stove]=true
 		if record.plate_owner=="counter":
 			var slot=int(record.plate_target_id)
 			if slot<0 or item_map[slot].kind!="counter" or counter_slots.has(slot):return _fail("Invalid or duplicated pass-counter plate")
