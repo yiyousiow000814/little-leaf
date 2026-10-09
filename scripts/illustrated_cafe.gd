@@ -224,6 +224,12 @@ func _draw_street_people(show_service:bool):
 		var face=float(facing.mirror)
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
+	var pivot=Vector2.ZERO
+	if seat_mix>.001:
+		var seated_pose=pose.duplicate();seated_pose["seat_mix"]=1.0
+		var seat_geometry=DirectionalCharacter.leg_pose(seated_pose,false,float(pose.phase),bool(facing.back),false)
+		pivot=((seat_geometry.near_hip+seat_geometry.far_hip)*.5+seat_geometry.body)*seat_mix
+	pose["whole_scale_pivot"]=pivot
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
 
@@ -523,7 +529,10 @@ func col(c):
 # Submit strokes in raster coordinates at close zoom and during the 4x atlas bake;
 # authored centerlines, stroke widths, fill geometry and palette stay unchanged.
 func art_transform(offset:Vector2,rotation:float=0.0,scale:Vector2=Vector2.ONE):
-	_art_transform=Transform2D(rotation,scale,0.0,offset)
+	art_transform_matrix(Transform2D(rotation,scale,0.0,offset))
+
+func art_transform_matrix(transform:Transform2D):
+	_art_transform=transform
 	var outer=get_global_transform_with_canvas()
 	_stroke_to_raster=outer*_art_transform
 	_stroke_raster_scale=art_stroke_scale(_stroke_to_raster)
@@ -808,94 +817,10 @@ func _draw():
 			opacity=1.0
 		else:
 			var d=e.entry
-			var key=("staff_%s"%e.index) if e.type=="staff" else ("guest_%s"%d.id)
-			var render_pos=_render_position(key,d.pos if e.type=="staff" else Vector2(float(d.x),float(d.z)))
-			var p=iso(render_pos.x,render_pos.y)
-			var pose=motion.sample(key)
-			var moving=pose.blend>.02
-			var seat_mix=float(seat_blends.get(int(d.get("id",-1)),1.0 if bool(d.get("seated",false)) else 0.0)) if e.type=="guest" else 0.0
-			pose["seat_mix"]=seat_mix
-			pose["dismounting"]=e.type=="guest" and bool(d.get("dismounting",false)) and seat_mix>.01
-			var direction=Vector2.ZERO
-			var seated=e.type=="guest" and (bool(d.get("seated",false)) or seat_mix>.01)
-			if e.type=="guest":
-				direction=d.get("heading",Vector2.ZERO)
-				if seated and not bool(d.get("dismounting",false)):
-					var table=game.model.get_item(int(d.table_id))
-					direction=Vector2(float(table.x)+.5,float(table.z)+.5)-Vector2(float(d.x),float(d.z))
-			else:direction=_staff_visual_heading(d,pose)
-			if e.type=="guest" and moving and not seated and str(d.phase) not in ["checkout_wait","paying"]:direction=pose.heading
-			var facing=character_facings.get(key,{"back":direction.x+direction.y<0,"mirror":-1.0 if direction.x-direction.y<-.01 else 1.0})
-			var face=float(facing.mirror)
-			pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-			if e.type=="staff":
-				var held:Vector2=carry_hand_offsets.get(key,Vector2(17*face,-23))
-				pose["carry_hand"]=Vector2(held.x*face,held.y)
-				# Presentation reads the existing work clock; it never changes the
-				# recipe duration, normalized completion progress, or saved state.
-				pose["cooking_strength"]=0.0 if _cooking_reduced_motion() or _stove_heat_state(int(d.get("station_id",-1))).is_empty() else cooking_motion_strength
-				pose["cooking_elapsed"]=float(d.get("job_elapsed",0.0))
-				var cooking_progress=float(d.get("art_phase",0.0))
-				pose["cooking_remaining"]=float(pose.cooking_elapsed)*(1.0-cooking_progress)/cooking_progress if cooking_progress>.000001 else -1.0
-			pose["hide_reach"]=bool(e.get("hide_reach",false))
-			pose["reach_overlay"]=bool(e.get("reach_overlay",false))
-			art_transform(p,0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-			var action=str(d.get("art_action","idle")) if e.type=="staff" else CheckoutArt.guest_action(d,game.service_guests.get(int(d.id),{}))
-			var progress=float(d.get("art_phase",0.0)) if e.type=="staff" else clampf(float(d.get("elapsed",0.0))/maxf(.01,float(d.get("duration",1.0))),0.0,1.0)
-			if e.type=="guest" and d.phase=="paying":progress=CheckoutArt.guest_progress(game,d)
-			if (e.type=="guest" and d.phase in ["checkout_wait","paying"]) or action=="taking_payment":moving=false
-			var payload=str(d.get("art_payload","none"))
-			if e.type=="guest":
-				var record=game.service_guests.get(int(d.id),{})
-				if _drink_in_hand(d,record):payload="drink"
-			var reach=Vector2(18,-28)
-			var target=d.get("art_target",d.get("art_station",Vector2.ZERO)) if e.type=="staff" else Vector2.ZERO
-			if e.type=="guest" and d.phase=="paying":
-				var register=game.model.get_item(int(d.get("checkout_register_id",-1)))
-				if not register.is_empty():target=Vector2(register.x+.5,register.z+.5)
-			elif seated and not bool(d.get("dismounting",false)):
-				var table=game.model.get_item(int(d.table_id));target=Vector2(table.x+.5,table.z+.5)
-			if target!=Vector2.ZERO:
-				var unit_scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
-				var ground=(iso(target.x,target.y)-p)/unit_scale
-				var target_item=game.model.get_item(int(d.get("art_target_id",-1))) if e.type=="staff" else game.model.get_item(int(d.get("checkout_register_id",-1)) if d.phase=="paying" else int(d.table_id))
-				var kind=str(target_item.get("kind","table"))
-				var drink_job="drink" in str(d.get("art_service_kind","")) or str(d.get("art_service_kind",""))=="brew" or action in ["collecting_drink","preparing_drink","drinking"]
-				var surface=FurnitureArt.KitchenGeometry.surface(Vector2.ZERO,31) if kind in ["counter","sink"] else Vector2(0,-31)
-				if kind=="table":
-					surface=_table_surface_point(int(target_item.get("id",-1)),drink_job)
-					if action=="wiping":
-						# The compact arm aims toward the top and meets its near edge;
-						# the character painter owns the fixed-length contact stroke.
-						surface=Vector2(0,-DiningPlacement.TABLE_HEIGHT-1.0)
-				elif kind=="sink" and action=="washing":
-					var wash=SinkWashArt.state(game,int(target_item.id))
-					if not wash.is_empty():
-						var wash_geometry=SinkWashArt.geometry(int(target_item.rot),float(wash.seconds),int(wash.count))
-						surface=wash_geometry.center
-						var axes:Transform2D=wash_geometry.basis
-						pose["washing_basis"]=Transform2D(Vector2(axes.x.x*face,axes.x.y),Vector2(axes.y.x*face,axes.y.y),Vector2.ZERO)
-						pose["washing_seconds"]=float(wash.seconds)
-						var ref=SinkWashArt.geometry(int(target_item.rot),1.0,int(wash.count));var ref_axes:Transform2D=ref.basis
-						pose["washing_grip_reference"]={"center":(ground+ref.center)*Vector2(face,1),"basis":Transform2D(ref_axes.x*Vector2(face,1),ref_axes.y*Vector2(face,1),Vector2.ZERO)}
-				elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
-				elif kind=="bin":surface=Vector2(0,-25)
-				elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
-				elif kind=="stove":
-					surface=_stove_plate_point(int(target_item.get("rot",0)))
-					if action=="cooking":
-						surface=FurnitureArt.stove_handle_points(int(target_item.get("rot",0)))[1]+_stove_vessel_motion(int(target_item.get("id",-1))).pot
-						pose["cooking_grip"]=true
-				var anchor=Vector2(2,-2) if drink_job else Vector2(4,0 if payload=="dishes" or action in ["collecting","washing"] else -2)
-				if action=="cooking":anchor=Vector2.ZERO
-				elif action=="preparing_food":anchor=Vector2(4,6)
-				elif action=="eating":anchor=Vector2.ZERO
-				elif action in ["wiping","paying","taking_payment","washing"]:anchor=Vector2.ZERO
-				elif payload=="trash" or action=="disposing_trash":anchor=Vector2(3,-3)
-				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
-				var contact=ground+surface
-				reach=Vector2(contact.x*face,contact.y)-anchor
-			character(Vector2.ZERO,int(e.get("index",d.get("id",1))),e.type=="staff",moving,seated,action,progress,reach,direction,payload,str(d.get("art_tool","none")),pose,str(d.get("art_role",d.get("role","chef"))))
+			var state=character_draw_state(e)
+			var p:Vector2=state.position;var pose:Dictionary=state.pose;var moving:bool=state.moving;var action:String=state.action
+			art_transform_matrix(state.transform)
+			character(Vector2.ZERO,state.id,state.staff,moving,state.seated,action,state.progress,state.reach,state.direction,state.payload,state.tool,pose,state.role)
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
 				line(Vector2(-1.7,-82.5),Vector2(-1.7,-77.5),"819071",1.4);line(Vector2(1.7,-82.5),Vector2(1.7,-77.5),"819071",1.4)
@@ -907,7 +832,7 @@ func _draw():
 				var anchor=_character_bubble_anchor(bubble_id,e.type=="staff",moving,pose,str(d.get("art_role",d.get("role","chef"))))
 				# Text stays upright when the actor faces left. Position and gap use
 				# the same local scale as the animal, including zoom/detail mode.
-				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+				art_transform_matrix(character_render_transform(p,1.0,pose.get("whole_scale_pivot",Vector2.ZERO)))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
 	# Plot boards are editing affordances. Keep their ground anchors centered
@@ -917,6 +842,126 @@ func _draw():
 				if not parcel.owned and parcel.visible:_parcel_sign(parcel)
 	# Do not expose the presentation offset to resize anchoring or input projection.
 	origin = gameplay_origin
+func character_study_scale()->float:
+	if not is_instance_valid(game):return 1.0
+	var value=float(game.get_meta("whole_character_scale_study",1.0))
+	return value if value in [1.0,1.25,1.40] else 1.0
+
+func character_render_transform(position:Vector2,face:float=1.0,local_pivot:Vector2=Vector2.ZERO)->Transform2D:
+	# Whole-character presentation changes belong here, shared by paint/input.
+	var scale=character_study_scale()
+	var unit=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	return Transform2D(0.0,Vector2(face,1)*unit*scale,0.0,position+local_pivot*Vector2(face,1)*unit*(1.0-scale))
+
+func character_draw_state(e:Dictionary)->Dictionary:
+	var d=e.entry
+	var key=("staff_%s"%e.index) if e.type=="staff" else ("guest_%s"%d.id)
+	var render_pos=_render_position(key,d.pos if e.type=="staff" else Vector2(float(d.x),float(d.z)))
+	var p=iso(render_pos.x,render_pos.y)
+	var pose=motion.sample(key)
+	var moving=pose.blend>.02
+	var seat_mix=float(seat_blends.get(int(d.get("id",-1)),1.0 if bool(d.get("seated",false)) else 0.0)) if e.type=="guest" else 0.0
+	pose["seat_mix"]=seat_mix
+	pose["dismounting"]=e.type=="guest" and bool(d.get("dismounting",false)) and seat_mix>.01
+	var direction=Vector2.ZERO
+	var seated=e.type=="guest" and (bool(d.get("seated",false)) or seat_mix>.01)
+	if e.type=="guest":
+		direction=d.get("heading",Vector2.ZERO)
+		if seated and not bool(d.get("dismounting",false)):
+			var table=game.model.get_item(int(d.table_id))
+			direction=Vector2(float(table.x)+.5,float(table.z)+.5)-Vector2(float(d.x),float(d.z))
+	else:direction=_staff_visual_heading(d,pose)
+	if e.type=="guest" and moving and not seated and str(d.phase) not in ["checkout_wait","paying"]:direction=pose.heading
+	var facing=character_facings.get(key,{"back":direction.x+direction.y<0,"mirror":-1.0 if direction.x-direction.y<-.01 else 1.0})
+	var face=float(facing.mirror)
+	pose["mirror"]=face;pose["view_back"]=bool(facing.back)
+	if e.type=="staff":
+		var held:Vector2=carry_hand_offsets.get(key,Vector2(17*face,-23))
+		pose["carry_hand"]=Vector2(held.x*face,held.y)
+		# Presentation reads the existing work clock; it never changes the
+		# recipe duration, normalized completion progress, or saved state.
+		pose["cooking_strength"]=0.0 if _cooking_reduced_motion() or _stove_heat_state(int(d.get("station_id",-1))).is_empty() else cooking_motion_strength
+		pose["cooking_elapsed"]=float(d.get("job_elapsed",0.0))
+		var cooking_progress=float(d.get("art_phase",0.0))
+		pose["cooking_remaining"]=float(pose.cooking_elapsed)*(1.0-cooking_progress)/cooking_progress if cooking_progress>.000001 else -1.0
+	pose["hide_reach"]=bool(e.get("hide_reach",false))
+	pose["reach_overlay"]=bool(e.get("reach_overlay",false))
+	var action=str(d.get("art_action","idle")) if e.type=="staff" else CheckoutArt.guest_action(d,game.service_guests.get(int(d.id),{}))
+	var progress=float(d.get("art_phase",0.0)) if e.type=="staff" else clampf(float(d.get("elapsed",0.0))/maxf(.01,float(d.get("duration",1.0))),0.0,1.0)
+	if e.type=="guest" and d.phase=="paying":progress=CheckoutArt.guest_progress(game,d)
+	if (e.type=="guest" and d.phase in ["checkout_wait","paying"]) or action=="taking_payment":moving=false
+	var payload=str(d.get("art_payload","none"))
+	if e.type=="guest":
+		var record=game.service_guests.get(int(d.id),{})
+		if _drink_in_hand(d,record):payload="drink"
+	var reach=Vector2(18,-28)
+	var target=d.get("art_target",d.get("art_station",Vector2.ZERO)) if e.type=="staff" else Vector2.ZERO
+	if e.type=="guest" and d.phase=="paying":
+		var register=game.model.get_item(int(d.get("checkout_register_id",-1)))
+		if not register.is_empty():target=Vector2(register.x+.5,register.z+.5)
+	elif seated and not bool(d.get("dismounting",false)):
+		var table=game.model.get_item(int(d.table_id));target=Vector2(table.x+.5,table.z+.5)
+	if target!=Vector2.ZERO:
+		var unit_scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+		var ground=(iso(target.x,target.y)-p)/unit_scale
+		var target_item=game.model.get_item(int(d.get("art_target_id",-1))) if e.type=="staff" else game.model.get_item(int(d.get("checkout_register_id",-1)) if d.phase=="paying" else int(d.table_id))
+		var kind=str(target_item.get("kind","table"))
+		var drink_job="drink" in str(d.get("art_service_kind","")) or str(d.get("art_service_kind",""))=="brew" or action in ["collecting_drink","preparing_drink","drinking"]
+		var surface=FurnitureArt.KitchenGeometry.surface(Vector2.ZERO,31) if kind in ["counter","sink"] else Vector2(0,-31)
+		if kind=="table":
+			surface=_table_surface_point(int(target_item.get("id",-1)),drink_job)
+			if action=="wiping":
+				# The compact arm aims toward the top and meets its near edge;
+				# the character painter owns the fixed-length contact stroke.
+				surface=Vector2(0,-DiningPlacement.TABLE_HEIGHT-1.0)
+		elif kind=="sink" and action=="washing":
+			var wash=SinkWashArt.state(game,int(target_item.id))
+			if not wash.is_empty():
+				var wash_geometry=SinkWashArt.geometry(int(target_item.rot),float(wash.seconds),int(wash.count))
+				surface=wash_geometry.center
+				var axes:Transform2D=wash_geometry.basis
+				pose["washing_basis"]=Transform2D(Vector2(axes.x.x*face,axes.x.y),Vector2(axes.y.x*face,axes.y.y),Vector2.ZERO)
+				pose["washing_seconds"]=float(wash.seconds)
+				var ref=SinkWashArt.geometry(int(target_item.rot),1.0,int(wash.count));var ref_axes:Transform2D=ref.basis
+				pose["washing_grip_reference"]={"center":(ground+ref.center)*Vector2(face,1),"basis":Transform2D(ref_axes.x*Vector2(face,1),ref_axes.y*Vector2(face,1),Vector2.ZERO)}
+		elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
+		elif kind=="bin":surface=Vector2(0,-25)
+		elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
+		elif kind=="stove":
+			surface=_stove_plate_point(int(target_item.get("rot",0)))
+			if action=="cooking":
+				surface=FurnitureArt.stove_handle_points(int(target_item.get("rot",0)))[1]+_stove_vessel_motion(int(target_item.get("id",-1))).pot
+				pose["cooking_grip"]=true
+		var anchor=Vector2(2,-2) if drink_job else Vector2(4,0 if payload=="dishes" or action in ["collecting","washing"] else -2)
+		if action=="cooking":anchor=Vector2.ZERO
+		elif action=="preparing_food":anchor=Vector2(4,6)
+		elif action=="eating":anchor=Vector2.ZERO
+		elif action in ["wiping","paying","taking_payment","washing"]:anchor=Vector2.ZERO
+		elif payload=="trash" or action=="disposing_trash":anchor=Vector2(3,-3)
+		if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
+		var contact=ground+surface
+		reach=(Vector2(contact.x*face,contact.y)-anchor-pivot*(1.0-character_study_scale()))/character_study_scale()
+	return {"position":p,"transform":character_render_transform(p,face,pivot),"id":int(e.get("index",d.get("id",1))),"staff":e.type=="staff","moving":moving,"seated":seated,"action":action,"progress":progress,"reach":reach,"direction":direction,"payload":payload,"tool":str(d.get("art_tool","none")),"pose":pose,"role":str(d.get("art_role",d.get("role","chef")))}
+
+func character_screen_bounds(entry:Dictionary)->Rect2:
+	var state=character_draw_state(entry)
+	var description=character_description(state.id,state.staff,state.seated,state.action,state.progress,state.reach,state.direction,state.payload,state.tool,state.pose,state.role)
+	description.options["geometry_only"]=true
+	# The same directional pose solver supplies head, limbs, torso and shoes.
+	# A separate solver instance cannot disturb the live painter's tablet state.
+	var geometry=DirectionalCharacter.new().draw(self,Vector2.ZERO,description.species,description.away,state.moving,float(state.pose.get("phase",0)),state.staff,false,description.options)
+	return get_global_transform_with_canvas()*state.transform*geometry.occlusion_bounds
+
+func character_occludes(screen:Vector2)->bool:
+	if not is_instance_valid(game) or game.editing:return false
+	for index in game.staff_states.size():
+		if character_screen_bounds({"type":"staff","entry":game.staff_states[index],"index":index}).has_point(screen):return true
+	for guest in game.model.customers:
+		# Match the renderer: exited/dirty records are ledgers, not painted bodies.
+		if float(guest.x)<0 or float(guest.z)<0 or str(guest.phase) in ["dirty","cleaning"]:continue
+		if character_screen_bounds({"type":"guest","entry":guest}).has_point(screen):return true
+	return false
+
 func _draw_legacy_pavement(ground_view: Rect2):
 	for z in range(ExteriorExtent.PAVEMENT_Z_MIN,ExteriorExtent.PAVEMENT_Z_MAX):
 		for x in [PAVEMENT_EDGE, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH*2]:
@@ -1259,18 +1304,27 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 static func _kitchen_visual_action(action:String,staff:bool,role:String)->String:
 	return "idle" if staff and role=="chef" and action=="plating" else action
 
-func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
+func character_description(id:int,staff:bool,seated:bool,action:String,progress:float,reach:Vector2,look:Vector2,payload:String,tool:String,pose:Dictionary,role:String)->Dictionary:
 	var species=posmod(id,3);var away=bool(pose.get("view_back",look.x+look.y<-.5))
 	var shirt=["9cbbbd","c98e83","d6b16b","a9b78a"][id%4] if not staff else {"chef":"739c7f","waiter":"b99578","cleaner":"91b2ad","cashier":"b68b92"}.get(role,"739c7f")
 	var options=pose.duplicate()
 	# Keep the existing ready-meal handoff timing, without a plating gesture.
 	var visual_action=_kitchen_visual_action(action,staff,role)
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
+	return {"species":species,"away":away,"options":options}
+
+var _character_prop_scale=1.0
+
+func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
+	var description=character_description(id,staff,seated,action,progress,reach,look,payload,tool,pose,role)
+	var species:int=description.species;var away:bool=description.away;var options:Dictionary=description.options
+	_character_prop_scale=character_study_scale()
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
+	_character_prop_scale=1.0
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0,"whole_scale":character_study_scale(),"study_near_foot":geometry.near_foot,"study_near_shoulder":geometry.near_shoulder,"study_transform":_art_transform,"study_grip_error":float(cooking_pose.get("grip_error",-1.0))*character_study_scale()})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1608,7 +1662,17 @@ func _door_front():
 	var b=DOOR_END;var h=DOOR_HEIGHT;var w=.085
 	poly([iso(.01,b-w),iso(.01,b+w),iso(.01,b+w,h+4),iso(.01,b-w,h+4)],"597d60")
 
+func _world_prop_transform(at:Vector2)->Transform2D:
+	var inverse=1.0/_character_prop_scale
+	return _art_transform*Transform2D(0.0,Vector2.ONE*inverse,0.0,at*(1.0-inverse))
+
 func _cup(bottom:Vector2,filled=true):
+	var saved=_art_transform
+	art_transform_matrix(_world_prop_transform(bottom))
+	_cup_unscaled(bottom,filled)
+	art_transform_matrix(saved)
+
+func _cup_unscaled(bottom:Vector2,filled=true):
 	# One small clear tumbler, amber juice, planted base and quiet highlight.
 	ellipse(bottom+Vector2(.5,.5),Vector2(4.2,1.6),Color(.34,.39,.25,.14))
 	rounded_poly([bottom+Vector2(-3.7,-9),bottom+Vector2(3.7,-9),bottom+Vector2(2.8,0),bottom+Vector2(-2.8,0)],1,"e1e9d1")
@@ -1623,10 +1687,10 @@ func _cup(bottom:Vector2,filled=true):
 
 func _action_prop(p: Vector2,hand_offset: Vector2,action: String,t: float,payload: String,tool: String,work_hand=Vector2.ZERO,gesture_hand=Vector2.ZERO,tool_floor=Vector2(22,2)):
 	var hand=p+hand_offset
-	if payload=="plate":_plate(hand+Vector2(4,-2),1.0,false)
-	elif payload=="drink":_cup(hand+Vector2(2,-2))
+	if payload=="plate":_plate(hand+Vector2(4,-2)/_character_prop_scale,1.0,false)
+	elif payload=="drink":_cup(hand+Vector2(2,-2)/_character_prop_scale)
 	elif payload=="dishes":
-		_plate(hand+Vector2(4,0),0.0,true)
+		_plate(hand+Vector2(4,0)/_character_prop_scale,0.0,true)
 		rounded_poly([hand+Vector2(0,-7),hand+Vector2(5,-7),hand+Vector2(4,-1),hand+Vector2(1,-1)],1,"eee2bf")
 	elif payload=="trash" and action!="sweeping":_dustpan(p+gesture_hand+Vector2(3,10),p+gesture_hand,Vector2(1,.45).normalized(),true)
 	# Working utensils follow the compact gesture; held dishes follow prop path.
@@ -1789,6 +1853,12 @@ func _stove_pan_point(rotation:int) -> Vector2:
 	return FurnitureArt.stove_food_surface(rotation)
 
 func _plate(at:Vector2,remaining=1.0,dirty=false):
+	var saved=_art_transform
+	art_transform_matrix(_world_prop_transform(at))
+	_plate_unscaled(at,remaining,dirty)
+	art_transform_matrix(saved)
+
+func _plate_unscaled(at:Vector2,remaining=1.0,dirty=false):
 	# Readable cafe lunch: rice, a grilled cutlet, greens and carrot coins.
 	# The ceramic remains after the ingredients are eaten, then is collected.
 	ellipse(at+Vector2(.5,1.2),Vector2(14.0,6.4),Color(.48,.42,.28,.14))
