@@ -51,10 +51,10 @@ func run():
   check(is_zero_approx(spy._stove_food_remaining(1)),"Ready meal duplicates food in pan")
   for step in range(2000):
    tick(game,.05)
-   if record.plate_owner=="counter":break
-  check(record.plate_owner=="counter","Existing counter delivery no longer completes")
-  spy.calls.clear();spy._station_payloads(int(record.plate_target_id),"counter",0)
-  check(spy.calls.size()==1 and is_equal_approx(spy.calls[0].remaining,1.0),"Ready meal missing from service counter")
+   if record.plate_owner=="station":break
+  check(record.plate_owner=="station","Direct stove output never completes")
+  spy.calls.clear();spy._station_payloads(int(record.plate_target_id),"stove",0)
+  check(spy.calls.size()==1 and is_equal_approx(spy.calls[0].remaining,1.0),"Ready meal missing from stove output")
   spy.free();game.queue_free();chef=null;game=null
   await process_frame
  print("SIMPLE_KITCHEN_TESTS checks=",checks," failures=",failures.size())
