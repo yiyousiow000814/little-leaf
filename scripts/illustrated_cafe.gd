@@ -1260,6 +1260,8 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var species=posmod(id,3);var away=bool(pose.get("view_back",look.x+look.y<-.5))
 	var shirt=["9cbbbd","c98e83","d6b16b","a9b78a"][id%4] if not staff else {"chef":"739c7f","waiter":"b99578","cleaner":"91b2ad","cashier":"b68b92"}.get(role,"739c7f")
 	var options=pose.duplicate()
+	if is_instance_valid(game) and game.has_meta("proportion_study"):
+		options["proportion_study"]=str(game.get_meta("proportion_study"))
 	# Keep the existing ready-meal handoff timing, without a plating gesture.
 	var visual_action=_kitchen_visual_action(action,staff,role)
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
@@ -1267,7 +1269,7 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"proportion_study":geometry.get("proportion_study",{}),"study_near_shoulder":geometry.near_shoulder,"study_far_shoulder":geometry.far_shoulder,"study_near_foot":geometry.near_foot,"study_far_foot":geometry.far_foot,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1472,6 +1474,8 @@ func _table_vase_point(table_id:int) -> Vector2:
 func _character_bubble_anchor(id:int,staff:bool,moving:bool,pose:Dictionary,role="chef") -> Vector2:
 	var bounds=DirectionalCharacter.head_bounds(posmod(id,3),false,staff and role=="chef")
 	var body=DirectionalCharacter.body_offset(pose,moving,float(pose.get("phase",0)))
+	if is_instance_valid(game) and game.has_meta("proportion_study"):
+		body.y-=float(DirectionalCharacter.ProportionStudy.values(str(game.get_meta("proportion_study")),float(pose.get("seat_mix",0.0))).head_shift)
 	# The oval sits beside the upper-right ear/hat, not directly overhead.
 	# Mirror only the owner's body offset; this UI placement stays screen-right.
 	return Vector2((body.x+bounds.get_center().x)*float(pose.get("mirror",1.0))+32.0,body.y+bounds.position.y-7.0)

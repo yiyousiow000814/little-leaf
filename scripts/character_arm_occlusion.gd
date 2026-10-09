@@ -33,9 +33,9 @@ static func head_masks(back:bool,profile:bool,species:int,offset:Vector2)->Array
   result.append(oval(Vector2(-.5 if back else 0,-38)+offset,Vector2(13.1,12.7)))
   if not back and species!=1:result.append(oval(Vector2(4.5,-33)+offset,Vector2(8.5,5.4)))
  return result
-static func visible_far_arm(shoulder:Vector2,hand:Vector2,width:float,back:bool,profile=false,species=0,head_offset=Vector2.ZERO)->Array[PackedVector2Array]:
+static func visible_far_arm(shoulder:Vector2,hand:Vector2,width:float,back:bool,profile=false,species=0,head_offset=Vector2.ZERO,body_profile:Dictionary={})->Array[PackedVector2Array]:
  var parts:Array[PackedVector2Array]=[capsule(shoulder,hand,width)]
- var masks:Array[PackedVector2Array]=[rounded(torso_points(back,profile),3.5)]
+ var masks:Array[PackedVector2Array]=[rounded(preload("res://scripts/character_proportion_study.gd").points(torso_points(back,profile),body_profile),3.5)]
  masks.append_array(head_masks(back,profile,species,head_offset))
  for mask in masks:
   # Account for the existing 0.7px silhouette stroke on both the body and
