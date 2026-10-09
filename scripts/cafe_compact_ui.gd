@@ -488,7 +488,11 @@ func _fit_help_panel():
  var compact_actions=(help_retry.visible or help_load_cloud.visible or help_export_pending.visible) and view.y-insets.y-insets.w<500
  var action_width=0.0
  for button in help_footer.get_children():
-  if button.visible:action_width=maxf(action_width,button.get_minimum_size().x)
+  if button.visible:
+   # Clipped button text is excluded from get_minimum_size; reserve real glyph
+   # width plus breathing room before deciding whether two columns can fit.
+   var text_width=button.get_theme_font("font").get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,button.get_theme_font_size("font_size")).x
+   action_width=maxf(action_width,maxf(button.get_minimum_size().x,text_width+24))
  var target_width=maxf(340,padding.x+action_width*2+8) if compact_actions else 340.0
  var width=minf(target_width,maxf(0,view.x-insets.x-insets.z-24))
  compact_actions=compact_actions and width-padding.x>=action_width*2+8

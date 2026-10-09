@@ -56,6 +56,8 @@ func run():
     check(ui.help_footer.is_ancestor_of(action) and not ui.help_scroll.is_ancestor_of(action),label+" action outside text scroll")
     check(absf(action.size.x-ui.help_done.size.x)<1,label+" equal action widths")
     check(action.size.y>=44,label+" minimum touch height")
+    var glyph_width=action.get_theme_font("font").get_string_size(action.text,HORIZONTAL_ALIGNMENT_LEFT,-1,action.get_theme_font_size("font_size")).x
+    check(action.size.x>=glyph_width+24,label+" button text retains horizontal padding: "+action.text)
     check(inside.encloses(action.get_global_rect()),label+" action inside board: "+action.text)
    check(ui.help_scroll.size.y>=99,label+" details have readable scroll viewport")
    var footer=ui.help_footer.get_global_rect();ui.help_scroll.scroll_vertical=100000;await settle()
