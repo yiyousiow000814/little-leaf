@@ -16,12 +16,14 @@ var messes={}
 var walks={}
 var next_id=1
 var completed=0
+var generation=0
 # Layout owners can exclude future toilets or staff-only zones with rectangles.
 # This is a spawn policy, not saved state; old jobs keep their physical targets.
 var litter_exclusions:Array[Rect2i]=[]
 func _init(owner=null):game=owner;geometry=Geometry.new(owner)
 func snapshot()->Dictionary:return {"next_id":next_id,"completed":completed,"messes":messes.values().duplicate(true),"walks":walks.values().duplicate(true)}
 func restore(data:Dictionary):
+ generation+=1
  messes.clear();walks.clear();next_id=int(data.get("next_id",1));completed=int(data.get("completed",0))
  for entry in data.get("messes",[]):
   var restored=entry.duplicate(true);Geometry.canonicalize_metadata(restored);messes[int(entry.id)]=restored
@@ -67,7 +69,9 @@ func litter_allowed(cell:Vector2i)->bool:
  for item in game.model.items:
   if str(item.kind) in KITCHEN_KINDS and Rect2i(Vector2i(int(item.x)-1,int(item.z)-1),Vector2i(3,3)).has_point(cell):return false
  return true
-func record(staff:Dictionary)->Dictionary:return messes.get(int(staff.get("job_mess_id",-1)),{})
+func record(staff:Dictionary)->Dictionary:
+ var entry:Dictionary=messes.get(int(staff.get("job_mess_id",-1)),{})
+ return entry if not entry.is_empty() and int(entry.token)==int(staff.get("job_token",-1)) else {}
 func needed(entry:Dictionary,action:String,debris_kind="")->bool:
  match action:
   "sweeping":return entry.floor_debris in ["banana","crumbs"] and entry.trash_owner=="floor" and (debris_kind=="" or entry.floor_debris==debris_kind)
@@ -116,18 +120,21 @@ func prepare(staff:Dictionary,index:int):
   for i in range(STEPS.size()):
    if needed(entry,STEPS[i].action,STEPS[i].get("debris_kind","")):desired=i;break
  if desired>=STEPS.size():
-  messes.erase(int(entry.id));completed+=1;game._clear_service_job(staff);return
+  complete_if_ready(entry);return
  if desired!=int(staff.job_step):staff.job_step=desired;staff.job_elapsed=0.0;staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100)
  if STEPS[desired].kind=="floor":staff.station_id=-1;return
- var station=game.model.get_item(int(staff.station_id))
- if not station.is_empty() and station.kind=="bin":return
- station=game._service_station("bin",Vector2i(floori(staff.pos.x),floori(staff.pos.y)),index)
- staff.station_id=int(station.id) if not station.is_empty() else -1
- staff.blocked_reason="" if not station.is_empty() else "Bin sides blocked · clear any adjacent side"
+ staff.station_id=-1;staff.blocked_reason=""
+func complete_if_ready(entry:Dictionary)->bool:
+ var id=int(entry.get("id",-1))
+ if not messes.has(id) or not is_same(messes[id],entry) or str(entry.trash_owner) not in ["none","disposed"] or not bool(entry.spill_cleaned):return false
+ messes.erase(id);completed+=1
+ for staff in game.staff_states:
+  if staff.job_kind=="floor" and int(staff.get("job_mess_id",-1))==id and int(staff.get("job_token",-1))==int(entry.token):game._clear_service_job(staff)
+ return true
 func target(staff:Dictionary)->Dictionary:
  var entry=record(staff)
  if entry.is_empty() or int(staff.job_step)>=STEPS.size():return {}
- if STEPS[int(staff.job_step)].kind=="bin":return game.model.get_item(int(staff.station_id))
+ if STEPS[int(staff.job_step)].kind=="bin":return {"id":-3000000-game.staff_states.find(staff),"kind":"floor_disposal","x":floori(staff.pos.x),"z":floori(staff.pos.y),"rot":0}
  return {"id":-1000000-int(entry.id),"kind":"floor","x":entry.floor_cell.x,"z":entry.floor_cell.y,"rot":0}
 func destination(staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
  var entry=record(staff)
@@ -152,8 +159,8 @@ func contact(staff:Dictionary,index:int,action:String,target_item:Dictionary,pha
  var entry=record(staff)
  if entry.is_empty():return
  if action=="sweeping" and phase>=1.0:entry.trash_owner="staff";entry.trash_staff_index=index;entry.trash_target_id=-1
- elif action=="disposing_trash" and phase>=.65:
-  entry.trash_owner="disposed" if phase>=1 else "bin";entry.trash_staff_index=-1;entry.trash_target_id=int(target_item.id) if phase<1 else -1
+ elif action=="disposing_trash" and phase>=1.0:
+  entry.trash_owner="disposed";entry.trash_staff_index=-1;entry.trash_target_id=-1
  elif action=="mopping":
   entry.spill_remaining=minf(float(entry.spill_remaining),1.0-smoothstep(0.0,1.0,phase))
   if phase>=1:entry.spill_cleaned=true;entry.spill_remaining=0.0

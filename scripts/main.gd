@@ -83,6 +83,7 @@ var staff_states = []
 # Runtime-only service ledger. No decorative loops: every job belongs to a live
 # model guest, and each bounded action must reach its real furnishing first.
 var service_guests = {}
+var ground_mess_generation=0
 var floor_tasks=FloorTasks.new(self)
 var dishwashing=Dishwashing.new(self)
 var service_serial = 0
@@ -229,8 +230,6 @@ func _load_startup():
 	if source!="":
 		if model.load_save(source):
 			SaveLog.record("read_accepted",{"layer":"native","source":"native-primary" if source==SAVE_FILE else "native-import"})
-			if model.included_bin_pending:
-				model.ensure_basic_bin()
 			return
 		# Never skip a corrupt primary/import source or treat it as absent.
 		# Recovery preserves both profile files and prevents all progress writes.
@@ -722,6 +721,7 @@ func _service_save_snapshot()->Dictionary:
 	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
 
 func _restore_service_runtime():
+	ground_mess_generation+=1
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
 		dishwashing.restore({})
@@ -1193,6 +1193,9 @@ func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,cla
 	return best
 
 func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[])->Vector2i:
+	if str(item.get("kind",""))=="floor_disposal":
+		if _staff_walkable(from) and not claimed.has(from):return from
+		return _staff_idle_cell(staff_states.find(staff),claimed)
 	if staff.job_kind=="floor" and _is_floor_cleanup(staff):return floor_tasks.destination(staff,from,claimed)
 	if _is_floor_cleanup(staff) and service_guests.has(int(staff.job_guest_id)):
 		staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
@@ -1232,6 +1235,47 @@ func _cleanup_role_step(record:Dictionary,role:String)->int:
 		if _cleanup_step_needed(record,str(step.action),step.get("debris_kind","")):return candidate
 	return SERVICE_STEPS.cleanup.size()
 
+# Transient identities intentionally are not saved: a restore invalidates old
+# clicks even when a saved ledger rewinds its numeric IDs and tokens.
+func ground_mess_identity(ledger:String,id:int)->Dictionary:
+	var record:Dictionary=floor_tasks.messes.get(id,{}) if ledger=="floor" else service_guests.get(id,{}) if ledger=="guest" else {}
+	if record.is_empty():return {}
+	return {"generation":ground_mess_generation,"floor_generation":floor_tasks.generation,"floor_instance":floor_tasks.get_instance_id(),"ledger":ledger,"id":id,"token":int(record.token)}
+
+func resolve_ground_mess(identity:Dictionary,visible_only=true)->Dictionary:
+	if identity.get("generation",-1)!=ground_mess_generation or identity.get("floor_generation",-1)!=floor_tasks.generation or identity.get("floor_instance",-1)!=floor_tasks.get_instance_id():return {}
+	var ledger=str(identity.get("ledger",""));var id=int(identity.get("id",-1))
+	var record:Dictionary=floor_tasks.messes.get(id,{}) if ledger=="floor" else service_guests.get(id,{}) if ledger=="guest" else {}
+	if record.is_empty() or int(record.token)!=int(identity.get("token",-1)):return {}
+	if visible_only and not (bool(record.floor_dirty) and (str(record.trash_owner)=="floor" or (bool(record.floor_spill) and not bool(record.spill_cleaned)))):return {}
+	return record
+
+func complete_ground_mess(identity:Dictionary,source="manual")->bool:
+	# Manual completion may touch visible ground work only. Tableware, wages,
+	# dishwashing and rewards are deliberately outside this boundary.
+	if source!="manual":return false
+	var record=resolve_ground_mess(identity)
+	if record.is_empty():return false
+	record.trash_owner="none" if str(record.floor_debris)=="none" else "disposed"
+	record.trash_staff_index=-1;record.trash_target_id=-1
+	record.spill_cleaned=true;record.spill_remaining=0.0
+	return complete_ground_mess_if_ready(identity)
+
+func complete_ground_mess_if_ready(identity:Dictionary)->bool:
+	var record=resolve_ground_mess(identity,false)
+	if record.is_empty() or str(record.trash_owner) not in ["none","disposed"] or not bool(record.spill_cleaned):return false
+	var ledger=str(identity.ledger);var id=int(identity.id)
+	if ledger=="guest":
+		if bool(record.floor_cleaned):return false
+		_sync_cleanup_completion(record)
+	else:
+		return floor_tasks.complete_if_ready(record)
+	# Only release floor claims. A waiter can still own dishes/table wiping.
+	for staff in staff_states:
+		var matches=(ledger=="floor" and staff.job_kind=="floor" and int(staff.job_mess_id)==id) or (ledger=="guest" and staff.job_kind=="cleanup" and int(staff.job_guest_id)==id and int(staff.job_step)>=3)
+		if matches and int(staff.job_token)==int(identity.token):_clear_service_job(staff)
+	return true
+
 func _sync_cleanup_completion(record:Dictionary):
 	# Either worker may finish first. Never erase the other role's work.
 	record.floor_cleaned=record.trash_owner in ["none","disposed"] and record.spill_cleaned
@@ -1259,6 +1303,7 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 		staff.job_step=desired;staff.job_elapsed=0.0;staff.path.clear();staff.index=0;staff.destination=Vector2i(-100,-100)
 		staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if int(staff.job_step)>=SERVICE_STEPS.cleanup.size():
+		complete_ground_mess_if_ready(ground_mess_identity("guest",int(record.guest.id)))
 		_sync_cleanup_completion(record);_clear_service_job(staff);return
 	var step=SERVICE_STEPS.cleanup[int(staff.job_step)]
 	if int(staff.job_step) in [0,1] and (record.plate_owner not in ["dish_queue","clean"] or record.drink_owner=="table"):
@@ -1270,6 +1315,8 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 		staff.station_id=int(sink.id) if int(staff.job_step)==1 else -1
 		staff.blocked_reason="";return
 	if step.kind=="table":staff.station_id=-1;return
+	if step.action=="disposing_trash":
+		staff.station_id=-1;staff.blocked_reason="";return
 	var current=model.get_item(int(staff.station_id))
 	if not current.is_empty() and current.kind==step.kind:return
 	var station=_service_station(str(step.kind),Vector2i(floori(staff.pos.x),floori(staff.pos.y)),index)
@@ -1446,6 +1493,10 @@ func _item_service_locked(id: int) -> bool:
 		if str(record.get("trash_owner","none"))=="bin" and int(record.get("trash_target_id",-1))==id:return true
 	return false
 
+func _local_trash_target(staff:Dictionary)->Dictionary:
+	# Disposal stays a timed stage for old saves, but needs no furniture trip.
+	return {"id":-3000000-staff_states.find(staff),"kind":"floor_disposal","x":floori(staff.pos.x),"z":floori(staff.pos.y),"rot":0}
+
 func _service_target(staff: Dictionary) -> Dictionary:
 	if staff.job_kind=="wash":return dishwashing.target(staff)
 	if staff.job_kind=="floor":return floor_tasks.target(staff)
@@ -1453,13 +1504,14 @@ func _service_target(staff: Dictionary) -> Dictionary:
 	var steps=SERVICE_STEPS[staff.job_kind]
 	if int(staff.job_step)<0 or int(staff.job_step)>=steps.size():return {}
 	var kind=str(steps[int(staff.job_step)].kind)
+	if staff.job_kind=="cleanup" and str(steps[int(staff.job_step)].action)=="disposing_trash":return _local_trash_target(staff)
 	if staff.job_kind=="cleanup" and int(staff.job_step)==0 and int(service_guests[int(staff.job_guest_id)].get("dish_sink_id",-1))<0:return {}
 	var guest=service_guests[int(staff.job_guest_id)].guest
 	if kind=="counter" and staff.role=="chef": return model.get_item(int(service_guests[int(staff.job_guest_id)].meal_pass_id))
 	return model.get_item(int(guest.table_id) if kind=="table" else int(staff.station_id))
 
 func _clear_service_job(staff: Dictionary):
-	if staff.job_kind=="cleanup" and service_guests.has(int(staff.job_guest_id)):
+	if staff.job_kind=="cleanup" and (staff.role=="waiter" or int(staff.job_step)<3) and service_guests.has(int(staff.job_guest_id)):
 		var record=service_guests[int(staff.job_guest_id)]
 		if record.plate_owner!="staff":record.dish_sink_id=-1
 	staff.job_guest_id=-1; staff.job_mess_id=-1;staff.job_dish_id=-1;staff.job_token=-1; staff.job_kind=""; staff.job_step=0; staff.job_elapsed=0.0; staff.station_id=-1
@@ -1777,9 +1829,9 @@ func _service_contact(staff: Dictionary, index: int, action: String, target: Dic
 		record.drink_owner="cleared";record.drink_staff_index=-1;record.drink_target_id=-1
 	elif action=="sweeping" and phase>=1.0:
 		record.trash_owner="staff";record.trash_staff_index=index;record.trash_target_id=-1
-	elif action=="disposing_trash" and phase>=.65:
-		record.trash_owner="disposed" if phase>=1.0 else "bin"
-		record.trash_staff_index=-1;record.trash_target_id=int(target.id) if phase<1.0 else -1
+	elif action=="disposing_trash" and phase>=1.0:
+		record.trash_owner="disposed"
+		record.trash_staff_index=-1;record.trash_target_id=-1
 	elif action=="mopping":
 		record.spill_remaining=minf(float(record.spill_remaining),1.0-smoothstep(0.0,1.0,phase))
 		if phase>=1.0:record.spill_cleaned=true;record.spill_remaining=0.0
@@ -1908,8 +1960,8 @@ func _animate_staff(delta: float):
 		# not yielding. Travel never advances a preparation/serving/wiping clock.
 		if staff.job_kind=="" or staff.yield_time>0 or target_item.is_empty() or not interaction_available: continue
 		if staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))>=.03: continue
-		if not _is_floor_cleanup(staff) and absi(destination.x-int(target_item.x))+absi(destination.y-int(target_item.z))!=1: continue
-		if not _is_floor_cleanup(staff) and model.edge_blocked(destination,Vector2i(int(target_item.x),int(target_item.z))):continue
+		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and absi(destination.x-int(target_item.x))+absi(destination.y-int(target_item.z))!=1: continue
+		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and model.edge_blocked(destination,Vector2i(int(target_item.x),int(target_item.z))):continue
 		if destination!=_service_destination(staff,target_item,from):continue
 		var step=SERVICE_STEPS[staff.job_kind][int(staff.job_step)]
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue

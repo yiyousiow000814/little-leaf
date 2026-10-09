@@ -580,7 +580,7 @@ func _essential_removal_error(removed_ids: Array) -> String:
 			proposed.append(item)
 		elif not dining_set_for(int(item.id)).is_empty():
 			removes_dining = true
-		elif str(item.kind) in SERVICE_KINDS and str(item.kind) not in ["table", "chair", "bench"]:
+		elif str(item.kind) in SERVICE_KINDS and str(item.kind) not in ["table", "chair", "bench", "bin"]:
 			required.append(str(item.kind))
 	if required.is_empty() and not removes_dining:
 		return ""

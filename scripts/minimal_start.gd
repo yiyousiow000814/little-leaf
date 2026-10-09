@@ -11,7 +11,6 @@ static func apply(model):
 			basics.append(item)
 	model.items.assign(basics)
 	model.rebuild_dining_sets()
-	model.ensure_basic_bin()
 	model.ensure_basic_register()
 	model.last_event="Your small cafe is ready · Decorate to make it yours"
 	model.changed.emit()
