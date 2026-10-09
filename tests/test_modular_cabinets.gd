@@ -20,6 +20,14 @@ var failures=[]
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
+func shoe_inward(heading:Vector2)->float:
+ var axis=Motion._shoe_axis(heading);var across=axis.orthogonal();var extent=0.0
+ for side in [-1.,1.]:
+  var center=Motion._rest_center(side,heading)
+  for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:
+   var pixel=center+axis*q.x+across*q.y
+   extent=maxf(extent,Vector2(pixel.x/78+pixel.y/39,pixel.y/39-pixel.x/78).dot(heading))
+ return extent
 func _initialize():run.call_deferred()
 func run():
  var f=Furniture.new();var p=Probe.new();root.add_child(p)
@@ -42,6 +50,18 @@ func run():
    var bounds=Rect2(top[0],Vector2.ZERO)
    for q in top:bounds=bounds.expand(q)
    check(is_equal_approx(bounds.size.x,78) and is_equal_approx(bounds.size.y,39),"one-cell top dimensions "+kind+str(rotation))
+   if kind!="stove":
+    # These are actual visible side faces: their first two vertices must sit
+    # on the full ground diamond, not on an inset plinth or raised feet.
+    for side_index in range(2):
+     var face=p.surfaces[side_index].points
+     check(face.size()==4,"solid four-corner body face "+kind)
+     var a:Vector2=face[0];var b:Vector2=face[1]
+     var ga=Vector2(a.x/78+a.y/39,a.y/39-a.x/78)
+     var gb=Vector2(b.x/78+b.y/39,b.y/39-b.x/78)
+     check(is_equal_approx(absf(ga.x),.5) and is_equal_approx(absf(ga.y),.5),"body bottom starts at true floor corner "+kind+str(rotation))
+     check(is_equal_approx(absf(gb.x),.5) and is_equal_approx(absf(gb.y),.5),"body bottom ends at true floor corner "+kind+str(rotation))
+     check(is_equal_approx(ga.distance_to(gb),1.0),"body ground edge spans full tile "+kind+str(rotation))
    # The right tile translation is (39,19.5); its near-left edge must match.
    var shared=0
    for a in top:
@@ -64,8 +84,8 @@ func run():
     var pixel=center+axis*q.x+across*q.y
     var world=Vector2(pixel.x/78+pixel.y/39,pixel.y/39-pixel.x/78)
     inward=maxf(inward,world.dot(heading))
-  check(1.-Wash.INSET>.5,"wash root outside upper cabinet r"+str(rotation))
-  check(1.-Wash.INSET-inward>.33+.02,"shoe clears recessed plinth by .02 cell r"+str(rotation))
+  check(1.-Wash.work_inset(rotation)>.5,"wash root outside upper cabinet r"+str(rotation))
+  check(1.-Wash.work_inset(rotation)-inward>.5+.01,"shoe clears full solid body by .01 cell r"+str(rotation))
   for cashier in [false,true]:
    var payment_heading=heading*(-1. if cashier else 1.)
    var payment_inset=Checkout.payment_inset(payment_heading,rotation,cashier)
@@ -75,8 +95,8 @@ func run():
    var reach=(ground+Checkout.contact_surface(rotation,cashier))*Vector2(mirror,1)
    var payment=Checkout.payment_pose(Vector2(7,-24) if back else Vector2(-7,-24),Vector2(-6,-26.5) if back else Vector2(6,-26.5),reach,.52,cashier)
    check(payment.hand.distance_to(reach)<.03,"payment fixed-arm contact r"+str(rotation))
-   check(1.-payment_inset>.5,"payment root outside upper cabinet r"+str(rotation))
+   check(1.-payment_inset-shoe_inward(payment_heading)>.5+.009,"payment shoe outside solid body r"+str(rotation))
    measures.append({"rotation":rotation,"cashier":cashier,"payment_inset":payment_inset,"payment_root_distance":1.-payment_inset})
-  measures.append({"rotation":rotation,"plinth_shoe_clearance":1.-Wash.INSET-inward-.33,"wash_root_distance":1.-Wash.INSET,"shoe_inward_extent":inward,"wash_shoe_clearance":.5-Wash.INSET-inward,"maximum_clear_inset":.5-inward})
+  measures.append({"rotation":rotation,"wash_root_distance":1.-Wash.work_inset(rotation),"shoe_inward_extent":inward,"wash_shoe_clearance":.5-Wash.work_inset(rotation)-inward,"maximum_clear_inset":.5-inward})
  print("MODULAR_CABINETS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"measurements":measures}))
  quit(0 if failures.is_empty() else 1)

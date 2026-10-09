@@ -3,7 +3,10 @@ extends RefCounted
 const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 const ARM=10.5
 const HALF_ARM=ARM*.5
-const INSET=.43
+const INSET=.27
+static func work_inset(rotation:int)->float:
+ # Diagonal shoe silhouettes differ by view; both stances stay outside the body.
+ return .362 if posmod(rotation,4) in [1,2] else INSET
 static func actual_surface(at:Vector2,height:float,rotation:int)->Vector2:
  var q=at.rotated(posmod(rotation,4)*PI/2)
  return Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)

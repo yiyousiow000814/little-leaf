@@ -9,19 +9,15 @@ const STOVE_TILE_SPAN=39.0/34.0
 # Modular cabinet tops use the same one-cell ground diamond as the range.
 # Equipment, usable slots, model occupancy and prices are independent.
 const CABINET_TILE_SPAN=39.0/34.0
-# A recessed plinth leaves a real toe space below the full-cell carcass.
-# .33-cell half-span clears the measured settled wash shoe at .3555 cell.
-const CABINET_PLINTH_SPAN=CABINET_TILE_SPAN*.66
-const CABINET_PLINTH_HEIGHT=6.0
-# Discrete grounded supports keep the central toe recess physically open.
-const CABINET_SUPPORT_WIDTH=.09
-const CABINET_SUPPORT_EDGE=.07
+# Plain full-cell cabinet body reaches the floor, with no feet or styled base.
+const CABINET_SOLID_BODY=true
 # The enlarged rear handle keeps its lower collar but no extra ground outset.
 # This keeps its full anti-alias envelope inside the single occupied tile.
 const PAN_REAR_HANDLE_DROP=2.0
 const PAN_REAR_HANDLE_OUTSET=0.0
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
+var checkout_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 # Original rotatable isometric furniture. Geometry and use-side details share
 # the floor's 2:1 ground basis; height is never screen-rotated.
@@ -76,6 +72,7 @@ static func part_sequence(kind: String,rotation: int) -> Array:
 		_: return []
 
 func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
+	checkout_height=false
 	if kind=="register":
 		kitchen_height=false
 		return CheckoutArt.draw_register(self,artist,p,rotation,id)
@@ -97,6 +94,7 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 # Every atlas cell is rendered from these original procedural helpers. Keep
 # quarter-turn geometry, static subparts and live payload slots independent.
 func draw_static_part(artist: Node2D,part: String,p: Vector2,rotation: int):
+	checkout_height=false
 	kitchen_height=KitchenGeometry.is_kitchen_part(part)
 	a=artist;origin=p;turn=posmod(rotation,4)
 	match part:
@@ -162,7 +160,7 @@ func _beverage_base():
 
 func point(x: float,z: float,h: float=0.0) -> Vector2:
 	var q=Vector2(x,z).rotated(turn*PI/2.0)
-	var height=KitchenGeometry.height(h) if kitchen_height else h
+	var height=KitchenGeometry.height(h) if kitchen_height else (CheckoutArt.height(h) if checkout_height else h)
 	return origin+Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
 func front_visible() -> bool:
 	return Vector2(0,1).rotated(turn*PI/2.0).dot(Vector2.ONE)>0
@@ -183,19 +181,8 @@ func box(x: float,z: float,w: float,d: float,lo: float,hi: float,top,front,side,
 	var pts=[]
 	for q in corners:pts.append(point(q.x,q.y,hi))
 	face(pts,top,2.0)
-func cabinet_support(w:float,d:float,side):
-	# A deep plinth is hidden by the full-cell fascia in isometric projection.
-	# Four actual corner supports bridge the underside to the floor; shadows
-	# mark only their real floor contact and do not substitute for geometry.
-	box(0,0,CABINET_PLINTH_SPAN,CABINET_PLINTH_SPAN,.2,CABINET_PLINTH_HEIGHT,side,side,side)
-	for x in [-w/2+CABINET_SUPPORT_EDGE,w/2-CABINET_SUPPORT_EDGE]:
-		for z in [-d/2+CABINET_SUPPORT_EDGE,d/2-CABINET_SUPPORT_EDGE]:
-			top_ellipse(x,z,.05,.068,.055,"61573d29")
-			box(x,z,CABINET_SUPPORT_WIDTH,CABINET_SUPPORT_WIDTH,0,CABINET_PLINTH_HEIGHT+.1,side,side,side)
-
 func cabinet(w=CABINET_TILE_SPAN,d=CABINET_TILE_SPAN,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
-	cabinet_support(w,d,side)
-	box(0,0,w,d,CABINET_PLINTH_HEIGHT,h,top,paint,side,paint)
+	box(0,0,w,d,0,h,top,paint,side,paint)
 	if not front_visible():return
 	var z=d/2+.006
 	for part in [-1,1]:
@@ -425,6 +412,7 @@ func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
 	if KitchenGeometry.sink_tap_in_front(turn):_sink_faucet()
 
 func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=0):
+	checkout_height=false
 	kitchen_height=kind in ["counter","stove","beverage","sink"]
 	a=artist;origin=p;turn=posmod(rotation,4)
 	match kind:

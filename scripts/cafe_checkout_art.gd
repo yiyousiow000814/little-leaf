@@ -1,5 +1,9 @@
 extends RefCounted
 ## Presentation-only register and short gestures. Reads progress; never settles.
+# Review candidate: lower the body three pixels, translating equipment intact.
+const WORKTOP_HEIGHT=26.0
+static func height(source_height:float)->float:
+ return source_height*WORKTOP_HEIGHT/29.0 if source_height<29.0 else source_height-(29.0-WORKTOP_HEIGHT)
 static func guest_action(guest:Dictionary,service:Dictionary={})->String:
  if not guest.get("mobility",{}).is_empty():return "walking"
  if guest.phase=="paying":return "paying"
@@ -23,13 +27,12 @@ static func guest_progress(game,guest:Dictionary)->float:
   if staff.job_kind=="take_payment" and int(staff.job_guest_id)==int(guest.id) and int(staff.job_token)==int(guest.checkout_token):return clampf(float(staff.job_elapsed)/game.Checkout.PAYMENT_SECONDS,0,1)
  return 0.0
 static func contact_surface(rotation:int,cashier:bool)->Vector2:
- var q=Vector2(0,-.46 if cashier else .46).rotated(posmod(rotation,4)*PI/2)
- return Vector2((q.x-q.y)*34,(q.x+q.y)*17-(30.0 if cashier else 31.2))
+ var q=Vector2(0,-.48 if cashier else .51).rotated(posmod(rotation,4)*PI/2)
+ return Vector2((q.x-q.y)*34,(q.x+q.y)*17-height(30.0 if cashier else 31.2))
 static func payment_inset(heading:Vector2,rotation:int,cashier:bool)->float:
  # Solve short-arm contact by approaching the near counter edge, never by
- # stretching a limb. Full-cell top and recessed plinth require a root
- # outside .57 cell; accept the outward solution rather than the old .20
- # cutoff accidentally selecting its inward quadratic root.
+ # stretching a limb. The pad remains inside the full-cell top. Choose
+ # the outward quadratic root, and verify the actual shoe polygon in QA.
  var d=heading.normalized();var mirror=-1.0 if d.x-d.y<0 else 1.0;var back=d.x+d.y<0
  var axis=Vector2((d.x-d.y)*39*mirror,(d.x+d.y)*19.5)
  var surface=contact_surface(rotation,cashier);surface.x*=mirror
@@ -59,17 +62,16 @@ static func hand_prop(artist,hand:Vector2,progress:float,cashier:bool):
  artist.rounded_poly(corners,.6,"e5c889")
  artist.line(hand+Vector2(-1.8,-.4),hand+Vector2(1.8,-.4),"889e82",.65)
 static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
- f.a=artist;f.origin=p;f.turn=posmod(rotation,4)
+ f.a=artist;f.origin=p;f.turn=posmod(rotation,4);f.checkout_height=true
  # Checkout uses a plain customer-facing panel, not the generic storage
  # cabinet's doors/handles. Keep its footprint, height, palette and terminal
  # orientation; no drawer seam is painted through the rear views either.
- f.cabinet_support(f.CABINET_TILE_SPAN,f.CABINET_TILE_SPAN,"968965")
- f.box(0,0,f.CABINET_TILE_SPAN,f.CABINET_TILE_SPAN,f.CABINET_PLINTH_HEIGHT,29,"e7d7ad","b7a77e","968965","b7a77e")
+ f.box(0,0,f.CABINET_TILE_SPAN,f.CABINET_TILE_SPAN,0,29,"e7d7ad","b7a77e","968965","b7a77e")
  f.box(0,-.10,.43,.38,29,33,"8faaa0","759487","637f73")
- f.box(0,-.45,.22,.08,29,30,"c8d5bc","8ca092","728a7d")
- f.top_ellipse(0,-.46,30,.037,.020,"e4d99e")
- f.box(0,.43,.22,.12,29,31,"d4c995","a2976c","8b835f")
- f.top_ellipse(0,.46,31.2,.045,.024,"779d88")
+ f.box(0,-.47,.22,.08,29,30,"c8d5bc","8ca092","728a7d")
+ f.top_ellipse(0,-.48,30,.037,.020,"e4d99e")
+ f.box(0,.48,.22,.12,29,31,"d4c995","a2976c","8b835f")
+ f.top_ellipse(0,.51,31.2,.045,.024,"779d88")
  var progress=0.0;var recent=false;var paying=false
  if "game" in artist and is_instance_valid(artist.game):
   var game=artist.game

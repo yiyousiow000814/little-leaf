@@ -55,7 +55,7 @@ func run():
   if spec[0]=="wiping":check(Vector2i(rendered.floor())==Vector2i(station.x,station.z),"table visual lean still stress-tests occupied-cell authority")
   if spec[0]=="washing":
    check(Vector2i(rendered.floor())==cell,"washing stance remains outside the full-cell sink")
-   check(is_equal_approx(rendered.distance_to(raw),art.SinkWashArt.INSET),"washing exercises the actual bounded presentation inset")
+   check(is_equal_approx(rendered.distance_to(raw),art.SinkWashArt.work_inset(int(station.rot))),"washing exercises the actual bounded presentation inset")
   for kind in ["door","window"]:
    var before=model.coins
    check(model.can_place_wall_attachment(kind,"shell:back",2.5,actors),str(spec[0])+" allows unrelated "+kind+": "+model.last_error)

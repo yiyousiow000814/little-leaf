@@ -91,7 +91,7 @@ func capture(game,label:String,center:Vector2,receipt:Dictionary):
   records.append(row)
 
 func shoe_receipt(pose:Dictionary,relative:Vector2)->Dictionary:
- var rows=[];var inside_plinth=0;var worst_overlap=0.0
+ var rows=[];var inside_body=0;var worst_overlap=0.0
  for side in ["left","right"]:
   var center:Vector2=pose.get(side+"_ground",Vector2.ZERO)
   var axis:Vector2=pose.get(side+"_axis",Vector2.RIGHT)
@@ -100,13 +100,10 @@ func shoe_receipt(pose:Dictionary,relative:Vector2)->Dictionary:
    var pixel=center+axis*q.x+across*q.y
    var world=relative+Vector2(pixel.x/78+pixel.y/39,pixel.y/39-pixel.x/78)
    polygon.append([world.x,world.y])
-   if absf(world.x)<.33 and absf(world.y)<.33:inside_plinth+=1
+   if absf(world.x)<.5 and absf(world.y)<.5:inside_body+=1
   var shape=PackedVector2Array()
   for q in polygon:shape.append(Vector2(q[0],q[1]))
-  var solids=[Rect2(-.33,-.33,.66,.66)]
-  var support_center=.5-.07*34./39.;var support_half=.09*34./39./2.
-  for x in [-support_center,support_center]:
-   for z in [-support_center,support_center]:solids.append(Rect2(x-support_half,z-support_half,support_half*2,support_half*2))
+  var solids=[Rect2(-.5,-.5,1.,1.)]
   var areas=[]
   for solid in solids:
    var box=PackedVector2Array([solid.position,Vector2(solid.end.x,solid.position.y),solid.end,Vector2(solid.position.x,solid.end.y)])
@@ -120,6 +117,6 @@ func shoe_receipt(pose:Dictionary,relative:Vector2)->Dictionary:
  # Before images may expose the known defective support geometry; only
  # the new support candidate must pass this physical-footprint assertion.
  var constants=load("res://scripts/illustrated_furniture.gd").get_script_constant_map()
- if constants.has("CABINET_SUPPORT_WIDTH") and worst_overlap>.000001:
-  printerr("Actual shoe overlaps cabinet support: ",worst_overlap);quit(1)
- return {"polygons":rows,"vertices_inside_candidate_plinth":inside_plinth,"max_solid_overlap_area":worst_overlap}
+ if constants.has("CABINET_SOLID_BODY") and worst_overlap>.000001:
+  printerr("Actual shoe overlaps solid cabinet body: ",worst_overlap);quit(1)
+ return {"polygons":rows,"vertices_inside_full_body":inside_body,"max_solid_overlap_area":worst_overlap}
