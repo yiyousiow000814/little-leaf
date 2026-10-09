@@ -16,6 +16,10 @@ function fixture(user=null,options={}){
   return {nodes,auth,win,emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com'}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),client};
 }
 (async()=>{
+  const bridgeSource=fs.readFileSync('scripts/cafe_cloud_settings.gd','utf8');
+  const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];
+  assert(bridgeSource.indexOf('if not JavaScriptBridge.eval')<bridgeSource.indexOf('api=JavaScriptBridge.get_interface'));
+  for(const [window,expected] of [[{},false],[{LittleLeafCloudSettings:null},false],[{LittleLeafCloudSettings:{}},true]])assert.equal(vm.runInNewContext(presence,{window}),expected,'optional bridge presence for ordinary/Firebase Web');
   const f=fixture();let ready=false;const pending=f.start().then(x=>{ready=true;return x;});await flush();
   assert.equal(ready,false);assert.equal(f.nodes.get('status-label').textContent,'Sign in with Google to open your café.');assert.equal(f.nodes.get('status-progress').hidden,true);assert.deepEqual(f.counts(),{opened:0,closed:0});
   const button=f.nodes.get('cloud-account').children[1];assert.equal(button.disabled,false);

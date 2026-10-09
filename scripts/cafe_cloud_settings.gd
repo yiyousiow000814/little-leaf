@@ -11,7 +11,10 @@ func _init(owner_game=null):
 	game=owner_game
 func build(test_api=null)->VBoxContainer:
 	if test_api!=null:api=test_api
-	elif OS.has_feature("web"):api=JavaScriptBridge.get_interface("LittleLeafCloudSettings")
+	elif OS.has_feature("web"):
+		# Missing optional interfaces emit an engine error, so probe before lookup.
+		if not JavaScriptBridge.eval("typeof window.LittleLeafCloudSettings === 'object' && window.LittleLeafCloudSettings !== null"):return null
+		api=JavaScriptBridge.get_interface("LittleLeafCloudSettings")
 	if api==null:return null
 	box=VBoxContainer.new();box.name="CloudSaveSettings";box.add_theme_constant_override("separation",6)
 	status_label=game.label("Not saved",15);box.add_child(status_label)

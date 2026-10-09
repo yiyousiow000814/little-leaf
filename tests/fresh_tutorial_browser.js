@@ -363,6 +363,7 @@ async function main() {
     await page.waitForFunction(() => !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
     const boot = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
     check(boot.ok && boot.source === 'fresh' && boot.revision === 0 && boot.payload === null, 'Unmodified exported shell boots a genuinely fresh ordinary-Web profile');
+    check(await page.evaluate(() => window.LittleLeafCloudSettings === undefined) && report.errors.length === 0, 'Ordinary Web starts without a Firebase bridge or missing-interface engine errors');
     let initial, lastRevision = -1;
     const snapshot = async signal => {
       const ack = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
