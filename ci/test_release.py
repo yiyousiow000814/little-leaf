@@ -13,7 +13,7 @@ import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
 from publish_itch import check_previous, completed, parse_result, verify_artifact
-from release_metadata import version, require_main_ancestor
+from release_metadata import version, require_main_ancestor, release_key
 
 SHA = "a" * 40
 
@@ -41,6 +41,24 @@ class MetadataTests(unittest.TestCase):
 
     def test_match(self):
         self.assertEqual(version(self.root, "v0.1.6"), "0.1.6")
+
+    def test_hotfix_metadata_matches_exactly(self):
+        for suffix in "abcz":
+            value = "0.1.10" + suffix
+            (self.root / "project.godot").write_text('config/version="' + value + '"\n')
+            self.notes["version"] = value; self.save()
+            self.assertEqual(version(self.root, "v" + value), value)
+            for tag in ["v0.1.10", "v0.1.10aa", "v0.1.11"]:
+                with self.subTest(tag=tag), self.assertRaises(ValueError): version(self.root, tag)
+            self.notes["status"] = "draft"; self.save()
+            with self.assertRaises(ValueError): version(self.root, "v" + value)
+            self.notes["status"] = "released"
+
+    def test_invalid_hotfix_metadata(self):
+        for value in ["0.1.10A", "0.1.10aa", "0.1.10a1", "0.1.10-a", "0.1.10a-dev.1", "0.1.10a+build.1", "00.1.10a"]:
+            (self.root / "project.godot").write_text('config/version="' + value + '"\n')
+            self.notes["version"] = value; self.save()
+            with self.subTest(value=value), self.assertRaises(ValueError): version(self.root, "v" + value)
 
     def test_ci_does_not_require_release_status(self):
         self.notes["status"] = "draft"; self.save()
@@ -100,6 +118,19 @@ class ReleaseNotesContractTests(unittest.TestCase):
         for item in notes.get("review_pending", []):
             self.assertIsInstance(item, str)
             self.assertTrue(item.strip())
+
+    def test_hotfix_keeps_exact_major_update_history(self):
+        import hashlib
+        notes=json.loads((self.root / "data/release_notes.json").read_text())
+        self.assertEqual(notes["version"],"0.1.10a")
+        self.assertEqual(len(notes["history"]),1)
+        previous=notes["history"][0]
+        self.assertEqual(previous["version"],"0.1.10")
+        self.assertNotIn("history",previous)
+        digest=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(digest,"97d1d9f9ae3d93c809476611d5cc26d57782f12a44fa37cc46cb875158e1348d")
+        schema=json.loads((self.root / "data/release_notes.schema.json").read_text())
+        self.assertNotIn("history",schema["$defs"]["historicalRelease"]["properties"])
 
     def test_draft_with_populated_review_metadata_is_never_publishable(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -168,6 +199,27 @@ class ItchGuardTests(unittest.TestCase):
         for value in ["0.1.9-alpha-2.", "0.1.9-alpha-2+", "0.1.9-alpha-2.01", "0.1.9-alpha-2\n"]:
             with self.subTest(value=value), self.assertRaises(ValueError):
                 check_previous(status(value), "0.1.9")
+
+    def test_all_hotfix_ordering_pairs(self):
+        versions = ["0.1.9", "0.1.10"] + ["0.1.10" + chr(c) for c in range(ord("a"), ord("z") + 1)] + ["0.1.11", "0.2.0", "1.0.0"]
+        self.assertEqual(sorted(reversed(versions), key=release_key), versions)
+        for old_index, old in enumerate(versions):
+            for new_index, new in enumerate(versions):
+                with self.subTest(old=old, new=new):
+                    if old_index < new_index:
+                        self.assertEqual(check_previous(status(old), new), 55)
+                    else:
+                        with self.assertRaises(ValueError): check_previous(status(old), new)
+
+    def test_hotfix_legacy_and_prefixed_baselines(self):
+        for old in ["0.1.5-dev.1", "v0.1.10-dev.1+build.2", "0.1.10+build.1", "v0.1.10a", "v0.1.10a+build.2"]:
+            with self.subTest(old=old): self.assertEqual(check_previous(status(old), "0.1.10b"), 55)
+        for old in ["v0.1.10b", "0.1.10b+build.2", "0.1.11-dev.1", "0.1.10aa", "0.1.10A", "0.1.10a-dev.1", "0.1.10a\n"]:
+            with self.subTest(old=old), self.assertRaises(ValueError): check_previous(status(old), "0.1.10b")
+
+    def test_invalid_new_release_never_orders(self):
+        for new in ["0.1.10aa", "0.1.10A", "0.1.10-dev.1", "0.1.10+build.1", "v0.1.10a", "0.01.10a", "0.1.10a\n"]:
+            with self.subTest(new=new), self.assertRaises(ValueError): check_previous(status(), new)
 
     def test_upgrade(self):
         self.assertEqual(check_previous(status(), "0.1.6"), 55)
@@ -284,6 +336,15 @@ class ArtifactTests(unittest.TestCase):
         return verify_artifact(self.web, "v0.1.6", SHA)
 
     def test_valid(self): self.assertEqual(self.verify(), self.manifest)
+
+    def test_hotfix_artifact_is_exact_and_fail_closed(self):
+        self.manifest.update(tag="v0.1.10a", version="0.1.10a"); self.save()
+        self.assertEqual(verify_artifact(self.web, "v0.1.10a", SHA), self.manifest)
+        for tag in ["v0.1.10", "v0.1.10b", "v0.1.10aa", "v0.1.10A", "v0.1.10a\n"]:
+            with self.subTest(tag=tag), self.assertRaises(ValueError): verify_artifact(self.web, tag, SHA)
+        with self.assertRaises(ValueError): verify_artifact(self.web, "v0.1.10a", "b" * 40)
+        (self.web / "index.js").write_text("tampered")
+        with self.assertRaises(ValueError): verify_artifact(self.web, "v0.1.10a", SHA)
 
     def test_stable_019_requires_exact_stable_artifact(self):
         self.manifest.update(tag="v0.1.9", version="0.1.9"); self.save()

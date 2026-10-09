@@ -52,5 +52,6 @@ const invoke=(f,name,...args)=>new Promise(resolve=>f.win.LittleLeafVault[name](
  check((await invoke(handoff,'finishTakeover')).payload==='server snapshot','acknowledged takeover returns validation payload without reload');
  owner.canForceTakeover=true;check((await invoke(handoff,'forceTakeover')).ok && handoff.confirms[0].includes('not confirmed its latest save'),'force warns about unconfirmed progress');
  const cancelledForce=fixture({owner,confirm:false});await cancelledForce.start();check((await invoke(cancelledForce,'forceTakeover')).code==='RECOVERY_CANCELLED' && cancelledForce.calls.length===0,'cancel force leaves ownership unchanged');
+ const divergent=fixture({owner});divergent.client.finishTakeover=async()=>({ok:false,code:'REVISION_CONFLICT',error:'raw private detail'});await divergent.start();const conflict=await invoke(divergent,'finishTakeover');check(conflict.code==='REVISION_CONFLICT'&&conflict.error.includes('Choose which progress')&&!conflict.error.includes('Could not finish')&&!conflict.error.includes('private'),'expected reconnect conflict gives clear safe choice guidance');
  console.log(JSON.stringify({passed:true,checks,player_save_used:false,real_browser:false}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

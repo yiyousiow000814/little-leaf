@@ -55,7 +55,7 @@ export async function start(config) {
   window.LittleLeafUpdate=window.LittleLeafUpdates.create({checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
   window.__littleLeafVault.close();window.__littleLeafVault=client;
   let recoveryBusy=false,recoveryMessage='',preparedChoice=null;
-  const failure=code=>({ok:false,code,error:code==='RECOVERY_CHANGED'?'A save changed. Review both saves and choose again.':'Could not finish safely. Your progress is preserved. Keep this page open and try again.'});
+  const failure=code=>({ok:false,code,error:code==='REVISION_CONFLICT'?'Two different saves are available. Choose which progress to continue.':code==='RECOVERY_CHANGED'?'A save changed. Review both saves and choose again.':'Could not finish safely. Your progress is preserved. Keep this page open and try again.'});
   const sameAccount=()=>auth.currentUser?.uid===uid && !loginBusy;
   function recoverySnapshot(){
     const value=sameAccount() && typeof client.recoverySnapshot==='function'?client.recoverySnapshot():{};

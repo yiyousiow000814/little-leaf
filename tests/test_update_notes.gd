@@ -36,7 +36,7 @@ func load_fixture(document:Variant):
 func run():
  var checked=Notes.validate_document(JSON.parse_string(FileAccess.get_file_as_string(Notes.DATA_PATH)))
  check(checked.valid,"checked-in release notes are accepted by runtime")
- check(checked.status=="released" and checked.version=="0.1.10","published preview notes expose the current version")
+ check(checked.status=="released" and checked.version=="0.1.10a","published preview notes expose the current version")
  check(checked.label=="Developer preview" and checked.date=="2026-10-09","published preview keeps its label and publication date")
  for status in ["pending","draft"]:
   var input=fixture(status);var original=input.duplicate(true)
@@ -56,12 +56,12 @@ func run():
  await process_frame
  var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
  var shipped_text=words(notes.body)
- check("Developer preview" in shipped_text and "Version 0.1.10 · 2026-10-09" in shipped_text,"actual checked-in preview header is rendered")
+ check("Developer preview" in shipped_text and "Version 0.1.10a · 2026-10-09" in shipped_text and "Version 0.1.10 · 2026-10-09" in shipped_text,"actual checked-in preview header is rendered")
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
  for section in ["new","fixed"]:
   for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
- check(checked.new.size()==6 and checked.fixed.size()==7,"concise preview has six New changes and six Fixed changes plus its visible notice")
- check(str(checked.fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified.","acceptance limits are in visible notes rather than ignored review metadata")
+ check(checked.new.size()==3 and checked.fixed.size()==4 and checked.history.size()==1 and checked.history[0].new.size()==6 and checked.history[0].fixed.size()==7,"hotfix notes retain the complete previous major preview")
+ check(str(checked.history[0].fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified." and "coordinated server rollout" in str(checked.fixed[-1]),"acceptance limits are in visible notes rather than ignored review metadata")
  preferences.last_seen_update_version="8.0.0"
  var original_config_exists=FileAccess.file_exists(preferences.config_path)
  for status in ["pending","draft"]:
@@ -98,6 +98,27 @@ func run():
  check(preferences.last_seen_update_version=="8.0.0","review session never persists seen release")
  notes._back_to_help();await settle();ui.help_notes.pressed.emit();await settle()
  check(not notes.has_unread(),"reopening released notes does not restore unread badge")
+ var historical=released.duplicate(true)
+ historical.version="9.8.6";historical.new=["Historical major feature"]
+ var hotfix=released.duplicate(true)
+ hotfix.new=[];hotfix.fixed=["Synthetic small fix"];hotfix.history=[historical]
+ var unchanged=hotfix.duplicate(true)
+ check(Notes.validate_document(hotfix).valid,"hotfix supports complete prior release notes")
+ check(hotfix==unchanged,"history validation never mutates input")
+ for bad_history in ["bad",[null],[fixture("draft")],[released],[historical,historical]]:
+  var bad=hotfix.duplicate(true);bad.history=bad_history
+  check(not Notes.validate_document(bad).valid,"invalid or duplicate history rejected")
+ var nested=historical.duplicate(true);nested.history=[]
+ var bad_nested=hotfix.duplicate(true);bad_nested.history=[nested]
+ check(not Notes.validate_document(bad_nested).valid,"nested histories rejected")
+ await load_fixture(hotfix)
+ var history_words=words(notes.body)
+ check("Version 9.8.7 · 2026-01-01" in history_words and "Version 9.8.6 · 2026-01-01" in history_words,"both release headings render")
+ check(history_words.find("Synthetic small fix")<history_words.find("Historical major feature"),"new hotfix precedes preserved major notes")
+ check(notes.current_version()=="9.8.7","unread version remains latest hotfix")
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show();await settle()
+  check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),"history panel fits "+str(view))
  await load_fixture({"schema_version":1,"status":"broken"})
  check(notes.data_error!="" and notes.current_version()=="" and not notes.has_unread(),"malformed notes remain unavailable without badge")
  check("Update notes are unavailable in this build." in words(notes.body),"malformed notes retain unavailable copy")
