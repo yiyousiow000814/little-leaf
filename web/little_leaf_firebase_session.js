@@ -38,6 +38,10 @@
     const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
+      // A server listener can deliver a queued pre-takeover observation after
+      // the transaction's explicit server readback. Epochs only increase under
+      // the rules: never regress a confirmed fence to an older epoch.
+      if(current && value && value.epoch<current.epoch)return;
       current=value;initialized=true;
       if(!current)status='offline';
       else if(current.owner===sessionId)status=current.request?'handoff-requested':'active';
@@ -106,7 +110,15 @@
     async function renew(){
       guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch;
       try{await change((value,save,stamp)=>{if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');return {...value,updatedAt:stamp()};});}
-      catch(e){status='offline';onChange(snapshot());throw e;}return snapshot();
+      catch(e){
+        // A renewal can race the acknowledged takeover. Read back a confirmed
+        // competing owner rather than relabeling a valid fence as an outage.
+        let fenced=false;
+        if(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied'){
+          try{const observed=await remote.read();guard();if(observed && observed.owner!==sessionId){receive(observed);fenced=true;}}catch(_){/* Unconfirmed ownership remains paused offline. */}
+        }
+        if(!fenced){status='offline';onChange(snapshot());}throw e;
+      }return snapshot();
     }
     async function requestTakeover(){
       guard();requestId=root.crypto.randomUUID();
