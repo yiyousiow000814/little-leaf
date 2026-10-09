@@ -1,6 +1,7 @@
 // Actual compiled Godot UI + production boot/adapter/session/update + Firestore emulator.
 // Only authentication is synthetic. No production endpoint, token or player save is used.
 import assert from 'node:assert/strict';
+import {boundedFailure} from './transaction_observer.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -32,7 +33,10 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/transaction_observer.mjs','firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const briefRecord=r=>r?{revision:r.revision,digest:r.digest,payload_sha256:typeof r.payload==='string'?sha(r.payload):null}:null;
+const briefJournal=j=>j?{base:j.base,pending:j.pending,record:briefRecord(j.record),uploading:j.uploading?{base:j.uploading.base,record:briefRecord(j.uploading.record)}:null}:null;
+const briefResult=r=>r?{ok:r.ok,code:/^[A-Za-z_-]{1,40}$/.test(r.code||'')?r.code:null,durable:r.durable,cloudConfirmed:r.cloudConfirmed,revision:r.revision}:null;
 const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
@@ -58,12 +62,13 @@ const injection='<script src="little_leaf_update.js"></script><script src="littl
 assert.equal(html.split('<script src="index.js"></script>').length,2);
 html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>');
 const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
-const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});globalThis.__qaFirestore={db,sdk:real};return db;}`;
+const firestore=`import {observeTransactions} from '/qa-transaction-observer.mjs';import * as real from '/sdk/firebase-firestore.js';export const runTransaction=observeTransactions(real.runTransaction,globalThis.__qaTransactions=[]);export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});globalThis.__qaFirestore={db,sdk:real};return db;}`;
 const server=http.createServer((req,res)=>{
  try{const p=new URL(req.url,'http://127.0.0.1').pathname;
  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Embedder-Policy','require-corp');res.setHeader('Cache-Control','no-store');
  let body,type='text/javascript';
  if(p==='/index.html'){body=html;type='text/html';}
+ else if(p==='/qa-transaction-observer.mjs')body=fs.readFileSync(path.join(root,'firebase/transaction_observer.mjs'));
  else if(p==='/seed.html'){body='<!doctype html><title>Synthetic fixture setup</title>';type='text/html';}
  else if(p==='/hosting-release.json'){body=JSON.stringify(release);type='application/json';}
  else if(p==='/sdk/auth.js')body=auth;
@@ -83,7 +88,7 @@ async function setup(uid,entry=null){
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin || u.origin==='http://127.0.0.1:8080')return route.continue();
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
- const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
+ const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/").replaceAll("'/qa-","'"+origin+"/qa-"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
  await page.goto(origin+'/seed.html');
@@ -169,14 +174,14 @@ try{
  await d.page.waitForFunction(()=>globalThis.__littleLeafVault?.storageKind==='firebase-firestore' && !document.getElementById('status'),null,{timeout:90000});await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'),null,{timeout:30000});check((await snapshot(d.page)).status==='active','updated same tab resumes native play with a fresh fenced epoch');const saved=await journal(d.page,uid);check(!saved.pending && saved.record.digest===(await read(uid)).digest,'successful native update reload follows exact cloud confirmation');check(navigations===1,'successful update reloads once');await shot(d.page,'update-confirmed-reloaded');await d.context.close();}
  check(errors.length===0,'compiled runtime reports no script or page errors: '+errors.join('; '));report.passed=true;
 }catch(error){
- report.failure=String(error.stack||error);report.failureStates=[];
+ report.failure='COMPILED_FLOW_CHECK_FAILED';report.failureMetadata={...boundedFailure(error),lastPassedCheck:report.checks.at(-1)||null};report.failureStates=[];
  for(const context of contexts)for(const page of context.pages()){
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
-  }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
+   report.failureStates.push({uid,snapshot:await snapshot(page),journal:briefJournal(await journal(page,uid)),owner:await read(uid,'owner'),cloud:briefRecord(await read(uid)),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),transactionObservations:await page.evaluate(()=>globalThis.__qaTransactions),adapterResults:(await page.evaluate(()=>globalThis.__qaAdapterResults)||[]).map(x=>({method:x.method,result:briefResult(x.result)})),bootReceipt:briefResult(JSON.parse(await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson)||'null')),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
+  }catch(observationError){report.failureStates.push({observationError:'OBSERVATION_FAILED'});}
  }
- throw error;
+ throw Error('Compiled synthetic cloud flow failed; see bounded diagnostic receipt.');
 }finally{
- report.errors=errors;fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
+ report.errors=errors.map(()=> 'BROWSER_ERROR');report.error_count=errors.length;fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
  for(const context of contexts)await context.close().catch(()=>{});await browser?.close();await new Promise(resolve=>server.close(resolve));await env.cleanup();
 }
