@@ -3,27 +3,30 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
-const {METHODS,validatePacket,within}=require('../../qa/startup_phase/validate');
+const {METHODS,DETAILS,validatePacket,within}=require('../../qa/startup_phase/validate');
 const {installCollector}=require('../../qa/startup_phase/collector');
 const manifest={source_commit:'a'.repeat(40),source_tree:'b'.repeat(40),overlay_id:'c'.repeat(64)};
 function packet() {
   let tick=1000;
   const expected=[['_ready','begin'],...METHODS.slice(1).flatMap(m=>[[m,'begin'],[m,'end']]),['_ready','end']];
-  return {schema_version:1,kind:'little-leaf-startup-phases',diagnostic_only:true,release_qualified:false,mode:'instrumented',...manifest,
+  const marks=expected.map(([method,boundary])=>({method,boundary,ticks_us:tick+=10}));
+  const detail_marks=DETAILS.flatMap(method=>{const parent=method.startsWith("ui_")?"_build_ui":"_setup_music",tick=marks.find(row=>row.method===parent&&row.boundary==="begin").ticks_us;return ["begin","end"].map(boundary=>({method,boundary,ticks_us:tick}));});
+  return {schema_version:2,kind:'little-leaf-startup-phases',diagnostic_only:true,release_qualified:false,mode:'instrumented',...manifest,
     clock:'Godot.Time.get_ticks_usec',clock_origin:'engine_monotonic_timer_origin_not_browser_navigation',
-    marks:expected.map(([method,boundary])=>({method,boundary,ticks_us:tick+=10})),buffer_overflow:false,
+    marks,detail_marks,detail_buffer_overflow:false,buffer_overflow:false,
     first_post_draw_ticks_us:1200,emit_started_ticks_us:1250,web_runtime:true,renderer_measured:true,display:'web',
     engine_version:'4.6.3.stable.official',fresh_start:true,save_recovery_blocked:false,web_save_ready:true,scope:'Test fixture only'};
 }
 let checks=0;
 function test(name,callback){callback();checks++;console.log('PASS '+name);}
 test('valid packet computes inclusive durations and independent clock scope',()=>{
-  const result=validatePacket(packet(),manifest);assert.equal(result.ready_total_us,150);assert.equal(result.method_spans.length,8);
+  const result=validatePacket(packet(),manifest);assert.equal(result.ready_total_us,150);assert.equal(result.method_spans.length,8);assert.equal(result.detail_spans.length,15);assert.match(result.detail_scope,/Nested/);
   assert.equal(result.unwrapped_ready_residual_including_probe_overhead_us,80);
   assert.equal(result.observable_engine_timer_origin_to_ready_us,1010);assert.equal(result.ready_end_to_first_post_draw_us,40);
   assert.match(result.clock_alignment,/independent/);assert.equal(result.release_qualified,false);
 });
 for(const [name,mutate] of [
+  ['unknown detail field',p=>p.detail_marks[0].unexpected=true],['detail overflow',p=>p.detail_buffer_overflow=true],['detail outside parent',p=>p.detail_marks[0].ticks_us=0],['detail wrong order',p=>p.detail_marks.reverse()],['detail missing',p=>p.detail_marks.pop()],
   ['unknown mark field',p=>p.marks[0].unexpected=true],['non-array marks',p=>p.marks={}],
   ['unknown field',p=>p.unexpected=true],['missing field',p=>delete p.scope],['nonboolean web',p=>p.web_runtime='yes'],
   ['source mismatch',p=>p.source_commit='f'.repeat(40)],['overlay mismatch',p=>p.overlay_id='f'.repeat(64)],

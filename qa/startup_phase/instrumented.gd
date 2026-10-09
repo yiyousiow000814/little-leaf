@@ -4,7 +4,13 @@ const PHASE_SOURCE_COMMIT = "@SOURCE_COMMIT@"
 const PHASE_SOURCE_TREE = "@SOURCE_TREE@"
 const PHASE_OVERLAY_ID = "@OVERLAY_ID@"
 const PHASE_NAMES = ["_ready", "_load_startup", "_setup_world", "_build_ui", "_setup_music", "_rebuild_room", "_rebuild_furniture", "_restore_service_runtime"]
+const DETAIL_NAMES = ["ui_header", "ui_settings", "ui_catalog", "ui_build_tools", "ui_compact", "music_service_load", "music_service_duplicate", "music_service_node", "music_busy_load", "music_busy_duplicate", "music_busy_node", "music_decorate_load", "music_decorate_duplicate", "music_decorate_node", "music_initial_switch"]
+const _DETAIL_MUSIC_CODE = {"service":10,"busy":16,"decorate":22}
 const PHASE_CAPACITY = 128
+var _detail_ticks = PackedInt64Array()
+var _detail_codes = PackedInt32Array()
+var _detail_count = 0
+var _detail_overflow = false
 # Allocated before _ready, so this overhead is explicitly outside ready_total_us.
 var _phase_ticks = PackedInt64Array()
 var _phase_codes = PackedInt32Array()
@@ -15,6 +21,8 @@ var _phase_emitted = false
 var _phase_first_draw_us = -1
 
 func _init():
+	_detail_ticks.resize(PHASE_CAPACITY)
+	_detail_codes.resize(PHASE_CAPACITY)
 	_phase_ticks.resize(PHASE_CAPACITY)
 	_phase_codes.resize(PHASE_CAPACITY)
 
@@ -28,6 +36,16 @@ func _phase_mark(code: int):
 	_phase_ticks[_phase_count] = now
 	_phase_codes[_phase_count] = code
 	_phase_count += 1
+
+func _phase_detail_mark(code: int):
+	if not _phase_active:return
+	var now = Time.get_ticks_usec()
+	if _detail_count == PHASE_CAPACITY:
+		_detail_overflow = true
+		return
+	_detail_ticks[_detail_count] = now
+	_detail_codes[_detail_count] = code
+	_detail_count += 1
 
 func _ready():
 	_phase_active = true
@@ -86,8 +104,12 @@ func _phase_emit():
 	for index in _phase_count:
 		var code = _phase_codes[index]
 		marks.append({"method": PHASE_NAMES[code / 2], "boundary": "begin" if code % 2 == 0 else "end", "ticks_us": _phase_ticks[index]})
+	var detail_marks = []
+	for index in _detail_count:
+		var code = _detail_codes[index]
+		detail_marks.append({"method": DETAIL_NAMES[code / 2], "boundary": "begin" if code % 2 == 0 else "end", "ticks_us": _detail_ticks[index]})
 	var packet = {
-		"schema_version": 1,
+		"schema_version": 2,
 		"kind": "little-leaf-startup-phases",
 		"diagnostic_only": true,
 		"release_qualified": false,
@@ -98,6 +120,8 @@ func _phase_emit():
 		"clock": "Godot.Time.get_ticks_usec",
 		"clock_origin": "engine_monotonic_timer_origin_not_browser_navigation",
 		"marks": marks,
+		"detail_marks": detail_marks,
+		"detail_buffer_overflow": _detail_overflow,
 		"buffer_overflow": _phase_overflow,
 		"first_post_draw_ticks_us": _phase_first_draw_us,
 		"emit_started_ticks_us": emit_started_us,

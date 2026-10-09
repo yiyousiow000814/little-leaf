@@ -13,6 +13,10 @@ from pathlib import Path
 import shutil
 import subprocess
 import zipfile
+import importlib.util
+_spec = importlib.util.spec_from_file_location("phase_subphases", Path(__file__).with_name("subphases.py"))
+_subphases = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_subphases)
 
 ROOT = Path(__file__).resolve().parents[2]
 PINNED_SOURCE = "29974be8f124832083d4b2852131ad9ea32abe24"
@@ -89,6 +93,8 @@ def prepare(root, output, expected=PINNED_SOURCE):
         payload["main.tscn"] = entry.replace(old, 'path="res://' + OVERLAY_PATH + '"').encode()
         overlay_id = digest(canonical({"pair_id": pair_id, "mode": mode}))
         script = templates[mode + ".gd"].decode()
+        if mode == "instrumented":
+            script = _subphases.expand(script, sources["scripts/main.gd"].decode())
         for token, value in [("SOURCE_COMMIT", head), ("SOURCE_TREE", tree), ("OVERLAY_ID", overlay_id)]:
             script = script.replace("@" + token + "@", value)
         if "@SOURCE_" in script or "@OVERLAY_" in script:

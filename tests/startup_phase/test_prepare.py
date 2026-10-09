@@ -21,7 +21,7 @@ class PhasePreparationTests(unittest.TestCase):
         self.root = self.base / "source"
         self.root.mkdir()
         (self.root / "scripts").mkdir()
-        (self.root / "scripts/main.gd").write_text("extends Node3D\nfunc _ready():\n\tpass\n")
+        (self.root / "scripts/main.gd").write_text("extends Node3D\nfunc _ready():\n\tpass\n" + "".join(prepare._subphases.method((ROOT / "scripts/main.gd").read_text(), name) for name in ["_build_ui", "_setup_music"]))
         for name in ["main.tscn", "project.godot", "export_presets.cfg"]:
             (self.root / name).write_bytes((ROOT / name).read_bytes())
         (self.root / "qa").mkdir()
@@ -100,6 +100,33 @@ class PhasePreparationTests(unittest.TestCase):
             (web / "index.html").write_bytes(contents["index.html"])
             (web / "release-manifest.json").write_text("{}")
             self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+
+    def test_generated_copies_strip_to_exact_pinned_methods(self):
+        source = (ROOT / "scripts/main.gd").read_text()
+        template = (ROOT / "qa/startup_phase/instrumented.gd").read_text()
+        expanded = prepare._subphases.expand(template, source)
+        for name in ["_build_ui", "_setup_music"]:
+            original = prepare._subphases.method(source, name)
+            generated = prepare._subphases.method(expanded, name)
+            # One separating blank line is added outside the copied method.
+            self.assertEqual(prepare._subphases.strip_marks(generated).rstrip("\n"), original.rstrip("\n"))
+        self.assertIn("_phase_detail_mark(_DETAIL_MUSIC_CODE[state])", expanded)
+        self.assertIn("_phase_detail_mark(28)", expanded)
+
+    def test_changed_anchor_fails_closed(self):
+        template = (ROOT / "qa/startup_phase/instrumented.gd").read_text()
+        source = (ROOT / "scripts/main.gd").read_text()
+        for before, after in [("tray=PanelContainer.new()", "tray = PanelContainer.new()"),
+                              ("var source=load(files[state])", "var source = load(files[state])")]:
+            with self.assertRaisesRegex(ValueError, "boundaries changed"):
+                prepare._subphases.expand(template, source.replace(before, after))
+
+    def test_strip_guard_retains_any_non_marker_change(self):
+        original = "func sample():\n\tvalue=1\n"
+        marked = "func sample():\n\t_phase_mark(2)\n\tvalue=2\n"
+        self.assertNotEqual(prepare._subphases.strip_marks(marked), original)
+        with self.assertRaisesRegex(ValueError, "already contains"):
+            prepare._subphases.expand("", original + "\t_phase_detail_mark(0)\n")
 
     def test_runtime_wrappers_call_real_super_without_io(self):
         text = (ROOT / "qa/startup_phase/instrumented.gd").read_text()

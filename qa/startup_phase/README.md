@@ -1,4 +1,4 @@
-# Diagnostic-only real-Web startup phase overlay
+# Diagnostic-only real-Web startup UI/music subphases
 
 This is a local, unpublished test tool based on production source commit
 `29974be8f124832083d4b2852131ad9ea32abe24`. It is not a runtime optimization,
@@ -13,8 +13,12 @@ is introduced. Real fresh browser storage is provided by a new disposable contex
 ## Boundaries and interpretation
 
 The instrumented subclass calls `super()` once for `_ready`, `_load_startup`,
-`_setup_world`, `_build_ui`, `_setup_music`, `_rebuild_room`, `_rebuild_furniture`
-and `_restore_service_runtime`. A preallocated 128-entry integer buffer records
+`_setup_world`, `_rebuild_room`, `_rebuild_furniture` and `_restore_service_runtime`.
+For `_build_ui` and `_setup_music`, `subphases.py` extracts exact method bodies
+from the immutable production source and inserts only in-memory mark statements.
+Stripping those inserted statements must reproduce each original method byte for
+byte or preparation fails. This diagnostic-only substitution is never applied to
+production files. Changed source anchors fail closed rather than guessing. A preallocated 128-entry integer buffer records
 monotonic microseconds in memory. No diagnostic JS bridge, dictionaries, JSON,
 logging, screenshots, or trace hooks run at method boundaries. The first
 `frame_post_draw` callback is registered before inherited `_ready` and timestamps
@@ -23,11 +27,16 @@ one JSON object to `window.__littleLeafStartupPhasePacket`. The native fallback
 prints one JSON packet only if a genuine post-draw signal occurred. Headless
 normally has no such signal; missing packets are not manufactured.
 
-`packet.schema.json` documents v1; `validate.js` checks exact source/overlay
+`packet.schema.json` documents v2; `validate.js` checks exact source/overlay
 identity, expected nested order, one call per method, freshness, real Web save
 readiness, monotonicity, and no overflow. Durations are inclusive elapsed method
 spans, not isolated CPU time. `_ready` includes nested methods and must not be
 added to them. The unwrapped residual includes controller glue and probe overhead.
+Fifteen subphase spans cover UI header, Settings, catalog/tray, build tools and
+compact UI; and each music track’s resource load, stream duplication and player
+node setup, plus initial service-track switching. These spans nest inside UI/music
+parents and must not be added to the parent spans or `_ready`. The load boundary
+includes whatever resource work Godot performs; it does not alone prove decoding.
 The first post-draw signal does not prove display presentation or GPU completion.
 
 The only observed pre-`_ready` interval is the first mark's value relative to
@@ -43,8 +52,8 @@ Both staged projects have identical entry scene structure and production input
 bytes, except for the contents of `qa/startup_phase/main.gd`. The control is an
 empty subclass of the real controller and emits no packet. Both differ from the
 release's direct script reference. The instrumented variant additionally changes
-script parse/export size, allocates the mark buffer before `_ready`, adds virtual
-wrapper dispatch/timer writes and a draw-signal subscription, and serializes and
+script parse/export size, allocates the mark buffer before `_ready`, copies two method bodies (changing parsing cost even when executable statements
+match), adds virtual wrapper dispatch/timer writes and a draw-signal subscription, and serializes and
 bridges after first draw. Post-draw emission can affect subsequent loader/rAF
 observations. The supplied rAF timestamp can be stale; only actual callback execution
 time at/after observed loader removal identifies the loader-absent scheduling phase. The shared browser collector also has overhead, present in both.
@@ -63,7 +72,7 @@ engine, browser, player saves, or installed packages:
 ```sh
 python3 -m unittest discover -s tests/startup_phase -p 'test_*.py' -v
 node tests/startup_phase/test_validate.js
-python3 qa/startup_phase/prepare.py --output /tmp/little-leaf-phase-pair
+python3 qa/startup_phase/prepare.py --expected-source "$(git rev-parse HEAD)" --output /tmp/little-leaf-phase-pair
 ```
 
 `pair.json`, frozen `overlay-source/`, and each `diagnostic-manifest.json` preserve

@@ -10,6 +10,7 @@ const canonical = value => Array.isArray(value) ? '['+value.map(canonical).join(
   value && typeof value === 'object' ? '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical(value[key])).join(',')+'}' : JSON.stringify(value);
 const METHODS = ['_ready','_load_startup','_setup_world','_build_ui','_setup_music','_rebuild_room','_rebuild_furniture','_restore_service_runtime'];
 const production = name => ['project.godot','main.tscn','export_presets.cfg'].includes(name)||['assets','data','scripts','shaders','web'].includes(name.split('/')[0]);
+const DETAILS = ['ui_header','ui_settings','ui_catalog','ui_build_tools','ui_compact',...['service','busy','decorate'].flatMap(state=>['load','duplicate','node'].map(part=>'music_'+state+'_'+part)),'music_initial_switch'];
 function within(root, relative) {
   assert(!path.isAbsolute(relative) && !relative.split(/[\\/]/).includes('..'),'Unsafe manifest path');
   const full=path.resolve(root,relative);assert(full.startsWith(path.resolve(root)+path.sep),'Path escaped root');return full;
@@ -44,6 +45,7 @@ function verifyManifest(web, root) {
   assert.equal(hash(canonical({pair_id:manifest.pair_id,mode:manifest.mode})),manifest.overlay_id,'Overlay binding');
   const entry=fs.readFileSync(path.join(root,'main.tscn'),'utf8').replace('path="res://scripts/main.gd"','path="res://qa/startup_phase/main.gd"');
   let script=fs.readFileSync(path.join(root,'qa/startup_phase',manifest.mode+'.gd'),'utf8');
+  if(manifest.mode==='instrumented')script=cp.execFileSync('python3',[path.join(root,'qa/startup_phase/subphases.py'),'--source',path.join(root,'scripts/main.gd'),'--template',path.join(root,'qa/startup_phase/instrumented.gd')],{encoding:'utf8'});
   for(const [token,value] of [['SOURCE_COMMIT',manifest.source_commit],['SOURCE_TREE',manifest.source_tree],['OVERLAY_ID',manifest.overlay_id]])script=script.replaceAll('@'+token+'@',value);
   assert.deepEqual(manifest.diagnostic_project_sha256,{...source,'main.tscn':hash(entry),'qa/startup_phase/main.gd':hash(script)},'Only declared overlay changed');
   const actual=fs.readdirSync(web).filter(name=>name!=='diagnostic-manifest.json').sort();
@@ -59,7 +61,7 @@ function validatePacket(packet, manifest, {requireWeb=true}={}) {
   assert.deepEqual(Object.keys(packet).sort(),schema.required.slice().sort(),'Exact packet schema fields');
   for(const key of ['web_runtime','renderer_measured','web_save_ready'])assert.equal(typeof packet[key],'boolean');
   for(const key of ['display','engine_version','scope'])assert.equal(typeof packet[key],'string');
-  assert.equal(packet.schema_version,1);assert.equal(packet.kind,'little-leaf-startup-phases');
+  assert.equal(packet.schema_version,2);assert.equal(packet.kind,'little-leaf-startup-phases');
   assert.equal(packet.diagnostic_only,true);assert.equal(packet.release_qualified,false);assert.equal(packet.mode,'instrumented');
   for(const field of ['source_commit','source_tree','overlay_id'])assert.equal(packet[field],manifest[field],'Packet '+field);
   assert.equal(packet.clock,'Godot.Time.get_ticks_usec');
@@ -74,8 +76,17 @@ function validatePacket(packet, manifest, {requireWeb=true}={}) {
   assert(ticks.every(tick=>Number.isSafeInteger(tick)&&tick>=0),'Safe monotonic integer microseconds');
   assert(ticks.every((tick,index)=>index===0||tick>=ticks[index-1]),'Ordered monotonic boundaries');
   const spans=METHODS.map(method=>{const rows=packet.marks.filter(row=>row.method===method);return {method,start_ticks_us:rows[0].ticks_us,end_ticks_us:rows[1].ticks_us,duration_us:rows[1].ticks_us-rows[0].ticks_us};});
+  assert.equal(packet.detail_buffer_overflow,false);
+  assert(Array.isArray(packet.detail_marks));
+  for(const row of packet.detail_marks)assert.deepEqual(Object.keys(row).sort(),['boundary','method','ticks_us']);
+  assert.deepEqual(packet.detail_marks.map(row=>[row.method,row.boundary]),DETAILS.flatMap(name=>[[name,'begin'],[name,'end']]));
+  const details=DETAILS.map(method=>{const rows=packet.detail_marks.filter(row=>row.method===method),parent=method.startsWith('ui_')?'_build_ui':'_setup_music',span=spans.find(row=>row.method===parent);
+    assert(rows.every(row=>Number.isSafeInteger(row.ticks_us)&&row.ticks_us>=span.start_ticks_us&&row.ticks_us<=span.end_ticks_us));
+    assert(rows[1].ticks_us>=rows[0].ticks_us);return {method,parent,start_ticks_us:rows[0].ticks_us,end_ticks_us:rows[1].ticks_us,duration_us:rows[1].ticks_us-rows[0].ticks_us};});
+  assert(packet.detail_marks.every((row,index)=>index===0||row.ticks_us>=packet.detail_marks[index-1].ticks_us),'Monotonic subphase sequence');
   const ready=spans[0];
   return {ready_total_us:ready.duration_us,method_spans:spans,
+    detail_spans:details,detail_scope:"Nested inside UI/music parents; do not add to parent spans. Exact source-body copy with inserted marks; parsing and instrumentation overhead remain.",
     unwrapped_ready_residual_including_probe_overhead_us:ready.duration_us-spans.slice(1).reduce((n,row)=>n+row.duration_us,0),
     observable_engine_timer_origin_to_ready_us:ready.start_ticks_us,
     ready_end_to_first_post_draw_us:packet.first_post_draw_ticks_us-ready.end_ticks_us,
@@ -85,4 +96,4 @@ function validatePacket(packet, manifest, {requireWeb=true}={}) {
     clock_alignment:'none; Godot ticks and browser performance.now are independent domains',
     release_qualified:false};
 }
-module.exports={hash,canonical,within,METHODS,verifyManifest,validatePacket};
+module.exports={hash,canonical,within,METHODS,DETAILS,verifyManifest,validatePacket};

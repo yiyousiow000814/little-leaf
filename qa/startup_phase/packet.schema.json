@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Little Leaf diagnostic startup phase packet v1",
+  "title": "Little Leaf diagnostic startup phase packet v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "kind", "diagnostic_only", "release_qualified", "mode", "source_commit", "source_tree", "overlay_id", "clock", "clock_origin", "marks", "buffer_overflow", "first_post_draw_ticks_us", "emit_started_ticks_us", "web_runtime", "renderer_measured", "display", "engine_version", "fresh_start", "save_recovery_blocked", "web_save_ready", "scope"],
+  "required": ["schema_version", "kind", "diagnostic_only", "release_qualified", "mode", "source_commit", "source_tree", "overlay_id", "clock", "clock_origin", "marks", "buffer_overflow", "first_post_draw_ticks_us", "emit_started_ticks_us", "web_runtime", "renderer_measured", "display", "engine_version", "fresh_start", "save_recovery_blocked", "web_save_ready", "scope", "detail_marks", "detail_buffer_overflow"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "kind": {"const": "little-leaf-startup-phases"},
     "diagnostic_only": {"const": true},
     "release_qualified": {"const": false},
@@ -26,6 +26,8 @@
     "fresh_start": {"const": true},
     "save_recovery_blocked": {"const": false},
     "web_save_ready": {"type": "boolean"},
-    "scope": {"type": "string"}
+    "scope": {"type": "string"},
+    "detail_buffer_overflow": {"const": false},
+    "detail_marks": {"type": "array", "minItems": 30, "maxItems": 128, "items": {"type": "object", "additionalProperties": false, "required": ["method", "boundary", "ticks_us"], "properties": {"method": {"enum": ["ui_header", "ui_settings", "ui_catalog", "ui_build_tools", "ui_compact", "music_service_load", "music_service_duplicate", "music_service_node", "music_busy_load", "music_busy_duplicate", "music_busy_node", "music_decorate_load", "music_decorate_duplicate", "music_decorate_node", "music_initial_switch"]}, "boundary": {"enum": ["begin", "end"]}, "ticks_us": {"type": "integer", "minimum": 0}}}}
   }
 }
