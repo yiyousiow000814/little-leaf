@@ -172,11 +172,15 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
           python3 ci/run_firebase_focused.py --gate rules.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Prepare exact-message native geometry for compiled cloud flow
+        if: inputs.firebase_preview
+        run: python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
       - name: Verify compiled two-device cloud recovery and safe update in the emulator
         if: inputs.firebase_preview
         timeout-minutes: 12
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
         run: |
           set -euo pipefail

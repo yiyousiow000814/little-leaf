@@ -6,6 +6,8 @@ on:
       - 'web/little_leaf_firebase*'
       - 'web/little_leaf_update.js'
       - 'ci/cloud_flow_diagnostic.py'
+      - 'ci/prepare_cloud_geometry.py'
+      - 'tests/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
 permissions:
   contents: read
@@ -30,6 +32,10 @@ jobs:
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11600374596/zip > "$RUNNER_TEMP/retained/web.zip"
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11602076197/zip > "$RUNNER_TEMP/retained/evidence.zip"
           python3 ci/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
+      - name: Install pinned native geometry tool and prepare disposable probe
+        run: |
+          python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
       - name: Install pinned test dependencies
         run: |
           npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
@@ -38,6 +44,7 @@ jobs:
       - name: Exercise actual compiled UI and current adapter against synthetic emulator
         timeout-minutes: 12
         env:
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/browser-tools/node_modules/playwright
         run: |

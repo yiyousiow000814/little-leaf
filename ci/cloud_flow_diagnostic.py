@@ -9,6 +9,7 @@ RUNTIME={'web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','we
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def validate_changes(paths):
  for p in paths:
+  if p=='tests/probe_cloud_recovery_geometry.gd':continue
   if p in RUNTIME or p.startswith(('firebase/','ci/','.github/workflows/')):continue
   if p.startswith('tests/') and p.endswith('.js') and p!='tests/engine_launch_hook.js':continue
   raise ValueError('Retained native export cannot cover changed input: '+p)

@@ -92,7 +92,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
             if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
                 raise ValueError('Compiled Firebase browser/source binding mismatch')
-            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
             if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
