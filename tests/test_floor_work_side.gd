@@ -62,7 +62,7 @@ func run():
 	# Loaded saves may already own trash while retaining an elapsed sweep.
 	# The current step, not ownership inferred from the record, chooses contact.
 	var probe=StageProbe.new(game);game.floor_tasks.geometry=probe
-	cleaner.job_kind="floor";cleaner.job_mess_id=id;cleaner.job_step=0;cleaner.job_elapsed=.35
+	cleaner.job_kind="floor";cleaner.job_mess_id=id;cleaner.job_token=entry.token;cleaner.job_step=0;cleaner.job_elapsed=.35
 	game.floor_tasks.destination(cleaner,Vector2i(5,6),[])
 	check(probe.actions[-1]=="sweeping","held standalone partial sweep keeps sweep eligibility")
 	cleaner.job_kind="cleanup";cleaner.job_step=3
