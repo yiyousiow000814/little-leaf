@@ -5,10 +5,14 @@ const DESCENT_START = 1.0
 static var shown_this_session = false
 var game
 var active = false
+var preparing = false
+var finish_after_preparation = false
+var discard_preparation_delta = false
 var elapsed = 0.0
 var descent = 0.0
 var sky_alpha = 1.0
 var held = {}
+var entry_requested = false
 var hud_colors = {}
 var hud_alpha = 1.0
 var cover: Control
@@ -57,11 +61,14 @@ func start(owner_game):
 		label.add_theme_font_override("font", game.compact_ui.hud.font_bold)
 		label.add_theme_color_override("font_color", Color("735f43"))
 	welcome.text = "Welcome to"
-	hint.text = "Tap or press any key to skip"
+	hint.text = "Tap or press Enter to enter · Esc to skip"
 	_present()
 
 func _process(delta):
-	if not active:return
+	if not active or preparing:return
+	if discard_preparation_delta:
+		discard_preparation_delta = false
+		return
 	# A suspended tab or frame stall lands immediately instead of trapping input.
 	if delta > 1.0 or game.editing or game.settings.visible:
 		finish();return
@@ -74,6 +81,7 @@ func _process(delta):
 func motion_delta(delta: float) -> float:
 	# The title hold is not play time. Only the current frame's descending
 	# portion advances the world; there is no catch-up after a stall or tab hide.
+	if preparing or discard_preparation_delta:return 0.0
 	if not is_finite(delta) or delta <= 0.0 or delta > 1.0:return 0.0
 	return clampf(elapsed + delta - DESCENT_START, 0.0, delta) if active else delta
 
@@ -129,14 +137,43 @@ func handle_input(event) -> bool:
 		if not event.pressed:held.erase("touch_skip")
 		return true
 	if not active:return false
+	if preparing:
+		if token != "" and pressed:
+			held[token] = true
+			if event is InputEventScreenTouch:held["touch_skip"] = true
+		return true
 	if token != "" and pressed:
+		if event is InputEventKey and event.echo:return true
+		var skip = (event is InputEventKey and event.keycode == KEY_ESCAPE) or (event is InputEventJoypadButton and event.button_index == JOY_BUTTON_B)
+		var enter = event is InputEventScreenTouch or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventKey and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]) or (event is InputEventJoypadButton and event.button_index == JOY_BUTTON_A)
+		if not skip and not enter:return true
+		# A second finger or simultaneous button is part of the held gesture,
+		# not an independent request to skip. Escape/B remains explicit skip.
+		var another_held = false
+		for key in held:
+			if key != "touch_skip":another_held = true
 		held[token] = true
 		if event is InputEventScreenTouch:held["touch_skip"] = true
-		finish()
+		if skip:finish()
+		elif not another_held:
+			if entry_requested:finish()
+			else:
+				entry_requested = true
+				# Only shorten the non-playing title hold. Never catch simulation
+				# up or jump over a descent already in progress. The trusted event
+				# can unlock browser audio normally; it does not prove audibility.
+				elapsed = maxf(elapsed, DESCENT_START)
+				descent = smoothstep(DESCENT_START, DURATION, elapsed)
+				sky_alpha = 1.0 - smoothstep(1.4, 4.8, elapsed)
+				hint.text = "Tap again or press Esc to skip"
+				_present()
 	return true
 
 func finish():
 	if not active:return
+	if preparing:
+		finish_after_preparation = true
+		return
 	active = false
 	descent = 1.0
 	cover.hide()

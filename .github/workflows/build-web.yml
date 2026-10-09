@@ -42,6 +42,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
+          python3 ci/verify_prebaked_atlases.py
           python3 -m unittest discover -s ci -p 'test_*.py' -v
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js

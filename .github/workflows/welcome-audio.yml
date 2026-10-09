@@ -1,0 +1,68 @@
+name: Check first-gesture welcome audio
+# Temporary review gate: no default-branch, PR-merge, tag, release or deploy trigger.
+on:
+  push:
+    branches: [fix/10a-ready-welcome]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: welcome-audio-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  welcome-audio:
+    if: github.ref == 'refs/heads/fix/10a-ready-welcome'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact source and offline fail-closed contracts
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          python3 ci/release_metadata.py
+          python3 ci/verify_prebaked_atlases.py
+          python3 -m unittest discover -s ci -p 'test_*.py' -v
+          node tests/welcome_audio_test.js
+          node tests/wall_compatibility_helpers_test.js
+          node tests/wall_compatibility_ocr_test.js
+          node --check tests/welcome_audio_browser.js
+          node --check tests/welcome_audio_helpers.js
+          node --check tests/welcome_audio_observer.js
+      - name: Install existing checksum-pinned official engine and Web template
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/welcome-audio-tools"
+      - name: Run complete engine gate in disposable profiles
+        run: python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/welcome-audio-engine"
+      - name: Export and packed-smoke-check this exact ordinary-Web source
+        run: python3 ci/build_web.py --output "$RUNNER_TEMP/welcome-audio-web" --test-report "$RUNNER_TEMP/welcome-audio-engine/summary.json"
+      - name: Install pinned bundled Chromium and screenshot OCR tools
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/welcome-audio-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/.bin/playwright" install --with-deps chromium
+          sudo apt-get install -y --no-install-recommends xvfb xauth tesseract-ocr tesseract-ocr-eng
+      - name: Verify first click, touch and Enter with independent silent controls
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/playwright" xvfb-run -a -s '-screen 0 1600x1000x24' node tests/welcome_audio_browser.js --source-root "$GITHUB_WORKSPACE" --web-build "$RUNNER_TEMP/welcome-audio-web/web" --output "$RUNNER_TEMP/welcome-audio-web/evidence/welcome-audio"
+      - name: Retain exact source, raw audio observations and rendered frames on any outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: welcome-audio-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/welcome-audio-engine/*.json
+            ${{ runner.temp }}/welcome-audio-engine/*.log
+            ${{ runner.temp }}/welcome-audio-web/web/release-manifest.json
+            ${{ runner.temp }}/welcome-audio-web/evidence/
+          if-no-files-found: error
+          retention-days: 7
