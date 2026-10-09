@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing stable vX.Y.Z tag (never created or moved here)
+        description: Existing vX.Y.Z or vX.Y.Z[a-z] tag (never created or moved here)
         required: true
         type: string
 permissions:
@@ -40,11 +40,11 @@ jobs:
         run: |
           python3 - <<'PY'
           import base64, datetime, json, os, re, subprocess
-          stable = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+          release_pattern = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]?)"
           tag = os.environ['RELEASE_TAG']
-          match = re.fullmatch(stable, tag)
+          match = re.fullmatch(release_pattern, tag)
           if not match:
-              raise ValueError('Expected an existing stable vX.Y.Z tag')
+              raise ValueError('Expected an existing vX.Y.Z or vX.Y.Z[a-z] tag')
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
           ref = 'refs/tags/' + tag
@@ -61,7 +61,7 @@ jobs:
           if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [version]:
               raise ValueError('Tag and project version disagree')
           if notes.get('schema_version') != 1 or notes.get('version') != version or notes.get('status') != 'released':
-              raise ValueError('Release metadata must match the stable tag and be released')
+              raise ValueError('Release metadata must match the release tag and be released')
           if datetime.date.fromisoformat(notes['date']) > datetime.datetime.now(datetime.timezone.utc).date():
               raise ValueError('Release date is in the future')
           lines = []
@@ -79,12 +79,16 @@ jobs:
                   lines.append('')
           if not lines:
               raise ValueError('Release notes must describe changes')
-          current = tuple(map(int, match.groups()))
+          # Keep in sync with release_metadata.release_key; do not execute
+          # scripts from the tagged game source to render historical releases.
+          def release_key(m):
+              return (*map(int, m.groups()[:3]), ord(m[4]) - ord('a') + 1 if m[4] else 0)
+          current = release_key(match)
           previous = []
           for candidate in git('tag', '--list').splitlines():
-              m = re.fullmatch(stable, candidate)
-              if m and tuple(map(int, m.groups())) < current:
-                  previous.append((tuple(map(int, m.groups())), candidate))
+              m = re.fullmatch(release_pattern, candidate)
+              if m and release_key(m) < current:
+                  previous.append((release_key(m), candidate))
           repo = os.environ['GITHUB_REPOSITORY']
           url = 'https://github.com/' + repo
           changelog = url + '/commit/' + sha

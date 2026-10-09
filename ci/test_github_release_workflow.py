@@ -31,23 +31,23 @@ def run_blocks():
 
 
 class MetadataGateTests(unittest.TestCase):
-    def run_prepare(self, mutation=None, tag="v0.1.9", event="workflow_dispatch"):
-        notes = {"schema_version": 1, "version": "0.1.9", "status": "released",
+    def run_prepare(self, mutation=None, tag="v0.1.9", event="workflow_dispatch", version="0.1.9", tags=None):
+        notes = {"schema_version": 1, "version": version, "status": "released",
                  "date": "2000-01-01", "new": ["Inbox letters."], "fixed": ["Save recovery."]}
         if mutation:
             notes.update(mutation)
         def git(args, text=True):
             command = args[1:]
-            if command == ["rev-parse", "--verify", "refs/tags/v0.1.9"]:
+            if command == ["rev-parse", "--verify", "refs/tags/" + tag]:
                 return OBJECT
-            if command == ["rev-parse", "--verify", "refs/tags/v0.1.9^{commit}"]:
+            if command == ["rev-parse", "--verify", "refs/tags/" + tag + "^{commit}"]:
                 return SHA
             if command == ["show", SHA + ":project.godot"]:
-                return 'config/version="0.1.9"'
+                return 'config/version="' + version + '"'
             if command == ["show", SHA + ":data/release_notes.json"]:
                 return json.dumps(notes)
             if command == ["tag", "--list"]:
-                return "v0.1.8\nv0.1.9-alpha-2\nv0.1.9\nv0.1.10"
+                return tags if tags is not None else "v0.1.8\nv0.1.9-alpha-2\nv0.1.9\nv0.1.10"
             raise AssertionError("Unexpected git command: " + repr(command))
         source = run_blocks()[0].split("python3 - <<'PY'\n", 1)[1].rsplit("\nPY", 1)[0]
         with tempfile.TemporaryDirectory() as folder:
@@ -69,6 +69,22 @@ class MetadataGateTests(unittest.TestCase):
         self.assertIn("------\n\n## Changelog", notes)
         self.assertIn("/compare/v0.1.8...v0.1.9", notes)
 
+    def test_hotfix_changelog_uses_immediate_lower_release(self):
+        versions = ["0.1.9", "0.1.10", "0.1.10a", "0.1.10b", "0.1.10c", "0.1.10z", "0.1.11"]
+        tags = "\n".join("v" + value for value in reversed(versions))
+        tags += "\nv0.1.10aa\nv0.1.10A\nv0.1.11-dev.1\nv00.1.11"
+        for previous, value in zip(versions, versions[1:]):
+            with self.subTest(version=value):
+                result = self.run_prepare(tag="v" + value, version=value, tags=tags)
+                notes = base64.b64decode(result["notes"]).decode()
+                self.assertIn("/compare/v" + previous + "...v" + value, notes)
+                self.assertEqual(result["sha"], SHA)
+
+    def test_hotfix_metadata_remains_exact_and_released(self):
+        for mutation in ({"version": "0.1.10"}, {"status": "draft"}):
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.run_prepare(mutation, tag="v0.1.10a", version="0.1.10a")
+
     def test_reject_mismatched_or_unreleased_metadata(self):
         for change in ({"version": "0.1.10"}, {"status": "draft"}, {"schema_version": 2},
                        {"date": "9999-01-01"}, {"new": [], "fixed": []},
@@ -77,7 +93,8 @@ class MetadataGateTests(unittest.TestCase):
                 self.run_prepare(change)
 
     def test_reject_nonstable_or_injected_tag(self):
-        for tag in ("v0.1.9-alpha-2", "v01.1.9", "main", "v0.1.9;echo unsafe"):
+        for tag in ("v0.1.9-alpha-2", "v01.1.9", "main", "v0.1.9;echo unsafe", "v0.1.10A", "v0.1.10aa",
+                    "v0.1.10a-dev.1", "v0.1.10a+build.1", "v0.1.10a\n"):
             with self.subTest(tag=tag), self.assertRaises(ValueError):
                 self.run_prepare(tag=tag)
 

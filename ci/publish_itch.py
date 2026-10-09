@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from release_metadata import STABLE
+from release_metadata import STABLE, RELEASE, release_key
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers
@@ -60,20 +60,23 @@ def check_previous(status, new_version):
     if head.get("state") != "completed":
         raise ValueError("itch channel has no completed baseline; review it before publishing")
     previous = head.get("userVersion", "")
-    # Recognize the existing 0.1.5-dev.1 baseline as well as stable releases.
+    # Recognize legacy SemVer baselines (including 0.1.5-dev.1) and
+    # project-specific hotfixes. Hotfix prerelease combinations stay invalid.
     match = re.fullmatch(f"v?({STABLE})(?:-({PRERELEASE}))?(?:\\+{BUILD_METADATA})?", previous)
-    if not match:
+    hotfix = re.fullmatch(f"v?({STABLE}[a-z])(?:\\+{BUILD_METADATA})?", previous)
+    if not match and not hotfix:
         raise ValueError("itch baseline has an empty/unrecognized userVersion. Confirm the live build and give it a normal version before enabling this release; no upload attempted")
-    old = tuple(map(int, match[1].split(".")))
-    new = tuple(map(int, new_version.split(".")))
-    if old > new or (old == new and match[2] is None):
+    old = release_key((hotfix or match)[1])
+    new = release_key(new_version)
+    is_prerelease = match is not None and match[2] is not None
+    if old > new or (old == new and not is_prerelease):
         raise ValueError("This version or a newer version is already on itch; refusing a duplicate or rollback")
     return head["id"]
 
 
 def verify_artifact(web, tag, sha):
-    if not re.fullmatch("v" + STABLE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise ValueError("Expected a stable version tag and exact commit SHA")
+    if not re.fullmatch("v" + RELEASE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("Expected a release version tag and exact commit SHA")
     manifest = json.loads((web / "release-manifest.json").read_text())
     if (manifest.get("source_commit") != sha or manifest.get("tag") != tag
             or manifest.get("version") != tag[1:] or manifest.get("packed_smoke") != "passed"
