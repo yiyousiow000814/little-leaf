@@ -64,6 +64,14 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     if any(output.iterdir()):
         raise RuntimeError("Use an empty evidence directory")
+    # Rebased PRs may no longer advertise the historical comparison commit.
+    # Fetch only this exact public repository object, never a moving branch.
+    exists = subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", BASE + "^{commit}"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if exists.returncode:
+        git("fetch", "--no-tags", "--depth=1", "origin", BASE)
+    if git("rev-parse", BASE + "^{commit}").decode().strip() != BASE:
+        raise RuntimeError("Pinned comparison base did not resolve exactly")
     fixture = git("show", f"{head}:{FIXTURE}")
     report = {"status": "running", "base": BASE, "head": head,
               "fixture_sha256": digest(fixture), "player_save_used": False, "sources": {}}
