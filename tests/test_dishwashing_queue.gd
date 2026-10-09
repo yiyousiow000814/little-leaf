@@ -152,15 +152,15 @@ func run():
   game.advance()
   if r.plate_owner=="dish_queue":break
  check(game.dishwashing.count_at(int(second.id))==1 and game.dishwashing.count_at(int(original.id))==6,"waiter chooses non-full second sink")
- # Paused and double-speed clocks use the same application process gate.
+ # Paused and normal-speed clocks use the same application process gate.
  r=game.setup_dirty(false);duty("cleaner",true);duty("waiter",false)
  fill(1,int(original.id));cleaner=game.worker("cleaner");cleaner.pos=game.model.cell_center(game.model.workface_cell(original));cleaner.node.position=Vector3(cleaner.pos.x,0,cleaner.pos.y)
  game._assign_service_job(cleaner,game.staff_states.find(cleaner));game.paused=true
  var elapsed=cleaner.job_elapsed;game._process(2.0)
  check(cleaner.job_elapsed==elapsed,"pause does not advance dishwashing")
- game.paused=false;game.speed=2.0;game.compact_ui.viewport_too_small=false;game._process(2.0)
- check(is_equal_approx(cleaner.job_elapsed,4.0),"two-times speed advances four simulation seconds in two wall seconds")
- game.paused=true;game.speed=1.0
+ game.paused=false;game.compact_ui.viewport_too_small=false;game._process(2.0)
+ check(is_equal_approx(cleaner.job_elapsed,2.0),"normal speed advances two simulation seconds in two wall seconds")
+ game.paused=true
  # Blocking the sink pauses the physical work clock without deleting progress.
  var old_elapsed=cleaner.job_elapsed;var block={"id":game.model._next_item_id,"kind":"plant","x":int(original.x),"z":int(original.z)+1,"rot":0}
  game.model._next_item_id+=1;game.model.items.append(block);game.model.revision+=1

@@ -82,8 +82,8 @@ func run():
   staff.job_step=2;check(art._stove_heat_state(1).is_empty(),"Completed cooking keeps flame on");staff.job_step=1
   var record=game.service_guests[int(staff.job_guest_id)]
   record.plate_owner="counter";check(art._stove_heat_state(1).is_empty(),"Moved food keeps flame on");record.plate_owner="kitchen"
-  game.speed=2;game.compact_ui.viewport_too_small=false;game._process(.25)
-  check(absf(staff.job_elapsed-elapsed-.5)<.00001,"2x speed no longer scales cooking once")
+  game.compact_ui.viewport_too_small=false;game._process(.25)
+  check(absf(staff.job_elapsed-elapsed-.25)<.00001,"normal speed must advance cooking once")
   var expected=45.0/(1.0+.4*(level-1))
   check(absf(Model.cooking_seconds(Model.stove_speed_multiplier(game.model.get_item(1)))-expected)<.00001,"Recipe duration changed")
   staff.job_elapsed=expected-.1;game._animate_staff(.05)

@@ -5,6 +5,8 @@ on:
       - '.github/workflows/manual-cleanup-visual.yml'
       - 'ci/capture_manual_cleanup.py'
       - 'tests/capture_manual_cleanup.gd'
+      - 'tests/observe_natural_cleanup.gd'
+      - 'ci/observe_natural_cleanup.py'
       - 'scripts/cafe_manual_cleanup.gd'
       - 'scripts/cafe_interaction.gd'
       - 'scripts/illustrated_cafe.gd'
@@ -42,5 +44,29 @@ jobs:
         with:
           name: manual-cleanup-paired-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/manual-paired/
+          if-no-files-found: error
+          retention-days: 7
+  natural-cleanup:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/manual-ground-cleanup-011'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install existing checksum-pinned official engine
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/natural-tools"
+      - name: Observe untouched normal-speed operation and closed-cafe drain
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 ci/observe_natural_cleanup.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/natural-cleanup"
+      - name: Retain real-time diagnostic without player profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: manual-natural-cleanup-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/natural-cleanup/
           if-no-files-found: error
           retention-days: 7

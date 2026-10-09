@@ -41,7 +41,7 @@ func save_payload(path:String)->Dictionary:
  return JSON.parse_string(FileAccess.get_file_as_string(path)) if ok else {}
 func reset()->Dictionary:
  check(game.model.load_save("user://policy-seated.json"),"reset generated seated fixture")
- game._restore_service_runtime();game.paused=true;game.editing=false;game.speed=1.0;game.save_recovery_blocked=false;game.save_timer=0.0;game.observed_saves.clear()
+ game._restore_service_runtime();game.paused=true;game.editing=false;game.save_recovery_blocked=false;game.save_timer=0.0;game.observed_saves.clear()
  return record()
 func roundtrip(label:String):
  var before=json_state(game._service_save_snapshot());var guests=json_state(game.model.customers)
@@ -212,13 +212,13 @@ func run():
  at=Vector2(guest.x,guest.z)
  check(game.model.reroute_guest(guest) and Vector2(guest.x,guest.z)==at,"mid-route unpaid exit replans without resetting position")
  roundtrip("rerouted unpaid departure")
- # Pause/Decorate freeze both mood clock and departure;2x uses game time.
+ # Pause/Decorate freeze both mood clock and departure; normal play uses real elapsed time.
  r=reset();r.meal_wait_seconds=119.0;game.paused=true;game._process(2.0)
  check(r.meal_wait_seconds==119.0 and not r.guest.meal_abandoned,"pause cannot trigger deadline")
  game.paused=false;game.editing=true;game._process(2.0)
  check(r.meal_wait_seconds==119.0 and not r.guest.meal_abandoned,"Decorate cannot trigger deadline")
- game.editing=false;game.speed=2.0;game._process(.5);game.paused=true
- check(r.guest.meal_abandoned and is_equal_approx(r.meal_wait_seconds,120.0),"2x speed reaches120 after half a wall second")
+ game.editing=false;game._process(1.0);game.paused=true
+ check(r.guest.meal_abandoned and is_equal_approx(r.meal_wait_seconds,120.0),"normal speed reaches120 after one wall second")
  # Service3/4 migration: retain known clocks; never infer missing history.
  r=reset();r.meal_wait_seconds=95.0
  var current=save_payload("user://policy-legacy-source.json")

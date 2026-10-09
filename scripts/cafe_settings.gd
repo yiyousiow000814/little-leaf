@@ -15,7 +15,6 @@ var persist_enabled=true
 var progress_profile=""
 var loaded_preferences_source=""
 var last_seen_update_version=""
-var speed_buttons=[]
 var frame_rate=60
 var frame_rate_choice:OptionButton
 var preference_timer:Timer
@@ -58,7 +57,6 @@ func load_preferences():
 		frame_rate=120 if cfg.get_value("display","frame_rate",60)==120 else 60
 		var seen=cfg.get_value("updates","last_seen_version","")
 		last_seen_update_version=seen if seen is String else ""
-		if game!=null:game.speed=2.0 if int(cfg.get_value("play","speed",1))==2 else 1.0
 	Engine.max_fps=frame_rate
 	_apply_buses()
 func _review_mode()->bool:
@@ -71,7 +69,9 @@ func save_preferences()->bool:
 	var cfg=ConfigFile.new()
 	cfg.set_value("audio","bgm_enabled",bgm_enabled);cfg.set_value("audio","sfx_enabled",sfx_enabled)
 	cfg.set_value("audio","bgm_volume",bgm_volume);cfg.set_value("audio","sfx_volume",sfx_volume)
-	cfg.set_value("play","speed",int(game.speed) if game!=null else 1)
+	# Legacy preferences may contain 2x. Playback is always normal speed;
+	# canonicalize only on an ordinary permitted preference save.
+	cfg.set_value("play","speed",1)
 	cfg.set_value("display","frame_rate",frame_rate)
 	cfg.set_value("updates","last_seen_version",last_seen_update_version)
 	if OS.has_feature("web") and config_path=="user://little_leaf_settings.cfg":
@@ -122,9 +122,6 @@ func play_sfx(kind="click"):
 func set_frame_rate(value:int):
 	frame_rate=120 if value==120 else 60
 	Engine.max_fps=frame_rate
-	sync();save_preferences()
-func set_speed(value:float):
-	game.speed=2.0 if value>=2 else 1.0
 	sync();save_preferences()
 func set_audio_enabled(kind:String,value:bool):
 	if kind=="BGM":
@@ -202,18 +199,6 @@ func build_play_controls() -> HBoxContainer:
 	game.pause_button=game.button("Pause",func():game.paused=not game.paused;sync();game._update_ui())
 	game.pause_button.custom_minimum_size=Vector2(74,42);game.pause_button.tooltip_text="Pause or resume service"
 	controls.add_child(game.pause_button)
-	var group=ButtonGroup.new()
-	for n in [1,2]:
-		var b=game.button("%d×"%n,func():set_speed(n))
-		b.custom_minimum_size=Vector2(44,42);b.toggle_mode=true;b.button_group=group
-		b.tooltip_text="Normal speed" if n==1 else "Fast speed"
-		for state in ["normal","hover","pressed","disabled"]:
-			var style=b.get_theme_stylebox(state);style.content_margin_left=8;style.content_margin_right=8
-		var selected_style=game._style(Color("4f7056"),Color.TRANSPARENT,9)
-		selected_style.content_margin_left=8;selected_style.content_margin_right=8
-		b.add_theme_stylebox_override("pressed",selected_style)
-		b.add_theme_color_override("font_pressed_color",Color("fff3d8"))
-		controls.add_child(b);speed_buttons.append(b)
 	sync();return controls
 func _center_frame_rate_content():
 	if not is_instance_valid(frame_rate_choice):return
@@ -237,7 +222,6 @@ func sync():
 		if frame_rate_choice.selected!=selected:
 			frame_rate_choice.select(selected);_center_frame_rate_content()
 	if is_instance_valid(game.pause_button):game.pause_button.text="Resume" if game.paused else "Pause"
-	for i in range(speed_buttons.size()):speed_buttons[i].set_pressed_no_signal(int(game.speed)==i+1)
 	for kind in audio_rows:
 		var row=audio_rows[kind];var enabled=bgm_enabled if kind=="BGM" else sfx_enabled;var volume=bgm_volume if kind=="BGM" else sfx_volume
 		row.toggle.text="On" if enabled else "Off";row.toggle.set_pressed_no_signal(enabled)

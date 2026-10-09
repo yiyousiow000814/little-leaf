@@ -58,7 +58,7 @@ func run():
     check(question_buttons(ui.shop_ui.root).is_empty(),label+" no rightmost catalogue help control after layout")
     if editing and view.x==1360 and not safe:
      check(absf(ui.shop_ui.category_scroll.position.x-32)<.1 and absf(ui.shop_ui.category_scroll.size.x-(ui.shop_ui.root.size.x-64))<.1,label+" category strip reclaims removed help space")
-    var controls=[game.business_button,game.pause_button,game.settings_controls.speed_buttons[0],game.settings_controls.speed_buttons[1],game.edit_button,ui.staff_access,ui.settings_button]
+    var controls=[game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
     for i in controls.size():
      check(controls[i].size.x>=43.9 and controls[i].size.y>=43.9,label+" target remains44")

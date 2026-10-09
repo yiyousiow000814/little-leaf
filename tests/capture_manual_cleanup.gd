@@ -20,6 +20,7 @@ func run():
  if game.cafe_intro!=null:game.cafe_intro.finish()
  game.paused=false;game.model.operating_open=false;game.model.customers.clear();game.service_guests.clear()
  for staff in game.staff_states:game._clear_service_job(staff)
+ game._update_ui()
  for zoom_name in ["normal","max"]:
   game.floor_tasks.messes.clear()
   if game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.puffs.clear()

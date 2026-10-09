@@ -194,12 +194,12 @@ func run():
  game.paused=false;game.editing=true;game._process(2.0)
  check(same(queue_before,encoded(game.model.outside_queue)),"Decorate freezes outside motion and wait")
  check(game.floor_tasks.messes.is_empty() and game.floor_tasks.walks.size()==game.model.customers.size(),"exterior queue creates no indoor litter or cleaning task")
- game.editing=false;game.paused=false;game.speed=2.0
+ game.editing=false;game.paused=false
  if game.cafe_intro!=null:game.cafe_intro.active=false
  game.compact_ui.viewport_too_small=false
  var moving=game.model.outside_queue[0];var start=Vector2(moving.x,moving.z)
  game._process(.1)
- check(is_equal_approx(Vector2(moving.x,moving.z).distance_to(start),Model.WALK_SPEED*.2),"2x speed advances outside motion by simulation time")
+ check(is_equal_approx(Vector2(moving.x,moving.z).distance_to(start),Model.WALK_SPEED*.1),"normal speed advances outside motion once")
  game.paused=true;queue_step(game.model,65.0)
  var promoted_id=int(game.model.outside_queue[0].id)
  game.model.customers.clear();Queue.advance(game.model,.1);game._sync_service_guests()

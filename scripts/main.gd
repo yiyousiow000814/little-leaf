@@ -65,7 +65,6 @@ var paused = false
 var platform_music
 var platform_autosave_dirty=false
 var platform_dirty_generation=0
-var speed = 1.0
 var ghost: Node3D
 var hover_cell = Vector2i(-100,-100)
 var save_timer = 0.0
@@ -692,7 +691,7 @@ func _sell():
 
 func _update_ui():
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
-	if is_instance_valid(detail_stats): detail_stats.text="%s served · %s guests · %s×" % [model.served,model.customers.size(),int(speed)]
+	if is_instance_valid(detail_stats): detail_stats.text="%s served · %s guests" % [model.served,model.customers.size()]
 	pause_button.text="Resume" if paused else "Pause"
 	edit_button.text="Done decorating" if editing else "Decorate"
 	if is_instance_valid(business_button):business_button.text="Close cafe" if model.operating_open else "Open cafe"
@@ -929,10 +928,10 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta*speed+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
-		_tick_live_service(world_delta*speed)
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
-		_animate_staff(world_delta*speed)
+		_animate_staff(world_delta)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
 		if OS.has_feature("crazygames"):_mark_platform_dirty()
 	visual_timer+=world_delta
