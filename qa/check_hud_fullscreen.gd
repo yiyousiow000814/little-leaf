@@ -27,7 +27,7 @@ func rd(control:Control):
  return {"x":r.position.x,"y":r.position.y,"w":r.size.x,"h":r.size.y}
 func check_layout(label:String,editing:bool):
  var ui=game.compact_ui;var hud=ui.hud;var view=Vector2(root.size);var roomy=view.x>=850
- var controls=[game.pause_button,game.settings_controls.speed_buttons[0],game.settings_controls.speed_buttons[1],game.edit_button,ui.staff_access,ui.settings_button]
+ var controls=[game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
  if editing:controls.append(hud.edit_cancel)
  for c in controls:
   var r=c.get_global_rect()
@@ -92,8 +92,6 @@ func run():
    check_layout(label,editing);await capture(label)
   game.editing=false;game.settings.hide();await settle()
   var paused=game.paused;await click(game.pause_button);check(game.paused!=paused,entry.label+" pointer pause")
-  await click(game.settings_controls.speed_buttons[1]);check(game.speed==2,entry.label+" pointer 2x")
-  await click(game.settings_controls.speed_buttons[0]);check(game.speed==1,entry.label+" pointer 1x")
   await click(game.edit_button);check(game.editing,entry.label+" pointer Decorate")
   game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="",entry.label+" pointer Cancel")
   await click(game.edit_button);check(not game.editing,entry.label+" pointer Done")

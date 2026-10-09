@@ -162,7 +162,7 @@ func _update_street_pedestrians(delta:float):
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
 	if game.cafe_intro!=null and game.cafe_intro.active:delta=game.cafe_intro.motion_delta(delta)
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
-	var step=delta*game.speed if active else 0.0
+	var step=delta if active else 0.0
 	var queue_positions=[]
 	for visitor in game.model.outside_queue:
 		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
@@ -262,10 +262,7 @@ func update_motion(delta: float):
 			if not register.is_empty():
 				var toward=Vector2(register.x+.5,register.z+.5)-position
 				docking=toward.normalized()*CheckoutArt.payment_inset(toward,int(register.rot),false)
-		# Keep meal/chair interpolation coupled at faster simulation speeds.
-		# Unseated walking and register stances retain their existing visual rate.
-		var stance_speed=float(game.speed) if bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)) else 1.0
-		stance_offsets[key]=(stance_offsets.get(key,docking if bool(guest.get("seated",false)) else Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5*stance_speed)
+		stance_offsets[key]=(stance_offsets.get(key,docking if bool(guest.get("seated",false)) else Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
 		motion.update(key,position+stance_offsets[key],delta)
 		var target=_seat_blend_target(guest)
 		seat_blends[int(guest.id)]=target if bool(guest.get("dismounting",false)) else move_toward(float(seat_blends.get(int(guest.id),0.0)),target,delta*(4.0 if target>0 else 8.0))
@@ -332,7 +329,7 @@ func _seat_blend_target(guest:Dictionary) -> float:
 	return 0.0
 
 func _update_meal_docking(delta:float):
-	var visual_delta=maxf(delta,0)*float(game.speed)
+	var visual_delta=maxf(delta,0)
 	var active={}
 	for guest in game.model.customers:
 		var chair=game.model.get_item(int(guest.chair_id));var table=game.model.get_item(int(guest.table_id))

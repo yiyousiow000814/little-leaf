@@ -380,7 +380,7 @@ func sync():
  plot_button.text="Next plot · %s"%Money.amount(int(next_plot.cost)) if not next_plot.is_empty() else "All plots owned";plot_button.disabled=next_plot.is_empty() or game.save_recovery_blocked
  var width=game.get_viewport().get_visible_rect().size.x
  for picker in [wall_heights,wall_papers]:picker.custom_minimum_size.y=42 if width<650 else 29
- compact_play=false # Pause and speed stay visible; Open has one action at every width.
+ compact_play=false # Pause stays visible; Open has one action at every width.
  var controls_parent=play_panel_box if compact_play else (hud.layout_host if hud!=null else top_row)
  if play_controls.get_parent()!=controls_parent:
   play_controls.reparent(controls_parent)
@@ -388,7 +388,7 @@ func sync():
  if not compact_play:play_panel.hide()
  if compact_play:
   business_state.text="Controls";business_action.text="Paused" if game.paused else game.model.operating_status()
-  game.business_button.tooltip_text="Café controls · open, close, pause and speed"
+  game.business_button.tooltip_text="Café controls · open, close and pause"
  business_menu_action.text="Close café" if game.model.operating_open else "Reopen café"
  business_menu_action.disabled=game.save_recovery_blocked
  var world_visible=not has_open_popup()
