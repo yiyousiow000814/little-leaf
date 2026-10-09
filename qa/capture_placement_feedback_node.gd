@@ -37,7 +37,9 @@ func _ready():
   var game=SyntheticMain.new();viewport.add_child(game);game.cafe_intro.finish();game.paused=true;game.set_process(false);game.illustration.set_process(false)
   game._toggle_edit();game.category_buttons["Build"].pressed.emit();game.compact_ui._set_tray_reveal(1);game.compact_ui.shop_ui.show_tiles()
   for frame in 8:game._update_ui();await get_tree().process_frame
-  game.build_tools.floor_material="cream_tile";game.build_tools.choose("floor")
+  if view.x<440:
+   game.compact_ui.shop_ui.product_next.pressed.emit();await get_tree().create_timer(.3).timeout
+  game.compact_ui.shop_ui.tile_cards["cream_tile"].pressed.emit()
   game.interaction._pan_by(game.illustration.camera_safe_rect().get_center()-game.illustration.iso(5.5,7.5))
   game.build_tools.paint_stroke.begin(game.illustration.iso(4.5,7.5));game.build_tools.paint_stroke.drag(game.illustration.iso(7.5,7.5));game.illustration.queue_redraw()
   await shot(viewport,"price-%dx%d"%[view.x,view.y],game)

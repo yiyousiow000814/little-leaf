@@ -801,6 +801,7 @@ func sync(width:float):
  var next_key=str([game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:
   var index=roundi(_active_products().scroll_horizontal/product_stride) if product_stride>0 and last_product_category==game.catalog_category else 0
+  if game.catalog_category=="Build" and build_page=="tiles" and game.build_tools.mode=="floor":index=maxi(0,_visible_build_keys().find(game.build_tools.floor_material))
   for scroll in [game.catalog_scroll,ui.build_scroll]:_stop_product_scroll(scroll);product_contacts.erase(scroll.get_instance_id())
   product_restore_index=index;product_layout_key=next_key;last_product_category=game.catalog_category
  product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=(narrow or short_landscape) and arrows
