@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "GitHub Actions run37895899863; commit ae5fc2d23681eb8e03bdce928e5d9e015b7e1428; artifact SHA256 a66fc771bbce7bdf7e9a9a496c5dcafdcc262333b6450a513fbecf71677ad5a0",
+  "provenance": "Actual native Godot4.6.3 llvmpipeLLVM19.1.7;18a07d9 runtime; /workspace/shared/background-final-rendered/source-binding.json; 3/3 procedural-vs-prebaked RGBA equality",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -18,7 +18,7 @@
     "scripts/bus_stop_pedestrians.gd": "5df8b736b0bf597a509acd0b904986d70044d7b9e30ba87f9ef11af79bb25c78",
     "scripts/cafe_action_help.gd": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73",
     "scripts/cafe_autosave_policy.gd": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d",
-    "scripts/cafe_background_cache.gd": "b412962e78db194ddeb624d0baaa7db57a7a7d29fcf286b0055901429955dc19",
+    "scripts/cafe_background_cache.gd": "19ec11d4bf5d4167e436dd707a9142e53f8cbf728d39b21e4d26aac36cf76185",
     "scripts/cafe_build_tools.gd": "db1d2bed273f744798207da6326c44fdbaa82274f69bf2c29d09fa07baedea6f",
     "scripts/cafe_camera_bounds.gd": "7785e69603c0ab74bba8982deda8f7303d42bbb42be666fff592e8419edc6fae",
     "scripts/cafe_camera_gestures.gd": "bf4c42878341f64377dea5daf065bfa321cf7d9273ae22acac760b433422b667",

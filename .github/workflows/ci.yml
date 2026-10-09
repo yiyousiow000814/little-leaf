@@ -12,3 +12,90 @@ concurrency:
 jobs:
   web:
     uses: ./.github/workflows/build-web.yml
+  startup-control:
+    if: github.event_name == 'pull_request' && github.head_ref == 'perf/background-cache-startup-10a'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: df115a085437633e3538ef5462401f57739fc935
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned control engine and template
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/control-tools"
+      - name: Freshly test and export the immutable pre-baked control
+        run: |
+          python3 ci/verify_prebaked_atlases.py
+          python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/control-engine"
+          python3 ci/build_web.py --output "$RUNNER_TEMP/control-build" --test-report "$RUNNER_TEMP/control-engine/summary.json"
+      - name: Retain same-run baseline export
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: startup-control-${{ github.run_id }}
+          path: ${{ runner.temp }}/control-build/web/
+          if-no-files-found: error
+          retention-days: 7
+  startup-compare:
+    if: github.event_name == 'pull_request' && github.head_ref == 'perf/background-cache-startup-10a'
+    needs: [web, startup-control]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: df115a085437633e3538ef5462401f57739fc935
+          persist-credentials: false
+          path: baseline
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.web.outputs.artifact_id }}
+          path: ${{ runner.temp }}/candidate-web
+          merge-multiple: true
+          digest-mismatch: error
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.startup-control.outputs.artifact_id }}
+          path: ${{ runner.temp }}/baseline-web
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install the existing pinned browser tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/startup-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/startup-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+          node tests/test_startup_trace_hooks.js
+          node tests/test_startup_memory_report.js
+      - name: Compare cold and warm fresh cafes in symmetric order
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/startup-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          for trial in baseline-1 candidate-1 candidate-2 baseline-2; do
+            source=.; product=candidate
+            if [[ "$trial" == baseline-* ]]; then source=baseline; product=baseline; fi
+            xvfb-run -a node tests/startup_timing_browser.js --source-root "$source" --web-build "$RUNNER_TEMP/$product-web" --output "$RUNNER_TEMP/startup-browser-compare/$trial"
+          done
+      - name: Separately attribute both products without mixing trace overhead into timing
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/startup-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          xvfb-run -a node tests/startup_trace_browser.js --source-root baseline --web-build "$RUNNER_TEMP/baseline-web" --output "$RUNNER_TEMP/startup-browser-compare/baseline-trace"
+          xvfb-run -a node tests/startup_trace_browser.js --source-root . --web-build "$RUNNER_TEMP/candidate-web" --output "$RUNNER_TEMP/startup-browser-compare/candidate-trace"
+      - name: Retain source-bound timing, graphics identity and attribution traces
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: startup-browser-compare-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/startup-browser-compare/
+          if-no-files-found: error
+          retention-days: 7

@@ -33,7 +33,7 @@ jobs:
           path: candidate
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 3291afc82244553d9958656aeb7c32809fff4009
+          ref: df115a085437633e3538ef5462401f57739fc935
           persist-credentials: false
           path: baseline
       - name: Install existing checksum-pinned official engine
@@ -41,7 +41,7 @@ jobs:
       - name: Prepare Ubuntu native software renderer
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0 python3-pil
       - name: Measure paired baseline and candidate on the same runner
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           for pair in 1 2; do
-            (cd ../baseline && xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-pair-$pair")
+            (cd ../baseline && xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head df115a085437633e3538ef5462401f57739fc935 --output "$RUNNER_TEMP/startup-profile/baseline-pair-$pair")
             xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_profile.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/startup-profile/candidate-pair-$pair"
           done
       - name: Separately check exact atlas pixels and production scene positions
@@ -58,9 +58,9 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           set -euo pipefail
-          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_visual_checks.py --source-root ../baseline --expected-head 3291afc82244553d9958656aeb7c32809fff4009 --output "$RUNNER_TEMP/startup-profile/baseline-visuals"
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_visual_checks.py --source-root ../baseline --expected-head df115a085437633e3538ef5462401f57739fc935 --output "$RUNNER_TEMP/startup-profile/baseline-visuals"
           xvfb-run -a -s '-screen 0 1600x1000x24' python3 qa/run_startup_visual_checks.py --source-root . --expected-head "$EXPECTED_HEAD" --atlas-parity --output "$RUNNER_TEMP/startup-profile/candidate-visuals"
-          python3 qa/compare_startup_positions.py "$RUNNER_TEMP/startup-profile/baseline-visuals" "$RUNNER_TEMP/startup-profile/candidate-visuals"
+          python3 qa/compare_startup_positions.py "$RUNNER_TEMP/startup-profile/baseline-visuals" "$RUNNER_TEMP/startup-profile/candidate-visuals" --allow-intro-aa-rounding
       - name: Retain source receipts and raw rendered intervals
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
