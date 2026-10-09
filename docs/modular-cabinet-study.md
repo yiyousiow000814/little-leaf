@@ -49,3 +49,28 @@ jobs for sink, beverage and checkout, at normal and medium zoom. Receipts bind
 source trees, file hashes, cameras, active contacts and planted-foot samples.
 No sparse-frame animation is constructed. These images are proposals for user
 review; passing engine or capture checks does not mean product acceptance.
+
+## Grounding correction after screenshot review
+
+The user correctly identified a floating appearance at checkout: the source-6
+outer box occluded the entire narrow plinth in isometric projection. The second
+controlled pair uses `c5cb7eb7fef03ac54daa4bd69639b558069db012` as its before
+source. It adds four small real floor-reaching corner supports to each of the
+four cabinet types, with contact shadows only beneath those supports. The
+central toe recess and all top/work/contact geometry remain unchanged. Check
+actual shoe polygons against both the plinth and all four support footprints.
+These are unchanged-character-scale proposals, not proof for larger characters.
+
+## Equal ground-side audit
+
+Main `f30200e6979eda549d6d925300bc40c347a42e48` uses rectangular artwork
+(top width × depth in world cells): counter .741026 × .653846, beverage
+.784615 × .680000, sink .819487 × .714872, checkout .784615 × .662564,
+and stove .793333 × .706154. Logical occupancy was nevertheless one square cell.
+The candidate with its stove dependency has five true 1 × 1-cell tops. The
+focused test inverse-projects every actual drawn top edge, checking unit length
+and alignment with a world grid axis for all four rotations. A 2:1 screen
+bounding box alone cannot establish equal world sides. The .66 × .66-cell
+plinth and .078462 × .078462-cell corner posts are deliberately smaller support
+contours; they do not change the top or logical occupancy. Chairs, round tables,
+plants and small decoration remain separate naturally spaced designs.

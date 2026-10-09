@@ -61,6 +61,14 @@ func run():
    var rendered=game.illustration._render_position(key,worker.pos)
    var pose=game.illustration.motion.sample(key)
    var receipt={"kind":kind,"rotation":rotation,"logical_position":worker.pos,"rendered_position":rendered,"motion":pose,"action":worker.art_action,"job_elapsed":worker.job_elapsed,"actual_shoes":shoe_receipt(pose,rendered-Vector2(item.x+.5,item.z+.5))}
+   if kind=="register":
+    var guests=[]
+    for guest in game.model.customers:
+     if guest.phase!="paying":continue
+     var guest_key="guest_%s"%guest.id
+     var guest_position=game.illustration._render_position(guest_key,Vector2(guest.x,guest.z))
+     guests.append({"id":guest.id,"rendered_position":guest_position,"actual_shoes":shoe_receipt(game.illustration.motion.sample(guest_key),guest_position-Vector2(item.x+.5,item.z+.5))})
+    receipt["paying_guests"]=guests
    await capture(game,"work-%s-r%d"%[kind,rotation],Vector2(item.x+.5,item.z+.5),receipt)
    game.free();await process_frame
  if validate_only:
@@ -83,7 +91,7 @@ func capture(game,label:String,center:Vector2,receipt:Dictionary):
   records.append(row)
 
 func shoe_receipt(pose:Dictionary,relative:Vector2)->Dictionary:
- var rows=[];var inside_plinth=0
+ var rows=[];var inside_plinth=0;var worst_overlap=0.0
  for side in ["left","right"]:
   var center:Vector2=pose.get(side+"_ground",Vector2.ZERO)
   var axis:Vector2=pose.get(side+"_axis",Vector2.RIGHT)
@@ -93,5 +101,25 @@ func shoe_receipt(pose:Dictionary,relative:Vector2)->Dictionary:
    var world=relative+Vector2(pixel.x/78+pixel.y/39,pixel.y/39-pixel.x/78)
    polygon.append([world.x,world.y])
    if absf(world.x)<.33 and absf(world.y)<.33:inside_plinth+=1
-  rows.append({"side":side,"world_polygon_relative_to_station":polygon})
- return {"polygons":rows,"vertices_inside_candidate_plinth":inside_plinth}
+  var shape=PackedVector2Array()
+  for q in polygon:shape.append(Vector2(q[0],q[1]))
+  var solids=[Rect2(-.33,-.33,.66,.66)]
+  var support_center=.5-.07*34./39.;var support_half=.09*34./39./2.
+  for x in [-support_center,support_center]:
+   for z in [-support_center,support_center]:solids.append(Rect2(x-support_half,z-support_half,support_half*2,support_half*2))
+  var areas=[]
+  for solid in solids:
+   var box=PackedVector2Array([solid.position,Vector2(solid.end.x,solid.position.y),solid.end,Vector2(solid.position.x,solid.end.y)])
+   var area=0.0
+   for intersection in Geometry2D.intersect_polygons(shape,box):
+    var signed_area=0.0
+    for i in range(intersection.size()):signed_area+=intersection[i].cross(intersection[(i+1)%intersection.size()])
+    area+=absf(signed_area)*.5
+   areas.append(area);worst_overlap=maxf(worst_overlap,area)
+  rows.append({"side":side,"world_polygon_relative_to_station":polygon,"solid_overlap_areas":areas})
+ # Before images may expose the known defective support geometry; only
+ # the new support candidate must pass this physical-footprint assertion.
+ var constants=load("res://scripts/illustrated_furniture.gd").get_script_constant_map()
+ if constants.has("CABINET_SUPPORT_WIDTH") and worst_overlap>.000001:
+  printerr("Actual shoe overlaps cabinet support: ",worst_overlap);quit(1)
+ return {"polygons":rows,"vertices_inside_candidate_plinth":inside_plinth,"max_solid_overlap_area":worst_overlap}

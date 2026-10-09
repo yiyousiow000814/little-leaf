@@ -13,6 +13,9 @@ const CABINET_TILE_SPAN=39.0/34.0
 # .33-cell half-span clears the measured settled wash shoe at .3555 cell.
 const CABINET_PLINTH_SPAN=CABINET_TILE_SPAN*.66
 const CABINET_PLINTH_HEIGHT=6.0
+# Discrete grounded supports keep the central toe recess physically open.
+const CABINET_SUPPORT_WIDTH=.09
+const CABINET_SUPPORT_EDGE=.07
 # The enlarged rear handle keeps its lower collar but no extra ground outset.
 # This keeps its full anti-alias envelope inside the single occupied tile.
 const PAN_REAR_HANDLE_DROP=2.0
@@ -180,8 +183,18 @@ func box(x: float,z: float,w: float,d: float,lo: float,hi: float,top,front,side,
 	var pts=[]
 	for q in corners:pts.append(point(q.x,q.y,hi))
 	face(pts,top,2.0)
+func cabinet_support(w:float,d:float,side):
+	# A deep plinth is hidden by the full-cell fascia in isometric projection.
+	# Four actual corner supports bridge the underside to the floor; shadows
+	# mark only their real floor contact and do not substitute for geometry.
+	box(0,0,CABINET_PLINTH_SPAN,CABINET_PLINTH_SPAN,.2,CABINET_PLINTH_HEIGHT,side,side,side)
+	for x in [-w/2+CABINET_SUPPORT_EDGE,w/2-CABINET_SUPPORT_EDGE]:
+		for z in [-d/2+CABINET_SUPPORT_EDGE,d/2-CABINET_SUPPORT_EDGE]:
+			top_ellipse(x,z,.05,.068,.055,"61573d29")
+			box(x,z,CABINET_SUPPORT_WIDTH,CABINET_SUPPORT_WIDTH,0,CABINET_PLINTH_HEIGHT+.1,side,side,side)
+
 func cabinet(w=CABINET_TILE_SPAN,d=CABINET_TILE_SPAN,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
-	box(0,0,CABINET_PLINTH_SPAN,CABINET_PLINTH_SPAN,1,CABINET_PLINTH_HEIGHT,side,side,side)
+	cabinet_support(w,d,side)
 	box(0,0,w,d,CABINET_PLINTH_HEIGHT,h,top,paint,side,paint)
 	if not front_visible():return
 	var z=d/2+.006

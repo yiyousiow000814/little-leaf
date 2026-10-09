@@ -25,14 +25,20 @@ func run():
  var f=Furniture.new();var p=Probe.new();root.add_child(p)
  var measures=[]
  for rotation in range(4):
-  for kind in ["counter","sink","beverage","register"]:
+  for kind in ["counter","sink","beverage","register","stove"]:
    p.points.clear();p.surfaces.clear()
-   f.draw_item(p,kind,Vector2.ZERO,rotation,0)
-   var top_color={"counter":"e6cca0","sink":"cbd7be","beverage":"e9dfc0","register":"e7d7ad"}[kind]
+   if kind=="stove":f.draw_static_part(p,"stove_base",Vector2.ZERO,rotation)
+   else:f.draw_item(p,kind,Vector2.ZERO,rotation,0)
+   var top_color={"counter":"e6cca0","sink":"cbd7be","beverage":"e9dfc0","register":"e7d7ad","stove":"d9deca"}[kind]
    var top=[]
    for surface in p.surfaces:
     if surface.color==top_color:top=surface.points
    check(top.size()==4,"one complete modular top "+kind)
+   for i in range(4):
+    var screen_edge:Vector2=top[(i+1)%4]-top[i]
+    var ground_edge=Vector2(screen_edge.x/78+screen_edge.y/39,screen_edge.y/39-screen_edge.x/78)
+    check(is_equal_approx(ground_edge.length(),1.),"each true ground edge is one full cell "+kind+str(rotation))
+    check(is_zero_approx(ground_edge.x) or is_zero_approx(ground_edge.y),"top edge follows one grid axis "+kind+str(rotation))
    var bounds=Rect2(top[0],Vector2.ZERO)
    for q in top:bounds=bounds.expand(q)
    check(is_equal_approx(bounds.size.x,78) and is_equal_approx(bounds.size.y,39),"one-cell top dimensions "+kind+str(rotation))
@@ -43,7 +49,7 @@ func run():
      if a.distance_to(b+Vector2(39,19.5))<.001:shared+=1
    check(shared==2,"adjacent tops share exact edge "+kind+str(rotation))
    if kind!="register":
-    var part="beverage_base" if kind=="beverage" else kind
+    var part={"beverage":"beverage_base","stove":"stove_base"}.get(kind,kind)
     p.points.clear();f.draw_static_part(p,part,Vector2.ZERO,rotation)
     for q in p.points:check(Atlas.bounds(part).grow(-1).has_point(q),"atlas guard "+kind+str(rotation))
    measures.append({"kind":kind,"rotation":rotation,"top_width":bounds.size.x,"top_depth":bounds.size.y})

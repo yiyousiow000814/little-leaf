@@ -63,7 +63,7 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  # Checkout uses a plain customer-facing panel, not the generic storage
  # cabinet's doors/handles. Keep its footprint, height, palette and terminal
  # orientation; no drawer seam is painted through the rear views either.
- f.box(0,0,f.CABINET_PLINTH_SPAN,f.CABINET_PLINTH_SPAN,1,f.CABINET_PLINTH_HEIGHT,"968965","968965","968965")
+ f.cabinet_support(f.CABINET_TILE_SPAN,f.CABINET_TILE_SPAN,"968965")
  f.box(0,0,f.CABINET_TILE_SPAN,f.CABINET_TILE_SPAN,f.CABINET_PLINTH_HEIGHT,29,"e7d7ad","b7a77e","968965","b7a77e")
  f.box(0,-.10,.43,.38,29,33,"8faaa0","759487","637f73")
  f.box(0,-.45,.22,.08,29,30,"c8d5bc","8ca092","728a7d")

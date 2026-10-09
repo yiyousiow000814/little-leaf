@@ -13,7 +13,7 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "10be07b77f16f868eec5fa7c4ae5fcb384b586b6"
+BASE = "c5cb7eb7fef03ac54daa4bd69639b558069db012"
 FIXTURE = "tests/capture_modular_cabinets.gd"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
