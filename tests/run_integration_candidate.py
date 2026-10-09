@@ -22,6 +22,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
     ("capture_modular_cabinets", "CABINET_CAPTURE_FIXTURE_RESULT"),
+    ("capture_art_polish", "CABINET_CAPTURE_FIXTURE_RESULT"),
     ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),

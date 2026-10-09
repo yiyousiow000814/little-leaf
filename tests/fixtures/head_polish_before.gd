@@ -497,24 +497,15 @@ func head(species:int):
   if not back:
    shape([Vector2(-9,-47),Vector2(-10,-53),Vector2(-5,-49)],"af794b",1)
    shape([Vector2(5,-49),Vector2(8,-55),Vector2(9,-46)],"af794b",1)
- # A soft crown, cheek and tapered chin give the ears a skull to attach to.
- # The silhouette remains inside the existing head/contact-mask envelope.
- var cheek=12.6 if species==2 else (12.0 if species==0 else 12.8)
- shape([Vector2(-12,-43),Vector2(-8,-48),Vector2(-2,-50.4),Vector2(5,-49),Vector2(10,-45),Vector2(12,-39),Vector2(cheek,-34),Vector2(9,-29),Vector2(3,-26.2),Vector2(-4,-26.7),Vector2(-10,-30),Vector2(-12.8,-36)],fur,3.4)
- var shade="b98045" if species==1 else "ded1af"
- shape([Vector2(-11.8,-42),Vector2(-10.8,-34),Vector2(-6.5,-29.5),Vector2(2,-27),Vector2(-4,-27.2),Vector2(-9.5,-30.5),Vector2(-12.1,-36)],shade,2.0)
- # The visible ear roots sit behind the crown rather than appearing glued on.
- if species==2 and not back:
-  line(Vector2(-10,-47),Vector2(-6.5,-46.5),"cbb994",.65)
-  line(Vector2(5.4,-48),Vector2(8.4,-46.7),"cbb994",.65)
+ ellipse(Vector2(-.5 if back else 0,-38),Vector2(13.1,12.7),fur)
  if back:
   if chef_hat:hat(species)
   return
  if species==1:
   shape([Vector2(-10,-36),Vector2(-4,-34),Vector2(4,-36),Vector2(12,-34),Vector2(8,-28),Vector2(0,-26),Vector2(-8,-29)],"f4e8cd",3.3)
  else:ellipse(Vector2(4.5,-33),Vector2(8.5,5.4),"f5ebd0")
- # The far eye is subtly narrower on the curved three-quarter facial plane.
- eye(Vector2(-.3,EYE_LINE),Vector2(1.15,1.55));eye(Vector2(7.1,EYE_LINE+.25),EYE_PAIR_SIZE)
+ # Cute readability: both three-quarter eyes share exactly one size and line.
+ eye(Vector2(.8,EYE_LINE),EYE_PAIR_SIZE);eye(Vector2(8.0,EYE_LINE),EYE_PAIR_SIZE)
  dot(Vector2(9.1,-34.8),Vector2(1.5,1.0),"b28b77" if species==0 else "6c654e")
  a._face_line(origin+Vector2(9,-33.8),origin+Vector2(8.5,-32.5),"99866b",.65)
  a._face_line(origin+Vector2(8.5,-32.5),origin+Vector2(6.4,-32.0),"99866b",.65)
@@ -535,7 +526,6 @@ func profile_head(species:int):
   shape([Vector2(0,-48),Vector2(3,-55),Vector2(5,-46)],"af794b",1.0)
  # The forehead, short muzzle, nose tip and chin are one outer head silhouette.
  shape([Vector2(-12,-44),Vector2(-9,-50),Vector2(-1,-52),Vector2(7,-49),Vector2(10,-43),Vector2(9,-38),Vector2(13,-36),Vector2(14,-33),Vector2(9,-29),Vector2(1,-27),Vector2(-9,-30),Vector2(-13,-37)],fur,4.0)
- shape([Vector2(-11.8,-43),Vector2(-10,-34),Vector2(-4,-29),Vector2(1,-27.8),Vector2(-8.5,-30.6),Vector2(-12,-37)],"b98045" if species==1 else "ded1af",2.0)
  shape([Vector2(-7,-36),Vector2(0,-34.5),Vector2(6,-37),Vector2(13,-35.5),Vector2(14,-33),Vector2(9,-29),Vector2(1,-27),Vector2(-8,-30)],"f4e8cd" if species==1 else "f5ebd0",3.5)
  eye(Vector2(5.7,-40.7),Vector2(1.25,1.7))
  dot(Vector2(12.5,-34.6),Vector2(1.30,.95),"b28b77" if species==0 else "6c654e")
