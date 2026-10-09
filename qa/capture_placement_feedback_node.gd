@@ -5,7 +5,7 @@ class SyntheticMain extends "res://scripts/main.gd":
 var observations=[]
 func shot(viewport,label,game):
  for frame in 6:
-  game._update_ui();await get_tree().process_frame
+  game._update_ui();game.compact_ui.update_pointer();await get_tree().process_frame
  await get_tree().create_timer(.7).timeout
  viewport.get_texture().get_image().save_png("res://placement-"+label+".png")
 func _ready():
