@@ -341,7 +341,7 @@ func sync():
  context.visible=game.editing and (selected or game.catalog_category=="Build")
  var selected_kind=game.model.logical_kind(int(item.id)) if not item.is_empty() else game.selected_kind
  context_label.text=game.model.name_of(selected_kind) if game.model.has_method("is_dining_product") and game.model.is_dining_product(selected_kind) else SHORT_NAMES.get(selected_kind,selected_kind.capitalize())
- if not opening.is_empty():context_label.text=str(opening.kind).capitalize()
+ if not opening.is_empty():context_label.text=str(opening.kind).capitalize()+" selected"
  elif not wall.is_empty() or selected_shell!="":context_label.text="Wall"
  elif edge:context_label.text="Half wall" if b.mode=="half" else "Full wall"
  elif flooring:context_label.text=b.floor_name()
@@ -709,9 +709,15 @@ func handle_input(event:InputEvent)->bool:
   _dismiss_from_pointer(event);return true
  return false
 func handle_unhandled_input(event:InputEvent)->bool:
- if not game.editing or game.catalog_category!="Build" or game.build_tools.mode not in ["","select_opening"]:return false
+ if not game.editing or game.selected_kind!="" or game.build_tools.mode not in ["","select_opening"]:return false
  if not event is InputEventMouseButton or not event.pressed or event.button_index!=MOUSE_BUTTON_LEFT:return false
  if game.interaction==null or game.interaction._over_ui(event.position):return false
+ # Shop categories only filter products. Existing world objects remain
+ # selectable, while active placement and foreground furniture keep priority.
+ if game.illustration.hit_item(event.position)>=0:
+  clear_selection()
+  if game.build_tools.mode=="select_opening":game.build_tools.cancel()
+  return false
  var opening=game.illustration.hit_wall_attachment(event.position)
  if opening>=0:
   game.build_tools.choose("select_opening");return false

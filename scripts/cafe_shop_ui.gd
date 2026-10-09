@@ -478,7 +478,9 @@ func sync_action_details():
    if b.preview_reason!="":detail+=("\n" if detail!="" else "")+b.preview_reason
   elif b.mode in ["door","window"]:
    ui.context_label.text=b.mode.capitalize();price=ui.Money.amount(game.model.attachment_price(b.mode))+" coins"
-  elif b.mode=="move_opening":ui.context_label.text="Move opening"
+  elif b.mode=="move_opening":
+   var opening=ui._selected_opening()
+   ui.context_label.text="Moving "+str(opening.get("kind","opening"))+" · choose a wall"
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
  action_background.tooltip_text=ui.context_label.tooltip_text
@@ -781,8 +783,9 @@ func sync(width:float):
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
+  card.accessibility_name=column.get_child(1).text+", "+ui.Money.amount(game.model.price_of(kind))+" coins"
   card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
-  card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
+  card.tooltip_text=("Need "+ui.Money.amount(shortfall)+" more coins; preview only") if shortfall>0 else ""
   if kind=="register":
    var pending=bool(game.model.included_checkout_pending)
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"

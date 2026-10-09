@@ -131,3 +131,11 @@ static func hit_host(view,screen:Vector2,host:Dictionary)->bool:
 static func hit_opening(view,screen:Vector2,opening:Dictionary)->bool:
 	var near=front(opening.host);var a:Vector2=opening.a+near;var b:Vector2=opening.b+near
 	return Geometry2D.is_point_in_polygon(screen,PackedVector2Array([view.iso(a.x,a.y,opening.bottom),view.iso(b.x,b.y,opening.bottom),view.iso(b.x,b.y,opening.top+4),view.iso(a.x,a.y,opening.top+4)]))
+
+static func selection_outline(view,opening:Dictionary):
+	# Selection is a presentation overlay; preserve the exact hosted aperture.
+	var near=front(opening.host);var a:Vector2=opening.a+near;var b:Vector2=opening.b+near
+	var points=[view.iso(a.x,a.y,opening.bottom),view.iso(b.x,b.y,opening.bottom),view.iso(b.x,b.y,opening.top+4),view.iso(a.x,a.y,opening.top+4)]
+	for index in 4:
+		view.line(points[index],points[(index+1)%4],"fff3d8",4.5)
+		view.line(points[index],points[(index+1)%4],"477050",2.0)

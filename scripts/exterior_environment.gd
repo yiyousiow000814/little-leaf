@@ -227,14 +227,14 @@ static func draw_crossing(a,parking_owned:bool=false):
 	# A clear continuous pedestrian strip passes over the flush driveway.
 	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
-static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable()):
+static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable(),show_vehicles:bool=true):
 	# All low ground plants precede elevated structures. Never paint a ground
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
 	draw_shelter(a,under_roof)
 	if front_people.is_valid():front_people.call()
-	draw_bus(a,BUS_POSITION)
+	if show_vehicles:draw_bus(a,BUS_POSITION)
 
 static func draw_shelter(a,under_roof:Callable=Callable()):
 	if not screen_visible(a,world_bounds(a,Rect2(-14,5,4,7),88)):

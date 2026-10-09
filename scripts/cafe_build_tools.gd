@@ -124,7 +124,7 @@ func sync():
 	if is_instance_valid(shell_option):shell_option.select((["original"]+Geometry.MATERIALS).find(str(game.model.shell_material)))
 	for key in tool_buttons:tool_buttons[key].button_pressed=key==mode
 
-func active()->bool:return game.editing and game.catalog_category=="Build" and mode!="" and not game.save_recovery_blocked
+func active()->bool:return game.editing and (game.catalog_category=="Build" or mode in ["select_opening","move_opening"]) and mode!="" and not game.save_recovery_blocked
 
 func choose(tool:String):
 	game._cancel_selection();mode=tool;preferred_axis="";_cache_key="";sync();refresh(game.get_viewport().get_mouse_position())

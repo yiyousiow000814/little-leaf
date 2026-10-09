@@ -203,7 +203,7 @@ func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
-	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
+	if show_service:entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -665,8 +665,8 @@ func _draw():
 		if use_batched_ground:ground_art.draw_pavement(self)
 		else:_draw_legacy_pavement(ground_view)
 		Neighborhood.draw_crossing(self,_parking_owned())
-	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
-	road_traffic.draw(self)
+	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service),show_service)
+	if show_service:road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
@@ -911,6 +911,9 @@ func _draw():
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
+	if game.editing and game.build_tools!=null:
+		for opening in openings:
+			if int(opening.id)==game.build_tools.opening_source_id:OpeningArt.selection_outline(self,opening)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):

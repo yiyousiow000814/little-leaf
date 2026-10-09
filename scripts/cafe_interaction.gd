@@ -410,7 +410,7 @@ func _service_locked(id: int) -> bool:
 
 func draw_floor_feedback(artist):
 	if not game.editing:return
-	for cell in floor_availability.refresh(game.model):
+	for cell in floor_availability.refresh(game.model,drag_item_id if preview_active and drag_active else -1):
 		var blocked=bool(floor_availability.cells[cell].blocked)
 		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
 		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
