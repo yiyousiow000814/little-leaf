@@ -1,7 +1,15 @@
 /* Server-authoritative single-writer handoff. No client-only ownership claim. */
 (function(root){
   'use strict';
-  const LEASE_MS=60000,HANDOFF_WAIT_MS=10000;
+  const LEASE_MS=60000,HANDOFF_WAIT_MS=10000,RELOAD_MS=30000,RELOAD_KEY="little-leaf.reload-continuation.v1";
+  const identifier=value=>typeof value==='string'&&/^[a-f0-9-]{36}$/i.test(value);
+  function consumeReload(storage,navigationType,uid,now=Date.now()){
+    try{const raw=storage.getItem(RELOAD_KEY);storage.removeItem(RELOAD_KEY);if(navigationType!=='reload'||!raw)return null;const value=JSON.parse(raw);
+      return validReload(value,uid,now)?value:null;
+    }catch(_){return null;}
+  }
+  function validReload(t,uid,time){return t?.schema===1&&t.uid===uid&&identifier(t.owner)&&identifier(t.nonce)&&Number.isSafeInteger(t.epoch)&&t.epoch>0&&Number.isSafeInteger(t.revision)&&t.revision>0&&/^[a-f0-9]{64}$/.test(t.digest||'')&&Number.isFinite(t.leaseAt)&&Number.isFinite(t.createdAt)&&Number.isFinite(t.expiresAt)&&t.expiresAt===t.createdAt+RELOAD_MS&&time>=t.createdAt&&time<=t.expiresAt;}
+  function storeReload(storage,ticket){try{storage.setItem(RELOAD_KEY,JSON.stringify(ticket));return storage.getItem(RELOAD_KEY)===JSON.stringify(ticket);}catch(_){return false;}}
   const fail=(code,message)=>Object.assign(Error(message),{code});
   const millis=value=>typeof value?.toMillis==='function'?value.toMillis():Number(value);
   function createRemote(db,sdk,uid){
@@ -44,8 +52,45 @@
         reason:status==='handoff-requested'?'Saving and pausing for another device.':status==='other-device'?'Your game was opened on another device.':status==='offline'?'Connection to save ownership is unavailable. Progress is paused.':status==='waiting'?'Waiting for the other device to save and pause.':''};
     }
     async function change(action){guard();const result=await remote.change(action,guard);guard();receive(result);return result;}
-    async function start(){
-      guard();await change((value,save,stamp)=>{
+    function reloadContinuation(digest,revision){
+      const fence=assertActive();
+      if(!/^[a-f0-9]{64}$/.test(digest)||!Number.isSafeInteger(revision)||revision<1)throw fail('UPDATE_CHANGED','No confirmed save for reload.');
+      const time=now();return {schema:1,uid,owner:fence.writerId,epoch:fence.writerEpoch,digest,revision,nonce:root.crypto.randomUUID(),leaseAt:millis(current.updatedAt),createdAt:time,expiresAt:time+RELOAD_MS};
+    }
+    async function continueReload(ticket){
+      if(!validReload(ticket,uid,now()))return false;
+      const matches=(value,save)=>value?.owner===ticket.owner&&value.epoch===ticket.epoch&&millis(value.updatedAt)===ticket.leaseAt&&save?.digest===ticket.digest&&save.revision===ticket.revision&&save.writerId===ticket.owner&&save.writerEpoch===ticket.epoch;
+      try{
+        // The receipt is not writer authority. Three existing rule-checked CAS
+        // transitions consume the old epoch and grant a fresh runtime identity.
+        await change((value,save,stamp)=>{
+          if(!matches(value,save)||value.request||!validReload(ticket,uid,now()))throw fail('RELOAD_CHANGED','Reload continuation no longer matches.');
+          return {...value,request:{id:ticket.nonce,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
+        });
+        await change((value,save)=>{
+          if(!matches(value,save)||value.request?.id!==ticket.nonce||value.request.requester!==sessionId||value.ack)throw fail('RELOAD_CHANGED','Reload continuation changed.');
+          // request.at and updatedAt both came from the server. A shifted local
+          // clock cannot extend an expired server lease into a reload grant.
+          if(millis(value.request.at)<ticket.leaseAt||millis(value.request.at)>=ticket.leaseAt+LEASE_MS||!validReload(ticket,uid,now()))throw fail('RELOAD_CHANGED','Reload continuation expired.');
+          return {...value,ack:{requestId:ticket.nonce,digest:ticket.digest,revision:ticket.revision}};
+        });
+        await takeOver();return true;
+      }catch(e){
+        if(e.code==='RELOAD_CHANGED')return false;
+        // A competing valid CAS can make Firestore reject a stale transition
+        // with permission-denied rather than retrying it as a contention error.
+        // Only an independently observed competing owner/request permits the
+        // ordinary paused-device fallback; never mask a same-state rule failure.
+        if(e.code==='permission-denied'){
+          guard();const latest=await remote.read();guard();receive(latest);
+          if(latest&&(latest.owner!==ticket.owner||latest.epoch!==ticket.epoch||latest.request&&latest.request.requester!==sessionId))return false;
+        }
+        throw e;
+      }
+    }
+    async function start(reloadTicket=null){
+      guard();if(reloadTicket)await continueReload(reloadTicket);
+      await change((value,save,stamp)=>{
         if(value?.owner===sessionId)return {...value,updatedAt:stamp()};
         if(value && now()-millis(value.updatedAt)<LEASE_MS)return value;
         return {schema:1,owner:sessionId,epoch:value?value.epoch+1:1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
@@ -91,10 +136,10 @@
         return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
       });return snapshot();
     }
-    return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,
+    return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,
       async refresh(){guard();receive(await remote.read());return snapshot();},
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
       close(){closed=true;status='offline';if(unsubscribe)unsubscribe();}};
   }
-  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS});
+  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload});
 })(globalThis);

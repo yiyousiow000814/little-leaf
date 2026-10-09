@@ -57,6 +57,7 @@ def stage(build, output, config):
     (output/'firebase-variant-manifest.json').write_text(json.dumps({'base_web_manifest':base,'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'status':'staged-not-published','files':{p.relative_to(output).as_posix():sha256(p) for p in output.rglob('*') if p.is_file()}},indent=2))
 
 BROWSER_GATES = {
+    'firebase-fullflow': ('firebase-fullflow/firebase-fullflow.json', 'passed', True),
     'inbox': ('inbox-browser/compensation-inbox-browser.json', 'passed', True),
     'tutorial': ('fresh-tutorial-browser/fresh-tutorial-browser.json', 'status', 'passed'),
     'compatibility': ('wall-browser/wall-compatibility-browser.json', 'status', 'passed'),
@@ -87,6 +88,13 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
         path=build/'evidence'/relative;report=json.loads(path.read_text())
         if report.get(key)!=expected or (key=='passed' and report.get(key) is not True):
             raise ValueError('Fresh browser gate did not pass: '+name)
+        if name=='firebase-fullflow':
+            expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False}
+            if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
+                raise ValueError('Compiled Firebase browser/source binding mismatch')
+            required=['firebase/fullflow.test.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
+                raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
             raise ValueError('Actual browser validation required: '+name)
         if name=='tutorial' and (report.get('binding',{}).get('source_commit')!=source or report.get('binding',{}).get('diagnostic_only')):

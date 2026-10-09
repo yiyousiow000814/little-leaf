@@ -36,6 +36,7 @@ class Controller extends WebSave:
 var game
 var checks=0
 var failures=[]
+var geometry=[]
 func _initialize():run.call_deferred()
 func check(ok:bool,label:String):
  checks+=1
@@ -62,6 +63,11 @@ func run():
     var glyph=button.get_theme_font("font").get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,button.get_theme_font_size("font_size")).x
     check(button.size.y>=44 and button.size.x>=glyph+24,str(view)+" touch target and text padding")
     check(notice.panel.get_global_rect().encloses(button.get_global_rect()),str(view)+" button stays inside panel")
+   var buttons={}
+   for key in ["update","later"]:
+    var button=notice.update_button if key=="update" else notice.later_button
+    var rect=button.get_global_rect();buttons[key]=[rect.position.x,rect.position.y,rect.size.x,rect.size.y]
+   geometry.append({"viewport":{"width":view.x,"height":view.y},"error":error,"buttons":buttons})
  notice.later_button.pressed.emit();await settle();check(not notice.panel.visible and controller.fake_update.dismissed==["0.1.11"],"Later dismisses exact version")
  for frame in 5:notice.sync()
  check(not notice.panel.visible,"same dismissed version never reopens")
@@ -107,7 +113,7 @@ func run():
  check(controller.fake_update.reloads==1,"late save completion after stop cannot request reload")
  check(game.saves==0,"notice does not use ordinary uncontrolled save path")
  game.web_save=null;game.save_writes_suppressed=true
- print("UPDATE_NOTICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"real_browser":false}))
+ print("UPDATE_NOTICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"real_browser":false,"geometry":geometry}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()

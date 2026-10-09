@@ -8,14 +8,14 @@ const clone=x=>x==null?null:JSON.parse(JSON.stringify(x)),fail=code=>Object.assi
 function environment({timeoutMs=15000}={}){
  let time=100000,session=null,cloud=null,uid='synthetic-owner',writeFail=false,writeGate=null,readGate=null,writeCalls=0;const watchers=[];
  const remote={ref:{path:'synthetic-session'},async read(){return clone(session);},async change(fn,guard){guard();const next=fn(clone(session),clone(cloud),()=>time);guard();session=clone(next);for(const w of watchers)w(clone(session));return clone(session);},watch(fn){watchers.push(fn);return()=>{const i=watchers.indexOf(fn);if(i>=0)watchers.splice(i,1);};}};
- function device(label){
+ function device(label,prepareReload=null){
    const ownership=sessionApi.createSession({remote,uid:'synthetic-owner',currentUid:()=>uid,deviceLabel:label,now:()=>time});
    let local=null,replaceHook=null;const journal={async read(){return clone(local);},async replace(id,expected,next){assert.deepEqual(local,clone(expected));local=clone(next);if(replaceHook)await replaceHook(next);},async readRecoveryBackup(){return null;}};
    const saveRemote={async read(){if(readGate)await readGate;return clone(cloud);},async compareAndSet(id,base,next,guard){writeCalls++;if(writeGate)await writeGate;guard();const fence=ownership.assertActive(true);if(!session||session.owner!==fence.writerId||session.epoch!==fence.writerEpoch||session.ack)throw fail('OWNERSHIP_LOST');if(writeFail)throw fail(writeFail===true?'OFFLINE':writeFail);if(cloud?.digest===next.digest)return;if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud={...clone(next),...fence};guard();}};
-   const client=api.createClient({uid:'synthetic-owner',codec,journal,remote:saveRemote,currentUid:()=>uid,status(){},ownership,now:()=>time,deviceLabel:label,networkTimeoutMs:timeoutMs});
+   const client=api.createClient({uid:'synthetic-owner',codec,journal,remote:saveRemote,currentUid:()=>uid,status(){},ownership,now:()=>time,deviceLabel:label,networkTimeoutMs:timeoutMs,prepareReload});
    return {ownership,client,local:()=>clone(local),setLocal:x=>local=clone(x),onReplace:fn=>replaceHook=fn};
  }
- return {device,session:()=>clone(session),cloud:()=>clone(cloud),advance:ms=>time+=ms,failWrites:x=>writeFail=x,setUid:x=>uid=x,writeCalls:()=>writeCalls,holdWrites(){let resolve;writeGate=new Promise(r=>resolve=r);return ()=>{writeGate=null;resolve();};},holdReads(){let resolve;readGate=new Promise(r=>resolve=r);return ()=>{readGate=null;resolve();};}};
+ return {device,remote,setSession:x=>session=clone(x),setCloud:x=>cloud=clone(x),session:()=>clone(session),cloud:()=>clone(cloud),advance:ms=>time+=ms,failWrites:x=>writeFail=x,setUid:x=>uid=x,writeCalls:()=>writeCalls,holdWrites(){let resolve;writeGate=new Promise(r=>resolve=r);return ()=>{writeGate=null;resolve();};},holdReads(){let resolve;readGate=new Promise(r=>resolve=r);return ()=>{readGate=null;resolve();};}};
 }
 (async()=>{
  let e=environment(),a=e.device('Mac'),b=e.device('iPhone');await a.ownership.start();let boot=await a.client.boot();assert(boot.ok);await a.client.commit(payload,0,boot.profileId);await b.ownership.start();assert.equal(b.ownership.snapshot().status,'other-device');assert.equal((await b.client.boot()).code,'OWNERSHIP_LOST');let r=await b.client.requestTakeover();assert(r.ok);assert.equal(a.ownership.snapshot().status,'handoff-requested');assert.equal(b.ownership.snapshot().status,'waiting');assert.equal((await b.client.forceTakeover()).code,'HANDOFF_WAITING');assert.equal(e.cloud(),null);
@@ -58,5 +58,29 @@ function environment({timeoutMs=15000}={}){
  const protectedConflict=a.local();releaseRead();await new Promise(resolve=>setTimeout(resolve,10));assert.deepEqual(a.local(),protectedConflict,'late conflict preview cannot change pending progress');assert.equal(e.cloud(),null);assert(!a.client.canReloadUpdate(boot.profileId,1,'invented'));
  // Readiness timeout cannot consume a ticket later and cannot authorize reload.
  e=environment({timeoutMs:5});a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();r=await a.client.saveForUpdate(native,0,boot.profileId);releaseRead=e.holdReads();ready=await a.client.checkUpdateReady(r.profileId,r.revision,r.updateToken);assert(!ready.ok);assert.equal(ready.code,'NETWORK_TIMEOUT');assert(!a.client.canReloadUpdate(r.profileId,r.revision,r.updateToken));releaseRead();await new Promise(resolve=>setTimeout(resolve,10));assert(!a.client.canReloadUpdate(r.profileId,r.revision,r.updateToken));assert((await a.client.checkUpdateReady(r.profileId,r.revision,r.updateToken)).ok);assert(a.client.canReloadUpdate(r.profileId,r.revision,r.updateToken));e.setUid('other');assert(!a.client.canReloadUpdate(r.profileId,r.revision,r.updateToken));
+ // A continuation never reuses a writer identity: exact old epoch is consumed.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();r=await a.client.saveForUpdate(payload,0,boot.profileId);const oldFence=a.ownership.fence;
+ const ticket=a.ownership.reloadContinuation(e.cloud().digest,e.cloud().revision);a.ownership.close();b=e.device('Mac');await b.ownership.start(ticket);
+ assert.equal(e.session().epoch,oldFence.writerEpoch+1);assert.notEqual(b.ownership.fence.writerId,oldFence.writerId);assert.equal(e.cloud().revision,r.revision,'reload handoff does not rewrite the saved cafe');
+ const duplicate=e.device('Mac');await duplicate.ownership.start(clone(ticket));assert.equal(duplicate.ownership.snapshot().status,'other-device');assert.equal(e.session().epoch,2,'copied receipt cannot consume epoch twice');
+ for(const kind of ['expired','save-changed','owner-changed','request-pending','account']){
+  e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();r=await a.client.saveForUpdate(payload,0,boot.profileId);const t=a.ownership.reloadContinuation(e.cloud().digest,e.cloud().revision);a.ownership.close();
+  if(kind==='expired')e.advance(30001);
+  if(kind==='save-changed')e.setCloud({...e.cloud(),revision:2,digest:'f'.repeat(64)});
+  if(kind==='owner-changed')e.setSession({...e.session(),owner:webcrypto.randomUUID(),epoch:2});
+  if(kind==='request-pending')e.setSession({...e.session(),request:{id:webcrypto.randomUUID(),requester:webcrypto.randomUUID(),device:'iPhone',at:100000}});
+  if(kind==='account')t.uid='other';
+  const before=e.session(),saved=e.cloud();b=e.device('Mac');await b.ownership.start(t);assert.equal(b.ownership.snapshot().status,'other-device',kind);assert.deepEqual(e.session(),before,kind+' preserves ownership');assert.deepEqual(e.cloud(),saved,kind+' preserves save');
+ }
+ // Server-stamped lease boundary rejects a locally young ticket after clock skew.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.saveForUpdate(payload,0,boot.profileId);const skew=a.ownership.reloadContinuation(e.cloud().digest,e.cloud().revision);a.ownership.close();e.advance(61000);skew.createdAt+=61000;skew.expiresAt+=61000;
+ b=e.device('Mac');await b.ownership.start(skew);assert.equal(e.session().epoch,2);assert.equal(e.session().request,null,'expired server lease uses normal fresh acquisition, not reload acknowledgment');assert.equal(e.cloud().revision,1);
+ const map=new Map(),storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k)};
+ assert(sessionApi.storeReload(storage,ticket));assert.equal(sessionApi.consumeReload(storage,'navigate',ticket.uid,ticket.createdAt),null);assert.equal(map.size,0);
+ assert(sessionApi.storeReload(storage,ticket));assert.deepEqual(clone(sessionApi.consumeReload(storage,'reload',ticket.uid,ticket.createdAt)),clone(ticket));assert.equal(sessionApi.consumeReload(storage,'reload',ticket.uid,ticket.createdAt),null);
+ assert(!sessionApi.storeReload({setItem(){throw Error('quota');}},ticket));
+ e=environment();a=e.device('Mac',()=>false);await a.ownership.start();boot=await a.client.boot();r=await a.client.saveForUpdate(payload,0,boot.profileId);await a.client.checkUpdateReady(r.profileId,r.revision,r.updateToken);assert(!a.client.canReloadUpdate(r.profileId,r.revision,r.updateToken),'storage failure prevents reload');assert.equal(a.local().pending,false);
+ // Lost acknowledgment after a continuation request leaves all save bytes intact.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.saveForUpdate(payload,0,boot.profileId);const lost=a.ownership.reloadContinuation(e.cloud().digest,e.cloud().revision),lostSaved=e.cloud();a.ownership.close();const realChange=e.remote.change;e.remote.change=async(...args)=>{await realChange(...args);throw fail('OFFLINE');};b=e.device('Mac');await assert.rejects(b.ownership.start(lost));assert.deepEqual(e.cloud(),lostSaved);assert.equal(e.session().epoch,1);assert.equal(e.session().ack,null);e.remote.change=realChange;const next=e.device('Mac');await next.ownership.start();assert.equal(next.ownership.snapshot().status,'other-device');
  console.log('Synthetic session: freeze/snapshot/flush/ack before fenced takeover, timeout force, old-cache resume, offline pending retention, abandoned-request cancel, no ping-pong and account/request races passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

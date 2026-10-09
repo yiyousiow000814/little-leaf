@@ -58,6 +58,7 @@ jobs:
           node --check tests/wall_compatibility_browser.js
           node --check tests/save_log_browser.js
           node --check tests/connection_recovery_browser.js
+          node --check firebase/fullflow.test.mjs
       - name: Install checksum-pinned Godot and official Web template
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run all engine regression suites in disposable profiles
@@ -171,6 +172,18 @@ jobs:
           export PATH="$JAVA_HOME/bin:$PATH"
           npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
           python3 ci/run_firebase_focused.py --gate rules.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Verify compiled two-device cloud recovery and safe update in the emulator
+        if: inputs.firebase_preview
+        timeout-minutes: 12
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd firebase
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --web-build '$RUNNER_TEMP/web-build/web' --output '$RUNNER_TEMP/web-build/evidence/firebase-fullflow' --engine-report '$RUNNER_TEMP/engine-evidence/summary.json'"
       - name: Stage Firebase only from this exact fresh all-gates build
         if: inputs.firebase_preview
         id: firebase_prepare

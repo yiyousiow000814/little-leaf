@@ -34,6 +34,7 @@ class FreshStageTests(unittest.TestCase):
         for name,(relative,key,expected) in BROWSER_GATES.items():
             p=self.build/'evidence'/relative;p.parent.mkdir(parents=True,exist_ok=True)
             report={key:expected,'browser_verified':True,'binding':{'source_commit':SOURCE,'export_manifest_sha256':sha256(self.build/'web/release-manifest.json'),'engine_report_sha256':sha256(self.native)}}
+            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(ROOT/n) for n in ['firebase/fullflow.test.mjs','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
             if name=='webkit-recovery':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),export_files=files)
             if name=='compatibility':report['inputs']={'new_commit':SOURCE,'export_files':{'new':files}}
             if name=='save-log':report['export_sha256']={k:v['sha256'] for k,v in files.items()}
@@ -89,7 +90,7 @@ class FreshStageTests(unittest.TestCase):
         for name in BROWSER_GATES:
             p=self.build/'evidence'/BROWSER_GATES[name][0];old=p.read_text();r=json.loads(old)
             if name=='tutorial':r['binding']['export_manifest_sha256']='wrong'
-            elif name=='webkit-recovery':r['source_tree']='wrong'
+            elif name in {'webkit-recovery','firebase-fullflow'}:r['source_tree']='wrong'
             elif name=='compatibility':r['inputs']['export_files']['new']={}
             elif name=='save-log':r['export_sha256']['index.pck']='wrong'
             else:r['export_js_sha256']='wrong'
@@ -160,7 +161,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('download-artifact',text)
         self.assertNotIn('secrets.',text)
         tail=text[first:text.index('      - name: Keep test and export evidence')]
-        self.assertEqual(tail.count('        if: inputs.firebase_preview'),5)
+        self.assertEqual(tail.count('        if: inputs.firebase_preview'),6)
         self.assertNotIn('always()',tail)
         self.assertLess(tail.index('--require-fresh-ci'),tail.index('id: firebase_upload'))
 

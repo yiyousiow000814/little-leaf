@@ -57,6 +57,18 @@ func run():
    bridge.value.canRequestTakeover=mode in ["other-device","handoff-requested","resume-needed"];bridge.value.canForceTakeover=mode=="timeout"
    ui.show_help();await settle()
    if mode=="resume-needed":check(ui.help_heading.text=="Could not resume yet" and ui.help_switch_device.text=="Try again","failed resume offers accurate retry")
+   check(not game.tutorial.help_entry.visible and not game.tutorial.restart_entry.visible,"tutorial controls hidden during "+mode)
+   if ui.business_state.visible:
+    var text_width=ui.business_state.get_theme_font("font").get_string_size(ui.business_state.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.business_state.get_theme_font_size("font_size")).x
+    check(text_width<=ui.business_state.size.x,"Recovery badge text fits "+str(view))
+   if choice:
+    var gap=ui.help_text.get_global_rect().position.y-ui.help_choices.get_global_rect().end.y
+    check(gap>=0 and gap<=ui.help_choices.get_parent().get_theme_constant("separation")+1,"hidden tutorial leaves no blank row")
+   if view.x>=1000:
+    var sign_scale=game.business_button.size.y/56.0
+    var state_font=ui.business_state.get_theme_font_size("font_size")
+    var glyph_width=ui.business_state.get_theme_font("font").get_string_size(ui.business_state.text,HORIZONTAL_ALIGNMENT_LEFT,-1,state_font).x
+    check(ui.business_state.position.x>=10*sign_scale-.01 and glyph_width<=ui.business_state.size.x,"Recovery badge padded and text fits "+str(view))
    var label="%s %s"%[str(view),mode];var inset=ui.hud._safe_insets()
    var safe=Rect2(inset.x,inset.y,view.x-inset.x-inset.z,view.y-inset.y-inset.w)
    check(safe.encloses(ui.help_panel.get_global_rect()),label+" panel inside safe viewport")
@@ -75,7 +87,12 @@ func run():
    var footer=ui.help_footer.get_global_rect();ui.help_scroll.scroll_vertical=100000;await settle()
    check(ui.help_footer.get_global_rect().is_equal_approx(footer),label+" footer stays fixed while scrolling")
    check(ui.help_scroll.get_v_scroll_bar().value+ui.help_scroll.get_v_scroll_bar().page>=ui.help_scroll.get_v_scroll_bar().max_value-1,label+" all details reachable")
-   records.append({"view":str(view),"mode":mode,"panel":str(panel),"body_height":ui.help_scroll.size.y})
+   var buttons={}
+   for key in ["local","cloud","switch","done"]:
+    var button=ui.help_choose_local if key=="local" else ui.help_choose_cloud if key=="cloud" else ui.help_switch_device if key=="switch" else ui.help_done
+    if button.visible:
+     var rect=button.get_global_rect();buttons[key]=[rect.position.x,rect.position.y,rect.size.x,rect.size.y]
+   records.append({"view":str(view),"viewport":{"width":view.x,"height":view.y},"mode":mode,"panel":str(panel),"body_height":ui.help_scroll.size.y,"buttons":buttons})
  controller.retrying=false;bridge.value.available=true;bridge.value.choicesAvailable=true;bridge.value.serverOwnership=false;bridge.value.ownershipPaused=false;root.size=Vector2i(390,844);ui.show_help();await settle()
  var original=game.model
  ui.help_choose_local.pressed.emit();ui.help_choose_local.pressed.emit();await settle()
@@ -97,6 +114,7 @@ func run():
  bridge.finish({"ok":true,"source":"authority","profileId":"synthetic","revision":8,"payload":payload});check(game.resumes==1,"duplicate receipt cannot resume twice")
  ui.show_help();await settle();check(not ui.help_choose_local.visible and not ui.help_choose_cloud.visible,"normal play has no conflict actions")
  check(not ui.help_switch_device.visible,"takeover absent without server capability")
+ check(game.tutorial.help_entry.visible,"normal Help restores tutorial action")
  bridge.value.serverOwnership=true;bridge.value.ownershipPaused=true;bridge.value.status="other-device";bridge.value.canRequestTakeover=true;bridge.value.canForceTakeover=false
  controller.check_runtime_recovery()
  check(game.paused and game.save_recovery_blocked and game.save_writes_suppressed and bridge.preserve_calls==1,"ownership loss freezes and snapshots live model once")

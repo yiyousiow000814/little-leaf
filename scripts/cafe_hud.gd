@@ -482,7 +482,11 @@ func _layout_unified_toolbar(width:float):
  game.top_text.position=Vector2((wallet_box.size.x-money_width)*.5,ty+title_h+1);game.top_text.size=Vector2(money_width,money_h);_font(game.top_text,money_font)
  ui.business_action.hide();ui.business_state.show();ui.business_state.text="RECOVERY" if game.save_recovery_blocked else game.model.operating_status().to_upper()
  var sign_scale=game.business_button.size.y/56.0
- ui.business_state.position=Vector2(2,24)*sign_scale;ui.business_state.size=Vector2(game.business_button.size.x-4*sign_scale,20*sign_scale);_font(ui.business_state,maxi(13,floori(13*sign_scale)))
+ var text_inset=(10.0 if game.save_recovery_blocked else 2.0)*sign_scale
+ ui.business_state.position=Vector2(text_inset,24*sign_scale);ui.business_state.size=Vector2(game.business_button.size.x-2*text_inset,20*sign_scale)
+ var state_font=maxi(13,floori(13*sign_scale))
+ while state_font>9 and font_bold.get_string_size(ui.business_state.text,HORIZONTAL_ALIGNMENT_LEFT,-1,state_font).x>ui.business_state.size.x:state_font-=1
+ _font(ui.business_state,state_font)
  game.business_button.accessibility_name="Close café admissions" if game.model.operating_open else "Reopen café admissions"
  game.business_button.accessibility_description="Current guests can finish" if game.model.operating_open else "Welcome new guests"
  game.business_button.tooltip_text=game.business_button.accessibility_name

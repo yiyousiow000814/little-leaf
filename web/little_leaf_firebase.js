@@ -47,7 +47,7 @@
       }
     };
   }
-  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000}) {
+  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null}) {
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='';
     let choiceArchive=null,choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
@@ -293,8 +293,10 @@
       canReloadUpdate(profileId,revision,token){
         try{
           accountGuard();if(!ownership)return false;ownership.assertActive();const ticket=updateTicket;
-          return !!(ticket?.consumed && ticket.token===token && ticket.profileId===profileId && ticket.revision===revision
+          const ready=!!(ticket?.consumed && ticket.token===token && ticket.profileId===profileId && ticket.revision===revision
             && ticket.readyEntry===entry && !entry.pending && entry.record.digest===ticket.digest && !updateInProgress);
+          if(!ready)return false;
+          return !prepareReload || prepareReload(ownership.reloadContinuation(ticket.digest,ticket.revision))===true;
         }catch(_){return false;}
       },
       ownershipSnapshot(){

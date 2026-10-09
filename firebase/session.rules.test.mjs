@@ -46,5 +46,24 @@ try{
   // Abandoned request can be canceled only by an explicit owner action in the app.
   await b.refresh();await b.requestTakeover();await c.refresh();await c.requestTakeover();assert.equal((await getDocFromServer(sessionRef(db))).data().request,null);
   await b.refresh();await assert.rejects(b.takeOver(),e=>e.code==='HANDOFF_CHANGED');
+  // Same-tab update continuation uses the existing server rules unchanged.
+  const reloadUid='reload-suite',reloadDb=env.authenticatedContext(reloadUid,google).firestore();
+  const reloadSave=doc(reloadDb,'players',reloadUid,'saves','cafe');
+  const newReload=()=>{const s=LittleLeafFirebaseSession.createSession({uid:reloadUid,currentUid:()=>reloadUid,deviceLabel:'Mac',remote:LittleLeafFirebaseSession.createRemote(reloadDb,sdk,reloadUid)});sessions.push(s);return s;};
+  const oldPage=newReload();await oldPage.start();const oldReloadFence=oldPage.fence;
+  const reloadDocument={...first,...oldReloadFence,device:'Mac'};await setDoc(reloadSave,reloadDocument);
+  const continuation=oldPage.reloadContinuation(reloadDocument.digest,reloadDocument.revision);oldPage.close();
+  const newPage=newReload();await newPage.start(continuation);assert.equal(newPage.fence.writerEpoch,2);assert.notEqual(newPage.fence.writerId,oldReloadFence.writerId);
+  assert.deepEqual((await getDocFromServer(reloadSave)).data(),reloadDocument,'reload does not manufacture a new save');
+  const clonedTab=newReload();await clonedTab.start(continuation);assert.equal(clonedTab.snapshot().status,'other-device');
+  await assertFails(setDoc(reloadSave,{...reloadDocument,revision:2}));
+  await assertSucceeds(setDoc(reloadSave,{...reloadDocument,...newPage.fence,revision:2,digest:'b'.repeat(64)}));
+  assert.equal(newPage.fence.writerEpoch,2,'duplicate receipt never grants a second writer');
+  const parallelReceipt=newPage.reloadContinuation('b'.repeat(64),2);newPage.close();
+  const twinA=newReload(),twinB=newReload();const raced=await Promise.allSettled([twinA.start(parallelReceipt),twinB.start({...parallelReceipt})]);console.log('Reload concurrent outcomes',raced.map(r=>r.status==='rejected'?r.reason:r.value));if(raced.some(r=>r.status==='rejected'))throw raced.find(r=>r.status==='rejected').reason;
+  await twinA.refresh();await twinB.refresh();assert.equal([twinA,twinB].filter(s=>s.snapshot().status==='active').length,1,'concurrent copied tickets grant exactly one writer');
+  const winner=twinA.snapshot().status==='active'?twinA:twinB;assert.equal(winner.fence.writerEpoch,3);
+  await assertFails(setDoc(reloadSave,{...reloadDocument,revision:3}));
+
   console.log('Actual Firestore session rules passed: old final-flush/ack ordering, exact ack proof, server stale-epoch rejection, explicit timeout, expired lease, legacy rejection, ownership isolation and canceled request.');
 }finally{for(const s of sessions)s.close();await env.cleanup();}
