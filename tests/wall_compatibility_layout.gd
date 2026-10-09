@@ -90,6 +90,8 @@ func run():
   await click("build",game.category_buttons["Build"])
   check(game.catalog_category=="Build","real native Build pointer selects category")
   result.regions.catalog=region(game.tray)
+  # Retain the complete tray; enlarge only the separate OCR input losslessly.
+  result.regions.catalog.scale=3
   await click("wall",game.build_tools.tool_buttons["full"])
   var ui=game.compact_ui
   var shop=ui.shop_ui
