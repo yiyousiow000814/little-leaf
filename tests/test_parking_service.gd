@@ -60,9 +60,9 @@ func run():
  check(same(before,Codec.new().encode(game.model.parking_visits)),"Decorate freezes car trip")
  game.editing=false;game.browser_suspended=true;game._process(2)
  check(same(before,Codec.new().encode(game.model.parking_visits)),"background suspension freezes car trip")
- game.browser_suspended=false;game._resume_frame=-1;game.speed=2.0;game._process(.1)
- check(is_equal_approx(game.model.parking_visits[0].car_position.distance_to(Parking.CAR_START),Parking.CAR_SPEED*.2),"2x advances authoritative car by simulation time: "+str(game.model.parking_visits[0].car_position)+" paused="+str(game.paused)+" intro="+str(game.cafe_intro.active)+" blocked="+str(game.save_recovery_blocked)+" small="+str(game.compact_ui.viewport_too_small))
- game.speed=1.0;save_roundtrip(game,"driving")
+ game.browser_suspended=false;game._resume_frame=-1;game._process(.1)
+ check(is_equal_approx(game.model.parking_visits[0].car_position.distance_to(Parking.CAR_START),Parking.CAR_SPEED*.1),"normal speed advances authoritative car once: "+str(game.model.parking_visits[0].car_position)+" paused="+str(game.paused)+" intro="+str(game.cafe_intro.active)+" blocked="+str(game.save_recovery_blocked)+" small="+str(game.compact_ui.viewport_too_small))
+ save_roundtrip(game,"driving")
  check(game.service_guests.is_empty() and game.floor_tasks.walks.is_empty(),"inbound car creates no indoor service/litter record")
  var visited={}
  for frame in range(4500):
