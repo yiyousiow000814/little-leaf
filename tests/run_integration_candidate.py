@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("capture_editor_acceptance", "EDITOR_CAPTURE_FIXTURE_RESULT"),
     ("capture_modular_cabinets", "CABINET_CAPTURE_FIXTURE_RESULT"),
     ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
@@ -104,6 +105,7 @@ SUITES = [
     ("test_editing_visual_feedback", "EDITING_VISUAL_FEEDBACK_RESULT"),
     ("test_cross_category_selection", "CROSS_CATEGORY_SELECTION_RESULT"),
     ("test_wall_move_sell_ui", "WALL_MOVE_SELL_UI_RESULT"),
+    ("test_wall_transactions", "WALL_TRANSACTIONS_RESULT"),
     ("test_furniture_worker_egress", "FURNITURE_WORKER_EGRESS"),
     ("test_staff_relocation_service", "STAFF_RELOCATION_SERVICE_RESULT"),
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),

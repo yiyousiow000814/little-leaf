@@ -1,0 +1,43 @@
+name: Editor acceptance native visuals
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/editor-acceptance-visual.yml'
+      - 'ci/capture_editor_acceptance.py'
+      - 'tests/capture_editor_acceptance.gd'
+      - 'scripts/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: editor-acceptance-visual-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned official engine
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/editor-tools"
+      - name: Prepare native software renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Capture exact-source generated editor scenes
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: python3 ci/capture_editor_acceptance.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/editor-acceptance"
+      - name: Retain native frames and source receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: editor-acceptance-${{ github.event.pull_request.head.sha || github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/editor-acceptance/
+          if-no-files-found: error
+          retention-days: 7
