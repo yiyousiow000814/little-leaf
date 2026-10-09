@@ -50,7 +50,7 @@ func run():
     check(game.model.save("user://pickup-contact.json"),"generated handoff snapshot saves")
     check(game.model.load_save("user://pickup-contact.json"),"generated handoff snapshot reloads")
     game._restore_service_runtime();stove=game.model.get_item(1);actor=game.staff_states[worker_index];record=game.service_guests.values()[0]
-    check(held[0].distance_to(actor.pos)<.00001 and is_equal_approx(float(held[1]),float(actor.job_elapsed)) and held.slice(2)==[actor.job_step,record.plate_owner,record.plate_target_id,record.plate_staff_index,record.token],"reload cannot teleport or replay handoff "+stage)
+    check(held[0].distance_to(actor.pos)<.00001 and is_equal_approx(float(held[1]),float(actor.job_elapsed)) and int(held[2])==int(actor.job_step) and str(held[3])==str(record.plate_owner) and int(held[4])==int(record.plate_target_id) and int(held[5])==int(record.plate_staff_index) and int(held[6])==int(record.token),"reload cannot teleport or replay handoff "+stage)
    if seen.size()==STAGES.size():break
   check(seen.size()==STAGES.size(),"complete real handoff sequence r"+str(rotation)+" "+str(seen.keys()))
   for player in game.audio_players.values():player.stop();player.stream=null
