@@ -71,6 +71,7 @@ SUITES = [
     ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
+    ("test_camera_input_ownership", "CAMERA_INPUT_OWNERSHIP_RESULT"),
     ("test_square_neighborhood_camera", "SQUARE_NEIGHBORHOOD_CAMERA_RESULT"),
     ("test_overview_triangulation", "OVERVIEW_TRIANGULATION_RESULT"),
 
