@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot 4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; reviewed PR125 source85e9a058d25cff10089d3bc4885339110fb70735; sole-PNG proposal773234e216ece8270264bdd97298a656dd45df00/treeb18ee16bea4a95d42fcb0ee796e1adb79af93f96; QAb71258ff1cfb03534712b905d55277ef1bdf2d29; run38084165321; receipt SHA25610ecc7924b515d65798c12f015635235939e8b601e778cfa71a3e633017aa538; generated/imported/runtime/direct-source/emitted-PNG RGBA exact, original control retained",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR125 ellipsis source cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5/tree db38763f84d7a14b814ef23eb67359ceeeb24e4d; QA cb27377e280aaed887f7be62008c7c4e749ade74; run38086111635; receiptSHA256 0522357d8f189604ce771ce91babe72781f2879569dc6cfef7dde63e7e08c804; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact; reviewed candidate assets and original control unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -113,7 +113,7 @@
     "scripts/floor_mess_art.gd": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6",
     "scripts/furniture_atlas_painter.gd": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78",
     "scripts/furniture_static_atlas.gd": "476b8d5aa6ec50f51a3e7206ba05e4ebf167f10ed807a2821927ac8c3e853b03",
-    "scripts/illustrated_cafe.gd": "5e687af10c59ca296cdb157b501387b2dd42d2eb008eae0c845683bcdec42c29",
+    "scripts/illustrated_cafe.gd": "b04b08090432983e0b122bbaa03f35d285b92409e0da479c2a70080ba9a3e54b",
     "scripts/illustrated_furniture.gd": "117300a4fe207688c16fd9499ee8a288ffda883b498c996e38e3ea35f9588004",
     "scripts/illustrated_ground.gd": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5",
     "scripts/illustrated_motion.gd": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e",
