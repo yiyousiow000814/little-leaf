@@ -260,6 +260,12 @@ body {
 				label.textContent = 'Downloading your café…';
 			}
 		},
+		artWarmup(ready, total) {
+			if (finished || !Number.isInteger(ready) || !Number.isInteger(total) || total <= 0 || ready < 0 || ready > total) return;
+			label.textContent = `Preparing café art · ${ready}/${total} ready`;
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+		},
 		engineReady() {
 			if (finished) return;
 			engineReady = true;

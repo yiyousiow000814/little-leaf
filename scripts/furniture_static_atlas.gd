@@ -25,11 +25,12 @@ const BAKE_SCALE := 4
 const PACK_WIDTH := 1280
 var size := Vector2i(PACK_WIDTH,0)
 var state := "cold"
-var texture: ImageTexture
+var texture: Texture2D
 # Historical filtering control only; ordinary opt-in uses level zero.
 var use_mipmaps_for_qa := false
 var regions: Dictionary = {}
 var stats: Dictionary = {"state":"cold","warmup_ms":0.0,"conversion":"GPU straight-alpha; native alpha-edge repair; level-zero RGBA8"}
+var _bake_viewports: Array = []
 var _started_us := 0
 
 func _init():
@@ -78,6 +79,7 @@ func request(artist: Node2D):
 	if DisplayServer.get_name()=="headless":
 		state="headless_fallback";stats.state=state
 		return
+	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"furniture",size):return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
 	_build.call_deferred(artist.get_tree())
@@ -90,9 +92,11 @@ func _viewport(tree: SceneTree) -> SubViewport:
 	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 	viewport.render_target_clear_mode=SubViewport.CLEAR_MODE_ALWAYS
 	tree.root.add_child(viewport)
+	_bake_viewports.append(viewport)
 	return viewport
 
 func _build(tree: SceneTree):
+	if state != "warming":return
 	# Load only after all source scripts finish loading; the painter inherits
 	# the real artist's primitives, so no second version of the art is kept.
 	var painter_script=load("res://scripts/furniture_atlas_painter.gd")
@@ -104,7 +108,9 @@ func _build(tree: SceneTree):
 	painter.atlas=self
 	viewport.add_child(painter)
 	await RenderingServer.frame_post_draw
+	if state != "warming":return
 	await tree.process_frame
+	if state != "warming":return
 	# Transparent viewport pixels are premultiplied by the native renderer.
 	# Convert in one GPU pass, instead of a millions-of-pixels GDScript loop.
 	var straight := _viewport(tree)
@@ -119,6 +125,7 @@ func _build(tree: SceneTree):
 	converter.material=material
 	straight.add_child(converter)
 	await RenderingServer.frame_post_draw
+	if state != "warming":return
 	var image := straight.get_texture().get_image()
 	if image==null or image.is_empty() or image.get_size()!=size:
 		viewport.queue_free();straight.queue_free()
@@ -141,6 +148,13 @@ func _build(tree: SceneTree):
 	stats["bake_draws"]=int(painter.bake_draws)
 	state="ready";stats.state=state
 	viewport.queue_free();straight.queue_free()
+
+func cancel_prepare(reason: String):
+	if state not in ["cold","warming"]:return
+	state = "failed_fallback";stats.state = state;stats["reason"] = reason
+	for viewport in _bake_viewports:
+		if is_instance_valid(viewport) and not viewport.is_queued_for_deletion():viewport.queue_free()
+	_bake_viewports.clear()
 
 func _fail(reason: String):
 	state="failed_fallback";stats.state=state;stats["reason"]=reason
