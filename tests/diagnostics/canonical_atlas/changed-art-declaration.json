@@ -1,0 +1,22 @@
+{
+  "source": {
+    "commit": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
+    "tree": "ec2587e7187156c8219bed2e121af8871548cfd5"
+  },
+  "proposal": {
+    "commit": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
+    "tree": "ec2587e7187156c8219bed2e121af8871548cfd5"
+  },
+  "expected_rgba": [
+    "31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732",
+    "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
+    "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7"
+  ],
+  "closure_packet_sha256": "f157d08a686aadbfcfba667bcdc176ace51bcba943baedbbf2ab95f5630fc301",
+  "source_bundle": {
+    "path": "source.bundle",
+    "sha256": "912f4dc43546fd26277795bc7e3e667055d9049ac39125a325f61e3125d6e6f8",
+    "prerequisite": "50160069fa24fb8cfc0a97a74589526e7f9f5eff"
+  },
+  "authorization": "Parent explicitly assigns exact PR161 guard qualification; owner applies/tests/Web/PR update; no product publication here"
+}

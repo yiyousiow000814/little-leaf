@@ -15,3 +15,5 @@
 *.uid -text
 *.svg -text
 tools/auth_preview_pause/**/*.mjs -text
+
+tests/diagnostics/canonical_atlas/source.bundle binary
