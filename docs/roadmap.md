@@ -4,7 +4,7 @@
 
 ## Read this first
 
-- [Latest approved 0.1.11 decisions](#approved-011-decisions) — stove upgrades, placement validity, sink access and direct pickup; acceptance remains separate from assignment.
+- [Latest approved 0.1.11 decisions](#approved-011-decisions) — complete upgrade removal, permissive placement, sink access, direct pickup, parking and traffic; plan-only exception to the 11 pause.
 - [Current state and ownership](#current-state) — exact source/date, code/tests/visual/merged/released remain separate.
 - [Original complete version requirements](#original-requirements) — all0.1.10–0.3.2 plans, including proposals and numeric hypotheses.
 - [Version reconciliation](#version-reconciliation), [10a changes](#10a-changes), [all76 outcomes for11](#outcomes-011).
@@ -26,7 +26,7 @@
 | FPS128 | Existing related candidate optimizations; **user reports FPS basically resolved** on 2026-10-10 | Historical scoped evidence retained; no fresh assistant measurements | User-reported improvement; exact 60/120 target and final surface acceptance not independently verified here; **PR128 remains user-owned** | Current merge state not verified in this update | Runtime publication not verified here |
 | Google sign-in124 /131 /133 | PR131 merged as `b93ed371e03b83a6fa1d8bd1f879c01e56856bcb`; synthetic popup-auth contract tests from PR133 merged as `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0` | Synthetic contract coverage is present; it does not establish actual hosted Google sign-in or iframe acceptance | Continue inside itch after popup sign-in; the current 10a preview and hosted flow remain unaccepted | PR131 and PR133 merged; no hosted acceptance established | No accepted 10a runtime release established here |
 | Hidden business | Unresolved; removal-only investigation with exact loaded-build/cache/source verification | Still fails the user's background-business test | User prohibits adding a timer; retain the failed observation until corrected behavior is observed | No acceptance established | No new live publication |
-| 0.1.11 local work | Bounded local implementation work is authorized; reuse existing candidate PRs and coordinate ownership | Only source-bound checks for the affected slice count; earlier independent tests do not accept a combined release | Character/wardrobe activation remains paused; routing integration and FPS ownership gates above still apply | No merge claim for new local candidates | Not shipped |
+| 0.1.11 local work | **Paused to support 10a**; preserve existing candidates/checkpoints; only the explicit canonical plan update is authorized | No new feature checks under this plan-only exception | Existing pending acceptance stays pending; character/FPS ownership retained | No new merge authorized by this plan update | Not shipped |
 
 At main `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0`, PR113, PR130, PR131, PR132 and PR133 are merged. The repository documentation is published and this roadmap is its single editing authority. The current 10a preview still lacks user/hosted acceptance; background business remains unresolved with no new timer authorized. Starting 0.1.11 locally does not make its candidates integrated or shipped. Code presence, test results, visual/hosted acceptance, merge and runtime release are separate gates. Historical checkpoint `20ce99bb87477401d2b93214f578de5dfb8dd776` and all dated audits below retain their original scope, including earlier publication blocks and unmerged PR113 status.
 Latest explicit wardrobe hold and03:48UTC account/background-business requirements supplement the03:10 source snapshot. Older audit statements below retain their original date/head; they do not erase implemented work or override current ownership. Preserve released cleanup/tutorial/account/save behavior. Choose the smallest affected behavior check by default; deeper diagnostics target a specific symptom/hypothesis, not every check at once.
@@ -37,43 +37,66 @@ Latest explicit wardrobe hold and03:48UTC account/background-business requiremen
 
 <a id="approved-011-decisions"></a>
 
-Canonical update: [Draft PR141](https://github.com/yiyousiow000814/little-leaf/pull/141); documentation publication does not accept the gameplay implementations.
+Canonical update: [Draft PR141](https://github.com/yiyousiow000814/little-leaf/pull/141). This latest user-requested **plan-only update is an explicit exception to the 0.1.11 pause**. Implementation, feature review/testing, other publication and merging remain paused while all active work supports 10a. Keep existing candidates/checkpoints; do not discard them or replace the live trial.
 
-User-approved scope recorded on 2026-10-10 against main `af61a3f3f86fa3754dd6e8b252b6f88e3680e691`. These requirements supplement the existing 76 outcomes; they do not create a second plan or mark any outcome complete. They take precedence over conflicting older candidate/contract wording. PR138 documentation and PR139 repository relocation are merged; organization and its CI result do not establish acceptance of these gameplay changes.
+Reconciled on 2026-10-10 against the retained main `af61a3f3f86fa3754dd6e8b252b6f88e3680e691`. These approved requirements supplement the existing 76 outcomes and take precedence over conflicting earlier decisions and candidate/contract wording. In particular, preserving Stove Upgrade benefits and keeping a green/red map overlay are superseded. PR138/PR139 are merged repository organization; their CI does not accept these gameplay changes.
 
-| Scope / related outcome | Owner | Current implementation / verification status |
+| Scope / related outcome | Owner / existing work | Current status and missing acceptance |
 | --- | --- | --- |
-| Remove Stove Upgrade UI and purchasing; furniture/stove scope 04.03 | Shop/stove — `01a12553-6152-77c1-89f1-b01cc5e5b0ea` | [Draft PR142](https://github.com/yiyousiow000814/little-leaf/pull/142), exact candidate [f699568](https://github.com/yiyousiow000814/little-leaf/commit/f699568a43c9e4e0716ea581366fe52cf612b558), is published. Owner reports 309 focused checks, paired native UI evidence and independent source review; integrated verification and user acceptance remain pending. Not merged or released. |
-| Placement-only red/green and separate walking warning; 06.01 / 06.09 | Placement/model — `01a1246e-649a-715f-91fc-a968ba6cc0de` | Owner-coordinated implementation in progress; exact candidate, save/reload verification and user acceptance pending. |
-| Reachable alternative sink dropoff while washing; service supplement to 04.07 | Checkout/sink — `01a12552-d4ce-733a-84ca-954c39cbe0ed` | Local candidate in progress; owner reports scoped dishwashing checks, final source-bound captures pending. Integration and user acceptance pending; sink visual refinement remains a separate unaccepted requirement. |
-| Serving-table removal and direct chef-workstation pickup; 10.01 / 10.02 | Routing/service — `01a1214f-1100-70f5-a3db-323e05cb50c9` | Reconcile existing implementation/candidate deltas before changing code. Two-chef carry-stall is an observed defect, not a claimed fix. Exact-source regression and visual/integrated acceptance pending. |
+| Fully remove Stove Upgrade, including legacy levels/speed bonuses; stove scope 04.03 | Shop/stove — `01a12553-6152-77c1-89f1-b01cc5e5b0ea`; [Draft PR142](https://github.com/yiyousiow000814/little-leaf/pull/142), reported head [f699568](https://github.com/yiyousiow000814/little-leaf/commit/f699568a43c9e4e0716ea581366fe52cf612b558) | **Requires revision:** that candidate retains paid levels/benefits and does not satisfy this revised requirement. Earlier scoped checks apply only to its former scope. Revised implementation, legacy normalization and acceptance pending; paused. |
+| RC-style permissive placement without map overlay; 06.01 / 06.09 | Placement/model — `01a1246e-649a-715f-91fc-a968ba6cc0de`; reconcile editor [PR103](https://github.com/yiyousiow000814/little-leaf/pull/103) / [PR106](https://github.com/yiyousiow000814/little-leaf/pull/106) once | Revised implementation/save-reload/native-Web acceptance pending; paused. Old-door red area after moving the door is a user-reported defect; a hardcoding cause is unconfirmed. |
+| Sink dropoff until capacity full, alternate side and alternate reachable sink | Checkout/sink — `01a12552-d4ce-733a-84ca-954c39cbe0ed`; service supplement to 04.07 | Prior local concurrent-side candidate/evidence is not proof of the expanded alternate-sink requirement. Revised verification and actual contact/capacity acceptance pending; paused. Preserve washing and separate rim/occlusion acceptance. |
+| Serving-table removal/direct chef-workstation pickup; 10.01 / 10.02 | Routing/service — `01a1214f-1100-70f5-a3db-323e05cb50c9`; reconcile [PR104](https://github.com/yiyousiow000814/little-leaf/pull/104) and [PR125](https://github.com/yiyousiow000814/little-leaf/pull/125) before duplication | Existing decision retained. Shared chef/waiter standing tile is a Little Leaf decision, not verified original RC behavior. Two-chef carry-stall remains observed and unfixed; integrated acceptance pending, paused. |
+| Four parking bays bought through a fixed map sign, not Decorate | Exterior/parking owner to be coordinated before resuming; preserve existing exterior candidates | User confirmed fixed For Sale/unlock-sign purchase like land expansion. Implementation, persistence and actual sign/UI acceptance pending; paused. No new counted outcome or purchase-price policy invented. |
+| One coherent road/parking traffic behavior | Coordinate exterior/traffic and routing owners before resuming; existing road/parking behavior must be reconciled | User reports parking cars appear faster and independently animated. These are unverified observations, not a demonstrated cause or claimed fix. Velocity, conflicts, turns and exit-merge acceptance pending; paused. |
 
 ### Stove Upgrade removal: acceptance
 
-- In 0.1.11, remove the Stove Upgrade entry, controls and purchase mechanism from every supported shop/edit route. Hidden controls must not leave an alternative purchase path that charges coins.
-- Preserve old-save compatibility and already-paid value: existing upgrade levels, associated cooking behavior/speed, ownership/value and serialized state remain intact after load/save/reload. Do not silently downgrade, reset, discard paid value or invent a refund/migration policy.
-- Do not invent a replacement stove catalog, product tiers or new prices. Verify the current stove/service behavior, wallet and save consistency with generated fresh and historical paid-upgrade fixtures, then review the actual UI candidate. Removal is pending until the exact implementation and evidence are accepted.
+- Remove the upgrade UI, purchase paths, model/runtime upgrade mechanism and upgrade-derived levels/speed bonuses. All stoves use base cooking behavior; no hidden purchase or remaining bonus path may survive.
+- Load historical upgraded stoves safely and normalize them to base, including placed/inventory state and subsequent save/reload. Legacy level 2/3 must not retain faster cooking or other upgrade effects. Preserve unrelated stove identity/ownership, dishes/jobs and save integrity.
+- This supersedes the earlier requirement to retain old upgrade benefits. Do not invent a refund/compensation policy, replacement stove catalog, new tiers or prices, or unrelated wallet changes. Record unresolved financial-policy questions rather than filling them in.
+- Acceptance requires exact-source evidence for fresh and legacy-upgraded state, base-speed consistency, absence of all upgrade/purchase routes and stable save/reload, plus the actual UI candidate. PR142 must be revised before it can meet this scope; no completion is claimed.
 
-### Decorate placement feedback: acceptance
+### RC-style permissive placement: acceptance
 
-- Red/green indicates only footprint overlap, bounds and supported floor/wall placement rules. Customer/employee path connectivity, reachability or temporary actor occupancy must never turn an otherwise valid placement red or reject its placement transaction.
-- Show a separate nonblocking walking-cross warning when appropriate. Keep its appearance/text distinct from placement validity; the warning must not prevent purchase, confirm or move. Do not weaken the actual routing/task reachability rules to achieve this UI separation.
-- Exercise valid placement that blocks a walking crossing, invalid overlap/out-of-bounds/unsupported placement, and restoration after the obstruction is removed. Verify the same red/green result and separate warning after save/reload, without changing footprints, ownership or wallet/transaction behavior. Exact-source native/Web visuals and user acceptance remain pending.
+- Remove the **entire green/red map overlay**. Show invalid-placement feedback only on the selected object's physical footprint when it overlaps, exceeds bounds or violates its floor/wall surface rules; do not recolor unrelated map cells.
+- Customer/employee reachability and door connectivity are runtime concerns, not placement vetoes. Allow physically valid staff islands; there is no front-door connectivity requirement. Show a separate nonblocking runtime walking/access warning when needed, without blocking purchase, move or confirm.
+- Verify valid enclosed staff-island placement, overlap/bounds/surface-invalid selected objects, and blocked/unblocked runtime access after save/reload. Preserve actual task routing and ownership; permissive placement does not authorize teleportation.
+- The user reports the old door's red area remains after moving it. Require moving/cancelling/confirming/restoring a door to leave no stale overlay at either position, including save/reload. Cause is unconfirmed; do not record hardcoding as established diagnosis. Actual native/Web and user acceptance remain pending.
 
-### Concurrent sink wash and dropoff: acceptance
+### Concurrent sink wash, dropoff and fallback: acceptance
 
-- A waiter carrying a dirty plate may use a reachable alternative side of the sink while a janitor washes. Reserve the actual interaction cell/job, not the entire sink as an exclusive resource.
-- Preserve the janitor's physical wash contact and active job; select a physically reachable, available dropoff side. Do not route through the sink, steal a reserved cell, teleport the plate or bypass sink capacity.
-- Verify simultaneous physical wash/dropoff, blocked-side fallback and all-sides-blocked retry. Multiple waiters, a full sink, cancellation, pause and save/reload must retain capacity, queue and plate ownership exactly once, without lost/duplicated dishes or stranded jobs. Review the actual hand/plate/body contacts; these service checks do not accept the separate rim/occlusion refinement.
+- Washing occupancy must **not prevent dirty-plate dropoff until the sink's capacity is full**. Use an alternative physically accessible interaction side while the janitor keeps the wash job/contact; do not reserve the whole sink exclusively.
+- When that sink is full or unusable, choose another reachable sink with available capacity. When no valid sink/side exists, retain the carried dish and retry safely; do not bypass capacity, steal a reserved interaction cell, teleport or drop the plate invisibly.
+- Preserve the existing Little Leaf washing mechanic. Restaurant City comparisons do not authorize removing washing, its queue/progress or janitor responsibility.
+- Acceptance covers simultaneous wash/dropoff, blocked-side fallback, full/unusable-sink fallback to another reachable sink, and all-options-blocked retry. Multiple waiters, capacity, cancellation, pause and save/reload must keep plates/queues/ownership exactly once. Review actual body/hand/plate contact separately from the still-pending rim/occlusion refinement.
 
 ### Direct workstation pickup and two-chef defect: acceptance
 
-- Reaffirm the existing 0.1.11 serving-table removal/direct chef-workstation pickup requirement (10.01 / 10.02). Review current implementation, historical PR104 and the coordinated routing candidate first; compose only missing dependency-relative deltas once. Preserve owned legacy serving-counter data, paid value and outstanding handoffs needed for old-save compatibility.
-- During handoff, a waiter may share the chef's logical standing tile; chef occupancy alone must not block pickup. Keep the characters visually distinct through suitable contact positions/offsets, avoiding complete sprite overlap while showing physical plate transfer.
-- Preserve one output-slot/plate owner and one ownership transfer per handoff. Genuine unreachable/occupied alternatives must retain the dish and retry safely; no teleport, duplicate output or lost order. Verify repeated orders with two active chefs, waiter pickup, pause/resume and save/reload.
-- The currently observed two-chef carry-stall remains an open defect until its cause and exact-source correction are demonstrated. Assignment, existing direct-pickup code or scoped test counts do not mark this defect fixed. Require affected regression evidence plus actual service/visual acceptance before integration.
+- Retain 0.1.11 serving-table removal/direct chef-workstation pickup (10.01 / 10.02). Reconcile existing implementation and PR104/PR125 first; compose only missing relative deltas once. Preserve legacy owned counters and outstanding handoffs needed for safe old-save compatibility.
+- During handoff, the waiter may share the chef's logical standing tile; chef occupancy alone must not block pickup. Keep distinct physical/visual contact positions so their full sprites do not overlap. This is **our approved Little Leaf behavior**; the original RC shared-tile rule is unverified.
+- Preserve one output-slot/plate owner and one handoff transfer. Verify repeated two-chef orders, waiter pickup, genuine blocked-path retry, pause and save/reload without duplicate/lost plates or stranded orders.
+- The observed two-chef carry-stall stays open until an exact-source cause/correction and actual service/visual acceptance are demonstrated. Existing code, assignment or historical checks do not establish a fix.
 
-Only this canonical roadmap is edited for these decisions. Each owner keeps implementation/evidence in the related existing or focused PR and reports its exact head/tree. Source checks, tests, actual pixels, user acceptance, merge and release remain separate; original saves, live Firebase, user browser and user-owned FPS work stay protected.
+### Fixed four-bay parking purchase: acceptance
+
+- Purchase/unlock the four parking bays through a **fixed map For Sale/unlock sign**, analogous to land expansion. Remove this parking purchase/object from the placeable Decorate catalog; it must not be dragged, relocated or instantiated as ordinary furniture.
+- Show fixed-location locked/unlocked state and a clear purchase action. Cancellation must not spend coins; successful repeated activation/reload must not double-charge, duplicate bays or reset ownership. Retain the accepted location/four-bay scope without inventing new prices or an economy policy.
+- Acceptance requires actual sign interaction, cancellation, insufficient funds, repeat activation and save/reload plus usable unlocked bays. Existing exterior visuals or road-car animation alone do not establish this behavior.
+
+### Coherent road and parking traffic: acceptance
+
+- Road cars and parking cars follow the same coherent traffic rules and velocity scale. Approach parking entrances slowly, yield/wait on conflict, turn into a bay smoothly, and yield before merging back into road traffic on exit.
+- Use consistent movement/animation through road-to-parking and parking-to-road transitions. No sudden speed jump, teleport, snapping turn, conflicting-car overlap or independent animation that bypasses traffic ownership.
+- Treat the user's faster-parking/independent-animation observations as reports pending reproduction; do not claim the discrepancy or its cause verified. Acceptance requires exact-source observation of approach, competing entry, occupied/blocked bay, smooth turn-in, exit-merge conflict and save/reload state, with no duplicate car or stranded claim.
+
+### Restaurant City reference limits
+
+[Gamezebo's Restaurant City guide](https://www.gamezebo.com/walkthroughs/restaurant-city-walkthrough/) describes equal-speed stoves, enclosed waiter arrangements and customer-access considerations. These support the comparison, but do not establish RC's placement-validator/overlay behavior or exact shared chef tile. Our permissive placement, overlay removal and shared-tile decisions are user-approved Little Leaf scope.
+
+[Steelowl's customer-flow guide](https://steelowl.wordpress.com/2009/05/18/resturant-city-customer-flow/) discusses customer routing and optional handwashing sinks. That RC sink description is contextual and does not replace Little Leaf's dishwashing mechanic. No unverified historical mechanic is promoted to code/test acceptance.
+
+Only this canonical roadmap is updated under the explicit plan exception. The six criteria groups retain the existing 76 outcomes and prior dated evidence. Feature implementation/review/testing/publication remains paused; FPS stays user-owned and user-reported basically resolved. Source, tests, pixels, user acceptance, merge and release remain separate; original saves, live Firebase and the user browser remain untouched.
 
 ## 当前执行状态与完整历史规划
 
