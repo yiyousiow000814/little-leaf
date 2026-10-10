@@ -29,7 +29,7 @@ class API:
         self.calls.append((method, path, data, upload))
         if path == hosting.PREVIEW_PATH:
             return deepcopy(self.channel)
-        if path == hosting.SITE_PATH + '/releases?pageSize=1': return self.live
+        if path == hosting.SITE_PATH + '/releases?pageSize=1': return deepcopy(self.live)
         if method == 'GET' and path == OLD: return {'name': OLD, 'status': 'FINALIZED', 'config': self.config}
         if path == hosting.SITE_PATH + '/versions':
             assert data == {'config': CONFIG};return {'name': NEW}
@@ -37,10 +37,12 @@ class API:
             return {'uploadUrl': 'https://upload-firebasehosting.googleapis.com/upload/' + NEW + '/files', 'uploadRequiredHashes': []}
         if method == 'PATCH':
             if self.failure == 'concurrent': self.channel['release']['name'] += 'concurrent'
+            if self.failure == 'live-concurrent': self.live['releases'][0]['name'] += 'concurrent'
             return {'name': NEW, 'status': 'FINALIZED'}
         if '/releases?' in path:
             if self.failure == 'release': raise RuntimeError('uncertain')
             self.channel['release'] = {'name': hosting.PREVIEW_PATH + '/releases/new', 'version': {'name': NEW}, 'type': 'DEPLOY'}
+            if self.failure == 'post-expiry': self.channel['expireTime'] = '2026-10-12T00:00:00Z'
             return self.channel['release']
         raise AssertionError((method, path))
 
@@ -87,9 +89,17 @@ class UpdateTests(unittest.TestCase):
         self.assertTrue(all(method == 'GET' for method, *_ in api.calls))
 
     def test_concurrent_preview_change_stops_before_release(self):
-        api = API('concurrent')
+        for failure in ['concurrent', 'live-concurrent']:
+            self.output = Path(self.temp.name) / (failure + '.json');api = API(failure)
+            with self.subTest(failure=failure), self.assertRaises(ValueError): self.run_update(api)
+            self.assertFalse(any(method == 'POST' and '/releases?' in path for method, path, *_ in api.calls))
+
+    def test_post_release_expiry_change_is_not_accepted_or_repaired(self):
+        api = API('post-expiry')
         with self.assertRaises(ValueError): self.run_update(api)
-        self.assertFalse(any(method == 'POST' and '/releases?' in path for method, path, *_ in api.calls))
+        self.assertEqual(json.loads(self.output.read_text())['status'], 'preview-published-pending-public-check')
+        self.assertEqual(sum(method == 'POST' and '/releases?' in path for method, path, *_ in api.calls), 1)
+        self.assertFalse(any(method == 'PATCH' and path == hosting.PREVIEW_PATH for method, path, *_ in api.calls))
 
     def test_uncertain_release_retains_receipt_and_never_retries(self):
         api = API('release')
