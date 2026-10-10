@@ -1,5 +1,6 @@
 extends SceneTree
 const Art=preload("res://scripts/illustrated_cafe.gd")
+const Main=preload("res://scripts/main.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -9,6 +10,12 @@ func _initialize():
  var dots=Art.bubble_symbol_geometry("…")
  var warning=Art.bubble_symbol_geometry("!")
  var angry=Art.bubble_symbol_geometry("angry")
+ var game=Main.new()
+ var ordering_token=game._guest_bubble_symbol({"id":1,"phase":"ordering"})
+ check(ordering_token=="…","real Main emits the original Unicode ordering token")
+ check(Art.bubble_symbol_geometry(ordering_token)==dots,"renderer recognizes real Main ordering token without encoding loss")
+ for node in [game.world,game.furnishings,game.people,game.camera,game.ui]:node.free()
+ game.free()
  check(dots.dots.size()==3 and not dots.has("stem"),"Ordering must remain three separate dots")
  check(warning.dots.size()==1 and warning.has("stem"),"Blocked must remain a stem and separate dot")
  check(Art.bubble_symbol_geometry("").is_empty(),"Empty status must draw no mark")

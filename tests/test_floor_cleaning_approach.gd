@@ -60,7 +60,7 @@ func run():
 	game.model.built_walls.clear();game.model.revision+=1
 	# No route, job, contact, claim or model coordinate may change when only
 	# the actual renderer advances its feet and stance.
-	var staff={"pos":center,"path":[Vector2i(5,5)],"index":1,"destination":Vector2i(5,5),"job_kind":"floor","job_mess_id":7,"job_step":1,"job_elapsed":.4,"art_action":"sweeping","art_target":center+Vector2(1,-.6),"art_station":center+Vector2.LEFT,"art_phase":.32,"art_payload":"none","art_tool":"broom"}
+	var staff={"role":"cleaner","pos":center,"path":[Vector2i(5,5)],"index":1,"destination":Vector2i(5,5),"job_kind":"floor","job_mess_id":7,"job_step":1,"job_elapsed":.4,"art_action":"sweeping","art_target":center+Vector2(1,-.6),"art_station":center+Vector2.LEFT,"art_phase":.32,"art_payload":"none","art_tool":"broom"}
 	game.staff_states=[staff]
 	var saved=staff.duplicate(true)
 	art.update_motion(0.0)

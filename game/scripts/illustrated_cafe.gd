@@ -1223,7 +1223,7 @@ func _draw():
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
 				line(Vector2(-1.7,-82.5),Vector2(-1.7,-77.5),"819071",1.4);line(Vector2(1.7,-82.5),Vector2(1.7,-77.5),"819071",1.4)
-			var bubble_symbol="â€¦" if e.type=="guest" and str(d.phase)=="ordering" else ("!" if e.type=="staff" and action=="blocked" else "")
+			var bubble_symbol="…" if e.type=="guest" and str(d.phase)=="ordering" else ("!" if e.type=="staff" and action=="blocked" else "")
 			# Archived service fixtures keep their original ordering-only display.
 			if e.type=="guest" and game.has_method("_guest_bubble_symbol"):bubble_symbol=game._guest_bubble_symbol(d)
 			if not bool(e.get("reach_overlay",false)) and bubble_symbol!="":
@@ -1888,7 +1888,7 @@ func bubble(p: Vector2,words: String):
 	if raster:art_draw_set_transform_matrix(_art_transform)
 
 static func bubble_symbol_geometry(words:String)->Dictionary:
-	if words=="â€¦":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
+	if words=="…":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
 	if words=="!":return {"dots":[Vector2(0,4.0)],"radius":.8,"stem":[Vector2(0,-4.0),Vector2(0,1.5)],"width":1.5}
 	if words=="angry":return {"face_radius":7.0,"face_fill":"e6b079","color":"57674d",
 		"dots":[Vector2(-2.6,-.45),Vector2(2.6,-.45)],"radius":.8,"width":1.15,
