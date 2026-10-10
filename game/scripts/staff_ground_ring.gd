@@ -8,6 +8,7 @@ var enabled = false
 var _rings: Dictionary = {}
 var _arcs: Array = []
 var _phase = 0.0
+static var _geometry: Array = _make_geometry()
 
 class Ring:
 	extends Node2D
@@ -15,7 +16,8 @@ class Ring:
 	func _draw():
 		for arc in arcs: draw_colored_polygon(arc, Color(1, 1, 1, .82))
 
-func _init():
+static func _make_geometry() -> Array:
+	var geometry: Array = []
 	# Unit annular arcs are built once. Rotation precedes isometric flattening.
 	for half in range(2):
 		var arc = PackedVector2Array()
@@ -25,8 +27,21 @@ func _init():
 		for i in range(32, -1, -1):
 			var angle = half * PI + deg_to_rad(12.0 + 156.0 * i / 32.0)
 			arc.append(Vector2(cos(angle), sin(angle)) * .87)
-		_arcs.append(arc)
+		geometry.append(arc)
+	return geometry
+
+func _init():
+	_arcs = _geometry
 	visible = false
+
+static func placement(foot_anchor: Vector2, visual_seconds: float, scale_factor: float) -> Transform2D:
+	var angle = fposmod(visual_seconds, PERIOD_SECONDS) * TAU / PERIOD_SECONDS
+	return Transform2D(0, RADIUS * scale_factor, 0, foot_anchor) * Transform2D(angle, Vector2.ZERO)
+
+static func paint(artist):
+	# For the existing native retained-object painter: static unit geometry,
+	# flattened/rotated only by placement, outside all character paint callbacks.
+	for arc in _geometry: artist.art_draw_colored_polygon(arc, Color(1, 1, 1, .82))
 
 func sync_staff(foot_anchors: Dictionary, visual_seconds: float, paused: bool = false, scale_factor: float = 1.0):
 	visible = enabled

@@ -39,6 +39,9 @@ const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
 const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
+const StaffGroundRing=preload("res://scripts/staff_ground_ring.gd")
+# Comparison fixture switch; normal gameplay enables the separate ground layer.
+var use_staff_ground_rings=true
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
 const MovingAtlas=preload("res://scripts/moving_art_atlas.gd")
@@ -937,6 +940,7 @@ func _draw():
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
+	_draw_staff_ground_rings(show_service)
 	if game.interaction!=null:game.interaction.draw_floor_feedback(self)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
 	if game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
@@ -1515,6 +1519,19 @@ func _plant(p: Vector2):
 		for k in range(24): points.append(q+Vector2(cos(k*TAU/24)*d[3],sin(k*TAU/24)*d[4]).rotated(d[2]))
 		poly(points,"73924f" if i%2 else "88a15e")
 		line(q+Vector2(-d[3]*.6,0).rotated(d[2]),q+Vector2(d[3]*.6,0).rotated(d[2]),Color(.65,.73,.43,.65),.7)
+
+func _draw_staff_ground_rings(show_service:bool):
+	if not show_service or not use_staff_ground_rings:return
+	var scale_factor=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	for index in range(mini(game.staff_states.size(),StaffGroundRing.MAX_RINGS)):
+		var staff=game.staff_states[index]
+		var position=_render_position("staff_%s"%index,staff.pos)
+		var anchor=iso(position.x,position.y)
+		if not _render_anchor_visible(anchor):continue
+		_set_art_matrix(StaffGroundRing.placement(anchor+_presentation_offset,game.animation_time,scale_factor))
+		var callback=StaffGroundRing.paint.bind(self)
+		if not retain_native_local_object(callback,["staff-ground-ring",index],_art_transform):callback.call()
+	art_transform(Vector2.ZERO)
 
 func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 	# Feet track the rendered body (including a short within-cell work lean),

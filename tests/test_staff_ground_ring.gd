@@ -58,6 +58,28 @@ func run():
 	directory = OS.get_environment("STAFF_RING_OUTPUT")
 	if directory.is_empty(): directory = OS.get_user_data_dir().path_join("staff-ring-synthetic")
 	DirAccess.make_dir_recursive_absolute(directory)
+	if DisplayServer.get_name() == "headless":
+		var layer = GroundRing.new()
+		root.add_child(layer)
+		layer.sync_staff({"staff": Vector2.ZERO}, 0)
+		check(layer.get_child_count() == 0, "disabled layer allocates no nodes")
+		layer.enabled = true
+		var roster: Dictionary = {}
+		for i in range(100): roster[i] = Vector2(i, 0)
+		layer.sync_staff(roster, 3)
+		check(layer.get_child_count() == GroundRing.MAX_RINGS, "retained inventory is bounded by fixed staff limit")
+		var phase = layer.inventory().phase
+		var children = layer.get_children()
+		layer.sync_staff(roster, 8, true)
+		check(layer.inventory().phase == phase and layer.get_children() == children, "pause retains phase, nodes and geometry")
+		layer.sync_staff({"staff": Vector2.ZERO}, 4)
+		check(layer.get_child_count() == 1, "roster shrink releases retired nodes")
+		layer.clear()
+		check(layer.get_child_count() == 0 and layer.inventory().rings == 0, "clear releases all nodes")
+		layer.free()
+		print("STAFF_GROUND_RING_RESULT ", JSON.stringify({"checks": checks, "failures": failures, "player_saves_used": false, "surface": "headless retained ownership only; no pixel acceptance"}))
+		quit(0 if failures.is_empty() else 1)
+		return
 	root.size = Vector2i(1024, 560)
 	root.add_child(Floor.new())
 	rings = GroundRing.new()
