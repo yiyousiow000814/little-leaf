@@ -152,4 +152,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python3 ci/github_latest.py
+        run: python3 tools/github_latest.py

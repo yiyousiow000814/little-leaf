@@ -29,7 +29,7 @@ The existing complete engine suite and ordinary export remain prerequisites:
 
 ```sh
 python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/engine-evidence"
-python3 ci/build_web.py --output "$RUNNER_TEMP/web-build" \
+python3 tools/build_web.py --output "$RUNNER_TEMP/web-build" \
   --test-report "$RUNNER_TEMP/engine-evidence/summary.json"
 PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" \
 PLAYWRIGHT_CHROMIUM_CHANNEL=chrome \

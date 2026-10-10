@@ -1,3 +1,5 @@
+import {createRequire as sourceRequire} from 'node:module';
+const {sourcePath}=sourceRequire(import.meta.url)('../../tests/source_paths.js');
 // Actual compiled Godot UI + production boot/adapter/session/update + Firestore emulator.
 // Only authentication is synthetic. No production endpoint, token or player save is used.
 import assert from 'node:assert/strict';
@@ -15,13 +17,13 @@ import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testin
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const {installEngineLaunchHook}=require('../tests/engine_launch_hook.js');
-const root=path.resolve(import.meta.dirname,'..');
+const {installEngineLaunchHook}=require('../../tests/engine_launch_hook.js');
+const root=path.resolve(import.meta.dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);assert(i>=0 && process.argv[i+1],name+' required');return path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),native=arg('--engine-report');
 const geometryProject=process.env.CLOUD_GEOMETRY_PROJECT;assert(geometryProject,'disposable native geometry required');
 const geometryBinding=JSON.parse(fs.readFileSync(path.join(geometryProject,'../binding.json')));
-for(const [name,digest] of Object.entries(geometryBinding.source_sha256))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),digest,'geometry source '+name);
+for(const [name,digest] of Object.entries(geometryBinding.source_sha256))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(sourcePath(root,name))).digest('hex'),digest,'geometry source '+name);
 const engine=JSON.parse(fs.readFileSync(native)),manifest=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json')));
 assert.equal(engine.status,'passed');assert.equal(engine.source_commit,manifest.source_commit);assert.equal(engine.player_save_used,false);
 function nativeResult(name,marker){const log=fs.readFileSync(path.join(path.dirname(native),name+'.log'),'utf8');const rows=log.split('\n').filter(line=>line.startsWith(marker+' '));assert.equal(rows.length,1,'one exact native geometry result');return JSON.parse(rows[0].slice(marker.length+1));}
@@ -32,23 +34,23 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(sourcePath(root,n)))]))};
 const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
-vm.runInThisContext(fs.readFileSync(path.join(root,'web/little_leaf_vault.js'),'utf8'));
+vm.runInThisContext(fs.readFileSync(path.join(root,'platform/web/little_leaf_vault.js'),'utf8'));
 const codec=globalThis.LittleLeafAuthorityCodec;
 async function record(revision,coins,profileId=crypto.randomUUID()){
  const r={format:2,profileId,revision,createdAt:1,updatedAt:1700000000000+revision*1000,payload:JSON.stringify({...fixture,coins,operating_open:false}),digest:null,origin:{source:'fresh',legacyDigest:null,importedAt:1},previous:null,campaigns:{}};
  r.digest=await codec.hash(codec.fingerprint(r));return r;
 }
 const envelope=(r,device='iPhone')=>({schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r),device});
-const env=await initializeTestEnvironment({projectId:'demo-little-leaf',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(root,'firebase/firestore.rules'),'utf8')}});
+const env=await initializeTestEnvironment({projectId:'demo-little-leaf',firestore:{host:'127.0.0.1',port:8080,rules:fs.readFileSync(path.join(root,'platform/firebase/firestore.rules'),'utf8')}});
 const fixtureStore=createFixtureStore(env);
 const read=(uid,kind='save')=>fixtureStore.read(uid,kind);
 const seed=(uid,r)=>fixtureStore.seed(uid,envelope(r));
 const sdkRoot=path.dirname(require.resolve('firebase/package.json'));
-const source=name=>fs.readFileSync(path.join(root,'web',name),'utf8');
+const source=name=>fs.readFileSync(path.join(root,'platform/web',name),'utf8');
 let release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
 const config={apiKey:'emulator-synthetic-key',authDomain:'127.0.0.1',projectId:'demo-little-leaf',appId:'1:123:web:synthetic'};
 let html=fs.readFileSync(path.join(web,'index.html'),'utf8');

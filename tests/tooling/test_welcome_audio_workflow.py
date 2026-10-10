@@ -29,17 +29,17 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
         self.assertIn('test -z "$(git status --porcelain --untracked-files=no)"', self.text)
 
     def test_successful_artifact_preflight_precedes_browser_without_rebuild(self):
-        preflight = self.text.index("python3 ci/reuse_welcome_web.py")
+        preflight = self.text.index("python3 tools/reuse_welcome_web.py")
         browser = self.text.index("node tests/welcome_audio_browser.js --source-root")
         selected_download = self.text.index("actions/download-artifact@")
-        verified_download = self.text.index("python3 ci/reuse_welcome_web.py --phase verify")
+        verified_download = self.text.index("python3 tools/reuse_welcome_web.py --phase verify")
         self.assertLess(preflight, selected_download)
         self.assertLess(selected_download, verified_download)
         self.assertLess(verified_download, browser)
         self.assertIn("artifact-ids: ${{ steps.selected_web.outputs.artifact_id }}", self.text)
         self.assertIn("run-id: ${{ steps.selected_web.outputs.run_id }}", self.text)
         self.assertIn("digest-mismatch: error", self.text)
-        for forbidden in ("tests/run_integration_candidate.py", "ci/build_web.py", "ci/install_tools.py", "continue-on-error"):
+        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/install_tools.py", "continue-on-error"):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("actions: read", self.text)
         for input_name in ("web_run_id", "web_artifact_id"):
@@ -55,7 +55,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
 
     def test_offline_harness_and_guards_are_mandatory(self):
         self.assertIn("node tests/welcome_audio_test.js", self.text)
-        self.assertIn("python3 ci/verify_prebaked_atlases.py", self.text)
+        self.assertIn("python3 tools/verify_prebaked_atlases.py", self.text)
         self.assertIn("python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v", self.text)
         for file in ("browser", "helpers", "observer"):
             self.assertIn("node --check tests/welcome_audio_" + file + ".js", self.text)

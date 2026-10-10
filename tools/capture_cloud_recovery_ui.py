@@ -12,6 +12,7 @@ import time
 import subprocess
 import tempfile
 import zipfile
+from project_layout import stage_project
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b8b80eea57ac3cb141cb5c771b375207a284436a"
@@ -82,11 +83,16 @@ def main():
             for label, commit in (("before", BASE), ("after", head)):
                 project = tmp / label / "project"
                 project.mkdir(parents=True)
+                archive_root = tmp / label / "source"
                 with zipfile.ZipFile(io.BytesIO(git("archive", "--format=zip", commit))) as archive:
                     for name in archive.namelist():
                         if Path(name).is_absolute() or ".." in Path(name).parts:
                             raise RuntimeError("Unsafe repository archive path")
-                    archive.extractall(project)
+                    archive.extractall(archive_root)
+                # Each revision keeps its own old/new filesystem layout; Godot
+                # receives a disposable project with the same resource labels.
+                project.rmdir()
+                stage_project(archive_root, project, tests=True)
                 original = {str(p.relative_to(project)): digest(p.read_bytes())
                             for p in sorted(project.rglob("*")) if p.is_file()}
                 (project / FIXTURE).parent.mkdir(parents=True, exist_ok=True)

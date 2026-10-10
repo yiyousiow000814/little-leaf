@@ -24,7 +24,7 @@ without redundant hardcoded current-source hashes. The candidate vault now inclu
 the Inbox projection and is not declared identical to the historical vault.
 
 Both full exports must have a `release-manifest.json` from their own existing
-`ci/build_web.py`, marked `checksum-pinned-official-archives`. Commit identities,
+`tools/build_web.py`, marked `checksum-pinned-official-archives`. Commit identities,
 source/packed bytes and installer receipts are checked. The helper derives click
 coordinates from each exact source in a disposable native project, validates both
 fixtures with the candidate codec, and confirms the expected one-tile edit.
@@ -98,7 +98,7 @@ state. This does not relax the sandbox or authorize a local denied launch.
 For an already prepared pair of exact exports:
 
 ```sh
-python3 ci/prepare_browser_qa.py wall \
+python3 tools/prepare_browser_qa.py wall \
   --old-source /path/to/exact-old-checkout \
   --old-build /path/to/old-web-build \
   --new-build /path/to/new-web-build \

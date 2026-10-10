@@ -3,7 +3,7 @@
 // firebase_recovery_browser.js; neither suite uses a real Firebase account.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
 const root={crypto:webcrypto,TextEncoder};root.globalThis=root;
-for(const name of ['little_leaf_vault','little_leaf_firebase'])vm.runInNewContext(fs.readFileSync(`web/${name}.js`,'utf8'),root);
+for(const name of ['little_leaf_vault','little_leaf_firebase'])vm.runInNewContext(fs.readFileSync(`platform/web/${name}.js`,'utf8'),root);
 const codec=root.LittleLeafAuthorityCodec,api=root.LittleLeafFirebase,fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const clone=x=>x==null?null:JSON.parse(JSON.stringify(x)),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),fail=code=>Object.assign(Error(code),{code});
 async function record(revision,coins,profileId=webcrypto.randomUUID()){

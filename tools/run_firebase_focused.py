@@ -11,7 +11,7 @@ COMMANDS={'adapter.log':['node','tests/firebase_storage.js'],
  'recovery-presentation.log':['node','tests/firebase_recovery_presentation.js'],
  'recovery-browser.log':['node','tests/firebase_recovery_browser.js'],
  'staging-tests.log':[sys.executable,'tests/test_firebase_build.py'],
- 'rules.log':['npm','--prefix','firebase','run','test:rules']}
+ 'rules.log':['npm','--prefix','platform/firebase','run','test:rules']}
 def run(name,output):
     output.mkdir(parents=True,exist_ok=True)
     receipt=output/(name+'.json');receipt.unlink(missing_ok=True)

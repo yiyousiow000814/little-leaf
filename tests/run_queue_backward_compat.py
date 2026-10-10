@@ -1,3 +1,4 @@
+import sys
 """Verify a candidate queue save with the exact v0.1.9 reader, headlessly.
 
 Uses fresh archived baseline/current source copies and disposable profiles only.
@@ -14,6 +15,8 @@ import subprocess
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 BASE = "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401"
 
 
@@ -31,7 +34,7 @@ def main():
     with tarfile.open(archive) as source:
         source.extractall(baseline, filter="data")
     candidate = output / "candidate-project"
-    shutil.copytree(ROOT, candidate, ignore=shutil.ignore_patterns(
+    stage_project(ROOT, candidate, tests=True, ignore=shutil.ignore_patterns(
         ".git", ".godot", "qa-project", "__pycache__", "evidence", "*.log"))
     shutil.copy2(ROOT / "tests/queue_backward_fixture.gd", baseline / "tests/queue_backward_fixture.gd")
     report = {"baseline_commit": BASE, "candidate_commit": subprocess.check_output(
