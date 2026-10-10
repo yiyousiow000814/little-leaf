@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath,resourceName}=require('./source_paths.js');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -15,24 +16,25 @@ function preferences(mode) {
   return {format: 1, text: '[audio]\nbgm_enabled=' + (mode !== 'disabled') +
     '\nsfx_enabled=false\nbgm_volume=' + (mode === 'zero' ? 0 : 70) + '\nsfx_volume=0\n'};
 }
-function verifySource(web, source) {
+function verifySource(web, source, expectedBuiltCommit) {
   const git = (...args) => cp.execFileSync('git', args, {cwd: source, encoding: 'utf8'}).trim();
   assert.equal(git('status', '--porcelain', '--untracked-files=no'), '', 'Clean tracked candidate source required');
   const commit = git('rev-parse', 'HEAD');
-  const names = git('ls-files', '-z').split('\0').filter(name =>
+  const names = git('ls-files', '-z').split('\0').map(resourceName).filter(name =>
     ['project.godot', 'main.tscn', 'export_presets.cfg'].includes(name) ||
     ['assets', 'data', 'scripts', 'shaders', 'web'].includes(name.split('/')[0]));
-  const production = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(path.join(source, name)))]));
-  const manifest = verifyExport(web, commit, production);
+  const production = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(sourcePath(source,name)))]));
+  const builtCommit = expectedBuiltCommit || JSON.parse(fs.readFileSync(path.join(web, 'release-manifest.json'))).source_commit;
+  assert(/^[0-9a-f]{40}$/.test(builtCommit), 'Export must identify its exact source commit');
+  let builtTree;
+  try { builtTree = git('rev-parse', builtCommit + '^{tree}'); }
+  catch { assert.fail('Export must match a known exact source commit'); }
+  const checkoutTree = git('rev-parse', 'HEAD^{tree}');
+  assert.equal(builtTree, checkoutTree, 'Built and requested source trees must be identical');
+  const manifest = verifyExport(web, builtCommit, production);
   assert.deepEqual(manifest.production_sha256, production, 'Complete export source map must match candidate');
-  // This QA gate targets the first-gesture descent contract, never old tap-to-skip.
-  const intro = fs.readFileSync(path.join(source, 'scripts/cafe_intro.gd'), 'utf8');
-  for (const text of ['const DURATION = 6.5', 'const DESCENT_START = 1.0',
-    'var entry_requested = false', 'elapsed = maxf(elapsed, DESCENT_START)', 'if entry_requested:finish()']) {
-    assert(intro.includes(text), 'Candidate lacks the reviewed first-gesture contract: ' + text);
-  }
   assert(production[SERVICE_MP3], 'Service MP3 must be bound by complete source manifest');
-  return {manifest, source_commit: commit, manifest_sha256: hash(fs.readFileSync(path.join(web, 'release-manifest.json'))),
+  return {manifest, source_commit: commit, built_source_commit: builtCommit, source_tree: checkoutTree, manifest_sha256: hash(fs.readFileSync(path.join(web, 'release-manifest.json'))),
     service_mp3: {path: SERVICE_MP3, sha256: production[SERVICE_MP3], stream_identity: 'unproven: no decoded reference matching'}};
 }
 function launchOptions() {

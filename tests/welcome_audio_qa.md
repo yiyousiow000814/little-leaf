@@ -20,14 +20,21 @@ is not a browser pass, music identification, listening test or visual acceptance
 
 ## Integrate and run later
 
-1. Keep the runtime first-gesture change separately reviewable. Cherry-pick this
-   test-only commit into the reviewed candidate, or run this harness with an
-   explicit clean `--source-root` checkout. The candidate must contain the normal
-   6.5-second intro, 1-second descent start and first-gesture entry contract.
-2. Run the complete existing engine gate, then `ci/build_web.py` against that exact
-   clean candidate commit. A focused engine run cannot replace the complete gate.
-   The probe reuses `verifyExport`, checks every packed file's size and SHA-256,
-   and compares the entire production hash map to the candidate checkout.
+1. Use an explicit clean `--source-root` checkout. Entry/skip behavior is
+   protected by `test_intro_lifecycle_headless.gd`; this diagnostic binds source
+   identity without requiring a particular script spelling or intro constants.
+2. Reuse a successful **Check and build Web** run for that exact commit. Dispatch
+   `.github/workflows/welcome-audio.yml` on the built commit with `web_run_id` and
+   `web_artifact_id`. PR Web exports use the merge commit, not the API head SHA:
+   the reusable `build-web.yml` reference and artifact name bind the actual built
+   SHA. The requested checkout may have a different SHA only when the complete
+   Git trees (including build/test inputs) match. Both identities are retained.
+   `tools/reuse_welcome_web.py` checks the successful run, successful attempt,
+   ordinary-Web artifact ID/name, expiry, exact manifest commit, entire production
+   hash map and packed file sizes/SHA-256 before opening a browser. The pinned
+   download action selects the validated artifact ID directly. Missing or
+   mismatched evidence fails; there is no automatic engine/export fallback.
+   Run the ordinary Web gate once when no valid artifact exists.
 3. Install Playwright 1.63.0 and its bundled Chromium. Existing workflow setup
    installs Chromium dependencies but uses system Chrome for other gates. This
    probe requires the pinned bundled Chromium, with no channel or executable
@@ -46,8 +53,8 @@ is not a browser pass, music identification, listening test or visual acceptance
 
 4. Budget four minutes for the nine browser cases after installation. Preserve
    the evidence directory on failure as well as success. Review the screenshots
-   before claiming visual acceptance. The branch-scoped workflow below runs the
-   offline commands and actual browser command after the exact Web export.
+   before claiming visual acceptance. The manual workflow runs the offline
+   commands and actual browser command after exact-artifact preflight.
    Preparing the workflow locally does not authorize publishing or running it.
 
 ## Evidence and gates
@@ -150,15 +157,14 @@ frame is responsive. The measured goal is the user's opening/welcome/descent
 interval, not a new steady-state restaurant FPS requirement. Software-renderer
 measurements do not establish user-hardware FPS.
 
-`.github/workflows/welcome-audio.yml` is branch-scoped to
-`fix/10a-ready-welcome`. It runs the complete disposable-profile engine gate,
-checksum-pinned ordinary-Web export and packed smoke, then nine sandboxed,
-pinned bundled-Chromium gesture/control cases. Corrected silent-control coverage
-from `d32402e` remains mandatory. It uploads source-bound logs/observations and
-screenshots, never profiles. Passing does not establish physical audibility or
-exact decoded-track identity.
+`.github/workflows/welcome-audio.yml` is an explicit manual diagnostic. It
+requires IDs for a successful exact-source ordinary-Web run and its unexpired
+artifact. The complete engine/export gate and browser save regressions stay in
+`build-web.yml` and run once there. Audio QA reuses that checked artifact and
+retains its source-binding receipt alongside the unchanged audio observations.
+It fails closed without rebuilding when source identity or evidence is missing.
 
-The independent final-startup comparison workflow pins the immutable 9d29138
+The independent manual final-startup comparison workflow pins the immutable 9d29138
 base and exact PR111 QA toolkit `aedf46c452a3e05d0c84e8be0d6a4f6949f3c1a4`.
 Both products are freshly exported with symmetric diagnostic/control subclasses.
 Its timing window has no screenshots, profiling, input or audio sampling; packet

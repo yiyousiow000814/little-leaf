@@ -1,6 +1,6 @@
 extends SceneTree
 ## Focused design contract, not a production migration or full game test suite.
-const Segments=preload("res://qa/prototypes/shell_segment_contract.gd")
+const Segments=preload("res://tests/fixtures/shell_segment_contract.gd")
 const Model=preload("res://scripts/cafe_model.gd")
 const Geometry=preload("res://scripts/cafe_wall_openings.gd")
 var checks=0

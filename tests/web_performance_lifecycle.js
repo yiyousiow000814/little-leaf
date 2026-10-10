@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../scripts/cafe_web_lifecycle.gd'), 'utf8').split('const DOM_SOURCE = """')[1].split('"""')[0];
+const source = fs.readFileSync(path.join(__dirname, '../game/scripts/cafe_web_lifecycle.gd'), 'utf8').split('const DOM_SOURCE = """')[1].split('"""')[0];
 class Target {
   constructor() { this.handlers = {}; }
   addEventListener(type, handler) { (this.handlers[type] ??= new Set()).add(handler); }
@@ -48,7 +48,7 @@ assert.deepEqual(returnEvents.at(-1), ['visible', false], 'foreground return res
 window.__littleLeafLifecycleV1.current.dispose();
 console.log(JSON.stringify({ checks: 4, failures: [], scope: 'pagehide/foreground-return order and negative hidden resume' }));
 (async () => {
-  const preferences = fs.readFileSync(path.join(__dirname, '../web/little_leaf_preferences.js'), 'utf8');
+  const preferences = fs.readFileSync(path.join(__dirname, '../platform/web/little_leaf_preferences.js'), 'utf8');
   const oldText = '[audio]\nbgm_enabled=false\nbgm_volume=37\n[play]\nspeed=2\n';
   const saved = new Map([['little-leaf.preferences.v1', JSON.stringify({ format: 1, text: oldText })]]);
   const storage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value) };

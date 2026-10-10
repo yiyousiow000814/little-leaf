@@ -1,57 +1,23 @@
-# Development
+# Little Leaf documentation
 
-## Run
+Start with the [repository README](../README.md) to open the game. Read the [canonical roadmap](roadmap.md) before choosing work: it is the single current editing plan, with original requirements through 0.3.2, dependencies, ownership and acceptance gates. Library master v3 is a historical snapshot, not a synchronized editing copy.
 
-Open `project.godot` in Godot **4.6.3**, use **GL Compatibility**, and press **F5**. From the repository root, `godot --path .` also starts the game.
+Choose the guide for what you want to do:
 
-Normal play reads and writes local saves. Use a separate profile and copied saves for experiments.
+| Purpose | Start here | What it covers |
+| --- | --- | --- |
+| Design | [Design](design/README.md) | Player outcomes, character and building contracts, routing rules |
+| Development | [Development](development/README.md) | Open/build the project, implementation and save boundaries |
+| Art and audio | [Art and audio](art-audio/README.md) | Asset permissions, provenance and source-bound visual records |
+| Testing | [Testing](testing/README.md) | Acceptance criteria, browser gates, focused regression and visual evidence |
+| Release | [Release](release/README.md) | Checked builds, platform previews, publication and recovery |
 
-## Test
+For agent work, [AGENTS.md](../AGENTS.md) links the canonical rules and developer commands. Generated profiles, screenshots, logs and private operational handoffs stay outside tracked source.
 
-With Python 3 and Godot 4.6.3 on Linux or macOS:
+## Reading historical evidence
 
-```sh
-python3 tests/run_integration_candidate.py --output /tmp/little-leaf-qa
-```
+An area's `history/` preserves dated approvals, reviews, failed evidence and recovery records. Their statements describe the source and date recorded there; they do not establish current implementation, merge, release or pixel acceptance. Use the roadmap's current-state section first.
 
-Use a new output directory for each run. Set `GODOT_BIN` if the executable is not named `godot`. Add `--only` followed by test names for a focused run; `--help` lists the choices.
+The [historical evidence directory](testing/history/README.md) links original reviews across these areas. [Source recovery records](development/history/repository-notes.md) and the [original manifest](development/history/SOURCE_MANIFEST.json) retain original hashes and paths. Commands and JSON inside historical records refer to their original repository or capture environment.
 
-The runner uses a disposable project and generated saves. It checks engine behavior, not browser storage or rendered visuals.
-
-## Build
-
-For automated builds and publishing, see [GitHub Web builds and releases](github-release.md).
-
-Use the **Web** export preset with Godot 4.6.3 and its matching non-threaded release template at `export_templates/web_nothreads_release.zip`.
-
-```sh
-mkdir -p build/web
-godot --headless --path . --export-release Web build/web/index.html
-cp docs/third-party/GODOT-AA-LICENSE.txt build/web/
-```
-
-Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
-
-## Repository boundaries
-
-- `scripts/`: gameplay state, UI, rendering, and engine-side adapters. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
-- `web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
-- `tests/`: repeatable regression suites, browser harnesses, and small source-bound fixtures. State whether a check covers engine behavior, browser behavior, or rendered output.
-- `qa/`: reusable capture, profiling, and diagnostic helpers. Generated screenshots, traces, logs, exports, and disposable profiles belong in ignored output directories, not beside the helpers.
-- `ci/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
-- `.github/workflows/`: orchestration of checks, builds, GitHub Releases, and platform publication. Keep release creation and platform deployment as distinct operations.
-- `docs/`: current development guidance and feature contracts; `docs/archive/` keeps historical review and recovery context. Link from this guide when adding an enduring development workflow.
-
-## Branch and review hygiene
-
-Keep each work branch tied to a focused PR. State its purpose, base, scope, validation, and any dependent PRs. Retire completed or superseded branches after their source and useful evidence are durably preserved.
-
-A temporary integration or preview branch needs a clearly marked tracking draft with pinned source references and an explicit retirement plan. It does not replace separately reviewed feature or platform PRs, and must not become a bundled merge shortcut.
-
-Keep runtime changes, platform integration, test-only repairs, and deployment changes independently reviewable. Prefer a small documentation update to an unrelated cleanup or file move. Preserve asset inputs, history, and recovery evidence before removing obsolete material.
-
-## Project files
-
-Keep asset inputs, `.import` settings and script `.uid` files tracked. Some fonts and HUD assets use `importer="keep"`; preserve those settings. Generated `.godot/` files, exports and player saves stay out of Git.
-
-See [assets and licenses](licenses.md) before reusing or distributing content. Older review notes and recovery records are in the [archive](archive/README.md).
+Distribution notices live under `art-audio/third-party/`; the retained QA output placeholders live under `testing/litter-remnants-visibility/` and `testing/role-boundaries/`. Their build and diagnostic consumers use these category paths.

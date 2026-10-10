@@ -7,7 +7,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { webcrypto, createHash } = require('node:crypto');
 const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '..'));
-const shell = fs.readFileSync(path.join(root, 'web/little_leaf_shell.html'), 'utf8');
+const shell = fs.readFileSync(path.join(root, 'platform/web/little_leaf_shell.html'), 'utf8');
 const report = { synthetic_only: true, scope: 'Actual legacy readers with read-only IDB fixture; no rendered-browser claim', checks: [] };
 const check = (condition, name) => { assert(condition, name); report.checks.push(name); };
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -17,7 +17,7 @@ const profilePath = '/userfs/synthetic/little_leaf_cafe_v13.json';
 const settingsPath = '/userfs/synthetic/little_leaf_settings.cfg';
 const encode = text => new TextEncoder().encode(text);
 function loadReader(filename, marker) {
-  const source = fs.readFileSync(path.join(root, 'web', filename), 'utf8');
+  const source = fs.readFileSync(path.join(root, 'platform/web', filename), 'utf8');
   check(shell.includes(source.trim()), filename + ' exactly matches embedded shell');
   check(source.split(marker).length === 2, filename + ' instrumentation target is unique');
   const context = vm.createContext({ Uint8Array, Int8Array, TextEncoder, TextDecoder, crypto: webcrypto, setTimeout, clearTimeout });

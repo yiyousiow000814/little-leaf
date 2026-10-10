@@ -1,6 +1,12 @@
 name: Check and build Web
 on:
   pull_request:
+    paths:
+      - '**'
+      - '!README.md'
+      - '!docs/**/*.md'
+      # Distribution inputs always build, including current and future notices.
+      - 'docs/art-audio/third-party/**'
   push:
     branches: [main]
   workflow_dispatch:

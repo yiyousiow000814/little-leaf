@@ -1,59 +1,48 @@
-# Little Leaf development requirements
+# Working on Little Leaf
 
-## Performance is part of feature design
+Read the [canonical roadmap](docs/roadmap.md), the single current editing plan, for product scope, ownership and acceptance gates, then the [developer guide](docs/development/README.md) for detailed commands and references. Read the roadmap's current-state section before dated historical contracts; those contracts are evidence, not current completion status.
 
-For gameplay, art, UI, animation, camera and rendering changes, consider frame
-cost before implementation. State what changes every frame, what can remain in
-Godot's retained drawing resources, and exactly what invalidates each cache.
-Prefer existing engine facilities over a second custom renderer. Do not rebuild
-unchanged geometry, repeatedly assign unchanged materials, or copy/replay a
-static scene's commands merely because a character moves or the camera pans.
-Keep resource ownership explicit and caches bounded. Preserve painter order.
+## Run and verify
 
-The current player-facing frame-rate options are **30 and 60**. The target is
-stable 60 FPS from the first moving Welcome frame, through the unskipped intro,
-and during normal-speed camera movement and the full supported zoom range.
-Loading/login may prepare expensive resources before animation starts. Seek
-measured headroom; a 60 cap or an average near 60 does not demonstrate it.
+Use Godot **4.6.3**, **GL Compatibility**, with matching export templates. Open `game/project.godot` and press F5, or run `godot --path game` only in an isolated test profile: normal play writes saves.
 
-Visual correctness is a separate acceptance gate. Performance changes must not
-change artwork, color, detail, alpha edges, object presence, animation timing,
-or character/wall/furniture occlusion. A faster build with a rendering regression
-is not an improvement. Withdraw a failing optimization or fix and verify it.
+From the repository root, with Python 3 and Godot available:
 
-## Evidence for rendering and performance changes
+```sh
+python3 tests/run_integration_candidate.py --help
+python3 tests/run_integration_candidate.py --only test_direct_janitor_cleanup --output /tmp/little-leaf-janitor-review
+```
 
-- Verify the exact checkout, exported artifact, engine/template, browser, port,
-  viewport and DPR. Do not substitute a different build or native FPS for Web FPS.
-- Capture completed game frames and frame times. Include the entire natural
-  Welcome/intro plus at least 10 seconds after the cafe appears, and normal
-  camera gestures (roughly 220 px over 1.5 seconds, 400 ms per wheel notch, with
-  settling time). Cover both zoom limits, direction changes and returning Home.
-- Report the full curve, slow intervals, p95/max frame time and context. Do not
-  hide first-use stalls or claim success from a whole-run average. An uncapped
-  private probe can measure headroom; it is not a player-facing option.
-- Freeze measurement buffers before exporting logs or taking screenshots. Do
-  not benchmark alongside builds or other owned rendering tests. Record window
-  visibility/focus and background load; a hidden window is not foreground proof.
-- Compare original and candidate rendered frames at matching deterministic
-  poses, including consecutive first frames after moving/zooming, vehicles,
-  doors/walls, staff/kitchen actions and both sides of cache/atlas thresholds.
-  Investigate pixel differences; do not replace a baseline just to pass.
-- Atlas changes require actual native regeneration and the existing exact RGBA
-  verification before refreshing source manifests. Headless unit tests alone
-  do not verify rendered pixels. Custom engine builds need separate parity and
-  reproducible provenance; game-source parity cannot validate a different engine.
-- Run the applicable regression suites on the delivered source. Keep diagnostic
-  overrides and experimental rendering paths out of the shipping build.
+The second command is an example for janitor cleanup changes, not a default suite. Choose only the existing test names that observe the affected behavior and a new disposable output directory; use `python` where that is the Python 3 command and set `GODOT_BIN` when needed. The runner's disposable project does not establish browser or visual acceptance. Deeper diagnostics must answer a specific symptom or hypothesis; do not enable everything merely because the investigation is deeper. Follow required release gates separately.
 
-Desktop validation does not prove phone frame rate, thermals or battery use.
-The named phone targets are iPhone 16 Pro Max and Samsung S24; identify untested
-devices honestly. Preserve the same design efficiency on mobile.
+## Edit boundaries and evidence
 
-## Milestone status
+- Keep changes minimal and within the requested scope. Coordinate active owners before implementation; include each stacked dependency delta once in one coherent related PR.
+- Title PRs `type: specific change`, without a version prefix. Apply the plain delivery-version label `0.1.10a` or `0.1.11`, using the earliest intended delivery confirmed by the roadmap and owner; list other affected versions in the body and report ambiguous scope rather than guessing. Use `fix`, `feat`, `refactor` or `docs`; use `test` only for independently meaningful testing changes. Keep related code, necessary tests and docs in one PR. Use GitHub Draft/Ready state rather than WIP/done in titles. Record roadmap IDs, changes, actual verification and remaining gaps in the body; link PRs from the canonical roadmap and update status on merge.
+- Protect original player saves, account/session ownership, cleanup and tutorial behavior. Use generated fixtures or copied saves in disposable profiles; never clear the user's browser storage or alter live Firebase rules without explicit authorization.
+- Implement the requested change and run the minimum relevant checks, then give the user an actual playable or visual candidate. After the user confirms it is good, finalize and merge within the authorized scope; avoid unrelated expanded test runs. Clearly report material save, build, security or data-loss blockers before acceptance or merge.
+- Keep the Godot project and gameplay in `game/`, browser/cloud integration in `platform/web/` and `platform/firebase/`, verification in `tests/` (including `tooling/`, `diagnostics/` and `fixtures/`), and publishing helpers in `tools/` and `.github/workflows/`. Preserve assets, import settings, script UIDs, licenses and recovery evidence. See the developer guide for full boundaries.
+- Keep generated logs, screenshots, exports and private handoffs outside tracked source. Maintain current product status in the roadmap; link detailed contracts instead of duplicating them or creating version-specific agent guides.
+- Organize `docs/` within `design/`, `development/`, `art-audio/`, `testing/` and `release/`, with only `README.md` and `roadmap.md` at its root. Preserve every original license and evidence file; update build, diagnostic and link consumers atomically when paths move.
+- Preserve the original 2D isometric art and camera presentation. Pin evidence to the tested commit/tree and distinguish code present, tests passed, inspected game pixels, merged and released. For visual changes, inspect rendered output and retain source-bound before/after evidence; test success alone does not accept the pixels or authorize publication.
 
-See [the 10a to 11 performance handoff](docs/qa/performance-10a-to-11.md) when
-continuing this work. The user allows remaining FPS work to move to 11, but
-**10a must not close with bugs introduced by optimization**. Keep functional
-closeout distinct from the still-unmet stable-60 performance target. Do not
-silently claim either gate has passed or merge/deploy without authorization.
+For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).
+
+## Performance and unchanged presentation
+
+For gameplay, art, UI, animation and camera work, identify per-frame cost,
+retained resources and cache invalidation before implementation. Prefer Godot's
+existing transforms, retained draw lists and batching. Avoid rebuilding
+unchanged geometry or assigning unchanged materials; keep ownership explicit,
+caches bounded and code readable. Preserve artwork, colors, detail, timing and
+painter order, including the first frame after moving or zooming. A rendering
+regression must be fixed or the optimization withdrawn before closeout.
+
+The player settings are 30/60 FPS. Target stable 60 from Welcome's first moving
+frame through the unskipped intro and normal-speed pan/zoom, with measured
+headroom. Prepare expensive resources during loading/login where possible.
+Do not equate a cap or high average with stability. Follow the
+[rendering and performance contract](docs/testing/rendering-performance.md)
+for source-bound visual comparisons and completed-frame timelines. The
+[roadmap](docs/roadmap.md#current-state) owns current acceptance and ownership;
+deferring FPS work never authorizes leaving optimization-induced bugs enabled.

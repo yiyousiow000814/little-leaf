@@ -34,7 +34,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          VERSION=$(python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
+          VERSION=$(python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build:
@@ -64,7 +64,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install checksum-pinned official Butler
-        run: python3 ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+        run: python3 tools/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Recheck source, refuse duplicate/older releases, publish and await processing
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -72,5 +72,5 @@ jobs:
           RELEASE_SHA: ${{ needs.gate.outputs.sha }}
         run: |
           git fetch --no-tags origin main
-          python3 ci/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
-          python3 ci/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA"
+          python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 tools/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA"

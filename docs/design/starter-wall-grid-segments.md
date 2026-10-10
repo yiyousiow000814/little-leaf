@@ -1,6 +1,6 @@
 # Starter-wall grid segments: migration design for review
 
-Status: independently reviewed design, now implemented as a local candidate. See `starter-wall-implementation-review.md` for validation and remaining release gates. The original review is bound to commit `5a0f151`. Base: `9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc` (shipped 0.1.8). This work is separate from the completed Build/Tiles UI branch.
+Historical source-bound design record. The original review is bound to commit `5a0f151`, based on `9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc` (shipped 0.1.8). Its local candidate, branch boundaries, evidence counts and integration sequence describe that recorded work, not current readiness or owner instructions. See the [implementation evidence](starter-wall-implementation-review.md) for the recorded validation and the [canonical roadmap](../roadmap.md) for current implementation, ownership and acceptance state.
 
 ## Intended interaction
 
@@ -91,9 +91,9 @@ The current pass has 27,219 assertions covering:
 - Atomic invalid/insufficient-funds paths, same-style no-op, and normalized JSON round-trip
 - Real unmodified v15 model rejection of wall format 2 without live-model mutation or original-file writes
 
-Files: `qa/prototypes/shell_segment_contract.gd`, `tests/test_shell_segment_contract.gd`, and `tests/run_shell_segment_contract.py`.
+Files: `tests/fixtures/shell_segment_contract.gd`, `tests/test_shell_segment_contract.gd`, and `tests/run_shell_segment_contract.py`.
 
-## Review and implementation gates
+## Historical review and implementation gates
 
 Before production edits, approve the wall-format-2 guard and explicit refund-credit representation. Then implement in this order:
 

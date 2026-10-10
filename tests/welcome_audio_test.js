@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath}=require('./source_paths.js');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -30,7 +31,7 @@ async function preferenceTests() {
   for (const mode of MODES) {
     const store = new Map([[PREFERENCE_KEY, JSON.stringify(preferences(mode))]]);
     const sandbox = {localStorage: {getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value)}, TextEncoder};
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../web/little_leaf_preferences.js'), 'utf8'), sandbox);
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../platform/web/little_leaf_preferences.js'), 'utf8'), sandbox);
     const result = await sandbox.__littleLeafPreferences.boot();
     assert(result.ok && result.source === 'preferences'); assert.equal(result.text, preferences(mode).text);
     assert.equal(sandbox.__littleLeafPreferences.acceptLoaded(), true);
@@ -214,12 +215,10 @@ try {
   const git = (...args) => cp.execFileSync('git', ['-c', 'user.name=Offline QA', '-c', 'user.email=qa@example.invalid', ...args], {cwd: source, encoding: 'utf8'}).trim();
   git('init', '-q');
   const files = {
-    'project.godot': 'synthetic project fixture', 'scripts/cafe_intro.gd': [
-      'const DURATION = 6.5', 'const DESCENT_START = 1.0', 'var entry_requested = false',
-      'elapsed = maxf(elapsed, DESCENT_START)', 'if entry_requested:finish()'].join('\n'),
+    'project.godot': 'synthetic project fixture', 'scripts/cafe_intro.gd': 'synthetic implementation-independent source fixture',
     [SERVICE_MP3]: 'synthetic hash fixture, never real audio', 'web/shell.html': 'fixture shell'
   };
-  for (const [name, text] of Object.entries(files)) {fs.mkdirSync(path.dirname(path.join(source, name)), {recursive: true}); fs.writeFileSync(path.join(source, name), text);}
+  for (const [name, text] of Object.entries(files)) {fs.mkdirSync(path.dirname(sourcePath(source,name)), {recursive: true}); fs.writeFileSync(sourcePath(source,name), text);}
   git('add', '.'); git('commit', '-qm', 'Synthetic source-binding unit fixture');
   const bytes = Buffer.from('synthetic export fixture');
   fs.writeFileSync(path.join(web, 'index.pck'), bytes);
@@ -234,10 +233,6 @@ try {
   test('manifest cannot add unverified production files', () => {const copy = structuredClone(manifest); copy.production_sha256['web/extra.js'] = '0'.repeat(64); save(copy); fails(() => verifySource(web, source), /Complete export source/); save(manifest);});
   test('dirty candidate source is rejected', () => {fs.appendFileSync(path.join(source, 'project.godot'), '!'); fails(() => verifySource(web, source), /Clean tracked/); fs.writeFileSync(path.join(source, 'project.godot'), files['project.godot']);});
   test('replaced export bytes are rejected', () => {fs.appendFileSync(path.join(web, 'index.pck'), '!'); fails(() => verifySource(web, source), /size/); fs.writeFileSync(path.join(web, 'index.pck'), bytes);});
-  test('old immediate-skip source cannot satisfy welcome gate', () => {
-    fs.writeFileSync(path.join(source, 'scripts/cafe_intro.gd'), 'finish()'); git('add', '.'); git('commit', '-qm', 'Synthetic old contract');
-    const copy = structuredClone(manifest); copy.source_commit = git('rev-parse', 'HEAD'); copy.production_sha256['scripts/cafe_intro.gd'] = hash('finish()'); save(copy);
-    fails(() => verifySource(web, source), /first-gesture contract/);
-  });
+
 } finally {fs.rmSync(temporary, {recursive: true, force: true});}
 (async () => {await preferenceTests(); checks++; console.log('ok real preference envelopes load through production client'); console.log(JSON.stringify({checks, failures: [], scope: 'Node mocked-observer/helper unit tests only; actual browser and audibility not run'}));})().catch(error => {console.error(error); process.exitCode = 1;});

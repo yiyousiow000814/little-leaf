@@ -6,7 +6,7 @@ from build_firebase import stage, ROOT
 from build_web import sha256
 with tempfile.TemporaryDirectory() as d:
     d=Path(d);build=d/'build';(build/'web').mkdir(parents=True)
-    shell=(ROOT/'web/little_leaf_shell.html').read_text().replace('$GODOT_URL','index.js')
+    shell=(ROOT/'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL','index.js')
     (build/'web/index.html').write_text(shell);(build/'web/release-manifest.json').write_text(json.dumps({'source_commit':'synthetic-commit','source_tree':'synthetic-tree','workflow_run':'local','version':'0.1.10','files':{'index.html':{'sha256':sha256(build/'web/index.html'),'bytes':(build/'web/index.html').stat().st_size}}}))
     config={'apiKey':'synthetic-public-key','authDomain':'demo-little-leaf.firebaseapp.com','projectId':'demo-little-leaf','appId':'synthetic-app-id'}
     stage(build,d/'out',config)

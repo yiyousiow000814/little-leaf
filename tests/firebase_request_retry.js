@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
-const root={crypto:webcrypto};root.globalThis=root;vm.runInNewContext(fs.readFileSync('web/little_leaf_firebase_session.js','utf8'),root);
+const root={crypto:webcrypto};root.globalThis=root;vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase_session.js','utf8'),root);
 const clone=x=>JSON.parse(JSON.stringify(x)),failure=code=>Object.assign(Error(code),{code});
 const owner='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
 function harness({first='permission-denied',mutate=x=>({...x,updatedAt:x.updatedAt+10}),second=null}={}){

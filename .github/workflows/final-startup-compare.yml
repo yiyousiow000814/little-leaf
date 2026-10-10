@@ -1,6 +1,6 @@
 name: Compare final10a welcome preparation
 on:
-  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -8,13 +8,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   diagnostic-comparison:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/10a-ready-welcome'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,13 +27,13 @@ jobs:
           path: qa-tools
       - name: Verify immutable baseline, toolkit and candidate provenance
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git -C baseline rev-parse HEAD^{tree})" = 6cc904d4dfd45fadcb6d8ca5fee09b504ec96384
           test "$(git -C qa-tools rev-parse HEAD^{tree})" = e912a7f86bd9d507c7572f0a6ad2947d9e9d5902
-          python3 ci/verify_prebaked_atlases.py
+          python3 tools/verify_prebaked_atlases.py
           python3 -m unittest discover -s qa-tools/tests/startup_descent -p 'test_*.py' -v
           node qa-tools/tests/startup_descent/test_validate.js
           for root in . baseline; do
@@ -44,10 +43,10 @@ jobs:
           git diff --exit-code
           git -C baseline diff --exit-code
       - name: Install checksum-pinned official engine and Web template
-        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
       - name: Export symmetric final10a and immutable-base diagnostic controls
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
           for product in baseline candidate; do
@@ -80,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: startup-descent-diagnostic-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: startup-descent-diagnostic-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/descent-baseline/pair.json
             ${{ runner.temp }}/descent-baseline/overlay-source/

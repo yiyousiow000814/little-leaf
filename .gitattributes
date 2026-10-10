@@ -14,3 +14,4 @@
 *.import -text
 *.uid -text
 *.svg -text
+tools/auth_preview_pause/**/*.mjs -text

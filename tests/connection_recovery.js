@@ -6,9 +6,9 @@ const {execFileSync} = require('node:child_process');
 const {webcrypto} = require('node:crypto');
 const {FixtureIDB} = require('./fixtures/save_log_idb_fixture');
 const root = path.resolve(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'web/little_leaf_vault.js'), 'utf8');
+const source = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
 const oldSource = execFileSync('git', ['show', 'e9fcf09fe5a975de73b0749e4b3e8484e5e3b2ae:web/little_leaf_vault.js'], {cwd:root, encoding:'utf8'});
-const logSource = fs.readFileSync(path.join(root, 'web/little_leaf_save_log.js'), 'utf8');
+const logSource = fs.readFileSync(path.join(root, 'platform/web/little_leaf_save_log.js'), 'utf8');
 const payload = fs.readFileSync(path.join(__dirname, 'fixtures/startup-retry-v15.json'), 'utf8');
 const report = {synthetic_only:true, real_browser:false, checks:[], cases:[]};
 function check(ok, label) {assert(ok,label);report.checks.push(label);}

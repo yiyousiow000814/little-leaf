@@ -18,8 +18,11 @@ import shutil
 import subprocess
 import tempfile
 import time
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 SUITES = [
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
     ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
@@ -198,7 +201,7 @@ def main():
             if not temp.is_relative_to(qa.resolve()):
                 raise RuntimeError("Disposable fixture escaped its reviewed root")
             project = temp / "project"
-            shutil.copytree(ROOT, project, ignore=EXCLUDE)
+            stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
             # entirely inside this disposable copy, without changing delivered source.
             controller = project / "scripts/cafe_web_save.gd"

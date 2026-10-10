@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const {sourcePath} = require('./source_paths');
 
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 function canonical(value) {
@@ -33,7 +34,7 @@ function verifyPreflightBinding(web, source, manifest, production, manifestDiges
   assert.equal(canonical(manifest.production_sha256), canonical(production), 'Complete production hash map must match preflight');
   assert(Object.keys(production).length > 0, 'Empty production map is not evidence');
   for (const [name, digest] of Object.entries(production)) {
-    assert.equal(hash(fs.readFileSync(within(source, name))), digest, 'Checked-out source must match preflight: ' + name);
+    assert.equal(hash(fs.readFileSync(within(source, path.relative(source, sourcePath(source, name))))), digest, 'Checked-out source must match preflight: ' + name);
   }
 }
 function normalizedText(text) {

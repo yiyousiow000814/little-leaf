@@ -2,11 +2,11 @@ name: Cloud save flow diagnostic (retained compiled UI)
 on:
   pull_request:
     paths:
-      - 'firebase/**'
-      - 'web/little_leaf_firebase*'
-      - 'web/little_leaf_update.js'
-      - 'ci/cloud_flow_diagnostic.py'
-      - 'ci/prepare_cloud_geometry.py'
+      - 'platform/firebase/**'
+      - 'platform/web/little_leaf_firebase*'
+      - 'platform/web/little_leaf_update.js'
+      - 'tools/cloud_flow_diagnostic.py'
+      - 'tools/prepare_browser_qa.py'
       - 'tests/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
 permissions:
@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
       - name: Check retained diagnostic eligibility without qualifying a release
         id: eligibility
-        run: python3 ci/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
+        run: python3 tools/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
       - name: Fetch exact retained a7 artifacts and verify all bytes and source inputs
         if: steps.eligibility.outputs.eligible == 'true'
         env:
@@ -35,16 +35,16 @@ jobs:
           mkdir -p "$RUNNER_TEMP/retained"
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11600374596/zip > "$RUNNER_TEMP/retained/web.zip"
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11602076197/zip > "$RUNNER_TEMP/retained/evidence.zip"
-          python3 ci/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
+          python3 tools/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
       - name: Install pinned native geometry tool and prepare disposable probe
         if: steps.eligibility.outputs.eligible == 'true'
         run: |
-          python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
-          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
+          python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 tools/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
       - name: Install pinned test dependencies
         if: steps.eligibility.outputs.eligible == 'true'
         run: |
-          npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
+          npm --prefix platform/firebase ci --ignore-scripts --no-audit --no-fund
           npm install --prefix "$RUNNER_TEMP/browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/browser-tools/node_modules/.bin/playwright" install-deps chromium
       - name: Exercise actual compiled UI and current adapter against synthetic emulator
@@ -58,7 +58,7 @@ jobs:
           set -euo pipefail
           export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 required}"
           export PATH="$JAVA_HOME/bin:$PATH"
-          cd firebase
+          cd platform/firebase
           ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --diagnostic-only --web-build '$RUNNER_TEMP/retained/web' --engine-report '$RUNNER_TEMP/retained/evidence/engine-evidence/summary.json' --output '$RUNNER_TEMP/diagnostic-output'"
       - name: Retain diagnostic evidence only (never release or preview qualification)
         if: always()
