@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "10a-closeout: native-readable-camera-candidate Linux X11 Godot 4.6.3 exact RGBA; source closure verified by 10a-closeout-atlas-source-receipt.json",
+  "provenance": "172457a plus removal of frame-rate helper label; native-10a-settings-clean-linux-atlases; official 4.6.3 X11; exact RGBA equality",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -59,7 +59,7 @@
     "scripts/cafe_save_log.gd": "55028403a4dc2fec8a9453fa67932379b2b61dcc440acae753532cdaf893160f",
     "scripts/cafe_save_log_panel.gd": "dfa714378ec7d2d6edcf7e759da92d6acbbed6f846b18f0ebbe86d3d635e31d6",
     "scripts/cafe_save_profiles.gd": "11cc00d5c80f10e76366bcf4e93709371ee9bbf82d17bf352b518919ed2fbe7f",
-    "scripts/cafe_settings.gd": "1ab8989022ea176ae163b3d4720efc564f4a0d04ce2b035ce31005abcf29a730",
+    "scripts/cafe_settings.gd": "5073e8562a00f7035fc026b129432af641884c1221de8b729c97bc7ec20bbe27",
     "scripts/cafe_shape_2d.gd": "7d17682de704d8ff556b40baf26c183f68c745c4b3e3dcc5449a564baa320485",
     "scripts/cafe_shell_draw_cache.gd": "8775f95ea1f4071325083d96dcff6400ac99500d6faf0677d792afc12e59422a",
     "scripts/cafe_shell_segments.gd": "c1b3cc1ae2ca0f2f0fe0587078a429c39ff1a91cd2a2530528fa7d8ca2acd163",

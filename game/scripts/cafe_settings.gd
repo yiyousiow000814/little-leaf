@@ -189,8 +189,6 @@ func build() -> PanelContainer:
 	frame_rate_choice.resized.connect(_center_frame_rate_content)
 	frame_rate_choice.theme_changed.connect(_center_frame_rate_content)
 	frame_rate_choice.item_selected.connect(func(index):set_frame_rate(frame_rate_choice.get_item_id(index));_center_frame_rate_content())
-	var frame_note=game.label("30 FPS uses less battery. 60 FPS gives smoother motion.",11,Color("8b937b"))
-	frame_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(frame_note)
 	preference_storage_note=game.label("Changes are saved automatically",11,Color("8b937b"))
 	preference_storage_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(preference_storage_note)
