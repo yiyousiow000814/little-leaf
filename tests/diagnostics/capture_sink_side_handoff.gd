@@ -92,6 +92,7 @@ func run():
    if not first_clean and game.dishwashing.completed==1:
     first_clean=true;snapshot("first_clean",record);await capture("04-first-clean")
    if game.dishwashing.dishes.is_empty():
+    game.advance(.1)
     snapshot("all_clean",record);await capture("05-all-clean");break
   check(first_clean,"original wash completes before newly dropped dish")
   check(game.dishwashing.completed==2 and game.dishwashing.dishes.is_empty(),"full washing cycle completes both dishes exactly once")
