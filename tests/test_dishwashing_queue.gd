@@ -268,6 +268,14 @@ func finish_drop(r:Dictionary)->bool:
   if r.plate_owner=="dish_queue":return true
  return false
 func concurrent_dropoff_cases():
+ var art=preload("res://scripts/cafe_sink_wash_art.gd")
+ for rotation in 4:
+  var before=art.drop_geometry(rotation,.65-.00001,Vector2(-20,-18),0)
+  var after=art.drop_geometry(rotation,.65+.00001,Vector2(-20,-18),0)
+  check(before.center.distance_to(after.center)<.001,"drop path is continuous at ownership beat rotation "+str(rotation))
+  var low=art.drop_geometry(rotation,1,Vector2.ZERO,0)
+  var high=art.drop_geometry(rotation,1,Vector2.ZERO,1)
+  check(is_equal_approx(low.center.distance_to(high.center),2.2),"different queued dishes have distinct stack slots rotation "+str(rotation))
  # The preceding legacy cases deliberately hire a second cleaner. Start this
  # focused group with a fresh synthetic roster so save cardinality stays exact.
  for player in game.audio_players.values():player.stop();player.stream=null

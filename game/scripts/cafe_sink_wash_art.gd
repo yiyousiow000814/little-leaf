@@ -4,6 +4,20 @@ const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 const ARM=10.5
 const HALF_ARM=ARM*.5
 const INSET=.55
+static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int)->Dictionary:
+ # Ownership changes at .65. The plate reaches the opening at that beat,
+ # then lowers into its queue slot while the empty hands withdraw.
+ var opening=Geometry.height(Geometry.SINK_OPENING_HEIGHT)
+ var release=actual_surface(Geometry.SINK_BASIN_CENTER,opening+1.8,rotation)
+ slot=maxi(0,slot)
+ var stack=Geometry.sink_plate_anchor(rotation)+Vector2(0,-slot*2.2)
+ var center=start.lerp(release,smoothstep(0,.65,phase)) if phase<.65 else release.lerp(stack,smoothstep(.65,1,phase))
+ return {"center":center,"release":release,"height":opening+1.8 if phase<.65 else lerpf(opening+1.8,Geometry.height(Geometry.SINK_STACK_HEIGHT)+slot*2.2,smoothstep(.65,1,phase)),"held":phase<.65}
+static func drop_pose(near:Vector2,far:Vector2,center:Vector2,phase:float)->Dictionary:
+ var plate_basis=Transform2D.IDENTITY
+ var near_grip=nearest_rim(near,center,plate_basis);var far_grip=nearest_rim(far,center,plate_basis)
+ var retreat=smoothstep(.65,1,phase)
+ return {"near":arm(near,near_grip.lerp(near+Vector2.DOWN*ARM,retreat),1.0),"far":arm(far,far_grip.lerp(far+Vector2.DOWN*ARM,retreat),-1.0),"held":phase<.65}
 static func actual_surface(at:Vector2,height:float,rotation:int)->Vector2:
  var q=at.rotated(posmod(rotation,4)*PI/2)
  return Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
