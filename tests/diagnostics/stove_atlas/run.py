@@ -16,7 +16,7 @@ for label,sha in [('baseline',BASE),('candidate',HEAD)]:
         path=folder/'saveguard'/key;path.mkdir(parents=True);env[key]=str(path)
     for stage,args in [('import',['--headless','--editor','--import']),('render',['--rendering-method','gl_compatibility','--audio-driver','Dummy','--resolution','32x32','--script','res://atlas_render.gd','--','--runtime-atlases'])]:
         with (folder/(stage+'.log')).open('w') as log:
-            result=subprocess.run([os.environ['GODOT_BIN'],'--path',str(project),*args],stdout=log,stderr=subprocess.STDOUT,env=env,timeout=120)
+            result=subprocess.run([os.environ.get('GODOT_BIN','godot'),'--path',str(project),*args],stdout=log,stderr=subprocess.STDOUT,env=env,timeout=120)
         assert result.returncode==0,(label,stage)
     report=json.loads((project/'atlas-render-result.json').read_text())
     report['source']=sha;report['tree']=subprocess.check_output(['git','rev-parse',sha+'^{tree}'],cwd=ROOT,text=True).strip()

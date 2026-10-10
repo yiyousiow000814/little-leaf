@@ -36,6 +36,6 @@ jobs:
             ${{ runner.temp }}/stove-atlas/*-receipt.json
             ${{ runner.temp }}/stove-atlas/*/*.log
             ${{ runner.temp }}/stove-atlas/*/source/game/native-*-atlas.png
-            ${{ runner.temp }}/stove-tools/toolchain-receipt.json
+            ${{ runner.temp }}/stove-tools/godot-toolchain-receipt.json
           if-no-files-found: error
           retention-days: 7
