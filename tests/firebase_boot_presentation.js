@@ -26,6 +26,18 @@ function fixture(user=null,options={}){
   await button.onclick();assert.equal(f.nodes.get('status-label').textContent,'Sign in with Google to open your café.');assert.equal(ready,false);
   f.failRedirect();await button.onclick();assert.match(f.nodes.get('status-label').textContent,/did not finish/);assert.equal(button.disabled,false);assert.equal(ready,false);assert.deepEqual(f.counts(),{opened:0,closed:0});
   f.setUser({uid:'synthetic-user',isAnonymous:false});assert.equal(await pending,f.client);assert.equal(f.nodes.get('status-label').textContent,'Loading your saved café…');assert.equal(f.nodes.get('status-progress').hidden,false);assert.deepEqual(f.counts(),{opened:1,closed:1});
+  // The real account bridge returns its terminal Promise and native callback,
+  // including cancellation while another background invoke is waiting.
+  let releaseBegin,releaseCancel,cancelReceipt,cancelDone=false;
+  f.client.beginBackground=()=>new Promise(resolve=>{releaseBegin=resolve;});
+  f.client.cancelBackground=()=>new Promise(resolve=>{releaseCancel=resolve;});
+  f.win.LittleLeafVault.beginBackground(1,'profile',()=>{});
+  const terminal=f.win.LittleLeafVault.cancelBackground(raw=>{cancelReceipt=JSON.parse(raw);}).then(value=>{cancelDone=true;return value;});
+  await flush();assert(!cancelDone);assert.equal(cancelReceipt,undefined);
+  releaseCancel({ok:true,backgroundCleared:true});assert((await terminal).backgroundCleared);assert(cancelReceipt.backgroundCleared);
+  releaseBegin({ok:false,code:'ELAPSED_CANCELLED'});await flush();
+  f.client.cancelBackground=async()=>({ok:false,code:'ELAPSED_UNCERTAIN'});
+  assert.equal((await f.win.LittleLeafVault.cancelBackground()).code,'ELAPSED_UNCERTAIN');
   const initialFailure=fixture(null,{redirectResultError:true});await assert.rejects(initialFailure.start(),error=>/Reload Little Leaf.*Sign in with Google/.test(error.message)&&!error.message.includes('SDK'));assert.deepEqual(initialFailure.counts(),{opened:0,closed:0});
   let releaseAuth;const authReady=new Promise(resolve=>{releaseAuth=resolve;});const delayed=fixture(null,{authReady});let delayedReady=false;const delayedStart=delayed.start().then(()=>{delayedReady=true;});await flush();assert.equal(delayed.nodes.get('status-label').textContent,'Checking your sign-in…');assert.equal(delayed.nodes.get('cloud-account').children[1].disabled,true);assert.equal(delayedReady,false);releaseAuth();await flush();assert.equal(delayed.nodes.get('status-label').textContent,'Sign in with Google to open your café.');delayed.setUser({uid:'synthetic-delay',isAnonymous:false});await delayedStart;
   assert.equal(f.nodes.get('cloud-account').hidden,true,'signed-in gameplay has no account strip');

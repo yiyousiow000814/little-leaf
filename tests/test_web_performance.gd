@@ -42,6 +42,7 @@ class Api extends RefCounted:
  func creditForSave(_payload):return credit
  func save(_payload,_revision,_profile,_callback):writes+=1
 class Game extends Node:
+ var background_elapsed=null
  var model=Model.new()
  var save_timer=0.0
  var save_recovery_blocked=false
