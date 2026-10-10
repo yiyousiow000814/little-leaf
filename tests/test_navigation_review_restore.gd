@@ -27,6 +27,9 @@ func same(a,b)->bool:
 		return true
 	if (a is int or a is float) and (b is int or b is float):return float(a)==float(b)
 	return a==b
+func wire_same(a,b)->bool:
+	# Godot JSON rounds double clocks; compare their actual codec wire precision.
+	return same(JSON.parse_string(JSON.stringify(a)),JSON.parse_string(JSON.stringify(b)))
 func step():
 	game.model._arrival_elapsed=0.0
 	if native:await create_timer(.05).timeout
@@ -51,9 +54,12 @@ func checkpoint(label:String,phase:String,slot:int):
 	check(wire.version==16 and wire.navigation_format==Contract.STAFF_NAVIGATION_FORMAT,label+" capable envelope")
 	check(game.load_navigation_review(),label+" actual Main capable restore: "+game.model.last_error)
 	var after=game._service_save_snapshot(true)
-	check(same(codec.encode(before),codec.encode(after)),label+" exact position/routes/index/order/clocks/claims/payload ledgers")
-	check(same(guests,codec.encode(game.model.customers)) and wallet==[game.model.coins,game.model.total_earned,game.model.served,game.model.payroll_elapsed,game.model.payroll_accrued,game.model.wages_due,game.model.total_wages_paid],label+" guest payment state and economy preserved")
-	if not same(codec.encode(before),codec.encode(after)):print("RESTORE_COMPARE ",JSON.stringify({"label":label,"before":codec.encode(before),"after":codec.encode(after)}))
+	check(wire_same(codec.encode(before),codec.encode(after)),label+" routes/index/order/clocks/claims/payload ledgers preserved at codec wire precision")
+	var exact_positions=true
+	for index in before.staff.size():exact_positions=exact_positions and before.staff[index].pos==after.staff[index].pos
+	check(exact_positions,label+" all actual staff positions preserved exactly")
+	check(wire_same(guests,codec.encode(game.model.customers)) and wire_same(wallet,[game.model.coins,game.model.total_earned,game.model.served,game.model.payroll_elapsed,game.model.payroll_accrued,game.model.wages_due,game.model.total_wages_paid]),label+" guest payment state and economy preserved at codec wire precision")
+	if not wire_same(codec.encode(before),codec.encode(after)):print("RESTORE_COMPARE ",JSON.stringify({"label":label,"before":codec.encode(before),"after":codec.encode(after)}))
 	await capture(label+"-restored")
 	game.set_process(native)
 func run():
@@ -104,9 +110,10 @@ func run():
 				check(owner.take_result(request,epoch).status=="unknown","restore cancels/consumes prior scheduler owner request")
 		for frame in range(6000):
 			await step()
+			if native and frame%300==0:print("NATIVE_PROGRESS ",JSON.stringify({"frame":frame,"animation_time":game.animation_time,"paused":game.paused,"editing":game.editing,"recovery_blocked":game.save_recovery_blocked,"processing":game.is_processing(),"served":game.model.served,"staff":codec.encode(game._service_save_snapshot(true).get("staff",[]))}))
 			if game.model.served==1:break
 		check(game.model.served==1 and game.model.total_earned==game.model.MEAL_PAYMENT,"restored obligation settles exactly one original meal")
-		game.set_process(false);await capture("04-paid")
+		game.set_process(false);await capture("04-paid" if game.model.served==1 else "04-unsettled")
 		check(not FileAccess.file_exists(Contract.PRIMARY_FILE),"synthetic v16 work never creates default primary save")
 		game._save()
 		check(not FileAccess.file_exists(Contract.PRIMARY_FILE),"normal Main save remains suppressed")
