@@ -260,6 +260,12 @@ body {
 				label.textContent = 'Downloading your café…';
 			}
 		},
+		artWarmup(ready, total) {
+			if (finished || !Number.isInteger(ready) || !Number.isInteger(total) || total <= 0 || ready < 0 || ready > total) return;
+			label.textContent = `Preparing café art · ${ready}/${total} ready`;
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+		},
 		engineReady() {
 			if (finished) return;
 			engineReady = true;
@@ -522,7 +528,7 @@ body {
   }
   root.LittleLeafSaveLog = Object.freeze({
     record, text, copy, snapshot: () => events.map(e => ({ ...e })),
-    setVersion(value) { if (typeof value === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z0-9.-]+)?$/.test(value) && value.length <= 40) version = value; },
+    setVersion(value) { if (typeof value === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+[a-z]?(?:-[a-z0-9.-]+)?$/.test(value) && value.trim() === value && value.length <= 40) version = value; },
     get copyStatus() { return copyStatus; }
   });
 })(globalThis);

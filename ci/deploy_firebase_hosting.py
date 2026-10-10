@@ -11,10 +11,13 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import time
+from datetime import datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+import zipfile
 
 SITE = 'little-leaf-41e5d'
 ORIGIN = 'https://' + SITE + '.firebaseapp.com/'
@@ -262,6 +265,161 @@ def live_smoke(expected):
     return False
 
 
+PREVIEW_CHANNEL = 'itch-embed-test'
+PREVIEW_PATH = SITE_PATH + '/channels/' + PREVIEW_CHANNEL
+FIXTURE_ORIGIN = 'https://' + SITE + '--itch-embed-test-localfixture.web.app'
+ANCESTORS = ['https://html-classic.itch.zone', 'https://siowyiyou.itch.io']
+FRAME_POLICY = 'frame-ancestors ' + ' '.join(ANCESTORS)
+PREVIEW_ORIGIN_RE = re.compile(r'https://' + re.escape(SITE) + r'--itch-embed-test-[a-z0-9]+\.web\.app')
+
+
+def verify_preview_package(folder, source_sha, manifest_sha):
+    manifest, marker = verify_package(folder, source_sha, manifest_sha)
+    if (manifest.get('runtime_origin') != FIXTURE_ORIGIN or marker.get('runtime_origin') != FIXTURE_ORIGIN
+            or manifest.get('ancestor_origins') != ANCESTORS
+            or manifest.get('auth_domains_modified') is not False
+            or manifest.get('production_release_eligible') is not False
+            or marker.get('test_surface') != 'trusted-itch-frame'):
+        raise ValueError('Exact reviewed unbound trusted-frame packet required')
+    config = json.loads((folder / 'firebase.json').read_text())
+    if set(config) != {'hosting'} or config['hosting'].get('site') != SITE or config['hosting'].get('public') != 'public':
+        raise ValueError('Preview packet must contain only the approved Hosting configuration')
+    for path in ['public/index.html', 'itch-wrapper/index.html']:
+        if (folder / path).read_text().count(FIXTURE_ORIGIN) != 1:
+            raise ValueError('Preview origin binding must have exactly one reviewed marker per shell')
+    for name in ['little_leaf_firebase_boot.mjs', 'little_leaf_firebase.js', 'little_leaf_firebase_session.js', 'little_leaf_update.js']:
+        if manifest.get('source_sha256', {}).get('web/' + name) != digest(folder / 'public' / name):
+            raise ValueError('Reviewed own-origin runtime source differs')
+    for path in ['/', '/index.html']:
+        records = [x for x in config['hosting'].get('headers', []) if x.get('source') == path]
+        if len(records) != 1 or {'key':'Content-Security-Policy', 'value':FRAME_POLICY} not in records[0].get('headers', []):
+            raise ValueError('Exact accepted ancestor policy required')
+    return manifest, marker
+
+
+class PreviewAPI:
+    """Reject every request outside the explicit channel/version protocol, including live POSTs."""
+    def __init__(self, api):
+        self.api = api
+
+    def request(self, method, path, data=None, upload=False):
+        version = re.escape(SITE_PATH) + r'/versions/[A-Za-z0-9_-]+'
+        selected_version = parse_qs(urlsplit(path).query).get('versionName', [''])[0]
+        allowed = (
+            (method == 'GET' and path in {SITE_PATH + '/releases?pageSize=1', SITE_PATH + '/channels?pageSize=100', PREVIEW_PATH})
+            or (method == 'POST' and path == SITE_PATH + '/channels?channelId=' + PREVIEW_CHANNEL
+                and isinstance(data, dict) and data.get('ttl') == '86400s' and set(data) == {'ttl', 'labels'})
+            or (method == 'POST' and path == SITE_PATH + '/versions' and isinstance(data, dict)
+                and set(data) == {'config'})
+            or (method == 'POST' and re.fullmatch(version + ':populateFiles', path))
+            or (method == 'PATCH' and re.fullmatch(version + r'\?update_mask=status', path) and data == {'status':'FINALIZED'})
+            or (method == 'POST' and path == PREVIEW_PATH + '/releases?' + urlencode({'versionName':selected_version})
+                and re.fullmatch(version, selected_version) and data == {})
+            or (upload and method == 'POST' and re.fullmatch(
+                re.escape('https://upload-firebasehosting.googleapis.com/upload/') + version + r'/files/[0-9a-f]{64}', path))
+        )
+        if not allowed or (upload and not path.startswith('https://upload-firebasehosting.googleapis.com/')):
+            raise ValueError('Preview request escaped the approved channel protocol')
+        return self.api.request(method, path, data, upload=upload)
+
+
+def bind_preview_packet(folder, target, manifest, origin):
+    if not PREVIEW_ORIGIN_RE.fullmatch(origin) or origin == FIXTURE_ORIGIN:
+        raise ValueError('Server did not return an exact controlled preview origin')
+    shutil.copytree(folder, target)
+    for name in ['public/index.html', 'itch-wrapper/index.html']:
+        path = target / name
+        path.write_text(path.read_text().replace(FIXTURE_ORIGIN, origin))
+    marker_path = target / 'public/hosting-release.json'
+    marker = json.loads(marker_path.read_text());marker['runtime_origin'] = origin
+    marker_path.write_text(json.dumps(marker, indent=2) + '\n')
+    bound = dict(manifest);bound['runtime_origin'] = origin
+    bound['files'] = {name:digest(target / name) for name in manifest['files']}
+    (target / 'firebase-variant-manifest.json').write_text(json.dumps(bound, indent=2) + '\n')
+    verify_package(target, manifest['source_commit'], digest(target / 'firebase-variant-manifest.json'))
+    if any(FIXTURE_ORIGIN.encode() in p.read_bytes() for p in (target / 'public').rglob('*') if p.is_file()):
+        raise ValueError('Bootstrap fixture origin remained in upload; refusing publication')
+    return marker
+
+
+def deploy_preview(folder, source_sha, manifest_sha, output, api, smoke):
+    if output.exists():raise ValueError('Existing preview receipt requires inspection; no automatic retry')
+    manifest, _ = verify_preview_package(folder, source_sha, manifest_sha)
+    api = PreviewAPI(api)
+    receipt = {'schema_version':1, 'status':'validated-preview-packet', 'source_commit':source_sha,
+               'source_tree':manifest['source_tree'], 'unbound_manifest_sha256':manifest_sha,
+               'channel':PREVIEW_CHANNEL, 'hosted_acceptance':'not-yet-tested', 'auth_domains_modified':False}
+    def save():
+        output.parent.mkdir(parents=True, exist_ok=True);output.write_text(json.dumps(receipt, indent=2) + '\n')
+    save();previous = release_head(api);receipt['previous_live_release'] = previous;save()
+    channels = api.request('GET', SITE_PATH + '/channels?pageSize=100')
+    if channels.get('nextPageToken') or any(c.get('name') == PREVIEW_PATH for c in channels.get('channels', [])):
+        raise ValueError('Channel already exists or channel inventory is incomplete; do not overwrite it')
+    receipt['status'] = 'channel-create-outcome-pending';save()
+    channel = api.request('POST', SITE_PATH + '/channels?channelId=' + PREVIEW_CHANNEL,
+                          {'ttl':'86400s', 'labels':{'candidate_source':source_sha, 'packet_hash':manifest_sha[:32]}})
+    origin = channel.get('url', '')
+    receipt.update(status='channel-created-not-released', hosting_url=origin, expire_time=channel.get('expireTime'));save()
+    created = datetime.fromisoformat(channel.get('createTime', '').replace('Z', '+00:00'))
+    expires = datetime.fromisoformat(channel.get('expireTime', '').replace('Z', '+00:00'))
+    if (channel.get('name') != PREVIEW_PATH or created.tzinfo is None or expires.tzinfo is None
+            or not 86399 <= (expires - created).total_seconds() <= 86401
+            or expires <= datetime.now(timezone.utc) or expires > datetime.now(timezone.utc) + timedelta(days=1, seconds=60)):
+        raise ValueError('Unconfirmed exact one-day channel; stop without retry or deletion')
+    target = output.parent / 'preview-bound-package'
+    marker = bind_preview_packet(folder, target, manifest, origin)
+    receipt['bound_manifest_sha256'] = digest(target / 'firebase-variant-manifest.json');save()
+    shutil.copy2(target / 'firebase-variant-manifest.json', output.parent / 'preview-bound-manifest.json')
+    wrapper_zip = output.parent / 'itch-wrapper.zip'
+    with zipfile.ZipFile(wrapper_zip, 'w', zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted((target / 'itch-wrapper').rglob('*')):
+            if path.is_file():archive.write(path, path.relative_to(target / 'itch-wrapper'))
+    receipt.update(itch_wrapper_sha256=digest(wrapper_zip), itch_wrapper_bytes=wrapper_zip.stat().st_size);save()
+    compressed, paths = {}, {}
+    for path in sorted((target / 'public').rglob('*')):
+        if path.is_file():
+            payload = gzip.compress(path.read_bytes(), mtime=0);hash_value = hashlib.sha256(payload).hexdigest()
+            compressed[hash_value] = payload;paths['/' + path.relative_to(target / 'public').as_posix()] = hash_value
+    config = {'headers':CONFIG['headers'] + [{'glob':path, 'headers':{
+        'Content-Security-Policy':FRAME_POLICY, 'Cache-Control':'no-store'}} for path in ['/', '/index.html']]}
+    receipt['status'] = 'version-create-outcome-pending';save()
+    version = api.request('POST', SITE_PATH + '/versions', {'config':config}).get('name', '')
+    if not isinstance(version, str) or not VERSION_RE.fullmatch(version):raise ValueError('Unconfirmed preview version')
+    receipt.update(status='staging-preview', hosting_version=version);save()
+    result = api.request('POST', version + ':populateFiles', {'files':paths})
+    upload_url = 'https://upload-firebasehosting.googleapis.com/upload/' + version + '/files'
+    required = result.get('uploadRequiredHashes', [])
+    if (result.get('uploadUrl') != upload_url or not isinstance(required, list)
+            or len(set(required)) != len(required) or not set(required).issubset(compressed)):
+        raise ValueError('Untrusted preview upload response')
+    for hash_value in required:api.request('POST', upload_url + '/' + hash_value, compressed[hash_value], upload=True)
+    finalized = api.request('PATCH', version + '?update_mask=status', {'status':'FINALIZED'})
+    if finalized.get('name') != version or finalized.get('status') != 'FINALIZED':raise ValueError('Preview version not finalized')
+    if release_head(api) != previous:raise RuntimeError('Live release changed concurrently; preview not released')
+    receipt['status'] = 'preview-release-outcome-pending';save()
+    release = api.request('POST', PREVIEW_PATH + '/releases?' + urlencode({'versionName':version}), {})
+    if (not re.fullmatch(re.escape(PREVIEW_PATH) + r'/releases/[A-Za-z0-9_-]+', release.get('name', ''))
+            or release.get('version', {}).get('name') != version or release.get('type') != 'DEPLOY'):
+        raise RuntimeError('Preview release outcome uncertain; inspect receipt, do not retry')
+    receipt.update(status='preview-published-pending-smoke', channel_release=release['name']);save()
+    if not smoke(origin, marker):raise RuntimeError('Preview marker smoke failed; no live rollback or channel deletion')
+    confirmed = api.request('GET', PREVIEW_PATH)
+    if (confirmed.get('url') != origin or confirmed.get('expireTime') != channel['expireTime']
+            or confirmed.get('release', {}).get('name') != release['name']
+            or confirmed.get('release', {}).get('version', {}).get('name') != version):
+        raise RuntimeError('Preview URL/expiry/release changed')
+    if release_head(api) != previous:raise RuntimeError('Live release changed during preview; inspect before continuing')
+    receipt.update(status='preview-published-pending-auth-acceptance', live_release_unchanged=True,
+                   exact_hostname=urlsplit(origin).hostname);save()
+    return receipt
+
+
+def preview_smoke(origin, expected):
+    opener = build_opener(NoRedirect())
+    with opener.open(Request(origin + '/hosting-release.json', headers={'Cache-Control':'no-cache'}), timeout=30) as response:
+        return json.load(response) == expected
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--variant', required=True, type=Path)
@@ -269,14 +427,20 @@ def main():
     parser.add_argument('--manifest-sha256', required=True)
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--verify-only', action='store_true')
+    parser.add_argument('--itch-preview', action='store_true')
     args = parser.parse_args()
     if args.verify_only:
-        verify_package(args.variant, args.sha, args.manifest_sha256)
+        (verify_preview_package if args.itch_preview else verify_package)(args.variant, args.sha, args.manifest_sha256)
         print('Exact selected package verified locally; no Hosting change or hosted acceptance claimed')
         return
-    result = deploy(args.variant, args.sha, args.manifest_sha256, args.output,
-                    Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), live_smoke)
-    print('Published selected test build at ' + result['hosting_url'] + '; account/device acceptance remains pending')
+    if args.itch_preview:
+        result = deploy_preview(args.variant, args.sha, args.manifest_sha256, args.output,
+                                Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), preview_smoke)
+        print('Published one-day preview at ' + result['hosting_url'] + '; exact auth hostname approval remains pending')
+    else:
+        result = deploy(args.variant, args.sha, args.manifest_sha256, args.output,
+                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), live_smoke)
+        print('Published selected test build at ' + result['hosting_url'] + '; account/device acceptance remains pending')
 
 
 if __name__ == '__main__':

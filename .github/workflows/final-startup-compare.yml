@@ -1,0 +1,94 @@
+name: Compare final10a welcome preparation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: final10a-descent-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  diagnostic-comparison:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 9d29138f9c53bb874be3e1f5872368bbcaa82a1f
+          persist-credentials: false
+          path: baseline
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: aedf46c452a3e05d0c84e8be0d6a4f6949f3c1a4
+          persist-credentials: false
+          path: qa-tools
+      - name: Verify immutable baseline, toolkit and candidate provenance
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git -C baseline rev-parse HEAD^{tree})" = 6cc904d4dfd45fadcb6d8ca5fee09b504ec96384
+          test "$(git -C qa-tools rev-parse HEAD^{tree})" = e912a7f86bd9d507c7572f0a6ad2947d9e9d5902
+          python3 ci/verify_prebaked_atlases.py
+          python3 -m unittest discover -s qa-tools/tests/startup_descent -p 'test_*.py' -v
+          node qa-tools/tests/startup_descent/test_validate.js
+          for root in . baseline; do
+            mkdir -p "$root/qa"
+            cp -R qa-tools/qa/startup_descent "$root/qa/startup_descent"
+          done
+          git diff --exit-code
+          git -C baseline diff --exit-code
+      - name: Install checksum-pinned official engine and Web template
+        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
+      - name: Export symmetric final10a and immutable-base diagnostic controls
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for product in baseline candidate; do
+            root="$GITHUB_WORKSPACE"; expected="$EXPECTED_HEAD"
+            if [ "$product" = baseline ]; then root="$GITHUB_WORKSPACE/baseline"; expected=9d29138f9c53bb874be3e1f5872368bbcaa82a1f; fi
+            python3 qa/startup_descent/prepare.py --source-root "$root" --expected-source "$expected" \
+              --output "$RUNNER_TEMP/descent-$product" --export \
+              --engine-lock "$RUNNER_TEMP/descent-engine.lock" \
+              --godot "${GODOT_BIN:-godot}" --template "$GODOT_TEMPLATE" \
+              --toolchain-receipt "$GODOT_TOOLCHAIN_RECEIPT"
+          done
+          git -C baseline diff --exit-code
+          git diff --exit-code
+      - name: Install existing pinned browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/descent-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/descent-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          google-chrome --version
+      - name: Measure cold and warm frames with collection only after timing
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/descent-browser-tools/node_modules/playwright
+        run: |
+          xvfb-run -a node qa/startup_descent/run_browser.js \
+            --baseline-root "$PWD/baseline" --candidate-root "$PWD" --qa-tools "$PWD/qa-tools" \
+            --baseline-pair "$RUNNER_TEMP/descent-baseline" \
+            --candidate-pair "$RUNNER_TEMP/descent-candidate" \
+            --output "$RUNNER_TEMP/descent-browser"
+      - name: Retain source-bound diagnostics only, never profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: startup-descent-diagnostic-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/descent-baseline/pair.json
+            ${{ runner.temp }}/descent-baseline/overlay-source/
+            ${{ runner.temp }}/descent-baseline/*/diagnostic-manifest.json
+            ${{ runner.temp }}/descent-baseline/*/evidence/
+            ${{ runner.temp }}/descent-candidate/pair.json
+            ${{ runner.temp }}/descent-candidate/overlay-source/
+            ${{ runner.temp }}/descent-candidate/*/diagnostic-manifest.json
+            ${{ runner.temp }}/descent-candidate/*/evidence/
+            ${{ runner.temp }}/descent-browser/
+          if-no-files-found: error
+          retention-days: 7

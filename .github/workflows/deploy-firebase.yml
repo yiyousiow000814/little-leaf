@@ -2,6 +2,12 @@ name: Deploy reviewed Firebase test build
 on:
   workflow_dispatch:
     inputs:
+      deployment_mode:
+        description: Existing live deployment or approved one-day itch preview; preview never updates Auth domains
+        required: true
+        default: live
+        type: choice
+        options: [live, itch-preview]
       source_sha:
         description: Exact reviewed Firebase candidate commit; may be an approved unmerged preview
         required: true
@@ -37,6 +43,7 @@ jobs:
       VARIANT_RUN_ID: ${{ inputs.variant_run_id }}
       VARIANT_ARTIFACT_ID: ${{ inputs.variant_artifact_id }}
       VARIANT_MANIFEST_SHA256: ${{ inputs.variant_manifest_sha256 }}
+      DEPLOYMENT_MODE: ${{ inputs.deployment_mode || 'live' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -65,6 +72,10 @@ jobs:
           assert artifact['id'] == int(os.environ['VARIANT_ARTIFACT_ID'])
           assert artifact['workflow_run']['id'] == run['id'] and not artifact['expired']
           assert artifact['name'] == 'little-leaf-firebase-' + os.environ['SOURCE_SHA'] + '-' + str(run['run_attempt'])
+          if os.environ['DEPLOYMENT_MODE'] == 'itch-preview':
+              assert run['head_sha'] == os.environ['SOURCE_SHA']
+          elif os.environ['DEPLOYMENT_MODE'] != 'live':
+              raise ValueError('Unknown deployment mode')
           PY
       - name: Download only the exact selected Firebase variant
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -78,8 +89,13 @@ jobs:
           digest-mismatch: error
       - name: Verify the exact reviewed package before requesting any Google token
         run: |
-          python3 -m unittest discover -s ci -p 'test_firebase_hosting_deploy.py' -v
-          python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only
+          python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_deploy.py' -v
+          preview_args=()
+          if [[ "$DEPLOYMENT_MODE" == 'itch-preview' ]]; then
+            python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_preview.py' -v
+            preview_args=(--itch-preview)
+          fi
+          python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only "${preview_args[@]}"
       - name: Obtain a short-lived Hosting-only token after all package checks
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -93,9 +109,15 @@ jobs:
           create_credentials_file: false
           export_environment_variables: false
       - name: Publish selected static test build and check its live marker
+        if: env.DEPLOYMENT_MODE == 'live'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json"
+      - name: Publish only the approved one-day itch preview without Auth synchronization
+        if: env.DEPLOYMENT_MODE == 'itch-preview'
+        env:
+          FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --itch-preview
       - name: Retain deployment and rollback receipt without credentials
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -104,3 +126,13 @@ jobs:
           path: ${{ runner.temp }}/firebase-receipt/deployment.json
           if-no-files-found: warn
           retention-days: 30
+      - name: Retain the exact bound itch test wrapper and source inventory
+        if: always() && env.DEPLOYMENT_MODE == 'itch-preview'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-itch-preview-wrapper-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/firebase-receipt/itch-wrapper.zip
+            ${{ runner.temp }}/firebase-receipt/preview-bound-manifest.json
+          if-no-files-found: warn
+          retention-days: 1

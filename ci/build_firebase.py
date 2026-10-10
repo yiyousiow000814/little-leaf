@@ -2,27 +2,15 @@
 import argparse, json, shutil, subprocess, re, hashlib, os
 from pathlib import Path
 from build_web import ROOT, sha256
-from build_crazygames import validate_web_gate
+import artifacts
 
 def validate_export_inventory(build):
-    web=build/'web'
-    if web.is_symlink() or not web.is_dir():raise ValueError('Export root must be a real directory')
-    manifest_path=web/'release-manifest.json'
-    if manifest_path.is_symlink():raise ValueError('Export manifest symlink forbidden')
-    base=json.loads(manifest_path.read_text());files=base.get('files')
-    if not isinstance(files,dict) or not files:raise ValueError('Complete export inventory required')
-    if any(not isinstance(name,str) or not name or Path(name).name!=name or '\\' in name or name=='release-manifest.json' for name in files):
-        raise ValueError('Unsafe export inventory path')
-    if {p.name for p in web.iterdir()}!=set(files)|{'release-manifest.json'}:
-        raise ValueError('Unexpected or missing export files')
-    for name,record in files.items():
-        p=web/name
-        if p.is_symlink() or not p.is_file():raise ValueError('Export symlink or non-file forbidden')
-        if not isinstance(record,dict) or record.get('sha256')!=sha256(p) or type(record.get('bytes')) is not int or record['bytes']!=p.stat().st_size:
-            raise ValueError('Export inventory hash/size mismatch: '+name)
-    return base
+    return artifacts.validate_export_inventory(build / 'web')
 
-def stage(build, output, config):
+def validate_web_gate(build, commit, tree, local_tools=False):
+    return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
+
+def stage(build, output, config, trusted_itch_origin=None):
     validate_export_inventory(build)
     required = {'apiKey','authDomain','projectId','appId'}
     if set(config) != required or any(not isinstance(v,str) or not v or 'REPLACE_' in v for v in config.values()):
@@ -31,6 +19,9 @@ def stage(build, output, config):
         raise ValueError('Invalid Firebase project ID')
     if config['authDomain'] != config['projectId'] + '.firebaseapp.com':
         raise ValueError('This variant requires its top-level Firebase Hosting authDomain')
+    if trusted_itch_origin is not None:
+        pattern='https://'+re.escape(config['projectId'])+r'--itch-embed-test-[a-z0-9]+\.web\.app'
+        if not re.fullmatch(pattern,trusted_itch_origin):raise ValueError('Exact own-origin itch preview URL required')
     output.mkdir(parents=True,exist_ok=False)
     shutil.copytree(build/'web',output/'public')
     public=output/'public'
@@ -41,29 +32,39 @@ def stage(build, output, config):
     (public/'hosting-release.json').write_text(json.dumps(marker,indent=2)+'\n')
     for name in ['firebase.json','firestore.rules','firestore.indexes.json']:
         shutil.copy2(ROOT/'firebase'/name,output/name)
-    for name in ['little_leaf_firebase.js','little_leaf_firebase_boot.mjs']:
+    for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'web'/name,public/name)
     html=(public/'index.html').read_text()
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
-    injection='<script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
+    options=','+json.dumps({'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}) if trusted_itch_origin else ''
+    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     (public/'index.html').write_text(html)
     entry=output/'itch-entry';entry.mkdir()
     url='https://'+config['authDomain']+'/'
     (entry/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Little Leaf</title><h1>Little Leaf</h1><p>Your café follows your Google account.</p><a target="_blank" rel="noopener" href="'+url+'">Open the full game and sign in</a><p>Opens a new tab for secure sign-in and account saves.</p>')
+    if trusted_itch_origin:
+        preview_config=json.loads((output/'firebase.json').read_text())['hosting']
+        preview_config['site']=config['projectId']
+        policy="frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io"
+        preview_config['headers'].extend({'source':path,'headers':[
+            {'key':'Content-Security-Policy','value':policy},
+            {'key':'Cache-Control','value':'no-store'}]} for path in ['/', '/index.html'])
+        (output/'firebase.json').write_text(json.dumps({'hosting':preview_config},indent=2)+'\n')
     (output/'firebase-variant-manifest.json').write_text(json.dumps({'base_web_manifest':base,'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'status':'staged-not-published','files':{p.relative_to(output).as_posix():sha256(p) for p in output.rglob('*') if p.is_file()}},indent=2))
 
 BROWSER_GATES = {
+    'firebase-fullflow': ('firebase-fullflow/firebase-fullflow.json', 'passed', True),
     'inbox': ('inbox-browser/compensation-inbox-browser.json', 'passed', True),
     'tutorial': ('fresh-tutorial-browser/fresh-tutorial-browser.json', 'status', 'passed'),
     'compatibility': ('wall-browser/wall-compatibility-browser.json', 'status', 'passed'),
     'save-log': ('save-log-browser/save-log-browser.json', 'passed', True),
     'webkit-recovery': ('connection-recovery-browser/connection-recovery-browser.json', 'passed', True),
 }
-FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'staging-tests.log', 'rules.log']
+FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'recovery.log', 'choice.log', 'session.log', 'update-notice.log', 'recovery-presentation.log', 'recovery-browser.log', 'staging-tests.log', 'rules.log']
 
 def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt):
     if not re.fullmatch(r'[1-9][0-9]*', str(run_id)) or not re.fullmatch(r'[1-9][0-9]*', str(attempt)):
@@ -87,6 +88,13 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
         path=build/'evidence'/relative;report=json.loads(path.read_text())
         if report.get(key)!=expected or (key=='passed' and report.get(key) is not True):
             raise ValueError('Fresh browser gate did not pass: '+name)
+        if name=='firebase-fullflow':
+            expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
+            if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
+                raise ValueError('Compiled Firebase browser/source binding mismatch')
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
+                raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
             raise ValueError('Actual browser validation required: '+name)
         if name=='tutorial' and (report.get('binding',{}).get('source_commit')!=source or report.get('binding',{}).get('diagnostic_only')):
@@ -152,6 +160,7 @@ def main():
     p.add_argument('--validated-web-build',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--public-config',type=Path,required=True);p.add_argument('--local-tools',action='store_true')
     p.add_argument('--require-fresh-ci',action='store_true');p.add_argument('--engine-report',type=Path);p.add_argument('--focused-logs',type=Path)
+    p.add_argument('--itch-preview-bootstrap',action='store_true')
     a=p.parse_args();git=lambda *args:subprocess.check_output(['git','-C',str(ROOT),*args],text=True).strip()
     if git('status','--porcelain'):raise RuntimeError('Commit/review all source before staging')
     if os.environ.get('GITHUB_ACTIONS')=='true' and (a.local_tools or not a.require_fresh_ci):
@@ -165,7 +174,18 @@ def main():
     config=json.loads(a.public_config.read_text())
     if proof and (config.get('projectId')!='little-leaf-41e5d' or config.get('authDomain')!='little-leaf-41e5d.firebaseapp.com'):
         raise ValueError('Fresh preview requires the approved public Firebase project configuration')
-    stage(a.validated_web_build,a.output,config)
+    if a.itch_preview_bootstrap:
+        if not proof:raise ValueError('Trusted preview bootstrap requires the unchanged fresh CI gates')
+        from build_itch_trusted_preview import prepare
+        prepare(a.validated_web_build,a.output,config,
+                'https://little-leaf-41e5d--itch-embed-test-localfixture.web.app',source,tree)
+        # This fresh source build is not the local reviewed-engine reuse candidate.
+        path=a.output/'firebase-variant-manifest.json'
+        manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
+        manifest['status']='staged-not-published'
+        path.write_text(json.dumps(manifest,indent=2)+'\n')
+    else:
+        stage(a.validated_web_build,a.output,config)
     if proof:
         add_fresh_evidence(a.validated_web_build,a.output,a.engine_report,a.focused_logs,proof)
         result={'source_sha':source,'manifest_sha256':sha256(a.output/'firebase-variant-manifest.json'),

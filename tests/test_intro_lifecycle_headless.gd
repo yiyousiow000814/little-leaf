@@ -149,7 +149,7 @@ func run():
 	check(game.cafe_intro.title is TextureRect and game.cafe_intro.title.texture != null, "approved artwork is a live texture")
 	check(game.cafe_intro.title.texture.get_size() == Vector2(783, 518), "approved transparent crop dimensions")
 	check(game.cafe_intro.welcome.text == "Welcome to", "greeting remains independent live text")
-	check(game.cafe_intro.hint.text == "Tap or press any key to skip", "skip instruction keeps English copy")
+	check(game.cafe_intro.hint.text == "Tap or press Enter to enter · Esc to skip", "skip instruction keeps English copy")
 	var intro = game.cafe_intro
 	var zoom = game.illustration.zoom
 	var pan = game.illustration.pan_offset
@@ -206,25 +206,62 @@ func run():
 		elif kind == "touch":
 			event = InputEventScreenTouch.new(); event.index = 1
 		elif kind == "key":
-			event = InputEventKey.new(); event.keycode = KEY_F10
+			event = InputEventKey.new(); event.keycode = KEY_ENTER
 		else:
 			event = InputEventJoypadButton.new(); event.button_index = JOY_BUTTON_A
 		event.pressed = true
-		check(intro.handle_input(event), kind + " skip press owned")
-		check_restored(intro, kind + " skip")
-		check(intro.handle_input(event), kind + " held/repeat press owned")
+		check(intro.handle_input(event), kind + " entrance press owned")
+		check(intro.active and intro.entry_requested and intro.elapsed == 1.0 and intro.descent == 0.0, kind + " first gesture begins normal descent without finishing")
+		check(intro.hint.text == "Tap again or press Esc to skip", kind + " subsequent skip instruction")
+		check(intro.handle_input(event) and intro.active, kind + " held/repeat press cannot skip")
 		event.pressed = false
-		check(intro.handle_input(event), kind + " skip release owned")
-		check(not intro.handle_input(event), kind + " next independent event released")
+		check(intro.handle_input(event) and intro.active, kind + " entrance release owned")
 		if kind == "touch":
 			var emulated = InputEventMouseButton.new()
 			emulated.device = InputEvent.DEVICE_ID_EMULATION
 			emulated.button_index = MOUSE_BUTTON_LEFT
 			emulated.pressed = true
-			check(intro.handle_input(emulated), "touch emulated mouse press owned")
+			check(intro.handle_input(emulated) and intro.active, "touch emulated mouse press does not skip entrance")
 			emulated.pressed = false
-			check(intro.handle_input(emulated), "touch emulated mouse release owned")
-			check(not intro.handle_input(emulated), "later emulated pointer free")
+			check(intro.handle_input(emulated) and intro.active, "touch emulated mouse release owned")
+		event.pressed = true
+		check(intro.handle_input(event), kind + " independent second gesture skips")
+		check_restored(intro, kind + " explicit second skip")
+		event.pressed = false
+		check(intro.handle_input(event), kind + " skip release owned")
+		check(not intro.handle_input(event), kind + " later independent event released")
+
+	intro = fresh_intro()
+	intro._process(.7);intro._process(.7);intro._process(.7)
+	var late_elapsed = intro.elapsed
+	var late_descent = intro.descent
+	var key = InputEventKey.new();key.keycode = KEY_SPACE;key.pressed = true
+	intro.handle_input(key)
+	check(intro.active and intro.elapsed == late_elapsed and intro.descent == late_descent, "late first gesture never rewinds or jumps descent")
+	key.pressed = false;intro.handle_input(key)
+	key.pressed = true;key.echo = true
+	check(intro.handle_input(key) and intro.active, "stray keyboard echo cannot skip after release")
+	key.echo = false;key.keycode = KEY_ESCAPE
+	check(intro.handle_input(key), "Escape explicitly skips")
+	check_restored(intro, "Escape")
+
+	intro = fresh_intro()
+	var first_touch = InputEventScreenTouch.new();first_touch.index = 0;first_touch.pressed = true
+	var second_touch = InputEventScreenTouch.new();second_touch.index = 1;second_touch.pressed = true
+	intro.handle_input(first_touch);intro.handle_input(second_touch)
+	check(intro.active, "simultaneous second finger is not a second gesture")
+	first_touch.pressed = false;second_touch.pressed = false
+	intro.handle_input(first_touch);intro.handle_input(second_touch)
+	first_touch.pressed = true;intro.handle_input(first_touch)
+	check_restored(intro, "independent tap after multitouch release")
+	intro = fresh_intro()
+	key.keycode = KEY_ESCAPE;key.pressed = true
+	intro.handle_input(key)
+	check_restored(intro, "Escape as first gesture")
+	intro = fresh_intro()
+	key.keycode = KEY_F10;intro.handle_input(key)
+	check(intro.active and not intro.entry_requested and intro.elapsed == 0.0, "unrelated key does not advance entrance")
+	check(game.audio_players == audio and game.music_enabled == music_enabled and game.paused == paused, "entrance gestures preserve audio identity and user settings")
 
 	for kind in ["focus", "stall", "settings", "decorate"]:
 		intro = fresh_intro()

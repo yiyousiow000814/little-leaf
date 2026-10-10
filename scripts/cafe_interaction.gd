@@ -159,6 +159,7 @@ func on_focus_lost():
 	drag_valid = false
 
 func rotate_selection():
+	if game.save_recovery_blocked:return
 	if not game.editing: return
 	var next = posmod(int(game.rotation_step) + 1, 4)
 	if drag_active or str(game.selected_kind) != "":
@@ -197,7 +198,7 @@ func _begin_left(screen: Vector2, device: int = 0):
 	_press_parcel_id = ""
 	_grab_offset = Vector2.ZERO
 	_gesture = "pending"
-	if game.editing and _press_kind == "":
+	if game.editing and _press_kind == "" and not (game.illustration.has_method("objects_hidden") and game.illustration.objects_hidden()):
 		_press_item_id = game.illustration.hit_item(screen)
 		if _press_item_id < 0:
 			var cell: Vector2i = game._floor_cell(screen)
@@ -311,6 +312,7 @@ func _update_validity(screen: Vector2):
 	_last_valid_cell = drag_cell
 
 func _commit_preview():
+	if game.save_recovery_blocked:return
 	# Repeat the same validation at commit time. Previewing never purchases,
 	# moves, increments revision, rebuilds service routes, or saves.
 	_update_validity(last_pointer)
@@ -410,9 +412,12 @@ func _service_locked(id: int) -> bool:
 
 func draw_floor_feedback(artist):
 	if not game.editing:return
-	for cell in floor_availability.refresh(game.model):
+	# Tile browsing shows the actual installed finish. Placement validation and
+	# occupancy stay live; only the furniture-availability paint is suppressed.
+	if "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.tiles_active():return
+	for cell in floor_availability.refresh(game.model,drag_item_id if preview_active and drag_active else -1):
 		var blocked=bool(floor_availability.cells[cell].blocked)
-		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
+		var fill=Color("ddcbb6") if blocked else Color("cad2b6")
 		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
 		var corners=[artist.iso(cell.x+.04,cell.y+.04),artist.iso(cell.x+.96,cell.y+.04),artist.iso(cell.x+.96,cell.y+.96),artist.iso(cell.x+.04,cell.y+.96)]
 		artist.poly(corners,fill)

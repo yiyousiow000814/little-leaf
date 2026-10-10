@@ -201,11 +201,12 @@ func run():
  install(cell);same_state(before,"insufficient funds cannot purchase or save")
  game.model.coins=1000
  # Interrupted gestures stay nonmutating, even if the late release still arrives.
- for interruption in ["drag","escape","right-click","focus-loss","wheel","other-tile","over-ui","back"]:
+ for interruption in ["drag-cancel","escape","right-click","focus-loss","wheel","other-tile","over-ui","back"]:
   await select_floor("sage_tile");point=point_for(cell);before=snapshot();floor_event(point,true)
   match interruption:
-   "drag":
+   "drag-cancel":
     var motion=InputEventMouseMotion.new();motion.position=point+Vector2(25,0);motion.button_mask=MOUSE_BUTTON_MASK_LEFT;game.build_tools.handle_input(motion)
+    game.build_tools.on_focus_lost()
    "escape":
     var event=InputEventKey.new();event.keycode=KEY_ESCAPE;event.pressed=true;game.build_tools.handle_input(event)
    "right-click":

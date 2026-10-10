@@ -40,10 +40,10 @@ func setup(data_path:String=DATA_PATH):
  panel.add_child(body)
  body.add_child(_label("Update Notes",22))
  if current_version()!="":
-  if str(release.get("label",""))!="":body.add_child(_label(release.label,14,MUTED))
-  body.add_child(_label("Version %s · %s"%[current_version(),release.date],13,MUTED))
-  _add_section("New",release.new)
-  if not release.fixed.is_empty():_add_section("Fixed",release.fixed)
+  _add_release(release)
+  for previous in release.get("history",[]):
+   body.add_child(HSeparator.new())
+   _add_release(previous)
  else:
   var message="Release details are being prepared."
   if data_error!="":message="Update notes are unavailable in this build."
@@ -61,6 +61,12 @@ func setup(data_path:String=DATA_PATH):
  # Setup must never open a dialog or consume the unread state.
  panel.hide()
  sync()
+
+func _add_release(entry:Dictionary):
+ if str(entry.get("label",""))!="":body.add_child(_label(entry.label,14,MUTED))
+ body.add_child(_label("Version %s · %s"%[entry.version,entry.date],13,MUTED))
+ if not entry.new.is_empty():_add_section("New",entry.new)
+ if not entry.fixed.is_empty():_add_section("Fixed",entry.fixed)
 
 func make_menu_entry()->Button:
  var button=game.button("Update Notes",show)
@@ -191,6 +197,17 @@ static func validate_document(document:Variant)->Dictionary:
    if not item is String or item.strip_edges()=="":return _invalid("Release bullets must contain text")
    normalized[section].append(item.strip_edges())
  if normalized.new.is_empty() and normalized.fixed.is_empty():return _invalid("Released notes need at least one shipped change")
+ var history=document.get("history",[])
+ if not history is Array:return _invalid("Release history must be an array")
+ normalized.history=[]
+ var versions={version:true}
+ for previous in history:
+  if not previous is Dictionary or previous.has("history"):return _invalid("Release history must contain flat release entries")
+  var checked=validate_document(previous)
+  if not checked.get("valid",false) or checked.get("status","")!="released":return _invalid("Historical notes must describe released versions")
+  if versions.has(checked.version):return _invalid("Release versions must be unique")
+  versions[checked.version]=true
+  normalized.history.append(checked)
  return normalized
 
 static func _invalid(reason:String)->Dictionary:
