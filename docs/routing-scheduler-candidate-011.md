@@ -2,7 +2,8 @@
 
 This local candidate addresses the 284ms synthetic exhaustive search recorded for
 PR125 head `d9c06035ed4bf66e95ff5a8ff496b140f0dc870e`. The published synchronous
-planner/follower is unchanged. No production caller imports the new scheduler;
+planner remains available; the candidate follower now optionally consumes the
+scheduler for invalid-route replans. No production caller imports the scheduler;
 save formats, economy, claims, role ownership and service timing are unchanged.
 The specifically blocked private reception source was not accessed.
 
@@ -65,6 +66,44 @@ real-time guarantee or representative hardware FPS acceptance. Production
 integration still needs its own frame workload/snapshot lifecycle measurements.
 
 ## Verification
+
+### Follower consumption slice (roadmap09.03)
+
+Based on PR125 `439aba98ce67f27e8fb21cf13b65ccf15eaf11b6`, `advance`
+accepts optional `scheduler` and `epoch` arguments after the existing arguments.
+Omitting them retains synchronous behavior for old candidate callers. With a
+scheduler, an invalid route at an exact safe center submits one request and
+returns `pending` without searching or moving. The owner ticks that same scheduler
+separately under its shared budget. A pending follower holds position and consumes
+one completed result. Layout epoch/revision, task token, endpoint and origin
+must still match; the existing endpoint ownership callback approves movement.
+An obsolete request is cancelled and consumed before retry. Claim loss and a
+terminal replacement plan also clear it. `cancel_replan(state, scheduler)` is
+required when abandoning a follower; the owner continues ticking cleanup.
+
+Keep the same scheduler instance for the lifetime of a follower's outstanding
+request. Snapshots remain immutable and epochs monotonic as specified above.
+`backpressure` holds position for a later retry; search errors are returned to
+the caller. Mid-segment invalidation still stops without rounding or snapping.
+No claims, task allocation, endpoint selection or service timings are introduced.
+Remaining-route validation and snapshot construction are still synchronous;
+this slice bounds search work only, not the entire controller/frame workload.
+
+The shared model owner confirmed no model/reception/codec API change is needed.
+Reviewed composite `2cbd7118fb3561716b2506b790b3f0abcaab7c11` retains authoritative
+Main service locks, chef pickup outputs and stove/counter ownership. This slice
+uses synthetic snapshots and does not activate its old `from_model` adapter on
+that composite: segmented `collision_wall_hosts()` and modular cabinet geometry
+need their own adapter review. Reception08.01–08.05 source/endpoints, actual role
+consumers, docking, codecs and production activation remain prerequisite gates.
+The unavailable historical reception source is not recreated here.
+
+Acceptance for this bounded slice: pending searches do no movement or synchronous
+A*, completion resumes the existing follower once, stale task/layout/claim/
+endpoint/origin results cannot move it, unreachable goals report failure, retained
+slots are reclaimed and the original advance signature continues working.
+Use `--only-follower` for these focused regressions; no full scheduler matrix or
+FPS measurement is required for this consumption change.
 
 Run the synthetic-only runner with `--godot`, a new `--output` directory and
 optionally `--source-commit` to extract a frozen Git revision. It copies only the

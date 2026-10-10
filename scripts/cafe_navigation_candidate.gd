@@ -154,15 +154,42 @@ static func _remaining_valid(snapshot:Dictionary,state:Dictionary,position:Vecto
 		if not can_step(snapshot,route[i-1],route[i]):return false
 	return sweep_clear(snapshot,position,b)
 
-static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:float,speed:float,people:Array=[])->Dictionary:
+static func cancel_replan(state:Dictionary,scheduler):
+	# Call on task abandonment too: retained requests must be consumed once.
+	var id=int(state.get("request",0))
+	if id!=0:
+		scheduler.cancel(id);scheduler.take_result(id,int(state.request_epoch))
+	state.request=0
+
+static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:float,speed:float,people:Array=[],scheduler=null,epoch:int=0)->Dictionary:
 	var result={"status":"walking","position":position,"distance":0.0,"replanned":false}
 	if not position.is_finite() or not is_finite(delta) or delta<0.0 or not is_finite(speed) or speed<=0.0:result.status="invalid_input";return result
-	if state.plan.status!="found":result.status=state.plan.status;return result
-	if not state.owns.is_valid() or not state.owns.call(state.token):result.status="stale_claim";return result
+	if state.plan.status!="found":
+		if scheduler!=null:cancel_replan(state,scheduler)
+		result.status=state.plan.status;return result
+	if not state.owns.is_valid() or not state.owns.call(state.token):
+		if scheduler!=null:cancel_replan(state,scheduler)
+		result.status="stale_claim";return result
+	if scheduler!=null and int(state.get("request",0))!=0:
+		# Never deliver a route for a changed task, layout, endpoint or anchor.
+		if state.request_epoch!=epoch or state.request_revision!=snapshot.revision or state.request_token!=state.token or state.request_goal!=state.plan.route[-1] or position.distance_to(center(state.request_origin))>.000001:
+			cancel_replan(state,scheduler)
+		else:
+			var ready:Dictionary=scheduler.take_result(int(state.request),epoch)
+			if ready.status=="pending":result.status="pending";return result
+			state.request=0
+			if ready.status!="found":result.status=ready.status;return result
+			state.plan=ready;state.index=1;result.replanned=true
 	if not _remaining_valid(snapshot,state,position):
 		# Only an actual safe node is an anchor. Never round/snap mid-segment.
 		var cell=Vector2i(floori(position.x),floori(position.y))
 		if position.distance_to(center(cell))>.000001 or not open_cell(snapshot,cell):result.status="blocked_mid_segment";return result
+		if scheduler!=null:
+			var id:int=scheduler.submit(snapshot,cell,state.plan.route[-1],epoch)
+			if id==0:result.status="backpressure";return result
+			state.request=id;state.request_epoch=epoch;state.request_revision=snapshot.revision.duplicate()
+			state.request_token=state.token;state.request_origin=cell;state.request_goal=state.plan.route[-1]
+			result.status="pending";return result
 		var replacement=plan(snapshot,cell,state.plan.route[-1])
 		if replacement.status!="found":result.status=replacement.status;return result
 		state.plan=replacement;state.index=1;result.replanned=true

@@ -11,8 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ["scripts/cafe_navigation_candidate.gd",
-         "scripts/cafe_navigation_scheduler_candidate.gd",
-         "tests/test_navigation_scheduler_candidate.gd"]
+         "scripts/cafe_navigation_scheduler_candidate.gd"]
 
 
 def main():
@@ -20,23 +19,26 @@ def main():
     parser.add_argument("--godot", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--source-commit", help="Extract exact Git source; otherwise use working files")
+    parser.add_argument("--only-follower", action="store_true", help="Run only scheduler/follower consumption regressions")
     args = parser.parse_args()
+    test = "test_navigation_follower_scheduler_candidate" if args.only_follower else "test_navigation_scheduler_candidate"
+    files = FILES + ["tests/" + test + ".gd"]
     args.output.mkdir(parents=True, exist_ok=False)
     with tempfile.TemporaryDirectory(prefix="little-leaf-scheduler-") as temporary:
         isolated = Path(temporary)
         project = isolated / "project"
         project.mkdir()
         if args.source_commit:
-            packed = subprocess.run(["git", "archive", args.source_commit, *FILES],
+            packed = subprocess.run(["git", "archive", args.source_commit, *files],
                                     cwd=ROOT, capture_output=True, check=True).stdout
             with tarfile.open(fileobj=io.BytesIO(packed)) as archive:
                 archive.extractall(project, filter="data")
         else:
-            for name in FILES:
+            for name in files:
                 target = project / name
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((ROOT / name).read_bytes())
-        hashes = {name: hashlib.sha256((project / name).read_bytes()).hexdigest() for name in FILES}
+        hashes = {name: hashlib.sha256((project / name).read_bytes()).hexdigest() for name in files}
         (project / "project.godot").write_text(
             'config_version=5\n[application]\nconfig/name="LittleLeaf Scheduler Synthetic"\n', encoding="utf-8")
         env = os.environ.copy()
@@ -45,7 +47,7 @@ def main():
             profile.mkdir(parents=True)
             env[name] = str(profile)
         command = [args.godot, "--headless", "--audio-driver", "Dummy", "--path", str(project),
-                   "--script", "res://tests/test_navigation_scheduler_candidate.gd"]
+                   "--script", "res://tests/" + test + ".gd"]
         with (args.output / "engine.log").open("wb") as log_file:
             try:
                 exit_code = subprocess.run(command, env=env, stdout=log_file,
