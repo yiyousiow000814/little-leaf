@@ -936,6 +936,7 @@ func _draw():
 		Neighborhood.draw_crossing(self,_parking_owned())
 	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
 	road_traffic.draw(self)
+	preload("res://scripts/cafe_parking_sign.gd").draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground()
@@ -1379,6 +1380,10 @@ func _parcel_sign(parcel):
 		poly([Vector2(32,-43),Vector2(39,-43),Vector2(39,-37),Vector2(32,-37)],"8b876b")
 		line(Vector2(33,-43),Vector2(33,-46),"8b876b",1.4);line(Vector2(33,-46),Vector2(38,-46),"8b876b",1.4);line(Vector2(38,-46),Vector2(38,-43),"8b876b",1.4)
 	art_transform(Vector2.ZERO)
+func hit_parking_sign(screen:Vector2)->bool:
+	update_projection()
+	return preload("res://scripts/cafe_parking_sign.gd").hit(self,screen)
+
 func hit_parcel(screen:Vector2) -> String:
 	if not is_instance_valid(game) or not game.editing or not game.model.has_method("expansion_parcels"):return ""
 	update_projection()

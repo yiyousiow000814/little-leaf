@@ -118,10 +118,9 @@ var _parking_session_purchase=false
 func parking_price()->int:return Parking.PRICE
 func parking_refund()->int:return parking_paid_cost if decoration_session_active and _parking_session_purchase else int(parking_paid_cost/2)
 func buy_parking()->bool:
-	if not decoration_session_active:return _fail("Open Decorate to buy parking")
 	if parking_owned:return _fail("Parking already owned")
 	if coins<parking_price():return _fail("Not enough coins · %s needed"%Money.amount(parking_price()))
-	parking_paid_cost=parking_price();coins-=parking_paid_cost;parking_owned=true;_parking_session_purchase=true
+	parking_paid_cost=parking_price();coins-=parking_paid_cost;parking_owned=true;_parking_session_purchase=decoration_session_active
 	last_error="";last_event="Four parking bays bought · −%s"%Money.amount(parking_paid_cost);_notify();return true
 func sell_parking()->bool:
 	if not decoration_session_active:return _fail("Open Decorate to sell parking")

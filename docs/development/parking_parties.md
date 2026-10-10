@@ -1,6 +1,6 @@
 # Parking visitor parties
 
-Candidate for 0.1.11. Purchase UI remains the existing Decorate path pending the editor handoff for the roadmap's fixed map For Sale sign. This implementation is not visual acceptance or merge authorization.
+Candidate for 0.1.11. The fixed map For Sale sign opens a purchase review during normal play. This implementation is not user acceptance or merge authorization.
 
 A parking car owns one to four original members until all have boarded and the physical car exits. The existing arrival dispatcher creates a bounded party; there is no extra arrival/background timer. The fixed lot still has four bays and shares the six prospective-visitor limit with the ordinary outside queue.
 
@@ -28,6 +28,10 @@ The bounded traffic snapshot is contained in the parking subsystem envelope. Mod
 
 ## Candidate checks
 
+The fixed sign shares one world anchor between drawing and hit testing. Existing world input distinguishes a tap from a pan and cancels held taps on focus loss or pinch; parcel purchase and furnishing input remain intact. The purchase review uses the existing registered modal, including cancellation and viewport sizing. Buying checks the model price and ownership atomically, saves once and replaces the sign with the existing four-bay drawing. Insufficient funds and save recovery block buying. Unowned parking is absent from Decorate; the existing owned sale review/refund policy remains. A normal-play purchase does not grant a Decorate-session full refund.
+
+The sign adds a constant small draw list and no timers, caches, scene nodes or simulation fields. Its owning illustration redraws through the existing path; ownership changes remove the sign. Modal controls are retained with the shop and freed with the scene. Focused actual Main input checks cover cancellation, pan, focus loss, insufficient funds, recovery, repeat activation, save/reload, usable bays and narrow/short viewport geometry. Native PNGs for this flow are retained outside source in the delivery packet.
+
 The focused functional run uses only generated synthetic profiles: parking compatibility, 1–4 members, partial return save/load, staggered return, real Main service/payment/queue patience/abort, pause/Decorate/background suspension, traffic gap and malformed snapshot checks. The existing focused parking rendering checks also pass. Actual native PNGs and their source hashes, clocks and synthetic fixture records are in `docs/testing/evidence/parking-parties/`.
 
-The PNG fixture skips the existing tutorial through its own public action and updates the HUD at each capture. It drives the actual Main service and staff functions and production drawing code, with save writes suppressed. It is an instrumented simulation, not ordinary-speed continuous playback or an FPS qualification. Independent visual acceptance, integrated review with the other 0.1.11 slices, and the map For Sale purchase interaction remain pending.
+The PNG fixture skips the existing tutorial through its own public action and updates the HUD at each capture. It drives the actual Main service and staff functions and production drawing code, with save writes suppressed. It is an instrumented simulation, not ordinary-speed continuous playback or an FPS qualification. Independent visual review, user verification and integrated review with the other 0.1.11 slices remain pending.

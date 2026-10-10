@@ -55,7 +55,7 @@ func run():
  check(OS.get_environment("XDG_DATA_HOME")!="" and OS.get_user_data_dir().begins_with(OS.get_environment("XDG_DATA_HOME")),"disposable generated save profile")
  var m=Model.new();var wallet=m.coins
  check(not m.parking_owned and m.parking_visits.is_empty(),"new parking unowned/empty")
- check(not m.buy_parking() and m.coins==wallet,"purchase requires Decorate")
+ check(not m.buy_parking() and m.coins==wallet,"normal-play insufficient funds atomic")
  m.begin_decoration_session();check(not m.buy_parking() and m.coins==wallet,"insufficient funds atomic")
  m.coins=10000;check(m.buy_parking() and m.coins==8000 and m.parking_paid_cost==2000,"one-time configured purchase")
  check(not m.buy_parking() and m.coins==8000,"repeat purchase cannot charge")
