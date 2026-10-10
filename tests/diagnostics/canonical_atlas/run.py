@@ -27,11 +27,21 @@ def main():
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  packages=subprocess.run(['dpkg-query','-W','libgl1-mesa-dri','libglx-mesa0','libllvm20','xvfb'],capture_output=True,text=True);(out/'packages.txt').write_text(packages.stdout+packages.stderr)
- binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'combined camera/FPS only'}
+ binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'exact camera input successor; qualified control reused'}
  def save():(out/'summary.json').write_text(json.dumps(binding,indent=2))
  save();assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
  for label,item in targets.items():
   dest=out/label;dest.mkdir()
+  if label=='control' and inputs.get('reuse_control'):
+   reference=inputs['reuse_control'];assert reference['run']==38066367866 and reference['artifact']==11674353510
+   assert item=={'commit':'d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd','tree':'272899608abf811b62c9d91851916c193b095dcf'}
+   for name,digest in reference['files'].items():
+    source=HERE/'qualified-control'/name;assert sha(source)==digest;shutil.copy2(source,dest/name)
+   receipt=json.loads((dest/'atlas-parity.json').read_text());saved=json.loads((dest/'saved-png-check.json').read_text());source=json.loads((dest/'source-binding.json').read_text())
+   assert source['commit']==item['commit'] and source['tree']==item['tree']
+   assert receipt_passed(receipt,0) and receipt['source_commit']==item['commit'] and native_fingerprint_passed((dest/'native.log').read_text())
+   assert len(saved['rows'])==3 and not saved['failures'] and all(row['passed'] and row['imported_rgba']==row['regenerated_rgba']==EXPECTED_RGBA[i] for i,row in enumerate(saved['rows']))
+   binding['rows'].append({'label':label,**item,'passed':True,'reused_verified_control':reference,'receipt_sha256':sha(dest/'atlas-parity.json'),'regenerated_rgba':receipt['baseline_sha256'],'imported_rgba':receipt['candidate_sha256']});save();continue
   with tempfile.TemporaryDirectory(prefix='tena-atlas-saveguard-') as temp:
    work=pathlib.Path(temp)/'source';subprocess.run(['git','fetch','--no-tags','origin',item['commit']],check=True);subprocess.run(['git','worktree','add','--detach',str(work),item['commit']],check=True)
    try:

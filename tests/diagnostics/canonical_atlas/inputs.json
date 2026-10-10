@@ -1,11 +1,21 @@
 {
-  "scope": "Exact combined camera/FPS atlas parity; no background WIP or 11",
+  "scope": "Exact published camera input successor canonical parity; reuse verified control; no background or11",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "dba691056e7183abcd6af9bb12508f8df6f0b1eb",
-    "tree": "32a2dada5fb646dcd59d384e2646f0b6ea713122"
+    "commit": "9b9205df4c21eb9fee020f3a60a05a7af3da3b82",
+    "tree": "fdf95787779a03f7032155790a5731debaf64529"
+  },
+  "reuse_control": {
+    "run": 38066367866,
+    "artifact": 11674353510,
+    "files": {
+      "atlas-parity.json": "4eb7fd463b0d90f00b042bc01258a5fab6e58f7faf9fa64d93bf02425a616861",
+      "native.log": "05c8f24d3b293c84ebdabf762593b25b7bc4e00913244b35aac1bca979e58816",
+      "saved-png-check.json": "a717304564b8269aff76d3026b0760853ca6fceacab6513bc6e7e6da277f6583",
+      "source-binding.json": "9cb296480c55b56096017d64598595ba71047ae5697a2021f3a5f2d817e24550"
+    }
   }
 }
