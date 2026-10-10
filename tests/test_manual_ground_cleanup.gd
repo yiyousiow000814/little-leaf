@@ -124,5 +124,22 @@ func run():
  check(record.floor_cleaned and record.trash_owner=="disposed","stale guest NPC contact cannot reopen cleaned ground")
  check(record.dishes_collected==before_dishes and record.table_wiped==before_table and record.get("dish_sink_id",-1)==sink and waiter.job_kind=="cleanup","manual ground completion preserves waiter work and sink claim")
  check(not game.complete_ground_mess(identity,"manual"),"guest completion is idempotent")
+ # A synthetic legacy cleaner already holds trash while a spill remains visible.
+ record=game.setup_dirty();janitor=game.legacy_job(record,5,.35)
+ var holder=game.staff_states.find(janitor)
+ record.trash_owner="staff";record.trash_staff_index=holder;record.trash_target_id=-1
+ identity=game.ground_mess_identity("guest",int(record.guest.id))
+ check(game.complete_ground_mess(identity,"manual"),"manual click cleans remaining spill beside carried trash")
+ check(record.spill_cleaned and record.spill_remaining==0.0 and not record.floor_cleaned,"only visible spill completes while carried obligation remains")
+ check(record.trash_owner=="staff" and record.trash_staff_index==holder and record.trash_target_id==-1,"manual spill cleanup preserves garbage custody")
+ check(janitor.job_kind=="cleanup" and janitor.job_step==5 and is_equal_approx(janitor.job_elapsed,.35),"manual spill cleanup preserves legacy disposal job and elapsed")
+ check(not game.complete_ground_mess(identity,"manual"),"repeat spill click cannot settle carried garbage")
+ game.model.service_snapshot=game._service_save_snapshot()
+ check(game.model.save("user://manual-carried-spill.json") and game.model.load_save("user://manual-carried-spill.json"),"synthetic carried obligation still validates and reloads")
+ game._restore_service_runtime();janitor=game.worker("cleaner");record=game.service_guests[int(record.guest.id)]
+ check(record.trash_owner=="staff" and janitor.job_kind=="cleanup" and janitor.job_step==5,"restored cleaner retains carried disposal obligation")
+ game._service_contact(janitor,game.staff_states.find(janitor),"disposing_trash",{},1.0)
+ game.complete_ground_mess_if_ready(game.ground_mess_identity("guest",int(record.guest.id)))
+ check(record.trash_owner=="disposed" and record.floor_cleaned,"existing NPC disposal settles remaining obligation")
  print("MANUAL_GROUND_CLEANUP_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":false}))
  quit(0 if failures.is_empty() else 1)

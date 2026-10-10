@@ -1264,10 +1264,14 @@ func complete_ground_mess(identity:Dictionary,source="manual")->bool:
 	if source!="manual":return false
 	var record=resolve_ground_mess(identity)
 	if record.is_empty():return false
-	record.trash_owner="none" if str(record.floor_debris)=="none" else "disposed"
-	record.trash_staff_index=-1;record.trash_target_id=-1
+	# A remaining spill can share its record with already carried/bin trash.
+	# Only visible floor debris belongs to this click; retain physical custody.
+	if str(record.trash_owner)=="floor":
+		record.trash_owner="disposed"
+		record.trash_staff_index=-1;record.trash_target_id=-1
 	record.spill_cleaned=true;record.spill_remaining=0.0
-	return complete_ground_mess_if_ready(identity)
+	complete_ground_mess_if_ready(identity)
+	return true
 
 func complete_ground_mess_if_ready(identity:Dictionary)->bool:
 	var record=resolve_ground_mess(identity,false)
