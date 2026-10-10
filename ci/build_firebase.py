@@ -1,5 +1,5 @@
 """Stage an unpublished Firebase/itch-entry variant from the exact complete Web gate."""
-import argparse, json, shutil, subprocess, re, hashlib, os
+import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 from build_web import ROOT, sha256
 import artifacts
@@ -10,7 +10,23 @@ def validate_export_inventory(build):
 def validate_web_gate(build, commit, tree, local_tools=False):
     return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
 
-def stage(build, output, config, trusted_itch_origin=None):
+def entry_styles():
+    """Inline the existing licensed Nunito font; no new external requests."""
+    css=(ROOT/'web/little_leaf_entry.css').read_text(encoding='utf-8')
+    notice=(ROOT/'assets/fonts/Nunito-OFL.txt').read_text(encoding='utf-8')
+    return '/* '+notice+' */\n'+css.replace('$NUNITO_FONT',base64.b64encode((ROOT/'assets/fonts/Nunito-Variable.ttf').read_bytes()).decode('ascii'))
+
+def auth_verification_html(html, config, origin):
+    """Derived diagnostic page: no engine, adapters, vault or preferences scripts."""
+    pattern='https://'+re.escape(config['projectId'])+r'--itch-embed-test-[a-z0-9]+\.web\.app'
+    if not re.fullmatch(pattern,origin):raise ValueError('Exact own-origin itch preview URL required')
+    html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Little Leaf · Sign-in check</title><style>'+entry_styles()+'</style></head><body><main class="leaf-entry-page"><section class="leaf-entry-card" aria-labelledby="auth-heading"><p class="leaf-entry-brand">Little Leaf</p><p class="leaf-entry-eyebrow">A little café of your own</p><h1 id="auth-heading" class="leaf-entry-title">Google sign-in check</h1><p class="leaf-entry-intro">Confirm your account in a secure Google popup.</p><div id="auth-verification-slot"></div><p class="leaf-entry-paused">Game and saves remain paused.</p><p class="leaf-entry-note">This check confirms sign-in only. Your existing local progress does not transfer automatically.</p></section></main><p id="status-label" hidden></p></body></html>'
+    options={'surface':'trusted-itch-frame','runtimeOrigin':origin,'authVerificationOnly':True}
+    injection='<script>window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start('+json.dumps(config).replace('<','\\u003c')+','+json.dumps(options)+')).catch(()=>{const label=document.getElementById("status-label"),slot=document.getElementById("auth-verification-slot");if(label)label.textContent="Auth setup did not finish. Game and saves remain paused.";if(slot)slot.textContent="Sign-in setup did not finish. Reload this page to retry.";});</script>'
+    if html.count('</body>')!=1:raise ValueError('Diagnostic body contract changed')
+    return html.replace('</body>',injection+'</body>')
+
+def stage(build, output, config, trusted_itch_origin=None, auth_verification_only=False):
     validate_export_inventory(build)
     required = {'apiKey','authDomain','projectId','appId'}
     if set(config) != required or any(not isinstance(v,str) or not v or 'REPLACE_' in v for v in config.values()):
@@ -22,6 +38,8 @@ def stage(build, output, config, trusted_itch_origin=None):
     if trusted_itch_origin is not None:
         pattern='https://'+re.escape(config['projectId'])+r'--itch-embed-test-[a-z0-9]+\.web\.app'
         if not re.fullmatch(pattern,trusted_itch_origin):raise ValueError('Exact own-origin itch preview URL required')
+    if not isinstance(auth_verification_only,bool) or auth_verification_only and not trusted_itch_origin:
+        raise ValueError('Auth verification requires an exact trusted itch preview origin')
     output.mkdir(parents=True,exist_ok=False)
     shutil.copytree(build/'web',output/'public')
     public=output/'public'
@@ -38,11 +56,14 @@ def stage(build, output, config, trusted_itch_origin=None):
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
-    options=','+json.dumps({'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}) if trusted_itch_origin else ''
+    preview_options={'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}
+    if auth_verification_only:preview_options['authVerificationOnly']=True
+    options=','+json.dumps(preview_options) if trusted_itch_origin else ''
     injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
-    (public/'index.html').write_text(html)
+    if auth_verification_only:html=auth_verification_html(html,config,trusted_itch_origin)
+    (public/'index.html').write_text(html,encoding='utf-8')
     entry=output/'itch-entry';entry.mkdir()
     url='https://'+config['authDomain']+'/'
     (entry/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Little Leaf</title><h1>Little Leaf</h1><p>Your café follows your Google account.</p><a target="_blank" rel="noopener" href="'+url+'">Open the full game and sign in</a><p>Opens a new tab for secure sign-in and account saves.</p>')
