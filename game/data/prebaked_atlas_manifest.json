@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "source 9b9205df4c21eb9fee020f3a60a05a7af3da3b82 treefdf95787779a03f7032155790a5731debaf64529; canonical run38069841730 QAb0a82349a7c373f7d705510f0f6a17302981d772; receipt SHA256 24222be1ce393c56ff99428e9b8fae67c8c978edd90b60deb89ec405929e02b3; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; regenerated/imported and decoded PNG exact RGBA equality; qualified d291 control reused from run38066367866",
+  "provenance": "source cddb3f94678cbe30fa2167c163edf4de3633512f tree df8a5accf6b4ff100041b79fc5ac688e67a079c7; run 38082179018; QA 7af9c5ab074767312a84bf76fff0b6f9a5aaa05f tree ec19ca6199caf12c040977ca7fda2210697ee6e9; receipt SHA256 e821c2e326532d48914eb9768c391afd7aa9587309e4e31b18ff189f8a7725bf; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; exact RGBA equality",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -102,7 +102,7 @@
     "scripts/floor_mess_art.gd": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6",
     "scripts/furniture_atlas_painter.gd": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78",
     "scripts/furniture_static_atlas.gd": "c5c1a04a5ac159362b3718a415d01243a6b8f796779dfc22b08234a14fccd427",
-    "scripts/illustrated_cafe.gd": "039daa717a94b75ff5a6d0791f6f9e9275e4bf18b7256c892db8e618aa941384",
+    "scripts/illustrated_cafe.gd": "67ddeaa9cb6938abbcc6f2374b95cd783f4aca57c1ba95ad21a6d7bb5ab2d362",
     "scripts/illustrated_furniture.gd": "80b838c3313164b7052c56235e65d2dbe34de77f200f05ba8e5a6d3647ebe140",
     "scripts/illustrated_ground.gd": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5",
     "scripts/illustrated_motion.gd": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e",
@@ -119,6 +119,7 @@
     "scripts/retained_canvas_geometry.gd": "e2f935d8b76b790ee06dfccca8201047892eb6d4b02ab73581b7683b733afcd2",
     "scripts/retained_canvas_stream.gd": "570ba11abac1b6ed7e8b5cfe0c85aa3b188f4d626b452da442c68031dfa7ad0a",
     "scripts/scalable_body_geometry.gd": "d03c4736c77f2d745261c57d3426aa05eeeabdf0f9ea29a92b8a70afd02c5f15",
+    "scripts/staff_ground_ring.gd": "2bd02837f5fb67fd9a3493571f8f25909901d7184b463bca1fbc768036f841f9",
     "scripts/street_pedestrians.gd": "db895e24fed683848d206380c2d476ff061619a1bd91b1693754ff09475aa614",
     "scripts/waiter_tablet_art.gd": "a04a97070d8dbed3a1452b720768aa04d46233485dd32e79ac097c274287a041",
     "shaders/retained_aa_geometry.gdshader": "ff1c3aaca5dbd162be799ac62d840607d648ac50098f668810d77d6665f85587",
