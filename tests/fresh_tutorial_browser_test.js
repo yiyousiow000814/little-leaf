@@ -151,9 +151,10 @@ try {
     return args[0] === 'rev-parse' ? commit : dirty ? ' M tests/fresh_tutorial_browser.js' : '';
   };
   const sourceNames = ['tests/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js', 'project.godot'];
-  const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [name, hash(fs.readFileSync(sourcePath(root,name)))])),
+  const engineName = name => path.relative(root, sourcePath(root, name)).split(path.sep).join('/');
+  const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [engineName(name), hash(fs.readFileSync(sourcePath(root,name)))])),
     records: [{test: 'test_interactive_tutorial', exit_code: 0, failures: [], result_sha256: hash(JSON.stringify(receipt))}]};
-  const production = {'project.godot': engine.source_sha256['project.godot']};
+  const production = {'project.godot': engine.source_sha256[engineName('project.godot')]};
   const manifest = {source_commit: commit, toolchain_verification: 'checksum-pinned-official-archives', packed_smoke: 'passed', production_sha256: production};
   const layoutFile = path.join(temp, 'layout.json'), engineFile = path.join(temp, 'engine.json');
   const write = (mutateEngine = () => {}, html = '<title>Ordinary Web</title>') => {
@@ -173,7 +174,7 @@ try {
   write(e => {e.records.push(structuredClone(e.records[0]));}); assert.throws(verify);
   write(e => {e.records[0].failures.push('fixture failed');}); assert.throws(verify);
   write(e => {e.source_sha256['tests/fresh_tutorial_browser.js'] = 'd'.repeat(64);}); assert.throws(verify, /Exact tested harness/);
-  write(e => {e.source_sha256['project.godot'] = 'e'.repeat(64);}); assert.throws(verify, /Production source passed/);
+  write(e => {e.source_sha256[engineName('project.godot')] = 'e'.repeat(64);}); assert.throws(verify, /Production source passed/);
   write(() => {}, '<script>LittleLeafPlatform</script>'); assert.throws(verify, /Ordinary Web export/);
   write(); fs.appendFileSync(path.join(temp, 'index.html'), '!'); assert.throws(verify, /size/);
   write(); dirty = true; assert.throws(verify, /Clean tracked source/);
