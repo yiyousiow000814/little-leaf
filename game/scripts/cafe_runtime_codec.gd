@@ -259,12 +259,33 @@ func _validated_state(state:Dictionary,source_version:int)->Dictionary:
 			if not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
 	return {"ok":true,"state":state}
 
-func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={})->Dictionary:
+func _staff_navigation_error(staff:Dictionary,source_version:int)->String:
+	if not staff.has("navigation_phase"):return "" # Preserve legacy route semantics.
+	if source_version!=SaveContract.STAFF_NAVIGATION_VERSION:return "Legacy staff contains navigation state"
+	if staff.navigation_phase not in ["follow","replan"]:return "Invalid staff navigation phase"
+	var route:Array=staff.path;var index=int(staff.index)
+	if route.is_empty() or index<1 or not _cell(staff.destination):return "Invalid staff navigation anchor or destination"
+	for i in range(1,route.size()):
+		var step:Vector2i=route[i]-route[i-1]
+		if step==Vector2i.ZERO or absi(step.x)>1 or absi(step.y)>1:return "Invalid staff navigation segment"
+	if staff.navigation_phase=="follow":
+		if route[-1]!=staff.destination:return "Staff navigation endpoint disagrees with destination"
+	elif route.size()>2 or index!=1:return "Invalid staff replan anchor"
+	var finish=Vector2(route[index if index<route.size() else route.size()-1])+Vector2(.5,.5)
+	var closest=finish
+	if index<route.size():
+		var start=Vector2(route[index-1])+Vector2(.5,.5)
+		closest=Geometry2D.get_closest_point_to_segment(staff.pos,start,finish)
+	if staff.pos.distance_to(closest)>.000001:return "Staff position is off its navigation segment"
+	return ""
+
+func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},allow_staff_navigation:bool=false)->Dictionary:
 	error=""
 	var state=decode(raw)
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
-	if not SaveContract.accepts_version(source_version):return _fail("Unsupported runtime source version")
+	if not SaveContract.accepts_version(source_version,allow_staff_navigation):return _fail("Unsupported runtime source version")
+	if state.has("navigation_format"):return _fail("Navigation marker belongs to the save envelope")
 	if SaveContract.has_layout_motion(source_version):
 		if state.get("layout_motion_format")!=SaveContract.LAYOUT_MOTION_FORMAT:return _fail("Invalid layout motion runtime format")
 	elif state.has("layout_motion_format"):return _fail("Legacy runtime contains layout motion format")
@@ -371,7 +392,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			if staff is Dictionary and staff.get("role")=="barista":staff.role="waiter"
 	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,guests,self)
 	if not floor_checked.ok:return _fail(floor_checked.error)
-	var records={};var roles={};var tokens={};var counter_slots={}
+	var records={};var roles={};var tokens={};var counter_slots={};var stove_slots={}
 	for record in service.records:
 		if not record is Dictionary or not _integer(record.get("guest_id"),1,1000000000) or not guests.has(int(record.guest_id)) or records.has(int(record.guest_id)):return _fail("Invalid service guest identity")
 		if not _integer(record.get("token"),1,int(service.serial)) or tokens.has(int(record.token)):return _fail("Invalid service token")
@@ -423,6 +444,10 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if record.floor_debris=="none" and record.trash_owner!="none":return _fail("Garbage owner exists without debris")
 		if record.spill_cleaned and float(record.spill_remaining)>.000001:return _fail("Clean floor retains spill amount")
 		if record.cleanup_done and (record.plate_owner not in ["clean","dish_queue"] or record.drink_owner!="cleared" or not record.table_wiped or record.trash_owner not in ["none","disposed"] or not record.spill_cleaned or not record.floor_cleaned or record.floor_dirty):return _fail("Completed cleanup retains unfinished work")
+		if record.plate_owner=="station":
+			var stove=int(record.plate_target_id)
+			if stove_slots.has(stove) or stove!=int(record.meal_station_id):return _fail("Invalid or duplicated stove output plate")
+			stove_slots[stove]=true
 		if record.plate_owner=="counter":
 			var slot=int(record.plate_target_id)
 			if slot<0 or item_map[slot].kind!="counter" or counter_slots.has(slot):return _fail("Invalid or duplicated pass-counter plate")
@@ -446,6 +471,8 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not _point(staff.get("pos")) or not _cell(staff.get("destination"),true) or not staff.get("path") is Array or staff.path.size()>512 or not _integer(staff.get("index"),0,staff.path.size()):return _fail("Invalid staff position or route")
 		for cell in staff.path:
 			if not _cell(cell):return _fail("Invalid staff path cell")
+		var navigation_error=_staff_navigation_error(staff,source_version)
+		if navigation_error!="":return _fail(navigation_error)
 		if not JOB_LENGTHS.has(staff.get("job_kind")) or not _integer(staff.get("job_step"),0,int(JOB_LENGTHS[staff.job_kind])-1) or not _number(staff.get("job_elapsed"),0,3600):return _fail("Invalid saved work stage")
 		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink","cleanup"],"cleaner":["","cleanup","floor","wash"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
 		if staff.has("table_face_id") and (not _integer(staff.table_face_id,-1,1000000000) or (int(staff.table_face_id)!=-1 and (not item_map.has(int(staff.table_face_id)) or item_map[int(staff.table_face_id)].kind!="table"))):return _fail("Invalid reserved table face")

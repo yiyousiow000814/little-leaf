@@ -10,9 +10,16 @@ function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const layoutSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_layout.gd'), 'utf8');
 const shopSource = fs.readFileSync(path.join(root, 'game/scripts/cafe_shop_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
-const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
-const size = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
-check('fixture geometry is read from the real back-button layout', () => assert(size));
+const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8').replace(/\r\n/g, '\n');
+// Wall mode retains the standard width; only tiny Tiles repair layouts narrow it.
+const width = shopSource.match(/var back_width=(\d+(?:\.\d+)?) if tiny and tiles_active\(\) and repair_width>0 else (\d+(?:\.\d+)?)/);
+const placement = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,back_width,(\d+)\)\)/);
+const size = width && placement ? [null, width[2], placement[1]] : null;
+check('fixture geometry follows real responsive layout and standard Wall width', () => {
+  assert(size);
+  assert.equal(Number(width[1]), 80);
+  assert.equal(Number(width[2]), 104);
+});
 check('only wall_back uses complete native Button bounds with single-line 3x OCR', () => {
   assert.match(layoutSource, /result\.regions\.wall_back=region\(shop\.tiles_back\)\s+result\.regions\.wall_back\.psm=7\s+result\.regions\.wall_back\.scale=3/);
   assert(!layoutSource.includes('wall_back=text_region('));
