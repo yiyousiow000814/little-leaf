@@ -33,6 +33,21 @@ try {
     fs.writeFileSync(path.join(temporary, 'web/vault.js'), 'different source');
     assert.throws(() => verifyPreflightBinding(temporary, temporary, manifest, manifest.production_sha256, manifestDigest));
   });
+  check('relocated current sources bind without changing historical manifest labels', () => {
+    const current = path.join(temporary, 'current');
+    fs.mkdirSync(path.join(current, 'game/assets/audio'), {recursive: true});
+    fs.mkdirSync(path.join(current, 'platform/web'), {recursive: true});
+    fs.writeFileSync(path.join(current, 'game/project.godot'), 'synthetic project');
+    fs.writeFileSync(path.join(current, 'game/assets/audio/license.txt'), 'synthetic license');
+    fs.writeFileSync(path.join(current, 'platform/web/vault.js'), 'synthetic source');
+    const relocated = {...manifest, production_sha256: {...manifest.production_sha256, 'assets/audio/license.txt': hash('synthetic license')}};
+    const bytes = JSON.stringify(relocated);
+    fs.writeFileSync(path.join(temporary, 'release-manifest.json'), bytes);
+    verifyPreflightBinding(temporary, current, relocated, relocated.production_sha256, hash(bytes));
+    fs.writeFileSync(path.join(current, 'game/assets/audio/license.txt'), 'changed license');
+    assert.throws(() => verifyPreflightBinding(temporary, current, relocated, relocated.production_sha256, hash(bytes)));
+    fs.writeFileSync(path.join(temporary, 'release-manifest.json'), JSON.stringify(manifest));
+  });
   check('wrong source commit is blocked', () => assert.throws(() => verifyExport(temporary, 'c'.repeat(40), manifest.production_sha256)));
   check('changed source after preflight is blocked', () => assert.throws(() => verifyExport(temporary, manifest.source_commit, {'web/vault.js': 'd'.repeat(64)})));
   check('changed packed bytes are blocked', () => {fs.appendFileSync(path.join(temporary, 'index.pck'), '!'); assert.throws(() => verifyExport(temporary, manifest.source_commit, manifest.production_sha256));});
