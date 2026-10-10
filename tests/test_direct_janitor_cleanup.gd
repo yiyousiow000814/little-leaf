@@ -38,7 +38,8 @@ func run():
  for staff in game.staff_states:check(staff.job_kind!="floor","no independent claim remains")
  # A legacy half-disposed bin payload retains its real bin identity until
  # completion, even though new work never needs to visit it.
- game.model.ensure_basic_bin()
+ game.model.included_bin_pending=true # Synthetic historical unclaimed entitlement.
+ check(game.model.ensure_basic_bin(),"legacy fixture owns a real historical bin")
  id=game.floor_tasks.spawn(Vector2i(4,6),"banana");cleaner=game.worker("cleaner")
  game.floor_tasks.assign(cleaner,game.staff_states.find(cleaner))
  var entry=game.floor_tasks.messes[id];var bin_id=-1
@@ -78,5 +79,22 @@ func run():
  check(not game.complete_ground_mess(floor_identity),"floor-only restore rejects old callback identity")
  Minimal.apply(game.model)
  check(game.model.count_kind("bin")==0,"fresh profile no longer auto-places mandatory bin")
+ check(not game.model.included_bin_pending,"fresh profile has no free bin entitlement")
+ var bin_price=0
+ for product in game.model.catalog:
+  if product.kind=="bin":bin_price=int(product.price)
+ check(bin_price>0 and game.model.price_of("bin")==bin_price,"optional bin retains normal shop price")
+ coins=game.model.coins;var bin_item_id=game.model._next_item_id
+ check(game.model.place("bin",3,6),"fresh player may buy optional bin: "+game.model.last_error)
+ check(game.model.coins==coins-bin_price and game.model.count_kind("bin")==1,"optional purchase charges once and owns one bin")
+ check(game.model.save("user://optional-bin.json"),"synthetic purchased bin saves")
+ check(game.model.load_save("user://optional-bin.json"),"synthetic purchased bin restores")
+ check(game.model.get_item(bin_item_id).kind=="bin" and game.model.coins==coins-bin_price and game.model.logical_refund(bin_item_id)==floori(bin_price*.5),"restored owned bin and existing resale value survive")
+ # A historic unclaimed entitlement is still interpreted by the existing reader.
+ # Fresh initialization must not become a load-time migration or revoke it.
+ Minimal.apply(game.model);game.model.included_bin_pending=true
+ check(game.model.save("user://historic-bin-entitlement.json"),"synthetic historical entitlement saves")
+ check(game.model.load_save("user://historic-bin-entitlement.json"),"synthetic historical entitlement restores")
+ check(game.model.included_bin_pending and game.model.price_of("bin")==0,"historical entitlement is preserved")
  print("DIRECT_JANITOR_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  quit(0 if failures.is_empty() else 1)

@@ -307,8 +307,9 @@ func _withdraw_exterior_guest(guest:Dictionary):
 
 func ensure_basic_bin() -> bool:
 	if count_kind("bin")>0:included_bin_pending=false;return true
-	# Add the newly required free essential only to a clear, reachable owned
-	# cell. Existing furniture, coins, staffing and plot ownership never move.
+	if not included_bin_pending:return _fail("Trash bins are optional shop purchases")
+	# Honor an unclaimed historical entitlement only; new profiles never get it.
+	# Existing furniture, coins, staffing and plot ownership never move.
 	var candidates:Array[Vector2i]=[Vector2i(11,1),Vector2i(11,2),Vector2i(10,0),Vector2i(11,0)]
 	for z in range(depth):
 		for x in range(2,width):
