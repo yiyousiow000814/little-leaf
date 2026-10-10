@@ -113,7 +113,7 @@
       if(saved===null) return;
       try {
         await validateLocal(saved);
-        if(!saved?.pending) throw error('CORRUPT_AUTHORITY','Protected backup is not pending progress.');
+        if(!saved?.pending && !saved?.elapsedPending) throw error('CORRUPT_AUTHORITY','Protected backup has no pending progress or elapsed intent.');
         accountGuard();recoveryBackup=saved;
       } catch (_) {accountGuard();backupProblem='The protected pending backup could not be verified. It will not be replaced. Export any current pending copy and review recovery options.';}
     }
@@ -142,7 +142,7 @@
         if(saved?.format!=='little-leaf.choice.v1' || !['local','cloud'].includes(saved.choice) || typeof saved.selectionToken!=='string')throw Error('invalid archive');
         await validateLocal(saved.local);await codec.verifyRecord(saved.cloud);await codec.verifyRecord(saved.selected);
         if(saved.cloudDocument && (await validate(saved.cloudDocument))?.digest!==saved.cloud.digest)throw Error('archive cloud document mismatch');
-        if(!saved.local.pending)throw Error('not a pending branch');
+        if(!saved.local.pending && !saved.local.elapsedPending)throw Error('not a protected branch');
         accountGuard();choiceArchive=saved;
         choiceProblem='A previous pair of different saves is already protected. Both current saves are unchanged. More protected storage is needed before another choice.';
       } catch(e) {accountGuard();choiceProblem='The protected save copies could not be verified. They will not be replaced.';}

@@ -39,5 +39,15 @@ async function ready(){probeStore.clear();const e=environment(),a=e.device('Mac'
  const exported=await reopened.exportRecovery();assert(exported.ok,JSON.stringify(exported));const bundle=JSON.parse(exported.text);assert.deepEqual(bundle.pendingEntry,plain(actual));assert.deepEqual(bundle.baselineRecord,plain(actual.record));assert.deepEqual(bundle.elapsedTrialRecord,plain(trialRecord));assert.deepEqual(a.local(),actual,'export never changes protected journal');
  assert.equal((await reopened.prepareChoice('local',trialRecord.digest,other.digest)).code,'ELAPSED_UNCERTAIN');assert.deepEqual(a.local(),actual,'unconfirmed trial never becomes a new-epoch upload');
  const selected=await reopened.prepareChoice('cloud',trialRecord.digest,other.digest);assert(selected.ok,JSON.stringify(selected));assert((await reopened.confirmChoice(selected.selectionToken)).ok);assert.equal(a.local().record.digest,other.digest);assert.deepEqual(archive.local,plain(actual),'cloud choice archives baseline and separate exact trial atomically');
+ // Re-read the choice archive through preview, then recover the cloud through
+ // the legacy protected slot. Both readers must accept the validated separate
+ // elapsed intent, without accepting an ordinary acknowledged baseline.
+ a.setLocal(plain(actual));reopened=restart(e,a,fresh);loaded=await reopened.boot();assert.equal(loaded.code,'REVISION_CONFLICT');assert.match(reopened.recoverySnapshot().choiceReason,/previous pair/,'valid elapsed choice archive is full, not corrupt');
+ let legacyArchive=null;a.journal.readRecoveryBackup=async()=>legacyArchive;
+ a.journal.recover=async(id,expected,next,guard)=>{guard();assert.deepEqual(plain(a.local()),plain(expected));legacyArchive=plain(expected);a.setLocal(plain(next));};
+ assert((await reopened.recoverCloud(other.digest)).ok);const afterRecovery=await reopened.exportRecovery();assert(afterRecovery.ok,JSON.stringify(afterRecovery));assert.deepEqual(JSON.parse(afterRecovery.text).elapsedTrialRecord,plain(trialRecord));assert.deepEqual(legacyArchive,plain(actual));
+ const acknowledgedOnly={...plain(actual),elapsedPending:null};legacyArchive=acknowledgedOnly;
+ const invalidExport=await reopened.exportRecovery();assert(!invalidExport.ok,'acknowledged baseline alone is not a protected backup');assert.match(reopened.recoverySnapshot().reason,/could not be verified/);assert.deepEqual(legacyArchive,acknowledgedOnly,'invalid backup is never changed');
+ legacyArchive=null;archive={...archive,local:acknowledgedOnly};a.setLocal(plain(actual));reopened=restart(e,a,fresh);await reopened.boot();assert.match(reopened.recoverySnapshot().choiceReason,/could not be verified/,'choice archive also rejects unprotected baseline');assert.deepEqual(archive.local,acknowledgedOnly);
  console.log('Passed: durable separate trial intent, lost ack exact snapshot recovery, same-epoch baseline blocked, new-epoch abort without credit, interrupted probe exact-tag cleanup.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

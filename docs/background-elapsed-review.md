@@ -29,3 +29,5 @@ Remaining: independent ownership/persistent-recovery review, one coordinated dis
 ## Independent review corrections
 
 The 4129765 review requested two corrections: the shared update snapshot path could overwrite a protected intent, and unrelated-cloud recovery used a fabricated expected journal entry. The narrow recovery test now asserts rejected update leaves the journal unchanged, export retains baseline plus exact trial, trial selection is rejected, and cloud selection archives the actual entry. Cross-realm fixture values are normalized only for deep comparison; digests and record contents remain exact assertions. Browser acceptance and current-main integration remain pending.
+
+The a9f4037 follow-up review found archive readers still required ordinary pending=true. Both readers now accept a fully validated pending=false entry with a separate elapsedPending intent. A focused test re-reads a cloud-choice archive, recovers through the legacy slot and exports the exact trial again; acknowledged baselines without either pending form remain rejected and untouched. No browser or engine workload was launched for this correction.
