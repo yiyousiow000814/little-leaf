@@ -64,16 +64,20 @@ static func bus_bounds(snapshot:Dictionary)->Rect2:
 		for z in [-2.60,2.60]:bounds=bounds.expand(snapshot.position+side*x+rear*z)
 	# Actual body plus longitudinal breathing room for the original tall iso art.
 	return Rect2(bounds.position-Vector2(.30,1.60),bounds.size+Vector2(.60,3.20))
-static func _car_intersects(car_position:Vector2,bounds:Rect2)->bool:
+static func _car_intersects(car_position:Vector2,bounds:Rect2,heading:Vector2=Vector2.DOWN)->bool:
+	var longitudinal=heading.normalized();var transverse=Vector2(longitudinal.y,-longitudinal.x)
+	var body=Rect2(car_position,Vector2.ZERO)
+	for x in [-.60,.60]:
+		for z in [-1.10,1.10]:body=body.expand(car_position+transverse*x+longitudinal*z)
 	var span=float(Extent.STREET_Z_MAX-Extent.STREET_Z_MIN)
 	for image in [-span,0.0,span]:
-		if bounds.intersects(Rect2(car_position+Vector2(-.60,-1.10+image),Vector2(1.20,2.20))):return true
+		if bounds.intersects(Rect2(body.position+Vector2(0,image),body.size)):return true
 	return false
 static func _occupied(bounds:Rect2,road:Array,parking:Array)->bool:
 	for car in road:
 		if _car_intersects(car.position,bounds):return true
 	for car in parking:
-		if car.phase in ["car_arriving","car_departing"] and _car_intersects(car.car_position,bounds):return true
+		if car.phase in ["car_arriving","car_departing"] and _car_intersects(car.car_position,bounds,car.get("car_heading",Vector2.DOWN)):return true
 	return false
 static func _approach_bounds(bus)->Rect2:
 	if bus.traffic_approach_region.has_area():return bus.traffic_approach_region

@@ -13,6 +13,8 @@ func check(ok,label):
 func _initialize():run.call_deferred()
 func run():
  var results=[]
+ var turning={"phase":"car_arriving","car_position":Vector2(-4.65,5),"car_heading":Vector2(-.7,.7)}
+ check(Traffic._occupied(Rect2(-6.2,3.5,.45,3),[],[turning]),"turning parking body uses normalized actual heading and full oriented extents")
  var parking_pool=Traffic.initial();var parking_bus=Stop.new();parking_bus.reset_traffic_entry()
  var parked_blocker={"phase":"car_arriving","car_position":parking_pool.cars[0].position+Vector2(0,4.5)}
  var old_parking_z=parking_pool.cars[0].position.y
