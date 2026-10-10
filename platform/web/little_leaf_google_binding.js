@@ -9,7 +9,7 @@
       if(currentUid()!==uid)throw fault('ACCOUNT_CHANGED');
       ownership.assertActive();
       const state=ownership.snapshot();
-      if(ownership.hasElapsedIntent?.() || state.elapsedPending || state.activeClaim)throw fault('ELAPSED_UNCERTAIN');
+      if(ownership.hasElapsedIntent || state.elapsedPending || state.activeClaim)throw fault('ELAPSED_UNCERTAIN');
     }
     async function local(){const value=await source();await codec.verifyRecord(value);if(!value.revision)throw fault('LOCAL_SAVE_REQUIRED');return value;}
     async function cloud(){guard();const doc=await remote.read(uid);guard();if(!doc)return null;

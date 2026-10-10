@@ -2,6 +2,7 @@
 (function(root){
   'use strict';
   const CLOUD_ONCE='little-leaf.google-binding-cloud-once.v1';
+  const BINDING_OWNER='little-leaf.google-binding-owner.v1';
   async function readLocalRecord(){
     const vault=root.__littleLeafVault,identity=JSON.parse(vault.bootJson || '{}');
     if(!identity.ok)throw Error('Local save unavailable');
@@ -40,13 +41,26 @@
   }
   function install({auth,signIn,verifyGoogle,createTarget,storage=root.sessionStorage}){
     let returned=null,target=null,timer=null,ui=null;
+    let owner=null;
+    try{
+      const stored=JSON.parse(storage.getItem(BINDING_OWNER) || 'null');
+      // Newly navigated/opener-cloned tabs must acquire their own writer identity.
+      if(root.performance?.getEntriesByType('navigation')[0]?.type==='reload' && typeof stored?.uid==='string' && /^[a-f0-9-]{36}$/i.test(stored?.sessionId || ''))owner=stored;
+      else storage.removeItem(BINDING_OWNER);
+    }catch(_){/* No remembered identity is used if storage cannot be read. */}
+    function ownerFor(uid){
+      if(owner?.uid!==uid)owner={uid,sessionId:root.crypto.randomUUID()};
+      storage.setItem(BINDING_OWNER,JSON.stringify(owner));
+      if(storage.getItem(BINDING_OWNER)!==JSON.stringify(owner))throw Error('Binding retry storage unavailable');
+      return owner.sessionId;
+    }
     function release(){if(timer!==null)root.clearInterval(timer);timer=null;target?.ownership.close();target=null;}
     function resume(){release();const callback=returned;returned=null;callback?.(JSON.stringify({ok:true,localPreserved:true}));}
     ui=root.LittleLeafGoogleBindingUI.create({document:root.document,origin:root.location.origin,
       capture:async()=>{await readLocalRecord();return {ok:true};},
       signIn:async()=>{const credential=await signIn();await verifyGoogle(credential);return credential.user;},
       connect:async user=>{
-        release();target=await createTarget(user);target.ownership.assertActive();
+        release();target=await createTarget(user,ownerFor(user.uid));target.ownership.assertActive();
         timer=root.setInterval(()=>{target?.ownership.renew().catch(()=>{});},20000);
         return root.LittleLeafGoogleBinding.create({uid:user.uid,currentUid:()=>auth.currentUser?.uid,codec:root.LittleLeafAuthorityCodec,source:readLocalRecord,remote:target.remote,journal:target.journal,ownership:target.ownership});
       },
@@ -56,8 +70,10 @@
         const ticket=target.ownership.reloadContinuation(receipt.digest,receipt.revision);
         if(!root.LittleLeafFirebaseSession.storeReload(storage,ticket))throw Error('Reload storage unavailable');
         storage.setItem(CLOUD_ONCE,JSON.stringify({uid:target.uid,cloudConfirmed:true}));
+        storage.removeItem(BINDING_OWNER);
         release();root.location.reload();
       },resumeLocal:resume});
+    root.addEventListener('pagehide',release,{once:true});
     root.LittleLeafLocalBinding=Object.freeze({open(callback){if(returned)return;returned=callback;void ui.open();},close(){ui.close();},snapshot(){return ui.snapshot?.() || {busy:returned!==null};}});
     root.LittleLeafCloudSettings=Object.freeze({snapshot(){const saved=JSON.parse(root.__littleLeafVault.bootJson || '{}');return JSON.stringify({status:saved.revision?'Saved':'Not saved',reason:'Local restaurant on '+root.location.origin+'. Bind Google without removing this device’s copy.',canSave:returned===null,reload:false,canBind:true,bindingBusy:returned!==null,local:true});},signOut(){},reload(){root.location.reload();}});
   }

@@ -29,14 +29,15 @@ export async function start(config,options={}) {
           const user=credential.user,token=await getIdTokenResult(user);
           if(auth.currentUser!==user || user.isAnonymous || credential.providerId!=='google.com' || token.claims?.firebase?.sign_in_provider!=='google.com')throw Error('Google authentication not verified');
         },
-        createTarget:async user=>{
+        createTarget:async (user,sessionId)=>{
           const uid=user.uid,deviceLabel=window.LittleLeafFirebase.genericDevice?.(window.navigator) || 'Unknown device';
           const sessionRemote=window.LittleLeafFirebaseSession.createRemote(db,{doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot},uid);
-          const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid});
+          const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,sessionId,deviceLabel,currentUid:()=>auth.currentUser?.uid});
           try{
+            const journal=await window.LittleLeafFirebase.openJournal(indexedDB),account=await journal.read(uid);
+            if(account?.pending || account?.uploading || account?.elapsedPending || ownership.hasElapsedIntent)throw Error('Unsettled account progress must be reconciled before binding');
             await ownership.start();ownership.assertActive();
             const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
-            const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
             return {uid,ownership,remote,journal};
           }catch(error){ownership.close();throw error;}
         }});

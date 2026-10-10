@@ -7,13 +7,13 @@ const payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8'),fa
 async function record(coins,revision=1){const r={format:2,profileId:webcrypto.randomUUID(),revision,createdAt:1,updatedAt:revision,origin:{source:'fresh',legacyDigest:null,importedAt:1},payload:JSON.stringify({...JSON.parse(payload),coins}),previous:null,campaigns:{}};r.digest=await codec.hash(codec.fingerprint(r));return r;}
 const doc=r=>r?{schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r)}:null;
 async function harness(existing=false){
- let source=await record(17),cloud=existing?doc(await record(999,5)):null,uid='synthetic-google',writes=0,block=false,writeFailure='',readFailure=false;
+ let source=await record(17),cloud=existing?doc(await record(999,5)):null,uid='synthetic-google',writes=0,block=false,intent=false,writeFailure='',readFailure=false;
  const original=copy(source),previous=copy(cloud),store=new Map();
  const journal={async read(key){return copy(store.get(JSON.stringify(key)));},async replace(key,expected,next){key=JSON.stringify(key);assert.deepEqual(copy(store.get(key)),copy(expected));store.set(key,copy(next));}};
- const ownership={assertActive(){if(block)throw fail('OWNERSHIP_LOST');},hasElapsedIntent(){return block;},snapshot(){return {elapsedPending:block};}};
+ const ownership={assertActive(){if(block)throw fail('OWNERSHIP_LOST');},get hasElapsedIntent(){return intent;},snapshot(){return {elapsedPending:block};}};
  const remote={async read(){if(readFailure)throw fail('OFFLINE');return copy(cloud);},async compareAndSet(id,base,next,guard){guard();if(writeFailure==='before')throw fail('OFFLINE');if(cloud?.digest!==next.digest){if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud=copy(next);writes++;}if(writeFailure==='after')throw fail('OFFLINE');}};
  const make=()=>root.LittleLeafGoogleBinding.create({uid:'synthetic-google',currentUid:()=>uid,codec,source:async()=>copy(source),remote,journal,ownership,now:()=>100});
- return {make,original,previous,source:()=>copy(source),cloud:()=>copy(cloud),writes:()=>writes,store,setCloud:r=>cloud=doc(r),setSource:r=>source=r,setUid:x=>uid=x,block:()=>block=true,writeFailure:x=>writeFailure=x,readFailure:x=>readFailure=x};
+ return {make,original,previous,source:()=>copy(source),cloud:()=>copy(cloud),writes:()=>writes,store,setCloud:r=>cloud=doc(r),setSource:r=>source=r,setUid:x=>uid=x,block:()=>block=true,intent:()=>intent=true,writeFailure:x=>writeFailure=x,readFailure:x=>readFailure=x};
 }
 async function select(c,id){const p=await c.inspect();assert(p.ok);return c.choose(id,p.localDigest,p.cloudDigest);}
 (async()=>{
@@ -26,6 +26,7 @@ async function select(c,id){const p=await c.inspect();assert(p.ok);return c.choo
  h=await harness();c=h.make();p=await c.inspect();h.setSource(await record(88));assert.equal((await c.choose('local',p.localDigest,p.cloudDigest)).code,'CHOICE_CHANGED');assert.equal(h.writes(),0);
  h=await harness();c=h.make();p=await c.inspect();h.setUid('other-google');assert.equal((await c.choose('local',p.localDigest,p.cloudDigest)).code,'ACCOUNT_CHANGED');assert.equal(h.writes(),0);
  h=await harness();h.block();assert.equal((await h.make().inspect()).ok,false);assert.equal(h.writes(),0);
+ h=await harness();h.intent();assert.equal((await h.make().inspect()).code,'ELAPSED_UNCERTAIN','an active owner with a boolean elapsed intent cannot bind');assert.equal(h.writes(),0);
  h=await harness();h.readFailure(true);assert.equal((await h.make().inspect()).ok,false);assert.deepEqual(h.source(),h.original);assert.equal(h.writes(),0);
  h=await harness();h.store.set(JSON.stringify('synthetic-google'),{pending:true});assert.equal((await h.make().inspect()).code,'ACCOUNT_PENDING');assert.equal(h.writes(),0);
  h=await harness();c=h.make();assert((await select(c,'local')).ok);h.setSource(await record(81,3));assert((await select(h.make(),'local')).ok);assert.equal(h.writes(),2);assert.equal(JSON.parse(JSON.parse(h.cloud().record).payload).coins,81);const protectedHistory=h.store.get(JSON.stringify(['google-binding-history-v1','synthetic-google']));assert.deepEqual(protectedHistory[0].source,h.original,'later binding preserves earlier verified transition');

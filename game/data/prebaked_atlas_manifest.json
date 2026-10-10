@@ -41,7 +41,7 @@
     "scripts/cafe_floor_tasks.gd": "7ec2ea0540fae530bab2da077bb29edcc4a41262b1a8b47a2f2ea4b4a28eaa1d",
     "scripts/cafe_footprint.gd": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c",
     "scripts/cafe_furniture_motion.gd": "f988ed9cf18c9ecc9f9e3812d0091c56c9604b00d34d4e9c08be3f370682728b",
-    "scripts/cafe_google_binding.gd": "1c95a19ad35ba45e78d3664e0cef4a232144c9e185876557232a5851754dbe9f",
+    "scripts/cafe_google_binding.gd": "38cd27196e71085e321fe5c0f3ca895454bb98f5a4cfac2f16aeb3b5b1db4442",
     "scripts/cafe_hidden_time_policy.gd": "8b238c74c1f0ab1c14681659413fb88fcc6589df7aa356cfac062020c08202ea",
     "scripts/cafe_hud.gd": "f4eebf3d424ec164305aed776ee45673753e62d0c808fe7e913e8a17ffb4adab",
     "scripts/cafe_inbox.gd": "b219a075b2392a71f282acdac7bec0de3bb972d3559f0de49dc72ee0e00d2741",
