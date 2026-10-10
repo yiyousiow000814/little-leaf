@@ -36,7 +36,7 @@ func load_fixture(document:Variant):
 func run():
  var checked=Notes.validate_document(JSON.parse_string(FileAccess.get_file_as_string(Notes.DATA_PATH)))
  check(checked.valid,"checked-in release notes are accepted by runtime")
- check(checked.status=="released" and checked.version=="0.1.10","published preview notes expose the current version")
+ check(checked.status=="released" and checked.version=="0.1.10a","published preview notes expose the current version")
  check(checked.label=="Developer preview" and checked.date=="2026-10-09","published preview keeps its label and publication date")
  for status in ["pending","draft"]:
   var input=fixture(status);var original=input.duplicate(true)
@@ -56,12 +56,12 @@ func run():
  await process_frame
  var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
  var shipped_text=words(notes.body)
- check("Developer preview" in shipped_text and "Version 0.1.10 · 2026-10-09" in shipped_text,"actual checked-in preview header is rendered")
+ check("Developer preview" in shipped_text and "Version 0.1.10a · 2026-10-09" in shipped_text and "Version 0.1.10 · 2026-10-09" in shipped_text,"actual checked-in preview header is rendered")
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
  for section in ["new","fixed"]:
   for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
- check(checked.new.size()==6 and checked.fixed.size()==7,"concise preview has six New changes and six Fixed changes plus its visible notice")
- check(str(checked.fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified.","acceptance limits are in visible notes rather than ignored review metadata")
+ check(checked.new.size()==3 and checked.fixed.size()==4 and checked.history.size()==1 and checked.history[0].new.size()==6 and checked.history[0].fixed.size()==7,"hotfix notes retain the complete previous major preview")
+ check(str(checked.history[0].fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified." and "coordinated server rollout" in str(checked.fixed[-1]),"acceptance limits are in visible notes rather than ignored review metadata")
  preferences.last_seen_update_version="8.0.0"
  var original_config_exists=FileAccess.file_exists(preferences.config_path)
  for status in ["pending","draft"]:

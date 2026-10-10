@@ -42,3 +42,11 @@ Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` ta
 Status requests have a 60-second limit, the upload attempt ten minutes, and processing observation another ten minutes within a 30-minute job. Protect repository write/tag access: workflow code cannot defend against a compromised maintainer. Optional protected tags/reviewer settings are not changed by this pipeline.
 
 [Godot export](https://docs.godotengine.org/en/4.6/tutorials/editor/command_line_tutorial.html) · [Godot assets](https://github.com/godotengine/godot-builds/releases/tag/4.6.3-stable) · [Butler assets/source](https://github.com/itchio/butler/releases/tag/v15.31.0) · [Butler uploads](https://itch.io/docs/butler/pushing.html)
+
+## Latest reconciliation
+
+Each tag publishes its own source-only GitHub Release independently, initially without changing Latest. A separate promotion job rereads all release API pages and qualifies the highest normal numeric/single-letter release against main ancestry and exact tagged metadata. Delayed older runs therefore cannot downgrade Latest. Unknown Latest, API failures or moved tags stop promotion. Existing release content remains unchanged; an idempotent rerun may repair Latest through this separate verified reconciliation.
+
+Only promotion uses the shared concurrency group, with `cancel-in-progress: false` and GitHub's documented `queue: max` (up to 100 pending jobs, not unlimited). If an excess pending promotion is canceled, another reconciliation sees all already-published releases; tag publication itself is independent. This serialization does not lock manual maintainer edits outside the workflow.
+
+Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency

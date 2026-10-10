@@ -635,6 +635,7 @@ func _cancel_selection():
 	ghost=null
 
 func _rotate():
+	if save_recovery_blocked:return
 	if build_tools!=null and build_tools.active():build_tools.rotate();return
 	if interaction!=null: interaction.rotate_selection()
 
@@ -680,10 +681,12 @@ func _staff_on_duty()->bool:
 	return false
 
 func _upgrade():
+	if save_recovery_blocked:return
 	if selected_id<0:return
 	if model.upgrade_stove(selected_id):_update_ui();_save()
 
 func _sell():
+	if save_recovery_blocked:return
 	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
 		_cancel_selection(); _rebuild_furniture(); _update_ui()

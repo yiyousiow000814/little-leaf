@@ -41,13 +41,13 @@ def stage(build, output, config):
     (public/'hosting-release.json').write_text(json.dumps(marker,indent=2)+'\n')
     for name in ['firebase.json','firestore.rules','firestore.indexes.json']:
         shutil.copy2(ROOT/'firebase'/name,output/name)
-    for name in ['little_leaf_firebase.js','little_leaf_firebase_boot.mjs']:
+    for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'web'/name,public/name)
     html=(public/'index.html').read_text()
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
-    injection='<script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
+    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     (public/'index.html').write_text(html)
@@ -57,13 +57,14 @@ def stage(build, output, config):
     (output/'firebase-variant-manifest.json').write_text(json.dumps({'base_web_manifest':base,'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'status':'staged-not-published','files':{p.relative_to(output).as_posix():sha256(p) for p in output.rglob('*') if p.is_file()}},indent=2))
 
 BROWSER_GATES = {
+    'firebase-fullflow': ('firebase-fullflow/firebase-fullflow.json', 'passed', True),
     'inbox': ('inbox-browser/compensation-inbox-browser.json', 'passed', True),
     'tutorial': ('fresh-tutorial-browser/fresh-tutorial-browser.json', 'status', 'passed'),
     'compatibility': ('wall-browser/wall-compatibility-browser.json', 'status', 'passed'),
     'save-log': ('save-log-browser/save-log-browser.json', 'passed', True),
     'webkit-recovery': ('connection-recovery-browser/connection-recovery-browser.json', 'passed', True),
 }
-FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'staging-tests.log', 'rules.log']
+FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'recovery.log', 'choice.log', 'session.log', 'update-notice.log', 'recovery-presentation.log', 'recovery-browser.log', 'staging-tests.log', 'rules.log']
 
 def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt):
     if not re.fullmatch(r'[1-9][0-9]*', str(run_id)) or not re.fullmatch(r'[1-9][0-9]*', str(attempt)):
@@ -87,6 +88,13 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
         path=build/'evidence'/relative;report=json.loads(path.read_text())
         if report.get(key)!=expected or (key=='passed' and report.get(key) is not True):
             raise ValueError('Fresh browser gate did not pass: '+name)
+        if name=='firebase-fullflow':
+            expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
+            if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
+                raise ValueError('Compiled Firebase browser/source binding mismatch')
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
+                raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
             raise ValueError('Actual browser validation required: '+name)
         if name=='tutorial' and (report.get('binding',{}).get('source_commit')!=source or report.get('binding',{}).get('diagnostic_only')):

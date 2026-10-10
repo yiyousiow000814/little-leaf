@@ -116,8 +116,13 @@ func sync():
  if not is_instance_valid(panel):return
  var state=game.model.tutorial_state
  help_entry.text="Resume tutorial" if state.get("status","") in ["active","skipped"] else ("Replay tutorial" if state.get("status","")=="completed" else "Play tutorial")
- restart_entry.visible=state.get("status","") in ["active","skipped"]
- help_entry.disabled=game.save_recovery_blocked;restart_entry.disabled=game.save_recovery_blocked
+ var help_restricted=game.save_recovery_blocked
+ if not help_restricted and game.compact_ui.help_panel.visible and game.web_save!=null and game.web_save.has_method("recovery_snapshot"):
+  var recovery=game.web_save.recovery_snapshot()
+  help_restricted=bool(recovery.get("available",false)) or bool(recovery.get("busy",false)) or bool(recovery.get("ownershipPaused",false))
+ help_entry.visible=not help_restricted
+ restart_entry.visible=not help_restricted and state.get("status","") in ["active","skipped"]
+ help_entry.disabled=help_restricted;restart_entry.disabled=help_restricted
  var intro=game.cafe_intro!=null and game.cafe_intro.active
  var visible=active() and not intro and not game.save_recovery_blocked and not game.compact_ui.viewport_too_small
  if visible:_advance_from_reality()

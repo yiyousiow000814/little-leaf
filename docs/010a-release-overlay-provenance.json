@@ -1,0 +1,26 @@
+{
+  "overlay_base_remote": "a7afe3f6c066f44690b1e73895d884b41d4a199b",
+  "overlay_base_local": "b36e0ce2e31959e527ba7455ab9d4014c63843d5",
+  "current_base_local": "d15ca7b1dee954d64113b5dd270bc8ef30ecbe3c",
+  "current_base_remote": "d474af8878589bf551ac781ab51937e2dba6b0c6",
+  "reused_pr95": "fba7a0afef2dbe15c5ede554ee7a4d37876aefea",
+  "reused_pr97": "c81a71bbd774959fad0b176ef83adce11e59a2b8",
+  "files": {
+    ".github/workflows/github-release.yml": "bd9169f8dc3addf86a57a03599a4cf074a76b1fa7889e00402e6a8f936c3e95f",
+    ".github/workflows/release-itch.yml": "0ec756304e30f00c4b1bcd83c812b5e52ae5d711979dec6d9883e1475e3956a0",
+    "ci/github_latest.py": "7630814848076bd652fcda436ab3554de6087614e5b335754ed30de6ff18f6be",
+    "ci/publish_itch.py": "acf70b1e448702175c19799f3df9e688660b147c5480effd3bc1a3a4cb0fd267",
+    "ci/release_metadata.py": "b3128d45b4e0d4e96d198c2e1d59a35e7b78396e61fef6ec27eefc59819bcaeb",
+    "ci/test_github_latest.py": "76bdb538ccd05c096b87d44b698a21ceff43c0fe8a8e482b207fefb971b161ae",
+    "ci/test_github_release_workflow.py": "78e822178e329103218b408947cc92329641d48e099162688ac36ada4676f088",
+    "ci/test_hotfix_workflow.py": "08e12d9db659093a7c31aad6b04f002b6383f9de0eda9d2a81bb702b52d12b6c",
+    "ci/test_release.py": "bb672c2291686b14687a5c1f56a6816ecb5c650e6b7d6345679e85ebf20b53b0",
+    "data/release_notes.json": "b936a1753b0644606917fabb7955992bc0f0e038f58f93ad9ad9547ee203faa3",
+    "data/release_notes.schema.json": "653039c93ad4f86feeab887c5aab7653e7e6b5c40b51be5dbc78349de8752a52",
+    "docs/github-release.md": "10743bfc19474a7b0ef33d61cbe55a7e3a9b4f4755afc451ad5a5640d614f071",
+    "project.godot": "d38c756657fec74cc667efdcb86ab719ced0eb3107ba71a6d1c26b4083874d27",
+    "scripts/cafe_update_notes.gd": "1fe58680c029c47f18beed19aa094657051070ba9d5347b4e3eac871c1407a6a",
+    "tests/test_update_notes.gd": "ab7b2d08d0576577c04241af567c95b25e970484fe93520e56246bb169790303"
+  },
+  "scope": "Local final10a metadata integration. Prior tests are provenance, fresh exact-source gate pending. No merge/tag/deploy."
+}

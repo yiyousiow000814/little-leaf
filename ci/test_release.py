@@ -119,6 +119,19 @@ class ReleaseNotesContractTests(unittest.TestCase):
             self.assertIsInstance(item, str)
             self.assertTrue(item.strip())
 
+    def test_hotfix_keeps_exact_major_update_history(self):
+        import hashlib
+        notes=json.loads((self.root / "data/release_notes.json").read_text())
+        self.assertEqual(notes["version"],"0.1.10a")
+        self.assertEqual(len(notes["history"]),1)
+        previous=notes["history"][0]
+        self.assertEqual(previous["version"],"0.1.10")
+        self.assertNotIn("history",previous)
+        digest=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
+        self.assertEqual(digest,"97d1d9f9ae3d93c809476611d5cc26d57782f12a44fa37cc46cb875158e1348d")
+        schema=json.loads((self.root / "data/release_notes.schema.json").read_text())
+        self.assertNotIn("history",schema["$defs"]["historicalRelease"]["properties"])
+
     def test_draft_with_populated_review_metadata_is_never_publishable(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

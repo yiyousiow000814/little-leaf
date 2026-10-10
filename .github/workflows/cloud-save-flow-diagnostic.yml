@@ -1,0 +1,72 @@
+name: Cloud save flow diagnostic (retained compiled UI)
+on:
+  pull_request:
+    paths:
+      - 'firebase/**'
+      - 'web/little_leaf_firebase*'
+      - 'web/little_leaf_update.js'
+      - 'ci/cloud_flow_diagnostic.py'
+      - 'ci/prepare_cloud_geometry.py'
+      - 'tests/probe_cloud_recovery_geometry.gd'
+      - '.github/workflows/cloud-save-flow-diagnostic.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostic:
+    if: github.head_ref == 'fix/cloud-save-choice-handoff-010a' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check retained diagnostic eligibility without qualifying a release
+        id: eligibility
+        run: python3 ci/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
+      - name: Fetch exact retained a7 artifacts and verify all bytes and source inputs
+        if: steps.eligibility.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/retained"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11600374596/zip > "$RUNNER_TEMP/retained/web.zip"
+          gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11602076197/zip > "$RUNNER_TEMP/retained/evidence.zip"
+          python3 ci/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
+      - name: Install pinned native geometry tool and prepare disposable probe
+        if: steps.eligibility.outputs.eligible == 'true'
+        run: |
+          python3 ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
+      - name: Install pinned test dependencies
+        if: steps.eligibility.outputs.eligible == 'true'
+        run: |
+          npm --prefix firebase ci --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/browser-tools/node_modules/.bin/playwright" install-deps chromium
+      - name: Exercise actual compiled UI and current adapter against synthetic emulator
+        if: steps.eligibility.outputs.eligible == 'true'
+        timeout-minutes: 12
+        env:
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          cd firebase
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --diagnostic-only --web-build '$RUNNER_TEMP/retained/web' --engine-report '$RUNNER_TEMP/retained/evidence/engine-evidence/summary.json' --output '$RUNNER_TEMP/diagnostic-output'"
+      - name: Retain diagnostic evidence only (never release or preview qualification)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: cloud-flow-diagnostic-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/diagnostic-output
+            ${{ runner.temp }}/retained/diagnostic-binding.json
+            ${{ runner.temp }}/retained/diagnostic-eligibility.json
+          retention-days: 7

@@ -28,6 +28,26 @@ function load(options = {}) {
   return { api: context.LittleLeafSaveLog, effects };
 }
 (async () => {
+  const versions = load().api;
+  for (const value of ['0.1.10', '0.1.10a', '0.1.10z', '0.1.8-alpha', '0.1.10a-rc.1']) {
+    versions.setVersion(value);
+    check(versions.text().startsWith('Little Leaf save log | app ' + value + '\n'), 'Supported release version is retained: ' + value);
+  }
+  versions.setVersion('0.1.10a');
+  for (const value of ['0.1.10aa', '0.1.10A', 'v0.1.10a', '0.1', '0.1.10a\n', '<b>0.1.10a</b>', '0.1.10-' + 'a'.repeat(40), null, 10, {}, ['0.1.10a']]) {
+    versions.setVersion(value);
+    check(versions.text().startsWith('Little Leaf save log | app 0.1.10a\n'), 'Invalid version cannot replace the last valid header: ' + JSON.stringify(value));
+  }
+  const projectVersion = fs.readFileSync(path.join(root, 'project.godot'), 'utf8').match(/^config\/version="([^"]+)"$/m)[1];
+  versions.setVersion(projectVersion);
+  check(versions.text().startsWith('Little Leaf save log | app ' + projectVersion + '\n'), 'Current project release version reaches the diagnostic header');
+  const startMarker = '/* Session-only save diagnostics. No storage, payloads, raw errors or telemetry. */';
+  const endMarker = '/* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */';
+  for (const shell of ['little_leaf_shell.html', 'little_leaf_crazygames_shell.html']) {
+    const embedded = fs.readFileSync(path.join(root, 'web', shell), 'utf8');
+    const start = embedded.indexOf(startMarker), end = embedded.indexOf(endMarker, start);
+    check(start >= 0 && end > start && embedded.slice(start, end).trim() === source.trim(), shell + ' embeds the exact standalone diagnostic source bytes');
+  }
   const { api, effects } = load();
   check(api.snapshot().length === 0, 'Logger begins empty without startup writes');
   api.setVersion('0.1.8-alpha');
