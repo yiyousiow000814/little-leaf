@@ -11,6 +11,7 @@ from optimize_web_present import optimize_presentation
 from bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 from project_layout import resource_name, source_path
+from engine_shards import expected_records
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
@@ -70,9 +71,7 @@ def main():
     spec = spec_from_file_location("suite", ROOT / "tests/run_integration_candidate.py")
     suite = module_from_spec(spec)
     spec.loader.exec_module(suite)
-    expected = {name for name, _ in suite.SUITES} | {
-        "import", *("staff-start-" + case for case in
-                    ["empty-profile", "fresh", "saved-load", "standalone-load", "bad-load"])}
+    expected = expected_records([name for name, _ in suite.SUITES] + ["staff-start"]) | {"import"}
     if {r["test"] for r in test_report["records"]} != expected:
         raise RuntimeError("Complete integration suite evidence is required")
     if len(test_report["records"]) != len(expected):

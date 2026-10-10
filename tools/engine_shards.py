@@ -37,8 +37,13 @@ def plan(count, names=None, timing=None):
 
 
 def expected_records(names):
-    return {name for name in names if name != 'staff-start'} | (
+    records = {name for name in names if name != 'staff-start'} | (
         {'staff-start-' + case for case in STAFF} if 'staff-start' in names else set())
+    if 'test_navigation_review' in names:
+        # The runner verifies that either missing flag leaves the controller off.
+        records.update('test_navigation_review' + flag for flag in
+                       ['--navigation-candidate', '--fresh-review'])
+    return records
 
 
 def merge_reports(paths, count, source, output):
