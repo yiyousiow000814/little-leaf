@@ -47,6 +47,7 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.assertIn('scripts/cafe_web_save.gd', report['source_sha256'])
         for command, env in commands:
             self.assertEqual(command[1:4], ['--headless', '--audio-driver', 'Dummy'])
+            self.assertNotIn('--fixed-fps', command, 'Unreviewed suites must keep their original pacing')
             for key in ['HOME', 'APPDATA', 'LOCALAPPDATA', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME']:
                 self.assertTrue(Path(env[key]).is_relative_to(self.root / 'qa-project'))
                 self.assertNotIn('\\', env[key])
@@ -61,6 +62,10 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.run_synthetic()
 
     def test_windows_lock_and_shared_normalized_data_directory(self):
+        self.run_synthetic(windows=True)
+
+    def test_unpaced_ui_does_not_change_other_suites(self):
+        self.argv.append('--unpaced-ui')
         self.run_synthetic(windows=True)
 
     def test_historical_workflow_keeps_lock_outside_parent_checkout(self):
@@ -108,13 +113,23 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
         self.assertIn('RUNTIME_BROWSER: webkit', browser)
-        self.assertIn('lane: [play, compatibility, recovery]', browser)
-        self.assertIn('max-parallel: 4', workflow)
-        self.assertIn('max-parallel: 3', browser)
+        self.assertIn('lane: [play, recovery]', browser)
+        self.assertIn('lane: [compatibility]', browser)
+        self.assertIn('max-parallel: 5', workflow)
+        self.assertIn('max-parallel: 2', browser)
+        play = browser.split('  compatibility:\n', 1)[0]
+        self.assertIn('needs: build', play)
+        self.assertNotIn('old-web-build', play)
+        self.assertIn('needs: [build, historical]', browser)
+        self.assertIn('--parallel-cases', browser)
+        self.assertIn('wait "$inbox_pid"; inbox_status=$?', browser)
+        self.assertIn('wait "$tutorial_pid"; tutorial_status=$?', browser)
+        self.assertIn('test "$inbox_status" = 0 && test "$tutorial_status" = 0', browser)
         self.assertEqual(workflow.count('python3 tools/build_web.py --output'), 1)
         self.assertEqual(workflow.count('python3 tools/build_crazygames.py --validated-web-build'), 1)
         self.assertIn('needs: [guard, engine]', workflow)
-        self.assertIn('needs: [guard, engine, historical, build, browser, firebase]', workflow)
+        self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]', workflow)
+        self.assertIn('"$BUILD" "$BROWSER" "$COMPATIBILITY";', workflow)
         self.assertIn('test "$result" = success || exit 1', workflow)
         self.assertNotIn('continue-on-error:', workflow)
 

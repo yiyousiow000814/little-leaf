@@ -50,11 +50,12 @@ class EngineShardTests(unittest.TestCase):
         self.paths[1].write_text(json.dumps(report))
 
     def test_balanced_complete_plan_and_new_suites(self):
-        plan = shards.plan(4)
+        plan = shards.plan(5)
         flattened = sum(plan, [])
         self.assertEqual(set(flattened), set(shards.suite_names()))
         self.assertEqual(len(flattened), len(set(flattened)))
         self.assertIn('new-suite', sum(shards.plan(2, self.names + ['new-suite'], self.timing), []))
+        with self.assertRaises(ValueError): shards.plan(6)
 
     def test_staff_starts_remain_together_and_complete(self):
         result = self.merge()

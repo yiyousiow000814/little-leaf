@@ -23,8 +23,8 @@ def suite_names():
 
 
 def plan(count, names=None, timing=None):
-    if count < 1 or count > 4:
-        raise ValueError('Use between one and four independent engine runners')
+    if count < 1 or count > 5:
+        raise ValueError('Use between one and five independent engine runners')
     names = suite_names() if names is None else names
     timing = json.loads(Path(__file__).with_name('engine_suite_times.json').read_text())['seconds'] if timing is None else timing
     shards = [[] for _ in range(count)]
@@ -110,7 +110,7 @@ def merge_reports(paths, count, source, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['run', 'merge'])
-    parser.add_argument('--count', type=int, default=4)
+    parser.add_argument('--count', type=int, default=5)
     parser.add_argument('--shard', type=int)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--reports', type=Path)
@@ -120,7 +120,7 @@ def main():
         if args.shard not in range(args.count):
             parser.error('Valid shard index required')
         subprocess.run([sys.executable, str(ROOT / 'tests/run_integration_candidate.py'),
-                        '--only', *assignments[args.shard], '--output', str(args.output),
+                        '--unpaced-ui', '--only', *assignments[args.shard], '--output', str(args.output),
                         '--lock', str(args.output.with_suffix('.lock'))], check=True)
         path = args.output / 'summary.json'
         report = json.loads(path.read_text())
