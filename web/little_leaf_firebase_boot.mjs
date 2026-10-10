@@ -1,8 +1,19 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
-import {getAuth,GoogleAuthProvider,signInWithRedirect,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {getAuth,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
-export async function start(config) {
-  if(window.top!==window.self || location.hostname!==config.authDomain) throw Error('Open the full game on its Firebase Hosting address to sign in.');
+export async function start(config,options={}) {
+  const popup=options.surface==='trusted-itch-frame';
+  if(options.surface!==undefined && !popup)throw Error('Unknown account entry surface.');
+  if(popup){
+    // Options are baked into the reviewed own-origin preview, never supplied by its parent.
+    const expected=options.runtimeOrigin;
+    const prefix='https://'+config.projectId+'--itch-embed-test-';
+    const suffix=typeof expected==='string' && expected.startsWith(prefix)?expected.slice(prefix.length):'';
+    const ancestors=location.ancestorOrigins;
+    if(!/^[a-z0-9]+\.web\.app$/.test(suffix) || location.origin!==expected || window.top===window.self
+      || !ancestors || ancestors.length!==2 || ancestors[0]!=='https://html-classic.itch.zone'
+      || ancestors[1]!=='https://siowyiyou.itch.io')throw Error('Open the approved itch preview page to sign in.');
+  }else if(window.top!==window.self || location.hostname!==config.authDomain)throw Error('Open the full game on its Firebase Hosting address to sign in.');
   const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app);
   const panel=document.createElement('div');panel.id='cloud-account';panel.setAttribute('aria-live','polite');
   panel.style.cssText='position:fixed;right:8px;top:8px;z-index:40;background:#fffaf0;color:#493d2e;border-radius:8px;padding:7px;font:12px Arial;max-width:80vw';
@@ -25,10 +36,10 @@ export async function start(config) {
     reload(){location.reload();}
   });
   button.textContent='Sign in with Google';label.textContent='Sign in to load your café across devices';
-  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;accountError='';try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;await signOut(auth);client?.close();window.LittleLeafUpdate?.close();location.reload();}else{startup('Opening Google sign-in…',true);await signInWithRedirect(auth,new GoogleAuthProvider());if(!auth.currentUser)startup(signInPrompt,true);}}catch(e){if(auth.currentUser){accountError='Sign out did not finish. You are still signed in. Try again.';}else{state('signed-out');startup('Sign-in did not finish. Try Sign in with Google again.',true);}}finally{loginBusy=false;button.disabled=false;}};
+  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;accountError='';try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;await signOut(auth);client?.close();window.LittleLeafUpdate?.close();location.reload();}else{startup('Opening Google sign-in…',true);await (popup?signInWithPopup:signInWithRedirect)(auth,new GoogleAuthProvider());if(!auth.currentUser)startup(signInPrompt,true);}}catch(e){if(auth.currentUser){accountError='Sign out did not finish. You are still signed in. Try again.';}else{state('signed-out');startup('Sign-in did not finish. Try Sign in with Google again.',true);}}finally{loginBusy=false;button.disabled=false;}};
   try {
     await setPersistence(auth,browserLocalPersistence);
-    await getRedirectResult(auth);
+    if(!popup)await getRedirectResult(auth);
     await auth.authStateReady();
   } catch (_) {
     throw Error('Sign-in could not finish. Reload Little Leaf and try Sign in with Google again.');

@@ -1,7 +1,7 @@
 'use strict';
 // Real Firebase boot bridge, synthetic SDK/DOM and account-scoped fake client only.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\n/gm,'').replace('export async function start','async function start');
+const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 let checks=0;function check(value,message){checks++;assert(value,message);}
 function fixture(options={}){

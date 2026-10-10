@@ -94,6 +94,7 @@ See [assets and licenses](licenses.md) before reusing or distributing content. O
 
 - [Branded startup](technical/branded-startup-010.md), [Welcome entry motion](technical/entry-motion-010.md).
 - [Fresh tutorial browser gate](technical/fresh-tutorial-browser-gate.md), [wall-save browser compatibility](technical/wall-web-compatibility.md), [CrazyGames adapter/export contract](technical/crazygames-variant.md).
+- [Trusted itch preview](technical/itch-trusted-preview-candidate.md): preparation and identity restrictions; preview is not deployed or hosted-accepted.
 - [Interactive tutorial](qa/interactive-tutorial.md), [compensation Inbox](qa/compensation-inbox.md), [builds/releases](github-release.md), [assets/licenses](licenses.md).
 
 ## Maintaining the documentation

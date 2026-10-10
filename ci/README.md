@@ -46,6 +46,9 @@ source gate. Firebase and CrazyGames call that contract directly; neither varian
 depends on the other. Variant-specific provenance, staging, namespace and release
 policy remain in their respective commands. `toolchain.json` pins the installer;
 `release_metadata.py` is the single version ordering implementation.
+`build_itch_trusted_preview.py` is a shared preparation module used by the
+explicit Firebase preview option; it does not add a standalone launch command
+or authorize deployment.
 
 `test_*.py` files cover these contracts without engines or publication. Select
 the affected cases with `python3 -m unittest tests.tooling.test_NAME.CASE`; do not run every
