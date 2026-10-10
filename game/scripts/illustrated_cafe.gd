@@ -374,7 +374,10 @@ func _draw_street_people(show_service:bool):
 		var face=float(facing.mirror)
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
+		if actor.has("parking_door_plane"):
+			preload("res://scripts/parking_passenger_portal.gd").draw(self,Vector2.ZERO,int(actor.id),pose.blend>.02,pose,heading,actor.parking_door_plane)
+		else:
+			character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
 
 func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):

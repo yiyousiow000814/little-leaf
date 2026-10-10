@@ -2,6 +2,9 @@ extends SceneTree
 const M=preload("res://scripts/cafe_model.gd")
 const P=preload("res://scripts/cafe_parking.gd")
 const C=preload("res://scripts/cafe_runtime_codec.gd")
+const Portal=preload("res://scripts/parking_passenger_portal.gd")
+class Artist extends Node2D:
+	var opacity=1.0
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -26,7 +29,8 @@ func valid(m)->Dictionary:
 	return P.validate(C.new().encode(P.snapshot(m)),m.customers,m.outside_queue,m._next_customer_id,m.operating_open)
 func step(m,seconds:float):
 	for i in range(ceili(seconds/.1)):P.advance(m,.1)
-func _initialize():
+func _initialize():run.call_deferred()
+func run():
 	for count in range(1,5):
 		var m=owned();check(P.reserve(m,count),"reserve bounded party "+str(count))
 		var original=m.parking_visits[0].members.duplicate(true)
@@ -77,4 +81,44 @@ func _initialize():
 		check(not P.validate(bad,[],[],legacy_model._next_customer_id,true).ok,"reject malformed member "+field)
 	var duplicate=raw.duplicate(true);duplicate.visits[0].members.append(duplicate.visits[0].members[0].duplicate(true))
 	check(not P.validate(duplicate,[],[],legacy_model._next_customer_id,true).ok,"reject duplicate original membership")
+	var doorway=owned();P.reserve(doorway,1)
+	var vehicle=doorway.parking_visits[0];var rider=vehicle.members[0];var immutable=[rider.id,rider.member_id,rider.car_id,rider.appearance_sequence,rider.species_index,rider.appearance_recipe]
+	vehicle.phase="parked";vehicle.car_position=P.bay_point(0);vehicle.car_index=vehicle.car_route.size()
+	check(P.door_point(0)==vehicle.car_position,"hidden doorway endpoint inside unchanged vehicle footprint")
+	P.advance(doorway,.1)
+	check(rider.walk_heading==Vector2.RIGHT and is_equal_approx(rider.walk_position.y,P.BAY_Z),"door exit is actual cardinal side step")
+	check(P.visual_walkers(doorway)[0].has("parking_door_plane"),"first real door step uses local vehicle mask")
+	check(valid(doorway).ok,"save validates during partly emerged doorway step")
+	step(doorway,1)
+	check(not P.visual_walkers(doorway)[0].has("parking_door_plane"),"fully cleared side becomes unchanged ordinary walker")
+	check([rider.id,rider.member_id,rider.car_id,rider.appearance_sequence,rider.species_index,rider.appearance_recipe]==immutable,"door transition does not replace original appearance or person")
+	var historic=owned();P.reserve(historic,1)
+	var old_vehicle=historic.parking_visits[0];var old_rider=old_vehicle.members[0]
+	old_rider.walk_origin=P._legacy_door_point(0);old_rider.walk_position=old_rider.walk_origin;old_rider.walk_route=P._legacy_inward_route(0)
+	check(valid(historic).ok,"historical v2 exterior-door arrival remains valid")
+	old_vehicle.phase="parked";old_vehicle.car_position=P.bay_point(0);old_vehicle.car_index=old_vehicle.car_route.size()
+	P.advance(historic,.00001)
+	check(old_rider.walk_origin==P.door_point(0) and old_rider.walk_index==0,"unstarted historical walk upgrades only while invisible")
+	check(valid(historic).ok,"upgraded historical doorway validates")
+	old_rider.phase="walking_return";old_rider.slot=-1;old_rider.walk_origin=P.HANDOFF;old_rider.walk_position=P.HANDOFF;old_rider.walk_route=P._legacy_return_route(0,P.HANDOFF);old_rider.walk_index=0
+	var old_position=old_rider.walk_position;var old_route=old_rider.walk_route.duplicate()
+	check(valid(historic).ok,"historical in-flight return validates before extension")
+	P.advance(historic,.00001)
+	check(old_rider.walk_position.distance_to(old_position)<.0001 and old_rider.walk_route.slice(0,6)==old_route and old_rider.walk_route[-1]==P.door_point(0),"historical return extends into cabin without moving a live foot")
+	check(valid(historic).ok,"extended historical return validates")
+	var source=Artist.new();root.add_child(source)
+	var portal=Portal.new();source.add_child(portal)
+	var child_ref=weakref(portal.body);var portal_ref=weakref(portal)
+	var appearance=[["character",1,{"parking_portal_rect":Rect2(10,-80,100,100),"phase":.25}]]
+	portal.configure(source,Callable(),appearance,Transform2D.IDENTITY)
+	check(portal.clip_children==CanvasItem.CLIP_CHILDREN_ONLY and portal.get_child_count()==1,"one bounded child retains original actor under local door mask")
+	check(not portal.body.appearance[0][-1].has("parking_portal_rect") and portal.body.appearance[0][-1].phase==.25,"moving mask excluded from retained body key without losing pose")
+	for i in range(32):
+		appearance[0][-1].parking_portal_rect.position.x=float(i)
+		portal.configure(source,Callable(),appearance,Transform2D.IDENTITY)
+	check(portal.get_child_count()==1 and child_ref.get_ref()==portal.body,"door movement reuses bounded mask/body nodes")
+	portal.configure(source,Callable(),[["ordinary",{}]],Transform2D.IDENTITY)
+	check(portal.clip_children==CanvasItem.CLIP_CHILDREN_DISABLED,"ordinary painter-slot reuse clears old door clipping")
+	source.queue_free();await process_frame;await process_frame
+	check(portal_ref.get_ref()==null and child_ref.get_ref()==null,"illustration owner teardown releases portal and character child")
 	print("PARKING_PARTIES_RESULT ",JSON.stringify({"checks":checks,"failures":failures}));quit(0 if failures.is_empty() else 1)

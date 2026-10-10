@@ -22,7 +22,15 @@ static func snapshot(model)->Dictionary:
 	return {"format":FORMAT,"owned":model.parking_owned,"paid_cost":model.parking_paid_cost,"visits":model.parking_visits,"traffic":model.road_traffic_state}
 static func restore_traffic(model,state:Dictionary):model.road_traffic_state=state.traffic.duplicate(true)
 static func bay_point(bay:int)->Vector2:return Vector2(BAY_X[bay],BAY_Z)
-static func door_point(bay:int)->Vector2:return bay_point(bay)+Vector2(.82,0)
+# The invisible endpoint is inside the cabin. A passenger crosses the side
+# before becoming an ordinary aisle walker; the car keeps its original shape.
+static func door_point(bay:int)->Vector2:return bay_point(bay)
+static func door_clear_point(bay:int)->Vector2:return bay_point(bay)+Vector2(1.4,0)
+static func _legacy_door_point(bay:int)->Vector2:return bay_point(bay)+Vector2(.82,0)
+static func _legacy_inward_route(bay:int)->Array:
+	return [Vector2(_legacy_door_point(bay).x,AISLE_Z),Vector2(LINK_X,AISLE_Z),Vector2(LINK_X,HANDOFF.y),HANDOFF]
+static func _legacy_return_route(bay:int,origin:Vector2)->Array:
+	return [Vector2(HANDOFF.x,origin.y),HANDOFF,Vector2(LINK_X,HANDOFF.y),Vector2(LINK_X,AISLE_Z),Vector2(_legacy_door_point(bay).x,AISLE_Z),_legacy_door_point(bay)]
 static func _legacy_car_route(bay:int,departing=false)->Array:
 	var aisle=Vector2(BAY_X[bay],AISLE_Z)
 	return [aisle,Vector2(CAR_START.x,AISLE_Z),CAR_END] if departing else [Vector2(CAR_START.x,AISLE_Z),aisle,bay_point(bay)]
@@ -45,9 +53,9 @@ static func car_route(bay:int,departing=false)->Array:
 		points.append(bay_point(bay))
 	return points
 static func inward_route(bay:int)->Array:
-	return [Vector2(door_point(bay).x,AISLE_Z),Vector2(LINK_X,AISLE_Z),Vector2(LINK_X,HANDOFF.y),HANDOFF]
+	return [door_clear_point(bay),Vector2(door_clear_point(bay).x,AISLE_Z),Vector2(LINK_X,AISLE_Z),Vector2(LINK_X,HANDOFF.y),HANDOFF]
 static func return_route(bay:int,origin:Vector2)->Array:
-	return [Vector2(HANDOFF.x,origin.y),HANDOFF,Vector2(LINK_X,HANDOFF.y),Vector2(LINK_X,AISLE_Z),Vector2(door_point(bay).x,AISLE_Z),door_point(bay)]
+	return [Vector2(HANDOFF.x,origin.y),HANDOFF,Vector2(LINK_X,HANDOFF.y),Vector2(LINK_X,AISLE_Z),Vector2(door_clear_point(bay).x,AISLE_Z),door_clear_point(bay),door_point(bay)]
 static func find(model,id:int)->Dictionary:
 	for car in model.parking_visits:
 		for member in car.members:
@@ -92,7 +100,7 @@ static func reserve(model,party_size:int=0)->bool:
 		while slots.has(slot):slot+=1
 		slots[slot]=true
 		var id=int(model._next_customer_id);model._next_customer_id+=1
-		members.append({"id":id,"member_id":id,"car_id":car_id,"appearance_sequence":id,"species_index":posmod(id,3),"appearance_recipe":APPEARANCE_RECIPE,"bay":bay,"slot":slot,"phase":"in_car","cancelled":false,"walk_origin":door_point(bay),"walk_position":door_point(bay),"walk_heading":Vector2.DOWN,"walk_route":inward_route(bay),"walk_index":0})
+		members.append({"id":id,"member_id":id,"car_id":car_id,"appearance_sequence":id,"species_index":posmod(id,3),"appearance_recipe":APPEARANCE_RECIPE,"bay":bay,"slot":slot,"phase":"in_car","cancelled":false,"walk_origin":door_point(bay),"walk_position":door_point(bay),"walk_heading":Vector2.RIGHT,"walk_route":inward_route(bay),"walk_index":0})
 	model.parking_visits.append({"id":car_id,"bay":bay,"phase":"car_arriving","cancelled":false,"car_position":CAR_START,"car_heading":Vector2.DOWN,"car_route":car_route(bay),"car_index":0,"members":members})
 	return true
 static func _bind(actor:Dictionary,member:Dictionary):
@@ -104,6 +112,11 @@ static func visual_walkers(model)->Array:
 		for member in car.members:
 			if member.phase not in ["walking_in","walking_return"]:continue
 			var actor={"id":member.id,"x":member.walk_position.x,"z":member.walk_position.y,"heading":member.walk_heading,"phase":"parking_walk","seated":false,"waiting":false,"table_id":-1,"chair_id":-1,"parking_visit":true}
+			# Only the cabin-to-side segment is portal-masked. The ordinary actor
+			# outside the door keeps its actual world position and unchanged art.
+			if (member.phase=="walking_in" and member.walk_origin==door_point(int(car.bay))) or (member.phase=="walking_return" and member.walk_route[-1]==door_point(int(car.bay))):
+				if absf(member.walk_position.y-BAY_Z)<.0001 and member.walk_position.x<door_clear_point(int(car.bay)).x-.0001:
+					actor.parking_door_plane=bay_point(int(car.bay))+Vector2(.60,0)
 			_bind(actor,member);actors.append(actor)
 	return actors
 static func _move(visit:Dictionary,prefix:String,budget:float,stop_index:int=-1):
@@ -185,13 +198,23 @@ static func advance(model,delta:float):
 		for member in car.members:
 			if member.phase=="in_car":
 				if member.cancelled:member.phase="boarded";member.slot=-1
-				elif can_exit:member.phase="walking_in"
+				elif can_exit:
+					# An old save can retain invisible passengers at the old exterior
+					# endpoint. Upgrade only that unstarted walk, never a live foot.
+					if member.walk_route.size()==4 and member.walk_origin==_legacy_door_point(int(car.bay)):
+						member.walk_origin=door_point(int(car.bay));member.walk_position=member.walk_origin
+						member.walk_route=inward_route(int(car.bay));member.walk_index=0
+					member.phase="walking_in"
 				else:continue
 			if member.phase=="walking_in":
 				_move(member,"walk_",model.WALK_SPEED*delta)
 				can_exit=member.walk_position.distance_to(door_point(int(car.bay)))>=.95
 				if _settled(member,"walk_"):_handoff(model,member)
 			elif member.phase=="walking_return":
+				# Extend an in-flight historical return into the cabin without
+				# replacing its origin, current position or already traversed route.
+				if member.walk_route.size()==6 and member.walk_route[-1]==_legacy_door_point(int(car.bay)):
+					member.walk_route.append(door_point(int(car.bay)))
 				_move(member,"walk_",model.WALK_SPEED*delta)
 				if _settled(member,"walk_"):member.phase="boarded"
 		_drive_out(car)
@@ -227,18 +250,22 @@ static func _validate_single(raw,customers:Array,queue:Array,next_id:int,open:bo
 			if not visit[key] is Vector2 or not visit[key].is_finite():return {"ok":false,"error":"Invalid parking coordinate"}
 		for key in ["car_heading","walk_heading"]:
 			if (key=="walk_heading" and visit[key] not in [Vector2.UP,Vector2.DOWN,Vector2.LEFT,Vector2.RIGHT]) or (key=="car_heading" and absf(visit[key].length()-1.0)>.0001):return {"ok":false,"error":"Invalid parking heading"}
-		if not codec._integer(visit.car_index,0,visit.car_route.size()) or not codec._integer(visit.walk_index,0,6):return {"ok":false,"error":"Invalid parking route index"}
-		var cancelled_before_exit=visit.phase=="car_departing" and visit.cancelled and visit.walk_route==inward_route(bay) and int(visit.walk_index)==0 and visit.walk_position==door_point(bay)
+		if not codec._integer(visit.car_index,0,visit.car_route.size()) or not codec._integer(visit.walk_index,0,7):return {"ok":false,"error":"Invalid parking route index"}
+		var cancelled_before_exit=visit.phase=="car_departing" and visit.cancelled and visit.walk_route in [inward_route(bay),_legacy_inward_route(bay)] and int(visit.walk_index)==0 and visit.walk_position in [door_point(bay),_legacy_door_point(bay)]
 		var returning=visit.phase=="walking_return" or (visit.phase=="car_departing" and not cancelled_before_exit)
 		if returning:
 			if not codec._number(visit.walk_origin.x,HANDOFF.x,-.85) or not codec._number(visit.walk_origin.y,-2.5,28):return {"ok":false,"error":"Invalid parking return origin"}
-		elif visit.walk_origin!=door_point(bay):return {"ok":false,"error":"Invalid parking walk origin"}
+		elif visit.walk_origin not in [door_point(bay),_legacy_door_point(bay)]:return {"ok":false,"error":"Invalid parking walk origin"}
 		var expected_walk=return_route(bay,visit.walk_origin) if returning else inward_route(bay)
+		var legacy_walk=_legacy_return_route(bay,visit.walk_origin) if returning else _legacy_inward_route(bay)
+		if visit.walk_route==legacy_walk:expected_walk=legacy_walk
+		elif returning and visit.walk_route==legacy_walk+[door_point(bay)]:expected_walk=legacy_walk+[door_point(bay)]
+		if not returning and visit.walk_origin!=(door_point(bay) if expected_walk==inward_route(bay) else _legacy_door_point(bay)):return {"ok":false,"error":"Parking doorway origin/route mismatch"}
 		var departing=visit.phase=="car_departing"
 		if (visit.car_route!=car_route(bay,departing) and visit.car_route!=_legacy_car_route(bay,departing)) or visit.walk_route!=expected_walk or not codec._integer(visit.car_index,0,visit.car_route.size()) or not codec._integer(visit.walk_index,0,expected_walk.size()):return {"ok":false,"error":"Invalid parking route"}
 		if not _on_route(visit.car_position,bay_point(bay) if departing else CAR_START,visit.car_route,int(visit.car_index)) or not _on_route(visit.walk_position,visit.walk_origin,visit.walk_route,int(visit.walk_index)):return {"ok":false,"error":"Parking actor is off route"}
 		if visit.phase not in ["car_arriving","car_departing"] and (visit.car_position!=bay_point(bay) or int(visit.car_index)!=visit.car_route.size()):return {"ok":false,"error":"Driver left an unparked car"}
-		if visit.phase=="car_arriving" and (visit.walk_position!=door_point(bay) or int(visit.walk_index)!=0):return {"ok":false,"error":"Driver exists before parking"}
+		if visit.phase=="car_arriving" and (visit.walk_position!=visit.walk_origin or int(visit.walk_index)!=0):return {"ok":false,"error":"Driver exists before parking"}
 		if visit.phase=="car_departing" and not cancelled_before_exit and not _settled(visit,"walk_"):return {"ok":false,"error":"Car departed before driver boarded"}
 		if visit.phase=="dining" and visit.cancelled:return {"ok":false,"error":"Cancelled parking request owns dining"}
 		if _driving(visit):driving+=1
