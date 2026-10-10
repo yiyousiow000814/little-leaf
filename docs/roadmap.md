@@ -2305,19 +2305,19 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🔴 RED — Not implemented in audited candidates; released model retains included_bin_pending and shop bin | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — No new bin-free starter acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Local fresh-start candidate removes the free-bin entitlement; optional shop bin and historical readers remain | 🟡 YELLOW — 160 focused synthetic engine checks passed; integrated acceptance incomplete | 🔴 RED — Native/Web UI review pending | Local candidate only; not merged | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Not implemented in audited candidates; released model retains included_bin_pending and shop bin
+Code status: Local candidate on main base `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0` sets `included_bin_pending=false` only in fresh `MinimalStart.apply`. The shop retains its 65-coin catalog bin; existing load/save and historical entitlement semantics are unchanged.
 
-Exact code evidence: [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd); [minimal_start.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/minimal_start.gd)
+Exact code evidence: [fresh initialization](../scripts/minimal_start.gd); unchanged [catalog, purchase and historical reader](../scripts/cafe_model.gd).
 
-Tests present: [test_direct_janitor_cleanup.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_direct_janitor_cleanup.gd)
+Tests present: [direct cleanup and starter inventory](../tests/test_direct_janitor_cleanup.gd), 38 checks; [purchase/refund regression](../tests/test_decoration_refund.gd), 122 checks. Godot 4.6.3 headless disposable profiles passed all 160 checks. The added assertions reproduced four failures before the fresh-start fix. Restricted-environment root-certificate-store diagnostics occurred; no script/assertion failures occurred on the candidate. This does not establish visual, browser or hosted acceptance.
 
 Visual acceptance: No new bin-free starter acceptance
 
-Missing work / next action: Change fresh inventory separately; preserve owned bins/value and historic saves; do not restore candidate auto-bin insertion
+Missing work / next action: Review actual native/Web fresh shop price and optional purchase, then integrated save compatibility and source review before promotion. Preserve owned bins/value and historical entitlements; do not restore candidate auto-bin insertion.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
