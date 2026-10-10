@@ -46,8 +46,10 @@ func chair(artist:Node2D,at:Vector2,rotation:int,back_only:bool,style:String)->b
  return true
 func _cottage_table():
  # Wide square painted farmhouse top and turned cream legs.
- for q in [Vector2(-.32,-.32),Vector2(.32,-.32),Vector2(-.32,.32),Vector2(.32,.32)]:
-  edge(point(q.x,q.y,1),point(q.x,q.y,29),"b8baa0",3.8)
+ var feet=[Vector2(-.32,-.32),Vector2(.32,-.32),Vector2(-.32,.32),Vector2(.32,.32)]
+ for q in feet:a.ellipse(point(q.x,q.y,0),Vector2(2.6,1.3),Color(.45,.39,.23,.16))
+ for q in feet:
+  edge(point(q.x,q.y,0),point(q.x,q.y,29),"b8baa0",3.8)
   edge(point(q.x-.018,q.y,2),point(q.x-.018,q.y,29),"f0e8c9",1.7)
   a.ellipse(point(q.x,q.y,9),Vector2(2.4,1.5),"d6d4b6")
   a.ellipse(point(q.x,q.y,23),Vector2(2.3,1.4),"e8dfbe")
@@ -60,7 +62,8 @@ func _cottage_table():
  for z in [-.13,.13]:edge(point(-.35,z,33.2),point(.35,z,33.2),"e0d6b5",.6)
 func _retro_table():
  # A low chrome disk and single pedestal contrast with every four-leg set.
- a.ellipse(p+Vector2(0,-Placement.table_height(1)),Vector2(15,6.5),"8a9c95")
+ a.ellipse(p,Vector2(16,8),Color(.45,.39,.23,.13))
+ a.ellipse(p,Vector2(15,6.5),"8a9c95")
  a.outlined_ellipse(p+Vector2(0,-Placement.table_height(2.7)),Vector2(14.5,6.1),"c9d4c8","768d84",.8)
  edge(p+Vector2(0,-Placement.table_height(3)),p+Vector2(0,-Placement.table_height(29)),"829c92",6.0)
  edge(p+Vector2(-1,-Placement.table_height(4)),p+Vector2(-1,-Placement.table_height(29)),"e0e4d1",2.0)
@@ -72,8 +75,10 @@ func _retro_table():
  edge(point(-.30,-.04,34),point(-.05,.20,34),"c0dac1",.8)
 func _refined_table():
  # Faceted walnut silhouette, tapered legs, a fine brass rim and ivory inset.
- for q in [Vector2(-.30,-.30),Vector2(.30,-.30),Vector2(-.30,.30),Vector2(.30,.30)]:
-  var foot=point(q.x*1.16,q.y*1.16,1);var top=point(q.x,q.y,29)
+ var feet=[Vector2(-.30,-.30),Vector2(.30,-.30),Vector2(-.30,.30),Vector2(.30,.30)]
+ for q in feet:a.ellipse(point(q.x*1.16,q.y*1.16,0),Vector2(2.6,1.3),Color(.45,.39,.23,.16))
+ for q in feet:
+  var foot=point(q.x*1.16,q.y*1.16,0);var top=point(q.x,q.y,29)
   edge(foot,top,"6e5846",4.0)
   edge(foot+Vector2(-.7,0),top+Vector2(-.7,0),"a47f56",1.2)
   edge(foot,foot+Vector2(0,-4),"c3a66b",3.1)
