@@ -27,7 +27,7 @@ Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` ta
 - Official Godot **4.6.3**, its non-threaded Web template, Butler **15.31.0**, and GitHub actions are pinned. Downloads are SHA-256 checked before use; an installer receipt binds the extracted engine/template hashes to those archives
 - Engine tests use disposable copies and synthetic profiles. Local `--local-tools` smoke exports are explicitly ineligible for publication. The export uses unchanged tracked game inputs and gets a packed-resource startup check
 - Each Web artifact includes source/test/file hashes in `release-manifest.json`. The publisher downloads that run's exact artifact ID and checks its digest and files
-- The required notice at `docs/third-party/GODOT-AA-LICENSE.txt` is copied to the Web artifact as `GODOT-AA-LICENSE.txt` and included in its hashes
+- The required notice at `docs/art-audio/third-party/GODOT-AA-LICENSE.txt` is copied to the Web artifact as `GODOT-AA-LICENSE.txt` and included in its hashes
 - The itch key is used only by publishing steps. Raw Butler output is suppressed, and repository permissions are read-only
 - One release runs at a time. Avoid simultaneous manual itch uploads or multiple queued release tags; GitHub keeps only one pending run by default
 

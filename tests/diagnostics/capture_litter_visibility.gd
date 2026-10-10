@@ -53,9 +53,9 @@ func run():
   game.illustration.update_projection();game._update_ui()
   for i in range(12):await process_frame
   game.illustration.queue_redraw();await process_frame;await RenderingServer.frame_post_draw
-  var path="res://docs/litter-remnants-visibility/%s-%s.png"%[mode,"detail" if detail else "normal"]
+  var path="res://docs/testing/litter-remnants-visibility/%s-%s.png"%[mode,"detail" if detail else "normal"]
   assert(root.get_texture().get_image().save_png(path)==OK)
   cases.append({"image":path,"zoom":game.illustration.zoom,"pan":game.illustration.pan_offset,"origin":game.illustration.origin,"tile":game.illustration.tile,"viewport":root.size})
  var report={"mode":mode,"fixture":"same furnished game, three observed customer routes; controlled artwork comparison rather than admission simulation","renderer":RenderingServer.get_video_adapter_name(),"routes":routes,"save_writes_suppressed":game.save_writes_suppressed,"items":game.model.items,"customers":game.model.customers,"messes":game.floor_tasks.snapshot(),"cases":cases}
- FileAccess.open("res://docs/litter-remnants-visibility/"+mode+"-native.json",FileAccess.WRITE).store_string(JSON.stringify(Codec.new().encode(report),"  "))
+ FileAccess.open("res://docs/testing/litter-remnants-visibility/"+mode+"-native.json",FileAccess.WRITE).store_string(JSON.stringify(Codec.new().encode(report),"  "))
  print("LITTER_ART_CAPTURE_COMPLETE ",mode," messes=",game.floor_tasks.messes.size());quit()

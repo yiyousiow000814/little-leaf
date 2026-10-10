@@ -21,4 +21,4 @@ Historical review notes, test evidence and source-recovery records. Statements a
 
 Paths in recorded commands and JSON are relative to the repository or original capture environment. The manifest describes the original published source, not the current tree.
 
-The empty `docs/litter-remnants-visibility/` and `docs/role-boundaries/` directories remain as output locations for existing QA scripts.
+The retained `docs/testing/litter-remnants-visibility/` and `docs/testing/role-boundaries/` placeholders provide the output locations used by the QA scripts.

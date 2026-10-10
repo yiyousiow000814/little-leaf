@@ -298,13 +298,13 @@ class DistributionNoticeTests(unittest.TestCase):
     def test_notice_is_in_export_and_hash_bound(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            path = root / "docs/third-party/GODOT-AA-LICENSE.txt"
+            path = root / "docs/art-audio/third-party/GODOT-AA-LICENSE.txt"
             path.parent.mkdir(parents=True)
             path.write_text("Synthetic notice fixture")
             web = root / "web"
             web.mkdir()
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            source = "docs/third-party/GODOT-AA-LICENSE.txt"
+            source = "docs/art-audio/third-party/GODOT-AA-LICENSE.txt"
             result = copy_notices(root, web, {source: digest})
             self.assertEqual((web / "GODOT-AA-LICENSE.txt").read_bytes(), path.read_bytes())
             self.assertEqual(result[source]["sha256"], digest)

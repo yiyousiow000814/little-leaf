@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 PRODUCTION_DIRS = {"assets", "data", "scripts", "shaders", "web"}
 PRODUCTION_FILES = {"project.godot", "main.tscn", "export_presets.cfg"}
-REQUIRED_NOTICES = {"docs/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
+REQUIRED_NOTICES = {"docs/art-audio/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
 
 
 def copy_notices(root, web, tested_hashes):
