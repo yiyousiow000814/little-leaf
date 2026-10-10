@@ -276,6 +276,11 @@ func concurrent_dropoff_cases():
   var low=art.drop_geometry(rotation,1,Vector2.ZERO,0)
   var high=art.drop_geometry(rotation,1,Vector2.ZERO,1)
   check(is_equal_approx(low.center.distance_to(high.center),2.2),"different queued dishes have distinct stack slots rotation "+str(rotation))
+  for slot in 6:
+   var release=art.drop_geometry(rotation,.65,Vector2.ZERO,slot)
+   var halfway=art.drop_geometry(rotation,.825,Vector2.ZERO,slot)
+   var settled=art.drop_geometry(rotation,1,Vector2.ZERO,slot)
+   check(release.height>=settled.height+1.79 and release.center.y<halfway.center.y and halfway.center.y<settled.center.y,"released plate clears queue and lowers continuously rotation "+str(rotation)+" slot "+str(slot))
  # The preceding legacy cases deliberately hire a second cleaner. Start this
  # focused group with a fresh synthetic roster so save cardinality stays exact.
  for player in game.audio_players.values():player.stop();player.stream=null

@@ -2026,7 +2026,7 @@ func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
 	var identity=[int(staff.job_guest_id),int(staff.job_token),int(sink.id),int(sink.rot)]
 	var previous=sink_drop_lowering.get(index,{})
 	if previous.is_empty() or previous.identity!=identity or phase<float(previous.phase):
-		previous={"identity":identity,"slot":slot,"from":result.release,"from_height":FurnitureArt.KitchenGeometry.height(FurnitureArt.KitchenGeometry.SINK_OPENING_HEIGHT)+1.8,"from_phase":.65}
+		previous={"identity":identity,"slot":slot,"from":result.release,"from_height":result.release_height,"from_phase":.65}
 	elif phase>=.65 and slot!=int(previous.slot):
 		previous.from=previous.center;previous.from_height=previous.height;previous.from_phase=previous.phase;previous.slot=slot
 	if phase>=.65:
