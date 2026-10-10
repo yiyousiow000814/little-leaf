@@ -2,25 +2,13 @@
 import argparse, json, shutil, subprocess, re, hashlib, os
 from pathlib import Path
 from build_web import ROOT, sha256
-from build_crazygames import validate_web_gate
+import artifacts
 
 def validate_export_inventory(build):
-    web=build/'web'
-    if web.is_symlink() or not web.is_dir():raise ValueError('Export root must be a real directory')
-    manifest_path=web/'release-manifest.json'
-    if manifest_path.is_symlink():raise ValueError('Export manifest symlink forbidden')
-    base=json.loads(manifest_path.read_text());files=base.get('files')
-    if not isinstance(files,dict) or not files:raise ValueError('Complete export inventory required')
-    if any(not isinstance(name,str) or not name or Path(name).name!=name or '\\' in name or name=='release-manifest.json' for name in files):
-        raise ValueError('Unsafe export inventory path')
-    if {p.name for p in web.iterdir()}!=set(files)|{'release-manifest.json'}:
-        raise ValueError('Unexpected or missing export files')
-    for name,record in files.items():
-        p=web/name
-        if p.is_symlink() or not p.is_file():raise ValueError('Export symlink or non-file forbidden')
-        if not isinstance(record,dict) or record.get('sha256')!=sha256(p) or type(record.get('bytes')) is not int or record['bytes']!=p.stat().st_size:
-            raise ValueError('Export inventory hash/size mismatch: '+name)
-    return base
+    return artifacts.validate_export_inventory(build / 'web')
+
+def validate_web_gate(build, commit, tree, local_tools=False):
+    return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
 
 def stage(build, output, config, trusted_itch_origin=None):
     validate_export_inventory(build)
@@ -104,7 +92,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
             if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
                 raise ValueError('Compiled Firebase browser/source binding mismatch')
-            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
             if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:

@@ -11,7 +11,9 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from build_web import ROOT, LOCK, sha256
+from build_web import ROOT, LOCK
+from artifacts import sha256
+import artifacts
 
 
 PRODUCTION_KEYS = {"profile": "little-leaf.cg.profile.v1",
@@ -80,23 +82,7 @@ def prepare_variant(project, developer_preview=False):
 
 
 def validate_web_gate(build, commit, tree, local_tools=False):
-    manifest = json.loads((build / "web/release-manifest.json").read_text())
-    if (manifest.get("source_commit") != commit or manifest.get("source_tree") != tree
-            or manifest.get("packed_smoke") != "passed"
-            or manifest.get("engine_checks", 0) <= 0 or manifest.get("test_processes", 0) <= 0):
-        raise RuntimeError("Existing complete Web export gate must pass for this exact source")
-    if not local_tools and manifest.get("toolchain_verification") != "checksum-pinned-official-archives":
-        raise RuntimeError("CI requires the existing checksum-pinned official toolchain gate")
-    if not manifest.get("production_sha256"):
-        raise RuntimeError("Existing production source hashes are required")
-    for name, digest in manifest["production_sha256"].items():
-        if sha256(ROOT / name) != digest or sha256(build / "project" / name) != digest:
-            raise RuntimeError("Source changed after existing Web gate: " + name)
-    html = (build / "web/index.html").read_text(encoding="utf-8")
-    if "https://sdk.crazygames.com/crazygames-sdk-v3.js" in html:
-        raise RuntimeError("Normal Web export must not load the CrazyGames SDK")
-    return manifest
-
+    return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

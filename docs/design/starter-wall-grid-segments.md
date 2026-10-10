@@ -91,7 +91,7 @@ The current pass has 27,219 assertions covering:
 - Atomic invalid/insufficient-funds paths, same-style no-op, and normalized JSON round-trip
 - Real unmodified v15 model rejection of wall format 2 without live-model mutation or original-file writes
 
-Files: `qa/prototypes/shell_segment_contract.gd`, `tests/test_shell_segment_contract.gd`, and `tests/run_shell_segment_contract.py`.
+Files: `tests/fixtures/shell_segment_contract.gd`, `tests/test_shell_segment_contract.gd`, and `tests/run_shell_segment_contract.py`.
 
 ## Review and implementation gates
 

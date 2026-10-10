@@ -174,7 +174,7 @@ def main():
                         native_env = {**profile("native"), "DISPLAY": display["DISPLAY"]}
                         run("native", ["--script", "res://tests/test_build_tiles_ui.gd", *flags], native_env, "BUILD_TILES_UI_RESULT", True)
                         capture_env = {**profile("capture"), "DISPLAY": display["DISPLAY"], "OUTPUT": str(captures)}
-                        run("capture", ["--script", "res://qa/capture_build_tiles_ui.gd", *flags], capture_env, "BUILD_TILES_CAPTURE_RESULT", True)
+                        run("capture", ["--script", "res://tests/diagnostics/capture_build_tiles_ui.gd", *flags], capture_env, "BUILD_TILES_CAPTURE_RESULT", True)
                         report["native_render_verified"] = True
                 report["status"] = "passed"
             except BaseException as error:
