@@ -13,7 +13,7 @@
     "assets/fonts/NotoSans-Regular.ttf": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
     "assets/fonts/Nunito-ExtraBold.ttf": "0514da7e4ec2b3d217e22564a0a5f7f21d0930797729762193a7538b02386cc6",
     "assets/ui/fidelity_hud/green_face.png": "6828416d007b4bec34f8d63e7b99e13c94b5d38a6660daa2bffc3185f3a7c20c",
-    "data/release_notes.json": "970b22e5fbe29eada0c405fdd2d862792baa1fd3974e0a38973a93d1123284ee",
+    "data/release_notes.json": "f6387320a098511fa04ef0fdf3f1b79136e4889c0c16d17453ca5b87f31fbe4a",
     "scripts/ambient_road_traffic.gd": "72621898ab0413305439e61ed1bc4f7e4259602d80c9dc59dd441759e4ec2887",
     "scripts/bus_stop_pedestrians.gd": "5df8b736b0bf597a509acd0b904986d70044d7b9e30ba87f9ef11af79bb25c78",
     "scripts/cafe_action_help.gd": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73",
