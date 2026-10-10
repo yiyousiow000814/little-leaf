@@ -60,6 +60,7 @@ const HeadAtlas=preload("res://scripts/character_head_atlas.gd")
 static var head_atlas=HeadAtlas.new()
 var use_cached_heads=true
 var render_contacts=[]
+var character_pick_geometry=preload("res://scripts/cafe_character_pick_geometry.gd").new()
 const DiningPlacement=preload("res://scripts/dining_placement.gd")
 var meal_chair_offsets={}
 var table_dining_directions={}
@@ -283,6 +284,8 @@ func _ground_cell_visible(x: float,z: float,view: Rect2) -> bool:
 	return Rect2(center-tile,tile*2).intersects(view)
 
 func _ready():
+	RenderingServer.frame_pre_draw.connect(_record_character_pick_submission)
+	RenderingServer.frame_post_draw.connect(_record_character_pick_frame)
 	ground_art.use_stroke_mesh="--retained-ground-strokes" in OS.get_cmdline_user_args() and not "--legacy-ground-strokes" in OS.get_cmdline_user_args()
 	use_grass_mesh=not "--legacy-grass-strokes" in OS.get_cmdline_user_args()
 	use_cached_moving_art=not "--legacy-moving-art" in OS.get_cmdline_user_args()
@@ -300,6 +303,8 @@ func _ready():
 		if use_cached_heads:head_atlas.request(self)
 
 func _exit_tree():
+	if RenderingServer.frame_pre_draw.is_connected(_record_character_pick_submission):RenderingServer.frame_pre_draw.disconnect(_record_character_pick_submission)
+	if RenderingServer.frame_post_draw.is_connected(_record_character_pick_frame):RenderingServer.frame_post_draw.disconnect(_record_character_pick_frame)
 	canvas_stream.release()
 	background_cache.release()
 
@@ -315,6 +320,8 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:
+		if game.interaction.manual_cleanup.tick(delta):queue_redraw()
 	_update_street_pedestrians(delta)
 	var motion_delta=delta
 	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
@@ -950,6 +957,7 @@ func _draw():
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
 		if not show_service:break
 		_draw_floor_mess(record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
 	var interaction=game.interaction if "interaction" in game else null
 	var preview=interaction!=null and interaction.preview_active
@@ -1187,6 +1195,7 @@ func _draw():
 	art_transform(Vector2.ZERO)
 	_finish_native_objects()
 	canvas_stream.finish()
+	character_pick_geometry.drawing(self)
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
 func _draw_legacy_pavement(ground_view: Rect2):
 	var rows=Neighborhood.visible_pavement_rows(self)
@@ -2163,6 +2172,14 @@ func _wet_spill(at:Vector2,remaining:float):
 	rounded_poly(points,2.0*remaining,Color(.40,.59,.59,.60))
 	line(at+Vector2(-7,-1)*remaining,at+Vector2(-2,-2)*remaining,Color(.88,.94,.88,.85),1.1*remaining)
 	ellipse(at+Vector2(8,1)*remaining,Vector2(1.8,.65)*remaining,Color(.84,.92,.86,.68))
+
+func _record_character_pick_frame():
+	character_pick_geometry.presented(self)
+func _record_character_pick_submission():
+	character_pick_geometry.submitting(self)
+
+func character_occludes(screen:Vector2)->bool:
+	return character_pick_geometry.occludes(self,screen)
 
 func _floor_mess_active(record:Dictionary) -> bool:
 	var phase=str(record.get("guest",{}).get("phase",""))
