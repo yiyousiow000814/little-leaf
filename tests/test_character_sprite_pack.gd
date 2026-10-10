@@ -33,7 +33,7 @@ func _initialize(): call_deferred("run")
 
 func run():
 	directory = OS.get_environment("CHARACTER_PACK_OUTPUT")
-	if directory.is_empty(): quit(2); return
+	if directory.is_empty(): directory = OS.get_user_data_dir().path_join("character-sprite-pack-synthetic")
 	DirAccess.make_dir_recursive_absolute(directory)
 	# Test markers only; deliberately not character art or a model export.
 	var image := Image.create(5120, 640, false, Image.FORMAT_RGBA8)
@@ -108,6 +108,9 @@ func run():
 	pack.clear()
 	check(not pack.has_frame("idle", "e") and pack.metadata().is_empty(), "clear releases retained pack")
 	check(load_manifest(manifest).ok, "reload after clear")
+	if DisplayServer.get_name() == "headless":
+		finish("headless import and resource ownership; no rendered acceptance")
+		return
 	var canvas := Canvas.new()
 	canvas.owner_test = self
 	canvas.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -124,7 +127,10 @@ func run():
 	var after := root.get_texture().get_image()
 	after.save_png(directory.path_join("candidate.png"))
 	check(before.get_data() == after.get_data(), "native 8 facings at 1x/2x exact RGBA parity")
-	print("CHARACTER_SPRITE_PACK_RESULT ", JSON.stringify({"checks": checks, "failures": failures, "visual_surface": "native synthetic import/contact markers; not character art", "player_saves_used": false}))
+	finish("native synthetic import/contact markers; not character art")
+
+func finish(surface: String):
+	print("CHARACTER_SPRITE_PACK_RESULT ", JSON.stringify({"checks": checks, "failures": failures, "visual_surface": surface, "player_saves_used": false}))
 	quit(0 if failures.is_empty() else 1)
 
 func paint(canvas: CanvasItem):

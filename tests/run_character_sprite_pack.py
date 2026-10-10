@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--godot", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--headless", action="store_true", help="Import/ownership checks only; no pixel acceptance")
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -32,6 +33,8 @@ def main():
         env[key] = str(destination)
     env["CHARACTER_PACK_OUTPUT"] = str(output)
     command = [args.godot, "--path", str(project), "--audio-driver", "Dummy", "--rendering-method", "gl_compatibility", "--quit-after", "180", "--script", "res://tests/test_character_sprite_pack.gd"]
+    if args.headless:
+        command.insert(1, "--headless")
     with (output / "native.log").open("w", encoding="utf-8") as log_file:
         result = subprocess.run(command, env=env, stdout=log_file, stderr=subprocess.STDOUT, timeout=60)
     log = (output / "native.log").read_text(encoding="utf-8")
