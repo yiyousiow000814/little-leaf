@@ -152,8 +152,8 @@ def main():
             raise RuntimeError("Invalid pack header: " + name)
     if (web / "index.wasm").read_bytes()[:4] != b"\0asm":
         raise RuntimeError("Invalid WebAssembly header")
-    shutil.copy2(ROOT / "docs/third-party/CRAZYGAMES-SDK-NOTICE.md", web / "CRAZYGAMES-SDK-NOTICE.md")
-    shutil.copy2(ROOT / "docs/third-party/GODOT-AA-LICENSE.txt", web / "GODOT-AA-LICENSE.txt")
+    shutil.copy2(ROOT / "docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md", web / "CRAZYGAMES-SDK-NOTICE.md")
+    shutil.copy2(ROOT / "docs/art-audio/third-party/GODOT-AA-LICENSE.txt", web / "GODOT-AA-LICENSE.txt")
     if args.developer_preview:
         (web / "DEVELOPER-PREVIEW.txt").write_text(PREVIEW_README, encoding="utf-8")
     validate_web_gate(args.validated_web_build.resolve(), commit, tree, args.local_tools)

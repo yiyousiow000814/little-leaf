@@ -37,8 +37,8 @@ class WebDocsFilterTests(unittest.TestCase):
                 self.assertFalse(pr_runs(changed))
 
     def test_all_third_party_inputs_build(self):
-        for path in ("docs/third-party/CRAZYGAMES-SDK-NOTICE.md",
-                     "docs/third-party/GODOT-AA-LICENSE.txt", "docs/third-party/new/NOTICE.md"):
+        for path in ("docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md",
+                     "docs/art-audio/third-party/GODOT-AA-LICENSE.txt", "docs/art-audio/third-party/new/NOTICE.md"):
             with self.subTest(path=path):
                 self.assertTrue(pr_runs([path]))
 
@@ -53,7 +53,7 @@ class WebDocsFilterTests(unittest.TestCase):
         inputs = set()
         for helper in (ROOT / "ci").glob("build*.py"):
             inputs.update(re.findall(r'''["'](docs/[^"']+\.md)["']''', helper.read_text(encoding="utf-8")))
-        self.assertIn("docs/third-party/CRAZYGAMES-SDK-NOTICE.md", inputs)
+        self.assertIn("docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md", inputs)
         for path in inputs:
             with self.subTest(path=path):
                 self.assertTrue(pr_runs([path]))

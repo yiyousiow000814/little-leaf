@@ -4,7 +4,7 @@ No repository-wide open-source license has been selected. Individual asset permi
 
 Keep the relevant notices when redistributing code or assets:
 
-- **Godot anti-aliased line code:** [MIT license and source attribution](../third-party/GODOT-AA-LICENSE.txt)
+- **Godot anti-aliased line code:** [MIT license and source attribution](third-party/GODOT-AA-LICENSE.txt)
 - **Noto Sans:** [SIL Open Font License 1.1](../../assets/fonts/NOTICE.txt)
 - **Nunito:** [SIL Open Font License 1.1](../../assets/fonts/Nunito-OFL.txt)
 - **Tabler icons:** [MIT license](../../assets/ui/wood_hud/icons/LICENSE)
@@ -12,6 +12,8 @@ Keep the relevant notices when redistributing code or assets:
 - **Music:** [release notice](../../assets/audio/NEW_RELEASE_MUSIC_NOTICE.txt), [GeneralUser GS license](../../assets/audio/GeneralUser-GS-LICENSE.txt), and [provenance addendum](../../assets/audio/MUSIC_PROVENANCE_ADDENDUM.json)
 
 The music records document supplier permission for the included recordings and uncertainty about some historical sample origins. The SoundFont and original composition source are not included.
+
+The source attribution comment in `scripts/retained_aa_strokes.gd` retains its historical notice path because the script is part of the qualified atlas source hashes. The linked notice above is its current location; build helpers copy that same unchanged license from `docs/art-audio/third-party/`.
 
 ## Authoring and visual references
 

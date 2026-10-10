@@ -43,7 +43,7 @@ Use the **Web** export preset with Godot 4.6.3 and its matching non-threaded rel
 ```sh
 mkdir -p build/web
 godot --headless --path . --export-release Web build/web/index.html
-cp docs/third-party/GODOT-AA-LICENSE.txt build/web/
+cp docs/art-audio/third-party/GODOT-AA-LICENSE.txt build/web/
 ```
 
 Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
@@ -101,4 +101,4 @@ See [assets and licenses](../art-audio/README.md) before reusing or distributing
 
 Keep every unique requirement in the roadmap or a clearly linked technical contract. Before removing duplication, check inbound links, workflows/export manifests, runtime resource readers, QA output paths and private recovery dependencies. Move one coherent set at a time, preserve historical source/failed evidence, and update links atomically. Do not move runtime folders or shipped notices for cosmetic tidiness. Generated profiles, private reference images, account data and operational handoffs stay outside public documentation.
 
-The existing `docs/litter-remnants-visibility/` and `docs/role-boundaries/` placeholders remain at their QA output paths. `docs/third-party/` remains at the paths consumed by build/export instructions.
+QA output placeholders live under `docs/testing/litter-remnants-visibility/` and `docs/testing/role-boundaries/`. Build/export notices live under `docs/art-audio/third-party/`; update their executable consumers atomically when moving them.
