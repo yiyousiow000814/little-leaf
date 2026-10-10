@@ -3,6 +3,7 @@ extends RefCounted
 ## Validation is completed before a saved runtime may replace the live model.
 var error:=""
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
+const PlacementPause=preload("res://scripts/cafe_placement_pause.gd")
 const CHECKOUT_STAGES=["checkout_wait","checkout_walk","paying"]
 const NONE=Vector2i(-100,-100)
 const PAYMENT_SECONDS=1.6
@@ -134,7 +135,7 @@ func _migrate_checkout(guest:Dictionary)->void:
 	guest.settlement_mode="legacy";guest.checkout_ticket=0;guest.checkout_register_id=-1
 	guest.checkout_cell=NONE;guest.checkout_token=-1;guest.checkout_reason="";guest.checkout_stall=0.0
 
-func _checkout_guest_error(guest:Dictionary,item_map:Dictionary,source_version:int,next_ticket:int)->String:
+func _checkout_guest_error(guest:Dictionary,item_map:Dictionary,source_version:int,next_ticket:int,historical_intent:bool=false)->String:
 	if source_version<=SaveContract.LEGACY_MAX_VERSION:
 		# A version number may not disguise a newer cashier state as legacy.
 		if guest.phase in CHECKOUT_STAGES or guest.get("settlement_mode","legacy")!="legacy" or guest.get("checkout_ticket",0)!=0 or guest.get("checkout_register_id",-1)!=-1 or guest.get("checkout_token",-1)!=-1 or guest.get("checkout_cell",NONE)!=NONE:return "Legacy snapshot contains checkout state"
@@ -165,7 +166,7 @@ func _checkout_guest_error(guest:Dictionary,item_map:Dictionary,source_version:i
 		if guest.checkout_cell.x<1 or guest.checkout_cell.y<0 or guest.checkout_cell.x>=18 or guest.checkout_cell.y>=18:return "Checkout claim is not indoor floor"
 		if guest.checkout_cell in [Vector2i(0,5),Vector2i(1,5)]:return "Checkout claim occupies a door landing"
 		for item in item_map.values():
-			if item.kind!="rug" and Vector2i(int(item.x),int(item.z))==guest.checkout_cell:return "Checkout claim is blocked by furniture"
+			if not historical_intent and item.kind!="rug" and Vector2i(int(item.x),int(item.z))==guest.checkout_cell:return "Checkout claim is blocked by furniture"
 	var position=Vector2(float(guest.x),float(guest.z))
 	if guest.phase=="checkout_wait":
 		if guest.seated:
@@ -192,7 +193,7 @@ func _checkout_queue_error(guests:Dictionary,item_map:Dictionary)->String:
 		if ticket>0:
 			if tickets.has(ticket):return "Duplicate checkout ticket"
 			tickets[ticket]=int(guest.id)
-		if guest.checkout_cell!=NONE:
+		if guest.checkout_cell!=NONE and not PlacementPause.blocked(guest):
 			if claims.has(guest.checkout_cell):return "Two visits own one checkout cell"
 			claims[guest.checkout_cell]=int(guest.id)
 			var register_id=int(guest.checkout_register_id)
@@ -211,7 +212,57 @@ func _checkout_queue_error(guests:Dictionary,item_map:Dictionary)->String:
 
 func _mobility_kind(guest:Dictionary)->String:
 	var mobility=guest.get("mobility",{})
-	return str(mobility.get("kind","")) if mobility is Dictionary else ""
+	return str(mobility.get("goal","")) if mobility is Dictionary and mobility.get("kind")=="blocked" else (str(mobility.get("kind","")) if mobility is Dictionary else "")
+
+func _blocked_guest_error(guest:Dictionary,item_map:Dictionary)->String:
+	var motion:Dictionary=guest.mobility
+	if motion.size()!=6:return "Invalid pending placement fields"
+	for key in ["kind","format","goal","position","anchors","previous"]:
+		if not motion.has(key):return "Missing pending placement field"
+	for key in ["table_id","chair_id","phase","x","z","route","route_index","checkout_register_id"]:
+		if not guest.has(key):return "Incomplete pending guest"
+	if motion.format!=SaveContract.FOOTPRINT_PLACEMENT_FORMAT or motion.goal not in ["to_assigned_seat","to_checkout","resume_walk"] or (not _point(motion.position) and not _street_point(motion.position)):return "Invalid pending placement capability"
+	if not _number(guest.x,-6,24) or not _number(guest.z,-82,82) or motion.position.distance_to(Vector2(float(guest.x),float(guest.z)))>.00001:return "Pending guest changed its frozen position"
+	if not motion.previous is Dictionary or motion.previous.get("kind","") not in ["","to_assigned_seat","to_checkout"]:return "Recursive or unknown pending history"
+	var goal=str(motion.previous.get("kind",""))
+	if goal=="":goal="resume_walk" if guest.phase in ["arriving","leaving","checkout_walk"] else ("to_checkout" if guest.get("checkout_cell",NONE)!=NONE else "to_assigned_seat")
+	if goal!=motion.goal or guest.phase in ["dirty","cleaning"]:return "Pending goal contradicts its authoritative phase"
+	var required={}
+	for id in [guest.table_id,guest.chair_id,guest.checkout_register_id]:
+		if not _integer(id,-1,1000000000):return "Invalid pending reference"
+		if int(id)>=0:required[int(id)]=true
+	if not motion.anchors is Array or motion.anchors.size()!=required.size() or motion.anchors.size()>3:return "Invalid pending anchor count"
+	var seen={}
+	for anchor in motion.anchors:
+		if not anchor is Dictionary or anchor.size()!=5:return "Invalid historical anchor fields"
+		for key in ["id","kind","x","z","rot"]:
+			if not anchor.has(key):return "Missing historical anchor field"
+		if not _integer(anchor.id,1,1000000000) or not required.has(int(anchor.id)) or seen.has(int(anchor.id)) or not item_map.has(int(anchor.id)):return "Duplicate or foreign historical anchor"
+		if anchor.kind!=item_map[int(anchor.id)].kind or not _integer(anchor.x,0,17) or not _integer(anchor.z,0,17) or not _integer(anchor.rot,0,3):return "Contradictory historical anchor"
+		seen[int(anchor.id)]=true
+	var old_items=PlacementPause.historical_items(guest,item_map)
+	var old_table=old_items[int(guest.table_id)];var old_chair=old_items[int(guest.chair_id)]
+	if absi(int(old_table.x)-int(old_chair.x))+absi(int(old_table.z)-int(old_chair.z))!=1:return "Historical dining anchors disagree with their reserved pair"
+	if bool(guest.get("seated",false)) and not bool(guest.get("dismounting",false)):
+		var chair=old_items[int(guest.chair_id)]
+		if motion.position.distance_to(Vector2(float(chair.x)+.5,float(chair.z)+.5))>.0001:return "Pending seated body left its historical chair"
+	if motion.previous.is_empty() and guest.phase in ["arriving","leaving","checkout_walk"]:
+		if not guest.route is Array or guest.route.size()>512 or not _integer(guest.route_index,0,guest.route.size()):return "Invalid historical route index"
+		var previous:Vector2
+		for index in guest.route.size():
+			var at=guest.route[index]
+			if not _point(at) and not _street_point(at):return "Invalid historical route point"
+			if index>0 and absf(previous.x-at.x)>.0001 and absf(previous.y-at.y)>.0001:return "Historical route is not cardinal"
+			previous=at
+		if not guest.route.is_empty():
+			var index=int(guest.route_index)
+			if index==guest.route.size():
+				if motion.position.distance_to(guest.route[-1])>.0001:return "Historical route completion moved its body"
+			else:
+				var start:Vector2=guest.route[index-1] if index>0 else motion.position
+				var finish:Vector2=guest.route[index]
+				if Geometry2D.get_closest_point_to_segment(motion.position,start,finish).distance_to(motion.position)>.0001 or (absf(start.x-finish.x)>.0001 and absf(start.y-finish.y)>.0001):return "Historical body is off its cardinal segment"
+	return ""
 
 func _mobility_guest_error(guest:Dictionary,item_map:Dictionary)->String:
 	if not guest.get("mobility") is Dictionary:return "Missing or invalid guest mobility"
@@ -256,7 +307,11 @@ func _validated_state(state:Dictionary,source_version:int)->Dictionary:
 		state.layout_motion_format=SaveContract.LAYOUT_MOTION_FORMAT
 	else:
 		for guest in state.customers:
-			if not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
+			if PlacementPause.blocked(guest):
+				for anchor in guest.mobility.anchors:
+					for key in ["id","x","z","rot"]:anchor[key]=int(anchor[key])
+				if not guest.mobility.previous.is_empty():guest.mobility.previous.route_index=int(guest.mobility.previous.route_index)
+			elif not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
 	return {"ok":true,"state":state}
 
 func _staff_navigation_error(staff:Dictionary,source_version:int)->String:
@@ -279,13 +334,16 @@ func _staff_navigation_error(staff:Dictionary,source_version:int)->String:
 	if staff.pos.distance_to(closest)>.000001:return "Staff position is off its navigation segment"
 	return ""
 
-func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},allow_staff_navigation:bool=false)->Dictionary:
+func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},allow_staff_navigation:bool=false,allow_footprint_placement:bool=false)->Dictionary:
 	error=""
 	var state=decode(raw)
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
-	if not SaveContract.accepts_version(source_version,allow_staff_navigation):return _fail("Unsupported runtime source version")
-	if state.has("navigation_format"):return _fail("Navigation marker belongs to the save envelope")
+	if not SaveContract.accepts_version(source_version,allow_staff_navigation,allow_footprint_placement):return _fail("Unsupported runtime source version")
+	if state.has("navigation_format") or state.has("footprint_placement_format"):return _fail("Foreign runtime capability marker")
+	if source_version!=SaveContract.STAFF_NAVIGATION_VERSION and state.get("service") is Dictionary:
+		for staff in state.service.get("staff",[]):
+			if staff is Dictionary and staff.has("navigation_phase"):return _fail("Placement runtime contains navigation state")
 	if SaveContract.has_layout_motion(source_version):
 		if state.get("layout_motion_format")!=SaveContract.LAYOUT_MOTION_FORMAT:return _fail("Invalid layout motion runtime format")
 	elif state.has("layout_motion_format"):return _fail("Legacy runtime contains layout motion format")
@@ -303,12 +361,21 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	var guests={};var tables={};var seats={}
 	for guest in state.customers:
 		if not guest is Dictionary:return _fail("Invalid saved customer entry")
+		var live_guest:Dictionary=guest
+		var guest_items=item_map
+		var historical_intent=PlacementPause.blocked(guest)
+		if historical_intent:
+			if source_version!=SaveContract.FOOTPRINT_PLACEMENT_VERSION:return _fail("Blocked guest needs the explicit placement version")
+			var pending_error=_blocked_guest_error(guest,item_map)
+			if pending_error!="":return _fail(pending_error)
+			guest_items=PlacementPause.historical_items(guest,item_map)
+			guest=PlacementPause.historical_guest(guest)
 		if not SaveContract.has_layout_motion(source_version) and guest.has("mobility"):return _fail("Legacy guest contains layout motion state")
 		for key in ["id","table_id","chair_id","phase","elapsed","duration","x","z","paid","seated","route","route_index","heading","service_cell","waiting","exterior_exit","entry_cell","entry_direction","entry_outside","departure_blocked","table_service_direction"]:
 			if not guest.has(key):return _fail("Missing customer field: "+key)
 		if not _integer(guest.id,1,int(state.next_customer_id)-1) or guests.has(int(guest.id)):return _fail("Invalid or duplicate saved guest identity")
 		if not _integer(guest.table_id,1,1000000000) or not _integer(guest.chair_id,1,1000000000):return _fail("Invalid guest furnishing identity")
-		if not item_map.has(int(guest.table_id)) or item_map[int(guest.table_id)].kind!="table" or not item_map.has(int(guest.chair_id)) or item_map[int(guest.chair_id)].kind not in ["chair","bench"]:return _fail("Guest references a missing table or seat")
+		if not guest_items.has(int(guest.table_id)) or guest_items[int(guest.table_id)].kind!="table" or not guest_items.has(int(guest.chair_id)) or guest_items[int(guest.chair_id)].kind not in ["chair","bench"]:return _fail("Guest references a missing table or seat")
 		if not guest.phase is String or not phases.has(guest.phase):return _fail("Invalid customer phase")
 		if not _number(guest.x,-6,24) or not _number(guest.z,-82,82) or not _number(guest.elapsed,0,1000000) or not _number(guest.duration,0,1000000):return _fail("Invalid guest position or clock")
 		for key in ["paid","seated","waiting","exterior_exit","departure_blocked"]:
@@ -337,14 +404,14 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		var egress_fields=0
 		for key in ["dismounting","egress_cell","dismount_progress"]:
 			if guest.has(key):egress_fields+=1
-		if egress_fields==0 and source_version<11:_migrate_guest_egress(guest,item_map[int(guest.chair_id)])
+		if egress_fields==0 and source_version<11:_migrate_guest_egress(guest,guest_items[int(guest.chair_id)])
 		elif egress_fields!=3:return _fail("Incomplete chair departure state")
 		if not guest.dismounting is bool or not _cell(guest.egress_cell,true) or not _number(guest.dismount_progress,0,1):return _fail("Invalid chair departure state")
 		if guest.dismounting:
 			var paid_departure=guest.phase=="leaving" and (guest.paid or abandoned)
 			var unpaid_checkout=SaveContract.has_checkout(source_version) and guest.phase=="checkout_walk" and not guest.paid and guest.get("settlement_mode")=="register"
 			if not (paid_departure or unpaid_checkout) or withdrawn or not guest.seated or guest.exterior_exit or int(guest.route_index)!=0:return _fail("Chair departure disagrees with guest phase")
-			var chair=item_map[int(guest.chair_id)];var table=item_map[int(guest.table_id)]
+			var chair=guest_items[int(guest.chair_id)];var table=guest_items[int(guest.table_id)]
 			var seat_cell=Vector2i(int(chair.x),int(chair.z));var center=Vector2(seat_cell)+Vector2(.5,.5)
 			var position=Vector2(float(guest.x),float(guest.z))
 			if guest.departure_blocked:
@@ -353,17 +420,20 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 				var delta=guest.egress_cell-seat_cell
 				if absi(delta.x)+absi(delta.y)!=1 or guest.egress_cell==Vector2i(int(table.x),int(table.z)):return _fail("Chair exit must be left, right or back")
 				for item in items:
-					if str(item.kind)!="rug" and guest.egress_cell==Vector2i(int(item.x),int(item.z)):return _fail("Chair exit is blocked by furniture")
+					if not historical_intent and str(item.kind)!="rug" and guest.egress_cell==Vector2i(int(item.x),int(item.z)):return _fail("Chair exit is blocked by furniture")
 				var landing=Vector2(guest.egress_cell)+Vector2(.5,.5)
 				if guest.route.is_empty() or guest.route[0].distance_to(landing)>.0001:return _fail("Chair departure lost its reserved landing")
 				if absf(position.distance_to(center)+position.distance_to(landing)-1.0)>.0001 or absf(float(guest.dismount_progress)-position.distance_to(center))>.0001:return _fail("Chair departure position disagrees with progress")
 		elif guest.phase=="leaving" and guest.seated:return _fail("Leaving guest is seated without a chair departure")
+		if source_version==SaveContract.FOOTPRINT_PLACEMENT_VERSION and not historical_intent and guest.seated and not guest.dismounting:
+			var current_chair=guest_items[int(guest.chair_id)]
+			if Vector2(float(guest.x),float(guest.z)).distance_to(Vector2(float(current_chair.x)+.5,float(current_chair.z)+.5))>.0001:return _fail("Current seated body disagrees with its chair")
 		if SaveContract.has_layout_motion(source_version):
-			var mobility_error=_mobility_guest_error(guest,item_map)
+			var mobility_error=_mobility_guest_error(guest,guest_items)
 			if mobility_error!="":return _fail(mobility_error)
-		var checkout_error=_checkout_guest_error(guest,item_map,source_version,int(state.next_checkout_ticket))
+		var checkout_error=_checkout_guest_error(guest,guest_items,source_version,int(state.next_checkout_ticket),historical_intent)
 		if checkout_error!="":return _fail(checkout_error)
-		guests[int(guest.id)]=guest
+		guests[int(guest.id)]=live_guest
 	if int(state.walking_customer_id)!=-1 and not guests.has(int(state.walking_customer_id)):return _fail("Walking owner is not present")
 	var queue_error=_checkout_queue_error(guests,item_map)
 	if queue_error!="":return _fail(queue_error)
@@ -491,7 +561,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if staff.job_kind=="take_payment":
 			var id=int(staff.job_guest_id);var guest=guests[id];var record=records[id];var register_id=int(staff.station_id)
 			if not _number(staff.job_elapsed,0,PAYMENT_SECONDS) or not item_map.has(register_id) or item_map[register_id].kind!="register" or register_id!=int(guest.checkout_register_id):return _fail("Invalid cashier station or payment progress")
-			if guest.phase not in ["checkout_wait","paying"] or guest.paid or guest.seated or guest.checkout_cell!=_register_front(item_map[register_id]) or (Vector2(float(guest.x),float(guest.z)).distance_to(Vector2(guest.checkout_cell)+Vector2(.5,.5))>.01 and _mobility_kind(guest)!="to_checkout"):return _fail("Cashier job guest is not at the register front")
+			if guest.phase not in ["checkout_wait","paying"] or guest.paid or guest.seated or guest.checkout_cell!=_register_front(PlacementPause.historical_items(guest,item_map)[register_id]) or (Vector2(float(guest.x),float(guest.z)).distance_to(Vector2(guest.checkout_cell)+Vector2(.5,.5))>.01 and _mobility_kind(guest)!="to_checkout"):return _fail("Cashier job guest is not at the register front")
 			if int(guest.checkout_token)!=int(record.token):return _fail("Checkout token does not match service record")
 			if payment_claims.has(id) or register_jobs.has(register_id):return _fail("Duplicate cashier payment job")
 			payment_claims[id]=true;register_jobs[register_id]=true

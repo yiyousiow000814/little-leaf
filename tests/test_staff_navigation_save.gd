@@ -65,6 +65,18 @@ func run():
   loaded=null
  # Rejected wire mutations are a few representative coherence/capability cases.
  var envelope=read_json(file)
+ check(not Contract.accepts_version(17,true) and Contract.accepts_version(17,false,true),"v16 capability cannot admit placement version")
+ var placement_reader=Model.new()
+ check(not placement_reader.load_placement(file) and placement_reader.service_snapshot.is_empty(),"placement reader refuses actual v16 snapshot atomically")
+ game.model.enable_footprint_placement()
+ check(not game.model.save_placement("user://mixed-placement.json"),"placement writer rejects actual navigation-marked staff")
+ var mixed=envelope.duplicate(true);mixed.footprint_placement_format=Contract.FOOTPRINT_PLACEMENT_FORMAT
+ check(not Contract.accepts_header(mixed,true,true),"v16 refuses mixed capability envelope")
+ mixed.version=17;mixed.erase("navigation_format")
+ check(not Contract.accepts_header(mixed,false,true),"v17 refuses actual navigation staff even without navigation envelope")
+ check(not game.model.save(Contract.FOOTPRINT_PLACEMENT_FILE,true),"v16 writer refuses placement destination before I/O")
+ check(not placement_reader.load_save(Contract.FOOTPRINT_PLACEMENT_FILE,false,true),"v16 reader refuses placement destination before I/O")
+ placement_reader=null
  for bad in ["off-leg","hop","phase","index","unowned-body"]:
   var broken=envelope.duplicate(true);var state=codec.decode(broken.runtime)
   var row=state.service.staff[slot];row.navigation_phase="follow";row.path=[Vector2i(4,6),Vector2i(5,7),Vector2i(6,7)];row.index=1;row.pos=Vector2(4.72,6.72)

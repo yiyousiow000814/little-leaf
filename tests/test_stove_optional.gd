@@ -1,5 +1,5 @@
 extends SceneTree
-## Legacy decorative-stove saves remain intact; new obstructions are rejected.
+## Idle blocked workfaces remain diagnosable without reserving furniture footprints.
 const Model=preload("res://scripts/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
@@ -14,16 +14,15 @@ func run():
  var m=Model.new();m.items.clear();m.dining_sets.clear();m.customers.clear();m.coins=100000
  check(m.place("plant",5,4),"decorative blocker places")
  var before=[m.items.duplicate(true),m.coins,m.revision,m._next_item_id]
- check(not m.can_place("stove",5,3,-1,0),"new blocked stove preview is rejected")
+ check(m.can_place("stove",5,3,-1,0),"idle blocked stove preview is physically valid")
  check(before==[m.items,m.coins,m.revision,m._next_item_id],"rejected preview is pure")
- check(not m.place("stove",5,3,0),"new blocked stove confirmation is rejected")
- m.items.append({"id":m._next_item_id,"kind":"stove","x":5,"z":3,"rot":0,"level":1});m._next_item_id+=1;m._notify()
+ check(m.place("stove",5,3,0),"idle blocked stove confirmation commits")
  var stove=m.items[-1]
  check(m.layout_access_issues().size()==1 and m.layout_access_issues()[0].item_id==stove.id,"blocked stove remains locatable")
  check(not m._sale_station_usable_in(stove,m.items,m._sale_reachable_in(m.items)),"blocked stove is unavailable to work")
  check(not m.can_place("plant",5,3),"physical overlap remains invalid")
  check(not m.can_place("stove",99,99),"ownership remains enforced")
- check(not m.can_place("plant",m.ENTRY_LANDING.x,m.ENTRY_LANDING.y),"entrance landing remains protected")
+ check(m.can_place("plant",m.ENTRY_LANDING.x,m.ENTRY_LANDING.y),"idle landing is not a reserved footprint")
  check(m.save("user://decorative-stove.json"),"blocked decorative layout saves")
  var restored=Model.new();check(restored.load_save("user://decorative-stove.json"),"blocked decorative layout reloads")
  check(restored.layout_access_issues().size()==1,"restored blocked stove still has decorate guidance")
@@ -32,19 +31,18 @@ func run():
  check(not wall_model.place_wall("x",5,4),"new wall cannot block stove front")
  var legacy_wall=Model.WallGeometry.make("x",5,4);legacy_wall.id=wall_model._next_wall_id;wall_model._next_wall_id+=1;wall_model.built_walls.append(legacy_wall);wall_model._notify()
  check(wall_model.layout_access_issues().size()==1,"wall obstruction is still described in decorate")
- check(not wall_model.place("stove",11,8,0),"new stove cannot face beyond owned floor")
+ check(wall_model.place("stove",11,8,0),"owned stove footprint may face beyond usable work floor")
  for kind in ["beverage","sink","counter","register"]:
   var test=Model.new();test.items.clear();test.dining_sets.clear();test.customers.clear();test.coins=100000
   test.place("plant",5,4)
-  check(not test.can_place(kind,5,3,-1,0),"required appliance access remains enforced: "+kind)
+  check(test.can_place(kind,5,3,-1,0),"idle appliance access is a warning: "+kind)
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  var live_stove={}
  for item in game.model.items:
   if item.kind=="stove":live_stove=item;break
  var face=game.model.workface_cell(live_stove)
  for staff in game.staff_states:staff.pos=Vector2(1.5,7.5)
- check(not game.model.place("plant",face.x,face.y),"live current café rejects new stove obstruction")
- game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
+ check(game.model.place("plant",face.x,face.y),"idle live café permits physical stove-front purchase")
  game._rebuild_furniture();game.editing=true;game.selected_id=int(live_stove.id)
  game.workface_guidance._refresh()
  check(game.model.layout_access_issues().size()==1 and int(game.model.layout_access_issues()[0].item_id)==int(live_stove.id),"structural validation identifies blocked stove")

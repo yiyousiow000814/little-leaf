@@ -69,7 +69,7 @@ func _init():
  check(model._opening_body_error([],model.wall_attachments,[Vector2(-.1,5.5)])=="","saved body fits center lane")
  check(not model.path_between(Vector2i(0,5),Vector2i(2,5)).is_empty(),"arrival path reaches landing")
  check(not model.path_between(Vector2i(2,5),Vector2i(0,5)).is_empty(),"exit path crosses centered door")
- for cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:check(not model.can_place("plant",cell.x,cell.y),"landing stays protected "+str(cell))
+ for cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:check(model.can_place("plant",cell.x,cell.y),"idle owned doorway landing is physical floor "+str(cell))
  roundtrip(model,"fresh",1.0)
  roundtrip(legacy(),"old-clear",1.0)
  # A matching legacy door only: altered IDs/host/position/paid value stay exact.

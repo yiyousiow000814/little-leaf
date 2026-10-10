@@ -38,9 +38,26 @@ scoped Web integration remain pending on this exact successor source.
 
 The original PR104 head `ae7ca9ae` is not an ancestor of the frozen routing head.
 Its three pickup/layout helper blobs were reused byte-identically through the
-existing dependency composition; no second pickup patch is applied. Sink PR154,
-parking parties, physical placement and reception remain separate owner deltas.
+existing dependency composition; no second pickup patch is applied. Physical
+placement PR157's idle and occupied guest deltas are composed relative to their
+frozen sources, preserving the staff controller and pickup renderer. Sink PR154,
+parking parties and reception remain separate owner deltas.
 Do not replace Main wholesale when composing their disjoint functions.
+
+Occupied placement is available only in a native fresh review started with both
+`--fresh-review` and `--footprint-placement`. The caller enables the mode after
+MinimalStart and retains ordinary save suppression. Explicit generated fixtures
+use the separate v17 placement API; default v15 and private v16 navigation APIs
+keep their existing argument positions and reject foreign envelopes, blocked
+guest state and protected destinations. Placement loading requires an actual
+version 17 envelope, rather than promoting a copied historical save.
+
+The composed final guest protocol, actual Main service and review-entry checks
+pass 100 assertions. Before the final version-only load guard, focused private
+navigation restore/save and historical physical-layout checks also passed,
+including seven new reciprocal capability checks. These engine observations do
+not establish combined native pixels or Web acceptance. Pending guest intent
+never permits an executable diagonal guest route or changes staff reservations.
 
 Preserve atlas provenance guards and manifests. Changed procedural dependency
 closure still requires native RGBA qualification before a manifest refresh or

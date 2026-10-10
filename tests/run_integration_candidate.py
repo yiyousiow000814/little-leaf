@@ -135,6 +135,11 @@ SUITES = [
     ("test_cross_category_selection", "CROSS_CATEGORY_SELECTION_RESULT"),
     ("test_wall_move_sell_ui", "WALL_MOVE_SELL_UI_RESULT"),
     ("test_wall_transactions", "WALL_TRANSACTIONS_RESULT"),
+    ("test_physical_placement_policy", "PHYSICAL_PLACEMENT_POLICY_RESULT"),
+    ("test_physical_placement_save_compatibility", "PHYSICAL_PLACEMENT_SAVE_COMPATIBILITY_RESULT"),
+    ("test_occupied_placement_protocol", "OCCUPIED_PLACEMENT_PROTOCOL_RESULT"),
+    ("test_occupied_placement_service", "OCCUPIED_PLACEMENT_SERVICE_RESULT"),
+    ("test_placement_review_entry", "PLACEMENT_REVIEW_ENTRY_RESULT"),
     ("test_furniture_worker_egress", "FURNITURE_WORKER_EGRESS"),
     ("test_staff_relocation_service", "STAFF_RELOCATION_SERVICE_RESULT"),
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),
@@ -317,6 +322,8 @@ def main():
                         env["LL_NAVIGATION_REVIEW_ROOT"] = env["XDG_DATA_HOME"]
                     if script == "test_navigation_review":flags.append("--navigation-candidate")
                     if script == "capture_chef_pickup":flags.append("--validate-fixture")
+                    if script == "test_placement_review_entry":
+                        flags.append("--footprint-placement")
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
                     if script not in {"test_intro_lifecycle_headless", "test_startup_readiness"}:
