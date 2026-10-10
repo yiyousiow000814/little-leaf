@@ -4,6 +4,9 @@ extends RefCounted
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 var tree_bounds={}
 var use_retained_fills=true
+var use_ordered_pockets=true
+var ordered_pocket_cache={}
+const OrderedPocket=preload("res://scripts/ordered_pocket_triangles.gd")
 var fill_meshes={}
 var pocket_bounds=[]
 var trees={}
@@ -95,6 +98,19 @@ func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2):
 	# immutable fill geometry gains a retained resource; inspection/painters
 	# with outer transforms continue through the original poly implementation.
 	var retained=use_retained_fills and a is CanvasItem and "_art_transform" in a and a._art_transform==Transform2D.IDENTITY and a.has_method("art_polyline")
+	if use_ordered_pockets and retained and a.get_global_transform_with_canvas()==Transform2D.IDENTITY and items in pockets:
+		var key=[items.hash(),ground,scale,a.opacity]
+		if not ordered_pocket_cache.has(key):
+			var ordered=OrderedPocket.new();var valid=true
+			for item in items:
+				if not ordered.append_contour(transform*item[1],a.col(item[0]),.7):valid=false;break
+			if valid:
+				if ordered_pocket_cache.size()>=64:ordered_pocket_cache.clear()
+				ordered_pocket_cache[key]=ordered
+		if ordered_pocket_cache.has(key):
+			var ordered=ordered_pocket_cache[key]
+			RenderingServer.canvas_item_add_triangle_array(a.get_canvas_item(),ordered.indices,ordered.vertices,ordered.colors)
+			return
 	for item in items:
 		var mesh=_fill_mesh(item[1]) if retained else null
 		if mesh==null:a.poly(Array(transform*item[1]),item[0]);continue
