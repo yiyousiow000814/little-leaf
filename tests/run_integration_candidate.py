@@ -71,6 +71,8 @@ SUITES = [
     ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
+    ("test_square_neighborhood_camera", "SQUARE_NEIGHBORHOOD_CAMERA_RESULT"),
+    ("test_overview_triangulation", "OVERVIEW_TRIANGULATION_RESULT"),
 
     ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
@@ -260,7 +262,7 @@ def main():
                 report["records"].append(record)
                 save()
                 print(json.dumps(record), flush=True)
-                if completed.returncode or "SCRIPT ERROR:" in text or record["failures"]:
+                if completed.returncode or "SCRIPT ERROR:" in text or ("Nondegenerate overview contour failed stable triangulation" in text or "Authored overview contour has no source triangles" in text) or record["failures"]:
                     raise RuntimeError("Failed: " + name)
                 if marker and (len(payloads) != 1 or record["checks"] <= 0):
                     raise RuntimeError("Missing/duplicate/empty result: " + name)

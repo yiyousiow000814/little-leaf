@@ -1,6 +1,7 @@
 extends RefCounted
-## Frozen authored landmark geometry for the accepted Play/Decorate camera range.
-## No drawing, parking ownership, purchases, road-end or map-edge expansion.
+## Authored landmarks inside the bounded 64-by-64 neighborhood camera square.
+## The camera envelope grants no land, purchases, or simulation-route changes.
+const Extent=preload("res://scripts/exterior_world_extent.gd")
 const ROAD_LEFT=-8.76
 const ROAD_RIGHT=-3.26
 const OPPOSITE_LEFT=-11.76
@@ -20,7 +21,7 @@ static func inspection_bounds(tile:Vector2)->Rect2:
 	# This affects traversal only; Fit continues to frame the owned cafe.
 	var bounds=Rect2(Vector2.ZERO,Vector2.ZERO)
 	var first=true
-	for ground in [LOT,MOUTH,PEDESTRIAN_LINK,STOP_PAD,SHELTER_ROOF]:
+	for ground in [Extent.CAMERA_WORLD_BOUNDS,LOT,MOUTH,PEDESTRIAN_LINK,STOP_PAD,SHELTER_ROOF]:
 		for point in [ground.position,Vector2(ground.end.x,ground.position.y),ground.end,Vector2(ground.position.x,ground.end.y)]:
 			var projected=Vector2((point.x-point.y)*tile.x,(point.x+point.y)*tile.y)
 			bounds=Rect2(projected,Vector2.ZERO) if first else bounds.expand(projected)
