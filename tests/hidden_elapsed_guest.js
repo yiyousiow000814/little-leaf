@@ -4,7 +4,7 @@ const {FixtureIDB}=require('./inbox_transaction_fixture');
 const factory=new FixtureIDB(),held=new Set();let time=1000;
 const locks={async request(name,options,fn){if(held.has(name))return fn(null);held.add(name);try{return await fn({name});}finally{held.delete(name);}}};
 const context={crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Int8Array,structuredClone,setTimeout,clearTimeout,DOMException,indexedDB:factory,navigator:{locks},performance:{now:()=>time}};
-vm.runInNewContext(fs.readFileSync('web/little_leaf_vault.js','utf8'),context);
+vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_vault.js','utf8'),context);
 const vault=context.LittleLeafVault,payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const client=()=>vault.createClient({indexedDB:factory,locks,monotonic:()=>time,campaigns:[]});
 (async()=>{

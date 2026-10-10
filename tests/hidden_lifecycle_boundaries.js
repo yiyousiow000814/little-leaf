@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const source = fs.readFileSync(path.join(__dirname, '../scripts/cafe_web_lifecycle.gd'), 'utf8').split('const DOM_SOURCE = """')[1].split('"""')[0];
+const source = fs.readFileSync(path.join(__dirname, '../game/scripts/cafe_web_lifecycle.gd'), 'utf8').split('const DOM_SOURCE = """')[1].split('"""')[0];
 let checks = 0;
 function equal(actual, expected, label) { assert.deepEqual(actual, expected, label); checks++; }
 class Target {

@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
-const context={};context.globalThis=context;vm.runInNewContext(fs.readFileSync('web/little_leaf_firebase.js','utf8'),context);
+const context={};context.globalThis=context;vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase.js','utf8'),context);
 const ownerId='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',proof={writerId:ownerId,writerEpoch:1,commitServerStamp:'100000'};
 let owner={owner:ownerId,epoch:1,updatedAt:100000,request:null,ack:null},writes=0;
 const sdk={doc:(db,...p)=>p.join('/'),runTransaction:async(db,action)=>action({get:async ref=>({exists:()=>true,data:()=>ref==='session'?owner:{digest:'base'}}),set:()=>writes++})};

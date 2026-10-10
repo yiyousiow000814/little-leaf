@@ -7,7 +7,7 @@ const { webcrypto } = require('node:crypto');
 const path = require('node:path');
 const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
 const context = { crypto: webcrypto };
-vm.runInNewContext(read('web/little_leaf_firebase_session.js'), context);
+vm.runInNewContext(read('platform/web/little_leaf_firebase_session.js'), context);
 async function run() {
   let time = 1000, state = null;
   const watchers = new Set();
@@ -32,13 +32,13 @@ async function run() {
   assert(time < renewedAt + context.LittleLeafFirebaseSession.LEASE_MS, 'takeover is allowed inside the lease');
   for (const receive of watchers) receive(state);
   assert.equal(owner.snapshot().status, 'other-device');
-  const policy = read('scripts/cafe_hidden_time_policy.gd');
+  const policy = read('game/scripts/cafe_hidden_time_policy.gd');
   assert.match(policy, /static func catch_up_seconds\(\)->float:[\s\S]*return 0\.0/);
   assert.match(policy, /delta>MAX_CALLBACK_SECONDS/);
-  const lifecycle = read('scripts/cafe_web_lifecycle.gd');
+  const lifecycle = read('game/scripts/cafe_web_lifecycle.gd');
   assert.match(lifecycle, /reason=="hidden":game\.set_browser_hidden\(true\)/);
   assert.match(lifecycle, /reason=="pagehide":game\.set_browser_suspended\(true\)/);
-  assert.match(read('scripts/main.gd'), /if world_delta>0\.0 and not editing and not paused and not save_recovery_blocked:/);
+  assert.match(read('game/scripts/main.gd'), /if world_delta>0\.0 and not editing and not paused and not save_recovery_blocked:/);
   console.log('Hidden authority: protocol expiry/renewal and early-force-takeover counterexamples plus source guards passed (synthetic; no engine economy claim).');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
