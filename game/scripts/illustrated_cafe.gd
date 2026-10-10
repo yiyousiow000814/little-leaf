@@ -1416,10 +1416,7 @@ func item(kind: String,p: Vector2,rot: int,id: int,variant:String=""):
 		"table":
 			if not dining_art.table(self,p,rot,_dining_style(id,variant)):_table_body(p)
 			var vase=p+_table_vase_point(id)
-			ellipse(vase,Vector2(3,1.5),"b37e4a")
-			poly([vase+Vector2(-3,-8),vase+Vector2(3,-8),vase+Vector2(2,0),vase+Vector2(-2,0)],"e6dcb8")
-			line(vase+Vector2(0,-7),vase+Vector2(0,-16),"6f9455",1.5)
-			ellipse(vase+Vector2(2,-13),Vector2(3,1.7),"85a161")
+			_table_flowers(vase)
 		"chair":
 			if rot in [1,2]: _chair(p,rot,true,_dining_style(id,variant))
 			_chair(p,rot,false,_dining_style(id,variant))
@@ -1497,6 +1494,25 @@ func _table_body(p:Vector2):
 func _lamp(p:Vector2):
 	if furniture_art.try_draw_static(self,"lamp",p,0):return
 	LampArt.draw_lamp(self,p)
+
+func _table_flowers(p:Vector2):
+	# Small painted ceramic arrangement; the existing dining anchor is unchanged.
+	ellipse(p+Vector2(.6,.3),Vector2(3.6,1.25),Color(.38,.29,.16,.18))
+	line(p+Vector2(-.5,-6),p+Vector2(-2,-16),"718653",.85)
+	line(p+Vector2(.4,-6),p+Vector2(2.7,-13.5),"718653",.85)
+	rounded_poly([p+Vector2(-1,-11),p+Vector2(-5,-13),p+Vector2(-4.4,-10.3),p+Vector2(-1,-9.5)],.5,"8f9c61")
+	rounded_poly([p+Vector2(.6,-9),p+Vector2(5,-11.4),p+Vector2(4.2,-8.7),p+Vector2(1,-8)],.5,"788c55")
+	for bloom in [Vector2(2.7,-13.5),Vector2(-2,-16)]:
+		var center=p+bloom
+		for petal in range(5):
+			var angle=TAU*petal/5.0-.45
+			_face_ellipse(center+Vector2(cos(angle)*1.5,sin(angle)*1.35),Vector2(1.65,1.45),"dfb58b" if bloom.x>0 else "f5e8be")
+		_face_ellipse(center,Vector2(.95,.85),"b88b48")
+		_face_ellipse(center+Vector2(-.25,-.3),Vector2(.35,.3),"f8d79b")
+	rounded_poly([p+Vector2(-2.5,-7.4),p+Vector2(2.5,-7.4),p+Vector2(3,-2),p+Vector2(1.7,0),p+Vector2(-1.8,0),p+Vector2(-3,-2)],.8,"e8ddbd")
+	rounded_poly([p+Vector2(1,-6.7),p+Vector2(2.4,-6.7),p+Vector2(2.7,-2),p+Vector2(1.4,-.6),p+Vector2(.9,-.7)],.5,"cabb98")
+	ellipse(p+Vector2(0,-7.3),Vector2(2.5,.85),"b8aa85")
+	line(p+Vector2(-1.7,-5.3),p+Vector2(-1.8,-2.2),"f5eed6",.65)
 
 func _plant(p: Vector2):
 	if furniture_art.try_draw_static(self,"plant",p,0):return
@@ -1886,17 +1902,13 @@ func _chair(p: Vector2,r: int,back_only: bool,style:String="basic"):
 		rounded_poly([a,b,b+Vector2(0,5),a+Vector2(0,5)],1.6,"d4b882")
 		line(a,b,"b89964",1)
 		return
-	ellipse(p+Vector2(0,1),Vector2(14,6),Color(.45,.39,.23,.06))
-	# Ground contacts belong to this chair-local transform, so a visual dining
-	# dock carries its feet and shadows together without changing the model cell.
-	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
-		ellipse(_chair_point(p,d.x*1.1,d.y*1.1,0,r),Vector2(2.2,1.1),Color(.45,.39,.23,.14))
+	# Keep material shading on the chair; do not project shadows onto the floor.
 	for d in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
 		line(_chair_point(p,d.x*1.1,d.y*1.1,0,r),_chair_point(p,d.x,d.y,17,r),"ad8c55",2.6)
 	var points=[]
 	for d in [Vector2(-.35,-.35),Vector2(.35,-.35),Vector2(.35,.35),Vector2(-.35,.35)]: points.append(_chair_point(p,d.x,d.y,18,r))
 	var lower=[]
-	for q in points: lower.append(q+Vector2(0,2.5))
+	for q in points: lower.append(q+Vector2(0,1.25))
 	rounded_poly(lower,2,"b79965")
 	rounded_poly(points,2.5,"d7bd89")
 
