@@ -233,7 +233,7 @@ func draw_shell_selection(view):
 	var shape=OpeningArt.segment_selection_geometry(view,host)
 	# Points are already projected to display coordinates. Subpixel coverage
 	# keeps this soft-gray outline light at every zoom, without a highlight fill.
-	view.draw_multiline(shape.edges,Color("8a8d88"),.35,true)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(view,shape.edges,Color("8a8d88"),.35,true)
 
 func replacement_price_text()->String:
 	if replacement_quote.is_empty():return ""

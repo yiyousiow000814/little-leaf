@@ -24,7 +24,7 @@ static func edge(current:Vector2,previous:Vector2)->Vector2:
  else:bisector=current.orthogonal()
  if bisector.is_zero_approx():bisector=current.orthogonal()
  return bisector*length
-func append_closed_outline(points:PackedVector2Array,color:Color,width:float):
+func append_closed_outline(points:PackedVector2Array,color:Color,width:float,feather_override:float=-1.0):
  var count=points.size();var first=Vector2.ZERO;var last=Vector2.ZERO
  for i in range(1,count):
   first=(points[i]-points[i-1]).normalized()
@@ -34,6 +34,7 @@ func append_closed_outline(points:PackedVector2Array,color:Color,width:float):
   if not last.is_zero_approx():break
  var native_width=f32(width);var feather=1.25
  if native_width<1.0:feather=f32(feather*native_width)
+ if feather_override>=0.0:feather=feather_override
  var core=PackedVector2Array();var left=PackedVector2Array();var right=PackedVector2Array()
  var solid=PackedColorArray();var fading=PackedColorArray();var clear=Color(color,0.0);var previous=Vector2.ZERO
  for i in range(count):

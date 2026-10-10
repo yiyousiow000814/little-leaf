@@ -18,7 +18,8 @@ class Recorder extends RefCounted:
 	func rounded_poly(points,r,color):record("rounded",Visibility.points_bounds(points),[points,r],color)
 	func ellipse(p,size,color):record("ellipse",Rect2(p-size,size*2),[p,size],color)
 	func line(a,b,color,width=1.0):record("line",Rect2(a,Vector2.ZERO).expand(b).grow(width*.5),[a,b,width],color)
-	func draw_rect(rect,color):record("rect",rect,rect,color)
+	func draw_rect(rect,color,filled=true,width=-1.0,antialiased=false):
+		record("rect",rect,[rect,filled,width,antialiased],color)
 class ParkingModel extends RefCounted:
 	var parking_owned=false
 	var parking_visits:Array=[]

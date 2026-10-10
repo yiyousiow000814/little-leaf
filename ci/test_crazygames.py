@@ -255,6 +255,9 @@ class CrazyGamesVariantTests(unittest.TestCase):
                     html.with_name("index.pck").write_bytes(b"GDPC")
                     html.with_name("music.pck").write_bytes(b"GDPC")
                     html.with_name("index.wasm").write_bytes(b"\0asm")
+                    html.with_name("index.js").write_bytes(
+                        b"blitOffscreenFramebuffer:context=>{var gl=context.GLctx;"
+                        b"var prevScissorTest=gl.getParameter(3089);}")
                 return SimpleNamespace(returncode=0, stdout=b"SCENE_READY furniture=synthetic")
 
             argv = ["build_crazygames.py", "--validated-web-build", str(build), "--output", str(out)]
@@ -266,6 +269,9 @@ class CrazyGamesVariantTests(unittest.TestCase):
                 cg.main()
                 self.assertEqual(gate.call_count, 2, "full source gate still validated before and after")
             manifest = json.loads((out / "web/crazygames-manifest.json").read_text())
+            self.assertIn("gl.isEnabled(3089)", (out / "web/index.js").read_text())
+            self.assertEqual(manifest["presentation_optimization"]["output_sha256"],
+                             cg.sha256(out / "web/index.js"))
             self.assertEqual(manifest["save_variant"]["name"], "developer-preview" if preview else "production")
             self.assertEqual(manifest["save_variant"]["storage_keys"], cg.PREVIEW_KEYS if preview else cg.PRODUCTION_KEYS)
             self.assertIn(str(out / "project/web"), calls[0])

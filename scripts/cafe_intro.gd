@@ -23,6 +23,22 @@ var title_group: Control
 const TITLE_TEXTURE = preload("res://assets/branding/little_leaf_approved_v3.png")
 const TITLE_ASPECT = 783.0 / 518.0
 var hint: Label
+var use_retained_clouds=true
+var cloud_meshes={}
+
+func _prepare_clouds():
+	for radius in [23.0,32.0,25.0]:
+		if cloud_meshes.has(radius):continue
+		# Godot 4.6.3's filled circle: 64 segments and a center triangle fan.
+		var vertices=PackedVector2Array();var indices=PackedInt32Array()
+		var step=PackedFloat32Array([TAU/64.0])[0]
+		for i in range(65):vertices.append(Vector2.from_angle(PackedFloat32Array([i*step])[0])*radius)
+		vertices.append(Vector2.ZERO)
+		for i in range(64):indices.append_array(PackedInt32Array([65,i,i+1]))
+		var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_INDEX]=indices
+		var mesh=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+		cloud_meshes[radius]=mesh
 
 func start(owner_game):
 	game = owner_game
@@ -32,6 +48,7 @@ func start(owner_game):
 		return
 	shown_this_session = true
 	active = true
+	_prepare_clouds()
 	for control in game.ui.get_children():
 		if control is CanvasItem:hud_colors[control] = control.modulate
 	cover = Control.new()
@@ -113,7 +130,9 @@ func _draw_sky():
 	for spot in [Vector2(.16,.18), Vector2(.78,.23), Vector2(.60,.68)]:
 		var center = spot * view - Vector2(0, descent * view.y * .35)
 		for cloud in [Vector3(-26,4,23), Vector3(0,0,32), Vector3(30,6,25)]:
-			cover.draw_circle(center + Vector2(cloud.x,cloud.y), cloud.z, Color(1,1,.98,sky_alpha*.42))
+			var at=center+Vector2(cloud.x,cloud.y);var tint=Color(1,1,.98,sky_alpha*.42)
+			if use_retained_clouds:cover.draw_mesh(cloud_meshes[float(cloud.z)],null,Transform2D(0,at),tint)
+			else:cover.draw_circle(at,cloud.z,tint)
 
 func render_offset(view: Vector2) -> Vector2:
 	return Vector2(0, view.y * 1.35 * (1.0 - descent)) if active else Vector2.ZERO

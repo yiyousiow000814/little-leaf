@@ -166,4 +166,4 @@ func draw_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 	# Filtering is set once on the artist by the opt-in integration/harness.
 	# Existing outer draw transform supplies the live pan, zoom and placement.
 	var art_rect := bounds(part)
-	artist.draw_texture_rect_region(texture,Rect2(p+art_rect.position,art_rect.size),region)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+art_rect.position,art_rect.size),region)

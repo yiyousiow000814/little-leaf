@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 from release_metadata import version
+from optimize_web_present import optimize_presentation
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
@@ -161,6 +162,7 @@ def main():
             raise RuntimeError("HTML asset size mismatch: " + name)
     if (web / "index.wasm").read_bytes()[:4] != b"\0asm" or (web / "index.pck").read_bytes()[:4] != b"GDPC":
         raise RuntimeError("Invalid Web binary headers")
+    presentation_optimization = optimize_presentation(web / "index.js")
     manifest = {
         "schema_version": 1, "version": release_version, "tag": args.tag,
         "source_commit": source_sha, "source_tree": source_tree, "godot": engine_version,
@@ -172,6 +174,7 @@ def main():
         "test_report_sha256": sha256(args.test_report), "packed_smoke": "passed",
         "browser_runtime": "not_covered_by_headless_ci", "production_sha256": production,
         "distribution_notices": notices,
+        "presentation_optimization": presentation_optimization,
         "files": {p.name: {"sha256": sha256(p), "bytes": p.stat().st_size}
                   for p in sorted(web.iterdir()) if p.is_file()},
     }
