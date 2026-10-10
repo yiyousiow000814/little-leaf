@@ -22,9 +22,19 @@ An idle chef yields its home claim to a working chef targeting that stove. A wai
 with the matching ready-dish token may share that idle chef's workface, while
 other active workers, stale tokens and static obstacles remain exclusive. This
 fix addresses a reproduced synthetic claim stall; the player's exact original
-save was not available for reproduction. Normal-scale posed captures retain
-pickup contact data, but shared-cell silhouettes still overlap and are not
-visually accepted. No presentation offset or route endpoint change is inferred.
+save was not available for reproduction. A transient idle-chef body offset now
+separates that chef from the collecting waiter, without changing either actual
+workface position or the waiter's grip/plate contact. The offset uses one bounded
+staff lookup per motion update and the existing stance smoothing; it releases
+after pickup and does not apply to an active chef or a stale dish token.
+
+The four-rotation fixture passes 32 checks through actual Main pickup and
+departure. Disposable normal-scale baseline/candidate captures retain 16 frames
+each; every waiter contact receipt is identical across the pair. Candidate pixels
+were inspected for body separation and existing furniture occlusion. These
+observations qualify the synthetic shared-workface case, not every player layout,
+browser presentation or frame-time target. Canonical atlas qualification and
+scoped Web integration remain pending on this exact successor source.
 
 The original PR104 head `ae7ca9ae` is not an ancestor of the frozen routing head.
 Its three pickup/layout helper blobs were reused byte-identically through the

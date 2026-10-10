@@ -454,10 +454,13 @@ func update_motion(delta: float):
 			var table=game.model.get_item(int(guest.table_id))
 			if not table.is_empty():heading=Vector2(table.x+.5,table.z+.5)-position
 		_update_character_facing(key,heading)
+	var pickup_idle_stances=_pickup_idle_stances()
 	for i in range(game.staff_states.size()):
 		var staff=game.staff_states[i]
 		var key="staff_%s"%i
 		var docking=Vector2.ZERO
+		if str(staff.role)=="chef" and str(staff.job_kind)=="" and staff.pos.distance_to(Vector2(staff.get("idle_home_cell",Vector2i(-1,-1)))+Vector2(.5,.5))<.03:
+			docking=pickup_idle_stances.get(int(staff.get("idle_home_id",-1)),Vector2.ZERO)
 		if str(staff.get("art_action","")) in ["sweeping","mopping"]:
 			if not floor_approach_cache.has(key):floor_approach_cache[key]={}
 			docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
@@ -556,6 +559,27 @@ func _guest_seated_offset(guest:Dictionary,position:Vector2)->Vector2:
 		if not chair.is_empty():anchor=Vector2(chair.x+.5,chair.z+.5)
 		weight=1.0-smoothstep(.35,1.0,float(guest.get("dismount_progress",0)))
 	return (Vector2(table.x+.5,table.z+.5)-anchor).normalized()*.12*weight+_meal_chair_offset(chair)
+
+func _pickup_idle_stances()->Dictionary:
+	# Body presentation only: one bounded lookup per motion update. The waiter
+	# keeps its canonical grip/plate anchor and both actual workface positions.
+	var result={}
+	for index in game.staff_states.size():
+		var worker=game.staff_states[index]
+		if str(worker.role)!="waiter" or str(worker.job_kind)!="deliver_meal" or int(worker.job_step)!=0 or str(worker.get("art_action",""))!="collecting_plate":continue
+		var record:Dictionary=game.service_guests.get(int(worker.job_guest_id),{})
+		if record.is_empty() or int(record.get("token",-1))!=int(worker.job_token):continue
+		var station=game.model.get_item(int(worker.station_id))
+		if str(station.get("kind",""))!="stove" or int(record.get("meal_station_id",-1))!=int(station.id):continue
+		var prepared=game.ChefPickup.prepared(record)
+		var held=str(record.get("plate_owner",""))=="staff" and int(record.get("plate_staff_index",-1))==index
+		if not prepared and not held:continue
+		var face=game.model.workface_cell(station)
+		if worker.pos.distance_to(Vector2(face)+Vector2(.5,.5))>.03:continue
+		var pickup=ChefPickupArt.work_offset(int(station.rot))
+		var side=-1.0 if pickup.x-pickup.y>0 else 1.0
+		result[int(station.id)]=Vector2(side*.28,-side*.28)
+	return result
 
 func _render_position(key:String,position:Vector2) -> Vector2:
 	if stance_offsets.has(key):return position+stance_offsets[key]
