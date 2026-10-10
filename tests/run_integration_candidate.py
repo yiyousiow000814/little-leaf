@@ -31,6 +31,8 @@ SUITES = [
     ("test_cloud_recovery_ui", "CLOUD_RECOVERY_UI_RESULT"),
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
+    ("test_manual_ground_cleanup", "MANUAL_GROUND_CLEANUP_RESULT"),
+    ("test_manual_character_occlusion", "MANUAL_CHARACTER_OCCLUSION_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
     ("test_stove_output_geometry", "STOVE_OUTPUT_GEOMETRY_RESULT"),
     ("test_stove_output_reuse", "STOVE_OUTPUT_REUSE_RESULT"),

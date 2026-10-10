@@ -154,13 +154,34 @@ func far_overlay_paw(start:Vector2,tip:Vector2,color,width:float,species:int,hea
   var world=[]
   for point in part:world.append(origin+point)
   a.poly(world,color)
+static func shoe_outline(ankle:Vector2,axis:Vector2)->Array:
+ var center=ankle+axis*1.5;var across=axis.orthogonal();var outline=[]
+ for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2.0),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:outline.append(center+axis*q.x+across*q.y)
+ return outline
+
+static func tail_outline(rear:bool)->Array:
+ return [Vector2(-1,-13),Vector2(-6,-11),Vector2(-15,-14),Vector2(-20,-21),Vector2(-18,-27),Vector2(-13,-22),Vector2(-9,-18),Vector2(-1,-18)] if rear else [Vector2(-6,-15),Vector2(-12,-12),Vector2(-21,-17),Vector2(-23,-24),Vector2(-18,-25),Vector2(-14,-20),Vector2(-6,-20)]
+
+static func character_bounds(geometry:Dictionary,at:Vector2,legs:Dictionary,species:int,side_profile:bool,with_hat:bool,back_view:bool)->Rect2:
+ var bounds=head_bounds(species,side_profile,with_hat)
+ bounds.position+=geometry.head_origin
+ var points=ArmOcclusion.torso_points(back_view,side_profile)
+ points.append_array(shoe_outline(legs.near_foot,legs.near_axis));points.append_array(shoe_outline(legs.far_foot,legs.far_axis))
+ if species==1:points.append_array(tail_outline(back_view))
+ for point in points:bounds=bounds.expand(at+point)
+ for key in ["near_shoulder","near_hand","far_shoulder","far_hand","near_hip","far_hip","near_foot","far_foot"]:bounds=bounds.expand(geometry[key])
+ var cooking:Dictionary=geometry.get("cooking_pose",{})
+ for key in ["shoulder","elbow","wrist","hand","thumb"]:
+  if cooking.has(key):bounds=bounds.expand(at+cooking[key])
+ # Covers the painter's widest 4.8px limb capsule plus its antialias fringe.
+ return bounds.grow(3.1)
+
 func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  var axis:Vector2=axis_override if axis_override.length_squared()>.01 else (Vector2.RIGHT if profile else Vector2(1,-.48 if back else .48).normalized())
  var center=ankle+axis*1.5;var across=axis.orthogonal()
  # A narrow heel and rounded toe make forward direction legible. The same
  # ground center and bounds are retained for the planted-foot controller.
- var outline=[]
- for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2.0),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:outline.append(center+axis*q.x+across*q.y)
+ var outline=shoe_outline(ankle,axis)
  shape(outline,"80785b",.45)
  var heel=center-axis*2.9
  if back:
@@ -181,6 +202,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  # kitchen phase. A customer waiting for food has empty hands, never a spatula.
  if not staff and action=="cooking":action="waiting_meal";tool="none"
  var overlay=bool(settings.get("reach_overlay",false));var hide=bool(settings.get("hide_reach",false))
+ var geometry_only=bool(settings.get("geometry_only",false))
  blink=bool(settings.get("blink",false));chef_hat=bool(settings.get("chef_hat",false));blocked=action=="blocked"
  var seat_mix=clampf(float(settings.get("seat_mix",0.0)),0,1)
  var blend=0.0 if bool(settings.get("dismounting",false)) else clampf(float(settings.get("blend",1.0 if walking else 0.0)),0,1)*(1.0-seat_mix)
@@ -191,7 +213,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   # planted. Solve the short legs back to their original ground anchors.
   legs=CookingPose.apply_body_weight(legs,float(settings.get("cooking_elapsed",0.0)),LEG_LENGTH,float(settings.get("cooking_remaining",-1.0)),float(settings.get("cooking_strength",1.0)))
  origin+=legs.body
- if not overlay:ellipse(Vector2(2*seat_mix,2)-legs.body,Vector2(10,3.1),Color(.37,.42,.29,.12))
+ if not overlay and not geometry_only:ellipse(Vector2(2*seat_mix,2)-legs.body,Vector2(10,3.1),Color(.37,.42,.29,.12))
  # Far arm and far leg are behind the torso; near parts are in front.
  var far_shoulder=Vector2(-1,-25.5) if profile else (Vector2(-6,-26.5) if back else Vector2(6,-26.5))
  var near_shoulder=Vector2(1,-23.5) if profile else (Vector2(7,-24) if back else Vector2(-7,-24))
@@ -258,6 +280,16 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   var bin_rim:Vector2=settings.get("reach",Vector2(18,-32))-origin+Vector2(3,-3)
   disposal_pose=CleaningPose.disposal_pose(near_shoulder,near_tip,bin_rim,back,t)
   near_tip=disposal_pose.hand
+ var geometry={"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"pickup_pose":pickup_pose,"washing_pose":washing_pose,"dining_pose":dining_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+legs.far_hip,"far_foot":origin+legs.far_foot,"near_hip":origin+legs.near_hip,"near_foot":origin+legs.near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+legs.near_foot+legs.near_axis*1.5,"far_shoe":origin+legs.far_foot+legs.far_axis*1.5}
+ var bounds_head_origin=origin+(Vector2(-.25,.85)*waiter_tablet.head_attention if waiter_tablet.head_attention>.0001 else (dining_pose.head_offset if not dining_pose.is_empty() else Vector2.ZERO))
+ geometry["head_origin"]=bounds_head_origin
+ if geometry_only:
+  var near_outline=[];var far_outline=[]
+  for point in shoe_outline(legs.near_foot,legs.near_axis):near_outline.append(origin+point)
+  for point in shoe_outline(legs.far_foot,legs.far_axis):far_outline.append(origin+point)
+  geometry["near_shoe_polygon"]=near_outline;geometry["far_shoe_polygon"]=far_outline
+  geometry["occlusion_bounds"]=character_bounds(geometry,origin,legs,species,profile,chef_hat,back)
+  return geometry
  if not overlay and waiter_tablet.enabled and back:
   waiter_tablet.draw_tablet(a,origin)
   waiter_tablet.draw_case(a,origin)
@@ -383,7 +415,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   else:a._draw_head(origin+(dining_pose.head_offset if not dining_pose.is_empty() else Vector2.ZERO),species,back,blink,chef_hat,blocked,2 if profile else (3 if back else 0))
   if not dining_pose.is_empty() and not back and (not hide or not dining_pose.over_table):DiningPose.draw(a,origin,dining_pose,fur,shadow)
   head_attention=0.0
- return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"pickup_pose":pickup_pose,"washing_pose":washing_pose,"dining_pose":dining_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}
+ return geometry
 func washing_arm(part:Dictionary,color,width:float,species:int,masked:bool):
  if masked:
   far_overlay_paw(part.shoulder,part.elbow,color,width,species)
@@ -486,10 +518,10 @@ func hat_ear_port(points:Array,center:Vector2,radius:Vector2,fur,inner_start:Vec
  for index in range(points_lip.size()-1):line(points_lip[index],points_lip[index+1],"f5e9ca",1.05)
 func tail(rear:bool):
  if rear:
-  shape([Vector2(-1,-13),Vector2(-6,-11),Vector2(-15,-14),Vector2(-20,-21),Vector2(-18,-27),Vector2(-13,-22),Vector2(-9,-18),Vector2(-1,-18)],"c68b46",3.0)
+  shape(tail_outline(true),"c68b46",3.0)
   shape([Vector2(-20,-21),Vector2(-18,-27),Vector2(-14,-23),Vector2(-15,-18)],"f3e5c7",2.2)
  else:
-  shape([Vector2(-6,-15),Vector2(-12,-12),Vector2(-21,-17),Vector2(-23,-24),Vector2(-18,-25),Vector2(-14,-20),Vector2(-6,-20)],"bd8343",3.0)
+  shape(tail_outline(false),"bd8343",3.0)
   shape([Vector2(-21,-17),Vector2(-23,-24),Vector2(-18,-25),Vector2(-17,-20)],"f3e5c7",2.0)
 func head(species:int):
  var fur=FUR[species]
