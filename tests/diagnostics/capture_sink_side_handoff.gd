@@ -35,7 +35,7 @@ func run():
  game.model.revision+=1;game._rebuild_furniture()
  for i in game.staff_states.size():
   var worker=game.staff_states[i]
-  worker.on_duty=false;worker.pos=Vector2(9.5,1.5+i)
+  worker.on_duty=false;worker.pos=Vector2(1.5,3.5+i)
  var cleaner=game.worker("cleaner");var waiter=game.worker("waiter")
  cleaner.on_duty=true;waiter.on_duty=true
  game.dishwashing.dishes[1]={"id":1,"sink_id":int(sink.id),"elapsed":5.0};game.dishwashing.next_id=2

@@ -242,7 +242,7 @@ func side_drop_case()->Dictionary:
  var alternate=basin.duplicate(true);alternate.id=game.model._next_item_id;game.model._next_item_id+=1;alternate.x=9
  game.model.items.append(alternate);game.model.revision+=1;game._rebuild_furniture()
  for i in game.staff_states.size():
-  var worker=game.staff_states[i];worker.on_duty=false;worker.pos=Vector2(9.5,1.5+i)
+  var worker=game.staff_states[i];worker.on_duty=false;worker.pos=Vector2(1.5,3.5+i)
  var cleaner=game.worker("cleaner");var waiter=game.worker("waiter")
  cleaner.on_duty=true;waiter.on_duty=true
  fill(1,int(basin.id));game.dishwashing.dishes[game.dishwashing.dishes.keys()[0]].elapsed=5.0
