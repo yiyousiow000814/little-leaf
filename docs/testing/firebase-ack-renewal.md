@@ -37,7 +37,17 @@ normal acknowledgment/takeover, one renewal race recovered, two renewal races
 remaining paused, and server rejection of the old writer after takeover.
 
 These checks use synthetic authentication. They do not establish real Google
-sign-in, compiled full-flow acceptance or release qualification. The repair is
+sign-in or release qualification. A separate local complete compiled-flow run
+passed all30 checks in103.33seconds with adapter `cb1090c39f3178ab495355a72ba551de922bda44`
+and unchanged c runtime `a5dd2b2b3a0cfee9c79fcd75eb870a9892afbf27`. All291 game
+inputs matched the immutable ordinary export; the session JS was the only
+changed production input. The diagnostic-only report records headless Chrome,
+synthetic accounts, fresh disposable native geometry and local Windows4.6.3
+tools separately from original CI runtime/native evidence. It covers handoff,
+stale writers, local/cloud choice, cancellation, offline pending retention and
+update timeout/reload. It does not replace exact-source release qualification.
+
+The [Draft PR160](https://github.com/yiyousiow000814/little-leaf/pull/160) repair is
 new source and cannot be represented as unchanged released `a5dd2b2b` bytes.
 Fresh source-bound qualification and coordinated approval remain prerequisites
 for publication or Firebase activation; do not rerun or bypass the retained
