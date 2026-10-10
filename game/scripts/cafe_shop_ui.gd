@@ -202,11 +202,11 @@ func setup():
   var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   price.reparent(price_row);price.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   var availability=ui.hud._label(column,"",11);availability.custom_minimum_size.y=16
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:_style(button)
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:_style(button)
  footer_hint=ui.hud._label(root,"",13);footer_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.clip_text=true;ui.context_label.custom_minimum_size.x=0;ui.context_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;ui.context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;ui.context_label.add_theme_font_override("font",ui.hud.font_bold);ui.context_label.add_theme_color_override("font_color",ui.hud.INK)
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:button.custom_minimum_size.y=44
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:button.custom_minimum_size.y=44
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
  _setup_tiles()

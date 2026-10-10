@@ -67,7 +67,7 @@ const MAX_COOKS := 3
 const STAFF_CAPS={"chef":3,"waiter":4,"cleaner":3,"cashier":1}
 const HIRE_FEES={"chef":2800,"waiter":2200,"cleaner":1800}
 const WAGE_RATES={"chef":18,"waiter":11,"cleaner":10,"cashier":11} # Future duty only; saved accrual and debt remain exact.
-const MAX_STOVE_LEVEL := 3
+const LEGACY_STOVE_LEVEL_MAX := 3 # Historical input validation only; no runtime level.
 const ENTRANCE := Footprint.ENTRANCE
 const ENTRY_LANDING := Footprint.ENTRY_LANDING
 const SERVICE_KINDS := ["table", "chair", "bench", "stove", "beverage", "sink", "counter", "bin", "register"]
@@ -252,8 +252,6 @@ func reset_new() -> void:
 		["bookshelf", 5, 0, 0], ["lamp", 1, 7, 0],
 	]:
 		var item: Dictionary = {"id": _next_item_id, "kind": spec[0], "x": spec[1], "z": spec[2], "rot": spec[3]}
-		if item.kind == "stove":
-			item["level"] = 1
 		items.append(item)
 		_next_item_id += 1
 	rebuild_dining_sets()
@@ -485,8 +483,6 @@ func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = 
 	if coins < price:
 		return _fail("Not enough coins · need %s" % Money.amount(price))
 	var item: Dictionary = {"id": _next_item_id, "kind": kind, "x": x, "z": z, "rot": posmod(rot, 4)}
-	if kind == "stove":
-		item["level"] = 1
 	items.append(item)
 	if kind=="bin":included_bin_pending=false
 	_next_item_id += 1
@@ -653,28 +649,6 @@ func _sale_station_usable_in(item: Dictionary, layout: Array[Dictionary], reacha
 		var reverse := item.duplicate()
 		reverse.rot = posmod(int(item.get("rot", 0)) + 2, 4)
 		return _workface_open_in(reverse, layout) and reachable.has(workface_cell(reverse))
-	return true
-
-
-func stove_upgrade_cost(id: int) -> int:
-	var item := get_item(id)
-	if item.is_empty() or item.kind != "stove" or int(item.get("level", 1)) >= MAX_STOVE_LEVEL:
-		return -1
-	return 180 + 80 * (int(item.get("level", 1)) - 1)
-
-
-func upgrade_stove(id: int) -> bool:
-	var item := get_item(id)
-	var cost := stove_upgrade_cost(id)
-	if cost < 0:
-		return _fail("Select a stove below level 3")
-	if coins < cost:
-		return _fail("Not enough coins · upgrade needs %s" % Money.amount(cost))
-	coins -= cost
-	item["level"] = int(item.get("level", 1)) + 1
-	last_error = ""
-	last_event = "Stove upgraded to level %d" % item.level
-	_notify()
 	return true
 
 
@@ -1639,14 +1613,12 @@ func _seating_pairs() -> Array[Dictionary]:
 	return pairs
 
 
-static func stove_speed_multiplier(item: Dictionary) -> float:
-	# Existing upgrades keep their 1.0x / 1.4x / 1.8x speeds. New stove
-	# tiers can use this same multiplier without changing the base recipe.
-	return 1.0 + 0.4 * (clampi(int(item.get("level", 1)), 1, MAX_STOVE_LEVEL) - 1)
-
+static func stove_speed_multiplier(_item: Dictionary) -> float:
+	# Legacy levels never affect cooking. Equipment identity remains independent.
+	return 1.0
 
 static func cooking_seconds(speed_multiplier: float = 1.0) -> float:
-	# Stove upgrades shorten this recipe only; they never scale global time.
+	# Recipe duration never scales global time.
 	return BASE_COOK_SECONDS / maxf(speed_multiplier, 0.01)
 
 
@@ -1706,6 +1678,19 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 	return true
 
 
+func _items_without_stove_levels() -> Array[Dictionary]:
+	# Copy only obsolete stove records; never mutate live items during persistence.
+	var normalized: Array[Dictionary] = []
+	normalized.assign(items)
+	for index in normalized.size():
+		var item: Dictionary = normalized[index]
+		if str(item.get("kind", "")) == "stove" and item.has("level"):
+			item = item.duplicate(true)
+			item.erase("level")
+			normalized[index] = item
+	return normalized
+
+
 func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
@@ -1736,7 +1721,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
-		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
+		"items": _items_without_stove_levels(), "next_item_id": _next_item_id,"dining_sets":dining_sets,
 		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,"parking":parking,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
@@ -1863,9 +1848,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 			return _fail("Overlapping furniture or blocked entrance in save")
 		var item: Dictionary = {"id": int(raw.id), "kind": str(raw.kind), "x": int(raw.x), "z": int(raw.z), "rot": int(raw.rot)}
 		if item.kind == "stove":
-			if not _valid_int(raw.get("level", 1), 1, MAX_STOVE_LEVEL):
-				return _fail("Invalid stove level")
-			item["level"] = int(raw.get("level", 1))
+			if not _valid_int(raw.get("level", 1), 1, LEGACY_STOVE_LEVEL_MAX):
+				return _fail("Invalid historical stove level")
+			# Accepted old levels are deliberately omitted from reconstructed state.
 		validated.append(item)
 		occupied[point] = true
 		ids[int(item.id)] = true

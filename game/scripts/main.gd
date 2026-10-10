@@ -492,7 +492,6 @@ func _rebuild_furniture():
 		n.rotation.y = float(item.rot)*PI/2
 		furnishings.add_child(n)
 		item_nodes[item.id] = n
-		if item.kind=="stove" and int(item.get("level",1))>1: text3(n,"Lv. "+str(item.level),Vector3(0,1.55,0),22,DARK)
 
 func _style(bg: Color, border=Color.TRANSPARENT, radius=14) -> StyleBoxFlat:
 	var s=StyleBoxFlat.new()
@@ -566,7 +565,6 @@ func _build_ui():
 	expand_button=button("Next plot",_expand); tools.add_child(expand_button)
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
-	tools.add_child(button("Upgrade stove",_upgrade))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
 	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
@@ -684,11 +682,6 @@ func _staff_on_duty()->bool:
 	for staff in staff_states:
 		if staff.job_kind!="":return true
 	return false
-
-func _upgrade():
-	if save_recovery_blocked:return
-	if selected_id<0:return
-	if model.upgrade_stove(selected_id):_update_ui();_save()
 
 func _sell():
 	if save_recovery_blocked:return

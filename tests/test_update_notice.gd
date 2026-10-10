@@ -84,9 +84,9 @@ func run():
  Input.parse_input_event(rotate)
  var click=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_LEFT;click.position=ui.remove_button.get_global_rect().get_center();click.pressed=true;Input.parse_input_event(click)
  var release=InputEventMouseButton.new();release.button_index=MOUSE_BUTTON_LEFT;release.position=click.position;release.pressed=false;Input.parse_input_event(release);Input.flush_buffered_events()
- game.interaction.handle_input(rotate);game.interaction.rotate_selection();game.interaction._commit_preview();game._upgrade();game._sell()
+ game.interaction.handle_input(rotate);game.interaction.rotate_selection();game.interaction._commit_preview();game._sell()
  ui._rotate_selected.call_deferred();ui._remove_selected.call_deferred();await settle()
- check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"post-freeze R, drag commit, upgrade and deferred GUI removal cannot mutate model")
+ check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"post-freeze R, drag commit and deferred GUI removal cannot mutate model")
  check(notice.later_button.disabled and notice.update_button.disabled,"busy save cannot be dismissed or repeated")
  check(JSON.parse_string(controller.fake_vault.payload).coins==coins,"frozen latest wallet enters validated save")
  controller.fake_vault.finish({"ok":true,"durable":true,"profileId":"synthetic","revision":9,"cloudConfirmed":false});await settle()
@@ -96,14 +96,14 @@ func run():
  notice.update_button.pressed.emit();var saved_callback=controller.fake_vault.callback
  controller.fake_vault.finish({"ok":true,"durable":true,"profileId":"synthetic","revision":10,"cloudConfirmed":true,"updateToken":"one-use-token"});await settle()
  check(controller.fake_update.reloads==1 and controller.update_busy and game.save_recovery_blocked,"cloud-confirmed receipt enters final gate while still frozen")
- game.interaction.rotate_selection();game._upgrade();ui._remove_selected.call_deferred();await settle()
+ game.interaction.rotate_selection();ui._remove_selected.call_deferred();await settle()
  check(JSON.stringify(game.model.items)==items and game.model.coins==coins and root.gui_disable_input,"delayed final gate cannot lose new edits")
  saved_callback.call([JSON.stringify({"ok":true,"durable":true,"profileId":"synthetic","revision":10,"cloudConfirmed":true,"updateToken":"one-use-token"})]);check(controller.fake_update.reloads==1 and controller.update_busy,"duplicate save callback cannot reopen play or reload twice")
  controller.fake_vault.value.status="other-device";controller.fake_vault.value.ownershipPaused=true
  controller.fake_update.finish({"ok":false,"code":"OWNERSHIP_LOST"});await settle()
  check(not controller.update_busy and game.save_recovery_blocked and game.model==model,"lost-owner gate failure never refreshes or resumes stale model")
  check(not game.is_processing_input() and root.gui_disable_input==gui_before,"unsafe failure keeps world frozen but allows recovery GUI")
- game.interaction.rotate_selection();game.interaction._commit_preview();game._upgrade();game._sell();ui._rotate_selected();ui._remove_selected()
+ game.interaction.rotate_selection();game.interaction._commit_preview();game._sell();ui._rotate_selected();ui._remove_selected()
  check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"recovery GUI cannot mutate protected model after unsafe failure")
  controller._release_update_input()
  controller.fake_vault.value.status="active";controller.fake_vault.value.ownershipPaused=false;game.save_recovery_blocked=false;game.save_writes_suppressed=false
