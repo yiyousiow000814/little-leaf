@@ -41,7 +41,8 @@ func begin():
 		_hold_input()
 	if not save.ready or save.pending or save.recovery_busy or save.update_busy or game.save_recovery_blocked:
 		finish();return
-	save.request_save()
+	# Reopening binding must not invent a new source revision for unchanged play.
+	save.request_save(true)
 	var deadline=Time.get_ticks_msec()+15000
 	while save.pending and Time.get_ticks_msec()<deadline:
 		await game.get_tree().process_frame
