@@ -1844,6 +1844,7 @@ func _load_snapshot(path:String,allow_enclosed_staff:bool,placement:bool)->bool:
 	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),placement) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data,placement):return _fail("Unsupported or foreign save format")
+	if placement and int(data.version)!=SaveContract.FOOTPRINT_PLACEMENT_VERSION:return _fail("Placement requires its explicit version17 envelope")
 	var physical_version=int(data.version)==SaveContract.FOOTPRINT_PLACEMENT_VERSION
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):

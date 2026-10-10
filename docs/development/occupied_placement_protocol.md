@@ -1,6 +1,6 @@
 # Explicit occupied placement protocol
 
-This isolated candidate continues PR157 from 1f0e7a5. It implements physical footprint placement while guests exist through explicit model APIs; default startup and historical save callers remain unchanged. PR125 staff routing is a separate dependency and must be composed through reviewed relative hunks.
+This isolated candidate continues PR157 from 1f0e7a5. It implements physical footprint placement while guests exist through explicit model APIs; default startup and historical save callers remain unchanged. The approved native trial enables the mode only after MinimalStart when both `--fresh-review` and `--footprint-placement` are supplied; it retains existing save suppression. PR125 staff routing is a separate dependency and must be composed through reviewed relative hunks.
 
 `enable_footprint_placement()` enables owned-floor, object, opening and actual body checks while allowing inaccessible future guest routes. Purchases and moves build an isolated plan and publish items, wallet and guest dictionaries together; existing dictionary identity remains authoritative for Main service records. Selling occupied dining identities remains prohibited.
 
@@ -14,4 +14,4 @@ Per-frame work stays in the existing model and Main ticks. Retry caches are boun
 
 Focused fixtures: `test_occupied_placement_protocol` covers seated/arriving/checkout histories, two pending guests plus a live claim competitor, exterior cancellation and atomic rejected saves/loads. `test_occupied_placement_service` uses actual Main cooking, plating and carried ownership, positive unrelated diner/floor/wash controls, full runtime reload and exactly-once continuation. Its optional native capture uses a synthetic profile only.
 
-Remaining acceptance: reviewed PR125 composition preserving the v16 namespace; reviewed explicit trial startup/save caller; source-bound native and Web qualification on that composite; user playable acceptance and merge. This contract does not promote v17 by default or certify Web publication.
+Remaining acceptance: reviewed PR125 composition preserving the v16 namespace; source-bound native and Web qualification on that composite; user playable acceptance and merge. This contract does not promote v17 by default or certify Web publication.

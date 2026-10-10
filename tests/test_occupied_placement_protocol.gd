@@ -133,6 +133,8 @@ func cancellation_cases():
  check(loaded.load_placement("user://occupied-exterior-cancelled.json") and loaded.customers[0].withdrawn,"cancelled exterior route reloads without resurrecting reservation")
  var seated=fixture();var path="user://occupied-write-atomic.json"
  check(seated.save_placement(path),"valid existing save for failed-write preservation")
+ check(seated.save("user://occupied-copy-v15.json"),"ordinary unblocked fixture remains strictly v15 writable")
+ check(not loaded.load_placement("user://occupied-copy-v15.json"),"explicit placement reader refuses silent v15 profile promotion")
  var digest=FileAccess.get_sha256(path);var guest_state=JSON.stringify(seated.customers)
  seated.customers[0].x+=.1
  check(not seated.save_placement(path) and FileAccess.get_sha256(path)==digest,"invalid current seated body cannot overwrite accepted destination")
@@ -141,3 +143,4 @@ func cancellation_cases():
  var bad=JSON.parse_string(FileAccess.get_file_as_string(path));bad.runtime.customers[0].x+=.1
  write("user://occupied-unmarked-body.json",bad)
  check(not loaded.load_placement("user://occupied-unmarked-body.json"),"unmarked v17 body must match current seat rather than historical anchor")
+
