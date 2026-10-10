@@ -1,5 +1,33 @@
 # Itch trusted-preview candidate
 
+## Auth-only verification and presentation candidate — 2026-10-10
+
+The authorized auth-only v2 preview was deployed by run `38047867726`. User-provided evidence shows a fresh Google popup completed and Google authentication confirmed. This accepts sign-in only: game, session ownership and saves remain paused; cloud gameplay and save acceptance are still separate gates. The deployed update ZIP `f5aaf81d27500e5d82ac9bb2951852e67e7c56cf094adff68e7a1c7eb7c32778` and rollback ZIP `98b033b91535b63c7818d7f12bca17c567e97c41ba92473a67f832f7d4deb0e6` remain frozen.
+
+The presentation candidate uses a compact cream/sage/brown card, the existing licensed Nunito font, responsive styled buttons, visible keyboard focus and short status copy. The derived HTML embeds the font and its OFL notice, without an extra network dependency. The chooser retains its account/local/back handlers; original local progress never transfers automatically. The auth check distinguishes a restored session from a completed fresh popup, shows generic reload feedback on bootstrap failure, and never offers a continue-to-game action.
+
+`auth_verification_only=True` generates a dedicated HTML page containing only the auth bootstrap. It omits all engine, vault, preferences and save adapters. Its auth-only promise remains pending before Firestore or session setup. The ordinary Web shell, normal game/account path, scopes and persistence handlers are unchanged. `tests.tooling.test_entry_presentation` compares those handlers with the frozen v2 source and exercises both generated pages with synthetic boundaries, including a rejected SDK import. Local visual evidence at 1280×720 and 390×844 uses generated pages and synthetic authentication; it is not another real sign-in or gameplay test.
+
+This source candidate does not replace the deployed packet or the bounded workflow recipe. New exact wrapper/Hosting package identities, independent package review and authorized update scope are required before deployment. No Auth domain, rules, permissions or original player saves are changed.
+
+## Earlier full-game preview contract
+
+### Remaining 10a acceptance after source-layout migration
+
+PR124 retains its approved entry behavior under `platform/web`, `platform/firebase` and `tools`. Presentation inputs resolve through the shared source-layout helper, including the existing font and license. Frozen auth-only update/rollback fixtures and their recipe are unchanged; merging this source does not update the deployed preview.
+
+| Gate | Evidence and remaining action |
+| --- | --- |
+| Fresh Google authentication | User-confirmed popup success on the deployed auth-only v2; accepted for sign-in only. |
+| Auth-only isolation | Generated-page synthetic checks keep Engine, Firestore, sessions, journals, vaults and timers inaccessible; the boot promise stays pending. |
+| Authenticated source continuation | Normal boot presentation checks cover signed-out, redirect return/failure and authenticated resume. The compiled-flow synthetic Auth module must link with the real boot imports before running a new compiled gate. |
+| Cloud ownership and save protocol | Local synthetic adapter/session/choice checks cover fenced takeover, paused ownership loss, protected divergent branches and account races. They do not establish server authorization or playable UI acceptance. |
+| Server rules compatibility | Repository rules include `players/{uid}/session/owner` and fenced `saves/cafe` writes. The previously observed hosted failure was permission denied on the session document; this source update neither checks nor changes deployed rules. Compare the exact deployed contract with reviewed source, then obtain separately scoped cutover permission if a mismatch remains. |
+| Disposable compiled gameplay and cloud save | Run the source-bound compiled-flow gate against the local Firestore emulator, synthetic Google claims and a disposable profile. Verify ownership acquisition, game startup, save/readback and ownership-loss pause on the same source/export; retain the receipt. No original browser profile or save is eligible. |
+| Hosted continuation | Prepare and independently review a separately identified full-game packet with compatible server rules before requesting exact deployment/test scope. The auth-only packet must not be switched to gameplay by removing its pause flag. |
+
+The backend compatibility gate and compiled/hosted continuation remain open. There is no automatic transfer of origin-bound itch local progress, no fallback that bypasses ownership, and no cloud-game acceptance inferred from Google success.
+
 This explicit test variant displays the account game inside the itch page while its Firebase SDK, authentication and UID journal execute on an exact controlled Firebase preview origin. The shared itch wrapper receives no tokens, saves or account SDK objects. The ordinary Web shell and default top-level Firebase redirect flow remain unchanged.
 
 The preview boot uses `start(config, {surface:'trusted-itch-frame', runtimeOrigin:EXACT_PREVIEW_ORIGIN})`. The origin is baked into the reviewed own-origin HTML. Only a project preview hostname in the `itch-embed-test` channel is accepted. Its ancestor chain must be exactly, from nearest to topmost:

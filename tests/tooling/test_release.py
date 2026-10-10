@@ -123,9 +123,12 @@ class ReleaseNotesContractTests(unittest.TestCase):
     def test_hotfix_keeps_exact_major_update_history(self):
         import hashlib
         notes=json.loads((self.root / "data/release_notes.json").read_text(encoding="utf-8"))
-        self.assertEqual(notes["version"],"0.1.10a")
-        self.assertEqual(len(notes["history"]),1)
-        previous=notes["history"][0]
+        self.assertEqual(notes["version"],version(self.root))
+        history_versions=[item["version"] for item in notes["history"]]
+        self.assertEqual(len(history_versions),len(set(history_versions)))
+        self.assertEqual(history_versions,sorted(history_versions,key=release_key,reverse=True))
+        self.assertTrue(all(release_key(item)<release_key(notes["version"]) for item in history_versions))
+        previous=next(item for item in notes["history"] if item["version"]=="0.1.10")
         self.assertEqual(previous["version"],"0.1.10")
         self.assertNotIn("history",previous)
         digest=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
@@ -337,6 +340,32 @@ class ArtifactTests(unittest.TestCase):
         return verify_artifact(self.web, "v0.1.6", SHA)
 
     def test_valid(self): self.assertEqual(self.verify(), self.manifest)
+
+    def test_confirmed_publication_writes_bound_receipt(self):
+        receipt = self.web / "publication" / "receipt.json"
+        self.manifest["release_reuse"] = {"qualification_run_id": 7, "artifact_id": 9}
+        self.save()
+        args = SimpleNamespace(web=self.web, tag="v0.1.6", sha=SHA, receipt=receipt)
+        responses = [status(), {"buildId": 56, "channel": "html5"}, status("0.1.6")]
+        responses[-1]["channels"][0]["head"]["id"] = 56
+        with patch.dict(publisher.os.environ, {"BUTLER_API_KEY": "synthetic", "GITHUB_RUN_ID": "10", "GITHUB_RUN_ATTEMPT": "2"}, clear=True), patch.object(publisher.argparse.ArgumentParser, "parse_args", return_value=args), patch.object(publisher, "butler", side_effect=responses):
+            publisher.main()
+        result = json.loads(receipt.read_text())
+        self.assertEqual(result["itch_build_id"], 56)
+        self.assertEqual(result["state"], "completed")
+        self.assertEqual(result["source_commit"], SHA)
+        self.assertEqual(result["workflow_attempt"], "2")
+        self.assertEqual(result["qualification"], self.manifest["release_reuse"])
+        self.assertEqual(result["release_manifest_sha256"], hashlib.sha256((self.web / "release-manifest.json").read_bytes()).hexdigest())
+
+    def test_failed_publication_never_writes_receipt(self):
+        receipt = self.web / "publication" / "receipt.json"
+        args = SimpleNamespace(web=self.web, tag="v0.1.6", sha=SHA, receipt=receipt)
+        failed = status("0.1.6", "failed")
+        failed["channels"][0]["head"]["id"] = 56
+        with patch.dict(publisher.os.environ, {"BUTLER_API_KEY": "synthetic"}, clear=True), patch.object(publisher.argparse.ArgumentParser, "parse_args", return_value=args), patch.object(publisher, "butler", side_effect=[status(), {"buildId": 56, "channel": "html5"}, failed]), self.assertRaises(RuntimeError):
+            publisher.main()
+        self.assertFalse(receipt.exists())
 
     def test_hotfix_artifact_is_exact_and_fail_closed(self):
         self.manifest.update(tag="v0.1.10a", version="0.1.10a"); self.save()

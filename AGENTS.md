@@ -46,3 +46,21 @@ Do not equate a cap or high average with stability. Follow the
 for source-bound visual comparisons and completed-frame timelines. The
 [roadmap](docs/roadmap.md#current-state) owns current acceptance and ownership;
 deferring FPS work never authorizes leaving optimization-induced bugs enabled.
+
+## Memory ownership and regression evidence
+
+For renderer/export/runtime, resource caches and repeated scene/page lifecycles,
+identify who allocates and releases each retained object before implementation.
+Keep live inventory separate from retained capacity; deleted null slots, callbacks
+and free pools still occupy memory. Add the fast deterministic ownership/lifecycle
+regression to ordinary tooling CI; never replace release evidence with that test.
+
+Follow the [memory regression standard](docs/testing/memory-regression.md): use
+justified fixture bounds, then a separate focused real-browser release soak with
+post-GC JS/resource trends, matched control/noise budgets and relevant repeated
+scene/reload/resource triggers. A three-minute pass cannot certify all leaks
+absent. Keep long soaks out of every PR, protect original profiles, preserve
+failed evidence and exact source/export hashes, and leave unsupported lifecycle
+or collection paths explicitly unqualified. Existing complete CI/toolchain/atlas
+and publication gates remain intact. These are repository engineering rules;
+account approval settings are outside this standard.

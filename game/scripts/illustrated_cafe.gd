@@ -45,8 +45,10 @@ const MovingAtlas=preload("res://scripts/moving_art_atlas.gd")
 static var moving_atlas=MovingAtlas.new()
 var use_cached_moving_art=true
 const ExteriorGrassArt=preload("res://scripts/exterior_grass_art.gd")
+const PolygonTriangulation=preload("res://scripts/cafe_polygon_triangulation.gd")
 const ExteriorTreeArt=preload("res://scripts/exterior_tree_art.gd")
 static var exterior_tree_art=ExteriorTreeArt.new()
+static var overview_oak_triangles:Array=[]
 const MotionArt=preload("res://scripts/illustrated_motion.gd")
 var motion=MotionArt.new()
 var seat_blends={}
@@ -166,6 +168,12 @@ func art_draw_polygon(points:PackedVector2Array,colors:PackedColorArray,uvs:Pack
 		return
 	if canvas_stream.active and use_native_object_nodes:
 		_submit_native_world_shape(&"draw_polygon", [points, colors, uvs, texture], canvas_stream.transform)
+		return
+	if tile.x/39.0<.35 and uvs.is_empty() and texture==null:
+		var indices=PolygonTriangulation.indices(points)
+		if not indices.is_empty():
+			var target=get_canvas_item() if not canvas_stream.active else canvas_stream.command(["overview-triangles",indices,points,colors])
+			if target.is_valid():RenderingServer.canvas_item_add_triangle_array(target,indices,points,colors)
 		return
 	if not canvas_stream.active:super.draw_polygon(points,colors,uvs,texture);return
 	var rid=canvas_stream.command(["polygon",points,colors,uvs,texture])
@@ -568,11 +576,19 @@ func camera_fit_zoom()->float:
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
 	return minf(safe.size.x/bounds.size.x,safe.size.y/bounds.size.y)/maxf(.000001,ui_scale*detail)
 
+func camera_neighborhood_zoom()->float:
+	# The whole bounded square can fit below the HUD, including portrait.
+	# This only lowers manual zoom; Home/Fit still frames the owned cafe.
+	var safe=camera_safe_rect(false)
+	var bounds=CameraLandmarks.inspection_bounds(Vector2(39,19.5))
+	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
+	return minf(maxf(1.0,safe.size.x-80.0)/bounds.size.x,maxf(1.0,safe.size.y-64.0)/bounds.size.y)/maxf(.000001,ui_scale*detail)
+
 func camera_zoom_limits()->Vector2:
 	var detail=1.55 if is_instance_valid(game) and game.wall_detail else 1.0
 	var limits=CameraBounds.zoom_limits(get_viewport_rect().size,Vector2(39,19.5)*ui_scale*detail,camera_play_rect().position.y,camera_insets())
 	# Fit is always reachable, including short landscape and inset displays.
-	limits.x=minf(limits.x,camera_fit_zoom())
+	limits.x=minf(limits.x,minf(camera_fit_zoom(),camera_neighborhood_zoom()))
 	return limits
 
 func update_projection(clamp_camera:bool=true):
@@ -1173,7 +1189,8 @@ func _draw():
 	canvas_stream.finish()
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
 func _draw_legacy_pavement(ground_view: Rect2):
-	for z in range(ExteriorExtent.PAVEMENT_Z_MIN,ExteriorExtent.PAVEMENT_Z_MAX):
+	var rows=Neighborhood.visible_pavement_rows(self)
+	for z in range(maxi(rows.x,ExteriorExtent.PAVEMENT_Z_MIN),mini(rows.y,ExteriorExtent.PAVEMENT_Z_MAX)):
 		for x in [PAVEMENT_EDGE, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH*2]:
 			if not _ground_cell_visible(x,z,ground_view):continue
 			poly([iso(x,z),iso(x+PAVEMENT_ROW_WIDTH,z),iso(x+PAVEMENT_ROW_WIDTH,z+1),iso(x,z+1)],"d7dcc2" if z%2 else "dfe0c8")
@@ -1308,6 +1325,17 @@ func _tree(p: Vector2,s: float):
 			return
 	_tree_crown_legacy(p,s,horizontal_scale)
 func _tree_crown_legacy(p:Vector2,s:float,horizontal_scale:float=1.0):
+	if absf(s)<.5 and native_draw_target==null and not (canvas_stream.active and use_native_object_nodes):
+		if overview_oak_triangles.is_empty():
+			for layer in exterior_tree_art.layers:overview_oak_triangles.append(PolygonTriangulation.indices(layer[1]))
+		var transform=Transform2D(Vector2(s*horizontal_scale,0),Vector2(0,s),p)
+		for index in exterior_tree_art.layers.size():
+			var layer=exterior_tree_art.layers[index]
+			var vertices=transform*layer[1];var tint=col(layer[0]);var indices=overview_oak_triangles[index]
+			var target=get_canvas_item() if not canvas_stream.active else canvas_stream.command(["overview-oak",indices,vertices,tint])
+			if target.is_valid():RenderingServer.canvas_item_add_triangle_array(target,indices,vertices,PackedColorArray([tint]))
+			vertices.append(vertices[0]);art_polyline(vertices,tint,.7)
+		return
 	# Both the cached atlas and fallback share the same authored tree contours.
 	exterior_tree_art.draw_tree(self,p,s,horizontal_scale)
 func _parcel_ground():

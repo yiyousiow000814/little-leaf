@@ -17,7 +17,7 @@ Downloadable builds and test evidence stay in Actions for **7 days**. Keep any r
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
 2. Wait for **Check and build Web** to pass on the intended commit. Review the Web build in a fresh browser profile and a separate copied-save profile. Leave real player data untouched.
 3. Only after publication is approved, create and push one new tag, such as **`v0.1.6`**, at that exact reviewed commit already in `main` history. Later changes on `main` do not block this fixed tag. Never move or reuse a release tag.
-4. Watch **Release Web to itch.io**. It tests and rebuilds the tagged commit, then uploads to **`siowyiyou/little-leaf:html5`**. The summary records its source SHA, version and itch build ID.
+4. Watch **Release Web to itch.io**. It verifies and reuses the successful exact-main CI package, runs final source/atlas/packed-startup checks, then uploads to **`siowyiyou/little-leaf:html5`**. The summary and publication receipt record its source SHA, version, itch build ID and original CI artifact identity. See [qualified artifact reuse](qualified-artifact-reuse.md).
 5. Verify [the live game](https://siowyiyou.itch.io/little-leaf), including fresh and copied-save startup. Successful upload processing does not replace browser, persistence, rendering or audio checks.
 
 Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` tag can publish (for example, `v0.1.10a`, `v0.1.10b`, `v0.1.10c`). Hotfixes order numerically by base, then by letter: `0.1.10 < 0.1.10a < … < 0.1.10z < 0.1.11`. Uppercase, multiple-letter, prerelease and build-metadata release tags are rejected. Existing valid SemVer prerelease/build-metadata itch baselines remain recognized; duplicates and rollbacks are still refused. Both the project and release notes must contain the exact hotfix version. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
@@ -30,6 +30,19 @@ Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` ta
 - The required notice at `docs/art-audio/third-party/GODOT-AA-LICENSE.txt` is copied to the Web artifact as `GODOT-AA-LICENSE.txt` and included in its hashes
 - The itch key is used only by publishing steps. Raw Butler output is suppressed, and repository permissions are read-only
 - One release runs at a time. Avoid simultaneous manual itch uploads or multiple queued release tags; GitHub keeps only one pending run by default
+
+## Memory acceptance for affected releases
+
+Renderer, export/runtime, cache and lifecycle changes require the
+[memory regression standard](../testing/memory-regression.md). Ordinary CI runs
+the fast deterministic lifecycle check; a focused browser soak, relevant repeated
+scene/reload/resource cycles and post-GC memory/capacity trends are a separate
+release gate. Use a matched control and justified budgets, record exact hashes
+and live-versus-retained counts, and retain unsupported paths as gaps. A short
+three-minute pass supports a candidate without proving every leak absent.
+Keep this work proportionate; do not add long soaks to every PR or weaken the
+existing CI/toolchain/atlas/save gates. An urgent shorter diagnostic must remain
+explicitly unqualified against the longer gate.
 
 ## If a release stops
 

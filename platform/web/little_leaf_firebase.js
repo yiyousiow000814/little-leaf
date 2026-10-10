@@ -63,7 +63,7 @@
   }
   function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null}) {
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
-    let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='';
+    let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
     const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
     let localQueue=Promise.resolve();
@@ -77,7 +77,8 @@
     const recoveryRecord=local=>local?.elapsedPending?.record || local?.record;
     const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
     const token = doc => doc ? doc.digest : null;
-    function state(value) { status(value); }
+    const permissionReason='Cloud saving was refused. Your pending progress is kept on this device. Use Export pending progress on this page, then reload the updated game on this same address. Do not clear browser storage.';
+    function state(value) { status(permissionDenied && value!=='signed-out' ? 'permission-denied' : value); }
     async function validate(doc) {
       if (!doc) return null;
       if(doc.schema !== 1 || typeof doc.record !== 'string') throw error('CORRUPT_AUTHORITY','Cloud save is damaged.');
@@ -218,7 +219,13 @@
       });
       const candidate={schema:1, profileId:snapshot.record.profileId, revision:snapshot.record.revision, digest:snapshot.record.digest, record:capacity(snapshot.record),device:displayDevice(snapshot.device)};
       state('pending');
-      await remote.compareAndSet(uid,snapshot.base,candidate,guard);
+      try { await remote.compareAndSet(uid,snapshot.base,candidate,guard); }
+      catch(e) {
+        if(['permission-denied','firestore/permission-denied'].includes(e.code)) {
+          permissionDenied=true;stopped=true;pendingExport=entry?.pending ? entry : null;state('permission-denied');
+        }
+        throw e;
+      }
       await serial(async()=>{
         guard();
         if(entry.base!==snapshot.base || entry.record.profileId!==snapshot.record.profileId || entry.record.revision<snapshot.record.revision)
@@ -283,10 +290,10 @@
         const allowed=!closed && currentUid()===uid;
         return {
           available:!!(allowed && recovery?.record && !recovery.blocked),busy:recoveryBusy,
-          canExport:!!(allowed && (pendingExport || recoveryBackup)),
+           canExport:!!(allowed && (pendingExport || recoveryBackup || permissionDenied && entry?.pending)),
           cloudRevision:allowed ? recovery?.record?.revision ?? recoveredRevision : null,
-          pendingRevision:allowed ? recoveryRecord(pendingExport || recoveryBackup)?.revision ?? null : null,
-          reason:allowed ? recovery?.blocked || backupProblem || recovery?.reason || (recoveryBackup ? 'The pending copy is protected on this device and can be exported.' : '') : 'Account changed. Reload to load its progress.',
+          pendingRevision:allowed ? recoveryRecord(permissionDenied && entry?.pending ? entry : pendingExport || recoveryBackup)?.revision ?? null : null,
+          reason:allowed ? (permissionDenied ? permissionReason : recovery?.blocked || backupProblem || recovery?.reason || (recoveryBackup ? 'The pending copy is protected on this device and can be exported.' : '')) : 'Account changed. Reload to load its progress.',
           expectedCloudDigest:allowed ? recovery?.record?.digest || recoveredDigest || null : null,
           expectedLocalDigest:allowed ? recoveryRecord(recovery?.local)?.digest || null : null,
           choicesAvailable:!!(allowed && recovery?.record && !choiceProblem),
@@ -348,6 +355,7 @@
       ownershipSnapshot(){
         if(!ownership)return {serverOwnership:false};
         const state=ownership.snapshot();
+        if(permissionDenied)return {...state,status:'resume-needed',ownershipPaused:true,canRequestTakeover:false,reason:permissionReason};
         if(state.status==='active' && stopped && !recovery && !updateInProgress && !recoveryBusy)
           return {...state,status:'resume-needed',ownershipPaused:true,canRequestTakeover:true,reason:'Your café could not be opened yet. Retry on this device; current progress is preserved.'};
         return state;
@@ -501,8 +509,9 @@
           // Always read protected storage again. Never export another account or
           // silently substitute a stale in-memory copy after another tab writes.
           await refreshBackup();accountGuard();const backup=recoveryBackup;
-          const pending=pendingExport ? await journal.read(uid) : null;accountGuard();
-          if(pendingExport && !same(pending,pendingExport)) throw error('REVISION_CONFLICT','Pending progress changed in another tab. Reload before exporting.');
+          const expected=permissionDenied && entry?.pending ? entry : pendingExport;
+          const pending=expected ? await journal.read(uid) : null;accountGuard();
+          if(expected && !same(pending,expected)) throw error('REVISION_CONFLICT','Pending progress changed in another tab. Reload before exporting.');
           const saved=pending || backup;
           if(!saved) throw error(backupProblem?'RECOVERY_ARCHIVE_DAMAGED':'RECOVERY_UNAVAILABLE',backupProblem || 'There is no preserved pending copy to export.');
           await validateLocal(saved);accountGuard();
