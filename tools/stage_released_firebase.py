@@ -140,6 +140,15 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'release_run_id': selection['release_run_id'], 'release_tag': selection['release_tag'],
         'fresh_firebase_gate_sha256': records, 'hosted_acceptance': False,
         'live_activation_allowed': False, 'production_security_changes': False}
+    coordinator = Path(__file__).resolve().parents[1]
+    proof['coordinator_source_commit'] = subprocess.check_output(
+        ['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
+    proof['coordinator_source_tree'] = subprocess.check_output(
+        ['git', '-C', str(coordinator), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
+    proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in [
+        'tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
+        'tools/reuse_released_web.py', 'tools/stage_released_firebase.py',
+        '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml']}
     (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
     path = output / 'firebase-variant-manifest.json'
     manifest = json.loads(path.read_text())
