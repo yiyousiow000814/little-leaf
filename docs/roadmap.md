@@ -37,6 +37,8 @@ Latest explicit wardrobe hold and03:48UTC account/background-business requiremen
 
 <a id="approved-011-decisions"></a>
 
+Canonical update: [Draft PR141](https://github.com/yiyousiow000814/little-leaf/pull/141); documentation publication does not accept the gameplay implementations.
+
 User-approved scope recorded on 2026-10-10 against main `af61a3f3f86fa3754dd6e8b252b6f88e3680e691`. These requirements supplement the existing 76 outcomes; they do not create a second plan or mark any outcome complete. They take precedence over conflicting older candidate/contract wording. PR138 documentation and PR139 repository relocation are merged; organization and its CI result do not establish acceptance of these gameplay changes.
 
 | Scope / related outcome | Owner | Current implementation / verification status |
