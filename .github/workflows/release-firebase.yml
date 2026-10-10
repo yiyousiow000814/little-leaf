@@ -1,0 +1,47 @@
+name: Qualify Firebase after completed itch release
+on:
+  workflow_run:
+    workflows: [Release Web to itch.io]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Completed itch release run for one inspected catch-up; never deploy
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: firebase-release-request-${{ github.event.workflow_run.id || inputs.release_run_id }}
+  cancel-in-progress: false
+jobs:
+  select:
+    if: github.repository == 'yiyousiow000814/little-leaf' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      release_run_id: ${{ steps.select.outputs.release_run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Select only a completed Butler receipt; refuse duplicate or uncertain intent
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ github.event.workflow_run.id || inputs.release_run_id }}
+        run: python3 tools/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/request" --reserve
+      - name: Persist staging intent before starting any source checks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-firebase-request-${{ steps.select.outputs.release_run_id }}
+          path: ${{ runner.temp }}/request/selection.json
+          if-no-files-found: error
+          retention-days: 90
+  stage:
+    needs: select
+    uses: ./.github/workflows/stage-firebase.yml
+    with:
+      released_run_id: ${{ needs.select.outputs.release_run_id }}

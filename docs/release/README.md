@@ -66,6 +66,7 @@ Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/con
 
 ## Platform boundaries and historical records
 
+- [Firebase release staging alignment](firebase-release-alignment.md): completed itch receipt selects the exact released runtime; automatic qualification is separate from production cutover.
 - [CrazyGames adapter/export contract](crazygames-variant.md)
 - [Trusted itch preview](itch-trusted-preview-candidate.md): preparation is separate from hosted acceptance and publication
 - Historical [CrazyGames slice](history/crazygames-split-ledger.md), [release-metadata ownership](history/split-draft-ownership.md) and [10a overlay provenance](history/010a-release-overlay-provenance.json)
