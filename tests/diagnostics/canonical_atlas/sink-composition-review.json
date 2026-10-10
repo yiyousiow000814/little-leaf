@@ -1,0 +1,123 @@
+{
+  "base": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
+  "head": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
+  "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486",
+  "feature_pr154": "371eef9eaf2ec2c30acacafd5a2faa445b01f916",
+  "composed_files": [
+    "docs/development/dishwashing.md",
+    "game/scripts/cafe_dishwashing.gd",
+    "game/scripts/cafe_sink_wash_art.gd",
+    "game/scripts/directional_character_art.gd",
+    "game/scripts/illustrated_cafe.gd",
+    "game/scripts/main.gd",
+    "tests/diagnostics/capture_sink_side_handoff.gd",
+    "tests/diagnostics/capture_sink_side_handoff.gd.uid",
+    "tests/test_dishwashing_queue.gd"
+  ],
+  "protected_unchanged": {
+    "game/scripts/cafe_model.gd": "d65e718a21710ab70576dc3b9de85aa0e95aa91f7deb46faec2a0af25ac7a71b",
+    "game/scripts/cafe_runtime_codec.gd": "4d659a25031afca07cf8b314b5e1f53084eff5357add2d00009d6ce6470e40e2",
+    "game/scripts/cafe_navigation_review.gd": "2c997e97ac68932e6ab933994daef5f843d628fc5ab9f26053fc22f283ab58f7",
+    "game/scripts/cafe_placement_pause.gd": "ab8ff155d2ee4b1db4162c9b60912488d7d2989eba09fd783d3a14333b20a107",
+    "game/data/prebaked_atlas_manifest.json": "be3821a752989aaf12489c0b614fa64d4ac3531bf28178beff2d7dc770766195"
+  },
+  "unicode_ellipsis_lines_retained": [
+    "var bubble_symbol=\"\u2026\" if e.type==\"guest\" and str(d.phase)==\"ordering\" else (\"!\" if e.type==\"staff\" and action==\"blocked\" else \"\")",
+    "if words==\"\u2026\":return {\"dots\":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],\"radius\":.85}"
+  ],
+  "atlas_qualified_combined": false,
+  "stance": "washing work_inset preserved; drop DROP_INSET=.55 restored after measured miss",
+  "native": {
+    "cache_mode": {
+      "furniture": true,
+      "heads": true,
+      "moving": true
+    },
+    "checks": 32,
+    "contacts": [
+      {
+        "far_error": 0.0,
+        "frame": "side-held",
+        "held": true,
+        "near_error": 2.3466169834137,
+        "phase": 0.6
+      },
+      {
+        "far_error": 0.0,
+        "frame": "side-held",
+        "held": true,
+        "near_error": 2.3466169834137,
+        "phase": 0.6
+      },
+      {
+        "far_error": 0.0,
+        "frame": "side-queued",
+        "held": false,
+        "near_error": 2.49800276756287,
+        "phase": 0.666666666666667
+      },
+      {
+        "far_error": 0.0,
+        "frame": "side-queued",
+        "held": false,
+        "near_error": 2.49800276756287,
+        "phase": 0.666666666666667
+      },
+      {
+        "far_error": 1.40606212615967,
+        "frame": "side-lowering",
+        "held": false,
+        "near_error": 1.52690148353577,
+        "phase": 0.866666666666667
+      },
+      {
+        "far_error": 1.40606212615967,
+        "frame": "side-lowering",
+        "held": false,
+        "near_error": 1.52690148353577,
+        "phase": 0.866666666666667
+      },
+      {
+        "far_error": 19.3337364196777,
+        "frame": "alternate-queued",
+        "held": false,
+        "near_error": 8.33907985687256,
+        "phase": 0.666666666666667
+      },
+      {
+        "far_error": 19.3337364196777,
+        "frame": "repaired",
+        "held": false,
+        "near_error": 8.33907985687256,
+        "phase": 0.666666666666667
+      }
+    ],
+    "failures": [],
+    "frames": [
+      "before",
+      "blocked",
+      "side-held",
+      "side-queued",
+      "side-lowering",
+      "alternate-queued",
+      "repaired",
+      "resumed-carried-plate"
+    ],
+    "navigation_active": true,
+    "player_save_used": false,
+    "save_calls": 1,
+    "source_commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
+    "synthetic": true
+  },
+  "persisted_profile_json_files": [],
+  "published": false,
+  "original_saves_accessed": false,
+  "warnings": [
+    "OS root certificate store unavailable in private profile; no network use",
+    "ObjectDB instances at fixture shutdown; no retained-memory acceptance claim"
+  ],
+  "final_fixture_sha256": "026c6f76942687a1d876e42e6e6f336cff4a45234e0bdaef51901fd01a1a887c",
+  "native_final_resume": "existing navigation adapter; no chef position/path/destination override",
+  "profile_files": [],
+  "independent_review": "sink_source_review accepted final source/scenario: no explicit chef reposition;32checks/8frames; qualified scope only"
+}

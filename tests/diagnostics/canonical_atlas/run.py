@@ -1,6 +1,6 @@
 """Exact reviewed candidate-art parity; immutable original control; never write a manifest."""
 import argparse,hashlib,json,os,pathlib,shutil,subprocess,tempfile
-from ellipsis_policy import expected_for,verify_proposal
+from sink_policy import expected_for,verify_proposal
 HERE=pathlib.Path(__file__).resolve().parent
 EXPECTED_RGBA=['31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732','6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc','d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7']
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -27,11 +27,13 @@ def main():
  declaration=json.loads((HERE/'changed-art-declaration.json').read_text());closure=json.loads((HERE/'producer-closure.json').read_text())
  assert sha(HERE/'producer-closure.json')==declaration['closure_packet_sha256']
  assert sha(HERE/'renderer-review.md')==declaration['renderer_review_sha256']
+ assert declaration['source_bundle']=={'path':'sink-source.bundle','sha256':'a5d7f166ba2b6c1451d7d25082f262da5ece088336b8c9116f0e5df4e6b9ef92','prerequisite':'cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5'}
+ assert sha(HERE/'sink-source.bundle')==declaration['source_bundle']['sha256']==closure['bundle_sha256']
  root=pathlib.Path.cwd();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True);assert git('rev-parse','HEAD')==a.expected_head
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  packages=subprocess.run(['dpkg-query','-W','libgl1-mesa-dri','libglx-mesa0','libllvm20','xvfb'],capture_output=True,text=True);(out/'packages.txt').write_text(packages.stdout+packages.stderr)
- binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','ellipsis_policy.py','check_source_png.gd','changed-art-declaration.json','producer-closure.json','renderer-review.md']},'reference_run':38084165321,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'PR125 exact ellipsis source successor; candidate pixels unchanged; original control reused'}
+ binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','sink_policy.py','check_source_png.gd','changed-art-declaration.json','producer-closure.json','renderer-review.md','sink-source.bundle','sink-composition-review.json']},'reference_run':38086111635,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'Exact combined sink-routing source; unchanged declared pixels; checksum-bound source bundle; original control reused'}
  def save():(out/'summary.json').write_text(json.dumps(binding,indent=2))
  save();assert binding['godot_member_sha256']=='f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3'
  assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
@@ -49,7 +51,11 @@ def main():
    assert len(saved['rows'])==3 and not saved['failures'] and all(row['passed'] and row['imported_rgba']==row['regenerated_rgba']==EXPECTED_RGBA[i] for i,row in enumerate(saved['rows']))
    binding['rows'].append({'label':label,**item,'passed':True,'reused_verified_control':reference,'receipt_sha256':sha(dest/'atlas-parity.json'),'regenerated_rgba':receipt['baseline_sha256'],'imported_rgba':receipt['candidate_sha256']});save();continue
   with tempfile.TemporaryDirectory(prefix='tena-atlas-saveguard-') as temp:
-   work=pathlib.Path(temp)/'source';subprocess.run(['git','fetch','--no-tags','origin',item['commit']],check=True);subprocess.run(['git','worktree','add','--detach',str(work),item['commit']],check=True)
+   work=pathlib.Path(temp)/'source'
+   subprocess.run(['git','fetch','--no-tags','origin',declaration['source_bundle']['prerequisite']],check=True)
+   subprocess.run(['git','bundle','verify',str(HERE/'sink-source.bundle')],check=True)
+   subprocess.run(['git','fetch',str(HERE/'sink-source.bundle'),'HEAD'],check=True)
+   subprocess.run(['git','worktree','add','--detach',str(work),item['commit']],check=True)
    try:
     assert git('-C',str(work),'rev-parse','HEAD^{tree}')==item['tree']
     proposal_check=verify_proposal(work,item,declaration,closure)

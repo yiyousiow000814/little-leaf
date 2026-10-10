@@ -1,12 +1,12 @@
 {
-  "scope": "PR125 exact ellipsis-token successor; qualified candidate pixels and original control unchanged",
+  "scope": "Exact frozen sink-routing combined source; checksum-bound source bundle; candidate pixels fixed",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
-    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
+    "commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
+    "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486"
   },
   "reuse_control": {
     "run": 38066367866,

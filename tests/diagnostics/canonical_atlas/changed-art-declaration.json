@@ -1,11 +1,11 @@
 {
   "source": {
-    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
-    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
+    "commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
+    "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486"
   },
   "proposal": {
-    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
-    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
+    "commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
+    "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486"
   },
   "artifact": {
     "origin_run": 38079947249,
@@ -18,7 +18,12 @@
       3244
     ]
   },
-  "closure_packet_sha256": "440a2ddc5cc747915e9e89a62d59b53d3e607da74c71c53f14ad11f410f94b32",
+  "closure_packet_sha256": "ee790ce0d14d8d1470317931a577b65cd1fb12e1c3544fc4f648b60673eecb42",
   "renderer_review_sha256": "fd8b44d19cc56453fb1388ef478c3734977af671b2f5db658a8e6257cba562b0",
-  "authorization": "Parent requested one exact ellipsis-source qualification; reviewed candidate assets unchanged"
+  "authorization": "Parent authorized exact combined sink qualification; reviewed32 native checks; no product publication/activation",
+  "source_bundle": {
+    "path": "sink-source.bundle",
+    "sha256": "a5d7f166ba2b6c1451d7d25082f262da5ece088336b8c9116f0e5df4e6b9ef92",
+    "prerequisite": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5"
+  }
 }
