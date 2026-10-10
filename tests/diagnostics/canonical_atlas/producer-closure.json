@@ -507,7 +507,7 @@
     },
     "tests/run_integration_candidate.py": {
       "git_blob": "324f89b9b2c0f86c3ce482de5810a1eca4e3fbcf",
-      "sha256": "8db2e1c040db00493cb96b759a744c8ed9596ae84cea24199c0cd2a8273937ca"
+      "sha256": "15d6d469718e58220c61d199daf410e2145ec875ed6277aa17fcaa0bd4f7dd7e"
     },
     "tests/test_direct_janitor_cleanup.gd": {
       "git_blob": "be72eda714c02012bd0193d86e8feb3ddaa98cee",
