@@ -1,6 +1,6 @@
 # Working on Little Leaf
 
-Read the [canonical roadmap](docs/roadmap.md) for product scope, current ownership and acceptance gates, then the [developer guide](docs/README.md) for detailed commands and references. During the roadmap migration, follow its stated authority gate; historical contracts are evidence, not current completion status.
+Read the [canonical roadmap](docs/roadmap.md), the single current editing plan, for product scope, ownership and acceptance gates, then the [developer guide](docs/README.md) for detailed commands and references. Read the roadmap's current-state section before dated historical contracts; those contracts are evidence, not current completion status.
 
 ## Run and verify
 
