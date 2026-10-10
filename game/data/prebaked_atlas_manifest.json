@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "source 9b9205df4c21eb9fee020f3a60a05a7af3da3b82 treefdf95787779a03f7032155790a5731debaf64529; canonical run38069841730 QAb0a82349a7c373f7d705510f0f6a17302981d772; receipt SHA256 24222be1ce393c56ff99428e9b8fae67c8c978edd90b60deb89ec405929e02b3; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; regenerated/imported and decoded PNG exact RGBA equality; qualified d291 control reused from run38066367866",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR161 source35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d/treeec2587e7187156c8219bed2e121af8871548cfd5; QA26c1235446aae61de97c9c7b3d85635fc0e61872; run38096165720; receiptSHA256 0c57d1bf8e7d90c29bf1785d509c39cec83f1f05f29b3bca3cbf5a8543ace816; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact; checksum-bound sourcebundle and immutable original control; candidate assets unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -45,7 +45,7 @@
     "scripts/cafe_interaction.gd": "d7bc815f1c6490162818ac95f39cf5d445e5c8b890ade913f98536068cd44bbc",
     "scripts/cafe_intro.gd": "0fbe17ba5ad1966a73800f0dc92b7f15d42a11badb4ef5ec8a02d8df2f5f558e",
     "scripts/cafe_layout_access.gd": "e0c53e55e9def00f3a5d999dd125919de5a0ea0db29f59fb441b34019d3b515e",
-    "scripts/cafe_model.gd": "7f7c076e2bdca65db28b79b652c63424398e86239cf306ee1c4bb75fa6164fc3",
+    "scripts/cafe_model.gd": "241afa0c621a01f726533f4b6990a8491507b52f0c0063445ee8802b9e37e042",
     "scripts/cafe_money.gd": "f761e55482aaab78857a0845afa6f4716209d95a32d4b282143740e7b58bce9f",
     "scripts/cafe_native_draw_node.gd": "dd82964336374d1f86be67e5642c2b490516f70b2a73dc034a525a45aeeb6466",
     "scripts/cafe_outside_queue.gd": "1e1b701991917fff07c5e5e909b0212ecea2d26d202ed6cdf9d56cc86c8665f4",
@@ -110,8 +110,8 @@
     "scripts/illustrated_walls.gd": "9206557f5b7f69803555222a6a4ed8f055c504d102adea34737ad5e87dcd48bc",
     "scripts/kitchen_worktop_geometry.gd": "ca13bc08841e7e5f91962a78a05146ea8c491524b2e520951b8502f6c03595e1",
     "scripts/lamp_art.gd": "100dea0f191efe37c76611f5c56ec74071e82495063bdf76e1f94ff83e7de621",
-    "scripts/main.gd": "2a45efa63c7275464ac03800130c02526470d3e8b38099751c7abc7c66738d8f",
-    "scripts/minimal_start.gd": "c767f7a12871028245e586b90309fa1919ef9eb4fb66610a0a6b34a2653d5542",
+    "scripts/main.gd": "5aad0463cc2ebd757ae9226ebd457e1adf90462a254c83bf8b3c9d2cac4ee96f",
+    "scripts/minimal_start.gd": "cd03b336b0add2338d289d68e1816dae4966759ba17b308677f4573c5e41ee6b",
     "scripts/moving_art_atlas.gd": "8bc0d47a07f28fbcd73b3aabce12f875cf4e904d51f3c5db6d3344caa7630c3e",
     "scripts/moving_art_painter.gd": "2c94b505d02250c759f4734824285ffac46f3b46ec4cae0a6b3e80f1ba1ce2c0",
     "scripts/ordered_pocket_triangles.gd": "17307f8b2ecf843aa0fd25be002ae243b5240e76f80807097e4257cfd853b448",

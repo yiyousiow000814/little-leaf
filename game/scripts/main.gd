@@ -1331,7 +1331,7 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 	staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
 	for item in model.items:
 		if item.kind==step.kind:staff.blocked_target_id=int(item.id);break
-	staff.blocked_reason="Add the included trash bin in Decorate" if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
+	staff.blocked_reason=("Add the included trash bin in Decorate" if model.included_bin_pending else "Buy a trash bin in Decorate") if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
 
 func _guest_waiting_for_meal(record:Dictionary)->bool:
 	var guest:Dictionary=record.get("guest",{})
