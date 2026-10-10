@@ -259,12 +259,16 @@ func _validated_state(state:Dictionary,source_version:int)->Dictionary:
 			if not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
 	return {"ok":true,"state":state}
 
-func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={})->Dictionary:
+func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},reception_raw=null,allow_reception_review:bool=false)->Dictionary:
 	error=""
+	if not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime capability")
+	if SaveContract.foreign_runtime_fields(raw):return _fail("Foreign runtime capability")
+	if not allow_reception_review and reception_raw!=null:return _fail("Reception requires its explicit capability")
+	if allow_reception_review and (source_version!=SaveContract.RECEPTION_REVIEW_VERSION or reception_raw==null):return _fail("Reception runtime requires version18 and its ledger")
 	var state=decode(raw)
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
-	if not SaveContract.accepts_version(source_version):return _fail("Unsupported runtime source version")
+	if not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime source version")
 	if SaveContract.has_layout_motion(source_version):
 		if state.get("layout_motion_format")!=SaveContract.LAYOUT_MOTION_FORMAT:return _fail("Invalid layout motion runtime format")
 	elif state.has("layout_motion_format"):return _fail("Legacy runtime contains layout motion format")
@@ -369,7 +373,24 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	if source_version<6:
 		for staff in service.staff:
 			if staff is Dictionary and staff.get("role")=="barista":staff.role="waiter"
-	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,guests,self)
+	# Floor footsteps can belong to indoor reception without creating meal jobs.
+	# Full reception geometry/ownership is validated by the model before commit.
+	var floor_guests=guests.duplicate()
+	if reception_raw!=null:
+		if source_version!=SaveContract.RECEPTION_REVIEW_VERSION or not allow_reception_review:return _fail("Legacy runtime contains reception walkers")
+		var waiting=decode(reception_raw)
+		if error!="" or not waiting is Dictionary or waiting.get("format")!=SaveContract.RECEPTION_FORMAT or not waiting.get("visitors") is Array or waiting.visitors.size()>6:return _fail("Invalid reception walking source")
+		if waiting.format==SaveContract.RECEPTION_FORMAT and (not waiting.get("departures") is Array or waiting.departures.size()>60):return _fail("Invalid departing walking source")
+		for visitor in waiting.visitors:
+			if not visitor is Dictionary or not _integer(visitor.get("id"),1,int(state.next_customer_id)-1) or floor_guests.has(int(visitor.id)):return _fail("Invalid reception walking identity")
+			floor_guests[int(visitor.id)]={"id":int(visitor.id)} # Never grant legacy street provenance to unvalidated reception.
+		var body_ids={}
+		for body in waiting.get("departures",[]):
+			if not body is Dictionary or not _integer(body.get("id"),1,int(state.next_customer_id)-1) or body_ids.has(int(body.id)):return _fail("Invalid departing walking identity")
+			body_ids[int(body.id)]=true
+			if floor_guests.has(int(body.id)) and (not guests.has(int(body.id)) or guests[int(body.id)].phase not in ["dirty","cleaning"]):return _fail("Departing walker duplicates live actor")
+			floor_guests[int(body.id)]={"id":int(body.id)} # Native departure validation still required.
+	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,floor_guests,self,126 if source_version==SaveContract.RECEPTION_REVIEW_VERSION and allow_reception_review else 60)
 	if not floor_checked.ok:return _fail(floor_checked.error)
 	var records={};var roles={};var tokens={};var counter_slots={}
 	for record in service.records:

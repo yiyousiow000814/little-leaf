@@ -329,12 +329,14 @@ func _update_street_pedestrians(delta:float):
 	if game.compact_ui!=null and game.compact_ui.viewport_too_small:active=false
 	var step=delta if active else 0.0
 	var queue_positions=[]
-	for visitor in game.model.outside_queue:
-		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
+	for visitor in game.model.outside_queue+_reception_visits():
+		if float(visitor.x)>-2.4 and float(visitor.x)<0:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
 	street_pedestrians.advance(step,queue_positions)
 	road_traffic.advance(step,origin,tile,render_view_rect())
 	bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
-	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
+	var bodies=_departing_bodies()
+	var moving=game.model.customers.filter(func(g):return not bodies.any(func(body):return int(body.id)==int(g.id)))
+	street_pedestrians.observe_customers(moving+bodies,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,render_view_rect())
 
 func _parking_owned()->bool:
@@ -433,8 +435,7 @@ func update_motion(delta: float):
 		seat_blends[int(guest.id)]=target if bool(guest.get("dismounting",false)) else move_toward(float(seat_blends.get(int(guest.id),0.0)),target,delta*(4.0 if target>0 else 8.0))
 		var heading:Vector2=guest.get("heading",Vector2.RIGHT)
 		if float(seat_blends[int(guest.id)])>.01 or bool(guest.get("dismounting",false)):
-			var table=game.model.get_item(int(guest.table_id))
-			if not table.is_empty():heading=Vector2(table.x+.5,table.z+.5)-position
+			heading=_guest_seat_heading(guest)
 		_update_character_facing(key,heading)
 	for i in range(game.staff_states.size()):
 		var staff=game.staff_states[i]
@@ -535,7 +536,7 @@ func _guest_seated_offset(guest:Dictionary,position:Vector2)->Vector2:
 func _render_position(key:String,position:Vector2) -> Vector2:
 	if stance_offsets.has(key):return position+stance_offsets[key]
 	if is_instance_valid(game) and key.begins_with("guest_"):
-		for guest in game.model.customers:
+		for guest in _indoor_guest_entries():
 			if key=="guest_%s"%guest.id and bool(guest.get("seated",false)):return position+_guest_seated_offset(guest,position)
 	return position
 
@@ -1000,7 +1001,7 @@ func _draw():
 		if entry.kind in ["chair","bench"]:
 			var r=_chair_rotation(entry)
 			entities.append({"depth":item_depth+(.38 if r in [0,3] else -.38),"type":"chair_back","entry":entry,"rot":r,"meal_offset":meal_offset})
-	for guest in game.model.customers:
+	for guest in _indoor_guest_entries():
 		if not show_service:break
 		var render_pos=_render_position("guest_%s"%guest.id,Vector2(float(guest.x),float(guest.z)))
 		if float(guest.x)>=0 and float(guest.z)>=0 and not str(guest.phase) in ["dirty","cleaning"]:
@@ -1089,8 +1090,7 @@ func _draw():
 			if e.type=="guest":
 				direction=d.get("heading",Vector2.ZERO)
 				if seated and not bool(d.get("dismounting",false)):
-					var table=game.model.get_item(int(d.table_id))
-					direction=Vector2(float(table.x)+.5,float(table.z)+.5)-Vector2(float(d.x),float(d.z))
+					direction=_guest_seat_heading(d)
 			else:direction=_staff_visual_heading(d,pose)
 			if e.type=="guest" and moving and not seated and str(d.phase) not in ["checkout_wait","paying"]:direction=pose.heading
 			var facing=character_facings.get(key,{"back":direction.x+direction.y<0,"mirror":-1.0 if direction.x-direction.y<-.01 else 1.0})
@@ -1121,7 +1121,7 @@ func _draw():
 				var register=game.model.get_item(int(d.get("checkout_register_id",-1)))
 				if not register.is_empty():target=Vector2(register.x+.5,register.z+.5)
 			elif seated and not bool(d.get("dismounting",false)):
-				var table=game.model.get_item(int(d.table_id));target=Vector2(table.x+.5,table.z+.5)
+				target=_guest_table_target(d)
 			if target!=Vector2.ZERO:
 				var unit_scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
 				var ground=(iso(target.x,target.y)-p)/unit_scale
@@ -1862,9 +1862,10 @@ func _doorway():
 func _chair_rotation(entry) -> int:
 	# Occupied chairs face the table they actually serve; other placed chairs
 	# retain their independently editable four-way orientation.
-	for guest in game.model.customers:
+	for guest in game.model.customers+_reception_visits():
 		if int(guest.chair_id)==int(entry.id) and (bool(guest.get("seated",false)) or float(seat_blends.get(int(guest.id),0))>.01):
 			var table=game.model.get_item(int(guest.table_id))
+			if table.is_empty():return int(entry.rot)%4
 			var d=Vector2i(int(table.x-entry.x),int(table.z-entry.z))
 			if d.y<0: return 0
 			if d.x<0: return 3
@@ -2315,3 +2316,33 @@ func _paint_character_body_part(part: String, species: int, cloth: String, staff
 
 func draw_scaled_contours(mesh:ArrayMesh,ground:Vector2,scale:float):
 	_submit_native_world_shape(&"scaled_contours",[mesh,scale],canvas_stream.transform*Transform2D(0,ground))
+
+func _departing_bodies()->Array:
+	var bodies=game.model.get("departing_bodies")
+	return bodies if bodies is Array else []
+
+
+func _reception_visits()->Array:
+	# The current artist also renders genuine pre-reception fixture models.
+	var visitors=game.model.get("reception_visits")
+	return visitors if visitors is Array else []
+
+
+func _indoor_guest_entries()->Array:
+	return game.model.customers+_reception_visits()+_departing_bodies()
+
+
+func _guest_table_target(guest:Dictionary)->Vector2:
+	var table=game.model.get_item(int(guest.get("table_id",-1)))
+	return Vector2.ZERO if table.is_empty() else Vector2(table.x+.5,table.z+.5)
+
+
+func _guest_seat_heading(guest:Dictionary)->Vector2:
+	# Reception chairs are intentionally unpaired. Face their own rotation;
+	# they have no tabletop to look/reach toward and create no meal pose.
+	var target=_guest_table_target(guest)
+	if target!=Vector2.ZERO:return target-Vector2(float(guest.x),float(guest.z))
+	var chair=game.model.get_item(int(guest.get("chair_id",-1)))
+	if not chair.is_empty():return Vector2.UP.rotated(posmod(int(chair.rot),4)*PI/2)
+	return guest.get("heading",Vector2.RIGHT)
+
