@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+from project_layout import source_path
 
 
 def sha256(path):
@@ -20,7 +21,7 @@ def validate_web_gate(build, commit, tree, local_tools=False, *, source_root):
     if not manifest.get("production_sha256"):
         raise RuntimeError("Existing production source hashes are required")
     for name, digest in manifest["production_sha256"].items():
-        if sha256(source_root / name) != digest or sha256(build / "project" / name) != digest:
+        if sha256(source_path(source_root, name)) != digest or sha256(build / "project" / name) != digest:
             raise RuntimeError("Source changed after existing Web gate: " + name)
     html = (build / "web/index.html").read_text(encoding="utf-8")
     if "https://sdk.crazygames.com/crazygames-sdk-v3.js" in html:

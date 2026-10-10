@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {create}=require('../web/little_leaf_update');
+const {create}=require('../platform/web/little_leaf_update');
 function setup(initial='0.1.10a'){
  let target={schema_version:1,version:initial,source_commit:'a'.repeat(40)},count=0,checks=0,reloads=0,offline=false,canReload=true,gate={ok:true,cloudConfirmed:true,profileId:'cafe',revision:2,updateToken:'token'};
  const seen=new Map();

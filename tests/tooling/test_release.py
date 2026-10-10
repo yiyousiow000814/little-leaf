@@ -14,6 +14,7 @@ import subprocess
 from types import SimpleNamespace
 from publish_itch import check_previous, completed, parse_result, verify_artifact
 from release_metadata import version, require_main_ancestor, release_key
+from project_layout import game_root
 
 SHA = "a" * 40
 
@@ -101,11 +102,11 @@ class MetadataTests(unittest.TestCase):
 
 class ReleaseNotesContractTests(unittest.TestCase):
     """Guard the checked-in draft contract without adding CI dependencies."""
-    root = Path(__file__).resolve().parents[2]
+    root = game_root(Path(__file__).resolve().parents[2])
 
     def test_checked_in_document_uses_declared_schema_fields_and_status(self):
-        notes = json.loads((self.root / "data/release_notes.json").read_text())
-        schema = json.loads((self.root / "data/release_notes.schema.json").read_text())
+        notes = json.loads((self.root / "data/release_notes.json").read_text(encoding="utf-8"))
+        schema = json.loads((self.root / "data/release_notes.schema.json").read_text(encoding="utf-8"))
         self.assertFalse(schema["additionalProperties"])
         self.assertTrue(set(schema["required"]).issubset(notes))
         self.assertTrue(set(notes).issubset(schema["properties"]))
@@ -121,7 +122,7 @@ class ReleaseNotesContractTests(unittest.TestCase):
 
     def test_hotfix_keeps_exact_major_update_history(self):
         import hashlib
-        notes=json.loads((self.root / "data/release_notes.json").read_text())
+        notes=json.loads((self.root / "data/release_notes.json").read_text(encoding="utf-8"))
         self.assertEqual(notes["version"],"0.1.10a")
         self.assertEqual(len(notes["history"]),1)
         previous=notes["history"][0]
@@ -129,7 +130,7 @@ class ReleaseNotesContractTests(unittest.TestCase):
         self.assertNotIn("history",previous)
         digest=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
         self.assertEqual(digest,"97d1d9f9ae3d93c809476611d5cc26d57782f12a44fa37cc46cb875158e1348d")
-        schema=json.loads((self.root / "data/release_notes.schema.json").read_text())
+        schema=json.loads((self.root / "data/release_notes.schema.json").read_text(encoding="utf-8"))
         self.assertNotIn("history",schema["$defs"]["historicalRelease"]["properties"])
 
     def test_draft_with_populated_review_metadata_is_never_publishable(self):
@@ -298,13 +299,13 @@ class DistributionNoticeTests(unittest.TestCase):
     def test_notice_is_in_export_and_hash_bound(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            path = root / "docs/third-party/GODOT-AA-LICENSE.txt"
+            path = root / "docs/art-audio/third-party/GODOT-AA-LICENSE.txt"
             path.parent.mkdir(parents=True)
             path.write_text("Synthetic notice fixture")
             web = root / "web"
             web.mkdir()
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            source = "docs/third-party/GODOT-AA-LICENSE.txt"
+            source = "docs/art-audio/third-party/GODOT-AA-LICENSE.txt"
             result = copy_notices(root, web, {source: digest})
             self.assertEqual((web / "GODOT-AA-LICENSE.txt").read_bytes(), path.read_bytes())
             self.assertEqual(result[source]["sha256"], digest)

@@ -29,7 +29,7 @@ is not a browser pass, music identification, listening test or visual acceptance
    the reusable `build-web.yml` reference and artifact name bind the actual built
    SHA. The requested checkout may have a different SHA only when the complete
    Git trees (including build/test inputs) match. Both identities are retained.
-   `ci/reuse_welcome_web.py` checks the successful run, successful attempt,
+   `tools/reuse_welcome_web.py` checks the successful run, successful attempt,
    ordinary-Web artifact ID/name, expiry, exact manifest commit, entire production
    hash map and packed file sizes/SHA-256 before opening a browser. The pinned
    download action selects the validated artifact ID directly. Missing or

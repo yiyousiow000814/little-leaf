@@ -26,5 +26,5 @@ func run():
  for tick in range(100):game._tick_live_service(.05);game.advance()
  check(game.model.total_cleaned==cleaned+1 and game.model.served==served and game.model.total_earned==earned,"repeated ticks never duplicate cleaning or payment")
  var report={"checks":checks,"failures":failures,"normal_saves_suppressed":game.save_writes_suppressed,"test":"actual model cleaning-phase gate and staff simulation"}
- FileAccess.open("res://docs/role-boundaries/release-results.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
+ FileAccess.open("res://docs/testing/role-boundaries/release-results.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
  print("ROLE_RELEASE_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)

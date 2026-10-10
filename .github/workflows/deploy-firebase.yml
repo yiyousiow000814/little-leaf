@@ -95,7 +95,7 @@ jobs:
             python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_preview.py' -v
             preview_args=(--itch-preview)
           fi
-          python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only "${preview_args[@]}"
+          python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only "${preview_args[@]}"
       - name: Obtain a short-lived Hosting-only token after all package checks
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -112,12 +112,12 @@ jobs:
         if: env.DEPLOYMENT_MODE == 'live'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json"
+        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json"
       - name: Publish only the approved one-day itch preview without Auth synchronization
         if: env.DEPLOYMENT_MODE == 'itch-preview'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --itch-preview
+        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --itch-preview
       - name: Retain deployment and rollback receipt without credentials
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -167,7 +167,7 @@ jobs:
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11662670060 > "$RUNNER_TEMP/base-artifact.json"
           python - <<'PY'
           import json, os, pathlib, sys
-          sys.path.insert(0, 'ci')
+          sys.path.insert(0, 'tools')
           from update_auth_preview import recipe
           p = recipe(); folder = pathlib.Path(os.environ['RUNNER_TEMP'])
           run = json.loads((folder/'base-run.json').read_text()); artifact = json.loads((folder/'base-artifact.json').read_text())
@@ -194,10 +194,10 @@ jobs:
           digest-mismatch: error
       - name: Verify qualified base and reconstruct only the exact reviewed ZIPs
         run: |
-          python ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/qualified-base" --sha 1d7b7b5f12cced3d682cb37ecd0957e2585f19d0 --manifest-sha256 79ec16fe11ff9ccee09902194b00be135fce51ab651a9caa6d7767d41a19daa9 --output "$RUNNER_TEMP/unused.json" --verify-only --itch-preview
-          python ci/update_auth_preview.py --stage "$RUNNER_TEMP/qualified-base" --output "$RUNNER_TEMP/auth-pause-packets"
+          python tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/qualified-base" --sha 1d7b7b5f12cced3d682cb37ecd0957e2585f19d0 --manifest-sha256 79ec16fe11ff9ccee09902194b00be135fce51ab651a9caa6d7767d41a19daa9 --output "$RUNNER_TEMP/unused.json" --verify-only --itch-preview
+          python tools/update_auth_preview.py --stage "$RUNNER_TEMP/qualified-base" --output "$RUNNER_TEMP/auth-pause-packets"
           python -m unittest tests.tooling.test_auth_preview_update -v
-          node tests/fixtures/auth_preview_pause.js "$RUNNER_TEMP/auth-pause-packets/update/public/index.html" ci/auth_preview_pause/update/diagnostic-manifest.json "$RUNNER_TEMP/auth-pause-packets/update/public/little_leaf_firebase_boot.mjs"
+          node tests/fixtures/auth_preview_pause.js "$RUNNER_TEMP/auth-pause-packets/update/public/index.html" tools/auth_preview_pause/update/diagnostic-manifest.json "$RUNNER_TEMP/auth-pause-packets/update/public/little_leaf_firebase_boot.mjs"
       - name: Obtain the existing short-lived Hosting-only token after all checks
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -217,7 +217,7 @@ jobs:
         run: |
           mode=update
           if [[ "$DEPLOYMENT_MODE" == auth-pause-rollback ]]; then mode=rollback; fi
-          python ci/update_auth_preview.py --archive "$RUNNER_TEMP/auth-pause-packets/$mode.zip" --mode "$mode" --output "$RUNNER_TEMP/auth-pause-receipt/deployment.json"
+          python tools/update_auth_preview.py --archive "$RUNNER_TEMP/auth-pause-packets/$mode.zip" --mode "$mode" --output "$RUNNER_TEMP/auth-pause-receipt/deployment.json"
       - name: Retain the bounded receipt without credentials
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

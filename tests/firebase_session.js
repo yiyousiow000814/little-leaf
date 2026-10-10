@@ -2,7 +2,7 @@
 // Synthetic protocol integration; actual server rules have a separate emulator suite.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
 const root={crypto:webcrypto,TextEncoder,setTimeout,clearTimeout};root.globalThis=root;
-for(const name of ['little_leaf_vault','little_leaf_firebase','little_leaf_firebase_session'])vm.runInNewContext(fs.readFileSync(`web/${name}.js`,'utf8'),root);
+for(const name of ['little_leaf_vault','little_leaf_firebase','little_leaf_firebase_session'])vm.runInNewContext(fs.readFileSync(`platform/web/${name}.js`,'utf8'),root);
 const api=root.LittleLeafFirebase,sessionApi=root.LittleLeafFirebaseSession,codec=root.LittleLeafAuthorityCodec,payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const clone=x=>x==null?null:JSON.parse(JSON.stringify(x)),fail=code=>Object.assign(Error(code),{code});
 function environment({timeoutMs=15000}={}){

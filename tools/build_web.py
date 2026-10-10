@@ -8,12 +8,13 @@ import shutil
 import subprocess
 from release_metadata import version
 from artifacts import sha256
+from project_layout import resource_name, source_path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 PRODUCTION_DIRS = {"assets", "data", "scripts", "shaders", "web"}
 PRODUCTION_FILES = {"project.godot", "main.tscn", "export_presets.cfg"}
-REQUIRED_NOTICES = {"docs/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
+REQUIRED_NOTICES = {"docs/art-audio/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
 
 
 def copy_notices(root, web, tested_hashes):
@@ -94,16 +95,17 @@ def main():
         raise RuntimeError("Merge the required Godot AA notice before exporting a release")
     notices = copy_notices(ROOT, web, test_report.get("source_sha256", {}))
     production = {}
-    for name in files:
+    for source_name in files:
+        name = resource_name(source_name)
         if not name or not (name in PRODUCTION_FILES or Path(name).parts[0] in PRODUCTION_DIRS):
             continue
-        src, target = ROOT / name, project / name
+        src, target = source_path(ROOT, name), project / name
         if src.is_symlink():
             raise RuntimeError("Symlink production inputs require explicit review")
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, target)
         production[name] = sha256(src)
-        if test_report.get("source_sha256", {}).get(name) != production[name]:
+        if test_report.get("source_sha256", {}).get(source_name) != production[name]:
             raise RuntimeError("Test source hash differs: " + name)
     env = os.environ.copy()
     for key in ["HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:

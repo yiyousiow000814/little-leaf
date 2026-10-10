@@ -58,8 +58,8 @@ Focused offline checks:
 
 ```sh
 python -m unittest tests.tooling.test_auth_preview_update -v
-python ci/update_auth_preview.py --stage /qualified/base --output /new/disposable/packets
-node tests/fixtures/auth_preview_pause.js /new/disposable/packets/update/public/index.html ci/auth_preview_pause/update/diagnostic-manifest.json /new/disposable/packets/update/public/little_leaf_firebase_boot.mjs
+python tools/update_auth_preview.py --stage /qualified/base --output /new/disposable/packets
+node tests/fixtures/auth_preview_pause.js /new/disposable/packets/update/public/index.html tools/auth_preview_pause/update/diagnostic-manifest.json /new/disposable/packets/update/public/little_leaf_firebase_boot.mjs
 ```
 
 Retire this bounded mode when its channel expires; do not repurpose its fixed

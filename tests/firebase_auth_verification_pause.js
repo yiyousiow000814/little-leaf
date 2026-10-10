@@ -1,7 +1,8 @@
 'use strict';
 // Real boot source, synthetic Firebase Auth; every save/game boundary fails on access.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
+const {sourcePath}=require('./source_paths');
+const source=fs.readFileSync(sourcePath(process.cwd(),'web/little_leaf_firebase_boot.mjs'),'utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 const origin='https://demo--itch-embed-test-fixture.web.app';
 function fixture({restored=null,provider='google.com',popupProvider='google.com',failure=false,tokenFailure=false,noObserver=false}={}){

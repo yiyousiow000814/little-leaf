@@ -12,6 +12,22 @@ This source candidate does not replace the deployed packet or the bounded workfl
 
 ## Earlier full-game preview contract
 
+### Remaining 10a acceptance after source-layout migration
+
+PR124 retains its approved entry behavior under `platform/web`, `platform/firebase` and `tools`. Presentation inputs resolve through the shared source-layout helper, including the existing font and license. Frozen auth-only update/rollback fixtures and their recipe are unchanged; merging this source does not update the deployed preview.
+
+| Gate | Evidence and remaining action |
+| --- | --- |
+| Fresh Google authentication | User-confirmed popup success on the deployed auth-only v2; accepted for sign-in only. |
+| Auth-only isolation | Generated-page synthetic checks keep Engine, Firestore, sessions, journals, vaults and timers inaccessible; the boot promise stays pending. |
+| Authenticated source continuation | Normal boot presentation checks cover signed-out, redirect return/failure and authenticated resume. The compiled-flow synthetic Auth module must link with the real boot imports before running a new compiled gate. |
+| Cloud ownership and save protocol | Local synthetic adapter/session/choice checks cover fenced takeover, paused ownership loss, protected divergent branches and account races. They do not establish server authorization or playable UI acceptance. |
+| Server rules compatibility | Repository rules include `players/{uid}/session/owner` and fenced `saves/cafe` writes. The previously observed hosted failure was permission denied on the session document; this source update neither checks nor changes deployed rules. Compare the exact deployed contract with reviewed source, then obtain separately scoped cutover permission if a mismatch remains. |
+| Disposable compiled gameplay and cloud save | Run the source-bound compiled-flow gate against the local Firestore emulator, synthetic Google claims and a disposable profile. Verify ownership acquisition, game startup, save/readback and ownership-loss pause on the same source/export; retain the receipt. No original browser profile or save is eligible. |
+| Hosted continuation | Prepare and independently review a separately identified full-game packet with compatible server rules before requesting exact deployment/test scope. The auth-only packet must not be switched to gameplay by removing its pause flag. |
+
+The backend compatibility gate and compiled/hosted continuation remain open. There is no automatic transfer of origin-bound itch local progress, no fallback that bypasses ownership, and no cloud-game acceptance inferred from Google success.
+
 This explicit test variant displays the account game inside the itch page while its Firebase SDK, authentication and UID journal execute on an exact controlled Firebase preview origin. The shared itch wrapper receives no tokens, saves or account SDK objects. The ordinary Web shell and default top-level Firebase redirect flow remain unchanged.
 
 The preview boot uses `start(config, {surface:'trusted-itch-frame', runtimeOrigin:EXACT_PREVIEW_ORIGIN})`. The origin is baked into the reviewed own-origin HTML. Only a project preview hostname in the `itch-embed-test` channel is accepted. Its ancestor chain must be exactly, from nearest to topmost:
@@ -21,7 +37,7 @@ The preview boot uses `start(config, {surface:'trusted-itch-frame', runtimeOrigi
 
 The preview also emits `frame-ancestors` for those two origins on `/` and `/index.html`. Browsers without `location.ancestorOrigins` fail closed in this candidate; cross-browser acceptance is pending. The default mode still rejects all frames.
 
-`ci/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
+`tools/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
 
 Upload only `itch-wrapper`, to a separate private test project. Selecting local play opens the original local vault. Selecting account mode embeds the exact preview and leaves the original vault boot promise unresolved; returning to the choice requires reloading. Progress is explicitly separate, with no automatic migration. Google sign-in requires a direct click within the trusted frame and uses the existing SDK popup result/auth-state listener. A cancelled/blocked popup cannot open the account journal or replace the local vault.
 

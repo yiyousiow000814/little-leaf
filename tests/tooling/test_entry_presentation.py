@@ -12,8 +12,8 @@ from build_web import ROOT
 
 class EntryPresentationTests(unittest.TestCase):
     def test_reviewed_auth_handler_and_game_path_are_unchanged(self):
-        baseline=(ROOT/'ci/auth_preview_pause/update/public/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
-        candidate=(ROOT/'web/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
+        baseline=(ROOT/'tools/auth_preview_pause/update/public/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
+        candidate=(ROOT/'platform/web/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
         self.assertEqual(candidate.split('async function verifyAuthOnly')[0],baseline.split('async function verifyAuthOnly')[0])
         handler=lambda text:text[text.index('  button.onclick=async()=>{',text.index('async function verifyAuthOnly')):]
         self.assertEqual(handler(candidate),handler(baseline))
@@ -22,8 +22,8 @@ class EntryPresentationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             folder=Path(temporary)
             origin='https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app'
-            shell=(ROOT/'web/little_leaf_shell.html').read_text(encoding='utf-8').replace('$GODOT_URL','index.js')
-            config=json.loads((ROOT/'firebase/public-config.json').read_text())
+            shell=(ROOT/'platform/web/little_leaf_shell.html').read_text(encoding='utf-8').replace('$GODOT_URL','index.js')
+            config=json.loads((ROOT/'platform/firebase/public-config.json').read_text())
             auth=folder/'auth.html';auth.write_text(auth_verification_html(shell,config,origin),encoding='utf-8')
             manifest=folder/'manifest.json';manifest.write_text(json.dumps({'runtime_origin':origin}))
             html=auth.read_text(encoding='utf-8')

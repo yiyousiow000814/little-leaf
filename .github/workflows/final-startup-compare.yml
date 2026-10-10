@@ -33,7 +33,7 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git -C baseline rev-parse HEAD^{tree})" = 6cc904d4dfd45fadcb6d8ca5fee09b504ec96384
           test "$(git -C qa-tools rev-parse HEAD^{tree})" = e912a7f86bd9d507c7572f0a6ad2947d9e9d5902
-          python3 ci/verify_prebaked_atlases.py
+          python3 tools/verify_prebaked_atlases.py
           python3 -m unittest discover -s qa-tools/tests/startup_descent -p 'test_*.py' -v
           node qa-tools/tests/startup_descent/test_validate.js
           for root in . baseline; do
@@ -43,7 +43,7 @@ jobs:
           git diff --exit-code
           git -C baseline diff --exit-code
       - name: Install checksum-pinned official engine and Web template
-        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
       - name: Export symmetric final10a and immutable-base diagnostic controls
         env:
           EXPECTED_HEAD: ${{ github.sha }}

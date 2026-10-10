@@ -1,3 +1,4 @@
+import sys
 """Prepare, but do not launch, isolated cloud-native tutorial screenshot QA.
 
 The resulting project can be imported/run through Godot Project Manager.
@@ -13,6 +14,8 @@ import shutil
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 EXCLUDE = shutil.ignore_patterns('.git', '.godot', 'qa-project', '__pycache__',
     'build', 'builds', 'export', 'exports', 'export_templates', 'evidence', '*.zip', '*.log')
 
@@ -29,7 +32,7 @@ def main():
     project = out / 'project'
     evidence = out / 'evidence'
     evidence.mkdir()
-    shutil.copytree(ROOT, project, ignore=EXCLUDE)
+    stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
     source = subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip()
     name = 'LittleLeaf-saveguard-tutorial-' + out.name
     config = (project / 'project.godot').read_text()

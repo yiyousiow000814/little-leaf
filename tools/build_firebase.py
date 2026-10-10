@@ -3,6 +3,7 @@ import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 from build_web import ROOT, sha256
 import artifacts
+from project_layout import source_path
 
 def validate_export_inventory(build):
     return artifacts.validate_export_inventory(build / 'web')
@@ -12,9 +13,9 @@ def validate_web_gate(build, commit, tree, local_tools=False):
 
 def entry_styles():
     """Inline the existing licensed Nunito font; no new external requests."""
-    css=(ROOT/'web/little_leaf_entry.css').read_text(encoding='utf-8')
-    notice=(ROOT/'assets/fonts/Nunito-OFL.txt').read_text(encoding='utf-8')
-    return '/* '+notice+' */\n'+css.replace('$NUNITO_FONT',base64.b64encode((ROOT/'assets/fonts/Nunito-Variable.ttf').read_bytes()).decode('ascii'))
+    css=source_path(ROOT,'web/little_leaf_entry.css').read_text(encoding='utf-8')
+    notice=source_path(ROOT,'assets/fonts/Nunito-OFL.txt').read_text(encoding='utf-8')
+    return '/* '+notice+' */\n'+css.replace('$NUNITO_FONT',base64.b64encode(source_path(ROOT,'assets/fonts/Nunito-Variable.ttf').read_bytes()).decode('ascii'))
 
 def auth_verification_html(html, config, origin):
     """Derived diagnostic page: no engine, adapters, vault or preferences scripts."""
@@ -49,9 +50,9 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     marker={'schema_version':1,'source_commit':base['source_commit'],'source_tree':base['source_tree'],'ci_run_id':base['workflow_run'],'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'version':base['version'],'tag':base.get('tag','')}
     (public/'hosting-release.json').write_text(json.dumps(marker,indent=2)+'\n')
     for name in ['firebase.json','firestore.rules','firestore.indexes.json']:
-        shutil.copy2(ROOT/'firebase'/name,output/name)
+        shutil.copy2(ROOT/'platform/firebase'/name,output/name)
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
-        shutil.copy2(ROOT/'web'/name,public/name)
+        shutil.copy2(ROOT/'platform/web'/name,public/name)
     html=(public/'index.html').read_text()
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
@@ -113,8 +114,8 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
             if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
                 raise ValueError('Compiled Firebase browser/source binding mismatch')
-            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
-            if report.get('source_sha256')!={name:sha256(ROOT/name) for name in required}:
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            if report.get('source_sha256')!={name:sha256(source_path(ROOT,name)) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
             raise ValueError('Actual browser validation required: '+name)
@@ -141,7 +142,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             expected_sources={'tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/compensation_inbox_suite.js'}
             if set(report['source_sha256'])!=expected_sources:raise ValueError('Incomplete Inbox source binding')
             for relative,digest in report['source_sha256'].items():
-                if sha256(ROOT/relative)!=digest:
+                if sha256(source_path(ROOT,relative))!=digest:
                     raise ValueError('Inbox source binding mismatch')
         records[name]=sha256(path)
     for name in FOCUSED_LOGS:

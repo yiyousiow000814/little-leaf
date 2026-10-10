@@ -53,5 +53,5 @@ func _initialize():
       check(Geometry2D.is_point_in_polygon(point,PackedVector2Array(hull)) or Geometry.nearest_boundary(point,hull).distance_to(point)<.00001,"paint exceeds saved physical hull: "+piece.kind+" local="+str((point-piece.center).rotated(-piece.angle)/piece.size))
     check(shape==saved,"painting mutated saved shape")
  print(JSON.stringify({"checks":checks,"failures":failures,"max_drawing_calls_per_piece":highest_calls}))
- FileAccess.open("res://docs/litter-remnants-visibility/material-tests.json",FileAccess.WRITE).store_string(JSON.stringify({"checks":checks,"failures":failures,"max_drawing_calls_per_piece":highest_calls},"  "))
+ FileAccess.open("res://docs/testing/litter-remnants-visibility/material-tests.json",FileAccess.WRITE).store_string(JSON.stringify({"checks":checks,"failures":failures,"max_drawing_calls_per_piece":highest_calls},"  "))
  quit(0 if failures.is_empty() else 1)

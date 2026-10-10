@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath}=require('./source_paths.js');
 // Source binding only: no audio observations, browser or engine execution.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -17,7 +18,7 @@ try {
   git('init', '-q');
   const files = {'project.godot': 'synthetic source', [SERVICE_MP3]: 'synthetic hash fixture'};
   for (const [name, text] of Object.entries(files)) {
-    const file = path.join(source, name);
+    const file = sourcePath(source,name);
     fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, text);
   }
   git('add', '.'); git('commit', '-qm', 'Synthetic head H');

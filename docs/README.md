@@ -20,4 +20,4 @@ An area's `history/` preserves dated approvals, reviews, failed evidence and rec
 
 The [historical evidence directory](testing/history/README.md) links original reviews across these areas. [Source recovery records](development/history/repository-notes.md) and the [original manifest](development/history/SOURCE_MANIFEST.json) retain original hashes and paths. Commands and JSON inside historical records refer to their original repository or capture environment.
 
-Two path exceptions serve existing consumers: `third-party/` holds notices copied by builds, while `litter-remnants-visibility/` and `role-boundaries/` are existing QA output placeholders. They are not extra documentation categories. This organization does not relocate game resources, test runners or publication tools.
+Distribution notices live under `art-audio/third-party/`; the retained QA output placeholders live under `testing/litter-remnants-visibility/` and `testing/role-boundaries/`. Their build and diagnostic consumers use these category paths.

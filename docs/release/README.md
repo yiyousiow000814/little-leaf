@@ -14,7 +14,7 @@ Downloadable builds and test evidence stay in Actions for **7 days**. Keep any r
 
 ## Publish an approved version
 
-1. Update `project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
+1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
 2. Wait for **Check and build Web** to pass on the intended commit. Review the Web build in a fresh browser profile and a separate copied-save profile. Leave real player data untouched.
 3. Only after publication is approved, create and push one new tag, such as **`v0.1.6`**, at that exact reviewed commit already in `main` history. Later changes on `main` do not block this fixed tag. Never move or reuse a release tag.
 4. Watch **Release Web to itch.io**. It tests and rebuilds the tagged commit, then uploads to **`siowyiyou/little-leaf:html5`**. The summary records its source SHA, version and itch build ID.
@@ -27,7 +27,7 @@ Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` ta
 - Official Godot **4.6.3**, its non-threaded Web template, Butler **15.31.0**, and GitHub actions are pinned. Downloads are SHA-256 checked before use; an installer receipt binds the extracted engine/template hashes to those archives
 - Engine tests use disposable copies and synthetic profiles. Local `--local-tools` smoke exports are explicitly ineligible for publication. The export uses unchanged tracked game inputs and gets a packed-resource startup check
 - Each Web artifact includes source/test/file hashes in `release-manifest.json`. The publisher downloads that run's exact artifact ID and checks its digest and files
-- The required notice at `docs/third-party/GODOT-AA-LICENSE.txt` is copied to the Web artifact as `GODOT-AA-LICENSE.txt` and included in its hashes
+- The required notice at `docs/art-audio/third-party/GODOT-AA-LICENSE.txt` is copied to the Web artifact as `GODOT-AA-LICENSE.txt` and included in its hashes
 - The itch key is used only by publishing steps. Raw Butler output is suppressed, and repository permissions are read-only
 - One release runs at a time. Avoid simultaneous manual itch uploads or multiple queued release tags; GitHub keeps only one pending run by default
 

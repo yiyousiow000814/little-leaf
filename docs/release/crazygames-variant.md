@@ -14,7 +14,7 @@ The SDK adapter, platform shell, export helper and namespace-isolation tests ret
 
 ## Isolated developer preview export
 
-The ordinary CrazyGames command keeps the production adapter and shell byte-for-byte unchanged. To produce a separate playable developer preview, append `--developer-preview` to `ci/build_crazygames.py` with the usual `--validated-web-build` and `--output` arguments. The full existing Web gate must still have passed for that exact source commit/tree. Running the `CrazyGames` Godot preset directly does not select the developer namespace.
+The ordinary CrazyGames command keeps the production adapter and shell byte-for-byte unchanged. To produce a separate playable developer preview, append `--developer-preview` to `tools/build_crazygames.py` with the usual `--validated-web-build` and `--output` arguments. The full existing Web gate must still have passed for that exact source commit/tree. Running the `CrazyGames` Godot preset directly does not select the developer namespace.
 
 The flag transforms only the fresh export copy of the adapter and its embedded shell. Profile and preference keys become `little-leaf.cg.developer-preview.profile.v1` and `little-leaf.cg.developer-preview.preferences.v1`. There is no URL switch, runtime override, production-save read, migration, fallback, or reset. Preview sessions reuse their separate test progress; the original production keys remain `little-leaf.cg.profile.v1` and `little-leaf.cg.preferences.v1`. This is key isolation inside the same SDK account/game Data store, not a separate backend or separate SDK quota.
 

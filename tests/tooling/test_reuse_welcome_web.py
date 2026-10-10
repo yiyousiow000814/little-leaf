@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
-from ci.reuse_welcome_web import qualify, reuse, verify_equivalence
+from tools.reuse_welcome_web import qualify, reuse, verify_equivalence
 
 
 class ReuseWelcomeWebTests(unittest.TestCase):
@@ -62,7 +62,7 @@ class ReuseWelcomeWebTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             with patch("subprocess.check_output", side_effect=[head, json.dumps(self.run),
-                       json.dumps(self.artifact)]), patch("ci.reuse_welcome_web.verify_equivalence", return_value="d" * 40) as equivalent:
+                       json.dumps(self.artifact)]), patch("tools.reuse_welcome_web.verify_equivalence", return_value="d" * 40) as equivalent:
                 selection = reuse(self.repo, 123, 456, root, root / "output")
             equivalent.assert_called_once_with(root.resolve(), head, self.sha)
             self.assertEqual(selection["source_commit"], head)
@@ -79,7 +79,7 @@ class ReuseWelcomeWebTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             with patch("subprocess.check_output", side_effect=["b" * 40, json.dumps(self.run),
-                       json.dumps(self.artifact)]), patch("ci.reuse_welcome_web.verify_equivalence", side_effect=ValueError("changed source")), self.assertRaises(ValueError):
+                       json.dumps(self.artifact)]), patch("tools.reuse_welcome_web.verify_equivalence", side_effect=ValueError("changed source")), self.assertRaises(ValueError):
                 reuse(self.repo, 123, 456, root, root / "output")
             self.assertFalse((root / "output").exists())
 

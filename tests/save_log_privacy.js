@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '..'));
-const source = fs.readFileSync(path.join(root, 'web/little_leaf_save_log.js'), 'utf8');
+const source = fs.readFileSync(path.join(root, 'platform/web/little_leaf_save_log.js'), 'utf8');
 const report = { synthetic_only: true, scope: 'Diagnostic privacy, bounded lifetime and copy behavior', checks: [] };
 const check = (condition, name) => { assert(condition, name); report.checks.push(name); };
 function load(options = {}) {
@@ -38,13 +38,13 @@ function load(options = {}) {
     versions.setVersion(value);
     check(versions.text().startsWith('Little Leaf save log | app 0.1.10a\n'), 'Invalid version cannot replace the last valid header: ' + JSON.stringify(value));
   }
-  const projectVersion = fs.readFileSync(path.join(root, 'project.godot'), 'utf8').match(/^config\/version="([^"]+)"$/m)[1];
+  const projectVersion = fs.readFileSync(path.join(root, 'game/project.godot'), 'utf8').match(/^config\/version="([^"]+)"$/m)[1];
   versions.setVersion(projectVersion);
   check(versions.text().startsWith('Little Leaf save log | app ' + projectVersion + '\n'), 'Current project release version reaches the diagnostic header');
   const startMarker = '/* Session-only save diagnostics. No storage, payloads, raw errors or telemetry. */';
   const endMarker = '/* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */';
   for (const shell of ['little_leaf_shell.html', 'little_leaf_crazygames_shell.html']) {
-    const embedded = fs.readFileSync(path.join(root, 'web', shell), 'utf8');
+    const embedded = fs.readFileSync(path.join(root, 'platform/web', shell), 'utf8');
     const start = embedded.indexOf(startMarker), end = embedded.indexOf(endMarker, start);
     check(start >= 0 && end > start && embedded.slice(start, end).trim() === source.trim(), shell + ' embeds the exact standalone diagnostic source bytes');
   }

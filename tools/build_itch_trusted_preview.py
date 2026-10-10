@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 from build_firebase import stage, validate_export_inventory, entry_styles
 from build_web import ROOT, sha256
+from project_layout import source_path
 
 
 def wrapper_html(html, origin):
@@ -57,7 +58,7 @@ def prepare(build, output, config, origin, source, tree):
     if not inputs or base.get('packed_smoke') != 'passed' or base.get('engine_checks', 0) <= 0:
         raise ValueError('Reviewed complete engine/export provenance required')
     for name, digest in inputs.items():
-        if name != 'web/little_leaf_firebase_boot.mjs' and sha256(ROOT / name) != digest:
+        if name != 'web/little_leaf_firebase_boot.mjs' and sha256(source_path(ROOT, name)) != digest:
             raise ValueError('Reviewed engine or local-shell input changed: '+name)
     # Validates the exact origin and complete base before writing an output directory.
     stage(build, output, config, trusted_itch_origin=origin)
@@ -85,11 +86,11 @@ def prepare(build, output, config, origin, source, tree):
                                   'compared_production_inputs':len(inputs)-1,
                                   'base_test_report_sha256':base.get('test_report_sha256'),
                                   'native_checks':base.get('engine_checks'), 'native_processes':base.get('test_processes')})
-    manifest['source_sha256'] = {name:sha256(ROOT / name) for name in [
+    manifest['source_sha256'] = {name:sha256(source_path(ROOT, name)) for name in [
         'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase.js',
         'web/little_leaf_firebase_session.js', 'web/little_leaf_update.js',
         'web/little_leaf_shell.html', 'web/little_leaf_entry.css', 'assets/fonts/Nunito-Variable.ttf',
-        'assets/fonts/Nunito-OFL.txt', 'ci/build_firebase.py', 'ci/build_itch_trusted_preview.py']}
+        'assets/fonts/Nunito-OFL.txt', 'tools/build_firebase.py', 'tools/build_itch_trusted_preview.py']}
     manifest['files'] = {p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*'))
                          if p.is_file() and p != manifest_path}
     manifest_path.write_text(json.dumps(manifest, indent=2)+'\n')

@@ -42,7 +42,7 @@ function harness(html, options = {}) {
 }
 (async () => {
   for (const file of ['little_leaf_shell.html', 'little_leaf_crazygames_shell.html']) {
-    const html = fs.readFileSync(path.join(root, 'web', file), 'utf8');
+    const html = fs.readFileSync(path.join(root, 'platform/web', file), 'utf8');
     check(html.includes('background: #cce3e8;') && !html.includes('background-color: black'), file + ': branded initial background');
     check(!/#status\s*\{[^}]*visibility:\s*hidden/.test(html) && html.includes('alt="Little Leaf"'), file + ': branded loader visible before scripts');
     check(html.includes('src="$GODOT_SPLASH"') && html.includes('role="alert"') && html.includes('<noscript>'), file + ': exported art, error and no-JS fallback');
@@ -92,7 +92,7 @@ function harness(html, options = {}) {
       else check(h.events.includes('engine'), 'ordinary Web retains in-game recovery for bad ' + which);
     }
   }
-  const project = fs.readFileSync(path.join(root, 'project.godot'), 'utf8');
+  const project = fs.readFileSync(path.join(root, 'game/project.godot'), 'utf8');
   check(project.includes('boot_splash/image="res://assets/branding/little_leaf_approved_v3.png"'), 'native/export use approved source PNG');
   check(project.includes('boot_splash/minimum_display_time=0') && project.includes('boot_splash/bg_color=Color(0.8, 0.89, 0.91, 1)'), 'native splash is sky colored with no minimum delay');
   console.log(JSON.stringify({passed: true, checks, scope: 'Exact shell startup/presentation code in synthetic DOM; no real browser, native render or player storage claim.'}, null, 2));

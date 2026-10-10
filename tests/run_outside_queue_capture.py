@@ -1,3 +1,4 @@
+import sys
 """Capture exact v0.1.9 and candidate motion in isolated synthetic profiles."""
 import argparse
 import json
@@ -9,6 +10,8 @@ import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 BASE = "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401"
 
 def main():
@@ -32,7 +35,7 @@ def main():
                 with tarfile.open(archive) as source:
                     source.extractall(project, filter="data")
             else:
-                shutil.copytree(ROOT, project, dirs_exist_ok=True,
+                stage_project(ROOT, project, tests=True,
                     ignore=shutil.ignore_patterns(".git", ".godot", "qa-project", "__pycache__", "evidence", "*.log"))
             shutil.copy2(ROOT / "tests/diagnostics/capture_outside_queue.gd", project / "tests/diagnostics/capture_outside_queue.gd")
             evidence = output / label
