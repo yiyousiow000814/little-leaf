@@ -65,6 +65,8 @@
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
     const accountGuard = () => { if(closed || currentUid() !== uid) throw error('NOT_READY','Account changed. Reload to load its progress.'); };
+    const ordinaryWriteGuard=()=>{accountGuard();if(elapsedClaim||entry?.elapsedPending)throw error('ELAPSED_UNCERTAIN','The exact background intent must be reconciled before another save.');};
+    const recoveryRecord=local=>local?.elapsedPending?.record || local?.record;
     const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
     const token = doc => doc ? doc.digest : null;
     function state(value) { status(value); }
@@ -169,16 +171,16 @@
     }
     async function durableSnapshot(payload,revision,profileId){
       return serial(async()=>{
-        accountGuard();if(!entry || !bootReady || entry.record.profileId!==profileId || entry.record.revision!==revision)
+        ordinaryWriteGuard();if(!entry || !bootReady || entry.record.profileId!==profileId || entry.record.revision!==revision)
           throw error('REVISION_CONFLICT','The active save changed before it could be preserved. Keep this page open.');
-        const record=await nextRecord(entry.record,payload);accountGuard();const next={...entry,record,pending:true,device:savedDevice};
+        const record=await nextRecord(entry.record,payload);ordinaryWriteGuard();const next={...entry,record,pending:true,device:savedDevice};
         await journal.replace(uid,entry,next);accountGuard();entry=next;
         return {ok:true,durable:true,profileId,revision:record.revision};
       });
     }
     async function verifyChoiceInputs(localDigest,cloudDigest) {
       accountGuard();
-      if(!recovery || recovery.local.record.digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
+      if(!recovery || recoveryRecord(recovery.local).digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
       const local=await journal.read(uid);accountGuard();
       if(!same(local,recovery.local))throw error('REVISION_CONFLICT','This device changed in another tab. Its newer progress is preserved.');
       const cloudDocument=await remote.read(uid);accountGuard();const record=await validate(cloudDocument);accountGuard();
@@ -224,7 +226,7 @@
         if(opened) return opened;
         opened=(async()=>{ try {
           guard(); let local=await journal.read(uid); guard();
-          await validateLocal(local); guard();pendingExport=local?.pending ? local : null;
+          await validateLocal(local); guard();pendingExport=local?.pending || local?.elapsedPending ? local : null;
           await refreshBackup();guard();
           try {
             const cloud=await remote.read(uid); guard(); const record=await validate(cloud);
@@ -240,7 +242,7 @@
               }else if(token(cloud)===intent.base){
                 const next={...local,elapsedPending:null};await journal.replace(uid,local,next);local=next;
               }else{
-                pendingExport={...local,record:intent.record,pending:true};
+                pendingExport=local;
                 if(record)await previewRecovery(local,record);
                 throw error('REVISION_CONFLICT','Background confirmation differs from the current cloud save. Both exact copies are preserved.');
               }
@@ -275,14 +277,15 @@
           available:!!(allowed && recovery?.record && !recovery.blocked),busy:recoveryBusy,
           canExport:!!(allowed && (pendingExport || recoveryBackup)),
           cloudRevision:allowed ? recovery?.record?.revision ?? recoveredRevision : null,
-          pendingRevision:allowed ? (pendingExport || recoveryBackup)?.record?.revision ?? null : null,
+          pendingRevision:allowed ? recoveryRecord(pendingExport || recoveryBackup)?.revision ?? null : null,
           reason:allowed ? recovery?.blocked || backupProblem || recovery?.reason || (recoveryBackup ? 'The pending copy is protected on this device and can be exported.' : '') : 'Account changed. Reload to load its progress.',
           expectedCloudDigest:allowed ? recovery?.record?.digest || recoveredDigest || null : null,
-          expectedLocalDigest:allowed ? recovery?.local?.record?.digest || null : null,
+          expectedLocalDigest:allowed ? recoveryRecord(recovery?.local)?.digest || null : null,
           choicesAvailable:!!(allowed && recovery?.record && !choiceProblem),
           needsRuntimeSnapshot:!!(allowed && bootReady && stopped && entry),
           choiceReason:allowed ? choiceProblem || (recovery?'Two different saves are available. Choose which progress to continue. Neither will be replaced before confirmation.':'') : 'Account changed. Your current café is paused.',
-          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record.digest))] : []
+          choices:allowed && recovery?.record ? [...(recovery.local.elapsedPending?[]:[summary('local',recoveryRecord(recovery.local),recovery.local.device)]),summary('cloud',recovery.record,recordDevices.get(recovery.record.digest))] : [],
+          elapsedTrial:allowed && recovery?.local?.elapsedPending ? summary('local',recoveryRecord(recovery.local),recovery.local.device) : null
         };
       },
       async saveForUpdate(payload,revision,profileId){
@@ -317,7 +320,7 @@
           const cloud=await networkWait((async()=>{await ownership.refresh();accountGuard();ownership.assertActive();return validate(await remote.read(uid));})());accountGuard();ownership.assertActive();
           if(cloud?.digest!==ticket.digest)throw error('UPDATE_CHANGED','Synced progress changed. Keep this page open and review it.');
           return await serial(async()=>{
-            accountGuard();ownership.assertActive();const current=await journal.read(uid);accountGuard();ownership.assertActive();
+            ordinaryWriteGuard();ownership.assertActive();const current=await journal.read(uid);ordinaryWriteGuard();ownership.assertActive();
             if(updateTicket!==ticket || ticket.consumed || !same(current,entry) || entry.pending || entry.record.digest!==ticket.digest)
               throw error('UPDATE_CHANGED','This device changed after saving. Keep this page open.');
             ticket.consumed=true;ticket.readyEntry=entry;return {ok:true,profileId,revision,cloudConfirmed:true,updateToken};
@@ -326,7 +329,7 @@
       },
       canReloadUpdate(profileId,revision,token){
         try{
-          accountGuard();if(!ownership)return false;ownership.assertActive();const ticket=updateTicket;
+          ordinaryWriteGuard();if(!ownership)return false;ownership.assertActive();const ticket=updateTicket;
           const ready=!!(ticket?.consumed && ticket.token===token && ticket.profileId===profileId && ticket.revision===revision
             && ticket.readyEntry===entry && !entry.pending && entry.record.digest===ticket.digest && !updateInProgress);
           if(!ready)return false;
@@ -439,6 +442,7 @@
             return {...receipt(retry.selected),selectionToken:retry.selectionToken};
           }
           const {local,record,cloudDocument}=await verifyChoiceInputs(localDigest,cloudDigest);
+          if(local.elapsedPending&&choice==='local')throw error('ELAPSED_UNCERTAIN','An unconfirmed background trial may be exported, but cannot be uploaded under a new writer. Choose the confirmed cloud snapshot.');
           await refreshChoiceArchive();accountGuard();if(choiceProblem)throw error(choiceArchive?'RECOVERY_ARCHIVE_FULL':'RECOVERY_UNAVAILABLE',choiceProblem);
           let selected=record;
           if(choice==='local')selected=await nextRecord({...local.record,profileId:record.profileId,createdAt:record.createdAt},local.record.payload,Math.max(local.record.revision,record.revision)+1);
@@ -461,7 +465,7 @@
             await verifyChoiceInputs(operation.localDigest,operation.cloudDigest);accountGuard();
             const next={base:operation.cloudDigest,pending:operation.choice==='local',record:operation.selected,device:operation.device};
             const backup={format:'little-leaf.choice.v1',selectionToken,choice:operation.choice,local:operation.local,cloud:operation.cloud,cloudDocument:operation.cloudDocument,selected:operation.selected};
-            await serial(async()=>{const selectionGuard=()=>{accountGuard();if(ownership)ownership.assertActive();};selectionGuard();await journal.choose(uid,operation.local,next,backup,selectionGuard);selectionGuard();entry=next;operation.staged=true;});
+            await serial(async()=>{const selectionGuard=()=>{accountGuard();const fence=ownership?.assertActive();if(elapsedClaim||operation.local.elapsedPending&&(!fence||fence.writerEpoch<=operation.local.elapsedPending.writerEpoch))throw error('ELAPSED_UNCERTAIN','The original transaction must be fenced out before selecting another save.');};selectionGuard();await journal.choose(uid,operation.local,next,backup,selectionGuard);selectionGuard();entry=next;operation.staged=true;});
           }
           // Durable intent permits exact replay after a lost network response.
           stopped=false;if(operation.choice==='local')await upload();
@@ -494,10 +498,11 @@
           if(!saved) throw error(backupProblem?'RECOVERY_ARCHIVE_DAMAGED':'RECOVERY_UNAVAILABLE',backupProblem || 'There is no preserved pending copy to export.');
           await validateLocal(saved);accountGuard();
           const bundle={format:'little-leaf.firebase-recovery.v1',pendingEntry:saved};
+          if(saved.elapsedPending){bundle.baselineRecord=saved.record;bundle.elapsedTrialRecord=saved.elapsedPending.record;bundle.note='The exact trial is unconfirmed and must not be uploaded under a new epoch. Both copies are preserved.';}
           if(pending && backup && !same(pending,backup)) bundle.protectedBackup=backup;
           if(backupProblem) bundle.note='The protected backup could not be verified and remains untouched on this device.';
           const text=JSON.stringify(bundle,null,2);accountGuard();
-          return {ok:true,fileName:`little-leaf-pending-recovery-r${saved.record?.revision || 0}.json`,text};
+          return {ok:true,fileName:`little-leaf-pending-recovery-r${recoveryRecord(saved)?.revision || 0}.json`,text};
         } catch(e) { return failure(e); }
       },
       async recoverCloud(expectedCloudDigest) {
@@ -517,6 +522,8 @@
             return acceptedBoot();
           }
           const pending=recovery.local;
+          const recoveryGuard=()=>{accountGuard();const fence=ownership?.assertActive();if(elapsedClaim||pending.elapsedPending&&(!fence||fence.writerEpoch<=pending.elapsedPending.writerEpoch))throw error('ELAPSED_UNCERTAIN','The original transaction is not yet fenced out.');};
+          recoveryGuard();
           const cloud=await remote.read(uid);accountGuard();const record=await validate(cloud);accountGuard();
           if(!record) throw error('RECOVERY_MISSING','Cloud progress is missing. The pending copy has not been changed.');
           if(record.digest!==expectedCloudDigest || recovery.record?.digest!==expectedCloudDigest) {
@@ -530,8 +537,8 @@
             accountGuard();
             // The journal checks both active and backup entries, then archives
             // and replaces atomically. No remote write or local/cloud merge.
-            await journal.recover(uid,pending,next,accountGuard);
-            accountGuard();entry=next;recoveryBackup=pending;
+            recoveryGuard();await journal.recover(uid,pending,next,recoveryGuard);
+            recoveryGuard();entry=next;recoveryBackup=pending;
           });
           recoveredDigest=record.digest;recoveredRevision=record.revision;recovery=null;stopped=false;state('saved');
           const result=acceptedBoot();opened=Promise.resolve(result);return result;
