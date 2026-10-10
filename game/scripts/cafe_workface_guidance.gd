@@ -71,5 +71,5 @@ func draw_ground(art):
   if bool(floor.get(cell,{}).get("blocked",false)):continue
   var color=marker_color(marker)
   var corners=PackedVector2Array([art.iso(cell.x+.08,cell.y+.08),art.iso(cell.x+.92,cell.y+.08),art.iso(cell.x+.92,cell.y+.92),art.iso(cell.x+.08,cell.y+.92)])
-  var fill=color;fill.a=.20;art.draw_colored_polygon(corners,fill)
-  corners.append(corners[0]);art.draw_polyline(corners,color,2.0,true)
+  var fill=color;fill.a=.20;preload("res://scripts/cafe_canvas_draw.gd").draw_colored_polygon(art,corners,fill)
+  corners.append(corners[0]);preload("res://scripts/cafe_canvas_draw.gd").draw_polyline(art,corners,color,2.0,true)

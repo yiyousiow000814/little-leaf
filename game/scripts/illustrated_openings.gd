@@ -9,7 +9,7 @@ static func world(host:Dictionary,t:float)->Vector2:return host.a+(host.b-host.a
 static func p(view,host:Dictionary,t:float,h:float,offset:Vector2)->Vector2:
 	var point=world(host,t)+offset;return view.iso(point.x,point.y,h)
 static func quad(view,points:Array,color,uvs:Array=[],texture:Texture2D=null):
-	var tint=Color(color);view.draw_polygon(PackedVector2Array(points),PackedColorArray([tint,tint,tint,tint]),PackedVector2Array(uvs),texture)
+	var tint=Color(color);preload("res://scripts/cafe_canvas_draw.gd").draw_polygon(view,PackedVector2Array(points),PackedColorArray([tint,tint,tint,tint]),PackedVector2Array(uvs),texture)
 static func tinted(value,alpha:float,tint:Color)->Color:return Color(value)*Color(tint.r,tint.g,tint.b,alpha*tint.a)
 static func face(view,host:Dictionary,a:float,b:float,low:float,high:float,original_base="cfdbc2",original_panel="819874",alpha=1.0,tint=Color.WHITE):
 	if b<=a+.00001 or high<=low+.00001:return
@@ -110,7 +110,7 @@ static func casing(view,opening:Dictionary,part:String,alpha=1.0,tint=Color.WHIT
 		var left=endpoint-axis*half+near;var right=endpoint+axis*half+near
 		# Only the far reveal faces the camera. Its front casing is drawn last.
 		if part=="start":
-			for visible_face in visible_jamb_reveal(view,opening):view.draw_colored_polygon(visible_face,reveal)
+			for visible_face in visible_jamb_reveal(view,opening):preload("res://scripts/cafe_canvas_draw.gd").draw_colored_polygon(view,visible_face,reveal)
 		quad(view,[view.iso(left.x,left.y,low),view.iso(right.x,right.y,low),view.iso(right.x,right.y,high+4),view.iso(left.x,left.y,high+4)],color)
 	else:
 		var left=a-axis*half+near;var right=b+axis*half+near

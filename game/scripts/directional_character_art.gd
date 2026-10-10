@@ -138,12 +138,23 @@ var blocked=false
 var head_attention=0.0
 var waiter_tablet=WaiterTabletArt.new()
 func dot(p:Vector2,r:Vector2,c):a._face_ellipse(origin+p,r,c)
-func line(p:Vector2,q:Vector2,c,w=1.0):a.line(origin+p,origin+q,c,w)
+func line(p:Vector2,q:Vector2,c,w=1.0):
+ if a.has_method("art_local_begin") and a.use_local_character_geometry and (a.canvas_stream.active or a.native_draw_target!=null):
+  var saved=a.art_local_begin(origin)
+  a.line(p,q,c,w);a.art_local_end(saved);return
+ a.line(origin+p,origin+q,c,w)
 func shape(points:Array,c,r=2.0):
+ if a.has_method("art_local_begin") and a.use_local_character_geometry and (a.canvas_stream.active or a.native_draw_target!=null):
+  var saved=a.art_local_begin(origin)
+  a.rounded_poly(points,r,c);a.art_local_end(saved);return
  var world=[]
  for p in points:world.append(origin+p)
  a.rounded_poly(world,r,c)
-func ellipse(p:Vector2,r:Vector2,c):a.ellipse(origin+p,r,c)
+func ellipse(p:Vector2,r:Vector2,c):
+ if a.has_method("art_local_begin") and a.use_local_character_geometry and (a.canvas_stream.active or a.native_draw_target!=null):
+  var saved=a.art_local_begin(origin+p)
+  a.ellipse(Vector2.ZERO,r,c);a.art_local_end(saved);return
+ a.ellipse(origin+p,r,c)
 func paw(start:Vector2,tip:Vector2,c,width=4.7):
  var finish=start+(tip-start).normalized()*10.5
  a._round_limb(origin+start,origin+finish,c,width)
@@ -156,6 +167,9 @@ func far_overlay_paw(start:Vector2,tip:Vector2,color,width:float,species:int,hea
 func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  var axis:Vector2=axis_override if axis_override.length_squared()>.01 else (Vector2.RIGHT if profile else Vector2(1,-.48 if back else .48).normalized())
  var center=ankle+axis*1.5;var across=axis.orthogonal()
+ var saved_origin=origin
+ var local=a.has_method("art_local_begin") and a.use_local_character_geometry and (a.canvas_stream.active or a.native_draw_target!=null)
+ if local:origin+=center;center=Vector2.ZERO
  # A narrow heel and rounded toe make forward direction legible. The same
  # ground center and bounds are retained for the planted-foot controller.
  var outline=[]
@@ -169,6 +183,7 @@ func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  else:
   var vamp=center+axis*.65-Vector2(0,.55)
   line(vamp-across*1.15,vamp+across*1.15,"b1a782",.7)
+ origin=saved_origin
 func leg(hip:Vector2,ankle:Vector2,color,width:float,_seat_mix:float,_axis:Vector2):
  a._round_limb(origin+hip,origin+ankle,color,width)
 
@@ -263,32 +278,9 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   leg(far_hip,far_foot,"938b6c",3.8,seat_mix,legs.far_axis);shoe(far_foot,false,legs.far_axis)
   leg(near_hip,near_foot,"a19774",4.1,seat_mix,legs.near_axis)
  if not overlay:
-  if not back and species==1:tail(false)
-  if not back and species==0:ellipse(Vector2(-9,-13),Vector2(3.4,3.3),"f6ebce")
-  # The same intact outline also masks far-arm worktop overlays.
-  shape(ArmOcclusion.torso_points(back,profile),cloth,3.5)
-  # Three-quarter torso: shoulder line, side panel and hem all share the view.
-  if profile:
-   shape([Vector2(-5.5,-28),Vector2(-2.5,-25),Vector2(-3,-12),Vector2(-6,-11.5),Vector2(-8,-20)],Color(cloth).darkened(.075),1.8)
-   line(Vector2(-4.5,-13.4),Vector2(5.6,-13),Color(cloth).lightened(.23),.75)
-  elif back:
-   shape([Vector2(5.3,-29),Vector2(9,-23),Vector2(8.2,-11.5),Vector2(4.6,-12),Vector2(5,-23)],Color(cloth).darkened(.075),1.8)
-   line(Vector2(-6,-12),Vector2(6,-13.2),Color(cloth).lightened(.23),.75)
-  else:
-   shape([Vector2(-7.5,-28.2),Vector2(-4.8,-25),Vector2(-4,-12),Vector2(-7,-12.2),Vector2(-10,-20)],Color(cloth).darkened(.075),1.7)
-   line(Vector2(-5,-14),Vector2(7,-12.8),Color(cloth).lightened(.23),.75)
+  if not retain_body_part("torso",species,cloth,staff):draw_torso(species,cloth)
   shoe(near_foot,true,legs.near_axis)
-  if staff:
-   if back:
-    line(Vector2(-7,-18),Vector2(7,-19),"eadfc0",1.6)
-    line(Vector2(0,-19),Vector2(-2,-13),"eadfc0",1.0)
-   else:
-    shape([Vector2(-3,-25.5),Vector2(5.5,-24.5),Vector2(7,-13),Vector2(-4.5,-14)],"eee3c4",1.7)
-    line(Vector2(-3,-26),Vector2(-2,-21),"e0d6b9",1.3)
-    line(Vector2(4,-25),Vector2(4.7,-20),"e0d6b9",1.3)
-  if back:
-   if species==1:tail(true)
-   else:ellipse(Vector2(-2,-12.5),Vector2(3.7,3.6),"f6ebce")
+  if not retain_body_part("apparel",species,cloth,staff):draw_apparel(species,staff)
  if not overlay and waiter_tablet.enabled:
   waiter_tablet.draw_strap(a,origin)
   if not back:
@@ -519,3 +511,37 @@ func profile_head(species:int):
  dot(Vector2(2.5,-33.5),Vector2(1.7,1.0),Color(.81,.52,.42,.16))
 
  if chef_hat:hat(species)
+
+func draw_torso(species:int,cloth:String):
+ if not back and species==1:tail(false)
+ if not back and species==0:ellipse(Vector2(-9,-13),Vector2(3.4,3.3),"f6ebce")
+ # The same intact outline also masks far-arm worktop overlays.
+ shape(ArmOcclusion.torso_points(back,profile),cloth,3.5)
+ # Three-quarter torso: shoulder line, side panel and hem all share the view.
+ if profile:
+  shape([Vector2(-5.5,-28),Vector2(-2.5,-25),Vector2(-3,-12),Vector2(-6,-11.5),Vector2(-8,-20)],Color(cloth).darkened(.075),1.8)
+  line(Vector2(-4.5,-13.4),Vector2(5.6,-13),Color(cloth).lightened(.23),.75)
+ elif back:
+  shape([Vector2(5.3,-29),Vector2(9,-23),Vector2(8.2,-11.5),Vector2(4.6,-12),Vector2(5,-23)],Color(cloth).darkened(.075),1.8)
+  line(Vector2(-6,-12),Vector2(6,-13.2),Color(cloth).lightened(.23),.75)
+ else:
+  shape([Vector2(-7.5,-28.2),Vector2(-4.8,-25),Vector2(-4,-12),Vector2(-7,-12.2),Vector2(-10,-20)],Color(cloth).darkened(.075),1.7)
+  line(Vector2(-5,-14),Vector2(7,-12.8),Color(cloth).lightened(.23),.75)
+
+func draw_apparel(species:int,staff:bool):
+ if staff:
+  if back:
+   line(Vector2(-7,-18),Vector2(7,-19),"eadfc0",1.6)
+   line(Vector2(0,-19),Vector2(-2,-13),"eadfc0",1.0)
+  else:
+   shape([Vector2(-3,-25.5),Vector2(5.5,-24.5),Vector2(7,-13),Vector2(-4.5,-14)],"eee3c4",1.7)
+   line(Vector2(-3,-26),Vector2(-2,-21),"e0d6b9",1.3)
+   line(Vector2(4,-25),Vector2(4.7,-20),"e0d6b9",1.3)
+ if back:
+  if species==1:tail(true)
+  else:ellipse(Vector2(-2,-12.5),Vector2(3.7,3.6),"f6ebce")
+
+func retain_body_part(part:String,species:int,cloth:String,staff:bool)->bool:
+ if not a.has_method("retain_native_body_group"):return false
+ var paint=a._paint_character_body_part.bind(part,species,cloth,staff,back,profile)
+ return a.retain_native_body_group(paint,[part,species,cloth,staff,back,profile],a._art_transform.translated_local(origin))

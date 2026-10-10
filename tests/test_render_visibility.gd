@@ -20,7 +20,7 @@ class Recorder extends RefCounted:
 	func rounded_poly(points,r,color):record("rounded",Visibility.points_bounds(points),[points,r,color])
 	func ellipse(p,size,color):record("ellipse",Rect2(p-size,size*2),[p,size,color])
 	func line(a,b,color,width=1.0):record("line",Rect2(a,Vector2.ZERO).expand(b).grow(width*.5),[a,b,color,width])
-	func draw_rect(rect,color):record("rect",rect,[rect,color])
+	func draw_rect(rect,color,_filled=true,_width=-1.0,_antialiased=false):record("rect",rect,[rect,color])
 	func callback():callbacks+=1
 class BoundsArt extends "res://scripts/illustrated_cafe.gd":
 	var points=[]

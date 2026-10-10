@@ -22,7 +22,7 @@
 | Repository organization132 | Canonical roadmap, root AGENTS and organized documentation/verification merged as `cbf402fbfa118f99434e55610873ce3dc1b3950c` | Documentation coverage, navigation and scoped organization evidence remain distinct from runtime acceptance | Merged documentation establishes the editing home; it does not accept game visuals or hosted behavior | PR132 merged | No runtime release established by this organization change |
 | Staff/customer wardrobes and character foundation | Candidate wardrobe work, including[PR129](https://github.com/yiyousiow000814/little-leaf/pull/129), is separate from character-foundation completion | Local scoped tests do not establish visual acceptance | 🔴 Wardrobe visual acceptance is held until the finished3D-authored character foundation; preserve original2D isometric game presentation | No merge acceptance established | No |
 | Routing125 | 🟢439aba98 contains127; one related principal PR | Web/navigation source-bound checks reported | 🟡 Production routing/reception/codec integration remain explicit gates | Not merged | No |
-| FPS128 | 🟢 Both related optimizations exist at833e3d5 | Draw/pixel comparison reported; combined timing unmeasured | 🔴60/120FPS not accepted; **user-owned from02:45UTC**: assistants do no implementation or measurements | Not merged | No |
+| FPS128 | [PR128](https://github.com/yiyousiow000814/little-leaf/pull/128): retained-rendering closeout integrated with the current main directory layout; frame-rate helper text removed at `8251540` | 124 engine suites/start cases and 1,235,482 assertions; 192 tooling tests; 184 scene pairs and 192 moving-occlusion pairs. Latest UI change: 1,786 settings assertions and exact native atlas RGBA passed. Final remote gate result is recorded in PR128 | Clean 10a regression closeout authorized; remaining stable-60 work moves to 11. Player options 30/60; no stable-60 or phone acceptance | User authorizes merge after final gates; [merge record](https://github.com/yiyousiow000814/little-leaf/pull/128) | No |
 | Google sign-in124 /131 /133 | PR131 merged as `b93ed371e03b83a6fa1d8bd1f879c01e56856bcb`; synthetic popup-auth contract tests from PR133 merged as `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0` | Synthetic contract coverage is present; it does not establish actual hosted Google sign-in or iframe acceptance | Continue inside itch after popup sign-in; the current 10a preview and hosted flow remain unaccepted | PR131 and PR133 merged; no hosted acceptance established | No accepted 10a runtime release established here |
 | Hidden business | Unresolved; removal-only investigation with exact loaded-build/cache/source verification | Still fails the user's background-business test | User prohibits adding a timer; retain the failed observation until corrected behavior is observed | No acceptance established | No new live publication |
 | 0.1.11 local work | Bounded local implementation work is authorized; reuse existing candidate PRs and coordinate ownership | Only source-bound checks for the affected slice count; earlier independent tests do not accept a combined release | Character/wardrobe activation remains paused; routing integration and FPS ownership gates above still apply | No merge claim for new local candidates | Not shipped |
@@ -40,7 +40,7 @@ Latest explicit wardrobe hold and03:48UTC account/background-business requiremen
 
 ### 当前优先级与所有权
 
-FPS PR128由用户接手（2026-10-10 02:45 UTC）。助手停止相关实现与测量，保留交接并等待用户报告解决。历史证据中的任何后续FPS测量建议均由此覆盖。其他10a/11工作可继续。
+FPS PR128：用户最新直接指令授权本任务完成无优化回归的10a收尾；剩余稳定60工作可转11，但不能留下汽车缺色、物件消失、人物遮挡闪现等优化引入的问题。玩家仅保留30/60选项。此指令更新02:45 UTC的旧交接状态；其他任务不得自行开启竞争性FPS实验。当前验收见上表；用户现已授权完成最终检查并更新说明后合并 PR128，未授权发布。
 
 测试原则：默认选择最小、能观察到受影响行为的检查，保留重要存档完整性验证。深入诊断必须对应具体症状或假设，只启用能区分该问题的检查；深入不等于全部测试、诊断、profiler或录制全开。仅在失败、依赖交互或未解决风险确有需要时扩大范围；相关检查通过后继续任务，不作全量重复运行。
 
@@ -64,11 +64,11 @@ PR126 隐藏页：e55c6a的真实受控切换标签页、保存、重载smoke已
 
 PR124 itch账号入口：当前cd28a9c的完整CI38017916050通过；实际托管Google登录仍待验，不能以CI通过代替真实账号流程。https://github.com/yiyousiow000814/little-leaf/actions/runs/38017916050
 
-PR128 833e3d5保留两项相关优化；所有者报告1232对1394draw calls、像素一致。组合耗时未测，60/120FPS未验收；后续由用户处理。
+PR128 `8a97a45`已推送画面回归修复；当前接入main `af61a3f`的新目录结构。此前正常速度Web回归完成不跳开场、咖啡馆出现后10.5秒、26次移动/缩放与30/60菜单切换，无脚本错误；完整诊断曲线仍有低于60的区间。画面对比最大通道差异1/255；原生Linux三张atlas精确RGBA一致。迁移后192项工具测试、2,675项针对性引擎断言已通过；最终完整构建/CI尚待验证，不能把这些局部证据当作稳定60或版本发布通过。
 
 安全边界：使用合成/可丢弃存档及独立checkout；不改玩家原始存档、用户浏览器或live Firebase rules。本文不授权merge/main变化、部署或发布。保留已发布b8b80ee的清理、教程、账号与存档行为。开始代码工作前，核对实际branch/head、该checkout指引及对应PR依赖。
 
-执行交接：本便携主文档未验证某个本地checkout路径或下一位执行者联系方式。开始任何代码修改前，向对应所有者确认checkout、branch、head及正在进行的任务，避免重复。使用Godot4.6.3 GL Compatibility；先读取该checkout的tests/run_integration_candidate.py --help，再只选择与当前症状相关的已存在测试名，并使用新的绝对路径可丢弃输出。PR114音乐QA仍暂停；FPS128由用户独占；不扩展为全局暂停。
+执行交接：本便携主文档未验证某个本地checkout路径或下一位执行者联系方式。开始任何代码修改前，向对应所有者确认checkout、branch、head及正在进行的任务，避免重复。使用Godot4.6.3 GL Compatibility；先读取该checkout的tests/run_integration_candidate.py --help，再只选择与当前症状相关的已存在测试名，并使用新的绝对路径可丢弃输出。PR114音乐QA仍暂停；FPS128仅由用户当前授权的收尾任务处理；不扩展为全局暂停。
 
 <a id="original-requirements"></a>
 

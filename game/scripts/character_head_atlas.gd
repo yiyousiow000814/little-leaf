@@ -94,4 +94,4 @@ func _fail(reason:String):
 
 func draw_head(artist:Node2D,p:Vector2,species:int,away:bool,blink:bool,chef:bool,blocked:bool,view:int=-1):
 	var region:Rect2=regions[key(species,away,blink,chef,blocked,view)]
-	artist.draw_texture_rect_region(texture,Rect2(p+ART_RECT.position,ART_RECT.size),region)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+ART_RECT.position,ART_RECT.size),region)

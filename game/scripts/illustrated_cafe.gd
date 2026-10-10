@@ -1,8 +1,35 @@
 extends Node2D
+var use_retained_register=true
+var use_retained_head_nodes=true
+var use_retained_ellipse_geometry=true
+var ellipse_geometry=preload("res://scripts/cafe_ellipse_geometry.gd").new()
+var use_retained_car_geometry=true
+var car_geometry=preload("res://scripts/cafe_car_geometry.gd").new()
 const RenderVisibility=preload("res://scripts/cafe_render_visibility.gd")
 # Comparison switch; normal gameplay always culls conservatively.
 var use_screen_culling=true
 var use_idle_retention=true
+var use_retained_geometry=true
+var use_command_retention=true
+var use_native_object_nodes=true
+var native_draw_target:Node2D
+var native_command_transform=Transform2D.IDENTITY
+var native_object_nodes={}
+var native_world_shapes={}
+const WorldShape=preload("res://scripts/cafe_shape_2d.gd")
+const NativeDrawNode=preload("res://scripts/cafe_native_draw_node.gd")
+var use_local_character_geometry=true
+var rounded_contours={}
+var rounded_seen_current={}
+var rounded_seen_previous={}
+var canvas_stream=preload("res://scripts/retained_canvas_stream.gd").new()
+var retain_fills=true
+var retain_outlines=true
+var use_local_outline_geometry=true
+var use_retained_presentation=true
+var _presentation_offset=Vector2.ZERO
+var _warmup_view=Rect2()
+var retained_geometry=preload("res://scripts/retained_canvas_geometry.gd").new()
 var use_background_cache=true
 var shell_draw_cache=preload("res://scripts/cafe_shell_draw_cache.gd").new()
 var background_cache=preload("res://scripts/cafe_background_cache.gd").new()
@@ -87,6 +114,12 @@ var _art_transform := Transform2D.IDENTITY
 var _stroke_to_raster := Transform2D.IDENTITY
 var _stroke_from_raster := Transform2D.IDENTITY
 var _stroke_raster_scale := 1.0
+var _cached_outer := Transform2D.IDENTITY
+var _cached_outer_inverse := Transform2D.IDENTITY
+var _cached_outer_valid := true
+var _cached_stroke_x := Vector2.INF
+var _cached_stroke_y := Vector2.INF
+var _cached_stroke_scale := 1.0
 var ui_scale = 1.0
 const PAVEMENT_EDGE = -3.26
 const PAVEMENT_ROW_WIDTH = 1.0
@@ -106,6 +139,129 @@ var grass_mesh: ArrayMesh
 var grass_mesh_rebuilds := 0
 var _grass_opacity := -1.0
 
+
+# Explicit GDScript calls below route through retained native command slots.
+# The engine never calls these nonvirtual drawing methods on our behalf.
+func art_draw_set_transform_matrix(value:Transform2D):
+	if native_draw_target!=null:
+		native_command_transform=value
+		return
+	if canvas_stream.active:canvas_stream.transform=value
+	else:super.draw_set_transform_matrix(value)
+func art_draw_mesh(mesh:Mesh,texture:Texture2D=null,xf:Transform2D=Transform2D.IDENTITY,tint:Color=Color.WHITE):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_mesh", [mesh, texture, Transform2D.IDENTITY, tint], native_command_transform*xf)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_mesh", [mesh, texture, Transform2D.IDENTITY, tint], canvas_stream.transform*xf)
+		return
+	if not canvas_stream.active:super.draw_mesh(mesh,texture,xf,tint);return
+	var aabb: AABB = mesh.custom_aabb if mesh.has_meta("retained_dynamic") else mesh.get_aabb()
+	var bounds := xf * Rect2(Vector2(aabb.position.x, aabb.position.y), Vector2(aabb.size.x, aabb.size.y))
+	var rid = canvas_stream.command(["mesh", mesh, texture, xf, tint], bounds)
+	if rid.is_valid():RenderingServer.canvas_item_add_mesh(rid,mesh.get_rid(),xf,tint,texture.get_rid() if texture else RID())
+func art_draw_polygon(points:PackedVector2Array,colors:PackedColorArray,uvs:PackedVector2Array=PackedVector2Array(),texture:Texture2D=null):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_polygon", [points, colors, uvs, texture], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_polygon", [points, colors, uvs, texture], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_polygon(points,colors,uvs,texture);return
+	var rid=canvas_stream.command(["polygon",points,colors,uvs,texture])
+	if rid.is_valid():RenderingServer.canvas_item_add_polygon(rid,points,colors,uvs,texture.get_rid() if texture else RID())
+func art_draw_colored_polygon(points:PackedVector2Array,tint:Color,uvs:PackedVector2Array=PackedVector2Array(),texture:Texture2D=null):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_colored_polygon", [points, tint, uvs, texture], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_colored_polygon", [points, tint, uvs, texture], canvas_stream.transform)
+		return
+	art_draw_polygon(points,PackedColorArray([tint]),uvs,texture)
+func art_draw_polyline(points:PackedVector2Array,tint:Color,width:float=-1.0,antialiased:bool=false):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_polyline", [points, tint, width, antialiased], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_polyline", [points, tint, width, antialiased], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_polyline(points,tint,width,antialiased);return
+	var rid=canvas_stream.command(["polyline",points,tint,width,antialiased])
+	if rid.is_valid():RenderingServer.canvas_item_add_polyline(rid,points,PackedColorArray([tint]),width,antialiased)
+func art_draw_multiline(points:PackedVector2Array,tint:Color,width:float=-1.0,antialiased:bool=false):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_multiline", [points, tint, width, antialiased], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_multiline", [points, tint, width, antialiased], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_multiline(points,tint,width,antialiased);return
+	var rid=canvas_stream.command(["multiline",points,tint,width,antialiased])
+	if rid.is_valid():RenderingServer.canvas_item_add_multiline(rid,points,PackedColorArray([tint]),width,antialiased)
+func art_draw_line(start:Vector2,finish:Vector2,tint:Color,width:float=-1.0,antialiased:bool=false):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_line", [start, finish, tint, width, antialiased], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_line", [start, finish, tint, width, antialiased], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_line(start,finish,tint,width,antialiased);return
+	var rid=canvas_stream.command(["line",start,finish,tint,width,antialiased])
+	if rid.is_valid():RenderingServer.canvas_item_add_line(rid,start,finish,tint,width,antialiased)
+func art_draw_rect(rect:Rect2,tint:Color,filled:bool=true,width:float=-1.0,antialiased:bool=false):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_rect", [rect, tint, filled, width, antialiased], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_rect", [rect, tint, filled, width, antialiased], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_rect(rect,tint,filled,width,antialiased);return
+	if not filled:
+		for pair in [[rect.position,rect.position+Vector2(rect.size.x,0)],[rect.position+Vector2(rect.size.x,0),rect.end],[rect.end,rect.position+Vector2(0,rect.size.y)],[rect.position+Vector2(0,rect.size.y),rect.position]]:art_draw_line(pair[0],pair[1],tint,width,antialiased)
+		return
+	var rid=canvas_stream.command(["rect",rect,tint,antialiased])
+	if rid.is_valid():RenderingServer.canvas_item_add_rect(rid,rect,tint,antialiased)
+func art_draw_texture_rect_region(texture:Texture2D,rect:Rect2,source:Rect2,tint:Color=Color.WHITE,transpose:bool=false,clip_uv:bool=true):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_texture_rect_region", [texture, rect, source, tint, transpose, clip_uv], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_texture_rect_region", [texture, rect, source, tint, transpose, clip_uv], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_texture_rect_region(texture,rect,source,tint,transpose,clip_uv);return
+	var rid=canvas_stream.command(["texture",texture,rect,source,tint,transpose,clip_uv])
+	if rid.is_valid():RenderingServer.canvas_item_add_texture_rect_region(rid,rect,texture.get_rid(),source,tint,transpose,clip_uv)
+func art_draw_circle(pos:Vector2,radius:float,tint:Color,filled:bool=true,width:float=-1.0,antialiased:bool=false):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_circle", [pos, radius, tint, filled, width, antialiased], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_circle", [pos, radius, tint, filled, width, antialiased], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_circle(pos,radius,tint,filled,width,antialiased);return
+	if not filled:
+		var points=PackedVector2Array()
+		for i in range(65):points.append(pos+Vector2.from_angle(i*TAU/64)*radius)
+		art_draw_polyline(points,tint,width,antialiased);return
+	var rid=canvas_stream.command(["circle",pos,radius,tint,antialiased])
+	if rid.is_valid():RenderingServer.canvas_item_add_circle(rid,pos,radius,tint,antialiased)
+func art_draw_string(font:Font,pos:Vector2,text:String,alignment:HorizontalAlignment=HORIZONTAL_ALIGNMENT_LEFT,width:float=-1,font_size:int=16,tint:Color=Color.WHITE,justification_flags:int=3,direction:TextServer.Direction=TextServer.DIRECTION_AUTO,orientation:TextServer.Orientation=TextServer.ORIENTATION_HORIZONTAL,oversampling:float=0.0):
+	if native_draw_target!=null:
+		native_draw_target.submit_shape(&"draw_string", [font, pos, text, alignment, width, font_size, tint, justification_flags, direction, orientation, oversampling], native_command_transform)
+		return
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"draw_string", [font, pos, text, alignment, width, font_size, tint, justification_flags, direction, orientation, oversampling], canvas_stream.transform)
+		return
+	if not canvas_stream.active:super.draw_string(font,pos,text,alignment,width,font_size,tint,justification_flags,direction,orientation,oversampling);return
+	var rid=canvas_stream.command(["string",font,pos,text,alignment,width,font_size,tint,justification_flags,direction,orientation,oversampling])
+	if rid.is_valid():font.draw_string(rid,pos,text,alignment,width,font_size,tint,justification_flags,direction,orientation,oversampling)
+func draw_ordered_triangles(ordered):
+	if canvas_stream.active and use_native_object_nodes:
+		_submit_native_world_shape(&"ordered_triangles", [ordered.indices, ordered.vertices, ordered.colors], canvas_stream.transform)
+		return
+	var rid=canvas_stream.command(["triangles",ordered.indices,ordered.vertices,ordered.colors]) if canvas_stream.active else get_canvas_item()
+	if rid.is_valid():RenderingServer.canvas_item_add_triangle_array(rid,ordered.indices,ordered.vertices,ordered.colors)
+
 static func _make_unit_circle() -> PackedVector2Array:
 	var vertices = PackedVector2Array()
 	for i in range(32): vertices.append(Vector2(cos(i*TAU/32),sin(i*TAU/32)))
@@ -119,7 +275,7 @@ func _ground_cell_visible(x: float,z: float,view: Rect2) -> bool:
 	return Rect2(center-tile,tile*2).intersects(view)
 
 func _ready():
-	ground_art.use_stroke_mesh=not "--legacy-ground-strokes" in OS.get_cmdline_user_args()
+	ground_art.use_stroke_mesh="--retained-ground-strokes" in OS.get_cmdline_user_args() and not "--legacy-ground-strokes" in OS.get_cmdline_user_args()
 	use_grass_mesh=not "--legacy-grass-strokes" in OS.get_cmdline_user_args()
 	use_cached_moving_art=not "--legacy-moving-art" in OS.get_cmdline_user_args()
 	if use_cached_moving_art:moving_atlas.request(self)
@@ -136,6 +292,7 @@ func _ready():
 		if use_cached_heads:head_atlas.request(self)
 
 func _exit_tree():
+	canvas_stream.release()
 	background_cache.release()
 
 func _process(delta):
@@ -167,10 +324,10 @@ func _update_street_pedestrians(delta:float):
 	for visitor in game.model.outside_queue:
 		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
 	street_pedestrians.advance(step,queue_positions)
-	road_traffic.advance(step,origin,tile,get_viewport_rect())
-	bus_stop_pedestrians.advance(step,origin,tile,get_viewport_rect())
+	road_traffic.advance(step,origin,tile,render_view_rect())
+	bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
-	street_pedestrians.update_motion(step,origin,tile,get_viewport_rect())
+	street_pedestrians.update_motion(step,origin,tile,render_view_rect())
 
 func _parking_owned()->bool:
 	# Historical fixture controllers without parking retain the unbought lawn.
@@ -185,13 +342,13 @@ func _parking_visits()->Array:
 func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
-	var entries=street_pedestrians.entries(origin,tile,get_viewport_rect()) if show_service else []
+	var entries=street_pedestrians.entries(origin,tile,render_view_rect()) if show_service else []
 	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
 		var position=Vector2(float(guest.x),float(guest.z))
-		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(get_viewport_rect()):continue
+		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(render_view_rect()):continue
 		entries.append({"position":position,"guest":guest})
 	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
 	for entry in entries:
@@ -212,7 +369,7 @@ func _draw_street_people(show_service:bool):
 
 func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
 	if not show_people:return
-	for actor in bus_stop_pedestrians.entries(origin,tile,get_viewport_rect(),under_roof):
+	for actor in bus_stop_pedestrians.entries(origin,tile,render_view_rect(),under_roof):
 		var pose=bus_stop_pedestrians.motion.sample(actor.key)
 		var heading=pose.heading if pose.blend>.02 else actor.heading
 		var face=-1.0 if heading.x-heading.y<-.01 else 1.0
@@ -502,15 +659,30 @@ func col(c):
 # Submit strokes in raster coordinates at close zoom and during the 4x atlas bake;
 # authored centerlines, stroke widths, fill geometry and palette stay unchanged.
 func art_transform(offset:Vector2,rotation:float=0.0,scale:Vector2=Vector2.ONE):
-	_art_transform=Transform2D(rotation,scale,0.0,offset)
-	var outer=get_global_transform_with_canvas()
-	_stroke_to_raster=outer*_art_transform
-	_stroke_raster_scale=art_stroke_scale(_stroke_to_raster)
-	if is_zero_approx(outer.determinant()):
-		_stroke_from_raster=Transform2D.IDENTITY
-		_stroke_raster_scale=0.0
-	else:_stroke_from_raster=outer.affine_inverse()
-	draw_set_transform_matrix(_art_transform)
+	_set_art_matrix(Transform2D(rotation,scale,0.0,offset+_presentation_offset))
+
+func art_local_begin(offset:Vector2)->Transform2D:
+	var saved=_art_transform
+	_set_art_matrix(saved.translated_local(offset))
+	return saved
+func art_local_end(saved:Transform2D):_set_art_matrix(saved)
+func _set_art_matrix(value:Transform2D):
+	_art_transform = value
+	var outer = native_draw_target.get_global_transform_with_canvas() if native_draw_target != null else get_global_transform_with_canvas()
+	if outer != _cached_outer:
+		_cached_outer = outer
+		_cached_outer_valid = not is_zero_approx(outer.determinant())
+		_cached_outer_inverse = outer.affine_inverse() if _cached_outer_valid else Transform2D.IDENTITY
+	_stroke_to_raster = outer * value
+	# Translation cannot change a stroke's raster width. Reuse the basis
+	# calculation and outer inverse across all shapes sharing these matrices.
+	if _stroke_to_raster.x != _cached_stroke_x or _stroke_to_raster.y != _cached_stroke_y:
+		_cached_stroke_x = _stroke_to_raster.x
+		_cached_stroke_y = _stroke_to_raster.y
+		_cached_stroke_scale = art_stroke_scale(_stroke_to_raster)
+	_stroke_raster_scale = _cached_stroke_scale if _cached_outer_valid else 0.0
+	_stroke_from_raster = _cached_outer_inverse
+	art_draw_set_transform_matrix(value)
 
 static func art_stroke_scale(transform:Transform2D)->float:
 	var horizontal=transform.x.length()
@@ -521,21 +693,47 @@ static func art_stroke_scale(transform:Transform2D)->float:
 	if absf(transform.x.dot(transform.y))>horizontal*vertical*.00001:return 0.0
 	return horizontal
 
-func art_cache_covers(bounds:Rect2,bake_scale:float)->bool:
-	# Keep the bounded atlas for ordinary play and offscreen pieces. At the
-	# closest inspection zoom, draw only visible magnified pieces from their
-	# existing vector source instead of stretching a finite texture.
-	if _stroke_raster_scale<=bake_scale:return true
-	return not (_stroke_to_raster*bounds).intersects(get_viewport_rect())
+func art_cache_covers(_bounds:Rect2,bake_scale:float)->bool:
+	# Retained objects keep the same representation while the camera translates.
+	# An offscreen low-resolution shortcut otherwise survives when the unchanged
+	# object enters the viewport at the same inspection scale.
+	return _stroke_raster_scale<=bake_scale
 
+func _can_retain_geometry()->bool:
+	# Admission requires identical coordinates in consecutive frames, so moving
+	# intro geometry stays native while stable local shapes can be reused.
+	# Atlas and inspection artists keep their original rendering path.
+	return use_retained_geometry and not (use_native_object_nodes and (canvas_stream.active or native_draw_target != null)) and icon_kind=="" and is_instance_valid(game)
+func _retained_fill(points:PackedVector2Array,tint:Color):
+	var mesh=retained_geometry.fill(points,tint) if retain_fills and _can_retain_geometry() else null
+	if mesh!=null:art_draw_mesh(mesh,null,Transform2D.IDENTITY,tint)
+	else:art_draw_colored_polygon(points,tint)
+func _retained_polyline(points:PackedVector2Array,tint:Color,width:float):
+	var mesh=retained_geometry.closed_outline(points,tint,width) if retain_outlines and _can_retain_geometry() else null
+	if mesh!=null:art_draw_mesh(mesh,null,Transform2D.IDENTITY,tint)
+	else:art_draw_polyline(points,tint,width,true)
 func art_polyline(points:PackedVector2Array,tint:Color,width:float):
+	if native_draw_target!=null and native_draw_target.uses_scalable_body() and points.size()>3 and points[0].is_equal_approx(points[-1]):
+		native_draw_target.submit_shape(&"scalable_polyline",[points,tint,width],native_command_transform)
+		return
 	var raster_scale=_stroke_raster_scale
 	if raster_scale<=1.0:
-		draw_polyline(points,tint,width,true)
+		_retained_polyline(points,tint,width)
 		return
-	draw_set_transform_matrix(_stroke_from_raster)
-	draw_polyline(_stroke_to_raster*points,tint,width*raster_scale,true)
-	draw_set_transform_matrix(_art_transform)
+	# Keep rigid outline vertices resident when only the actor/camera translates.
+	# Width and AA remain in raster pixels; translation is applied by the GPU.
+	var basis=_stroke_to_raster;basis.origin=Vector2.ZERO
+	var mesh=retained_geometry.closed_outline(basis*points,tint,width*raster_scale) if use_local_outline_geometry and retain_outlines and _can_retain_geometry() else null
+	if native_draw_target != null or (canvas_stream.active and use_native_object_nodes):
+		# Keep world translation in the native node transform. Baking it into
+		# every outline vertex invalidated otherwise unchanged shape draw lists.
+		art_draw_set_transform_matrix(_stroke_from_raster*Transform2D(0,_stroke_to_raster.origin))
+		_retained_polyline(basis*points,tint,width*raster_scale)
+	else:
+		art_draw_set_transform_matrix(_stroke_from_raster)
+		if mesh!=null:art_draw_mesh(mesh,null,Transform2D(0,_stroke_to_raster.origin),tint)
+		else:_retained_polyline(_stroke_to_raster*points,tint,width*raster_scale)
+	art_draw_set_transform_matrix(_art_transform)
 
 func art_arc(center:Vector2,radius:float,start:float,end:float,count:int,tint:Color,width:float):
 	var points=PackedVector2Array()
@@ -545,21 +743,37 @@ func art_arc(center:Vector2,radius:float,start:float,end:float,count:int,tint:Co
 	art_polyline(points,tint,width)
 
 func art_line(start:Vector2,finish:Vector2,tint:Color,width:float):
+	if native_draw_target!=null and native_draw_target.uses_scalable_body():
+		native_draw_target.submit_shape(&"scalable_line",[start,finish,tint,width],native_command_transform)
+		return
 	var raster_scale=_stroke_raster_scale
 	if raster_scale<=1.0:
-		draw_line(start,finish,tint,width,true)
+		art_draw_line(start,finish,tint,width,true)
 		return
-	draw_set_transform_matrix(_stroke_from_raster)
-	draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
-	draw_set_transform_matrix(_art_transform)
+	if native_draw_target != null:
+		# Uniform raster scaling keeps AA at one screen pixel; native node
+		# rotation and translation preserve the unchanged local line geometry.
+		art_draw_set_transform_matrix(_art_transform.scaled_local(Vector2.ONE/raster_scale))
+		art_draw_line(start*raster_scale,finish*raster_scale,tint,width*raster_scale,true)
+	elif canvas_stream.active:
+		var basis=_stroke_to_raster;basis.origin=Vector2.ZERO
+		art_draw_set_transform_matrix(_stroke_from_raster*Transform2D(0,_stroke_to_raster.origin))
+		art_draw_line(basis*start,basis*finish,tint,width*raster_scale,true)
+	else:
+		art_draw_set_transform_matrix(_stroke_from_raster)
+		art_draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
+	art_draw_set_transform_matrix(_art_transform)
 
 func poly(points: Array,c):
 	var vertices=PackedVector2Array(points)
 	var tint=col(c)
-	draw_colored_polygon(vertices,tint)
+	_retained_fill(vertices,tint)
 	vertices.append(vertices[0])
 	art_polyline(vertices,tint,0.7)
 func rounded_poly(points: Array,r: float,c):
+	var key=[PackedVector2Array(points),r]
+	if rounded_contours.has(key):poly(rounded_contours[key],c);return
+	rounded_seen_current[key]=true
 	var smooth=[]
 	for i in range(points.size()):
 		var vertex:Vector2=points[i]
@@ -570,26 +784,51 @@ func rounded_poly(points: Array,r: float,c):
 		for k in range(6):
 			var t=float(k)/5.0
 			smooth.append((1-t)*(1-t)*a+2*(1-t)*t*vertex+t*t*b)
+	if rounded_seen_previous.has(key):
+		if rounded_contours.size()>=256:rounded_contours.erase(rounded_contours.keys()[0])
+		rounded_contours[key]=smooth
 	poly(smooth,c)
 func line(a: Vector2,b: Vector2,c,width=1.0): art_line(a,b,col(c),width)
 func _plate_clipped_shape(points:PackedVector2Array,fill:Color,border:Color,width:float):
 	for polygon in Geometry2D.intersect_polygons(points,_plate_clip):
-		draw_colored_polygon(polygon,fill)
+		_retained_fill(polygon,fill)
 		polygon.append(polygon[0]);art_polyline(polygon,border,width)
 
 func ellipse(p: Vector2,size: Vector2,c):
+	if (canvas_stream.active or native_draw_target!=null) and _plate_transform==Transform2D.IDENTITY and _plate_clip.is_empty():
+		var saved=art_local_begin(p)
+		var local=_ellipse_vertices(Vector2.ZERO,size);var tint=col(c)
+		if use_retained_ellipse_geometry and (native_draw_target!=null or use_native_object_nodes):
+			var basis=_stroke_to_raster
+			var uniform_basis=is_equal_approx(basis.x.length_squared(),basis.y.length_squared()) and is_zero_approx(basis.x.normalized().dot(basis.y.normalized()))
+			# Rigid groups still merge their complete ordered geometry together.
+			var rigid_group=native_draw_target!=null and native_draw_target._rigid_key_supported()
+			if uniform_basis and not rigid_group:
+				var scalable=ellipse_geometry.get_scalable_mesh(local,size,tint)
+				if scalable!=null:
+					if native_draw_target!=null:native_draw_target.submit_shape(&"retained_aa_mesh",[scalable],native_command_transform)
+					else:_submit_native_world_shape(&"retained_aa_mesh",[scalable],canvas_stream.transform)
+					art_local_end(saved)
+					return
+			var mesh=ellipse_geometry.get_mesh(local,size,tint,_stroke_to_raster,_stroke_raster_scale)
+			if mesh!=null:
+				art_draw_mesh(mesh,null)
+				art_local_end(saved)
+				return
+		_retained_fill(local,tint);local.append(local[0]);art_polyline(local,tint,.7)
+		art_local_end(saved);return
 	var points=_ellipse_vertices(p,size)
 	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
 	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(c),.7);return
 	var tint=col(c)
-	draw_colored_polygon(points,tint)
+	_retained_fill(points,tint)
 	points.append(points[0])
 	art_polyline(points,tint,0.7)
 func outlined_ellipse(p: Vector2,size: Vector2,c,edge,width=1.0):
 	var points=_ellipse_vertices(p,size)
 	if _plate_transform!=Transform2D.IDENTITY:points=_plate_transform*points
 	if not _plate_clip.is_empty():_plate_clipped_shape(points,col(c),col(edge),width);return
-	draw_colored_polygon(points,col(c))
+	_retained_fill(points,col(c))
 	points.append(points[0])
 	# The explicit border already supplies the antialiased silhouette. A
 	# second same-fill-color border underneath it was redundant draw work.
@@ -603,7 +842,12 @@ func screen_to_cell(p: Vector2) -> Vector2i:
 
 func render_bounds_visible(bounds:Rect2)->bool:
 	# Standalone/atlas artists and transformed inspection sheets retain artwork.
-	return not use_screen_culling or not is_instance_valid(game) or icon_kind!="" or _art_transform!=Transform2D.IDENTITY or RenderVisibility.visible(bounds,get_viewport_rect(),6.0)
+	var view=_warmup_view if _warmup_view.has_area() else get_viewport_rect()
+	var projected = bounds if _warmup_view.has_area() else Rect2(bounds.position+_presentation_offset,bounds.size)
+	return not use_screen_culling or not is_instance_valid(game) or icon_kind!="" or _art_transform!=Transform2D(0,_presentation_offset) or RenderVisibility.visible(projected,view,6.0)
+func render_view_rect()->Rect2:
+	if _warmup_view.has_area():return _warmup_view
+	var view=get_viewport_rect();view.position-=_presentation_offset;return view
 func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 	# Wide guard includes shadows, tall heads, bubbles and tools. Include the
 	# target so reaching foregrounds survive when the owner's feet are outside.
@@ -612,7 +856,12 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 	if extra.is_finite():bounds=bounds.merge(RenderVisibility.local_bounds(extra,scale,Rect2(-128,-192,256,272)))
 	return render_bounds_visible(bounds)
 
+var playtest_draw_ms=0.0
 func _draw():
+	var playtest_started=Time.get_ticks_usec()
+	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
+	retained_geometry.begin_frame()
+	rounded_seen_previous=rounded_seen_current;rounded_seen_current={}
 	render_contacts.clear()
 	if icon_kind!="":
 		background_cache.hide()
@@ -625,19 +874,43 @@ func _draw():
 		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
+	# Keep admission in landed coordinates, including the complete descent band.
+	# Changing the admitted prefix while descending shifts painter-order slots
+	# and rebuilds unchanged downstream art. Godot still culls retained nodes to
+	# the actual viewport; this conservative band only stabilizes their admission.
+	var stable_admission = use_retained_presentation and use_native_object_nodes and get_global_transform_with_canvas()==Transform2D.IDENTITY and self_modulate==Color.WHITE and modulate==Color.WHITE
+	var preparing = use_retained_presentation and game.cafe_intro!=null and game.cafe_intro.preparing
+	_warmup_view=Rect2(Vector2(0,-size.y*1.35),Vector2(size.x,size.y*2.35)) if stable_admission or preparing else Rect2()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
 	var openings=[]
 	for attachment in render_wall_attachments:
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
+	# Camera translation belongs to retained CanvasItem transforms. Keep world
+	# geometry in the same coordinates while the input projection stays global.
+	var gameplay_view = _warmup_view
+	var camera_translation=pan_offset if stable_admission else Vector2.ZERO
+	origin-=camera_translation
+	if _warmup_view.has_area():_warmup_view.position-=camera_translation
 	var gameplay_origin = origin
-	if game.cafe_intro!=null:origin+=game.cafe_intro.render_offset(size)
+	# Prepare the complete landed scene behind the opaque loading cover, so
+	# its meshes are allocated and uploaded before Welcome starts moving.
+	var intro_offset=Vector2.ZERO
+	if game.cafe_intro!=null and not game.cafe_intro.preparing:intro_offset=game.cafe_intro.render_offset(size)
+	_presentation_offset=intro_offset+camera_translation if use_retained_presentation else Vector2.ZERO
+	if not use_retained_presentation:origin+=intro_offset
+	art_transform(Vector2.ZERO)
 	var ground_view=Rect2(Vector2.ZERO,size).grow(3.0)
 	ground_art.prepare(game.model)
 	if not use_background_cache:background_cache.hide()
-	if not use_background_cache or not background_cache.update(self):
-		draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
+	var cached_background=false
+	if use_background_cache:
+		cached_background=background_cache.update(self,gameplay_origin,_presentation_offset) if use_retained_presentation else background_cache.update(self)
+	if not cached_background:
+		art_draw_set_transform_matrix(Transform2D.IDENTITY)
+		art_draw_rect(Rect2(Vector2.ZERO,size),Color("c6d5ad"))
+		art_transform(Vector2.ZERO)
 		_grass(size)
 		Neighborhood.draw_ground(self,_parking_owned())
 		if use_batched_ground:ground_art.draw_pavement(self)
@@ -772,14 +1045,14 @@ func _draw():
 			var p=iso(d.x+.5+meal_offset.x,d.z+.5+meal_offset.y)
 			opacity=.63 if bool(d.get("preview",false)) else 1.0
 			art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
-			if e.type=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
-			elif e.type=="stove_foreground":furniture_art.draw_stove_foreground(self,Vector2.ZERO,int(d.rot),int(d.id))
-			elif e.type=="chair_back":
-				if d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,int(e.rot),true)
-				else:_chair(Vector2.ZERO,int(e.rot),true,_dining_style(int(d.id),str(d.get("dining_variant",""))))
-			elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),str(d.get("dining_variant",""))))
-			elif d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,_chair_rotation(d),false)
-			else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),str(d.get("dining_variant","")))
+			var static_body = (d.kind in ["table", "chair", "bench", "plant", "lamp", "bookshelf", "divider", "rug"] or (use_retained_register and d.kind=="register")) and e.type in ["item", "chair_back"]
+			if static_body:
+				var body = _paint_furniture_body.bind(e.type, d, int(e.get("rot", 0)))
+				var appearance = ["furniture", e.type, d, int(e.get("rot", 0)), _dining_style(int(d.id), str(d.get("dining_variant", ""))), _table_vase_point(int(d.id)) if d.kind=="table" else Vector2.ZERO]
+				if d.kind=="register":appearance.append(CheckoutArt.register_visual_state(self,int(d.id)))
+				if not retain_native_local_object(body, appearance, _art_transform):body.call()
+			else:
+				_paint_furniture_body(e.type, d, int(e.get("rot", 0)))
 			if d.kind=="table" and show_service: _meal(d.id)
 			if d.kind=="sink" and show_service: _sink_dishes(d.id)
 			if d.kind=="counter" and show_service: _station_payloads(d.id,d.kind,int(d.rot))
@@ -890,7 +1163,15 @@ func _draw():
 		for parcel in game.model.expansion_parcels():
 				if not parcel.owned and parcel.visible:_parcel_sign(parcel)
 	# Do not expose the presentation offset to resize anchoring or input projection.
-	origin = gameplay_origin
+	origin = gameplay_origin+camera_translation
+	# Simulation, picking and visibility queries outside _draw use projected
+	# screen coordinates. Restore the matching view after local-space painting.
+	_warmup_view = gameplay_view
+	_presentation_offset = intro_offset if use_retained_presentation else Vector2.ZERO
+	art_transform(Vector2.ZERO)
+	_finish_native_objects()
+	canvas_stream.finish()
+	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
 func _draw_legacy_pavement(ground_view: Rect2):
 	for z in range(ExteriorExtent.PAVEMENT_Z_MIN,ExteriorExtent.PAVEMENT_Z_MAX):
 		for x in [PAVEMENT_EDGE, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH, PAVEMENT_EDGE+PAVEMENT_ROW_WIDTH*2]:
@@ -917,10 +1198,10 @@ func _grass(size: Vector2):
 	# panning, zooming and resizing. Road, pavement and finishes cover it later.
 	art_transform(origin,0,Vector2.ONE*(tile.x/39.0))
 	if use_grass_mesh:
-		draw_mesh(grass_mesh,null)
+		art_draw_mesh(grass_mesh,null)
 	else:
-		draw_multiline(_grass_left,col(Color(.44,.57,.30,.33)),.75,true)
-		draw_multiline(_grass_right,col(Color(.53,.64,.37,.30)),.70,true)
+		art_draw_multiline(_grass_left,col(Color(.44,.57,.30,.33)),.75,true)
+		art_draw_multiline(_grass_right,col(Color(.53,.64,.37,.30)),.70,true)
 	art_transform(Vector2.ZERO)
 
 func prepare_grass(_size: Vector2):
@@ -977,7 +1258,7 @@ func _wall(a: Vector2,b: Vector2,n: Vector2,c1,c2):
 		end_color=Color(WallArt.PALETTES[finish].end);cap_color=Color(WallArt.PALETTES[finish].cap)
 		for index in range(ceili(length)):
 			var p0=a+direction*index;var p1=a+direction*minf(index+1,length)
-			draw_polygon(PackedVector2Array([iso(p0.x,p0.y),iso(p1.x,p1.y),iso(p1.x,p1.y,WALL_HEIGHT),iso(p0.x,p0.y,WALL_HEIGHT)]),PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),PackedVector2Array([Vector2(0,1),Vector2(p0.distance_to(p1),1),Vector2(p0.distance_to(p1),0),Vector2.ZERO]),texture)
+			art_draw_polygon(PackedVector2Array([iso(p0.x,p0.y),iso(p1.x,p1.y),iso(p1.x,p1.y,WALL_HEIGHT),iso(p0.x,p0.y,WALL_HEIGHT)]),PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),PackedVector2Array([Vector2(0,1),Vector2(p0.distance_to(p1),1),Vector2(p0.distance_to(p1),0),Vector2.ZERO]),texture)
 	poly([iso(b.x,b.y),iso(b.x+n.x,b.y+n.y),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT)],end_color)
 	poly([iso(a.x,a.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(a.x+n.x,a.y+n.y,WALL_HEIGHT)],cap_color)
 
@@ -1023,7 +1304,7 @@ func _tree(p: Vector2,s: float):
 		# Supply the mirrored left edge while retaining the negative flip flag.
 		if destination.size.x<0:destination.position.x+=destination.size.x
 		if absf(s)<=MovingAtlas.BAKE_SCALE or not destination.abs().intersects(get_viewport_rect()):
-			draw_texture_rect_region(moving_atlas.texture,destination,moving_atlas.regions["tree"])
+			art_draw_texture_rect_region(moving_atlas.texture,destination,moving_atlas.regions["tree"])
 			return
 	_tree_crown_legacy(p,s,horizontal_scale)
 func _tree_crown_legacy(p:Vector2,s:float,horizontal_scale:float=1.0):
@@ -1061,8 +1342,8 @@ func _parcel_sign(parcel):
 	rounded_poly([Vector2(-44,-57),Vector2(44,-57),Vector2(44,-19),Vector2(-44,-19)],3,"dfc795" if parcel.unlocked else "d4c6a7")
 	line(Vector2(-41,-54),Vector2(41,-54),"ecdbb2",1)
 	var font=game.ArtFont
-	draw_string(font,Vector2(-34,-39),"FOR SALE",HORIZONTAL_ALIGNMENT_CENTER,68,12,Color("617452"))
-	draw_string(font,Vector2(-38,-25),preload("res://scripts/cafe_money.gd").amount(int(parcel.cost)),HORIZONTAL_ALIGNMENT_CENTER,76,13,Color("796746"))
+	art_draw_string(font,Vector2(-34,-39),"FOR SALE",HORIZONTAL_ALIGNMENT_CENTER,68,12,Color("617452"))
+	art_draw_string(font,Vector2(-38,-25),preload("res://scripts/cafe_money.gd").amount(int(parcel.cost)),HORIZONTAL_ALIGNMENT_CENTER,76,13,Color("796746"))
 	if not parcel.unlocked:
 		# Small geometry-only lock, avoiding emoji/font fallback or extra words.
 		poly([Vector2(32,-43),Vector2(39,-43),Vector2(39,-37),Vector2(32,-37)],"8b876b")
@@ -1240,11 +1521,20 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	# Keep the existing ready-meal handoff timing, without a plating gesture.
 	var visual_action=_kitchen_visual_action(action,staff,role)
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
-	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
+	var phase = float(pose.get("phase", 0))
+	var callback = _paint_native_character.bind(p, id, staff, moving, species, away, phase, action, progress, reach, payload, options)
+	if retain_native_local_object(callback, ["character", p, id, staff, moving, species, away, phase, action, progress, reach, payload, options], _art_transform):
+		return
+	var contact: Dictionary = callback.call()
+	if not contact.is_empty():render_contacts.append(contact)
+
+func _paint_native_character(p: Vector2, id: int, staff: bool, moving: bool, species: int, away: bool, phase: float, action: String, progress: float, reach: Vector2, payload: String, options: Dictionary) -> Dictionary:
+	var geometry=directional_character.draw(self,p,species,away,moving,phase,staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0})
+	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
+	return {}
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
 	var species=id%3
@@ -1311,7 +1601,14 @@ func _round_limb(start:Vector2,finish:Vector2,color,width:float):
 
 func _round_limb_legacy(start:Vector2,finish:Vector2,color,width:float):
 	# One rounded piece: no elbow, knee, extra joint or target-driven length.
-	line(start,finish,color,width)
+	if native_draw_target != null and start != finish:
+		var saved = _art_transform
+		var direction = finish-start
+		_set_art_matrix(saved*Transform2D(direction.angle(),start))
+		line(Vector2.ZERO,Vector2(direction.length(),0),color,width)
+		_set_art_matrix(saved)
+	else:
+		line(start,finish,color,width)
 	ellipse(start,Vector2.ONE*width*.5,color)
 	ellipse(finish,Vector2.ONE*width*.5,color)
 
@@ -1350,15 +1647,25 @@ func _apron_legacy(body:Vector2):
 	rounded_poly([body+Vector2(-3,-19),body+Vector2(3,-19),body+Vector2(2.5,-15),body+Vector2(-2.5,-15)],1,"d5d8b9")
 
 func _draw_head(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):
-	if use_cached_heads and is_equal_approx(opacity,1.0) and head_atlas.is_ready() and art_cache_covers(Rect2(p+HeadAtlas.ART_RECT.position,HeadAtlas.ART_RECT.size),HeadAtlas.BAKE_SCALE):
-		head_atlas.draw_head(self,p,species,away,blink,chef_hat,blocked,view)
+	var cached=use_cached_heads and is_equal_approx(opacity,1.0) and head_atlas.is_ready() and art_cache_covers(Rect2(p+HeadAtlas.ART_RECT.position,HeadAtlas.ART_RECT.size),HeadAtlas.BAKE_SCALE)
+	# Keep the same native group in both representations. Crossing the atlas
+	# resolution limit then reuses its children instead of deleting a vector
+	# group for a sprite, and creating all those children again on the next zoom.
+	if use_retained_head_nodes:
+		var paint=_paint_retained_head.bind(species,away,blink,chef_hat,blocked,view,cached)
+		if retain_native_body_group(paint,["head",species,away,blink,chef_hat,blocked,view,cached],_art_transform.translated_local(p)):return
+	if cached:head_atlas.draw_head(self,p,species,away,blink,chef_hat,blocked,view)
 	else:_draw_head_legacy(p,species,away,blink,chef_hat,blocked,view)
+
+func _paint_retained_head(species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int,cached:bool):
+	if cached:head_atlas.draw_head(self,Vector2.ZERO,species,away,blink,chef_hat,blocked,view)
+	else:_draw_head_legacy(Vector2.ZERO,species,away,blink,chef_hat,blocked,view)
 
 func _face_ellipse(p:Vector2,size:Vector2,c):
 	# Facial marks must not inherit the general helper's0.7px AA outline.
 	# At play scale that outline made a tiny catchlight fill the entire eye.
-	draw_colored_polygon(_ellipse_vertices(p,size),col(c))
-func _face_line(a:Vector2,b:Vector2,c,width:float):draw_line(a,b,col(c),width,false)
+	art_draw_colored_polygon(_ellipse_vertices(p,size),col(c))
+func _face_line(a:Vector2,b:Vector2,c,width:float):art_draw_line(a,b,col(c),width,false)
 
 func _draw_head_legacy(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):
 	var artist=DirectionalCharacter.new();artist.a=self;artist.origin=p;artist.back=away;artist.profile=view==2;artist.blink=blink;artist.chef_hat=chef_hat;artist.blocked=blocked;artist.head(species)
@@ -1460,31 +1767,31 @@ func bubble(p: Vector2,words: String):
 	poly([p+Vector2(-11,4),p+Vector2(-7,8),p+Vector2(-16,12)],"fff6d9")
 	var mark=bubble_symbol_geometry(words)
 	if mark.is_empty():
-		draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
+		art_draw_string(ThemeDB.fallback_font,p+Vector2(-6,3),words,HORIZONTAL_ALIGNMENT_LEFT,-1,13,col("829270"))
 		return
 	# Optically centered vector marks replace the old left-aligned font glyphs.
 	# Submit in final raster coordinates so AA remains one pixel at any zoom.
 	var raster=_stroke_raster_scale>0.0
-	if raster:draw_set_transform_matrix(_stroke_from_raster)
+	if raster:art_draw_set_transform_matrix(_stroke_from_raster)
 	var scale=_stroke_raster_scale if raster else 1.0
 	var tint=col(str(mark.get("color","829270")))
 	if mark.has("face_radius"):
 		var center=_stroke_to_raster*p if raster else p
-		draw_circle(center,float(mark.face_radius)*scale,col(str(mark.face_fill)),true,-1.0,true)
+		art_draw_circle(center,float(mark.face_radius)*scale,col(str(mark.face_fill)),true,-1.0,true)
 	for point in mark.dots:
 		var center=_stroke_to_raster*(p+point) if raster else p+point
-		draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
+		art_draw_circle(center,float(mark.radius)*scale,tint,true,-1.0,true)
 	if mark.has("stem"):
 		var start=_stroke_to_raster*(p+mark.stem[0]) if raster else p+mark.stem[0]
 		var finish=_stroke_to_raster*(p+mark.stem[1]) if raster else p+mark.stem[1]
-		draw_line(start,finish,tint,float(mark.width)*scale,true)
+		art_draw_line(start,finish,tint,float(mark.width)*scale,true)
 	for stroke in mark.get("strokes",[]):
 		var points=PackedVector2Array()
 		for point in stroke:points.append(_stroke_to_raster*(p+point) if raster else p+point)
 		var width=float(mark.width)*scale
-		draw_polyline(points,tint,width,true)
-		for endpoint in [points[0],points[-1]]:draw_circle(endpoint,width*.5,tint,true,-1.0,true)
-	if raster:draw_set_transform_matrix(_art_transform)
+		art_draw_polyline(points,tint,width,true)
+		for endpoint in [points[0],points[-1]]:art_draw_circle(endpoint,width*.5,tint,true,-1.0,true)
+	if raster:art_draw_set_transform_matrix(_art_transform)
 
 static func bubble_symbol_geometry(words:String)->Dictionary:
 	if words=="…":return {"dots":[Vector2(-3.5,0),Vector2(0,0),Vector2(3.5,0)],"radius":.85}
@@ -1851,3 +2158,132 @@ func hit_wall_attachment(screen:Vector2)->int:
 	for opening in openings:
 		if OpeningArt.hit_opening(self,screen,opening):return int(opening.id)
 	return -1
+
+
+func retain_native_car(at: Vector2, heading: Vector2, tint, oriented: bool) -> bool:
+	if use_retained_car_geometry and get_global_transform_with_canvas()==Transform2D.IDENTITY and not oriented and canvas_stream.active and use_native_object_nodes and is_instance_valid(game) and not game.wall_detail and _art_transform==Transform2D(0,_presentation_offset):
+		if car_geometry.draw(self,at,int(heading.y),tint):return true
+	var callback = Neighborhood.draw_oriented_car.bind(self, Vector2.ZERO, heading, tint) if oriented else Neighborhood.draw_car.bind(self, Vector2.ZERO, int(heading.y), tint)
+	return retain_native_world_object(callback, at, ["car", heading, tint, oriented])
+
+func retain_native_world_object(callback: Callable, at: Vector2, shape: Array) -> bool:
+	return retain_native_local_object(callback, shape, Transform2D(0, iso(at.x, at.y) + _presentation_offset))
+
+func retain_native_body_group(callback: Callable, shape: Array, placement: Transform2D) -> bool:
+	if native_draw_target == null:return false
+	var outer = native_draw_target.get_global_transform_with_canvas()
+	var basis=outer*placement
+	var scalable=NativeDrawNode.can_retain_scalable_body(shape) and is_equal_approx(basis.x.length_squared(),basis.y.length_squared()) and is_zero_approx(basis.x.normalized().dot(basis.y.normalized()))
+	var key=[shape,opacity] if scalable else [shape,opacity,outer.x,outer.y]
+	native_draw_target.submit_group(self, callback, key, placement)
+	return true
+
+func retain_native_local_object(callback: Callable, shape: Array, placement: Transform2D) -> bool:
+	if not use_native_object_nodes or not canvas_stream.active:
+		return false
+	# Godot retains the complete object's native draw list. The adapter only
+	# supplies its identity, appearance invalidation and painter-order position.
+	var order = canvas_stream.cursor
+	canvas_stream.cursor += 1
+	if not native_object_nodes.has(order):
+		var created = NativeDrawNode.new()
+		_insert_native_canvas_child(created, order)
+		native_object_nodes[order] = created
+	var node = native_object_nodes[order]
+	node.generation = canvas_stream.frame_id
+	node.draw_order = order
+	var outer = get_global_transform_with_canvas()
+	var appearance = [shape, tile, ui_scale, zoom, outer.x, outer.y, opacity,
+		use_cached_heads, head_atlas.texture, use_cached_moving_art, moving_atlas.texture,
+		furniture_art.cache_enabled, furniture_art.static_atlas.texture]
+	node.configure(self, callback, appearance, placement)
+	return true
+
+func _submit_native_world_shape(method: StringName, arguments: Array, placement: Transform2D) -> void:
+	var order = canvas_stream.cursor
+	canvas_stream.cursor += 1
+	if not native_world_shapes.has(order):
+		var created = WorldShape.new()
+		_insert_native_canvas_child(created, order)
+		native_world_shapes[order] = created
+	var shape = native_world_shapes[order]
+	shape.set_meta("generation", canvas_stream.frame_id)
+	shape.self_modulate = self_modulate
+	shape.configure(method, arguments, placement)
+
+func _insert_native_canvas_child(child: Node2D, order: int) -> void:
+	# Native CanvasItems derive their draw order from the scene tree. Setting
+	# only the RenderingServer index is overwritten when Godot processes a
+	# newly added sibling, exposing one incorrectly ordered rendered frame.
+	child.set_meta("native_painter_order", order)
+	add_child(child)
+	var destination = 0
+	for sibling in get_children():
+		if sibling != child and int(sibling.get_meta("native_painter_order", -1)) <= order:
+			destination += 1
+	move_child(child, destination)
+
+func _finish_native_objects() -> void:
+	for order in native_world_shapes:
+		var shape = native_world_shapes[order]
+		shape.visible = shape.get_meta("generation", -1) == canvas_stream.frame_id and canvas_stream.active
+	for node in native_object_nodes.values():
+		node.visible = node.generation == canvas_stream.frame_id and canvas_stream.active
+		if node.visible:render_contacts.append_array(node.contacts)
+
+func paint_native_object(target: Node2D, callback: Callable) -> void:
+	# Helpers keep the original geometry and raster stroke rules. Only the
+	# draw recipient changes, during this Node2D's native _draw callback.
+	var saved = [origin, _presentation_offset, _art_transform, use_retained_geometry, use_screen_culling, canvas_stream.active, _stroke_to_raster, _stroke_from_raster, _stroke_raster_scale, retained_geometry.use_dynamic_fills, native_command_transform, opacity]
+	native_draw_target = target
+	opacity = target.paint_opacity
+	origin = Vector2.ZERO
+	_presentation_offset = Vector2.ZERO
+	use_retained_geometry = false
+	retained_geometry.use_dynamic_fills = false
+	use_screen_culling = false
+	canvas_stream.active = false
+	art_transform(Vector2.ZERO)
+	var result = callback.call()
+	if result is Dictionary and not result.is_empty():
+		var owner_id = target.get_instance_id()
+		result["native_owner"] = owner_id
+		target.contacts = [result]
+		for index in range(render_contacts.size()-1, -1, -1):
+			if render_contacts[index].get("native_owner", -1) == owner_id:
+				render_contacts.remove_at(index)
+		render_contacts.append(result)
+	origin = saved[0]
+	_presentation_offset = saved[1]
+	_art_transform = saved[2]
+	use_retained_geometry = saved[3]
+	use_screen_culling = saved[4]
+	canvas_stream.active = saved[5]
+	_stroke_to_raster = saved[6]
+	_stroke_from_raster = saved[7]
+	_stroke_raster_scale = saved[8]
+	retained_geometry.use_dynamic_fills = saved[9]
+	native_command_transform = saved[10]
+	opacity = saved[11]
+	native_draw_target = null
+
+func _paint_furniture_body(part: String, d: Dictionary, rotation: int) -> void:
+	if part=="beverage_foreground":furniture_art.draw_beverage_foreground(self,Vector2.ZERO,int(d.rot))
+	elif part=="stove_foreground":furniture_art.draw_stove_foreground(self,Vector2.ZERO,int(d.rot),int(d.id))
+	elif part=="chair_back":
+		if d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,rotation,true)
+		else:_chair(Vector2.ZERO,rotation,true,_dining_style(int(d.id),str(d.get("dining_variant",""))))
+	elif d.kind=="chair": _chair(Vector2.ZERO,_chair_rotation(d),false,_dining_style(int(d.id),str(d.get("dining_variant",""))))
+	elif d.kind=="bench":furniture_art.draw_bench_part(self,Vector2.ZERO,_chair_rotation(d),false)
+	else: item(d.kind,Vector2.ZERO,int(d.rot),int(d.id),str(d.get("dining_variant","")))
+
+func _paint_character_body_part(part: String, species: int, cloth: String, staff: bool, back: bool, profile: bool) -> void:
+	var painter = DirectionalCharacter.new()
+	painter.a = self
+	painter.back = back
+	painter.profile = profile
+	if part == "torso":painter.draw_torso(species, cloth)
+	else:painter.draw_apparel(species, staff)
+
+func draw_scaled_contours(mesh:ArrayMesh,ground:Vector2,scale:float):
+	_submit_native_world_shape(&"scaled_contours",[mesh,scale],canvas_stream.transform*Transform2D(0,ground))

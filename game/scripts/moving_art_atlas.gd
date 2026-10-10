@@ -16,6 +16,8 @@ var bases={}
 var stats={"state":"cold","bake_scale":4,"conversion":"Native4x original geometry, straight-alpha conversion, alpha-edge repair; level-zero filtering"}
 var _bake_viewports: Array = []
 var _started_us=0
+var use_retained_limb_meshes=true
+var limb_meshes={}
 func _init():
 	add_part("arm_cream",Rect2(-5,-5,10,23),{"type":"limb","length":ARM_LENGTH,"color":"efe5c7","width":4.8})
 	add_part("arm_fox",Rect2(-5,-5,10,23),{"type":"limb","length":ARM_LENGTH,"color":"c68b46","width":4.8})
@@ -99,11 +101,32 @@ func _fail(reason:String):
 	state="failed_fallback";stats.state=state;stats["reason"]=reason;push_warning("Moving art cache uses original fallback: "+reason)
 func draw_part(artist:Node2D,key:String,p:Vector2,scale=1.0):
 	var rect:Rect2=rectangles[key]
-	artist.draw_texture_rect_region(texture,Rect2(p+rect.position*scale,rect.size*scale),regions[key])
+	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+rect.position*scale,rect.size*scale),regions[key])
 func draw_limb(artist:Node2D,key:String,start:Vector2,finish:Vector2):
 	var direction=(finish-start).normalized();var across=Vector2(direction.y,-direction.x)
 	var rect:Rect2=rectangles[key];var region:Rect2=regions[key]
+	if use_retained_limb_meshes and "_art_transform" in artist:
+		# Atlas quads are sprites. Native texture-rectangle commands can share
+		# the engine's 2D batches; separate Mesh commands cannot.
+		var draw=preload("res://scripts/cafe_canvas_draw.gd")
+		var previous=artist._art_transform
+		draw.draw_set_transform_matrix(artist,previous*Transform2D(across,direction,start))
+		draw.draw_texture_rect_region(artist,texture,rect,region)
+		draw.draw_set_transform_matrix(artist,previous)
+		return
+	if use_retained_limb_meshes:
+		if not limb_meshes.has(key):
+			var vertices=PackedVector2Array();var texcoords=PackedVector2Array()
+			for uv in [Vector2.ZERO,Vector2.RIGHT,Vector2.ONE,Vector2.DOWN]:
+				vertices.append(rect.position+rect.size*uv);texcoords.append((region.position+region.size*uv)/Vector2(size))
+			var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_TEX_UV]=texcoords
+			arrays[Mesh.ARRAY_INDEX]=Geometry2D.triangulate_polygon(vertices)
+			var mesh=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+			limb_meshes[key]=mesh
+		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,limb_meshes[key],texture,Transform2D(across,direction,start))
+		return
 	var points=PackedVector2Array();var uvs=PackedVector2Array()
 	for uv in [Vector2.ZERO,Vector2.RIGHT,Vector2.ONE,Vector2.DOWN]:
 		var local=rect.position+rect.size*uv;points.append(start+across*local.x+direction*local.y);uvs.append((region.position+region.size*uv)/Vector2(size))
-	artist.draw_polygon(points,PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),uvs,texture)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_polygon(artist,points,PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),uvs,texture)

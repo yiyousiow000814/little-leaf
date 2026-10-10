@@ -27,3 +27,22 @@ The second command is an example for janitor cleanup changes, not a default suit
 - Preserve the original 2D isometric art and camera presentation. Pin evidence to the tested commit/tree and distinguish code present, tests passed, inspected game pixels, merged and released. For visual changes, inspect rendered output and retain source-bound before/after evidence; test success alone does not accept the pixels or authorize publication.
 
 For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).
+
+## Performance and unchanged presentation
+
+For gameplay, art, UI, animation and camera work, identify per-frame cost,
+retained resources and cache invalidation before implementation. Prefer Godot's
+existing transforms, retained draw lists and batching. Avoid rebuilding
+unchanged geometry or assigning unchanged materials; keep ownership explicit,
+caches bounded and code readable. Preserve artwork, colors, detail, timing and
+painter order, including the first frame after moving or zooming. A rendering
+regression must be fixed or the optimization withdrawn before closeout.
+
+The player settings are 30/60 FPS. Target stable 60 from Welcome's first moving
+frame through the unskipped intro and normal-speed pan/zoom, with measured
+headroom. Prepare expensive resources during loading/login where possible.
+Do not equate a cap or high average with stability. Follow the
+[rendering and performance contract](docs/testing/rendering-performance.md)
+for source-bound visual comparisons and completed-frame timelines. The
+[roadmap](docs/roadmap.md#current-state) owns current acceptance and ownership;
+deferring FPS work never authorizes leaving optimization-induced bugs enabled.

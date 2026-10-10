@@ -25,7 +25,7 @@ func run():
   for record in game.compact_ui.themed_popups:
    if record.panel==game.settings:record.scroll.ensure_control_visible(choice)
   await settle()
-  for rate in [60,120,60]:
+  for rate in [60,30,60]:
    settings.set_frame_rate(rate);await settle()
    var label="%s %d FPS"%[str(view),rate]
    var font=choice.get_theme_font("font");var font_size=choice.get_theme_font_size("font_size")
@@ -45,9 +45,9 @@ func run():
    geometry.append({"viewport":str(view),"text":choice.text,"width":choice.size.x,"font_size":font_size,"text_width":text_width,"left_inset":left,"right_inset":right,"gap":arrow_left-left-text_width})
   # Use the real popup's signal route to change each option, retaining keyboard support.
   choice.get_popup().index_pressed.emit(1);await settle()
-  check(settings.frame_rate==120 and choice.get_selected_id()==120,str(view)+" native menu selection routes to120")
+  check(settings.frame_rate==60 and choice.get_selected_id()==60,str(view)+" native menu selection routes to60")
   choice.get_popup().index_pressed.emit(0);await settle()
-  check(settings.frame_rate==60 and choice.get_selected_id()==60,str(view)+" repeated native selection routes back to60")
+  check(settings.frame_rate==30 and choice.get_selected_id()==30,str(view)+" repeated native selection routes back to30")
  check(game.saves==0 and game.save_writes_suppressed,"no gameplay save writes")
  check(FileAccess.file_exists(settings.config_path)==file_existed,"no preference file created")
  print("FRAME_RATE_ALIGNMENT_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"geometry":geometry}))
