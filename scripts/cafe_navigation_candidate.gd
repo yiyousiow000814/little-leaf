@@ -127,7 +127,10 @@ static func from_model(model,min_x:int=0,layout=null)->Dictionary:
 		for direction in [Vector2i.RIGHT,Vector2i.DOWN]:
 			var next:Vector2i=cell+direction
 			if cells.has(next) and model.edge_blocked(cell,next):edges[edge_key(cell,next)]=true
-	for host in model.OpeningGeometry.hosts(model.built_walls,model.shell_products):
+	# Reviewed segmented models own active host projection; old PR125 models
+	# retain their whole-shell API. Neither path mutates model/save geometry.
+	var hosts=model.collision_wall_hosts() if model.has_method("collision_wall_hosts") else model.OpeningGeometry.hosts(model.built_walls,model.shell_products)
+	for host in hosts:
 		for segment in model.OpeningGeometry.solid_segments(host,model.built_walls,model.wall_attachments):
 			barriers.append(model.OpeningGeometry.segment_rect(segment).grow(CLEARANCE))
 	var signature:Array=model.navigation_signature().duplicate(true)

@@ -93,8 +93,11 @@ The shared model owner confirmed no model/reception/codec API change is needed.
 Reviewed composite `2cbd7118fb3561716b2506b790b3f0abcaab7c11` retains authoritative
 Main service locks, chef pickup outputs and stove/counter ownership. This slice
 uses synthetic snapshots and does not activate its old `from_model` adapter on
-that composite: segmented `collision_wall_hosts()` and modular cabinet geometry
-need their own adapter review. Reception08.01–08.05 source/endpoints, actual role
+that composite. The adapter now consumes the existing segmented
+`collision_wall_hosts()` when available, retaining the original whole-shell API
+for older PR125 models. Modular cabinets remain one cell in every rotation;
+their body barriers require no footprint enlargement. Reception08.01–08.05
+source/endpoints, actual role
 consumers, docking, codecs and production activation remain prerequisite gates.
 The unavailable historical reception source is not recreated here.
 
@@ -104,6 +107,26 @@ endpoint/origin results cannot move it, unreachable goals report failure, retain
 slots are reclaimed and the original advance signature continues working.
 Use `--only-follower` for these focused regressions; no full scheduler matrix or
 FPS measurement is required for this consumption change.
+
+### Frozen model geometry adapter
+
+`run_navigation_model_adapter_candidate.py` accepts an explicit `--model-repo`
+and immutable `--model-commit`, extracts only that source's scripts/data into a
+disposable project and overlays the candidate/test from `--source-commit` (or
+working files). The model is a read-only dependency; it is not copied into the
+routing branch or edited. It redirects every platform profile directory and
+records all extracted dependency/candidate hashes. Main never runs.
+
+The focused fixture on reviewed composite
+`2cbd7118fb3561716b2506b790b3f0abcaab7c11` checks removed shell segments, surviving
+neighbors, relocated original/purchased walls, a door clipped across shell
+segments, frame body clearance, window solidity, each one-cell cabinet in all
+rotations, blocked adjacent cabinet seams, rug traversal and frozen snapshots.
+Model ownership, economy and authoritative item/wall data remain unchanged by
+snapshot construction. This accepts the tested geometric projection only;
+actual reception/claim/docking, diagonal replay/load/refusal contracts and
+combined source acceptance remain separate. No historical cardinal reader is
+relaxed and no capability version is assigned here.
 
 Run the synthetic-only runner with `--godot`, a new `--output` directory and
 optionally `--source-commit` to extract a frozen Git revision. It copies only the
