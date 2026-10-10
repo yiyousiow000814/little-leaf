@@ -1,0 +1,36 @@
+{
+  "failures": [],
+  "rows": [
+    {
+      "imported_rgba": "31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732",
+      "name": "furniture",
+      "passed": true,
+      "regenerated_rgba": "31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732",
+      "size": [
+        1280,
+        2920
+      ]
+    },
+    {
+      "imported_rgba": "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
+      "name": "moving",
+      "passed": true,
+      "regenerated_rgba": "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
+      "size": [
+        1024,
+        1908
+      ]
+    },
+    {
+      "imported_rgba": "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7",
+      "name": "heads",
+      "passed": true,
+      "regenerated_rgba": "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7",
+      "size": [
+        1600,
+        1728
+      ]
+    }
+  ],
+  "source_commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd"
+}
