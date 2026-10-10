@@ -12,6 +12,7 @@ class TestGame extends "res://scripts/main.gd":
 func recording_script():
 	var script=GDScript.new()
 	var code=FileAccess.get_file_as_string("res://scripts/illustrated_cafe.gd")
+	code=code.replace("RenderingServer.canvas_item_add_triangle_array(target,", "record_draw_triangle_array(")
 	for name in ["_ready","_draw","_process"]:code=code.replace("func "+name+"(","func disabled"+name+"(")
 	# Keep the explicit art_draw_* adapter intact. Replacing every substring
 	# also renames super.draw_* into nonexistent native super.record_* methods.
@@ -19,6 +20,7 @@ func recording_script():
 		code=code.replace("super."+name+"(","record_"+name+"(")
 	code+="""
 var commands=[]
+func record_draw_triangle_array(indices,points,colors):commands.append(["triangles",indices,points,colors])
 func record_draw_set_transform_matrix(value):commands.append(["transform",value])
 func record_draw_rect(rect,color,_filled=true,_width=-1.0,_antialiased=false):commands.append(["rect",rect,color])
 func record_draw_mesh(mesh,_texture,_transform=Transform2D.IDENTITY,_modulate=Color.WHITE):commands.append(["mesh",mesh.get_rid()])
@@ -48,6 +50,7 @@ class ServerRecorder extends RefCounted:
 	func canvas_item_add_set_transform(_rid,value):commands.append(["transform",value])
 	func canvas_item_add_rect(_rid,rect,color):commands.append(["rect",rect,color])
 	func canvas_item_add_mesh(_rid,mesh,_placement=Transform2D.IDENTITY,_tint=Color.WHITE,_texture=RID()):commands.append(["mesh",mesh])
+	func canvas_item_add_triangle_array(_rid,indices,points,colors):commands.append(["triangles",indices,points,colors])
 	func canvas_item_add_polygon(_rid,points,colors):commands.append(["polygon",points,colors])
 	func canvas_item_add_polyline(_rid,points,colors,width,antialiased):commands.append(["polyline",points,colors,width,antialiased])
 	func canvas_item_add_multiline(_rid,points,colors,width,antialiased):commands.append(["multiline",points,colors,width,antialiased])
@@ -75,7 +78,7 @@ func run():
 	var cases=0
 	for size in [Vector2i(390,844),Vector2i(1360,880),Vector2i(844,390)]:
 		root.size=size
-		for scale in [.25,.5,1.0,2.0,4.0]:
+		for scale in [.05,.1,.25,.5,1.0,2.0,4.0]:
 			for detail in [false,true]:
 				game.wall_detail=detail
 				for origin in [Vector2.ZERO,Vector2(390,250),Vector2(-1100,-700)]:

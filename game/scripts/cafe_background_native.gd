@@ -1,6 +1,7 @@
 extends RefCounted
 ## Retained native commands for the exact static prefix of IllustratedCafe._draw.
 ## No image baking, downsampling, geometry welding or reordered commands.
+const PolygonTriangulation = preload("res://scripts/cafe_polygon_triangulation.gd")
 const Neighborhood = preload("res://scripts/exterior_environment.gd")
 var server = RenderingServer
 var canvas = RID()
@@ -83,8 +84,14 @@ class NativeArtist:
 	func poly(points: Array, color):
 		var vertices = PackedVector2Array(points)
 		var tint = col(color)
-		server.canvas_item_add_polygon(canvas, vertices, PackedColorArray([tint]))
-		commands += 1
+		if tile.x / 39.0 < .35:
+			var indices = PolygonTriangulation.indices(vertices)
+			if not indices.is_empty():
+				server.canvas_item_add_triangle_array(canvas, indices, vertices, PackedColorArray([tint]))
+				commands += 1
+		else:
+			server.canvas_item_add_polygon(canvas, vertices, PackedColorArray([tint]))
+			commands += 1
 		vertices.append(vertices[0])
 		server.canvas_item_add_polyline(canvas, vertices, PackedColorArray([tint]), .7, true)
 		commands += 1
