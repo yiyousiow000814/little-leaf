@@ -31,6 +31,19 @@ Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` ta
 - The itch key is used only by publishing steps. Raw Butler output is suppressed, and repository permissions are read-only
 - One release runs at a time. Avoid simultaneous manual itch uploads or multiple queued release tags; GitHub keeps only one pending run by default
 
+## Memory acceptance for affected releases
+
+Renderer, export/runtime, cache and lifecycle changes require the
+[memory regression standard](../testing/memory-regression.md). Ordinary CI runs
+the fast deterministic lifecycle check; a focused browser soak, relevant repeated
+scene/reload/resource cycles and post-GC memory/capacity trends are a separate
+release gate. Use a matched control and justified budgets, record exact hashes
+and live-versus-retained counts, and retain unsupported paths as gaps. A short
+three-minute pass supports a candidate without proving every leak absent.
+Keep this work proportionate; do not add long soaks to every PR or weaken the
+existing CI/toolchain/atlas/save gates. An urgent shorter diagnostic must remain
+explicitly unqualified against the longer gate.
+
 ## If a release stops
 
 - **Missing/invalid secret:** review its name and permissions personally; never print the value
