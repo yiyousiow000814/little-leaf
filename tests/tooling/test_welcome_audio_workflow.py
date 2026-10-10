@@ -56,7 +56,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
     def test_offline_harness_and_guards_are_mandatory(self):
         self.assertIn("node tests/welcome_audio_test.js", self.text)
         self.assertIn("python3 ci/verify_prebaked_atlases.py", self.text)
-        self.assertIn("python3 -m unittest ci.test_welcome_audio_workflow ci.test_reuse_welcome_web -v", self.text)
+        self.assertIn("python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v", self.text)
         for file in ("browser", "helpers", "observer"):
             self.assertIn("node --check tests/welcome_audio_" + file + ".js", self.text)
 

@@ -16,8 +16,9 @@ Build, release and diagnostic orchestration is documented in
 tooling run is appropriate. The package sets its CI import path once; individual
 test files do not carry competing import setup.
 
-Old `qa/` and `tests/capture_*.gd` reproduction paths now resolve under
-`tests/diagnostics/`. Historical source-bound receipts preserve their original
+Old capture, audit and profiling paths under `qa/`, plus `tests/capture_*.gd`,
+now resolve under `tests/diagnostics/`. The shell prototype moved separately to
+`tests/fixtures/shell_segment_contract.gd`. Historical source-bound receipts preserve their original
 paths and hashes. The startup comparison's frozen toolkit still stages its own
 temporary `qa/startup_descent` directory; that is generated diagnostic input,
 not a tracked source folder to relocate.

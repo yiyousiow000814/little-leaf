@@ -36,7 +36,7 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=no)"
           python3 ci/release_metadata.py
           python3 ci/verify_prebaked_atlases.py
-          python3 -m unittest ci.test_welcome_audio_workflow ci.test_reuse_welcome_web -v
+          python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v
           node tests/welcome_audio_test.js
           node tests/welcome_source_binding_test.js
           node tests/wall_compatibility_helpers_test.js

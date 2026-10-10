@@ -17,7 +17,7 @@ Format 4 requires `service.dishwashing`, containing its format marker, monotonic
 
 ## Verification
 
-Run the aggregate regression entry point documented in `docs/README.md`. Focused suites are `test_dishwashing_queue`, `test_role_boundaries`, and `test_role_release`. All tests use synthetic profiles and suppress normal saves. `qa/capture_dishwashing.gd` captures only the synthetic game viewport; `OUTPUT` selects its capture directory
+Run the focused regression entry point documented in `docs/README.md`. Relevant suites are `test_dishwashing_queue`, `test_role_boundaries`, and `test_role_release`; select those that observe the affected behavior. All tests use synthetic profiles and suppress normal saves. `tests/diagnostics/capture_dishwashing.gd` captures only the synthetic game viewport; `OUTPUT` selects its capture directory
 
 ## Single-basin visual revision
 
