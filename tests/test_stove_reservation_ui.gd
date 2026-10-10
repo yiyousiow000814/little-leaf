@@ -41,11 +41,14 @@ func run():
   check(state()==before,"selection/presentation makes no save or layout change r"+str(rot))
   game.selected_id=-1;game.selected_kind="plant";game.rotation_step=0
   game.interaction.refresh(game.illustration.iso(front.x+.5,front.y+.5))
-  check(game.interaction.preview_active and not game.interaction.drag_valid,"red invalid prop preview on work tile r"+str(rot))
-  check(game.interaction.drag_reason.contains("Stove front blocked"),"hover has precise chef-space rejection r"+str(rot))
-  game.interaction._commit_preview();check(state()==before,"invalid UI confirmation cannot charge/place/save r"+str(rot))
+  check(game.interaction.preview_active and game.interaction.drag_valid,"idle prop preview is physically valid on future work tile r"+str(rot))
+  check(game.interaction.drag_warning.contains("Stove front blocked"),"hover keeps separate nonblocking chef-space warning r"+str(rot))
+  var count=m.items.size();var wallet=m.coins;var save_count=game.saves
+  game.interaction._commit_preview();check(m.items.size()==count+1 and m.coins<wallet and game.saves==save_count+1,"physical UI confirmation commits and saves warning-only placement once r"+str(rot))
+  var placed=m.items[-1];before=state()
   await frames();await capture("blocked-preview-r"+str(rot),front)
-  key(KEY_ESCAPE);check(state()==before and not game.interaction.preview_active,"Escape cancels invalid draft without saving r"+str(rot))
+  key(KEY_ESCAPE);check(state()==before and not game.interaction.preview_active,"Escape after commit adds no placement or save r"+str(rot))
+  check(m.remove(int(placed.id),false),"warning-only prop can be removed to restore wall test fixture r"+str(rot));before=state()
   var tools=game.build_tools;game.catalog_category="Build";tools.mode="full"
   tools.preferred_axis="x" if front.y!=4 else "z";tools._cache_key=""
   var mid=(Vector2(5.5,4.5)+Vector2(front)+Vector2(.5,.5))*.5
@@ -65,9 +68,10 @@ func run():
   # Keyboard R follows the exact same authority as drag/confirm.
   var next_front=m.workface_cell({"kind":"stove","x":5,"z":4,"rot":posmod(rot+1,4)})
   check(m.place("plant",next_front.x,next_front.y),"rotation obstacle fixture r"+str(rot));var blocker=m.items[-1]
-  game._rebuild_furniture();game.interaction._select_item(stove);before=state();key(KEY_R)
-  check(state()==before and int(stove.rot)==rot,"immediate R cannot rotate front into obstacle r"+str(rot))
+  game._rebuild_furniture();game.interaction._select_item(stove);var warning_saves=game.saves;key(KEY_R)
+  check(int(stove.rot)==posmod(rot+1,4) and game.saves==warning_saves+1,"idle immediate R may rotate toward blocked future workface and saves once r"+str(rot))
   check(m.remove(int(blocker.id),false),"rotation obstacle removable r"+str(rot))
+  check(m.move(int(stove.id),5,4,rot),"reset rotation for clear confirmation fixture r"+str(rot))
   game._rebuild_furniture();game.interaction._select_item(stove);var saves=game.saves;key(KEY_R)
   check(int(stove.rot)==posmod(rot+1,4) and game.saves==saves+1,"cleared immediate R commits and saves once r"+str(rot))
   before=state();key(KEY_ESCAPE);check(state()==before,"cancel after valid rotation adds no second save r"+str(rot))
