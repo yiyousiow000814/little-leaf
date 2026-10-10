@@ -1,0 +1,1 @@
+Exact frozen control d2910b4 and combined candidate dba6910. Official pinned Godot/X11 software renderer; independent imports and saved PNG checks. Exact pixel equality required. No manifest writer, assets, guard, gameplay, original profiles or other workflows changed. One scoped comparison authorized by user camera acceptance request. Native/Web game acceptance is separate.
