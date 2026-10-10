@@ -32,7 +32,7 @@ The [verification entrypoint](../../tests/README.md) separates regression checks
 tooling guards, fixtures and manual diagnostics. The [CI command guide](../../tools/README.md)
 classifies recurring checks, on-demand tools and historical investigations.
 
-Current wardrobe visual acceptance is held until the finished 3D-authored character foundation. Candidate clothing code/tests do not substitute for that gate or approval of actual game pixels. Preserve the original 2D isometric game presentation. Coordinate active owners through the integration lead. FPS PR128 is user-owned; assistants do no FPS implementation or measurements.
+Current wardrobe visual acceptance is held until the finished 3D-authored character foundation. Candidate clothing code/tests do not substitute for that gate or approval of actual game pixels. Preserve the original 2D isometric game presentation. Coordinate active owners through the integration lead. FPS PR128 follows the latest user-authorized closeout scope in the [canonical roadmap](../roadmap.md#current-state); do not start competing FPS experiments. Apply the [rendering/performance contract](../testing/rendering-performance.md) during feature design and verification.
 
 ## Build
 

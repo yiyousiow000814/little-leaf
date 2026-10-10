@@ -34,4 +34,4 @@ func draw(view,host:Dictionary,attachments:Array,base_color,panel_color):
 		match command[0]:
 			"poly":view.poly(command[1],command[2])
 			"line":view.line(command[1],command[2],command[3],command[4])
-			"polygon":view.draw_polygon(command[1],command[2],command[3],command[4])
+			"polygon":preload("res://scripts/cafe_canvas_draw.gd").draw_polygon(view,command[1],command[2],command[3],command[4])

@@ -22,3 +22,7 @@ Read the [canonical roadmap](../roadmap.md) for current state before these sourc
 - [Historical evidence directory](history/README.md): retain its source/date and limitations when citing a result
 
 Protect original saves, browser storage and live Firebase rules. Follow [development boundaries](../development/README.md) and [AGENTS.md](../../AGENTS.md).
+
+## Rendering and frame time
+
+Use the [rendering and performance contract](rendering-performance.md) for retained resources, first-frame visual regression checks, normal-speed camera gestures and exact-build Web timelines. Current acceptance remains in the [roadmap](../roadmap.md#current-state).

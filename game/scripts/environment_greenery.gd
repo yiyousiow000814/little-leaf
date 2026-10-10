@@ -3,6 +3,13 @@ extends RefCounted
 ## Ground anchors and palette are shared; silhouettes are not scaled copies.
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 var tree_bounds={}
+var static_contours={}
+
+var use_retained_fills=true
+var use_ordered_pockets=true
+var ordered_pocket_cache={}
+const OrderedPocket=preload("res://scripts/ordered_pocket_triangles.gd")
+var fill_meshes={}
 var pocket_bounds=[]
 var trees={}
 var pockets=[]
@@ -72,16 +79,78 @@ func bounds_for(items:Array)->Rect2:
 		var part=Visibility.points_bounds(item[1])
 		bounds=part if first else bounds.merge(part);first=false
 	return bounds
-func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2):
+func _fill_mesh(points:PackedVector2Array)->ArrayMesh:
+	if fill_meshes.has(points):return fill_meshes[points]
+	var triangles=Geometry2D.triangulate_polygon(points)
+	if triangles.is_empty():return null
+	var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=points
+	arrays[Mesh.ARRAY_INDEX]=triangles
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+	fill_meshes[points]=mesh
+	return mesh
+func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2,variant_key:String=""):
 	var bounds=Visibility.local_bounds(ground,scale,local_bounds)
 	if a.has_method("render_bounds_visible"):
 		if not a.render_bounds_visible(bounds):return
 	elif a.has_method("get_viewport_rect") and not Visibility.visible(bounds,a.get_viewport_rect(),6.0):return
+	if variant_key!="" and a.has_method("draw_scaled_contours") and a.canvas_stream.active and a.use_native_object_nodes and a.get_global_transform_with_canvas()==Transform2D.IDENTITY and a._art_transform==Transform2D(0,a._presentation_offset):
+		var key=[variant_key,a.opacity]
+		if not static_contours.has(key):
+			var mesh=_make_static_contours(items,a)
+			if mesh!=null:
+				if static_contours.size()>=64:static_contours.erase(static_contours.keys()[0])
+				static_contours[key]=mesh
+		if static_contours.has(key):
+			a.draw_scaled_contours(static_contours[key],ground,scale)
+			return
 	var transform=Transform2D(Vector2(scale,0),Vector2(0,scale),ground)
-	for item in items:a.poly(Array(transform*item[1]),item[0])
+	# Keep every authored contour, native outline, and painter position. Only
+	# immutable fill geometry gains a retained resource; inspection/painters
+	# with outer transforms continue through the original poly implementation.
+	var retained=use_retained_fills and a is CanvasItem and "_art_transform" in a and a._art_transform==Transform2D(0,a._presentation_offset) and a.has_method("art_polyline")
+	if use_ordered_pockets and retained and a.get_global_transform_with_canvas()==Transform2D.IDENTITY and items in pockets:
+		var key=[items.hash(),ground,scale,a.opacity]
+		if not ordered_pocket_cache.has(key):
+			var ordered=OrderedPocket.new();var valid=true
+			for item in items:
+				if not ordered.append_contour(transform*item[1],a.col(item[0]),.7):valid=false;break
+			if valid:
+				if ordered_pocket_cache.size()>=64:ordered_pocket_cache.clear()
+				ordered_pocket_cache[key]=ordered
+		if ordered_pocket_cache.has(key):
+			var ordered=ordered_pocket_cache[key]
+			if a.has_method("draw_ordered_triangles"):a.draw_ordered_triangles(ordered)
+			else:RenderingServer.canvas_item_add_triangle_array(a.get_canvas_item(),ordered.indices,ordered.vertices,ordered.colors)
+			return
+	for item in items:
+		var mesh=_fill_mesh(item[1]) if retained else null
+		if mesh==null:a.poly(Array(transform*item[1]),item[0]);continue
+		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(a,mesh,null,transform,a.col(item[0]))
+		var outline:PackedVector2Array=transform*item[1]
+		outline.append(outline[0])
+		a.art_polyline(outline,a.col(item[0]),.7)
 func draw_tree(a,ground:Vector2,scale:float,variant:String):
 	a.ellipse(ground+Vector2(2,0),Vector2(31,9)*scale,Color(.45,.57,.32,.12))
-	draw_layers(a,trees[variant],ground,scale,tree_bounds[variant])
+	draw_layers(a,trees[variant],ground,scale,tree_bounds[variant],"tree:"+variant)
 func draw_pocket(a,p:Vector2,variant:int):
 	var index=posmod(variant,pockets.size())
-	draw_layers(a,pockets[index],a.iso(p.x,p.y),a.ui_scale*a.zoom*.75,pocket_bounds[index])
+	draw_layers(a,pockets[index],a.iso(p.x,p.y),a.ui_scale*a.zoom*.75,pocket_bounds[index],"pocket:"+str(index))
+
+func _make_static_contours(items:Array,artist)->ArrayMesh:
+	var full=OrderedPocket.new();var center=OrderedPocket.new()
+	for item in items:
+		if not full.append_contour(item[1],artist.col(item[0]),.7):return null
+		if not center.append_contour(item[1],artist.col(item[0]),0.0):return null
+	if full.vertices.size()!=center.vertices.size() or full.vertices.is_empty():return null
+	var offsets=PackedVector2Array()
+	for index in range(full.vertices.size()):offsets.append(full.vertices[index]-center.vertices[index])
+	var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=center.vertices
+	arrays[Mesh.ARRAY_TEX_UV]=offsets
+	arrays[Mesh.ARRAY_COLOR]=full.colors
+	arrays[Mesh.ARRAY_INDEX]=full.indices
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+	return mesh
