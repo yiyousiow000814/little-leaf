@@ -1,7 +1,8 @@
-"""PR140 reviewed chair-only cache proposal and strict repeated native parity; no product manifest writes."""
+"""Combined PR140/147 reviewed table-only incremental cache proposal and strict repeated native parity; no product manifest writes."""
 import argparse,hashlib,json,os,pathlib,shutil,subprocess,tempfile
 HERE=pathlib.Path(__file__).resolve().parent
 EXPECTED_RGBA=['31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732','6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc','d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7']
+CANDIDATE_IMPORTED=['15f1f0e977b6410f159c1f50895eebd90196ebb00aee97902d3b1aafce880f93',*EXPECTED_RGBA[1:]]
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def git(*args):return subprocess.check_output(['git',*args],text=True).strip()
 def frozen_targets(inputs):
@@ -27,7 +28,7 @@ def main():
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  packages=subprocess.run(['dpkg-query','-W','libgl1-mesa-dri','libglx-mesa0','libllvm20','xvfb'],capture_output=True,text=True);(out/'packages.txt').write_text(packages.stdout+packages.stderr)
- binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','check_chair_delta.gd']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'product_asset_replacement':False,'disposable_asset_proposal':True,'scope':'reviewed PR140 chair-only cache proposal; qualified control retained; exact repeated parity required'}
+ binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','check_chair_delta.gd']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'product_asset_replacement':False,'disposable_asset_proposal':True,'scope':inputs['scope']}
  def save():(out/'summary.json').write_text(json.dumps(binding,indent=2))
  save();assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
  for label,item in targets.items():
@@ -68,19 +69,19 @@ def main():
     assert import_code==0,'Isolated serial import failed; retain log and stop'
     code=native([a.godot,'--path',str(project),'--audio-driver','Dummy','--rendering-method','gl_compatibility','res://qa/canonical_atlas/parity.tscn'],env,dest/'native.log')
     receipt=json.loads((dest/'atlas-parity.json').read_text());log=(dest/'native.log').read_text()
-    # Preserve the first mismatch. This candidate deliberately removes chair shadows;
+    # Preserve the first mismatch. This candidate adds the frozen table grounding delta to qualified PR140;
     # changing other parts, dimensions, moving art or heads is forbidden.
     first=json.loads((dest/'atlas-parity.json').read_text())
     assert code==1 and first['failures']==['Atlas furniture differs']
     assert first['source_commit']==item['commit'] and native_fingerprint_passed(log)
-    assert first['candidate_sha256']==EXPECTED_RGBA and first['baseline_sha256'][1:]==EXPECTED_RGBA[1:]
-    assert first['baseline_sha256'][0]!=EXPECTED_RGBA[0]
+    assert first['candidate_sha256']==CANDIDATE_IMPORTED and first['baseline_sha256'][1:]==EXPECTED_RGBA[1:]
+    assert first['baseline_sha256'][0]!=CANDIDATE_IMPORTED[0]
     delta_code=native([a.godot,'--headless','--path',str(project),'--script','res://qa/canonical_atlas/check_chair_delta.gd'],env,dest/'chair-delta.log')
-    delta=json.loads((dest/'chair-delta.json').read_text());assert delta_code==0 and delta['passed'] and delta['outside_chair_seat_pixels']==0
+    delta=json.loads((dest/'chair-delta.json').read_text());assert delta_code==0 and delta['passed'] and delta['outside_table_body_pixels']==0
     original=project/'assets/cache/furniture-atlas.png';settings=pathlib.Path(str(original)+'.import');settings_sha=sha(settings)
     proposed=dest/'furniture-regenerated.png';original_sha=sha(original)
     shutil.copy2(proposed,original);assert sha(settings)==settings_sha
-    (dest/'asset-proposal.json').write_text(json.dumps({'source_commit':item['commit'],'source_tree':item['tree'],'path':'game/assets/cache/furniture-atlas.png','original_sha256':original_sha,'proposed_sha256':sha(proposed),'import_sha256_unchanged':settings_sha,'manifest_updated':False,'not_committed_source':True,'allowed_pixel_change':'four chair-seat regions only'},indent=2))
+    (dest/'asset-proposal.json').write_text(json.dumps({'source_commit':item['commit'],'source_tree':item['tree'],'path':'game/assets/cache/furniture-atlas.png','original_sha256':original_sha,'proposed_sha256':sha(proposed),'import_sha256_unchanged':settings_sha,'manifest_updated':False,'not_committed_source':True,'allowed_pixel_change':'table_body/0 only, inherited qualified chair pixels preserved'},indent=2))
     qualified=dest/'qualified';qualified.mkdir();env['LL_ATLAS_OUTPUT']=str(qualified)
     config.write_text(runtime_config+'\n[editor]\nimport/use_multiple_threads=false\n')
     try:

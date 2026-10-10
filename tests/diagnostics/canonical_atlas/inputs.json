@@ -1,12 +1,12 @@
 {
-  "scope": "Reviewed PR140 current-main chair cache proposal: retain historical control, permit changed RGBA only in four chair-seat regions, then require exact repeated regenerated/imported/saved parity. No product manifest writes.",
+  "scope": "Combined PR14067151405 and PR147a56116d3 production-only function composition; compare inherited qualified PR140 pixels, permit only table_body/0 differences, then repeat strict canonical parity. No product manifest writes.",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "bcbbadfcd38daf3c51e2033bd0346d371d3faf86",
-    "tree": "985b3be023e023042c6d5caba77619c16853a0b0"
+    "commit": "86ef4437851f0302c980fc659b2da0343d370860",
+    "tree": "346844c6fc2f712b0681960c4a0dd2262f7cb038"
   },
   "reuse_control": {
     "run": 38066367866,
@@ -17,5 +17,15 @@
       "saved-png-check.json": "a717304564b8269aff76d3026b0760853ca6fceacab6513bc6e7e6da277f6583",
       "source-binding.json": "9cb296480c55b56096017d64598595ba71047ae5697a2021f3a5f2d817e24550"
     }
+  },
+  "composition": {
+    "furniture": "671514057f0676836cec0342e965dcffdf14e411",
+    "table": "a56116d3bf659120458d652597965a3e0146e9a5",
+    "furniture_qualification_run": 38082304812,
+    "furniture_qualified_rgba": "15f1f0e977b6410f159c1f50895eebd90196ebb00aee97902d3b1aafce880f93",
+    "production_delta_over_furniture": [
+      "game/scripts/dining_style_art.gd",
+      "game/scripts/illustrated_cafe.gd"
+    ]
   }
 }
