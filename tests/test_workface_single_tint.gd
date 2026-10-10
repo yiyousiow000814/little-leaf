@@ -1,5 +1,5 @@
 extends SceneTree
-## Reserved ground must be painted once by the common floor layer.
+## Workface facts remain available without whole-floor placement tint.
 class FixtureMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
@@ -19,6 +19,8 @@ func _initialize():run.call_deferred()
 func run():
  var game=FixtureMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.editing=true;game.paused=true
  var m=game.model;var guide=game.workface_guidance
+ # Keep legacy counter paint coverage without offering a new counter purchase.
+ m.items.append({"id":m._next_item_id,"kind":"counter","x":5,"z":6,"rot":0});m._next_item_id+=1;m._notify()
  var state=JSON.stringify([m.items,m.coins,m.revision,game.saves])
  for kind in ["stove","sink","beverage","counter","register"]:
   var item={}
@@ -27,9 +29,9 @@ func run():
   check(not item.is_empty(),"fixture includes "+kind)
   game.selected_kind="";game.selected_id=int(item.id);game.interaction.preview_active=false;guide._refresh()
   check(not guide.markers.is_empty(),"selected "+kind+" retains work-cell facts")
-  var art=PaintRecorder.new();game.interaction.draw_floor_feedback(art)
+  var art=PaintRecorder.new()
   var fills=art.fills.size();var lines=art.lines.size();guide.draw_ground(art)
-  check(art.fills.size()==fills and art.lines.size()==lines,"selected "+kind+" does not double-paint common red floor")
+  check(art.fills.size()==fills+guide.markers.size() and art.lines.size()==lines+guide.markers.size(),"selected "+kind+" paints only its specific workface guidance once")
   check(JSON.stringify([m.items,m.coins,m.revision,game.saves])==state,"paint does not mutate "+kind)
  # Preserve the existing directional draft guide where no red ground cell exists.
  game.selected_id=-1;game.selected_kind="stove"
@@ -38,8 +40,7 @@ func run():
   interaction.drag_rotation=rot;guide._refresh();var art=PaintRecorder.new();guide.draw_ground(art)
   var cell=m.workface_cell({"kind":"stove","x":5,"z":6,"rot":rot})
   check(guide.markers.size()==1 and guide.markers[0].cell==cell,"draft keeps correct working cell r"+str(rot))
-  var already_red=bool(interaction.floor_availability.refresh(m).get(cell,{}).get("blocked",false))
-  check(art.fills.size()==(0 if already_red else 1),"draft only adds guidance on unmarked ground r"+str(rot))
+  check(art.fills.size()==1 and art.lines.size()==1,"draft paints its directional guidance once without a common floor wash r"+str(rot))
  check(JSON.stringify([m.items,m.coins,m.revision,game.saves])==state,"all draft rendering preserves state")
  game.editing=false;var art=PaintRecorder.new();guide.draw_ground(art)
  check(art.fills.is_empty() and art.lines.is_empty(),"play has no ground-guide paint")

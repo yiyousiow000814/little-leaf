@@ -39,8 +39,12 @@ var tiles_back:Button
 var tiles_title:Label
 var tiles_heading:Control
 var build_page="products"
+# Presentation only. No model, service, ownership or save state is changed.
+var hide_objects=false
+var hide_objects_button:Button
 var action_copy:HBoxContainer
 var price_label:Label
+var action_coin:TextureRect
 var action_layout_key:Array=[]
 
 var parking_card:Button
@@ -214,6 +218,7 @@ func setup():
  _setup_parking()
  action_copy=HBoxContainer.new();action_copy.mouse_filter=Control.MOUSE_FILTER_IGNORE;action_copy.add_theme_constant_override("separation",8);ui.context.add_child(action_copy)
  ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ action_coin=ui.hud._picture(action_copy,ui.hud._texture("coin"));action_coin.custom_minimum_size=Vector2(21,21);action_coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;action_coin.hide()
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
  ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
 
@@ -299,6 +304,9 @@ func _setup_tiles():
  var tile=TileIcon.new();tile.style="cream_tile";tile.mouse_filter=Control.MOUSE_FILTER_IGNORE;tile.size=Vector2(84,54);tile.scale=Vector2.ONE*.38;tile.position=Vector2(5,12);tiles_heading.add_child(tile);tiles_heading_icon=tile
  walls_heading_icon=game.build_tools.WallIcon.new();walls_heading_icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;walls_heading_icon.size=Vector2(84,54);walls_heading_icon.scale=Vector2.ONE*.38;walls_heading_icon.position=Vector2(5,10);tiles_heading.add_child(walls_heading_icon);walls_heading_icon.hide()
  tiles_title=ui.hud._label(tiles_heading,"Tiles",16,ui.hud.CREAM);tiles_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;tiles_title.clip_text=false
+ hide_objects_button=_nav("Hide objects",toggle_objects);hide_objects_button.name="HideObjects";hide_objects_button.toggle_mode=true;hide_objects_button.hide()
+ hide_objects_button.accessibility_description="Temporarily hide café furniture, rugs, walls, doors and windows to inspect the floor. Ground, outdoor scenery and plot boundaries stay visible. Hidden objects cannot be selected."
+ hide_objects_button.tooltip_text=hide_objects_button.accessibility_description
  _sync_build_page()
 func _draw_tiles_back():
  # Pair the chevron with the native 14px caption. Raster bounds place their
@@ -353,6 +361,25 @@ func choose_wall_style(height:String,material:String):
  var key="wall:"+height+":"+material
  if not game.editing or game.catalog_category!="Build" or build_page!="walls" or game.save_recovery_blocked or ui.viewport_too_small or not wall_cards.has(key) or not wall_cards[key].visible:return
  game.build_tools.material=material;game.build_tools.choose(height);ui.sync();ui.update_pointer()
+func tiles_active()->bool:
+ return game.editing and game.catalog_category=="Build" and build_page=="tiles"
+func objects_hidden()->bool:
+ return tiles_active() and hide_objects
+func reset_inspection():
+ if not hide_objects:return
+ hide_objects=false
+ if is_instance_valid(hide_objects_button):hide_objects_button.set_pressed_no_signal(false)
+ if is_instance_valid(game.illustration):game.illustration.queue_redraw()
+func toggle_objects():
+ if not tiles_active() or game.save_recovery_blocked or ui.viewport_too_small:return
+ var next=not hide_objects
+ # Clear any selected furnishing/wall or in-flight click, but retain the chosen
+ # floor tool so the player can compare and place flooring with objects hidden.
+ if game.build_tools.mode!="floor":game._cancel_selection()
+ else:
+  game.build_tools.on_focus_lost()
+  game.interaction.cancel(false)
+ hide_objects=next;ui.sync();game.illustration.queue_redraw()
 func show_tiles():
  if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
  game._cancel_selection();ui._hide_popups();build_page="tiles";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
@@ -360,7 +387,8 @@ func show_build_products():
  game._cancel_selection();wall_target="";build_page="products";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
 func choose_floor_style(style:String):
  if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small or style not in tile_cards:return
- game.build_tools.floor_material=style;game.build_tools.choose("floor");ui.sync();ui.update_pointer()
+ var keep_hidden=objects_hidden()
+ game.build_tools.floor_material=style;game.build_tools.choose("floor");hide_objects=keep_hidden;ui.sync();ui.update_pointer()
 func _visible_build_keys()->Array:
  var keys=[]
  for key in build_cards:
@@ -461,6 +489,7 @@ func sync_action_details():
  if ui==null or not is_instance_valid(price_label):return
  ui.context.visible=game.editing and ui.hud.has_edit_action();ui.cancel_button.visible=ui.context.visible
  var b=game.build_tools;var price="";var detail=""
+ action_coin.hide()
  # Both periodic UI sync and pointer refresh consume this same presentation.
  # Price never replaces the product title, and label visibility is not state.
  if b.active():
@@ -478,7 +507,20 @@ func sync_action_details():
    if b.preview_reason!="":detail+=("\n" if detail!="" else "")+b.preview_reason
   elif b.mode in ["door","window"]:
    ui.context_label.text=b.mode.capitalize();price=ui.Money.amount(game.model.attachment_price(b.mode))+" coins"
-  elif b.mode=="move_opening":ui.context_label.text="Move opening"
+  elif b.mode=="move_wall":
+   ui.context_label.text="Moving wall · choose an edge";price="No charge";detail=b.preview_reason
+  elif b.mode=="move_opening":
+   var opening=ui._selected_opening()
+   ui.context_label.text="Moving "+str(opening.get("kind","opening"))+" · choose a wall"
+ if b.paint_stroke!=null and b.paint_stroke.active and not b.paint_stroke.receipt.is_empty():
+  var stroke=b.paint_stroke.receipt
+  ui.context_label.text="%d %s"%[int(stroke.count),"tiles" if b.mode=="floor" else "walls"]
+  price=ui.Money.amount(int(stroke.net)) if stroke.ok else "Cannot apply"
+  action_coin.visible=bool(stroke.ok)
+  detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
+  if not stroke.ok:detail+=" · "+str(stroke.error)
+ price_label.add_theme_font_size_override("font_size",18 if action_coin.visible else 12)
+ price_label.accessibility_name=price+(" coins" if action_coin.visible else "")
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
  action_background.tooltip_text=ui.context_label.tooltip_text
@@ -490,7 +532,7 @@ func _layout_action_board(width:float):
  var actions=[];var used=0.0;var gap=6.0
  # Keep the per-pointer guard typed: stringifying nested button state did
  # allocations and numeric formatting on every unchanged decorating frame.
- var signature=[width,ui.context_label.text,price_label.text,ui.context_label.get_theme_font_size("font_size"),price_label.get_theme_font_size("font_size")]
+ var signature=[width,ui.context_label.text,price_label.text,action_coin.visible,ui.context_label.get_theme_font_size("font_size"),price_label.get_theme_font_size("font_size")]
  for child in ui.context.get_children():
   if child==action_copy or not child.visible:continue
   if child.custom_minimum_size!=Vector2(44,44):child.custom_minimum_size=Vector2(44,44)
@@ -509,14 +551,15 @@ func _layout_action_board(width:float):
  action_layout_key=signature
  var font=ui.hud.font_bold;var title_width=ceilf(font.get_string_size(ui.context_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.context_label.get_theme_font_size("font_size")).x)
  var cost_width=ceilf(font.get_string_size(price_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,price_label.get_theme_font_size("font_size")).x) if price_label.visible else 0.0
- var text_width=title_width+(cost_width+8 if price_label.visible else 0)+2
+ var coin_width=29.0 if action_coin.visible else 0.0
+ var text_width=title_width+(cost_width+8 if price_label.visible else 0)+coin_width+2
  var pad=36.0;var text_gap=12.0;var row_width=used+maxi(0,actions.size()-1)*gap
  var inner_limit=maxf(44,width-pad*2);var stacked=text_width+text_gap+row_width>inner_limit
  var board_width=minf(width,maxf(180,(maxf(text_width,row_width) if stacked else text_width+text_gap+row_width)+pad*2))
  var inner_width=board_width-pad*2
  var copy_width=inner_width if stacked else text_width
  # Exact glyph measurements happen before placing children. No stale-price budget.
- ui.context_label.custom_minimum_size=Vector2(minf(title_width,maxf(0,copy_width-(cost_width+8 if price_label.visible else 0))),0);price_label.custom_minimum_size=Vector2(cost_width,0)
+ ui.context_label.custom_minimum_size=Vector2(minf(title_width,maxf(0,copy_width-coin_width-(cost_width+8 if price_label.visible else 0))),0);price_label.custom_minimum_size=Vector2(cost_width,0)
  action_copy.custom_minimum_size=Vector2.ZERO
  var copy_height=maxf(22,maxf(ui.context_label.get_theme_font("font").get_height(ui.context_label.get_theme_font_size("font_size")),price_label.get_theme_font("font").get_height(price_label.get_theme_font_size("font_size")) if price_label.visible else 0))
  var x=0.0 if stacked else copy_width+text_gap
@@ -532,7 +575,11 @@ func _layout_action_board(width:float):
  var board_height=content_height+vertical_pad*2
  var board=Rect2((width-board_width)*.5,-board_height-8,board_width,board_height)
  action_background.position=board.position;action_background.size=board.size
- _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad),Vector2(inner_width,content_height)))
+ # The stroke row uses Nunito14/18 and painted coin/button assets. Their visible
+ # ink centers 3px above the inset center despite centered Control rectangles.
+ # Calibrated from native1x pixels; shift this action row only, not HUD labels.
+ var ink_center_shift=3.0 if game.build_tools.paint_stroke.active else 0.0
+ _put(ui.context,Rect2(board.position+Vector2(pad,vertical_pad+ink_center_shift),Vector2(inner_width,content_height)))
  ui.context.set_meta("available_width",inner_width)
 
 func _product_scroll_finished(scroll:ScrollContainer):
@@ -659,6 +706,7 @@ func _short_landscape_card_width()->float:
  return width
 
 func sync(width:float):
+ if not tiles_active():reset_inspection()
  if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
  _sync_parking_card()
  ui._sync_starter_floor_repair()
@@ -687,7 +735,7 @@ func sync(width:float):
  ui.context_label.visible=true
  var nested=game.catalog_category=="Build" and build_page in ["tiles","walls"]
  var tiny=w<440
- var repair_width=110.0 if ui.floor_repair_button.visible else 0.0
+ var repair_width=(100.0 if tiny else 110.0) if ui.floor_repair_button.visible else 0.0
  var tail=repair_width+8 if repair_width>0 else 0.0
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
@@ -712,10 +760,22 @@ func sync(width:float):
   category_scroll.hide();category_back.hide();category_more.hide();category_picker.hide();category_panel.hide()
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
   var style=tiles_back.get_theme_stylebox(state);style.content_margin_left=30;style.content_margin_right=10
- _put(tiles_back,Rect2(category_margin,header_y,104,44))
- var heading_x=category_margin+112;var heading_width=112.0
+ var back_width=80.0 if tiny and tiles_active() and repair_width>0 else 104.0
+ _put(tiles_back,Rect2(category_margin,header_y,back_width,44))
+ var heading_x=category_margin+back_width+8;var heading_width=76.0 if tiny and repair_width>0 else 112.0
  tiles_heading.visible=nested and (w-category_margin-tail-(heading_x+heading_width+12)>=210 if short_landscape else heading_x+heading_width+8<=w-category_margin-tail)
+ var stacked_inspection=tiles_active() and short_landscape and not tiles_heading.visible
  _put(tiles_heading,Rect2(heading_x,header_y,heading_width,44));_put(tiles_title,Rect2(35,0,heading_width-43,44))
+ hide_objects_button.visible=tiles_active()
+ hide_objects_button.text=("Show\nobjects" if hide_objects else "Hide\nobjects") if heading_width<100 else ("Show objects" if hide_objects else "Hide objects")
+ hide_objects_button.accessibility_name="Show café objects" if hide_objects else "Hide café objects"
+ hide_objects_button.set_pressed_no_signal(hide_objects)
+ hide_objects_button.disabled=game.save_recovery_blocked or ui.viewport_too_small
+ _put(hide_objects_button,Rect2(heading_x,header_y,heading_width,44))
+ if stacked_inspection:
+  _put(tiles_back,Rect2(category_margin,(h-88)*.5,back_width,44))
+  _put(hide_objects_button,Rect2(category_margin,h*.5,back_width,44))
+ if tiles_active():tiles_heading.hide()
  _put(ui.floor_repair_button,Rect2(w-category_margin-repair_width,header_y,repair_width,44))
  if last_category!=game.catalog_category or not is_equal_approx(last_layout_width,category_width):
   last_category=game.catalog_category;last_layout_width=category_width;_reveal_category.call_deferred()
@@ -727,7 +787,7 @@ func sync(width:float):
  var card_w=_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0)
  var margin=16 if picker_landscape else (24 if short_landscape else (22 if tiny else 32))
  var product_left=category_x+category_width+(12 if picker_landscape else 64) if short_landscape else float(margin)
- if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible else category_margin+116
+ if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible or (hide_objects_button.visible and not stacked_inspection) else category_margin+back_width+12
  var product_right=w-margin-tail if short_landscape else w-margin
  var product_width=product_right-product_left
  var product_gap=_active_products().get_child(0).get_theme_constant("separation")
@@ -745,6 +805,7 @@ func sync(width:float):
  var next_key=str([game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:
   var index=roundi(_active_products().scroll_horizontal/product_stride) if product_stride>0 and last_product_category==game.catalog_category else 0
+  if game.catalog_category=="Build" and build_page=="tiles" and game.build_tools.mode=="floor":index=maxi(0,_visible_build_keys().find(game.build_tools.floor_material))
   for scroll in [game.catalog_scroll,ui.build_scroll]:_stop_product_scroll(scroll);product_contacts.erase(scroll.get_instance_id())
   product_restore_index=index;product_layout_key=next_key;last_product_category=game.catalog_category
  product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=(narrow or short_landscape) and arrows
@@ -781,8 +842,9 @@ func sync(width:float):
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
+  card.accessibility_name=column.get_child(1).text+", "+ui.Money.amount(game.model.price_of(kind))+" coins"
   card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
-  card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
+  card.tooltip_text=("Need "+ui.Money.amount(shortfall)+" more coins; preview only") if shortfall>0 else ""
   if kind=="register":
    var pending=bool(game.model.included_checkout_pending)
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"

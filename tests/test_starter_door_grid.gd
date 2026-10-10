@@ -69,7 +69,7 @@ func _init():
  check(model._opening_body_error([],model.wall_attachments,[Vector2(-.1,5.5)])=="","saved body fits center lane")
  check(not model.path_between(Vector2i(0,5),Vector2i(2,5)).is_empty(),"arrival path reaches landing")
  check(not model.path_between(Vector2i(2,5),Vector2i(0,5)).is_empty(),"exit path crosses centered door")
- for cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:check(not model.can_place("plant",cell.x,cell.y),"landing stays protected "+str(cell))
+ for cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:check(model.can_place("plant",cell.x,cell.y),"idle owned doorway landing is physical floor "+str(cell))
  roundtrip(model,"fresh",1.0)
  roundtrip(legacy(),"old-clear",1.0)
  # A matching legacy door only: altered IDs/host/position/paid value stay exact.
@@ -81,7 +81,24 @@ func _init():
   roundtrip(customized,label,1.5)
  # Purchased standard-width and moved aligned free doors stay valid.
  var moved=legacy();moved.wall_attachments[0].width=.76;moved.wall_attachments[0].paid_cost=40
- roundtrip(moved,"paid-standard",.76)
+ roundtrip(moved,"paid-standard",1.0)
+ # Historical narrow doors widen in place without changing ownership/value.
+ for change in [{},{"id":9},{"offset":5.6},{"host_id":"shell:back"}]:
+  var narrow=Model.new();narrow.wall_attachments[0].width=.76;narrow.wall_attachments[0].paid_cost=40
+  for key in change:narrow.wall_attachments[0][key]=change[key]
+  narrow._next_attachment_id=10
+  roundtrip(narrow,"narrow-custom-"+str(checks),1.0)
+ var free_narrow=Model.new();free_narrow.wall_attachments[0].width=.76
+ roundtrip(free_narrow,"narrow-free",1.0)
+ # The center is authoritative: never shift an old door to fit the new width.
+ var boundary=Model.new();boundary.wall_attachments[0].width=.76;boundary.wall_attachments[0].host_id="shell:back";boundary.wall_attachments[0].offset=.4
+ roundtrip(boundary,"narrow-host-boundary",.76)
+ var crowded=Model.new();crowded.wall_attachments[0].width=.76
+ crowded.wall_attachments.append({"id":2,"kind":"window","host_id":"shell:west","offset":6.3,"width":.70,"paid_cost":30});crowded._next_attachment_id=3
+ roundtrip(crowded,"narrow-neighbor-opening",.76)
+ var unsupported=Model.new();unsupported.wall_attachments[0].width=.76;unsupported.wall_attachments[0].offset=5.4
+ check(unsupported.remove_wall("shell:west#4"),"remove neighboring segment outside historical aperture")
+ roundtrip(unsupported,"narrow-missing-support",.76)
  moved=Model.new();moved.wall_attachments[0].offset=5.6
  roundtrip(moved,"aligned-moved",1.0)
  # Real model save/load with a guest crossing each newly occupied side strip.

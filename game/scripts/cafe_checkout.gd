@@ -27,6 +27,7 @@ static func claimed_cells(m,except_id:int=-1)->Dictionary:
  var result={}
  for guest in m.customers:
   if int(guest.id)==except_id:continue
+  if guest.get("mobility",{}).get("kind","")=="blocked":continue
   var cell=guest.get("checkout_cell",NONE)
   if cell!=NONE and (str(guest.phase) in STAGES or (guest.phase=="leaving" and point(guest).distance_to(m.cell_center(cell))<.8)):
    result[cell]=int(guest.id)
@@ -168,6 +169,7 @@ static func _route_to(m,guest:Dictionary,destination:Vector2i)->bool:
  guest.checkout_reason="";return true
 static func advance(m,delta:float):
  for guest in m.customers:
+  if guest.get("mobility",{}).get("kind","")=="blocked":continue
   if guest.phase=="leaving" and guest.paid and str(guest.get("settlement_mode","legacy"))=="register" and guest.departure_blocked:depart(m,guest)
   if guest.phase=="leaving" and guest.get("checkout_cell",NONE)!=NONE and point(guest).distance_to(m.cell_center(guest.checkout_cell))>=.8:guest.checkout_cell=NONE
  var waiting=queue(m)
@@ -179,8 +181,8 @@ static func advance(m,delta:float):
  var front=m.workface_cell(item);var back=rear(m,item);var slot=NONE;var slot_checked=false
  for rank in range(waiting.size()):
   var guest:Dictionary=waiting[rank]
-  guest.checkout_register_id=int(item.id)
   if not guest.get("mobility",{}).is_empty() or guest.phase in ["paying","checkout_walk"]:continue
+  guest.checkout_register_id=int(item.id)
   # The optional standing slot cannot affect an already moving/paying guest,
   # the head of the queue, or guests waiting seated beyond rank one.
   if rank==1 and not slot_checked:slot=_optional_wait(m,item);slot_checked=true

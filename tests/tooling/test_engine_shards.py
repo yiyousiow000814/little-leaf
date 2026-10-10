@@ -91,6 +91,33 @@ class EngineShardTests(unittest.TestCase):
         self.mutate(lambda r: next(row for row in r['records'] if row['test'] == 'import')['diagnostics'].append('ERROR: synthetic import failure'))
         with self.assertRaisesRegex(ValueError, 'diagnostics'): self.merge()
 
+    def test_navigation_missing_flag_records_are_required(self):
+        navigation = 'test_navigation_review'
+        self.names.append(navigation)
+        self.assignments[1].append(navigation)
+        def add_navigation(report):
+            report['shard']['suites'] = self.assignments[1]
+            report['records'].extend({'test': name, 'checks': 1, 'exit_code': 0,
+                                      'failures': [], 'diagnostics': []}
+                                     for name in sorted(shards.expected_records([navigation])))
+            report['total_checks'] = sum(row['checks'] for row in report['records'])
+        self.mutate(add_navigation)
+        result = self.merge()
+        self.assertTrue(shards.expected_records([navigation]) <= {r['test'] for r in result['records']})
+        for variant in [navigation + '--navigation-candidate', navigation + '--fresh-review']:
+            original = self.paths[1].read_text()
+            self.mutate(lambda r: r['records'].__setitem__(slice(None), [row for row in r['records'] if row['test'] != variant]))
+            with self.assertRaisesRegex(ValueError, 'record'): self.merge()
+            self.paths[1].write_text(original)
+
+    def test_checked_export_uses_same_complete_record_contract(self):
+        import sys
+        with mock.patch.object(sys, 'path', [str(ROOT / 'tools'), *sys.path]):
+            import build_web
+        names = ['test_navigation_review', 'staff-start']
+        self.assertEqual(build_web.expected_records(names), shards.expected_records(names))
+        self.assertEqual(len(build_web.expected_records(names)), 8)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -47,7 +47,7 @@ class FakeGame extends Node:
  func _save():followup_saves+=1
 class NativeHarness extends Main:
  func _update_people():pass
- func _service_save_snapshot()->Dictionary:return {}
+ func _service_save_snapshot(_allow_staff_navigation:bool=false)->Dictionary:return {}
 var failures=[]
 var checks=0
 func _init():call_deferred("run")

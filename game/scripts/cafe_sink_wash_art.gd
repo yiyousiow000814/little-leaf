@@ -3,7 +3,10 @@ extends RefCounted
 const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 const ARM=10.5
 const HALF_ARM=ARM*.5
-const INSET=.55
+const INSET=.27
+static func work_inset(rotation:int)->float:
+ # Diagonal shoe silhouettes differ by view; both stances stay outside the body.
+ return .362 if posmod(rotation,4) in [1,2] else INSET
 static func actual_surface(at:Vector2,height:float,rotation:int)->Vector2:
  var q=at.rotated(posmod(rotation,4)*PI/2)
  return Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
@@ -30,7 +33,7 @@ static func basis(rotation:int,tilt:float)->Transform2D:
 static func geometry(rotation:int,seconds:float,count:int)->Dictionary:
  var lift=smoothstep(0,.8,seconds);var lower=smoothstep(19.35,20.0,seconds)
  var initial_height=Geometry.height(Geometry.SINK_STACK_HEIGHT)+maxi(0,count-1)*2.2
- var z=lerpf(Geometry.SINK_BASIN_CENTER.y,.30,lift);z=lerpf(z,.08,lower)
+ var z=lerpf(Geometry.SINK_BASIN_CENTER.y,.30+Geometry.SINK_WORK_SHIFT,lift);z=lerpf(z,.08+Geometry.SINK_WORK_SHIFT,lower)
  var height=lerpf(initial_height,22.5,lift);height=lerpf(height,Geometry.height(Geometry.SINK_STACK_HEIGHT),lower)
  var tilt=deg_to_rad(28)*lift*(1.0-lower)
  var center=actual_surface(Vector2(0,z),height,rotation)
@@ -39,9 +42,9 @@ static func geometry(rotation:int,seconds:float,count:int)->Dictionary:
  var scrub=Vector2(sin(cycle*TAU)*2.0,cos(cycle*TAU)*.85)
  var rinsing=smoothstep(17.3,18.7,seconds)
  scrub*=1.0-rinsing
- var water_height=height-(.10-z)/maxf(.1,cos(tilt))*sin(tilt)*30.0
- var outlet=Geometry.surface(Vector2(0,.10),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
- var contact=actual_surface(Vector2(0,.10),water_height,rotation)
+ var water_height=height-(Geometry.SINK_TAP_OUTLET_Z-z)/maxf(.1,cos(tilt))*sin(tilt)*30.0
+ var outlet=Geometry.surface(Vector2(0,Geometry.SINK_TAP_OUTLET_Z),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
+ var contact=actual_surface(Vector2(0,Geometry.SINK_TAP_OUTLET_Z),water_height,rotation)
  return {"center":center,"basis":plate_basis,"transform":Transform2D(plate_basis.x,plate_basis.y,center),"scrub_local":scrub,"scrub":center+plate_basis*scrub,"outlet":outlet,"water_contact":contact,"height":height,"foam":smoothstep(.8,1.8,seconds)*(1.0-smoothstep(17.3,19.1,seconds)),"dirt":1.0-smoothstep(3,17,seconds),"seconds":seconds,"lower":lower,"lift":lift,"stage":"lift" if seconds<.8 else ("scrub" if seconds<17.3 else ("rinse" if seconds<19.35 else "lower"))}
 static func nearest_rim(shoulder:Vector2,center:Vector2,plate_basis:Transform2D)->Vector2:
  var best=center;var distance=INF

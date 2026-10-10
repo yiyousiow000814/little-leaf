@@ -34,7 +34,7 @@ func run():
   check(Geometry.height(Geometry.SINK_BOTTOM_HEIGHT)<Geometry.height(Geometry.SINK_RIM_HEIGHT)-5.0,"basin floor is more than five art pixels recessed r"+str(rotation))
   check(Geometry.sink_plate_anchor(rotation).y>center.y+4.0,"bottom dish rests inside the bowl r"+str(rotation))
   var stack_top=Geometry.sink_plate_anchor(rotation)+Vector2(0,-5*2.2-6.4)
-  var outlet=Geometry.surface(Vector2(Geometry.SINK_BASIN_CENTER.x,-.02),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
+  var outlet=Geometry.surface(Vector2(Geometry.SINK_BASIN_CENTER.x,Geometry.SINK_TAP_OUTLET_Z),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
   check(outlet.y<stack_top.y-8.0,"outlet has eight projected pixels above full stack r"+str(rotation))
   check(Geometry.sink_tap_in_front(rotation)==(rotation in [1,2]),"tap layering follows rotated physical mount r"+str(rotation))
   probe.points.clear();probe.upright_dishes=0
@@ -46,7 +46,7 @@ func run():
   probe.points.clear();furniture.draw_item(probe,"sink",Vector2(200,300),rotation,3)
   check(abs(probe.points.size()-zero_count)<12,"translated catalog sink preserves cavity polygons r"+str(rotation))
   for p in probe.points:check(safe.has_point(p-Vector2(200,300)),"translated sink geometry stays correctly anchored r"+str(rotation))
-  check(Geometry.SINK_BASIN_CENTER.x-Geometry.SINK_BASIN_OUTER.x>-.47 and Geometry.SINK_BASIN_CENTER.x+Geometry.SINK_BASIN_OUTER.x<.47,"basin fits unchanged cabinet width r"+str(rotation))
-  check(Geometry.SINK_BASIN_CENTER.y-Geometry.SINK_BASIN_OUTER.y>-.41 and Geometry.SINK_BASIN_CENTER.y+Geometry.SINK_BASIN_OUTER.y<.41,"basin fits unchanged cabinet depth r"+str(rotation))
+  check(Geometry.SINK_BASIN_CENTER.x-Geometry.SINK_BASIN_OUTER.x>-Furniture.CABINET_TILE_SPAN/2 and Geometry.SINK_BASIN_CENTER.x+Geometry.SINK_BASIN_OUTER.x<Furniture.CABINET_TILE_SPAN/2,"basin fits full-cell cabinet width r"+str(rotation))
+  check(Geometry.SINK_BASIN_CENTER.y-Geometry.SINK_BASIN_OUTER.y>-Furniture.CABINET_TILE_SPAN/2 and Geometry.SINK_BASIN_CENTER.y+Geometry.SINK_BASIN_OUTER.y<Furniture.CABINET_TILE_SPAN/2,"basin fits full-cell cabinet depth r"+str(rotation))
  print("SINK_BASIN_VISUAL_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"rotations":4,"plate_radius_unchanged":[14,6.4]}))
  quit(0 if failures.is_empty() else 1)

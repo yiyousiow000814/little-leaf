@@ -89,6 +89,18 @@ See [assets and licenses](../art-audio/README.md) before reusing or distributing
 - [Starter wall design](../design/starter-wall-grid-segments.md), [implementation review](../design/starter-wall-implementation-review.md).
 - Scoped acceptance: [characters/wardrobes](../testing/acceptance/011-characters-wardrobes.md), [furniture/depth](../testing/acceptance/011-furniture-depth.md), [land/reception/routing](../testing/acceptance/011-land-reception-routing.md), [street/starter/interface](../testing/acceptance/011-street-starter-interface.md), [four separate gates](../testing/acceptance/10a-011-additional-gates.md).
 
+#### Editor inspection and transaction interfaces
+
+The editor composition retains the accepted editor and required pickup/model lineage, reuses the relevant PR103/106 changes once, and merges current main documentation. Historical whole candidate trees must not replace current source. Code/test/native status belongs in the roadmap, not a second feature guide.
+
+`CafeShopUI.tiles_active()` gates true-color Build/Tiles browsing; `objects_hidden()` gates temporary furniture/rug/wall/opening draw and hit suppression. Ground, scenery and purchase boundaries remain. Occupancy, collision, ownership, service and saves stay authoritative in the model. `toggle_objects()` clears pending selection/input through existing `BuildTools.on_focus_lost`, `Interaction.cancel` and `game._cancel_selection`, retaining the floor tool. `BuildTools.cancel()` resets inspection; Back/category/Done/Escape/right-click/Cancel restore objects. Render retention includes `build_page`/`hide_objects`; no timer is added. Existing `floor_quote`/floor installation and `_changed()` still validate, charge and save one clicked tile. Selected-card scrolling restores the active material after resize; this is not the entire shop/Storage roadmap. This inspection slice needs no new model endpoint.
+
+The pickup owner alone composes the shared model/codec. Broader original/purchased wall Move/Sell requires `get_editable_wall`, `can_move_wall`, `collision_wall_hosts` and wall-transaction delegation. Every reader must preserve shell `removed` tombstones, `paid_cost`, `refund_credit`, `origin_shell`, and opening `host_id`/`offset` when moving a host. Reject moves that remove support from wide multi-host openings; never resurrect original segments or refund them twice. No fallback or stub is installed for these missing endpoints.
+
+Atomic painting uses `CafePaintPlan`/`BuildTools.paint_stroke` and shared shadow/publication agreement. A receipt belongs to one immutable preview and rejects changed revision, wallet, geometry, ownership, catalog or actors. Validate all targets before publishing once; preserve existing wall dictionary identity, invalidate the receipt before notification, and save once at the input owner. Focus loss, cancellation and recovery block commit. Inspection UI alone does not enable stroke adapters/pricing.
+
+Composed furniture move/sell must honor active job/station/output locks and plate ownership, retain legacy reserved-counter handoffs and released janitor floor-disposal/generation guards, and preserve starter-bin owner commit `c88a4f7`. Compose PR91 contacts once. Routing125, characters/wardrobes and user-owned FPS128 remain separate. Browser/mobile platform, combined pickup and broader editor acceptance remain independent gates; native controls at responsive viewports do not establish mobile-browser acceptance.
+
 ### Startup, browser and publication
 
 - [Branded startup](branded-startup-010.md), [Welcome entry motion](entry-motion-010.md).
@@ -97,6 +109,11 @@ See [assets and licenses](../art-audio/README.md) before reusing or distributing
 - [Interactive tutorial](../testing/interactive-tutorial.md), [compensation Inbox](../testing/compensation-inbox.md), [builds/releases](../release/README.md), [assets/licenses](../art-audio/README.md).
 
 ## Maintaining the documentation
+
+Native routing review: [composition and remaining gates](navigation-native-composition.md),
+[route-consumer audit](routing-candidate-011-audit.md),
+[frozen planner evidence](routing-candidate-011-results.md), and
+[scheduler/follower contract](routing-scheduler-candidate-011.md).
 
 Keep every unique requirement in the roadmap or a clearly linked technical contract. Before removing duplication, check inbound links, workflows/export manifests, runtime resource readers, QA output paths and private recovery dependencies. Move one coherent set at a time, preserve historical source/failed evidence, and update links atomically. Do not move runtime folders or shipped notices for cosmetic tidiness. Generated profiles, private reference images, account data and operational handoffs stay outside public documentation.
 
