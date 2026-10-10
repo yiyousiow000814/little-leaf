@@ -35,10 +35,11 @@ func run():
  check(floor.refresh(model,int(members[-1]))==lifted,"lifting seat uses the same complete logical footprint")
  check(model.items==original and game.saves==0,"floor preview never mutates or saves model")
  game.interaction.drag_active=true;game.interaction.preview_active=true;game.interaction.drag_item_id=int(stove.id)
- var recorder=FloorRecorder.new();game.interaction.draw_floor_feedback(recorder)
- check(not floor.cells[Vector2i(stove.x,stove.z)].blocked,"live floor draw uses lifted layout")
- game.interaction.cancel();game.interaction.draw_floor_feedback(recorder)
- check(floor.cells==baseline and model.items==original,"cancel restores original red mask without model writes")
+ floor.refresh(model,int(stove.id))
+ check(not floor.cells[Vector2i(stove.x,stove.z)].blocked,"lifted preview geometry releases its own footprint")
+ check(not game.interaction.has_method("draw_floor_feedback"),"placement feedback does not expose whole-floor tint drawing")
+ game.interaction.cancel();floor.refresh(model)
+ check(floor.cells==baseline and model.items==original,"cancel restores original geometry facts without model writes")
  var shop=game.compact_ui.shop_ui;shop.sync(1360)
  for kind in game.catalog_cards:
   if kind!="register":
@@ -52,9 +53,8 @@ func run():
    check(game.catalog_cards[kind].accessibility_description.contains("purchase is blocked"),"affordability accessibility retained")
  var props=Recorder.new();props.culling=false
  Neighborhood.draw_props(props);var with_bus=props.commands.duplicate(true)
- props.commands=[];Neighborhood.draw_props(props,Callable(),Callable(),false);var without_bus=props.commands.duplicate(true)
  props.commands=[];Neighborhood.draw_bus(props,Neighborhood.BUS_POSITION)
- check(with_bus.size()==without_bus.size()+props.commands.size() and not props.commands.is_empty(),"editing hides only bus from neighborhood props")
+ check(not props.commands.is_empty() and with_bus.slice(with_bus.size()-props.commands.size())==props.commands,"existing neighborhood API retains original bus painter commands")
  props.commands=[];Neighborhood.draw_props(props)
  check(props.commands==with_bus,"bus presentation restores without state changes")
  var opening=game.illustration.OpeningGeometry.aperture(model.wall_attachments[0],model.built_walls,model.shell_products)

@@ -23,7 +23,11 @@ func complete_snapshot()->Array:
  var m=game.model
  return [m.items.duplicate(true),m.floor_finishes.duplicate(true),m.built_walls.duplicate(true),m.wall_attachments.duplicate(true),m.shell_segment_products.duplicate(true),m.owned_parcels.duplicate(true),m.customers.duplicate(true),m.outside_queue.duplicate(true),game.staff_states.duplicate(true),game.service_guests.duplicate(true),m.coins,m.revision,game.saves,m._furniture_actor_component(m.ENTRY_LANDING,m.items)]
 func paint_count()->int:
- var recorder=FloorRecorder.new();game.interaction.draw_floor_feedback(recorder);return recorder.fills.size()
+ # Placement validity is confined to the selected footprint; Tiles must never
+ # reintroduce the removed whole-floor red/green availability wash.
+ var recorder=FloorRecorder.new()
+ if game.interaction.has_method("draw_floor_feedback"):game.interaction.draw_floor_feedback(recorder)
+ return recorder.fills.size()
 func click_world(point:Vector2):
  for pressed in [true,false]:
   var event=InputEventMouseButton.new();event.position=point;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed
@@ -46,7 +50,7 @@ func run():
  await process_frame
  ui=game.compact_ui;shop=ui.shop_ui
  game.editing=true;game.tray.show();game.model.coins=100000;game._set_catalog_category("Build");ui._set_tray_reveal(1);await settle()
- check(paint_count()>0,"ordinary Build retains availability tint")
+ check(paint_count()==0,"ordinary Build has no whole-floor availability tint")
  check(game.model.place("rug",7,6),"fixture places rug")
  check(game.model.place_wall("x",8,5,"full","sage_panels"),"fixture places wall")
  var before=complete_snapshot()
@@ -132,7 +136,7 @@ func run():
   if route=="done":game._toggle_edit()
   game._set_catalog_category("Build");await settle()
  shop.show_build_products();await settle()
- check(paint_count()>0,"leaving Tiles restores availability paint")
+ check(paint_count()==0,"leaving Tiles preserves selected-footprint-only placement feedback")
  for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,344),Vector2i(566,360),Vector2i(844,390)]:
   root.size=view;shop.show_tiles();await settle();toggle_layout(str(view))
   game.model.floor_finishes.erase("11,8");game.model._notify();await settle();toggle_layout(str(view)+" repair")

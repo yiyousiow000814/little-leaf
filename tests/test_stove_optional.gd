@@ -32,10 +32,12 @@ func run():
  var legacy_wall=Model.WallGeometry.make("x",5,4);legacy_wall.id=wall_model._next_wall_id;wall_model._next_wall_id+=1;wall_model.built_walls.append(legacy_wall);wall_model._notify()
  check(wall_model.layout_access_issues().size()==1,"wall obstruction is still described in decorate")
  check(wall_model.place("stove",11,8,0),"owned stove footprint may face beyond usable work floor")
- for kind in ["beverage","sink","counter","register"]:
+ for kind in ["beverage","sink","register"]:
   var test=Model.new();test.items.clear();test.dining_sets.clear();test.customers.clear();test.coins=100000
   test.place("plant",5,4)
   check(test.can_place(kind,5,3,-1,0),"idle appliance access is a warning: "+kind)
+ var retired_counter=Model.new()
+ check(not retired_counter.can_place("counter",5,3) and retired_counter.last_error=="Meals are collected directly from the stove","idle placement policy preserves direct-stove pickup and retired counter purchase")
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  var live_stove={}
  for item in game.model.items:
