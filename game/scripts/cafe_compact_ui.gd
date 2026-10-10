@@ -447,6 +447,7 @@ func sync():
  if style.content_margin_right!=tray_margin:style.content_margin_right=tray_margin
  # Keep the closing animation and first/resize layout current. Catalog data
  # is refreshed synchronously by every Decorate opening/category change.
+ if shop_ui!=null:shop_ui._sync_parking_review()
  var shop_view=game.get_viewport().get_visible_rect().size
  var shop_insets=hud._safe_insets() if hud!=null else Vector4.ZERO
  if shop_ui!=null and (game.editing or game.tray.visible or shop_view!=shop_layout_view or shop_insets!=shop_layout_insets):
