@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath}=require('./source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
 const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');
@@ -150,7 +151,7 @@ try {
     return args[0] === 'rev-parse' ? commit : dirty ? ' M tests/fresh_tutorial_browser.js' : '';
   };
   const sourceNames = ['tests/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js', 'project.godot'];
-  const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [name, hash(fs.readFileSync(path.join(root, name)))])),
+  const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [name, hash(fs.readFileSync(sourcePath(root,name)))])),
     records: [{test: 'test_interactive_tutorial', exit_code: 0, failures: [], result_sha256: hash(JSON.stringify(receipt))}]};
   const production = {'project.godot': engine.source_sha256['project.godot']};
   const manifest = {source_commit: commit, toolchain_verification: 'checksum-pinned-official-archives', packed_smoke: 'passed', production_sha256: production};

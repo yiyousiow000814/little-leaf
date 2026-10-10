@@ -3,20 +3,20 @@ on:
   pull_request:
     paths:
       - '.github/workflows/cloud-recovery-visual.yml'
-      - 'ci/capture_cloud_recovery_ui.py'
+      - 'tools/capture_cloud_recovery_ui.py'
       - 'tests/diagnostics/capture_cloud_recovery_ui.gd'
       - 'tests/test_cloud_recovery_ui.gd'
       - 'tests/test_update_notice.gd'
-      - 'scripts/cafe_update_notice.gd'
-      - 'web/little_leaf_update.js'
-      - 'scripts/cafe_web_save.gd'
-      - 'web/little_leaf_firebase_boot.mjs'
-      - 'web/little_leaf_firebase.js'
-      - 'scripts/cafe_cloud_settings.gd'
-      - 'scripts/cafe_compact_ui.gd'
-      - 'scripts/cafe_hud.gd'
-      - 'scripts/cafe_save_log_panel.gd'
-      - 'scripts/cafe_update_notes.gd'
+      - 'game/scripts/cafe_update_notice.gd'
+      - 'platform/web/little_leaf_update.js'
+      - 'game/scripts/cafe_web_save.gd'
+      - 'platform/web/little_leaf_firebase_boot.mjs'
+      - 'platform/web/little_leaf_firebase.js'
+      - 'game/scripts/cafe_cloud_settings.gd'
+      - 'game/scripts/cafe_compact_ui.gd'
+      - 'game/scripts/cafe_hud.gd'
+      - 'game/scripts/cafe_save_log_panel.gd'
+      - 'game/scripts/cafe_update_notes.gd'
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install existing checksum-pinned official engine
-        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/panel-tools"
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/panel-tools"
       - name: Prepare Ubuntu native software renderer
         run: |
           sudo apt-get update
@@ -47,7 +47,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           LIBGL_ALWAYS_SOFTWARE: '1'
           LL_ENGINE_LOCK: ${{ runner.temp }}/panel-engine.lock
-        run: python3 ci/capture_cloud_recovery_ui.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/panel-paired"
+        run: python3 tools/capture_cloud_recovery_ui.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/panel-paired"
       - name: Retain actual screenshots and exact source receipts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

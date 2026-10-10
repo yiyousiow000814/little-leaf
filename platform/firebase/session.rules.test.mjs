@@ -20,7 +20,7 @@ try{
       const client=LittleLeafFirebase.createClient({uid:account,currentUid:()=>account,codec:LittleLeafAuthorityCodec,ownership,journal,remote:LittleLeafFirebase.createRemote(database,sdk,ownership),status(){}});return {ownership,client,local:()=>local};
     }
     const first=device('Mac'),second=device('iPhone');await first.ownership.start();const boot=await first.client.boot();assert(boot.ok);
-    const payload=readFileSync('../tests/fixtures/startup-retry-v15.json','utf8');assert((await first.client.commit(payload,0,boot.profileId)).ok);
+    const payload=readFileSync('../../tests/fixtures/startup-retry-v15.json','utf8');assert((await first.client.commit(payload,0,boot.profileId)).ok);
     await second.ownership.start();assert.equal((await second.client.boot()).code,'OWNERSHIP_LOST');assert.equal(second.local(),null);
     assert((await second.client.requestTakeover()).ok);await first.ownership.refresh();assert((await first.client.preserveOwnerRuntime(payload,1,boot.profileId)).cloudConfirmed);
     await second.ownership.refresh();const resumed=await second.client.finishTakeover();assert(resumed.ok,JSON.stringify(resumed));assert.equal(resumed.payload,payload);assert(second.local());

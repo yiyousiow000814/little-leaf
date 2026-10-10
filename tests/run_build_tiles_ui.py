@@ -1,3 +1,4 @@
+import sys
 """Run Build/Tiles regressions and optional native GL screenshots in disposable profiles.
 
 Example: python3 tests/run_build_tiles_ui.py --output /tmp/build-tiles-qa --native
@@ -20,6 +21,8 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 EXCLUDED = {".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
             "export", "exports", "export_templates", "dist"}
 IGNORE = shutil.ignore_patterns(*EXCLUDED, "*.log", "*.zip")
@@ -90,7 +93,7 @@ def main():
         with tempfile.TemporaryDirectory(prefix="build-tiles-saveguard-") as temporary:
             temporary = Path(temporary)
             project = temporary / "project"
-            shutil.copytree(ROOT, project, ignore=IGNORE)
+            stage_project(ROOT, project, tests=True, ignore=IGNORE)
             controller = project / "scripts/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'

@@ -125,7 +125,7 @@ class HistoricalEngineLockTests(unittest.TestCase):
         self.assertEqual(command, 'python3 .compatibility-old/tests/run_integration_candidate.py '
                          '--output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"')
         self.assertIn('ref: ' + self.old_commit, workflow)
-        self.assertIn("git('status','--porcelain')", (ROOT / 'ci/build_firebase.py').read_text())
+        self.assertIn("git('status','--porcelain')", (ROOT / 'tools/build_firebase.py').read_text())
         self.assertNotIn('.little-leaf-engine.lock', (ROOT / '.gitignore').read_text())
         self.assertNotIn('git clean', workflow)
         self.assertNotIn('git reset', workflow)

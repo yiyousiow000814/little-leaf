@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath,resourceName}=require('./source_paths.js');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,10 +20,10 @@ function verifySource(web, source, expectedBuiltCommit) {
   const git = (...args) => cp.execFileSync('git', args, {cwd: source, encoding: 'utf8'}).trim();
   assert.equal(git('status', '--porcelain', '--untracked-files=no'), '', 'Clean tracked candidate source required');
   const commit = git('rev-parse', 'HEAD');
-  const names = git('ls-files', '-z').split('\0').filter(name =>
+  const names = git('ls-files', '-z').split('\0').map(resourceName).filter(name =>
     ['project.godot', 'main.tscn', 'export_presets.cfg'].includes(name) ||
     ['assets', 'data', 'scripts', 'shaders', 'web'].includes(name.split('/')[0]));
-  const production = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(path.join(source, name)))]));
+  const production = Object.fromEntries(names.map(name => [name, hash(fs.readFileSync(sourcePath(source,name)))]));
   const builtCommit = expectedBuiltCommit || JSON.parse(fs.readFileSync(path.join(web, 'release-manifest.json'))).source_commit;
   assert(/^[0-9a-f]{40}$/.test(builtCommit), 'Export must identify its exact source commit');
   let builtTree;

@@ -14,7 +14,7 @@ Downloadable builds and test evidence stay in Actions for **7 days**. Keep any r
 
 ## Publish an approved version
 
-1. Update `project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
+1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
 2. Wait for **Check and build Web** to pass on the intended commit. Review the Web build in a fresh browser profile and a separate copied-save profile. Leave real player data untouched.
 3. Only after publication is approved, create and push one new tag, such as **`v0.1.6`**, at that exact reviewed commit already in `main` history. Later changes on `main` do not block this fixed tag. Never move or reuse a release tag.
 4. Watch **Release Web to itch.io**. It tests and rebuilds the tagged commit, then uploads to **`siowyiyou/little-leaf:html5`**. The summary records its source SHA, version and itch build ID.

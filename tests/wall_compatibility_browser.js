@@ -183,7 +183,7 @@ async function main() {
       const bytes = fs.readFileSync(path.join(fixtureDir, name)); assert.equal(hash(bytes), digest); fixtures[name] = bytes.toString('utf8');
     }
     const oldSource = fs.readFileSync(path.join(oldSourceRoot, 'web/little_leaf_vault.js'), 'utf8');
-    const newSource = fs.readFileSync(path.join(root, 'web/little_leaf_vault.js'), 'utf8');
+    const newSource = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
     assert.equal(hash(oldSource), contract.old_vault_sha256);
     assert.equal(hash(newSource), preflight.production_sha256.new['web/little_leaf_vault.js']);
     report.inputs = {old_commit: contract.old_commit, new_commit: newCommit, fixture_sha256: contract.fixture_sha256,

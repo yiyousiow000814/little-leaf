@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+from project_layout import game_root
 
 STABLE = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
 # Project-specific hotfix releases, not SemVer prereleases: X.Y.Z < X.Y.Za.
@@ -30,6 +31,7 @@ def require_main_ancestor(root):
 
 
 def version(root, tag=""):
+    root = game_root(root)
     project = (root / "project.godot").read_text()
     matches = re.findall(r'^config/version="([^"]+)"$', project, re.MULTILINE)
     if len(matches) != 1 or not re.fullmatch(RELEASE, matches[0]):

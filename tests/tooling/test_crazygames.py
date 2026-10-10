@@ -67,7 +67,7 @@ class CrazyGamesExportTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.validate()
 
     def test_separate_presets_keep_original_web_selection(self):
-        config = (Path(__file__).resolve().parents[2] / "export_presets.cfg").read_text(encoding="utf-8")
+        config = (Path(__file__).resolve().parents[2] / "game/export_presets.cfg").read_text(encoding="utf-8")
         sections = config.split("[preset.")
         self.assertIn('name="Web"', sections[1])
         self.assertIn('custom_features=""', sections[1])
@@ -83,7 +83,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.project = self.root / "project"
-        shutil.copytree(REPO / "web", self.project / "web")
+        shutil.copytree(REPO / "platform/web", self.project / "web")
         self.before = {p.relative_to(self.project).as_posix(): p.read_bytes()
                        for p in self.project.rglob("*") if p.is_file()}
 
@@ -176,7 +176,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn("pointer-events:none", cg.PREVIEW_NOTICE)
 
     def test_platform_help_explains_submission_without_claiming_cloud_confirmation(self):
-        ui = (REPO / "scripts/cafe_compact_ui.gd").read_text()
+        ui = (REPO / "game/scripts/cafe_compact_ui.gd").read_text()
         body = ui.split("func _sync_help_content():", 1)[1].split("\nfunc ", 1)[0]
         expected = "Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here."
         self.assertIn(expected, body)
@@ -187,12 +187,12 @@ class CrazyGamesVariantTests(unittest.TestCase):
     def test_web_save_routes_have_no_native_or_persistent_pending_fallback(self):
         # Source contracts supplement the actual embedded-JS fixtures; this is
         # not an engine/runtime claim. Web branches return before native paths.
-        main = (REPO / "scripts/main.gd").read_text()
+        main = (REPO / "game/scripts/main.gd").read_text()
         startup = main.split("func _load_startup():", 1)[1].split("\nfunc ", 1)[0]
         self.assertIn('if OS.has_feature("web"):\n\t\tweb_save=WebSave.new(self)\n\t\tweb_save.load_startup()\n\t\treturn', startup)
         save = main.split("func _save():", 1)[1].split("\nfunc ", 1)[0]
         self.assertTrue(save.lstrip().startswith('if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false'))
-        controller = (REPO / "scripts/cafe_web_save.gd").read_text()
+        controller = (REPO / "game/scripts/cafe_web_save.gd").read_text()
         self.assertIn('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"', controller)
         for initial in ['var pending=false', 'var queued=false', 'var _confirmed_payload=""', 'var _inflight_payload=""']:
             self.assertIn(initial, controller)
@@ -202,7 +202,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertNotIn('FileAccess.READ', controller)
         self.assertIn('if not game.model.save(STAGING_FILE):', controller)
         self.assertLess(controller.index('if not game.model.save(STAGING_FILE):'), controller.index('FileAccess.get_file_as_string(STAGING_FILE)'))
-        settings = (REPO / "scripts/cafe_settings.gd").read_text()
+        settings = (REPO / "game/scripts/cafe_settings.gd").read_text()
         self.assertIn('web_preferences=WebPreferences.new()\n\t\tloaded=web_preferences.load_into(cfg)\n\t\tsource="browser-preferences:"+web_preferences.source\n\telse:', settings)
         self.assertIn('return saved\n\treturn cfg.save(config_path)==OK', settings)
         shell = (self.project / "web/little_leaf_crazygames_shell.html").read_text()
@@ -210,7 +210,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertLess(shell.index('root.__littleLeafVault = client;'), shell.index('window.__littleLeafVault.boot()'))
         self.assertLess(shell.index('window.__littleLeafPreferences.boot()'), shell.index("return engine.startGame("))
         self.assertNotIn('LittleLeafPreferences =', shell, "ordinary Web preference adapter is absent")
-        config = (REPO / "export_presets.cfg").read_text().split('[preset.1.options]', 1)[1].split('[preset.2]', 1)[0]
+        config = (REPO / "game/export_presets.cfg").read_text().split('[preset.1.options]', 1)[1].split('[preset.2]', 1)[0]
         self.assertIn('progressive_web_app/enabled=false', config)
 
     def test_both_variants_and_embedded_adapters_keep_full_sdk_contract(self):

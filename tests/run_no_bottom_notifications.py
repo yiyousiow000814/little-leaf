@@ -1,3 +1,4 @@
+import sys
 """Run real-scene bottom-notification removal checks with a disposable profile.
 
 Usage: python3 tests/run_no_bottom_notifications.py
@@ -14,6 +15,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--rendered", action="store_true")
 parser.add_argument("--output", type=Path, default=ROOT / "evidence/no-bottom-notifications")
@@ -26,7 +29,7 @@ with args.lock.open("a") as lock, tempfile.TemporaryDirectory(prefix="little-lea
     fcntl.flock(lock, fcntl.LOCK_EX)
     temporary = Path(temporary)
     project = temporary / "project"
-    shutil.copytree(ROOT, project, ignore=shutil.ignore_patterns(
+    stage_project(ROOT, project, tests=True, ignore=shutil.ignore_patterns(
         ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
         "export", "exports", "export_templates", "dist", "*.log", "*.zip"))
     env = os.environ.copy()

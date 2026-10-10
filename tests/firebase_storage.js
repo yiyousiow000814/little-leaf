@@ -2,8 +2,8 @@
 // Pure synthetic contract tests, not Firebase/iOS device verification.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
 const root={crypto:webcrypto,TextEncoder,setTimeout,clearTimeout};root.globalThis=root;
-vm.runInNewContext(fs.readFileSync('web/little_leaf_vault.js','utf8'),root);
-vm.runInNewContext(fs.readFileSync('web/little_leaf_firebase.js','utf8'),root);
+vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_vault.js','utf8'),root);
+vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase.js','utf8'),root);
 const payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8'),clone=x=>x==null?null:JSON.parse(JSON.stringify(x));
 const fail=code=>Object.assign(Error(code),{code});
 function harness(){

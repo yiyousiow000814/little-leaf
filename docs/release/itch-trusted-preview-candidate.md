@@ -9,7 +9,7 @@ The preview boot uses `start(config, {surface:'trusted-itch-frame', runtimeOrigi
 
 The preview also emits `frame-ancestors` for those two origins on `/` and `/index.html`. Browsers without `location.ancestorOrigins` fail closed in this candidate; cross-browser acceptance is pending. The default mode still rejects all frames.
 
-`ci/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
+`tools/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
 
 Upload only `itch-wrapper`, to a separate private test project. Selecting local play opens the original local vault. Selecting account mode embeds the exact preview and leaves the original vault boot promise unresolved; returning to the choice requires reloading. Progress is explicitly separate, with no automatic migration. Google sign-in requires a direct click within the trusted frame and uses the existing SDK popup result/auth-state listener. A cancelled/blocked popup cannot open the account journal or replace the local vault.
 

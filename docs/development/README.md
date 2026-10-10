@@ -10,7 +10,7 @@ This page contains developer instructions and the technical reference directory.
 
 ## Run
 
-Open `project.godot` in Godot **4.6.3**, use **GL Compatibility**, and press **F5**. From the repository root, `godot --path .` also starts the game.
+Open `game/project.godot` in Godot **4.6.3**, use **GL Compatibility**, and press **F5**. From the repository root, `godot --path game` also starts the game.
 
 Normal play reads and writes local saves. Use a separate profile and copied saves for experiments.
 
@@ -29,7 +29,7 @@ Deeper diagnostics must answer a specific symptom or hypothesis; deeper does not
 The runner uses a disposable project and generated saves. It checks engine behavior, not browser storage or rendered visuals.
 
 The [verification entrypoint](../../tests/README.md) separates regression checks,
-tooling guards, fixtures and manual diagnostics. The [CI command guide](../../ci/README.md)
+tooling guards, fixtures and manual diagnostics. The [CI command guide](../../tools/README.md)
 classifies recurring checks, on-demand tools and historical investigations.
 
 Current wardrobe visual acceptance is held until the finished 3D-authored character foundation. Candidate clothing code/tests do not substitute for that gate or approval of actual game pixels. Preserve the original 2D isometric game presentation. Coordinate active owners through the integration lead. FPS PR128 is user-owned; assistants do no FPS implementation or measurements.
@@ -38,26 +38,25 @@ Current wardrobe visual acceptance is held until the finished 3D-authored charac
 
 For automated builds and publishing, see [GitHub Web builds and releases](../release/README.md).
 
-Use the **Web** export preset with Godot 4.6.3 and its matching non-threaded release template at `export_templates/web_nothreads_release.zip`.
+Use Godot 4.6.3 and its matching non-threaded release template. From the repository root, the checked exporter stages `game/` and `platform/web/` into a disposable Godot project before using the **Web** preset; canonical `game/` has no duplicate Web source tree. Set `GODOT_TEMPLATE` and the verified toolchain receipt as described in the release guide.
 
 ```sh
-mkdir -p build/web
-godot --headless --path . --export-release Web build/web/index.html
-cp docs/art-audio/third-party/GODOT-AA-LICENSE.txt build/web/
+python3 tests/run_integration_candidate.py --output /tmp/little-leaf-engine-evidence
+python3 tools/build_web.py --output /tmp/little-leaf-web-build --test-report /tmp/little-leaf-engine-evidence/summary.json
 ```
 
 Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
 
 ## Repository boundaries
 
-- `scripts/`: gameplay state, UI, rendering, and engine-side adapters. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
-- `web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
+- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; `res://scripts/` resource names remain unchanged. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
+- `platform/web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
 - `tests/`: repeatable regression suites and browser harnesses; `tooling/` holds CI contracts, `fixtures/` holds synthetic source-bound inputs, and `diagnostics/` holds reusable captures, audits and profiling helpers. State whether a check covers engine behavior, browser behavior, or rendered output. Generated screenshots, traces, logs, exports and disposable profiles belong in ignored output directories.
-- `ci/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
+- `tools/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
 - `.github/workflows/`: orchestration of checks, builds, GitHub Releases, and platform publication. Keep release creation and platform deployment as distinct operations.
 - `docs/`: this developer guide, one roadmap, release guidance and licenses. `design/`, `development/`, `art-audio/`, `testing/` and `release/` group guidance by reader purpose. Each area keeps its dated evidence in `history/`; the roadmap alone maintains current product status. Keep current roadmap status in one place.
 - `assets/`, `shaders/` and `data/`: preserve source/import identity, licensing and release metadata; documentation cleanup does not relocate runtime resources.
-- `firebase/`: rules and emulator contracts; use synthetic fixtures, never player data or live rules without separate authorization.
+- `platform/firebase/`: rules and emulator contracts; use synthetic fixtures, never player data or live rules without separate authorization.
 
 ## Branch and review hygiene
 

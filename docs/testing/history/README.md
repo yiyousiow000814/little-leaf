@@ -10,7 +10,7 @@ Historical review notes, test evidence and source-recovery records. Statements a
 
 - [0.1.11 approval provenance](../../design/history/design-011-approved-plan.md): original agreed directions and dated implementation assumptions. Use the [roadmap](../../roadmap.md) for current state and the current design contracts linked from the developer guide.
 - [Chair contact study](../../art-audio/history/chair-ground-contact.md), [cleaning CPU study](cleaning-performance-010.md), [previous camera-range request](../../art-audio/history/shared-play-camera-range.md), [fresh arrival review](fresh-arrival-review.md).
-- [Environment source history](../../art-audio/history/environment-010-source-history.md), [environment slice](../../art-audio/history/environment-010.md) and its unchanged [capture evidence](../../art-audio/history/environment-010/).
+- [Environment source history](../../art-audio/history/environment-010-source-history.md), [environment slice](../../art-audio/history/environment-010.md) and its unchanged [capture evidence](../../art-audio/history/environment-010).
 
 - [Original10a/11 coverage index](10a-011-pr-coverage.md) retains all76 original review homes and integration/count rules.
 
