@@ -22,6 +22,8 @@ const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
 var compact_ui
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/cafe_checkout.gd")
+const NavigationReview=preload("res://scripts/cafe_navigation_review.gd")
+var navigation_review
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
 const LEGACY_SAVE_FILE = "user://little_leaf_illustrated_r7.json"
@@ -142,6 +144,7 @@ func _ready():
 	if not "--visual-qa" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_title("Little Leaf Cafe · "+str(ProjectSettings.get_setting("application/config/version","R7 review")))
 	_load_startup()
+	if NavigationReview.allowed(self):navigation_review=NavigationReview.new(self)
 	_setup_world()
 	build_tools=BuildTools.new(self)
 	_build_ui()
@@ -211,6 +214,7 @@ func _resume_loaded_cafe():
 	_update_ui();illustration.queue_redraw()
 
 func _exit_tree():
+	if navigation_review!=null:navigation_review.stop()
 	if web_lifecycle!=null:web_lifecycle.stop()
 	if web_save!=null:web_save.stop()
 
@@ -1895,6 +1899,7 @@ func _animate_staff(delta: float):
 	var worked_stations={}
 	model.navigation_cells()
 	var route_geometry=model.navigation_signature()
+	if navigation_review!=null:navigation_review.tick()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		var target_item=_service_target(staff)
@@ -1909,16 +1914,24 @@ func _animate_staff(delta: float):
 		staff.yield_time=0.0
 		claimed.append(destination)
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
-		var route_invalid=_staff_route_invalid(staff,route_geometry)
-		if route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size()))):
+		var route_invalid=_staff_route_invalid(staff,route_geometry) if navigation_review==null else false
+		if navigation_review==null and (route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size())))):
 			staff.destination=destination
 			staff.path=_staff_route(index,destination)
 			staff.index=0; staff.blocked_time=0.0
+		if navigation_review!=null:staff.destination=destination
 		var payload=_staff_payload(staff,index)
 		var travel_action={"plate":"carrying_to_pass" if staff.role=="chef" else "carrying_plate","drink":"carrying_drink","dishes":"carrying_dishes","trash":"carrying_trash"}.get(payload,"walking")
 		_set_staff_art(staff,travel_action if not at_destination or payload!="none" else "idle",target_item,0.0,payload)
 		var moved=false
-		if staff.index<staff.path.size():
+		if navigation_review!=null:
+			var motion=navigation_review.move(staff,index,destination,delta)
+			var direction:Vector2=motion.position-staff.pos
+			moved=direction.length()>.0001
+			if moved:
+				staff.art_heading=direction;staff.pos=motion.position;staff.blocked_time=0.0
+			elif not at_destination:staff.blocked_time+=delta
+		elif staff.index<staff.path.size():
 			var cell=staff.path[staff.index]
 			var point=Vector2(cell.x+.5,cell.y+.5)
 			var proposed=staff.pos.move_toward(point,delta*1.8)

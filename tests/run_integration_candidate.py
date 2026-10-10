@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_navigation_review", "NAVIGATION_REVIEW_RESULT"),
     ("test_floor_inspection", "FLOOR_INSPECTION_RESULT"),
     ("test_selected_tile_resize", "SELECTED_TILE_RESIZE_RESULT"),
     ("test_placement_feedback_colors", "PLACEMENT_FEEDBACK_COLORS_RESULT"),
@@ -290,6 +291,7 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script == "test_navigation_review":flags.append("--navigation-candidate")
                     if script == "capture_chef_pickup":flags.append("--validate-fixture")
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
@@ -303,6 +305,11 @@ def main():
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
                     run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
+                    if script == "test_navigation_review":
+                        for absent in ["--navigation-candidate", "--fresh-review"]:
+                            gate_env = env_for(script + absent)
+                            gate_env["LL_NAV_INACTIVE"] = "1"
+                            run(script + absent, ["--script", "res://tests/" + script + ".gd", "--", *[f for f in flags if f != absent]], gate_env, marker)
 
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
