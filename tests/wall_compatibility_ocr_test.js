@@ -51,7 +51,7 @@ check('workflow runs fast guards and retained OCR before the unchanged browser g
   assert(workflow.includes('node tests/wall_compatibility_ocr_test.js\n'));
   const ocr = workflow.indexOf('node tests/wall_compatibility_ocr_test.js --ocr-fixtures');
   assert(ocr > workflow.indexOf('sudo apt-get install -y --no-install-recommends tesseract-ocr'));
-  assert(ocr < workflow.indexOf('xvfb-run -a node tests/wall_compatibility_browser.js'));
+  assert(ocr < workflow.indexOf('xvfb-run -a node tests/wall_compatibility_browser.js --case'));
 });
 for (const text of ['Build', '< Build', '‹ BUILD ›', '\nBuild\n']) {
   check('complete label accepts harmless arrow punctuation: ' + JSON.stringify(text), () => requireWallBackText(text));
