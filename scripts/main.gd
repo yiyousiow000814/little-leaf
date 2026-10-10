@@ -4,7 +4,7 @@ const Money=preload("res://scripts/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
 const Illustration = preload("res://scripts/illustrated_cafe.gd")
-const Model = preload("res://scripts/cafe_model.gd")
+const Model = preload("res://scripts/customer_visit_outfits.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
 const Interaction = preload("res://scripts/cafe_interaction.gd")
 const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")

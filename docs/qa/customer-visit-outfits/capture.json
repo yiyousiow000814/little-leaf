@@ -1,0 +1,635 @@
+{
+  "customers": [
+    {
+      "admitted": true,
+      "chair_id": 7,
+      "checkout_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "checkout_reason": "",
+      "checkout_register_id": -1,
+      "checkout_stall": 0.0,
+      "checkout_ticket": 0,
+      "checkout_token": -1,
+      "departure_blocked": false,
+      "dismount_progress": 0.0,
+      "dismounting": false,
+      "duration": 3.0,
+      "egress_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "elapsed": 0.0,
+      "entry_cell": {
+        "$vector2i": [
+          0,
+          5
+        ]
+      },
+      "entry_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "entry_outside": {
+        "$vector2i": [
+          -1,
+          5
+        ]
+      },
+      "exit_completed": false,
+      "exterior_exit": false,
+      "heading": {
+        "$vector2": [
+          0.0,
+          -1.0
+        ]
+      },
+      "id": 1,
+      "meal_abandoned": false,
+      "mobility": {
+
+      },
+      "paid": false,
+      "phase": "ordering",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            -0.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            0.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            1.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            2.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            2.5,
+            4.5
+          ]
+        },
+        {
+          "$vector2": [
+            3.5,
+            4.5
+          ]
+        }
+      ],
+      "route_index": 7,
+      "seated": true,
+      "service_cell": {
+        "$vector2i": [
+          2,
+          4
+        ]
+      },
+      "settlement_mode": "legacy",
+      "street_origin_z": 82.0,
+      "street_route_format": "little_leaf.street_endpoints.v1",
+      "table_id": 6,
+      "table_service_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "waiting": true,
+      "withdrawn": false,
+      "x": 3.5,
+      "z": 4.5
+    },
+    {
+      "admitted": true,
+      "chair_id": 9,
+      "checkout_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "checkout_reason": "",
+      "checkout_register_id": -1,
+      "checkout_stall": 0.0,
+      "checkout_ticket": 0,
+      "checkout_token": -1,
+      "departure_blocked": false,
+      "dismount_progress": 0.0,
+      "dismounting": false,
+      "duration": 3.0,
+      "egress_cell": {
+        "$vector2i": [
+          -100,
+          -100
+        ]
+      },
+      "elapsed": 0.0,
+      "entry_cell": {
+        "$vector2i": [
+          0,
+          5
+        ]
+      },
+      "entry_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "entry_outside": {
+        "$vector2i": [
+          -1,
+          5
+        ]
+      },
+      "exit_completed": false,
+      "exterior_exit": false,
+      "heading": {
+        "$vector2": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": 2,
+      "meal_abandoned": false,
+      "mobility": {
+
+      },
+      "paid": false,
+      "phase": "ordering",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            -0.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            0.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            1.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            2.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            3.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            4.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            5.5,
+            5.5
+          ]
+        },
+        {
+          "$vector2": [
+            5.5,
+            6.5
+          ]
+        },
+        {
+          "$vector2": [
+            6.5,
+            6.5
+          ]
+        }
+      ],
+      "route_index": 10,
+      "seated": true,
+      "service_cell": {
+        "$vector2i": [
+          5,
+          6
+        ]
+      },
+      "settlement_mode": "legacy",
+      "street_origin_z": -82.0,
+      "street_route_format": "little_leaf.street_endpoints.v1",
+      "table_id": 8,
+      "table_service_direction": {
+        "$vector2i": [
+          -1,
+          0
+        ]
+      },
+      "waiting": true,
+      "withdrawn": false,
+      "x": 6.5,
+      "z": 6.5
+    }
+  ],
+  "outfits": [
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "focused",
+          "identity": "customer_47642016dd303d381725d977b9b04276",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "feminine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_47642016dd303d381725d977b9b04276",
+            "items": {
+              "back_bow": "bow_low_back",
+              "glasses": "none",
+              "headwear": "headwear_closed_cap",
+              "legwear": "none",
+              "lower": "lower_skirt",
+              "ribbon": "none",
+              "shoes": "shoes_boots",
+              "top": "top_cardigan"
+            },
+            "palette": "mauve_ivory",
+            "seed": "57e6b79ec3acdabf4c5da27b2b22eb0230f458154f265e1b365291875b447452",
+            "species": "bear"
+          }
+        },
+        "id": 1,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    },
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "neutral",
+          "identity": "customer_5afc84b14d55c761f1af89779bcf2dff",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "feminine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_5afc84b14d55c761f1af89779bcf2dff",
+            "items": {
+              "back_bow": "none",
+              "glasses": "glasses_oval",
+              "headwear": "none",
+              "legwear": "none",
+              "lower": "lower_trousers",
+              "ribbon": "none",
+              "shoes": "shoes_boots",
+              "top": "top_cardigan"
+            },
+            "palette": "mauve_ivory",
+            "seed": "a58e76a39a93f830fb08c9e4d10b64eff20d95ae9aff973231658c39740ec790",
+            "species": "bear"
+          }
+        },
+        "id": 2,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    },
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "neutral",
+          "identity": "customer_069b9e26839f3476ab570aaa84403879",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "feminine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_069b9e26839f3476ab570aaa84403879",
+            "items": {
+              "back_bow": "bow_low_back",
+              "glasses": "none",
+              "headwear": "headwear_open_cap",
+              "legwear": "legwear_tights",
+              "lower": "lower_skirt",
+              "ribbon": "none",
+              "shoes": "shoes_boots",
+              "top": "top_cardigan"
+            },
+            "palette": "sage_cream",
+            "seed": "f279bc37677749a31f73132118d7d3f984567f22e35d32ff013e51d03dca3efe",
+            "species": "bear"
+          }
+        },
+        "id": 3,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    },
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "soft_smile",
+          "identity": "customer_f00fce0629ba953151fb5097372a7701",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "masculine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_f00fce0629ba953151fb5097372a7701",
+            "items": {
+              "back_bow": "bow_upper_back",
+              "glasses": "glasses_round",
+              "headwear": "none",
+              "legwear": "legwear_socks",
+              "lower": "lower_trousers",
+              "ribbon": "ribbon_head",
+              "shoes": "shoes_loafers",
+              "top": "top_cardigan"
+            },
+            "palette": "mauve_ivory",
+            "seed": "3dbcb532903d89d8cde5f67744bd60442a904b91caba2cb802272df289f4ff80",
+            "species": "bear"
+          }
+        },
+        "id": 4,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    },
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "neutral",
+          "identity": "customer_a1cfa6816659b0c85c8267a61f62bda6",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "masculine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_a1cfa6816659b0c85c8267a61f62bda6",
+            "items": {
+              "back_bow": "none",
+              "glasses": "none",
+              "headwear": "headwear_closed_cap",
+              "legwear": "none",
+              "lower": "lower_trousers",
+              "ribbon": "none",
+              "shoes": "shoes_boots",
+              "top": "top_shirt"
+            },
+            "palette": "mauve_ivory",
+            "seed": "14b989f543bdfda534d935b8b6b23804e22506337068f029f698fe5246e60e4d",
+            "species": "bear"
+          }
+        },
+        "id": 5,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    },
+    {
+      "customer": {
+        "appearance": {
+          "actor_kind": "customer",
+          "expression": "focused",
+          "identity": "customer_0f53e169d968b129a2c60483892fe579",
+          "provider": "customer_wardrobe_draft_1",
+          "schema": "character-appearance-candidate-1",
+          "wardrobe": {
+            "appearance": "masculine",
+            "catalog": "customer-draft-1",
+            "format": 1,
+            "fur": "dark_brown_muzzle",
+            "identity": "customer_0f53e169d968b129a2c60483892fe579",
+            "items": {
+              "back_bow": "bow_low_back",
+              "glasses": "none",
+              "headwear": "headwear_open_cap",
+              "legwear": "none",
+              "lower": "lower_trousers",
+              "ribbon": "none",
+              "shoes": "shoes_boots",
+              "top": "top_cardigan"
+            },
+            "palette": "teal_oat",
+            "seed": "45deac694e9e90af12fe7a5689a8909659befb0466a561cb4eb3d22af62f532a",
+            "species": "bear"
+          }
+        },
+        "id": 6,
+        "kind": "synthetic_customer",
+        "namespace": "customer_visit_bear_v1",
+        "state": "arriving"
+      },
+      "ok": true
+    }
+  ],
+  "outside_queue": [
+    {
+      "chair_id": -1,
+      "heading": {
+        "$vector2": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": 3,
+      "origin_z": 82.0,
+      "phase": "outside_queue",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            7.5
+          ]
+        },
+        {
+          "$vector2": [
+            -1.60000002384186,
+            7.5
+          ]
+        }
+      ],
+      "route_index": 2,
+      "seated": false,
+      "slot": 0,
+      "table_id": -1,
+      "wait_seconds": 0.0,
+      "waiting": true,
+      "x": -1.60000002384186,
+      "z": 7.5
+    },
+    {
+      "chair_id": -1,
+      "heading": {
+        "$vector2": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": 4,
+      "origin_z": -82.0,
+      "phase": "outside_queue",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            8.60000038146973
+          ]
+        },
+        {
+          "$vector2": [
+            -1.60000002384186,
+            8.60000038146973
+          ]
+        }
+      ],
+      "route_index": 2,
+      "seated": false,
+      "slot": 1,
+      "table_id": -1,
+      "wait_seconds": 0.0,
+      "waiting": true,
+      "x": -1.60000002384186,
+      "z": 8.60000038146973
+    },
+    {
+      "chair_id": -1,
+      "heading": {
+        "$vector2": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": 5,
+      "origin_z": 82.0,
+      "phase": "outside_queue",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            9.69999980926514
+          ]
+        },
+        {
+          "$vector2": [
+            -1.60000002384186,
+            9.69999980926514
+          ]
+        }
+      ],
+      "route_index": 2,
+      "seated": false,
+      "slot": 2,
+      "table_id": -1,
+      "wait_seconds": 0.0,
+      "waiting": true,
+      "x": -1.60000002384186,
+      "z": 9.69999980926514
+    },
+    {
+      "chair_id": -1,
+      "heading": {
+        "$vector2": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": 6,
+      "origin_z": -82.0,
+      "phase": "outside_queue",
+      "route": [
+        {
+          "$vector2": [
+            -2.75999999046326,
+            10.8000001907349
+          ]
+        },
+        {
+          "$vector2": [
+            -1.60000002384186,
+            10.8000001907349
+          ]
+        }
+      ],
+      "route_index": 2,
+      "seated": false,
+      "slot": 3,
+      "table_id": -1,
+      "wait_seconds": 0.0,
+      "waiting": true,
+      "x": -1.60000002384186,
+      "z": 10.8000001907349
+    }
+  ],
+  "player_save_used": false,
+  "renderer": "gl_compatibility",
+  "synthetic": true,
+  "viewport": [
+    1360,
+    880
+  ]
+}
