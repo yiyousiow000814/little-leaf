@@ -4,7 +4,7 @@
 
 Codex contributors start with the root [AGENTS.md](../AGENTS.md); it links this guide without duplicating the detailed instructions.
 
-The [all-version roadmap](roadmap.md) is the proposed single home for product scope, dependencies and current status through 0.3.2, including the separate 10a changes and all 76 outcomes for 0.1.11. Read its current-state section before historical evidence. The reviewed master remains authoritative until this migration is accepted; thereafter document copies are generated snapshots of an accepted Git commit.
+The [all-version roadmap](roadmap.md) is the single canonical editing home for product scope, dependencies and current status through 0.3.2, including the separate 10a changes and all 76 outcomes for 0.1.11. Read its current-state section before historical evidence. Library master v3 remains a historical snapshot and has not been synchronized to the merged repository roadmap; a refreshed document export is a separate requested action, not another editable plan.
 
 This page contains developer instructions and the technical reference directory. Feature contracts describe their stated source/date; they do not maintain competing release status. The [archive](archive/README.md) preserves historical approvals, failed evidence and source recovery.
 
