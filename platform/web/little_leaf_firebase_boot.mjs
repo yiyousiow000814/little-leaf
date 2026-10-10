@@ -109,6 +109,10 @@ export async function start(config,options={}) {
   window.LittleLeafVault=Object.freeze({
     retry(){if(!recoveryBusy && saveState!=='conflict')location.reload();},
     recoverySnapshot(){return JSON.stringify(recoverySnapshot());},prepareChoice,confirmChoice,
+    beginBackground(revision,profileId,callback){return invoke('beginBackground',[revision,profileId],callback);},
+    finishBackground(token,callback){return invoke('finishBackground',[token],callback);},
+    commitBackground(payload,token,callback){return invoke('commitBackground',[payload,token],callback);},
+    cancelBackground(){client.cancelBackground?.();},
     preserveRuntime(payload,revision,profileId,callback){return invoke('preserveRuntime',[payload,revision,profileId],callback);},
     preserveOwnerRuntime(payload,revision,profileId,callback){return invoke('preserveOwnerRuntime',[payload,revision,profileId],callback);},
     requestTakeover(callback){return invoke('requestTakeover',[],callback);},

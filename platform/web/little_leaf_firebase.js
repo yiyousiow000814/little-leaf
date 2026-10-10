@@ -31,13 +31,19 @@
     const ref=uid=>sdk.doc(db,'players',uid,'saves','cafe');
     return {
       async read(uid) { const snapshot=await sdk.getDocFromServer(ref(uid));return snapshot.exists()?snapshot.data():null; },
-      async compareAndSet(uid,base,next,guard) {
+      async compareAndSet(uid,base,next,guard,elapsedFence=null) {
         await sdk.runTransaction(db,async tx=>{
           guard();let fence=null;
           if(ownership){
             fence=ownership.assertActive(true);
             const ownerSnapshot=await tx.get(ownership.sessionRef),owner=ownerSnapshot.exists()?ownerSnapshot.data():null;
             if(!owner||owner.owner!==fence.writerId||owner.epoch!==fence.writerEpoch||owner.ack)throw error('OWNERSHIP_LOST','Your game was opened on another device.');
+            if(elapsedFence){
+              const stamp=owner.updatedAt&&Number.isInteger(owner.updatedAt.seconds)&&Number.isInteger(owner.updatedAt.nanoseconds)
+                ? `${owner.updatedAt.seconds}:${owner.updatedAt.nanoseconds}` : String(owner.updatedAt);
+              if(owner.request!==null||owner.owner!==elapsedFence.writerId||owner.epoch!==elapsedFence.writerEpoch||stamp!==elapsedFence.commitServerStamp)
+                throw error('ELAPSED_CHANGED','Background authority changed before its snapshot commit.');
+            }
           }
           const snapshot=await tx.get(ref(uid)),old=snapshot.exists()?snapshot.data():null;guard();
           if(old?.digest===next.digest)return;
@@ -53,6 +59,9 @@
     let choiceArchive=null,choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
     const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
     let localQueue=Promise.resolve();
+    let elapsedClaim=null;
+    function elapsedGuard(claim){guard();if(elapsedClaim!==claim||claim.cancelled)throw error('ELAPSED_CANCELLED','Background interval was cancelled.');}
+    function clearElapsed(claim){if(elapsedClaim===claim){elapsedClaim=null;ownership?.cancelElapsed?.();}}
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
     const accountGuard = () => { if(closed || currentUid() !== uid) throw error('NOT_READY','Account changed. Reload to load its progress.'); };
@@ -76,7 +85,14 @@
       await codec.verifyRecord(local.record); capacity(local.record);
       if(local.pending && !local.record.revision) throw error('CORRUPT_AUTHORITY','Pending local progress is damaged.');
       if(!local.pending && local.base!==local.record.digest) throw error('CORRUPT_AUTHORITY','Local cloud acknowledgment is damaged.');
-      if(local.uploading) {
+      if(local.elapsedPending){
+          const intent=local.elapsedPending;
+          await codec.verifyRecord(intent.record);capacity(intent.record);
+          if(intent.uid!==uid||local.pending||local.uploading||intent.base!==local.base||intent.record.profileId!==local.record.profileId||intent.record.revision!==local.record.revision+1
+            ||typeof intent.writerId!=='string'||intent.writerId.length!==36||!Number.isSafeInteger(intent.writerEpoch)||intent.writerEpoch<1||typeof intent.commitServerStamp!=='string')
+            throw error('CORRUPT_AUTHORITY','Protected elapsed intent is damaged.');
+        }
+        if(local.uploading) {
         await codec.verifyRecord(local.uploading.record); capacity(local.uploading.record);
         if(!local.pending || local.uploading.base!==local.base || local.uploading.record.profileId!==local.record.profileId || local.uploading.record.revision<1 || local.uploading.record.revision>local.record.revision)
           throw error('CORRUPT_AUTHORITY','Pending cloud upload is damaged.');
@@ -176,6 +192,7 @@
     }
     async function performUpload() {
       guard();
+      if(entry?.elapsedPending)throw error('ELAPSED_UNCERTAIN','A background snapshot needs reconciliation.');
       if(!entry?.pending) return;
       lastAttempt=now();
       let snapshot;
@@ -211,6 +228,23 @@
           await refreshBackup();guard();
           try {
             const cloud=await remote.read(uid); guard(); const record=await validate(cloud);
+            if(local?.elapsedPending){
+              const intent=local.elapsedPending,fence=ownership?.assertActive();
+              // A read of the baseline alone cannot rule out a late CAS. Only
+              // a confirmed different epoch makes the original transaction dead.
+              if(token(cloud)!==intent.record.digest && (!fence||fence.writerEpoch<=intent.writerEpoch))
+                throw error('ELAPSED_UNCERTAIN','The previous background transaction is not yet fenced out. Progress stays paused.');
+              if(token(cloud)===intent.record.digest){
+                const next={...local,record:intent.record,base:intent.record.digest,pending:false,uploading:null,elapsedPending:null};
+                await journal.replace(uid,local,next);local=next;
+              }else if(token(cloud)===intent.base){
+                const next={...local,elapsedPending:null};await journal.replace(uid,local,next);local=next;
+              }else{
+                pendingExport={...local,record:intent.record,pending:true};
+                if(record)await previewRecovery(local,record);
+                throw error('REVISION_CONFLICT','Background confirmation differs from the current cloud save. Both exact copies are preserved.');
+              }
+            }
             if(local && !local.pending && local.base && !cloud) throw error('CORRUPT_AUTHORITY','Previously saved cloud progress is missing. Local progress is preserved.');
             if(local?.pending) {
               if(token(cloud)===local.record.digest) { const next={...local,base:token(cloud),pending:false,uploading:null}; await journal.replace(uid,local,next); local=next; }
@@ -229,7 +263,7 @@
             if(entry.pending) { try { await upload(); } catch(e) { if(!offline(e)){if(e.code==='REVISION_CONFLICT'){const record=await validate(await remote.read(uid));accountGuard();if(record)await previewRecovery(entry,record);}throw e;} state('offline'); } }
             else state(entry.record.revision ? 'saved':'ready');
           } catch(e) {
-            if(!offline(e) || !local) throw e;
+            if(!offline(e) || !local || local.elapsedPending) throw e;
             entry=local; state('offline');
           }
           guard(); return acceptedBoot();
@@ -310,7 +344,70 @@
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
         try {accountGuard();await ownership.refresh();return {ok:true,...ownership.snapshot()};}catch(e){return failure(e);}
       },
-      async renewOwnership(){if(!ownership)return;try {accountGuard();await ownership.renew();}catch(_){/* Native observes the paused ownership snapshot. */}},
+      async renewOwnership(){if(!ownership||elapsedClaim)return;try {accountGuard();await ownership.renew();}catch(_){/* Native observes the paused ownership snapshot. */}},
+      async beginBackground(revision,profileId){
+        if(elapsedClaim||entry?.elapsedPending||busy||updateInProgress||recoveryBusy)return failure(error('SAVE_BUSY','A save operation is pending.'));
+        const claim=elapsedClaim={phase:'arming',cancelled:false};
+        try{
+          elapsedGuard(claim);if(!ownership?.beginElapsed||!bootReady||!entry||entry.record.revision!==revision||entry.record.profileId!==profileId)
+            throw error('ELAPSED_UNAVAILABLE','No matching account save is available for elapsed progress.');
+          while(entry.pending){await networkWait(upload());elapsedGuard(claim);}
+          const baseline=entry.record.digest;elapsedGuard(claim);
+          const checkpoint=await networkWait(ownership.beginElapsed());elapsedGuard(claim);
+          if(entry.record.digest!==baseline||entry.pending)throw error('ELAPSED_CHANGED','The save changed while opening the background interval.');
+          Object.assign(claim,{phase:'armed',token:checkpoint.token,baseline,revision,profileId});
+          return {ok:true,token:checkpoint.token,revision,profileId};
+        }catch(e){clearElapsed(claim);return failure(e);}
+      },
+      async finishBackground(token){
+        const claim=elapsedClaim;
+        if(!claim||claim.phase!=='armed'||claim.token!==token)return failure(error('ELAPSED_CONSUMED','Background interval already consumed.'));
+        claim.phase='sealing';
+        try{
+          elapsedGuard(claim);const proof=await networkWait(ownership.finishElapsed(token));elapsedGuard(claim);
+          const local=await journal.read(uid);elapsedGuard(claim);
+          if(entry.record.digest!==claim.baseline||entry.pending||!same(local,entry))throw error('REVISION_CONFLICT','The background save baseline changed.');
+          const latest=await networkWait(remote.read(uid));elapsedGuard(claim);
+          if(latest?.digest!==claim.baseline)throw error('REVISION_CONFLICT','Another tab changed the background save.');
+          claim.phase='proved';claim.proof=proof;return {ok:true,...proof,revision:claim.revision,profileId:claim.profileId};
+        }catch(e){clearElapsed(claim);return failure(e);}
+      },
+      async commitBackground(payload,token){
+        const claim=elapsedClaim;
+        if(!claim||claim.phase!=='proved'||claim.token!==token)return failure(error('ELAPSED_CONSUMED','Background interval already consumed.'));
+        claim.phase='consumed';let committed=false,record=null;
+        try{
+          elapsedGuard(claim);if(entry.record.digest!==claim.baseline||entry.pending)throw error('REVISION_CONFLICT','The elapsed save baseline changed.');
+          record=await nextRecord(entry.record,payload);elapsedGuard(claim);
+          claim.record=record;
+          await serial(async()=>{
+            elapsedGuard(claim);
+            const next={...entry,elapsedPending:{uid,state:'prepared',base:entry.base,record,writerId:claim.proof.writerId,writerEpoch:claim.proof.writerEpoch,commitServerStamp:claim.proof.commitServerStamp,token:claim.token}};
+            await journal.replace(uid,entry,next);entry=next;claim.expected=next;
+          });
+          elapsedGuard(claim);
+          const candidate={schema:1,profileId:record.profileId,revision:record.revision,digest:record.digest,record:capacity(record),device:savedDevice};
+          claim.dispatched=true;
+          // Do not race this transaction with a local timeout: a rejected race
+          // cannot cancel a Firestore write. Keep the exact trial and block new
+          // claims until the actual transaction settles, including after cancel.
+          await remote.compareAndSet(uid,entry.base,candidate,()=>elapsedGuard(claim),claim.proof);committed=true;
+          const next={...claim.expected,base:record.digest,pending:false,uploading:null,elapsedPending:null,record,device:savedDevice};
+          await serial(async()=>{accountGuard();await journal.replace(uid,claim.expected,next);entry=next;});
+          if(claim.cancelled){stopped=true;state('blocked');}else state('saved');
+          return {ok:true,durable:true,cloudConfirmed:true,reloadRequired:claim.cancelled,profileId:record.profileId,revision:record.revision,creditedCoins:0};
+        }catch(e){
+          if(claim.dispatched||entry?.elapsedPending){stopped=true;state('blocked');}
+          if(committed)return {ok:true,cloudConfirmed:true,durable:false,reloadRequired:true,profileId:record.profileId,revision:record.revision,localError:failure(e)};
+          return failure(e);
+        }finally{clearElapsed(claim);}
+      },
+      cancelBackground(){
+        const claim=elapsedClaim;if(!claim)return;
+        claim.cancelled=true;
+        if(claim.dispatched){stopped=true;state('blocked');return;}
+        clearElapsed(claim);
+      },
       async requestTakeover(){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
         try {accountGuard();const state=await ownership.requestTakeover();if(state.status==='active')return client.finishTakeover();return {ok:true,...state};}catch(e){return failure(e);}
@@ -375,6 +472,7 @@
       // Remote conflict does not reject its final LOCAL snapshot; account and
       // local-tab CAS protections still apply. Never auto-reload the live model.
       async preserveRuntime(payload,revision,profileId) {
+        if(elapsedClaim||entry?.elapsedPending)return failure(error('ELAPSED_UNCERTAIN','The exact background snapshot is protected. Reload to reconcile before saving the old runtime.'));
         if(recoveryBusy)return failure(error('RECOVERY_BUSY','A save choice is already in progress.'));recoveryBusy=true;let preserved=null;
         try {
           accountGuard();preserved=await durableSnapshot(payload,revision,profileId);
@@ -452,6 +550,7 @@
         } finally { recoveryBusy=false; }
       },
       async commit(payload,revision,profileId) {
+        if(elapsedClaim||entry?.elapsedPending)return failure(error('SAVE_BUSY','An elapsed interval is being reconciled.'));
         if(updateInProgress)return failure(error('SAVE_BUSY','The café is being saved for an update.'));
         if(busy) return failure(error('SAVE_BUSY','A save is pending.')); busy=true;
         try {

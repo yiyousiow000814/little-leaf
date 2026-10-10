@@ -1,24 +1,28 @@
 # Hidden business 10a candidate
 
-Base: PR113 head f690cb7e0c7d1e04c64dc6a3cf6a8cfbb0b50473. This is an isolated, incomplete candidate, not a release or cloud hidden-business implementation.
+Historical callback-only proposal below, superseded by the explicitly approved elapsed-time candidate. Current semantics and unresolved review items are in [background-elapsed-review.md](background-elapsed-review.md). These historical receipts do not validate the new implementation.
+
+Base: PR113 head f690cb7e0c7d1e04c64dc6a3cf6a8cfbb0b50473. This is an isolated candidate for bounded delivered callbacks. It does not recover missing hidden time.
 
 ## Protocol finding and bounded plan
 
 Session schema 1 records only current owner, epoch, updatedAt, request and ack. It retains neither authoritative historical intervals nor a simulation checkpoint. The rules permit force takeover ten seconds after a request, before the sixty-second lease expires. Renewal of the same owner/epoch may succeed after lease expiry. Cached active status and a fresh renewal therefore prove no uninterrupted historical hidden interval.
 
-The current proven interval set for cloud catch-up is empty. Its bounded catch-up plan is exactly zero seconds, with no pending debt, wall-clock accrual, economic award, replay, or timestamp migration. Repeating visibility, reconnection, renewal, or save loading cannot increase this budget. Cloud or unknown ownership gets zero hidden callback delta. Zero delta also bypasses service and staff work, preventing immediate business transitions on a rejected step.
+The current proven interval set for cloud catch-up is empty. Its bounded catch-up plan is exactly zero seconds, with no pending debt, wall-clock accrual, replay, or timestamp migration. Repeating visibility, reconnection, renewal, or save loading cannot increase this budget. Unknown or explicitly paused ownership gets zero hidden callback delta. Zero delta also bypasses service and staff work, preventing immediate business transitions on a rejected step.
 
-The local IndexedDB adapter explicitly identifies itself; Firebase guests must explicitly report serverOwnership=false and have no account/recovery/conflict/busy gate. Only these guests can use delivered hidden callbacks of at most 0.25 seconds each. Longer callbacks are discarded in full. This is bounded callback progress, not elapsed-time catch-up. The transition frame is discarded in either direction; duplicate events do not reset the boundary. Existing manual Pause/Resume, editing, save recovery and account/session safety pauses remain gates. Hidden state never changes the Pause toggle or disables the subtree. The current local eligibility observation is checked again before each hidden business callback.
+The local IndexedDB adapter explicitly identifies itself; Firebase guests must explicitly report serverOwnership=false. An account must explicitly report serverOwnership=true, status=active and ownershipPaused=false. Both paths require no account/recovery/conflict/busy gate. Eligible sessions can use delivered hidden callbacks of at most 0.25 seconds each. Longer callbacks are discarded in full. This is bounded callback progress, not elapsed-time catch-up. The transition frame is discarded in either direction; duplicate events do not reset the boundary. Existing manual Pause/Resume, editing, save recovery and account/session safety pauses remain gates. Hidden state never changes the Pause toggle or disables the subtree. Eligibility is checked again before each hidden business callback.
 
-Visibility hide retains input cancellation and a best-effort save. Pagehide still uses the original suspended subtree and best-effort save: closing/navigation is outside this request. Native focus loss retains its existing input cancellation. No render loop, worker, or browser timer guarantee is introduced. Browsers may throttle or stop callbacks; the guest may make little or no progress while hidden.
+Account callbacks have the existing foreground optimistic semantics: an unobserved takeover can briefly allow speculative local progress. A cloud snapshot transaction checks the current server writer/epoch and prior digest; rules additionally require an unexpired lease. A rejected old-fence snapshot stays locally preserved and cannot add rewards into the new owner's snapshot. A repeated snapshot retry is idempotent rather than additive. Active status permits a delivered callback; it never proves historical ownership. No Firebase protocol or rules change is included.
+
+Visibility hide retains input cancellation and a best-effort save. Pagehide still uses the original suspended subtree and best-effort save: closing/navigation is outside this request. Native focus loss retains its existing input cancellation. No render loop, worker, or browser timer guarantee is introduced. Browsers may throttle or stop callbacks; any eligible session may make little or no progress while hidden.
 
 ## Necessary design for full cloud catch-up
 
 ### Player-facing limitation
 
-Guest cafes can keep working while the browser delivers short game updates. Browsers may slow or stop those updates when you switch applications or hide the game, so hidden progress is limited and missing time is not recovered. Manual Pause still stops business.
+Eligible guest and active account cafes can keep working while the browser delivers short game updates. Browsers may slow or stop those updates when you switch applications or hide the game, so hidden progress is limited and missing time is not recovered. Manual Pause still stops business.
 
-For a signed-in account, business currently waits while the game is hidden. The connection or active status seen when you return cannot establish who owned the cafe throughout that time, so the game does not award hidden earnings or wages for it. Closing the page remains outside this candidate. This is a guest callback improvement, not full offline or account-mode background business.
+For a signed-in account, a known ownership pause, account change or recovery conflict still stops business. The connection or active status seen when you return cannot establish who owned the cafe throughout that time, so the game never recovers missing hidden earnings or wages. Closing the page remains outside this candidate.
 
 ### Minimum future protocol
 
@@ -37,6 +41,18 @@ Add a durable simulation checkpoint containing profile revision/digest, engine/e
 Advance only the intersection of proven authority and explicitly running business intervals, using the actual service/staff/customer/payroll machinery in deterministic bounded slices (proposed 0.1 seconds, at most 600 slices). No separate coin/payroll formula. Use server-issued fixed window identities and boundaries; consume the entire window atomically, including discarded overflow, so retries cannot accumulate a capped window as debt. Expose that policy to the player if adopted. Persist before accepting the cursor, and verify idempotent economy at transaction/crash boundaries. Apply confirmed checkpoint snapshots once rather than adding receipt rewards to client state. This requires a backend/protocol design review and emulator tests before any production rule changes. It is deliberately not implemented here.
 
 ## Validation and limits
+
+### r4 narrow account callback check
+
+The policy now permits delivered callbacks only for an explicitly active, unpaused account, alongside the guest path. The actual Firebase transaction rejects an old writer/epoch before its same-digest retry shortcut. One reused synthetic takeover fixture preserved the speculative local snapshot and produced zero production-remote writes after an unobserved takeover. No protocol or rules were edited.
+
+A silent exported Chromium flow used the real session/client and IndexedDB journal with synthetic server state, a disposable profile, and two passive counters added only to the disposable Main. A clearly identified test-only worker delivered callbacks with real performance timestamps during trusted hidden-tab transitions. Service, staff and payroll each advanced by 1.612 seconds over the measured hidden interval. Manual Pause left all three unchanged. A real fenced reload continuation restored payroll 2.75661111111111, coins and economy totals exactly from the whole saved snapshot, without adding the hidden progress again. This demonstrates delivered-callback behavior, not normal browser scheduling.
+
+With that test scheduler disabled, the same normal Chromium hide produced **zero native rendering callbacks, zero service progress and zero payroll progress**, while the account remained active and eligible. The candidate therefore still effectively stops in that browser. Removing the old subtree suspension alone does not solve background business there; widening the delta cutoff would not repair an absent callback source.
+
+The smallest proposed follow-up is one hidden-only business timer through the existing lifecycle bridge. Each delivered timer event would run one bounded business slice through shared foreground ownership/Pause/recovery checks, never recover wall-clock debt, and stop on visible/pagehide/disposal. It must not run the rendering loop or duplicate a delivered native business step. Browser timer suspension may still stop business. This timer is **not implemented** in this candidate; no new authority history, worker or closed-page catch-up is proposed for production.
+
+Evidence is in the task's external `evidence/account-callback-r4` directory. Earlier r3 receipts below describe the guest-only revision and do not validate the r4 account change or normal Chromium background progress.
 
 ### r3 boundary hardening and completed focused validation
 

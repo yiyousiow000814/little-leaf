@@ -188,6 +188,13 @@
     let db = null, record = null, legacy = null, opening = null, busy = false, faulted = false;
     let inboxJson = JSON.stringify({ ok: false });
     let connectionGeneration = 0;
+    const locks=options.locks || root.navigator?.locks;
+    const monotonic=options.monotonic || (()=>root.performance.now());
+    let elapsed=null,elapsedGeneration=0;
+    const lockName=()=> 'little-leaf.guest-writer.v1:'+record.profileId;
+    function elapsedGuard(claim){if(faulted||elapsed!==claim||claim.cancelled)throw fail('ELAPSED_CANCELLED','Background interval was cancelled.');}
+    function releaseElapsed(claim){if(elapsed===claim){elapsed=null;if(claim.release)claim.release();}}
+
     function installConnection(connection, stage) {
       db = connection;
       const generation = ++connectionGeneration;
@@ -256,6 +263,13 @@
         return opening;
       },
       async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
+        if(elapsed)return resultError(fail('SAVE_BUSY','A background interval holds this save.'));
+        if(!locks)return client._commit(payload,expectedRevision,expectedProfileId,origin);
+        return locks.request(lockName(),{ifAvailable:true},lock=>lock
+          ? client._commit(payload,expectedRevision,expectedProfileId,origin)
+          : resultError(fail('SAVE_BUSY','Another tab holds this save.')));
+      },
+      async _commit(payload, expectedRevision, expectedProfileId, origin = 'normal',claim=null) {
         observe('save_requested', { profileId: expectedProfileId, revision: expectedRevision });
         if (!record || faulted) { observe('save_failure', { code: 'NOT_READY' }); return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover')); }
         if (busy) { observe('save_failure', { code: 'SAVE_BUSY' }); return resultError(fail('SAVE_BUSY', 'A save is still pending')); }
@@ -274,6 +288,7 @@
           observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
           const write = () => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
             readCurrent(store, current => {
+              if(claim)elapsedGuard(claim);
               mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
               mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
               observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
@@ -299,6 +314,51 @@
           return resultError(error);
         } finally { busy = false; }
       },
+      async beginBackground(revision,profileId){
+        if(!locks||!record||faulted)return resultError(fail('ELAPSED_UNAVAILABLE','Exclusive local writer authority is unavailable.'));
+        if(elapsed||busy)return resultError(fail('SAVE_BUSY','A save operation is pending.'));
+        const claim=elapsed={phase:'arming',generation:++elapsedGeneration,cancelled:false};
+        let resolveStart;const started=new Promise(r=>resolveStart=r);
+        locks.request(lockName(),{ifAvailable:true},async lock=>{
+          try{
+            if(!lock)throw fail('SAVE_BUSY','Another tab holds local writer authority.');
+            elapsedGuard(claim);
+            const held=new Promise(r=>claim.release=r);
+            const current=await transaction(db,'readonly',readCurrent);await verifyRecord(current);elapsedGuard(claim);
+            compareCurrent(current,revision,profileId);
+            Object.assign(claim,{phase:'armed',token:root.crypto.randomUUID(),revision,profileId,baseline:record.digest,since:monotonic()});
+            if(!Number.isFinite(claim.since))throw fail('ELAPSED_TIME','Monotonic open-page time is unavailable.');
+            resolveStart({ok:true,token:claim.token,revision,profileId});
+            await held;
+          }catch(e){releaseElapsed(claim);resolveStart(resultError(e));}
+        }).catch(e=>{releaseElapsed(claim);resolveStart(resultError(e));});
+        return started;
+      },
+      async finishBackground(token){
+        const claim=elapsed;
+        if(!claim||claim.phase!=='armed'||claim.token!==token)return resultError(fail('ELAPSED_CONSUMED','Background interval already consumed.'));
+        claim.phase='sealing';
+        try{
+          const current=await transaction(db,'readonly',readCurrent);await verifyRecord(current);elapsedGuard(claim);
+          compareCurrent(current,claim.revision,claim.profileId);
+          const duration=(monotonic()-claim.since)/1000;
+          if(!Number.isFinite(duration)||duration<0)throw fail('ELAPSED_TIME','Open-page time changed.');
+          claim.phase='proved';return {ok:true,token,seconds:duration,discardedSeconds:0,revision:claim.revision,profileId:claim.profileId};
+        }catch(e){releaseElapsed(claim);return resultError(e);}
+      },
+      async commitBackground(payload,token){
+        const claim=elapsed;
+        if(!claim||claim.phase!=='proved'||claim.token!==token)return resultError(fail('ELAPSED_CONSUMED','Background interval already consumed.'));
+        claim.phase='committing';
+        try{
+          elapsedGuard(claim);
+          const result=await client._commit(payload,claim.revision,claim.profileId,'normal',claim);
+          if(!result.ok)return result;
+          return {...result,authorityConfirmed:true,payload:record.payload,reloadRequired:claim.cancelled};
+        }finally{releaseElapsed(claim);}
+      },
+      cancelBackground(){const claim=elapsed;if(!claim)return;claim.cancelled=true;if(claim.phase!=='committing')releaseElapsed(claim);},
+      recoverySnapshot(){return {serverOwnership:false,backgroundOwnership:locks?'local-lock':null,status:faulted?'blocked':'active',ownershipPaused:faulted};},
       creditForSave(payload) {
         if (!record || faulted || !campaigns) return 0;
         try {
@@ -309,7 +369,7 @@
       save(payload, revision, profileId, callback) {
         client.commit(payload, revision, profileId).then(result => callback(JSON.stringify(result)));
       },
-      close() { if (db) db.close(); db = null; faulted = true; }
+      close() {client.cancelBackground(); if (db) db.close(); db = null; faulted = true; }
     };
     return client;
   }
@@ -331,6 +391,12 @@
     }
     retrying.then(result => callback(JSON.stringify(result)));
   }
-  root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient, retry });
+  root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient, retry,
+    recoverySnapshot(){return JSON.stringify(root.__littleLeafVault.recoverySnapshot());},
+    beginBackground(revision,profileId,callback){root.__littleLeafVault.beginBackground(revision,profileId).then(r=>callback(JSON.stringify(r)));},
+    finishBackground(token,callback){root.__littleLeafVault.finishBackground(token).then(r=>callback(JSON.stringify(r)));},
+    commitBackground(payload,token,callback){root.__littleLeafVault.commitBackground(payload,token).then(r=>callback(JSON.stringify(r)));},
+    cancelBackground(){root.__littleLeafVault.cancelBackground();}
+  });
   root.__littleLeafVault = createClient();
 })(globalThis);

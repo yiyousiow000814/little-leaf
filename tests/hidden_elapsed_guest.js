@@ -1,0 +1,24 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict'),{webcrypto}=require('crypto');
+const {FixtureIDB}=require('./inbox_transaction_fixture');
+const factory=new FixtureIDB(),held=new Set();let time=1000;
+const locks={async request(name,options,fn){if(held.has(name))return fn(null);held.add(name);try{return await fn({name});}finally{held.delete(name);}}};
+const context={crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,Int8Array,structuredClone,setTimeout,clearTimeout,DOMException,indexedDB:factory,navigator:{locks},performance:{now:()=>time}};
+vm.runInNewContext(fs.readFileSync('web/little_leaf_vault.js','utf8'),context);
+const vault=context.LittleLeafVault,payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
+const client=()=>vault.createClient({indexedDB:factory,locks,monotonic:()=>time,campaigns:[]});
+(async()=>{
+ const a=client();let boot=await a.boot();assert(boot.ok);let saved=await a.commit(payload,0,boot.profileId);assert(saved.ok);
+ const b=client();await b.boot();let t=await a.beginBackground(1,boot.profileId);assert(t.ok);
+ assert.equal((await a.beginBackground(1,boot.profileId)).code,'SAVE_BUSY');assert.equal((await b.beginBackground(1,boot.profileId)).code,'SAVE_BUSY');assert.equal((await b.commit(payload,1,boot.profileId)).code,'SAVE_BUSY');
+ time+=2200;let proof=await a.finishBackground(t.token);assert(proof.ok&&proof.seconds===2.2);
+ const data=JSON.parse(payload),trial=JSON.stringify({...data,payroll_elapsed:data.payroll_elapsed+2.2});
+ saved=await a.commitBackground(trial,t.token);assert(saved.ok&&saved.authorityConfirmed&&saved.revision===2);assert.equal(JSON.parse(saved.payload).payroll_elapsed,data.payroll_elapsed+2.2);
+ assert.equal((await a.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');assert.equal((await b.commit(payload,1,boot.profileId)).code,'REVISION_CONFLICT');
+ const c=client();boot=await c.boot();assert.equal(boot.revision,2);assert.equal(boot.payload,saved.payload,'reload consumes exact saved trial, no added income');
+ t=await c.beginBackground(2,boot.profileId);time+=90000;proof=await c.finishBackground(t.token);assert(proof.seconds===90&&proof.discardedSeconds===0,'guest lock proves full interval without inventing an income cap');c.cancelBackground();assert.equal((await c.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');
+ const d=client();boot=await d.boot();assert.equal(boot.revision,2,'manual cancellation leaves economy unchanged');
+ t=await d.beginBackground(2,boot.profileId);time-=1000;assert.equal((await d.finishBackground(t.token)).code,'ELAPSED_TIME');
+ await new Promise(r=>setTimeout(r,0));assert.equal(held.size,0);a.close();b.close();c.close();d.close();
+ console.log('Passed: guest exclusive writer interval, duplicate visibility, double-tab exclusion, exact monotonic time, single CAS/reload economy, bounded tail, Pause cancellation and invalid clock.');
+})().catch(e=>{console.error(e);process.exitCode=1;});

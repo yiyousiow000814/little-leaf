@@ -11,6 +11,12 @@ func _initialize():
 	check(not Policy.local_callbacks_allowed({},true,true),"marker cannot override an unknown bridge")
 	check(not Policy.local_callbacks_allowed({"serverOwnership":true},true,true),"marker cannot override cloud authority")
 	check(not Policy.local_callbacks_allowed({"serverOwnership":false,"accountChanged":true},true,true),"marker cannot override account change")
+	check(Policy.local_callbacks_allowed({"serverOwnership":true,"status":"active","ownershipPaused":false}),"explicit active account permits speculative delivered callbacks")
+	for flag in ["accountChanged","choicesAvailable","available","busy","ownershipPaused"]:
+		var account={"serverOwnership":true,"status":"active","ownershipPaused":false};account[flag]=true
+		check(not Policy.local_callbacks_allowed(account),"account safety gate: "+flag)
+	for status in ["offline","other-device","handoff-requested","resume-needed"]:
+		check(not Policy.local_callbacks_allowed({"serverOwnership":true,"status":status,"ownershipPaused":false}),"non-active account fails closed: "+status)
 	for invalid in [0,"false",null]:check(not Policy.local_callbacks_allowed({"serverOwnership":invalid}),"ownership mode must be an explicit boolean")
 	for state in [{},{"serverOwnership":true,"status":"active"},{"serverOwnership":true,"status":"offline"},{"serverOwnership":true,"status":"active","renewed":true},{"serverOwnership":true,"status":"other-device"},{"serverOwnership":false,"accountChanged":true},{"serverOwnership":false,"choicesAvailable":true},{"serverOwnership":false,"busy":true}]:
 		check(not Policy.local_callbacks_allowed(state),"unknown/cloud/account/conflict blocked: "+str(state))

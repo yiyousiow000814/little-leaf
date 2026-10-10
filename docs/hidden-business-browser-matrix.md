@@ -1,6 +1,8 @@
 # Hidden business browser acceptance matrix
 
-Status: exported-game acceptance is prepared, not executed. Revision r3 passed 1817 focused Godot checks and eight lightweight suites. A headless Chromium test of the actual DOM lifecycle source passed three navigation assertions, without Godot, a real hidden tab transition, or BFcache restoration. The prior r2 1968-check result remains independent evidence.
+Historical callback-only evidence. The current elapsed candidate is described in [background-elapsed-review.md](background-elapsed-review.md); it requires its own browser validation and must not inherit these results.
+
+Status: the broad matrix remains unexecuted. One silent r4 exported synthetic account flow passed delivered-callback service/payroll, Pause and snapshot-reload assertions using a test-only callback scheduler. The normal Chromium check produced zero native hidden callbacks and zero business progress; normal background business is unresolved. Revision r3 passed 1817 focused Godot checks and eight lightweight suites. The prior r2 1968-check result remains independent evidence.
 
 ## Evidence and test isolation
 
@@ -25,8 +27,8 @@ Run each row in current Chrome, Edge and Firefox on Windows, recording exact ver
 | BFcache pageshow-first ordering | pagehide(persisted), pageshow while hidden, visibility visible | Hidden pageshow does not resume or clear save latch; real visible return restores once; subsequent new hide saves once |
 | Background initial load/restoration | Start synthetic page in hidden tab; pageshow(hidden), repeated hidden | Initial hide saves once; pageshow does not reopen hide-save episode; no visible notification until visibility becomes visible |
 | Input quarantine across hide | Start touch/drag on canvas; hide/cancel; return with old ending/new start | No accidental purchase, placement or click; canceled contact remains inert until existing touchdrained contract confirms endings |
-| Account active, then hidden | Synthetic signed-in active owner, hide, renew on return | Zero hidden service/payroll/reward; renewed/active state creates no historical credit; normal safety reconciliation precedes business |
-| Unknown/account/conflict transition | Marked local adapter then accountChanged, cloud active, missing bridge observation, busy/conflict | Marker cannot override the observation; hidden delta zero even if preservation is busy; no old profile's time enters another profile |
+| Account active, then hidden | Synthetic signed-in active owner, hide, renew on return | Explicit active/unpaused ownership permits only delivered <=0.25s callbacks; renewed/active state creates no historical credit; normal safety reconciliation precedes business |
+| Unknown/account/conflict transition | Marked local adapter then accountChanged, cloud active without explicit unpaused observation, missing bridge observation, busy/conflict | Marker cannot override the observation; hidden delta zero even if preservation is busy; no old profile's time enters another profile |
 | Disconnect/reconnect and takeover | Synthetic outage, reconnect same owner; second synthetic owner requests/forces takeover | No outage or takeover-gap credit, duplicate award or automatic writer ping-pong; fenced local pending progress retained by existing session fixtures |
 | Old save | Fixture copies supported legacy bytes into disposable profile | Existing read-only import preserves source bytes; no timestamp/checkpoint migration invents hidden earnings; same economy revision/receipt behavior |
 | Safety error | Synthetic unavailable storage, account switch, malformed recovery response | Recovery gate wins; no background economic mutation; no attempt to repair/reset production or player storage |

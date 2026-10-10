@@ -12,6 +12,29 @@
   function storeReload(storage,ticket){try{storage.setItem(RELOAD_KEY,JSON.stringify(ticket));return storage.getItem(RELOAD_KEY)===JSON.stringify(ticket);}catch(_){return false;}}
   const fail=(code,message)=>Object.assign(Error(message),{code});
   const millis=value=>typeof value?.toMillis==='function'?value.toMillis():Number(value);
+  // Keep Firestore nanoseconds in the identity comparison. Millisecond rounding
+  // must not hide a same-epoch cancellation/renewal within one millisecond.
+  const stampIdentity=value=>value&&Number.isInteger(value.seconds)&&Number.isInteger(value.nanoseconds)
+    ? `${value.seconds}:${value.nanoseconds}` : Number.isFinite(value)?String(value):null;
+  function unchangedSession(a,b){
+    return !!a&&!!b&&a.schema===1&&b.schema===1&&a.owner===b.owner&&a.epoch===b.epoch&&a.device===b.device
+      &&a.request===null&&b.request===null&&a.ack===null&&b.ack===null
+      &&stampIdentity(a.updatedAt)!==null&&stampIdentity(a.updatedAt)===stampIdentity(b.updatedAt);
+  }
+  function elapsedProof(anchor,before,sealed,probe){
+    // The unique request ID binds a server timestamp to this exact transaction.
+    // Renewal readback alone is insufficient: another renewal/cancellation can
+    // replace updatedAt before its independent confirmation read completes.
+    if(!unchangedSession(anchor,before)||!probe||!sealed||!unchangedSession(anchor,{...sealed,request:null})
+      ||sealed.request?.id!==probe.id||sealed.request.requester!==probe.requester||sealed.request.device!==anchor.device)
+      throw fail('ELAPSED_CHANGED','The background ownership interval changed. No elapsed progress was granted.');
+    const start=millis(anchor.updatedAt),end=millis(sealed.request.at);
+    if(!Number.isFinite(start)||!Number.isFinite(end)||end<start)throw fail('ELAPSED_TIME','Server elapsed time is unavailable.');
+    // Only the original server lease is covered. A late same-owner renewal
+    // establishes future authority; it never grants the expired tail.
+    return {seconds:Math.min(end-start,LEASE_MS)/1000,discardedSeconds:Math.max(0,end-start-LEASE_MS)/1000,
+      fromServerMs:start,toServerMs:Math.min(end,start+LEASE_MS),writerId:anchor.owner,writerEpoch:anchor.epoch};
+  }
   function createRemote(db,sdk,uid){
     const sessionRef=sdk.doc(db,'players',uid,'session','owner');
     const saveRef=sdk.doc(db,'players',uid,'saves','cafe');
@@ -38,9 +61,34 @@
       },onError);}
     };
   }
-  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{}}){
+  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},elapsedStorage}){
+    if(elapsedStorage===undefined){try{elapsedStorage=root.localStorage;}catch(_){elapsedStorage=null;}}
     let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
+    let elapsedWindow=null,elapsedGeneration=0,elapsedSeal=null;
     const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
+
+    const intentKey='little-leaf.elapsed-probe.v1:'+uid;
+    function storedProbe(){if(!elapsedStorage)return null;const text=elapsedStorage.getItem(intentKey);return text?JSON.parse(text):null;}
+    function persistProbe(intent){
+      if(!elapsedStorage)throw fail('ELAPSED_STORAGE','Durable checkpoint storage is unavailable.');
+      elapsedStorage.setItem(intentKey,JSON.stringify(intent));
+      if(JSON.stringify(storedProbe())!==JSON.stringify(intent))throw fail('ELAPSED_STORAGE','Checkpoint intent could not be protected.');
+    }
+    function removeProbe(intent){if(storedProbe()?.id===intent.id)elapsedStorage.removeItem(intentKey);}
+    async function recoverProbe(){
+      const intent=storedProbe();if(!intent)return;
+      const matches=value=>value?.owner===intent.owner&&value.epoch===intent.epoch&&value.device===intent.device
+        &&stampIdentity(value.updatedAt)===intent.anchorStamp&&!value.ack&&value.request?.id===intent.id&&value.request.requester===intent.requester;
+      const latest=await remote.read();guard();
+      if(latest?.request?.id===intent.id&&latest.request.requester===intent.requester&&!matches(latest))
+        throw fail('ELAPSED_RECOVERY','Interrupted checkpoint changed or was acknowledged. Progress stays paused; its request was not cleared.');
+      if(matches(latest))await change((value,save,stamp)=>{
+        if(!matches(value))throw fail('ELAPSED_CHANGED','Interrupted checkpoint changed; no request was cleared.');
+        return {...value,updatedAt:stamp(),request:null,ack:null};
+      });
+      // Changed/real handoffs remain untouched. The abandoned interval earns zero.
+      removeProbe(intent);
+    }
     function receive(value){
       if(closed||currentUid()!==uid)return;
       // A server listener can deliver a queued pre-takeover observation after
@@ -49,9 +97,14 @@
       if(current && value && value.epoch<current.epoch)return;
       current=value;initialized=true;
       if(!current)status='offline';
-      else if(current.owner===sessionId)status=current.request?'handoff-requested':'active';
+      else if(current.owner===sessionId)status=current.request&&!(elapsedSeal&&current.request.id===elapsedSeal.id
+        &&current.request.requester===elapsedSeal.requester&&!current.ack)?'handoff-requested':'active';
       else if(current.request?.requester===sessionId){requestId=current.request.id;waitingSince=millis(current.request.at);status=current.ack?'takeover-ready':'waiting';}
       else status='other-device';
+      const interrupted=storedProbe();
+      if(!elapsedSeal&&interrupted&&current?.request?.id===interrupted.id&&current.request.requester===interrupted.requester
+        &&current.owner===interrupted.owner&&current.epoch===interrupted.epoch)status='offline';
+      if(status!=='active')elapsedGeneration++;
       onChange(snapshot());
     }
     function snapshot(){
@@ -98,13 +151,13 @@
       }
     }
     async function start(reloadTicket=null){
-      guard();if(reloadTicket)await continueReload(reloadTicket);
+      guard();await recoverProbe();if(reloadTicket)await continueReload(reloadTicket);
       await change((value,save,stamp)=>{
         if(value?.owner===sessionId)return {...value,updatedAt:stamp()};
         if(value && now()-millis(value.updatedAt)<LEASE_MS)return value;
         return {schema:1,owner:sessionId,epoch:value?value.epoch+1:1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
       });
-      if(!unsubscribe)unsubscribe=remote.watch(receive,()=>{if(!closed){status='offline';onChange(snapshot());}});
+      if(!unsubscribe)unsubscribe=remote.watch(receive,()=>{if(!closed){elapsedGeneration++;status='offline';onChange(snapshot());}});
       return snapshot();
     }
     function assertActive(allowHandoff=false){
@@ -113,6 +166,9 @@
       return {writerId:sessionId,writerEpoch:current.epoch};
     }
     async function renew(){
+      // Do not erase an open interval's immutable server timestamp. Visible
+      // reconciliation seals it through the existing rule-checked renewal.
+      if(elapsedWindow)return snapshot();
       guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch;
       try{await change((value,save,stamp)=>{if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');return {...value,updatedAt:stamp()};});}
       catch(e){
@@ -125,6 +181,50 @@
         if(!fenced){status='offline';onChange(snapshot());}throw e;
       }return snapshot();
     }
+    async function beginElapsed(){
+      if(storedProbe())throw fail('ELAPSED_RECOVERY','An interrupted checkpoint must be recovered before another interval.');
+      if(elapsedWindow)throw fail('ELAPSED_BUSY','An elapsed interval is already open.');
+      const fence=assertActive(),token=root.crypto.randomUUID();
+      const arming={token,state:'arming',generation:elapsedGeneration};elapsedWindow=arming;
+      try{
+        const anchor=await change((value,save,stamp)=>{
+          if(value?.owner!==fence.writerId||value.epoch!==fence.writerEpoch||value.request!==null||value.ack!==null)
+            throw fail('ELAPSED_CHANGED','Background ownership changed before its checkpoint.');
+          return {...value,updatedAt:stamp()};
+        });
+        if(elapsedWindow!==arming||arming.generation!==elapsedGeneration||!unchangedSession(anchor,anchor)||status!=='active')throw fail('ELAPSED_CHANGED','No active server checkpoint.');
+        elapsedWindow={token,state:'ready',anchor,generation:elapsedGeneration};return {token};
+      }catch(e){if(elapsedWindow?.token===token)elapsedWindow=null;throw e;}
+    }
+    async function finishElapsed(token){
+      guard();const window=elapsedWindow;
+      if(!window||window.token!==token||window.state!=='ready')throw fail('ELAPSED_CONSUMED','Background interval is unavailable or already consumed.');
+      // Consume before the network wait. Duplicate visibility/retry callbacks
+      // cannot issue a second claim, including an uncertain transaction result.
+      window.state='consumed';
+      if(window.generation!==elapsedGeneration||status!=='active'){elapsedWindow=null;throw fail('ELAPSED_CHANGED','Background authority became unavailable.');}
+      let before=null;const probe={id:token,requester:root.crypto.randomUUID()};
+      const intent={...probe,owner:window.anchor.owner,epoch:window.anchor.epoch,device:window.anchor.device,anchorStamp:stampIdentity(window.anchor.updatedAt)};
+      persistProbe(intent);elapsedSeal=probe;
+      try{
+        const sealed=await change((value,save,stamp)=>{
+          if(window.generation!==elapsedGeneration||!unchangedSession(window.anchor,value))
+            throw fail('ELAPSED_CHANGED','The server session changed during the background interval.');
+          before=value;return {...value,request:{...probe,device:deviceLabel,at:stamp()}};
+        });
+        const proof=elapsedProof(window.anchor,before,sealed,probe);
+        const requestAt=stampIdentity(sealed.request.at);
+        const cleared=await change((value,save,stamp)=>{
+          if(!unchangedSession(window.anchor,{...value,request:null})||value.request?.id!==probe.id
+            ||value.request.requester!==probe.requester||stampIdentity(value.request.at)!==requestAt)
+            throw fail('ELAPSED_CHANGED','The elapsed checkpoint changed before its request was cleared.');
+          return {...value,updatedAt:stamp(),request:null,ack:null};
+        });
+        if(window.generation!==elapsedGeneration||status!=='active')throw fail('ELAPSED_CHANGED','Background authority changed before confirmation.');
+        removeProbe(intent);return {...proof,token,commitServerStamp:stampIdentity(cleared.updatedAt)};
+      }finally{elapsedWindow=null;if(storedProbe()?.id===intent.id){status='offline';onChange(snapshot());}elapsedSeal=null;}
+    }
+    function cancelElapsed(){elapsedGeneration++;elapsedWindow=null;if(elapsedSeal){elapsedSeal=null;status='offline';onChange(snapshot());}}
     async function requestTakeover(){
       guard();const generation=++requestGeneration,id=root.crypto.randomUUID();requestId=id;
       const requestGuard=()=>{guard();if(generation!==requestGeneration)throw fail('REQUEST_CANCELLED','The device switch request was canceled. Progress remains paused.');};
@@ -178,10 +278,10 @@
         return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
       });return snapshot();
     }
-    return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,
+    return {start,snapshot,assertActive,renew,beginElapsed,finishElapsed,cancelElapsed,requestTakeover,acknowledge,takeOver,reloadContinuation,
       async refresh(){guard();receive(await remote.read());return snapshot();},
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
-      close(){requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
+      close(){cancelElapsed();requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
   }
-  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload});
+  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload,elapsedProof});
 })(globalThis);

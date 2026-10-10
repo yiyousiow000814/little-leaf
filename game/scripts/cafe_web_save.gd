@@ -387,6 +387,8 @@ func _block_startup(reason:String,code:String="VALIDATION_FAILED"):
 func request_save(skip_unchanged:bool=false)->bool:
 	_log("save_requested")
 	game.save_timer=0.0
+	if game.background_elapsed!=null and game.background_elapsed.holding and game.background_elapsed.phase!="waiting-save":
+		_log("save_skipped","ELAPSED_RECONCILING");return false
 	if not ready or game.save_recovery_blocked or game.save_writes_suppressed:
 		_log("save_skipped","NOT_READY" if not ready else "RECOVERY_BLOCKED" if game.save_recovery_blocked else "WRITES_SUPPRESSED");return false
 	generation+=1
@@ -502,6 +504,7 @@ func _on_commit(arguments:Array):
 		game.call_deferred("_save");return
 	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if platform_ack else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
 	game._update_ui()
+	if game.background_elapsed!=null:game.background_elapsed.save_finished()
 
 func _refresh_inbox(result:Dictionary):
 	# Accept only a snapshot paired with this accepted boot/durable revision.

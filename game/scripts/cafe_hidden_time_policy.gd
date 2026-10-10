@@ -7,7 +7,12 @@ static func local_callbacks_allowed(recovery:Dictionary,local_marker:bool=false,
 	# An adapter marker only identifies a bridge-free local vault. It cannot
 	# override a contradictory or missing observation from an existing bridge.
 	if recovery.is_empty():return local_marker and not bridge_present
-	return typeof(recovery.get("serverOwnership"))==TYPE_BOOL and recovery.serverOwnership==false and not bool(recovery.get("accountChanged",false)) and not bool(recovery.get("ownershipPaused",false)) and not bool(recovery.get("choicesAvailable",false)) and not bool(recovery.get("available",false)) and not bool(recovery.get("busy",false))
+	if bool(recovery.get("accountChanged",false)) or bool(recovery.get("ownershipPaused",false)) or bool(recovery.get("choicesAvailable",false)) or bool(recovery.get("available",false)) or bool(recovery.get("busy",false)):return false
+	if typeof(recovery.get("serverOwnership"))!=TYPE_BOOL:return false
+	if not recovery.serverOwnership:return true
+	# Like foreground callbacks, these are speculative until a current-fence
+	# snapshot commit. Cached active status never proves a historical interval.
+	return recovery.get("status","")=="active" and typeof(recovery.get("ownershipPaused"))==TYPE_BOOL and recovery.ownershipPaused==false
 
 static func frame_delta(delta:float,hidden:bool,local_callbacks:bool)->float:
 	if hidden and (not local_callbacks or not is_finite(delta) or delta<0.0 or delta>MAX_CALLBACK_SECONDS):return 0.0

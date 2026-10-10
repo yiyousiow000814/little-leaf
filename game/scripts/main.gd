@@ -212,6 +212,7 @@ func _resume_loaded_cafe():
 	_update_ui();illustration.queue_redraw()
 
 func _exit_tree():
+	if background_elapsed!=null:background_elapsed.stop()
 	if web_lifecycle!=null:web_lifecycle.stop()
 	if web_save!=null:web_save.stop()
 
@@ -893,6 +894,7 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func effective_frame_delta(delta:float)->float:
+	if background_elapsed!=null and background_elapsed.holding:return 0.0
 	if browser_suspended or Engine.get_process_frames()<=_resume_frame:return 0.0
 	return preload("res://scripts/cafe_hidden_time_policy.gd").frame_delta(delta,browser_hidden,_hidden_local_callbacks)
 
@@ -903,6 +905,8 @@ func _hidden_callbacks_eligible()->bool:
 	var local_marker=web_save.api!=null and bool(web_save.api.localCallbacksAuthority)
 	return preload("res://scripts/cafe_hidden_time_policy.gd").local_callbacks_allowed(recovery,local_marker,web_save._recovery_bridge()!=null)
 
+var background_elapsed
+var _background_trial=false
 func set_browser_hidden(value:bool):
 	if value==browser_hidden:return
 	browser_hidden=value
@@ -912,11 +916,14 @@ func set_browser_hidden(value:bool):
 	if value:
 		if settings_controls!=null:settings_controls.flush_preferences()
 		_hidden_local_callbacks=_hidden_callbacks_eligible()
+	if background_elapsed==null and web_save!=null:background_elapsed=preload("res://scripts/cafe_background_elapsed.gd").new(self)
+	if background_elapsed!=null:background_elapsed.hidden_changed(value)
 
 func set_browser_suspended(value:bool):
 	if value==browser_suspended:return
 	browser_suspended=value
 	if value:
+		if background_elapsed!=null:background_elapsed.stop()
 		if settings_controls!=null:settings_controls.flush_preferences()
 		_browser_process_mode=process_mode
 		if OS.has_feature("crazygames"):
@@ -962,10 +969,7 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if world_delta>0.0 and not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
-		_tick_live_service(world_delta)
-		# Resolve cooking/contact before deadlines and before any autosave.
-		_animate_staff(world_delta)
+		_advance_business(world_delta)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
 		if OS.has_feature("crazygames"):_mark_platform_dirty()
 	visual_timer+=world_delta
@@ -982,6 +986,14 @@ func _process(delta):
 		ghost.position=Vector3(hover_cell.x+.5,.04,hover_cell.y+.5)
 		ghost.rotation.y=rotation_step*PI/2
 		ghost.visible=model.is_floor_owned(hover_cell)
+
+func _advance_business(delta:float):
+	if _background_trial:_sync_staff_duty()
+	if model.first_guest_pending and model.operating_open and model._arrival_elapsed+delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+	_tick_live_service(delta)
+	# Reuse the foreground cooking/contact/deadline and payroll order.
+	_animate_staff(delta)
+	if _background_trial:animation_time+=delta
 
 func _person(color: Color,apron=false) -> Node3D:
 	var n=Node3D.new()
@@ -1451,9 +1463,9 @@ func _tick_live_service(delta: float):
 	model.tick(delta)
 	floor_tasks.observe_walks()
 	var payroll=model.advance_payroll(delta,_staff_on_duty())
-	if payroll.paid>0:
+	if payroll.paid>0 and not _background_trial:
 		if compact_ui!=null:compact_ui.show_wage_payment(int(payroll.paid))
-	elif payroll.charged>0 and payroll.due>0:
+	elif payroll.charged>0 and payroll.due>0 and not _background_trial:
 		if compact_ui!=null:compact_ui.show_wages_due(int(payroll.due))
 	for entry in held:
 		if str(entry.guest.phase)==entry.phase:
