@@ -118,6 +118,8 @@ var detail_stats: Label
 var music_tween: Tween
 var music_positions={}
 var browser_suspended=false
+var browser_hidden=false
+var _hidden_local_callbacks=false
 var _browser_process_mode=Node.PROCESS_MODE_INHERIT
 var _resume_frame=-1
 var cafe_intro
@@ -891,8 +893,25 @@ func _floor_cell(screen: Vector2) -> Vector2i:
 	return Vector2i(floori(point.x),floori(point.z))
 
 func effective_frame_delta(delta:float)->float:
-	# Background time is never applied to simulation, earnings or presentation.
-	return 0.0 if browser_suspended or Engine.get_process_frames()<=_resume_frame else delta
+	if browser_suspended or Engine.get_process_frames()<=_resume_frame:return 0.0
+	return preload("res://scripts/cafe_hidden_time_policy.gd").frame_delta(delta,browser_hidden,_hidden_local_callbacks)
+
+func _hidden_callbacks_eligible()->bool:
+	if web_save==null or not web_save.ready or web_save.platform_managed or save_recovery_blocked:return false
+	if web_save.recovery_busy or web_save.update_busy or web_save.retrying:return false
+	var recovery=web_save.recovery_snapshot()
+	var local_marker=web_save.api!=null and bool(web_save.api.localCallbacksAuthority)
+	return preload("res://scripts/cafe_hidden_time_policy.gd").local_callbacks_allowed(recovery,local_marker,web_save._recovery_bridge()!=null)
+
+func set_browser_hidden(value:bool):
+	if value==browser_hidden:return
+	browser_hidden=value
+	# Discard the transition frame in both directions. No debt is queued.
+	_resume_frame=Engine.get_process_frames()+1
+	_hidden_local_callbacks=false
+	if value:
+		if settings_controls!=null:settings_controls.flush_preferences()
+		_hidden_local_callbacks=_hidden_callbacks_eligible()
 
 func set_browser_suspended(value:bool):
 	if value==browser_suspended:return
@@ -909,6 +928,13 @@ func set_browser_suspended(value:bool):
 		process_mode=_browser_process_mode
 
 func _process(delta):
+	# The subtree now stays alive while hidden. Apply account/session/conflict
+	# safety before any delivered callback can mutate service or payroll.
+	if browser_hidden and web_save!=null:
+		web_save.check_runtime_recovery()
+		# Recheck every adapter, including a marked local vault. The marker never
+		# overrides a later account/conflict observation or a busy transition.
+		_hidden_local_callbacks=_hidden_callbacks_eligible()
 	delta=effective_frame_delta(delta)
 	if OS.has_feature("web") and OS.has_feature("crazygames"):
 		var platform=JavaScriptBridge.get_interface("LittleLeafPlatform")
@@ -916,7 +942,7 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			var playable=not browser_hidden and preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
 			platform.viewportPlayable=not compact_ui.viewport_too_small
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
@@ -935,7 +961,7 @@ func _process(delta):
 		if build_tools!=null:build_tools.refresh(get_viewport().get_mouse_position())
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
-	if not editing and not paused and not save_recovery_blocked:
+	if world_delta>0.0 and not editing and not paused and not save_recovery_blocked:
 		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.

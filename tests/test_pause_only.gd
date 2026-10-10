@@ -21,6 +21,19 @@ class BrowserApi extends RefCounted:
  var text=""
  var lastError=""
  func writeText(value):text=value;return true
+class LocalMarker extends RefCounted:
+ var localCallbacksAuthority=true
+class HiddenAuthorityFixture extends RefCounted:
+ var api=LocalMarker.new()
+ var ready=true
+ var platform_managed=false
+ var recovery_busy=false
+ var update_busy=false
+ var retrying=false
+ var bridge_present=false
+ var snapshot={}
+ func recovery_snapshot():return snapshot
+ func _recovery_bridge():return api if bridge_present else null
 var checks=0
 var failures=[]
 var game
@@ -94,6 +107,56 @@ func run():
   game.set(gate,false)
  game._resume_frame=Engine.get_process_frames()+1;before=snapshot();game._process(300)
  check(snapshot()==before,"resume frame cannot apply background time")
+ # 10a hidden candidate: synthetic economy only; no original saves.
+ game.paused=false;game.model.operating_open=true
+ var mode=game.process_mode
+ game.set_browser_hidden(true)
+ check(game.process_mode==mode and not game.paused,"hide does not disable subtree or press Pause")
+ var boundary=game._resume_frame
+ game.set_browser_hidden(true)
+ check(game._resume_frame==boundary,"duplicate hide leaves boundary unchanged")
+ game._resume_frame=-1;game._hidden_local_callbacks=true
+ service=game.service_seconds;staff=game.staff_seconds;payroll=game.model.payroll_elapsed
+ game._process(.1)
+ check(is_equal_approx(game.service_seconds-service,.1) and is_equal_approx(game.staff_seconds-staff,.1) and is_equal_approx(game.model.payroll_elapsed-payroll,.1),"hidden guest service/staff/payroll exactly once")
+ service=game.service_seconds;payroll=game.model.payroll_elapsed
+ game._process(3600)
+ check(game.service_seconds==service and game.model.payroll_elapsed==payroll,"throttled hidden gap earns no payroll or service")
+ for gate in ["paused","editing","save_recovery_blocked"]:
+  game.set(gate,true);payroll=game.model.payroll_elapsed
+  game._process(.1)
+  check(game.model.payroll_elapsed==payroll,"hidden callback retains safety gate: "+gate)
+  game.set(gate,false)
+ game._hidden_local_callbacks=false;payroll=game.model.payroll_elapsed
+ game._process(.1)
+ check(game.model.payroll_elapsed==payroll,"cloud/unknown hidden callback earns nothing")
+ game.paused=true;game.set_browser_hidden(false)
+ boundary=game._resume_frame;game.set_browser_hidden(false)
+ check(game.paused and game._resume_frame==boundary,"duplicate visible preserves manual Pause and return boundary")
+ game._process(3600)
+ check(game.model.payroll_elapsed==payroll,"return frame cannot replay hidden economy")
+ # Resolve adapter markers against live observations; no bridge/network I/O.
+ var original_web_save=game.web_save
+ var authority=HiddenAuthorityFixture.new();game.web_save=authority
+ check(game._hidden_callbacks_eligible(),"bridge-free explicit local marker eligible")
+ authority.bridge_present=true
+ check(not game._hidden_callbacks_eligible(),"local marker cannot override missing live observation")
+ for observation in [{"serverOwnership":true,"status":"active"},{"serverOwnership":false,"accountChanged":true},{"serverOwnership":false,"choicesAvailable":true},{"serverOwnership":false,"busy":true}]:
+  authority.snapshot=observation
+  check(not game._hidden_callbacks_eligible(),"local marker cannot override safety observation: "+str(observation))
+ authority.snapshot={"serverOwnership":false}
+ check(game._hidden_callbacks_eligible(),"explicit current guest observation eligible")
+ for gate in ["ready","platform_managed","recovery_busy","update_busy","retrying"]:
+  authority.set(gate,gate!="ready")
+  check(not game._hidden_callbacks_eligible(),"adapter transition fails closed: "+gate)
+  authority.set(gate,gate=="ready")
+ game.web_save=original_web_save
+ game.set_browser_hidden(true);game.set_browser_suspended(true)
+ check(game.process_mode==Node.PROCESS_MODE_DISABLED and game.paused,"pagehide still suspends and preserves manual Pause")
+ game.set_browser_hidden(false)
+ check(game.process_mode==Node.PROCESS_MODE_DISABLED,"visibility alone cannot restore pagehide process mode")
+ game.set_browser_suspended(false)
+ check(game.process_mode==mode and game.paused,"pageshow restores original process mode and preserves Pause")
  game._resume_frame=-1;game.paused=true;game.model.operating_open=false
  for level in [1,2,3]:
   var multiplier=Model.stove_speed_multiplier({"level":level})
