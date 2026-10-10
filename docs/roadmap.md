@@ -2333,11 +2333,11 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 11.01 — Hide buses and vehicles while in Decorate mode; restore correct live visibility on exit.
 
-Local retained bus port (not published): recovered 7e457935 relative presentation changes are present on parking 766eeb2; 23 trip/retained ownership checks, 11 lane checks and 489 rendering checks passed. Native 45-second 30fps control capture is rejected: an unchanged cream traffic car overlaps the bus front during approach. Model-owner fresh-pool spacing decision remains pending. No traffic initial/advance/restore or parking identity change; no merge/release acceptance.
+Local integrated candidate (not published): source 35cbe1c6d85dfe9f202fbb03f2b5b59832d3f094 on parking 766eeb2 installs the owner-approved transient bus holder, shared traffic progress and read-only renderer binding before first draw, including paused load/reset. 139 focused behavior checks and 523 trip/lane/render checks pass. A source-bound 45-second 30fps 1x actual Main/model cycle, targeted saved-phase merge and all six dense doorway windows have been captured. Independent retained-frame review finds no blocking visible defect; ordinary-speed human playback and final integrated acceptance remain pending. Saved pool positions, party identities and save schema are preserved. The earlier approach-overlap control remains rejected; no push, merge or release.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟢 GREEN — Decorate bus/vehicle visibility candidate #103 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — Editor native workflow exists; traffic-specific cycle acceptance pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟢 GREEN — Decorate bus/vehicle visibility candidate #103 | 🟢 GREEN — 662 focused checks pass; combined release qualification separate | 🟡 YELLOW — Current native cycle and dense frames reviewed; human playback pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
@@ -2347,55 +2347,55 @@ Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow00081
 
 Tests present: [test_editing_visual_feedback.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_editing_visual_feedback.gd); [test_parking_render.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_parking_render.gd)
 
-Visual acceptance: Editor native workflow exists; traffic-specific cycle acceptance pending
+Visual acceptance: Integrated native frames and focused visibility restoration checks pass; final composed workflow acceptance remains pending.
 
-Missing work / next action: Integrated live/decorate/exit visibility including parking and bus
+Missing work / next action: Confirm final composed editor visibility and ordinary-speed playback before publication.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
 ### 11.02 — Buses arrive and depart in distinct trips.
 
-Unified traffic helper follow-up: optional shared-progress solver and fixed approach/rejoin reservations are present locally; 16 focused checks cover three trips in two pool phases, exact restore/party identity, ahead/behind priority, occupied merge, wrap validity, parking headway and zero-step inactivity. Production holder/reset/renderer consumption is not installed: an exact nonserialized transient contract and relative patch await owner agreement under the model boundary review. Helper-level native capture exists; integrated normal-play visual acceptance remains pending.
+Shared progress is now installed under the explicit model-owner contract. Existing road occupants retain priority; approach/rejoin reservations and oriented-body clearance delay bus progress safely, and passengers consume that accepted clock. Fresh pool seeding was rejected as an enduring fix and remains unchanged. Successful restore deep-copies existing road state and recreates only the nonserialized bus; failed restore is atomic.
 
-Local retained bus port (not published): recovered 7e457935 relative presentation changes are present on parking 766eeb2; 23 trip/retained ownership checks, 11 lane checks and 489 rendering checks passed. Native 45-second 30fps control capture is rejected: an unchanged cream traffic car overlaps the bus front during approach. Model-owner fresh-pool spacing decision remains pending. No traffic initial/advance/restore or parking identity change; no merge/release acceptance.
+Local integrated candidate (not published): source 35cbe1c6d85dfe9f202fbb03f2b5b59832d3f094 on parking 766eeb2 installs the owner-approved transient bus holder, shared traffic progress and read-only renderer binding before first draw, including paused load/reset. 139 focused behavior checks and 523 trip/lane/render checks pass. A source-bound 45-second 30fps 1x actual Main/model cycle, targeted saved-phase merge and all six dense doorway windows have been captured. Independent retained-frame review finds no blocking visible defect; ordinary-speed human playback and final integrated acceptance remain pending. Saved pool positions, party identities and save schema are preserved. The earlier approach-overlap control remains rejected; no push, merge or release.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Local retained trip/lane presentation port present; traffic-owner spacing and native visual acceptance pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — Native control rejected for approach car overlap; trip/lane acceptance pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟢 GREEN — Local integrated trip/lane candidate; final acceptance pending | 🟢 GREEN — 662 focused checks pass; combined release qualification separate | 🟡 YELLOW — Current retained-frame review passes; ordinary-speed human playback pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Local retained trip/lane presentation port present; traffic-owner spacing and native visual acceptance pending
+Code status: Local integrated trip/lane candidate at 35cbe1c; final acceptance pending
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/scripts/exterior_environment.gd)
 
 Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/test_bus_stop.gd)
 
-Visual acceptance: Native control rejected for approach car overlap; trip/lane acceptance pending
+Visual acceptance: Current retained-frame review passes; ordinary-speed human playback and combined acceptance pending. Earlier rejected control is historical.
 
-Missing work / next action: Implement trips/lane direction with bounded clocks; keep paused/edit visibility behavior
+Missing work / next action: Review source-bound ordinary-speed clip and qualify the final composed source before publication.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
 ### 11.03 — Bus direction matches its lane.
 
-Local retained bus port (not published): recovered 7e457935 relative presentation changes are present on parking 766eeb2; 23 trip/retained ownership checks, 11 lane checks and 489 rendering checks passed. Native 45-second 30fps control capture is rejected: an unchanged cream traffic car overlaps the bus front during approach. Model-owner fresh-pool spacing decision remains pending. No traffic initial/advance/restore or parking identity change; no merge/release acceptance.
+Local integrated candidate (not published): source 35cbe1c6d85dfe9f202fbb03f2b5b59832d3f094 on parking 766eeb2 installs the owner-approved transient bus holder, shared traffic progress and read-only renderer binding before first draw, including paused load/reset. 139 focused behavior checks and 523 trip/lane/render checks pass. A source-bound 45-second 30fps 1x actual Main/model cycle, targeted saved-phase merge and all six dense doorway windows have been captured. Independent retained-frame review finds no blocking visible defect; ordinary-speed human playback and final integrated acceptance remain pending. Saved pool positions, party identities and save schema are preserved. The earlier approach-overlap control remains rejected; no push, merge or release.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Local retained trip/lane presentation port present; traffic-owner spacing and native visual acceptance pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — Native control rejected for approach car overlap; trip/lane acceptance pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟢 GREEN — Local integrated trip/lane candidate; final acceptance pending | 🟢 GREEN — 662 focused checks pass; combined release qualification separate | 🟡 YELLOW — Current retained-frame review passes; ordinary-speed human playback pending | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Local retained trip/lane presentation port present; traffic-owner spacing and native visual acceptance pending
+Code status: Local integrated trip/lane candidate at 35cbe1c; final acceptance pending
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/scripts/exterior_environment.gd)
 
 Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/test_bus_stop.gd)
 
-Visual acceptance: Native control rejected for approach car overlap; trip/lane acceptance pending
+Visual acceptance: Current retained-frame review passes; ordinary-speed human playback and combined acceptance pending. Earlier rejected control is historical.
 
-Missing work / next action: Implement trips/lane direction with bounded clocks; keep paused/edit visibility behavior
+Missing work / next action: Review source-bound ordinary-speed clip and qualify the final composed source before publication.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
