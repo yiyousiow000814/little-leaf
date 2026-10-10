@@ -30,7 +30,7 @@ func run():
  check(model.price_of("table_set")==280 and Sets.VARIANTS.oak_single.price==280,"storefront and dining product both quote approved280")
  check(model.wage_rate()==50 and model.WAGE_RATES=={"chef":18,"waiter":11,"cleaner":10,"cashier":11},"included four-role roster costs50 per future game minute")
  check(model.MEAL_PAYMENT==200,"new settlement rate is200")
- check(model.HIRE_FEES=={"chef":2800,"waiter":2200,"cleaner":1800} and model.stove_upgrade_cost(1)==180,"hire fees and level2 upgrade retain their existing prices")
+ check(model.HIRE_FEES=={"chef":2800,"waiter":2200,"cleaner":1800},"hire fees retain their existing prices")
  check(model.dining_sets[0].paid_cost==140 and model.logical_refund(6)==70,"included starter retains its existing140 basis and70 refund")
  check(model.price_of("table")==100 and model.price_of("chair")==40 and model.price_of("bench")==75,"legacy individual furniture prices are unchanged")
  check(state(model)==before,"price and refund quotes never mutate progress")
@@ -114,7 +114,21 @@ func run():
  check(model.place("stove",7,1) and model.hire_staff("chef"),"existing stove and chef hiring path remains available")
  check(model.coins==wallet-220-2800 and model.wage_rate()==68,"unchanged hire charge adds only18 per future minute")
  model=fresh();wallet=model.coins
- check(model.upgrade_stove(1) and model.coins==wallet-180 and model.get_item(1).level==2,"level2 upgrade still charges180 once")
+ check(not model.has_method("upgrade_stove") and not model.has_method("stove_upgrade_cost") and model.coins==wallet and model.get_item(1).level==1,"no new stove upgrade purchase; starter remains level1")
+ # Already-paid historical levels keep their balance, identity and recipe benefit.
+ for level in [2,3]:
+  var historical=fresh(777);historical.get_item(1).level=level
+  var identity=historical.get_item(1).duplicate(true)
+  var expected_speed=1.0+.4*(level-1)
+  var path="user://historical-stove-level-%d.json"%level
+  check(historical.save(path),"historical upgraded stove saves: "+str(level))
+  var saved_hash=FileAccess.get_sha256(path);var restored=Model.new()
+  check(restored.load_save(path) and restored.coins==777 and restored.get_item(1)==identity,"historical level/balance/identity load unchanged: "+str(level))
+  check(is_equal_approx(Model.stove_speed_multiplier(restored.get_item(1)),expected_speed) and is_equal_approx(Model.cooking_seconds(expected_speed),45.0/expected_speed),"historical paid cooking benefit retained: "+str(level))
+  check(FileAccess.get_sha256(path)==saved_hash,"loading does not rewrite historical save: "+str(level))
+  check(restored.save("user://historical-stove-roundtrip-%d.json"%level),"historical upgraded stove roundtrip saves: "+str(level))
+  var roundtrip=Model.new()
+  check(roundtrip.load_save("user://historical-stove-roundtrip-%d.json"%level) and roundtrip.coins==777 and roundtrip.get_item(1)==identity,"historical paid level survives second reload: "+str(level))
  # Exercise the actual atomic register settlement, including historical earnings.
  model=fresh();model.total_earned=2500;model.served=10;model._spawn_customer()
  var guest=model.customers[0];var register=model.checkout_register();var front=model.workface_cell(register)

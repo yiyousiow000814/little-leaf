@@ -2,6 +2,10 @@
 
 > This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state reconciliation is pinned to main `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0` on 2026-10-10 UTC. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
 
+### 0.1.11 Stove Upgrade removal — current user direction
+
+The user explicitly rejected Stove Upgrade on 2026-10-10. Remove its UI and new purchase path; do not introduce replacement stove products, prices or effects. Historical saved stove levels and their paid speed benefits remain compatible, with balances, IDs and existing resale rules unchanged. No destructive downgrade/refund migration is authorized. This supersedes historical upgrade availability below; implementation/validation and Draft PR evidence remain separate from merge/release.
+
 ## Read this first
 
 - [Current state and ownership](#current-state) — exact source/date, code/tests/visual/merged/released remain separate.

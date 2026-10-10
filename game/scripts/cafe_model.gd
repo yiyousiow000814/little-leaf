@@ -656,28 +656,6 @@ func _sale_station_usable_in(item: Dictionary, layout: Array[Dictionary], reacha
 	return true
 
 
-func stove_upgrade_cost(id: int) -> int:
-	var item := get_item(id)
-	if item.is_empty() or item.kind != "stove" or int(item.get("level", 1)) >= MAX_STOVE_LEVEL:
-		return -1
-	return 180 + 80 * (int(item.get("level", 1)) - 1)
-
-
-func upgrade_stove(id: int) -> bool:
-	var item := get_item(id)
-	var cost := stove_upgrade_cost(id)
-	if cost < 0:
-		return _fail("Select a stove below level 3")
-	if coins < cost:
-		return _fail("Not enough coins · upgrade needs %s" % Money.amount(cost))
-	coins -= cost
-	item["level"] = int(item.get("level", 1)) + 1
-	last_error = ""
-	last_event = "Stove upgraded to level %d" % item.level
-	_notify()
-	return true
-
-
 func staff_count(role:String)->int:return staff_roster().get(role,0)
 func staff_roster()->Dictionary:return {"chef":cooks,"waiter":waiters,"cleaner":cleaners,"cashier":cashiers}
 func wage_rate()->int:return int(duty_counts.chef)*int(WAGE_RATES.chef)+int(duty_counts.waiter)*int(WAGE_RATES.waiter)+int(duty_counts.cleaner)*int(WAGE_RATES.cleaner)+int(duty_counts.get("cashier",0))*int(WAGE_RATES.cashier)
@@ -1640,8 +1618,8 @@ func _seating_pairs() -> Array[Dictionary]:
 
 
 static func stove_speed_multiplier(item: Dictionary) -> float:
-	# Existing upgrades keep their 1.0x / 1.4x / 1.8x speeds. New stove
-	# tiers can use this same multiplier without changing the base recipe.
+	# Historical paid levels retain their 1.0x / 1.4x / 1.8x benefits.
+	# Compatibility only: new stoves remain level 1; no upgrade purchase exists.
 	return 1.0 + 0.4 * (clampi(int(item.get("level", 1)), 1, MAX_STOVE_LEVEL) - 1)
 
 

@@ -65,7 +65,6 @@ var update_notice
 var settings_help:Button
 var help_returns_to_settings=false
 var hire_button:Button
-var upgrade_button:Button
 var plot_button:Button
 var hint:PanelContainer
 var hint_text:Label
@@ -226,8 +225,6 @@ func setup():
  management=_panel();var manage_box=VBoxContainer.new();manage_box.add_theme_constant_override("separation",8);management.add_child(manage_box)
  manage_box.add_child(game.label("Manage",18))
  hire_button=_small_button("Staff",func():staff_panel.show());manage_box.add_child(hire_button)
- upgrade_button=_small_button("",func():game._upgrade();sync());manage_box.add_child(upgrade_button)
- upgrade_button.reparent(context);context.move_child(upgrade_button,context.get_child_count()-1)
  plot_button=_small_button("",func():game._expand();sync());manage_box.add_child(plot_button)
  manage_box.add_child(_small_button("Done",func():management.hide()))
  help_panel=_panel();help_panel.name="QuickHelpPanel"
@@ -393,10 +390,6 @@ func sync():
  if game.web_save!=null:game.web_save.check_runtime_recovery()
  if update_notice!=null:update_notice.sync()
  if help_panel.visible:_sync_help_content()
- var upgrade=game.model.stove_upgrade_cost(game.selected_id)
- upgrade_button.text="Stove upgrade · %s"%Money.amount(upgrade) if upgrade>=0 else ("Max level" if item.get("kind","")=="stove" else "Select a stove")
- upgrade_button.disabled=upgrade<0 or game.save_recovery_blocked
- upgrade_button.visible=not item.is_empty() and str(item.kind)=="stove"
  var next_plot=game.model.next_parcel()
  plot_button.text="Next plot · %s"%Money.amount(int(next_plot.cost)) if not next_plot.is_empty() else "All plots owned";plot_button.disabled=next_plot.is_empty() or game.save_recovery_blocked
  var width=game.get_viewport().get_visible_rect().size.x
@@ -429,13 +422,12 @@ func sync():
  # Secondary game actions stay with Decorate, including on narrow screens.
  categories.add_theme_constant_override("h_separation",3 if width<650 else 4)
  context_label.visible=width>=650
- if width<650 and upgrade>=0:upgrade_button.text="Upgrade\n%s"%Money.amount(upgrade)
  # StyleBox setters emit changed even when the numeric margin is identical.
  # Those signals invalidate every subscribed control's minimum-size cache.
  # Preserve exact breakpoint styling without repeatedly invalidating it.
  var action_font_size=12 if width<650 else 13
  var action_margin=8.0 if width<650 else 16.0
- for action_button in [rotate_button,move_button,finish_button,remove_button,upgrade_button,cancel_button]:
+ for action_button in [rotate_button,move_button,finish_button,remove_button,cancel_button]:
   if not action_button.has_theme_font_size_override("font_size") or action_button.get_theme_font_size("font_size")!=action_font_size:
    action_button.add_theme_font_size_override("font_size",action_font_size)
   for state in ["normal","hover","pressed","disabled"]:

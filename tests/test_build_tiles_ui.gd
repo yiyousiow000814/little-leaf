@@ -289,7 +289,7 @@ func run():
   check(not stove.is_empty(),label+" existing stove fixture present")
   if not stove.is_empty():
    game.interaction._select_item(stove);await settle();action_layout(label+" existing stove")
-   check(ui.rotate_button.visible and ui.remove_button.visible and ui.upgrade_button.visible and ui.cancel_button.visible,label+" stove has all four actions")
+   check(ui.rotate_button.visible and ui.remove_button.visible and ui.cancel_button.visible,label+" stove retains rotate, sell and cancel actions")
   game._set_catalog_category("Build");await settle()
   check(shop.build_page=="products","returning category resets Build products "+label)
   NoBottom.verify(game,check,label)

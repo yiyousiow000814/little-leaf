@@ -566,7 +566,6 @@ func _build_ui():
 	expand_button=button("Next plot",_expand); tools.add_child(expand_button)
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
-	tools.add_child(button("Upgrade stove",_upgrade))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
 	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
@@ -684,11 +683,6 @@ func _staff_on_duty()->bool:
 	for staff in staff_states:
 		if staff.job_kind!="":return true
 	return false
-
-func _upgrade():
-	if save_recovery_blocked:return
-	if selected_id<0:return
-	if model.upgrade_stove(selected_id):_update_ui();_save()
 
 func _sell():
 	if save_recovery_blocked:return

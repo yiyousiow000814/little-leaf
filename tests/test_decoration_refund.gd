@@ -82,10 +82,10 @@ func run():
  # Included free bin retains explicitly approved existing resale after Done.
  m=fresh();m.begin_decoration_session();m.included_bin_pending=true;id=m._next_item_id;check(m.place("bin",3,6),"free bin Done fixture")
  check(m.logical_refund(id)==0,"included bin0 before Done");m.finish_decoration_session();check(m.logical_refund(id)==32,"included bin existing32 after Done")
- # Upgrade charges remain separate from the base furnishing purchase receipt.
+ # New stove purchases remain level1; base furnishing receipts are unchanged.
  m=fresh();m.begin_decoration_session();id=m._next_item_id;wallet=m.coins
- check(m.place("stove",3,6) and m.upgrade_stove(id) and m.coins==wallet-400,"stove220 plus separate level2 upgrade180")
- check(m.logical_refund(id)==220 and m.remove(id) and m.coins==wallet-180,"sale refunds base220 only, upgrade180 remains spent")
+ check(m.place("stove",3,6) and m.get_item(id).level==1 and m.coins==wallet-220,"stove220 purchase remains level1")
+ check(m.logical_refund(id)==220 and m.remove(id) and m.coins==wallet,"sale refunds new stove base220 once")
  # Failed removal of the eligible NEW item retains its receipt until unblocked.
  m=fresh();m.begin_decoration_session();id=m._next_item_id;wallet=m.coins;check(m.place("stove",3,6),"eligible new stove")
  var old_stove=int(m.items.filter(func(i):return i.kind=="stove" and int(i.id)!=id)[0].id)
