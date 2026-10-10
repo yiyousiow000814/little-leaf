@@ -20,6 +20,11 @@ check('only wall_back uses complete native Button bounds with single-line 3x OCR
   assert(layoutSource.includes('"bounded visible OCR region "'));
   assert(shopSource.includes('style.content_margin_left=30;style.content_margin_right=10'));
 });
+check('catalog retains complete native bounds with lossless 3x OCR', () => {
+  assert.match(layoutSource, /result\.regions\.catalog=region\(game\.tray\)[\s\S]*?result\.regions\.catalog\.scale=3/);
+  requireVisibleText('Wall Door Window Tiles', ['Wall','Door','Window']);
+  assert.throws(() => requireVisibleText('Wall Deen Window', ['Wall','Door','Window']));
+});
 check('actual browser requires the complete label from its own back-button crop', () => {
   assert(browserSource.includes("regions.findIndex(spec => spec.key === 'wall_back')"));
   assert(browserSource.includes('requireWallBackText(texts[backIndex])'));
@@ -115,6 +120,7 @@ if (layoutIndex >= 0) {
     const back = layout.regions.wall_back, catalog = layout.regions.catalog;
     assert.deepEqual([back.width, back.height], size.slice(1).map(Number));
     assert.equal(back.psm, 7); assert.equal(back.scale, 3);
+    assert.equal(catalog.scale, 3);
     assert(back.x >= catalog.x && back.y >= catalog.y);
     assert(back.x + back.width <= catalog.x + catalog.width);
     assert(back.y + back.height <= catalog.y + catalog.height);
