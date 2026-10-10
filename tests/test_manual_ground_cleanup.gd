@@ -152,5 +152,12 @@ func run():
  game._service_contact(janitor,game.staff_states.find(janitor),"disposing_trash",{},1.0)
  game.complete_ground_mess_if_ready(game.ground_mess_identity("guest",int(record.guest.id)))
  check(record.trash_owner=="disposed" and record.floor_cleaned,"existing NPC disposal settles remaining obligation")
+ if DisplayServer.get_name()!="headless":
+  game.illustration.set_process(true)
+  for trial in 3:
+   var id=fresh("crumbs");var point=await point_for(id)
+   event(point,true);event(point,false)
+   check(not alive(id) and game.floor_tasks.completed==1,"completed-frame cleanup remains usable with active artist repaint "+str(trial))
+  game.illustration.set_process(false)
  print("MANUAL_GROUND_CLEANUP_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":DisplayServer.get_name()!="headless","pointer_checks_skipped":DisplayServer.get_name()=="headless"}))
  quit(0 if failures.is_empty() else 1)
