@@ -14,6 +14,9 @@ spec.loader.exec_module(shards)
 
 class EngineShardTests(unittest.TestCase):
     def setUp(self):
+        environment = mock.patch.dict('os.environ', {'GITHUB_RUN_ID': 'local', 'GITHUB_RUN_ATTEMPT': 'local'})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
