@@ -67,13 +67,18 @@
     let choiceArchive=null,choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
     const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
     let localQueue=Promise.resolve();
-    let elapsedClaim=null;
+    let elapsedClaim=null,elapsedCancellation=0;
     function elapsedGuard(claim){guard();if(elapsedClaim!==claim||claim.cancelled)throw error('ELAPSED_CANCELLED','Background interval was cancelled.');}
-    function clearElapsed(claim){if(elapsedClaim===claim){elapsedClaim=null;ownership?.cancelElapsed?.();}}
+    function clearElapsed(claim){
+      if(elapsedClaim!==claim)return;
+      elapsedClaim=null;
+      try{const terminal=ownership?.cancelElapsed?.();terminal?.catch?.(()=>{});return terminal;}
+      catch(e){stopped=true;state('blocked');const terminal=Promise.reject(e);terminal.catch(()=>{});return terminal;}
+    }
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
     const accountGuard = () => { if(closed || currentUid() !== uid) throw error('NOT_READY','Account changed. Reload to load its progress.'); };
-    const ordinaryWriteGuard=()=>{accountGuard();if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)throw error('ELAPSED_UNCERTAIN','The exact background intent must be reconciled before another save.');};
+    const ordinaryWriteGuard=()=>{accountGuard();if(elapsedCancellation||elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)throw error('ELAPSED_UNCERTAIN','The exact background intent must be reconciled before another save.');};
     const recoveryRecord=local=>local?.elapsedPending?.record || local?.record;
     const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
     const token = doc => doc ? doc.digest : null;
@@ -366,7 +371,7 @@
       },
       async renewOwnership(){if(!ownership||elapsedClaim)return;try {accountGuard();await ownership.renew();}catch(_){/* Native observes the paused ownership snapshot. */}},
       async beginBackground(revision,profileId){
-        if(elapsedClaim||entry?.elapsedPending||busy||updateInProgress||recoveryBusy)return failure(error('SAVE_BUSY','A save operation is pending.'));
+        if(elapsedCancellation||elapsedClaim||entry?.elapsedPending||busy||updateInProgress||recoveryBusy)return failure(error('SAVE_BUSY','A save operation is pending.'));
         const claim=elapsedClaim={phase:'arming',cancelled:false};
         try{
           elapsedGuard(claim);if(!ownership?.beginElapsed||!bootReady||!entry||entry.record.revision!==revision||entry.record.profileId!==profileId)
@@ -422,11 +427,23 @@
           return failure(e);
         }finally{clearElapsed(claim);}
       },
-      cancelBackground(){
-        const claim=elapsedClaim;if(!claim)return;
-        claim.cancelled=true;
-        if(claim.dispatched){stopped=true;state('blocked');return;}
-        clearElapsed(claim);
+      async cancelBackground(){
+        elapsedCancellation++;
+        try{
+          accountGuard();const claim=elapsedClaim;
+          if(claim){
+            claim.cancelled=true;
+            if(claim.dispatched){stopped=true;state('blocked');return failure(error('ELAPSED_UNCERTAIN','A background snapshot transaction is still pending. Reconcile its exact receipt before account binding.'));}
+            await clearElapsed(claim);
+          }else await ownership?.cancelElapsed?.();
+          // A durable prepared write may precede its delayed JS acknowledgement.
+          // Drain local transitions and read the real journal before clearance.
+          await serial(async()=>{
+            accountGuard();const saved=await journal.read(uid);accountGuard();await validateLocal(saved);accountGuard();
+            if(saved?.elapsedPending||entry?.elapsedPending||!same(saved,entry))throw error('ELAPSED_UNCERTAIN','The exact background snapshot needs reconciliation before account binding.');
+          });
+          accountGuard();return {ok:true,backgroundCleared:true,...ownership?.snapshot()};
+        }catch(e){return failure(e);}finally{elapsedCancellation--;}
       },
       async requestTakeover(){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
@@ -493,7 +510,7 @@
       // Remote conflict does not reject its final LOCAL snapshot; account and
       // local-tab CAS protections still apply. Never auto-reload the live model.
       async preserveRuntime(payload,revision,profileId) {
-        if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('ELAPSED_UNCERTAIN','The exact background snapshot is protected. Reload to reconcile before saving the old runtime.'));
+        if(elapsedCancellation||elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('ELAPSED_UNCERTAIN','The exact background snapshot is protected. Reload to reconcile before saving the old runtime.'));
         if(recoveryBusy)return failure(error('RECOVERY_BUSY','A save choice is already in progress.'));recoveryBusy=true;let preserved=null;
         try {
           accountGuard();preserved=await durableSnapshot(payload,revision,profileId);
@@ -575,7 +592,7 @@
         } finally { recoveryBusy=false; }
       },
       async commit(payload,revision,profileId) {
-        if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('SAVE_BUSY','An elapsed interval is being reconciled.'));
+        if(elapsedCancellation||elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('SAVE_BUSY','An elapsed interval is being reconciled.'));
         if(updateInProgress)return failure(error('SAVE_BUSY','The café is being saved for an update.'));
         if(busy) return failure(error('SAVE_BUSY','A save is pending.')); busy=true;
         try {

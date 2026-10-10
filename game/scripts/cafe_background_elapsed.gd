@@ -27,6 +27,8 @@ var history_net=0.0
 var history_revenue=0.0
 var observed_model
 var frozen_profit_rate=0.0
+var cancellation_callback
+var cancellation_pending=false
 var holding:bool:
 	get:return phase!="idle"
 
@@ -49,14 +51,14 @@ func observe_profit(seconds:float,revenue:float,cost:float):
 		history_seconds-=old.seconds;history_net-=old.net;history_revenue-=old.revenue
 
 func average_profit_rate()->float:
-	if observed_model!=game.model or history_seconds<MIN_HISTORY or history_revenue<=0.0:return 0.0
+	if not game.model.operating_open or observed_model!=game.model or history_seconds<MIN_HISTORY or history_revenue<=0.0:return 0.0
 	return maxf(0.0,history_net/history_seconds)
 
 
 func hidden_changed(hidden:bool):
 	if hidden:
 		if holding:return
-		if game.paused or game.editing or game.save_recovery_blocked or game.cafe_intro!=null and game.cafe_intro.active:return
+		if not game.model.operating_open or game.paused or game.editing or game.save_recovery_blocked or game.cafe_intro!=null and game.cafe_intro.active:return
 		var recovery=game.web_save.recovery_snapshot()
 		if (not bool(recovery.get("serverOwnership",false)) and recovery.get("backgroundOwnership","")!="local-lock") or recovery.get("status","")!="active":return
 		bridge=game.web_save._recovery_bridge()
@@ -69,7 +71,7 @@ func hidden_changed(hidden:bool):
 
 func save_finished():
 	if phase!="waiting-save" or game.web_save.pending:return
-	if not game.browser_hidden or game.paused or game.save_recovery_blocked:stop();return
+	if not game.browser_hidden or not game.model.operating_open or game.paused or game.save_recovery_blocked:stop();return
 	phase="arming"
 	callback=JavaScriptBridge.create_callback(_on_arm.bind(generation))
 	bridge.beginBackground(game.web_save.revision,game.web_save.profile_id,callback)
@@ -95,7 +97,7 @@ func _on_seal(args:Array,expected:int):
 	var value=_result(args)
 	game.web_save.check_runtime_recovery()
 	var seconds=float(value.get("seconds",-1.0))
-	if not bool(value.get("ok",false)) or not is_finite(seconds) or seconds<0.0 or game.paused or game.save_recovery_blocked:
+	if not bool(value.get("ok",false)) or not is_finite(seconds) or seconds<0.0 or not game.model.operating_open or game.paused or game.save_recovery_blocked:
 		last_error=str(value.get("code","ELAPSED_CHANGED"));stop();return
 	last_seconds=seconds;last_discarded=float(value.get("discardedSeconds",0.0))
 	# The approved background formula does not replay customers or payroll.
@@ -106,7 +108,7 @@ func _on_seal(args:Array,expected:int):
 	bridge.commitBackground(candidate_payload,token,callback)
 
 func _trial_payload(seconds:float,continuation:String="")->String:
-	if not is_finite(seconds) or seconds<0.0 or continuation!="":return ""
+	if not game.model.operating_open or not is_finite(seconds) or seconds<0.0 or continuation!="":return ""
 	var original=game.model
 	original.service_snapshot=game._service_save_snapshot()
 	if not original.save(game.web_save.STAGING_FILE):return ""
@@ -151,7 +153,7 @@ func _hold_input():
 func stop():
 	# A dispatched transaction can already have committed on the server. Its
 	# receipt must reconcile through reload before the old model may write again.
-	if phase=="committing" and game!=null:
+	if game!=null and (phase=="committing" or phase in ["arming","armed","sealing"] and bool(game.web_save.recovery_snapshot().get("serverOwnership",false))):
 		game.paused=true;game.save_recovery_blocked=true;game.save_writes_suppressed=true
 	generation+=1
 	if bridge!=null:bridge.cancelBackground()
@@ -160,3 +162,23 @@ func stop():
 		game.set_process_input(held_input);game.set_process_unhandled_input(held_unhandled);game.get_viewport().gui_disable_input=held_gui
 	input_held=false
 	if game!=null:game._resume_frame=Engine.get_process_frames()+1
+
+# Binding owns its UI freeze and pause restoration. Call this before applying
+# that freeze: stop restores the input state held by the background controller.
+# A callback receipt is terminal only when ok AND backgroundCleared are true.
+func cancel_for_binding(completed:Callable):
+	if cancellation_pending:
+		completed.call({"ok":false,"code":"SAVE_BUSY"})
+		return
+	stop()
+	if bridge==null and game!=null:bridge=game.web_save._recovery_bridge()
+	if bridge==null:
+		completed.call({"ok":false,"code":"ELAPSED_UNAVAILABLE"})
+		return
+	cancellation_pending=true
+	cancellation_callback=JavaScriptBridge.create_callback(func(args:Array):
+		cancellation_pending=false
+		cancellation_callback=null
+		completed.call(_result(args))
+	)
+	bridge.cancelBackground(cancellation_callback)

@@ -4,6 +4,8 @@ const Elapsed=preload("res://scripts/cafe_background_elapsed.gd")
 class LocalStaging extends RefCounted:
 	const STAGING_FILE="user://elapsed_profit_staging.json"
 	func stop():pass
+	func _recovery_bridge():return null
+	func recovery_snapshot():return {"serverOwnership":true}
 var failures=[]
 var checks=0
 func _initialize():run.call_deferred()
@@ -38,6 +40,10 @@ func run():
 	for i in range(1000):controller.observe_profit(1.0,0.0,1.0)
 	check(controller.profit_samples.size()<=301 and controller.history_seconds<=301.0,"averaging storage bounded to recent five active minutes")
 	check(controller.average_profit_rate()==0.0,"no recent paid meals or non-positive profit grants zero")
+	game.model.operating_open=false
+	controller.hidden_changed(true)
+	check(controller.phase=="idle" and controller._trial_payload(1200.0)=="" and controller.average_profit_rate()==0.0,"closed cafe cannot arm or settle stale profit history")
+	game.model.operating_open=true
 	controller.frozen_profit_rate=0.0;payload=controller._trial_payload(1200.0)
 	check(int(JSON.parse_string(payload).coins)==before_coins,"no valid rate preserves balance during long hidden interval")
 	var legacy=JSON.parse_string(payload);legacy.erase("background_profit_remainder")
@@ -47,6 +53,14 @@ func run():
 	legacy.background_profit_remainder=1.1
 	file=FileAccess.open(LocalStaging.STAGING_FILE,FileAccess.WRITE);file.store_string(JSON.stringify(legacy));file.close()
 	check(not old_model.load_save(LocalStaging.STAGING_FILE),"malformed fractional balance rejected")
+	controller.phase="arming";controller.stop()
+	check(game.paused and game.save_recovery_blocked and game.save_writes_suppressed,"uncertain account arming cancellation synchronously blocks old foreground model")
+	var unavailable=[]
+	controller.cancel_for_binding(func(receipt):unavailable.append(receipt))
+	check(unavailable.size()==1 and unavailable[0].code=="ELAPSED_UNAVAILABLE","missing native binding bridge never reports terminal clearance")
+	controller.cancellation_pending=true;unavailable.clear()
+	controller.cancel_for_binding(func(receipt):unavailable.append(receipt))
+	check(unavailable.size()==1 and unavailable[0].code=="SAVE_BUSY","duplicate native binding cancellation rejects without replacing pending callback")
 	print("BACKGROUND_ELAPSED_TRIAL_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
 	game.queue_free();await process_frame
 	quit(0 if failures.is_empty() else 1)

@@ -15,10 +15,11 @@ const {environment,payload}=context.fixture;
  const once=e.cloud(),writes=e.writeCalls();assert.equal((await a.client.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');assert.deepEqual(e.cloud(),once);assert.equal(e.writeCalls(),writes);
  // No second hidden claim from the same visibility event. Explicit Pause
  // invalidation cancels the armed token without any business snapshot write.
- t=await a.client.beginBackground(2,boot.profileId);assert(t.ok);assert.equal((await a.client.beginBackground(2,boot.profileId)).code,'SAVE_BUSY');a.client.cancelBackground();assert.equal((await a.client.finishBackground(t.token)).code,'ELAPSED_CONSUMED');assert.deepEqual(e.cloud(),once);
+ t=await a.client.beginBackground(2,boot.profileId);assert(t.ok);assert.equal((await a.client.beginBackground(2,boot.profileId)).code,'SAVE_BUSY');assert.equal((await a.client.cancelBackground()).backgroundCleared,true);assert.equal((await a.client.finishBackground(t.token)).code,'ELAPSED_CONSUMED');assert.deepEqual(e.cloud(),once);
  // A takeover after proof but before commit must leave canonical funds intact.
  t=await a.client.beginBackground(2,boot.profileId);e.advance(2200);p=await a.client.finishBackground(t.token);assert(p.ok&&p.seconds===2.2);
  e.setSession({...e.session(),owner:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',epoch:e.session().epoch+1});
  result=await a.client.commitBackground(JSON.stringify({...data,coins:data.coins+200}),t.token);assert(!result.ok);assert.deepEqual(e.cloud(),once);assert.equal(a.local().record.revision,2);
  console.log('Passed: exact server elapsed receipt, no proof-side business write, fenced single commit, duplicate visibility/commit, Pause cancellation, post-proof takeover rejection.');
 })().catch(e=>{console.error(e);process.exitCode=1;});
+

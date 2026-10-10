@@ -139,7 +139,18 @@ export async function start(config,options={}) {
     beginBackground(revision,profileId,callback){return invoke('beginBackground',[revision,profileId],callback);},
     finishBackground(token,callback){return invoke('finishBackground',[token],callback);},
     commitBackground(payload,token,callback){return invoke('commitBackground',[payload,token],callback);},
-    cancelBackground(){client.cancelBackground?.();},
+    cancelBackground(callback){
+      // Cancellation must run even while begin/seal/consume owns invoke's busy
+      // flag. Its own terminal fence determines whether account binding is safe.
+      const captured=client;
+      const terminal=(async()=>{
+        if(!sameAccount() || typeof captured.cancelBackground!=='function')return failure('NOT_READY');
+        try{const result=await captured.cancelBackground();if(!sameAccount() || client!==captured)return failure('NOT_READY');return result;}
+        catch(_){return failure('ELAPSED_UNCERTAIN');}
+      })();
+      if(callback)terminal.then(result=>callback(JSON.stringify(result)));
+      return terminal;
+    },
     preserveRuntime(payload,revision,profileId,callback){return invoke('preserveRuntime',[payload,revision,profileId],callback);},
     preserveOwnerRuntime(payload,revision,profileId,callback){return invoke('preserveOwnerRuntime',[payload,revision,profileId],callback);},
     requestTakeover(callback){return invoke('requestTakeover',[],callback);},

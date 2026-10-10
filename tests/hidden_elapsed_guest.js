@@ -16,9 +16,10 @@ const client=()=>vault.createClient({indexedDB:factory,locks,monotonic:()=>time,
  saved=await a.commitBackground(trial,t.token);assert(saved.ok&&saved.authorityConfirmed&&saved.revision===2);assert.equal(JSON.parse(saved.payload).payroll_elapsed,data.payroll_elapsed+2.2);
  assert.equal((await a.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');assert.equal((await b.commit(payload,1,boot.profileId)).code,'REVISION_CONFLICT');
  const c=client();boot=await c.boot();assert.equal(boot.revision,2);assert.equal(boot.payload,saved.payload,'reload consumes exact saved trial, no added income');
- t=await c.beginBackground(2,boot.profileId);time+=90000;proof=await c.finishBackground(t.token);assert(proof.seconds===90&&proof.discardedSeconds===0,'guest lock proves full interval without inventing an income cap');c.cancelBackground();assert.equal((await c.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');
+ t=await c.beginBackground(2,boot.profileId);time+=90000;proof=await c.finishBackground(t.token);assert(proof.seconds===90&&proof.discardedSeconds===0,'guest lock proves full interval without inventing an income cap');assert.equal((await c.cancelBackground()).backgroundCleared,true);assert.equal((await c.commitBackground(trial,t.token)).code,'ELAPSED_CONSUMED');
  const d=client();boot=await d.boot();assert.equal(boot.revision,2,'manual cancellation leaves economy unchanged');
  t=await d.beginBackground(2,boot.profileId);time-=1000;assert.equal((await d.finishBackground(t.token)).code,'ELAPSED_TIME');
  await new Promise(r=>setTimeout(r,0));assert.equal(held.size,0);a.close();b.close();c.close();d.close();
+ context.__littleLeafVault=d;let receipt;const terminal=vault.cancelBackground(value=>receipt=JSON.parse(value));assert.equal((await terminal).backgroundCleared,true);assert.equal(receipt.backgroundCleared,true);
  console.log('Passed: guest exclusive writer interval, duplicate visibility, double-tab exclusion, exact monotonic time, single CAS/reload economy, bounded tail, Pause cancellation and invalid clock.');
 })().catch(e=>{console.error(e);process.exitCode=1;});

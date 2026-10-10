@@ -892,7 +892,7 @@ body {
           return {...result,authorityConfirmed:true,payload:record.payload,reloadRequired:claim.cancelled};
         }finally{releaseElapsed(claim);}
       },
-      cancelBackground(){const claim=elapsed;if(!claim)return;claim.cancelled=true;if(claim.phase!=='committing')releaseElapsed(claim);},
+      async cancelBackground(){const claim=elapsed;if(claim){claim.cancelled=true;if(claim.phase==='committing')return resultError(fail('ELAPSED_UNCERTAIN','Reconcile the exact in-flight local snapshot before account binding.'));releaseElapsed(claim);}return {ok:true,backgroundCleared:true,...client.recoverySnapshot()};},
       recoverySnapshot(){return {serverOwnership:false,backgroundOwnership:locks?'local-lock':null,status:faulted?'blocked':'active',ownershipPaused:faulted};},
       creditForSave(payload) {
         if (!record || faulted || !campaigns) return 0;
@@ -931,7 +931,7 @@ body {
     beginBackground(revision,profileId,callback){root.__littleLeafVault.beginBackground(revision,profileId).then(r=>callback(JSON.stringify(r)));},
     finishBackground(token,callback){root.__littleLeafVault.finishBackground(token).then(r=>callback(JSON.stringify(r)));},
     commitBackground(payload,token,callback){root.__littleLeafVault.commitBackground(payload,token).then(r=>callback(JSON.stringify(r)));},
-    cancelBackground(){root.__littleLeafVault.cancelBackground();}
+    cancelBackground(callback){let terminal;try{terminal=Promise.resolve(root.__littleLeafVault.cancelBackground()).catch(resultError);}catch(e){terminal=Promise.resolve(resultError(e));}if(callback)terminal.then(r=>callback(JSON.stringify(r)));return terminal;}
   });
   root.__littleLeafVault = createClient();
 })(globalThis);

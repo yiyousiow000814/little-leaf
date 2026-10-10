@@ -184,5 +184,35 @@ try{
   uncertain.a.ownership.close();await seed(uncertain.f,{session:{...oldSession,updatedAt:Timestamp.fromMillis(Date.now()-61000)}});
   const recovered=adapter(uncertain.f,uncertain.store,uncertain.journal);await recovered.ownership.start();const receipt=await recovered.client.boot();
   assert(receipt.ok,JSON.stringify(receipt));assert.equal(receipt.payload,trial);assert.equal(receipt.revision,2);assert(!uncertain.journal.local().elapsedPending);assert.deepEqual(await read(uncertain.f.save),consumedSave);checks++;
+  // Terminal receipt: a committed cancellation with delayed SDK
+  // acknowledgement cannot report clearance early, and duplicate cancellation
+  // awaits the same server fence rather than racing a second transaction.
+  const delayed=await adapterReady(),dt=await delayed.a.client.beginBackground(1,delayed.boot.profileId);assert(dt.ok);
+  let releaseTerminal,announceTerminal,settled=false,fences=0;
+  const release=new Promise(resolve=>{releaseTerminal=resolve;}),announced=new Promise(resolve=>{announceTerminal=resolve;});
+  const change=delayed.a.sessionRemote.changeCertificate.bind(delayed.a.sessionRemote);
+  delayed.a.sessionRemote.changeCertificate=async(...args)=>{const result=await change(...args);if(result.certificate?.state==='cancelled'){fences++;announceTerminal();await release;}return result;};
+  const firstCancel=delayed.a.client.cancelBackground().then(result=>{settled=true;return result;});
+  await announced;assert(!settled);assert(delayed.a.ownership.hasElapsedIntent);
+  const secondCancel=delayed.a.client.cancelBackground();await Promise.resolve();assert(!settled);
+  assert.equal((await read(delayed.f.interval)).state,'cancelled');releaseTerminal();
+  for(const terminal of [await firstCancel,await secondCancel])assert(terminal.ok&&terminal.backgroundCleared,JSON.stringify(terminal));
+  assert.equal(fences,1);assert(!delayed.a.ownership.hasElapsedIntent);assert.equal((await read(delayed.f.save)).revision,1);checks++;
+  // A protected journal write can be durable before its JavaScript receipt.
+  // Cancellation must drain that local operation before reporting clearance.
+  const prepared=await adapterReady(),pt=await prepared.a.client.beginBackground(1,prepared.boot.profileId);assert(pt.ok);
+  assert((await prepared.a.client.finishBackground(pt.token)).ok);
+  let releaseJournal,announceJournal,announceFence,cancelSettled=false;
+  const journalAck=new Promise(resolve=>{releaseJournal=resolve;}),journalWritten=new Promise(resolve=>{announceJournal=resolve;}),fenceConfirmed=new Promise(resolve=>{announceFence=resolve;});
+  const replace=prepared.journal.replace.bind(prepared.journal);
+  prepared.journal.replace=async(...args)=>{await replace(...args);if(args[2]?.elapsedPending){announceJournal();await journalAck;}};
+  const preparedChange=prepared.a.sessionRemote.changeCertificate.bind(prepared.a.sessionRemote);
+  prepared.a.sessionRemote.changeCertificate=async(...args)=>{const result=await preparedChange(...args);if(result.certificate?.state==='cancelled')announceFence();return result;};
+  const committing=prepared.a.client.commitBackground(trial,pt.token);await journalWritten;
+  const cancelling=prepared.a.client.cancelBackground().then(result=>{cancelSettled=true;return result;});await fenceConfirmed;
+  await new Promise(resolve=>setImmediate(resolve));assert(!cancelSettled,'terminal cancellation waits for pending local journal receipt');
+  releaseJournal();assert(!(await committing).ok);const cancelledPrepared=await cancelling;
+  assert.equal(cancelledPrepared.code,'ELAPSED_UNCERTAIN');assert.equal(prepared.journal.local().record.revision,1);
+  assert.equal(prepared.journal.local().elapsedPending.record.payload,trial);assert.equal((await read(prepared.f.save)).revision,1);assert.equal((await read(prepared.f.interval)).state,'cancelled');checks++;
   console.log(`Elapsed certificate rules passed: ${checks} focused checks; atomic start/seal, 2/20-minute server duration, bidirectional once-only consume, handoff/anchor/base fences and exact cancellation. Synthetic emulator fixtures only.`);
 }finally{for(const session of sessions)session.close();await env.cleanup();}

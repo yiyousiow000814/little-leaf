@@ -78,7 +78,7 @@
   function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},elapsedStorage}){
     if(elapsedStorage===undefined){try{elapsedStorage=root.localStorage;}catch(_){elapsedStorage=null;}}
     let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
-    let elapsedWindow=null,elapsedGeneration=0,elapsedSeal=null;
+    let elapsedWindow=null,elapsedGeneration=0,elapsedSeal=null,elapsedFenceTask=null;
     const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
 
     const certificateKey='little-leaf.elapsed-certificate.v1:'+uid;
@@ -317,8 +317,16 @@
     function cancelElapsed(){
       elapsedGeneration++;elapsedWindow=null;
       const intent=remote.changeCertificate&&certificateIntent();
-      if(intent){status='offline';onChange(snapshot());fenceCertificate(intent).then(()=>{if(!closed&&currentUid()===uid)receive(current);}).catch(()=>{/* Persistent intent blocks ordinary writes until server fencing succeeds. */});}
       if(elapsedSeal){elapsedSeal=null;status='offline';onChange(snapshot());}
+      if(!intent)return Promise.resolve(snapshot());
+      status='offline';onChange(snapshot());
+      if(!elapsedFenceTask){
+        elapsedFenceTask=fenceCertificate(intent).then(()=>snapshot()).finally(()=>{elapsedFenceTask=null;});
+        // Fire-and-forget callers retain the durable intent on failure. Binding
+        // callers can await the same terminal transaction; no second fence races.
+        elapsedFenceTask.catch(()=>{});
+      }
+      return elapsedFenceTask;
     }
     function completeElapsed(token){const intent=certificateIntent();if(intent?.id===token)removeCertificate(intent);elapsedWindow=null;}
     const offlineListener=()=>{cancelElapsed();status='offline';onChange(snapshot());};
