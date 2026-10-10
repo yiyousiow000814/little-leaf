@@ -287,7 +287,7 @@ func setup():
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
-  hud.theme_panel(popup,true,20 if popup==help_panel else 26);hud.theme_panel_contents(popup)
+  hud.theme_panel(popup,true,32 if popup==help_panel else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
  update_notice=UpdateNotice.new(self);update_notice.setup()
