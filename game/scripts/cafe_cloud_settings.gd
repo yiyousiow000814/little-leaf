@@ -7,6 +7,9 @@ var status_label:Label
 var reason_label:Label
 var save_button:Button
 var reload_button:Button
+var sign_out_button:Button
+var bind_button:Button
+var binding
 func _init(owner_game=null):
 	game=owner_game
 func build(test_api=null)->VBoxContainer:
@@ -22,9 +25,14 @@ func build(test_api=null)->VBoxContainer:
 	var actions=HBoxContainer.new();box.add_child(actions)
 	save_button=game.button("Save",func():game._save();sync());actions.add_child(save_button)
 	reload_button=game.button("Reload",func():api.reload());actions.add_child(reload_button)
-	var sign_out=game.button("Sign out",func():api.signOut());actions.add_child(sign_out)
-	for button in [save_button,reload_button,sign_out]:
+	sign_out_button=game.button("Sign out",func():api.signOut());actions.add_child(sign_out_button)
+	for button in [save_button,reload_button,sign_out_button]:
 		button.custom_minimum_size=Vector2(80,44);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	bind_button=game.button("Bind restaurant to Google",func():
+		if binding==null:binding=preload("res://scripts/cafe_google_binding.gd").new(game)
+		binding.begin()
+	)
+	bind_button.custom_minimum_size.y=44;box.add_child(bind_button)
 	sync();return box
 func sync():
 	if api==null or not is_instance_valid(box):return
@@ -36,3 +44,6 @@ func sync():
 	reason_label.text=str(value.get("reason",""));reason_label.visible=reason_label.text!=""
 	reload_button.visible=bool(value.get("reload",false))
 	save_button.disabled=not bool(value.get("canSave",false)) or game.save_recovery_blocked
+	sign_out_button.visible=not bool(value.get("local",false))
+	bind_button.visible=bool(value.get("canBind",false))
+	bind_button.disabled=bool(value.get("bindingBusy",false)) or game.save_recovery_blocked or (binding!=null and binding.active)

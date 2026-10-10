@@ -53,15 +53,20 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
         shutil.copy2(ROOT/'platform/firebase'/name,output/name)
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'platform/web'/name,public/name)
+    binding_modules=[] if auth_verification_only else ['little_leaf_google_binding.js','little_leaf_google_binding_ui.js','little_leaf_local_google_entry.js']
+    for name in binding_modules:
+        shutil.copy2(ROOT/'platform/web'/name,public/name)
     html=(public/'index.html').read_text()
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
     preview_options={'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}
     if auth_verification_only:preview_options['authVerificationOnly']=True
-    options=','+json.dumps(preview_options) if trusted_itch_origin else ''
+    if not auth_verification_only:preview_options['localBinding']=True
+    options=','+json.dumps(preview_options if trusted_itch_origin else {'localBinding':True})
     injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
-    html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
+    binding_injection=''.join('<script src="'+name+'"></script>' for name in binding_modules)
+    html=html.replace('<script src="index.js"></script>',binding_injection+injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     if auth_verification_only:html=auth_verification_html(html,config,trusted_itch_origin)
     (public/'index.html').write_text(html,encoding='utf-8')
