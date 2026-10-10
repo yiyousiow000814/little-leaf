@@ -24,9 +24,11 @@ func run():
   check(m.place("stove",base.x,base.y,rot),"open stove places r"+str(rot))
   var stove=m.items[-1];var front=m.workface_cell(stove);var floor=Floor.new()
   var before=state(m)
-  for kind in ["plant","table_set","stove","sink","counter","bin"]:
+  for kind in ["plant","table_set","stove","sink","bin"]:
    check(m.can_place(kind,front.x,front.y,-1,rot),"idle footprint preview does not reserve workface "+kind+" r"+str(rot))
    check(state(m)==before,"preview preserves layout and wallet "+kind+" r"+str(rot))
+  check(not m.can_place("counter",front.x,front.y,-1,rot),"retired counter purchase stays unavailable regardless of idle workface r"+str(rot))
+  check(state(m)==before,"retired counter preview preserves layout and wallet r"+str(rot))
   var e=edge(base,front)
   check(not m.can_place_wall(e.axis,e.x,e.z),"separate editor wall work-edge contract remains r"+str(rot))
   check(state(m)==before,"wall preview remains atomic r"+str(rot))
