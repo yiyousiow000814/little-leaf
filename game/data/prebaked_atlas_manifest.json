@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "source dba691056e7183abcd6af9bb12508f8df6f0b1eb tree32a2dada5fb646dcd59d384e2646f0b6ea713122; canonical run38066367866 QA3a6e774b82bc2114bbb73d506d7aa25475e18fa7; receipt SHA256 e0a9eec77301c3e7b118f0ce2a3390f71b4c45de6684827001f5b4ccd21bc2af; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; regenerated/imported and decoded PNG exact RGBA equality",
+  "provenance": "source 9b9205df4c21eb9fee020f3a60a05a7af3da3b82 treefdf95787779a03f7032155790a5731debaf64529; canonical run38069841730 QAb0a82349a7c373f7d705510f0f6a17302981d772; receipt SHA256 24222be1ce393c56ff99428e9b8fae67c8c978edd90b60deb89ec405929e02b3; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; regenerated/imported and decoded PNG exact RGBA equality; qualified d291 control reused from run38066367866",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -42,7 +42,7 @@
     "scripts/cafe_furniture_motion.gd": "f988ed9cf18c9ecc9f9e3812d0091c56c9604b00d34d4e9c08be3f370682728b",
     "scripts/cafe_hud.gd": "f4eebf3d424ec164305aed776ee45673753e62d0c808fe7e913e8a17ffb4adab",
     "scripts/cafe_inbox.gd": "b219a075b2392a71f282acdac7bec0de3bb972d3559f0de49dc72ee0e00d2741",
-    "scripts/cafe_interaction.gd": "cc95349e1004b1e49bbde3e307f6476a60a14d975f44cb9a2d7953fec7d017e2",
+    "scripts/cafe_interaction.gd": "d7bc815f1c6490162818ac95f39cf5d445e5c8b890ade913f98536068cd44bbc",
     "scripts/cafe_intro.gd": "0fbe17ba5ad1966a73800f0dc92b7f15d42a11badb4ef5ec8a02d8df2f5f558e",
     "scripts/cafe_layout_access.gd": "e0c53e55e9def00f3a5d999dd125919de5a0ea0db29f59fb441b34019d3b515e",
     "scripts/cafe_model.gd": "7f7c076e2bdca65db28b79b652c63424398e86239cf306ee1c4bb75fa6164fc3",
