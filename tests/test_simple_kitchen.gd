@@ -41,7 +41,7 @@ func run():
   FileAccess.open(legacy_path,FileAccess.WRITE).store_string(JSON.stringify(raw))
   var legacy_hash=FileAccess.get_sha256(legacy_path);var restored=game.Model.new()
   check(restored.load_save(legacy_path) and not restored.get_item(1).has("level"),"In-flight legacy stove loads at base")
-  check(restored.service_snapshot==base_restored.service_snapshot and restored.coins==game.model.coins,"Normalization preserves canonical staff jobs, dish owners and wallet")
+  check(restored.service_snapshot==base_restored.service_snapshot and restored.coins==base_restored.coins,"Normalization preserves canonical staff jobs, dish owners and wallet")
   check(FileAccess.get_sha256(legacy_path)==legacy_hash,"In-flight legacy input remains untouched")
   check(is_equal_approx(game.Model.cooking_seconds(game.Model.stove_speed_multiplier(stove)),45.0),"Legacy live stove cannot accelerate cooking")
   var spy=PlateSpy.new();spy.game=game
