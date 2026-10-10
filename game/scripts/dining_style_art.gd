@@ -94,8 +94,9 @@ func chair_seat(top,rim,rounded:float=2.5):
  var pts=[]
  for q in [Vector2(-.35,-.35),Vector2(.35,-.35),Vector2(.35,.35),Vector2(-.35,.35)]:pts.append(seat_point(q.x,q.y,18))
  var lower=[]
- for q in pts:lower.append(q+Vector2(0,2.5))
+ for q in pts:lower.append(q+Vector2(0,1.25))
  face(lower,rim,rounded);face(pts,top,rounded)
+
 func chair_legs(main,light,width:float=2.6,spread:float=1.1):
  for q in [Vector2(-.28,-.28),Vector2(.28,-.28),Vector2(-.28,.28),Vector2(.28,.28)]:
   var foot=seat_point(q.x*spread,q.y*spread,1);var upper=seat_point(q.x,q.y,17)

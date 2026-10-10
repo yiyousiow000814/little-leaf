@@ -79,7 +79,12 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  for part in parts:
   if part=="keys":
    for x in [-.085,0,.085]:
-    for z in [-.22,-.15]:f.top_ellipse(x,z,33.2,.025,.018,"eee1bd")
+    for z in [-.22,-.15]:
+     # A shallow side and smaller face separate the keys from the till base
+     # without changing their centers or the short cashier contact gesture.
+     f.top_ellipse(x,z,33.15,.027,.020,"637f73")
+     f.top_ellipse(x,z,33.4,.024,.017,"eee1bd")
+     f.top_ellipse(x-.004,z-.003,33.43,.012,.006,"f6eaca")
    f.top_ellipse(.145,-.1,33.3,.024,.024,light)
   elif part=="receipt":
    if recent:
@@ -88,7 +93,13 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
   else:
    f.box(0,.035,.34,.10,33,39,"a4bbb0","668476","567064")
    if employee_visible:
-    f.face([f.point(-.13,-.021,34),f.point(.13,-.021,34),f.point(.13,-.021,37.8),f.point(-.13,-.021,37.8)],"d4e1b7",.5)
+    # The inset remains on the employee-facing plane. Soft marks suggest
+    # an LCD readout; they are decoration, never a second payment authority.
+    f.face([f.point(-.13,-.021,34),f.point(.13,-.021,34),f.point(.13,-.021,37.8),f.point(-.13,-.021,37.8)],"526f62",.5)
+    f.face([f.point(-.112,-.022,34.45),f.point(.112,-.022,34.45),f.point(.112,-.022,37.35),f.point(-.112,-.022,37.35)],"d4e1b7",.35)
+    for x in [-.075,-.015,.045]:
+     f.edge(f.point(x,-.023,36.45),f.point(x+.038,-.023,36.45),"779d88",.65)
+    f.edge(f.point(-.075,-.023,35.3),f.point(.075,-.023,35.3),"a4bbb0",.45)
  return true
 
 static func register_visual_state(artist:Node2D,id:int)->Dictionary:
