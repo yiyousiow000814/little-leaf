@@ -7,7 +7,7 @@ import re
 import subprocess
 import time
 from release_metadata import STABLE, RELEASE, release_key
-from artifacts import verify_files
+from artifacts import verify_files, sha256
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers
@@ -114,8 +114,9 @@ def main():
     parser.add_argument("--web", required=True, type=Path)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--sha", required=True)
+    parser.add_argument("--receipt", type=Path, help="Write only the confirmed completed publication")
     args = parser.parse_args()
-    verify_artifact(args.web, args.tag, args.sha)
+    manifest = verify_artifact(args.web, args.tag, args.sha)
     if not os.environ.get("BUTLER_API_KEY", "").strip():
         raise RuntimeError("Missing BUTLER_API_KEY. The owner must personally set GitHub Actions Secrets; never paste a key into chat or a commit")
     version = args.tag[1:]
@@ -134,6 +135,13 @@ def main():
             receipt = {"target": TARGET, "version": version, "source_commit": args.sha,
                        "itch_build_id": build_id, "state": "completed",
                        "browser_runtime": "manual post-publish smoke still required"}
+            if args.receipt:
+                receipt.update(tag=args.tag, workflow_run=os.environ.get("GITHUB_RUN_ID"),
+                    workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
+                    release_manifest_sha256=sha256(args.web / "release-manifest.json"),
+                    qualification=manifest.get("release_reuse"))
+                args.receipt.parent.mkdir(parents=True, exist_ok=True)
+                args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
             print(json.dumps(receipt), flush=True)
             if os.environ.get("GITHUB_STEP_SUMMARY"):
                 with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
