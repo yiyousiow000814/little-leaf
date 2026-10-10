@@ -1938,6 +1938,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	# Validate the saved layout as written first. Narrow only a matching free
 	# starter when its new jambs leave every saved body and remaining route clear.
 	checked_attachments.attachments=geometry._align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
+	checked_attachments.attachments=geometry._widen_saved_legacy_doors(checked_attachments.attachments,checked_walls.walls)
 	finish_decoration_session()
 	items = validated
 	dining_sets.assign(saved_sets.groups)
@@ -2832,6 +2833,21 @@ func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
 	var reason=_attachment_layout_error(walls,attachments,products,segments.state.segments)
 	if reason!="":return {"ok":false,"error":reason}
 	return {"ok":true,"attachments":attachments,"next_attachment_id":int(data.next_attachment_id)}
+
+func _widen_saved_legacy_doors(attachments:Array,walls:Array)->Array:
+	# Widening removes collision, so saved bodies and routes remain legal. Keep
+	# identity, ownership and center; defer when the larger aperture cannot fit.
+	var result=attachments.duplicate(true)
+	for attachment in result:
+		if attachment.kind!="door" or not is_equal_approx(float(attachment.width),.76):continue
+		var proposed=attachment.duplicate(true);proposed.width=Footprint.DOOR_WIDTH
+		if OpeningGeometry.compatible_error(proposed,walls,result,int(attachment.id),shell_products)!="":continue
+		var candidate=result.duplicate(true)
+		for opening in candidate:
+			if int(opening.id)==int(attachment.id):opening.width=Footprint.DOOR_WIDTH
+		if _attachment_layout_error(walls,candidate)!="":continue
+		attachment.width=Footprint.DOOR_WIDTH
+	return result
 
 func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,layout:Array,ownership:Array)->Array:
 	var proposed=attachments.duplicate(true)
