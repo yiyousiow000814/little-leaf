@@ -1724,8 +1724,23 @@ func _staff_navigation_body_error(service:Dictionary,layout:Array,ownership:Arra
 			if item.kind!="rug" and Rect2(Vector2(item.x,item.z),Vector2.ONE).grow(.23).has_point(staff.pos):return "Navigating staff body overlaps furniture"
 	return ""
 
+func _canonical_save_path(path:String)->String:
+	var resolved=ProjectSettings.globalize_path(path.replace("\\","/")).simplify_path()
+	return resolved.to_lower() if OS.get_name()=="Windows" else resolved
+
+func _staff_navigation_path_allowed(path:String)->bool:
+	if OS.has_feature("web"):return false
+	var target=_canonical_save_path(path)
+	# Relative filesystem paths have no unambiguous protected-profile identity.
+	if not target.is_absolute_path():return false
+	if target==_canonical_save_path(SaveContract.PRIMARY_FILE):return false
+	for profile in SaveContract.PROFILES:
+		var protected_path=OS.get_user_data_dir().get_base_dir().path_join(str(profile.app)).path_join(str(profile.file))
+		if target==_canonical_save_path(protected_path):return false
+	return true
+
 func save(path: String = SaveContract.PRIMARY_FILE, allow_staff_navigation: bool = false) -> bool:
-	if allow_staff_navigation and (OS.has_feature("web") or path==SaveContract.PRIMARY_FILE):return _fail("Staff navigation needs an explicit native save namespace")
+	if allow_staff_navigation and not _staff_navigation_path_allowed(path):return _fail("Staff navigation needs an explicit native save namespace")
 	var source_version=SaveContract.STAFF_NAVIGATION_VERSION if allow_staff_navigation else SAVE_VERSION
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
@@ -1806,6 +1821,7 @@ func save(path: String = SaveContract.PRIMARY_FILE, allow_staff_navigation: bool
 func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false, allow_staff_navigation: bool = false) -> bool:
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
+	if allow_staff_navigation and not _staff_navigation_path_allowed(path):return _fail("Staff navigation needs an explicit native save namespace")
 	if not FileAccess.file_exists(path):
 		return _fail("No reconstructed save found")
 	var file := FileAccess.open(path, FileAccess.READ)
@@ -1820,7 +1836,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),allow_staff_navigation) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data,allow_staff_navigation):return _fail("Unsupported or foreign save format")
-	if int(data.version)==SaveContract.STAFF_NAVIGATION_VERSION and (OS.has_feature("web") or path==SaveContract.PRIMARY_FILE):return _fail("Staff navigation needs an explicit native save namespace")
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
 			return _fail("Invalid save statistic: %s" % field)

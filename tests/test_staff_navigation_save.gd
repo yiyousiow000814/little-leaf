@@ -82,6 +82,14 @@ func run():
  disguised.erase("navigation_format")
  check(not Contract.accepts_header(disguised,true),"v15 refuses marked staff even without envelope marker")
  check(not game.model.save(Contract.PRIMARY_FILE,true),"capability cannot overwrite default namespace")
+ var absolute_primary=ProjectSettings.globalize_path(Contract.PRIMARY_FILE)
+ var protected_aliases=["user://./"+Contract.PRIMARY_FILE.get_file(),"user://unused/../"+Contract.PRIMARY_FILE.get_file(),absolute_primary]
+ if OS.get_name()=="Windows":protected_aliases.append(absolute_primary.to_upper().replace("/","\\"))
+ for alias in protected_aliases:
+  check(not game.model.save(alias,true) and game.model.last_error=="Staff navigation needs an explicit native save namespace","capable save refuses protected alias before I/O: "+alias)
+  var reader=Model.new()
+  check(not reader.load_save(alias,false,true) and reader.last_error=="Staff navigation needs an explicit native save namespace" and reader.service_snapshot.is_empty(),"capable load refuses protected alias before I/O: "+alias)
+  reader=null
  check(not game.model.save("user://legacy-marked.json"),"default writer cannot silently downgrade marked staff")
  # Historical route permissiveness is deliberately retained, not retrofitted.
  var legacy=baseline.duplicate(true);var old=legacy.staff[slot]
