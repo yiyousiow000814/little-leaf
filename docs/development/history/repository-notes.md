@@ -4,7 +4,7 @@ These notes preserve the original source-baseline and early-fix documentation. L
 
 Editable Godot source for Little Leaf Cafe, baseline **0.1.5-dev.1**.
 
-This repository preserves the reviewed 0.1.5 baseline, including the category-arrow repair, and adds the separately scoped [browser startup retry](startup-retry/README.md) and [starter wall/floor geometry](starter-geometry/README.md) fixes. Retry addresses transient loading failures; the actual reported player failure remains unknown. Geometry completes the starter west wall and fills only missing, unmarked legacy starter-row tiles. Other 0.1.6 work, including the welcome intro, requires separate review. Publishing this source repository does not deploy the game or change its itch.io visibility.
+This repository preserves the reviewed 0.1.5 baseline, including the category-arrow repair, and adds the separately scoped [browser startup retry](../../testing/history/startup-retry/README.md) and [starter wall/floor geometry](../../testing/history/starter-geometry/README.md) fixes. Retry addresses transient loading failures; the actual reported player failure remains unknown. Geometry completes the starter west wall and fills only missing, unmarked legacy starter-row tiles. Other 0.1.6 work, including the welcome intro, requires separate review. Publishing this source repository does not deploy the game or change its itch.io visibility.
 
 ## Run
 
