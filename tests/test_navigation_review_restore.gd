@@ -100,11 +100,19 @@ func run():
 			await step()
 			await checkpoint("02-replan-leg","replan",slot)
 			var request=0;var owner;var epoch=0
+			if not native:
+				# A final legal movement below the art threshold must still reach its anchor.
+				record=game.navigation_review.actors[slot]
+				var leg:Array=record.follower.plan.route
+				game.staff_states[slot].pos=Nav.center(leg[-1]).move_toward(Nav.center(leg[-2]),.00005)
+				game._animate_staff(.05)
 			for frame in range(300):
-				await step();record=game.navigation_review.actors[slot]
+				record=game.navigation_review.actors[slot]
 				request=int(record.request)
 				if request!=0:owner=record.request_scheduler;epoch=int(record.request_epoch);break
+				await step()
 			check(request!=0,"legal next anchor queues fresh search")
+			check(request!=0 and game.staff_states[slot].pos==Nav.center(record.get("origin",Vector2i(-1,-1))),"sub-art-threshold final leg retains exact safe anchor")
 			if request!=0:
 				await checkpoint("03-replan-center","replan",slot)
 				check(owner.take_result(request,epoch).status=="unknown","restore cancels/consumes prior scheduler owner request")

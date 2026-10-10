@@ -1951,8 +1951,10 @@ func _animate_staff(delta: float):
 			var motion=navigation_review.move(staff,index,destination,delta)
 			var direction:Vector2=motion.position-staff.pos
 			moved=direction.length()>.0001
-			if moved:
-				staff.art_heading=direction;staff.pos=motion.position;staff.blocked_time=0.0
+			# Art's movement threshold must not discard a legal final step to a center.
+			if motion.position!=staff.pos:
+				if moved:staff.art_heading=direction
+				staff.pos=motion.position;staff.blocked_time=0.0
 			elif not at_destination:staff.blocked_time+=delta
 		elif staff.index<staff.path.size():
 			var cell=staff.path[staff.index]
