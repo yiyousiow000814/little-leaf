@@ -182,7 +182,7 @@ async function runInboxSuite(env) {
     result=await save(s);check(result.ok&&result.creditedCoins===1000&&snapshot(s.client).paid.length===1,failure+' retries once durably');
   }
   s=await setup();client=vault.createClient({indexedDB:s.idb});boot=await client.boot();const pair=await Promise.all([save(s),client.commit(payload,boot.revision,boot.profileId)]);
-  check(pair.filter(x=>x.ok).length===1&&pair.filter(x=>!x.ok&&x.code==='REVISION_CONFLICT').length===1,'racing writers have one winner');
+  check(pair.filter(x=>x.ok).length===1&&pair.filter(x=>!x.ok&&['REVISION_CONFLICT','SAVE_BUSY'].includes(x.code)).length===1,'racing writers have one winner under revision CAS or exclusive lock');
   check([s.client,client].filter(c=>snapshot(c).paid.length===1).length===1,'race loser never displays pending grant as paid');
   client=vault.createClient({indexedDB:s.idb});boot=await client.boot();check(snapshot(client).paid.length===1,'reload after lost response recovers paid history');
   result=await client.commit(boot.payload,boot.revision,boot.profileId);check(result.creditedCoins===0&&snapshot(client).paid.length===1,'lost acknowledgement cannot double-credit or duplicate message');

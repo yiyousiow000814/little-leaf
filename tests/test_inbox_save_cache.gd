@@ -5,6 +5,7 @@ class FakeModel extends RefCounted:
  var last_error=""
  var last_event=""
 class FakeGame extends Node:
+ var background_elapsed=null
  var model=FakeModel.new()
  var paused=false
  var progress_unsaved=true
