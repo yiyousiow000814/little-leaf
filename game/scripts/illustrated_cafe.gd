@@ -1484,7 +1484,11 @@ func item(kind: String,p: Vector2,rot: int,id: int,variant:String=""):
 func _table_body(p:Vector2):
 	if furniture_art.try_draw_static(self,"table_body",p,0):return
 	ellipse(p+Vector2(1,1),Vector2(25,10),Color(.45,.39,.23,.09))
-	for d in [Vector2(-17,-5),Vector2(18,-5),Vector2(-16,6),Vector2(17,6)]:
+	var feet=[Vector2(-17,-5),Vector2(18,-5),Vector2(-16,6),Vector2(17,6)]
+	# Keep the established silhouette. Each patch shares its leg's exact floor
+	# anchor, before any supports/top are painted, including in the static atlas.
+	for d in feet:ellipse(p+d,Vector2(2.3,1.15),Color(.45,.39,.23,.16))
+	for d in feet:
 		line(p+d,p+d+Vector2(0,-DiningPlacement.table_height(30)),"947340",3)
 		line(p+d+Vector2(1,-1),p+d+Vector2(1,-DiningPlacement.table_height(29)),"b3915b",1)
 	ellipse(p+Vector2(0,-DiningPlacement.table_height(29)),DiningPlacement.ROUND_TOP,"b38c55")
