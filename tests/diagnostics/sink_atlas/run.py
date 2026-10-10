@@ -15,7 +15,7 @@ def main():
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True,check=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  assert '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical renderer fingerprint mismatch'
- files=git('ls-files').splitlines()
+ files=subprocess.check_output(['git','-C',str(ROOT),'ls-files','-z']).decode('utf-8').rstrip('\0').split('\0')
  binding={'commit':a.expected_head,'tree':git('rev-parse','HEAD^{tree}'),'source_sha256':{n:sha(ROOT/n) for n in files},'godot_member_sha256':sha(Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['run.py','parity.gd','check_saved.gd']},'reference_run':38069841730,'runner_image':os.environ.get('ImageVersion'),'manifest_updated':False,'assets_changed':False,'game_instance_created':False}
  (out/'source-binding.json').write_text(json.dumps(binding,indent=2)+'\n')
  with tempfile.TemporaryDirectory(prefix='sink-atlas-saveguard-') as temporary:
