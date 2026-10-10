@@ -57,3 +57,7 @@ Keep runtime changes, platform integration, test-only repairs, and deployment ch
 Keep asset inputs, `.import` settings and script `.uid` files tracked. Some fonts and HUD assets use `importer="keep"`; preserve those settings. Generated `.godot/` files, exports and player saves stay out of Git.
 
 See [assets and licenses](licenses.md) before reusing or distributing content. Older review notes and recovery records are in the [archive](archive/README.md).
+
+## Release acceptance coverage
+
+See the [0.1.10a / 0.1.11 PR coverage index](acceptance/10a-011-pr-coverage.md) for the 76 tracked outcomes, four additional gates, existing implementation candidates and explicitly documentation-only acceptance drafts. Coverage is not implementation or release acceptance.
