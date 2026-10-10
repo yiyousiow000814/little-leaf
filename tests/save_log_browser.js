@@ -120,7 +120,7 @@ async function main() {
       await page.mouse.click(...point); await page.waitForTimeout(250);
     };
     await page.waitForTimeout(500);
-    await click('settings'); await click('log');
+    await click('settings'); await click('help'); await click('log');
     await page.screenshot({path: path.join(output, 'exported-save-log-open.png')});
     check(await page.evaluate(() => navigator.clipboard.readText()) === 'UNTOUCHED_CLIPBOARD_SENTINEL', 'opening Settings and Log does not copy automatically');
     await click('copy');
@@ -138,7 +138,7 @@ async function main() {
     check(events.every(event => !Object.hasOwn(event, 'connectionGeneration') || (Number.isSafeInteger(event.connectionGeneration) && event.connectionGeneration > 0)), 'connection generations are positive safe integers');
     await page.keyboard.press('Escape');
     await page.evaluate(() => navigator.clipboard.writeText('SECOND_COPY_SENTINEL'));
-    await click('settings'); await click('log'); await click('copy');
+    await click('settings'); await click('help'); await click('log'); await click('copy');
     await page.waitForFunction(() => LittleLeafSaveLog.copyStatus === 'copied', null, {timeout: 10000});
     check(await page.evaluate(() => navigator.clipboard.readText()) === copied, 'Escape and repeated Settings → Log → Copy remain usable without adding save events');
     check(external.length === 0, 'exported diagnostic issues no off-origin requests');

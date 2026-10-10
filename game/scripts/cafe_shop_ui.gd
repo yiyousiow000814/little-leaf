@@ -93,6 +93,12 @@ var product_layout_key=""
 var last_product_category=""
 var product_restore_index=-1
 var rail_fit_queued=false
+var build_guide_button:Button
+var build_guide:PanelContainer
+var item_guide:PanelContainer
+var item_guide_copy:VBoxContainer
+var guide_parking:Button
+var guide_land:Button
 var footer_hint:Label
 var last_category=""
 var last_layout_width=-1.0
@@ -217,9 +223,61 @@ func setup():
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
  ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
 
+ _setup_build_guide()
  root.resized.connect(func():background.size=root.size)
  game.get_window().focus_exited.connect(_cancel_product_contacts)
  game.tree_exiting.connect(_dispose_product_scroll)
+func _setup_build_guide():
+ build_guide_button=_nav("Build guide",_show_shop_guide)
+ build_guide_button.accessibility_name="Build guide: move doors, find parking and land"
+ build_guide=ui._panel();build_guide.name="BuildDiscoveryGuide"
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",12);build_guide.add_child(box)
+ box.add_child(game.label("Build your café",20))
+ var explanation=game.label("Move a door: tap an existing door in the café, then choose Move. Tap a new wall position to place it, or Cancel to keep it where it was.",15)
+ explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(explanation)
+ var parking=game.label("Parking adds four fixed bays outside your café. Find it in Decor.",15)
+ parking.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(parking)
+ guide_parking=ui._small_button("Find parking",_find_parking,140);box.add_child(guide_parking)
+ var land=game.label("More room: open Manage to see the next plot and its price.",15)
+ land.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(land)
+ guide_land=ui._small_button("Find land",func():build_guide.hide();ui.show_management(),140);box.add_child(guide_land)
+ var done=ui._small_button("Done",func():build_guide.hide();ui.sync(),80);box.add_child(done)
+ ui._wrap_themed_popup(build_guide,340)
+ _setup_item_guide()
+func _setup_item_guide():
+ item_guide=ui._panel();item_guide.name="ShopItemGuide"
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",12);item_guide.add_child(box)
+ box.add_child(game.label("Item guide",20))
+ item_guide_copy=VBoxContainer.new();item_guide_copy.add_theme_constant_override("separation",10);box.add_child(item_guide_copy)
+ box.add_child(ui._small_button("Done",func():item_guide.hide();ui.sync(),80))
+ ui._wrap_themed_popup(item_guide,340)
+func _show_shop_guide():
+ if game.catalog_category=="Build":ui._popup_at(build_guide,340);return
+ for child in item_guide_copy.get_children():item_guide_copy.remove_child(child);child.queue_free()
+ for kind in game.catalog_cards:
+  var card:Button=game.catalog_cards[kind]
+  if not card.visible:continue
+  item_guide_copy.add_child(game.label(game.model.name_of(kind),18))
+  var explanation=game.label(card.accessibility_description,15)
+  explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
+ ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
+func _find_parking():
+ build_guide.hide();_pick_category("Decor")
+ # The category switch restores its rail before revealing the exterior upgrade.
+ await game.get_tree().process_frame
+ await game.get_tree().process_frame
+ if ui==null or game.catalog_category!="Decor":return
+ ui.sync()
+ await game.get_tree().process_frame
+ if ui==null or game.catalog_category!="Decor":return
+ game.catalog_scroll.ensure_control_visible(parking_card)
+ product_rest_offsets[game.catalog_scroll.get_instance_id()]=game.catalog_scroll.scroll_horizontal
+func _product_purpose(kind:String)->String:
+ for entry in game.model.catalog:
+  if entry.kind==kind and entry.has("description"):
+   return str(entry.description)+". Includes one table and one chair; place them together."
+ var uses={"stove":"Cooks meals. Leave space for a cook to work beside it.","beverage":"Prepares drinks. Leave space for staff to reach it.","sink":"Washes used dishes. Leave space beside it for staff.","bin":"Optional decoration; not required for cleaning.","plant":"Adds greenery to your café.","lamp":"Adds a warm decorative light.","bookshelf":"Decorates your café with books.","rug":"Adds a decorative floor accent.","divider":"Separates areas of your café. Keep a clear route around it."}
+ return uses.get(kind,"Choose a spot in your café to preview it.")
 func _setup_parking():
  # This fixed exterior upgrade deliberately stays outside the furniture
  # catalog: it can never start a placement preview or become a movable item.
@@ -405,37 +463,31 @@ func _flatten_card(card:Button):
  body.offset_left=8;body.offset_top=4;body.offset_right=-8;body.offset_bottom=-4
  for child in old.get_children():child.reparent(body)
  old.queue_free()
+func _minimum_stacked_card_height()->float:
+ # A name, price and availability line retain their current font sizes.
+ return ceilf(ui.hud.font_bold.get_height(13)*2+maxf(24,ui.hud.font_bold.get_height(18))+48)
 func _layout_product_card(card:Button,width:float,height:float,short_landscape:bool=false):
- var body=card.get_child(0);var image=body.get_child(0);var tiny=width<180 or short_landscape
+ var body=card.get_child(0);var image=body.get_child(0)
  var body_width=width-16.0;var body_height=height-8.0
- var art_width=44.0 if tiny else 56.0;var text_x=art_width+6;var text_width=body_width-text_x
  var title:Label=body.get_child(1);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.clip_text=false
- title.autowrap_mode=TextServer.AUTOWRAP_OFF if tiny else TextServer.AUTOWRAP_WORD_SMART
- var title_width=body_width if tiny else text_width
- _put(title,Rect2(0 if tiny else text_x,0,title_width,0))
+ title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ _put(title,Rect2(0,0,body_width,0))
  var title_height=title.get_combined_minimum_size().y
  var price=body.get_child(2);price.alignment=BoxContainer.ALIGNMENT_CENTER
  var price_height=maxf(24,price.get_combined_minimum_size().y)
  var status:Label=body.get_child(3);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
- var has_status=status.text!="";status.visible=has_status;var status_height=maxf(16,status.get_combined_minimum_size().y) if has_status else 0.0
+ var has_status=status.text!="";status.visible=has_status
+ var status_height=maxf(16,status.get_combined_minimum_size().y) if has_status else 0.0
+ # Reserve the existing text sizes, then fit the imagery above the name and price.
  var copy_height=title_height+2+price_height+(2+status_height if has_status else 0)
- if tiny:
-  var row_height=maxf(42,price_height+(2+status_height if has_status else 0))
-  var block_height=title_height+4+row_height
-  var top=maxf(0,(body_height-block_height)*.5)
-  _put(title,Rect2(0,top,body_width,title_height))
-  var row_y=top+title_height+4;var price_block=price_height+(2+status_height if has_status else 0)
-  var price_y=row_y+(row_height-price_block)*.5
-  _put(price,Rect2(text_x,price_y,text_width,price_height))
-  _put(status,Rect2(text_x,price_y+price_height+2,text_width,status_height))
-  _put(image,Rect2(0,row_y,art_width,row_height))
- else:
-  var top=maxf(0,(body_height-copy_height)*.5)
-  _put(title,Rect2(text_x,top,text_width,title_height))
-  _put(price,Rect2(text_x,top+title_height+2,text_width,price_height))
-  _put(status,Rect2(text_x,top+title_height+price_height+4,text_width,status_height))
-  var image_height=minf(58,body_height)
-  _put(image,Rect2(0,(body_height-image_height)*.5,art_width,image_height))
+ var image_height=minf(58,maxf(0,body_height-copy_height-4))
+ var block_height=image_height+4+copy_height
+ var top=maxf(0,(body_height-block_height)*.5)
+ _put(image,Rect2(0,top,body_width,image_height))
+ var title_y=top+image_height+4
+ _put(title,Rect2(0,title_y,body_width,title_height))
+ _put(price,Rect2(0,title_y+title_height+2,body_width,price_height))
+ _put(status,Rect2(0,title_y+title_height+price_height+4,body_width,status_height))
 func _active_products()->ScrollContainer:return ui.build_scroll if game.catalog_category=="Build" else game.catalog_scroll
 func _scroll_to(scroll:ScrollContainer,target:float):
  var bar=scroll.get_h_scroll_bar();target=clampf(target,0,maxf(0,bar.max_value-bar.page))
@@ -674,7 +726,7 @@ func sync(width:float):
  var tight_landscape=short_landscape and view.y<360.0
  var product_vertical_padding=14.0 if tight_landscape else 20.0
  var picker_landscape=short_landscape and available_width<700.0
- if short_landscape:h=maxf(h,ceilf(ui.hud.font_bold.get_height(13)*2+maxf(24,ui.hud.font_bold.get_height(18))+12)+product_vertical_padding)
+ h=maxf(h,_minimum_stacked_card_height()+(product_vertical_padding if short_landscape else 70.0))
  var header_y=(h-44.0)*.5 if short_landscape else 8.0
  root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);background.size=root.size
  game.tray.offset_left=insets.x+(available_width-w)/2;game.tray.offset_right=-(insets.z+(available_width-w)/2);ui.tray_base_top=-h-12-insets.w
@@ -781,8 +833,10 @@ func sync(width:float):
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
-  card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
-  card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
+  card.accessibility_name=column.get_child(1).text+", "+ui.Money.amount(game.model.price_of(kind))+" coins"
+  var purpose=_product_purpose(kind)
+  card.tooltip_text=purpose
+  card.accessibility_description=purpose+(" Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked." if shortfall>0 else " Available to place.")
   if kind=="register":
    var pending=bool(game.model.included_checkout_pending)
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"
@@ -805,5 +859,9 @@ func sync(width:float):
  ui.context_label.add_theme_font_size_override("font_size",14 if narrow else 16)
  sync_action_details()
  _position_category_panel()
+ build_guide_button.text="Build guide" if game.catalog_category=="Build" else "Item guide"
+ build_guide_button.accessibility_name="Build guide: move doors, find parking and land" if game.catalog_category=="Build" else "Item guide: contents, uses and availability"
+ build_guide_button.visible=game.editing and not header_active and not ui.has_open_popup()
+ _put(build_guide_button,Rect2(w-148,-52,132,44))
  footer_hint.hide()
  _sync_scroll_buttons.call_deferred();_queue_rail_fit();ui._set_tray_reveal(ui.tray_reveal)

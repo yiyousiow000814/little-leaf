@@ -74,7 +74,7 @@ func run():
    check(safe.encloses(ui.help_panel.get_global_rect()),label+" panel inside safe viewport")
    var panel=ui.help_panel.get_global_rect();var style=ui.help_panel.get_theme_stylebox("panel")
    var inside=Rect2(panel.position+Vector2(style.get_margin(SIDE_LEFT),style.get_margin(SIDE_TOP)),panel.size-style.get_minimum_size())
-   for action in [ui.help_choose_local,ui.help_choose_cloud,ui.help_switch_device,ui.help_retry,ui.help_overview,ui.help_notes,ui.help_done]:
+   for action in [ui.help_choose_local,ui.help_choose_cloud,ui.help_switch_device,ui.help_retry,ui.help_overview,ui.help_notes,ui.help_log,ui.help_done]:
     if not action.visible:continue
     check(ui.help_footer.is_ancestor_of(action) and not ui.help_scroll.is_ancestor_of(action),label+" action outside detail scroll")
     check(absf(action.size.x-ui.help_done.size.x)<1,label+" equal action widths")

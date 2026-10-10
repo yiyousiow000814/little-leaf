@@ -20,6 +20,7 @@ var release:Dictionary={}
 var data_error=""
 var session_seen_version=""
 var last_unread=false
+var returns_to_settings=false
 
 func _init(owner):
  compact_ref=weakref(owner)
@@ -112,7 +113,13 @@ func sync():
   last_unread=unread
   unread_changed.emit(unread)
 
+func show_from_settings():
+ show()
+ returns_to_settings=true;back_button.text="Back to Settings";back_button.accessibility_name="Back to Settings"
+
 func show():
+ returns_to_settings=false
+ back_button.text="Back to Help";back_button.accessibility_name="Back to Quick Help"
  if not is_instance_valid(panel):return
  game.settings.hide()
  compact._popup_at(panel,PANEL_WIDTH)
@@ -130,7 +137,9 @@ func hide():
 
 func _back_to_help():
  if is_instance_valid(panel):panel.hide()
- compact.return_to_help()
+ if returns_to_settings:
+  game.settings.show();compact._fit_themed_popups();compact.settings_updates.grab_focus()
+ else:compact.return_to_help()
 
 func _mark_seen():
  var version=current_version()

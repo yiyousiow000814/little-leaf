@@ -310,7 +310,7 @@ func run():
 		await process_frame
 		game._sync_window_scale()
 		var hud = game.compact_ui.hud
-		var minimum = preload("res://scripts/cafe_viewport_layout.gd").minimum_size(hud.layout_host.get_global_rect().end.y, hud._safe_insets(), Vector2(view.size))
+		var minimum = preload("res://scripts/cafe_viewport_layout.gd").minimum_size(hud.layout_host.get_global_rect().end.y, hud._safe_insets(), Vector2(view.size), game.compact_ui.shop_ui.browse_rect().size.y)
 		minimum_landscape_size = Vector2i(568, int(ceil(minimum.y)))
 		view.size = minimum_landscape_size
 	await process_frame

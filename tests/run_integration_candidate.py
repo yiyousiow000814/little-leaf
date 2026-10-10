@@ -33,6 +33,7 @@ SUITES = [
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),

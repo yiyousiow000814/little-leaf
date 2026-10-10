@@ -117,10 +117,12 @@ func check_card(card:Button,label:String):
  check(title.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER,label+" title is centered")
  check(price.alignment==BoxContainer.ALIGNMENT_CENTER,label+" price row is centered")
  check(status.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER,label+" status is centered")
- if card.size.x>=180 and not game.compact_ui.shop_ui.root.size.y<144:
-  var top=title.position.y;var bottom=price.position.y+price.size.y
-  if status.visible:bottom=status.position.y+status.size.y
-  check(absf((top+bottom)*.5-(card.size.y-8)*.5)<=1.1,label+" title/price group is vertically balanced")
+ var image:Control=body.get_child(0)
+ check(image.size.y>=34-.5,label+" artwork remains legible above the copy")
+ check(image.position.y+image.size.y+3.5<=title.position.y,label+" artwork appears above the title")
+ check(title.position.y+title.size.y+1.5<=price.position.y,label+" price appears below the title")
+ if status.visible:check(price.position.y+price.size.y+1.5<=status.position.y,label+" availability appears below the price")
+ check(card.get_global_rect().grow(.5).encloses(image.get_global_rect()),label+" artwork stays inside the card")
  check(card.size.x>=44 and card.size.y>=44,label+" minimum card hit target")
  for control in labels(card):
   text_fits(control,label)
