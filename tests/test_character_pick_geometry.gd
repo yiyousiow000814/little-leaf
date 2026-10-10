@@ -2,6 +2,11 @@ extends SceneTree
 const Pick=preload("res://scripts/cafe_character_pick_geometry.gd")
 const Native=preload("res://scripts/cafe_native_draw_node.gd")
 const Shape=preload("res://scripts/cafe_shape_2d.gd")
+class CountingPick extends Pick:
+	var state_calls=0
+	func _state(art)->int:
+		state_calls+=1
+		return super._state(art)
 var checks=0
 var failures=[]
 class Ledger extends RefCounted:
@@ -29,11 +34,11 @@ func check(value,label):
 	if not value:failures.append(label);printerr("FAIL ",label)
 func present(pick,art,node):
 	art.canvas_stream.frame_id+=1;node.generation=art.canvas_stream.frame_id
-	pick.drawing(art);pick.submitting(art);pick.presented(art)
+	pick.request_query();pick.drawing(art);pick.submitting(art);pick.presented(art)
 func run():
 	# Command/receipt fixture only. Actual current painter pixels are a separate
 	# native capture gate; this test never claims a synthetic receipt was painted.
-	var pick=Pick.new();var art=Art.new();var game=Owner.new()
+	var pick=CountingPick.new();var art=Art.new();var game=Owner.new()
 	root.add_child(game);game.add_child(art);art.game=game
 	var node=Native.new();art.add_child(node)
 	node.appearance=[["character"]];node.contacts=[{"id":1}];node.generation=1
@@ -42,7 +47,10 @@ func run():
 	var square=PackedVector2Array([Vector2(-5,-5),Vector2(5,-5),Vector2(5,5),Vector2(-5,5)])
 	shape.configure(&"draw_colored_polygon",[square,Color.WHITE,PackedVector2Array(),null],Transform2D.IDENTITY)
 	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"unpresented pointer fails closed")
-	pick.drawing(art);pick.submitting(art);pick.presented(art)
+	for frame in 60:
+		pick.drawing(art);pick.submitting(art);pick.presented(art)
+	check(pick.state_calls==0,"ordinary frame hooks do not traverse character geometry")
+	pick.request_query();pick.drawing(art);pick.submitting(art);pick.presented(art)
 	check(pick.occludes(art,Vector2.ZERO) and not pick.last_uncertain,"actual command fill occludes")
 	check(not pick.occludes(art,Vector2(8,0)),"clear geometry is clickable rather than a whole tile")
 	node.position=Vector2(100,100);node.scale=Vector2(-3,3)
@@ -71,7 +79,7 @@ func run():
 	present(pick,art,node)
 	check(pick.occludes(art,Vector2(100,100)) and not pick.last_uncertain,"fresh frame certifies projection")
 	art.canvas_stream.frame_id+=1;node.generation=art.canvas_stream.frame_id
-	pick.drawing(art);pick.submitting(art)
+	pick.request_query();pick.drawing(art);pick.submitting(art)
 	node.position+=Vector2(1,0);pick.presented(art)
 	check(pick.occludes(art,Vector2(100,100)) and pick.last_uncertain,"mutation between pre/post draw cannot certify completed image")
 	present(pick,art,node)
@@ -103,5 +111,16 @@ func run():
 		for point in [Vector2(-.5,-.5),Vector2(0,2),Vector2(5,6),Vector2(10.5,10.5),Vector2(20,20)]:
 			var reference=pick._triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,1)
 			check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,10),Color.WHITE,width,true],point,1,Transform2D.IDENTITY,null,{})==reference,"AA broad rejection preserves exact native quads "+str(width)+" "+str(point))
+	pick.request_query()
+	var before_calls=pick.state_calls
+	for frame in 8:
+		art.canvas_stream.frame_id+=1;node.generation=art.canvas_stream.frame_id
+		pick.drawing(art);pick.submitting(art);pick.presented(art)
+	check(pick.state_calls-before_calls==4,"one query certifies at most two submitted/completed frames")
+	pick.query_deadline=Time.get_ticks_msec()-1
+	before_calls=pick.state_calls;pick.submitting(art);pick.presented(art)
+	check(pick.state_calls==before_calls and pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"expired query does no traversal and fails closed")
+	pick.close_query();pick.submitting(art);pick.presented(art)
+	check(pick.state_calls==before_calls and pick.presented_frame==-1,"cancel invalidates receipt and disables deep frame work")
 	print("CHARACTER_PICK_GEOMETRY_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"synthetic_commands_only":true,"native_render_verified":false,"player_save_used":false}))
 	quit(0 if failures.is_empty() else 1)

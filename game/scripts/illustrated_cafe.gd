@@ -2175,6 +2175,7 @@ func _wet_spill(at:Vector2,remaining:float):
 
 func _record_character_pick_frame():
 	character_pick_geometry.presented(self)
+	if is_instance_valid(game) and game.get("interaction")!=null and game.interaction.manual_cleanup!=null:game.interaction.manual_cleanup.presented()
 func _record_character_pick_submission():
 	character_pick_geometry.submitting(self)
 

@@ -16,6 +16,23 @@ var presented_state=0
 var submitted_state=0
 var submitted_frame=-1
 var last_uncertain=false
+const QUERY_MSEC=250
+const QUERY_FRAMES=2
+var query_deadline=0
+var query_frames=0
+
+func request_query():
+	close_query()
+	query_deadline=Time.get_ticks_msec()+QUERY_MSEC
+	query_frames=QUERY_FRAMES
+
+func close_query():
+	query_deadline=0;query_frames=0
+	presented_frame=-1;submitted_frame=-1
+
+func query_active()->bool:
+	return query_deadline>0 and Time.get_ticks_msec()<query_deadline
+
 
 func _projection(art)->Array:
 	return [art.origin,art.tile,art.zoom,art.ui_scale,art.pan_offset,art.get_viewport_rect(),art.get_global_transform_with_canvas(),art.game.get_instance_id(),art.game.ground_mess_generation,art.game.floor_tasks.get_instance_id(),art.game.floor_tasks.generation]
@@ -52,12 +69,15 @@ func _state(art)->int:
 
 func submitting(art):
 	submitted_frame=-1
+	if not query_active() or query_frames<=0:return
+	query_frames-=1
 	if not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or art.canvas_stream.active:return
 	if draw_frame!=art.canvas_stream.frame_id or draw_projection!=_projection(art):return
 	submitted_state=_state(art)
 	submitted_frame=art.canvas_stream.frame_id
 
 func presented(art):
+	if not query_active():return
 	# Only a completed new painter frame may certify its projection. An idle
 	# retained frame must not certify a projection changed after that draw.
 	if not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or art.canvas_stream.active:return
@@ -70,7 +90,7 @@ func presented(art):
 
 func occludes(art,screen:Vector2)->bool:
 	last_uncertain=false
-	if not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
+	if not query_active() or not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
 		last_uncertain=true;return true
 	# Images/mesh arrays live only for this pointer query; no retained readback
 	# cache, additional nodes, renderer resources or per-frame geometry copies.

@@ -35,9 +35,11 @@ func run():
   game.interaction._pan_by(game.illustration.camera_safe_rect().get_center()-point)
   point=game.illustration.iso(world.x,world.y)
   await capture(zoom_name+"-before.png",-1,point)
-  if game.interaction.get("manual_cleanup")!=null and game.interaction.manual_cleanup.hit(point).is_empty():push_error("Synthetic target is not visibly clickable");quit(1);return
+  if game.interaction.get("manual_cleanup")!=null and game.interaction.manual_cleanup.hit(point,false).is_empty():push_error("Synthetic target is not visibly clickable");quit(1);return
   for pressed in [true,false]:
    var event=InputEventMouseButton.new();event.position=point;event.global_position=point;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed;root.push_input(event,true)
+  await process_frame
+  await RenderingServer.frame_post_draw
   var previous=0.0
   for elapsed in [.12,.5]:
    if game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.tick(elapsed-previous)

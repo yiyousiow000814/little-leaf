@@ -16,8 +16,13 @@ character, solve a pose, change routing or allocate retained meshes, textures or
 nodes. A draw-time projection stamp, matching pre/post draw state and current
 state check protect the completed image. Visible stale characters and unsupported
 ancestor presentation fail closed. The receipt hashes command arrays, so work is
-O(character descendants + geometry content) per completed frame and per query;
-this is not a constant-cost or FPS acceptance claim. Mesh resources are treated as
+O(character descendants + geometry content) only during a bounded cleanup query;
+ordinary rendering does not traverse geometry. A valid release queues one painted
+frame instead of changing the model immediately. Its query expires after 250 ms
+and allows at most two submission/completion certifications; cancellation closes
+it. Settlement rechecks input guards, identity, projection and current geometry
+against the completed receipt. No receipt or an expired window grants no cleanup.
+This is not a constant-cost or FPS acceptance claim. Mesh resources are treated as
 immutable renderer-owned inputs, matching the existing retained painter contract.
 
 The integration runner executes `test_manual_ground_cleanup` against a disposable

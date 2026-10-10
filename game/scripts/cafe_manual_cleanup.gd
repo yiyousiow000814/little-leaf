@@ -8,6 +8,8 @@ var game
 var pending:Dictionary={}
 var projection:Array=[]
 var puffs:Array=[]
+var released=false
+var release_point=Vector2.ZERO
 
 # Reuse the actual paint geometry rather than making an entire tile clickable.
 class HitPaint extends RefCounted:
@@ -29,7 +31,9 @@ class HitPaint extends RefCounted:
   if opaque(color) and radius.x>0 and radius.y>0 and ((point-center)/radius).length_squared()<=1:hit=true
 
 func _init(owner):game=owner
-func cancel():pending={};projection=[]
+func cancel():
+ pending={};projection=[];released=false
+ if is_instance_valid(game.illustration):game.illustration.character_pick_geometry.close_query()
 func _epoch()->Array:
  return [game.ground_mess_generation,game.floor_tasks.generation,game.floor_tasks.get_instance_id()]
 func _projection()->Array:
@@ -41,14 +45,14 @@ func allowed()->bool:
  if game.cafe_intro!=null and game.cafe_intro.active:return false
  if game.compact_ui!=null and (game.compact_ui.viewport_too_small or game.compact_ui.has_open_popup()):return false
  return not (is_instance_valid(game.settings) and game.settings.visible)
-func _occluded(screen:Vector2)->bool:
+func _occluded(screen:Vector2,characters=true)->bool:
  var art=game.illustration
  var item_id=art.hit_item(screen)
  if item_id>=0 and str(game.model.get_item(item_id).get("kind",""))!="rug":return true
  if not art.hit_wall_host(screen).is_empty():return true
- return art.character_occludes(screen)
+ return characters and art.character_occludes(screen)
 
-func hit(screen:Vector2)->Dictionary:
+func hit(screen:Vector2,characters=true)->Dictionary:
  if not allowed() or not game.interaction._point_in_view(screen) or game.interaction._over_ui(screen):return {}
  var art=game.illustration
  art.update_projection()
@@ -62,17 +66,31 @@ func hit(screen:Vector2)->Dictionary:
    if record.is_empty() or not art._floor_mess_active(record):continue
    var paint=HitPaint.new(art,screen)
    MessArt.draw(paint,record)
-   if paint.hit:return {} if _occluded(screen) else identity
+   if paint.hit:return {} if _occluded(screen,characters) else identity
  return {}
 func begin(screen:Vector2):
  cancel()
- pending=hit(screen)
+ pending=hit(screen,false)
  if not pending.is_empty():projection=_projection()
 func release(screen:Vector2)->bool:
- var identity=pending.duplicate();var expected_projection=projection.duplicate();cancel()
- if identity.is_empty() or not allowed():return false
+ if pending.is_empty() or not allowed():cancel();return false
  game.illustration.update_projection()
- if expected_projection!=_projection() or hit(screen)!=identity:return false
+ if projection!=_projection() or hit(screen,false)!=pending:cancel();return false
+ released=true;release_point=screen
+ game.illustration.character_pick_geometry.request_query()
+ game.illustration.queue_redraw()
+ return true
+func presented():
+ if not released:return
+ var pick=game.illustration.character_pick_geometry
+ if not pick.query_active():cancel();return
+ if pick.presented_frame!=game.illustration.canvas_stream.frame_id:return
+ var identity=pending.duplicate()
+ var valid=allowed() and projection==_projection() and hit(release_point)==identity and pick.query_active()
+ cancel()
+ if not valid:return
+ _complete(identity)
+func _complete(identity:Dictionary)->bool:
  var record:Dictionary=game.resolve_ground_mess(identity)
  if record.is_empty():return false
  var at:Vector2=record.floor_target

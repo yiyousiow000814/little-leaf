@@ -13,6 +13,9 @@ func event(point:Vector2,pressed:bool,device=0,canceled=false):
  var e=InputEventMouseButton.new();e.position=point;e.global_position=point;e.button_index=MOUSE_BUTTON_LEFT;e.pressed=pressed;e.device=device;e.canceled=canceled
  if pressed:game.interaction.handle_unhandled_input(e)
  else:game.interaction.handle_input(e)
+func settle():
+ await process_frame
+ await RenderingServer.frame_post_draw
 func motion(point:Vector2,buttons=MOUSE_BUTTON_MASK_LEFT):
  var e=InputEventMouseMotion.new();e.position=point;e.global_position=point;e.button_mask=buttons
  game.interaction.handle_input(e)
@@ -32,7 +35,7 @@ func point_for(id:int)->Vector2:
  for y in range(-30,31,2):
   for x in range(-30,31,2):
    var point=center+Vector2(x,y)
-   if not game.interaction.manual_cleanup.hit(point).is_empty():return point
+   if not game.interaction.manual_cleanup.hit(point,false).is_empty():return point
  return Vector2(-999,-999)
 func alive(id:int)->bool:return game.floor_tasks.messes.has(id)
 func run():
@@ -51,12 +54,25 @@ func run():
   for kind in ["banana","crumbs"]:
    var id=fresh(kind);check(id>0,"valid "+kind+" fixture")
    var point=await point_for(id);check(point.x>0,"paint silhouette hit "+kind)
-   event(point,true);event(point,false)
+   event(point,true);event(point,false);await settle()
    check(not alive(id) and game.floor_tasks.completed==1,"one tap completes "+kind)
    check(cleaner.puffs.size()==1,"one successful puff "+kind)
-   event(point,false);event(point,true);event(point,false)
+   event(point,false);await settle();event(point,true);event(point,false);await settle()
    check(game.floor_tasks.completed==1 and cleaner.puffs.size()==1,"repeat tap/release inert "+kind)
    check(cleaner.tick(.5) and cleaner.puffs.is_empty(),"puff expires without completion callback")
+  var deferred_id=fresh();var deferred_point=await point_for(deferred_id)
+  event(deferred_point,true);event(deferred_point,false)
+  check(alive(deferred_id) and cleaner.released,"release defers completion until a certified native frame")
+  game.paused=true;await settle()
+  check(alive(deferred_id) and cleaner.puffs.is_empty() and not cleaner.released,"Pause before certified settlement cancels queued release")
+  deferred_id=fresh();deferred_point=await point_for(deferred_id)
+  event(deferred_point,true);event(deferred_point,false);game.interaction.on_focus_lost();await settle()
+  check(alive(deferred_id) and not game.illustration.character_pick_geometry.query_active(),"focus cancellation closes released query before settlement")
+  deferred_id=fresh();deferred_point=await point_for(deferred_id)
+  event(deferred_point,true);event(deferred_point,false)
+  game.illustration.character_pick_geometry.query_deadline=Time.get_ticks_msec()-1
+  await settle()
+  check(alive(deferred_id) and not cleaner.released,"expired query never completes and drops its intent")
   # The paired native capture uses these exact generated targets and cameras.
   for zoom_name in ["normal","max"]:
    game.illustration.zoom=1.15 if zoom_name=="normal" else game.illustration.camera_zoom_limits().y
@@ -69,44 +85,44 @@ func run():
    game.illustration.queue_redraw()
    await process_frame
    await RenderingServer.frame_post_draw
-   check(not cleaner.hit(capture_point).is_empty(),"capture center is visible at "+zoom_name)
-   event(capture_point,true);event(capture_point,false)
+   check(not cleaner.hit(capture_point,false).is_empty(),"capture center is visible at "+zoom_name)
+   event(capture_point,true);event(capture_point,false);await settle()
    check(not alive(capture_id),"capture pointer succeeds at "+zoom_name)
   game.illustration.zoom=1.15;game.illustration.pan_offset=Vector2.ZERO
   var id=fresh();var point=await point_for(id)
-  event(point,true);motion(point+Vector2(8,0));motion(point);event(point,false)
+  event(point,true);motion(point+Vector2(8,0));motion(point);event(point,false);await settle()
   check(alive(id) and cleaner.puffs.is_empty(),"pan crossing threshold cannot turn back into tap")
-  id=fresh();point=await point_for(id);event(point,true);game.interaction.on_focus_lost();event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.interaction.on_focus_lost();event(point,false);await settle()
   check(alive(id),"focus loss cancels cleanup")
   id=fresh();point=await point_for(id);event(point,true);event(point,false,0,true)
   check(alive(id),"canceled release never cleans")
-  id=fresh();point=await point_for(id);event(point,true);motion(point,0);event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);motion(point,0);event(point,false);await settle()
   check(alive(id),"lost outside-window release cancels cleanup")
   id=fresh();point=await point_for(id);event(point,true);event(point,false,InputEvent.DEVICE_ID_EMULATION)
   check(alive(id),"emulated release cannot finish physical press");game.interaction.on_focus_lost()
-  id=fresh();point=await point_for(id);event(point,true);game.editing=true;event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.editing=true;event(point,false);await settle()
   check(alive(id),"mode change cancels pending cleanup")
-  id=fresh();point=await point_for(id);game.editing=true;event(point,true);event(point,false)
+  id=fresh();point=await point_for(id);game.editing=true;event(point,true);event(point,false);await settle()
   check(alive(id),"Decorate never cleans")
-  id=fresh();point=await point_for(id);game.paused=true;event(point,true);event(point,false)
+  id=fresh();point=await point_for(id);game.paused=true;event(point,true);event(point,false);await settle()
   check(alive(id),"Pause retains world state")
-  id=fresh();point=await point_for(id);game.save_recovery_blocked=true;event(point,true);event(point,false)
+  id=fresh();point=await point_for(id);game.save_recovery_blocked=true;event(point,true);event(point,false);await settle()
   check(alive(id),"recovery blocks cleanup")
-  id=fresh();point=await point_for(id);event(point,true);game.settings.show();event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.settings.show();event(point,false);await settle()
   check(alive(id),"new modal after press owns release")
-  id=fresh();point=await point_for(id);event(point,true);game.interaction._zoom_step_at(point,1);event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.interaction._zoom_step_at(point,1);event(point,false);await settle()
   check(alive(id),"zoom invalidates prior pointer receipt")
   id=fresh();point=await point_for(id);event(point,true);event(Vector2(-10,-10),false)
   check(alive(id),"outside viewport release cancels cleanup")
-  id=fresh();point=await point_for(id);event(point,true);game.floor_tasks.restore(game.floor_tasks.snapshot());event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.floor_tasks.restore(game.floor_tasks.snapshot());event(point,false);await settle()
   check(alive(id),"floor restore invalidates equal numeric identity")
-  id=fresh();point=await point_for(id);event(point,true);game.ground_mess_generation+=1;event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);game.ground_mess_generation+=1;event(point,false);await settle()
   check(alive(id),"runtime restore generation invalidates pending receipt")
   id=fresh();point=await point_for(id);event(point,true)
-  identity=game.ground_mess_identity("floor",id);game.complete_ground_mess(identity,"manual");event(point,false)
+  identity=game.ground_mess_identity("floor",id);game.complete_ground_mess(identity,"manual");event(point,false);await settle()
   check(game.floor_tasks.completed==1 and cleaner.puffs.is_empty(),"NPC or other completion wins before release")
   id=fresh();point=await point_for(id);var npc=game.worker("cleaner");game.floor_tasks.assign(npc,game.staff_states.find(npc));stale=npc.duplicate(true)
-  event(point,true);event(point,false);game.floor_tasks.contact(stale,game.staff_states.find(npc),"sweeping",{},1)
+  event(point,true);event(point,false);await settle();game.floor_tasks.contact(stale,game.staff_states.find(npc),"sweeping",{},1)
   check(not alive(id) and npc.job_kind=="" and game.floor_tasks.completed==1,"manual completion releases approach and stale NPC replay is inert")
   # A second finger cancels the existing mouse-emulated world transaction.
   id=fresh();point=await point_for(id);event(point,true,InputEvent.DEVICE_ID_EMULATION)
@@ -115,7 +131,7 @@ func run():
   event(point,false,InputEvent.DEVICE_ID_EMULATION)
   check(alive(id),"second touch cancels manual pending tap");game.camera_gestures.on_focus_lost()
   # Draw feedback is transient across restore and never serializes into saves.
-  id=fresh();point=await point_for(id);event(point,true);event(point,false)
+  id=fresh();point=await point_for(id);event(point,true);event(point,false);await settle()
   game.model.service_snapshot=game._service_save_snapshot()
   check(game.model.save("user://manual-cleanup.json"),"completed cleanup saves during puff: "+game.model.last_error)
   check(game.model.load_save("user://manual-cleanup.json"),"saved cleanup validates and loads: "+game.model.last_error)
@@ -156,8 +172,9 @@ func run():
   game.illustration.set_process(true)
   for trial in 3:
    var id=fresh("crumbs");var point=await point_for(id)
-   event(point,true);event(point,false)
+   event(point,true);event(point,false);await settle()
    check(not alive(id) and game.floor_tasks.completed==1,"completed-frame cleanup remains usable with active artist repaint "+str(trial))
   game.illustration.set_process(false)
  print("MANUAL_GROUND_CLEANUP_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":DisplayServer.get_name()!="headless","pointer_checks_skipped":DisplayServer.get_name()=="headless"}))
+ game.free()
  quit(0 if failures.is_empty() else 1)

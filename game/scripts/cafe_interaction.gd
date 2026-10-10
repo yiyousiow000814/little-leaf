@@ -268,10 +268,11 @@ func _start_drag():
 		_press_selected_id = drag_item_id
 
 func _release_left(screen: Vector2):
+	var cleanup_queued=false
 	refresh(screen)
 	if not _left_down: return
 	if _gesture == "pending" and not game.editing and not _press_editing:
-		manual_cleanup.release(screen)
+		cleanup_queued=manual_cleanup.release(screen)
 	elif _gesture == "drag":
 		if drag_valid: _commit_preview()
 	elif _gesture == "pending" and game.editing and _press_editing and _press_parcel_id != "" and _point_in_view(screen) and not _over_ui(screen):
@@ -282,7 +283,7 @@ func _release_left(screen: Vector2):
 			if drag_valid: _commit_preview()
 		elif _press_item_id >= 0:
 			_select_item(game.model.get_item(_press_item_id))
-	_clear_gesture()
+	_clear_gesture(not cleanup_queued)
 	refresh(screen)
 
 func _select_item(item: Dictionary):
@@ -338,8 +339,8 @@ func _commit_preview():
 	game._update_ui()
 	if game._save():game.settings_controls.play_sfx("place")
 
-func _clear_gesture():
-	if manual_cleanup!=null:manual_cleanup.cancel()
+func _clear_gesture(cancel_cleanup=true):
+	if cancel_cleanup and manual_cleanup!=null:manual_cleanup.cancel()
 	if drag_active and drag_item_id >= 0 and game != null:
 		var original: Dictionary = game.model.get_item(drag_item_id)
 		if not original.is_empty(): game.rotation_step = game.model.logical_rotation(int(original.id))
