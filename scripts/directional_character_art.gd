@@ -1,5 +1,43 @@
 extends RefCounted
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
+func outfit_cuff(hip:Vector2,ankle:Vector2):
+ if wardrobe_items.is_empty():return
+ var item=str(wardrobe_items.get("legwear","none"))
+ if item!="none":
+  var start=hip if item=="legwear_tights" else hip.lerp(ankle,.60)
+  leg(start,ankle,str(wardrobe_settings.legwear_color),3.6,0,Vector2.ZERO)
+ if wardrobe_items.get("shoes")=="shoes_boots":
+  leg(hip.lerp(ankle,.60),ankle,shoe_color,4.4,0,Vector2.ZERO)
+func outfit_torso(cloth:String,seat_mix:float):
+ if wardrobe_items.is_empty():return
+ if wardrobe_items.get("lower")=="lower_skirt":
+  var drop=2.0 if seat_mix>.5 else 4.0
+  shape([Vector2(-7,-14),Vector2(7,-14),Vector2(9,-8+drop),Vector2(-9,-8+drop)],wardrobe_settings.trousers,2.4)
+  line(Vector2(-7,-7+drop),Vector2(7,-7+drop),Color(wardrobe_settings.trousers).lightened(.14),.6)
+ if wardrobe_items.get("top")=="top_cardigan" and not back:
+  line(Vector2(1,-25),Vector2(2,-13),Color(cloth).darkened(.18),.8)
+  for y in [-22,-18,-15]:ellipse(Vector2(2,y),Vector2(.65,.65),wardrobe_settings.legwear_color)
+ if back and wardrobe_items.get("back_bow","none")!="none":
+  var y=-21.0 if wardrobe_items.back_bow=="bow_upper_back" else -16.0
+  shape([Vector2(0,y),Vector2(-4,y-2),Vector2(-4,y+2)],wardrobe_settings.accent,.6)
+  shape([Vector2(0,y),Vector2(4,y-2),Vector2(4,y+2)],wardrobe_settings.accent,.6)
+  ellipse(Vector2(0,y),Vector2(1,1),wardrobe_settings.accent)
+func outfit_head():
+ if wardrobe_items.is_empty():return
+ if wardrobe_items.get("headwear","none")!="none":
+  shape([Vector2(-4,-49),Vector2(-3,-53),Vector2(3,-54),Vector2(5,-49)],wardrobe_settings.legwear_color,1.8)
+  line(Vector2(-4,-49),Vector2(6,-49),wardrobe_settings.accent,.8)
+ if wardrobe_items.get("ribbon","none")!="none":
+  shape([Vector2(-4,-50),Vector2(-7,-52),Vector2(-7,-48)],wardrobe_settings.accent,.6)
+  shape([Vector2(-4,-50),Vector2(-1,-52),Vector2(-1,-48)],wardrobe_settings.accent,.6)
+ if not back and wardrobe_items.get("glasses","none")!="none":
+  var centers=[Vector2(.8,EYE_LINE),Vector2(8,EYE_LINE)] if not profile else [Vector2(5.7,-40.7)]
+  for center in centers:
+   var radius=Vector2(2.4,2.4) if wardrobe_items.glasses=="glasses_round" else Vector2(2.8,2.0)
+   for index in range(16):
+    var t=TAU*index/16.0;var n=TAU*(index+1)/16.0
+    line(center+Vector2(cos(t),sin(t))*radius,center+Vector2(cos(n),sin(n))*radius,shoe_color,.65)
+  if not profile:line(Vector2(3.2,EYE_LINE),Vector2(5.6,EYE_LINE),shoe_color,.65)
 ## Standalone original character study. Four isometric directions rotate the
 ## entire body, not a front-facing paper doll with a different face.
 ## The production renderer now uses this reviewed directional construction.
@@ -137,6 +175,9 @@ var chef_hat=false
 var blocked=false
 var head_attention=0.0
 var waiter_tablet=WaiterTabletArt.new()
+var shoe_color="80785b"
+var wardrobe_items:Dictionary={}
+var wardrobe_settings:Dictionary={}
 func dot(p:Vector2,r:Vector2,c):a._face_ellipse(origin+p,r,c)
 func line(p:Vector2,q:Vector2,c,w=1.0):a.line(origin+p,origin+q,c,w)
 func shape(points:Array,c,r=2.0):
@@ -160,7 +201,7 @@ func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  # ground center and bounds are retained for the planted-foot controller.
  var outline=[]
  for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2.0),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:outline.append(center+axis*q.x+across*q.y)
- shape(outline,"80785b",.45)
+ shape(outline,shoe_color,.45)
  var heel=center-axis*2.9
  if back:
   # Rear views expose the heel band, not the front-facing toe highlight.
@@ -173,6 +214,9 @@ func leg(hip:Vector2,ankle:Vector2,color,width:float,_seat_mix:float,_axis:Vecto
  a._round_limb(origin+hip,origin+ankle,color,width)
 
 func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,phase=0.0,staff=false,side_profile=false,settings:Dictionary={}):
+ wardrobe_settings=settings if not staff else {}
+ wardrobe_items=wardrobe_settings.get("outfit_items",{})
+ shoe_color=str(wardrobe_settings.get("shoe_color","80785b"))
  a=artist;origin=at;back=facing_back;profile=side_profile;swing=sin(phase*TAU)*2.0 if walking else 0.0
  var fur=FUR[species];var shadow="b77d42" if species==1 else "ded2b0";var cloth=str(settings.get("shirt",CLOTH[species]))
  var action=str(settings.get("action","idle"));var t=float(settings.get("progress",0));var payload=str(settings.get("payload","none"));var tool=str(settings.get("tool","none"))
@@ -260,8 +304,8 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  var far_hip:Vector2=legs.far_hip;var near_hip:Vector2=legs.near_hip
  var far_foot:Vector2=legs.far_foot;var near_foot:Vector2=legs.near_foot
  if not overlay:
-  leg(far_hip,far_foot,"938b6c",3.8,seat_mix,legs.far_axis);shoe(far_foot,false,legs.far_axis)
-  leg(near_hip,near_foot,"a19774",4.1,seat_mix,legs.near_axis)
+  leg(far_hip,far_foot,str(wardrobe_settings.get("trousers","938b6c")),3.8,seat_mix,legs.far_axis);outfit_cuff(far_hip,far_foot);shoe(far_foot,false,legs.far_axis)
+  leg(near_hip,near_foot,str(wardrobe_settings.get("trousers","a19774")),4.1,seat_mix,legs.near_axis);outfit_cuff(near_hip,near_foot)
  if not overlay:
   if not back and species==1:tail(false)
   if not back and species==0:ellipse(Vector2(-9,-13),Vector2(3.4,3.3),"f6ebce")
@@ -277,6 +321,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   else:
    shape([Vector2(-7.5,-28.2),Vector2(-4.8,-25),Vector2(-4,-12),Vector2(-7,-12.2),Vector2(-10,-20)],Color(cloth).darkened(.075),1.7)
    line(Vector2(-5,-14),Vector2(7,-12.8),Color(cloth).lightened(.23),.75)
+  outfit_torso(cloth,seat_mix)
   shoe(near_foot,true,legs.near_axis)
   if staff:
    if back:
@@ -351,6 +396,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    head(species)
    origin=head_origin
   else:a._draw_head(origin+(dining_pose.head_offset if not dining_pose.is_empty() else Vector2.ZERO),species,back,blink,chef_hat,blocked,2 if profile else (3 if back else 0))
+  var outfit_origin=origin
+  origin+=(dining_pose.head_offset if not dining_pose.is_empty() else Vector2.ZERO)
+  outfit_head()
+  origin=outfit_origin
   if not dining_pose.is_empty() and not back and (not hide or not dining_pose.over_table):DiningPose.draw(a,origin,dining_pose,fur,shadow)
   head_attention=0.0
  return {"near_shoulder":origin+near_shoulder,"near_hand":origin+near_tip,"far_shoulder":origin+far_shoulder,"far_hand":origin+far_tip,"washing_pose":washing_pose,"dining_pose":dining_pose,"cooking_pose":cooking_pose,"cleaning_pose":cleaning_pose,"wiping_pose":wiping_pose,"payment_pose":payment_pose,"carry":origin+carry,"far_hip":origin+far_hip,"far_foot":origin+far_foot,"near_hip":origin+near_hip,"near_foot":origin+near_foot,"body":legs.body,"near_slot":legs.near_slot,"far_slot":legs.far_slot,"near_shoe":origin+near_foot+legs.near_axis*1.5,"far_shoe":origin+far_foot+legs.far_axis*1.5}

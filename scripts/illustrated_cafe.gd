@@ -35,6 +35,7 @@ const DiningPlacement=preload("res://scripts/dining_placement.gd")
 var meal_chair_offsets={}
 var table_dining_directions={}
 const DirectionalCharacter=preload("res://scripts/directional_character_art.gd")
+const CustomerVisitPresentation=preload("res://scripts/customer_visit_presentation.gd")
 var directional_character=DirectionalCharacter.new()
 var character_facings={}
 const CompactPose=preload("res://scripts/compact_character_pose.gd")
@@ -206,6 +207,7 @@ func _draw_street_people(show_service:bool):
 		var facing=character_facings.get(key,{"back":heading.x+heading.y<0,"mirror":-1.0 if heading.x-heading.y<-.01 else 1.0})
 		var face=float(facing.mirror)
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		pose["customer_visit"]=is_guest
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
@@ -869,6 +871,7 @@ func _draw():
 				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
 				var contact=ground+surface
 				reach=Vector2(contact.x*face,contact.y)-anchor
+			pose["customer_visit"]=e.type=="guest"
 			character(Vector2.ZERO,int(e.get("index",d.get("id",1))),e.type=="staff",moving,seated,action,progress,reach,direction,payload,str(d.get("art_tool","none")),pose,str(d.get("art_role",d.get("role","chef"))))
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
@@ -1240,6 +1243,11 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	# Keep the existing ready-meal handoff timing, without a plating gesture.
 	var visual_action=_kitchen_visual_action(action,staff,role)
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
+	if not staff and bool(pose.get("customer_visit",false)) and game.model.has_method("appearance_for"):
+		var selected:Dictionary=game.model.appearance_for(id)
+		if selected.ok:
+			var outfit:Dictionary=CustomerVisitPresentation.options(selected.customer.appearance)
+			if not outfit.is_empty():options.merge(outfit,true);species=2 # Reviewed bear construction.
 	var geometry=directional_character.draw(self,p,species,away,moving,float(pose.get("phase",0)),staff,false,options)
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})

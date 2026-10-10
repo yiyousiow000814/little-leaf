@@ -1,0 +1,439 @@
+{
+  "fixture_scope": "manually authored synthetic compatibility records; not seeded generation golden results or completed artwork",
+  "valid_customers": [
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 1,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_fa78d6feddde2b740009b1f21e787fe0",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_fa78d6feddde2b740009b1f21e787fe0",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "bear",
+          "appearance": "feminine",
+          "fur": "brown_muzzle",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    },
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 2,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "rabbit",
+          "appearance": "feminine",
+          "fur": "cream_pink_ears",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    },
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 3,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_ac6579fe5295d8620426cd6f82b8fb5b",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_ac6579fe5295d8620426cd6f82b8fb5b",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "fox",
+          "appearance": "feminine",
+          "fur": "russet_white_black",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    },
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 4,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_f725e7615cb17c6c712bac6b4c8191a3",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_f725e7615cb17c6c712bac6b4c8191a3",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "cat",
+          "appearance": "feminine",
+          "fur": "brown_tabby",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    },
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 5,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_306aa6e878944dbfb0c53e27b1dfb196",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_306aa6e878944dbfb0c53e27b1dfb196",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "dog",
+          "appearance": "feminine",
+          "fur": "tan_white",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    },
+    {
+      "kind": "synthetic_customer",
+      "namespace": "compatibility_fixture",
+      "id": 6,
+      "state": "arriving",
+      "appearance": {
+        "schema": "character-appearance-candidate-1",
+        "actor_kind": "customer",
+        "identity": "customer_efdeac22bba4ecf036d83230c56997c7",
+        "provider": "customer_wardrobe_draft_1",
+        "wardrobe": {
+          "format": 1,
+          "catalog": "customer-draft-1",
+          "identity": "customer_efdeac22bba4ecf036d83230c56997c7",
+          "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+          "species": "red_panda",
+          "appearance": "feminine",
+          "fur": "russet_mask_rings",
+          "palette": "sage_cream",
+          "items": {
+            "top": "top_cardigan",
+            "lower": "lower_skirt",
+            "shoes": "shoes_loafers",
+            "legwear": "legwear_tights",
+            "glasses": "glasses_round",
+            "headwear": "headwear_open_cap",
+            "ribbon": "none",
+            "back_bow": "bow_upper_back"
+          }
+        },
+        "expression": "soft_smile"
+      }
+    }
+  ],
+  "invalid_customers": [
+    {
+      "name": "rabbit_closed_cap",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 2,
+        "state": "arriving",
+        "appearance": {
+          "schema": "character-appearance-candidate-1",
+          "actor_kind": "customer",
+          "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "rabbit",
+            "appearance": "feminine",
+            "fur": "cream_pink_ears",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_closed_cap",
+              "ribbon": "none",
+              "back_bow": "bow_upper_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "incompatible_item_headwear"
+    },
+    {
+      "name": "fox_low_bow",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 3,
+        "state": "arriving",
+        "appearance": {
+          "schema": "character-appearance-candidate-1",
+          "actor_kind": "customer",
+          "identity": "customer_ac6579fe5295d8620426cd6f82b8fb5b",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_ac6579fe5295d8620426cd6f82b8fb5b",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "fox",
+            "appearance": "feminine",
+            "fur": "russet_white_black",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_open_cap",
+              "ribbon": "none",
+              "back_bow": "bow_low_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "incompatible_item_back_bow"
+    },
+    {
+      "name": "red_panda_low_bow",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 6,
+        "state": "arriving",
+        "appearance": {
+          "schema": "character-appearance-candidate-1",
+          "actor_kind": "customer",
+          "identity": "customer_efdeac22bba4ecf036d83230c56997c7",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_efdeac22bba4ecf036d83230c56997c7",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "red_panda",
+            "appearance": "feminine",
+            "fur": "russet_mask_rings",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_open_cap",
+              "ribbon": "none",
+              "back_bow": "bow_low_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "incompatible_item_back_bow"
+    },
+    {
+      "name": "unknown_schema",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 1,
+        "state": "arriving",
+        "appearance": {
+          "schema": "unknown",
+          "actor_kind": "customer",
+          "identity": "customer_fa78d6feddde2b740009b1f21e787fe0",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_fa78d6feddde2b740009b1f21e787fe0",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "bear",
+            "appearance": "feminine",
+            "fur": "brown_muzzle",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_open_cap",
+              "ribbon": "none",
+              "back_bow": "bow_upper_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "unknown_schema"
+    },
+    {
+      "name": "identity_mismatch",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 1,
+        "state": "arriving",
+        "appearance": {
+          "schema": "character-appearance-candidate-1",
+          "actor_kind": "customer",
+          "identity": "customer_wrong_owner",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_fa78d6feddde2b740009b1f21e787fe0",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "bear",
+            "appearance": "feminine",
+            "fur": "brown_muzzle",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_open_cap",
+              "ribbon": "none",
+              "back_bow": "bow_upper_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "identity_mismatch"
+    },
+    {
+      "name": "hat_ribbon_collision",
+      "customer": {
+        "kind": "synthetic_customer",
+        "namespace": "compatibility_fixture",
+        "id": 2,
+        "state": "arriving",
+        "appearance": {
+          "schema": "character-appearance-candidate-1",
+          "actor_kind": "customer",
+          "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+          "provider": "customer_wardrobe_draft_1",
+          "wardrobe": {
+            "format": 1,
+            "catalog": "customer-draft-1",
+            "identity": "customer_87cc1b9ab630ec0e5507ada2b54854a2",
+            "seed": "5370a080864459700db742cd0ca631ecfb10f5971ba5c14f0e428f6fa2603b41",
+            "species": "rabbit",
+            "appearance": "feminine",
+            "fur": "cream_pink_ears",
+            "palette": "sage_cream",
+            "items": {
+              "top": "top_cardigan",
+              "lower": "lower_skirt",
+              "shoes": "shoes_loafers",
+              "legwear": "legwear_tights",
+              "glasses": "glasses_round",
+              "headwear": "headwear_open_cap",
+              "ribbon": "ribbon_head",
+              "back_bow": "bow_upper_back"
+            }
+          },
+          "expression": "soft_smile"
+        }
+      },
+      "expected_error": "incompatible_item_headwear"
+    }
+  ],
+  "staff_headers": [
+    {
+      "schema": "character-appearance-candidate-1",
+      "actor_kind": "staff",
+      "identity": "staff_fixture_1",
+      "provider": "staff_fixture_only",
+      "wardrobe": {
+        "fixture_only": true
+      },
+      "expression": "neutral"
+    }
+  ]
+}
