@@ -1,8 +1,8 @@
 extends RefCounted
 ## Opaque feedback has the same meaning over every installed floor finish.
 ## Furniture feedback only; tile painting owns a separate material/perimeter preview.
-const VALID_FILL=Color("b7d9c6")
-const INVALID_FILL=Color("e7b3aa")
+const VALID_FILL=Color("cad2b6")
+const INVALID_FILL=Color("ddcbb6")
 const VALID_EDGE=Color("2b6951")
 const INVALID_EDGE=Color("9c352f")
 static func fill_color(valid:bool)->Color:return VALID_FILL if valid else INVALID_FILL

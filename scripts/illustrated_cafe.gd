@@ -700,10 +700,12 @@ func _draw():
 	var interaction=game.interaction if "interaction" in game else null
 	var preview=show_objects and interaction!=null and interaction.preview_active
 	if preview:
+		var outline=Color(.34,.50,.28,.80) if interaction.drag_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
 			var c=Vector2i(int(part.x),int(part.z))
 			var corners=[iso(c.x+.03,c.y+.03),iso(c.x+.97,c.y+.03),iso(c.x+.97,c.y+.97),iso(c.x+.03,c.y+.97)]
-			preload("res://scripts/cafe_placement_feedback.gd").draw_cell(self,corners,interaction.drag_valid,true)
+			poly(corners,Color("cad2b6") if interaction.drag_valid else Color("ddcbb6"))
+			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
 	# Work tiles share the current ground projection and sit below all props.
 	if show_objects and game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
