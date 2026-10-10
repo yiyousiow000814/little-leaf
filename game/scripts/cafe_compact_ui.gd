@@ -430,7 +430,8 @@ func sync():
   var tab=game.category_buttons[k];tab.custom_minimum_size.x=44 if width<650 else 68
   tab.text=k
   tab.add_theme_font_size_override("font_size",12 if width<650 else 13)
- manage_access.hide();management.hide()
+ # Periodic sync must preserve a Manage popup opened by the Build guide.
+ manage_access.hide()
  manage_access.text="Manage";manage_access.custom_minimum_size.x=74;manage_access.tooltip_text="Upgrades and plots"
  # Secondary game actions stay with Decorate, including on narrow screens.
  categories.add_theme_constant_override("h_separation",3 if width<650 else 4)

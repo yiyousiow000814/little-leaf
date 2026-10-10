@@ -57,5 +57,20 @@ func run():
   game.settings.show();await settle();await escape();check(not game.settings.visible and not ui.has_open_popup(),"Escape dismisses Settings "+str(view))
   game.settings.show();await settle();await click(ui.settings_help);await click(ui.help_log);await escape();check(not ui.has_open_popup() and not game.settings.visible,"Escape dismisses nested Log "+str(view))
   check(game.saves==0 and game.save_writes_suppressed,"Navigation never saves restaurant "+str(view))
+ for view in [Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view
+  if not game.editing:game._toggle_edit()
+  game._set_catalog_category("Build");await settle()
+  await click(ui.shop_ui.build_guide_button);check(ui.shop_ui.build_guide.visible,"Build guide pointer opens "+str(view))
+  await click(ui.shop_ui.guide_land);check(ui.management.visible and not ui.shop_ui.build_guide.visible,"Find land pointer opens Manage only "+str(view))
+  ui.sync();await settle();ui.sync();await settle()
+  check(ui.management.visible,"Manage survives repeated runtime sync "+str(view))
+  check(ui.plot_button.text.begins_with("Next plot") and game.saves==0,"Land discovery shows existing quote without purchase "+str(view))
+  await escape();check(not ui.has_open_popup(),"Land discovery Escape dismisses "+str(view))
+  await click(ui.shop_ui.build_guide_button);await click(ui.shop_ui.guide_land)
+  check(ui.management.visible,"Repeated Find land opens Manage "+str(view))
+  for pressed in [true,false]:
+   var touch=InputEventScreenTouch.new();touch.position=Vector2(5,view.y-5);touch.index=0;touch.pressed=pressed;Input.parse_input_event(touch);await process_frame
+  await settle();check(not ui.has_open_popup() and game.saves==0,"Land discovery touch outside dismisses without save "+str(view))
  print("SETTINGS_NAVIGATION_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
