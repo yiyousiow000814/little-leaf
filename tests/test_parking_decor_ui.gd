@@ -93,8 +93,19 @@ func run():
   check(Rect2(Vector2.ZERO,Vector2(view)).grow(1).encloses(shop.parking_review.get_global_rect()),"purchase modal fits "+str(view))
   check(shop.parking_sell.size.x>=44 and shop.parking_sell.size.y>=44,"purchase target at least44px "+str(view))
   await click(shop.parking_cancel)
- print("PARKING_DECOR_UI_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":not OS.get_environment("PARKING_SIGN_CAPTURE_OUTPUT").is_empty()}))
+ var owned=[weakref(game),weakref(game.model),weakref(game.illustration),weakref(shop.parking_review)]
+ var audio=[]
+ for player in game.audio_players.values():
+  audio.append(weakref(player.stream))
+  if player.playing:audio.append(weakref(player.get_stream_playback()))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
+ game.queue_free();await process_frame
+ # Native audio playback is released by the mixer after stop(), not by the
+ # same render frame. The fixture must not quit during that handoff.
+ await create_timer(.25).timeout
+ for reference in owned:check(reference.get_ref()==null,"scene/model/art/purchase modal released")
+ for reference in audio:check(reference.get_ref()==null,"stopped audio stream/playback released")
+ print("PARKING_DECOR_UI_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":not OS.get_environment("PARKING_SIGN_CAPTURE_OUTPUT").is_empty()}))
+ quit(0 if failures.is_empty() else 1)
