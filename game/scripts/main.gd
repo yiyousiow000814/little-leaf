@@ -492,7 +492,6 @@ func _rebuild_furniture():
 		n.rotation.y = float(item.rot)*PI/2
 		furnishings.add_child(n)
 		item_nodes[item.id] = n
-		if item.kind=="stove" and int(item.get("level",1))>1: text3(n,"Lv. "+str(item.level),Vector3(0,1.55,0),22,DARK)
 
 func _style(bg: Color, border=Color.TRANSPARENT, radius=14) -> StyleBoxFlat:
 	var s=StyleBoxFlat.new()

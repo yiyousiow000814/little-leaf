@@ -114,21 +114,37 @@ func run():
  check(model.place("stove",7,1) and model.hire_staff("chef"),"existing stove and chef hiring path remains available")
  check(model.coins==wallet-220-2800 and model.wage_rate()==68,"unchanged hire charge adds only18 per future minute")
  model=fresh();wallet=model.coins
- check(not model.has_method("upgrade_stove") and not model.has_method("stove_upgrade_cost") and model.coins==wallet and model.get_item(1).level==1,"no new stove upgrade purchase; starter remains level1")
- # Already-paid historical levels keep their balance, identity and recipe benefit.
- for level in [2,3]:
-  var historical=fresh(777);historical.get_item(1).level=level
+ check(not model.has_method("upgrade_stove") and not model.has_method("stove_upgrade_cost") and model.coins==wallet and not model.get_item(1).has("level"),"no new stove upgrade purchase; starter has no upgrade level")
+ # User rejected retained upgrade effects: load old copies at base speed without
+ # touching their file, wallet, furniture identity or unrelated progress.
+ for level in [1,2,3]:
+  var historical=fresh(777);var path="user://stove-base-fixture.json"
+  check(historical.save(path),"base fixture saves: "+str(level))
+  var raw=JSON.parse_string(FileAccess.get_file_as_string(path))
+  for entry in raw.items:
+   if entry.kind=="stove":entry.level=level
+  path=write("historical-stove-level-%d"%level,raw)
   var identity=historical.get_item(1).duplicate(true)
-  var expected_speed=1.0+.4*(level-1)
-  var path="user://historical-stove-level-%d.json"%level
-  check(historical.save(path),"historical upgraded stove saves: "+str(level))
   var saved_hash=FileAccess.get_sha256(path);var restored=Model.new()
-  check(restored.load_save(path) and restored.coins==777 and restored.get_item(1)==identity,"historical level/balance/identity load unchanged: "+str(level))
-  check(is_equal_approx(Model.stove_speed_multiplier(restored.get_item(1)),expected_speed) and is_equal_approx(Model.cooking_seconds(expected_speed),45.0/expected_speed),"historical paid cooking benefit retained: "+str(level))
-  check(FileAccess.get_sha256(path)==saved_hash,"loading does not rewrite historical save: "+str(level))
-  check(restored.save("user://historical-stove-roundtrip-%d.json"%level),"historical upgraded stove roundtrip saves: "+str(level))
+  check(restored.load_save(path) and restored.coins==777 and restored.get_item(1)==identity,"legacy level normalizes without balance/identity change: "+str(level))
+  check(is_equal_approx(Model.stove_speed_multiplier(restored.get_item(1)),1.0) and is_equal_approx(Model.cooking_seconds(Model.stove_speed_multiplier({"level":level})),45.0),"legacy level has base cooking behavior: "+str(level))
+  check(FileAccess.get_sha256(path)==saved_hash,"loading never rewrites historical input: "+str(level))
+  check(restored.save("user://normalized-stove-%d.json"%level),"normalized stove saves: "+str(level))
+  var normalized=JSON.parse_string(FileAccess.get_file_as_string("user://normalized-stove-%d.json"%level))
+  check(normalized.items.all(func(entry):return entry.kind!="stove" or not entry.has("level")),"new save omits every stove level: "+str(level))
   var roundtrip=Model.new()
-  check(roundtrip.load_save("user://historical-stove-roundtrip-%d.json"%level) and roundtrip.coins==777 and roundtrip.get_item(1)==identity,"historical paid level survives second reload: "+str(level))
+  check(roundtrip.load_save("user://normalized-stove-%d.json"%level) and roundtrip.coins==777 and roundtrip.get_item(1)==identity,"normalized identity/balance survives second reload: "+str(level))
+ # A stale live object cannot serialize a bonus or mutate itself through save.
+ model=fresh(777);model.get_item(1).level=3;before=state(model)
+ check(model.save("user://stale-live-stove.json") and state(model)==before,"save normalizes a copy without mutating live state")
+ var cleaned=Model.new()
+ check(cleaned.load_save("user://stale-live-stove.json") and not cleaned.get_item(1).has("level") and cleaned.coins==777,"stale live upgrade never survives save/reload")
+ for invalid in [0,4,-1,1.5,"2"]:
+  var raw=JSON.parse_string(FileAccess.get_file_as_string("user://stove-base-fixture.json"))
+  for entry in raw.items:
+   if entry.kind=="stove":entry.level=invalid
+  var live=fresh(777);before=state(live)
+  check(not live.load_save(write("invalid-stove-level",raw)) and state(live)==before,"invalid historical level rejects atomically: "+str(invalid))
  # Exercise the actual atomic register settlement, including historical earnings.
  model=fresh();model.total_earned=2500;model.served=10;model._spawn_customer()
  var guest=model.customers[0];var register=model.checkout_register();var front=model.workface_cell(register)
