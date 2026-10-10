@@ -75,4 +75,25 @@ async function runParallel(args) {
   fs.writeFileSync(path.join(output, 'wall-compatibility-browser.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
 }
-module.exports = {mergeCases, runParallel};
+function mergeFromFolder(output) {
+  const file = path.join(output, 'wall-compatibility-browser.json');
+  const report = mergeCases(CASES.map(name => JSON.parse(fs.readFileSync(
+    path.join(output, name, 'wall-compatibility-browser.json'), 'utf8'))));
+  const commit = cp.execFileSync('git', ['rev-parse', 'HEAD'],
+    {cwd: path.resolve(__dirname, '..'), encoding: 'utf8'}).trim();
+  assert.equal(report.inputs.new_commit, commit, 'Aggregate must bind this checked-out source');
+  report.execution.runner_isolation = true;
+  if (fs.existsSync(file)) {
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), report,
+      'Existing aggregate must exactly match the two source-bound cases');
+  } else {
+    fs.writeFileSync(file, JSON.stringify(report, null, 2) + '\n');
+  }
+  console.log(JSON.stringify(report, null, 2));
+}
+if (require.main === module) {
+  assert.equal(process.argv[2], '--merge');
+  assert.equal(process.argv.length, 4);
+  mergeFromFolder(path.resolve(process.argv[3]));
+}
+module.exports = {mergeCases, runParallel, mergeFromFolder};

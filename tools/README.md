@@ -31,8 +31,9 @@ own lock, project and disposable profile. The merger rejects missing, duplicate,
 failed or mismatched source/run/attempt reports before the unchanged full-suite
 export validator permits one ordinary export and one CrazyGames variant.
 
-Browser lanes cover play (Inbox and tutorial), compatibility (old/new saves),
-and recovery (IndexedDB, save log and WebKit). Compatibility receives both
+Four browser runners cover tutorial, two old/new compatibility cases, and
+recovery (IndexedDB, save log and WebKit). The shorter compatibility case also
+runs the original Inbox check. Compatibility receives both
 generated projects, including imported resources, and installs the same pinned
 Godot toolchain. Optional Firebase staging receives the candidate project and
 all required browser evidence; its freshness validator remains unchanged.
@@ -40,8 +41,8 @@ Artifacts are scoped to this run, attempt and source. Profiles are never uploade
 The final `gate` exposes release outputs only after every required job succeeds;
 failed, cancelled or skipped mandatory jobs cannot qualify an export.
 
-Inbox and tutorial run in independent processes; both exits must pass. Each
-old/new compatibility case also has its own Chromium process, X display and
+The tutorial runs alone, preserving its original first-autosave deadline. Each
+old/new compatibility case has its own runner, Chromium process, X display and
 loopback origin. Its causal save/retry/reload steps stay sequential. The merged
 receipt requires both cases and identical input, tool and export bindings.
 Play/recovery do not wait for the historical build; compatibility still does.
@@ -59,7 +60,7 @@ runner from about 158s to 126s, excluding setup and transport. This is a plannin
 estimate; the five-minute overall target requires actual CI measurement.
 All gates and exports remain fresh; no cached test results or historical exports
 are substituted. Existing Ubuntu runners are capped at five engine shards and
-three browser lanes. Extra setup/import and artifact transport can increase
+four browser runners. Extra setup/import and artifact transport can increase
 total runner minutes even while reducing elapsed time.
 
 ## Explicit staging, publication, and diagnostics

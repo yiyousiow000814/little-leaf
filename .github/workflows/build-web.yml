@@ -236,26 +236,14 @@ jobs:
           python3 tools/run_firebase_focused.py --gate update-notice.log --output "$RUNNER_TEMP/firebase-focused"
           python3 tools/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
-      - name: Verify compensation history and fresh tutorial in independent Chromium processes
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
         if: matrix.lane == 'play'
         timeout-minutes: 6
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
           node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
-          mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json" > "$RUNNER_TEMP/web-build/evidence/inbox-browser-process.log" 2>&1 &
-          inbox_pid=$!
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-process.log" 2>&1 &
-          tutorial_pid=$!
-          set +e
-          wait "$inbox_pid"; inbox_status=$?
-          wait "$tutorial_pid"; tutorial_status=$?
-          set -e
-          cat "$RUNNER_TEMP/web-build/evidence/inbox-browser-process.log"
-          cat "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-process.log"
-          test "$inbox_status" = 0 && test "$tutorial_status" = 0
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify exported save diagnostic in sandboxed Chromium
         if: matrix.lane == 'recovery'
         timeout-minutes: 5
@@ -289,9 +277,10 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 2
       matrix:
         lane: [compatibility]
+        case: [old_opened_after_new, already_open_old]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -333,6 +322,14 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Verify compensation history in sandboxed Chromium
+        if: matrix.lane == 'compatibility' && matrix.case == 'old_opened_after_new'
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
+          mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
       - name: Check out the exact historical wall-format-1 client
         if: matrix.lane == 'compatibility'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -349,7 +346,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           node tests/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" node tests/wall_compatibility_browser.js --parallel-cases --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
       - name: Collect lane evidence without profiles
         if: always()
         run: |
@@ -359,7 +356,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: little-leaf-browser-${{ matrix.lane }}-${{ github.sha }}-${{ github.run_attempt }}
+          name: little-leaf-browser-${{ matrix.lane }}-${{ matrix.case }}-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/browser-evidence/
           if-no-files-found: warn
           retention-days: 7
@@ -396,6 +393,8 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
+      - name: Require both bound compatibility case receipts
+        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -488,6 +487,10 @@ jobs:
       firebase_artifact_id: ${{ steps.accept.outputs.firebase_artifact_id }}
       firebase_manifest_sha256: ${{ steps.accept.outputs.firebase_manifest_sha256 }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: always() && needs.build.result == 'success'
         with:
@@ -516,6 +519,9 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
+      - name: Require both bound compatibility case receipts
+        if: needs.build.result == 'success' && needs.compatibility.result == 'success'
+        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
