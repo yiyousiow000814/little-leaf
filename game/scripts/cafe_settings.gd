@@ -56,7 +56,7 @@ func load_preferences():
 		sfx_enabled=bool(cfg.get_value("audio","sfx_enabled",true))
 		bgm_volume=clampf(float(cfg.get_value("audio","bgm_volume",70)),0,100)
 		sfx_volume=clampf(float(cfg.get_value("audio","sfx_volume",55)),0,100)
-		frame_rate=120 if cfg.get_value("display","frame_rate",60)==120 else 60
+		frame_rate=30 if cfg.get_value("display","frame_rate",60)==30 else 60
 		var seen=cfg.get_value("updates","last_seen_version","")
 		last_seen_update_version=seen if seen is String else ""
 	Engine.max_fps=frame_rate
@@ -122,7 +122,7 @@ func play_sfx(kind="click"):
 	if not sfx_enabled or sfx_volume<=0 or not is_instance_valid(sfx_player):return
 	if effects.has(kind):sfx_player.stream=effects[kind];sfx_player.play()
 func set_frame_rate(value:int):
-	frame_rate=120 if value==120 else 60
+	frame_rate=30 if value==30 else 60
 	Engine.max_fps=frame_rate
 	sync();save_preferences()
 func set_audio_enabled(kind:String,value:bool):
@@ -183,14 +183,12 @@ func build() -> PanelContainer:
 		slider.drag_ended.connect(func(_changed):flush_preferences())
 	var frames=HBoxContainer.new();box.add_child(frames)
 	var frame_title=game.label("Frame rate",15);frame_title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;frames.add_child(frame_title)
-	frame_rate_choice=OptionButton.new();frame_rate_choice.add_item("60 FPS",60);frame_rate_choice.add_item("120 FPS",120)
+	frame_rate_choice=OptionButton.new();frame_rate_choice.add_item("30 FPS",30);frame_rate_choice.add_item("60 FPS",60)
 	frame_rate_choice.custom_minimum_size=Vector2(112,44);frame_rate_choice.alignment=HORIZONTAL_ALIGNMENT_CENTER
 	frame_rate_choice.add_theme_constant_override("h_separation",8);frames.add_child(frame_rate_choice)
 	frame_rate_choice.resized.connect(_center_frame_rate_content)
 	frame_rate_choice.theme_changed.connect(_center_frame_rate_content)
 	frame_rate_choice.item_selected.connect(func(index):set_frame_rate(frame_rate_choice.get_item_id(index));_center_frame_rate_content())
-	var frame_note=game.label("120 FPS may use more battery and produce more heat. Actual FPS depends on your device.",11,Color("8b937b"))
-	frame_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(frame_note)
 	preference_storage_note=game.label("Changes are saved automatically",11,Color("8b937b"))
 	preference_storage_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(preference_storage_note)
@@ -224,7 +222,7 @@ func sync():
 	_sync_preference_storage_notice()
 	if cloud_settings!=null:cloud_settings.sync()
 	if is_instance_valid(frame_rate_choice):
-		var selected=1 if frame_rate==120 else 0
+		var selected=0 if frame_rate==30 else 1
 		if frame_rate_choice.selected!=selected:
 			frame_rate_choice.select(selected);_center_frame_rate_content()
 	if is_instance_valid(game.pause_button):game.pause_button.text="Resume" if game.paused else "Pause"

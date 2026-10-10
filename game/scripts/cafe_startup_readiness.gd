@@ -82,7 +82,8 @@ func _after_draw():
 	# warming do not count toward drawing the final uploaded texture set.
 	if terminal_count == atlases.size():terminal_draws += 1
 	else:terminal_draws = 0
-	if terminal_draws >= 2:
+	# Include stable-resource admission, upload and one completed retained draw.
+	if terminal_draws >= 4:
 		finishing = true
 		_finish.call_deferred()
 

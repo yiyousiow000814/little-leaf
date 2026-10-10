@@ -12,6 +12,7 @@ import shutil
 import subprocess
 
 from build_web import ROOT, LOCK
+from optimize_web_present import optimize_presentation
 from artifacts import sha256
 import artifacts
 
@@ -160,9 +161,11 @@ def main():
     for name, hashes in variant["transformed_inputs"].items():
         if sha256(project / name) != hashes["staged_sha256"]:
             raise RuntimeError("Export changed staged developer preview input: " + name)
+    presentation_optimization = optimize_presentation(web / "index.js")
     manifest = {"source_commit": commit, "source_tree": tree, "godot": version,
                 "platform": "crazygames", "existing_web_gate_checks": legacy["engine_checks"],
                 "save_variant": variant,
+                "presentation_optimization": presentation_optimization,
                 "toolchain_verification": legacy["toolchain_verification"], "stages": stages,
                 "browser_runtime": "requires separate browser/hosted validation",
                 "files": {p.name: {"bytes": p.stat().st_size, "sha256": sha256(p)}

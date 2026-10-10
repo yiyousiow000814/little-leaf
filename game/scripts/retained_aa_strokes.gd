@@ -19,7 +19,7 @@ func _quad(a: Vector2,b: Vector2,c: Vector2,d: Vector2,ca: Color,cb: Color,cc: C
 	# GLES3 CommandPrimitive uses 0,1,2 then 0,2,3, including the corner diagonal.
 	for index in [0,1,2,0,2,3]:indices.append(first+index)
 
-func add_line(from: Vector2,to: Vector2,color: Color,width: float):
+func add_line(from: Vector2,to: Vector2,color: Color,width: float,feather_override: float=-1.0):
 	assert(is_finite(width) and width>=0.0,"Retained AA strokes require a finite nonnegative width")
 	# The RenderingServer API takes a float32 width, even in GDScript's float64 VM.
 	var native_width: float=PackedFloat32Array([width])[0]
@@ -32,6 +32,7 @@ func add_line(from: Vector2,to: Vector2,color: Color,width: float):
 	var d := to-half_width
 	var feather := FEATHER_SIZE
 	if native_width<1.0:feather=PackedFloat32Array([feather*native_width])[0]
+	if feather_override>=0.0:feather=feather_override
 	var side := direction*feather
 	var end := diff.normalized()*feather
 	var clear := Color(color,0.0)

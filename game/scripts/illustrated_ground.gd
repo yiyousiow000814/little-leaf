@@ -7,7 +7,9 @@ extends RefCounted
 
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const AAStrokes=preload("res://scripts/retained_aa_strokes.gd")
-var use_stroke_mesh := true
+# Native multiline keeps zoom-dependent AA generation inside the engine.
+# The former scripted mesh path remains available for renderer comparisons.
+var use_stroke_mesh := false
 var pavement_mesh: ArrayMesh
 var floor_mesh: ArrayMesh
 var pavement_stroke_mesh: ArrayMesh
@@ -168,23 +170,23 @@ func _begin(artist) -> float:
 
 func draw_pavement(artist):
 	var scale := _begin(artist)
-	artist.draw_mesh(pavement_mesh,null)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,pavement_mesh,null)
 	if use_stroke_mesh:
 		prepare_pavement_strokes(scale)
-		artist.draw_mesh(pavement_stroke_mesh,null)
+		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,pavement_stroke_mesh,null)
 	else:
 		for i in range(2):
-			if not pavement_edges[i].is_empty():artist.draw_multiline(pavement_edges[i],PAVEMENT_COLORS[i],.7/scale,true)
-		artist.draw_multiline(pavement_grid,Color("c7cbae"),.7/scale,true)
+			if not pavement_edges[i].is_empty():preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,pavement_edges[i],PAVEMENT_COLORS[i],.7/scale,true)
+		preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,pavement_grid,Color("c7cbae"),.7/scale,true)
 	artist.art_transform(Vector2.ZERO)
 
 func draw_floor(artist):
 	var scale := _begin(artist)
-	artist.draw_mesh(floor_mesh,null)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,floor_mesh,null)
 	if use_stroke_mesh:
 		prepare_floor_strokes(scale)
-		artist.draw_mesh(floor_stroke_mesh,null)
+		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,floor_stroke_mesh,null)
 	else:
 		for batch in floor_strokes:
-			if not batch.lines.is_empty():artist.draw_multiline(batch.lines,batch.color,float(batch.width)/scale,true)
+			if not batch.lines.is_empty():preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,batch.lines,batch.color,float(batch.width)/scale,true)
 	artist.art_transform(Vector2.ZERO)

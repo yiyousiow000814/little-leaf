@@ -67,14 +67,8 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
  f.top_ellipse(0,-.35,30,.037,.020,"e4d99e")
  f.box(0,.32,.22,.12,29,31,"d4c995","a2976c","8b835f")
  f.top_ellipse(0,.35,31.2,.045,.024,"779d88")
- var progress=0.0;var recent=false;var paying=false
- if "game" in artist and is_instance_valid(artist.game):
-  var game=artist.game
-  for staff in game.staff_states:
-   if staff.job_kind=="take_payment" and int(staff.station_id)==id and staff.art_action=="taking_payment":paying=true;progress=clampf(float(staff.art_phase),0,1)
-  for guest in game.model.customers:
-   if guest.paid and int(guest.get("checkout_register_id",-1))==id and guest.phase=="leaving" and float(guest.elapsed)<1.2:recent=true
- var light="79ac78" if recent else ("e2c973" if paying else "526f62")
+ var state=register_visual_state(artist,id)
+ var light=state.light;var recent=state.recent
  # Local -Z is the employee side. Keep the keys on that side of the
  # employee-facing screen, with both seated on the existing till base.
  # The receipt leaves the customer side of the terminal. In employee views
@@ -96,3 +90,14 @@ static func draw_register(f,artist:Node2D,p:Vector2,rotation:int,id:int):
    if employee_visible:
     f.face([f.point(-.13,-.021,34),f.point(.13,-.021,34),f.point(.13,-.021,37.8),f.point(-.13,-.021,37.8)],"d4e1b7",.5)
  return true
+
+static func register_visual_state(artist:Node2D,id:int)->Dictionary:
+ var recent=false;var paying=false
+ if "game" in artist and is_instance_valid(artist.game):
+  var game=artist.game
+  for staff in game.staff_states:
+   if staff.job_kind=="take_payment" and int(staff.station_id)==id and staff.art_action=="taking_payment":paying=true
+  for guest in game.model.customers:
+   if guest.paid and int(guest.get("checkout_register_id",-1))==id and guest.phase=="leaving" and float(guest.elapsed)<1.2:recent=true
+ var light="79ac78" if recent else ("e2c973" if paying else "526f62")
+ return {"light":light,"recent":recent}

@@ -22,6 +22,7 @@ var turn: int
 const StaticAtlas = preload("res://scripts/furniture_static_atlas.gd")
 static var static_atlas = StaticAtlas.new()
 var cache_enabled := false
+var use_retained_station_parts=true
 # Matched control: keep the established station/decor cache but bypass new items.
 var expanded_parts_enabled := true
 
@@ -70,7 +71,9 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 	var sequence := part_sequence(kind,rotation)
 	if sequence.is_empty(): return false
 	prepare_cache(artist)
-	if not _can_cache(artist,p): return _draw_item_legacy(artist,kind,p,rotation,id)
+	var cached=_can_cache(artist,p)
+	var retained=use_retained_station_parts and artist.has_method("retain_native_local_object") and artist.use_native_object_nodes and artist.canvas_stream.active
+	if not cached and not retained:return _draw_item_legacy(artist,kind,p,rotation,id)
 	a=artist;origin=p;turn=posmod(rotation,4)
 	for part in sequence:
 		if part=="heat":
@@ -78,7 +81,11 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 		elif part=="payload":
 			if artist.has_method("_station_payloads"): artist._station_payloads(id,kind,turn)
 		else:
-			_cached_part(artist,part,p,turn)
+			if retained:
+				var paint=_paint_retained_part.bind(artist,part,turn,cached)
+				var placement=artist._art_transform.translated_local(p)
+				if not artist.retain_native_local_object(paint,["station-part",part,turn,cached],placement):_paint_retained_part_at(artist,part,p,turn,cached)
+			else:_paint_retained_part_at(artist,part,p,turn,cached)
 			if part=="stove_pan" and artist.has_method("_stove_food"):artist._stove_food(id,turn)
 	return true
 
@@ -471,3 +478,10 @@ func _draw_bench_part_legacy(artist:Node2D,p:Vector2,rotation:int,back_only:bool
 		for x in [-.34,.34]:
 			for z in [-.20,.20]:edge(point(x,z,0),point(x,z,16),"9c8152",3)
 		box(0,0,.87,.55,13,19,"c6c99e","a7b588","9aaa7d")
+
+func _paint_retained_part(artist:Node2D,part:String,rotation:int,cached:bool):
+	_paint_retained_part_at(artist,part,Vector2.ZERO,rotation,cached)
+
+func _paint_retained_part_at(artist:Node2D,part:String,p:Vector2,rotation:int,cached:bool):
+	if cached:_cached_part(artist,part,p,rotation)
+	else:draw_static_part(artist,part,p,rotation)

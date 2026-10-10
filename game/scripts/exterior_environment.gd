@@ -241,6 +241,15 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 		# People keep their own visibility and the same depth-order callback.
 		if under_roof.is_valid():under_roof.call()
 		return
+	# Keep the original back/people/front painter order. Static shelter art
+	# uses the same native object retention as the bus and parked vehicles.
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_back.bind(a),Vector2.ZERO,["shelter-back"]):
+		_draw_shelter_back(a)
+	if under_roof.is_valid():under_roof.call()
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_front.bind(a),Vector2.ZERO,["shelter-front"]):
+		_draw_shelter_front(a)
+
+static func _draw_shelter_back(a):
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -257,7 +266,9 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 	quad_height(a,-13.05,6.3,-12.5,9.5,18,"b3a079")
 	a.poly([a.iso(-13.05,6.3,20),a.iso(-13.05,9.5,20),a.iso(-13.05,9.5,34),a.iso(-13.05,6.3,34)],"b8a581")
 	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
-	if under_roof.is_valid():under_roof.call()
+
+static func _draw_shelter_front(a):
+	var scale=a.ui_scale*a.zoom
 	for z in [5.75,10.15]:
 		a.ellipse(a.iso(-11.8,z),Vector2(4,2)*scale,"a8b59b")
 		a.line(a.iso(-11.8,z),a.iso(-11.8,z,SHELTER_HEIGHT),"789270",3*scale)
@@ -270,8 +281,8 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 	var sign=a.iso(-10.7,11.05)
 	a.line(sign,a.iso(-10.7,11.05,58),"7a8c72",2.2*scale)
 	var top=a.iso(-10.7,11.05,66)
-	a.draw_rect(Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
-	a.draw_rect(Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
+	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
+	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
 	for x in [-3,3]:a.ellipse(top+Vector2(x,11)*scale,Vector2(1.1,1.1)*scale,"e5e3cb")
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
@@ -318,12 +329,14 @@ static func parking_cars(visits:Array)->Array[Dictionary]:
 	return entries
 
 static func draw_oriented_car(a,p:Vector2,heading:Vector2,color):
+	if a.has_method("retain_native_car") and a.retain_native_car(p,heading,color,true):return
 	var projection=CarProjection.new(a,p,heading)
 	# draw_car's conservative bounds pass through the same world transform;
 	# horizontal cars cannot disappear because of a vertical-only culling box.
 	draw_car(projection,Vector2.ZERO,projection.direction,color)
 
 static func draw_car(a,p:Vector2,direction:int,color):
+	if a.has_method("retain_native_car") and a.retain_native_car(p,Vector2(0,direction),color,false):return
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
 	var half=.60;var length=1.1
 	quad(a,p.x-half,p.y-length,p.x+half,p.y+length,Color(.35,.42,.33,.14))
@@ -351,7 +364,10 @@ static func bus_face(a,p:Vector2,x:float,z0:float,z1:float,h0:float,h1:float,col
 	a.rounded_poly([bus_point(a,p,x,z0,h0),bus_point(a,p,x,z1,h0),bus_point(a,p,x,z1,h1),bus_point(a,p,x,z0,h1)],radius*a.ui_scale*a.zoom,color)
 
 static func draw_bus(a,p:Vector2):
+	# Test the world-space bounds before entering the local retained painter.
+	# That painter deliberately disables culling while recording a full object.
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(1,2.85),Vector2(2,5.7)),60)):return
+	if a.has_method("retain_native_world_object") and a.retain_native_world_object(draw_bus.bind(a,Vector2.ZERO),p,["bus"]):return
 	# A dedicated original 2D illustration, not an elongated passenger car.
 	var scale=a.ui_scale*a.zoom;var half=.77;var length=2.60
 	quad(a,p.x-.85,p.y-2.7,p.x+.85,p.y+2.7,Color(.35,.42,.33,.16))

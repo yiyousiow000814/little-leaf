@@ -24,11 +24,12 @@ func run():
  artist._stroke_to_raster=Transform2D.IDENTITY
  artist._stroke_raster_scale=8.0
  check(not artist.art_cache_covers(Rect2(1,1,20,20),4.0),"Visible magnified art must use source geometry")
- check(artist.art_cache_covers(Rect2(-1000,-1000,20,20),4.0),"Offscreen pieces should stay cached")
+ check(not artist.art_cache_covers(Rect2(-1000,-1000,20,20),4.0),"Magnified offscreen art must retain source geometry before panning into view")
  artist._stroke_raster_scale=4.0
  check(artist.art_cache_covers(Rect2(1,1,20,20),4.0),"Native-resolution cache should remain active")
  artist._stroke_raster_scale=.8
  check(artist.art_cache_covers(Rect2(1,1,20,20),4.0),"Normal zoom should remain cached")
+ check(artist.art_cache_covers(Rect2(-1000,-1000,20,20),4.0),"Offscreen art within atlas resolution remains cached")
  artist.free()
  print("ART_RASTER_STROKE_TESTS checks=",checks," failures=",failures)
  quit(0 if failures==0 else 1)
