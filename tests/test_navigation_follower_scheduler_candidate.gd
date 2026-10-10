@@ -38,6 +38,57 @@ func drain(scheduler,epoch:int):
 		if progress.retained==0:return
 	check(false,"consumer leaves no retained request")
 
+func changed_tail_scenario():
+	var scheduler=Scheduler.new();var state=actor()
+	var initial=Nav.advance(grid(),state,Vector2(.5,.5),.4,1.0,[],scheduler,1)
+	var position:Vector2=initial.position
+	var changed=grid();changed.revision=[2];changed.solids[Vector2i(2,2)]=true
+	var continuing=Nav.advance(changed,state,position,.3,1.0,[],scheduler,2)
+	check(continuing.status=="walking" and is_equal_approx(continuing.distance,.3),"future obstruction permits budgeted legal current-leg movement")
+	check(scheduler._jobs.is_empty(),"no search before actor reaches actual safe center")
+	position=continuing.position
+	var remaining=position.distance_to(Nav.center(Vector2i.ONE))
+	var anchored=Nav.advance(changed,state,position,100.0,1.0,[],scheduler,2)
+	check(anchored.status=="pending" and anchored.position==Nav.center(Vector2i.ONE) and is_equal_approx(anchored.distance,remaining),"large frame stops at next anchor without traversing invalid tail")
+	check(state.request_origin==Vector2i.ONE,"replan starts at actual reached center")
+	var old_id=int(state.request);finish(scheduler,old_id,2)
+	var newest=changed.duplicate(true);newest.revision=[3];newest.solids[Vector2i(2,1)]=true
+	var stale=Nav.advance(newest,state,anchored.position,.1,1.0,[],scheduler,3)
+	check(stale.status=="pending" and stale.distance==0 and state.request!=old_id,"stale completed layout route cannot leave safe anchor")
+	var next_id=int(state.request);finish(scheduler,next_id,3)
+	var delivered=Nav.advance(newest,state,anchored.position,0.0,1.0,[],scheduler,3)
+	check(delivered.replanned and state.plan.route[0]==Vector2i.ONE,"newest result delivered from safe anchor")
+	for i in range(1,state.plan.route.size()):
+		check(Nav.can_step(newest,state.plan.route[i-1],state.plan.route[i]),"replanned leg preserves edge/corner/segment legality")
+	var arrived=Nav.advance(newest,state,anchored.position,100.0,1.0,[],scheduler,3)
+	check(arrived.status=="arrived" and arrived.position==Nav.center(Vector2i(3,3)),"representative detour arrives at original caller endpoint")
+	drain(scheduler,3)
+	# Blocking any current diagonal corner/edge or sweep forbids even anchor travel.
+	for obstacle in ["corner","edge","frame"]:
+		state=actor();scheduler=Scheduler.new();var geometry=grid();geometry.revision=[2]
+		if obstacle=="corner":geometry.solids[Vector2i(1,0)]=true
+		elif obstacle=="edge":geometry.edges[Nav.edge_key(Vector2i(1,0),Vector2i.ONE)]=true
+		else:geometry.barriers.append(Rect2(Vector2(.99,.99),Vector2(.02,.02)))
+		var stopped=Nav.advance(geometry,state,initial.position,100.0,1.0,[],scheduler,2)
+		check(stopped.status=="blocked_mid_segment" and stopped.position==initial.position and stopped.distance==0,"current diagonal "+obstacle+" obstruction stops without snap")
+		check(scheduler._jobs.is_empty(),"no search from unsafe current "+obstacle)
+	state=actor();var legacy=Nav.advance(changed,state,initial.position,100.0,1.0)
+	check(legacy.status=="blocked_mid_segment" and legacy.distance==0,"legacy caller preserves old mid-segment behavior")
+
+func scheduler_lifecycle():
+	var snapshot=blocked();var original=Scheduler.new();var replacement=Scheduler.new();var state=actor()
+	step(snapshot,state,original);var old_id=int(state.request);finish(original,old_id,2)
+	var switched=step(snapshot,state,replacement)
+	check(switched.status=="pending" and state.request_scheduler==replacement,"new scheduler owns replacement request even if numeric IDs match")
+	check(original.take_result(old_id,2).status=="unknown","replacement consumes old scheduler result")
+	Nav.cancel_replan(state)
+	check(state.request==0 and not state.has("request_scheduler"),"abandonment uses recorded owner and releases its reference")
+	drain(original,2);drain(replacement,2)
+	original=Scheduler.new();state=actor();step(snapshot,state,original);old_id=int(state.request)
+	var legacy=Nav.advance(snapshot,state,Vector2(.5,.5),.2,1.0)
+	check(legacy.replanned and state.request==0 and original.take_result(old_id,2).status=="unknown","legacy fallback cancels outstanding scheduled request")
+	drain(original,2)
+
 func _initialize():run.call_deferred()
 func run():
 	var snapshot=blocked();var scheduler=Scheduler.new();var state=actor()
@@ -106,5 +157,6 @@ func run():
 	check(old.replanned and old.distance>0,"old advance signature retains synchronous replan")
 	scheduler=Scheduler.new();state=actor();var normal=step(grid(),state,scheduler,1)
 	check(normal.status=="walking" and scheduler._jobs.is_empty(),"valid route does not allocate search")
+	changed_tail_scenario();scheduler_lifecycle()
 	print("NAVIGATION_SCHEDULER_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"production_enabled":false}))
 	quit(0 if failures.is_empty() else 1)

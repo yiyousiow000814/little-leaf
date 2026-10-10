@@ -78,13 +78,25 @@ separately under its shared budget. A pending follower holds position and consum
 one completed result. Layout epoch/revision, task token, endpoint and origin
 must still match; the existing endpoint ownership callback approves movement.
 An obsolete request is cancelled and consumed before retry. Claim loss and a
-terminal replacement plan also clear it. `cancel_replan(state, scheduler)` is
-required when abandoning a follower; the owner continues ticking cleanup.
+terminal replacement plan also clear it. `cancel_replan(state)` is required when
+abandoning a follower; its transient request records the owning scheduler, and
+the caller continues ticking that scheduler's cleanup. Passing a scheduler is
+still supported for existing candidate callers.
 
-Keep the same scheduler instance for the lifetime of a follower's outstanding
-request. Snapshots remain immutable and epochs monotonic as specified above.
+Changing scheduler instances or returning to the old synchronous advance API
+cancels and consumes the original request before proceeding. Numeric request IDs
+are scoped to their recorded scheduler, so equal IDs on two instances cannot
+deliver another actor's route. The owner retains abandoned scheduler instances
+until their cooperative cleanup finishes. Snapshots remain immutable and epochs
+monotonic as specified above.
 `backpressure` holds position for a later retry; search errors are returned to
-the caller. Mid-segment invalidation still stops without rounding or snapping.
+the caller. For scheduled callers, a changed layout that invalidates only future
+legs permits finishing the still-legal current segment within the movement
+budget. All four diagonal edges, corner cells and body sweeps must still pass.
+Movement stops exactly at its next center, submits a replan there and discards
+the unused frame movement budget instead of following the invalid tail. A
+blocked current leg or an off-segment position stops without rounding/snapping.
+Legacy synchronous callers retain their original mid-segment stop behavior.
 No claims, task allocation, endpoint selection or service timings are introduced.
 Remaining-route validation and snapshot construction are still synchronous;
 this slice bounds search work only, not the entire controller/frame workload.
@@ -107,6 +119,15 @@ endpoint/origin results cannot move it, unreachable goals report failure, retain
 slots are reclaimed and the original advance signature continues working.
 Use `--only-follower` for these focused regressions; no full scheduler matrix or
 FPS measurement is required for this consumption change.
+
+The representative changed-tail fixture starts partway along a diagonal, inserts
+a future obstacle, reaches the next safe waypoint, completes a scheduled replan,
+then changes the layout again before delivery. The stale result cannot move the
+actor; the new detour's legs are checked with the same corner/segment rules and
+reach the original endpoint. Separate current-leg corner/edge/frame variants
+must stop without displacement. Scheduler replacement with equal numeric IDs,
+owner-recorded abandonment and legacy fallback verify no retained delivery leaks.
+These are transient controller tests, not persisted diagonal save acceptance.
 
 ### Frozen model geometry adapter
 

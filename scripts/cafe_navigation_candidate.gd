@@ -147,31 +147,39 @@ static func follower(plan_result:Dictionary,task_token:int,owns_endpoint:Callabl
 	# The callback belongs to the existing claim authority, not a second ledger.
 	return {"plan":plan_result.duplicate(true),"index":1,"token":task_token,"owns":owns_endpoint}
 
-static func _remaining_valid(snapshot:Dictionary,state:Dictionary,position:Vector2)->bool:
+static func _current_leg_valid(snapshot:Dictionary,state:Dictionary,position:Vector2)->bool:
 	var route:Array=state.plan.route;var index=int(state.index)
 	if route.is_empty() or index<1 or index>route.size() or not position.is_finite():return false
 	if index==route.size():return position.distance_to(center(route[-1]))<.000001 and open_cell(snapshot,route[-1])
 	var a=center(route[index-1]);var b=center(route[index])
 	if Geometry2D.get_closest_point_to_segment(position,a,b).distance_to(position)>.000001:return false
+	return can_step(snapshot,route[index-1],route[index]) and sweep_clear(snapshot,position,b)
+
+static func _remaining_valid(snapshot:Dictionary,state:Dictionary,position:Vector2)->bool:
+	if not _current_leg_valid(snapshot,state,position):return false
+	var route:Array=state.plan.route;var index=int(state.index)
 	for i in range(index,route.size()):
 		if not can_step(snapshot,route[i-1],route[i]):return false
-	return sweep_clear(snapshot,position,b)
+	return true
 
-static func cancel_replan(state:Dictionary,scheduler):
+static func cancel_replan(state:Dictionary,scheduler=null):
 	# Call on task abandonment too: retained requests must be consumed once.
 	var id=int(state.get("request",0))
-	if id!=0:
-		scheduler.cancel(id);scheduler.take_result(id,int(state.request_epoch))
+	var owner=state.get("request_scheduler",scheduler)
+	if id!=0 and owner!=null:
+		owner.cancel(id);owner.take_result(id,int(state.request_epoch))
 	state.request=0
+	state.erase("request_scheduler")
 
 static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:float,speed:float,people:Array=[],scheduler=null,epoch:int=0)->Dictionary:
 	var result={"status":"walking","position":position,"distance":0.0,"replanned":false}
 	if not position.is_finite() or not is_finite(delta) or delta<0.0 or not is_finite(speed) or speed<=0.0:result.status="invalid_input";return result
+	if int(state.get("request",0))!=0 and state.get("request_scheduler",scheduler)!=scheduler:cancel_replan(state,scheduler)
 	if state.plan.status!="found":
-		if scheduler!=null:cancel_replan(state,scheduler)
+		cancel_replan(state,scheduler)
 		result.status=state.plan.status;return result
 	if not state.owns.is_valid() or not state.owns.call(state.token):
-		if scheduler!=null:cancel_replan(state,scheduler)
+		cancel_replan(state,scheduler)
 		result.status="stale_claim";return result
 	if scheduler!=null and int(state.get("request",0))!=0:
 		# Never deliver a route for a changed task, layout, endpoint or anchor.
@@ -181,28 +189,40 @@ static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:
 			var ready:Dictionary=scheduler.take_result(int(state.request),epoch)
 			if ready.status=="pending":result.status="pending";return result
 			state.request=0
+			state.erase("request_scheduler")
 			if ready.status!="found":result.status=ready.status;return result
 			state.plan=ready;state.index=1;result.replanned=true
+	# Soft avoidance changes speed only, including the last safe segment before
+	# a replan. No displacement, wait lock or hard actor occupancy is introduced.
+	var scale=1.0
+	for person in people:
+		if person is Vector2 and person.is_finite() and person.distance_to(position)<.6:scale=.85;break
+	var budget=delta*speed*scale
 	if not _remaining_valid(snapshot,state,position):
 		# Only an actual safe node is an anchor. Never round/snap mid-segment.
 		var cell=Vector2i(floori(position.x),floori(position.y))
+		if position.distance_to(center(cell))>.000001 and scheduler!=null and _current_leg_valid(snapshot,state,position):
+			# A future obstruction need not strand an actor on a legal current leg.
+			# Spend this frame only reaching its next center, never the invalid tail.
+			var target=center(state.plan.route[int(state.index)])
+			var distance=position.distance_to(target);var step=minf(distance,budget)
+			position=position.move_toward(target,step);result.position=position;result.distance=step
+			if step<distance: return result
+			position=target;result.position=target;cell=state.plan.route[int(state.index)];state.index+=1
 		if position.distance_to(center(cell))>.000001 or not open_cell(snapshot,cell):result.status="blocked_mid_segment";return result
 		if scheduler!=null:
 			var id:int=scheduler.submit(snapshot,cell,state.plan.route[-1],epoch)
 			if id==0:result.status="backpressure";return result
 			state.request=id;state.request_epoch=epoch;state.request_revision=snapshot.revision.duplicate()
+			state.request_scheduler=scheduler
 			state.request_token=state.token;state.request_origin=cell;state.request_goal=state.plan.route[-1]
 			result.status="pending";return result
 		var replacement=plan(snapshot,cell,state.plan.route[-1])
 		if replacement.status!="found":result.status=replacement.status;return result
 		state.plan=replacement;state.index=1;result.replanned=true
 	else:state.plan.revision=snapshot.revision.duplicate(true)
-	# Safe speed-only avoidance: always positive, no displacement through solids,
-	# no wait locks, no route churn. Docking/contact adapters must disable it.
-	var scale=1.0
-	for person in people:
-		if person is Vector2 and person.is_finite() and person.distance_to(position)<.6:scale=.85;break
-	var budget=delta*speed*scale;var route:Array=state.plan.route
+	# Docking/contact adapters must disable soft avoidance.
+	var route:Array=state.plan.route
 	while budget>.0000001 and int(state.index)<route.size():
 		var target=center(route[int(state.index)]);var distance=position.distance_to(target)
 		var step=minf(distance,budget)
