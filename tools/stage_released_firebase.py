@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 import build_firebase
 from artifacts import sha256, validate_export_inventory
@@ -118,14 +119,18 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     config = json.loads((root / 'platform/firebase/public-config.json').read_text())
     require(config.get('projectId') == 'little-leaf-41e5d'
             and config.get('authDomain') == 'little-leaf-41e5d.firebaseapp.com', 'Wrong public Firebase project')
-    # The existing shell transformation is reused with an explicit source root.
-    # No boot/build source, runtime byte, security rule, or auth diagnostic is edited.
-    previous_root = build_firebase.ROOT
-    try:
-        build_firebase.ROOT = root
-        build_firebase.stage(reuse, output, config)
-    finally:
-        build_firebase.ROOT = previous_root
+    # Execute the released source's transformer, never a newer main version
+    # which might inject 0.1.11 binding modules into the frozen 0.1.10c runtime.
+    command = ('import json,sys; from pathlib import Path; '
+               'sys.path.insert(0,sys.argv[1]); from build_firebase import stage; '
+               'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
+               'json.loads(Path(sys.argv[4]).read_text()))')
+    environment = os.environ.copy()
+    for key in ['GH_TOKEN', 'GITHUB_TOKEN', 'BUTLER_API_KEY', 'FIREBASE_HOSTING_ACCESS_TOKEN']:
+        environment.pop(key, None)
+    subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
+                    str(output.resolve()), str(root / 'platform/firebase/public-config.json')],
+                   cwd=root, env=environment, check=True, timeout=90)
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())
     marker['tag'] = selection['release_tag']
@@ -144,6 +149,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'release_run_id': selection['release_run_id'], 'release_tag': selection['release_tag'],
         'fresh_firebase_gate_sha256': records, 'hosted_acceptance': False,
         'live_activation_allowed': False, 'production_security_changes': False}
+    proof['released_transformer_sha256'] = sha256(root / 'tools/build_firebase.py')
     coordinator = Path(__file__).resolve().parents[1]
     proof['coordinator_source_commit'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
