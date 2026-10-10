@@ -1,0 +1,42 @@
+name: Qualify table ground-contact cache
+on:
+  workflow_dispatch:
+  push:
+    branches: [qa/table-ground-canonical]
+  pull_request:
+    paths:
+      - '.github/workflows/table-ground-contact-visual.yml'
+jobs:
+  table-cache:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install existing checksum-pinned official engine
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/table-tools"
+      - name: Prepare canonical renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
+      - name: Regenerate owned table cell and verify lossless imports
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python3 tests/diagnostics/qualify_table_atlas.py --godot "$RUNNER_TEMP/table-tools/godot" --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/table-cache"
+      - name: Preserve source-bound cache evidence without profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: table-cache-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/table-cache/*.json
+            ${{ runner.temp }}/table-cache/*.png
+            ${{ runner.temp }}/table-cache/*.log
+          if-no-files-found: error
+          retention-days: 7
