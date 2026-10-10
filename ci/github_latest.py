@@ -4,10 +4,13 @@ Only this job is serialized. Every run rereads all pages, so delayed/backfill ru
 converge on the highest eligible published release rather than their own tag.
 """
 import datetime,json,os,re,subprocess
-PATTERN=r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]?)'
+from release_metadata import release_key
+
 def key(tag):
- m=re.fullmatch(PATTERN,tag) if isinstance(tag,str) else None
- return (*map(int,m.groups()[:3]),ord(m[4])-96 if m[4] else 0) if m else None
+ if not isinstance(tag, str) or not tag.startswith('v'):return None
+ try:return release_key(tag[1:])
+ except ValueError:return None
+
 def run(*args):return subprocess.check_output(args,text=True).strip()
 def latest(repo):
  result=subprocess.run(['gh','api','--include',f'repos/{repo}/releases/latest'],text=True,capture_output=True)

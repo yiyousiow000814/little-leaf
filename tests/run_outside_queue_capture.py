@@ -34,7 +34,7 @@ def main():
             else:
                 shutil.copytree(ROOT, project, dirs_exist_ok=True,
                     ignore=shutil.ignore_patterns(".git", ".godot", "qa-project", "__pycache__", "evidence", "*.log"))
-            shutil.copy2(ROOT / "tests/capture_outside_queue.gd", project / "tests/capture_outside_queue.gd")
+            shutil.copy2(ROOT / "tests/diagnostics/capture_outside_queue.gd", project / "tests/diagnostics/capture_outside_queue.gd")
             evidence = output / label
             evidence.mkdir()
             env = os.environ.copy()
@@ -45,7 +45,7 @@ def main():
             env["QUEUE_OUTPUT"] = str(evidence)
             env["QUEUE_SOURCE"] = BASE if label == "before" else "candidate working tree"
             for phase, flags in [("import", ["--headless", "--editor", "--import", "--quit"]),
-                                 ("motion", ["--script", "res://tests/capture_outside_queue.gd", "--", "--visual-qa", "--fresh-review", "--skip-intro"])]:
+                                 ("motion", ["--script", "res://tests/diagnostics/capture_outside_queue.gd", "--", "--visual-qa", "--fresh-review", "--skip-intro"])]:
                 result = subprocess.run([engine, "--audio-driver", "Dummy", "--path", str(project), *flags],
                     env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=240,
                     creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)

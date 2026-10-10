@@ -32,7 +32,7 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_cloud_geometry.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(path.join(root,n)))]))};
 const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
@@ -57,7 +57,7 @@ html=html.replace('window.__littleLeafVault.boot()','window.__littleLeafFirebase
 const injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start('+JSON.stringify(config)+'));</script>';
 assert.equal(html.split('<script src="index.js"></script>').length,2);
 html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>');
-const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
+const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signInWithPopup=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
 const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});globalThis.__qaFirestore={db,sdk:real};return db;}`;
 const server=http.createServer((req,res)=>{
  try{const p=new URL(req.url,'http://127.0.0.1').pathname;
@@ -126,6 +126,12 @@ try{
  // Old cache has proven no pending branch: cloud wins without upload or prompt.
  {const uid='fullflow-cache',base=await record(1,41000),cloud=await record(8,42000,base.profileId);await seed(uid,cloud);
  const d=await launch(await setup(uid,{record:base,base:base.digest,pending:false,device:'Mac'}));
+ const sso=await d.page.evaluate(async()=>{
+  const sdk=await import('https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js'),auth=sdk.getAuth(),before=auth.currentUser,rejected=[];
+  for(const name of ['signInWithPopup','signInWithRedirect']){try{await sdk[name](auth,new sdk.GoogleAuthProvider());}catch(error){if(error.message==='SSO is outside this synthetic test')rejected.push(name);}}
+  return {rejected,accountUnchanged:auth.currentUser===before};
+ });
+ check(sso.accountUnchanged && sso.rejected.join(',')==='signInWithPopup,signInWithRedirect','synthetic popup and redirect reject without changing the authenticated fixture');
  await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'));
  check((await read(uid)).digest===cloud.digest,'harmless cached save never uploaded on re-entry');check(!(await snapshot(d.page)).choicesAvailable,'harmless cache gives no choice');
  check((await journal(d.page,uid)).record.digest===cloud.digest,'latest cloud automatically loaded into journal');await shot(d.page,'old-cache-cloud-loaded');await d.context.close();}
