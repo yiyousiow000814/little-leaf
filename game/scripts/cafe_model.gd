@@ -1761,7 +1761,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var openings_check=_validate_saved_attachments(data,built_walls)
 	if not openings_check.ok:return _fail("Could not save wall attachments: "+str(openings_check.error))
 	# Match load's structural safety gates before touching either destination.
-	# In particular an explicitly imported v13 enclosure must be repaired first.
+	# Idle layouts require body clearance; active customers also require egress.
 	var saved_actors:Array=[]
 	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
 	var physical_error=_furniture_body_error(items,saved_actors)
