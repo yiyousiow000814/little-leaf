@@ -19,6 +19,11 @@ const DEPART_LENGTH=9.0
 var actors:Array[Dictionary]=[]
 var motion=Motion.new()
 var elapsed=0.0
+# Transient traffic commitment, excluded from all save envelopes.
+var merge_reserved=false
+var approach_reserved=false
+var traffic_approach_region=Rect2()
+var traffic_merge_region=Rect2()
 func _init():
 	for i in range(GROUP_SIZE):
 		var wait:Vector2=Neighborhood.WAITING_POINTS[i]
@@ -79,9 +84,10 @@ func alighting_clearance()->float:
 			clearance=maxf(clearance,actor.exit_offset+route_duration(corridor,actor.walk_speed))
 	return clearance
 func boarding_start()->float:return actors[0].board_start
-func bus_snapshot()->Dictionary:
+func bus_snapshot()->Dictionary:return snapshot_at(elapsed)
+func snapshot_at(clock:float)->Dictionary:
 	var period:float=actors[0].period
-	var phase=fposmod(elapsed,period)
+	var phase=fposmod(clock,period)
 	var dwell=alighting_clearance()
 	for i in range(GROUP_SIZE):dwell=maxf(dwell,actors[i].board_start+actors[i].boarding)
 	var state="away";var z=Neighborhood.BUS_POSITION.y;var visible=false
@@ -91,7 +97,7 @@ func bus_snapshot()->Dictionary:
 	elif phase>period-(Extent.STREET_Z_MAX+2.85-z)/BUS_SPEED:
 		state="approaching";visible=true;z+=BUS_SPEED*(period-phase)
 	var path=bus_path(z,state)
-	return {"state":state,"visible":visible,"position":path.position,"heading":path.heading,"direction":Neighborhood.BUS_DIRECTION,"trip":int(floor(elapsed/period))+(1 if state=="approaching" else 0),"phase":phase,"period":period,"dwell":dwell}
+	return {"state":state,"visible":visible,"position":path.position,"heading":path.heading,"direction":Neighborhood.BUS_DIRECTION,"trip":int(floor(clock/period))+(1 if state=="approaching" else 0),"phase":phase,"period":period,"dwell":dwell}
 static func bus_path(z:float,state:String)->Dictionary:
 	# Ease the center along the bay, and project every body/wheel point using
 	# the exact path tangent. No screen-space sprite skew or sideways merge.
@@ -174,3 +180,20 @@ static func obstacles()->Array[Rect2]:
 	var shapes:Array[Rect2]=[Neighborhood.STOP_BENCH,Rect2(-13.34,5.75,.08,4.4),Rect2(-13.3,5.71,1.5,.08),Rect2(-10.77,10.98,.14,.14)]
 	for post in Neighborhood.STOP_POSTS:shapes.append(Rect2(post-Vector2(.06,.06),Vector2(.12,.12)))
 	return shapes
+
+func reset_traffic_entry():
+	# A restored pool keeps its positions; a transient bus enters from outside it.
+	elapsed=actors[0].period-(Extent.STREET_Z_MAX+2.85-Neighborhood.BUS_POSITION.y)/BUS_SPEED-.05
+	merge_reserved=false;approach_reserved=false
+	for actor in actors:_set_actor(actor)
+func accept_traffic_progress(delta:float):
+	elapsed+=delta
+	for actor in actors:_set_actor(actor)
+
+func observe_traffic_motion(delta:float,origin:Vector2,tile:Vector2,view:Rect2):
+	# Read accepted model poses only; observation never advances the bus clock.
+	if not is_finite(delta) or delta<=0:return
+	for actor in actors:
+		if not actor.visible or not Street.screen_bounds(actor.position,origin,tile).intersects(view.grow(96)):
+			motion.remove(actor.key);continue
+		motion.update(actor.key,actor.position,delta)

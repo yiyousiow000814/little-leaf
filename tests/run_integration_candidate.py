@@ -69,6 +69,7 @@ SUITES = [
     ("test_bus_stop", "BUS_STOP_RESULT"),
     ("test_bus_trips", "BUS_TRIPS_RESULT"),
     ("test_bus_lane_direction", "BUS_LANE_DIRECTION_RESULT"),
+    ("test_bus_shared_traffic", "BUS_SHARED_PROTOTYPE_RESULT"),
     ("test_environment_camera_access", "ENVIRONMENT_CAMERA_ACCESS_RESULT"),
 
     ("test_fit_owned_cafe", "FIT_OWNED_CAFE_RESULT"),
