@@ -40,7 +40,17 @@ func run():
  await capture(game,"before")
  m.enable_footprint_placement()
  for at in [Vector2i(8,5),Vector2i(10,5),Vector2i(9,6)]:check(m.place("plant",at.x,at.y),"purchase physical future obstruction")
- check(m.move(int(guest.table_id),9,4,0),"move occupied seat during actual cooking: "+m.last_error)
+ game.editing=true
+ var ui=game.interaction;var source=m.get_item(int(guest.table_id))
+ var original_state=JSON.stringify(m.items);var original_guest=JSON.stringify(guest);var wallet=m.coins
+ ui._select_item(source);ui.drag_active=true;ui.preview_active=true;ui.drag_item_id=int(source.id);ui.drag_kind=m.logical_kind(int(source.id));ui.drag_rotation=0;ui.drag_cell=Vector2i(9,4)
+ var pointer=game.illustration.iso(9.5,4.5);ui.last_pointer=pointer;ui._update_validity(pointer)
+ check(ui.drag_valid and ui.placement_receipt.ok,"actual occupied preview is physically green despite unreachable future seat")
+ ui.cancel(false)
+ check(JSON.stringify(m.items)==original_state and JSON.stringify(guest)==original_guest and m.coins==wallet,"cancelled occupied preview preserves placement/guest/wallet atomically")
+ ui.drag_active=true;ui.preview_active=true;ui.drag_item_id=int(source.id);ui.drag_kind=m.logical_kind(int(source.id));ui.drag_rotation=0;ui.drag_cell=Vector2i(9,4);ui.last_pointer=pointer
+ ui._commit_preview();game.editing=false
+ check(int(source.x)==9 and int(source.z)==4,"real interaction commit moves occupied seat during actual cooking: "+m.last_error)
  check(Pause.blocked(guest) and is_same(record.guest,guest),"live service retains guest dictionary and pending identity")
  await capture(game,"blocked")
  record.meal_wait_seconds=game.MEAL_DEPARTURE_SECONDS
