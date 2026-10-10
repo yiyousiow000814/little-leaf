@@ -72,6 +72,19 @@ class API:
 
 
 class ReleaseEventTests(unittest.TestCase):
+    def test_reservation_queries_only_exact_name_and_rejects_expired_intent(self):
+        api = API()
+        name = 'little-leaf-firebase-request-10'
+        with patch.dict(event.os.environ, {'GITHUB_RUN_ATTEMPT': '1'}):
+            with patch.object(api, 'pages', return_value=[]) as pages:
+                event.reserve(api, 10)
+                pages.assert_called_once_with('actions/artifacts?name=' + name, 'artifacts')
+            for expired in (False, True):
+                with patch.object(api, 'pages', return_value=[{'name': name, 'expired': expired}]), self.assertRaises(ValueError):
+                    event.reserve(api, 10)
+        with patch.dict(event.os.environ, {'GITHUB_RUN_ATTEMPT': '2'}), self.assertRaises(ValueError):
+            event.reserve(api, 10)
+
     def select(self, api):
         with tempfile.TemporaryDirectory() as d:
             return event.select(api, 10, Path(d))

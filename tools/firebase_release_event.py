@@ -124,6 +124,16 @@ def select(api, run_id, output):
     return plan
 
 
+def reserve(api, release_run):
+    require(os.environ.get('GITHUB_RUN_ATTEMPT') == '1', 'Inspect an uncertain prior attempt; no automatic retry')
+    require(type(release_run) is int and release_run > 0, 'Positive release run required')
+    name = f'little-leaf-firebase-request-{release_run}'
+    # Server-side filtering keeps the bounded inventory independent of unrelated
+    # repository artifacts. Expired matching intents still prohibit a retry.
+    require(not any(a.get('name') == name for a in api.pages(f'actions/artifacts?name={name}', 'artifacts')),
+            'Existing or expired staging intent; inspect it before retrying')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--release-run', type=int, required=True)
@@ -133,10 +143,7 @@ def main():
     require(args.release_run > 0, 'Positive release run required')
     api = GitHub(os.environ.get('GH_TOKEN', ''))
     if args.reserve:
-        require(os.environ.get('GITHUB_RUN_ATTEMPT') == '1', 'Inspect an uncertain prior attempt; no automatic retry')
-        name = f'little-leaf-firebase-request-{args.release_run}'
-        require(not any(a.get('name') == name for a in api.pages('actions/artifacts', 'artifacts')),
-                'Existing or expired staging intent; inspect it before retrying')
+        reserve(api, args.release_run)
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     plan = select(api, args.release_run, output)
