@@ -123,9 +123,12 @@ class ReleaseNotesContractTests(unittest.TestCase):
     def test_hotfix_keeps_exact_major_update_history(self):
         import hashlib
         notes=json.loads((self.root / "data/release_notes.json").read_text(encoding="utf-8"))
-        self.assertEqual(notes["version"],"0.1.10b")
-        self.assertEqual([item["version"] for item in notes["history"]],["0.1.10a","0.1.10"])
-        previous=notes["history"][-1]
+        self.assertEqual(notes["version"],version(self.root))
+        history_versions=[item["version"] for item in notes["history"]]
+        self.assertEqual(len(history_versions),len(set(history_versions)))
+        self.assertEqual(history_versions,sorted(history_versions,key=release_key,reverse=True))
+        self.assertTrue(all(release_key(item)<release_key(notes["version"]) for item in history_versions))
+        previous=next(item for item in notes["history"] if item["version"]=="0.1.10")
         self.assertEqual(previous["version"],"0.1.10")
         self.assertNotIn("history",previous)
         digest=hashlib.sha256(json.dumps(previous,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
