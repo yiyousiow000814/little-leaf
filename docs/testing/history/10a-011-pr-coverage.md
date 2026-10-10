@@ -1,4 +1,4 @@
-> Historical coverage index, frozen before the all-version roadmap migration. This document preserves review provenance and original constraints, not current implementation/merge/release status. Read the [current roadmap](../roadmap.md).
+> Historical coverage index, frozen before the all-version roadmap migration. This document preserves review provenance and original constraints, not current implementation/merge/release status. Read the [current roadmap](../../roadmap.md).
 
 # 0.1.10a / 0.1.11 PR coverage index
 

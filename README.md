@@ -10,7 +10,7 @@ A cozy café game made with Godot.
 
 For experiments, use copied saves in a separate profile.
 
-[Development roadmap: all versions through 0.3.2](docs/roadmap.md) · [Development guide](docs/README.md) · [Assets and licenses](docs/licenses.md)
+[Development roadmap: all versions through 0.3.2](docs/roadmap.md) · [Choose a guide](docs/README.md) · [Assets and licenses](docs/art-audio/README.md)
 
 No repository-wide open-source license has been selected.
 
@@ -23,8 +23,8 @@ No repository-wide open-source license has been selected.
 | Regression checks, fixtures and manual diagnostics | [tests/README.md](tests/README.md) |
 | Build and release tooling | [ci/README.md](ci/README.md), `.github/workflows/` |
 | Browser and cloud platform boundaries | `web/`, `firebase/` |
-| Developer commands, contracts and historical evidence | [docs/README.md](docs/README.md) |
+| Design, development, art/audio, testing and release | [Documentation by purpose](docs/README.md) |
 
 ## Checked Web builds and releases
 
-[GitHub Actions setup, release trigger, evidence, and recovery guide](docs/github-release.md)
+[GitHub Actions setup, release trigger, evidence, and recovery guide](docs/release/README.md)

@@ -50,3 +50,12 @@ Each tag publishes its own source-only GitHub Release independently, initially w
 Only promotion uses the shared concurrency group, with `cancel-in-progress: false` and GitHub's documented `queue: max` (up to 100 pending jobs, not unlimited). If an excess pending promotion is canceled, another reconciliation sees all already-published releases; tag publication itself is independent. This serialization does not lock manual maintainer edits outside the workflow.
 
 Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/concurrency
+
+## Platform boundaries and historical records
+
+- [CrazyGames adapter/export contract](crazygames-variant.md)
+- [Trusted itch preview](itch-trusted-preview-candidate.md): preparation is separate from hosted acceptance and publication
+- Historical [CrazyGames slice](history/crazygames-split-ledger.md), [release-metadata ownership](history/split-draft-ownership.md) and [10a overlay provenance](history/010a-release-overlay-provenance.json)
+- [Asset permissions and required notices](../art-audio/README.md)
+
+Use the [roadmap](../roadmap.md) for current readiness and authorization. Historical ledgers describe their pinned source/date, not the current shipped tree.

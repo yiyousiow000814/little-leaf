@@ -1,6 +1,6 @@
 # Working on Little Leaf
 
-Read the [canonical roadmap](docs/roadmap.md) for product scope, current ownership and acceptance gates, then the [developer guide](docs/README.md) for detailed commands and references. During the roadmap migration, follow its stated authority gate; historical contracts are evidence, not current completion status.
+Read the [canonical roadmap](docs/roadmap.md), the single current editing plan, for product scope, ownership and acceptance gates, then the [developer guide](docs/development/README.md) for detailed commands and references. Read the roadmap's current-state section before dated historical contracts; those contracts are evidence, not current completion status.
 
 ## Run and verify
 
@@ -23,4 +23,4 @@ The second command is an example for janitor cleanup changes, not a default suit
 - Keep generated logs, screenshots, exports and private handoffs outside tracked source. Maintain current product status in the roadmap; link detailed contracts instead of duplicating them or creating version-specific agent guides.
 - Preserve the original 2D isometric art and camera presentation. Pin evidence to the tested commit/tree and distinguish code present, tests passed, inspected game pixels, merged and released. For visual changes, inspect rendered output and retain source-bound before/after evidence; test success alone does not accept the pixels or authorize publication.
 
-For build and publication procedures, read [release guidance](docs/github-release.md); for reuse and distribution, read [licenses](docs/licenses.md).
+For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).

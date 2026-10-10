@@ -40,7 +40,7 @@ removed; after purchase only authoritative customer trips occupy the four bays.
 purchase/customer-parking enabled and the configurable 2,000-coin price. The
 selected product is a permanent fixed exterior upgrade, not a cafe expansion
 parcel or movable furniture. It has no separate land fee or recurring charge.
-See [parking behavior and save contract](../technical/parking.md) for same-session refunds,
+See [parking behavior and save contract](../../development/parking.md) for same-session refunds,
 resale guards, shared demand/queue bounds and persistence.
 
 ## Runtime boundary
