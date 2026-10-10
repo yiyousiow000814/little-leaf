@@ -332,7 +332,9 @@ func _update_street_pedestrians(delta:float):
 	for visitor in game.model.outside_queue:
 		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
 	street_pedestrians.advance(step,queue_positions)
-	road_traffic.advance(step,origin,tile,render_view_rect())
+	if "road_traffic_state" in game.model:
+		road_traffic.cars.assign(game.model.road_traffic_state.cars);road_traffic.elapsed=float(game.model.road_traffic_state.elapsed)
+	else:road_traffic.advance(step,origin,tile,render_view_rect())
 	bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,render_view_rect())

@@ -25,12 +25,12 @@ func same(a,b)->bool:
    if not same(a[i],b[i]):return false
   return true
  return a==b
-func make_game():
+func make_game(count:int=1):
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  # This funded service fixture reserves a car directly, bypassing the normal
  # arrival dispatcher. It represents existing progress, not a first visit.
  game.model.first_guest_pending=false;game.model.first_guest_start=Vector2.INF
- game.model.coins=10000;game.model.begin_decoration_session();check(game.model.buy_parking(),"Main purchases parking");game.model.finish_decoration_session();check(Parking.reserve(game.model),"Main reserves car guest")
+ game.model.coins=10000;game.model.begin_decoration_session();check(game.model.buy_parking(),"Main purchases parking");game.model.finish_decoration_session();check(Parking.reserve(game.model,count),"Main reserves car guest")
  return game
 func save_roundtrip(game,label:String):
  game.model.service_snapshot=game._service_save_snapshot()
@@ -53,13 +53,13 @@ func finish(game):
 func run():
  root.size=Vector2i(1360,880)
  check(OS.get_environment("XDG_DATA_HOME")!="" and OS.get_user_data_dir().begins_with(OS.get_environment("XDG_DATA_HOME")),"synthetic profile only")
- var game=make_game()
- var before=Codec.new().encode(game.model.parking_visits);game.paused=true;game._process(2)
- check(same(before,Codec.new().encode(game.model.parking_visits)),"pause freezes car trip")
+ var game=make_game(4)
+ var before=Codec.new().encode(Parking.snapshot(game.model));game.paused=true;game._process(2)
+ check(same(before,Codec.new().encode(Parking.snapshot(game.model))),"pause freezes car trip")
  game.paused=false;game.editing=true;game._process(2)
- check(same(before,Codec.new().encode(game.model.parking_visits)),"Decorate freezes car trip")
+ check(same(before,Codec.new().encode(Parking.snapshot(game.model))),"Decorate freezes car trip")
  game.editing=false;game.browser_suspended=true;game._process(2)
- check(same(before,Codec.new().encode(game.model.parking_visits)),"background suspension freezes car trip")
+ check(same(before,Codec.new().encode(Parking.snapshot(game.model))),"background suspension freezes car trip")
  game.browser_suspended=false;game._resume_frame=-1;game._process(.1)
  check(is_equal_approx(game.model.parking_visits[0].car_position.distance_to(Parking.CAR_START),Parking.CAR_SPEED*.1),"normal speed advances authoritative car once: "+str(game.model.parking_visits[0].car_position)+" paused="+str(game.paused)+" intro="+str(game.cafe_intro.active)+" blocked="+str(game.save_recovery_blocked)+" small="+str(game.compact_ui.viewport_too_small))
  save_roundtrip(game,"driving")
@@ -68,7 +68,8 @@ func run():
  for frame in range(4500):
   tick(game)
   if not game.model.parking_visits.is_empty():
-   var phase=str(game.model.parking_visits[0].phase)
+   var car=game.model.parking_visits[0]
+   var phase=str(car.members[0].phase) if car.phase=="parked" else str(car.phase)
    if not visited.has(phase):
     visited[phase]=true;save_roundtrip(game,"paid-"+phase)
    var ids={};var unique=true
@@ -77,8 +78,8 @@ func run():
     ids[int(guest.id)]=true
    check(unique,"one physical driver identity per tick")
   if game.model.parking_visits.is_empty() and game.model.customers.is_empty():break
- check(game.model.parking_visits.is_empty() and game.model.customers.is_empty(),"cashier meal, cleanup, return and car exit finish")
- check(game.model.served==1 and game.model.total_earned==Model.MEAL_PAYMENT,"cashier meal settles exactly once: served="+str(game.model.served)+" earned="+str(game.model.total_earned))
+ check(game.model.parking_visits.is_empty() and game.model.customers.is_empty(),"cashier meal, queue patience, cleanup, return and car exit finish: "+str(game.model.parking_visits)+" guests="+str(game.model.customers))
+ check(game.model.served>=1 and game.model.served<=4 and game.model.total_earned==Model.MEAL_PAYMENT*game.model.served,"cashier meal settles exactly once: served="+str(game.model.served)+" earned="+str(game.model.total_earned))
  check(visited.has("walking_return") and visited.has("car_departing"),"cashier departure uses parking return chain")
  save_roundtrip(game,"paid-finished")
  finish(game);await process_frame;await process_frame
@@ -97,7 +98,8 @@ func run():
  for frame in range(2500):
   tick(game)
   if not game.model.parking_visits.is_empty():
-   var phase=str(game.model.parking_visits[0].phase)
+   var car=game.model.parking_visits[0]
+   var phase=str(car.members[0].phase) if car.phase=="parked" else str(car.phase)
    if not visited.has(phase):visited[phase]=true;save_roundtrip(game,"aborted-"+phase)
   if game.model.parking_visits.is_empty() and game.model.customers.is_empty():break
  check(game.model.parking_visits.is_empty() and game.model.customers.is_empty(),"aborted service cleanup and parking release finish")

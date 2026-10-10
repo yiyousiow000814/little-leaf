@@ -323,10 +323,13 @@ class CarProjection extends RefCounted:
 	var zoom:float
 	func _init(artist,at:Vector2,heading:Vector2):
 		source=artist;position=at;ui_scale=artist.ui_scale;zoom=artist.zoom
-		if absf(heading.x)>absf(heading.y):
-			transverse=Vector2.DOWN;longitudinal=Vector2.RIGHT
-			direction=-1 if heading.x<0 else 1
-		else:direction=-1 if heading.y<0 else 1
+		# Rotate world anchors and axles together; vertical artwork heights stay up.
+		longitudinal=heading.normalized();transverse=Vector2(longitudinal.y,-longitudinal.x)
+		direction=1
+
+	func depth(point:Vector2)->float:
+		var world=transverse*point.x+longitudinal*point.y
+		return world.x+world.y
 	func iso(x:float,z:float,h:float=0.0)->Vector2:
 		var point=position+transverse*x+longitudinal*z
 		return source.iso(point.x,point.y,h)
@@ -361,11 +364,15 @@ static func draw_car(a,p:Vector2,direction:int,color):
 	if a.has_method("retain_native_car") and a.retain_native_car(p,Vector2(0,direction),color,false):return
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
 	var half=.60;var length=1.1
+	var near_half=half
+	if a is CarProjection and a.transverse.x+a.transverse.y<0:near_half=-half
 	quad(a,p.x-half,p.y-length,p.x+half,p.y+length,Color(.35,.42,.33,.14))
 	for z in [-length*.67,length*.67]:
-		a.ellipse(a.iso(p.x-half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
+		a.ellipse(a.iso(p.x-near_half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
 	var corners=[Vector2(p.x-half,p.y-length),Vector2(p.x+half,p.y-length),Vector2(p.x+half,p.y+length),Vector2(p.x-half,p.y+length)]
-	for side in [[0,1],[1,2],[2,3],[3,0]]:
+	var sides=[[0,1],[1,2],[2,3],[3,0]]
+	if a is CarProjection:sides.sort_custom(func(u,v):return a.depth(corners[u[0]]+corners[u[1]])<a.depth(corners[v[0]]+corners[v[1]]))
+	for side in sides:
 		var u=corners[side[0]];var v=corners[side[1]]
 		a.poly([a.iso(u.x,u.y,5),a.iso(v.x,v.y,5),a.iso(v.x,v.y,22),a.iso(u.x,u.y,22)],color)
 	a.rounded_poly([a.iso(p.x-half,p.y-length,22),a.iso(p.x+half,p.y-length,22),a.iso(p.x+half,p.y+length,22),a.iso(p.x-half,p.y+length,22)],5*a.ui_scale*a.zoom,color)
@@ -376,8 +383,9 @@ static func draw_car(a,p:Vector2,direction:int,color):
 	a.poly([a.iso(p.x-half*.85,p.y+cabin,22),a.iso(p.x+half*.85,p.y+cabin,22),a.iso(p.x+half*.72,p.y+cabin*.65,34),a.iso(p.x-half*.72,p.y+cabin*.65,34)],"a6b8b6")
 	a.rounded_poly([a.iso(p.x-half*.72,p.y-cabin*.65,34),a.iso(p.x+half*.72,p.y-cabin*.65,34),a.iso(p.x+half*.72,p.y+cabin*.65,34),a.iso(p.x-half*.72,p.y+cabin*.65,34)],3*a.ui_scale*a.zoom,color)
 	for z in [-length*.67,length*.67]:
-		a.ellipse(a.iso(p.x+half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
+		a.ellipse(a.iso(p.x+near_half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
 	var front=p.y+length*direction
+	if a is CarProjection and a.longitudinal.x+a.longitudinal.y<0:return
 	for x in [-half*.6,half*.6]:a.ellipse(a.iso(p.x+x,front,14),Vector2(2.5,2)*a.ui_scale*a.zoom,"eee4c8")
 static func bus_point(a,p:Vector2,x:float,z:float,h:float)->Vector2:
 	return a.iso(p.x+x,p.y+z,h)
