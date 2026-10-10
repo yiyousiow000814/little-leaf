@@ -14,8 +14,8 @@ function expression(marker) {
 const scope = {GL: {counter: 1, buffers: [], vaos: [], syncs: [], textures: [], errors: [],
   recordError(code) { this.errors.push(code); }}, HEAP32: new Int32Array(3),
   GLctx: {currentPixelPackBufferBinding: 0, currentPixelUnpackBufferBinding: 0,
-    deleted: [], deleteBuffer(o) { this.deleted.push(o); },
-    deleteVertexArray(o) { this.deleted.push(o); }, deleteSync(o) { this.deleted.push(o); }}};
+    deleted: 0, deleteBuffer() { this.deleted++; },
+    deleteVertexArray() { this.deleted++; }, deleteSync() { this.deleted++; }}};
 vm.createContext(scope);
 vm.runInContext('GL.getNewId=' + expression('getNewId:'), scope);
 for (const [fn, marker] of [['buffers', 'Buffers'], ['vaos', 'VertexArrays'], ['syncs', 'Sync']])
@@ -52,7 +52,10 @@ for (let cycle = 0; cycle < 20000; cycle++) {
 }
 assert(scope.GL.errors.every(code => code === 1281));
 assert.strictEqual(scope.GL.errors.length, 20000);
+assert.deepStrictEqual(plateau, [5, 6, 7]);
+assert.strictEqual(scope.GLctx.deleted, 60000);
 const texture1 = create('textures'), texture2 = create('textures');
 assert(texture2.name > texture1.name);
 assert.strictEqual(scope.GL.textures.littleLeafFreeIds, undefined);
+assert.strictEqual(scope.GL.counter, 9);
 console.log(JSON.stringify({cycles: 20000, tableLengths: plateau, liveSurvivors: 3, counter: scope.GL.counter, result: 'passed'}));
