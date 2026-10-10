@@ -30,6 +30,23 @@ func same(a,b)->bool:
 func wire_same(a,b)->bool:
 	# Godot JSON rounds double clocks; compare their actual codec wire precision.
 	return same(JSON.parse_string(JSON.stringify(a)),JSON.parse_string(JSON.stringify(b)))
+func variable_diagonal():
+	var cells={}
+	for x in 12:
+		for y in 6:cells[Vector2i(x,y)]=true
+	var snapshot={"cells":cells,"solids":{},"edges":{},"barriers":[],"revision":[1]}
+	var valid=true
+	for pair in [[Vector2i(7,1),Vector2i(8,2)],[Vector2i(8,2),Vector2i(7,1)],[Vector2i(8,1),Vector2i(7,2)],[Vector2i(7,2),Vector2i(8,1)]]:
+		var follower=Nav.follower(Nav.plan(snapshot,pair[0],pair[1]),1,func(_token):return true)
+		var position=Nav.center(pair[0])
+		for frame in 300:
+			var delta=[.003333333,.008125,.016666667,.009876543,.021573][frame%5]
+			var motion=Nav.advance(snapshot,follower,position,delta,1.8,[position])
+			position=motion.position
+			if motion.status=="arrived":break
+			if motion.status!="walking":valid=false;print("VARIABLE_LEG_BLOCK ",motion.status," ",position);break
+		valid=valid and position==Nav.center(pair[1])
+	check(valid,"varying frame delta and soft avoidance keep legal diagonal positions within codec segment tolerance")
 func step():
 	game.model._arrival_elapsed=0.0
 	if native:await create_timer(.05).timeout
@@ -40,7 +57,7 @@ func capture(label:String):
 	game._update_ui();game._update_service_props();game.illustration.queue_redraw()
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(output.path_join(label+".png"))
-	frames.append({"file":label+".png","animation_time":game.animation_time,"staff":codec.encode(game._service_save_snapshot(true).staff)})
+	frames.append({"file":label+".png","animation_time":game.animation_time,"staff":codec.encode(game._service_save_snapshot(true).get("staff",[]))})
 func checkpoint(label:String,phase:String,slot:int):
 	game.set_process(false)
 	var before=game._service_save_snapshot(true)
@@ -66,6 +83,7 @@ func run():
 	var scope=OS.get_environment("LL_NAVIGATION_REVIEW_ROOT")
 	if scope=="" or not "saveguard" in scope or not OS.get_user_data_dir().replace("\\","/").begins_with(scope.replace("\\","/")+"/"):printerr("Disposable generated profile required");quit(2);return
 	if native and (output=="" or DisplayServer.get_name()=="headless"):quit(2);return
+	variable_diagonal()
 	game=Main.new();root.add_child(game);game.set_process(native)
 	if not native:game.illustration.set_process(false)
 	check(Contract.VERSION==15 and game.navigation_review!=null and game.save_writes_suppressed,"default15 and both native flags/save suppression retained")
@@ -118,7 +136,12 @@ func run():
 				check(owner.take_result(request,epoch).status=="unknown","restore cancels/consumes prior scheduler owner request")
 		for frame in range(6000):
 			await step()
-			if native and frame%300==0:print("NATIVE_PROGRESS ",JSON.stringify({"frame":frame,"animation_time":game.animation_time,"paused":game.paused,"editing":game.editing,"recovery_blocked":game.save_recovery_blocked,"processing":game.is_processing(),"served":game.model.served,"staff":codec.encode(game._service_save_snapshot(true).get("staff",[]))}))
+			if native and frame%300==0:
+				var progress=game._service_save_snapshot(true)
+				var raw_staff=[]
+				for staff in game.staff_states:raw_staff.append({"role":staff.role,"pos":codec.encode(staff.pos),"job":staff.job_kind,"step":staff.job_step,"destination":codec.encode(staff.destination)})
+				print("NATIVE_PROGRESS ",JSON.stringify({"frame":frame,"animation_time":game.animation_time,"paused":game.paused,"editing":game.editing,"recovery_blocked":game.save_recovery_blocked,"processing":game.is_processing(),"served":game.model.served,"staff":codec.encode(progress.get("staff",[])),"raw_staff":raw_staff}))
+				if progress.is_empty():failures.append("active native service ceased to be serializable");break
 			if game.model.served==1:break
 		check(game.model.served==1 and game.model.total_earned==game.model.MEAL_PAYMENT,"restored obligation settles exactly one original meal")
 		game.set_process(false);await capture("04-paid" if game.model.served==1 else "04-unsettled")

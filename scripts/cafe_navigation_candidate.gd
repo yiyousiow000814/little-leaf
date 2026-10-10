@@ -162,6 +162,16 @@ static func _remaining_valid(snapshot:Dictionary,state:Dictionary,position:Vecto
 		if not can_step(snapshot,route[i-1],route[i]):return false
 	return true
 
+static func _step_leg(origin:Vector2,target:Vector2,position:Vector2,step:float)->Vector2:
+	# Validated unit diagonals must not accumulate Vector2 rounding off their line.
+	# Derive the smaller-coordinate component from the rounded larger component.
+	var direction=target-origin
+	var axis=0 if maxf(absf(origin.x),absf(target.x))>=maxf(absf(origin.y),absf(target.y)) else 1
+	if direction[axis]==0.0:axis=1-axis
+	var point=position.move_toward(target,step)
+	point[1-axis]=float(origin[1-axis])+(float(point[axis])-float(origin[axis]))*float(direction[1-axis])/float(direction[axis])
+	return point
+
 static func cancel_replan(state:Dictionary,scheduler=null):
 	# Call on task abandonment too: retained requests must be consumed once.
 	var id=int(state.get("request",0))
@@ -206,7 +216,7 @@ static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:
 			# Spend this frame only reaching its next center, never the invalid tail.
 			var target=center(state.plan.route[int(state.index)])
 			var distance=position.distance_to(target);var step=minf(distance,budget)
-			position=position.move_toward(target,step);result.position=position;result.distance=step
+			position=_step_leg(center(state.plan.route[int(state.index)-1]),target,position,step);result.position=position;result.distance=step
 			if step<distance: return result
 			position=target;result.position=target;cell=state.plan.route[int(state.index)];state.index+=1
 		if position.distance_to(center(cell))>.000001 or not open_cell(snapshot,cell):result.status="blocked_mid_segment";return result
@@ -226,7 +236,7 @@ static func advance(snapshot:Dictionary,state:Dictionary,position:Vector2,delta:
 	while budget>.0000001 and int(state.index)<route.size():
 		var target=center(route[int(state.index)]);var distance=position.distance_to(target)
 		var step=minf(distance,budget)
-		if distance>.0000001:position=position.move_toward(target,step)
+		if distance>.0000001:position=_step_leg(center(route[int(state.index)-1]),target,position,step)
 		budget-=step;result.distance+=step
 		if distance<=step+.0000001:position=target;state.index+=1
 	result.position=position
