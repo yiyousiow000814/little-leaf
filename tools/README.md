@@ -21,6 +21,48 @@ The cloud scenario also serves the historical retained-artifact diagnostic. The
 ordinary Web workflow selects it only for its optional Firebase preview gates.
 The wall scenario remains required by the ordinary save compatibility gate.
 
+## Parallel complete CI
+
+The reusable Web workflow runs the source/atlas guard first, then five independent
+engine shards alongside the historical client build. `engine_shards.py` assigns
+every canonical suite and all five staff-start cases using measured suite times;
+new suites receive a default weight and remain mandatory. Each runner keeps its
+own lock, project and disposable profile. The merger rejects missing, duplicate,
+failed or mismatched source/run/attempt reports before the unchanged full-suite
+export validator permits one ordinary export and one CrazyGames variant.
+
+Four browser runners cover tutorial, two old/new compatibility cases, and
+recovery (IndexedDB, save log and WebKit). The shorter compatibility case also
+runs the original Inbox check. Compatibility receives both
+generated projects, including imported resources, and installs the same pinned
+Godot toolchain. Optional Firebase staging receives the candidate project and
+all required browser evidence; its freshness validator remains unchanged.
+Artifacts are scoped to this run, attempt and source. Profiles are never uploaded.
+The final `gate` exposes release outputs only after every required job succeeds;
+failed, cancelled or skipped mandatory jobs cannot qualify an export.
+
+The tutorial runs alone, preserving its original first-autosave deadline. Each
+old/new compatibility case has its own runner, Chromium process, X display and
+loopback origin. Its causal save/retry/reload steps stay sequential. The merged
+receipt requires both cases and identical input, tool and export bindings.
+Play/recovery do not wait for the historical build; compatibility still does.
+
+Only the paused toolbar-help and environment-camera-access native suites opt
+into fixed 60 Hz simulation without real-time frame delays. Their unchanged
+frame-order/input assertions still run. Lifecycle, save, service, startup and
+FPS suites keep their existing pacing; ordinary Web timing remains natural.
+
+The original main `af61a3f` run `38058638557` took 26m18s. The four-shard
+composition on FPS main `d2910b4` passed in 9m23s (`38065262070`), retaining all
+120 groups and 1,235,480 assertions. The current planning weights use that run;
+they do not assume the UI pacing speedup. Five shards reduce estimated work per
+runner from about 158s to 126s, excluding setup and transport. This is a planning
+estimate; the five-minute overall target requires actual CI measurement.
+All gates and exports remain fresh; no cached test results or historical exports
+are substituted. Existing Ubuntu runners are capped at five engine shards and
+four browser runners. Extra setup/import and artifact transport can increase
+total runner minutes even while reducing elapsed time.
+
 ## Explicit staging, publication, and diagnostics
 
 | Command | Class | Responsibility |

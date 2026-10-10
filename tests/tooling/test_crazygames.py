@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 import build_crazygames as cg
+import bound_web_gl_handles as handles
 from project_layout import source_path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -256,6 +257,10 @@ class CrazyGamesVariantTests(unittest.TestCase):
                     html.with_name("index.pck").write_bytes(b"GDPC")
                     html.with_name("music.pck").write_bytes(b"GDPC")
                     html.with_name("index.wasm").write_bytes(b"\0asm")
+                    html.with_name("index.js").write_bytes(
+                        b"blitOffscreenFramebuffer:context=>{var gl=context.GLctx;"
+                        b"var prevScissorTest=gl.getParameter(3089);}" +
+                        b";".join(old for old, _ in handles.REPLACEMENTS))
                 return SimpleNamespace(returncode=0, stdout=b"SCENE_READY furniture=synthetic")
 
             argv = ["build_crazygames.py", "--validated-web-build", str(build), "--output", str(out)]
@@ -263,10 +268,19 @@ class CrazyGamesVariantTests(unittest.TestCase):
             with patch.object(sys, "argv", argv), patch.object(cg, "validate_web_gate", return_value=legacy) as gate, \
                  patch.object(cg.subprocess, "check_output", side_effect=output), \
                  patch.object(cg.subprocess, "run", side_effect=run), \
-                 patch.dict(cg.os.environ, {"GODOT_TEMPLATE": str(template)}):
+                 patch.dict(cg.os.environ, {"GODOT_TEMPLATE": str(template)}), \
+                 patch.object(handles, "INPUT_SHA256", hashlib.sha256(
+                     b"blitOffscreenFramebuffer:context=>{var gl=context.GLctx;"
+                     b"var prevScissorTest=gl.isEnabled(3089);}" +
+                     b";".join(old for old, _ in handles.REPLACEMENTS)).hexdigest()):
                 cg.main()
                 self.assertEqual(gate.call_count, 2, "full source gate still validated before and after")
             manifest = json.loads((out / "web/crazygames-manifest.json").read_text())
+            self.assertIn("gl.isEnabled(3089)", (out / "web/index.js").read_text())
+            self.assertEqual(manifest["presentation_optimization"]["output_sha256"],
+                             manifest["webgl_handle_retention"]["input_sha256"])
+            self.assertEqual(manifest["webgl_handle_retention"]["output_sha256"],
+                             cg.sha256(out / "web/index.js"))
             self.assertEqual(manifest["save_variant"]["name"], "developer-preview" if preview else "production")
             self.assertEqual(manifest["save_variant"]["storage_keys"], cg.PREVIEW_KEYS if preview else cg.PRODUCTION_KEYS)
             self.assertIn(str(out / "project/web"), calls[0])

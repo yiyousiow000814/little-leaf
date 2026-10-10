@@ -28,7 +28,7 @@ static func inspection_rect(viewport:Vector2,hud_top:float=104.0,insets:Vector4=
 	return Rect2(Vector2(left,top),Vector2(maxf(1.0,size.x-left-insets.z),maxf(1.0,size.y-top-insets.w)))
 
 static func zoom_limits(viewport:Vector2,base_tile:Vector2,hud_top:float=104.0,insets:Vector4=Vector4.ZERO)->Vector2:
-	var minimum=.35 if viewport.x<650 else .70
+	var minimum=.25 if viewport.x<650 else .35
 	# An isometric tile covers 2*x*y screen pixels. Four tile-equivalents
 	# fill the usable view at maximum, regardless of map fit or aspect ratio.
 	var area=inspection_rect(viewport,hud_top,insets).get_area()
@@ -47,6 +47,6 @@ static func clamp_pan(pan:Vector2,base_origin:Vector2,tile:Vector2,width:float,d
 		var far_edge=view.end[axis]-margin[axis]-content.end[axis]
 		# Large maps traverse the safe viewport; small maps may align within it.
 		# A fixed centre +/-32 clamp made low corner plots unreachable behind UI.
-		var inspection_slack=minf(view.size.y*.35,240.0) if axis==1 else 0.0
+		var inspection_slack=minf(view.size.y*.35,240.0) if axis==1 else minf(view.size.x*.15,160.0)
 		result[axis]=clampf(result[axis],minf(near_edge,far_edge)-inspection_slack,maxf(near_edge,far_edge)+inspection_slack)
 	return result

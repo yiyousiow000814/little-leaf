@@ -1,9 +1,10 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
-import {getAuth,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
+import {getAuth,getIdTokenResult,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 export async function start(config,options={}) {
   const popup=options.surface==='trusted-itch-frame';
   if(options.surface!==undefined && !popup)throw Error('Unknown account entry surface.');
+  if(options.authVerificationOnly!==undefined && (options.authVerificationOnly!==true || !popup))throw Error('Auth verification requires the trusted itch preview.');
   if(popup){
     // Options are baked into the reviewed own-origin preview, never supplied by its parent.
     const expected=options.runtimeOrigin;
@@ -14,7 +15,9 @@ export async function start(config,options={}) {
       || !ancestors || ancestors.length!==2 || ancestors[0]!=='https://html-classic.itch.zone'
       || ancestors[1]!=='https://siowyiyou.itch.io')throw Error('Open the approved itch preview page to sign in.');
   }else if(window.top!==window.self || location.hostname!==config.authDomain)throw Error('Open the full game on its Firebase Hosting address to sign in.');
-  const app=initializeApp(config),auth=getAuth(app),db=getFirestore(app);
+  const app=initializeApp(config),auth=getAuth(app);
+  if(options.authVerificationOnly===true)return verifyAuthOnly(auth);
+  const db=getFirestore(app);
   const panel=document.createElement('div');panel.id='cloud-account';panel.setAttribute('aria-live','polite');
   panel.style.cssText='position:fixed;right:8px;top:8px;z-index:40;background:#fffaf0;color:#493d2e;border-radius:8px;padding:7px;font:12px Arial;max-width:80vw';
   const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;button.style.marginLeft='8px';panel.append(label,button);document.body.append(panel);
@@ -28,10 +31,34 @@ export async function start(config,options={}) {
   startup('Checking your sign-in…');
   let saveState='ready',accountError='';
   const primary={ready:'Not saved',saved:'Saved',pending:'Saving…',offline:'Not saved',conflict:'Not saved',blocked:'Not saved','signed-out':'Not saved'};
-  const reasons={offline:'Offline. Progress on this device will sync when connected.',conflict:'Two saves need your choice. Open Help to review them.',blocked:'Saving is unavailable. Keep this page open and try again.'};
-  function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';}
+  const reasons={offline:'Offline. Progress on this device will sync when connected.',conflict:'Two saves need your choice. Open Help to review them.',blocked:'Saving is unavailable. Keep this page open and try again.','permission-denied':'Cloud saving was refused. Pending progress stays on this device. Export it, then reload the updated game on this same address. Do not clear browser storage.'};
+  let refusedPanel;
+  function showRefusedSave(){
+    if(refusedPanel)return;
+    refusedPanel=document.createElement('section');refusedPanel.id='cloud-save-refused';refusedPanel.setAttribute('role','alert');
+    refusedPanel.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:80;background:#fffaf0;color:#493d2e;border:2px solid #78694f;border-radius:12px;padding:16px;font:16px Arial;max-width:560px;margin:auto';
+    const message=document.createElement('p'),exportButton=document.createElement('button'),reloadButton=document.createElement('button');
+    message.textContent=reasons['permission-denied'];exportButton.textContent='Export pending progress';reloadButton.textContent='Reload updated game';
+    for(const action of [exportButton,reloadButton])action.style.cssText='min-height:48px;margin:4px;padding:8px 12px;';
+    exportButton.onclick=async()=>{
+      exportButton.disabled=true;
+      try{
+        if(auth.currentUser?.uid!==uid)throw Error('account changed');
+        const exported=await client.exportRecovery();
+        if(!exported.ok || auth.currentUser?.uid!==uid)throw Error('unavailable');
+        const url=URL.createObjectURL(new Blob([exported.text],{type:'application/json'}));
+        try{const link=document.createElement('a');link.href=url;link.download=exported.fileName;document.body.append(link);link.click();link.remove();}
+        finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+        message.textContent='Recovery download requested. Pending progress remains on this device. Keep the file and reload the updated game on this same address.';
+      }catch(_){message.textContent='Could not export safely. Pending progress is unchanged. Keep this page open; do not clear browser storage.';}
+      finally{exportButton.disabled=false;}
+    };
+    reloadButton.onclick=()=>{if(confirm('Reload the updated game on this same address? Pending progress stays in this browser. Keep any exported recovery file and do not clear browser storage.'))location.reload();};
+    refusedPanel.append(message,exportButton,reloadButton);document.body.append(refusedPanel);
+  }
+  function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';if(value==='permission-denied')showRefusedSave();}
   window.LittleLeafCloudSettings=Object.freeze({
-    snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out'].includes(saveState)});},
+    snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out','permission-denied'].includes(saveState)});},
     signOut(){return button.onclick();},
     reload(){location.reload();}
   });
@@ -130,4 +157,53 @@ export async function start(config,options={}) {
   window.addEventListener('focus',()=>client.refreshOwnership?.());
   window.addEventListener('online',()=>client.sync());
   return client;
+}
+
+// Deliberately never resolves: the existing shell promise must not boot the vault/game.
+// Firebase Auth persistence is permitted; no Firestore, journal or game APIs are used.
+async function verifyAuthOnly(auth){
+  const caption=document.getElementById('status-label'),progress=document.getElementById('status-progress');
+  const panel=document.createElement('div');panel.id='auth-verification';panel.setAttribute('aria-live','polite');
+  const result=document.createElement('p'),button=document.createElement('button');
+  button.textContent='Verify Google sign-in';button.disabled=true;panel.append(result,button);(document.getElementById('auth-verification-slot') || document.body).append(panel);
+  function status(text){
+    // Presentation only: retain exact internal outcome text for the existing checks.
+    const copy=text.startsWith('Google popup completed: Google authenticated.')?'Google sign-in confirmed.'
+      :text.startsWith('Restored Firebase session: Google authenticated.')?'Google session restored. Verify a fresh sign-in below.'
+      :text.startsWith('Firebase session changed: Google authenticated.')?'Google session updated. Verify a fresh sign-in below.'
+      :text.startsWith('Signed out.')?'Ready when you are. Sign in with Google below.'
+      :text.startsWith('Opening Google sign-in.')?'Choose your account in the Google popup.'
+      :text.startsWith('Auth verification only.')?'Checking your sign-in…'
+      :text.startsWith('Auth setup did not finish.')?'Sign-in setup did not finish. Reload this page to retry.'
+      :text.includes('did not finish')?'Sign-in did not finish. Please try again.'
+      :'Google sign-in could not be confirmed. Please try again.';
+    result.textContent=copy;if(caption)caption.textContent=text;if(progress)progress.hidden=true;
+  }
+  status('Auth verification only. Game and saves are paused. Checking sign-in.');
+  let busy=false,generation=0,shownUser=null;
+  async function show(user,source,popupProvider=null){
+    shownUser=user;
+    const current=++generation;
+    if(!user){status('Signed out. Verify Google sign-in; game and saves stay paused.');return;}
+    try{
+      const token=await getIdTokenResult(user);
+      if(current!==generation || auth.currentUser!==user)return;
+      const google=!user.isAnonymous && token.claims?.firebase?.sign_in_provider==='google.com'
+        && (source!=='Google popup completed' || popupProvider==='google.com');
+      status(source+': '+(google?'Google authenticated.':'Google authentication not verified.')+' Game and saves remain paused.');
+    }catch(_){if(current===generation)status('Auth result could not be verified. Game and saves remain paused.');}
+  }
+  button.onclick=async()=>{
+    if(busy)return;busy=true;button.disabled=true;status('Opening Google sign-in. Game and saves stay paused.');
+    try{const credential=await signInWithPopup(auth,new GoogleAuthProvider());await show(credential.user,'Google popup completed',credential.providerId);}
+    catch(_){status('Google sign-in did not finish. Game and saves remain paused. Try again.');}
+    finally{busy=false;button.disabled=false;}
+  };
+  try{
+    await setPersistence(auth,browserLocalPersistence);await auth.authStateReady();
+    await show(auth.currentUser,'Restored Firebase session');
+    onAuthStateChanged(auth,user=>{if(!busy && user!==shownUser)void show(user,'Firebase session changed');});
+    button.disabled=false;
+  }catch(_){status('Auth setup did not finish. Game and saves remain paused. Reload to retry.');}
+  return new Promise(()=>{});
 }

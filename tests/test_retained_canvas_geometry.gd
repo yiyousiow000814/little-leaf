@@ -1,0 +1,62 @@
+extends SceneTree
+const Cache=preload("res://scripts/retained_canvas_geometry.gd")
+var failures=[]
+var checks=0
+func check(ok,label):
+ checks+=1
+ if not ok:failures.append(label);push_error(label)
+func _initialize():run.call_deferred()
+func run():
+ var cache=Cache.new()
+ cache.use_dynamic_fills=false
+ var points=PackedVector2Array([Vector2.ZERO,Vector2(20,0),Vector2(0,20)])
+ check(cache.fill(points,Color.RED)==null,"First-use geometry stays on native path")
+ cache.begin_frame()
+ var retained=cache.fill(points,Color.RED)
+ check(retained!=null,"Stable geometry gains a retained resource")
+ check(cache.fill(points,Color.BLUE)==retained,"Tint changes reuse geometry without quantizing the palette")
+ points.append(Vector2(10,30))
+ check(cache.entries.size()==1,"Caller mutation cannot mutate the stored dictionary key")
+ var original=PackedVector2Array([Vector2.ZERO,Vector2(20,0),Vector2(0,20)])
+ check(cache.fill(original,Color.WHITE)==retained,"Original contour still hits after caller mutation")
+ for i in range(4100):
+  var shape=PackedVector2Array([Vector2(i*2,0),Vector2(i*2+1,0),Vector2(i*2,1)])
+  cache.fill(shape,Color.WHITE)
+ cache.begin_frame()
+ for i in range(4100):
+  var shape=PackedVector2Array([Vector2(i*2,0),Vector2(i*2+1,0),Vector2(i*2,1)])
+  cache.fill(shape,Color.WHITE)
+ check(cache.entries.size()<=Cache.MAX_ENTRIES,"Cache entry bound survives eviction pressure")
+ check(cache.bytes<=Cache.MAX_BYTES,"Cache byte bound survives eviction pressure")
+ check(cache.frame_resources.size()==4100,"Current frame resources survive cache eviction")
+ check(cache.closed_outline(original,Color.WHITE,.7)==null,"Open polylines retain original native semantics")
+ check(cache.closed_outline(original,Color.WHITE,-1)==null,"Hairlines retain original native semantics")
+ cache=Cache.new()
+ cache.use_dynamic_fills=false
+ var closed=original.duplicate();closed.append(closed[0])
+ check(cache.closed_outline(closed,Color.WHITE,.7)==null,"First-use closed outline stays native")
+ cache.begin_frame()
+ var outline=cache.closed_outline(closed,Color.WHITE,.7)
+ check(outline!=null,"Stable positive-width closed outline is retained")
+ check(cache.closed_outline(closed,Color.RED,.7)==outline,"Outline tint is not part of immutable geometry")
+ check(cache.closed_outline(closed,Color.WHITE,1.4)==null,"Changed stroke width cannot reuse another outline")
+ cache.begin_frame()
+ check(cache.frame_resources.is_empty(),"Resources submitted last frame are released at the next draw")
+ var transient=PackedVector2Array([Vector2(40,0),Vector2(41,0),Vector2(40,1)])
+ cache.fill(transient,Color.WHITE);cache.begin_frame();cache.begin_frame()
+ check(cache.fill(transient,Color.WHITE)==null,"A contour absent from the previous frame is not admitted")
+ cache=Cache.new();cache.force_dynamic_fills=true
+ var first=cache.fill(original,Color.WHITE)
+ var moved=PackedVector2Array([Vector2(40,0),Vector2(60,0),Vector2(40,20)])
+ var second=cache.fill(moved,Color.WHITE)
+ check(first!=null and second!=null and first!=second,"Different submissions in the same frame cannot alias a dynamic mesh")
+ cache.begin_frame()
+ var reused=cache.fill(moved,Color.RED)
+ check(reused==first and cache.fill_pool_count==2,"Moving geometry reuses an uploaded mesh in the next frame")
+ check(reused.custom_aabb.position.x==40 and reused.custom_aabb.size.x==20,"Moved vertices update culling bounds")
+ check(cache.frame_resources.size()==1,"Updated resource remains alive for its draw command")
+ cache.begin_frame()
+ for i in range(4100):cache.fill(original,Color.WHITE)
+ check(cache.fill_pool_count<=Cache.MAX_ENTRIES and cache.fill_pool_bytes<=Cache.MAX_BYTES,"Dynamic resource pool has independent entry and byte limits")
+ print("RETAINED_CANVAS_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
+ quit(0 if failures.is_empty() else 1)

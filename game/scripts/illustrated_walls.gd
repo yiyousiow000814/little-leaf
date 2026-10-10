@@ -45,7 +45,7 @@ static func texture_for(material:String,height:String) -> Texture2D:
 
 static func _polygon(view:Node2D,points:Array,color:Color,uvs:Array=[],texture:Texture2D=null):
 	var colors:=PackedColorArray([color,color,color,color])
-	view.draw_polygon(PackedVector2Array(points),colors,PackedVector2Array(uvs),texture)
+	preload("res://scripts/cafe_canvas_draw.gd").draw_polygon(view,PackedVector2Array(points),colors,PackedVector2Array(uvs),texture)
 
 static func draw_piece(view:Node2D,piece:Dictionary,alpha:float=1.0,tint:Color=Color.WHITE):
 	var wall:Dictionary=piece.entry

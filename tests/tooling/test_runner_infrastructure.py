@@ -47,6 +47,7 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.assertIn('scripts/cafe_web_save.gd', report['source_sha256'])
         for command, env in commands:
             self.assertEqual(command[1:4], ['--headless', '--audio-driver', 'Dummy'])
+            self.assertNotIn('--fixed-fps', command, 'Unreviewed suites must keep their original pacing')
             for key in ['HOME', 'APPDATA', 'LOCALAPPDATA', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME']:
                 self.assertTrue(Path(env[key]).is_relative_to(self.root / 'qa-project'))
                 self.assertNotIn('\\', env[key])
@@ -61,6 +62,10 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.run_synthetic()
 
     def test_windows_lock_and_shared_normalized_data_directory(self):
+        self.run_synthetic(windows=True)
+
+    def test_unpaced_ui_does_not_change_other_suites(self):
+        self.argv.append('--unpaced-ui')
         self.run_synthetic(windows=True)
 
     def test_historical_workflow_keeps_lock_outside_parent_checkout(self):
@@ -101,17 +106,39 @@ class RunnerInfrastructureTests(unittest.TestCase):
             copy.assert_not_called()
 
 class WorkflowInfrastructureTests(unittest.TestCase):
-    def test_budget_lifecycle_and_inbox_order_keep_chrome_channel(self):
+    def test_parallel_gates_keep_lifecycle_browser_channels_and_single_exports(self):
         workflow = (ROOT / '.github/workflows/build-web.yml').read_text()
-        self.assertIn('    timeout-minutes: 55', workflow)
         self.assertIn('node tests/web_performance_lifecycle.js', workflow)
-        install = workflow.index('- name: Install shared pinned browser tools')
-        inbox = workflow.index('- name: Verify compensation history')
-        old = workflow.index('- name: Check out the exact historical')
-        self.assertLess(install, inbox)
-        self.assertLess(inbox, old)
-        self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', workflow[inbox:old])
-        self.assertEqual(workflow.count('npm install --prefix "$RUNNER_TEMP/inbox-browser-tools"'), 1)
+        browser = workflow.split('  browser:\n', 1)[1].split('  firebase:\n', 1)[0]
+        self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
+        self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
+        self.assertIn('RUNTIME_BROWSER: webkit', browser)
+        self.assertIn('lane: [play, recovery]', browser)
+        self.assertIn('lane: [compatibility]', browser)
+        self.assertIn('max-parallel: 5', workflow)
+        self.assertIn('max-parallel: 2', browser)
+        play = browser.split('  compatibility:\n', 1)[0]
+        self.assertIn('needs: build', play)
+        self.assertNotIn('old-web-build', play)
+        self.assertIn('needs: [build, historical]', browser)
+        self.assertIn('case: [old_opened_after_new, already_open_old]', browser)
+        self.assertIn('--case ${{ matrix.case }}', browser)
+        self.assertIn('little-leaf-browser-${{ matrix.lane }}-${{ matrix.case }}-', browser)
+        self.assertNotIn('Verify compensation history', play)
+        self.assertIn("matrix.case == 'old_opened_after_new'", browser)
+        self.assertNotIn('inbox_pid', workflow)
+        self.assertEqual(workflow.count('node tests/wall_compatibility_parallel.js --merge'), 2)
+        gate = workflow.split('  gate:\n', 1)[1]
+        self.assertLess(gate.index('actions/checkout@'), gate.index('--merge'))
+        firebase = workflow.split('  firebase:\n', 1)[1].split('  gate:\n', 1)[0]
+        self.assertLess(firebase.index('--merge'), firebase.index('tools/build_firebase.py'))
+        self.assertEqual(workflow.count('python3 tools/build_web.py --output'), 1)
+        self.assertEqual(workflow.count('python3 tools/build_crazygames.py --validated-web-build'), 1)
+        self.assertIn('needs: [guard, engine]', workflow)
+        self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]', workflow)
+        self.assertIn('"$BUILD" "$BROWSER" "$COMPATIBILITY";', workflow)
+        self.assertIn('test "$result" = success || exit 1', workflow)
+        self.assertNotIn('continue-on-error:', workflow)
 
 if __name__ == '__main__':
     unittest.main()

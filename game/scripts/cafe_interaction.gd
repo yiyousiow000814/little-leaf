@@ -67,6 +67,9 @@ func handle_input(event: InputEvent) -> bool:
 			cancel()
 			return true
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			# UI owns a new press; retain an existing world drag across controls.
+			if event.pressed and not _middle_down and (not _point_in_view(event.position) or _over_ui(event.position)):
+				return false
 			if event.pressed: _clear_gesture()
 			_middle_down = event.pressed
 			_previous_pointer = event.position

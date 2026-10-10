@@ -1,5 +1,5 @@
 extends SceneTree
-const Cache=preload("res://scripts/cafe_background_cache.gd")
+const Cache=preload("res://scripts/cafe_background_native.gd")
 const Neighborhood=preload("res://scripts/exterior_environment.gd")
 class TestGame extends "res://scripts/main.gd":
 	func _load_startup():
@@ -12,15 +12,22 @@ class TestGame extends "res://scripts/main.gd":
 func recording_script():
 	var script=GDScript.new()
 	var code=FileAccess.get_file_as_string("res://scripts/illustrated_cafe.gd")
+	code=code.replace("RenderingServer.canvas_item_add_triangle_array(target,", "record_draw_triangle_array(")
 	for name in ["_ready","_draw","_process"]:code=code.replace("func "+name+"(","func disabled"+name+"(")
-	for name in ["draw_set_transform_matrix","draw_rect","draw_mesh","draw_colored_polygon","draw_polyline","draw_line"]:code=code.replace(name+"(","record_"+name+"(")
+	# Keep the explicit art_draw_* adapter intact. Replacing every substring
+	# also renames super.draw_* into nonexistent native super.record_* methods.
+	for name in ["draw_set_transform_matrix","draw_rect","draw_mesh","draw_polygon","draw_colored_polygon","draw_polyline","draw_multiline","draw_line"]:
+		code=code.replace("super."+name+"(","record_"+name+"(")
 	code+="""
 var commands=[]
+func record_draw_triangle_array(indices,points,colors):commands.append(["triangles",indices,points,colors])
 func record_draw_set_transform_matrix(value):commands.append(["transform",value])
 func record_draw_rect(rect,color,_filled=true,_width=-1.0,_antialiased=false):commands.append(["rect",rect,color])
 func record_draw_mesh(mesh,_texture,_transform=Transform2D.IDENTITY,_modulate=Color.WHITE):commands.append(["mesh",mesh.get_rid()])
 func record_draw_colored_polygon(points,color,_uvs=PackedVector2Array(),_texture=null):commands.append(["polygon",points,PackedColorArray([color])])
+func record_draw_polygon(points,colors,_uvs=PackedVector2Array(),_texture=null):commands.append(["polygon",points,colors])
 func record_draw_polyline(points,color,width=-1.0,antialiased=false):commands.append(["polyline",points,PackedColorArray([color]),width,antialiased])
+func record_draw_multiline(points,color,width=-1.0,antialiased=false):commands.append(["multiline",points,PackedColorArray([color]),width,antialiased])
 func record_draw_line(a,b,color,width=-1.0,antialiased=false):commands.append(["line",a,b,color,width,antialiased])
 @warning_ignore("native_method_override")
 func draw_mesh(mesh,_texture,_transform=Transform2D.IDENTITY,_modulate=Color.WHITE):record_draw_mesh(mesh,_texture,_transform,_modulate)
@@ -38,12 +45,15 @@ class ServerRecorder extends RefCounted:
 	func canvas_item_set_draw_behind_parent(rid,value):operations.append(["behind",rid,value])
 	func canvas_item_set_draw_index(rid,value):operations.append(["index",rid,value])
 	func canvas_item_set_visible(rid,value):operations.append(["visible",rid,value])
+	func canvas_item_set_transform(rid,value):operations.append(["canvas_transform",rid,value])
 	func canvas_item_clear(_rid):commands=[]
 	func canvas_item_add_set_transform(_rid,value):commands.append(["transform",value])
 	func canvas_item_add_rect(_rid,rect,color):commands.append(["rect",rect,color])
-	func canvas_item_add_mesh(_rid,mesh):commands.append(["mesh",mesh])
+	func canvas_item_add_mesh(_rid,mesh,_placement=Transform2D.IDENTITY,_tint=Color.WHITE,_texture=RID()):commands.append(["mesh",mesh])
+	func canvas_item_add_triangle_array(_rid,indices,points,colors):commands.append(["triangles",indices,points,colors])
 	func canvas_item_add_polygon(_rid,points,colors):commands.append(["polygon",points,colors])
 	func canvas_item_add_polyline(_rid,points,colors,width,antialiased):commands.append(["polyline",points,colors,width,antialiased])
+	func canvas_item_add_multiline(_rid,points,colors,width,antialiased):commands.append(["multiline",points,colors,width,antialiased])
 	func canvas_item_add_line(_rid,a,b,color,width,antialiased):commands.append(["line",a,b,color,width,antialiased])
 var checks=0
 var failures=[]
@@ -61,12 +71,14 @@ func settle(art):
 func run():
 	var game=TestGame.new();root.add_child(game);game.set_process(false);game.cafe_intro.finish();game.paused=true;game.illustration.set_process(false)
 	for tween in get_processed_tweens():tween.kill()
-	var art=recording_script().new();art.game=game;root.add_child(art);art.ground_art.prepare(game.model)
+	var art=recording_script().new();art.game=game;art.use_retained_geometry=false;root.add_child(art);art.ground_art.prepare(game.model)
+	# Compare this cache's native commands with the original native prefix.
+	art.use_retained_geometry=false
 	var cache=Cache.new();var server=ServerRecorder.new();cache.server=server
 	var cases=0
 	for size in [Vector2i(390,844),Vector2i(1360,880),Vector2i(844,390)]:
 		root.size=size
-		for scale in [.25,.5,1.0,2.0,4.0]:
+		for scale in [.05,.1,.25,.5,1.0,2.0,4.0]:
 			for detail in [false,true]:
 				game.wall_detail=detail
 				for origin in [Vector2.ZERO,Vector2(390,250),Vector2(-1100,-700)]:
@@ -100,7 +112,11 @@ func run():
 		check(not cache.update(art) and not cache.used,"fallback "+property)
 		check(server.operations.back()==["visible",cache.canvas,false],"fallback hides retained prefix "+property)
 		art.set(property,old);check(cache.update(art),"restore "+property)
-	art.ground_art.use_stroke_mesh=false;check(not cache.update(art),"legacy strokes fall back");art.ground_art.use_stroke_mesh=true
+	for enabled in [false,true]:
+		art.ground_art.use_stroke_mesh=enabled
+		original(art)
+		check(cache.update(art),"both native and comparison stroke paths retain the background")
+		check(art.commands==server.commands,"stroke mode preserves exact native command order")
 	cache.update(art);before=cache.rebuilds
 	art.ground_art.pavement_stroke_mesh=null
 	cache.update(art);check(cache.rebuilds==before+1,"stroke resource replacement invalidates")
@@ -119,7 +135,19 @@ func run():
 	check(server.operations.back()==["free",old_rid],"release frees native resource")
 	var operations=server.operations.size();cache.release();check(server.operations.size()==operations,"release idempotent")
 	check(cache.update(art) and cache.rebuilds==before+1,"recreate rebuilds after release")
-	cache.release();art.free()
+	cache.release()
+	var landed_origin=art.origin
+	check(cache.update(art,landed_origin),"startup prepares the complete translated background")
+	before=cache.rebuilds;art.origin+=Vector2(0,333)
+	check(cache.update(art,landed_origin) and cache.rebuilds==before,"descent changes only the retained canvas transform")
+	check(art.origin==landed_origin+Vector2(0,333),"background preparation restores the live presentation origin")
+	check(server.operations.has(["canvas_transform",cache.canvas,Transform2D(0,Vector2(0,333))]),"GPU translation matches the presentation offset")
+	var screen_rid=cache.screen_canvas
+	cache.hide();check(server.operations.has(["visible",screen_rid,false]),"fixed screen backdrop hides with the world prefix")
+	check(cache.update(art),"ordinary command path can replace translated preparation")
+	check(server.operations.has(["canvas_transform",cache.canvas,Transform2D.IDENTITY]),"returning to ordinary commands resets canvas translation")
+	cache.release();check(not cache.screen_canvas.is_valid(),"release frees the fixed screen backdrop")
+	art.free()
 	# Actual game draw path: compatibility changes must wake settled idle art.
 	var live=game.illustration;game.wall_detail=false;await settle(live)
 	for tween in get_processed_tweens():tween.kill()

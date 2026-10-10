@@ -39,9 +39,53 @@ jobs:
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build:
     needs: gate
-    uses: ./.github/workflows/build-web.yml
-    with:
-      release_tag: ${{ github.ref_name }}
+    name: Reuse qualified exact-main Web package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check final source, version and qualified atlas
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          git fetch --no-tags origin main
+          python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 tools/verify_prebaked_atlases.py
+      - name: Install checksum-pinned official startup verifier
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Wait for exact main CI and verify its immutable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ needs.gate.outputs.sha }}
+        run: python3 tools/reuse_main_ci.py --sha "$RELEASE_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/qualified-release"
+      - name: Retain verified release package in this release run
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-qualified-release-${{ needs.gate.outputs.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/qualified-release/web/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain exact CI origin and final startup evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-release-qualification-${{ needs.gate.outputs.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/qualified-release/qualification.json
+            ${{ runner.temp }}/qualified-release/packed-startup.log
+          if-no-files-found: warn
+          retention-days: 7
   publish:
     needs: [gate, build]
     runs-on: ubuntu-24.04
@@ -73,4 +117,11 @@ jobs:
         run: |
           git fetch --no-tags origin main
           python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
-          python3 tools/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA"
+          python3 tools/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json"
+      - name: Retain confirmed itch publication and reused CI provenance
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-itch-publication-${{ needs.gate.outputs.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/itch-publication/receipt.json
+          if-no-files-found: error
+          retention-days: 7

@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from project_layout import stage_project
 SUITES = [
+    ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
+    ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
+    ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
     ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
     ("test_startup_readiness", "STARTUP_READINESS_RESULT"),
     ("test_cloud_recovery_ui", "CLOUD_RECOVERY_UI_RESULT"),
@@ -68,6 +71,9 @@ SUITES = [
     ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
+    ("test_camera_input_ownership", "CAMERA_INPUT_OWNERSHIP_RESULT"),
+    ("test_square_neighborhood_camera", "SQUARE_NEIGHBORHOOD_CAMERA_RESULT"),
+    ("test_overview_triangulation", "OVERVIEW_TRIANGULATION_RESULT"),
 
     ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
@@ -147,12 +153,17 @@ SUITES = [
 EXCLUDE = shutil.ignore_patterns(
     ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
     "export", "exports", "export_templates", "dist", "*.log", "*.zip")
+# These paused, input/layout suites assert frame order rather than wall time.
+# All lifecycle, save, startup, service and FPS suites retain real-time pacing.
+UNPACED_UI = {"test_toolbar_help", "test_environment_camera_access"}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--only", nargs="+", choices=[name for name, _ in SUITES] + ["staff-start"])
+    parser.add_argument("--unpaced-ui", action="store_true",
+                        help="Use fixed 60 Hz simulation only for two reviewed paused UI suites")
     parser.add_argument("--lock", type=Path, default=Path(os.environ.get(
         "LL_ENGINE_LOCK", str(ROOT.parent / ".little-leaf-engine.lock"))))
     args = parser.parse_args()
@@ -220,7 +231,8 @@ def main():
 
             def run(name, arguments, env, marker=None):
                 start = time.monotonic()
-                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *arguments]
+                pacing = ["--fixed-fps", "60"] if args.unpaced_ui and name in UNPACED_UI else []
+                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *pacing, *arguments]
                 completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, timeout=300)
                 text = completed.stdout.decode("utf-8", errors="replace")
@@ -249,6 +261,8 @@ def main():
                           "failures": [f for p in payloads for f in p.get("failures", [])],
                           "diagnostics": [l for l in text.splitlines() if "WARNING" in l or "ERROR" in l],
                           "log": name + ".log"}
+                if pacing:
+                    record["simulation_fixed_fps"] = 60
                 # Bind derived UI receipts to the exact aggregate report used
                 # by the export manifest, rather than trusting a loose JSON file.
                 result_file = env.get("LL_UI_RESULT")
@@ -257,7 +271,7 @@ def main():
                 report["records"].append(record)
                 save()
                 print(json.dumps(record), flush=True)
-                if completed.returncode or "SCRIPT ERROR:" in text or record["failures"]:
+                if completed.returncode or "SCRIPT ERROR:" in text or ("Nondegenerate overview contour failed stable triangulation" in text or "Authored overview contour has no source triangles" in text) or record["failures"]:
                     raise RuntimeError("Failed: " + name)
                 if marker and (len(payloads) != 1 or record["checks"] <= 0):
                     raise RuntimeError("Missing/duplicate/empty result: " + name)
