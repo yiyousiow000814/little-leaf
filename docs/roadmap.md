@@ -4,7 +4,7 @@
 
 ## Read this first
 
-- [Latest approved 0.1.11 decisions](#approved-011-decisions) — complete upgrade removal, permissive placement, sink access, direct pickup, parking and traffic; plan-only exception to the 11 pause.
+- [Latest approved 0.1.11 decisions](#approved-011-decisions) — complete upgrade removal, permissive placement, sink access, direct pickup, parking, traffic and land-expansion adjacency; plan-only exception to the 11 pause.
 - [Current state and ownership](#current-state) — exact source/date, code/tests/visual/merged/released remain separate.
 - [Original complete version requirements](#original-requirements) — all0.1.10–0.3.2 plans, including proposals and numeric hypotheses.
 - [Version reconciliation](#version-reconciliation), [10a changes](#10a-changes), [all76 outcomes for11](#outcomes-011).
@@ -49,6 +49,7 @@ Reconciled on 2026-10-10 against the retained main `af61a3f3f86fa3754dd6e8b252b6
 | Serving-table removal/direct chef-workstation pickup; 10.01 / 10.02 | Routing/service — `01a1214f-1100-70f5-a3db-323e05cb50c9`; reconcile [PR104](https://github.com/yiyousiow000814/little-leaf/pull/104) and [PR125](https://github.com/yiyousiow000814/little-leaf/pull/125) before duplication | Existing decision retained. Shared chef/waiter standing tile is a Little Leaf decision, not verified original RC behavior. Two-chef carry-stall remains observed and unfixed; integrated acceptance pending, paused. |
 | Four parking bays bought through a fixed map sign, not Decorate | Exterior/parking owner to be coordinated before resuming; preserve existing exterior candidates | User confirmed fixed For Sale/unlock-sign purchase like land expansion. Implementation, persistence and actual sign/UI acceptance pending; paused. No new counted outcome or purchase-price policy invented. |
 | One coherent road/parking traffic behavior | Coordinate exterior/traffic and routing owners before resuming; existing road/parking behavior must be reconciled | User reports parking cars appear faster and independently animated. These are unverified observations, not a demonstrated cause or claimed fix. Velocity, conflicts, turns and exit-merge acceptance pending; paused. |
+| Orthogonal land-expansion purchase frontier | Coordinate the land-expansion/model owner before implementation resumes; preserve the existing fixed-map purchase/sign flow | User reports buying the existing 10,000 plot failed to show adjacent second-row 18,000 signs. Cause is unconfirmed; screenshot pixels/source behavior were not inspected for this plan update. Eligibility/refresh/restored-save correction and acceptance pending; paused. |
 
 ### Stove Upgrade removal: acceptance
 
@@ -90,13 +91,23 @@ Reconciled on 2026-10-10 against the retained main `af61a3f3f86fa3754dd6e8b252b6
 - Use consistent movement/animation through road-to-parking and parking-to-road transitions. No sudden speed jump, teleport, snapping turn, conflicting-car overlap or independent animation that bypasses traffic ownership.
 - Treat the user's faster-parking/independent-animation observations as reports pending reproduction; do not claim the discrepancy or its cause verified. Acceptance requires exact-source observation of approach, competing entry, occupied/blocked bay, smooth turn-in, exit-merge conflict and save/reload state, with no duplicate car or stranded claim.
 
+### Orthogonal land-expansion purchase frontier: acceptance
+
+<a id="land-expansion-adjacency"></a>
+
+- Any unowned expansion plot sharing an **orthogonal edge** with owned land becomes eligible to purchase. Recompute the frontier from all owned plots; do not require a particular purchase chain, row or starting plot. Diagonal-only corner contact does not qualify, and plots outside existing map bounds do not qualify.
+- Immediately after a successful purchase, refresh the fixed map purchase signs for all newly eligible north/south/east/west neighbors. Buying each next plot expands the eligible frontier again; this is repeated eligibility refresh, **not automatic purchase or ownership** of neighboring plots.
+- User-reported example: after buying the existing 10,000 plot, an adjacent second-row plot with the existing 18,000 price must display its purchase sign; after buying that plot, its eligible unowned orthogonal neighbors must display theirs. These amounts identify existing examples, not new price definitions. Retain all existing plot prices, affordability checks and map bounds; do not invent prices, compensation or migration refunds.
+- Loading an existing save with already-purchased plots must rebuild the same eligible signs immediately from saved ownership, including second-row and subsequent neighbors. Do not depend on a previous UI cache, a fresh game or repurchasing land. Preserve owned plots and unrelated save/wallet state.
+- Acceptance includes the reported 10,000-to-adjacent-18,000 case; continued north/south/east/west purchases; diagonal-only and out-of-bounds exclusion; immediate post-purchase refresh; insufficient-funds/cancelled purchase preserving ownership and wallet; and load/save/reload of previously expanded land with no duplicate charges or missing eligible signs. Implementation and actual UI/source-bound verification remain pending under the 0.1.11 pause.
+
 ### Restaurant City reference limits
 
 [Gamezebo's Restaurant City guide](https://www.gamezebo.com/walkthroughs/restaurant-city-walkthrough/) describes equal-speed stoves, enclosed waiter arrangements and customer-access considerations. These support the comparison, but do not establish RC's placement-validator/overlay behavior or exact shared chef tile. Our permissive placement, overlay removal and shared-tile decisions are user-approved Little Leaf scope.
 
 [Steelowl's customer-flow guide](https://steelowl.wordpress.com/2009/05/18/resturant-city-customer-flow/) discusses customer routing and optional handwashing sinks. That RC sink description is contextual and does not replace Little Leaf's dishwashing mechanic. No unverified historical mechanic is promoted to code/test acceptance.
 
-Only this canonical roadmap is updated under the explicit plan exception. The six criteria groups retain the existing 76 outcomes and prior dated evidence. Feature implementation/review/testing/publication remains paused; FPS stays user-owned and user-reported basically resolved. Source, tests, pixels, user acceptance, merge and release remain separate; original saves, live Firebase and the user browser remain untouched.
+Only this canonical roadmap is updated under the explicit plan exception. The seven criteria groups retain the existing 76 outcomes and prior dated evidence. Feature implementation/review/testing/publication remains paused; FPS stays user-owned and user-reported basically resolved. Source, tests, pixels, user acceptance, merge and release remain separate; original saves, live Firebase and the user browser remain untouched.
 
 ## 当前执行状态与完整历史规划
 
