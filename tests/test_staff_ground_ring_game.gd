@@ -52,6 +52,10 @@ func run():
 	game.cafe_intro.preparing = false
 	game.cafe_intro.finish()
 	if game.startup_readiness != null: game.startup_readiness.hide()
+	# Keep asynchronous tutorial layout outside the paired floor-pixel probe.
+	game.tutorial.set_process(false)
+	game.tutorial.panel.hide()
+	game.tutorial.pointer.hide()
 	game.model.customers.clear()
 	# Clear complete synthetic dining sets so no chair/table covers the rug probe.
 	game.model.items = game.model.items.filter(func(item):return not str(item.kind) in ["table", "chair", "bench"])
@@ -89,7 +93,8 @@ func run():
 	for y in range(rug_area.position.y, rug_area.end.y):
 		for x in range(rug_area.position.x, rug_area.end.x):
 			var color = candidate.get_pixel(x, y)
-			if color.r > .9 and color.g > .9 and color.b > .9 and color.b - baseline.get_pixel(x, y).b > .1: white_rug_pixels += 1
+			# The .82-alpha white arc is antialiased and blended over tan rug pixels.
+			if minf(color.r, minf(color.g, color.b)) > .8 and maxf(color.r, maxf(color.g, color.b)) - minf(color.r, minf(color.g, color.b)) < .08 and color.b - baseline.get_pixel(x, y).b > .2: white_rug_pixels += 1
 	check(white_rug_pixels > 3, "employee white ring remains visible above real rug")
 	records.append({"white_rug_pixels": white_rug_pixels})
 	for node in nodes:
@@ -107,7 +112,7 @@ func run():
 	check(ring_nodes().is_empty(), "Decorate hides rings along with staff")
 	game.editing = false
 	game.animation_time = 0.0
-	game.illustration.zoom = minf(3.0, game.illustration.camera_zoom_limits().y)
+	game.illustration.zoom = minf(2.0, game.illustration.camera_zoom_limits().y)
 	game.illustration.update_projection()
 	game.illustration.pan_offset += Vector2(680, 540) - game.illustration.iso(2.5, 2.5)
 	game.illustration.update_projection()
