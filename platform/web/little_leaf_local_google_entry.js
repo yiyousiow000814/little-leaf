@@ -25,8 +25,10 @@
   }
   function chooseMode({auth,document,storage}){
     try{
+      const reloading=root.performance?.getEntriesByType('navigation')[0]?.type==='reload';
+      if(!reloading)storage.removeItem(BINDING_OWNER);
       const raw=storage.getItem(CLOUD_ONCE);storage.removeItem(CLOUD_ONCE);
-      if(raw){const receipt=JSON.parse(raw);if(receipt.uid===auth.currentUser?.uid && receipt.cloudConfirmed===true)return Promise.resolve('cloud');}
+      if(raw){const receipt=JSON.parse(raw);if(reloading && receipt.uid===auth.currentUser?.uid && receipt.cloudConfirmed===true)return Promise.resolve('cloud');}
     }catch(_){/* Explicit entry remains available if session storage is unavailable. */}
     return new Promise(resolve=>{
       const panel=document.createElement('section');panel.id='local-google-entry';panel.setAttribute('aria-label','Choose restaurant');
