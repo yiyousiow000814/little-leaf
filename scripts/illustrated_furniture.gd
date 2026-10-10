@@ -1,13 +1,15 @@
 extends RefCounted
 const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
 # Presentation only: the cooking assembly fills the existing range naturally.
-const PAN_WIDTH=1.35
-const PAN_DEPTH=1.15
+const PAN_WIDTH=1.90
+const PAN_DEPTH=1.62
 const PAN_HANDLE_HEIGHT=39.0
-# The annotated rear views need a lower, slightly more exterior attachment.
-# Keep the front views and the vessel itself at their established positions.
+# Artwork uses a 34px basis; the live grid uses 39px. This is exactly one tile.
+const STOVE_TILE_SPAN=39.0/34.0
+# The enlarged rear handle keeps its lower collar but no extra ground outset.
+# This keeps its full anti-alias envelope inside the single occupied tile.
 const PAN_REAR_HANDLE_DROP=2.0
-const PAN_REAR_HANDLE_OUTSET=.02*PAN_WIDTH
+const PAN_REAR_HANDLE_OUTSET=0.0
 const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
 var kitchen_height := false
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
@@ -77,9 +79,9 @@ func draw_item(artist: Node2D,kind: String,p: Vector2,rotation: int,id=0):
 			if artist.has_method("_stove_heat"):artist._stove_heat(id,turn)
 		elif part=="payload":
 			if artist.has_method("_station_payloads"): artist._station_payloads(id,kind,turn)
+		elif part=="stove_pan":draw_stove_vessel(artist,p,turn,id)
 		else:
 			_cached_part(artist,part,p,turn)
-			if part=="stove_pan" and artist.has_method("_stove_food"):artist._stove_food(id,turn)
 	return true
 
 # Every atlas cell is rendered from these original procedural helpers. Keep
@@ -105,8 +107,8 @@ func draw_static_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 
 func _stove_base():
 	# The initial range has one centered burner and one cooking surface.
-	box(0,0,.88,.78,1,29,"b7c4af","849e8c","708d7d","839a84")
-	box(0,0,.91,.81,29,31,"d9deca","adbca9","a2b3a0")
+	box(0,0,STOVE_TILE_SPAN-.025,STOVE_TILE_SPAN-.025,1,29,"b7c4af","849e8c","708d7d","839a84")
+	box(0,0,STOVE_TILE_SPAN,STOVE_TILE_SPAN,29,31,"d9deca","adbca9","a2b3a0")
 	for burner in [Vector2.ZERO]:
 		top_ellipse(burner.x,burner.y,31.2,.155*PAN_WIDTH,.155*PAN_WIDTH,"536e61")
 		top_ellipse(burner.x,burner.y,31.4,.11*PAN_WIDTH,.11*PAN_WIDTH,"8f9f88")
@@ -133,7 +135,7 @@ func draw_stove_heat(artist:Node2D,p:Vector2,rotation:int,elapsed_seconds:float)
 func _stove_controls():
 	if front_visible():
 		# One centered control for the single burner; this pedestal has no oven.
-		var marker=point(0,.404,26)
+		var marker=point(0,STOVE_TILE_SPAN*.5,26)
 		a.ellipse(marker,Vector2(1.8,1.8),"f0e5c7")
 		# A one-pixel indicator is smaller than the generic AA feather. Draw
 		# its real capsule silhouette so HD/4x atlas views cannot turn it
@@ -315,15 +317,21 @@ func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	CookingFood.draw_rest_food(artist,point(0,0,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
 
+func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
+	var motion={"pot":Vector2.ZERO,"lid":Vector2.ZERO}
+	if artist.has_method("_stove_vessel_motion"):motion=artist._stove_vessel_motion(id)
+	kitchen_height=true;a=artist;turn=posmod(rotation,4);origin=p+motion.pot
+	stove_pan()
+	# Reuse the vessel's original palette and elliptical rim geometry.
+	var lid=point(0,0,34)+Vector2(0,-7.6)+motion.lid-motion.pot
+	a.outlined_ellipse(lid,Vector2(8.4*PAN_WIDTH,4.1*PAN_DEPTH),"b5c2a7","dce0c9",1.0)
+	a.ellipse(lid+Vector2(0,-.6),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"c9d1b7")
+	a.line(lid+Vector2(0,-1.0),lid+Vector2(0,-3.0),"6d8475",1.6)
+	a.ellipse(lid+Vector2(0,-3.0),Vector2(2.1,1.0),"79674e")
+	origin=p
+
 func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
-	kitchen_height=true
-	prepare_cache(artist)
-	if _can_cache(artist,p):
-		_cached_part(artist,"stove_pan",p,rotation)
-	else:
-		a=artist;origin=p;turn=posmod(rotation,4)
-		stove_pan()
-	if artist.has_method("_stove_food"):artist._stove_food(id,rotation)
+	draw_stove_vessel(artist,p,rotation,id)
 
 func _sink_faucet():
 	# One centered tap serves the full basin; there is no decorative rack.
@@ -406,8 +414,7 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			# Local plate (-.20,.30) is behind the raised pan in these views.
 			# Match sub-object depth, rather than painting every dish last.
 			if turn in [0,1] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
-			stove_pan()
-			if a.has_method("_stove_food"):a._stove_food(_id,turn)
+			draw_stove_vessel(artist,p,turn,_id)
 			if turn in [2,3] and a.has_method("_station_payloads"):a._station_payloads(_id,"stove",turn)
 			_stove_controls()
 		"beverage":

@@ -188,7 +188,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
  if staff and action=="cooking":
   # A small upper-body weight transfer drives the scoop while the shoes stay
   # planted. Solve the short legs back to their original ground anchors.
-  legs=CookingPose.apply_body_weight(legs,float(settings.get("cooking_elapsed",0.0)),LEG_LENGTH,float(settings.get("cooking_remaining",-1.0)))
+  legs=CookingPose.apply_body_weight(legs,float(settings.get("cooking_elapsed",0.0)),LEG_LENGTH,float(settings.get("cooking_remaining",-1.0)),float(settings.get("cooking_strength",1.0)))
  origin+=legs.body
  if not overlay:ellipse(Vector2(2*seat_mix,2)-legs.body,Vector2(10,3.1),Color(.37,.42,.29,.12))
  # Far arm and far leg are behind the torso; near parts are in front.
@@ -215,8 +215,16 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   else:far_tip=dining_pose.hand
  var cooking_pose={}
  if staff and action=="cooking":
-  cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)))
-  near_tip=cooking_pose.hand
+  if bool(settings.get("cooking_grip",false)):
+   cooking_pose=CookingPose.grip_pose(near_shoulder,far_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)),float(settings.get("cooking_strength",1.0)))
+   if cooking_pose.use_near:near_tip=cooking_pose.hand
+   else:
+    far_tip=cooking_pose.hand
+    near_tip=near_shoulder+Vector2.DOWN*10.5
+  else:
+   cooking_pose=CookingPose.pose(near_shoulder,settings.get("reach",Vector2(18,-36))-origin,float(settings.get("cooking_elapsed",0.0)),float(settings.get("cooking_remaining",-1.0)),float(settings.get("cooking_strength",1.0)))
+   cooking_pose["use_near"]=true
+   near_tip=cooking_pose.hand
  var washing_pose={}
  if action=="washing" and settings.has("washing_basis"):
   var reference:Dictionary=settings.get("washing_grip_reference",{}).duplicate()
@@ -255,7 +263,8 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    # grip must be behind the intact torso/head, not painted across its back.
    a._draw_floor_tools(origin,cleaning_pose,action,payload)
    if action=="sweeping":ellipse(far_tip,Vector2(2.0,2.0),shadow)
-  if not washing_pose.is_empty():washing_arm(washing_pose.far,shadow,4.4,species,false)
+  if not cooking_pose.is_empty() and not cooking_pose.use_near:CookingPose.draw(a,origin,cooking_pose,shadow,shadow)
+  elif not washing_pose.is_empty():washing_arm(washing_pose.far,shadow,4.4,species,false)
   else:paw(far_shoulder,far_tip,shadow,4.4)
  var far_hip:Vector2=legs.far_hip;var near_hip:Vector2=legs.near_hip
  var far_foot:Vector2=legs.far_foot;var near_foot:Vector2=legs.near_foot
@@ -295,10 +304,10 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    if waiter_tablet.ordering and not hide:paw(near_shoulder,near_tip,fur,4.8)
    waiter_tablet.draw_tablet(a,origin)
    waiter_tablet.draw_case(a,origin)
- var far_work=(not dining_pose.is_empty() and not dining_pose.use_near) or (not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
+ var far_work=(not cooking_pose.is_empty() and not cooking_pose.use_near) or (not dining_pose.is_empty() and not dining_pose.use_near) or (not payment_pose.is_empty() and not payment_pose.use_near) or (not wiping_pose.is_empty() and not wiping_pose.use_near)
  if hide and not overlay and far_work:paw(near_shoulder,near_tip,fur,4.8)
  if not hide:
-  if not waiter_tablet.ordering and cooking_pose.is_empty() and not (overlay and far_work) and washing_pose.is_empty() and (dining_pose.is_empty() or not dining_pose.use_near):paw(near_shoulder,near_tip,fur,4.8)
+  if not waiter_tablet.ordering and (cooking_pose.is_empty() or not cooking_pose.use_near) and not (overlay and far_work) and washing_pose.is_empty() and (dining_pose.is_empty() or not dining_pose.use_near):paw(near_shoulder,near_tip,fur,4.8)
   var work_hand=far_tip if payload!="none" and tool in ["cloth","mop","broom"] else near_tip
   var floor:Vector2=settings.get("reach",Vector2(22,2))-origin+Vector2(3,-3) if tool in ["mop","broom"] else Vector2(22,2)
   if waiter_tablet.enabled and action=="taking_order":
@@ -320,7 +329,13 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
    ellipse(washing_pose.support.hand,Vector2(1.7,1.6),shadow if washing_pose.use_near else fur)
    ellipse(contact+Vector2(0,-.5),Vector2(1.7,1.6),fur if washing_pose.use_near else shadow)
   elif not cooking_pose.is_empty():
-   CookingPose.draw(a,origin,cooking_pose,fur,shadow)
+   if cooking_pose.use_near:CookingPose.draw(a,origin,cooking_pose,fur,shadow)
+   elif overlay:
+    # Reveal only distal segments above the cabinet; never repaint through
+    # the intact torso or head when the far hand owns the pot grip.
+    far_overlay_paw(cooking_pose.shoulder,cooking_pose.elbow,shadow,3.7,species)
+    far_overlay_paw(cooking_pose.elbow,cooking_pose.hand,shadow,3.7,species)
+    ellipse(cooking_pose.hand,Vector2(1.6,1.6),fur)
   elif not wiping_pose.is_empty():
    if overlay and not wiping_pose.use_near:far_overlay_paw(far_shoulder,far_tip,shadow,4.4,species)
    if wiping_pose.contact:
