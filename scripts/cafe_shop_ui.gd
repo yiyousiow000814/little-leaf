@@ -463,37 +463,31 @@ func _flatten_card(card:Button):
  body.offset_left=8;body.offset_top=4;body.offset_right=-8;body.offset_bottom=-4
  for child in old.get_children():child.reparent(body)
  old.queue_free()
+func _minimum_stacked_card_height()->float:
+ # A name, price and availability line retain their current font sizes.
+ return ceilf(ui.hud.font_bold.get_height(13)*2+maxf(24,ui.hud.font_bold.get_height(18))+48)
 func _layout_product_card(card:Button,width:float,height:float,short_landscape:bool=false):
- var body=card.get_child(0);var image=body.get_child(0);var tiny=width<180 or short_landscape
+ var body=card.get_child(0);var image=body.get_child(0)
  var body_width=width-16.0;var body_height=height-8.0
- var art_width=44.0 if tiny else 56.0;var text_x=art_width+6;var text_width=body_width-text_x
  var title:Label=body.get_child(1);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;title.clip_text=false
- title.autowrap_mode=TextServer.AUTOWRAP_OFF if tiny else TextServer.AUTOWRAP_WORD_SMART
- var title_width=body_width if tiny else text_width
- _put(title,Rect2(0 if tiny else text_x,0,title_width,0))
+ title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ _put(title,Rect2(0,0,body_width,0))
  var title_height=title.get_combined_minimum_size().y
  var price=body.get_child(2);price.alignment=BoxContainer.ALIGNMENT_CENTER
  var price_height=maxf(24,price.get_combined_minimum_size().y)
  var status:Label=body.get_child(3);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
- var has_status=status.text!="";status.visible=has_status;var status_height=maxf(16,status.get_combined_minimum_size().y) if has_status else 0.0
+ var has_status=status.text!="";status.visible=has_status
+ var status_height=maxf(16,status.get_combined_minimum_size().y) if has_status else 0.0
+ # Reserve the existing text sizes, then fit the imagery above the name and price.
  var copy_height=title_height+2+price_height+(2+status_height if has_status else 0)
- if tiny:
-  var row_height=maxf(42,price_height+(2+status_height if has_status else 0))
-  var block_height=title_height+4+row_height
-  var top=maxf(0,(body_height-block_height)*.5)
-  _put(title,Rect2(0,top,body_width,title_height))
-  var row_y=top+title_height+4;var price_block=price_height+(2+status_height if has_status else 0)
-  var price_y=row_y+(row_height-price_block)*.5
-  _put(price,Rect2(text_x,price_y,text_width,price_height))
-  _put(status,Rect2(text_x,price_y+price_height+2,text_width,status_height))
-  _put(image,Rect2(0,row_y,art_width,row_height))
- else:
-  var top=maxf(0,(body_height-copy_height)*.5)
-  _put(title,Rect2(text_x,top,text_width,title_height))
-  _put(price,Rect2(text_x,top+title_height+2,text_width,price_height))
-  _put(status,Rect2(text_x,top+title_height+price_height+4,text_width,status_height))
-  var image_height=minf(58,body_height)
-  _put(image,Rect2(0,(body_height-image_height)*.5,art_width,image_height))
+ var image_height=minf(58,maxf(0,body_height-copy_height-4))
+ var block_height=image_height+4+copy_height
+ var top=maxf(0,(body_height-block_height)*.5)
+ _put(image,Rect2(0,top,body_width,image_height))
+ var title_y=top+image_height+4
+ _put(title,Rect2(0,title_y,body_width,title_height))
+ _put(price,Rect2(0,title_y+title_height+2,body_width,price_height))
+ _put(status,Rect2(0,title_y+title_height+price_height+4,body_width,status_height))
 func _active_products()->ScrollContainer:return ui.build_scroll if game.catalog_category=="Build" else game.catalog_scroll
 func _scroll_to(scroll:ScrollContainer,target:float):
  var bar=scroll.get_h_scroll_bar();target=clampf(target,0,maxf(0,bar.max_value-bar.page))
@@ -732,7 +726,7 @@ func sync(width:float):
  var tight_landscape=short_landscape and view.y<360.0
  var product_vertical_padding=14.0 if tight_landscape else 20.0
  var picker_landscape=short_landscape and available_width<700.0
- if short_landscape:h=maxf(h,ceilf(ui.hud.font_bold.get_height(13)*2+maxf(24,ui.hud.font_bold.get_height(18))+12)+product_vertical_padding)
+ h=maxf(h,_minimum_stacked_card_height()+(product_vertical_padding if short_landscape else 70.0))
  var header_y=(h-44.0)*.5 if short_landscape else 8.0
  root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);background.size=root.size
  game.tray.offset_left=insets.x+(available_width-w)/2;game.tray.offset_right=-(insets.z+(available_width-w)/2);ui.tray_base_top=-h-12-insets.w
@@ -839,6 +833,7 @@ func sync(width:float):
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
+  card.accessibility_name=column.get_child(1).text+", "+ui.Money.amount(game.model.price_of(kind))+" coins"
   var purpose=_product_purpose(kind)
   card.tooltip_text=purpose
   card.accessibility_description=purpose+(" Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked." if shortfall>0 else " Available to place.")
