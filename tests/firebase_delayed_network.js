@@ -7,7 +7,6 @@ const payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
 const changed=JSON.stringify({...JSON.parse(payload),coins:345});
 const clone=x=>x==null?null:JSON.parse(JSON.stringify(x));
 const fail=code=>Object.assign(Error(code),{code});
-const tick=()=>new Promise(r=>setImmediate(r));
 function harness(){
   let uid='alice',time=0,mode='',calls=0;const local=new Map(),cloud=new Map(),requests=[];
   const journal={read:async id=>clone(local.get(id)),replace:async(id,old,next)=>{if(JSON.stringify(old)!==JSON.stringify(clone(local.get(id))))throw fail('REVISION_CONFLICT');local.set(id,clone(next));}};
@@ -20,7 +19,9 @@ function harness(){
   const make=(deviceLabel='Unknown device')=>{const states=[],c=root.LittleLeafFirebase.createClient({deviceLabel,uid,currentUid:()=>uid,codec:root.LittleLeafAuthorityCodec,journal,remote,now:()=>time,status:s=>states.push(s)});c.states=states;return c;};
   return {make,local,cloud,requests,setMode:x=>mode=x,setUid:x=>uid=x,tick:()=>time+=30001,calls:()=>calls};
 }
-async function waiting(h){for(let i=0;i<100&&!h.requests.length;i++)await tick();assert(h.requests.length,'network request started');}
+// WebCrypto completes off the event loop; a tick count is not a time budget on
+// different CI runners. Wait for the same real request with a bounded deadline.
+async function waiting(h){const deadline=Date.now()+5000;while(!h.requests.length&&Date.now()<deadline)await new Promise(r=>setTimeout(r,1));assert(h.requests.length,'network request started within 5 seconds');}
 (async()=>{
   // New edits and hide-save can become locally durable during a long upload.
   let h=harness(),c=h.make(),b=await c.boot();await c.commit(payload,0,b.profileId);h.setMode('before');let sync=c.sync();await waiting(h);
