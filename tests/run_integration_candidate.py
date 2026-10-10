@@ -21,6 +21,9 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_manual_character_occlusion", "MANUAL_CHARACTER_OCCLUSION_RESULT"),
+    ("test_natural_cleanup_startup", "NATURAL_CLEANUP_STARTUP_RESULT"),
+    ("test_manual_ground_cleanup", "MANUAL_GROUND_CLEANUP_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
@@ -273,6 +276,8 @@ def main():
                     # exercise _save rather than suppress it via --visual-qa.
                     if script in {"test_autosave_feedback", "test_autosave_feedback_adversarial"}:
                         flags = ["--skip-intro"]
+                    if script == "test_natural_cleanup_startup":
+                        flags = ["--skip-intro", "--visual-qa"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
                     run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
