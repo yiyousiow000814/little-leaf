@@ -5,7 +5,7 @@
 
 日期：2026-10-09。状态：**测试规格已写；以下测试均尚未执行，不能计为通过。**
 
-依赖契约：[原创寻路设计](rc-inspired-routing-011.md)。所有 fixture 必须新建、可重放，不使用玩家存档或生产云服务。每个用例记录输入 seed、地图/actor 数据、预期结果、实际结果、运行命令和精确 source tree。Native、Web、CrazyGames 是不同的验收面。
+依赖契约：[原创寻路设计](../design/rc-inspired-routing-011.md)。所有 fixture 必须新建、可重放，不使用玩家存档或生产云服务。每个用例记录输入 seed、地图/actor 数据、预期结果、实际结果、运行命令和精确 source tree。Native、Web、CrazyGames 是不同的验收面。
 
 ## A. 搜索、土地、墙与 footprint
 

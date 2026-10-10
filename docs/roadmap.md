@@ -8,7 +8,7 @@
 - [Original complete version requirements](#original-requirements) — all0.1.10–0.3.2 plans, including proposals and numeric hypotheses.
 - [Version reconciliation](#version-reconciliation), [10a changes](#10a-changes), [all76 outcomes for11](#outcomes-011).
 - [Principal PRs and gaps](#principal-prs), [historical integration audit](#integration-audit).
-- [Developer instructions and technical references](README.md) — focused disposable verification, current detail contracts and archive provenance.
+- [Developer instructions and technical references](development/README.md) — focused disposable verification, current detail contracts and archive provenance.
 
 ### Current state and ownership
 
@@ -2822,6 +2822,6 @@ Cold-start acceptance: a reader with only this master should recover0.1.10–0.3
 
 ## Documentation authority and maintenance
 
-Use this single roadmap for current product scope and status. [Developer instructions](README.md) group technical contracts; [archive](archive/README.md) preserves historical approval, failed evidence and source recovery. One coherent related change per PR includes its code, tests and fixes; successor experiments are consolidated with history and dependency-relative deltas preserved. Documentation or test success is not merge/release authorization. Retire duplicate current status only after every unique requirement has a retained home.
+Use this single roadmap for current product scope and status. [Developer instructions](development/README.md) group technical contracts; [archive](testing/history/README.md) preserves historical approval, failed evidence and source recovery. One coherent related change per PR includes its code, tests and fixes; successor experiments are consolidated with history and dependency-relative deltas preserved. Documentation or test success is not merge/release authorization. Retire duplicate current status only after every unique requirement has a retained home.
 
 Edit this repository roadmap as the single current plan. Library master v3 is a preserved historical snapshot, not an automatically synchronized export or a competing editable master. If a document export is requested, derive it from an identified Git commit and explicitly record its source/version; no such refreshed export is claimed here. Private references and operational handoffs stay outside GitHub. Do not copy images or unpublished source artifacts into this document.
