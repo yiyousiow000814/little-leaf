@@ -1713,7 +1713,20 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 	return true
 
 
-func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
+func _staff_navigation_body_error(service:Dictionary,layout:Array,ownership:Array)->String:
+	# Validate only present bodies, not obsolete/consumed future route geometry.
+	# Unmarked historical staff retain their existing load contract.
+	for staff in service.get("staff",[]):
+		if not staff.has("navigation_phase"):continue
+		var cell=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
+		if cell.x<1 or not _floor_owned_in(cell,ownership):return "Navigating staff is outside owned service floor"
+		for item in layout:
+			if item.kind!="rug" and Rect2(Vector2(item.x,item.z),Vector2.ONE).grow(.23).has_point(staff.pos):return "Navigating staff body overlaps furniture"
+	return ""
+
+func save(path: String = SaveContract.PRIMARY_FILE, allow_staff_navigation: bool = false) -> bool:
+	if allow_staff_navigation and (OS.has_feature("web") or path==SaveContract.PRIMARY_FILE):return _fail("Staff navigation needs an explicit native save namespace")
+	var source_version=SaveContract.STAFF_NAVIGATION_VERSION if allow_staff_navigation else SAVE_VERSION
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
@@ -1726,7 +1739,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if reserved_error!="":return _fail("Could not save inconsistent active service: "+reserved_error)
 	var codec=RuntimeCodec.new()
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
-	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
+	var checked=codec.validate(runtime,items,cooks,PHASES,source_version,staff_roster(),duty_counts,allow_staff_navigation)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
@@ -1738,8 +1751,10 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
 	if checkout_error!="":return _fail(checkout_error)
+	var navigation_body_error=_staff_navigation_body_error(checked.state.service,items,owned_parcels)
+	if navigation_body_error!="":return _fail(navigation_body_error)
 	var data: Dictionary = {
-		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
+		"schema": SAVE_SCHEMA, "version": source_version, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
 		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
@@ -1750,6 +1765,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
+	if allow_staff_navigation:data["navigation_format"]=SaveContract.STAFF_NAVIGATION_FORMAT
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
@@ -1787,7 +1803,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	return true
 
 
-func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false) -> bool:
+func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false, allow_staff_navigation: bool = false) -> bool:
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
 	if not FileAccess.file_exists(path):
@@ -1801,9 +1817,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),allow_staff_navigation) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
-	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
+	if not SaveContract.accepts_header(data,allow_staff_navigation):return _fail("Unsupported or foreign save format")
+	if int(data.version)==SaveContract.STAFF_NAVIGATION_VERSION and (OS.has_feature("web") or path==SaveContract.PRIMARY_FILE):return _fail("Staff navigation needs an explicit native save namespace")
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
 			return _fail("Invalid save statistic: %s" % field)
@@ -1896,7 +1913,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if not data.get("operating_open") is bool or not data.get("included_bin_pending") is bool:return _fail("Invalid operating or included-equipment state")
 		saved_open=bool(data.operating_open);saved_bin_pending=bool(data.included_bin_pending)
 		var codec=RuntimeCodec.new()
-		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
+		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty,allow_staff_navigation)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
@@ -1918,6 +1935,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if checkout_state_error!="":return _fail(checkout_state_error)
 	checkout_state_error=Checkout.staff_floor_error(self,runtime_state.service,saved_parcels,validated)
 	if checkout_state_error!="":return _fail(checkout_state_error)
+	var navigation_body_error=_staff_navigation_body_error(runtime_state.service,validated,saved_parcels)
+	if navigation_body_error!="":return _fail(navigation_body_error)
 	var geometry=FurnitureMotion.copy_model(self)
 	geometry.shell_products=checked_walls.shell_products;geometry.shell_segment_products=checked_walls.shell_segment_products
 	var motion_error=geometry._layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
@@ -2521,7 +2540,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version)!=SAVE_VERSION:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.STAFF_NAVIGATION_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0

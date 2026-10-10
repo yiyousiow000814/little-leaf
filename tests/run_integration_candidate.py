@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_staff_navigation_save", "STAFF_NAVIGATION_SAVE_RESULT"),
     ("test_navigation_review", "NAVIGATION_REVIEW_RESULT"),
     ("test_floor_inspection", "FLOOR_INSPECTION_RESULT"),
     ("test_selected_tile_resize", "SELECTED_TILE_RESIZE_RESULT"),
