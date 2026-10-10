@@ -10,7 +10,7 @@ from build_web import ROOT, sha256
 def wrapper_html(html, origin):
     if not re.fullmatch(r'https://little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app', origin):
         raise ValueError('Exact controlled preview origin required')
-    entry = '<section id="itch-entry" style="position:fixed;inset:0;z-index:60;background:#fffaf0;display:grid;place-content:center;padding:24px;text-align:center"><h1>Little Leaf</h1><button id="itch-account" type="button">Play with Google on itch</button><p>Google opens a sign-in popup. Your account cafe stays on this itch page. Existing local itch progress does not transfer automatically.</p><button id="itch-local" type="button">Continue local play on itch</button><p>Your local cafe stays in this browser.</p></section>'
+    entry = '<section id="itch-entry" style="position:fixed;inset:0;z-index:60;background:#fffaf0;place-content:center;padding:24px;text-align:center"><h1>Little Leaf</h1><button id="itch-account" type="button">Play with Google on itch</button><p>Google opens a sign-in popup. Your account cafe stays on this itch page. Existing local itch progress does not transfer automatically.</p><button id="itch-local" type="button">Continue local play on itch</button><p>Your local cafe stays in this browser.</p></section>'
     # Gate only the derived wrapper before its original vault or engine starts.
     marker = 'window.__littleLeafVault.boot()'
     if html.count(marker) != 1:raise ValueError('Original local boot contract changed')
@@ -42,7 +42,11 @@ def wrapper_html(html, origin):
 })(window);
 '''.replace('PREVIEW_ORIGIN', json.dumps(origin))
     if '<body>' not in html:raise ValueError('Original body contract changed')
-    return html.replace('<body>', '<body>'+entry+'<script>'+controller+'</script>', 1)
+    engine = '<script src="index.js"></script>'
+    if html.count(engine) != 1:raise ValueError('Original engine script contract changed')
+    html = html.replace('<body>', '<body><style>#itch-entry{display:grid}#itch-entry[hidden]{display:none}</style>'+entry, 1)
+    # Required canvas/status nodes have been parsed; gate exists before engine boot.
+    return html.replace(engine, '<script>'+controller+'</script>'+engine, 1)
 
 
 def prepare(build, output, config, origin, source, tree):

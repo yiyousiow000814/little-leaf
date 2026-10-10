@@ -194,7 +194,7 @@ def main():
         # This fresh source build is not the local reviewed-engine reuse candidate.
         path=a.output/'firebase-variant-manifest.json'
         manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
-        manifest['status']='fresh-trusted-preview-bootstrap-not-deployed'
+        manifest['status']='staged-not-published'
         path.write_text(json.dumps(manifest,indent=2)+'\n')
     else:
         stage(a.validated_web_build,a.output,config)
