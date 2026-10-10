@@ -1,14 +1,25 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.10b",
+  "version": "0.1.10c",
   "date": "2026-10-10",
   "label": "Developer preview",
   "new": [],
   "fixed": [
-    "Corrected release metadata and atlas dependency binding so the reviewed 0.1.10a fixes can be delivered."
+    "Fixed release validation for hotfix versions while preserving previous update notes and cloud-rollout limitations."
   ],
   "history": [
+    {
+      "schema_version": 1,
+      "status": "released",
+      "version": "0.1.10b",
+      "date": "2026-10-10",
+      "label": "Developer preview",
+      "new": [],
+      "fixed": [
+        "Corrected release metadata and atlas dependency binding so the reviewed 0.1.10a fixes can be delivered."
+      ]
+    },
     {
       "schema_version": 1,
       "status": "released",
