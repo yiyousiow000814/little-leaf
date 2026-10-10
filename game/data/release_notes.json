@@ -13,7 +13,10 @@
     "Old cached progress without new changes now loads the latest cloud save automatically.",
     "Unsynced progress stays protected during interrupted connections, device switching and save conflicts.",
     "Improved recovery controls and same-tab continuation after a confirmed update.",
-    "Cloud changes remain subject to the coordinated server rollout; an older open tab may need to reopen the current game."
+    "Cloud changes remain subject to the coordinated server rollout; an older open tab may need to reopen the current game.",
+    "Fixed growing WebGL handle storage during repeated rendering-resource creation and cleanup.",
+    "Improved overview camera bounds, input ownership and neighborhood visibility.",
+    "When cloud saving is refused, pending progress can be exported before reopening the updated game."
   ],
   "history": [
     {

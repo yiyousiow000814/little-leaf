@@ -37,7 +37,8 @@ def qualify(tag,git=run):
  ref='refs/tags/'+tag;obj=git('git','rev-parse','--verify',ref);sha=git('git','rev-parse','--verify',ref+'^{commit}')
  if not re.fullmatch('[0-9a-f]{40}',obj) or not re.fullmatch('[0-9a-f]{40}',sha):raise ValueError('Invalid tag identity')
  git('git','merge-base','--is-ancestor',sha,'origin/main')
- project=git('git','show',sha+':project.godot');notes=json.loads(git('git','show',sha+':data/release_notes.json'))
+ prefix='game/' if git('git','ls-tree','--name-only',sha,'game/project.godot')=='game/project.godot' else ''
+ project=git('git','show',sha+':'+prefix+'project.godot');notes=json.loads(git('git','show',sha+':'+prefix+'data/release_notes.json'))
  if re.findall(r'^config/version="([^"]+)"$',project,re.M)!=[tag[1:]]:raise ValueError('Tag/project mismatch')
  if notes.get('schema_version')!=1 or notes.get('version')!=tag[1:] or notes.get('status')!='released':raise ValueError('Unqualified release metadata')
  if datetime.date.fromisoformat(notes['date'])>datetime.datetime.now(datetime.timezone.utc).date():raise ValueError('Future release date')

@@ -31,7 +31,7 @@ def run_blocks():
 
 
 class MetadataGateTests(unittest.TestCase):
-    def run_prepare(self, mutation=None, tag="v0.1.9", event="workflow_dispatch", version="0.1.9", tags=None):
+    def run_prepare(self, mutation=None, tag="v0.1.9", event="workflow_dispatch", version="0.1.9", tags=None, prefix=""):
         notes = {"schema_version": 1, "version": version, "status": "released",
                  "date": "2000-01-01", "new": ["Inbox letters."], "fixed": ["Save recovery."]}
         if mutation:
@@ -42,9 +42,11 @@ class MetadataGateTests(unittest.TestCase):
                 return OBJECT
             if command == ["rev-parse", "--verify", "refs/tags/" + tag + "^{commit}"]:
                 return SHA
-            if command == ["show", SHA + ":project.godot"]:
+            if command == ["ls-tree", "--name-only", SHA, "game/project.godot"]:
+                return "game/project.godot" if prefix else ""
+            if command == ["show", SHA + ":" + prefix + "project.godot"]:
                 return 'config/version="' + version + '"'
-            if command == ["show", SHA + ":data/release_notes.json"]:
+            if command == ["show", SHA + ":" + prefix + "data/release_notes.json"]:
                 return json.dumps(notes)
             if command == ["tag", "--list"]:
                 return tags if tags is not None else "v0.1.8\nv0.1.9-alpha-2\nv0.1.9\nv0.1.10"
@@ -68,6 +70,11 @@ class MetadataGateTests(unittest.TestCase):
         self.assertIn("## Bug Fixes\n- Save recovery.", notes)
         self.assertIn("------\n\n## Changelog", notes)
         self.assertIn("/compare/v0.1.8...v0.1.9", notes)
+
+    def test_reorganized_tag_reads_both_metadata_files_from_game(self):
+        result = self.run_prepare(tag="v0.1.10a", version="0.1.10a", prefix="game/")
+        self.assertEqual(result["sha"], SHA)
+        self.assertEqual(result["tag"], "v0.1.10a")
 
     def test_hotfix_changelog_uses_immediate_lower_release(self):
         versions = ["0.1.9", "0.1.10", "0.1.10a", "0.1.10b", "0.1.10c", "0.1.10z", "0.1.11"]
