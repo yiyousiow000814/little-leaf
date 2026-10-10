@@ -112,7 +112,7 @@ static func plan(model,id:int,x:int,z:int,rot:int,actors:Array=[])->Dictionary:
    if not exits.is_empty() and guest.get("service_cell") not in exits:guest.service_cell=exits[0]
  var geometry_error=geometry_error(shadow,shadow.customers,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.wall_attachments)
  if geometry_error!="":return fail(geometry_error)
- var checkout_error=shadow.Checkout.layout_error(shadow,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.customers)
+ var checkout_error="" if shadow.customers.is_empty() else shadow.Checkout.layout_error(shadow,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.customers)
  if checkout_error!="":return fail(checkout_error)
  return {"ok":true,"noop":false,"items":shadow.items,"groups":shadow.dining_sets,"guests":shadow.customers}
 static func commit(model,transaction:Dictionary)->bool:

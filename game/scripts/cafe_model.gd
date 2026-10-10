@@ -446,7 +446,7 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 		return _fail("Unknown furnishing")
 	if not is_floor_owned(Vector2i(x, z)):
 		return _fail("Buy this plot first" if not parcel_at(Vector2i(x, z)).is_empty() else "That tile is outside the cafe")
-	if Vector2i(x, z) == ENTRANCE or Vector2i(x, z) == ENTRY_LANDING:
+	if not customers.is_empty() and (Vector2i(x, z) == ENTRANCE or Vector2i(x, z) == ENTRY_LANDING):
 		return _fail("Keep the entrance and its landing clear")
 	if kind != "rug" and _guest_route_uses(Vector2i(x, z)):
 		return _fail("A guest is using that tile or walking route")
@@ -460,6 +460,9 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 	proposed.append({"id": ignore_id, "kind": kind, "x": x, "z": z, "rot": posmod(rot,4)})
 	var actor_error := _furniture_actor_error([proposed[-1]],proposed,actor_positions)
 	if actor_error!="":return _fail(actor_error)
+	# Idle layouts have no guest relocation/checkout ownership transition.
+	# Walking access is a warning; physical bounds and bodies remain required.
+	if customers.is_empty():return true
 	if not _placement_workfaces_allowed(proposed):return false
 	var chair_error := _chair_egress_error(built_walls,proposed,owned_parcels,customers)
 	if chair_error!="":return _fail(chair_error)
@@ -1374,6 +1377,12 @@ func bin_service_cells(item: Dictionary, layout=null) -> Array[Vector2i]:
 	return result
 
 func placement_warning(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0) -> String:
+	var omitted=logical_members(ignore_id) if ignore_id>=0 else []
+	var walking_layout:Array[Dictionary]=[]
+	for entry in items:
+		if int(entry.id) not in omitted:walking_layout.append(entry)
+	walking_layout.append_array(placement_parts(kind,x,z,rot,ignore_id))
+	if not _layout_has_access(walking_layout,depth):return "Cannot pass: staff and guests may wait"
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():
 		var candidate=DiningSets.candidate(self,x,z,rot,ignore_id)
 		for item in candidate.layout:
@@ -1710,7 +1719,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
-	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
+	if not customers.is_empty():checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
 	if checkout_error!="":return _fail(checkout_error)
 	## Only our explicit reconstructed schema is written; no legacy paths probed.
 	var group_check=DiningSets.validate(dining_sets,items,customers)
@@ -1755,7 +1764,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	# In particular an explicitly imported v13 enclosure must be repaired first.
 	var saved_actors:Array=[]
 	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=_wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
+	var physical_error=_furniture_body_error(items,saved_actors)
+	if physical_error!="":return _fail("Could not save physical layout: "+physical_error)
+	var egress_error="" if checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
 	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in checked.state.customers:
@@ -1859,7 +1870,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var point := Vector2i(int(raw.x), int(raw.z))
 		if not _floor_owned_in(point, saved_parcels) or (int(data.version)<12 and not _legacy_floor_owned(point,saved_parcels,int(data.version))):
 			return _fail("Saved furniture is on an unowned plot")
-		if point == ENTRANCE or point == ENTRY_LANDING or occupied.has(point) or ids.has(int(raw.id)):
+		if (int(data.version)<SAVE_VERSION and point in [ENTRANCE,ENTRY_LANDING]) or occupied.has(point) or ids.has(int(raw.id)):
 			return _fail("Overlapping furniture or blocked entrance in save")
 		var item: Dictionary = {"id": int(raw.id), "kind": str(raw.kind), "x": int(raw.x), "z": int(raw.z), "rot": int(raw.rot)}
 		if item.kind == "stove":
@@ -1874,8 +1885,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=saved_cashiers):return _fail("Register count disagrees with deployment")
 	if not _valid_int(data.get("next_item_id"), highest_id + 1, 1000000001):
 		return _fail("Invalid saved furniture sequence")
-	if not _layout_has_access(validated, saved_depth, saved_parcels):
-		return _fail("Saved layout blocks access to service stations")
 	var checked_walls=_validate_saved_walls(data,saved_parcels)
 	if not checked_walls.ok:return _fail(str(checked_walls.error))
 	var checked_floors=_validate_saved_floors(data,saved_parcels,str(checked_walls.floor_style))
@@ -1892,6 +1901,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
+	if (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
+		return _fail("Saved layout blocks access to service stations")
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
 	var saved_first_guest=data.get("first_guest_pending",false)
@@ -1915,7 +1926,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
 	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=_wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var physical_error=_furniture_body_error(validated,saved_actors)
+	if physical_error!="":return _fail("Invalid saved physical layout: "+physical_error)
+	var egress_error="" if int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty() else _wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
@@ -2068,6 +2081,16 @@ func _furniture_actor_positions(extra:Array) -> Array[Vector2]:
 		if point is Vector2 and point.is_finite():result.append(point)
 	return result
 
+func _furniture_body_error(layout:Array,actors:Array) -> String:
+	# Physical clearance only. Reachability never enlarges occupied space.
+	for item in layout:
+		if str(item.kind)=="rug":continue
+		var minimum=Vector2(int(item.x),int(item.z));var maximum=minimum+Vector2.ONE
+		for position in actors:
+			if position.distance_squared_to(position.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
+				return "A staff member is using part of this space"
+	return ""
+
 func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> String:
 	var actors:=_furniture_actor_positions(actor_positions)
 	if actors.is_empty():return ""
@@ -2079,6 +2102,7 @@ func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> S
 		for point in actors:
 			if point.distance_squared_to(point.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
 				return "A staff member is using part of this space"
+	if customers.is_empty():return ""
 	# Staff cannot use the x=0 arrival strip or unowned exterior grass to
 	# bypass furniture. Their escape is an indoor route to the service floor
 	# at ENTRY_LANDING, even when the pocket touches a public outdoor edge.

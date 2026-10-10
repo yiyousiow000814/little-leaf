@@ -305,12 +305,13 @@ func _update_validity(screen: Vector2):
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
 	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
-	if not placement_receipt.ok:
+	if not placement_receipt.placement_valid:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return
 	drag_valid = true
 	drag_reason = "Release to move" if drag_item_id >= 0 else ("Release to place" if drag_active else "Click or drag to place")
+	if not placement_receipt.ok:drag_reason=placement_receipt.error
 	if game.model.has_method("placement_warning"):
-		drag_warning = str(game.model.placement_warning(drag_kind, drag_cell.x, drag_cell.y, drag_item_id, drag_rotation))
+		drag_warning = str(placement_receipt.warning)
 		if drag_warning != "": drag_reason += " · " + drag_warning
 	_last_valid_cell = drag_cell
 
@@ -412,13 +413,3 @@ func _staff_positions() -> Array[Vector2]:
 
 func _service_locked(id: int) -> bool:
 	return game.has_method("_item_service_locked") and bool(game._item_service_locked(id))
-
-func draw_floor_feedback(artist):
-	if not game.editing:return
-	for cell in floor_availability.refresh(game.model):
-		var blocked=bool(floor_availability.cells[cell].blocked)
-		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
-		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
-		var corners=[artist.iso(cell.x+.04,cell.y+.04),artist.iso(cell.x+.96,cell.y+.04),artist.iso(cell.x+.96,cell.y+.96),artist.iso(cell.x+.04,cell.y+.96)]
-		artist.poly(corners,fill)
-		for edge in 4:artist.line(corners[edge],corners[(edge+1)%4],outline,.8)

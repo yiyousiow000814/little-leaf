@@ -47,7 +47,8 @@ func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[]
     _plan_result=_plan(model,cell,relocation.positions)
     if _plan_result.ok and not relocation.moves.is_empty():_plan_result["staff_positions"]=relocation.positions
    else:_plan_result=relocation
- _receipt={"ok":bool(_plan_result.ok),"error":str(_plan_result.get("error","")),"issue":_plan_result.get("issue",{}).duplicate(true),"cell":cell}
+ _receipt={"placement_valid":problem=="" and bool(_plan_result.get("placement_valid",_plan_result.ok)),"ok":bool(_plan_result.ok),"error":str(_plan_result.get("error","")),"issue":_plan_result.get("issue",{}).duplicate(true),"cell":cell}
+ _receipt["warning"]=model.placement_warning(_kind,cell.x,cell.y,_id,_rotation) if _receipt.placement_valid else ""
  return _receipt
 
 func _footprint_problem(model,cell:Vector2i)->String:
@@ -67,8 +68,9 @@ func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
  shadow.duty_counts=model.duty_counts.duplicate(true);shadow.duty_targets=model.duty_targets.duplicate(true)
  shadow.wall_actor_positions.assign(model.wall_actor_positions)
  shadow.checkout_staff_claims.assign(model.checkout_staff_claims)
+ var placement_valid=shadow.can_place(_kind,cell.x,cell.y,-1,_rotation,actors)
  var ok=shadow.place(_kind,cell.x,cell.y,_rotation,actors)
- var plan={"ok":ok,"error":shadow.last_error,"issue":shadow.last_placement_issue.duplicate(true)}
+ var plan={"placement_valid":placement_valid,"ok":ok,"error":shadow.last_error,"issue":shadow.last_placement_issue.duplicate(true)}
  if ok:
   plan.merge({
    "items":shadow.items,"groups":shadow.dining_sets,
