@@ -9,10 +9,20 @@ var signature=[]
 var epoch=0
 var serial=0
 var actors={}
+var legacy={}
 
 static func allowed(owner)->bool:
 	var args=OS.get_cmdline_user_args()
 	return not OS.has_feature("web") and "--fresh-review" in args and "--navigation-candidate" in args and owner.fresh_start and owner.save_writes_suppressed
+
+static func persistence_allowed(owner)->bool:
+	var scope=OS.get_environment("LL_NAVIGATION_REVIEW_ROOT").replace("\\","/").simplify_path().trim_suffix("/")
+	var profile=OS.get_user_data_dir().replace("\\","/").simplify_path()
+	if OS.get_name()=="Windows":scope=scope.to_lower();profile=profile.to_lower()
+	return allowed(owner) and "--navigation-persistence-candidate" in OS.get_cmdline_user_args() and scope.is_absolute_path() and profile.begins_with(scope+"/")
+
+func uses_candidate(staff:Dictionary,index:int)->bool:
+	return not legacy.has(index) or not is_same(legacy[index],staff)
 
 func _init(owner):game=owner
 
@@ -25,6 +35,8 @@ func tick():
 	for index in actors.keys():
 		if index>=game.staff_states.size() or not is_same(actors[index].staff,game.staff_states[index]):
 			_cancel(actors[index]);actors.erase(index)
+	for index in legacy.keys():
+		if index>=game.staff_states.size() or not is_same(legacy[index],game.staff_states[index]):legacy.erase(index)
 
 func _context(staff:Dictionary,destination:Vector2i)->Array:
 	return [staff.job_kind,staff.job_token,staff.job_guest_id,staff.get("job_mess_id",-1),staff.get("job_dish_id",-1),staff.job_step,staff.station_id,destination]
@@ -41,7 +53,42 @@ func _cancel(record:Dictionary):
 func stop():
 	for record in actors.values():_cancel(record)
 	actors.clear()
+	legacy.clear()
 	# Continue normal cooperative cleanup rather than freeing search structures here.
+
+func export_staff(index:int,saved:Dictionary)->bool:
+	var staff:Dictionary=game.staff_states[index]
+	var record:Dictionary=actors.get(index,{})
+	if not uses_candidate(staff,index) or record.is_empty():return not staff.has("navigation_phase")
+	var follower:Dictionary=record.follower
+	var following=not follower.is_empty() and not record.anchoring and int(record.request)==0 and int(follower.get("request",0))==0 and record.context==_context(staff,staff.destination) and Nav._remaining_valid(snapshot,follower,staff.pos)
+	if following:
+		saved.path=follower.plan.route.duplicate();saved.index=int(follower.index);saved.navigation_phase="follow"
+		return true
+	saved.navigation_phase="replan";saved.index=1
+	var cell=Vector2i(staff.pos.floor())
+	if staff.pos.distance_to(Nav.center(cell))<=.000001:saved.path=[cell];return true
+	if follower.is_empty():return false
+	var next=int(follower.index);var route:Array=follower.plan.route
+	if next<1 or next>=route.size():return false
+	if Geometry2D.get_closest_point_to_segment(staff.pos,Nav.center(route[next-1]),Nav.center(route[next])).distance_to(staff.pos)>.000001:return false
+	saved.path=[route[next-1],route[next]]
+	return true
+
+func restore_staff():
+	stop();snapshot={};signature=[];tick()
+	for index in game.staff_states.size():
+		var staff:Dictionary=game.staff_states[index]
+		if not staff.has("navigation_phase"):
+			legacy[index]=staff;continue
+		serial+=1
+		var context=_context(staff,staff.destination)
+		var record={"staff":staff,"context":context,"goal":staff.destination,"serial":serial,"follower":{},"request":0,"anchoring":false}
+		actors[index]=record
+		if staff.navigation_phase=="replan" and staff.path.size()==1:continue
+		var plan={"status":"found","route":staff.path.duplicate(),"revision":snapshot.revision.duplicate()}
+		record.follower=Nav.follower(plan,serial,_owns.bind(index,context));record.follower.index=int(staff.index)
+		record.anchoring=staff.navigation_phase=="replan"
 
 func _submit(record:Dictionary,position:Vector2)->String:
 	var origin=Vector2i(position.floor())

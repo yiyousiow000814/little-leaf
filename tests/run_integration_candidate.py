@@ -21,6 +21,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_navigation_review_restore", "NAVIGATION_REVIEW_RESTORE_RESULT"),
     ("test_staff_navigation_save", "STAFF_NAVIGATION_SAVE_RESULT"),
     ("test_navigation_review", "NAVIGATION_REVIEW_RESULT"),
     ("test_floor_inspection", "FLOOR_INSPECTION_RESULT"),
@@ -292,6 +293,9 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script == "test_navigation_review_restore":
+                        flags.extend(["--navigation-candidate", "--navigation-persistence-candidate"])
+                        env["LL_NAVIGATION_REVIEW_ROOT"] = env["XDG_DATA_HOME"]
                     if script == "test_navigation_review":flags.append("--navigation-candidate")
                     if script == "capture_chef_pickup":flags.append("--validate-fixture")
                     if script != "test_interactive_tutorial":

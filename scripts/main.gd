@@ -719,7 +719,8 @@ func _update_ui():
 	if build_tools!=null:build_tools.sync()
 	if compact_ui!=null:compact_ui.sync()
 
-func _service_save_snapshot()->Dictionary:
+func _service_save_snapshot(allow_staff_navigation:bool=false)->Dictionary:
+	if allow_staff_navigation and (navigation_review==null or not NavigationReview.persistence_allowed(self)):return {}
 	_sync_staff_duty();_sync_service_guests()
 	var records=[]
 	for id in service_guests:
@@ -727,19 +728,23 @@ func _service_save_snapshot()->Dictionary:
 	var staff=[]
 	for source in staff_states:
 		var state={}
-		for key in ["role","on_duty","duty_pending","pos","destination","path","index","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_dish_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell"]:
+		for key in ["role","on_duty","duty_pending","pos","destination","path","index","navigation_phase","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_dish_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell"]:
 			if source.has(key):state[key]=source[key].duplicate(true) if source[key] is Array or source[key] is Dictionary else source[key]
+		if allow_staff_navigation and not navigation_review.export_staff(staff.size(),state):return {}
 		staff.append(state)
 	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
 
-func _restore_service_runtime():
+func _restore_service_runtime(allow_staff_navigation:bool=false)->bool:
+	if allow_staff_navigation and (navigation_review==null or not NavigationReview.persistence_allowed(self)):return false
+	if not allow_staff_navigation and model.service_snapshot.get("staff",[]).any(func(row):return row.has("navigation_phase")):return false
+	if navigation_review!=null:navigation_review.stop()
 	ground_mess_generation+=1
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
 		dishwashing.restore({})
 		_update_people()
 		if fresh_start and not save_recovery_blocked:_place_fresh_staff_at_posts()
-		_sync_service_guests();return
+		_sync_service_guests();return true
 	service_serial=int(snapshot.serial);animation_time=float(snapshot.animation_time)
 	floor_tasks.restore(snapshot.get("floor_tasks",{}))
 	dishwashing.restore(snapshot.get("dishwashing",{}))
@@ -774,6 +779,23 @@ func _restore_service_runtime():
 		var arrived=destination!=Vector2i(-1,-1) and staff.pos.distance_to(Vector2(destination)+Vector2(.5,.5))<.03
 		var travel_action={"plate":"carrying_to_pass" if staff.role=="chef" else "carrying_plate","drink":"carrying_drink","dishes":"carrying_dishes","trash":"carrying_trash"}.get(payload,"walking")
 		_set_staff_art(staff,str(step.action) if arrived else travel_action,target,clampf(float(staff.job_elapsed)/seconds,0,1) if arrived else 0.0,payload)
+	if allow_staff_navigation:navigation_review.restore_staff()
+	return true
+
+func save_navigation_review()->bool:
+	if navigation_review==null or not NavigationReview.persistence_allowed(self):return false
+	var saved=_service_save_snapshot(true)
+	if saved.is_empty():return false
+	var previous=model.service_snapshot
+	model.service_snapshot=saved
+	var ok=model.save(SaveContract.STAFF_NAVIGATION_FILE,true)
+	model.service_snapshot=previous
+	return ok
+
+func load_navigation_review()->bool:
+	if navigation_review==null or not NavigationReview.persistence_allowed(self):return false
+	if not model.load_save(SaveContract.STAFF_NAVIGATION_FILE,false,true):return false
+	return _restore_service_runtime(true)
 
 func _place_fresh_staff_at_posts():
 	# Only a genuinely new cafe has no saved positions to resume. Use the same
@@ -1903,6 +1925,7 @@ func _animate_staff(delta: float):
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		var target_item=_service_target(staff)
+		var use_navigation=navigation_review!=null and navigation_review.uses_candidate(staff,index)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 		var destination=_service_destination(staff,target_item,from,claimed) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
 		var interaction_available=destination!=Vector2i(-1,-1)
@@ -1914,17 +1937,17 @@ func _animate_staff(delta: float):
 		staff.yield_time=0.0
 		claimed.append(destination)
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
-		var route_invalid=_staff_route_invalid(staff,route_geometry) if navigation_review==null else false
-		if navigation_review==null and (route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size())))):
+		var route_invalid=_staff_route_invalid(staff,route_geometry) if not use_navigation else false
+		if not use_navigation and (route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size())))):
 			staff.destination=destination
 			staff.path=_staff_route(index,destination)
 			staff.index=0; staff.blocked_time=0.0
-		if navigation_review!=null:staff.destination=destination
+		if use_navigation:staff.destination=destination
 		var payload=_staff_payload(staff,index)
 		var travel_action={"plate":"carrying_to_pass" if staff.role=="chef" else "carrying_plate","drink":"carrying_drink","dishes":"carrying_dishes","trash":"carrying_trash"}.get(payload,"walking")
 		_set_staff_art(staff,travel_action if not at_destination or payload!="none" else "idle",target_item,0.0,payload)
 		var moved=false
-		if navigation_review!=null:
+		if use_navigation:
 			var motion=navigation_review.move(staff,index,destination,delta)
 			var direction:Vector2=motion.position-staff.pos
 			moved=direction.length()>.0001
