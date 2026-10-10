@@ -55,8 +55,9 @@ jobs:
           if os.environ['EVENT_NAME'] == 'push' and sha != os.environ['EVENT_SHA']:
               raise ValueError('Tag no longer matches the triggering source')
           # Read data, never execute scripts from the tagged game source.
-          project = git('show', sha + ':project.godot')
-          notes = json.loads(git('show', sha + ':data/release_notes.json'))
+          prefix = 'game/' if git('ls-tree', '--name-only', sha, 'game/project.godot') == 'game/project.godot' else ''
+          project = git('show', sha + ':' + prefix + 'project.godot')
+          notes = json.loads(git('show', sha + ':' + prefix + 'data/release_notes.json'))
           version = tag[1:]
           if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [version]:
               raise ValueError('Tag and project version disagree')
