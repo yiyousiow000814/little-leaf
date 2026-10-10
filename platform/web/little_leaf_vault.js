@@ -230,6 +230,7 @@
       } catch (error) { connection.close(); throw error; }
     }
     const client = {
+      localCallbacksAuthority: true,
       bootJson: '',
       // A serialized copy cannot mutate the authority or its previous record.
       snapshotJson() { return inboxJson; },

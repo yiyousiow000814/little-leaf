@@ -17,6 +17,7 @@ const DOM_SOURCE = """
         const touches = new Set();
         let disposed = false;
         let savedForHide = false;
+        let pageHidden = false;
         let quarantined = false;
         function listen(target, type, handler) {
             target.addEventListener(type, handler, true);
@@ -81,10 +82,15 @@ const DOM_SOURCE = """
         }
         listen(document, 'visibilitychange', function () {
             if (document.visibilityState === 'hidden') hide('hidden');
-            else { savedForHide = false; notify('visible', false); }
+            else if (!pageHidden) { savedForHide = false; notify('visible', false); }
         });
-        listen(window, 'pagehide', function () { hide('pagehide'); });
-        listen(window, 'pageshow', function () { savedForHide = false; if (document.visibilityState !== 'hidden') notify('visible', false); });
+        listen(window, 'pagehide', function () { pageHidden = true; hide('pagehide'); });
+        listen(window, 'pageshow', function () {
+            pageHidden = false;
+            // Background restoration is not a visible return. Keep the hide
+            // save latch until a real visible transition to avoid duplicate saves.
+            if (document.visibilityState === 'visible') { savedForHide = false; notify('visible', false); }
+        });
         const registration = {
             dispose: function () {
                 if (disposed) return;
@@ -162,8 +168,11 @@ func _on_browser_event(arguments:Array):
 		# Cancel previews before the validated runtime snapshot. This is not a
 		# synchronous IndexedDB flush, and page termination may interrupt it.
 		game._save()
-	if reason in ["hidden","pagehide"]:game.set_browser_suspended(true)
-	elif reason=="visible":game.set_browser_suspended(false)
+	if reason=="hidden":game.set_browser_hidden(true)
+	elif reason=="pagehide":game.set_browser_suspended(true)
+	elif reason=="visible":
+		game.set_browser_hidden(false)
+		game.set_browser_suspended(false)
 
 func _gui_nodes(node:Node,result:Array):
 	result.append(node)
