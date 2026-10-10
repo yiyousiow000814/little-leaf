@@ -1,0 +1,11 @@
+{
+  "scope": "Exact combined camera/FPS atlas parity; no background WIP or 11",
+  "control": {
+    "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
+    "tree": "272899608abf811b62c9d91851916c193b095dcf"
+  },
+  "candidate": {
+    "commit": "dba691056e7183abcd6af9bb12508f8df6f0b1eb",
+    "tree": "32a2dada5fb646dcd59d384e2646f0b6ea713122"
+  }
+}

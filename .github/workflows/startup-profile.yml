@@ -1,0 +1,61 @@
+name: Verify combined camera FPS atlas provenance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: combined-atlas-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  canonical-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require exact frozen camera source before any install
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('tests/diagnostics/canonical_atlas/inputs.json').read_text())
+          assert data['candidate'] is not None, 'Combined owner exact commit/tree handoff required'
+          PY
+      - name: Install existing checksum-pinned official engine only
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          from tools.install_tools import install
+          folder=Path(os.environ['RUNNER_TEMP'])/'canonical-tools'
+          folder.mkdir()
+          receipt=install('godot',folder/'godot')
+          (folder/'toolchain.json').write_text(json.dumps(receipt,indent=2))
+          with open(os.environ['GITHUB_ENV'],'a') as stream:stream.write(f'GODOT_BIN={folder}/godot\n')
+          PY
+      - name: Use recorded PR105 software-renderer packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils \
+            libgl1-mesa-dri=25.2.8-0ubuntu0.24.04.4 libglx-mesa0=25.2.8-0ubuntu0.24.04.4
+      - name: Verify merged FPS main then exact combined camera source
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 tests/diagnostics/canonical_atlas/run.py \
+            --godot "$GODOT_BIN" --expected-head "$EXPECTED_HEAD" \
+            --output "$RUNNER_TEMP/tena-atlas"
+      - name: Retain exact source and pixel evidence on all outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: tena-atlas-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/tena-atlas/
+            ${{ runner.temp }}/canonical-tools/toolchain.json
+          if-no-files-found: error
+          retention-days: 7
