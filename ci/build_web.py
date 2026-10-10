@@ -1,6 +1,5 @@
 """Export checked source into a fresh directory; no browser, player profile, or publication."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,17 +7,13 @@ import re
 import shutil
 import subprocess
 from release_metadata import version
+from artifacts import sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
 PRODUCTION_DIRS = {"assets", "data", "scripts", "shaders", "web"}
 PRODUCTION_FILES = {"project.godot", "main.tscn", "export_presets.cfg"}
 REQUIRED_NOTICES = {"docs/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
-
-
-def sha256(path):
-    with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def copy_notices(root, web, tested_hashes):

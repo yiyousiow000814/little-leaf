@@ -1,6 +1,5 @@
 """Publish an already-tested artifact to the one approved itch channel; fail closed."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,6 +7,7 @@ import re
 import subprocess
 import time
 from release_metadata import STABLE, RELEASE, release_key
+from artifacts import verify_files
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers
@@ -92,11 +92,7 @@ def verify_artifact(web, tag, sha):
     for name, expected in manifest["files"].items():
         if Path(name).name != name or name.startswith("."):
             raise ValueError("Unexpected artifact path")
-        path = web / name
-        with path.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
-        if path.stat().st_size != expected["bytes"] or digest != expected["sha256"]:
-            raise ValueError("Artifact checksum mismatch: " + name)
+    verify_files(web, manifest['files'])
     for required in ["index.html", "index.js", "index.wasm", "index.pck"]:
         if required not in manifest["files"]:
             raise ValueError("Incomplete HTML5 export")

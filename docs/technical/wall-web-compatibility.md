@@ -98,7 +98,7 @@ state. This does not relax the sandbox or authorize a local denied launch.
 For an already prepared pair of exact exports:
 
 ```sh
-python3 ci/prepare_wall_compatibility.py \
+python3 ci/prepare_browser_qa.py wall \
   --old-source /path/to/exact-old-checkout \
   --old-build /path/to/old-web-build \
   --new-build /path/to/new-web-build \

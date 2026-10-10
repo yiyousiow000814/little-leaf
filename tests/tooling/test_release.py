@@ -101,7 +101,7 @@ class MetadataTests(unittest.TestCase):
 
 class ReleaseNotesContractTests(unittest.TestCase):
     """Guard the checked-in draft contract without adding CI dependencies."""
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
 
     def test_checked_in_document_uses_declared_schema_fields_and_status(self):
         notes = json.loads((self.root / "data/release_notes.json").read_text())

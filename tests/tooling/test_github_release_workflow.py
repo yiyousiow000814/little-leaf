@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github/workflows/github-release.yml"
 SHA = "a" * 40
 OBJECT = "b" * 40

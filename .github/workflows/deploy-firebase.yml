@@ -78,7 +78,7 @@ jobs:
           digest-mismatch: error
       - name: Verify the exact reviewed package before requesting any Google token
         run: |
-          python3 -m unittest discover -s ci -p 'test_firebase_hosting_deploy.py' -v
+          python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_deploy.py' -v
           python3 ci/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only
       - name: Obtain a short-lived Hosting-only token after all package checks
         id: auth

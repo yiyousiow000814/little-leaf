@@ -183,7 +183,7 @@
     ],
     "deterministic": true,
     "user_attachment": {
-      "library_file_id": "libfile_cdbcf7ab4df88191bc51ffc16ec8cc9d",
+      "source_reference": "private-reference-16",
       "transfer_status": 403,
       "pixels_inspected": false,
       "no_retry_or_bypass": true
@@ -251,7 +251,7 @@
       "aboard",
       "alighting"
     ],
-    "motion_library_file_id": "libfile_5f6e2f768a508191b06efe1eeb02e488",
+    "motion_library_file_id": "private-reference-08",
     "motion_zip_sha256": "f768792688ba4f3a8c6f44a41e560c60993f7d354307eb7cc9ad3165f98e74c0",
     "motion_zip_bytes": 16627470,
     "after_library_version": 4,
@@ -275,7 +275,7 @@
   },
   "annotated_curve_revision": {
     "reference": {
-      "library_file_id": "libfile_5fc5f6982cbc8191a5fbde0aae7a2af8",
+      "source_reference": "private-reference-09",
       "version": 0,
       "file_name": "image(20261007-085459).png",
       "bytes": 155658,
@@ -310,44 +310,44 @@
     "frame_interpolation": false,
     "native_pixels_inspected": true,
     "motion_bundle": {
-      "id": "libfile_8d3b0ba6c9d48191bafa11209986d60e",
+      "id": "private-reference-11",
       "bytes": 18291766,
       "sha256": "a1fcd0e3f0fc3d84b253094fd6c8fbb9a1feb1cca4dea3eb174c7e0fc4614da2"
     },
     "images": [
       {
         "path": "environment-layout/docs/environment-010/curve-before.png",
-        "id": "libfile_be8759a5fa5481918f81c145ac7ecf09",
+        "id": "private-reference-14",
         "version": 0
       },
       {
         "path": "environment-layout/docs/environment-010/curve-after.png",
-        "id": "libfile_62d9039068e88191865273ac38b80f5e",
+        "id": "private-reference-10",
         "version": 1
       },
       {
         "path": "environment-layout/docs/environment-010/layout-before-curve.png",
-        "id": "libfile_eb33e940d47c819193894eb465efd452",
+        "id": "private-reference-17",
         "version": 0
       },
       {
         "path": "curve-motion-review/detail-before-motion.png",
-        "id": "libfile_283ab5dea6b88191819948b80c35a8c9",
+        "id": "private-reference-03",
         "version": 0
       },
       {
         "path": "curve-final-motion-review/detail-after-motion.png",
-        "id": "libfile_41c006c5d05c8191b9eb4c24b41141ef",
+        "id": "private-reference-05",
         "version": 1
       },
       {
         "path": "Little-Leaf-stop-motion-review-v2.zip",
-        "id": "libfile_8d3b0ba6c9d48191bafa11209986d60e",
+        "id": "private-reference-11",
         "version": 1
       },
       {
         "path": "environment-layout/docs/environment-010/after.png",
-        "id": "libfile_5e6dabe2703c81918adb1eb88d068260",
+        "id": "private-reference-07",
         "version": 6
       }
     ],
@@ -392,7 +392,7 @@
     "duration_seconds": 8,
     "interpolation": false,
     "motion_bundle": {
-      "id": "libfile_3178101bd3348191ac144f699272a5e0",
+      "id": "private-reference-04",
       "version": 0,
       "bytes": 18443258,
       "sha256": "644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd"
@@ -400,37 +400,37 @@
     "artifacts": [
       {
         "path": "environment-layout/docs/environment-010/grid-before.png",
-        "id": "libfile_9287179122008191bd3ca5889b4bc4e7",
+        "id": "private-reference-12",
         "version": 0
       },
       {
         "path": "environment-layout/docs/environment-010/grid-after.png",
-        "id": "libfile_00e06943070881919795fcc59bb5256a",
+        "id": "private-reference-01",
         "version": 0
       },
       {
         "path": "environment-layout/docs/environment-010/layout-before-grid.png",
-        "id": "libfile_c78543d39a708191a576af741bb7dba8",
+        "id": "private-reference-15",
         "version": 0
       },
       {
         "path": "grid-motion-review/detail-before-motion.png",
-        "id": "libfile_9637a5e855648191ba8821786bcd2de0",
+        "id": "private-reference-13",
         "version": 0
       },
       {
         "path": "grid-motion-review/detail-after-motion.png",
-        "id": "libfile_1024948a495c81918aab3037c70fad16",
+        "id": "private-reference-02",
         "version": 0
       },
       {
         "path": "Little-Leaf-stop-motion-review-v3.zip",
-        "id": "libfile_3178101bd3348191ac144f699272a5e0",
+        "id": "private-reference-04",
         "version": 0
       },
       {
         "path": "environment-layout/docs/environment-010/after.png",
-        "id": "libfile_5e6dabe2703c81918adb1eb88d068260",
+        "id": "private-reference-07",
         "version": 7
       }
     ],
@@ -446,14 +446,15 @@
     "cf89cda_checkpoint": {
       "ci_run": 37599644500,
       "ci_status": "success",
-      "archive_id": "libfile_edab5cebb3ec81918bdeebdb4ae6da74",
+      "archive_id": "private-reference-18",
       "version": 4,
       "bytes": 27673352,
       "sha256": "c34c2ef03378f3a4c271efeafc3d86e545885d6b68045083bcff2f154d3053d1",
-      "restore_receipt": "libfile_55b82734cc388191a7306decd78fe9f0",
+      "restore_receipt": "private-reference-06",
       "verified_files": 622
     },
     "visual_acceptance": "User review; dimensions/tests do not establish stylistic acceptance",
     "concrete_or_curve_removal_selected": false
-  }
+  },
+  "public_representation": "Sanitized historical receipt: private identities and local paths omitted; source versions, hashes, measurements and acceptance limits retained. Unredacted original preserved privately."
 }

@@ -12,7 +12,7 @@ class DiagnosticTests(unittest.TestCase):
   with self.assertRaises(ValueError):validate_changes(paths)
   allowed=eligibility(['firebase/fullflow.test.mjs'],'a'*40);self.assertTrue(allowed['eligible']);self.assertFalse(allowed['release_qualification'])
  def test_workflow_gates_retained_execution_and_keeps_receipt(self):
-  text=(Path(__file__).resolve().parents[1]/'.github/workflows/cloud-save-flow-diagnostic.yml').read_text()
+  text=(Path(__file__).resolve().parents[2]/'.github/workflows/cloud-save-flow-diagnostic.yml').read_text()
   self.assertEqual(text.count("if: steps.eligibility.outputs.eligible == 'true'"),4)
   self.assertIn('--eligibility',text);self.assertIn('diagnostic-eligibility.json',text);self.assertIn('if: always()',text)
   self.assertNotIn('continue-on-error',text)

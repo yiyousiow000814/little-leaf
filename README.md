@@ -10,9 +10,20 @@ A cozy café game made with Godot.
 
 For experiments, use copied saves in a separate profile.
 
-[Development guide](docs/README.md) · [Assets and licenses](docs/licenses.md)
+[Development roadmap: all versions through 0.3.2](docs/roadmap.md) · [Development guide](docs/README.md) · [Assets and licenses](docs/licenses.md)
 
 No repository-wide open-source license has been selected.
+
+## Find the work
+
+| Area | Entry |
+| --- | --- |
+| Product scope and agent instructions | [One roadmap](docs/roadmap.md), [AGENTS.md](AGENTS.md) |
+| Game and source resources | `scripts/`, `assets/`, `data/`, `shaders/`, `project.godot` |
+| Regression checks, fixtures and manual diagnostics | [tests/README.md](tests/README.md) |
+| Build and release tooling | [ci/README.md](ci/README.md), `.github/workflows/` |
+| Browser and cloud platform boundaries | `web/`, `firebase/` |
+| Developer commands, contracts and historical evidence | [docs/README.md](docs/README.md) |
 
 ## Checked Web builds and releases
 

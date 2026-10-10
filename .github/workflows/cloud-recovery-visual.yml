@@ -4,7 +4,7 @@ on:
     paths:
       - '.github/workflows/cloud-recovery-visual.yml'
       - 'ci/capture_cloud_recovery_ui.py'
-      - 'tests/capture_cloud_recovery_ui.gd'
+      - 'tests/diagnostics/capture_cloud_recovery_ui.gd'
       - 'tests/test_cloud_recovery_ui.gd'
       - 'tests/test_update_notice.gd'
       - 'scripts/cafe_update_notice.gd'

@@ -166,7 +166,7 @@ class HostingTests(unittest.TestCase):
 
 class WorkflowTests(unittest.TestCase):
     def test_main_manual_selection_then_verify_before_short_lived_auth(self):
-        root = Path(__file__).resolve().parents[1]
+        root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/deploy-firebase.yml').read_text()
         self.assertIn("github.ref == 'refs/heads/main'", text)
         self.assertIn("github.event_name == 'workflow_dispatch'", text)

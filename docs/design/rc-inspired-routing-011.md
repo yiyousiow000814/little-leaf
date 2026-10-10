@@ -1,8 +1,11 @@
 # LittleLeaf 0.1.11：餐城启发的原创寻路设计
 
+> Technical design/QA contract with dated source evidence. Current scope, ownership, code/test/visual/merge/release status live in the [roadmap](../roadmap.md). Earlier pending/accepted statements below retain their original freeze date; they do not override the current wardrobe foundation hold or routing candidate status.
+
+
 日期：2026-10-09。状态：**方向已获用户同意；本文件是设计，尚未实现或验收。**
 
-本次只增加文档，不修改游戏代码、资源、版本号、存档或发布状态。0.1.10a 的 v15 存档和独立测试工作完全不变。与可爱角色方向的共同状态见 [0.1.11 设计索引](design-011-approved-plan.md)。逐项验收见 [寻路 QA 矩阵](rc-inspired-routing-011-qa.md)。
+本次只增加文档，不修改游戏代码、资源、版本号、存档或发布状态。0.1.10a 的 v15 存档和独立测试工作完全不变。与可爱角色方向的共同状态见 [0.1.11 设计索引](../archive/design-011-approved-plan.md)。逐项验收见 [寻路 QA 矩阵](rc-inspired-routing-011-qa.md)。
 
 ## 1. 目标与边界
 

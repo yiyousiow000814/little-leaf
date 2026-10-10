@@ -43,7 +43,7 @@ jobs:
         run: |
           python3 ci/release_metadata.py --tag "$RELEASE_TAG"
           python3 ci/verify_prebaked_atlases.py
-          python3 -m unittest discover -s ci -p 'test_*.py' -v
+          python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
           node tests/crazygames_storage.js
           node tests/legacy_byte_storage.js
           node tests/boot_presentation.js
@@ -135,7 +135,7 @@ jobs:
           python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
       - name: Bind compatibility inputs and derive UI coordinates
-        run: python3 ci/prepare_wall_compatibility.py --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+        run: python3 ci/prepare_browser_qa.py wall --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
       - name: Verify actual old and new Web save compatibility
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -175,7 +175,7 @@ jobs:
           python3 ci/run_firebase_focused.py --gate rules.log --output "$RUNNER_TEMP/firebase-focused"
       - name: Prepare exact-message native geometry for compiled cloud flow
         if: inputs.firebase_preview
-        run: python3 ci/prepare_cloud_geometry.py --output "$RUNNER_TEMP/cloud-geometry"
+        run: python3 ci/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
       - name: Verify compiled two-device cloud recovery and safe update in the emulator
         if: inputs.firebase_preview
         timeout-minutes: 12

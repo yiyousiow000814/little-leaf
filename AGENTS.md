@@ -1,0 +1,26 @@
+# Working on Little Leaf
+
+Read the [canonical roadmap](docs/roadmap.md) for product scope, current ownership and acceptance gates, then the [developer guide](docs/README.md) for detailed commands and references. During the roadmap migration, follow its stated authority gate; historical contracts are evidence, not current completion status.
+
+## Run and verify
+
+Use Godot **4.6.3**, **GL Compatibility**, with matching export templates. Open `project.godot` and press F5, or run `godot --path .` only in an isolated test profile: normal play writes saves.
+
+From the repository root, with Python 3 and Godot available:
+
+```sh
+python3 tests/run_integration_candidate.py --help
+python3 tests/run_integration_candidate.py --only test_direct_janitor_cleanup --output /tmp/little-leaf-janitor-review
+```
+
+The second command is an example for janitor cleanup changes, not a default suite. Choose only the existing test names that observe the affected behavior and a new disposable output directory; use `python` where that is the Python 3 command and set `GODOT_BIN` when needed. The runner's disposable project does not establish browser or visual acceptance. Deeper diagnostics must answer a specific symptom or hypothesis; do not enable everything merely because the investigation is deeper. Follow required release gates separately.
+
+## Edit boundaries and evidence
+
+- Keep changes minimal and within the requested scope. Coordinate active owners before implementation; include each stacked dependency delta once in one coherent related PR.
+- Protect original player saves, account/session ownership, cleanup and tutorial behavior. Use generated fixtures or copied saves in disposable profiles; never clear the user's browser storage or alter live Firebase rules without explicit authorization.
+- Keep gameplay in `scripts/`, browser adapters in `web/`, verification in `tests/` (including `tooling/`, `diagnostics/` and `fixtures/`), and publishing helpers in `ci/` and `.github/workflows/`. Preserve assets, import settings, script UIDs, licenses and recovery evidence. See the developer guide for full boundaries.
+- Keep generated logs, screenshots, exports and private handoffs outside tracked source. Maintain current product status in the roadmap; link detailed contracts instead of duplicating them or creating version-specific agent guides.
+- Preserve the original 2D isometric art and camera presentation. Pin evidence to the tested commit/tree and distinguish code present, tests passed, inspected game pixels, merged and released. For visual changes, inspect rendered output and retain source-bound before/after evidence; test success alone does not accept the pixels or authorize publication.
+
+For build and publication procedures, read [release guidance](docs/github-release.md); for reuse and distribution, read [licenses](docs/licenses.md).

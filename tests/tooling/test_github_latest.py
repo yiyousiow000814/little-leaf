@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import patch
 from github_latest import key,select,qualify,reconcile,latest
 from types import SimpleNamespace
-ROOT=Path(__file__).resolve().parents[1]
+ROOT=Path(__file__).resolve().parents[2]
 def release(tag,**extra):return dict(tag_name=tag,draft=False,prerelease=False,**extra)
 class LatestTests(unittest.TestCase):
  def test_letter_order(self):self.assertEqual(sorted(['v0.1.11','v0.1.10b','v0.1.10','v0.1.10a'],key=key),['v0.1.10','v0.1.10a','v0.1.10b','v0.1.11'])

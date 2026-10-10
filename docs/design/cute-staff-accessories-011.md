@@ -1,5 +1,8 @@
 # Little Leaf 0.1.11 — cute staff accessories and 3D character authoring
 
+> Technical design/QA contract with dated source evidence. Current scope, ownership, code/test/visual/merge/release status live in the [roadmap](../roadmap.md). Earlier pending/accepted statements below retain their original freeze date; they do not override the current wardrobe foundation hold or routing candidate status.
+
+
 Original design freeze: 2026-10-09, 12:03 UTC. Import review cutoff: 2026-10-09, 12:13 UTC. The latest trousers, chef-outfit and expression requirements are recorded below; implementation and acceptance are pending. Later art revisions need a separately source-bound follow-up. Scope: the approved design direction and its current implementation boundaries. This is a local design handoff, not a release or visual-acceptance certificate.
 
 ## Approved direction

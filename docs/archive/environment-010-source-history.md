@@ -1,5 +1,7 @@
 # v0.1.10 environment groundwork
 
+> Sanitized historical representation: private Library identities and local paths are omitted. The unredacted original is preserved privately; source hashes, approval history and acceptance limits remain.
+
 The approved concept places a compact four-bay lot just behind the cafe, with an open low-planted buffer,
 directly joining the existing entrance-side road. This implementation keeps the
 game's original 2D vector illustration and muted sage/cream colours. Original oak
@@ -38,7 +40,7 @@ removed; after purchase only authoritative customer trips occupy the four bays.
 purchase/customer-parking enabled and the configurable 2,000-coin price. The
 selected product is a permanent fixed exterior upgrade, not a cafe expansion
 parcel or movable furniture. It has no separate land fee or recurring charge.
-See [parking behavior and save contract](parking.md) for same-session refunds,
+See [parking behavior and save contract](../technical/parking.md) for same-session refunds,
 resale guards, shared demand/queue bounds and persistence.
 
 ## Runtime boundary
@@ -65,10 +67,10 @@ Library identities were verified through their local alternate data streams and
 owner receipts, then the bytes were copied into this task without editing the
 owner's files.
 
-| Reference | Library identity | SHA-256 |
+| Reference | Source reference (private identity omitted) | SHA-256 |
 | --- | --- | --- |
-| Approved sparse concept | `libfile_8cb692295ac081918aa0722976af9f34` | `10f345c0b2c71b3f814ac497f85b2c477c85977b3a1063eb7afe735dd0d9fc3f` |
-| Annotated parking location | `libfile_872f8fd152808191a80390fe124c371f` | `5790f3dbd9e072bf9c1fa92e99f362ab15e7e3c9b769b533312c928cf255b141` |
+| Approved sparse concept | `private-reference-05` | `10f345c0b2c71b3f814ac497f85b2c477c85977b3a1063eb7afe735dd0d9fc3f` |
+| Annotated parking location | `private-reference-04` | `5790f3dbd9e072bf9c1fa92e99f362ab15e7e3c9b769b533312c928cf255b141` |
 
 The implementation is based on exact v0.1.9 commit
 `11c1f8d904b0c4c9a2565cbd557d1552b4ba9401`. Restore into a fresh checkout at
@@ -112,7 +114,7 @@ Shelter/vegetation review: [whole scene before](environment-010/layout-before-sh
 [whole scene after](environment-010/after.png), [shelter before](environment-010/shelter-before.png),
 [shelter after](environment-010/shelter-after.png), [vegetation gallery](environment-010/greenery-after.png).
 Close-ups are native 960x640 renders from the same isolated 16-frame session.
-The user's additional screenshot `libfile_cdbcf7ab4df88191bc51ffc16ec8cc9d`
+The user's additional screenshot `private-reference-07`
 could not be transferred (HTTP 403); no caption substituted for its unseen pixels.
 The independently rendered existing scene directly demonstrated the roof
 overpaint and unsupported-seat defects. Pixel review supplements the behavior
@@ -143,7 +145,7 @@ Actual same-angle [revision before](environment-010/layout-before-stop.png) and
 and [detail after](environment-010/stop-after-motion.png), show the connection and
 waiting/walking. Download the APNGs for single-play animation if a web preview
 shows only their first frame. The separate native Library review ZIP
-`libfile_5f6e2f768a508191b06efe1eeb02e488` contains 64 raw frames, an HTML replay/scrub
+`private-reference-02` contains 64 raw frames, an HTML replay/scrub
 viewer, four APNGs, exact position records and a hash manifest (16,627,470 bytes;
 SHA-256 `f768792688ba4f3a8c6f44a41e560c60993f7d354307eb7cc9ad3165f98e74c0`).
 There are sixteen real samples at 0.5-second intervals: eight seconds of normal
@@ -161,7 +163,7 @@ they do not establish user visual acceptance.
 
 ## Authoritative annotated connection refinement
 
-The user supplied `libfile_5fc5f6982cbc8191a5fbde0aae7a2af8`,
+The user supplied `private-reference-03`,
 image(20261007-085459).png (1354x957, 155,658 bytes). The supported Library
 transfer succeeded, and its actual pixels were inspected against the native
 07e9ab1 scene. SHA-256: `4ea6b331ae2e40c0e489596322bf2139c3cdbc0e1ff977411e5d5acfefa37c0b`
@@ -184,7 +186,7 @@ Actual same-angle [normal before](environment-010/layout-before-curve.png) /
 [after](environment-010/curve-after.png), and single-play native APNG
 [before](environment-010/curve-before-motion.png) / [after](environment-010/curve-after-motion.png)
 are preserved. Both sides include identical walking/waiting people. The native
-Library motion ZIP `libfile_8d3b0ba6c9d48191bafa11209986d60e` retains all 64 raw
+Library motion ZIP `private-reference-06` retains all 64 raw
 frames, four lossless APNGs, state records, a replay/scrub HTML viewer and SHA
 manifest: 18,291,766 bytes; SHA-256
 `a1fcd0e3f0fc3d84b253094fd6c8fbb9a1feb1cca4dea3eb174c7e0fc4614da2`.
@@ -224,7 +226,7 @@ inside, with partial cut pieces only at the perimeter. [Normal before](environme
 [after](environment-010/after.png) retain the same camera. Lossless native single-play
 APNG [before](environment-010/grid-before-motion.png) /
 [after](environment-010/grid-after-motion.png) retain the same original characters.
-The native Library bundle `libfile_3178101bd3348191ac144f699272a5e0` contains all64 raw
+The native Library bundle `private-reference-01` contains all64 raw
 frames, four APNGs, HTML replay/scrub, position records and hash manifest:18,443,258
 bytes; SHA256 `644dbd9b45091490cd09d26fc1246ed4e9844647c186823161da2ac77d795afd`.
 There are16 real samples at0.5-second intervals, eight seconds without interpolation.

@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import build_crazygames as cg
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
 
 
 class CrazyGamesExportTests(unittest.TestCase):
@@ -67,7 +67,7 @@ class CrazyGamesExportTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.validate()
 
     def test_separate_presets_keep_original_web_selection(self):
-        config = (Path(__file__).resolve().parents[1] / "export_presets.cfg").read_text(encoding="utf-8")
+        config = (Path(__file__).resolve().parents[2] / "export_presets.cfg").read_text(encoding="utf-8")
         sections = config.split("[preset.")
         self.assertIn('name="Web"', sections[1])
         self.assertIn('custom_features=""', sections[1])

@@ -15,7 +15,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b8b80eea57ac3cb141cb5c771b375207a284436a"
-FIXTURE = "tests/capture_cloud_recovery_ui.gd"
+FIXTURE = "tests/diagnostics/capture_cloud_recovery_ui.gd"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
@@ -89,6 +89,7 @@ def main():
                     archive.extractall(project)
                 original = {str(p.relative_to(project)): digest(p.read_bytes())
                             for p in sorted(project.rglob("*")) if p.is_file()}
+                (project / FIXTURE).parent.mkdir(parents=True, exist_ok=True)
                 (project / FIXTURE).write_bytes(fixture)
                 # Defense in depth: isolate even the native staging fallback.
                 staging = project / "scripts/cafe_web_save.gd"
