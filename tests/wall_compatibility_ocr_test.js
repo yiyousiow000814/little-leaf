@@ -8,7 +8,7 @@ const root = path.resolve(__dirname, '..'), folder = path.join(__dirname, 'fixtu
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const layoutSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_layout.gd'), 'utf8');
-const shopSource = fs.readFileSync(path.join(root, 'scripts/cafe_shop_ui.gd'), 'utf8');
+const shopSource = fs.readFileSync(path.join(root, 'game/scripts/cafe_shop_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
 const size = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
@@ -51,7 +51,7 @@ check('workflow runs fast guards and retained OCR before the unchanged browser g
   assert(workflow.includes('node tests/wall_compatibility_ocr_test.js\n'));
   const ocr = workflow.indexOf('node tests/wall_compatibility_ocr_test.js --ocr-fixtures');
   assert(ocr > workflow.indexOf('sudo apt-get install -y --no-install-recommends tesseract-ocr'));
-  assert(ocr < workflow.indexOf('xvfb-run -a node tests/wall_compatibility_browser.js'));
+  assert(ocr < workflow.indexOf('xvfb-run -a node tests/wall_compatibility_browser.js --case'));
 });
 for (const text of ['Build', '< Build', '‹ BUILD ›', '\nBuild\n']) {
   check('complete label accepts harmless arrow punctuation: ' + JSON.stringify(text), () => requireWallBackText(text));

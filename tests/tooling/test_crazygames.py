@@ -12,6 +12,8 @@ import unittest
 from unittest.mock import patch
 
 import build_crazygames as cg
+import bound_web_gl_handles as handles
+from project_layout import source_path
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -67,7 +69,7 @@ class CrazyGamesExportTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.validate()
 
     def test_separate_presets_keep_original_web_selection(self):
-        config = (Path(__file__).resolve().parents[2] / "export_presets.cfg").read_text(encoding="utf-8")
+        config = (Path(__file__).resolve().parents[2] / "game/export_presets.cfg").read_text(encoding="utf-8")
         sections = config.split("[preset.")
         self.assertIn('name="Web"', sections[1])
         self.assertIn('custom_features=""', sections[1])
@@ -83,7 +85,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.project = self.root / "project"
-        shutil.copytree(REPO / "web", self.project / "web")
+        shutil.copytree(REPO / "platform/web", self.project / "web")
         self.before = {p.relative_to(self.project).as_posix(): p.read_bytes()
                        for p in self.project.rglob("*") if p.is_file()}
 
@@ -105,13 +107,13 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertEqual(variant["storage_keys"], cg.PREVIEW_KEYS)
         self.assertEqual(set(variant["transformed_inputs"]), changed)
         for name in changed:
-            expected = self.before[name].decode().replace(cg.key_declaration(cg.PRODUCTION_KEYS),
+            expected = self.before[name].decode("utf-8").replace("\r\n", "\n").replace(cg.key_declaration(cg.PRODUCTION_KEYS),
                                                          cg.key_declaration(cg.PREVIEW_KEYS))
             if name.endswith(".html"):
                 expected = expected.replace(cg.TITLE_MARKER, "<title>$GODOT_PROJECT_NAME" + cg.PREVIEW_TITLE_SUFFIX)
                 expected = expected.replace(cg.LOADING_MARKER, "\t\t\t\t" + cg.PREVIEW_NOTICE + "\n" + cg.LOADING_MARKER)
-            self.assertEqual((self.project / name).read_text(), expected)
-            self.assertEqual((REPO / name).read_bytes(), self.before[name], "source never transformed")
+            self.assertEqual((self.project / name).read_text(encoding="utf-8"), expected)
+            self.assertEqual(source_path(REPO, name).read_bytes(), self.before[name], "source never transformed")
             self.assertEqual(variant["transformed_inputs"][name], {
                 "source_sha256": hashlib.sha256(self.before[name]).hexdigest(),
                 "staged_sha256": cg.sha256(self.project / name)})
@@ -176,7 +178,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn("pointer-events:none", cg.PREVIEW_NOTICE)
 
     def test_platform_help_explains_submission_without_claiming_cloud_confirmation(self):
-        ui = (REPO / "scripts/cafe_compact_ui.gd").read_text()
+        ui = (REPO / "game/scripts/cafe_compact_ui.gd").read_text()
         body = ui.split("func _sync_help_content():", 1)[1].split("\nfunc ", 1)[0]
         expected = "Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here."
         self.assertIn(expected, body)
@@ -187,12 +189,12 @@ class CrazyGamesVariantTests(unittest.TestCase):
     def test_web_save_routes_have_no_native_or_persistent_pending_fallback(self):
         # Source contracts supplement the actual embedded-JS fixtures; this is
         # not an engine/runtime claim. Web branches return before native paths.
-        main = (REPO / "scripts/main.gd").read_text()
+        main = (REPO / "game/scripts/main.gd").read_text()
         startup = main.split("func _load_startup():", 1)[1].split("\nfunc ", 1)[0]
         self.assertIn('if OS.has_feature("web"):\n\t\tweb_save=WebSave.new(self)\n\t\tweb_save.load_startup()\n\t\treturn', startup)
         save = main.split("func _save():", 1)[1].split("\nfunc ", 1)[0]
         self.assertTrue(save.lstrip().startswith('if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false'))
-        controller = (REPO / "scripts/cafe_web_save.gd").read_text()
+        controller = (REPO / "game/scripts/cafe_web_save.gd").read_text()
         self.assertIn('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"', controller)
         for initial in ['var pending=false', 'var queued=false', 'var _confirmed_payload=""', 'var _inflight_payload=""']:
             self.assertIn(initial, controller)
@@ -202,7 +204,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertNotIn('FileAccess.READ', controller)
         self.assertIn('if not game.model.save(STAGING_FILE):', controller)
         self.assertLess(controller.index('if not game.model.save(STAGING_FILE):'), controller.index('FileAccess.get_file_as_string(STAGING_FILE)'))
-        settings = (REPO / "scripts/cafe_settings.gd").read_text()
+        settings = (REPO / "game/scripts/cafe_settings.gd").read_text()
         self.assertIn('web_preferences=WebPreferences.new()\n\t\tloaded=web_preferences.load_into(cfg)\n\t\tsource="browser-preferences:"+web_preferences.source\n\telse:', settings)
         self.assertIn('return saved\n\treturn cfg.save(config_path)==OK', settings)
         shell = (self.project / "web/little_leaf_crazygames_shell.html").read_text()
@@ -210,7 +212,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertLess(shell.index('root.__littleLeafVault = client;'), shell.index('window.__littleLeafVault.boot()'))
         self.assertLess(shell.index('window.__littleLeafPreferences.boot()'), shell.index("return engine.startGame("))
         self.assertNotIn('LittleLeafPreferences =', shell, "ordinary Web preference adapter is absent")
-        config = (REPO / "export_presets.cfg").read_text().split('[preset.1.options]', 1)[1].split('[preset.2]', 1)[0]
+        config = (REPO / "game/export_presets.cfg").read_text().split('[preset.1.options]', 1)[1].split('[preset.2]', 1)[0]
         self.assertIn('progressive_web_app/enabled=false', config)
 
     def test_both_variants_and_embedded_adapters_keep_full_sdk_contract(self):
@@ -255,6 +257,10 @@ class CrazyGamesVariantTests(unittest.TestCase):
                     html.with_name("index.pck").write_bytes(b"GDPC")
                     html.with_name("music.pck").write_bytes(b"GDPC")
                     html.with_name("index.wasm").write_bytes(b"\0asm")
+                    html.with_name("index.js").write_bytes(
+                        b"blitOffscreenFramebuffer:context=>{var gl=context.GLctx;"
+                        b"var prevScissorTest=gl.getParameter(3089);}" +
+                        b";".join(old for old, _ in handles.REPLACEMENTS))
                 return SimpleNamespace(returncode=0, stdout=b"SCENE_READY furniture=synthetic")
 
             argv = ["build_crazygames.py", "--validated-web-build", str(build), "--output", str(out)]
@@ -262,10 +268,19 @@ class CrazyGamesVariantTests(unittest.TestCase):
             with patch.object(sys, "argv", argv), patch.object(cg, "validate_web_gate", return_value=legacy) as gate, \
                  patch.object(cg.subprocess, "check_output", side_effect=output), \
                  patch.object(cg.subprocess, "run", side_effect=run), \
-                 patch.dict(cg.os.environ, {"GODOT_TEMPLATE": str(template)}):
+                 patch.dict(cg.os.environ, {"GODOT_TEMPLATE": str(template)}), \
+                 patch.object(handles, "INPUT_SHA256", hashlib.sha256(
+                     b"blitOffscreenFramebuffer:context=>{var gl=context.GLctx;"
+                     b"var prevScissorTest=gl.isEnabled(3089);}" +
+                     b";".join(old for old, _ in handles.REPLACEMENTS)).hexdigest()):
                 cg.main()
                 self.assertEqual(gate.call_count, 2, "full source gate still validated before and after")
             manifest = json.loads((out / "web/crazygames-manifest.json").read_text())
+            self.assertIn("gl.isEnabled(3089)", (out / "web/index.js").read_text())
+            self.assertEqual(manifest["presentation_optimization"]["output_sha256"],
+                             manifest["webgl_handle_retention"]["input_sha256"])
+            self.assertEqual(manifest["webgl_handle_retention"]["output_sha256"],
+                             cg.sha256(out / "web/index.js"))
             self.assertEqual(manifest["save_variant"]["name"], "developer-preview" if preview else "production")
             self.assertEqual(manifest["save_variant"]["storage_keys"], cg.PREVIEW_KEYS if preview else cg.PRODUCTION_KEYS)
             self.assertIn(str(out / "project/web"), calls[0])

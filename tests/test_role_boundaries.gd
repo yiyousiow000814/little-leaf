@@ -141,6 +141,6 @@ func run():
  game.model.service_snapshot=game._service_save_snapshot()
  check(not game.model.save("user://bad-role.json") and game.model.last_error.contains("Waiter cannot own floor cleanup"),"codec rejects waiter floor stage")
  var report={"checks":checks,"failures":failures,"results":results,"engine":Engine.get_version_info(),"save_writes_suppressed":game.save_writes_suppressed}
- FileAccess.open("res://docs/role-boundaries/test-results.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
+ FileAccess.open("res://docs/testing/role-boundaries/test-results.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
  print("ROLE_BOUNDARIES_RESULT ",JSON.stringify(report))
  quit(0 if failures.is_empty() else 1)

@@ -1,4 +1,5 @@
 'use strict';
+const {sourcePath}=require('./source_paths.js');
 // Short interactive guide, then an independent natural-service regression.
 // Empty origin, normal wall time, real input throughout.
 // No fixtures, runtime hooks, launch flags, artificial guests, ticks or rewards.
@@ -120,12 +121,12 @@ function validateBinding(web, resultFile, engineFile) {
   const resultBytes = fs.readFileSync(resultFile);
   assert.equal(record[0].result_sha256, hash(resultBytes), 'Coordinate receipt bound through engine aggregate and export');
   for (const name of ['tests/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js']) {
-    assert.equal(hash(fs.readFileSync(path.join(root, name))), engine.source_sha256[name], 'Exact tested harness source ' + name);
+    assert.equal(hash(fs.readFileSync(sourcePath(root,name))), engine.source_sha256[name], 'Exact tested harness source ' + name);
   }
   assert(Object.keys(manifest.production_sha256).length > 0);
   for (const [name, digest] of Object.entries(manifest.production_sha256)) {
-    assert.equal(hash(fs.readFileSync(path.join(root, name))), digest, 'Exact exported production source ' + name);
-    assert.equal(engine.source_sha256[name], digest, 'Production source passed engine aggregate ' + name);
+    assert.equal(hash(fs.readFileSync(sourcePath(root,name))), digest, 'Exact exported production source ' + name);
+    assert.equal(engine.source_sha256[path.relative(root, sourcePath(root,name)).split(path.sep).join('/')], digest, 'Production source passed engine aggregate ' + name);
   }
   const html = fs.readFileSync(path.join(web, 'index.html'), 'utf8');
   assert(!html.includes('crazygames-sdk') && !html.includes('LittleLeafPlatform'), 'Ordinary Web export, not a platform variant');

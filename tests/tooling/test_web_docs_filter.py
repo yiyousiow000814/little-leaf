@@ -37,23 +37,23 @@ class WebDocsFilterTests(unittest.TestCase):
                 self.assertFalse(pr_runs(changed))
 
     def test_all_third_party_inputs_build(self):
-        for path in ("docs/third-party/CRAZYGAMES-SDK-NOTICE.md",
-                     "docs/third-party/GODOT-AA-LICENSE.txt", "docs/third-party/new/NOTICE.md"):
+        for path in ("docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md",
+                     "docs/art-audio/third-party/GODOT-AA-LICENSE.txt", "docs/art-audio/third-party/new/NOTICE.md"):
             with self.subTest(path=path):
                 self.assertTrue(pr_runs([path]))
 
     def test_mixed_docs_and_non_docs_build(self):
         for path in ("scripts/main.gd", "assets/NOTICE.md", "data/save-schema.json",
-                     "firebase/package-lock.json", "ci/build_web.py", ".github/workflows/ci.yml",
+                     "firebase/package-lock.json", "tools/build_web.py", ".github/workflows/ci.yml",
                      "tests/welcome_audio_qa.md", "docs/design/reference.svg"):
             with self.subTest(path=path):
                 self.assertTrue(pr_runs(["docs/README.md", path]))
 
     def test_markdown_consumed_by_build_helpers_stays_eligible(self):
         inputs = set()
-        for helper in (ROOT / "ci").glob("build*.py"):
+        for helper in (ROOT / "tools").glob("build*.py"):
             inputs.update(re.findall(r'''["'](docs/[^"']+\.md)["']''', helper.read_text(encoding="utf-8")))
-        self.assertIn("docs/third-party/CRAZYGAMES-SDK-NOTICE.md", inputs)
+        self.assertIn("docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md", inputs)
         for path in inputs:
             with self.subTest(path=path):
                 self.assertTrue(pr_runs([path]))

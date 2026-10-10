@@ -150,7 +150,12 @@ async function seed(page, oldSource, oldText, newSource, newText) {
 }
 
 async function main() {
+  if (process.argv.includes('--parallel-cases')) {
+    return require('./wall_compatibility_parallel').runParallel(process.argv.slice(2));
+  }
   const argument = name => {const i = process.argv.indexOf('--' + name); assert(i >= 0 && process.argv[i + 1], '--' + name + ' is required'); return path.resolve(process.argv[i + 1]);};
+  const selectedCase = process.argv.includes('--case') ? process.argv[process.argv.indexOf('--case') + 1] : 'all';
+  assert(['all', 'old_opened_after_new', 'already_open_old'].includes(selectedCase), 'Unknown compatibility case');
   const oldWeb = argument('old-web'), newWeb = argument('new-web'), oldSourceRoot = argument('old-source');
   const layoutDir = argument('layout-dir'), output = argument('output');
   const tesseract = process.env.TESSERACT_BIN || 'tesseract';
@@ -183,7 +188,7 @@ async function main() {
       const bytes = fs.readFileSync(path.join(fixtureDir, name)); assert.equal(hash(bytes), digest); fixtures[name] = bytes.toString('utf8');
     }
     const oldSource = fs.readFileSync(path.join(oldSourceRoot, 'web/little_leaf_vault.js'), 'utf8');
-    const newSource = fs.readFileSync(path.join(root, 'web/little_leaf_vault.js'), 'utf8');
+    const newSource = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
     assert.equal(hash(oldSource), contract.old_vault_sha256);
     assert.equal(hash(newSource), preflight.production_sha256.new['web/little_leaf_vault.js']);
     report.inputs = {old_commit: contract.old_commit, new_commit: newCommit, fixture_sha256: contract.fixture_sha256,
@@ -336,7 +341,7 @@ async function main() {
 
     // Case A: real old engine rejects a format it cannot understand. Scale 1
     // allows a full >15-second autosave interval while recovery pauses service.
-    {
+    if (selectedCase === 'all' || selectedCase === 'old_opened_after_new') {
       const context = await createContext();
       try {
         const fixture = await context.newPage(); await fixture.goto(origin + '/fixture');
@@ -361,7 +366,7 @@ async function main() {
     // Case B: the old engine stays genuinely loaded throughout the real new UI
     // edit. Its scale 0 prevents unrelated old autosaves. New scale .1 keeps UI
     // tweens working and gives a 150-second autosave interval for this short edit.
-    {
+    if (selectedCase === 'all' || selectedCase === 'already_open_old') {
       const context = await createContext();
       try {
         const fixture = await context.newPage(); await fixture.goto(origin + '/fixture');

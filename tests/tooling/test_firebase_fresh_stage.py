@@ -6,6 +6,7 @@ from pathlib import Path
 from build_firebase import BROWSER_GATES, FOCUSED_LOGS, validate_fresh_ci, validate_export_inventory
 from run_firebase_focused import COMMANDS
 from build_web import sha256
+from project_layout import source_path
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE='a'*40
@@ -34,11 +35,11 @@ class FreshStageTests(unittest.TestCase):
         for name,(relative,key,expected) in BROWSER_GATES.items():
             p=self.build/'evidence'/relative;p.parent.mkdir(parents=True,exist_ok=True)
             report={key:expected,'browser_verified':True,'binding':{'source_commit':SOURCE,'export_manifest_sha256':sha256(self.build/'web/release-manifest.json'),'engine_report_sha256':sha256(self.native)}}
-            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,diagnostic_only=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(ROOT/n) for n in ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','ci/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
+            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,diagnostic_only=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
             if name=='webkit-recovery':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),export_files=files)
             if name=='compatibility':report['inputs']={'new_commit':SOURCE,'export_files':{'new':files}}
             if name=='save-log':report['export_sha256']={k:v['sha256'] for k,v in files.items()}
-            if name=='inbox':report.update(export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),export_js_sha256=files['index.js']['sha256'],web_template_sha256=self.base['web_template_sha256'],source_sha256={n:sha256(ROOT/n) for n in ['tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/compensation_inbox_suite.js']})
+            if name=='inbox':report.update(export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),export_js_sha256=files['index.js']['sha256'],web_template_sha256=self.base['web_template_sha256'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/compensation_inbox_suite.js']})
             p.write_text(json.dumps(report))
 
     def write_base(self):
@@ -157,8 +158,8 @@ class WorkflowTests(unittest.TestCase):
 
     def test_existing_full_gate_commands_retained_before_firebase(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text();first=text.index('      - name: Check Firebase adapter')
-        for command in ['python3 tests/run_integration_candidate.py','python3 ci/build_web.py','python3 ci/build_crazygames.py',
-                        'python3 .compatibility-old/tests/run_integration_candidate.py','python3 ci/prepare_browser_qa.py wall',
+        for command in ['python3 tools/engine_shards.py run','python3 tools/engine_shards.py merge','python3 tools/build_web.py','python3 tools/build_crazygames.py',
+                        'python3 .compatibility-old/tests/run_integration_candidate.py','python3 tools/prepare_browser_qa.py wall',
                         'node tests/compensation_inbox_browser.js','node tests/fresh_tutorial_browser.js','node tests/wall_compatibility_browser.js',
                         'node tests/save_log_browser.js','node tests/connection_recovery_browser.js']:
             self.assertLess(text.index(command),first,command)
@@ -166,11 +167,19 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('firebase_preview:\n        description:',text)
         self.assertIn('        default: false',text)
         self.assertNotIn('continue-on-error',text)
-        self.assertNotIn('download-artifact',text)
+        self.assertIn('needs: [build, browser, compatibility]',text)
+        self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]',text)
+        self.assertIn('jobs.gate.outputs.artifact_id',text)
+        self.assertIn('digest-mismatch: error',text)
+        self.assertNotIn('run-id:',text)
+        self.assertNotIn('repository:',text)
+        self.assertIn('little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}',text)
+        self.assertIn('little-leaf-historical-project-${{ github.sha }}-${{ github.run_attempt }}',text)
+        self.assertIn('include-hidden-files: true',text)
         self.assertNotIn('secrets.',text)
         tail=text[first:text.index('      - name: Keep test and export evidence')]
         self.assertEqual(tail.count('        if: inputs.firebase_preview'),7)
-        self.assertIn('python3 ci/prepare_browser_qa.py cloud',tail)
+        self.assertIn('python3 tools/prepare_browser_qa.py cloud',tail)
         self.assertNotIn('always()',tail)
         self.assertLess(tail.index('--require-fresh-ci'),tail.index('id: firebase_upload'))
 
@@ -178,7 +187,10 @@ class WorkflowTests(unittest.TestCase):
         text=(ROOT/'.github/workflows/build-web.yml').read_text()
         section=text[text.index('      - name: Verify cloud recovery in real IndexedDB before merge'):text.index('      - name: Verify compensation history')]
         self.assertLess(text.index('      - name: Install shared pinned browser tools'),text.index(section))
-        self.assertNotIn('        if:',section)
+        self.assertIn("        if: matrix.lane == 'recovery'",section)
+        self.assertIn('lane: [play, recovery]',text)
+        self.assertIn('lane: [compatibility]',text)
+        self.assertIn('"$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1',text)
         self.assertNotIn('continue-on-error',section)
         self.assertIn('PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright"',section)
         self.assertIn('${{ runner.temp }}/firebase-focused/',text)
@@ -189,11 +201,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', section)
         for gate in ['recovery.log', 'recovery-presentation.log', 'recovery-browser.log']:
             self.assertIn('--gate '+gate, section)
-        runner=(ROOT/'ci/run_firebase_focused.py').read_text()
+        runner=(ROOT/'tools/run_firebase_focused.py').read_text()
         self.assertIn("timeout=120 if name=='recovery-browser.log' else None", runner)
 
     def test_public_config_contains_only_approved_public_app_fields(self):
-        x=json.loads((ROOT/'firebase/public-config.json').read_text())
+        x=json.loads((ROOT/'platform/firebase/public-config.json').read_text())
         self.assertEqual(set(x),{'apiKey','authDomain','projectId','appId'})
         self.assertEqual(x['projectId'],'little-leaf-41e5d')
         self.assertEqual(x['authDomain'],'little-leaf-41e5d.firebaseapp.com')

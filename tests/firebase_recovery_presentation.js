@@ -1,11 +1,11 @@
 'use strict';
 // Real Firebase boot bridge, synthetic SDK/DOM and account-scoped fake client only.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
+const source=fs.readFileSync('platform/web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 let checks=0;function check(value,message){checks++;assert(value,message);}
 function fixture(options={}){
- const nodes=new Map(),downloads=[],blobs=[],confirms=[],calls=[];
+ const nodes=new Map(),downloads=[],blobs=[],confirms=[],calls=[];let saveStatus;
  const auth={currentUser:{uid:'synthetic-current-account',isAnonymous:false},authStateReady:async()=>{}};
  let snapshot={available:true,choicesAvailable:true,busy:false,expectedLocalDigest:'b'.repeat(64),expectedCloudDigest:'a'.repeat(64),choices:[{id:'local',coins:42000,lastSavedAt:1791510000000,device:'Android phone'},{id:'cloud',coins:37000,lastSavedAt:1791500000000,device:'Unknown device'}],reason:''};
  const client={sync(){},close(){},recoverySnapshot:()=>snapshot,ownershipSnapshot:()=>options.owner || {serverOwnership:false},
@@ -17,11 +17,11 @@ function fixture(options={}){
   async preserveRuntime(...args){calls.push(['preserve',...args]);return {ok:true,durable:true,revision:9};}};
  const element=tag=>({tag,textContent:'',hidden:false,disabled:false,style:{},children:[],setAttribute(){},append(...children){this.children.push(...children);},click(){downloads.push({name:this.download,href:this.href});},remove(){}});
  nodes.set('status-label',element('span'));nodes.set('status-progress',element('progress'));
- const win={addEventListener(){},__littleLeafVault:{close(){}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{createRemote(){return{};},createSession(){return {async start(){}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){return{};},createClient(){return client;}}};win.top=win.self=win;
+ const win={addEventListener(){},__littleLeafVault:{close(){}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{createRemote(){return{};},createSession(){return {async start(){}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){return{};},createClient(options){saveStatus=options.status;return client;}}};win.top=win.self=win;
  const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(node){if(node.id)nodes.set(node.id,node);}}};
  const context={window:win,document,location:{hostname:'demo.firebaseapp.com',reload(){calls.push(['reload']);}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>null,signInWithRedirect:async()=>{},signOut:async()=>{},onAuthStateChanged:()=>()=>{},setInterval(){},setTimeout(fn){fn();},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm(text){confirms.push(text);if(options.onConfirm)options.onConfirm();return options.confirm!==false;},Blob:class{constructor(parts,type){this.parts=parts;this.type=type;}},URL:{createObjectURL(blob){blobs.push(blob);return 'blob:synthetic-only';},revokeObjectURL(){}}};
  vm.createContext(context);vm.runInContext(source,context);
- return {start:()=>context.start({authDomain:'demo.firebaseapp.com'}),win,client,auth,calls,confirms,downloads,blobs,setSnapshot(value){snapshot=value;},getSnapshot:()=>snapshot};
+ return {start:()=>context.start({authDomain:'demo.firebaseapp.com'}),win,client,auth,calls,confirms,downloads,blobs,nodes,setStatus:value=>saveStatus(value),setSnapshot(value){snapshot=value;},getSnapshot:()=>snapshot};
 }
 const invoke=(f,name,...args)=>new Promise(resolve=>f.win.LittleLeafVault[name](...args,json=>resolve(JSON.parse(json))));
 (async()=>{
@@ -53,5 +53,13 @@ const invoke=(f,name,...args)=>new Promise(resolve=>f.win.LittleLeafVault[name](
  owner.canForceTakeover=true;check((await invoke(handoff,'forceTakeover')).ok && handoff.confirms[0].includes('not confirmed its latest save'),'force warns about unconfirmed progress');
  const cancelledForce=fixture({owner,confirm:false});await cancelledForce.start();check((await invoke(cancelledForce,'forceTakeover')).code==='RECOVERY_CANCELLED' && cancelledForce.calls.length===0,'cancel force leaves ownership unchanged');
  const divergent=fixture({owner});divergent.client.finishTakeover=async()=>({ok:false,code:'REVISION_CONFLICT',error:'raw private detail'});await divergent.start();const conflict=await invoke(divergent,'finishTakeover');check(conflict.code==='REVISION_CONFLICT'&&conflict.error.includes('Choose which progress')&&!conflict.error.includes('Could not finish')&&!conflict.error.includes('private'),'expected reconnect conflict gives clear safe choice guidance');
+ const denied=fixture();await denied.start();denied.client.exportRecovery=async()=>({ok:true,text:'synthetic pending copy',fileName:'pending.json'});denied.setStatus('permission-denied');
+ const panel=denied.nodes.get('cloud-save-refused');check(panel && panel.children[0].textContent.includes('Do not clear browser storage'),'visible refusal panel explains preserved pending storage');
+ check(!JSON.parse(denied.win.LittleLeafCloudSettings.snapshot()).canSave,'refusal settings do not claim saving remains available');
+ await panel.children[1].onclick();check(denied.downloads.length===1 && denied.blobs[0].parts[0]==='synthetic pending copy','explicit export button downloads the guarded pending copy');
+ denied.client.exportRecovery=async()=>({ok:false});await panel.children[1].onclick();check(denied.downloads.length===1 && panel.children[0].textContent.includes('unchanged'),'export failure preserves storage and does not download');
+ denied.auth.currentUser={uid:'other'};await panel.children[1].onclick();check(denied.downloads.length===1,'changed account blocks visible export button');
+ const switchedExport=fixture();await switchedExport.start();switchedExport.client.exportRecovery=async()=>{switchedExport.auth.currentUser={uid:'other'};return {ok:true,text:'must not download',fileName:'wrong.json'};};switchedExport.setStatus('permission-denied');await switchedExport.nodes.get('cloud-save-refused').children[1].onclick();check(switchedExport.downloads.length===0,'account change during export also prevents download');
+ const cancelledReload=fixture({confirm:false});await cancelledReload.start();cancelledReload.setStatus('permission-denied');cancelledReload.nodes.get('cloud-save-refused').children[2].onclick();check(cancelledReload.calls.length===0,'cancelled updated-game reload leaves page open');
  console.log(JSON.stringify({passed:true,checks,player_save_used:false,real_browser:false}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -11,7 +11,7 @@ symptom. Tests, fixtures and manual captures now share this home:
 | `tests/diagnostics/` | Manual captures, visual audits and profiling scripts. Relocation preserves each distinct script and UID; it does not make every diagnostic a routine check. |
 
 Build, release and diagnostic orchestration is documented in
-[`ci/README.md`](../ci/README.md). Tooling discovery uses
+[`tools/README.md`](../tools/README.md). Tooling discovery uses
 `python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py'` when a complete
 tooling run is appropriate. The package sets its CI import path once; individual
 test files do not carry competing import setup.

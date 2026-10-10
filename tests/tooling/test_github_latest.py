@@ -33,10 +33,22 @@ class LatestTests(unittest.TestCase):
    calls.append(args)
    if args[1]=='rev-parse':return 'a'*40
    if args[1]=='merge-base':return ''
+   if args[1]=='ls-tree':return ''
    if args[-1].endswith(':project.godot'):return 'config/version="0.1.10a"'
    return json.dumps({'schema_version':1,'version':'0.1.10a','status':'released','date':'2026-01-01'})
   self.assertEqual(qualify('v0.1.10a',git),'a'*40);self.assertTrue(any('origin/main' in c for c in calls))
   with self.assertRaises(ValueError):qualify('v0.1.10b',git)
+ def test_reorganized_tag_qualifies_same_game_metadata_pair(self):
+  calls=[]
+  def git(*args):
+   calls.append(args)
+   if args[1]=='rev-parse':return 'a'*40
+   if args[1]=='merge-base':return ''
+   if args[1]=='ls-tree':return 'game/project.godot'
+   if args[-1].endswith(':game/project.godot'):return 'config/version="0.1.10a"'
+   if args[-1].endswith(':game/data/release_notes.json'):return json.dumps({'schema_version':1,'version':'0.1.10a','status':'released','date':'2026-01-01'})
+   raise AssertionError(args)
+  self.assertEqual(qualify('v0.1.10a',git),'a'*40)
  def test_reconcile_late_older_job_promotes_highest_and_confirms(self):
   calls=[]
   def api(*args):

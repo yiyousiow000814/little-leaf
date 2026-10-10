@@ -1,9 +1,10 @@
 'use strict';
+const {sourcePath}=require('./source_paths.js');
 // Hosted CI only. Actual exported Godot/Game/JavaScriptBridge/vault in disposable
 // HTTPS contexts. The sole injected failure closes a captured native IDB handle.
 // No client.close(), seeded save, fake callback/log entry, or simulation speedup.
 //
-// Inputs are the candidate ci/build_web.py export and its native test evidence.
+// Inputs are the candidate tools/build_web.py export and its native test evidence.
 // Preflight needs only Node (no Playwright import or browser launch):
 //   node tests/connection_recovery_browser.js --check-inputs --web-build WEB \
 //     --engine-report ENGINE/summary.json --layout-report ENGINE/test_save_log-result.json
@@ -75,10 +76,10 @@ function inputs() {
   for (const name of requiredSources) assert(Object.hasOwn(manifest.production_sha256, name), 'manifest source: ' + name);
   // Dynamic candidate binding, deliberately no alpha version/tree/run constants.
   for (const [name, digest] of Object.entries(manifest.production_sha256)) {
-    const source = path.resolve(root, name);
+    const source = sourcePath(root, name);
     assert(source.startsWith(root + path.sep) && !fs.lstatSync(source).isSymbolicLink());
     assert.equal(sha(fs.readFileSync(source)), digest, 'candidate/current production hash: ' + name);
-    assert.equal(engine.source_sha256[name], digest, 'candidate/native source hash: ' + name);
+    assert.equal(engine.source_sha256[path.relative(root, source).split(path.sep).join('/')], digest, 'candidate/native source hash: ' + name);
   }
   const fileBytes = new Map();
   for (const [name, record] of Object.entries(manifest.files)) {
@@ -91,11 +92,11 @@ function inputs() {
   }
   for (const name of ['index.html', 'index.js', 'index.wasm', 'index.pck']) assert(fileBytes.has(name));
   const html = fileBytes.get('index.html').toString('utf8');
-  const version = /config\/version="([^"]+)"/.exec(fs.readFileSync(path.join(root, 'project.godot'), 'utf8'))?.[1];
+  const version = /config\/version="([^"]+)"/.exec(fs.readFileSync(sourcePath(root, 'project.godot'), 'utf8'))?.[1];
   assert.equal(manifest.version, version);
   for (const name of ['web/little_leaf_vault.js', 'web/little_leaf_save_log.js',
     'web/little_leaf_inbox.js', 'web/little_leaf_preferences.js']) {
-    assert(html.includes(fs.readFileSync(path.join(root, name), 'utf8').trim()), 'HTML embeds exact ' + name);
+    assert(html.includes(fs.readFileSync(sourcePath(root,name), 'utf8').trim()), 'HTML embeds exact ' + name);
   }
   const match = /const GODOT_CONFIG\s*=\s*(\{.*?\});/.exec(html);
   assert(match, 'export contains the actual Godot configuration');

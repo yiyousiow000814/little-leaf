@@ -45,19 +45,19 @@ class ItchTagGateTests(unittest.TestCase):
                 self.assertEqual(fetch, '')
         self.assertNotEqual(self.gate('v0.1.10a', ref_type='branch')[0], 0)
 
-    def test_release_still_requires_full_build_and_exact_source(self):
+    def test_release_reuses_full_qualification_and_exact_source(self):
         source = WORKFLOW.read_text()
         for guard in ["tags: ['v*']", 'github.event.created && !github.event.deleted',
                       '--require-main-ancestor', 'needs: [gate, build]',
-                      'uses: ./.github/workflows/build-web.yml',
+                      'python3 tools/reuse_main_ci.py',
                       'ref: ${{ needs.gate.outputs.sha }}',
                       'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
                       'digest-mismatch: error', 'Missing BUTLER_API_KEY',
-                      'python3 ci/publish_itch.py']:
+                      'python3 tools/publish_itch.py']:
             self.assertIn(guard, source)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',
-                     'ci/build_web.py', 'connection_recovery_browser.js',
+                     'tools/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)
 

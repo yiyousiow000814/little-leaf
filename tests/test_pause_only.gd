@@ -53,14 +53,16 @@ func run():
    var before=snapshot();settings.load_preferences()
    check(snapshot()==before,"legacy speed normalization preserves pause/admissions/progress")
    check(FileAccess.get_file_as_string(settings.config_path)==original,"load leaves original preference bytes unchanged")
- check(not settings.bgm_enabled and settings.sfx_volume==37 and settings.frame_rate==120 and settings.last_seen_update_version=="0.1.10","unrelated settings preserved")
+ check(not settings.bgm_enabled and settings.sfx_volume==37 and settings.last_seen_update_version=="0.1.10","unrelated settings preserved")
+ check(settings.frame_rate==60,"legacy 120 FPS preference migrates to supported 60 FPS")
  check(not settings.has_method("set_speed") and not game.get_property_list().any(func(p):return p.name=="speed"),"global speed mutation API removed")
  check(not settings.save_preferences() and FileAccess.get_file_as_string(settings.config_path)==original,"recovery/review progress write suppression respected")
  game.save_writes_suppressed=false
  var before=snapshot();check(settings.save_preferences(),"permitted preference save succeeds")
  check(snapshot()==before,"preference save never advances service or payroll")
  var saved=ConfigFile.new();check(saved.load(settings.config_path)==OK and saved.get_value("play","speed")==1,"legacy 2x canonicalized to 1x on save")
- check(saved.get_value("audio","sfx_volume")==37 and saved.get_value("display","frame_rate")==120 and saved.get_value("updates","last_seen_version")=="0.1.10","canonical save retains unrelated preferences")
+ check(saved.get_value("audio","sfx_volume")==37 and saved.get_value("updates","last_seen_version")=="0.1.10","canonical save retains unrelated preferences")
+ check(saved.get_value("display","frame_rate")==60,"canonical save persists migrated 60 FPS cap")
  game.save_writes_suppressed=true
  var web=WebPreferences.new();web.api=BrowserApi.new();web.usable=true
  check(web.save_from(saved),"browser adapter accepts canonical preferences")

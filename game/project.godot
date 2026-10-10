@@ -1,0 +1,44 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+run/max_fps=60
+
+config/name="Little Leaf Cafe"
+config/icon="res://assets/branding/little_leaf_approved_v3.png"
+boot_splash/bg_color=Color(0.8, 0.89, 0.91, 1)
+boot_splash/image="res://assets/branding/little_leaf_approved_v3.png"
+boot_splash/minimum_display_time=0
+boot_splash/show_image=true
+boot_splash/stretch_mode=0
+boot_splash/use_filter=true
+config/version="0.1.10c"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.6", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1360
+window/size/viewport_height=880
+window/size/window_width_override=1360
+window/size/window_height_override=880
+window/stretch/mode="disabled"
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=2
+environment/defaults/default_clear_color=Color(0.76, 0.81, 0.68, 1)

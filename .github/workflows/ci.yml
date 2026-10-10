@@ -6,7 +6,7 @@ on:
       - '!README.md'
       - '!docs/**/*.md'
       # Distribution inputs always build, including current and future notices.
-      - 'docs/third-party/**'
+      - 'docs/art-audio/third-party/**'
   push:
     branches: [main]
   workflow_dispatch:

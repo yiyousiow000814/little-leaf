@@ -1,7 +1,7 @@
 'use strict';
 // Execute the real boot module with synthetic SDK/DOM boundaries; no network or saves.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-const source=fs.readFileSync('web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
+const source=fs.readFileSync('platform/web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(user=null,options={}){
   const nodes=new Map(),listeners=[];let opened=0,closed=0,redirectError=null,statusCallback=null,clientClosed=0,signOutCalls=0,popupCalls=0,redirectCalls=0,redirectResults=0;
@@ -16,7 +16,7 @@ function fixture(user=null,options={}){
   return {nodes,auth,win,emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),client};
 }
 (async()=>{
-  const bridgeSource=fs.readFileSync('scripts/cafe_cloud_settings.gd','utf8');
+  const bridgeSource=fs.readFileSync('game/scripts/cafe_cloud_settings.gd','utf8');
   const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];
   assert(bridgeSource.indexOf('if not JavaScriptBridge.eval')<bridgeSource.indexOf('api=JavaScriptBridge.get_interface'));
   for(const [window,expected] of [[{},false],[{LittleLeafCloudSettings:null},false],[{LittleLeafCloudSettings:{}},true]])assert.equal(vm.runInNewContext(presence,{window}),expected,'optional bridge presence for ordinary/Firebase Web');

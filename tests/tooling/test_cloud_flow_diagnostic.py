@@ -3,7 +3,7 @@ from pathlib import Path
 from cloud_flow_diagnostic import BASE,validate_changes,unpack,verify,sha,eligibility
 class DiagnosticTests(unittest.TestCase):
  def test_only_runtime_and_qa_changes_allowed(self):
-  validate_changes(['web/little_leaf_firebase_session.js','firebase/fullflow.test.mjs','ci/build_firebase.py','tests/firebase_session.js'])
+  validate_changes(['web/little_leaf_firebase_session.js','firebase/fullflow.test.mjs','tools/build_firebase.py','tests/firebase_session.js'])
   for path in ['scripts/cafe.gd','data/update_notes.json','project.godot','web/little_leaf_vault.js','tests/test_cloud_recovery_ui.gd','tests/fixtures/startup-retry-v15.json','tests/engine_launch_hook.js']:
    with self.assertRaises(ValueError):validate_changes([path])
  def test_ineligible_receipt_never_qualifies_or_weakens_guard(self):

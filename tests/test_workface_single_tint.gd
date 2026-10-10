@@ -9,7 +9,7 @@ class PaintRecorder extends RefCounted:
  func iso(x,z):return Vector2(x,z)
  func poly(points,color):fills.append({"points":points,"color":color})
  func line(a,b,color,width):lines.append({"a":a,"b":b,"color":color,"width":width})
- func draw_colored_polygon(points,color):fills.append({"points":points,"color":color})
+ func draw_colored_polygon(points,color,uvs=PackedVector2Array(),texture=null):fills.append({"points":points,"color":color,"uvs":uvs,"texture":texture})
  func draw_polyline(points,color,width,_antialiased):lines.append({"points":points,"color":color,"width":width})
 var checks=0;var failures=[]
 func check(ok,label):
