@@ -2467,61 +2467,61 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW - Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; inset Quick Help content | 🟡 YELLOW - Baseline223 focused synthetic engine checks passed; padding successor72 navigation/dismissal checks passed. Earlier combined browser evidence is partial; padding Web acceptance pending | 🟡 YELLOW - Native Settings pixels inspected; Quick Help padding accepted by user. Integrated/Web acceptance remains separate | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
+Code status: Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; Quick Help padding20→32px (left/top/right/bottom28/24/28/16→40/36/40/28).
 
 Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
 Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
+Visual acceptance: Baseline native Godot4.6.3 GL Compatibility / NVIDIA RTX3090 captures inspected at1360x880,390x844,844x390 and566x360 using generated zero-save state. Padding successor5b56a09 top/bottom captures inspected at1360x880 and390x844; the user accepted the inset Quick Help pixels. This successor is native-verified only. Earlier composition2c2e9a64 showed partial Settings browser navigation/dismissal; it excludes the padding successor and does not establish complete integrated/Web acceptance. Original2D isometric art retained.
 
-Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
+Missing work / next action: Review the coherent Settings draft and complete applicable exact-source Web/integration gates before merge/release. Existing Google/login, save formats and timers unchanged. No runtime merge or release.
 
-Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+Principal implementation PR: one coherent Settings navigation draft includes the reviewed baseline and padding successor; contract PR120 remains documentation only. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
 ### 12.02 — Move Log into Help.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW - Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; inset Quick Help content | 🟡 YELLOW - Baseline223 focused synthetic engine checks passed; padding successor72 navigation/dismissal checks passed. Earlier combined browser evidence is partial; padding Web acceptance pending | 🟡 YELLOW - Native Settings pixels inspected; Quick Help padding accepted by user. Integrated/Web acceptance remains separate | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
+Code status: Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; Quick Help padding20→32px (left/top/right/bottom28/24/28/16→40/36/40/28).
 
 Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
 Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
+Visual acceptance: Baseline native Godot4.6.3 GL Compatibility / NVIDIA RTX3090 captures inspected at1360x880,390x844,844x390 and566x360 using generated zero-save state. Padding successor5b56a09 top/bottom captures inspected at1360x880 and390x844; the user accepted the inset Quick Help pixels. This successor is native-verified only. Earlier composition2c2e9a64 showed partial Settings browser navigation/dismissal; it excludes the padding successor and does not establish complete integrated/Web acceptance. Original2D isometric art retained.
 
-Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
+Missing work / next action: Review the coherent Settings draft and complete applicable exact-source Web/integration gates before merge/release. Existing Google/login, save formats and timers unchanged. No runtime merge or release.
 
-Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+Principal implementation PR: one coherent Settings navigation draft includes the reviewed baseline and padding successor; contract PR120 remains documentation only. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
 ### 12.03 — Use an X inside the panel's upper-right corner for close.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW - Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; inset Quick Help content | 🟡 YELLOW - Baseline223 focused synthetic engine checks passed; padding successor72 navigation/dismissal checks passed. Earlier combined browser evidence is partial; padding Web acceptance pending | 🟡 YELLOW - Native Settings pixels inspected; Quick Help padding accepted by user. Integrated/Web acceptance remains separate | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
+Code status: Settings candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X; Quick Help padding20→32px (left/top/right/bottom28/24/28/16→40/36/40/28).
 
 Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
 Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
+Visual acceptance: Baseline native Godot4.6.3 GL Compatibility / NVIDIA RTX3090 captures inspected at1360x880,390x844,844x390 and566x360 using generated zero-save state. Padding successor5b56a09 top/bottom captures inspected at1360x880 and390x844; the user accepted the inset Quick Help pixels. This successor is native-verified only. Earlier composition2c2e9a64 showed partial Settings browser navigation/dismissal; it excludes the padding successor and does not establish complete integrated/Web acceptance. Original2D isometric art retained.
 
-Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
+Missing work / next action: Review the coherent Settings draft and complete applicable exact-source Web/integration gates before merge/release. Existing Google/login, save formats and timers unchanged. No runtime merge or release.
 
-Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+Principal implementation PR: one coherent Settings navigation draft includes the reviewed baseline and padding successor; contract PR120 remains documentation only. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
 ### 12.04 — Center the Sign in panel.
 
