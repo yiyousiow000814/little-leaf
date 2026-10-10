@@ -1,10 +1,10 @@
-name: Qualify PR125 reviewed furniture proposal
+name: Qualify PR125 ellipsis source successor
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: pr125-furniture-atlas-${{ github.ref }}
+  group: pr125-ellipsis-cfb5ae9-atlas-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   canonical-parity:
@@ -41,21 +41,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils \
             libgl1-mesa-dri=25.2.8-0ubuntu0.24.04.4 libglx-mesa0=25.2.8-0ubuntu0.24.04.4
-      - name: Reuse qualified control then verify exact reviewed furniture proposal
+      - name: Reuse qualified control then verify exact ellipsis source successor
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
           EXPECTED_HEAD: ${{ github.sha }}
         run: |
           xvfb-run -a -s '-screen 0 1600x1000x24' python3 tests/diagnostics/canonical_atlas/run.py \
             --godot "$GODOT_BIN" --expected-head "$EXPECTED_HEAD" \
-            --output "$RUNNER_TEMP/pr125-furniture-atlas"
+            --output "$RUNNER_TEMP/pr125-ellipsis-cfb5ae9-atlas"
       - name: Retain exact source and pixel evidence on all outcomes
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: pr125-furniture-atlas-${{ github.sha }}-${{ github.run_attempt }}
+          name: pr125-ellipsis-cfb5ae9-atlas-${{ github.sha }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/pr125-furniture-atlas/
+            ${{ runner.temp }}/pr125-ellipsis-cfb5ae9-atlas/
             ${{ runner.temp }}/canonical-tools/toolchain.json
           if-no-files-found: error
           retention-days: 7

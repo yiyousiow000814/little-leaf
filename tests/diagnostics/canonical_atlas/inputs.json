@@ -1,12 +1,12 @@
 {
-  "scope": "PR125 renderer-approved furniture proposal; candidate-only declared pixels; original control immutable",
+  "scope": "PR125 exact ellipsis-token successor; qualified candidate pixels and original control unchanged",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "773234e216ece8270264bdd97298a656dd45df00",
-    "tree": "b18ee16bea4a95d42fcb0ee796e1adb79af93f96"
+    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
+    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
   },
   "reuse_control": {
     "run": 38066367866,

@@ -1,11 +1,11 @@
 {
   "source": {
-    "commit": "85e9a058d25cff10089d3bc4885339110fb70735",
-    "tree": "c2a38b8b8b0735029dd106dcfa065f2e2ad35565"
+    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
+    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
   },
   "proposal": {
-    "commit": "773234e216ece8270264bdd97298a656dd45df00",
-    "tree": "b18ee16bea4a95d42fcb0ee796e1adb79af93f96"
+    "commit": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
+    "tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d"
   },
   "artifact": {
     "origin_run": 38079947249,
@@ -18,7 +18,7 @@
       3244
     ]
   },
-  "closure_packet_sha256": "917b68c5e13e9dd6782da95e90d18e529b18fec187080c6c97dbdff00d3b3c40",
+  "closure_packet_sha256": "440a2ddc5cc747915e9e89a62d59b53d3e607da74c71c53f14ad11f410f94b32",
   "renderer_review_sha256": "fd8b44d19cc56453fb1388ef478c3734977af671b2f5db658a8e6257cba562b0",
-  "authorization": "Parent relayed renderer approval and instructed exact proposal qualification; no merge/deploy"
+  "authorization": "Parent requested one exact ellipsis-source qualification; reviewed candidate assets unchanged"
 }
