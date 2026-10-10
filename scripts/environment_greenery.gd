@@ -3,6 +3,8 @@ extends RefCounted
 ## Ground anchors and palette are shared; silhouettes are not scaled copies.
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 var tree_bounds={}
+var use_retained_fills=true
+var fill_meshes={}
 var pocket_bounds=[]
 var trees={}
 var pockets=[]
@@ -72,13 +74,34 @@ func bounds_for(items:Array)->Rect2:
 		var part=Visibility.points_bounds(item[1])
 		bounds=part if first else bounds.merge(part);first=false
 	return bounds
+func _fill_mesh(points:PackedVector2Array)->ArrayMesh:
+	if fill_meshes.has(points):return fill_meshes[points]
+	var triangles=Geometry2D.triangulate_polygon(points)
+	if triangles.is_empty():return null
+	var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX]=points
+	arrays[Mesh.ARRAY_INDEX]=triangles
+	var mesh=ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+	fill_meshes[points]=mesh
+	return mesh
 func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2):
 	var bounds=Visibility.local_bounds(ground,scale,local_bounds)
 	if a.has_method("render_bounds_visible"):
 		if not a.render_bounds_visible(bounds):return
 	elif a.has_method("get_viewport_rect") and not Visibility.visible(bounds,a.get_viewport_rect(),6.0):return
 	var transform=Transform2D(Vector2(scale,0),Vector2(0,scale),ground)
-	for item in items:a.poly(Array(transform*item[1]),item[0])
+	# Keep every authored contour, native outline, and painter position. Only
+	# immutable fill geometry gains a retained resource; inspection/painters
+	# with outer transforms continue through the original poly implementation.
+	var retained=use_retained_fills and a is CanvasItem and "_art_transform" in a and a._art_transform==Transform2D.IDENTITY and a.has_method("art_polyline")
+	for item in items:
+		var mesh=_fill_mesh(item[1]) if retained else null
+		if mesh==null:a.poly(Array(transform*item[1]),item[0]);continue
+		a.draw_mesh(mesh,null,transform,a.col(item[0]))
+		var outline:PackedVector2Array=transform*item[1]
+		outline.append(outline[0])
+		a.art_polyline(outline,a.col(item[0]),.7)
 func draw_tree(a,ground:Vector2,scale:float,variant:String):
 	a.ellipse(ground+Vector2(2,0),Vector2(31,9)*scale,Color(.45,.57,.32,.12))
 	draw_layers(a,trees[variant],ground,scale,tree_bounds[variant])
