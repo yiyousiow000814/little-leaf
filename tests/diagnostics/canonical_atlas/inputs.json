@@ -1,12 +1,12 @@
 {
-  "scope": "Exact published camera input successor canonical parity; reuse verified control; no background or11",
+  "scope": "Exact frozen sink 0.1.11 candidate atlas provenance only; reuse verified control",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "9b9205df4c21eb9fee020f3a60a05a7af3da3b82",
-    "tree": "fdf95787779a03f7032155790a5731debaf64529"
+    "commit": "932d0d4143886f13fc3a2e255f1acfb75876bf70",
+    "tree": "747227533ab96a0b19513dea91735255332d4cd8"
   },
   "reuse_control": {
     "run": 38066367866,
