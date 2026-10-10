@@ -38,6 +38,8 @@ SUITES = [
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
     ("test_parking", "PARKING_RESULT"),
+    ("test_parking_parties", "PARKING_PARTIES_RESULT"),
+    ("test_parking_traffic", "PARKING_TRAFFIC_RESULT"),
     ("test_parking_decor_ui", "PARKING_DECOR_UI_RESULT"),
     ("test_parking_render", "PARKING_RENDER_RESULT"),
     ("test_parking_service", "PARKING_SERVICE_RESULT"),

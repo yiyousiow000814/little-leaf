@@ -112,15 +112,15 @@ var outside_queue: Array[Dictionary] = []
 var parking_owned=false
 var parking_paid_cost=0
 var parking_visits:Array[Dictionary]=[]
+var road_traffic_state:Dictionary=Parking.initial_traffic()
 var _parking_session_purchase=false
 
 func parking_price()->int:return Parking.PRICE
 func parking_refund()->int:return parking_paid_cost if decoration_session_active and _parking_session_purchase else int(parking_paid_cost/2)
 func buy_parking()->bool:
-	if not decoration_session_active:return _fail("Open Decorate to buy parking")
 	if parking_owned:return _fail("Parking already owned")
 	if coins<parking_price():return _fail("Not enough coins · %s needed"%Money.amount(parking_price()))
-	parking_paid_cost=parking_price();coins-=parking_paid_cost;parking_owned=true;_parking_session_purchase=true
+	parking_paid_cost=parking_price();coins-=parking_paid_cost;parking_owned=true;_parking_session_purchase=decoration_session_active
 	last_error="";last_event="Four parking bays bought · −%s"%Money.amount(parking_paid_cost);_notify();return true
 func sell_parking()->bool:
 	if not decoration_session_active:return _fail("Open Decorate to sell parking")
@@ -215,7 +215,7 @@ func reset_new() -> void:
 	dining_sets.clear()
 	customers.clear()
 	outside_queue.clear()
-	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
+	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false;road_traffic_state=Parking.initial_traffic()
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
@@ -1724,7 +1724,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
 	if not queue_check.ok:return _fail(str(queue_check.error))
-	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
+	var parking=codec.encode(Parking.snapshot(self))
 	var parking_check=Parking.validate(parking,customers,outside_queue,_next_customer_id,operating_open)
 	if not parking_check.ok:return _fail(str(parking_check.error))
 	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
@@ -1952,7 +1952,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	_next_item_id = int(data.next_item_id)
 	customers.assign(runtime_state.customers)
 	outside_queue.assign(queue_check.visitors)
-	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits)
+	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits);Parking.restore_traffic(self,parking_check.state)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
 	tutorial_state=preload("res://scripts/cafe_tutorial_state.gd").read(data.get("tutorial"))
