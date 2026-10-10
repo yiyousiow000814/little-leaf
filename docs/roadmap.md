@@ -2355,6 +2355,8 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 11.02 — Buses arrive and depart in distinct trips.
 
+Unified traffic helper follow-up: optional shared-progress solver and fixed approach/rejoin reservations are present locally; 16 focused checks cover three trips in two pool phases, exact restore/party identity, ahead/behind priority, occupied merge, wrap validity, parking headway and zero-step inactivity. Production holder/reset/renderer consumption is not installed: an exact nonserialized transient contract and relative patch await owner agreement under the model boundary review. Helper-level native capture exists; integrated normal-play visual acceptance remains pending.
+
 Local retained bus port (not published): recovered 7e457935 relative presentation changes are present on parking 766eeb2; 23 trip/retained ownership checks, 11 lane checks and 489 rendering checks passed. Native 45-second 30fps control capture is rejected: an unchanged cream traffic car overlaps the bus front during approach. Model-owner fresh-pool spacing decision remains pending. No traffic initial/advance/restore or parking identity change; no merge/release acceptance.
 
 | Code | Tests | Visual acceptance | Merged | Released |
