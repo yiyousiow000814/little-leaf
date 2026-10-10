@@ -1,12 +1,12 @@
 {
-  "scope": "Exact published camera input successor canonical parity; reuse verified control; no background or11",
+  "scope": "Reviewed PR140 current-main chair cache proposal: retain historical control, permit changed RGBA only in four chair-seat regions, then require exact repeated regenerated/imported/saved parity. No product manifest writes.",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "9b9205df4c21eb9fee020f3a60a05a7af3da3b82",
-    "tree": "fdf95787779a03f7032155790a5731debaf64529"
+    "commit": "bcbbadfcd38daf3c51e2033bd0346d371d3faf86",
+    "tree": "985b3be023e023042c6d5caba77619c16853a0b0"
   },
   "reuse_control": {
     "run": 38066367866,
