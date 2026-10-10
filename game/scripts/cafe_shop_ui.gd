@@ -269,7 +269,7 @@ func _sync_parking_review():
   if game.editing or game.model.parking_owned:parking_review.hide();return
   var price=int(game.model.parking_price());var shortfall=maxi(0,price-int(game.model.coins))
   parking_review_text.text="Unlock four fixed parking bays here for %s coins.\n\nEach car brings 1–4 restaurant visitors who return to the same car."%ui.Money.amount(price)
-  if shortfall>0:parking_review_text.text+="\n\nNeed %s more coins."%ui.Money.amount(shortfall)
+  if shortfall>0:parking_review_text.text+="\n\nNeed %s more %s."%[ui.Money.amount(shortfall),"coin" if shortfall==1 else "coins"]
   if game.save_recovery_blocked:parking_review_text.text+="\n\nResolve save recovery before buying."
   parking_sell.text="Buy "+ui.Money.amount(price)
   parking_sell.disabled=shortfall>0 or game.save_recovery_blocked or ui.viewport_too_small
