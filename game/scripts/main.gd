@@ -1211,7 +1211,9 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 	if str(item.get("kind",""))=="table":return _table_service_destination(staff,item,from,claimed)
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
-	if str(item.get("kind",""))=="sink" and not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
+	if str(item.get("kind",""))=="sink":
+		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed)
+		if not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
 	return _service_cell(item,from,claimed,str(staff.role))
 
 func _update_floor_state(record:Dictionary):
@@ -1974,7 +1976,8 @@ func _animate_staff(delta: float):
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
-		var station_busy=worked_stations.has(int(target_item.id))
+		var station_key=Vector3i(int(target_item.id),destination.x,destination.y) if str(step.kind)=="sink" else int(target_item.id)
+		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():
 				if other_index==index: continue
@@ -1983,7 +1986,7 @@ func _animate_staff(delta: float):
 				if other_target.is_empty() or int(other_target.id)!=int(target_item.id): continue
 				if float(other.job_elapsed)>0.0 or (other_index<index and float(staff.job_elapsed)<=0.0): station_busy=true; break
 		if station_busy: continue
-		if str(step.kind)!="table": worked_stations[int(target_item.id)]=true
+		if str(step.kind)!="table": worked_stations[station_key]=true
 		if staff.job_kind=="take_payment":
 			var paying_guest=service_guests[int(staff.job_guest_id)].guest
 			if not model.begin_checkout_payment(int(paying_guest.id),int(paying_guest.checkout_ticket),int(target_item.id),int(staff.job_token)):continue

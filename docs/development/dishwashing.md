@@ -4,7 +4,8 @@
 - Each sink holds at most six dishes, including queued dishes, the one being washed, and reservations made by carrying/collecting waiters
 - Cleaners wash one dish at a time for 20 simulation seconds. Pausing stops that clock; 2× speed doubles it. Walking or an obstructed workface never advances washing
 - Within a sink, dishes are FIFO. Available cleaners choose separate reachable sinks. Waiters prefer the least-loaded reachable sink, with distance as the tie-breaker
-- A cleaner already washing keeps the workface. Waiting drop-offs get the next turn before another wash, preventing waiter/cleaner deadlock
+- A cleaner already washing keeps the authored front workface. Waiters can drop at a clear reachable lateral edge while washing continues; each interaction cell remains exclusive. Waiting front drop-offs get the next turn before another wash
+- A carrying waiter switches to another reachable sink with capacity and an available drop side when its reserved sink is full or unusable. If every side is temporarily occupied, it retains its capacity reservation and held dish, then retries. Switching sinks restarts the physical drop gesture; the janitor's queue and wash progress are unchanged
 - When all sinks are full or inaccessible, the waiter retains the table/hand payload and retries. A reservation is released when an unstarted collection is canceled
 - A queued dish is independent of its diner, so the table can be reused after drop-off and wiping. The visible sink pile counts queued and currently washed dishes, never reservations still in transit
 - Selling a sink with a reservation, queued dish, or active washing job is blocked. Moving it keeps the same item identity and dish queue; the worker follows the new workface and preserves progress
