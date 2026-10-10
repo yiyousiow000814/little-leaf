@@ -2,6 +2,7 @@ extends RefCounted
 ## Native candidate: a furniture move preserves identities and active work.
 ## Plan against an isolated model, then publish one complete layout/route change.
 const NONE=Vector2i(-100,-100)
+const Pause=preload("res://scripts/cafe_placement_pause.gd")
 const SEAT_PHASES=["ordering","cooking","drinking","eating"]
 static func active(guest:Dictionary)->bool:return not guest.get("mobility",{}).is_empty()
 static func copy_model(model):
@@ -11,8 +12,29 @@ static func copy_model(model):
  for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
   var value=model.get(key)
   shadow.set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
+ shadow.footprint_placement_enabled=model.footprint_placement_enabled
+ shadow._placement_planning=true
  return shadow
 static func fail(reason:String)->Dictionary:return {"ok":false,"error":reason}
+static func purchase(model,kind:String,x:int,z:int,rot:int,actors:Array=[])->bool:
+ var shadow=copy_model(model)
+ shadow.duty_counts=model.duty_counts.duplicate(true);shadow.duty_targets=model.duty_targets.duplicate(true)
+ shadow.wall_actor_positions.assign(model.wall_actor_positions);shadow.checkout_staff_claims.assign(model.checkout_staff_claims)
+ if not shadow.place(kind,x,z,rot,actors):return model._fail(str(shadow.last_error))
+ Pause.reconcile(shadow,model)
+ for item in shadow.items:
+  if int(item.id)>=model._next_item_id:model.items.append(item.duplicate(true))
+ model.dining_sets.assign(shadow.dining_sets)
+ model.coins=shadow.coins;model._next_item_id=shadow._next_item_id
+ model.decoration_purchases=shadow.decoration_purchases.duplicate(true)
+ model.included_checkout_pending=shadow.included_checkout_pending;model.included_bin_pending=shadow.included_bin_pending
+ model.cashiers=shadow.cashiers;model.duty_counts=shadow.duty_counts.duplicate(true);model.duty_targets=shadow.duty_targets.duplicate(true)
+ publish_guests(model,shadow.customers)
+ model.last_error="";model.last_event=shadow.last_event;model._notify();return true
+static func publish_guests(model,guests:Array)->void:
+ for proposed in guests:
+  for original in model.customers:
+   if int(original.id)==int(proposed.id):original.merge(proposed,true);break
 static func point(guest:Dictionary)->Vector2:return Vector2(float(guest.x),float(guest.z))
 static func cell(point_value:Vector2)->Vector2i:return Vector2i(floori(point_value.x),floori(point_value.y))
 static func route_to(model,position:Vector2,destination:Vector2i)->Array[Vector2]:
@@ -60,6 +82,11 @@ static func plan(model,id:int,x:int,z:int,rot:int,actors:Array=[])->Dictionary:
  shadow.customers=no_guests;shadow.wall_actor_positions.clear();shadow.checkout_staff_claims.clear()
  if not shadow._move_static(id,x,z,rot,actors):return {"ok":false,"error":str(shadow.last_error),"issue":shadow.last_placement_issue.duplicate(true)}
  shadow.customers=guests
+ if model.footprint_placement_enabled:
+  var physical_error=Pause.body_error(shadow,guests,shadow.items,shadow.owned_parcels)
+  if physical_error!="":return fail(physical_error)
+  Pause.reconcile(shadow,model)
+  return {"ok":true,"noop":false,"items":shadow.items,"groups":shadow.dining_sets,"guests":shadow.customers}
  var guest_reachable=shadow._wall_reachable(shadow.built_walls,shadow.items,shadow.owned_parcels)
  var register_moved=str(item.kind)=="register"
  var old_register_front=model.workface_cell(item)
@@ -112,7 +139,7 @@ static func plan(model,id:int,x:int,z:int,rot:int,actors:Array=[])->Dictionary:
    if not exits.is_empty() and guest.get("service_cell") not in exits:guest.service_cell=exits[0]
  var geometry_error=geometry_error(shadow,shadow.customers,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.wall_attachments)
  if geometry_error!="":return fail(geometry_error)
- var checkout_error=shadow.Checkout.layout_error(shadow,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.customers)
+ var checkout_error="" if shadow.customers.is_empty() else shadow.Checkout.layout_error(shadow,shadow.items,shadow.built_walls,shadow.owned_parcels,shadow.customers)
  if checkout_error!="":return fail(checkout_error)
  return {"ok":true,"noop":false,"items":shadow.items,"groups":shadow.dining_sets,"guests":shadow.customers}
 static func commit(model,transaction:Dictionary)->bool:
@@ -126,12 +153,13 @@ static func commit(model,transaction:Dictionary)->bool:
   var original=model.get_item(int(proposed.id))
   for key in ["x","z","rot"]:original[key]=proposed[key]
  model.dining_sets.assign(transaction.groups)
- for proposed in transaction.guests:
-  for original in model.customers:
-   if int(original.id)==int(proposed.id):original.merge(proposed,true);break
+ publish_guests(model,transaction.guests)
  model.last_error="";model.last_event="Moved furniture · guests and staff keep their work";model._notify();return true
 static func advance(model,guest:Dictionary,delta:float)->void:
  if not active(guest):return
+ if Pause.blocked(guest):
+  Pause.retry(model,guest)
+  return
  var invalid="" if model._mobility_validated.get(int(guest.id),-1)==model.revision else geometry_error(model,[guest],model.items,model.built_walls,model.owned_parcels,model.wall_attachments)
  if invalid!="":
   var kind=str(guest.mobility.kind)
@@ -140,6 +168,10 @@ static func advance(model,guest:Dictionary,delta:float)->void:
   relocate(guest,kind,replacement)
   if not active(guest):return
   if geometry_error(model,[guest],model.items,model.built_walls,model.owned_parcels,model.wall_attachments)!="":guest.waiting=true;return
+ if model.footprint_placement_enabled and model._mobility_validated.get(int(guest.id),-1)!=model.revision:
+  if Pause.route_error(model,guest,guest.mobility.route,int(guest.mobility.route_index))!="":
+   Pause.pause(model,guest)
+   return
  model._mobility_validated[int(guest.id)]=model.revision
  var mobility:Dictionary=guest.mobility
  var budget=maxf(0.0,delta)*model.WALK_SPEED
@@ -162,6 +194,10 @@ static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership
   if str(item.kind)!="rug":solids[Vector2i(int(item.x),int(item.z))]=int(item.id)
  for guest in guests:
   if not active(guest):continue
+  if Pause.blocked(guest):
+   var physical_error=Pause.body_error(model,[guest],layout,ownership)
+   if physical_error!="":return physical_error
+   continue
   var mobility:Dictionary=guest.mobility;var route:Array=mobility.get("route",[])
   if route.is_empty():return "Relocating guest has no walking route"
   var target_id=int(guest.chair_id) if str(mobility.kind)=="to_assigned_seat" else -1
