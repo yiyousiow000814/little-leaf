@@ -1,6 +1,6 @@
 # Hidden business browser acceptance matrix
 
-Status: prepared, not executed. Revision r3 has lightweight DOM evidence; its changed engine guards still require focused Godot tests. The prior r2 1968-check engine result does not validate r3.
+Status: exported-game acceptance is prepared, not executed. Revision r3 passed 1817 focused Godot checks and eight lightweight suites. A headless Chromium test of the actual DOM lifecycle source passed three navigation assertions, without Godot, a real hidden tab transition, or BFcache restoration. The prior r2 1968-check result remains independent evidence.
 
 ## Evidence and test isolation
 
@@ -41,4 +41,4 @@ Visibility and focus differ, and browsers throttle background timers and commonl
 
 ## Pending commands
 
-After the parent grants a measurement window, run only updated test_hidden_time_policy and test_pause_only in the existing disposable integration runner; include the policy suite through the task-owned runner driver. Save a new receipt directory rather than overwriting engine-r1/r2. If those pass, request/provision the isolated browser fixture and execute the matrix on supported available browsers. Source review and DOM permutations are not real-browser acceptance.
+The updated test_hidden_time_policy and test_pause_only suites have passed in the disposable integration runner; retain their r3 receipts. After the parent grants the export/browser measurement window, build one source-bound composed export and execute the matrix with isolated synthetic profiles on supported available browsers. Do not repeat engine suites solely because documentation changed. Source review and DOM permutations are not exported-game browser acceptance.
