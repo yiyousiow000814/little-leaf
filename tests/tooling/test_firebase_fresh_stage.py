@@ -158,7 +158,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_existing_full_gate_commands_retained_before_firebase(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text();first=text.index('      - name: Check Firebase adapter')
-        for command in ['python3 tests/run_integration_candidate.py','python3 tools/build_web.py','python3 tools/build_crazygames.py',
+        for command in ['python3 tools/engine_shards.py run','python3 tools/engine_shards.py merge','python3 tools/build_web.py','python3 tools/build_crazygames.py',
                         'python3 .compatibility-old/tests/run_integration_candidate.py','python3 tools/prepare_browser_qa.py wall',
                         'node tests/compensation_inbox_browser.js','node tests/fresh_tutorial_browser.js','node tests/wall_compatibility_browser.js',
                         'node tests/save_log_browser.js','node tests/connection_recovery_browser.js']:
@@ -167,7 +167,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('firebase_preview:\n        description:',text)
         self.assertIn('        default: false',text)
         self.assertNotIn('continue-on-error',text)
-        self.assertNotIn('download-artifact',text)
+        self.assertIn('needs: [build, browser]',text)
+        self.assertIn('needs: [guard, engine, historical, build, browser, firebase]',text)
+        self.assertIn('jobs.gate.outputs.artifact_id',text)
+        self.assertIn('digest-mismatch: error',text)
+        self.assertNotIn('run-id:',text)
+        self.assertNotIn('repository:',text)
+        self.assertIn('little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}',text)
+        self.assertIn('little-leaf-historical-project-${{ github.sha }}-${{ github.run_attempt }}',text)
+        self.assertIn('include-hidden-files: true',text)
         self.assertNotIn('secrets.',text)
         tail=text[first:text.index('      - name: Keep test and export evidence')]
         self.assertEqual(tail.count('        if: inputs.firebase_preview'),7)
@@ -179,7 +187,9 @@ class WorkflowTests(unittest.TestCase):
         text=(ROOT/'.github/workflows/build-web.yml').read_text()
         section=text[text.index('      - name: Verify cloud recovery in real IndexedDB before merge'):text.index('      - name: Verify compensation history')]
         self.assertLess(text.index('      - name: Install shared pinned browser tools'),text.index(section))
-        self.assertNotIn('        if:',section)
+        self.assertIn("        if: matrix.lane == 'recovery'",section)
+        self.assertIn('lane: [play, compatibility, recovery]',text)
+        self.assertIn('"$BROWSER"; do test "$result" = success || exit 1',text)
         self.assertNotIn('continue-on-error',section)
         self.assertIn('PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright"',section)
         self.assertIn('${{ runner.temp }}/firebase-focused/',text)

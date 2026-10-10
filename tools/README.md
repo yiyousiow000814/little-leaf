@@ -21,6 +21,32 @@ The cloud scenario also serves the historical retained-artifact diagnostic. The
 ordinary Web workflow selects it only for its optional Firebase preview gates.
 The wall scenario remains required by the ordinary save compatibility gate.
 
+## Parallel complete CI
+
+The reusable Web workflow runs the source/atlas guard first, then four independent
+engine shards alongside the historical client build. `engine_shards.py` assigns
+every canonical suite and all five staff-start cases using measured suite times;
+new suites receive a default weight and remain mandatory. Each runner keeps its
+own lock, project and disposable profile. The merger rejects missing, duplicate,
+failed or mismatched source/run/attempt reports before the unchanged full-suite
+export validator permits one ordinary export and one CrazyGames variant.
+
+Browser lanes cover play (Inbox and tutorial), compatibility (old/new saves),
+and recovery (IndexedDB, save log and WebKit). Compatibility receives both
+generated projects, including imported resources, and installs the same pinned
+Godot toolchain. Optional Firebase staging receives the candidate project and
+all required browser evidence; its freshness validator remains unchanged.
+Artifacts are scoped to this run, attempt and source. Profiles are never uploaded.
+The final `gate` exposes release outputs only after every required job succeeds;
+failed, cancelled or skipped mandatory jobs cannot qualify an export.
+
+The timing weights come from main `af61a3f` run `38058638557`: 26m18s overall,
+11m18s for the native suite. Estimated shard work is about 167s each, excluding
+import, setup, queues and artifact transfer; this estimate is not a measured CI
+speedup. Parallelism uses the existing Ubuntu runners, capped at four engine
+shards and three browser lanes. Extra setup/import and artifact transport can
+increase total runner minutes even while reducing elapsed time.
+
 ## Explicit staging, publication, and diagnostics
 
 | Command | Class | Responsibility |
