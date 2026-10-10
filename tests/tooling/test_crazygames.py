@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 import build_crazygames as cg
+from project_layout import source_path
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -105,13 +106,13 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertEqual(variant["storage_keys"], cg.PREVIEW_KEYS)
         self.assertEqual(set(variant["transformed_inputs"]), changed)
         for name in changed:
-            expected = self.before[name].decode().replace(cg.key_declaration(cg.PRODUCTION_KEYS),
+            expected = self.before[name].decode("utf-8").replace("\r\n", "\n").replace(cg.key_declaration(cg.PRODUCTION_KEYS),
                                                          cg.key_declaration(cg.PREVIEW_KEYS))
             if name.endswith(".html"):
                 expected = expected.replace(cg.TITLE_MARKER, "<title>$GODOT_PROJECT_NAME" + cg.PREVIEW_TITLE_SUFFIX)
                 expected = expected.replace(cg.LOADING_MARKER, "\t\t\t\t" + cg.PREVIEW_NOTICE + "\n" + cg.LOADING_MARKER)
-            self.assertEqual((self.project / name).read_text(), expected)
-            self.assertEqual((REPO / name).read_bytes(), self.before[name], "source never transformed")
+            self.assertEqual((self.project / name).read_text(encoding="utf-8"), expected)
+            self.assertEqual(source_path(REPO, name).read_bytes(), self.before[name], "source never transformed")
             self.assertEqual(variant["transformed_inputs"][name], {
                 "source_sha256": hashlib.sha256(self.before[name]).hexdigest(),
                 "staged_sha256": cg.sha256(self.project / name)})
