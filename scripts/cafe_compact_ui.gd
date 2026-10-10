@@ -62,6 +62,8 @@ var help_choices:GridContainer
 var help_choice_labels:Dictionary={}
 var help_switch_device:Button
 var update_notice
+var settings_updates:Button
+var help_log:Button
 var settings_help:Button
 var help_returns_to_settings=false
 var hire_button:Button
@@ -276,8 +278,9 @@ func setup():
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
- settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox);settings_box.move_child(settings_inbox,settings_box.get_child_count()-2)
- settings_help=_small_button("Help & Updates",_show_help_from_settings);settings_help.accessibility_name="Help and update notes";settings_box.add_child(settings_help);settings_box.move_child(settings_help,settings_box.get_child_count()-2)
+ settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox)
+ settings_updates=_small_button("Updates",func():update_notes.show_from_settings());settings_updates.accessibility_name="Updates";settings_box.add_child(settings_updates)
+ settings_help=_small_button("Help",_show_help_from_settings);settings_help.accessibility_name="Help";settings_box.add_child(settings_help)
  for c in settings_box.get_children():
   if c is Label:
    if c.text=="Changes are saved automatically":c.hide()
@@ -288,12 +291,12 @@ func setup():
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
  update_notice=UpdateNotice.new(self);update_notice.setup()
- var log_entry=save_log_panel.make_menu_entry();settings_box.add_child(log_entry);settings_box.move_child(log_entry,settings_box.get_child_count()-2)
+ help_log=save_log_panel.make_menu_entry();help_footer.add_child(help_log);help_footer.move_child(help_log,help_done.get_index())
  update_notes=UpdateNotes.new(self);update_notes.setup()
  help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,help_overview.get_index()+1)
- for button in [help_overview,help_notes,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ for button in [help_overview,help_notes,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
- _add_update_badge(settings_help);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
+ _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
  for audio in game.settings_controls.audio_rows.values():audio.slider.custom_minimum_size.x=120;audio.slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -344,7 +347,7 @@ func _sync_update_badges():
    record.badge.visible=inbox_unread;button.accessibility_name="Inbox, unread messages" if inbox_unread else "Inbox"
   else:
    record.badge.visible=unread
-   button.accessibility_name="Help and updates, unread update notes" if unread else "Help and updates"
+   button.accessibility_name="Updates, unread update notes" if unread else "Updates"
 func clear_selection():
  selected_wall="";selected_shell=""
  if is_instance_valid(context):context.hide()
@@ -465,7 +468,12 @@ func _wrap_themed_popup(panel:PanelContainer,width:float):
  panel.z_index=50
  var body=panel.get_child(0);var scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true
  panel.add_child(scroll);body.reparent(scroll);body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;panel.custom_minimum_size=Vector2.ZERO;panel.set_anchors_preset(Control.PRESET_TOP_LEFT);panel.set_meta("popup_width",width)
- hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body})
+ var fixed_height=0.0
+ if panel==game.settings:
+  var shell=VBoxContainer.new();shell.add_theme_constant_override("separation",11);panel.add_child(shell);scroll.reparent(shell)
+  var header=game.settings_controls.header;header.reparent(shell);shell.move_child(header,0)
+  fixed_height=header.get_combined_minimum_size().y+11
+ hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body,"fixed_height":fixed_height})
  body.minimum_size_changed.connect(_queue_popup_fit);panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
 func _queue_popup_fit():
  if not is_instance_valid(game):return
@@ -492,16 +500,16 @@ func _fit_themed_popups():
    for action in actions.get_children():needed+=action.get_combined_minimum_size().x
    actions.vertical=needed>width-padding.x-gutter
   body.size.x=maxf(0,width-padding.x-gutter)
-  var available=maxf(44,hud.popup_height_budget()-padding.y)
+  var available=maxf(44,hud.popup_height_budget()-padding.y-float(record.get("fixed_height",0)))
   record.scroll.custom_minimum_size=Vector2(0,minf(available,body.get_combined_minimum_size().y))
   panel.size=Vector2(width,0);panel.position=Vector2(hud.popup_left(panel.size.x),hud.popup_y(panel.size.y))
 func _fit_help_panel():
  if not is_instance_valid(help_panel) or not help_panel.visible:return
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  var padding=help_panel.get_theme_stylebox("panel").get_minimum_size()
- # The text scrollbar never changes action widths. Short recovery screens use
+ # The text scrollbar never changes action widths. Short Help screens use
  # equal-width columns so the details still have a readable scroll viewport.
- var compact_actions=(help_retry.visible or help_choose_local.visible or help_choose_cloud.visible or help_switch_device.visible) and view.y-insets.y-insets.w<500
+ var compact_actions=view.y-insets.y-insets.w<500
  var action_width=0.0
  for button in help_footer.get_children():
   if button.visible:
@@ -550,7 +558,7 @@ func _help_tab(event:InputEventKey)->bool:
    if button.visible and not button.disabled:controls.append(button)
  for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry]:
   if button.visible and not button.disabled:controls.append(button)
- for button in [help_overview,help_notes,help_done]:
+ for button in [help_overview,help_notes,help_log,help_done]:
   if button.visible and not button.disabled:controls.append(button)
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
  index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())
@@ -747,8 +755,9 @@ func _sync_help_content():
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
-func return_to_help():
- _popup_at(help_panel,340);_fit_help_panel();help_notes.grab_focus()
+func return_to_help(focus_button:Button=null):
+ _popup_at(help_panel,340);_fit_help_panel()
+ (focus_button if focus_button!=null else help_notes).grab_focus()
 func _close_help():
  help_panel.hide()
  if help_returns_to_settings:game.settings.show();_fit_themed_popups()
@@ -775,7 +784,7 @@ func handle_input(event:InputEvent)->bool:
  if not any_open:return false
  if event is InputEventKey and event.pressed and _help_tab(event):return true
  if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
-  game.settings.hide();pending_wall={};_hide_popups();sync();return true
+  game.settings_controls.dismiss();pending_wall={};_hide_popups();sync();return true
  var pointer_press=(event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed)
  if pointer_press:
   for panel in panels:

@@ -54,7 +54,7 @@ function inputs() {
   assert.equal(native[0].checks, layout.checks);
   assert.deepEqual(layout.failures, []);
   assert.deepEqual(layout.web_viewport, {width: 1360, height: 880});
-  for (const name of ['settings', 'log', 'pause']) {
+  for (const name of ['settings', 'help', 'log', 'pause']) {
     const point = layout.web_input_points[name];
     assert(Array.isArray(point) && point.length === 2 && point.every(Number.isFinite));
     assert(point[0] >= 0 && point[0] < 1360 && point[1] >= 0 && point[1] < 880);
@@ -281,7 +281,7 @@ async function main() {
     const pointerInputs = [];
     const offset = frame === page.mainFrame() ? {x: 0, y: 0} : await page.locator('#game').boundingBox();
     assert(offset);
-    for (const name of ['settings', 'log']) {
+    for (const name of ['settings', 'help', 'log']) {
       const [x, y] = layout.web_input_points[name];
       await page.mouse.click(x + offset.x, y + offset.y); pointerInputs.push(name);
       await page.waitForTimeout(300);

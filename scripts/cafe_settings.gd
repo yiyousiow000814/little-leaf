@@ -8,6 +8,8 @@ var preference_storage_note:Label
 # Compact live controls; preferences are independent of restaurant progress.
 var game
 var panel:PanelContainer
+var header:HBoxContainer
+var close_button:Button
 var bgm_enabled=true
 var sfx_enabled=true
 var bgm_volume=70.0
@@ -161,7 +163,10 @@ func build() -> PanelContainer:
 	panel.custom_minimum_size=Vector2(330,0)
 	panel.add_theme_stylebox_override("panel",game._style(Color("f8f2df"),Color("d9dcc4"),15))
 	var box=VBoxContainer.new();box.add_theme_constant_override("separation",11);panel.add_child(box)
-	box.add_child(game.label("Settings",21,Color("4d6d56")))
+	header=HBoxContainer.new();box.add_child(header)
+	var heading=game.label("Settings",21,Color("4d6d56"));heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL;header.add_child(heading)
+	close_button=game.button("X",dismiss);close_button.name="CloseSettings";close_button.accessibility_name="Close Settings";close_button.tooltip_text="Close Settings"
+	close_button.custom_minimum_size=Vector2(44,44);header.add_child(close_button)
 	for kind in ["BGM","SFX"]:
 		var row=HBoxContainer.new();box.add_child(row)
 		var title=game.label("Background music" if kind=="BGM" else "Sound effects",15)
@@ -197,8 +202,9 @@ func build() -> PanelContainer:
 	cloud_settings=CloudSettings.new(game)
 	var cloud_box=cloud_settings.build()
 	if cloud_box!=null:box.add_child(cloud_box)
-	box.add_child(game.button("Close",func():flush_preferences();panel.hide()))
 	sync();panel.hide();return panel
+func dismiss():
+	flush_preferences();panel.hide()
 func build_play_controls() -> HBoxContainer:
 	var controls=HBoxContainer.new();controls.add_theme_constant_override("separation",5)
 	game.pause_button=game.button("Pause",func():game.paused=not game.paused;sync();game._update_ui())

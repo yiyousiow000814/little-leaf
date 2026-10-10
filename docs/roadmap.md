@@ -2465,19 +2465,19 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button
+Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
 
-Exact code evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
+Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
-Tests present: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
+Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: No requested Settings/order/X-close acceptance
+Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
 
-Missing work / next action: Obtain separate Settings source; preserve cloud controls and Help recovery/log entry behavior
+Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
@@ -2485,19 +2485,19 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button
+Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
 
-Exact code evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
+Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
-Tests present: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
+Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: No requested Settings/order/X-close acceptance
+Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
 
-Missing work / next action: Obtain separate Settings source; preserve cloud controls and Help recovery/log entry behavior
+Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
@@ -2505,19 +2505,19 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X | 🟡 YELLOW — 223 focused synthetic engine checks passed; native navigation/dismissal 72, cloud controls 20, Log 28, notes 103. Web runtime acceptance pending | 🔴 RED — No requested Settings/order/X-close acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Absent from requested source set; Settings still Inbox, Help & Updates, Log and Close button
+Code status: Local candidate: Inbox / Updates / Help; Log under Help; fixed upper-right X
 
-Exact code evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
+Local implementation evidence: [Settings](../scripts/cafe_settings.gd), [navigation](../scripts/cafe_compact_ui.gd), [Log](../scripts/cafe_save_log_panel.gd), [notes](../scripts/cafe_update_notes.gd). Historical baseline evidence: [cafe_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_settings.gd); [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_compact_ui.gd)
 
-Tests present: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
+Focused local checks: [navigation/dismissal](../tests/test_settings_navigation.gd), [cloud controls](../tests/test_cloud_settings.gd), [Log](../tests/test_save_log.gd), [notes](../tests/test_update_notes.gd). Historical test source: [test_cloud_settings.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_cloud_settings.gd)
 
-Visual acceptance: No requested Settings/order/X-close acceptance
+Visual acceptance: Local Godot 4.6.3 GL Compatibility / NVIDIA RTX 3090 captures inspected at 1360x880, 390x844, 844x390 and 566x360 using generated zero-save state. Existing 2D isometric art retained. Browser and integrated-source visual acceptance pending.
 
-Missing work / next action: Obtain separate Settings source; preserve cloud controls and Help recovery/log entry behavior
+Missing work / next action: Parent review and composition, then exact-source browser/navigation review. Existing Google/login, save formats and timers unchanged. No implementation PR opened, push, merge or release.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
