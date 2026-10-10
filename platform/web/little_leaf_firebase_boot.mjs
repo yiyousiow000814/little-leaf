@@ -31,10 +31,34 @@ export async function start(config,options={}) {
   startup('Checking your sign-in…');
   let saveState='ready',accountError='';
   const primary={ready:'Not saved',saved:'Saved',pending:'Saving…',offline:'Not saved',conflict:'Not saved',blocked:'Not saved','signed-out':'Not saved'};
-  const reasons={offline:'Offline. Progress on this device will sync when connected.',conflict:'Two saves need your choice. Open Help to review them.',blocked:'Saving is unavailable. Keep this page open and try again.'};
-  function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';}
+  const reasons={offline:'Offline. Progress on this device will sync when connected.',conflict:'Two saves need your choice. Open Help to review them.',blocked:'Saving is unavailable. Keep this page open and try again.','permission-denied':'Cloud saving was refused. Pending progress stays on this device. Export it, then reload the updated game on this same address. Do not clear browser storage.'};
+  let refusedPanel;
+  function showRefusedSave(){
+    if(refusedPanel)return;
+    refusedPanel=document.createElement('section');refusedPanel.id='cloud-save-refused';refusedPanel.setAttribute('role','alert');
+    refusedPanel.style.cssText='position:fixed;left:12px;right:12px;top:12px;z-index:80;background:#fffaf0;color:#493d2e;border:2px solid #78694f;border-radius:12px;padding:16px;font:16px Arial;max-width:560px;margin:auto';
+    const message=document.createElement('p'),exportButton=document.createElement('button'),reloadButton=document.createElement('button');
+    message.textContent=reasons['permission-denied'];exportButton.textContent='Export pending progress';reloadButton.textContent='Reload updated game';
+    for(const action of [exportButton,reloadButton])action.style.cssText='min-height:48px;margin:4px;padding:8px 12px;';
+    exportButton.onclick=async()=>{
+      exportButton.disabled=true;
+      try{
+        if(auth.currentUser?.uid!==uid)throw Error('account changed');
+        const exported=await client.exportRecovery();
+        if(!exported.ok || auth.currentUser?.uid!==uid)throw Error('unavailable');
+        const url=URL.createObjectURL(new Blob([exported.text],{type:'application/json'}));
+        try{const link=document.createElement('a');link.href=url;link.download=exported.fileName;document.body.append(link);link.click();link.remove();}
+        finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+        message.textContent='Recovery download requested. Pending progress remains on this device. Keep the file and reload the updated game on this same address.';
+      }catch(_){message.textContent='Could not export safely. Pending progress is unchanged. Keep this page open; do not clear browser storage.';}
+      finally{exportButton.disabled=false;}
+    };
+    reloadButton.onclick=()=>{if(confirm('Reload the updated game on this same address? Pending progress stays in this browser. Keep any exported recovery file and do not clear browser storage.'))location.reload();};
+    refusedPanel.append(message,exportButton,reloadButton);document.body.append(refusedPanel);
+  }
+  function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';if(value==='permission-denied')showRefusedSave();}
   window.LittleLeafCloudSettings=Object.freeze({
-    snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out'].includes(saveState)});},
+    snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out','permission-denied'].includes(saveState)});},
     signOut(){return button.onclick();},
     reload(){location.reload();}
   });

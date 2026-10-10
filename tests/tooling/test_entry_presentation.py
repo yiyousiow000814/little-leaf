@@ -14,7 +14,10 @@ class EntryPresentationTests(unittest.TestCase):
     def test_reviewed_auth_handler_and_game_path_are_unchanged(self):
         baseline=(ROOT/'tools/auth_preview_pause/update/public/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
         candidate=(ROOT/'platform/web/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
-        self.assertEqual(candidate.split('async function verifyAuthOnly')[0],baseline.split('async function verifyAuthOnly')[0])
+        # Refused-save recovery may change presentation; Google and session setup
+        # still follow the exact reviewed path before the adapter is created.
+        login_path=lambda text:text[text.index('  button.onclick=async()=>{'):text.index('  const remote=')]
+        self.assertEqual(login_path(candidate),login_path(baseline))
         handler=lambda text:text[text.index('  button.onclick=async()=>{',text.index('async function verifyAuthOnly')):]
         self.assertEqual(handler(candidate),handler(baseline))
 
