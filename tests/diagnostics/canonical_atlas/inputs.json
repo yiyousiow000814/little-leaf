@@ -1,12 +1,12 @@
 {
-  "scope": "Exact published camera input successor canonical parity; reuse verified control; no background or11",
+  "scope": "Exact frozen PR159 rug-ordering successor; three-atlas provenance only",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "9b9205df4c21eb9fee020f3a60a05a7af3da3b82",
-    "tree": "fdf95787779a03f7032155790a5731debaf64529"
+    "commit": "cddb3f94678cbe30fa2167c163edf4de3633512f",
+    "tree": "df8a5accf6b4ff100041b79fc5ac688e67a079c7"
   },
   "reuse_control": {
     "run": 38066367866,
