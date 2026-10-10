@@ -82,6 +82,8 @@ class ReleasedStagingTests(unittest.TestCase):
             manifest = json.loads((output / 'firebase-variant-manifest.json').read_text())
             self.assertEqual(manifest['status'], 'qualified-release-staged-not-deployable')
             self.assertFalse(manifest['live_activation_allowed'])
+            self.assertEqual(manifest['release_tag'], 'v0.1.10c')
+            self.assertEqual(json.loads((output / 'public/hosting-release.json').read_text())['tag'], 'v0.1.10c')
             for name in ['index.js', 'index.wasm', 'index.pck']:
                 self.assertEqual((output / 'public' / name).read_bytes(), (web / name).read_bytes())
             with self.assertRaisesRegex(ValueError, 'Unexpected Firebase package stage'):

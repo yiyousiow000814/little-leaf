@@ -126,6 +126,10 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         build_firebase.stage(reuse, output, config)
     finally:
         build_firebase.ROOT = previous_root
+    marker_path = output / 'public/hosting-release.json'
+    marker = json.loads(marker_path.read_text())
+    marker['tag'] = selection['release_tag']
+    marker_path.write_text(json.dumps(marker, indent=2) + '\n')
     target = output / 'evidence'
     target.mkdir()
     shutil.copy2(native, target / 'base-native-summary.json')
@@ -153,6 +157,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     path = output / 'firebase-variant-manifest.json'
     manifest = json.loads(path.read_text())
     manifest.update(source_commit=selection['source_commit'], source_tree=selection['source_tree'],
+        release_tag=selection['release_tag'],
         canonical_game_url='https://little-leaf-41e5d.firebaseapp.com/', qualified_release_reuse=proof,
         live_activation_allowed=False)
     # Do not present this package as an old fresh-build or preview-reuse contract.
