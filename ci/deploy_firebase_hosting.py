@@ -337,6 +337,8 @@ def bind_preview_packet(folder, target, manifest, origin):
     bound['files'] = {name:digest(target / name) for name in manifest['files']}
     (target / 'firebase-variant-manifest.json').write_text(json.dumps(bound, indent=2) + '\n')
     verify_package(target, manifest['source_commit'], digest(target / 'firebase-variant-manifest.json'))
+    if any(FIXTURE_ORIGIN.encode() in p.read_bytes() for p in (target / 'public').rglob('*') if p.is_file()):
+        raise ValueError('Bootstrap fixture origin remained in upload; refusing publication')
     return marker
 
 

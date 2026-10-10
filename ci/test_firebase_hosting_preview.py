@@ -116,6 +116,13 @@ class PreviewTests(unittest.TestCase):
             self.assertEqual(sum(path.startswith(hosting.PREVIEW_PATH+'/releases?') for _, path, *_ in api.calls), 1)
             self.assertFalse(any(method == 'DELETE' or (method == 'POST' and path.startswith(hosting.SITE_PATH+'/releases')) for method, path, *_ in api.calls))
 
+    def test_bootstrap_origin_leak_is_rejected_before_version_or_upload(self):
+        path=self.package/'public/unexpected.txt';path.write_text(hosting.FIXTURE_ORIGIN)
+        self.manifest['files']['public/unexpected.txt']=hosting.digest(path);self.write_manifest()
+        api=PreviewFakeAPI()
+        with self.assertRaises(ValueError):self.deploy(api)
+        self.assertFalse(any(path == hosting.SITE_PATH+'/versions' or upload for _,path,_,upload in api.calls))
+
     def test_existing_receipt_is_not_overwritten_or_retried(self):
         self.output.parent.mkdir();self.output.write_text('retain uncertain result');api = PreviewFakeAPI()
         with self.assertRaises(ValueError):self.deploy(api)

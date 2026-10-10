@@ -1,6 +1,11 @@
 name: Stage Firebase preview
 on:
   workflow_dispatch:
+    inputs:
+      itch_preview:
+        description: Stage a trusted-frame bootstrap packet for the one-day preview route; never deploy
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -12,3 +17,4 @@ jobs:
     uses: ./.github/workflows/build-web.yml
     with:
       firebase_preview: true
+      itch_preview: ${{ inputs.itch_preview || false }}

@@ -22,7 +22,7 @@ def validate_export_inventory(build):
             raise ValueError('Export inventory hash/size mismatch: '+name)
     return base
 
-def stage(build, output, config):
+def stage(build, output, config, trusted_itch_origin=None):
     validate_export_inventory(build)
     required = {'apiKey','authDomain','projectId','appId'}
     if set(config) != required or any(not isinstance(v,str) or not v or 'REPLACE_' in v for v in config.values()):
@@ -31,6 +31,9 @@ def stage(build, output, config):
         raise ValueError('Invalid Firebase project ID')
     if config['authDomain'] != config['projectId'] + '.firebaseapp.com':
         raise ValueError('This variant requires its top-level Firebase Hosting authDomain')
+    if trusted_itch_origin is not None:
+        pattern='https://'+re.escape(config['projectId'])+r'--itch-embed-test-[a-z0-9]+\.web\.app'
+        if not re.fullmatch(pattern,trusted_itch_origin):raise ValueError('Exact own-origin itch preview URL required')
     output.mkdir(parents=True,exist_ok=False)
     shutil.copytree(build/'web',output/'public')
     public=output/'public'
@@ -47,13 +50,22 @@ def stage(build, output, config):
     marker='window.__littleLeafVault.boot()'
     if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
-    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+'));</script>'
+    options=','+json.dumps({'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}) if trusted_itch_origin else ''
+    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     (public/'index.html').write_text(html)
     entry=output/'itch-entry';entry.mkdir()
     url='https://'+config['authDomain']+'/'
     (entry/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Little Leaf</title><h1>Little Leaf</h1><p>Your café follows your Google account.</p><a target="_blank" rel="noopener" href="'+url+'">Open the full game and sign in</a><p>Opens a new tab for secure sign-in and account saves.</p>')
+    if trusted_itch_origin:
+        preview_config=json.loads((output/'firebase.json').read_text())['hosting']
+        preview_config['site']=config['projectId']
+        policy="frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io"
+        preview_config['headers'].extend({'source':path,'headers':[
+            {'key':'Content-Security-Policy','value':policy},
+            {'key':'Cache-Control','value':'no-store'}]} for path in ['/', '/index.html'])
+        (output/'firebase.json').write_text(json.dumps({'hosting':preview_config},indent=2)+'\n')
     (output/'firebase-variant-manifest.json').write_text(json.dumps({'base_web_manifest':base,'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'status':'staged-not-published','files':{p.relative_to(output).as_posix():sha256(p) for p in output.rglob('*') if p.is_file()}},indent=2))
 
 BROWSER_GATES = {
@@ -160,6 +172,7 @@ def main():
     p.add_argument('--validated-web-build',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--public-config',type=Path,required=True);p.add_argument('--local-tools',action='store_true')
     p.add_argument('--require-fresh-ci',action='store_true');p.add_argument('--engine-report',type=Path);p.add_argument('--focused-logs',type=Path)
+    p.add_argument('--itch-preview-bootstrap',action='store_true')
     a=p.parse_args();git=lambda *args:subprocess.check_output(['git','-C',str(ROOT),*args],text=True).strip()
     if git('status','--porcelain'):raise RuntimeError('Commit/review all source before staging')
     if os.environ.get('GITHUB_ACTIONS')=='true' and (a.local_tools or not a.require_fresh_ci):
@@ -173,7 +186,18 @@ def main():
     config=json.loads(a.public_config.read_text())
     if proof and (config.get('projectId')!='little-leaf-41e5d' or config.get('authDomain')!='little-leaf-41e5d.firebaseapp.com'):
         raise ValueError('Fresh preview requires the approved public Firebase project configuration')
-    stage(a.validated_web_build,a.output,config)
+    if a.itch_preview_bootstrap:
+        if not proof:raise ValueError('Trusted preview bootstrap requires the unchanged fresh CI gates')
+        from build_itch_trusted_preview import prepare
+        prepare(a.validated_web_build,a.output,config,
+                'https://little-leaf-41e5d--itch-embed-test-localfixture.web.app',source,tree)
+        # This fresh source build is not the local reviewed-engine reuse candidate.
+        path=a.output/'firebase-variant-manifest.json'
+        manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
+        manifest['status']='fresh-trusted-preview-bootstrap-not-deployed'
+        path.write_text(json.dumps(manifest,indent=2)+'\n')
+    else:
+        stage(a.validated_web_build,a.output,config)
     if proof:
         add_fresh_evidence(a.validated_web_build,a.output,a.engine_report,a.focused_logs,proof)
         result={'source_sha':source,'manifest_sha256':sha256(a.output/'firebase-variant-manifest.json'),

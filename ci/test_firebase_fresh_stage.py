@@ -149,7 +149,10 @@ class WorkflowTests(unittest.TestCase):
         text=(ROOT/'.github/workflows/stage-firebase.yml').read_text()
         self.assertIn('uses: ./.github/workflows/build-web.yml',text)
         self.assertIn('firebase_preview: true',text)
-        for forbidden in ['actions: read','id-token: write','secrets.','download-artifact','gh api','run-id','artifact-ids','inputs:']:
+        self.assertIn('itch_preview: ${{ inputs.itch_preview || false }}',text)
+        self.assertEqual(text.count('type: boolean'),1)
+        self.assertEqual(text.count('default: false'),1)
+        for forbidden in ['actions: read','id-token: write','secrets.','download-artifact','gh api','run-id','artifact-ids']:
             self.assertNotIn(forbidden,text)
 
     def test_existing_full_gate_commands_retained_before_firebase(self):

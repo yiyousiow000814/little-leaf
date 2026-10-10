@@ -10,6 +10,10 @@ on:
         description: Stage Firebase from this complete fresh run; never deploy
         type: boolean
         default: false
+      itch_preview:
+        description: Prepare trusted-frame bootstrap after the unchanged fresh Firebase gates
+        type: boolean
+        default: false
     outputs:
       artifact_id:
         description: Exact artifact from this tested source
@@ -193,7 +197,9 @@ jobs:
         if: inputs.firebase_preview
         id: firebase_prepare
         run: |
-          python3 ci/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused"
+          preview_args=()
+          if [[ '${{ inputs.itch_preview }}' == 'true' ]]; then preview_args=(--itch-preview-bootstrap); fi
+          python3 ci/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused" "${preview_args[@]}"
       - name: Retain the fresh tested Firebase preview without publication
         if: inputs.firebase_preview
         id: firebase_upload
