@@ -8,6 +8,7 @@ import shutil
 import subprocess
 from release_metadata import version
 from optimize_web_present import optimize_presentation
+from bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 from project_layout import resource_name, source_path
 
@@ -160,6 +161,7 @@ def main():
     if (web / "index.wasm").read_bytes()[:4] != b"\0asm" or (web / "index.pck").read_bytes()[:4] != b"GDPC":
         raise RuntimeError("Invalid Web binary headers")
     presentation_optimization = optimize_presentation(web / "index.js")
+    webgl_handle_retention = bound_web_gl_handles(web / "index.js")
     manifest = {
         "schema_version": 1, "version": release_version, "tag": args.tag,
         "source_commit": source_sha, "source_tree": source_tree, "godot": engine_version,
@@ -172,6 +174,7 @@ def main():
         "browser_runtime": "not_covered_by_headless_ci", "production_sha256": production,
         "distribution_notices": notices,
         "presentation_optimization": presentation_optimization,
+        "webgl_handle_retention": webgl_handle_retention,
         "files": {p.name: {"sha256": sha256(p), "bytes": p.stat().st_size}
                   for p in sorted(web.iterdir()) if p.is_file()},
     }
