@@ -93,6 +93,12 @@ var product_layout_key=""
 var last_product_category=""
 var product_restore_index=-1
 var rail_fit_queued=false
+var build_guide_button:Button
+var build_guide:PanelContainer
+var item_guide:PanelContainer
+var item_guide_copy:VBoxContainer
+var guide_parking:Button
+var guide_land:Button
 var footer_hint:Label
 var last_category=""
 var last_layout_width=-1.0
@@ -217,9 +223,61 @@ func setup():
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
  ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
 
+ _setup_build_guide()
  root.resized.connect(func():background.size=root.size)
  game.get_window().focus_exited.connect(_cancel_product_contacts)
  game.tree_exiting.connect(_dispose_product_scroll)
+func _setup_build_guide():
+ build_guide_button=_nav("Build guide",_show_shop_guide)
+ build_guide_button.accessibility_name="Build guide: move doors, find parking and land"
+ build_guide=ui._panel();build_guide.name="BuildDiscoveryGuide"
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",12);build_guide.add_child(box)
+ box.add_child(game.label("Build your café",20))
+ var explanation=game.label("Move a door: tap an existing door in the café, then choose Move. Tap a new wall position to place it, or Cancel to keep it where it was.",15)
+ explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(explanation)
+ var parking=game.label("Parking adds four fixed bays outside your café. Find it in Decor.",15)
+ parking.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(parking)
+ guide_parking=ui._small_button("Find parking",_find_parking,140);box.add_child(guide_parking)
+ var land=game.label("More room: open Manage to see the next plot and its price.",15)
+ land.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(land)
+ guide_land=ui._small_button("Find land",func():build_guide.hide();ui.show_management(),140);box.add_child(guide_land)
+ var done=ui._small_button("Done",func():build_guide.hide();ui.sync(),80);box.add_child(done)
+ ui._wrap_themed_popup(build_guide,340)
+ _setup_item_guide()
+func _setup_item_guide():
+ item_guide=ui._panel();item_guide.name="ShopItemGuide"
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",12);item_guide.add_child(box)
+ box.add_child(game.label("Item guide",20))
+ item_guide_copy=VBoxContainer.new();item_guide_copy.add_theme_constant_override("separation",10);box.add_child(item_guide_copy)
+ box.add_child(ui._small_button("Done",func():item_guide.hide();ui.sync(),80))
+ ui._wrap_themed_popup(item_guide,340)
+func _show_shop_guide():
+ if game.catalog_category=="Build":ui._popup_at(build_guide,340);return
+ for child in item_guide_copy.get_children():item_guide_copy.remove_child(child);child.queue_free()
+ for kind in game.catalog_cards:
+  var card:Button=game.catalog_cards[kind]
+  if not card.visible:continue
+  item_guide_copy.add_child(game.label(game.model.name_of(kind),18))
+  var explanation=game.label(card.accessibility_description,15)
+  explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
+ ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
+func _find_parking():
+ build_guide.hide();_pick_category("Decor")
+ # The category switch restores its rail before revealing the exterior upgrade.
+ await game.get_tree().process_frame
+ await game.get_tree().process_frame
+ if ui==null or game.catalog_category!="Decor":return
+ ui.sync()
+ await game.get_tree().process_frame
+ if ui==null or game.catalog_category!="Decor":return
+ game.catalog_scroll.ensure_control_visible(parking_card)
+ product_rest_offsets[game.catalog_scroll.get_instance_id()]=game.catalog_scroll.scroll_horizontal
+func _product_purpose(kind:String)->String:
+ for entry in game.model.catalog:
+  if entry.kind==kind and entry.has("description"):
+   return str(entry.description)+". Includes one table and one chair; place them together."
+ var uses={"stove":"Cooks meals. Leave space for a cook to work beside it.","beverage":"Prepares drinks. Leave space for staff to reach it.","sink":"Washes used dishes. Leave space beside it for staff.","bin":"Optional decoration; not required for cleaning.","plant":"Adds greenery to your café.","lamp":"Adds a warm decorative light.","bookshelf":"Decorates your café with books.","rug":"Adds a decorative floor accent.","divider":"Separates areas of your café. Keep a clear route around it."}
+ return uses.get(kind,"Choose a spot in your café to preview it.")
 func _setup_parking():
  # This fixed exterior upgrade deliberately stays outside the furniture
  # catalog: it can never start a placement preview or become a movable item.
@@ -781,8 +839,9 @@ func sync(width:float):
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
-  card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
-  card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
+  var purpose=_product_purpose(kind)
+  card.tooltip_text=purpose
+  card.accessibility_description=purpose+(" Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked." if shortfall>0 else " Available to place.")
   if kind=="register":
    var pending=bool(game.model.included_checkout_pending)
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"
@@ -805,5 +864,9 @@ func sync(width:float):
  ui.context_label.add_theme_font_size_override("font_size",14 if narrow else 16)
  sync_action_details()
  _position_category_panel()
+ build_guide_button.text="Build guide" if game.catalog_category=="Build" else "Item guide"
+ build_guide_button.accessibility_name="Build guide: move doors, find parking and land" if game.catalog_category=="Build" else "Item guide: contents, uses and availability"
+ build_guide_button.visible=game.editing and not header_active and not ui.has_open_popup()
+ _put(build_guide_button,Rect2(w-148,-52,132,44))
  footer_hint.hide()
  _sync_scroll_buttons.call_deferred();_queue_rail_fit();ui._set_tray_reveal(ui.tray_reveal)

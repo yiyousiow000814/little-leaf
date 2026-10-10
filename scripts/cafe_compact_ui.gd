@@ -139,6 +139,7 @@ func _dismiss_from_pointer(event:InputEvent):
  if game.build_tools!=null:game.build_tools.on_focus_lost()
  game.settings.hide();pending_wall={};_hide_popups();sync()
 func _popup_at(p:Control,width=320.0):
+ if hud!=null and hud.action_help!=null:hud.action_help.hide()
  if game.camera_gestures!=null:game.camera_gestures.on_focus_lost()
  if game.interaction!=null:game.interaction.on_focus_lost()
  if game.build_tools!=null:game.build_tools.on_focus_lost()
@@ -156,6 +157,8 @@ func _popup_panels()->Array:
  if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if shop_ui!=null and is_instance_valid(shop_ui.parking_review):panels.append(shop_ui.parking_review)
+ if shop_ui!=null and is_instance_valid(shop_ui.build_guide):panels.append(shop_ui.build_guide)
+ if shop_ui!=null and is_instance_valid(shop_ui.item_guide):panels.append(shop_ui.item_guide)
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
