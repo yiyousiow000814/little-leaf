@@ -1,11 +1,11 @@
 {
   "source": {
-    "commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
-    "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486"
+    "commit": "d77e41e5eae5ee1d1eea8dc7e59ad2aa8bf56e86",
+    "tree": "16cb8e578bbbab9002b61dd50aa1e68a320e28a4"
   },
   "proposal": {
-    "commit": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
-    "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486"
+    "commit": "d77e41e5eae5ee1d1eea8dc7e59ad2aa8bf56e86",
+    "tree": "16cb8e578bbbab9002b61dd50aa1e68a320e28a4"
   },
   "artifact": {
     "origin_run": 38079947249,
@@ -18,12 +18,12 @@
       3244
     ]
   },
-  "closure_packet_sha256": "ee790ce0d14d8d1470317931a577b65cd1fb12e1c3544fc4f648b60673eecb42",
+  "closure_packet_sha256": "39df92b4c5520defb32ad2436a838e04783d2125a5b023ac2d1dab5b552ecbd6",
   "renderer_review_sha256": "fd8b44d19cc56453fb1388ef478c3734977af671b2f5db658a8e6257cba562b0",
-  "authorization": "Parent authorized exact combined sink qualification; reviewed32 native checks; no product publication/activation",
+  "authorization": "Parent authorized exact combined land and sink qualification; reviewed56 native checks; no product publication/activation",
   "source_bundle": {
     "path": "sink-source.bundle",
-    "sha256": "a5d7f166ba2b6c1451d7d25082f262da5ece088336b8c9116f0e5df4e6b9ef92",
-    "prerequisite": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5"
+    "sha256": "fe4faa3ca3b2416cbe5b3cd392cdc2ffa17576134221728c3401efda5c02f268",
+    "prerequisite": "3e828422d7b00d9ab00746bdc3ab9e5e8053141e"
   }
 }

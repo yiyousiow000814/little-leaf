@@ -1,11 +1,11 @@
 {
-  "head": "8546b8445f52d2abe23b8a009ea3b907de1e6af2",
-  "tree": "08665b9787d7f455c28aeed1f09131cf9f4bb486",
+  "head": "d77e41e5eae5ee1d1eea8dc7e59ad2aa8bf56e86",
+  "tree": "16cb8e578bbbab9002b61dd50aa1e68a320e28a4",
   "parents": [
-    "5f42bc41f18863510d4fb3a5ecbe78b3104867bd"
+    "eb1587b5552be6410248cac974555e2ad3336993"
   ],
-  "reference": "cfb5ae9bc5a92fc46c2561b13f97b38e2ba4e9a5",
-  "reference_tree": "db38763f84d7a14b814ef23eb67359ceeeb24e4d",
+  "reference": "3e828422d7b00d9ab00746bdc3ab9e5e8053141e",
+  "reference_tree": "e6b79becff0b4cb8baf97c8ec52e67dc4586ccce",
   "producer_closure": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": {
       "git_blob": "c42a9b34819280afb4b2652ed13d6eadd3f965b4",
@@ -184,8 +184,8 @@
       "sha256": "e0c53e55e9def00f3a5d999dd125919de5a0ea0db29f59fb441b34019d3b515e"
     },
     "scripts/cafe_model.gd": {
-      "git_blob": "cce6665fb36e9784b73532e1e7836746d9945664",
-      "sha256": "d65e718a21710ab70576dc3b9de85aa0e95aa91f7deb46faec2a0af25ac7a71b"
+      "git_blob": "701ee8385c0cc7bb025402bbf65a5062dec59bc9",
+      "sha256": "d88f27e5154efe929e4926135f4603b00d010a340b8200b81ec6af635a89ad11"
     },
     "scripts/cafe_money.gd": {
       "git_blob": "dbba164314a50b250789b81f5ba6f64da1b9d372",
@@ -545,6 +545,10 @@
       "git_blob": "6bb0950f19c084f14d00a15b27311298ac1a73ad",
       "sha256": "096d30b88bdefa1333fab8856b2a1f431e751e1aa58614d26382e462e67b729d"
     },
+    "game/scripts/cafe_model.gd": {
+      "git_blob": "701ee8385c0cc7bb025402bbf65a5062dec59bc9",
+      "sha256": "d88f27e5154efe929e4926135f4603b00d010a340b8200b81ec6af635a89ad11"
+    },
     "game/scripts/cafe_sink_wash_art.gd": {
       "git_blob": "5e9a9e2af4f31e4f3bb7936a1ea675234bea8c97",
       "sha256": "7b9a869aa150cc9f71566cb5cbec847f1a011aa2f152bf2508d4b2f5754d0937"
@@ -572,6 +576,10 @@
     "tests/test_dishwashing_queue.gd": {
       "git_blob": "04b01af80648d326d791392cf9e3966f4038cc35",
       "sha256": "29cb2eed61f8b01929f3d2fe553fb6d5e8c32d5c5b4c2e200cde0e8c398e145f"
+    },
+    "tests/test_expansion_visibility.gd": {
+      "git_blob": "59b1f6d0d989fa25b181d21e3026cb836f255829",
+      "sha256": "fa2376716caef03a6d53a14c728ca6aa62aa0d1462ea77a6c6533077d227a025"
     }
   },
   "unchanged_assets_and_imports": {
@@ -600,12 +608,12 @@
       "sha256": "30660520dd89fc9844354e3fa91f93e55d604870b7934937a363ce6662019a1d"
     }
   },
-  "bundle_sha256": "a5d7f166ba2b6c1451d7d25082f262da5ece088336b8c9116f0e5df4e6b9ef92",
+  "bundle_sha256": "fe4faa3ca3b2416cbe5b3cd392cdc2ffa17576134221728c3401efda5c02f268",
   "protected_unchanged": {
-    "game/scripts/cafe_model.gd": "d65e718a21710ab70576dc3b9de85aa0e95aa91f7deb46faec2a0af25ac7a71b",
     "game/scripts/cafe_runtime_codec.gd": "4d659a25031afca07cf8b314b5e1f53084eff5357add2d00009d6ce6470e40e2",
     "game/scripts/cafe_navigation_review.gd": "2c997e97ac68932e6ab933994daef5f843d628fc5ab9f26053fc22f283ab58f7",
     "game/scripts/cafe_placement_pause.gd": "ab8ff155d2ee4b1db4162c9b60912488d7d2989eba09fd783d3a14333b20a107",
-    "game/data/prebaked_atlas_manifest.json": "be3821a752989aaf12489c0b614fa64d4ac3531bf28178beff2d7dc770766195"
+    "game/data/prebaked_atlas_manifest.json": "ff19ecb2b86bb74e3425e767441f204fd987122ed30b33778999c060a3448e5a",
+    "game/project.godot": "59eeb76f569989be17ca7a17653054b100037182bf891a41baecbdc1a64dadaa"
   }
 }
