@@ -1,0 +1,21 @@
+{
+  "scope": "Exact frozen PR135 Settings/shop discovery composition atlas provenance only",
+  "control": {
+    "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
+    "tree": "272899608abf811b62c9d91851916c193b095dcf"
+  },
+  "candidate": {
+    "commit": "6f5e32ac5e574ccb1a3e2f4acb1a4a07b834afdb",
+    "tree": "78a35dc349298d62c466b703f578fe19f25fc9d8"
+  },
+  "reuse_control": {
+    "run": 38066367866,
+    "artifact": 11674353510,
+    "files": {
+      "atlas-parity.json": "4eb7fd463b0d90f00b042bc01258a5fab6e58f7faf9fa64d93bf02425a616861",
+      "native-fingerprint.txt": "05c8f24d3b293c84ebdabf762593b25b7bc4e00913244b35aac1bca979e58816",
+      "saved-png-check.json": "a717304564b8269aff76d3026b0760853ca6fceacab6513bc6e7e6da277f6583",
+      "source-binding.json": "9cb296480c55b56096017d64598595ba71047ae5697a2021f3a5f2d817e24550"
+    }
+  }
+}
