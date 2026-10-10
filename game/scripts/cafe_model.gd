@@ -767,22 +767,17 @@ func _parcel_has_owned_neighbor(parcel:Dictionary,ownership:Array)->bool:
 	return false
 
 func expansion_parcels() -> Array[Dictionary]:
-	## Original front/right ledgers progress independently. The finite corner
-	## has its own first-incomplete-row stage and needs a shared owned edge.
+	# Reveal each shared-edge frontier immediately; a whole ledger row need not
+	# be bought first. Derive availability from ownership after purchases/load.
 	var parcels:Array[Dictionary]=[]
-	var active_rows={"front":active_expansion_row(),"right":active_expansion_row("right"),"corner":active_expansion_row("corner")}
 	for index in PARCEL_IDS.size():
 		var parcel=_parcel_geometry(index)
-		var stage_visible=parcel.row==active_rows[parcel.direction]
-		var available=stage_visible
-		if parcel.direction=="corner":available=available and _parcel_has_owned_neighbor(parcel,owned_parcels)
-		parcel["owned"]=owned_parcels.has(parcel.id)
+		var owned=owned_parcels.has(parcel.id)
+		var available=not owned and _parcel_has_owned_neighbor(parcel,owned_parcels)
+		parcel["owned"]=owned
 		parcel["unlocked"]=available
-		# The full first geometric ring includes its diagonal corner even while
-		# that corner is purchase-locked. Beyond it, reveal existing unlocked
-		# expansion choices without changing any purchase or ownership rule.
-		var in_first_ring=_parcel_geometric_ring(parcel)==1
-		parcel["visible"]=stage_visible and (in_first_ring or available)
+		# Preserve the original first-ring overview, including the locked corner.
+		parcel["visible"]=owned or _parcel_geometric_ring(parcel)==1 or available
 		parcels.append(parcel)
 	return parcels
 
@@ -846,7 +841,6 @@ func _ownership_connected(ownership:Array)->bool:
 	for id in ownership:
 		var parcel=_parcel_geometry(PARCEL_IDS.find(id))
 		if parcel.is_empty():return false
-		if parcel.prerequisite!="" and not ownership.has(parcel.prerequisite):return false
 	# Flood the parcel graph from the starter footprint. Neighbouring corner
 	# plots alone cannot validate an isolated island in a malformed save.
 	var connected:Array=[]
@@ -889,7 +883,7 @@ func buy_parcel(parcel_id:String)->bool:
 	var parcel=parcel_by_id(parcel_id)
 	if parcel.is_empty():return _fail("Choose a FOR SALE sign")
 	if parcel.owned:return _fail("You already own this plot")
-	if not parcel.unlocked:return _fail("Buy adjacent land and finish the current corner row first" if parcel.direction=="corner" else "Finish the current row first")
+	if not parcel.unlocked:return _fail("Buy adjacent land first")
 	if coins<int(parcel.cost):return _fail("Not enough coins · %s needed"%Money.amount(int(parcel.cost)))
 	coins-=int(parcel.cost);owned_parcels.append(parcel_id);owned_parcels.sort();_sync_floor_bounds()
 	last_error="";last_event="Plot bought · −%s"%Money.amount(int(parcel.cost));_notify();return true
