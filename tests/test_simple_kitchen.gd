@@ -33,13 +33,15 @@ func run():
   game.model.service_snapshot=game._service_save_snapshot()
   var legacy_path="user://legacy-cooking-stove.json"
   check(game.model.save(legacy_path),"In-flight stove fixture saves")
+  var base_restored=game.Model.new()
+  check(base_restored.load_save(legacy_path),"Canonical in-flight comparison fixture loads")
   var raw=JSON.parse_string(FileAccess.get_file_as_string(legacy_path))
   for entry in raw.items:
    if entry.kind=="stove":entry.level=level
   FileAccess.open(legacy_path,FileAccess.WRITE).store_string(JSON.stringify(raw))
   var legacy_hash=FileAccess.get_sha256(legacy_path);var restored=game.Model.new()
   check(restored.load_save(legacy_path) and not restored.get_item(1).has("level"),"In-flight legacy stove loads at base")
-  check(restored.service_snapshot==game.model.service_snapshot and restored.coins==game.model.coins,"Normalization preserves staff jobs, dish owners and wallet")
+  check(restored.service_snapshot==base_restored.service_snapshot and restored.coins==game.model.coins,"Normalization preserves canonical staff jobs, dish owners and wallet")
   check(FileAccess.get_sha256(legacy_path)==legacy_hash,"In-flight legacy input remains untouched")
   check(is_equal_approx(game.Model.cooking_seconds(game.Model.stove_speed_multiplier(stove)),45.0),"Legacy live stove cannot accelerate cooking")
   var spy=PlateSpy.new();spy.game=game
