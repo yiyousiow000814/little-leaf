@@ -81,6 +81,18 @@ class NativeArtist:
 		)
 		commands += 1
 
+	func poly_fill(points: Array, color):
+		var vertices = PackedVector2Array(points)
+		var tint = col(color)
+		if tile.x / 39.0 < .35:
+			var indices = PolygonTriangulation.indices(vertices)
+			if not indices.is_empty():
+				server.canvas_item_add_triangle_array(canvas, indices, vertices, PackedColorArray([tint]))
+				commands += 1
+		else:
+			server.canvas_item_add_polygon(canvas, vertices, PackedColorArray([tint]))
+			commands += 1
+
 	func poly(points: Array, color):
 		var vertices = PackedVector2Array(points)
 		var tint = col(color)

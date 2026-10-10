@@ -44,6 +44,14 @@ class Painter:
 		color.a *= opacity
 		return color
 
+	func poly_fill(points: Array, value):
+		var vertices=PackedVector2Array(points)
+		var triangles=Geometry2D.triangulate_polygon(vertices)
+		if triangles.is_empty():valid=false;return
+		var colors=PackedColorArray();colors.resize(vertices.size());colors.fill(col(value))
+		full.append_triangles(vertices,colors,triangles)
+		center.append_triangles(vertices,colors,triangles)
+
 	func poly(points: Array, value):
 		var vertices = PackedVector2Array(points)
 		var valid_full = full.append_contour(vertices, col(value), .7)

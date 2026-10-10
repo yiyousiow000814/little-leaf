@@ -353,7 +353,7 @@ func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,render_view_rect()) if show_service else []
-	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
+	if show_service:entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -785,6 +785,8 @@ func art_line(start:Vector2,finish:Vector2,tint:Color,width:float):
 		art_draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
 	art_draw_set_transform_matrix(_art_transform)
 
+func poly_fill(points:Array,c):
+	_retained_fill(PackedVector2Array(points),col(c))
 func poly(points: Array,c):
 	var vertices=PackedVector2Array(points)
 	var tint=col(c)
@@ -937,8 +939,8 @@ func _draw():
 		if use_batched_ground:ground_art.draw_pavement(self)
 		else:_draw_legacy_pavement(ground_view)
 		Neighborhood.draw_crossing(self,_parking_owned())
-	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
-	road_traffic.draw(self)
+	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),Callable(),show_service,bus_stop_pedestrians.draw_bus.bind(self,_draw_bus_stop_people.bind(false,show_service)))
+	if show_service:road_traffic.draw(self)
 	preload("res://scripts/cafe_parking_sign.gd").draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
