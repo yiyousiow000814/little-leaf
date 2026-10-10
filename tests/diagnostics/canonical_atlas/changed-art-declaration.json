@@ -1,0 +1,24 @@
+{
+  "source": {
+    "commit": "85e9a058d25cff10089d3bc4885339110fb70735",
+    "tree": "c2a38b8b8b0735029dd106dcfa065f2e2ad35565"
+  },
+  "proposal": {
+    "commit": "773234e216ece8270264bdd97298a656dd45df00",
+    "tree": "b18ee16bea4a95d42fcb0ee796e1adb79af93f96"
+  },
+  "artifact": {
+    "origin_run": 38079947249,
+    "origin_source": "3f1912bf546456b7300c9de9058b0cf682cb9c47",
+    "path": "game/assets/cache/furniture-atlas.png",
+    "png_sha256": "a0e1c4c5d51a857f8e634f29e38362463b056fd637233ddba5b19cc406589a00",
+    "rgba_sha256": "9e0589bcb4f7ce607d402e667b2638bfe1c728f08fa882df584ac97fd8256ea1",
+    "size": [
+      1280,
+      3244
+    ]
+  },
+  "closure_packet_sha256": "917b68c5e13e9dd6782da95e90d18e529b18fec187080c6c97dbdff00d3b3c40",
+  "renderer_review_sha256": "fd8b44d19cc56453fb1388ef478c3734977af671b2f5db658a8e6257cba562b0",
+  "authorization": "Parent relayed renderer approval and instructed exact proposal qualification; no merge/deploy"
+}

@@ -1,0 +1,704 @@
+{
+  "head": "85e9a058d25cff10089d3bc4885339110fb70735",
+  "tree": "c2a38b8b8b0735029dd106dcfa065f2e2ad35565",
+  "producer_closure": {
+    "scripts/character_head_painter.gd": {
+      "git_blob": "c5986cca78561256466d6a105ab854063d3f077b",
+      "sha256": "79ee6ffa150323e3ae7f5d078209da5b35003d5ac53970b416fbcef6c8895c38"
+    },
+    "scripts/illustrated_cafe.gd": {
+      "git_blob": "9c657d85acd0a4f09c5de9cc7e6b27ac690fdd03",
+      "sha256": "5e687af10c59ca296cdb157b501387b2dd42d2eb008eae0c845683bcdec42c29"
+    },
+    "scripts/cafe_money.gd": {
+      "git_blob": "dbba164314a50b250789b81f5ba6f64da1b9d372",
+      "sha256": "f761e55482aaab78857a0845afa6f4716209d95a32d4b282143740e7b58bce9f"
+    },
+    "scripts/illustrated_ground.gd": {
+      "git_blob": "4c0d85c68da1d3f2996e38b6a73d8dfc4a1bcfb0",
+      "sha256": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5"
+    },
+    "scripts/cafe_canvas_draw.gd": {
+      "git_blob": "9e6b64157205e0fe42257fdd38bc0af0de6b192d",
+      "sha256": "3061f9f1b9f3417ed8cd3ebcdde9d5b98f7dda5955b42294b92b63d8ea36388e"
+    },
+    "scripts/retained_aa_strokes.gd": {
+      "git_blob": "ea4f61fec95ec580fffd9026000ab291c9798619",
+      "sha256": "23b4820de0254faf308ff03020a032bfecbb0499ea3b7bcc760d7f06f9d9b831"
+    },
+    "scripts/exterior_world_extent.gd": {
+      "git_blob": "37998ffa867a52df1de21c08423802e1403620cc",
+      "sha256": "9054508861bbd6e3feddbbe5e732e6d260180485450123a484be95f636fe2249"
+    },
+    "scripts/bus_stop_pedestrians.gd": {
+      "git_blob": "9cf1e2a039274d0d350050d73cdbf59f7fdc60b3",
+      "sha256": "5df8b736b0bf597a509acd0b904986d70044d7b9e30ba87f9ef11af79bb25c78"
+    },
+    "scripts/illustrated_motion.gd": {
+      "git_blob": "d5616f4c8efb0da61a6f3098d89893615f17d543",
+      "sha256": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e"
+    },
+    "scripts/directional_character_art.gd": {
+      "git_blob": "1374a1809d3a3dd5804222f8b17c4e69d97a7a9f",
+      "sha256": "c8876516cf696233a86c39cd83b92fbf9f753fe4c4b8d2aef4bb627a08da45ac"
+    },
+    "scripts/waiter_tablet_art.gd": {
+      "git_blob": "07730fc3c68de994b76fb955aff33945fc07fb24",
+      "sha256": "a04a97070d8dbed3a1452b720768aa04d46233485dd32e79ac097c274287a041"
+    },
+    "scripts/cooking_tool_pose.gd": {
+      "git_blob": "6190584cfff5a550d33a9be08e1f4979b8543ac6",
+      "sha256": "61d8b8fd639ad58ffc8e7b5f62f01a8fbe5701b5eec1f3370b9ae2c7367c5001"
+    },
+    "scripts/cleaning_tool_pose.gd": {
+      "git_blob": "f8b521d9561a7309a88c95203e11c4173c68ddb1",
+      "sha256": "8c1a254a7115db2d4bfdb64dccee0dc1a613027876258ce55731450c699e678b"
+    },
+    "scripts/dining_placement.gd": {
+      "git_blob": "11f1f151606335a37267abbe5b0e58eb79da9247",
+      "sha256": "26dc608fb0e8900a84a5c5e73cc125dcd4bab8695410a2da3d67cdce41802617"
+    },
+    "scripts/character_arm_occlusion.gd": {
+      "git_blob": "f7570b6d64610dd7f30b5066b5507abb4f2d4e97",
+      "sha256": "b986309969b0bc0104248ba03d922683ec332fa09ac11dc08c2deb23869394e2"
+    },
+    "scripts/cafe_checkout_art.gd": {
+      "git_blob": "8bd2740e1fbbc607c15df710b4ba830b880f64bd",
+      "sha256": "cf0beb90026df2dfe76c4be35a87e144b952085c45e3e150396bc2f985c12600"
+    },
+    "scripts/dining_pose.gd": {
+      "git_blob": "4ff74cc074b07799e9491cc6e49da2f34bdd8b51",
+      "sha256": "1eb95a9aada308126c9570c3cc2cd5c33e296b95074081127756d6a961021361"
+    },
+    "scripts/cafe_sink_wash_art.gd": {
+      "git_blob": "9bb943f23ed3a1a79851053fbd08b6387534f9a1",
+      "sha256": "a8f3e56ea976fe8a2d13834b6c196acc41d71385a3ec53a1af986d6ad5b6487d"
+    },
+    "scripts/kitchen_worktop_geometry.gd": {
+      "git_blob": "5f1a9bb17288011b9dd58549b721dff3c24d9be0",
+      "sha256": "1cd4d06ad3bffd33f20059f51800121c2fad3a6c320e69b5d122dded99dfb229"
+    },
+    "scripts/cafe_chef_pickup_art.gd": {
+      "git_blob": "7efa3ee5e9f1add8551f6c76d8c7e99db226885e",
+      "sha256": "b61dc04e802631a74ee249d7f1dc5abbeb3d9f7af6b9fbe23ec98a7c90634a42"
+    },
+    "scripts/cafe_chef_pickup.gd": {
+      "git_blob": "6b9b424e4281446c4da9b0011152d8e3026fc994",
+      "sha256": "52c51233ff62468195824451f0de7773f75910794e7bb5c9899deb4f2ac75082"
+    },
+    "scripts/cafe_stove_layout.gd": {
+      "git_blob": "969f5863fcba84379aea410078c9682436714976",
+      "sha256": "9c43d2387c6a8c349cd029e14589f174fcbd51b8536425bca44635e9747fdf15"
+    },
+    "scripts/street_pedestrians.gd": {
+      "git_blob": "5d0cc908858827f7a141605e588ff4c66f9ec30b",
+      "sha256": "db895e24fed683848d206380c2d476ff061619a1bd91b1693754ff09475aa614"
+    },
+    "scripts/exterior_environment.gd": {
+      "git_blob": "89cf489e1cc22779a75ec451b7f190f4200875b5",
+      "sha256": "3d9486681d10ab20933ed337de750c16a172e7d69b8495871f8c8f3eb6a9b63a"
+    },
+    "scripts/environment_greenery.gd": {
+      "git_blob": "0ffa62f5bb212e174c622d9656c347c70ef600bf",
+      "sha256": "f73f13d146fccd4675856ff705cef363227fbf017d82e253d8136382c324a642"
+    },
+    "scripts/ordered_pocket_triangles.gd": {
+      "git_blob": "397e02589c4dea4f9c775a37d6a75c9c1688dddb",
+      "sha256": "17307f8b2ecf843aa0fd25be002ae243b5240e76f80807097e4257cfd853b448"
+    },
+    "scripts/cafe_render_visibility.gd": {
+      "git_blob": "43ea0f51bd48f4c258fe9fa50e7ee9ddd8afb494",
+      "sha256": "68a59865661511d919f04c07ec3e9cd667381b600dab6b27d27685910b6f5048"
+    },
+    "scripts/cafe_camera_landmarks.gd": {
+      "git_blob": "e12e6d1cc986967cf7026e8af970e363d7763e7d",
+      "sha256": "5d159d8855449d33188e83cf818cd36f2cb66e173a2bf2e9e1a17bacc898e0b8"
+    },
+    "scripts/cafe_parking.gd": {
+      "git_blob": "64ec9b1de101ed39d9d64e5d4c7691afc92f74a5",
+      "sha256": "286f3cc467e7f35e2140f0fa076e5e6d7f47e4c18d3700b9680676cbc76231f0"
+    },
+    "scripts/cafe_runtime_codec.gd": {
+      "git_blob": "eb58f84dc59b8d501428b2e7bc49fe34d88f39b9",
+      "sha256": "4d659a25031afca07cf8b314b5e1f53084eff5357add2d00009d6ce6470e40e2"
+    },
+    "scripts/cafe_dishwashing.gd": {
+      "git_blob": "5025752973894a23c4f511521b3cadec86621415",
+      "sha256": "6fb65e64071907e12a7470a3ddab7a586c21175055a377d00bce47fa89ce791d"
+    },
+    "scripts/cafe_floor_tasks.gd": {
+      "git_blob": "8ac7b74f1953a91fea16f13bde82eeffa8db2348",
+      "sha256": "7ec2ea0540fae530bab2da077bb29edcc4a41262b1a8b47a2f2ea4b4a28eaa1d"
+    },
+    "scripts/cafe_floor_geometry.gd": {
+      "git_blob": "fcb7d267d8677f67adf6b5c45effd02bb0ef7ab6",
+      "sha256": "16eb2a64a47bfece983fd65833a5456a4dc5f24cc1788a06bbe8cf8ad93e5075"
+    },
+    "scripts/floor_cleaning_approach.gd": {
+      "git_blob": "e3f91316e58cbe7bc6dd27b165f99eb523f94e42",
+      "sha256": "8aabdecd3987c48220b4a16710412d3d7a0869f184456d2f8a0dac1d3936b052"
+    },
+    "scripts/cafe_walls.gd": {
+      "git_blob": "e1532dd0d30fe07b0cacef1a28bf2409c43bc927",
+      "sha256": "c164308a6a8175583e9ed8e7e82023b397b5e29922d2d1d572e50fb99dc78c0c"
+    },
+    "scripts/cafe_wall_openings.gd": {
+      "git_blob": "53cdc3dfe9a391b5d645cc1bf08365f97c9a9d10",
+      "sha256": "10172c4d943b9be3608de242b0fe51a2ade4f387ce712290e9e6cbb8786c7f4c"
+    },
+    "scripts/cafe_footprint.gd": {
+      "git_blob": "36ad12f0155dcd8968da533ea31226120f46b2c3",
+      "sha256": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c"
+    },
+    "scripts/cafe_staff_relocation.gd": {
+      "git_blob": "d4ccf3364a456cc418d83f42155a381a56e495a4",
+      "sha256": "168feee3aa249e2731c8c3a14d830f1c678112c5036d82b4aa59bba78142ac25"
+    },
+    "scripts/cafe_placement_pause.gd": {
+      "git_blob": "60b44afdba17dacc027cf0e589a3cfbfe892623e",
+      "sha256": "ab8ff155d2ee4b1db4162c9b60912488d7d2989eba09fd783d3a14333b20a107"
+    },
+    "scripts/cafe_save_contract.gd": {
+      "git_blob": "b9f71906acb815218284432755c90e3b65e13b1f",
+      "sha256": "2b47adcdda7bab7573b50df9ed6fe68e00feb02128905abcf4d276ecfac9141b"
+    },
+    "scripts/ambient_road_traffic.gd": {
+      "git_blob": "201fac7ec587126730127ccaed575c28d4b0ef97",
+      "sha256": "72621898ab0413305439e61ed1bc4f7e4259602d80c9dc59dd441759e4ec2887"
+    },
+    "scripts/illustrated_walls.gd": {
+      "git_blob": "c1dfd77fb18739a9c1d64a9ece57bffff2dc9113",
+      "sha256": "9206557f5b7f69803555222a6a4ed8f055c504d102adea34737ad5e87dcd48bc"
+    },
+    "scripts/illustrated_openings.gd": {
+      "git_blob": "07d7c7264c89c604d12fe5d7f7c30f5d0dbe58a5",
+      "sha256": "f0cb620c9f0969b5cd3a3aa77298fa6e672e1cb03cc582a9110badeb3e4ed1ae"
+    },
+    "scripts/dining_style_art.gd": {
+      "git_blob": "b7fca87eebbcb4cd8424e6ca92c7c604668f7df3",
+      "sha256": "1389d044942085d328fa660cc7512f445e3d4f49f759dc8aba32f2f5a703ce43"
+    },
+    "scripts/cafe_dining_sets.gd": {
+      "git_blob": "3b987c9f6a642dd4fbf05fad26180e25207866cd",
+      "sha256": "930b8b107977507eed004e81a19e49aec13aba0fecb4ac67a39669fc2a95d842"
+    },
+    "scripts/lamp_art.gd": {
+      "git_blob": "8b826745d020bc02dd12a37a642206e2f9c4e71e",
+      "sha256": "100dea0f191efe37c76611f5c56ec74071e82495063bdf76e1f94ff83e7de621"
+    },
+    "scripts/illustrated_furniture.gd": {
+      "git_blob": "0d2c397f0b0aa6fe2f12f90c505e7fca3a2286c9",
+      "sha256": "117300a4fe207688c16fd9499ee8a288ffda883b498c996e38e3ea35f9588004"
+    },
+    "scripts/furniture_static_atlas.gd": {
+      "git_blob": "0b880280d1ba468d6c2233ae9a1e7acae55faef3",
+      "sha256": "476b8d5aa6ec50f51a3e7206ba05e4ebf167f10ed807a2821927ac8c3e853b03"
+    },
+    "scripts/furniture_atlas_painter.gd": {
+      "git_blob": "593cbb0a670d8c623ffc01458adca0ab0140fcb0",
+      "sha256": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78"
+    },
+    "scripts/cafe_prebaked_atlas.gd": {
+      "git_blob": "58109bf07efdfbdb2d7c77d7061277b1d4f3e7fd",
+      "sha256": "0842313bf69854b0a14e680ae65359a7c3e7acd324425353c250e561346a6f9e"
+    },
+    "assets/cache/heads-atlas.png": {
+      "git_blob": "41df932a9fce0276de5f95ba670c57d0fc5b600f",
+      "sha256": "cc606e0ffa77983ec1b3724cbb74b0ed5c9a65f20aada1e83250140f0ebed34a"
+    },
+    "assets/cache/moving-atlas.png": {
+      "git_blob": "3ed6f76ae9ff667e08b01e4a56fd90b757076250",
+      "sha256": "e513c2ecc19809af18f52cca66a9943778a4a21dad3f94299bf5035df77e9f8a"
+    },
+    "assets/cache/furniture-atlas.png": {
+      "git_blob": "7a253092d66ed0f79d6590659e2c1abb4d6a7278",
+      "sha256": "dd5c41e6b6df1624fa60825f82db5f2db3ddc839ed688336e3bd8c5e2098d31f"
+    },
+    "scripts/cafe_camera_bounds.gd": {
+      "git_blob": "0a89d352d93662c416a54ae237bf901be1b09c24",
+      "sha256": "d0c5b04018248bce592d52d4608cc96da0db823d18f35ceb92d583b6496621e7"
+    },
+    "scripts/cafe_viewport_layout.gd": {
+      "git_blob": "860640e5bbdc555214377d97ed7298d0a8cc82ae",
+      "sha256": "a52a56c410febc9d73dc44fa56ca791e05632a6de8a1e9b73cb28de7c69df540"
+    },
+    "scripts/compact_character_pose.gd": {
+      "git_blob": "25219ae9f5dac09630dbaf5b5c203995870de8ba",
+      "sha256": "58c30866b9d0c507fddf44ab329286d2efa177c8d328780961eafb6de73660b9"
+    },
+    "scripts/character_head_atlas.gd": {
+      "git_blob": "1662d993312e6fe53e0b34cc516c06783ee05208",
+      "sha256": "d84d34ebaa64a045d169aab10c2c5512ef5b2b38842001b0a4a8c0ef64cc016c"
+    },
+    "scripts/exterior_tree_art.gd": {
+      "git_blob": "cbd0a31b7683c20ed678777fe10f69a57e9cec76",
+      "sha256": "15db8710c5e104812228eb7f2ee86310acac3889c861a607cdc0b68e85081f71"
+    },
+    "scripts/cafe_polygon_triangulation.gd": {
+      "git_blob": "8c45ba10f32d98ce9cbce7ac5b1f24234e48f30e",
+      "sha256": "289c12cfa7264fe2394a773b7f3e57c1010963846255d7b029aae73bbf51716f"
+    },
+    "scripts/exterior_grass_art.gd": {
+      "git_blob": "cf17e44a16768975a6bdcc6f25ff3dfc38835c7b",
+      "sha256": "08ae58acebc53baf01fd80f50047cbf3394c9116501479534117a352120d306a"
+    },
+    "scripts/moving_art_atlas.gd": {
+      "git_blob": "ff950a8d31aea2592c231f01960fa399420d95ce",
+      "sha256": "8bc0d47a07f28fbcd73b3aabce12f875cf4e904d51f3c5db6d3344caa7630c3e"
+    },
+    "scripts/moving_art_painter.gd": {
+      "git_blob": "895c638e7291e7926d86f0f760c8178666f01245",
+      "sha256": "2c94b505d02250c759f4734824285ffac46f3b46ec4cae0a6b3e80f1ba1ce2c0"
+    },
+    "scripts/floor_mess_art.gd": {
+      "git_blob": "525ca48013c69b73f40960b2fcdfd07b8535421a",
+      "sha256": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6"
+    },
+    "scripts/cafe_render_idle.gd": {
+      "git_blob": "a91e9ec51c85eaed5847b08cc3127dc0a0e79c89",
+      "sha256": "129f80bd921f5b704e36b2c727ee4d4d48efeee3e63351f289669dd100c7a84f"
+    },
+    "scripts/main.gd": {
+      "git_blob": "cc1679af49b675b7d3ec9d599b765cdb0b5369ed",
+      "sha256": "5ce8af6880a1a5f2b57b1df62c19cdfc3b4ad4af832739e1b144b8011aeb3e7c"
+    },
+    "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": {
+      "git_blob": "c7626c4e647879c4b0836596f88d3486bd650e6f",
+      "sha256": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a"
+    },
+    "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": {
+      "git_blob": "c42a9b34819280afb4b2652ed13d6eadd3f965b4",
+      "sha256": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943"
+    },
+    "assets/audio/\u5c0f\u53f6\u98df\u5802_\u95e8\u53e3\u7684\u9633\u5149_\u65e5\u5e38\u8425\u4e1a.mp3": {
+      "git_blob": "6ed38a0de5fd3d66d5fa6b8f3ed6d791650872a8",
+      "sha256": "09fe06367c3d936edecf8c6fd859675c719d3e71e9893089567807178b8282e5"
+    },
+    "scripts/cafe_autosave_policy.gd": {
+      "git_blob": "2ccde4a72c98dbf79aac70fd28f3af3efea75ee5",
+      "sha256": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d"
+    },
+    "scripts/cafe_first_guest.gd": {
+      "git_blob": "ed30f3b722cb9352120e7ebfcedea2a22bdb30d2",
+      "sha256": "491e8c39bc4de39c60b81514deb46f1e029cace912045fe1cac0655d43fd45b6"
+    },
+    "scripts/cafe_platform_state.gd": {
+      "git_blob": "915221df982bd9668b31658bf8fd8b73a63d726f",
+      "sha256": "e67ccf7d177dc5def7c5b88ef8c4b3ed1ad92df06ee0926b454bce7e8c3f4489"
+    },
+    "scripts/cafe_startup_readiness.gd": {
+      "git_blob": "d782f1eeb35edd36d635b42f52dfa3bb0a34e437",
+      "sha256": "9c7e9a4fbe079f7be649d913ead31edc394e7ecfcc54c29cd0c1fab5e1dc4977"
+    },
+    "scripts/cafe_tutorial.gd": {
+      "git_blob": "af0a9bce01afd22f220c5e570eeea2d133dad434",
+      "sha256": "23b69ca7e7e17f99043d4ccacdb0c1da04844d083ad3fcf66edc6efb2dff85ca"
+    },
+    "scripts/cafe_tutorial_state.gd": {
+      "git_blob": "2b01633b176916d6fb6010e5657af10597dbfa2c",
+      "sha256": "712410d0752d341ff3a1bd1b46c744b9c7996e42de3d7f8c2380bfd99cb41cf0"
+    },
+    "scripts/cafe_intro.gd": {
+      "git_blob": "32113306474674ad56ba0f5fc71ecd46026fc06a",
+      "sha256": "0fbe17ba5ad1966a73800f0dc92b7f15d42a11badb4ef5ec8a02d8df2f5f558e"
+    },
+    "assets/branding/little_leaf_approved_v3.png": {
+      "git_blob": "fa63ace34353a5274533d539310f1e1c8f109ff3",
+      "sha256": "b75415fdf74e98904348264e4851b21401fe2f1ae09a6a277f10849f81564478"
+    },
+    "scripts/cafe_workface_guidance.gd": {
+      "git_blob": "926195827cb980e6f37c1550fdd56a3ece78bd41",
+      "sha256": "634384aea4d0d9ca1d1c688a8f6885519f06ad20f552ec1488a3540f117b542c"
+    },
+    "scripts/crazygames_music.gd": {
+      "git_blob": "a63f979bf07717f5b1580e694679b8554a9d29dd",
+      "sha256": "a32b55bbae4efdbc009c79d1b1596020dab2c1c694e31c52c922c2b484c6044a"
+    },
+    "scripts/cafe_navigation_review.gd": {
+      "git_blob": "4180a53a880fa401813816cd98b603a71359dc01",
+      "sha256": "2c997e97ac68932e6ab933994daef5f843d628fc5ab9f26053fc22f283ab58f7"
+    },
+    "scripts/cafe_navigation_scheduler_candidate.gd": {
+      "git_blob": "e24795c5c9a8c961f892ff095a52efbd5e02aaae",
+      "sha256": "8be0348c2c309e4401e95e80a58d04891d03b9dd1e80386ffef300beaf769ad0"
+    },
+    "scripts/cafe_navigation_candidate.gd": {
+      "git_blob": "f115d06222d71af9842c12bb1d1b8b7de18988e0",
+      "sha256": "7a84ad9278378cd6ffb13dfc1accac3b0c7207521e3bef10e55a77748ecb7d62"
+    },
+    "scripts/cafe_checkout.gd": {
+      "git_blob": "54c226b82ec352a448535243fe54f0bc6d7069bb",
+      "sha256": "2f720c72dd5c4d50a924cce529544eb3258df7726b816d6228c261305c8072e2"
+    },
+    "scripts/cafe_compact_ui.gd": {
+      "git_blob": "a7327506f5005e8719c5d588931bbaa911747746",
+      "sha256": "f07af23f383682684bd6087f216bc3acc48b5e95cec0c593d1673386095cdb04"
+    },
+    "scripts/cafe_update_notes.gd": {
+      "git_blob": "1324bcc465942145017b885d7d2b7e8b19614e52",
+      "sha256": "1fe58680c029c47f18beed19aa094657051070ba9d5347b4e3eac871c1407a6a"
+    },
+    "data/release_notes.json": {
+      "git_blob": "3041aa2d1f24130b254f66608f2914d93d6582bf",
+      "sha256": "f6387320a098511fa04ef0fdf3f1b79136e4889c0c16d17453ca5b87f31fbe4a"
+    },
+    "scripts/cafe_save_log_panel.gd": {
+      "git_blob": "4f5f7dd88585387de8b5e5e9f31b46faeca2a4f1",
+      "sha256": "dfa714378ec7d2d6edcf7e759da92d6acbbed6f846b18f0ebbe86d3d635e31d6"
+    },
+    "scripts/cafe_save_log.gd": {
+      "git_blob": "b0c27149d71a953cbd05383017ced41e9aa02de3",
+      "sha256": "55028403a4dc2fec8a9453fa67932379b2b61dcc440acae753532cdaf893160f"
+    },
+    "scripts/cafe_update_notice.gd": {
+      "git_blob": "ab9da368deb1c81aaa607ed184c99e25118b6e0b",
+      "sha256": "5985170663c085348227373676c050eb1b8506f681c18c64ae5bb67cedcd80d8"
+    },
+    "scripts/cafe_inbox.gd": {
+      "git_blob": "abb2f24975dc5ec0cbfa66e93c66220782f37025",
+      "sha256": "b219a075b2392a71f282acdac7bec0de3bb972d3559f0de49dc72ee0e00d2741"
+    },
+    "scripts/cafe_wallet_notice.gd": {
+      "git_blob": "b84c29627701c3ca1175e20fe414f538d28d2dc3",
+      "sha256": "449841806b3dd4e613e6a1ab64122d9562ac117aa340f4c5a6cd35b8bea356fe"
+    },
+    "scripts/cafe_shop_ui.gd": {
+      "git_blob": "f5ef09aa8768f8a42647c4e358dbf54616d51dd3",
+      "sha256": "cc5cacff25afb7ec32feb5d63f96e0c9698608253168f3b85ca0931d2c2e0c96"
+    },
+    "scripts/cafe_hud.gd": {
+      "git_blob": "1c12f0ae0f8609f2afbcc80ed3f4d8a630298064",
+      "sha256": "f4eebf3d424ec164305aed776ee45673753e62d0c808fe7e913e8a17ffb4adab"
+    },
+    "assets/fonts/Nunito-ExtraBold.ttf": {
+      "git_blob": "85a5a3e0826ab4354f0d043f2267437857ed7caf",
+      "sha256": "0514da7e4ec2b3d217e22564a0a5f7f21d0930797729762193a7538b02386cc6"
+    },
+    "assets/ui/fidelity_hud/green_face.png": {
+      "git_blob": "2bb3802eec2827cba900e745c3e7fd5719467482",
+      "sha256": "6828416d007b4bec34f8d63e7b99e13c94b5d38a6660daa2bffc3185f3a7c20c"
+    },
+    "shaders/soft_ui_material.gdshader": {
+      "git_blob": "f2845b6898d0bad61706825e9a04fcf36bdbcd93",
+      "sha256": "8ae03c60bef0469a9b16323384dcc6c11a6de9dc83ea62afb06e53db93b1c018"
+    },
+    "scripts/cafe_action_help.gd": {
+      "git_blob": "bc2bb68efe38fc1dcb256f2f4e9bd8e47353deec",
+      "sha256": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73"
+    },
+    "scripts/cafe_staff_panel.gd": {
+      "git_blob": "d072e12aa1c54d2d23598273f15d36206c2b6e38",
+      "sha256": "b092756e03bc88a45ea5cffe039091c1db6d27870f1ec15584235cc881a97b0b"
+    },
+    "scripts/cafe_staff_portrait.gd": {
+      "git_blob": "22f1bfa7fd4c79c800ae91f4b6b93defa362154f",
+      "sha256": "703da7d62d91b023fea46f286080023ca3f4c20d725c39ec921e9e5228e9770a"
+    },
+    "scripts/cafe_save_profiles.gd": {
+      "git_blob": "14ccdd6c979c980be59904564f037c5562fdf0bf",
+      "sha256": "11cc00d5c80f10e76366bcf4e93709371ee9bbf82d17bf352b518919ed2fbe7f"
+    },
+    "scripts/cafe_settings.gd": {
+      "git_blob": "c88597115bca7f5eaae5fccd3d9d2754b6c8226d",
+      "sha256": "5073e8562a00f7035fc026b129432af641884c1221de8b729c97bc7ec20bbe27"
+    },
+    "scripts/cafe_web_preferences.gd": {
+      "git_blob": "50f8afba889b15d0d309eadc82e48a551902cfb1",
+      "sha256": "6da42c114ed30c70b4e6428db112f532e20c0452e6f549d5d7330054d0061040"
+    },
+    "scripts/cafe_cloud_settings.gd": {
+      "git_blob": "d13b85679c62cc90b4f723e21662ae7dcb6aaa03",
+      "sha256": "4ad9bf3ff919f377e422a3b584849b91c7596af725ec5aae4d535cd7a2b93ff4"
+    },
+    "scripts/cafe_build_tools.gd": {
+      "git_blob": "a519d09a57e700fdacea24597c5c44b91af45d33",
+      "sha256": "80e3983bf22bf238cc369c3d082da73f6d31672058b3efaa6e57163f8fa53beb"
+    },
+    "scripts/cafe_tile_paint_preview.gd": {
+      "git_blob": "2025d7f6a945619e1536bbc1ea9caa5fda2cf234",
+      "sha256": "605478b13f6015989a8499192dfd2fee4106c07488f43baa3f99dfc9ecb15809"
+    },
+    "scripts/cafe_paint_stroke.gd": {
+      "git_blob": "b38ca3f67fa05e7ab98635797fe56f9ebdacb601",
+      "sha256": "2dffd7a06eaa1b6148be4d5243de556fa8458a303c223ecdfa8630dc04503597"
+    },
+    "scripts/cafe_paint_plan.gd": {
+      "git_blob": "f8e56ef2c0948b25727d027e23a66ff392c33b58",
+      "sha256": "5d4781095f00aa7babc3824fd6e3d4e3d4c85c1a6112e435ab570f38dffa27d6"
+    },
+    "scripts/cafe_shell_segments.gd": {
+      "git_blob": "404cebb839db8a1b2ab6d6c7cdb7df9d5e4cb169",
+      "sha256": "91dc7c5ba9ea6bd4feb54de27fe10452d80fa8bcc171313cb1a0b3cd5a2e7bc1"
+    },
+    "scripts/cafe_furniture_motion.gd": {
+      "git_blob": "bbb3662aa653a548e6b74a3749e6fff401b5ff8e",
+      "sha256": "bab40a303d7933caefcce37a5f0aef08bcab93520d81f5b68de6af5e09f0f23e"
+    },
+    "scripts/cafe_web_save.gd": {
+      "git_blob": "5c65c3780fcdd15f613190166108f0ac5afd71bd",
+      "sha256": "bc79a5c57d02d92135f4684c6de204017c4cd79648b91b3b4b3b05cc6d4d59a2"
+    },
+    "scripts/minimal_start.gd": {
+      "git_blob": "1ae56abd66224bb9945638b9e87d12085f4ff899",
+      "sha256": "3cc5ce160494e1244bf1997d7933dae7a9dfcc48dedc889ca5cc4876c6ecbc5c"
+    },
+    "scripts/cafe_web_lifecycle.gd": {
+      "git_blob": "fbc1d924f9f33773f70b49567f02e3d5fc2ac0b6",
+      "sha256": "813983e35d86b30c15a309d5a92102a47555480726ddbd96ff0ac3e2e0826cc8"
+    },
+    "scripts/cafe_camera_gestures.gd": {
+      "git_blob": "36159139a6884f2b2fa9a6bbbedf3733f2ddbd2d",
+      "sha256": "bf4c42878341f64377dea5daf065bfa321cf7d9273ae22acac760b433422b667"
+    },
+    "scripts/cafe_interaction.gd": {
+      "git_blob": "ac3d334f8c3587b2ce54659a48596f2d049c29e3",
+      "sha256": "49e8a5800d60417a797997bbe972dc6888e5a60276f05b7d89fc57c945247669"
+    },
+    "scripts/cafe_floor_availability.gd": {
+      "git_blob": "4623abe649225437c4f8e3264f0e9374774349b5",
+      "sha256": "4a867070604735baffd673ef0e478e02804cc481f810ad83918ca62eff444b61"
+    },
+    "scripts/cafe_edit_plan.gd": {
+      "git_blob": "e50021172ad38eb608c5f6bc6d1b96fba766b56f",
+      "sha256": "c05dc31a0457412fc7998afedc90fae0f475718173dbbd85767b765a08a8ddc1"
+    },
+    "scripts/cafe_model.gd": {
+      "git_blob": "cce6665fb36e9784b73532e1e7836746d9945664",
+      "sha256": "d65e718a21710ab70576dc3b9de85aa0e95aa91f7deb46faec2a0af25ac7a71b"
+    },
+    "scripts/cafe_outside_queue.gd": {
+      "git_blob": "d432c09115bd674e9fe3eded37454de8b1007793",
+      "sha256": "1e1b701991917fff07c5e5e909b0212ecea2d26d202ed6cdf9d56cc86c8665f4"
+    },
+    "scripts/cafe_layout_access.gd": {
+      "git_blob": "4d6a21a8d06f8a0fe34ec7b900aaf68ebd7b0e12",
+      "sha256": "e0c53e55e9def00f3a5d999dd125919de5a0ea0db29f59fb441b34019d3b515e"
+    },
+    "scripts/cafe_wall_transactions.gd": {
+      "git_blob": "cee3baed1c62b15c58d8e8f0b45bdbd2f649f47b",
+      "sha256": "7eef8d1deb16c22125f5fa59231b58feea7ec577bde6004a06f476d9469edb0a"
+    },
+    "assets/fonts/NotoSans-Regular.ttf": {
+      "git_blob": "7e9c1696ae43d387278f5fae47a2590dd6f1b0f8",
+      "sha256": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d"
+    },
+    "scripts/cafe_background_cache.gd": {
+      "git_blob": "45ac9ea02b135fe36e29a364c530fec99f3284bb",
+      "sha256": "71df38bdcb4da4ce17b8f2cff1166eb8f85358ba12b5098b35ad0c5bbbb54210"
+    },
+    "shaders/retained_contours.gdshader": {
+      "git_blob": "e92086a2866db8d99bc31b02c0a3b4971ba40c9a",
+      "sha256": "f2902482e426136364298bd7ed46a3810ab3b7a5fbb14a8cfd6ada443b717f0d"
+    },
+    "scripts/cafe_background_native.gd": {
+      "git_blob": "f555e28155ad91671c4790a621b9b2a10d66a4a5",
+      "sha256": "37807975c261b55798441478a4069583fa9ce747342ef82773e6f03ef015d796"
+    },
+    "scripts/cafe_shell_draw_cache.gd": {
+      "git_blob": "a704745393ed2421b9aee6ab3e6d68515b4d34ec",
+      "sha256": "8775f95ea1f4071325083d96dcff6400ac99500d6faf0677d792afc12e59422a"
+    },
+    "scripts/retained_canvas_geometry.gd": {
+      "git_blob": "31afbcd1e6cb7c9d57598816c55ceea762e13ac0",
+      "sha256": "e2f935d8b76b790ee06dfccca8201047892eb6d4b02ab73581b7683b733afcd2"
+    },
+    "scripts/retained_canvas_stream.gd": {
+      "git_blob": "41aa8f0afba157e0f5475e91c55886de399ae5e0",
+      "sha256": "570ba11abac1b6ed7e8b5cfe0c85aa3b188f4d626b452da442c68031dfa7ad0a"
+    },
+    "scripts/cafe_native_draw_node.gd": {
+      "git_blob": "1aa7e1f669e65e3aff66775742b3dc4c7ec1b3c9",
+      "sha256": "dd82964336374d1f86be67e5642c2b490516f70b2a73dc034a525a45aeeb6466"
+    },
+    "scripts/cafe_shape_2d.gd": {
+      "git_blob": "f2bd76b57195272d63a9f17e85194c262cdf05ac",
+      "sha256": "7d17682de704d8ff556b40baf26c183f68c745c4b3e3dcc5449a564baa320485"
+    },
+    "shaders/retained_aa_geometry.gdshader": {
+      "git_blob": "fda1c80acd4f84eb3501c8835546fa394e24c6ad",
+      "sha256": "ff1c3aaca5dbd162be799ac62d840607d648ac50098f668810d77d6665f85587"
+    },
+    "scripts/scalable_body_geometry.gd": {
+      "git_blob": "26e47669b14ee366113b83c0f45dc9f2b59a2020",
+      "sha256": "d03c4736c77f2d745261c57d3426aa05eeeabdf0f9ea29a92b8a70afd02c5f15"
+    },
+    "scripts/cafe_car_geometry.gd": {
+      "git_blob": "74f6c186dc120dc82a92122f30a871adff5e893a",
+      "sha256": "7b767e793bb8ce674db50ed6aa0330d666ca29695336017e2771fafb97db340d"
+    },
+    "scripts/cafe_ellipse_geometry.gd": {
+      "git_blob": "5ff2f838719b944c5035f3329bae9f9f80a51861",
+      "sha256": "ec34229151e4b3105d8bdb9a5d2c40000afb32d15bedfa5da22a5e53249b30d3"
+    }
+  },
+  "closure_count": 132,
+  "manifest_differences": {
+    "scripts/illustrated_cafe.gd": {
+      "git_blob": "9c657d85acd0a4f09c5de9cc7e6b27ac690fdd03",
+      "sha256": "5e687af10c59ca296cdb157b501387b2dd42d2eb008eae0c845683bcdec42c29"
+    },
+    "scripts/directional_character_art.gd": {
+      "git_blob": "1374a1809d3a3dd5804222f8b17c4e69d97a7a9f",
+      "sha256": "c8876516cf696233a86c39cd83b92fbf9f753fe4c4b8d2aef4bb627a08da45ac"
+    },
+    "scripts/cooking_tool_pose.gd": {
+      "git_blob": "6190584cfff5a550d33a9be08e1f4979b8543ac6",
+      "sha256": "61d8b8fd639ad58ffc8e7b5f62f01a8fbe5701b5eec1f3370b9ae2c7367c5001"
+    },
+    "scripts/cafe_checkout_art.gd": {
+      "git_blob": "8bd2740e1fbbc607c15df710b4ba830b880f64bd",
+      "sha256": "cf0beb90026df2dfe76c4be35a87e144b952085c45e3e150396bc2f985c12600"
+    },
+    "scripts/cafe_sink_wash_art.gd": {
+      "git_blob": "9bb943f23ed3a1a79851053fbd08b6387534f9a1",
+      "sha256": "a8f3e56ea976fe8a2d13834b6c196acc41d71385a3ec53a1af986d6ad5b6487d"
+    },
+    "scripts/kitchen_worktop_geometry.gd": {
+      "git_blob": "5f1a9bb17288011b9dd58549b721dff3c24d9be0",
+      "sha256": "1cd4d06ad3bffd33f20059f51800121c2fad3a6c320e69b5d122dded99dfb229"
+    },
+    "scripts/cafe_chef_pickup_art.gd": {
+      "git_blob": "7efa3ee5e9f1add8551f6c76d8c7e99db226885e",
+      "sha256": "b61dc04e802631a74ee249d7f1dc5abbeb3d9f7af6b9fbe23ec98a7c90634a42"
+    },
+    "scripts/cafe_chef_pickup.gd": {
+      "git_blob": "6b9b424e4281446c4da9b0011152d8e3026fc994",
+      "sha256": "52c51233ff62468195824451f0de7773f75910794e7bb5c9899deb4f2ac75082"
+    },
+    "scripts/cafe_stove_layout.gd": {
+      "git_blob": "969f5863fcba84379aea410078c9682436714976",
+      "sha256": "9c43d2387c6a8c349cd029e14589f174fcbd51b8536425bca44635e9747fdf15"
+    },
+    "scripts/cafe_runtime_codec.gd": {
+      "git_blob": "eb58f84dc59b8d501428b2e7bc49fe34d88f39b9",
+      "sha256": "4d659a25031afca07cf8b314b5e1f53084eff5357add2d00009d6ce6470e40e2"
+    },
+    "scripts/floor_cleaning_approach.gd": {
+      "git_blob": "e3f91316e58cbe7bc6dd27b165f99eb523f94e42",
+      "sha256": "8aabdecd3987c48220b4a16710412d3d7a0869f184456d2f8a0dac1d3936b052"
+    },
+    "scripts/cafe_walls.gd": {
+      "git_blob": "e1532dd0d30fe07b0cacef1a28bf2409c43bc927",
+      "sha256": "c164308a6a8175583e9ed8e7e82023b397b5e29922d2d1d572e50fb99dc78c0c"
+    },
+    "scripts/cafe_wall_openings.gd": {
+      "git_blob": "53cdc3dfe9a391b5d645cc1bf08365f97c9a9d10",
+      "sha256": "10172c4d943b9be3608de242b0fe51a2ade4f387ce712290e9e6cbb8786c7f4c"
+    },
+    "scripts/cafe_placement_pause.gd": {
+      "git_blob": "60b44afdba17dacc027cf0e589a3cfbfe892623e",
+      "sha256": "ab8ff155d2ee4b1db4162c9b60912488d7d2989eba09fd783d3a14333b20a107"
+    },
+    "scripts/cafe_save_contract.gd": {
+      "git_blob": "b9f71906acb815218284432755c90e3b65e13b1f",
+      "sha256": "2b47adcdda7bab7573b50df9ed6fe68e00feb02128905abcf4d276ecfac9141b"
+    },
+    "scripts/illustrated_openings.gd": {
+      "git_blob": "07d7c7264c89c604d12fe5d7f7c30f5d0dbe58a5",
+      "sha256": "f0cb620c9f0969b5cd3a3aa77298fa6e672e1cb03cc582a9110badeb3e4ed1ae"
+    },
+    "scripts/cafe_dining_sets.gd": {
+      "git_blob": "3b987c9f6a642dd4fbf05fad26180e25207866cd",
+      "sha256": "930b8b107977507eed004e81a19e49aec13aba0fecb4ac67a39669fc2a95d842"
+    },
+    "scripts/illustrated_furniture.gd": {
+      "git_blob": "0d2c397f0b0aa6fe2f12f90c505e7fca3a2286c9",
+      "sha256": "117300a4fe207688c16fd9499ee8a288ffda883b498c996e38e3ea35f9588004"
+    },
+    "scripts/furniture_static_atlas.gd": {
+      "git_blob": "0b880280d1ba468d6c2233ae9a1e7acae55faef3",
+      "sha256": "476b8d5aa6ec50f51a3e7206ba05e4ebf167f10ed807a2821927ac8c3e853b03"
+    },
+    "scripts/cafe_render_idle.gd": {
+      "git_blob": "a91e9ec51c85eaed5847b08cc3127dc0a0e79c89",
+      "sha256": "129f80bd921f5b704e36b2c727ee4d4d48efeee3e63351f289669dd100c7a84f"
+    },
+    "scripts/main.gd": {
+      "git_blob": "cc1679af49b675b7d3ec9d599b765cdb0b5369ed",
+      "sha256": "5ce8af6880a1a5f2b57b1df62c19cdfc3b4ad4af832739e1b144b8011aeb3e7c"
+    },
+    "scripts/cafe_workface_guidance.gd": {
+      "git_blob": "926195827cb980e6f37c1550fdd56a3ece78bd41",
+      "sha256": "634384aea4d0d9ca1d1c688a8f6885519f06ad20f552ec1488a3540f117b542c"
+    },
+    "scripts/cafe_navigation_review.gd": {
+      "git_blob": "4180a53a880fa401813816cd98b603a71359dc01",
+      "sha256": "2c997e97ac68932e6ab933994daef5f843d628fc5ab9f26053fc22f283ab58f7"
+    },
+    "scripts/cafe_navigation_scheduler_candidate.gd": {
+      "git_blob": "e24795c5c9a8c961f892ff095a52efbd5e02aaae",
+      "sha256": "8be0348c2c309e4401e95e80a58d04891d03b9dd1e80386ffef300beaf769ad0"
+    },
+    "scripts/cafe_navigation_candidate.gd": {
+      "git_blob": "f115d06222d71af9842c12bb1d1b8b7de18988e0",
+      "sha256": "7a84ad9278378cd6ffb13dfc1accac3b0c7207521e3bef10e55a77748ecb7d62"
+    },
+    "scripts/cafe_checkout.gd": {
+      "git_blob": "54c226b82ec352a448535243fe54f0bc6d7069bb",
+      "sha256": "2f720c72dd5c4d50a924cce529544eb3258df7726b816d6228c261305c8072e2"
+    },
+    "scripts/cafe_compact_ui.gd": {
+      "git_blob": "a7327506f5005e8719c5d588931bbaa911747746",
+      "sha256": "f07af23f383682684bd6087f216bc3acc48b5e95cec0c593d1673386095cdb04"
+    },
+    "scripts/cafe_shop_ui.gd": {
+      "git_blob": "f5ef09aa8768f8a42647c4e358dbf54616d51dd3",
+      "sha256": "cc5cacff25afb7ec32feb5d63f96e0c9698608253168f3b85ca0931d2c2e0c96"
+    },
+    "scripts/cafe_build_tools.gd": {
+      "git_blob": "a519d09a57e700fdacea24597c5c44b91af45d33",
+      "sha256": "80e3983bf22bf238cc369c3d082da73f6d31672058b3efaa6e57163f8fa53beb"
+    },
+    "scripts/cafe_tile_paint_preview.gd": {
+      "git_blob": "2025d7f6a945619e1536bbc1ea9caa5fda2cf234",
+      "sha256": "605478b13f6015989a8499192dfd2fee4106c07488f43baa3f99dfc9ecb15809"
+    },
+    "scripts/cafe_paint_stroke.gd": {
+      "git_blob": "b38ca3f67fa05e7ab98635797fe56f9ebdacb601",
+      "sha256": "2dffd7a06eaa1b6148be4d5243de556fa8458a303c223ecdfa8630dc04503597"
+    },
+    "scripts/cafe_paint_plan.gd": {
+      "git_blob": "f8e56ef2c0948b25727d027e23a66ff392c33b58",
+      "sha256": "5d4781095f00aa7babc3824fd6e3d4e3d4c85c1a6112e435ab570f38dffa27d6"
+    },
+    "scripts/cafe_shell_segments.gd": {
+      "git_blob": "404cebb839db8a1b2ab6d6c7cdb7df9d5e4cb169",
+      "sha256": "91dc7c5ba9ea6bd4feb54de27fe10452d80fa8bcc171313cb1a0b3cd5a2e7bc1"
+    },
+    "scripts/cafe_furniture_motion.gd": {
+      "git_blob": "bbb3662aa653a548e6b74a3749e6fff401b5ff8e",
+      "sha256": "bab40a303d7933caefcce37a5f0aef08bcab93520d81f5b68de6af5e09f0f23e"
+    },
+    "scripts/minimal_start.gd": {
+      "git_blob": "1ae56abd66224bb9945638b9e87d12085f4ff899",
+      "sha256": "3cc5ce160494e1244bf1997d7933dae7a9dfcc48dedc889ca5cc4876c6ecbc5c"
+    },
+    "scripts/cafe_interaction.gd": {
+      "git_blob": "ac3d334f8c3587b2ce54659a48596f2d049c29e3",
+      "sha256": "49e8a5800d60417a797997bbe972dc6888e5a60276f05b7d89fc57c945247669"
+    },
+    "scripts/cafe_floor_availability.gd": {
+      "git_blob": "4623abe649225437c4f8e3264f0e9374774349b5",
+      "sha256": "4a867070604735baffd673ef0e478e02804cc481f810ad83918ca62eff444b61"
+    },
+    "scripts/cafe_edit_plan.gd": {
+      "git_blob": "e50021172ad38eb608c5f6bc6d1b96fba766b56f",
+      "sha256": "c05dc31a0457412fc7998afedc90fae0f475718173dbbd85767b765a08a8ddc1"
+    },
+    "scripts/cafe_model.gd": {
+      "git_blob": "cce6665fb36e9784b73532e1e7836746d9945664",
+      "sha256": "d65e718a21710ab70576dc3b9de85aa0e95aa91f7deb46faec2a0af25ac7a71b"
+    },
+    "scripts/cafe_wall_transactions.gd": {
+      "git_blob": "cee3baed1c62b15c58d8e8f0b45bdbd2f649f47b",
+      "sha256": "7eef8d1deb16c22125f5fa59231b58feea7ec577bde6004a06f476d9469edb0a"
+    }
+  },
+  "changed_count": 40,
+  "assets": {
+    "furniture": "dd5c41e6b6df1624fa60825f82db5f2db3ddc839ed688336e3bd8c5e2098d31f",
+    "moving": "e513c2ecc19809af18f52cca66a9943778a4a21dad3f94299bf5035df77e9f8a",
+    "heads": "cc606e0ffa77983ec1b3724cbb74b0ed5c9a65f20aada1e83250140f0ebed34a"
+  },
+  "qualification": "pending renderer-owned changed-art review and source-bound self-parity; no manifest changes"
+}

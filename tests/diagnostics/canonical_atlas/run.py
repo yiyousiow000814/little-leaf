@@ -1,5 +1,6 @@
-"""10a-only exact native parity; never accept changed pixels or write a manifest."""
+"""Exact reviewed candidate-art parity; immutable original control; never write a manifest."""
 import argparse,hashlib,json,os,pathlib,shutil,subprocess,tempfile
+from changed_art_policy import expected_for,verify_proposal
 HERE=pathlib.Path(__file__).resolve().parent
 EXPECTED_RGBA=['31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732','6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc','d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7']
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -10,8 +11,8 @@ def frozen_targets(inputs):
  assert all(len(v['commit'])==40 and len(v['tree'])==40 for v in targets.values())
  assert len({v['commit'] for v in targets.values()})==2
  return targets
-def receipt_passed(r,code):
- return code==0 and r.get('checks')==3 and not r.get('failures',['missing']) and r.get('baseline_sha256')==r.get('candidate_sha256')==EXPECTED_RGBA and r.get('display_server')=='X11' and r.get('renderer')=='gl_compatibility' and r.get('engine')=='4.6.3-stable (official)' and 'llvmpipe (LLVM 20.1.2, 256 bits)' in r.get('adapter','')
+def receipt_passed(r,code,expected=EXPECTED_RGBA):
+ return code==0 and r.get('checks')==3 and not r.get('failures',['missing']) and r.get('baseline_sha256')==r.get('candidate_sha256')==expected and r.get('display_server')=='X11' and r.get('renderer')=='gl_compatibility' and r.get('engine')=='4.6.3-stable (official)' and 'llvmpipe (LLVM 20.1.2, 256 bits)' in r.get('adapter','')
 
 def native_fingerprint_passed(log):
  return 'Godot Engine v4.6.3.stable.official.7d41c59c4 -' in log and 'Mesa 25.2.8-0ubuntu0.24.04.4' in log
@@ -23,14 +24,19 @@ def native(cmd,env,log):
 def main():
  p=argparse.ArgumentParser();p.add_argument('--godot',required=True);p.add_argument('--expected-head',required=True);p.add_argument('--output',type=pathlib.Path,required=True);a=p.parse_args()
  inputs=json.loads((HERE/'inputs.json').read_text());targets=frozen_targets(inputs)
+ declaration=json.loads((HERE/'changed-art-declaration.json').read_text());closure=json.loads((HERE/'producer-closure.json').read_text())
+ assert sha(HERE/'producer-closure.json')==declaration['closure_packet_sha256']
+ assert sha(HERE/'renderer-review.md')==declaration['renderer_review_sha256']
  root=pathlib.Path.cwd();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True);assert git('rev-parse','HEAD')==a.expected_head
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  packages=subprocess.run(['dpkg-query','-W','libgl1-mesa-dri','libglx-mesa0','libllvm20','xvfb'],capture_output=True,text=True);(out/'packages.txt').write_text(packages.stdout+packages.stderr)
- binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'exact camera input successor; qualified control reused'}
+ binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','changed_art_policy.py','check_source_png.gd','changed-art-declaration.json','producer-closure.json','renderer-review.md']},'reference_run':37898956030,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'PR125 reviewed furniture proposal; immutable qualified control reused'}
  def save():(out/'summary.json').write_text(json.dumps(binding,indent=2))
- save();assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
+ save();assert binding['godot_member_sha256']=='f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3'
+ assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
  for label,item in targets.items():
+  expected=expected_for(label,item,EXPECTED_RGBA,declaration)
   dest=out/label;dest.mkdir()
   if label=='control' and inputs.get('reuse_control'):
    reference=inputs['reuse_control'];assert reference['run']==38066367866 and reference['artifact']==11674353510
@@ -46,13 +52,15 @@ def main():
    work=pathlib.Path(temp)/'source';subprocess.run(['git','fetch','--no-tags','origin',item['commit']],check=True);subprocess.run(['git','worktree','add','--detach',str(work),item['commit']],check=True)
    try:
     assert git('-C',str(work),'rev-parse','HEAD^{tree}')==item['tree']
+    proposal_check=verify_proposal(work,item,declaration,closure)
+    (dest/'proposal-policy-check.json').write_text(json.dumps(proposal_check,indent=2))
     copy=pathlib.Path(temp)/'copy';shutil.copytree(work,copy,ignore=shutil.ignore_patterns('.git','.godot'))
     tracked=subprocess.check_output(['git','-C',str(work),'ls-files','-z']).decode().split('\0');inventory={n:sha(work/n) for n in tracked if n}
     (dest/'source-binding.json').write_text(json.dumps({'commit':item['commit'],'tree':item['tree'],'source_sha256':inventory},indent=2))
     project=copy/'game' if (copy/'game/project.godot').exists() else copy
     config=project/'project.godot';text=config.read_text().replace('[application]','[application]\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="tena-atlas-saveguard"',1);config.write_text(text)
     helper=project/'qa/canonical_atlas';helper.mkdir(parents=True,exist_ok=True)
-    for n in ['parity.gd','check_saved.gd']:shutil.copy2(HERE/n,helper/n)
+    for n in ['parity.gd','check_saved.gd','check_source_png.gd']:shutil.copy2(HERE/n,helper/n)
     (helper/'parity.tscn').write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://qa/canonical_atlas/parity.gd" id="1"]\n[node name="ZeroGameParity" type="Node"]\nscript=ExtResource("1")\n')
     env.update(XDG_DATA_HOME=str(pathlib.Path(temp)/'data'),XDG_CONFIG_HOME=str(pathlib.Path(temp)/'config'),LL_ATLAS_OUTPUT=str(dest),LL_ATLAS_SOURCE=item['commit'])
     # Avoid editor importer worker callbacks into the scene tree. This setting
@@ -69,9 +77,11 @@ def main():
     code=native([a.godot,'--path',str(project),'--audio-driver','Dummy','--rendering-method','gl_compatibility','res://qa/canonical_atlas/parity.tscn'],env,dest/'native.log')
     receipt=json.loads((dest/'atlas-parity.json').read_text());log=(dest/'native.log').read_text()
     saved_code=native([a.godot,'--headless','--path',str(project),'--script','res://qa/canonical_atlas/check_saved.gd'],env,dest/'saved-png.log');saved=json.loads((dest/'saved-png-check.json').read_text())
-    passed=receipt_passed(receipt,code) and receipt.get('source_commit')==item['commit'] and native_fingerprint_passed(log) and saved_code==0 and len(saved.get('rows',[]))==3 and not saved.get('failures',['missing'])
+    source_code=native([a.godot,'--headless','--path',str(project),'--script','res://qa/canonical_atlas/check_source_png.gd'],env,dest/'source-png.log');source_png=json.loads((dest/'source-png-check.json').read_text())
+    passed=receipt_passed(receipt,code,expected) and receipt.get('source_commit')==item['commit'] and native_fingerprint_passed(log) and saved_code==0 and len(saved.get('rows',[]))==3 and not saved.get('failures',['missing']) and source_code==0 and len(source_png.get('rows',[]))==3 and not source_png.get('failures',['missing']) and all(row['passed'] and row['source_rgba']==expected[i] for i,row in enumerate(source_png['rows'])) and all(row['passed'] and row['imported_rgba']==row['regenerated_rgba']==expected[i] for i,row in enumerate(saved['rows']))
     binding['rows'].append({'label':label,**item,'passed':passed,'native_exit':code,'receipt_sha256':sha(dest/'atlas-parity.json'),'regenerated_rgba':receipt['baseline_sha256'],'imported_rgba':receipt['candidate_sha256']});save()
     assert passed,f'{label}: exact canonical equality failed; stop without changes'
+    assert all(sha(project/n.removeprefix('game/'))==digest for n,digest in inventory.items() if n.startswith('game/assets/cache/')),'Import mutated source cache assets/settings'
     assert not git('-C',str(work),'status','--porcelain')
    finally:subprocess.run(['git','worktree','remove','--force',str(work)],check=True)
  assert not git('status','--porcelain')
