@@ -45,7 +45,17 @@ def main():
     for n in ['parity.gd','check_saved.gd']:shutil.copy2(HERE/n,helper/n)
     (helper/'parity.tscn').write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://qa/canonical_atlas/parity.gd" id="1"]\n[node name="ZeroGameParity" type="Node"]\nscript=ExtResource("1")\n')
     env.update(XDG_DATA_HOME=str(pathlib.Path(temp)/'data'),XDG_CONFIG_HOME=str(pathlib.Path(temp)/'config'),LL_ATLAS_OUTPUT=str(dest),LL_ATLAS_SOURCE=item['commit'])
-    assert native([a.godot,'--headless','--path',str(project),'--editor','--import'],env,dest/'import.log')==0
+    # Avoid editor importer worker callbacks into the scene tree. This setting
+    # applies only to the disposable import stage; runtime config is restored.
+    runtime_config=config.read_text()
+    assert '[editor]' not in runtime_config,'Review existing editor section before adding diagnostic import override'
+    config.write_text(runtime_config+'\n[editor]\nimport/use_multiple_threads=false\n')
+    (dest/'import-policy.json').write_text(json.dumps({'editor/import/use_multiple_threads':False,'scope':'disposable import only','asset_settings_changed':False},indent=2))
+    try:
+     import_code=native([a.godot,'--headless','--path',str(project),'--editor','--import'],env,dest/'import.log')
+    finally:config.write_text(runtime_config)
+    assert config.read_text()==runtime_config
+    assert import_code==0,'Isolated serial import failed; retain log and stop'
     code=native([a.godot,'--path',str(project),'--audio-driver','Dummy','--rendering-method','gl_compatibility','res://qa/canonical_atlas/parity.tscn'],env,dest/'native.log')
     receipt=json.loads((dest/'atlas-parity.json').read_text());log=(dest/'native.log').read_text()
     saved_code=native([a.godot,'--headless','--path',str(project),'--script','res://qa/canonical_atlas/check_saved.gd'],env,dest/'saved-png.log');saved=json.loads((dest/'saved-png-check.json').read_text())
