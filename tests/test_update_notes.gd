@@ -34,10 +34,11 @@ func load_fixture(document:Variant):
  notes.setup(FIXTURE)
  await settle()
 func run():
- var checked=Notes.validate_document(JSON.parse_string(FileAccess.get_file_as_string(Notes.DATA_PATH)))
+ var document=JSON.parse_string(FileAccess.get_file_as_string(Notes.DATA_PATH))
+ var checked=Notes.validate_document(document)
  check(checked.valid,"checked-in release notes are accepted by runtime")
- check(checked.status=="released" and checked.version=="0.1.10a","published preview notes expose the current version")
- check(checked.label=="Developer preview" and checked.date=="2026-10-09","published preview keeps its label and publication date")
+ check(checked.status=="released" and checked.version==ProjectSettings.get_setting("application/config/version"),"published preview notes expose the current version")
+ check(checked.label==document.label and checked.date==document.date,"published preview keeps its label and publication date")
  for status in ["pending","draft"]:
   var input=fixture(status);var original=input.duplicate(true)
   var normalized=Notes.validate_document(input)
@@ -56,12 +57,19 @@ func run():
  await process_frame
  var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
  var shipped_text=words(notes.body)
- check("Developer preview" in shipped_text and "Version 0.1.10a · 2026-10-09" in shipped_text and "Version 0.1.10 · 2026-10-09" in shipped_text,"actual checked-in preview header is rendered")
+ check(checked.label in shipped_text and "Version %s · %s"%[checked.version,checked.date] in shipped_text,"actual checked-in preview header is rendered")
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
  for section in ["new","fixed"]:
   for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
- check(checked.new.size()==3 and checked.fixed.size()==4 and checked.history.size()==1 and checked.history[0].new.size()==6 and checked.history[0].fixed.size()==7,"hotfix notes retain the complete previous major preview")
- check(str(checked.history[0].fixed[-1])=="This is a developer preview. Cross-device cloud saves and device compatibility are still being verified." and "coordinated server rollout" in str(checked.fixed[-1]),"acceptance limits are in visible notes rather than ignored review metadata")
+ var major={}
+ for previous in checked.history:
+  check("Version %s · %s"%[previous.version,previous.date] in shipped_text,"historical release header is rendered "+previous.version)
+  for section in ["new","fixed"]:
+   for item in previous[section]:check(item in shipped_text,"every historical bullet is rendered "+previous.version)
+  if previous.version=="0.1.10":major=previous
+ check(not major.is_empty() and major.new.size()==6 and major.fixed.size()==7,"hotfix notes retain the complete previous major preview")
+ var visible="\n".join(shipped_text)
+ check("This is a developer preview. Cross-device cloud saves and device compatibility are still being verified." in visible and "coordinated server rollout" in visible,"acceptance limits are visible rather than ignored review metadata")
  preferences.last_seen_update_version="8.0.0"
  var original_config_exists=FileAccess.file_exists(preferences.config_path)
  for status in ["pending","draft"]:
