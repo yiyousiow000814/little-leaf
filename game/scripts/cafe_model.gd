@@ -113,6 +113,7 @@ var parking_owned=false
 var parking_paid_cost=0
 var parking_visits:Array[Dictionary]=[]
 var road_traffic_state:Dictionary=Parking.initial_traffic()
+var road_bus=Parking.initial_bus()
 var _parking_session_purchase=false
 
 func parking_price()->int:return Parking.PRICE
@@ -215,7 +216,7 @@ func reset_new() -> void:
 	dining_sets.clear()
 	customers.clear()
 	outside_queue.clear()
-	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false;road_traffic_state=Parking.initial_traffic()
+	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false;road_traffic_state=Parking.initial_traffic();road_bus=Parking.initial_bus()
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
 	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()

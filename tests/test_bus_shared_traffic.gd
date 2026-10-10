@@ -5,6 +5,7 @@ var failures=[]
 var checks=0
 class RestoreModel extends RefCounted:
  var road_traffic_state={}
+ var road_bus
  var parking_visits=[{"id":17,"members":[{"id":19,"guest_id":23,"appearance_sequence":29}]}]
 func check(ok,label):
  checks+=1

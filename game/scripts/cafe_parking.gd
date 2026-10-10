@@ -18,9 +18,13 @@ const PENDING=["car_arriving","walking_in","queued"]
 const PHASES=["car_arriving","walking_in","queued","dining","walking_return","car_departing","parked"]
 
 static func initial_traffic()->Dictionary:return Traffic.initial()
+static func initial_bus():
+	var bus=preload("res://scripts/bus_stop_pedestrians.gd").new()
+	bus.reset_traffic_entry()
+	return bus
 static func snapshot(model)->Dictionary:
 	return {"format":FORMAT,"owned":model.parking_owned,"paid_cost":model.parking_paid_cost,"visits":model.parking_visits,"traffic":model.road_traffic_state}
-static func restore_traffic(model,state:Dictionary):model.road_traffic_state=state.traffic.duplicate(true)
+static func restore_traffic(model,state:Dictionary):model.road_traffic_state=state.traffic.duplicate(true);model.road_bus=initial_bus()
 static func bay_point(bay:int)->Vector2:return Vector2(BAY_X[bay],BAY_Z)
 # The invisible endpoint is inside the cabin. A passenger crosses the side
 # before becoming an ordinary aisle walker; the car keeps its original shape.
@@ -169,7 +173,8 @@ static func _driving(car:Dictionary)->bool:
 	return int(car.car_index)>0 or car.car_position!=origin
 static func advance(model,delta:float):
 	if not is_finite(delta) or delta<=0:return
-	Traffic.advance(model.road_traffic_state,model.parking_visits,delta)
+	var old_road=model.road_traffic_state.cars.duplicate(true)
+	Traffic.advance(model.road_traffic_state,model.parking_visits,delta,model.road_bus)
 	var moving_id=-1
 	for car in model.parking_visits:
 		if _driving(car):moving_id=int(car.id);break
@@ -184,11 +189,11 @@ static func advance(model,delta:float):
 			if int(car.id)!=moving_id:continue
 			var budget=CAR_SPEED*delta;var stop_index=-1
 			if absf(car.car_position.x-CAR_START.x)<.01:
-				budget=Traffic.allowance(car.car_position,1,budget,model.road_traffic_state.cars,[])
+				budget=Traffic.allowance(car.car_position,1,budget,old_road,[])
 			if car.phase=="car_departing" and car.car_route.size()==35 and (int(car.car_index)<18 or (int(car.car_index)==18 and car.car_position.distance_to(car.car_route[17])<.0001)):
 				# Wait at the aisle before committing the merge arc; once committed,
 				# road followers yield to the physical car instead of restarting it.
-				if not Traffic.merge_clear(model.road_traffic_state,AISLE_Z+1.5):stop_index=18
+				if not Traffic.merge_clear({"cars":old_road},AISLE_Z+1.5):stop_index=18
 			_move(car,"car_",budget,stop_index)
 			if not _settled(car,"car_"):continue
 			if car.phase=="car_departing":retired.append(car);continue

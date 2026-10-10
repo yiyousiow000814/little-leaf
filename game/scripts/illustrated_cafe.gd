@@ -283,6 +283,7 @@ func _ground_cell_visible(x: float,z: float,view: Rect2) -> bool:
 	return Rect2(center-tile,tile*2).intersects(view)
 
 func _ready():
+	_sync_bus_controller()
 	ground_art.use_stroke_mesh="--retained-ground-strokes" in OS.get_cmdline_user_args() and not "--legacy-ground-strokes" in OS.get_cmdline_user_args()
 	use_grass_mesh=not "--legacy-grass-strokes" in OS.get_cmdline_user_args()
 	use_cached_moving_art=not "--legacy-moving-art" in OS.get_cmdline_user_args()
@@ -322,7 +323,13 @@ func _process(delta):
 		if game.save_recovery_blocked or (game.compact_ui!=null and game.compact_ui.viewport_too_small):motion_delta=0.0
 	update_motion(motion_delta)
 	if not use_idle_retention or render_idle.needs_redraw(self):queue_redraw()
+func _sync_bus_controller():
+	# Drawing may precede processing after startup, successful load or reset.
+	# Synchronize only the reference; the existing model tick owns progress.
+	if is_instance_valid(game) and game.model!=null and "road_bus" in game.model:
+		bus_stop_pedestrians=game.model.road_bus
 func _update_street_pedestrians(delta:float):
+	_sync_bus_controller()
 	if not is_instance_valid(game):return
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
 	if game.cafe_intro!=null and game.cafe_intro.active:delta=game.cafe_intro.motion_delta(delta)
@@ -335,7 +342,9 @@ func _update_street_pedestrians(delta:float):
 	if "road_traffic_state" in game.model:
 		road_traffic.cars.assign(game.model.road_traffic_state.cars);road_traffic.elapsed=float(game.model.road_traffic_state.elapsed)
 	else:road_traffic.advance(step,origin,tile,render_view_rect())
-	bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
+	if "road_bus" in game.model:
+		bus_stop_pedestrians.observe_traffic_motion(step,origin,tile,render_view_rect())
+	else:bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,render_view_rect())
 
@@ -881,6 +890,7 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 
 var playtest_draw_ms=0.0
 func _draw():
+	_sync_bus_controller()
 	var playtest_started=Time.get_ticks_usec()
 	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
 	retained_geometry.begin_frame()
