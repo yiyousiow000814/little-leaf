@@ -7,6 +7,7 @@ class Model extends RefCounted:
 class Api extends RefCounted:
 	var storageKind="crazygames-data"
 class Game extends Node:
+	var background_elapsed=null
 	var model=Model.new()
 	var platform_autosave_dirty=true
 	var platform_dirty_generation=3
