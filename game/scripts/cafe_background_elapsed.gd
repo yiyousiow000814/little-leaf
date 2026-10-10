@@ -57,6 +57,7 @@ func average_profit_rate()->float:
 
 func hidden_changed(hidden:bool):
 	if hidden:
+		if game==null or game.web_save==null:return
 		if holding:return
 		if not game.model.operating_open or game.paused or game.editing or game.save_recovery_blocked or game.cafe_intro!=null and game.cafe_intro.active:return
 		var recovery=game.web_save.recovery_snapshot()
@@ -153,7 +154,7 @@ func _hold_input():
 func stop():
 	# A dispatched transaction can already have committed on the server. Its
 	# receipt must reconcile through reload before the old model may write again.
-	if game!=null and (phase=="committing" or phase in ["arming","armed","sealing"] and bool(game.web_save.recovery_snapshot().get("serverOwnership",false))):
+	if game!=null and (phase=="committing" or phase in ["arming","armed","sealing"] and (game.web_save==null or bool(game.web_save.recovery_snapshot().get("serverOwnership",false)))):
 		game.paused=true;game.save_recovery_blocked=true;game.save_writes_suppressed=true
 	generation+=1
 	if bridge!=null:bridge.cancelBackground()
