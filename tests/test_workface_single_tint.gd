@@ -19,6 +19,8 @@ func _initialize():run.call_deferred()
 func run():
  var game=FixtureMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.editing=true;game.paused=true
  var m=game.model;var guide=game.workface_guidance
+ # Keep legacy counter paint coverage without offering a new counter purchase.
+ m.items.append({"id":m._next_item_id,"kind":"counter","x":5,"z":6,"rot":0});m._next_item_id+=1;m._notify()
  var state=JSON.stringify([m.items,m.coins,m.revision,game.saves])
  for kind in ["stove","sink","beverage","counter","register"]:
   var item={}

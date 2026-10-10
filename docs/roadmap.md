@@ -2281,6 +2281,8 @@ Missing work / next action: Preserve reserved legacy counter jobs, duplicate-out
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
+Local integration update (2026-10-10, not merged/released): the separate `local/011-pickup-integration` candidate composes the PR91 prerequisite delta once and PR104 direct pickup onto main `1d7b7b5`, retaining starter-bin commit `c88a4f7` and released floor disposal. Focused synthetic behavior checks cover new stove pickup, occupied-output exclusion/reuse, exact ownership across save/reload, and a real legacy reserved-counter handoff through checkout. Existing kitchen/contact drawing comes from the reviewed dependency; character/wardrobe and routing foundation activation remain held. Native/Web visual acceptance is pending. The existing prebaked-atlas provenance guard rejects the changed procedural dependency closure; regenerate and verify RGBA before updating the manifest. This candidate does not supply PR103 wall/edit APIs or atomic paint publication.
+
 ### 10.02 — Chef finishes at the stove, yields space, and the waiter physically picks up the plate.
 
 | Code | Tests | Visual acceptance | Merged | Released |
@@ -2300,6 +2302,8 @@ Visual acceptance: Exact-head production workflow success; integrated acceptance
 Missing work / next action: Preserve reserved legacy counter jobs, duplicate-output rejection, blocked paths, yielding and one ownership transfer
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+
+Local integration update (2026-10-10, not merged/released): the separate `local/011-pickup-integration` candidate composes the PR91 prerequisite delta once and PR104 direct pickup onto main `1d7b7b5`, retaining starter-bin commit `c88a4f7` and released floor disposal. Focused synthetic behavior checks cover new stove pickup, occupied-output exclusion/reuse, exact ownership across save/reload, and a real legacy reserved-counter handoff through checkout. Existing kitchen/contact drawing comes from the reviewed dependency; character/wardrobe and routing foundation activation remain held. Native/Web visual acceptance is pending. The existing prebaked-atlas provenance guard rejects the changed procedural dependency closure; regenerate and verify RGBA before updating the manifest. This candidate does not supply PR103 wall/edit APIs or atomic paint publication.
 
 ### 10.03 — Do not give an unnecessary trash bin in a fresh start, but retain the item for optional shop purchase; preserve already-owned items and saved value.
 

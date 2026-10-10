@@ -89,14 +89,15 @@ var service_serial = 0
 var active_staff_passages = {}
 var static_service_paths = {}
 var static_service_revision = -1
+const ChefPickup=preload("res://scripts/cafe_chef_pickup.gd")
 const SERVICE_STEPS = {
 	"take_payment": [{"kind":"register","action":"taking_payment","seconds":Checkout.PAYMENT_SECONDS}],
 	"floor": FloorTasks.STEPS,
 	"wash": Dishwashing.STEPS,
 	"order": [{"kind":"table","action":"taking_order","seconds":Model.ORDER_TAKING_SECONDS}],
-	"cook": [{"kind":"stove","action":"preparing_food","seconds":1.5},{"kind":"stove","action":"cooking","seconds":Model.BASE_COOK_SECONDS},{"kind":"stove","action":"plating","seconds":1.5},{"kind":"counter","action":"placing_plate","seconds":.8}],
+	"cook": [{"kind":"stove","action":"preparing_food","seconds":1.5},{"kind":"stove","action":"cooking","seconds":Model.BASE_COOK_SECONDS},{"kind":"stove","action":"plating","seconds":1.5},{"kind":"stove","action":"placing_plate","seconds":.8}],
 	"brew": [{"kind":"beverage","action":"preparing_drink","seconds":3.5},{"kind":"beverage","action":"collecting_drink","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
-	"deliver_meal": [{"kind":"counter","action":"collecting_plate","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
+	"deliver_meal": [{"kind":"stove","action":"collecting_plate","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
 	"deliver_drink": [{"kind":"beverage","action":"collecting_drink","seconds":.7},{"kind":"table","action":"serving","seconds":.8}],
 	"cleanup": [{"kind":"table","action":"collecting","seconds":.75},{"kind":"sink","action":"dropping_dishes","seconds":Dishwashing.DROP_SECONDS},{"kind":"table","action":"wiping","seconds":1.2},{"kind":"table","action":"sweeping","debris_kind":"banana","seconds":.85},{"kind":"table","action":"sweeping","debris_kind":"crumbs","seconds":1.25},{"kind":"bin","action":"disposing_trash","seconds":.9},{"kind":"table","action":"mopping","seconds":1.5}]
 }
@@ -1355,6 +1356,7 @@ func _guest_bubble_symbol(guest:Dictionary)->String:
 
 func _meal_prepared(record:Dictionary)->bool:
 	var owner=str(record.plate_owner)
+	if ChefPickup.prepared(record):return true
 	if owner=="table" and int(record.plate_target_id)==int(record.guest.table_id):return true
 	if owner=="counter" and int(record.plate_target_id)==int(record.meal_pass_id):
 		if str(model.get_item(int(record.plate_target_id)).get("kind",""))=="counter":return true
@@ -1514,7 +1516,7 @@ func _service_target(staff: Dictionary) -> Dictionary:
 	if staff.job_kind=="cleanup" and str(steps[int(staff.job_step)].action)=="disposing_trash":return _local_trash_target(staff)
 	if staff.job_kind=="cleanup" and int(staff.job_step)==0 and int(service_guests[int(staff.job_guest_id)].get("dish_sink_id",-1))<0:return {}
 	var guest=service_guests[int(staff.job_guest_id)].guest
-	if kind=="counter" and staff.role=="chef": return model.get_item(int(service_guests[int(staff.job_guest_id)].meal_pass_id))
+	if staff.job_kind=="cook" and int(staff.job_step)==3:return model.get_item(ChefPickup.output_id(service_guests[int(staff.job_guest_id)]))
 	return model.get_item(int(guest.table_id) if kind=="table" else int(staff.station_id))
 
 func _clear_service_job(staff: Dictionary):
@@ -1538,7 +1540,9 @@ func _retire_service_station_references():
 				"cook":
 					needs_stove=true
 					if int(worker.job_step)==3:needs_pass=true
-				"deliver_meal":needs_pass=true
+				"deliver_meal":
+					if int(record.meal_pass_id)>=0:needs_pass=true
+					else:needs_stove=true
 				"brew","deliver_drink":needs_drink=true
 		if not needs_stove:record.meal_station_id=-1
 		if not needs_pass:record.meal_pass_id=-1
@@ -1557,27 +1561,9 @@ func _service_station(kind: String, from: Vector2i, staff_index: int) -> Diction
 		if not busy and _service_cell(item,from)!=Vector2i(-1,-1): return item
 	return {}
 
-func _reserve_pass(staff: Dictionary):
-	var record=service_guests[int(staff.job_guest_id)]
-	if int(record.meal_pass_id)>=0: return
-	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-	var any_counter=false
-	var full=false
-	for item in model.items:
-		if str(item.kind)!="counter": continue
-		any_counter=true;staff.blocked_target_id=int(item.id)
-		if _service_cell(item,from,[],"chef")==Vector2i(-1,-1) or _service_cell(item,from,[],"waiter")==Vector2i(-1,-1): continue
-		var reserved=false
-		for other in service_guests.values():
-			if bool(other.get("pass_reserved",false)) and int(other.get("meal_pass_id",-1))==int(item.id): reserved=true;break
-		if reserved: full=true;continue
-		record.meal_pass_id=int(item.id);record.pass_reserved=true;staff.blocked_reason="";return
-	staff.blocked_reason="Pass counter full · waiting for the waiter" if full else ("Pass counter blocked · clear its back and front in Decorate" if any_counter else "Add a pass counter in Decorate")
-	staff.blocked_guest_id=int(staff.job_guest_id)
-
 func _mark_blocked_job(staff: Dictionary, guest: Dictionary, kind: String):
 	staff.blocked_guest_id=int(guest.id);staff.blocked_target_id=-1
-	var station_kind={"cook":"stove","brew":"beverage","cleanup":"sink","deliver_meal":"counter","deliver_drink":"beverage","order":"table","take_payment":"register"}[kind]
+	var station_kind={"cook":"stove","brew":"beverage","cleanup":"sink","deliver_meal":"stove","deliver_drink":"beverage","order":"table","take_payment":"register"}[kind]
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 	var has_usable=false
 	for item in model.items:
@@ -1631,7 +1617,7 @@ func _assign_service_job(staff: Dictionary, index: int):
 			var station={}
 			if kind=="take_payment":station=model.get_item(int(guest.checkout_register_id))
 			elif kind=="order": station=model.get_item(int(guest.table_id))
-			elif kind=="deliver_meal": station=model.get_item(int(record.meal_pass_id))
+			elif kind=="deliver_meal": station=model.get_item(ChefPickup.output_id(record))
 			elif kind=="deliver_drink": station=model.get_item(int(record.drink_station_id))
 			else: station=_service_station({"cleanup":"sink","brew":"beverage","cook":"stove"}[kind],from,index)
 			if station.is_empty() or _service_cell(station,from,[],str(staff.role))==Vector2i(-1,-1):
@@ -1703,7 +1689,7 @@ func _refresh_idle_homes():
 			if not register.is_empty():reserved.append(staff.idle_home_cell)
 			continue
 		var anchor={}
-		var anchor_kind="counter" if staff.role=="waiter" else "sink"
+		var anchor_kind="stove" if staff.role=="waiter" else "sink"
 		for item in model.items:
 			if item.kind==anchor_kind:anchor=item;break
 		var focus=Vector2i(int(anchor.get("x",6)),int(anchor.get("z",1)))
@@ -1736,6 +1722,7 @@ func _staff_idle_cell(index: int, claimed: Array, allow_home:bool=true) -> Vecto
 	var station=model.get_item(int(staff.get("idle_home_id",-1)))
 	var physical_home_ok=allow_home and home!=Vector2i(-1,-1) and _staff_walkable(home) and not _static_service_path(from,home).is_empty()
 	if staff.role=="chef" and bool(staff.get("on_duty",true)) and not station.is_empty():physical_home_ok=physical_home_ok and not model.edge_blocked(home,Vector2i(int(station.x),int(station.z)))
+	if staff.role=="chef" and ChefPickup.needs_pickup_space(int(station.get("id",-1)),service_guests,staff_states):physical_home_ok=false
 	if staff.role=="chef" and bool(staff.get("on_duty",true)) and staff.job_kind=="" and not physical_home_ok and staff.blocked_reason=="" and model.count_kind("stove")==0:
 		staff.blocked_reason="Add a stove"
 		staff.blocked_target_id=int(station.get("id",-1))
@@ -1817,7 +1804,7 @@ func _service_contact(staff: Dictionary, index: int, action: String, target: Dic
 	if action=="plating" and phase>=.65:
 		record.plate_owner="staff";record.plate_staff_index=index;record.plate_target_id=-1
 	elif action=="placing_plate" and phase>=.65:
-		record.plate_owner="counter";record.plate_staff_index=-1;record.plate_target_id=int(target.id)
+		ChefPickup.deposit(record,target)
 	elif action=="preparing_drink" and phase>=1.0:
 		record.drink_owner="station";record.drink_staff_index=-1;record.drink_target_id=int(target.id)
 	elif action=="collecting_plate" and phase>=.65:
@@ -1899,7 +1886,6 @@ func _animate_staff(delta: float):
 			var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 			if str(record.trash_owner) not in ["staff","bin"] and floor_tasks.destination_for_record(record,staff,from,[])==Vector2i(-1,-1):_clear_service_job(staff)
 		elif staff.job_kind=="take_payment" and bool(service_guests[int(staff.job_guest_id)].guest.paid):_clear_service_job(staff)
-		elif staff.job_kind=="cook" and str(SERVICE_STEPS.cook[int(staff.job_step)].kind)=="counter": _reserve_pass(staff)
 	for index in staff_states.size():
 		if staff_states[index].job_kind=="": _assign_service_job(staff_states[index],index)
 	for index in range(staff_states.size()):

@@ -21,7 +21,8 @@ func run():
  var blocked=0
  for cell in cells:
   if cells[cell].blocked:blocked+=1
- check(blocked==16 and game.model.count_kind("bin")==0,"seven furnishings and nine required clear spaces are red; optional bin is not auto-placed")
+ check(game.model.items.size()==6 and game.model.count_kind("counter")==0 and game.model.count_kind("bin")==0,"direct-pickup starter contains six furnishings, no service counter or mandatory bin")
+ check(blocked==13,"six furnishings and seven required clear spaces are red, including chef workface")
  for x in 12:check(not cells[Vector2i(x,8)].blocked,"empty edge row is free "+str(x))
  check(cells[Vector2i(0,5)].blocked and cells[Vector2i(1,5)].blocked,"actual entrance and landing remain required")
  check(not cells[Vector2i(0,4)].blocked and not cells[Vector2i(1,4)].blocked,"table anchor dilation does not enlarge doorway red mask")
