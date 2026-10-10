@@ -223,5 +223,106 @@ func run():
    else:last_job=i
  bad.staff[last_job].job_dish_id=bad.staff[first_job].job_dish_id;bad.staff[last_job].station_id=bad.staff[first_job].station_id;bad.staff[last_job].job_token=bad.staff[first_job].job_token
  check(not valid(bad).ok,"two cleaners cannot own the same queued dish")
+ await concurrent_dropoff_cases()
  var report={"checks":checks,"failures":failures,"stages":stages,"queue_capacity":6,"wash_seconds":20,"normal_saves_suppressed":game.save_writes_suppressed}
  print("DISHWASHING_QUEUE_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)
+
+func side_drop_case()->Dictionary:
+ game.model.reset_new();game.model.ensure_basic_bin();game.model.ensure_basic_register();game._rebuild_furniture();game._update_people()
+ var r=game.setup_dirty(false)
+ var basin=sink();basin.x=6;basin.z=4;basin.rot=0
+ var register=game.model.checkout_register();register.x=2;register.z=6;register.rot=0
+ var interaction_cells=[Vector2i(5,4),Vector2i(7,4),Vector2i(6,5),Vector2i(8,4),Vector2i(10,4),Vector2i(9,5)]
+ # Relocate the complete fixture dining pair; keep its save ledger valid.
+ for group in game.model.dining_sets:
+  var table=game.model.get_item(int(group.table_id));var seat=game.model.get_item(int(group.seat_id))
+  if Vector2i(int(table.x),int(table.z)) in interaction_cells or Vector2i(int(seat.x),int(seat.z)) in interaction_cells:
+   table.x-=2;seat.x-=2
+ game.model.rebuild_dining_sets()
+ game.model.items=game.model.items.filter(func(item):return item.kind=="sink" or Vector2i(int(item.x),int(item.z)) not in interaction_cells)
+ var alternate=basin.duplicate(true);alternate.id=game.model._next_item_id;game.model._next_item_id+=1;alternate.x=9
+ game.model.items.append(alternate);game.model.revision+=1;game._rebuild_furniture()
+ for i in game.staff_states.size():
+  var worker=game.staff_states[i];worker.on_duty=false;worker.pos=Vector2(1.5,3.5+i)
+ var cleaner=game.worker("cleaner");var waiter=game.worker("waiter")
+ cleaner.on_duty=true;waiter.on_duty=true
+ fill(1,int(basin.id));game.dishwashing.dishes[game.dishwashing.dishes.keys()[0]].elapsed=5.0
+ cleaner.pos=Vector2(6.5,5.5)
+ check(game.dishwashing.assign(cleaner,game.staff_states.find(cleaner)),"concurrent fixture assigns one janitor")
+ cleaner.destination=Vector2i(6,5);cleaner.job_elapsed=5.0
+ waiter.pos=Vector2(5.5,3.5);waiter.job_kind="cleanup";waiter.job_step=1;waiter.job_elapsed=0.0
+ waiter.job_guest_id=int(r.guest.id);waiter.job_token=int(r.token);waiter.station_id=int(basin.id)
+ r.plate_owner="staff";r.plate_staff_index=game.staff_states.find(waiter);r.dish_sink_id=int(basin.id)
+ r.dishes_collected=true;r.table_wiped=false;r.drink_owner="cleared"
+ return {"record":r,"basin":basin,"alternate":alternate,"cleaner":cleaner,"waiter":waiter}
+func block_drop_cells(cells:Array)->Array:
+ var blockers=[]
+ for cell in cells:
+  var blocker={"id":game.model._next_item_id,"kind":"stove","x":cell.x,"z":cell.y,"rot":0}
+  game.model._next_item_id+=1;game.model.items.append(blocker);blockers.append(blocker)
+ game.model.revision+=1
+ return blockers
+func finish_drop(r:Dictionary)->bool:
+ for tick in 240:
+  game.advance(.05)
+  if r.plate_owner=="dish_queue":return true
+ return false
+func concurrent_dropoff_cases():
+ var art=preload("res://scripts/cafe_sink_wash_art.gd")
+ for rotation in 4:
+  var before=art.drop_geometry(rotation,.65-.00001,Vector2(-20,-18),0)
+  var after=art.drop_geometry(rotation,.65+.00001,Vector2(-20,-18),0)
+  check(before.center.distance_to(after.center)<.001,"drop path is continuous at ownership beat rotation "+str(rotation))
+  var low=art.drop_geometry(rotation,1,Vector2.ZERO,0)
+  var high=art.drop_geometry(rotation,1,Vector2.ZERO,1)
+  check(is_equal_approx(low.center.distance_to(high.center),2.2),"different queued dishes have distinct stack slots rotation "+str(rotation))
+  for slot in 6:
+   var release=art.drop_geometry(rotation,.65,Vector2.ZERO,slot)
+   var halfway=art.drop_geometry(rotation,.825,Vector2.ZERO,slot)
+   var settled=art.drop_geometry(rotation,1,Vector2.ZERO,slot)
+   check(release.height>=settled.height+1.79 and release.center.y<halfway.center.y and halfway.center.y<settled.center.y,"released plate clears queue and lowers continuously rotation "+str(rotation)+" slot "+str(slot))
+ # The preceding legacy cases deliberately hire a second cleaner. Start this
+ # focused group with a fresh synthetic roster so save cardinality stays exact.
+ for player in game.audio_players.values():player.stop();player.stream=null
+ game.queue_free();await process_frame
+ game=Fixture.new();root.add_child(game);await process_frame
+ game.set_process(false);game.illustration.set_process(false)
+ var c=side_drop_case();var r=c.record
+ check(game._service_destination(c.waiter,c.basin,Vector2i(5,3))==Vector2i(5,4),"washing leaves another physical drop side available")
+ var together=false;var reached=false
+ for tick in 80:
+  var wash=float(c.cleaner.job_elapsed);var drop=float(c.waiter.job_elapsed)
+  game.advance(.05)
+  if c.waiter.art_action=="dropping_dishes" and r.plate_owner=="staff" and c.waiter.job_elapsed>=.2:
+   together=c.cleaner.job_elapsed>wash and c.waiter.job_elapsed>drop;reached=true;break
+ check(reached and together,"washing and side-drop advance simultaneously before contact")
+ var wash_elapsed=c.cleaner.job_elapsed;var drop_elapsed=c.waiter.job_elapsed
+ game.paused=true;game._process(.5)
+ check(c.cleaner.job_elapsed==wash_elapsed and c.waiter.job_elapsed==drop_elapsed,"pause freezes both concurrent gestures")
+ roundtrip("concurrent side drop before contact")
+ r=record();var cleaner=game.worker("cleaner")
+ check(finish_drop(r) and game.dishwashing.count_at(int(c.basin.id))==2,"reloaded side drop deposits exactly once without stopping wash")
+ check(cleaner.job_kind=="wash" and cleaner.job_elapsed>5.0 and cleaner.job_elapsed<20.0,"side drop preserves janitor job/progress")
+ check(game.dishwashing.snapshot().dishes.size()==2 and game.dishwashing.deposit(r,game.worker("waiter"),game.staff_states.find(game.worker("waiter")),c.basin),"concurrent handoff remains replay-safe")
+ # The already-carried payload must change sinks when capacity is exhausted.
+ c=side_drop_case();r=c.record;r.dish_sink_id=-1;fill(5,int(c.basin.id))
+ game._prepare_cleanup_step(c.waiter,game.staff_states.find(c.waiter))
+ check(int(r.dish_sink_id)==int(c.alternate.id) and game.dishwashing.load_at(int(c.basin.id))==6 and game.dishwashing.load_at(int(c.alternate.id))==1,"full sink redirects carried dish and reserves one alternate slot")
+ check(finish_drop(r) and game.dishwashing.count_at(int(c.alternate.id))==1 and game.dishwashing.count_at(int(c.basin.id))==6,"full-sink fallback physically deposits at alternate only")
+ # An active wash plus blocked lateral approaches must not monopolize all sinks.
+ c=side_drop_case();r=c.record
+ block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+ c.waiter.job_elapsed=.2
+ game._prepare_cleanup_step(c.waiter,game.staff_states.find(c.waiter))
+ check(int(r.dish_sink_id)==int(c.alternate.id) and c.waiter.job_elapsed==0.0,"unusable approach redirects to another sink and restarts its physical drop gesture")
+ check(game.dishwashing.load_at(int(c.basin.id))==1 and game.dishwashing.load_at(int(c.alternate.id))==1,"alternate selection transfers reservation without duplicate ownership")
+ check(finish_drop(r) and game.dishwashing.count_at(int(c.alternate.id))==1,"blocked-side alternate sink completes without deadlock")
+ # With no immediate drop side, keep the held dish and reserved capacity.
+ c=side_drop_case();r=c.record
+ var blockers=block_drop_cells([Vector2i(5,4),Vector2i(7,4),Vector2i(8,4),Vector2i(10,4),Vector2i(9,5)])
+ advance(1.0)
+ check(r.plate_owner=="staff" and int(r.dish_sink_id)==int(c.basin.id) and game.dishwashing.count_at(int(c.basin.id))==1,"all blocked approaches preserve carried dish and original reservation")
+ check(c.cleaner.job_elapsed>5.0,"waiting drop does not stop janitor washing")
+ game.model.items.erase(blockers[1]);game.model.revision+=1
+ check(finish_drop(r) and game.dishwashing.count_at(int(c.basin.id))==2,"unblocked side retries and completes without deadlock")
+ check(game.dishwashing.load_at(int(c.basin.id))<=6 and game.dishwashing.count_at(int(c.alternate.id))==0,"retry keeps capacity bounded and avoids phantom alternate deposits")

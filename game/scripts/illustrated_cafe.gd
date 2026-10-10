@@ -407,6 +407,8 @@ func _prune_departed_guest_motion():
 
 func update_motion(delta: float):
 	if not is_instance_valid(game):return
+	for index in sink_drop_lowering.keys():
+		if int(index)>=game.staff_states.size() or str(game.staff_states[int(index)].get("art_action",""))!="dropping_dishes":sink_drop_lowering.erase(index)
 	# A bounded sweep avoids rebuilding the live-ID set every rendered frame.
 	guest_motion_cleanup_elapsed+=maxf(0.0,delta)
 	if guest_motion_cleanup_elapsed>=1.0:
@@ -450,6 +452,7 @@ func update_motion(delta: float):
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
 			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
+			if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.INSET
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
 			# this job steps close to the edge; serving keeps its small aisle lean.
@@ -1145,6 +1148,9 @@ func _draw():
 						pose["washing_seconds"]=float(wash.seconds)
 						var ref=SinkWashArt.geometry(int(target_item.rot),1.0,int(wash.count));var ref_axes:Transform2D=ref.basis
 						pose["washing_grip_reference"]={"center":(ground+ref.center)*Vector2(face,1),"basis":Transform2D(ref_axes.x*Vector2(face,1),ref_axes.y*Vector2(face,1),Vector2.ZERO)}
+				elif kind=="sink" and action=="dropping_dishes":
+					var drop=_sink_drop_geometry(d,int(e.index))
+					pose["sink_drop_center"]=(ground+drop.center)*Vector2(face,1)
 				elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
 				elif kind=="bin":surface=Vector2(0,-25)
 				elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
@@ -1561,7 +1567,7 @@ func _paint_native_character(p: Vector2, id: int, staff: bool, moving: bool, spe
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
+	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"drop_pose":geometry.get("drop_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
 	return {}
 
 func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
@@ -1992,23 +1998,81 @@ func _draw_floor_tools(at:Vector2,pose:Dictionary,action:String,payload:String):
 		for i in range(6):line(heel+across*(-3.75+i*1.5),edge+across*(-5+i*2),"ddc68d",.7)
 
 
+var sink_drop_lowering={}
+func _sink_queue_ids(sink_id:int,active_id:int)->Array:
+	var ids=[]
+	for dish in game.dishwashing.dishes.values():
+		if int(dish.sink_id)==sink_id and int(dish.id)!=active_id:ids.append(int(dish.id))
+	ids.sort();return ids
+
+func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
+	var sink=game.model.get_item(int(staff.art_target_id))
+	var key="staff_%s"%index;var at=_render_position(key,staff.pos)
+	var scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	var origin=(iso(at.x,at.y)-iso(sink.x+.5,sink.z+.5))/scale
+	var facing=character_facings.get(key,{"back":false,"mirror":1.0})
+	var carry=carry_hand_offsets.get(key,DirectionalCharacter.carry_anchor(bool(facing.back))*Vector2(float(facing.mirror),1))
+	var start=origin+carry+Vector2(4*float(facing.mirror),0)
+	var wash=SinkWashArt.state(game,int(sink.id))
+	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
+	var ids=_sink_queue_ids(int(sink.id),active_id)
+	var record=game.service_guests.get(int(staff.job_guest_id),{})
+	var slot=ids.find(int(record.get("dish_id",-1)))
+	if slot<0:slot=0 if int(record.get("dish_id",-1))==active_id else ids.size()
+	var phase=float(staff.art_phase)
+	var result=SinkWashArt.drop_geometry(int(sink.rot),phase,start,slot)
+	# A queue can advance during the .25-second withdrawal. Rebase the
+	# remaining lowering path from its previous sample rather than jump slots.
+	var identity=[int(staff.job_guest_id),int(staff.job_token),int(sink.id),int(sink.rot)]
+	var previous=sink_drop_lowering.get(index,{})
+	if previous.is_empty() or previous.identity!=identity or phase<float(previous.phase):
+		previous={"identity":identity,"slot":slot,"from":result.release,"from_height":result.release_height,"from_phase":.65}
+	elif phase>=.65 and slot!=int(previous.slot):
+		previous.from=previous.center;previous.from_height=previous.height;previous.from_phase=previous.phase;previous.slot=slot
+	if phase>=.65:
+		var blend=smoothstep(float(previous.from_phase),1.0,phase)
+		var final=FurnitureArt.KitchenGeometry.sink_plate_anchor(int(sink.rot))+Vector2(0,-slot*2.2)
+		result.center=(previous.from as Vector2).lerp(final,blend)
+		result.height=lerpf(float(previous.from_height),FurnitureArt.KitchenGeometry.height(FurnitureArt.KitchenGeometry.SINK_STACK_HEIGHT)+slot*2.2,blend)
+	previous.center=result.center;previous.height=result.height;previous.phase=phase
+	sink_drop_lowering[index]=previous
+	return result
+
 func _sink_dishes(sink_id: int):
 	var sink=game.model.get_item(sink_id)
 	var count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
 	if not "dishwashing" in game:
 		for record in game.service_guests.values():
 			if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
-	if count<=0:return
+	var dropping=[]
+	for index in game.staff_states.size():
+		var staff=game.staff_states[index]
+		if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
+	if count<=0 and dropping.is_empty():return
 	var rotation=int(sink.get("rot",0));var geometry=FurnitureArt.KitchenGeometry
 	var aperture=geometry.sink_outline(geometry.SINK_BASIN_INNER,geometry.SINK_OPENING_HEIGHT,rotation)
 	var at=geometry.sink_plate_anchor(rotation)
 	var wash=SinkWashArt.state(game,sink_id)
-	var stored=count-1 if not wash.is_empty() else count
-	for index in range(stored):
+	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
+	var ids=_sink_queue_ids(sink_id,active_id);var in_flight=[]
+	for drop in dropping:
+		var record=game.service_guests.get(int(drop.staff.job_guest_id),{})
+		if float(drop.staff.art_phase)>=.65:in_flight.append(int(record.get("dish_id",-1)))
+	for index in ids.size():
+		if in_flight.has(ids[index]):continue
 		_plate_clip=aperture if geometry.height(geometry.SINK_STACK_HEIGHT)+index*2.2<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
 		_plate(at+Vector2(0,-index*2.2),0.0,true)
 	_plate_clip=PackedVector2Array()
-	if not wash.is_empty():
+	for drop in dropping:
+		var drop_geometry=_sink_drop_geometry(drop.staff,drop.index)
+		_plate_clip=aperture if float(drop_geometry.height)<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
+		_plate(drop_geometry.center,0.0,true)
+		if bool(drop_geometry.held):
+			var mirror=float(character_facings.get("staff_%s"%drop.index,{"mirror":1.0}).mirror)
+			var hand:Vector2=drop_geometry.center-Vector2(4*mirror,0)
+			rounded_poly([hand+Vector2(0,-7),hand+Vector2(5*mirror,-7),hand+Vector2(4*mirror,-1),hand+Vector2(mirror,-1)],1,"eee2bf")
+		_plate_clip=PackedVector2Array()
+	if not wash.is_empty() and not in_flight.has(active_id):
 		var action_geometry=SinkWashArt.geometry(rotation,float(wash.seconds),count)
 		_plate_transform=action_geometry.transform
 		_plate_clip=aperture if float(action_geometry.height)<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()

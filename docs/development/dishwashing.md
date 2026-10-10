@@ -4,7 +4,8 @@
 - Each sink holds at most six dishes, including queued dishes, the one being washed, and reservations made by carrying/collecting waiters
 - Cleaners wash one dish at a time for 20 simulation seconds. Pausing stops that clock; 2× speed doubles it. Walking or an obstructed workface never advances washing
 - Within a sink, dishes are FIFO. Available cleaners choose separate reachable sinks. Waiters prefer the least-loaded reachable sink, with distance as the tie-breaker
-- A cleaner already washing keeps the workface. Waiting drop-offs get the next turn before another wash, preventing waiter/cleaner deadlock
+- A cleaner already washing keeps the authored front workface. Waiters can drop at a clear reachable lateral edge while washing continues; each interaction cell remains exclusive. Waiting front drop-offs get the next turn before another wash
+- A carrying waiter switches to another reachable sink with capacity and an available drop side when its reserved sink is full or unusable. If every side is temporarily occupied, it retains its capacity reservation and held dish, then retries. Switching sinks restarts the physical drop gesture; the janitor's queue and wash progress are unchanged
 - When all sinks are full or inaccessible, the waiter retains the table/hand payload and retries. A reservation is released when an unstarted collection is canceled
 - A queued dish is independent of its diner, so the table can be reused after drop-off and wiping. The visible sink pile counts queued and currently washed dishes, never reservations still in transit
 - Selling a sink with a reservation, queued dish, or active washing job is blocked. Moving it keeps the same item identity and dish queue; the worker follows the new workface and preserves progress
@@ -30,3 +31,7 @@ The bowl now has an opening at the rim, shaded vertical interior walls, and a fl
 ## Automatic water and two-hand washing
 
 Water is a read-only presentation of an actual cleaner wash job at the sink workface. It stops when the worker leaves, the job ends, or the game is paused/decorated. There is no tap-opening animation or manual valve lever. The 20-second job clock drives lifting one active plate, short scrubbing, rinsing and lowering/removal. Waiting plates remain separately stacked and still count toward the same six-slot capacity. Fixed-length bent arms use the accepted arm-occlusion mask; one hand supports the rim and the other touches the sponge to the dish. Foam stays inside the active dish and fades during rinsing. The water contact is solved on that tilted dish, not the queued pile. The five functional core files remain unchanged by this visual revision.
+
+## Continuous drop contact
+
+The existing drop clock moves the carried plate to the basin opening at the .65 ownership beat, then lowers it into its own queue slot while empty hands withdraw. The sink-local aperture and foreground rim mask the lowering plate; world entity sorting stays unchanged. The original short-arm solver, plate and held-glass details are reused. Post-contact animated dishes are excluded from static drawing by dish ID, so concurrent drops have distinct slots. A presentation-only lowering sample per active staff member rebases the remaining path when the queue advances; inactive staff entries are pruned during motion updates. This state is bounded by the staff roster and is never saved. Native and Web transition evidence remains required before visual acceptance; dependency rebinding requires exact canonical generated/imported/decoded atlas parity.

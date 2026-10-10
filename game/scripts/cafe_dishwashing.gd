@@ -31,23 +31,38 @@ func busy(sink_id:int)->bool:return load_at(sink_id)>0
 func reserve(record:Dictionary,staff:Dictionary)->Dictionary:
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
  var current=game.model.get_item(int(record.get("dish_sink_id",-1)))
- if not current.is_empty() and current.kind=="sink" and load_at(int(current.id),record)<CAPACITY and game._service_cell(current,from)!=Vector2i(-1,-1):return current
+ var carrying=record.plate_owner=="staff"
+ if not current.is_empty() and current.kind=="sink" and load_at(int(current.id),record)<CAPACITY and drop_destination(staff,current,from,[],true)!=Vector2i(-1,-1):
+  # Keep capacity while waiting, but do not wait at an unusable sink when
+  # another basin has a reachable, unclaimed drop-off and a free slot.
+  if carrying and drop_destination(staff,current,from)==Vector2i(-1,-1):
+   var alternate=_choose_drop_sink(record,staff,from,true)
+   if not alternate.is_empty():return _reserve_drop_sink(record,staff,alternate)
+  return current
  record.dish_sink_id=-1
  var total_load=dishes.size()
  for live in game.service_guests.values():
   if int(live.get("dish_sink_id",-1))>=0:total_load+=1
  if total_load>=MAX_DISHES:return {}
+ var chosen=_choose_drop_sink(record,staff,from,carrying)
+ if chosen.is_empty() and carrying:chosen=_choose_drop_sink(record,staff,from,false)
+ return _reserve_drop_sink(record,staff,chosen)
+func _choose_drop_sink(record:Dictionary,staff:Dictionary,from:Vector2i,available_only:bool)->Dictionary:
  var chosen={};var best_load=CAPACITY;var shortest=1000000
  for sink in game.model.items:
   if sink.kind!="sink":continue
   var count=load_at(int(sink.id),record)
   if count>=CAPACITY:continue
-  var face=game._service_cell(sink,from)
+  var face=drop_destination(staff,sink,from,[],not available_only)
   if face==Vector2i(-1,-1):continue
   var distance=game._static_service_path(from,face).size()
   if count<best_load or (count==best_load and distance<shortest):chosen=sink;best_load=count;shortest=distance
- if not chosen.is_empty():record.dish_sink_id=int(chosen.id)
  return chosen
+func _reserve_drop_sink(record:Dictionary,staff:Dictionary,sink:Dictionary)->Dictionary:
+ if not sink.is_empty():
+  if staff.job_kind=="cleanup" and int(staff.job_step)==1 and int(staff.station_id)!=int(sink.id):staff.job_elapsed=0.0
+  record.dish_sink_id=int(sink.id)
+ return sink
 func deposit(record:Dictionary,staff:Dictionary,index:int,target:Dictionary)->bool:
  # Contact can be replayed after load; its ownership transition is idempotent.
  if record.plate_owner=="dish_queue":return true
@@ -92,9 +107,40 @@ func workface_available(staff:Dictionary,sink_id:int)->bool:
   var dropping=other.job_kind=="cleanup" and int(other.job_step)==1
   if not dropping and other.job_kind!="wash":continue
   if int(other.station_id)!=sink_id:continue
+  # A lateral drop-off does not own the cleaner's front workface.
+  var sink=game.model.get_item(sink_id)
+  if dropping and not sink.is_empty():
+   var face=game.model.workface_cell(sink)
+   var at:Vector2i=other.destination
+   if absi(at.x-int(sink.x))+absi(at.y-int(sink.z))==1 and at!=face:continue
   var rank=3 if float(other.job_elapsed)>0.0 else (2 if dropping else 1)
   if rank>best:best=rank;winner=i
  return winner<0 or winner==own_index
+func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],reserving=false)->Vector2i:
+ # Drop through a clear basin edge; washing keeps its authored front pose.
+ # Destination claims and current bodies are checked separately from routes.
+ var center=Vector2i(int(sink.x),int(sink.z));var front=game.model.workface_cell(sink)
+ var direction=front-center;var side=Vector2i(-direction.y,direction.x)
+ var cells=[front,center+side,center-side]
+ var own_index=game.staff_states.find(staff);var best=Vector2i(-1,-1);var shortest=1000000
+ var pinned:Vector2i=staff.destination if staff.job_kind=="cleanup" and int(staff.job_step)==1 and int(staff.station_id)==int(sink.id) else Vector2i(-1,-1)
+ for cell in cells:
+  if claimed.has(cell) or not game._staff_walkable(cell) or game.model.edge_blocked(center,cell):continue
+  # Capacity reservations survive temporary actor occupancy. Actual drop-off
+  # still waits for an exclusive cell, including the between-washes front turn.
+  if not reserving:
+   if cell==front and not workface_available(staff,int(sink.id)):continue
+   if game._staff_cell_claimed(cell,own_index):continue
+   var occupied=false
+   for other in game.staff_states:
+    if is_same(other,staff):continue
+    if Vector2i(floori(other.pos.x),floori(other.pos.y))==cell:occupied=true;break
+   if occupied:continue
+  var route=game._static_service_path(from,cell)
+  if route.is_empty() and from!=cell:continue
+  if cell==pinned:return cell
+  if route.size()<shortest:best=cell;shortest=route.size()
+ return best
 func contact(staff:Dictionary):
  var dish=entry(staff)
  if not dish.is_empty():dish.elapsed=minf(WASH_SECONDS,float(staff.job_elapsed))
