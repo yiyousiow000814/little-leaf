@@ -20,6 +20,9 @@ func settle():
 func pointer(point:Vector2,pressed:bool):
  var e=InputEventMouseButton.new();e.position=point;e.global_position=point;e.button_index=MOUSE_BUTTON_LEFT;e.pressed=pressed;root.push_input(e,true)
 func click(control:Control):
+ for record in ui.themed_popups:
+  if record.scroll.is_ancestor_of(control):record.scroll.ensure_control_visible(control)
+ await settle()
  var point=control.get_global_rect().get_center();pointer(point,true);pointer(point,false);await settle()
 func focus_sign():
  game.illustration.update_projection()
@@ -40,7 +43,22 @@ func run():
  root.size=Vector2i(1360,880);game=TestMain.new();root.add_child(game);game.set_process(false);await process_frame
  if game.cafe_intro!=null:game.cafe_intro.finish()
  game.tutorial.skip();game.paused=true;game.model.set_operating_open(true)
- ui=game.compact_ui;shop=ui.shop_ui;game.model.coins=10000;await focus_sign()
+ ui=game.compact_ui;shop=ui.shop_ui
+ for view in [Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;game.model.coins=1200;game._toggle_edit();game._set_catalog_category("Build");await settle()
+  await click(shop.build_guide_button);check(shop.build_guide.visible,"Build guide pointer opens "+str(view))
+  var unchanged=state();game.save_recovery_blocked=true;shop._find_parking()
+  check(game.editing and shop.build_guide.visible and state()==unchanged,"Find parking recovery guard preserves session "+str(view))
+  game.save_recovery_blocked=false;ui.viewport_too_small=true;shop._find_parking()
+  check(game.editing and shop.build_guide.visible and state()==unchanged,"Find parking viewport guard preserves session "+str(view))
+  ui.viewport_too_small=false;var finish_saves=game.saves;await click(shop.guide_parking)
+  check(not game.editing and shop.parking_review.visible and shop.parking_purchase_review,"Find parking enters fixed-sign purchase review "+str(view))
+  check(game.saves==finish_saves+1,"Find parking reuses existing Finish save callback "+str(view))
+  check(game.model.coins==1200 and not game.model.parking_owned and game.model.parking_paid_cost==0,"Guide navigation does not purchase "+str(view))
+  check(shop.parking_sell.text=="Buy 2,000" and shop.parking_sell.disabled and shop.parking_review_text.text.contains("Need 800"),"Existing map price and affordability retained "+str(view))
+  await settle();check(shop.parking_review.visible,"Parking review survives UI refresh "+str(view))
+  unchanged=state();await click(shop.parking_cancel);check(not ui.has_open_popup() and state()==unchanged,"Guide purchase Cancel preserves state "+str(view))
+ root.size=Vector2i(1360,880);game.model.coins=10000;await focus_sign()
  check(not game.editing and not shop.parking_card.visible,"normal play has no parking purchase catalog card")
  check(game.illustration.hit_parking_sign(Sign.bounds(game.illustration).get_center()),"render and hit share fixed sign anchor")
  await capture("01-map-for-sale")
@@ -81,7 +99,9 @@ func run():
  check(game.model.Parking.reserve(game.model,4),"unlocked bays admit a real four-member car")
  check(game.model.parking_visits.size()==1 and game.model.parking_visits[0].members.size()==4,"bay usable after map purchase reload")
  game.model.parking_visits.clear()
- game._toggle_edit();game._set_catalog_category("Decor");ui._set_tray_reveal(1);await settle()
+ game._toggle_edit();game._set_catalog_category("Build");ui._set_tray_reveal(1);await settle()
+ await click(shop.build_guide_button);var owned_before=state();await click(shop.guide_parking)
+ check(game.editing and game.catalog_category=="Decor" and state()==owned_before,"Owned Find parking retains Decor navigation without finishing")
  check(shop.parking_card.visible,"owned sale review remains reachable in Decorate")
  shop._choose_parking();await settle()
  check(shop.parking_review.visible and shop.parking_sell.text=="Sell +1,000","map purchase retains existing later-session refund policy")

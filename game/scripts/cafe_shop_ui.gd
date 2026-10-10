@@ -236,7 +236,7 @@ func _setup_build_guide():
  box.add_child(game.label("Build your café",20))
  var explanation=game.label("Move a door: tap an existing door in the café, then choose Move. Tap a new wall position to place it, or Cancel to keep it where it was.",15)
  explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(explanation)
- var parking=game.label("Parking adds four fixed bays outside your café. Find it in Decor.",15)
+ var parking=game.label("Parking adds four fixed bays outside your café. Buy them from the For Sale sign in normal play. Find parking finishes Decorate to show its purchase review; owned parking is in Decor.",15)
  parking.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(parking)
  guide_parking=ui._small_button("Find parking",_find_parking,140);box.add_child(guide_parking)
  var land=game.label("More room: open Manage to see the next plot and its price.",15)
@@ -263,7 +263,12 @@ func _show_shop_guide():
   explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
  ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
 func _find_parking():
- build_guide.hide();_pick_category("Decor")
+ if game.save_recovery_blocked or ui.viewport_too_small:return
+ build_guide.hide()
+ if not game.model.parking_owned:
+  if game.editing:game._toggle_edit()
+  show_parking_purchase();return
+ _pick_category("Decor")
  # The category switch restores its rail before revealing the exterior upgrade.
  await game.get_tree().process_frame
  await game.get_tree().process_frame
