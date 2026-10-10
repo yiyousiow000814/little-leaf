@@ -65,7 +65,7 @@ static func crosses(wall: Dictionary, a: Vector2, b: Vector2) -> bool:
 
 static func valid_shape(raw: Variant, max_width: int, max_depth: int) -> bool:
 	if not raw is Dictionary:return false
-	if raw.get("axis") not in ["x","z"] or raw.get("height") not in HEIGHTS or raw.get("material") not in MATERIALS:return false
+	if raw.get("axis") not in ["x","z"] or raw.get("height") not in HEIGHTS or (raw.get("material")!="original" and raw.get("material") not in MATERIALS):return false
 	for field in ["x","z"]:
 		var number=raw.get(field)
 		if not (number is int or number is float) or not is_finite(float(number)) or float(number)!=floorf(float(number)):return false

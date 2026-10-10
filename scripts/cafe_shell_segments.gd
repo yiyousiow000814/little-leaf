@@ -57,10 +57,10 @@ static func validate(state:Dictionary,walls:Array)->String:
    var name=key(root_id,index);expected[name]=true
    if not state.segments.get(name) is Dictionary:return "Missing shell segment"
    var segment:Dictionary=state.segments[name]
-   if segment.size()!=4 or segment.get("height") not in Walls.HEIGHTS or (segment.get("material")!="original" and segment.get("material") not in Walls.MATERIALS):return "Invalid shell appearance"
+   if segment.size()!=(5 if segment.has("removed") else 4) or (segment.has("removed") and (not segment.removed is bool or not segment.removed)) or segment.get("height") not in Walls.HEIGHTS or (segment.get("material")!="original" and segment.get("material") not in Walls.MATERIALS):return "Invalid shell appearance"
    if not integer(segment.get("paid_cost"),0,maxi(MAX_LEGACY_SEGMENT_PAID,int(Walls.PRICES[segment.height]))) or not integer(segment.get("refund_credit"),0,ceili(maxi(MAX_LEGACY_SEGMENT_PAID,int(Walls.PRICES[segment.height]))/2.0)):return "Invalid shell payment"
    if int(segment.refund_credit)>ceili(float(segment.paid_cost)/2):return "Excess segment refund"
-   if index>=active_count(root_id,walls) and (int(segment.paid_cost)!=0 or int(segment.refund_credit)!=0):return "Dormant included segment has paid value"
+   if index>=active_count(root_id,walls) and not segment.get("removed",false) and (int(segment.paid_cost)!=0 or int(segment.refund_credit)!=0):return "Dormant included segment has paid value"
   var recognized_basis=false
   for inherited in allocations:
    var consistent=true
@@ -88,6 +88,7 @@ static func decode(raw:Dictionary,walls:Array)->Dictionary:
 
 static func segment_host(state:Dictionary,walls:Array,root_id:String,index:int)->Dictionary:
  if root_id not in Geometry.SHELL_HOSTS or index<0 or index>=active_count(root_id,walls):return {}
+ if state.segments[key(root_id,index)].get("removed",false):return {}
  var root=Geometry.resolve_host(root_id,walls,state.roots)
  var direction=(root.b-root.a).normalized()
  var segment=root.duplicate(true);segment.root_id=root_id;segment.segment_key=key(root_id,index);segment.segment_index=index
@@ -106,7 +107,7 @@ static func support_error(state:Dictionary,walls:Array,attachments:Array)->Strin
   if attachment.host_id not in Geometry.SHELL_HOSTS:continue
   var low=float(attachment.offset)-float(attachment.width)*.5;var high=float(attachment.offset)+float(attachment.width)*.5
   for index in range(maxi(0,floori(low+EPS)),mini(active_count(attachment.host_id,walls),ceili(high-EPS))):
-   if state.segments[key(attachment.host_id,index)].height!="full":return "Opening needs every supporting segment at full height"
+   if state.segments[key(attachment.host_id,index)].get("removed",false) or state.segments[key(attachment.host_id,index)].height!="full":return "Opening needs every supporting segment at full height"
  return ""
 
 static func quote(state:Dictionary,walls:Array,attachments:Array,root_id:String,index:int,height:String,material:String,coins:int)->Dictionary:
@@ -134,7 +135,8 @@ static func render_runs(state:Dictionary,walls:Array,root_id:String)->Array:
  var root=Geometry.resolve_host(root_id,walls,state.roots);var runs=[]
  for index in active_count(root_id,walls):
   var segment:Dictionary=state.segments[key(root_id,index)]
-  if not runs.is_empty() and runs[-1].height==segment.height and runs[-1].material==segment.material:runs[-1].to=index+1
+  if segment.get("removed",false):continue
+  if not runs.is_empty() and int(runs[-1].to)==index and runs[-1].height==segment.height and runs[-1].material==segment.material:runs[-1].to=index+1
   else:runs.append({"root_id":root_id,"root_a":root.a,"root_b":root.b,"normal":root.normal,"from":index,"to":index+1,"height":segment.height,"material":segment.material})
  return runs
 
@@ -163,7 +165,9 @@ static func from_save(data:Dictionary,walls:Array,products:Dictionary)->Dictiona
 static func selectable_hosts(products:Dictionary,segments:Dictionary,walls:Array)->Array[Dictionary]:
  var result:Array[Dictionary]=[];var current=state(products,segments)
  for root_id in Geometry.SHELL_HOSTS:
-  for index in active_count(root_id,walls):result.append(segment_host(current,walls,root_id,index))
+  for index in active_count(root_id,walls):
+   var host=segment_host(current,walls,root_id,index)
+   if not host.is_empty():result.append(host)
  for wall in walls:result.append(Geometry.wall_host(wall))
  return result
 
@@ -176,7 +180,21 @@ static func render_host(products:Dictionary,segments:Dictionary,walls:Array,root
   if current.segments.has(name):
    current.segments[name].height=preview.height;current.segments[name].material=preview.material
  var runs=render_runs(current,walls,root_id)
- if runs.size()==1:
+ if runs.size()==1 and int(runs[0].from)==0 and int(runs[0].to)==active_count(root_id,walls):
   root.height=runs[0].height;root.material=runs[0].material
  else:root.segment_runs=runs
  return root
+
+static func collision_hosts(products:Dictionary,segments:Dictionary,walls:Array)->Array[Dictionary]:
+ var result:Array[Dictionary]=[]
+ var current=state(products,segments)
+ for root_id in Geometry.SHELL_HOSTS:
+  for index in active_count(root_id,walls):
+   var host=segment_host(current,walls,root_id,index)
+   if not host.is_empty():result.append(host)
+ for wall in walls:result.append(Geometry.wall_host(wall))
+ return result
+
+static func edge_key(wall:Dictionary)->String:
+ if not Footprint.is_shell_edge(wall):return ""
+ return key("shell:back",int(wall.x)) if wall.axis=="x" else key("shell:west",int(wall.z))

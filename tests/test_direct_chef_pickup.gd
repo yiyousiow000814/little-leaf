@@ -1,6 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/cafe_model.gd")
 const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Paint=preload("res://scripts/cafe_paint_plan.gd")
 class GeneratedMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
@@ -24,6 +25,17 @@ func dispose(g):
  g.settings_controls.sfx_player.stop();g.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
  g.queue_free();await process_frame;await process_frame
+func edit_ready_output(g,id:int):
+ g._toggle_edit()
+ var before=g._service_save_snapshot();var items=g.model.items.duplicate(true);var wallet=g.model.coins
+ g.selected_id=id;g._sell()
+ check(g.interaction._service_locked(id) and g.model.items==items and g.model.coins==wallet,"editor cannot sell an occupied stove or legacy pass")
+ var plan=Paint.new();var actors=g.build_tools.actor_positions()
+ var receipt=plan.prepare(g.model,"floor","cream_tile",[Vector2i(7,7),Vector2i(8,7)],actors)
+ check(receipt.ok and g._service_save_snapshot()==before,"paint preview leaves live output and service ownership unchanged")
+ check(plan.commit(g.model,receipt,actors),"valid paint receipt can publish while the service is paused for editing")
+ check(g._service_save_snapshot()==before and g._item_service_locked(id),"paint publication preserves exact output ownership and job locks")
+ g._toggle_edit()
 func legacy_pipeline():
  var g=LegacyMain.new();root.add_child(g);g.set_process(false);g.illustration.set_process(false)
  var counter=g.model.items.filter(func(i):return i.kind=="counter")[0]
@@ -54,6 +66,7 @@ func legacy_pipeline():
    output=true
    check(record.plate_target_id==counter_id and g._meal_prepared(record),"actual legacy deposit retains counter ownership and meal readiness")
    check(g._item_service_locked(counter_id),"legacy counter holding a plate remains locked")
+   edit_ready_output(g,counter_id)
    var good=g._service_save_snapshot()
    check(valid(g,good).ok,"real legacy ready snapshot validates")
    var bad=good.duplicate(true)
@@ -98,6 +111,7 @@ func run():
    check(record.meal_pass_id==-1 and not record.pass_reserved,"new meal never reserves a counter")
    check(game._item_service_locked(id),"occupied output cannot move or be sold")
    check(game._service_station("stove",Vector2i(3,2),-1).is_empty(),"one occupied stove cannot accept another meal")
+   edit_ready_output(game,id)
    game.model.service_snapshot=game._service_save_snapshot()
    check(game.model.save("user://direct-output.json"),"ready output saves: "+game.model.last_error)
    var restored=Model.new()

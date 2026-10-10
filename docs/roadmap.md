@@ -1803,6 +1803,8 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 06.04 — Show true floor colors without red/cyan preview tint.
 
+Coherent local editor candidate includes placement feedback a44c6f5 and descendant inspection UI a5076bf on main1d7b7b5. Inspection/selected-card checks: 189 focused assertions passed; actual desktop1360x880/zoom1.0 visible/hidden/restored captures inspected. True-color Tiles and temporary object hiding leave model, collision and save behavior unchanged. Model/codec/starter integration, atomic painting, wall provenance transactions and browser/mobile platform acceptance remain pending. Interface agreement is in the existing developer guide, under Editor inspection and transaction interfaces. No merge or release.
+
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
 | 🟢 GREEN — True-color floor inspection/hide-objects candidate #103 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Editor native workflow passed with portrait/landscape scenes | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
@@ -1901,7 +1903,11 @@ Missing work / next action: Retain final optical captures/measurement receipts a
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
+
 ### 06.09 — Keep furniture available/unavailable colors consistent across floor materials.
+
+Local review candidate on main 1d7b7b5: reused only PR106 opaque furniture feedback helper and draw call sites, without cabinet/model/codec/paint integration. Godot4.6.3: 95 scoped checks passed; six generated desktop1360x880 native frames at zoom1.0 inspected across warm oak/cream/sage and valid/invalid Plant previews. Invariant fill/border locally verified; symbols may be occluded by furniture. Browser/mobile and combined editor/pickup acceptance remain pending. No merge or release.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
@@ -1940,6 +1946,8 @@ Visual acceptance: PR reports actual native four-tile captures
 Missing work / next action: Integrated seam/material and invalid-stroke visual checks
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
 
 ### 06.11 — Remove duplicate or unhelpful tooltips.
 
@@ -1980,6 +1988,8 @@ Visual acceptance: Editor wall actions captured; all doors/windows provenance no
 Missing work / next action: Integrated old/new buy/move/sell, hosted-opening support, tombstones and reject double sale
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
 
 ### 07.02 — Doors have consistent one-grid-cell width and visual size. Existing 0.76-width historical doors are not already normalized by PR #103; compatibility and visual migration remain explicit gates.
 
