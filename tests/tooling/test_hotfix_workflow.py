@@ -45,11 +45,11 @@ class ItchTagGateTests(unittest.TestCase):
                 self.assertEqual(fetch, '')
         self.assertNotEqual(self.gate('v0.1.10a', ref_type='branch')[0], 0)
 
-    def test_release_still_requires_full_build_and_exact_source(self):
+    def test_release_reuses_full_qualification_and_exact_source(self):
         source = WORKFLOW.read_text()
         for guard in ["tags: ['v*']", 'github.event.created && !github.event.deleted',
                       '--require-main-ancestor', 'needs: [gate, build]',
-                      'uses: ./.github/workflows/build-web.yml',
+                      'python3 tools/reuse_main_ci.py',
                       'ref: ${{ needs.gate.outputs.sha }}',
                       'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
                       'digest-mismatch: error', 'Missing BUTLER_API_KEY',
