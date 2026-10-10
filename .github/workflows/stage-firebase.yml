@@ -1,5 +1,11 @@
 name: Stage Firebase preview
 on:
+  workflow_call:
+    inputs:
+      released_run_id:
+        description: Independently validated completed itch release; staging only
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       itch_preview:
@@ -9,12 +15,104 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: firebase-fresh-source-${{ github.ref }}
-  cancel-in-progress: true
+  group: firebase-stage-${{ inputs.released_run_id || github.ref }}
+  cancel-in-progress: false
 jobs:
   fresh:
-    if: github.repository == 'yiyousiow000814/little-leaf'
+    if: github.repository == 'yiyousiow000814/little-leaf' && !inputs.released_run_id
     uses: ./.github/workflows/build-web.yml
     with:
       firebase_preview: true
       itch_preview: ${{ inputs.itch_preview || false }}
+  released:
+    if: github.repository == 'yiyousiow000814/little-leaf' && inputs.released_run_id && github.ref == 'refs/heads/main' && github.workflow == 'Qualify Firebase after completed itch release' && !inputs.itch_preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Refuse rerun of an uncertain staging attempt
+        run: test "$GITHUB_RUN_ATTEMPT" = 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: coordinator
+      - name: Revalidate completed itch publication from immutable API receipts
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ inputs.released_run_id }}
+        run: python3 coordinator/tools/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/selection"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.select.outputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: source
+      - name: Install the official checksum-pinned toolchain; do not rebuild the game
+        working-directory: source
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Reuse only the exact completed release's qualified ordinary runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 coordinator/tools/reuse_released_web.py --source-root source --selection "$RUNNER_TEMP/selection/selection.json" --output "$RUNNER_TEMP/reuse"
+      - name: Bind original complete native and browser evidence to this exact artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 coordinator/tools/stage_released_firebase.py prepare --source-root source --reuse "$RUNNER_TEMP/reuse" --selection "$RUNNER_TEMP/selection/selection.json" --evidence "$RUNNER_TEMP/ordinary-evidence"
+      - name: Install isolated browser and emulator test dependencies
+        working-directory: source
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/browser-tools/node_modules/.bin/playwright" install-deps chromium
+          npm --prefix platform/firebase ci --ignore-scripts --no-audit --no-fund
+          google-chrome --version
+      - name: Run all focused Firebase and local emulator gates on the released source
+        working-directory: source
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/browser-tools/node_modules/playwright
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          for gate in adapter.log delayed-network.log recovery.log choice.log session.log update-notice.log recovery-presentation.log recovery-browser.log staging-tests.log rules.log; do
+            python3 tools/run_firebase_focused.py --gate "$gate" --output "$RUNNER_TEMP/firebase-focused"
+          done
+          node --check platform/web/little_leaf_firebase_boot.mjs
+          python3 tools/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
+      - name: Verify compiled cloud flows against exactly the released runtime in a disposable emulator
+        working-directory: source/platform/firebase
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/browser-tools/node_modules/playwright
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          CLOUD_GEOMETRY_PROJECT: ${{ runner.temp }}/cloud-geometry/project
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --web-build '$RUNNER_TEMP/reuse/web' --output '$RUNNER_TEMP/firebase-fullflow' --engine-report '$RUNNER_TEMP/ordinary-evidence/engine-evidence/summary.json'"
+      - name: Stage the bound Firebase package without production access
+        id: stage
+        run: python3 coordinator/tools/stage_released_firebase.py stage --source-root source --reuse "$RUNNER_TEMP/reuse" --selection "$RUNNER_TEMP/selection/selection.json" --evidence "$RUNNER_TEMP/ordinary-evidence" --focused "$RUNNER_TEMP/firebase-focused" --fullflow "$RUNNER_TEMP/firebase-fullflow" --output "$RUNNER_TEMP/firebase-variant"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ steps.stage.outputs.artifact_name }}
+          path: ${{ runner.temp }}/firebase-variant/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve source-bound evidence and failures without credentials or profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-firebase-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/selection/
+            ${{ runner.temp }}/reuse/qualification.json
+            ${{ runner.temp }}/reuse/packed-startup.log
+            ${{ runner.temp }}/ordinary-evidence/reuse-inputs.json
+            ${{ runner.temp }}/firebase-focused/
+            ${{ runner.temp }}/firebase-fullflow/
+          if-no-files-found: warn
+          retention-days: 30

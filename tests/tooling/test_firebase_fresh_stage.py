@@ -153,8 +153,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('itch_preview: ${{ inputs.itch_preview || false }}',text)
         self.assertEqual(text.count('type: boolean'),1)
         self.assertEqual(text.count('default: false'),1)
+        # The default/manual fresh lane keeps its original no-reuse contract.
+        # The separately selected released lane has explicit read-only access.
+        fresh=text[text.index('  fresh:'):text.index('  released:')]
         for forbidden in ['actions: read','id-token: write','secrets.','download-artifact','gh api','run-id','artifact-ids']:
-            self.assertNotIn(forbidden,text)
+            self.assertNotIn(forbidden,fresh)
+        manual=text[text.index('  workflow_dispatch:'):text.index('permissions:')]
+        self.assertNotIn('released_run_id',manual)
+        self.assertNotIn('id-token: write',text)
+        self.assertNotIn('secrets.',text)
 
     def test_existing_full_gate_commands_retained_before_firebase(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text();first=text.index('      - name: Check Firebase adapter')
