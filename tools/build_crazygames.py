@@ -13,6 +13,7 @@ import subprocess
 
 from build_web import ROOT, LOCK
 from optimize_web_present import optimize_presentation
+from bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 import artifacts
 
@@ -162,10 +163,12 @@ def main():
         if sha256(project / name) != hashes["staged_sha256"]:
             raise RuntimeError("Export changed staged developer preview input: " + name)
     presentation_optimization = optimize_presentation(web / "index.js")
+    webgl_handle_retention = bound_web_gl_handles(web / "index.js")
     manifest = {"source_commit": commit, "source_tree": tree, "godot": version,
                 "platform": "crazygames", "existing_web_gate_checks": legacy["engine_checks"],
                 "save_variant": variant,
                 "presentation_optimization": presentation_optimization,
+                "webgl_handle_retention": webgl_handle_retention,
                 "toolchain_verification": legacy["toolchain_verification"], "stages": stages,
                 "browser_runtime": "requires separate browser/hosted validation",
                 "files": {p.name: {"bytes": p.stat().st_size, "sha256": sha256(p)}
