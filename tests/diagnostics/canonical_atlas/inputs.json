@@ -1,12 +1,12 @@
 {
-  "scope": "Exact published camera input successor canonical parity; reuse verified control; no background or11",
+  "scope": "Exact frozen PR125 shared-stove native review candidate atlas provenance only",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "9b9205df4c21eb9fee020f3a60a05a7af3da3b82",
-    "tree": "fdf95787779a03f7032155790a5731debaf64529"
+    "commit": "3f1912bf546456b7300c9de9058b0cf682cb9c47",
+    "tree": "93644bd68553da3a51eb644304c8588398bb33db"
   },
   "reuse_control": {
     "run": 38066367866,
