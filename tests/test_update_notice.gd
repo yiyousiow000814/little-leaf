@@ -86,7 +86,7 @@ func run():
  var release=InputEventMouseButton.new();release.button_index=MOUSE_BUTTON_LEFT;release.position=click.position;release.pressed=false;Input.parse_input_event(release);Input.flush_buffered_events()
  game.interaction.handle_input(rotate);game.interaction.rotate_selection();game.interaction._commit_preview();game._sell()
  ui._rotate_selected.call_deferred();ui._remove_selected.call_deferred();await settle()
- check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"post-freeze R, drag commit, upgrade and deferred GUI removal cannot mutate model")
+ check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"post-freeze R, drag commit and deferred GUI removal cannot mutate model")
  check(notice.later_button.disabled and notice.update_button.disabled,"busy save cannot be dismissed or repeated")
  check(JSON.parse_string(controller.fake_vault.payload).coins==coins,"frozen latest wallet enters validated save")
  controller.fake_vault.finish({"ok":true,"durable":true,"profileId":"synthetic","revision":9,"cloudConfirmed":false});await settle()

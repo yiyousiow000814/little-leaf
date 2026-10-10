@@ -17,6 +17,7 @@ func normalized_items(raw:Array)->Array:
  var result=[]
  for entry in raw:
   var item=entry.duplicate(true)
+  if item.get("kind","")=="stove":item.erase("level")
   for key in ["id","x","z","rot","level"]:
    if item.has(key):item[key]=int(item[key])
   result.append(item)
