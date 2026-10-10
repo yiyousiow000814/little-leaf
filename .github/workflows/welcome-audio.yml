@@ -1,17 +1,24 @@
 name: Check first-gesture welcome audio
-# Temporary review gate: no default-branch, PR-merge, tag, release or deploy trigger.
+# Explicit diagnostic; reuse a successful exact-source Web build without repeating it.
 on:
-  push:
-    branches: [fix/10a-ready-welcome]
   workflow_dispatch:
+    inputs:
+      web_run_id:
+        description: Successful Check and build Web run for the identical source tree
+        required: true
+        type: string
+      web_artifact_id:
+        description: Nonexpired ordinary-Web artifact ID from that run
+        required: true
+        type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: welcome-audio-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   welcome-audio:
-    if: github.ref == 'refs/heads/fix/10a-ready-welcome'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -29,19 +36,40 @@ jobs:
           test -z "$(git status --porcelain --untracked-files=no)"
           python3 ci/release_metadata.py
           python3 ci/verify_prebaked_atlases.py
-          python3 -m unittest discover -s ci -p 'test_*.py' -v
+          python3 -m unittest ci.test_welcome_audio_workflow ci.test_reuse_welcome_web -v
           node tests/welcome_audio_test.js
+          node tests/welcome_source_binding_test.js
           node tests/wall_compatibility_helpers_test.js
           node tests/wall_compatibility_ocr_test.js
           node --check tests/welcome_audio_browser.js
           node --check tests/welcome_audio_helpers.js
           node --check tests/welcome_audio_observer.js
-      - name: Install existing checksum-pinned official engine and Web template
-        run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/welcome-audio-tools"
-      - name: Run complete engine gate in disposable profiles
-        run: python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/welcome-audio-engine"
-      - name: Export and packed-smoke-check this exact ordinary-Web source
-        run: python3 ci/build_web.py --output "$RUNNER_TEMP/welcome-audio-web" --test-report "$RUNNER_TEMP/welcome-audio-engine/summary.json"
+      - name: Select successful equivalent-source ordinary-Web artifact
+        id: selected_web
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEB_RUN_ID: ${{ inputs.web_run_id }}
+          WEB_ARTIFACT_ID: ${{ inputs.web_artifact_id }}
+        run: |
+          set -euo pipefail
+          python3 ci/reuse_welcome_web.py --phase select --repository "$GITHUB_REPOSITORY" --run-id "$WEB_RUN_ID" --artifact-id "$WEB_ARTIFACT_ID" --source-root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/welcome-audio-web"
+      - name: Download the validated artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.selected_web.outputs.artifact_id }}
+          run-id: ${{ steps.selected_web.outputs.run_id }}
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          path: ${{ runner.temp }}/welcome-audio-web/web
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify complete downloaded source and export hashes
+        env:
+          WEB_RUN_ID: ${{ inputs.web_run_id }}
+          WEB_ARTIFACT_ID: ${{ inputs.web_artifact_id }}
+        run: |
+          set -euo pipefail
+          python3 ci/reuse_welcome_web.py --phase verify --repository "$GITHUB_REPOSITORY" --run-id "$WEB_RUN_ID" --artifact-id "$WEB_ARTIFACT_ID" --source-root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/welcome-audio-web"
       - name: Install pinned bundled Chromium and screenshot OCR tools
         timeout-minutes: 10
         run: |
@@ -60,8 +88,8 @@ jobs:
         with:
           name: welcome-audio-${{ github.sha }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/welcome-audio-engine/*.json
-            ${{ runner.temp }}/welcome-audio-engine/*.log
+            ${{ runner.temp }}/welcome-audio-web/artifact-selection.json
+            ${{ runner.temp }}/welcome-audio-web/artifact-reuse.json
             ${{ runner.temp }}/welcome-audio-web/web/release-manifest.json
             ${{ runner.temp }}/welcome-audio-web/evidence/
           if-no-files-found: error

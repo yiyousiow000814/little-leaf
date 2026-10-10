@@ -1,6 +1,6 @@
 name: Compare final10a welcome preparation
 on:
-  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -8,13 +8,12 @@ concurrency:
   cancel-in-progress: true
 jobs:
   diagnostic-comparison:
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/10a-ready-welcome'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -28,7 +27,7 @@ jobs:
           path: qa-tools
       - name: Verify immutable baseline, toolkit and candidate provenance
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
@@ -47,7 +46,7 @@ jobs:
         run: python3 ci/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
       - name: Export symmetric final10a and immutable-base diagnostic controls
         env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_HEAD: ${{ github.sha }}
         run: |
           set -euo pipefail
           for product in baseline candidate; do
@@ -80,7 +79,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: startup-descent-diagnostic-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          name: startup-descent-diagnostic-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/descent-baseline/pair.json
             ${{ runner.temp }}/descent-baseline/overlay-source/
