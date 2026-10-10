@@ -50,6 +50,15 @@ jobs:
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
           node tests/web_performance_lifecycle.js
+          node tests/hidden_elapsed_certificate.js
+          node tests/hidden_elapsed_client.js
+          node tests/hidden_elapsed_fence.js
+          node tests/hidden_elapsed_cancel.js
+          node tests/hidden_elapsed_guest.js
+          node tests/hidden_elapsed_recovery.js
+          node tests/hidden_elapsed_session.js
+          node tests/hidden_lifecycle_boundaries.js
+          node tests/hidden_account_fence.js
           node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
           node tests/wall_compatibility_parallel_test.js
