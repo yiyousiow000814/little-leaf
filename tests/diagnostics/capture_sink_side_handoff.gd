@@ -85,6 +85,16 @@ func run():
   var count=game.dishwashing.dishes.size()
   check(game.dishwashing.deposit(record,waiter,game.staff_states.find(waiter),sink) and game.dishwashing.dishes.size()==count,"replayed drop does not duplicate dish")
  snapshot("queued",record);await capture("03-queued")
+ if reached_queue:
+  var first_clean=false
+  for tick in 900:
+   game.advance(.05)
+   if not first_clean and game.dishwashing.completed==1:
+    first_clean=true;snapshot("first_clean",record);await capture("04-first-clean")
+   if game.dishwashing.dishes.is_empty():
+    snapshot("all_clean",record);await capture("05-all-clean");break
+  check(first_clean,"original wash completes before newly dropped dish")
+  check(game.dishwashing.completed==2 and game.dishwashing.dishes.is_empty(),"full washing cycle completes both dishes exactly once")
  check(game.save_writes_suppressed,"fixture suppresses player saves")
  facts.checks=checks;facts.failures=failures;facts.source_commit=OS.get_environment("SOURCE_COMMIT")
  FileAccess.open(OS.get_environment("OUTPUT")+"/result.json",FileAccess.WRITE).store_string(JSON.stringify(facts,"  "))
