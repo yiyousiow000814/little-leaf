@@ -1,8 +1,8 @@
 {
   "scope": "10a PR123 and PR126 only; PR128 user-owned; no 11 candidates",
   "control": {"commit":"af61a3f3f86fa3754dd6e8b252b6f88e3680e691","tree":"bc1de7e32bf5e6f846e96e10353f13e8827d2a9a"},
-  "camera": null,
+  "camera": {"commit":"374aa2c59d3a701c13e06967a46338dfcd9ff15a","tree":"0de5638638afa10588f98e5ab3c28cb41fca6397"},
   "background": {"commit":"e55c6a8838364ba1e731e45c457bd3589639516c","tree":"1c4d3d0008e8a31af364a0ad821af56776dc3a06"},
   "reviewed_camera_pre_migration": {"commit":"89ee1efff5d656ab3af29f8fbdfdf580495b2478","tree":"10cc4bcadcc4eaa864dc58cf71d1e2aee3246c15"},
-  "execution_hold":"Exact final migrated camera head/tree required; publication and single dispatch approval required. Refresh background lock only upon owner exact-source handoff."
+  "execution_hold":"Exact camera owner handoff frozen; publication and single dispatch approval required. Refresh background lock only upon owner exact-source handoff."
 }
