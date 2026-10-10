@@ -99,8 +99,11 @@ func run():
  check(game.model.Parking.reserve(game.model,4),"unlocked bays admit a real four-member car")
  check(game.model.parking_visits.size()==1 and game.model.parking_visits[0].members.size()==4,"bay usable after map purchase reload")
  game.model.parking_visits.clear()
- game._toggle_edit();game._set_catalog_category("Build");ui._set_tray_reveal(1);await settle()
- await click(shop.build_guide_button);var owned_before=state();await click(shop.guide_parking)
+ game._toggle_edit();game._set_catalog_category("Build")
+ if is_instance_valid(ui.tray_tween) and ui.tray_tween.is_running():await ui.tray_tween.finished
+ await settle()
+ await click(shop.build_guide_button);check(shop.build_guide.visible,"Owned Build guide opens after tray input resumes")
+ var owned_before=state();await click(shop.guide_parking)
  check(game.editing and game.catalog_category=="Decor" and state()==owned_before,"Owned Find parking retains Decor navigation without finishing")
  check(shop.parking_card.visible,"owned sale review remains reachable in Decorate")
  shop._choose_parking();await settle()
