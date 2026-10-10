@@ -520,11 +520,15 @@ func _fit_help_panel():
    # width plus breathing room before deciding whether two columns can fit.
    var text_width=button.get_theme_font("font").get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,button.get_theme_font_size("font_size")).x
    action_width=maxf(action_width,maxf(button.get_minimum_size().x,text_width+24))
- var target_width=maxf(340,padding.x+action_width*2+8) if compact_actions else 340.0
+ var visible_actions=0
+ for button in help_footer.get_children():
+  if button.visible:visible_actions+=1
+ var desired_columns=3 if compact_actions and visible_actions>4 else 2
+ var target_width=maxf(340,padding.x+action_width*desired_columns+8*(desired_columns-1)) if compact_actions else 340.0
  if help_choices.visible and view.x>view.y:target_width=maxf(target_width,620)
  var width=minf(target_width,maxf(0,view.x-insets.x-insets.z-24))
  compact_actions=compact_actions and width-padding.x>=action_width*2+8
- help_footer.columns=2 if compact_actions else 1
+ help_footer.columns=mini(desired_columns,int(floor((width-padding.x+8)/(action_width+8)))) if compact_actions else 1
  for button in help_footer.get_children():button.custom_minimum_size.x=action_width if compact_actions else 0.0
  var top=hud.layout_host.get_global_rect().end.y+10
  var footer_height=help_footer.get_combined_minimum_size().y
