@@ -39,7 +39,7 @@ def main():
     source=HERE/'qualified-control'/name;assert sha(source)==digest;shutil.copy2(source,dest/name)
    receipt=json.loads((dest/'atlas-parity.json').read_text());saved=json.loads((dest/'saved-png-check.json').read_text());source=json.loads((dest/'source-binding.json').read_text())
    assert source['commit']==item['commit'] and source['tree']==item['tree']
-   assert receipt_passed(receipt,0) and receipt['source_commit']==item['commit'] and native_fingerprint_passed((dest/'native.log').read_text())
+   assert receipt_passed(receipt,0) and receipt['source_commit']==item['commit'] and native_fingerprint_passed((dest/'native-fingerprint.txt').read_text())
    assert len(saved['rows'])==3 and not saved['failures'] and all(row['passed'] and row['imported_rgba']==row['regenerated_rgba']==EXPECTED_RGBA[i] for i,row in enumerate(saved['rows']))
    binding['rows'].append({'label':label,**item,'passed':True,'reused_verified_control':reference,'receipt_sha256':sha(dest/'atlas-parity.json'),'regenerated_rgba':receipt['baseline_sha256'],'imported_rgba':receipt['candidate_sha256']});save();continue
   with tempfile.TemporaryDirectory(prefix='tena-atlas-saveguard-') as temp:
