@@ -12,25 +12,34 @@ var holds={}
 var fired={}
 var before={}
 var points={}
+var shown_id=0
 func _init(owner):hud_ref=weakref(owner);game=owner.game
 func setup(buttons:Array):
- panel=PanelContainer.new();panel.add_theme_stylebox_override("panel",hud.texture_style("cream_face",12));panel.mouse_filter=Control.MOUSE_FILTER_IGNORE;panel.z_index=30;game.ui.add_child(panel)
- label=hud._label(panel,"",13);panel.hide()
+ panel=PanelContainer.new();var style=hud.texture_style("cream_face",12)
+ style.content_margin_left=12;style.content_margin_right=12;style.content_margin_top=9;style.content_margin_bottom=9
+ panel.add_theme_stylebox_override("panel",style);panel.mouse_filter=Control.MOUSE_FILTER_IGNORE;panel.z_index=30;game.ui.add_child(panel)
+ label=hud._label(panel,"",13);label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.clip_text=false;panel.hide()
  for button in buttons:_bind(button)
 func hide():
+ shown_id=0
  if is_instance_valid(hint_tween):hint_tween.kill()
  if is_instance_valid(panel):panel.hide()
 func show(button:Button):
  if hud==null or not is_instance_valid(game) or not is_instance_valid(button):return
- hide();var words=button.accessibility_name if button.accessibility_name!="" else button.tooltip_text;label.text=words
+ hide();shown_id=button.get_instance_id();var words=button.accessibility_name if button.accessibility_name!="" else button.tooltip_text;label.text=words
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
- var w=minf(view.x-insets.x-insets.z-24,maxf(110,hud.font_bold.get_string_size(words,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x+24))
- panel.size=Vector2(w,38);var rect=button.get_global_rect();var y=rect.end.y+6
- if rect.position.y>view.y*.5:y=rect.position.y-44
- panel.position=Vector2(clampf(rect.get_center().x-w/2,insets.x+12,view.x-insets.z-w-12),maxf(insets.y+6,y));panel.show()
+ var w=minf(view.x-insets.x-insets.z-24,maxf(110,ceilf(hud.font_bold.get_string_size(words,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+26))
+ # Shape at the available width before measuring height; long explanations
+ # retain every word and the painted cream edge remains clear of glyphs.
+ label.size.x=w-24;panel.size=Vector2(w,maxf(38,label.get_minimum_size().y+18))
+ var rect=button.get_global_rect();var y=rect.end.y+6
+ if rect.position.y>view.y*.5:y=rect.position.y-panel.size.y-6
+ panel.position=Vector2(clampf(rect.get_center().x-w/2,insets.x+12,view.x-insets.z-w-12),clampf(y,insets.y+6,view.y-insets.w-panel.size.y-6));panel.show()
  hint_tween=game.create_tween();hint_tween.tween_interval(2.0)
  hint_tween.tween_callback(func():
-  if is_instance_valid(panel):panel.hide())
+  hide())
+func dismiss(button:Button):
+ if shown_id==button.get_instance_id():hide()
 func cancel(button:Button):
  var id=button.get_instance_id()
  if holds.has(id) and is_instance_valid(holds[id]):holds[id].kill()
@@ -43,7 +52,7 @@ func begin(button:Button,point:Vector2):
   fired[id]=true;show(button))
 func _bind(button:Button):
  button.focus_entered.connect(func():show(button));button.focus_exited.connect(hide);button.button_down.connect(hide)
- button.mouse_exited.connect(func():cancel(button))
+ button.mouse_exited.connect(func():cancel(button);dismiss(button))
  var original=[]
  for connection in button.pressed.get_connections():
   # Preserve special future signal semantics rather than wrapping them.
@@ -64,4 +73,4 @@ func _bind(button:Button):
    else:cancel(button)
   elif event is InputEventMouseMotion or event is InputEventScreenDrag:
    var id=button.get_instance_id()
-   if points.has(id) and event.position.distance_to(points[id])>10:cancel(button))
+   if points.has(id) and event.position.distance_to(points[id])>10:cancel(button);dismiss(button))
