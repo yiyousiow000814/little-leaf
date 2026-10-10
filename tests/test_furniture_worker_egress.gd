@@ -7,6 +7,10 @@ class TestMain extends "res://scripts/main.gd":
  var save_calls=0
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
+  # Preserve the crowded legacy restaurant that these workface cases target.
+  # This is an owned saved counter, not a purchase in the new-game catalog.
+  assert(model.move(int(model.checkout_register().id),6,4,1),model.last_error)
+  model.items.append({"id":model._next_item_id,"kind":"counter","x":6,"z":2,"rot":0});model._next_item_id+=1;model._notify()
  func _save():save_calls+=1;return true
  func _interaction_over_ui(_screen:Vector2)->bool:return false
 var checks=0;var failures=[];var ui_events=0

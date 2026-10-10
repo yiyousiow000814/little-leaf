@@ -1805,6 +1805,8 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 06.04 — Show true floor colors without red/cyan preview tint.
 
+Coherent local editor candidate includes placement feedback a44c6f5 and descendant inspection UI a5076bf on main1d7b7b5. Inspection/selected-card checks: 189 focused assertions passed; actual desktop1360x880/zoom1.0 visible/hidden/restored captures inspected. True-color Tiles and temporary object hiding leave model, collision and save behavior unchanged. Model/codec/starter integration, atomic painting, wall provenance transactions and browser/mobile platform acceptance remain pending. Interface agreement is in the existing developer guide, under Editor inspection and transaction interfaces. No merge or release.
+
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
 | 🟢 GREEN — True-color floor inspection/hide-objects candidate #103 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Editor native workflow passed with portrait/landscape scenes | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
@@ -1903,7 +1905,11 @@ Missing work / next action: Retain final optical captures/measurement receipts a
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
+
 ### 06.09 — Keep furniture available/unavailable colors consistent across floor materials.
+
+Local review candidate on main 1d7b7b5: reused only PR106 opaque furniture feedback helper and draw call sites, without cabinet/model/codec/paint integration. Godot4.6.3: 95 scoped checks passed; six generated desktop1360x880 native frames at zoom1.0 inspected across warm oak/cream/sage and valid/invalid Plant previews. Invariant fill/border locally verified; symbols may be occluded by furniture. Browser/mobile and combined editor/pickup acceptance remain pending. No merge or release.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
@@ -1942,6 +1948,8 @@ Visual acceptance: PR reports actual native four-tile captures
 Missing work / next action: Integrated seam/material and invalid-stroke visual checks
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
 
 ### 06.11 — Remove duplicate or unhelpful tooltips.
 
@@ -1982,6 +1990,8 @@ Visual acceptance: Editor wall actions captured; all doors/windows provenance no
 Missing work / next action: Integrated old/new buy/move/sell, hosted-opening support, tombstones and reject double sale
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
+
+Local successor update (2026-10-10, not merged/released): isolated `local/011-wall-paint-successor` selectively composes PR103 wall/paint transactions, editor `4c6f25c` and only the remaining PR106 paint perimeter/quantity/coin presentation onto immutable pickup `df5f4c6`. Current recovery controls, inspection, opaque furniture feedback, pickup/legacy ownership and released disposal guards remain. Main and runtime codec are unchanged. Targeted synthetic wall provenance/opening support, atomic/stale paint, cancel/focus/recovery, UI and pickup/janitor checks pass; no historical door normalization or canonical/Web acceptance is claimed. The existing atlas procedural-source gate remains blocked; no hashes refreshed or canonical environment dispatched.
 
 ### 07.02 — Doors have consistent one-grid-cell width and visual size. Existing 0.76-width historical doors are not already normalized by PR #103; compatibility and visual migration remain explicit gates.
 
@@ -2283,6 +2293,8 @@ Missing work / next action: Preserve reserved legacy counter jobs, duplicate-out
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
+Local integration update (2026-10-10, not merged/released): the separate `local/011-pickup-integration` candidate composes the PR91 prerequisite delta once and PR104 direct pickup onto main `1d7b7b5`, retaining starter-bin commit `c88a4f7` and released floor disposal. Focused synthetic behavior checks cover new stove pickup, occupied-output exclusion/reuse, exact ownership across save/reload, and a real legacy reserved-counter handoff through checkout. Existing kitchen/contact drawing comes from the reviewed dependency; character/wardrobe and routing foundation activation remain held. Native/Web visual acceptance is pending. The existing prebaked-atlas provenance guard rejects the changed procedural dependency closure; regenerate and verify RGBA before updating the manifest. This candidate does not supply PR103 wall/edit APIs or atomic paint publication.
+
 ### 10.02 — Chef finishes at the stove, yields space, and the waiter physically picks up the plate.
 
 | Code | Tests | Visual acceptance | Merged | Released |
@@ -2303,23 +2315,25 @@ Missing work / next action: Preserve reserved legacy counter jobs, duplicate-out
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
+Local integration update (2026-10-10, not merged/released): the separate `local/011-pickup-integration` candidate composes the PR91 prerequisite delta once and PR104 direct pickup onto main `1d7b7b5`, retaining starter-bin commit `c88a4f7` and released floor disposal. Focused synthetic behavior checks cover new stove pickup, occupied-output exclusion/reuse, exact ownership across save/reload, and a real legacy reserved-counter handoff through checkout. Existing kitchen/contact drawing comes from the reviewed dependency; character/wardrobe and routing foundation activation remain held. Native/Web visual acceptance is pending. The existing prebaked-atlas provenance guard rejects the changed procedural dependency closure; regenerate and verify RGBA before updating the manifest. This candidate does not supply PR103 wall/edit APIs or atomic paint publication.
+
 ### 10.03 — Do not give an unnecessary trash bin in a fresh start, but retain the item for optional shop purchase; preserve already-owned items and saved value.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🔴 RED — Not implemented in audited candidates; released model retains included_bin_pending and shop bin | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🔴 RED — No new bin-free starter acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Local fresh-start candidate removes the free-bin entitlement; optional shop bin and historical readers remain | 🟡 YELLOW — 160 focused synthetic engine checks passed; integrated acceptance incomplete | 🔴 RED — Native/Web UI review pending | Local candidate only; not merged | No integrated11 runtime release verified |
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Not implemented in audited candidates; released model retains included_bin_pending and shop bin
+Code status: Local candidate on main base `1d7b7b5f12cced3d682cb37ecd0957e2585f19d0` sets `included_bin_pending=false` only in fresh `MinimalStart.apply`. The shop retains its 65-coin catalog bin; existing load/save and historical entitlement semantics are unchanged.
 
-Exact code evidence: [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd); [minimal_start.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/minimal_start.gd)
+Exact code evidence: [fresh initialization](../scripts/minimal_start.gd); unchanged [catalog, purchase and historical reader](../scripts/cafe_model.gd).
 
-Tests present: [test_direct_janitor_cleanup.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_direct_janitor_cleanup.gd)
+Tests present: [direct cleanup and starter inventory](../tests/test_direct_janitor_cleanup.gd), 38 checks; [purchase/refund regression](../tests/test_decoration_refund.gd), 122 checks. Godot 4.6.3 headless disposable profiles passed all 160 checks. The added assertions reproduced four failures before the fresh-start fix. Restricted-environment root-certificate-store diagnostics occurred; no script/assertion failures occurred on the candidate. This does not establish visual, browser or hosted acceptance.
 
 Visual acceptance: No new bin-free starter acceptance
 
-Missing work / next action: Change fresh inventory separately; preserve owned bins/value and historic saves; do not restore candidate auto-bin insertion
+Missing work / next action: Review actual native/Web fresh shop price and optional purchase, then integrated save compatibility and source review before promotion. Preserve owned bins/value and historical entitlements; do not restore candidate auto-bin insertion.
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 

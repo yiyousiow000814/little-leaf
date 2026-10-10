@@ -21,12 +21,25 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = [
+    ("test_floor_inspection", "FLOOR_INSPECTION_RESULT"),
+    ("test_selected_tile_resize", "SELECTED_TILE_RESIZE_RESULT"),
+    ("test_placement_feedback_colors", "PLACEMENT_FEEDBACK_COLORS_RESULT"),
+    ("test_stroke_price_layout", "STROKE_PRICE_LAYOUT_RESULT"),
+    ("test_tile_paint_perimeter", "TILE_PAINT_PERIMETER_RESULT"),
     ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
     ("test_startup_readiness", "STARTUP_READINESS_RESULT"),
     ("test_cloud_recovery_ui", "CLOUD_RECOVERY_UI_RESULT"),
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_stove_output_geometry", "STOVE_OUTPUT_GEOMETRY_RESULT"),
+    ("test_stove_output_reuse", "STOVE_OUTPUT_REUSE_RESULT"),
+    ("test_chef_pickup_pose", "CHEF_PICKUP_POSE_RESULT"),
+    ("capture_chef_pickup", "CHEF_PICKUP_CAPTURE_RESULT"),
+    ("test_direct_chef_pickup", "DIRECT_CHEF_PICKUP_RESULT"),
+    ("capture_editor_acceptance", "EDITOR_CAPTURE_FIXTURE_RESULT"),
+    ("capture_modular_cabinets", "CABINET_CAPTURE_FIXTURE_RESULT"),
+    ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
@@ -83,6 +96,8 @@ SUITES = [
     ("test_wallet_alignment", "WALLET_ALIGNMENT_RESULT"),
     ("test_cancel_icon", "CANCEL_ICON_RESULT"),
     ("test_build_tiles_ui", "BUILD_TILES_UI_RESULT"),
+    ("test_atomic_paint_plan", "ATOMIC_PAINT_PLAN_RESULT"),
+    ("test_paint_stroke_ui", "PAINT_STROKE_UI_RESULT"),
     ("test_build_actor_positions", "BUILD_ACTOR_POSITIONS_RESULT"),
     ("test_existing_wall_actions", "EXISTING_WALL_ACTIONS_RESULT"),
     ("test_build_wall_ui", "BUILD_WALL_UI_RESULT"),
@@ -102,6 +117,10 @@ SUITES = [
     ("test_sink_basin_visual", "SINK_BASIN_VISUAL_RESULT"),
     ("test_sink_wash_action", "SINK_WASH_ACTION_RESULT"),
     ("test_floor_availability", "FLOOR_AVAILABILITY_RESULT"),
+    ("test_editing_visual_feedback", "EDITING_VISUAL_FEEDBACK_RESULT"),
+    ("test_cross_category_selection", "CROSS_CATEGORY_SELECTION_RESULT"),
+    ("test_wall_move_sell_ui", "WALL_MOVE_SELL_UI_RESULT"),
+    ("test_wall_transactions", "WALL_TRANSACTIONS_RESULT"),
     ("test_furniture_worker_egress", "FURNITURE_WORKER_EGRESS"),
     ("test_staff_relocation_service", "STAFF_RELOCATION_SERVICE_RESULT"),
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),
@@ -113,12 +132,15 @@ SUITES = [
     ("test_stove_work_reservation", "STOVE_WORK_RESERVATION_RESULT"),
     ("test_stove_reservation_ui", "STOVE_RESERVATION_UI_RESULT"),
     ("test_stove_pause_service", "STOVE_PAUSE_SERVICE_RESULT"),
+    ("test_stove_work_transition", "STOVE_WORK_TRANSITION"),
     ("test_workface_ground_guidance", "WORKFACE_GROUND_GUIDANCE_RESULT"),
     ("test_workface_single_tint", "WORKFACE_SINGLE_TINT_RESULT"),
     ("test_departing_route_edit", "DEPARTING_ROUTE_RESULT"),
     ("test_departing_route_service", "DEPARTING_ROUTE_SERVICE_RESULT"),
     ("test_register_edge", "REGISTER_EDGE_RESULT"),
     ("test_chef_fire", "CHEF_FIRE_TESTS"),
+    ("test_gentle_cooking", "GENTLE_COOKING_RESULT"),
+    ("test_stove_full_tile", "STOVE_FULL_TILE_RESULT"),
     ("test_food_contact", "FOOD_CONTACT_TESTS"),
     ("test_chair_ground_contact", "CHAIR_GROUND_CONTACT_RESULT"),
     ("test_simple_kitchen", "SIMPLE_KITCHEN_TESTS"),
@@ -268,6 +290,7 @@ def main():
                     env["LL_UI_RESULT"] = str(output / (script + "-result.json"))
                     env["LL_LITTER_EVIDENCE"] = str(output / (script + "-litter.json"))
                     flags = ["--visual-qa", "--fresh-review"]
+                    if script == "capture_chef_pickup":flags.append("--validate-fixture")
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
                     if script not in {"test_intro_lifecycle_headless", "test_startup_readiness"}:

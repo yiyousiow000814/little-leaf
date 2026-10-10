@@ -3,6 +3,8 @@ const Motion=preload("res://scripts/cafe_furniture_motion.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model);model.coins=100000
+  # Keep this four-table traffic fixture independent of starter checkout rotation.
+  assert(model.move(int(model.checkout_register().id),6,4,1),model.last_error)
   for at in [Vector2i(6,5),Vector2i(9,5),Vector2i(3,6)]:assert(model.place("table_set",at.x,at.y,0),model.last_error)
 var checks=0;var failures=[]
 func check(ok,label):

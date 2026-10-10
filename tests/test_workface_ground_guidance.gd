@@ -49,6 +49,8 @@ func run():
  NoBottom.verify(game,check,"ground guidance")
  m.items.erase(blocker);m._notify();select(stove)
  check(guide.markers[0].clear and m.layout_access_issues().is_empty(),"repair immediately restores clear ground guidance")
+ # A generated owned legacy counter still exposes both working-side markers.
+ m.items.append({"id":m._next_item_id,"kind":"counter","x":5,"z":6,"rot":0});m._next_item_id+=1;m._notify()
  for kind in ["counter","register"]:
   var station={}
   for item in m.items:

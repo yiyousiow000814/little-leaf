@@ -32,7 +32,7 @@ func run():
  for rotation in range(4):
   var heading=-Vector2.DOWN.rotated(rotation*PI/2)
   var mirror=-1.0 if heading.x-heading.y<0 else 1.0;var back=heading.x+heading.y<0
-  var ground=Vector2((heading.x-heading.y)*39,(heading.x+heading.y)*19.5)*(1.0-Art.INSET)
+  var ground=Vector2((heading.x-heading.y)*39,(heading.x+heading.y)*19.5)*(1.0-Art.work_inset(rotation))
   var near=Vector2(7,-24) if back else Vector2(-7,-24);var far=Vector2(-6,-26.5) if back else Vector2(6,-26.5)
   for count in [1,6]:
    var ref=Art.geometry(rotation,1.0,count);var ref_axes:Transform2D=ref.basis
