@@ -143,7 +143,7 @@ static func build_stop_kerb()->Array[Dictionary]:
 	var strips:Array[Dictionary]=[]
 	# Retain the same boundary right along the straight approaches. Exact
 	# ramp and opening endpoints prevent a small sliver across the doorway.
-	var cuts=[float(Extent.PAVEMENT_Z_MIN),STOP_APPROACH.x,STOP_PAD.position.y,BOARDING_GAP.x-KERB_RAMP,BOARDING_GAP.x,BOARDING_GAP.y,BOARDING_GAP.y+KERB_RAMP,STOP_PAD.end.y,STOP_APPROACH.y,float(Extent.PAVEMENT_Z_MAX)]
+	var cuts=[float(Extent.RENDER_PAVEMENT_Z_MIN),STOP_APPROACH.x,STOP_PAD.position.y,BOARDING_GAP.x-KERB_RAMP,BOARDING_GAP.x,BOARDING_GAP.y,BOARDING_GAP.y+KERB_RAMP,STOP_PAD.end.y,STOP_APPROACH.y,float(Extent.RENDER_PAVEMENT_Z_MAX)]
 	for segment in range(cuts.size()-1):
 		var start:float=cuts[segment];var finish:float=cuts[segment+1]
 		if start>=BOARDING_GAP.x and finish<=BOARDING_GAP.y:continue
@@ -157,7 +157,7 @@ static func build_stop_kerb()->Array[Dictionary]:
 
 static func kerb_planes(a)->Array[Dictionary]:
 	var planes:Array[Dictionary]=[]
-	for span in [Vector2(Extent.PAVEMENT_Z_MIN,BOARDING_GAP.x),Vector2(BOARDING_GAP.y,Extent.PAVEMENT_Z_MAX)]:
+	for span in [Vector2(Extent.RENDER_PAVEMENT_Z_MIN,BOARDING_GAP.x),Vector2(BOARDING_GAP.y,Extent.RENDER_PAVEMENT_Z_MAX)]:
 		var outer=[];var inner=[];var lower=[]
 		for strip in stop_kerb:
 			if strip.outer[0].y<span.x or strip.outer[1].y>span.y:continue
@@ -183,10 +183,30 @@ static func projected(a,points:Array)->Array:
 	for point in points:result.append(a.iso(point.x,point.y))
 	return result
 
+static func visible_pavement_rows(a)->Vector2i:
+	# Coverage is finite but wider overview must not loop over offscreen rows.
+	# Use the artist's projection so native retained and immediate paths agree.
+	var origin=a.iso(0,0)
+	var inverse=Transform2D(a.iso(1,0)-origin,a.iso(0,1)-origin,origin).affine_inverse()
+	var view:Rect2=a.get_viewport_rect().grow(8.0)
+	var minimum=INF;var maximum=-INF
+	for point in [view.position,Vector2(view.end.x,view.position.y),view.end,Vector2(view.position.x,view.end.y)]:
+		var depth=(inverse*point).y;minimum=minf(minimum,depth);maximum=maxf(maximum,depth)
+	return Vector2i(maxi(Extent.RENDER_PAVEMENT_Z_MIN,floori(minimum)-1),mini(Extent.RENDER_PAVEMENT_Z_MAX,ceili(maximum)+1))
+
 static func draw_ground(a,parking_owned:bool=false):
-	quad(a,ROAD_LEFT,Extent.STREET_Z_MIN,ROAD_RIGHT,Extent.STREET_Z_MAX,"8b9b90")
-	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
+	var visible_rows=visible_pavement_rows(a)
+	quad(a,ROAD_LEFT,Extent.RENDER_STREET_Z_MIN,ROAD_RIGHT,Extent.RENDER_STREET_Z_MAX,"8b9b90")
+	for z in range(visible_rows.x,visible_rows.y):
 		quad(a,OPPOSITE_LEFT,z,ROAD_LEFT,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
+		# Extend only the newly visible cafe-side background. Keep the original
+		# retained pavement mesh/stroke rebuild workload unchanged.
+		if z<Extent.PAVEMENT_Z_MIN or z>=Extent.PAVEMENT_Z_MAX:
+			var bounds=world_bounds(a,Rect2(ROAD_RIGHT,z,3.0,1.0),0.0)
+			if screen_visible(a,bounds):
+				quad(a,ROAD_RIGHT,z,ROAD_RIGHT+3.0,z+1,"dfe0c8" if posmod(z,2)==0 else "d7dcc2")
+				a.line(a.iso(ROAD_RIGHT,z),a.iso(ROAD_RIGHT+3.0,z),"c7cbae",.7)
+				for column in range(1,3):a.line(a.iso(ROAD_RIGHT+column,z),a.iso(ROAD_RIGHT+column,z+1),"c7cbae",.7)
 	# The reference's four marked edges ease into the same public sidewalk.
 	# The bay first clears original paving; curved tile strips then cover its
 	# lawn side. The through road and shelter/waiting positions stay fixed.
@@ -196,8 +216,10 @@ static func draw_ground(a,parking_owned:bool=false):
 	if screen_visible(a,Visibility.points_bounds(stop_polygon)):a.poly(stop_polygon,"8b9b90")
 	for row in stop_paving:
 		var points=projected(a,row.points)
-		if screen_visible(a,Visibility.points_bounds(points)):a.poly(points,row.color)
-	for z in range(Extent.MARK_Z_MIN,Extent.MARK_Z_MAX,3):
+		var bounds=Visibility.points_bounds(points)
+		if screen_visible(a,bounds):a.poly(points,row.color)
+	var mark_start=Extent.RENDER_MARK_Z_MIN+maxi(0,floori(float(visible_rows.x-Extent.RENDER_MARK_Z_MIN)/3.0))*3
+	for z in range(mark_start,mini(Extent.RENDER_MARK_Z_MAX,visible_rows.y+1),3):
 		var start=a.iso(-6.01,z);var finish=a.iso(-6.01,z+.85)
 		if Rect2(start,Vector2.ZERO).expand(finish).grow(3).intersects(a.get_viewport_rect()):a.line(start,finish,"c6ceb7",2*a.ui_scale)
 	if parking_owned:
@@ -207,14 +229,14 @@ static func draw_ground(a,parking_owned:bool=false):
 		a.line(a.iso(0,-8.45),a.iso(11.6,-8.45),"dce0ca",1.3*a.ui_scale)
 		# Open lawn separates the lot from the wall; only one short pedestrian link.
 		quad(a,PEDESTRIAN_LINK.position.x,PEDESTRIAN_LINK.position.y,PEDESTRIAN_LINK.end.x,PEDESTRIAN_LINK.end.y,"d7dcc2")
-	for z in range(Extent.PAVEMENT_Z_MIN,Extent.PAVEMENT_Z_MAX):
+	for z in range(visible_rows.x,visible_rows.y):
 		var edges=pavement_edges(z)
 		var p=a.iso(edges.x,z);var q=a.iso(edges.y,z)
 		if Rect2(p,Vector2.ZERO).expand(q).grow(2).intersects(a.get_viewport_rect()):a.line(p,q,"c5cbb3",.7)
 	for seam in stop_grid:a.line(a.iso(seam[0].x,seam[0].y),a.iso(seam[1].x,seam[1].y),"c5cbb3",.7)
 	# The ordinary field keeps the same fixed square grid on both approaches.
 	for x in [OPPOSITE_LEFT+1,OPPOSITE_LEFT+2]:
-		for span in [Vector2(Extent.PAVEMENT_Z_MIN,STOP_APPROACH.x),Vector2(STOP_APPROACH.y,Extent.PAVEMENT_Z_MAX)]:
+		for span in [Vector2(Extent.RENDER_PAVEMENT_Z_MIN,STOP_APPROACH.x),Vector2(STOP_APPROACH.y,Extent.RENDER_PAVEMENT_Z_MAX)]:
 			a.line(a.iso(x,span.x),a.iso(x,span.y),"c5cbb3",.7)
 	# Paving remains at its existing level. A narrow cap occupies only the
 	# pavement edge; its road-facing riser drops below that plane, so there is
