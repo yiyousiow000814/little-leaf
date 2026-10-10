@@ -115,6 +115,7 @@ func command_hit(method:StringName,args:Array,point:Vector2,opacity:float,transf
 			return HIT if args[1].a*opacity>ALPHA and Geometry2D.is_point_in_polygon(point,args[0]) else CLEAR
 		&"draw_polygon":
 			if args[3]!=null:return UNKNOWN
+			if not Geometry2D.is_point_in_polygon(point,args[0]):return CLEAR
 			return _triangles_hit(args[0],args[1],Geometry2D.triangulate_polygon(args[0]),point,opacity)
 		&"draw_mesh":
 			if args[1]!=null:return UNKNOWN
@@ -149,6 +150,10 @@ func _line_hit(a:Vector2,b:Vector2,color:Color,width:float,point:Vector2,opacity
 	if width<0:
 		var scale=maxf(transform.x.length(),.00001)
 		return HIT if point.distance_to(Geometry2D.get_closest_point_to_segment(point,a,b))<=.5/scale else CLEAR
+	# Broad rejection only. Keep the exact existing nine AA quads for every
+	# possible hit, including diagonal end feathers and float32 native width.
+	var native_width=PackedFloat32Array([width])[0]
+	if point.distance_to(Geometry2D.get_closest_point_to_segment(point,a,b))>native_width*.5+2.0*Strokes.FEATHER_SIZE+.00001:return CLEAR
 	var stroke=Strokes.new();stroke.add_line(a,b,color,width)
 	return _triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,opacity)
 

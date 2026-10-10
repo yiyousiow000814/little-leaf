@@ -95,5 +95,13 @@ func run():
 	check(pick.command_hit(&"draw_polygon",[points,colors,PackedVector2Array(),null],Vector2(8,1),1,Transform2D.IDENTITY,null,{})==Pick.CLEAR,"transparent triangle feather excluded")
 	check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,0),Color.WHITE,2.0,true],Vector2(5,0),1,Transform2D.IDENTITY,null,{})==Pick.HIT,"native line core occludes")
 	check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,0),Color.WHITE,2.0,true],Vector2(5,4),1,Transform2D.IDENTITY,null,{})==Pick.CLEAR,"line does not claim distant floor")
+	# Compare the new far-point rejection against the existing native AA quads,
+	# including thin widths and diagonal end/side feathers near the alpha cutoff.
+	for width in [.1,1.0,2.0,6.0]:
+		var stroke=preload("res://scripts/retained_aa_strokes.gd").new()
+		stroke.add_line(Vector2.ZERO,Vector2(10,10),Color.WHITE,width)
+		for point in [Vector2(-.5,-.5),Vector2(0,2),Vector2(5,6),Vector2(10.5,10.5),Vector2(20,20)]:
+			var reference=pick._triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,1)
+			check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,10),Color.WHITE,width,true],point,1,Transform2D.IDENTITY,null,{})==reference,"AA broad rejection preserves exact native quads "+str(width)+" "+str(point))
 	print("CHARACTER_PICK_GEOMETRY_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"synthetic_commands_only":true,"native_render_verified":false,"player_save_used":false}))
 	quit(0 if failures.is_empty() else 1)
