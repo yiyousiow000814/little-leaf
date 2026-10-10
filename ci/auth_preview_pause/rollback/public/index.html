@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>Little Leaf Cafe</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+html, body {
+	width: 100%;
+	height: 100%;
+	background: #cce3e8;
+}
+
+body {
+	color: #735f43;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	overflow: hidden;
+}
+
+#canvas { display: block; touch-action: none; }
+#canvas:focus { outline: none; }
+
+/* This is visible before any engine, SDK or storage work can begin. */
+#status {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	background: #cce3e8;
+	overflow: auto;
+	touch-action: pan-y;
+}
+
+.status-cloud {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: rgba(255, 255, 250, .42);
+	transform: translate(-50%, -50%);
+}
+.status-cloud::before, .status-cloud::after {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	background: inherit;
+}
+.status-cloud::before { width: 46px; height: 46px; left: -17px; top: 13px; }
+.status-cloud::after { width: 50px; height: 50px; left: 37px; top: 13px; }
+.status-cloud:nth-child(1) { left: 16%; top: 18%; }
+.status-cloud:nth-child(2) { left: 78%; top: 23%; }
+.status-cloud:nth-child(3) { left: 60%; top: 68%; }
+
+/* Match cafe_intro.gd's opening composition, including short landscapes. */
+#status-brand {
+	position: absolute;
+	left: 50%;
+	top: 42.8%;
+	width: min(91.7937vw, 620px, 90.695vh);
+	aspect-ratio: 783 / 518;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+#status-welcome {
+	position: absolute;
+	left: 50%;
+	top: -18px;
+	transform: translateX(-50%);
+	width: 100vw;
+	margin: 0;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 34px;
+}
+#status-splash { display: block; width: 100%; height: 100%; object-fit: contain; }
+#status-brand-fallback {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	font: bold clamp(32px, 8vw, 64px) Georgia, serif;
+}
+#status-brand-fallback[hidden], #status-splash[hidden] { display: none; }
+
+#status-loading {
+	position: absolute;
+	left: 50%;
+	bottom: 9%;
+	transform: translateX(-50%);
+	width: min(70vw, 320px);
+	text-align: center;
+}
+#status-label { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
+#status-progress {
+	display: block;
+	width: 100%;
+	height: 12px;
+	box-sizing: border-box;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid #899b72;
+	border-radius: 999px;
+	background: #f6f3df;
+	color: #708749;
+	accent-color: #708749;
+	overflow: hidden;
+}
+#status-progress::-webkit-progress-bar { background: #f6f3df; border-radius: 999px; }
+#status-progress::-webkit-progress-value { background: #708749; border-radius: 999px; }
+#status-progress::-moz-progress-bar { background: #708749; border-radius: 999px; }
+/* Unknown totals have no invented percentage or time-based advancement. */
+#status-progress:indeterminate { opacity: .65; }
+
+#status-notice {
+	display: none;
+	position: relative;
+	z-index: 1;
+	box-sizing: border-box;
+	width: min(90%, 540px);
+	max-height: 80%;
+	overflow: auto;
+	margin: 10vh auto;
+	padding: 24px;
+	border: 1px solid #907853;
+	border-radius: 16px;
+	background: #fff9e9;
+	color: #56442f;
+	line-height: 1.5;
+	text-align: center;
+	touch-action: pan-y;
+}
+#status-notice h1 { font-size: 22px; margin: 0 0 12px; }
+#status-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+#status-retry {
+	min-height: 44px;
+	padding: 10px 24px;
+	border: 1px solid #596c3b;
+	border-radius: 12px;
+	background: #708749;
+	color: white;
+	font: inherit;
+	cursor: pointer;
+}
+#status-retry:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+#status[data-mode="notice"] #status-brand,
+#status[data-mode="notice"] #status-loading { display: none; }
+#status[data-mode="notice"] #status-notice { display: block; }
+#no-script {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-content: center;
+	padding: 24px;
+	background: #cce3e8;
+	text-align: center;
+	line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+	#status-progress:indeterminate { visibility: hidden; }
+}
+@media (max-width: 699px) { #status-welcome { font-size: 18px; } }
+@media (max-height: 340px) {
+	#status-loading { bottom: 5%; }
+	#status-label { font-size: 12px; margin-bottom: 6px; }
+}
+		</style>
+		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+
+	</head>
+	<body>
+		<canvas id="canvas" aria-label="Little Leaf café game" aria-busy="true">
+			Little Leaf needs a browser with canvas support. Please use an up-to-date browser.
+		</canvas>
+
+		<div id="status" data-mode="progress" aria-label="Loading Little Leaf">
+			<div aria-hidden="true"><i class="status-cloud"></i><i class="status-cloud"></i><i class="status-cloud"></i></div>
+			<div id="status-brand">
+				<p id="status-welcome">Welcome to</p>
+				<img id="status-splash" src="index.png" width="783" height="518" alt="Little Leaf" fetchpriority="high">
+				<span id="status-brand-fallback" hidden>Little Leaf</span>
+			</div>
+			<div id="status-loading">
+				<p id="status-label" role="status" aria-live="polite">Preparing your café…</p>
+				<progress id="status-progress" aria-label="Downloading Little Leaf"></progress>
+			</div>
+			<section id="status-notice" role="alert" aria-labelledby="status-error-title">
+				<h1 id="status-error-title">Little Leaf couldn’t open yet</h1>
+				<p id="status-error"></p>
+				<p>Check your connection, then try reloading. If this keeps happening, try an up-to-date browser.</p>
+				<button id="status-retry" type="button">Reload Little Leaf</button>
+			</section>
+		</div>
+		<noscript><div id="no-script"><strong>Little Leaf</strong><p>JavaScript is needed to open your café. Enable JavaScript, then reload this page.</p></div></noscript>
+
+		<script>
+/* Little Leaf boot presentation only. No storage, gameplay, audio or SDK state. */
+(function (root) {
+	'use strict';
+	const overlay = document.getElementById('status');
+	const label = document.getElementById('status-label');
+	const progress = document.getElementById('status-progress');
+	const splash = document.getElementById('status-splash');
+	const canvas = document.getElementById('canvas');
+	let engineReady = false, frameReady = false, finished = false;
+	let frameWatchdog = null;
+	function stopWatching() {
+		root.clearTimeout(frameWatchdog);
+		document.removeEventListener('visibilitychange', watchForFrame);
+	}
+	function watchForFrame() {
+		root.clearTimeout(frameWatchdog);
+		// This is a failure diagnostic, never a minimum splash duration. Hidden
+		// tabs cannot render reliably, so allow a fresh visible observation window.
+		if (finished || frameReady || !engineReady || document.visibilityState === 'hidden') return;
+		frameWatchdog = root.setTimeout(() => fail('The café has not drawn its first frame yet. Reload to try again.'), 45000);
+	}
+	document.addEventListener('visibilitychange', watchForFrame);
+
+	function revealGame() {
+		if (finished || !engineReady || !frameReady) return;
+		finished = true;
+		stopWatching();
+		canvas.setAttribute('aria-busy', 'false');
+		overlay.remove();
+	}
+	function fail(error) {
+		if (finished) return;
+		finished = true;
+		stopWatching();
+		console.error(error);
+		const message = typeof error === 'string' ? error : error && error.message;
+		document.getElementById('status-error').textContent = message || 'The game could not finish starting. Please reload to try again.';
+		overlay.dataset.mode = 'notice';
+		canvas.setAttribute('aria-busy', 'false');
+		document.getElementById('status-retry').focus();
+	}
+	function showBrandFallback() {
+		splash.hidden = true;
+		document.getElementById('status-brand-fallback').hidden = false;
+	}
+	splash.addEventListener('error', showBrandFallback);
+	if (splash.complete && !splash.naturalWidth) showBrandFallback();
+	document.getElementById('status-retry').addEventListener('click', () => root.location.reload());
+	root.LittleLeafBoot = Object.freeze({
+		fail,
+		onProgress(current, total) {
+			if (finished) return;
+			if (Number.isFinite(current) && Number.isFinite(total) && current >= 0 && total > 0 && current <= total) {
+				progress.max = total;
+				progress.value = current;
+				label.textContent = current < total ? 'Downloading your café…' : 'Opening your café…';
+			} else {
+				progress.removeAttribute('value');
+				progress.removeAttribute('max');
+				label.textContent = 'Downloading your café…';
+			}
+		},
+		artWarmup(ready, total) {
+			if (finished || !Number.isInteger(ready) || !Number.isInteger(total) || total <= 0 || ready < 0 || ready > total) return;
+			label.textContent = `Preparing café art · ${ready}/${total} ready`;
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+		},
+		engineReady() {
+			if (finished) return;
+			engineReady = true;
+			watchForFrame();
+			progress.setAttribute('aria-label', 'Opening Little Leaf');
+			label.textContent = 'Opening your café…';
+			// Download completion is not a first rendered frame. Do not uncover the
+			// engine splash or an empty canvas, even on a fast/cache-hit launch.
+			progress.removeAttribute('value');
+			progress.removeAttribute('max');
+			revealGame();
+		},
+		// Called once by main.gd after RenderingServer.frame_post_draw.
+		firstFrameReady() { frameReady = true; revealGame(); }
+	});
+})(window);
+		</script>
+		<script>
+/* Presentation-only letter retention and read markers. Never accesses IndexedDB or preferences. */
+(function (root) {
+  'use strict';
+  const PREFIX = 'little-leaf.inbox.read.v1/';
+  const DISPLAY_PREFIX = 'little-leaf.inbox.display.v1/';
+  const CLOCK_PREFIX = DISPLAY_PREFIX + 'clock/';
+  const FUTURE_PREFIX = DISPLAY_PREFIX + 'future/';
+  const EXPIRED_PREFIX = DISPLAY_PREFIX + 'expired/';
+  const RETENTION_MS = 14 * 86400000;
+  const MAX_MARKERS = 2048, MAX_METADATA = 4096, MAX_PROFILES = 16;
+  const validProfile = value => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value);
+  function marker(profile, campaign, revision) {
+    if (!validProfile(profile) || typeof campaign !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(campaign) || !Number.isSafeInteger(revision) || revision < 1) return null;
+    return PREFIX + profile + '/' + campaign + '/' + revision;
+  }
+  const displayKey = (prefix, key) => prefix + key.slice(PREFIX.length);
+  function createClient(options = {}) {
+    const session = new Set(), expired = new Set(), future = new Map(), clocks = new Map(), notes = new Set();
+    const storage = () => options.storage === undefined ? root.localStorage : options.storage;
+    const warning = 'Letter timing and read status may reset after reload because browser storage is unavailable or full.';
+    const warn = () => notes.add(warning);
+    function readValue(key) {
+      try { return storage().getItem(key); }
+      catch (_) { warn(); return null; }
+    }
+    function readTime(key) {
+      const raw = readValue(key), value = Number(raw);
+      return raw !== null && raw !== '' && Number.isSafeInteger(value) && value >= 0 ? value : null;
+    }
+    function readFutureAnchors(keys) {
+      const anchors = new Map();
+      // Read the original exact-key format without changing it.
+      for (const key of keys) {
+        const retained = readTime(displayKey(FUTURE_PREFIX, key));
+        if (retained !== null) anchors.set(key, retained);
+      }
+      try {
+        const store = storage();
+        for (let i = 0; i < store.length; i++) {
+          const storedKey = store.key(i) || '';
+          if (!storedKey.startsWith(FUTURE_PREFIX)) continue;
+          const suffix = storedKey.slice(FUTURE_PREFIX.length), split = suffix.lastIndexOf('/');
+          const key = PREFIX + suffix.slice(0, split), stamp = suffix.slice(split + 1), time = Number(stamp);
+          if (!keys.has(key) || !/^(0|[1-9][0-9]*)$/.test(stamp) || !Number.isSafeInteger(time) || store.getItem(storedKey) !== '1') continue;
+          anchors.set(key, Math.min(anchors.has(key) ? anchors.get(key) : Infinity, time));
+        }
+      } catch (_) { warn(); }
+      return anchors;
+    }
+    function writeValue(key, value, prefix, limit) {
+      const store = storage();
+      if (store.getItem(key) === value) return;
+      if (store.getItem(key) === null) {
+        let count = 0;
+        for (let i = 0; i < store.length; i++) if ((store.key(i) || '').startsWith(prefix)) count++;
+        if (count >= limit) throw new Error('Presentation metadata limit');
+      }
+      store.setItem(key, value);
+      if (store.getItem(key) !== value) throw new Error('Presentation metadata was not retained');
+    }
+    function saveMetadata(key, value) {
+      try { writeValue(key, String(value), DISPLAY_PREFIX, MAX_METADATA); return true; }
+      catch (_) { warn(); return false; }
+    }
+    function displayTime(profile, persist) {
+      let now;
+      try { now = options.now === undefined ? Date.now() : options.now(); } catch (_) { now = NaN; }
+      if (!Number.isSafeInteger(now) || now < 0) {
+        notes.add('The device clock is unavailable; letter timing uses the last known time.');
+        now = 0;
+      }
+      const key = CLOCK_PREFIX + profile, retained = readTime(key);
+      now = Math.max(now, clocks.get(profile) || 0, retained || 0);
+      if (!clocks.has(profile) && clocks.size >= MAX_PROFILES) clocks.delete(clocks.keys().next().value);
+      clocks.set(profile, now);
+      // Read on every projection so an old tab cannot reuse its cached clock.
+      // Independent expired flags below also survive interleaved clock writes.
+      if (persist === true && now !== retained) saveMetadata(key, now);
+      return now;
+    }
+    function isExpired(key) { return expired.has(key) || readValue(displayKey(EXPIRED_PREFIX, key)) === '1'; }
+    function expire(key, persist) {
+      session.delete(key);
+      if (expired.size < MAX_MARKERS) expired.add(key);
+      if (persist !== true) return;
+      saveMetadata(displayKey(EXPIRED_PREFIX, key), 1);
+      // Only the exact expired receipt from the verified input may be pruned.
+      // Future anchors and expired flags stay: deleting them could revive mail.
+      try {
+        const store = storage();
+        if (store.getItem(key) !== null) store.removeItem(key);
+        if (store.getItem(key) !== null) throw new Error('Read marker was not removed');
+      } catch (_) { warn(); }
+    }
+    return Object.freeze({
+      get notice() { return Array.from(notes).join(' '); },
+      visibleSnapshotJson(snapshotJson, persist) {
+        let snapshot;
+        try { snapshot = JSON.parse(snapshotJson); } catch (_) { return '{"ok":false,"paid":[],"deferred":[]}'; }
+        // This API accepts only the vault's verified projection; it is not a
+        // receipt verifier. Reject malformed input before any metadata writes.
+        const seen = new Set();
+        if (!snapshot || snapshot.ok !== true || !validProfile(snapshot.profileId) || !Number.isSafeInteger(snapshot.revision) || snapshot.revision < 0 || !Array.isArray(snapshot.paid) || !Array.isArray(snapshot.deferred) || !snapshot.paid.every(receipt => {
+          if (!receipt || receipt.status !== 'granted' || !Number.isSafeInteger(receipt.coins) || receipt.coins < 1 || receipt.coins > 1000000000 || !Number.isFinite(receipt.grantedAt) || receipt.grantedAt < 0 || receipt.revision > snapshot.revision) return false;
+          const key = marker(snapshot.profileId, receipt.id, receipt.revision);
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })) return '{"ok":false,"paid":[],"deferred":[]}';
+        const now = displayTime(snapshot.profileId, persist), retainedAnchors = readFutureAnchors(seen), paid = [];
+        for (const receipt of snapshot.paid) {
+          const key = marker(snapshot.profileId, receipt.id, receipt.revision);
+          if (isExpired(key)) { expire(key, persist); continue; }
+          const futureKey = displayKey(FUTURE_PREFIX, key), retained = retainedAnchors.has(key) ? retainedAnchors.get(key) : null;
+          const anchor = Math.min(retained === null ? Infinity : retained, future.has(key) ? future.get(key) : Infinity);
+          let deliveredAt = Math.min(receipt.grantedAt, anchor);
+          if (anchor === Infinity && deliveredAt > now) {
+            // A future-dated immutable receipt gets a fixed presentation-only
+            // first-seen anchor. Never rebase this on later visits or reloads.
+            deliveredAt = now;
+          }
+          if (deliveredAt !== receipt.grantedAt) {
+            notes.add('A future-dated letter uses its first visit here for the 14-day stay.');
+            let anchored = retained !== null || future.has(key);
+            // Distinct timestamp keys are immutable: interleaved first visits
+            // cannot replace an earlier anchor with a later tab's clock.
+            if (persist === true && deliveredAt !== retained && saveMetadata(futureKey + '/' + deliveredAt, 1)) {
+              anchored = true;
+              const latest = readFutureAnchors(new Set([key])).get(key);
+              if (latest !== undefined) deliveredAt = Math.min(deliveredAt, latest);
+            }
+            if (future.size < MAX_MARKERS || future.has(key)) { future.set(key, deliveredAt); anchored = true; }
+            if (!anchored) {
+              // Never keep rebasing an unremembered future receipt each visit.
+              notes.add('Timing storage is full; some future-dated letters are hidden.');
+              continue;
+            }
+          }
+          if (now - deliveredAt >= RETENTION_MS) { expire(key, persist); continue; }
+          paid.push({ ...receipt, deliveredAt });
+        }
+        return JSON.stringify({ ...snapshot, paid, retentionDays: 14, displayNow: now });
+      },
+      isRead(profile, campaign, revision) {
+        const key = marker(profile, campaign, revision);
+        if (!key) return false;
+        if (session.has(key)) return true;
+        const read = readValue(key) === '1';
+        if (read && session.size < MAX_MARKERS) session.add(key);
+        return read;
+      },
+      markRead(profile, campaign, revision, persist) {
+        const key = marker(profile, campaign, revision);
+        if (!key || isExpired(key)) return false;
+        // Reviews and suppressed writes clear only their current-session dot.
+        if (session.size >= MAX_MARKERS && !session.has(key)) { warn(); return false; }
+        session.add(key);
+        if (persist !== true) return true;
+        try {
+          // Independent acknowledgements avoid stale-tab map writes.
+          writeValue(key, '1', PREFIX, MAX_MARKERS);
+          return true;
+        } catch (_) { warn(); return true; }
+      }
+    });
+  }
+  root.LittleLeafInbox = Object.freeze({ PREFIX, DISPLAY_PREFIX, CLOCK_PREFIX, FUTURE_PREFIX, EXPIRED_PREFIX, RETENTION_MS, MAX_MARKERS, MAX_METADATA, MAX_PROFILES, createClient });
+  root.__littleLeafInbox = createClient();
+})(globalThis);
+
+/* Session-only save diagnostics. No storage, payloads, raw errors or telemetry. */
+(function (root) {
+  'use strict';
+  const LIMIT = 240;
+  const events = [];
+  const allowedEvents = new Set(['platform_save_accepted', 'platform_controller_accepted', 'boot_requested', 'read_result', 'read_accepted', 'read_failure', 'save_requested', 'save_queued', 'save_skipped', 'save_validated', 'save_submitted', 'save_confirmed', 'save_accepted', 'save_failure', 'retry_requested', 'connection_opened', 'connection_closed', 'connection_reopen_requested']);
+  const allowedStages = new Set(['boot_open', 'transaction_create', 'object_store', 'get_identity', 'get_active', 'active_result', 'identity_result', 'compare_authority', 'put', 'transaction_complete', 'reopen_existing', 'versionchange', 'forced_close', 'save_prepare']);
+  const allowedSources = new Set(['authority', 'legacy-v13', 'fresh', 'native-primary', 'native-import', 'review']);
+  const allowedCodes = new Set(['PLATFORM_STORAGE_ERROR', 'PLATFORM_DATA_LIMIT', 'PLATFORM_ACCOUNT_CHANGED', 'CAMPAIGN_CONFIG', 'CORRUPT_AUTHORITY', 'INVALID_SAVE', 'STORAGE_BLOCKED', 'STORAGE_ABORT', 'LEGACY_UNREADABLE', 'AMBIGUOUS_LEGACY', 'STORAGE_UNAVAILABLE', 'NOT_READY', 'SAVE_BUSY', 'REVISION_CONFLICT', 'REVISION_LIMIT', 'QuotaExceededError', 'SecurityError', 'AbortError', 'UnknownError', 'InvalidStateError', 'VersionError', 'NotFoundError', 'DataError', 'TransactionInactiveError', 'ReadOnlyError', 'ConstraintError', 'STORAGE_ERROR', 'VALIDATION_FAILED', 'STAGING_FAILED', 'INVALID_ACK', 'INVALID_REVISION_ACK', 'INVALID_CREDIT_ACK', 'CREDIT_SYNC_REQUIRED', 'WRITES_SUPPRESSED', 'RECOVERY_BLOCKED', 'NATIVE_SAVE_FAILED', 'BRIDGE_MISSING']);
+  let version = 'unknown', sequence = 0, dropped = 0, copyStatus = '', lastRead = null;
+  function origin(value) {
+    try { const url = new URL(value); return ['https:', 'http:'].includes(url.protocol) ? url.origin : 'unknown'; } catch (_) { return 'unknown'; }
+  }
+  function fingerprint(value) {
+    if (typeof value !== 'string' || !value || value.length > 128) return '';
+    let hash = 2166136261;
+    for (const byte of new TextEncoder().encode(value)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
+    return hash.toString(16).padStart(8, '0');
+  }
+  function context() {
+    const value = { origin: 'unknown', frame: 'unknown', referrerOrigin: 'unknown', browser: 'unknown' };
+    try { value.origin = origin(root.location.href); } catch (_) {}
+    try { value.frame = root.top === root ? 'top-level' : 'embedded'; } catch (_) {}
+    try { value.referrerOrigin = origin(root.document.referrer); } catch (_) {}
+    try {
+      const ua = root.navigator.userAgent;
+      for (const [name, pattern] of [['Edge', /Edg(?:e|A|iOS)?\/([0-9.]{1,20})/], ['Firefox', /(?:Firefox|FxiOS)\/([0-9.]{1,20})/], ['Chrome', /(?:Chrome|CriOS)\/([0-9.]{1,20})/], ['Safari', /Version\/([0-9.]{1,20}).*Safari/]]) {
+        const match = pattern.exec(ua); if (match) { value.browser = name + ' ' + match[1]; break; }
+      }
+    } catch (_) {}
+    return value;
+  }
+  const safeContext = context();
+  function record(event, fields = {}) {
+    // Reject unknown fields and raw messages rather than attempting redaction.
+    try {
+      if (!allowedEvents.has(event)) return;
+      const entry = { sequence: ++sequence, timestamp: new Date().toISOString(), event };
+      if (['vault', 'controller', 'native'].includes(fields.layer)) entry.layer = fields.layer;
+      if (allowedSources.has(fields.source)) entry.source = fields.source;
+      const profile = fingerprint(fields.profileId); if (profile) entry.profile = profile;
+      if (Number.isSafeInteger(fields.revision) && fields.revision >= 0) entry.revision = fields.revision;
+      if (typeof fields.code === 'string' && fields.code) entry.code = allowedCodes.has(fields.code) ? fields.code : 'STORAGE_ERROR';
+      if (allowedStages.has(fields.stage)) entry.stage = fields.stage;
+      if (Number.isSafeInteger(fields.connectionGeneration) && fields.connectionGeneration >= 1) entry.connectionGeneration = fields.connectionGeneration;
+      if (event === 'read_result' || event === 'read_accepted') lastRead = entry;
+      events.push(Object.freeze(entry));
+      if (events.length > LIMIT) { events.shift(); dropped++; }
+    } catch (_) { /* Diagnostics must never interfere with save control flow. */ }
+  }
+  function text() {
+    return ['Little Leaf save log | app ' + version, 'Session only. Copy before refreshing or closing this page.', 'Submitted is pending. Confirmed means IndexedDB transaction completed. Accepted means game controller accepted its acknowledgement. Platform acceptance does not confirm cloud sync.', 'origin=' + safeContext.origin + ' | frame=' + safeContext.frame + ' | referrerOrigin=' + safeContext.referrerOrigin + ' | browser=' + safeContext.browser, 'Latest read=' + (lastRead ? JSON.stringify(lastRead) : 'not accepted yet'), 'Events retained=' + events.length + '/' + LIMIT + ' | older events dropped=' + dropped, ...events.map(e => e.timestamp + ' #' + e.sequence + ' ' + e.event + Object.entries(e).filter(([key]) => !['sequence', 'timestamp', 'event'].includes(key)).map(([key, value]) => ' ' + key + '=' + value).join(''))].join('\n');
+  }
+  function fallbackCopy(value) {
+    let area;
+    try {
+      area = root.document.createElement('textarea'); area.value = value;
+      area.setAttribute('readonly', ''); area.style.cssText = 'position:fixed;left:0;top:0;opacity:0;pointer-events:none';
+      root.document.body.appendChild(area); area.focus(); area.select(); area.setSelectionRange(0, value.length);
+      copyStatus = root.document.execCommand('copy') ? 'copied' : 'unavailable';
+    } catch (_) { copyStatus = 'unavailable'; }
+    finally { try { if (area) area.remove(); root.document.getElementById('canvas').focus(); } catch (_) {} }
+  }
+  function copy() {
+    const value = text(); copyStatus = 'pending';
+    try {
+      if (root.navigator.clipboard && root.navigator.clipboard.writeText) {
+        root.navigator.clipboard.writeText(value).then(() => { copyStatus = 'copied'; }, () => fallbackCopy(value));
+      } else fallbackCopy(value);
+    } catch (_) { fallbackCopy(value); }
+    return copyStatus;
+  }
+  root.LittleLeafSaveLog = Object.freeze({
+    record, text, copy, snapshot: () => events.map(e => ({ ...e })),
+    setVersion(value) { if (typeof value === 'string' && /^[0-9]+\.[0-9]+\.[0-9]+[a-z]?(?:-[a-z0-9.-]+)?$/.test(value) && value.trim() === value && value.length <= 40) version = value; },
+    get copyStatus() { return copyStatus; }
+  });
+})(globalThis);
+
+/* Little Leaf authoritative Web storage. Never mounts or writes Godot IDBFS. */
+(function (root) {
+  'use strict';
+  // This observer never participates in a transaction or changes a result.
+  function observe(event, fields = {}) {
+    try { if (root.LittleLeafSaveLog) root.LittleLeafSaveLog.record(event, { layer: 'vault', ...fields }); } catch (_) {}
+  }
+  const DB_NAME = 'little-leaf.authoritative.v1';
+  const STORE = 'profiles';
+  const ACTIVE = 'active';
+  const IDENTITY = 'identity';
+  const LIMIT = 1048576;
+  const MAX_COINS = 1000000000;
+  // Campaign identity is permanent. Disabled/retired configurations never
+  // remove receipts or reverse an award. Retired IDs must not be reused.
+  const CAMPAIGNS = Object.freeze([Object.freeze({ id: 'little-leaf-0.1.5-existing-profile-compensation', coins: 1000, audience: 'legacy-v13', state: 'enabled' })]);
+  function campaignConfig(config) {
+    if (!Array.isArray(config)) throw fail('CAMPAIGN_CONFIG', 'Invalid campaign configuration');
+    const seen = new Set();
+    return config.map(c => {
+      if (!c || typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9._-]{0,127}$/.test(c.id) || seen.has(c.id) || !Number.isSafeInteger(c.coins) || c.coins < 1 || c.coins > MAX_COINS || c.audience !== 'legacy-v13' || !['enabled', 'disabled', 'retired'].includes(c.state)) throw fail('CAMPAIGN_CONFIG', 'Invalid campaign configuration');
+      seen.add(c.id); return Object.freeze({ ...c });
+    });
+  }
+  function validReceipts(record) {
+    const receipts = record.campaigns;
+    if (record.format === 1) {
+      if (Object.hasOwn(record, 'campaigns')) throw fail('CORRUPT_AUTHORITY', 'Unexpected campaign data in old save format');
+      return;
+    }
+    if (!receipts || typeof receipts !== 'object' || Array.isArray(receipts) || Object.keys(receipts).length > 128) throw fail('CORRUPT_AUTHORITY', 'Campaign receipts are damaged');
+    for (const [id, receipt] of Object.entries(receipts)) {
+      if (!/^[a-z0-9][a-z0-9._-]{0,127}$/.test(id) || !receipt || receipt.status !== 'granted' || !Number.isSafeInteger(receipt.coins) || receipt.coins < 1 || receipt.coins > MAX_COINS || !Number.isSafeInteger(receipt.revision) || receipt.revision < 1 || receipt.revision > record.revision || !Number.isFinite(receipt.grantedAt) || receipt.grantedAt < 0 || Object.keys(receipt).sort().join(',') !== 'coins,grantedAt,revision,status') throw fail('CORRUPT_AUTHORITY', 'Campaign receipt is invalid');
+    }
+  }
+  function planCampaigns(payload, origin, current, config, nextRevision, now) {
+    const data = parsePayload(payload, 15);
+    if (!Number.isSafeInteger(data.coins) || data.coins < 0 || data.coins > MAX_COINS) throw fail('INVALID_SAVE', 'Invalid save wallet');
+    const receipts = { ...(current.campaigns || {}) }, awards = [], deferred = [];
+    let credit = 0;
+    if (origin.source === 'legacy-v13') for (const campaign of config) {
+      if (campaign.state !== 'enabled' || Object.hasOwn(receipts, campaign.id)) continue;
+      if (data.coins > MAX_COINS - campaign.coins) { deferred.push({ id: campaign.id, coins: campaign.coins, reason: 'wallet_cap' }); continue; }
+      data.coins += campaign.coins; credit += campaign.coins;
+      receipts[campaign.id] = { status: 'granted', coins: campaign.coins, revision: nextRevision, grantedAt: now };
+      awards.push({ id: campaign.id, coins: campaign.coins });
+    }
+    return { payload: credit ? JSON.stringify(data) : payload, receipts, awards, deferred, credit };
+  }
+  const SCHEMA = 'little_leaf_reconstructed_cafe';
+  const CHECKOUT = 'little_leaf.checkout.v1';
+  const MOTION = 'little_leaf.layout_motion.v1';
+  const fail = (code, message) => Object.assign(new Error(message), { code });
+  const resultError = error => ({ ok: false, code: (typeof error.code === 'string' && error.code) || error.name || 'STORAGE_ERROR', error: error.message || String(error) });
+  const uuid = () => root.crypto.randomUUID();
+  async function hash(text) {
+    const bytes = new TextEncoder().encode(text);
+    const digest = await root.crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function parsePayload(text, version) {
+    if (typeof text !== 'string' || new TextEncoder().encode(text).length > LIMIT) throw fail('INVALID_SAVE', 'Save is unreadable or too large');
+    let data;
+    try { data = JSON.parse(text); } catch (_) { throw fail('INVALID_SAVE', 'Invalid save JSON'); }
+    if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== SCHEMA || data.version !== version || data.new_reconstruction !== true || data.checkout_format !== CHECKOUT) throw fail('INVALID_SAVE', 'Unsupported save format');
+    if (version === 15 && data.layout_motion_format !== MOTION) throw fail('INVALID_SAVE', 'Missing layout movement format');
+    if (version === 13 && Object.hasOwn(data, 'layout_motion_format')) throw fail('INVALID_SAVE', 'Legacy save has a foreign movement format');
+    return data;
+  }
+  function fingerprint(record) {
+    const value = { format: record.format, profileId: record.profileId, revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt, origin: record.origin, payload: record.payload };
+    if (record.format === 2) value.campaigns = record.campaigns;
+    return JSON.stringify(value);
+  }
+  function validRecord(record) {
+    if (!record || ![1, 2].includes(record.format) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(record.profileId) || !Number.isSafeInteger(record.revision) || record.revision < 0 || !Number.isFinite(record.createdAt) || !Number.isFinite(record.updatedAt)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save identity is damaged; recovery is required');
+    validReceipts(record);
+    if (record.revision === 0) {
+      if (record.payload !== null || record.digest !== null || record.origin !== null || record.previous !== null) throw fail('CORRUPT_AUTHORITY', 'Uncommitted save record is damaged');
+    } else {
+      const origin = record.origin;
+      if (typeof record.payload !== 'string' || !/^[a-f0-9]{64}$/.test(record.digest) || !origin || !['fresh', 'legacy-v13', 'import-v15'].includes(origin.source) || !Number.isFinite(origin.importedAt) || (origin.source === 'legacy-v13' ? !/^[a-f0-9]{64}$/.test(origin.legacyDigest) : origin.legacyDigest !== null) || Object.keys(origin).sort().join(',') !== 'importedAt,legacyDigest,source') throw fail('CORRUPT_AUTHORITY', 'Authoritative save record or migration provenance is damaged');
+    }
+    return record;
+  }
+  async function verifyRecord(record) {
+    validRecord(record);
+    if (record.revision) {
+      parsePayload(record.payload, 15);
+      if (await hash(fingerprint(record)) !== record.digest) throw fail('CORRUPT_AUTHORITY', 'Authoritative save checksum failed; recovery is required');
+    }
+    return record;
+  }
+  function openDB(factory, name, create) {
+    return new Promise((resolve, reject) => {
+      let request, settled = false, absent = false;
+      const timer = setTimeout(() => { settled = true; reject(fail('STORAGE_BLOCKED', 'Browser storage did not open in time; keep this page open or reload')); }, 10000);
+      function done(error, db) {
+        clearTimeout(timer);
+        if (settled) { if (db) db.close(); return; }
+        settled = true;
+        if (error) reject(error); else resolve(db);
+      }
+      try { request = create ? factory.open(name, 1) : factory.open(name); }
+      catch (error) { done(error); return; }
+      request.onupgradeneeded = () => {
+        if (settled) { request.transaction.abort(); return; }
+        if (!create) { absent = true; request.transaction.abort(); return; }
+        // Identity + empty profile are installed in the schema transaction.
+        // An interruption rolls back the entire new database. A missing row in
+        // an existing database is corruption, never evidence of a fresh player.
+        const store = request.result.createObjectStore(STORE);
+        const id = uuid(), now = Date.now();
+        store.add({ format: 2, profileId: id, revision: 0, createdAt: now, updatedAt: now, payload: null, digest: null, origin: null, previous: null, campaigns: {} }, ACTIVE);
+        store.add({ format: 1, profileId: id, createdAt: now }, IDENTITY);
+      };
+      request.onerror = event => { event.preventDefault(); done(absent ? null : request.error, null); };
+      request.onblocked = () => done(fail('STORAGE_BLOCKED', 'Storage upgrade is blocked by another tab; close it and reload'));
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => db.close();
+        done(null, db);
+      };
+    });
+  }
+  function transaction(db, mode, action) {
+    return new Promise((resolve, reject) => {
+      let tx, value, actionError, stage = 'transaction_create';
+      const mark = value => { stage = value; };
+      const tagged = error => Object.assign(new Error(resultError(error).error), { code: resultError(error).code, storageStage: stage, transactionCreated: !!tx });
+      try {
+        // Strict durability asks supported browsers to flush before completion.
+        // Browsers without the options overload retain atomic transaction semantics.
+        try { tx = db.transaction(STORE, mode, mode === 'readwrite' ? { durability: 'strict' } : undefined); }
+        catch (error) { if (!(error instanceof TypeError)) throw error; tx = db.transaction(STORE, mode); }
+        tx.oncomplete = () => { mark('transaction_complete'); resolve(value); };
+        tx.onerror = () => {}; // Abort is the authoritative failure boundary.
+        tx.onabort = () => reject(actionError || tagged(tx.error || fail('STORAGE_ABORT', 'Save transaction aborted; previous progress is unchanged')));
+        const rejectAction = error => { actionError = tagged(error); try { tx.abort(); } catch (_) { reject(actionError); } };
+        mark('object_store');
+        action(tx.objectStore(STORE), result => { value = result; }, rejectAction, mark);
+      } catch (error) { const failure = tagged(error); if (tx) { actionError = failure; try { tx.abort(); } catch (_) {} } reject(failure); }
+    });
+  }
+  async function readLegacy(factory) {
+    const db = await openDB(factory, '/userfs', false);
+    if (!db) return null;
+    try {
+      if (!db.objectStoreNames.contains('FILE_DATA')) throw fail('LEGACY_UNREADABLE', 'Legacy browser storage has an unknown format');
+      const entries = await new Promise((resolve, reject) => {
+        const tx = db.transaction('FILE_DATA', 'readonly');
+        const found = [];
+        tx.onabort = () => reject(tx.error || fail('LEGACY_UNREADABLE', 'Legacy read failed'));
+        tx.onerror = () => {};
+        tx.oncomplete = () => resolve(found);
+        tx.objectStore('FILE_DATA').openCursor().onsuccess = event => {
+          const cursor = event.target.result;
+          if (!cursor) return;
+          const path = String(cursor.key);
+          // Exact v13 profile only. Never choose another experimental profile.
+          if (/^\/userfs\/(?:[^/]+\/)*little_leaf_cafe_v13\.json$/.test(path)) found.push({ path, entry: cursor.value });
+          cursor.continue();
+        };
+      });
+      if (entries.length > 1) throw fail('AMBIGUOUS_LEGACY', 'Several legacy cafés were found; choose a recovery file explicitly');
+      if (!entries.length) return null;
+      const { path, entry } = entries[0];
+      // Godot native writes use signed HEAP8; IDBFS preserves that byte view.
+      if (!entry || !(entry.contents instanceof Uint8Array || entry.contents instanceof Int8Array) || entry.contents.byteLength > LIMIT) throw fail('LEGACY_UNREADABLE', 'Legacy save is unreadable or too large');
+      let payload;
+      try { payload = new TextDecoder('utf-8', { fatal: true }).decode(entry.contents); } catch (_) { throw fail('INVALID_SAVE', 'Legacy save has invalid text encoding'); }
+      parsePayload(payload, 13);
+      return { payload, path, digest: await hash(payload) };
+    } finally { db.close(); }
+  }
+  // Presentation projection only. Receipt values come from the verified
+  // envelope, including retired campaigns; nothing is inferred from balance.
+  function inboxSnapshot(record, campaigns) {
+    const paid = Object.entries(record.campaigns || {}).map(([id, receipt]) => ({ id, ...receipt }));
+    paid.sort((a, b) => b.grantedAt - a.grantedAt || b.revision - a.revision || a.id.localeCompare(b.id));
+    const deferred = record.revision ? planCampaigns(record.payload, record.origin, record, campaigns, record.revision + 1, Date.now()).deferred : [];
+    return { ok: true, profileId: record.profileId, revision: record.revision, paid, deferred };
+  }
+  function createClient(options = {}) {
+    // Dependencies may be supplied only by the isolated test harness. The live
+    // singleton always uses this origin's IndexedDB and fixed namespace.
+    let factory = options.indexedDB, campaigns = null;
+    let db = null, record = null, legacy = null, opening = null, busy = false, faulted = false;
+    let inboxJson = JSON.stringify({ ok: false });
+    let connectionGeneration = 0;
+    function installConnection(connection, stage) {
+      db = connection;
+      const generation = ++connectionGeneration;
+      observe('connection_opened', { stage, connectionGeneration: generation });
+      connection.onversionchange = () => {
+        observe('connection_closed', { stage: 'versionchange', connectionGeneration: generation });
+        connection.close();
+      };
+      connection.onclose = () => observe('connection_closed', { stage: 'forced_close', connectionGeneration: generation });
+    }
+    function readCurrent(store, resolve, abort, mark) {
+      mark('get_identity'); const identityRequest = store.get(IDENTITY);
+      identityRequest.onerror = () => mark('get_identity');
+      mark('get_active'); const request = store.get(ACTIVE);
+      request.onerror = () => mark('get_active');
+      request.onsuccess = () => {
+        try {
+          mark('active_result'); const current = validRecord(request.result);
+          mark('identity_result'); const identity = identityRequest.result;
+          if (!identity || identity.format !== 1 || identity.profileId !== current.profileId || identity.createdAt !== current.createdAt) throw fail('CORRUPT_AUTHORITY', 'Authoritative profile identity is missing or damaged; recovery is required');
+          resolve(current);
+        } catch (error) { abort(error); }
+      };
+    }
+    function compareCurrent(current, expectedRevision, expectedProfileId) {
+      if (current.profileId !== expectedProfileId || current.revision !== expectedRevision || current.digest !== record.digest) throw fail('REVISION_CONFLICT', 'Another tab saved newer progress; this tab was not saved. Reload before continuing');
+      if (fingerprint(current) !== fingerprint(record)) throw fail('CORRUPT_AUTHORITY', 'Saved progress changed unexpectedly; recovery is required');
+    }
+    async function reopenExisting(expectedRevision, expectedProfileId) {
+      observe('connection_reopen_requested', { code: 'InvalidStateError', stage: 'transaction_create', connectionGeneration });
+      db.close();
+      const connection = await openDB(factory, DB_NAME, false);
+      if (!connection) throw fail('CORRUPT_AUTHORITY', 'Saved café storage is missing; keep this page open for recovery');
+      try {
+        if (connection.version !== 1 || !connection.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Saved café storage changed format; keep this page open for recovery');
+        const current = await transaction(connection, 'readonly', readCurrent);
+        await verifyRecord(current);
+        compareCurrent(current, expectedRevision, expectedProfileId);
+        installConnection(connection, 'reopen_existing');
+      } catch (error) { connection.close(); throw error; }
+    }
+    const client = {
+      bootJson: '',
+      // A serialized copy cannot mutate the authority or its previous record.
+      snapshotJson() { return inboxJson; },
+      async boot() {
+        if (opening) return opening;
+        observe('boot_requested');
+        opening = (async () => {
+          try {
+            campaigns = campaignConfig(options.campaigns === undefined ? CAMPAIGNS : options.campaigns);
+            if (!factory) factory = root.indexedDB;
+            if (!factory || !root.crypto || !root.crypto.subtle) throw fail('STORAGE_UNAVAILABLE', 'Durable browser storage is unavailable');
+            installConnection(await openDB(factory, DB_NAME, true), 'boot_open');
+            if (!db.objectStoreNames.contains(STORE)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save store is missing');
+            record = await transaction(db, 'readonly', readCurrent);
+            await verifyRecord(record);
+            if (!record.revision) legacy = await readLegacy(factory);
+            inboxJson = JSON.stringify(inboxSnapshot(record, campaigns));
+            const result = { ok: true, inbox: JSON.parse(inboxJson), profileId: record.profileId, revision: record.revision, source: record.revision ? 'authority' : legacy ? 'legacy-v13' : 'fresh', payload: record.revision ? record.payload : legacy ? legacy.payload : null };
+            observe('read_result', { source: result.source, profileId: result.profileId, revision: result.revision });
+            client.bootJson = JSON.stringify(result); return result;
+          } catch (error) { faulted = true; const result = resultError(error); observe('read_failure', { code: result.code }); client.bootJson = JSON.stringify(result); return result; }
+        })();
+        return opening;
+      },
+      async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
+        observe('save_requested', { profileId: expectedProfileId, revision: expectedRevision });
+        if (!record || faulted) { observe('save_failure', { code: 'NOT_READY' }); return resultError(fail('NOT_READY', 'Save storage is not ready; reload to recover')); }
+        if (busy) { observe('save_failure', { code: 'SAVE_BUSY' }); return resultError(fail('SAVE_BUSY', 'A save is still pending')); }
+        busy = true;
+        try {
+          parsePayload(payload, 15);
+          if (expectedRevision !== record.revision || expectedProfileId !== record.profileId) throw fail('REVISION_CONFLICT', 'This tab has an old save revision; reload before continuing');
+          if (expectedRevision >= Number.MAX_SAFE_INTEGER) throw fail('REVISION_LIMIT', 'Save revision limit reached; export for recovery');
+          const nextRevision = expectedRevision + 1;
+          const provenance = record.origin || { source: legacy ? 'legacy-v13' : origin === 'import' ? 'import-v15' : 'fresh', legacyDigest: legacy ? legacy.digest : null, importedAt: Date.now() };
+          const now = Date.now();
+          const plan = planCampaigns(payload, provenance, record, campaigns, nextRevision, now);
+          const previous = record.revision ? { ...record, previous: null } : null;
+          const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
+          candidate.digest = await hash(fingerprint(candidate));
+          observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
+          const write = () => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
+            readCurrent(store, current => {
+              mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
+              mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
+              observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
+            }, abort, mark);
+          });
+          let next;
+          try { next = await write(); }
+          catch (error) {
+            // Only a synchronous failure before a transaction exists is replayed.
+            // Never retry a get/result/put/abort failure or an unknown write outcome.
+            if (error.code !== 'InvalidStateError' || error.storageStage !== 'transaction_create' || error.transactionCreated) throw error;
+            await reopenExisting(expectedRevision, expectedProfileId);
+            next = await write(); // One retry, preserving the exact pending candidate.
+          }
+          record = next;
+          observe('save_confirmed', { profileId: next.profileId, revision: next.revision });
+          inboxJson = JSON.stringify(inboxSnapshot(next, campaigns));
+          client.bootJson = JSON.stringify({ ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, source: 'authority', payload: next.payload });
+          return { ok: true, inbox: JSON.parse(inboxJson), profileId: next.profileId, revision: next.revision, durable: true, creditedCoins: plan.credit, campaignAwards: plan.awards, campaignDeferred: plan.deferred };
+        } catch (error) {
+          if (['REVISION_CONFLICT', 'CORRUPT_AUTHORITY'].includes(error.code)) faulted = true;
+          observe('save_failure', { profileId: expectedProfileId, revision: expectedRevision, code: resultError(error).code, stage: error.storageStage || 'save_prepare', connectionGeneration });
+          return resultError(error);
+        } finally { busy = false; }
+      },
+      creditForSave(payload) {
+        if (!record || faulted || !campaigns) return 0;
+        try {
+          const origin = record.origin || { source: legacy ? 'legacy-v13' : 'fresh' };
+          return planCampaigns(payload, origin, record, campaigns, record.revision + 1, Date.now()).credit;
+        } catch (_) { return 0; }
+      },
+      save(payload, revision, profileId, callback) {
+        client.commit(payload, revision, profileId).then(result => callback(JSON.stringify(result)));
+      },
+      close() { if (db) db.close(); db = null; faulted = true; }
+    };
+    return client;
+  }
+  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, verifyRecord, fingerprint, hash });
+  let retrying = null;
+  function retry(callback) {
+    // A fresh client reopens storage after a transient boot failure. No saved
+    // record is deleted, selected, repaired or committed by this operation.
+    if (!retrying) {
+      retrying = (async () => {
+        const candidate = createClient();
+        const result = await candidate.boot();
+        if (result.ok) {
+          root.__littleLeafVault.close();
+          root.__littleLeafVault = candidate;
+        } else candidate.close();
+        return result;
+      })().finally(() => { retrying = null; });
+    }
+    retrying.then(result => callback(JSON.stringify(result)));
+  }
+  root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient, retry });
+  root.__littleLeafVault = createClient();
+})(globalThis);
+
+</script>
+		<script>
+/* Preferences are independent from café progress and never use Godot IDBFS. */
+(function(root) {
+  'use strict';
+  const KEY='little-leaf.preferences.v1';
+  const LIMIT=65536;
+  const failure=(code,error)=>({ok:false,code,error});
+  function valid(text){return typeof text==='string'&&new TextEncoder().encode(text).length<=LIMIT;}
+  function createClient(options={}) {
+    let storage=null, factory=null, text='', ready=false;
+    const api={bootJson:'',lastError:'',
+      async boot(){
+        try {
+          // Acquire browser storage only inside the error boundary: some
+          // privacy modes throw even while reading window.localStorage.
+          storage=options.localStorage||root.localStorage;
+          factory=options.indexedDB||root.indexedDB;
+          const raw=storage.getItem(KEY);
+          if(raw!==null){
+            let item;try{item=JSON.parse(raw)}catch(_){throw Error('Saved preferences are damaged');}
+            if(!item||item.format!==1||!valid(item.text))throw Error('Saved preferences have an unsupported format');
+            text=item.text;ready=true;
+            const result={ok:true,source:'preferences',text};api.bootJson=JSON.stringify(result);return result;
+          }
+          const legacy=await readLegacy(factory);
+          text=legacy||'';ready=true;
+          // Migration is read-only until Godot parses the CFG successfully and
+          // calls acceptLoaded; malformed settings cannot enter the new store.
+          const result={ok:true,source:legacy===null?'default':'legacy-readonly',text};api.bootJson=JSON.stringify(result);return result;
+        } catch(error){api.lastError=error.message||String(error);const result=failure(error.name||'PREFERENCES_ERROR',api.lastError);api.bootJson=JSON.stringify(result);return result;}
+      },
+      writeText(value){
+        if(!ready||!storage){api.lastError='Preferences storage is unavailable';return false;}
+        if(!valid(value)){api.lastError='Preferences are unreadable or too large';return false;}
+        try{storage.setItem(KEY,JSON.stringify({format:1,text:value}));text=value;api.lastError='';api.bootJson=JSON.stringify({ok:true,source:'preferences',text});return true}
+        catch(error){api.lastError=error.message||String(error);return false;}
+      },
+      acceptLoaded(){return api.writeText(text);}
+    };
+    return api;
+  }
+  function readLegacy(factory){
+    return new Promise((resolve,reject)=>{
+      let request,absent=false,settled=false;
+      const timer=setTimeout(()=>{settled=true;reject(Error('Legacy preference read timed out'))},10000);
+      function done(error,value){clearTimeout(timer);if(settled)return;settled=true;error?reject(error):resolve(value)}
+      try{request=factory.open('/userfs')}catch(error){done(error);return;}
+      request.onupgradeneeded=()=>{absent=true;request.transaction.abort()};
+      request.onerror=event=>{event.preventDefault();done(absent?null:request.error,null)};
+      request.onblocked=()=>done(Error('Legacy preferences are blocked by another browser tab'));
+      request.onsuccess=()=>{
+        const db=request.result;if(settled){db.close();return;}
+        if(!db.objectStoreNames.contains('FILE_DATA')){db.close();done(Error('Legacy preferences store is unreadable'));return;}
+        let tx;
+        try{tx=db.transaction('FILE_DATA','readonly')}catch(error){db.close();done(error);return;}
+        const profiles=[],settings=[];
+        tx.onabort=()=>{db.close();done(tx.error||Error('Legacy preference read failed'))};
+        tx.onerror=()=>{};
+        tx.objectStore('FILE_DATA').openCursor().onsuccess=event=>{
+          const c=event.target.result;if(!c)return;
+          const path=String(c.key);
+          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_cafe_v13\.json$/.test(path))profiles.push(path);
+          if(/^\/userfs\/(?:[^/]+\/)*little_leaf_settings\.cfg$/.test(path))settings.push({path,entry:c.value});
+          c.continue();
+        };
+        tx.oncomplete=()=>{
+          db.close();
+          try{
+            const candidates=profiles.length===1?settings.filter(x=>x.path===profiles[0].replace(/[^/]+$/,'little_leaf_settings.cfg')):settings;
+            if(candidates.length>1)throw Error('Several legacy preference profiles were found; no profile was guessed');
+            if(!candidates.length){done(null,null);return;}
+            const bytes=candidates[0].entry&&candidates[0].entry.contents;
+            // IDBFS may retain the signed HEAP8 view used by native writes.
+            if(!(bytes instanceof Uint8Array || bytes instanceof Int8Array)||bytes.byteLength>LIMIT)throw Error('Legacy preferences are unreadable or too large');
+            done(null,new TextDecoder('utf-8',{fatal:true}).decode(bytes));
+          }catch(error){done(error);}
+        };
+      };
+    });
+  }
+  root.LittleLeafPreferences=Object.freeze({KEY,createClient});
+  root.__littleLeafPreferences=createClient();
+})(globalThis);
+
+</script>
+		<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start({"apiKey": "AIzaSyCYeU5w72oW5a64XwmBYCwNWsY_IcfYGzs", "authDomain": "little-leaf-41e5d.firebaseapp.com", "projectId": "little-leaf-41e5d", "appId": "1:865267465971:web:a3196c60e6c574e9f30186"},{"surface": "trusted-itch-frame", "runtimeOrigin": "https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app"}));</script><script src="index.js"></script>
+		<script>
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":19274604,"index.wasm":37700666},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_THREADS_ENABLED = false;
+// Do not mount old IDBFS: legacy data is read directly, never reconciled.
+GODOT_CONFIG.persistentPaths = [];
+let engine = null;
+try {
+	if (typeof Engine === 'function') engine = new Engine(GODOT_CONFIG);
+} catch (error) {
+	window.LittleLeafBoot.fail(error);
+}
+
+(function () {
+	const boot = window.LittleLeafBoot;
+	if (!engine) {
+		boot.fail('The game engine could not download. Please check your connection and reload.');
+		return;
+	}
+	let missing;
+	try {
+		missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	} catch (error) {
+		boot.fail(error);
+		return;
+	}
+	if (missing.length !== 0) {
+		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
+			// Preserve the export template's recovery path and timeout.
+			Promise.race([
+				serviceWorkerRegistrationPromise.then((registration) => {
+					if (registration != null) return Promise.reject(new Error('Service worker already exists.'));
+					return registration;
+				}).then(() => engine.installServiceWorker()),
+				new Promise((resolve) => { setTimeout(() => resolve(), 2000); }),
+			]).then(() => window.location.reload()).catch(boot.fail);
+		} else {
+			boot.fail('This browser is missing features Little Leaf needs:\n' + missing.join('\n'));
+		}
+		return;
+	}
+	window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot()).then(() => window.__littleLeafPreferences.boot()).then(() => engine.startGame({
+		'onProgress': boot.onProgress,
+	})).then(boot.engineReady, boot.fail);
+}());
+		</script>
+	</body>
+</html>
+

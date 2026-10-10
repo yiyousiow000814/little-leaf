@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source_commit": "1d7b7b5f12cced3d682cb37ecd0957e2585f19d0",
+  "source_tree": "3fb144590d3ea1f36133664181612fe9c0980a7a",
+  "ci_run_id": "38029738586",
+  "base_web_manifest_sha256": "36261309293c14052a1eb7e5b4fc8866f4c6593ab4c56826dba897a5601b7ed0",
+  "version": "0.1.10a",
+  "tag": "",
+  "engine_source_commit": "1d7b7b5f12cced3d682cb37ecd0957e2585f19d0",
+  "engine_source_tree": "3fb144590d3ea1f36133664181612fe9c0980a7a",
+  "test_surface": "trusted-itch-frame",
+  "runtime_origin": "https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app",
+  "diagnostic_only": true,
+  "auth_verification_only": true,
+  "game_start_allowed": false,
+  "qualification": "unpublished local overlay; inherited engine evidence only"
+}
