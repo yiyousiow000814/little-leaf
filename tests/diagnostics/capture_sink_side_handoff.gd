@@ -26,6 +26,7 @@ func run():
  for item in game.model.items:
   if item.kind=="sink":sink=item;break
  sink.x=6;sink.z=4;sink.rot=0
+ var register=game.model.checkout_register();register.x=2;register.z=6;register.rot=0
  # Preserve the complete synthetic dining pair when clearing the drop cells.
  for group in game.model.dining_sets:
   var table=game.model.get_item(int(group.table_id));var seat=game.model.get_item(int(group.seat_id))

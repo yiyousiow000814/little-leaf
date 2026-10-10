@@ -231,6 +231,7 @@ func side_drop_case()->Dictionary:
  game.model.reset_new();game.model.ensure_basic_bin();game.model.ensure_basic_register();game._rebuild_furniture();game._update_people()
  var r=game.setup_dirty(false)
  var basin=sink();basin.x=6;basin.z=4;basin.rot=0
+ var register=game.model.checkout_register();register.x=2;register.z=6;register.rot=0
  var interaction_cells=[Vector2i(5,4),Vector2i(7,4),Vector2i(6,5),Vector2i(8,4),Vector2i(10,4),Vector2i(9,5)]
  # Relocate the complete fixture dining pair; keep its save ledger valid.
  for group in game.model.dining_sets:
