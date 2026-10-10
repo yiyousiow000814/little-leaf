@@ -155,6 +155,7 @@ var _admission_signature:Array=[]
 var _fixed_edge_revision:int=-1
 var _fixed_edges:Dictionary={}
 var coins: int = INITIAL_COINS
+var background_profit_remainder=0.0
 # Ownership, not the bounding rectangle, controls every walkable/placeable tile.
 # `expanded` is retained for callers: true only when ALL finite parcels are owned.
 var owned_parcels: Array[String] = []
@@ -231,6 +232,7 @@ func reset_new() -> void:
 	service_snapshot.clear()
 	loaded_save_version=SAVE_VERSION
 	coins = INITIAL_COINS
+	background_profit_remainder=0.0
 	owned_parcels.clear()
 	_sync_floor_bounds()
 	cooks = 1;waiters=1;cleaners=1
@@ -1734,6 +1736,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var data: Dictionary = {
 		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
 		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
+		"background_profit_remainder":background_profit_remainder,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
 		"items": items, "next_item_id": _next_item_id,"dining_sets":dining_sets,
@@ -1797,6 +1800,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
+	if not RuntimeCodec.new()._number(data.get("background_profit_remainder",0.0),0,0.9999999999999999):return _fail("Invalid background profit remainder")
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
 			return _fail("Invalid save statistic: %s" % field)
@@ -1940,6 +1944,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	wall_actor_positions.clear()
 	guest_obstacle_positions.clear();checkout_staff_claims.clear()
 	coins = int(data.coins)
+	background_profit_remainder=float(data.get("background_profit_remainder",0.0))
 	owned_parcels = saved_parcels
 	_sync_floor_bounds()
 	cooks = int(data.cooks);waiters=saved_waiters;cleaners=saved_cleaners;cashiers=saved_cashiers

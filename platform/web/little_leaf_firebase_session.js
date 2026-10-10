@@ -38,8 +38,22 @@
   function createRemote(db,sdk,uid){
     const sessionRef=sdk.doc(db,'players',uid,'session','owner');
     const saveRef=sdk.doc(db,'players',uid,'saves','cafe');
+    const certificateRef=sdk.doc(db,'players',uid,'background','interval');
     return {
-      ref:sessionRef,
+      ref:sessionRef,certificateRef,
+      async readCertificate(){const s=await sdk.getDocFromServer(certificateRef);return s.exists()?s.data():null;},
+      async changeCertificate(transition,guard){
+        await sdk.runTransaction(db,async tx=>{
+          guard();const owner=await tx.get(sessionRef),saved=await tx.get(saveRef),certificate=await tx.get(certificateRef);guard();
+          const result=transition({session:owner.exists()?owner.data():null,save:saved.exists()?saved.data():null,certificate:certificate.exists()?certificate.data():null},sdk.serverTimestamp);guard();
+          if(result.session)tx.set(sessionRef,result.session);
+          if(result.certificate)tx.set(certificateRef,result.certificate);
+        });
+        return sdk.runTransaction(db,async tx=>{
+          guard();const owner=await tx.get(sessionRef),certificate=await tx.get(certificateRef);guard();
+          return {session:owner.exists()?owner.data():null,certificate:certificate.exists()?certificate.data():null};
+        });
+      },
       async read(){const s=await sdk.getDocFromServer(sessionRef);return s.exists()?s.data():null;},
       async change(transition,guard){
         await sdk.runTransaction(db,async tx=>{
@@ -67,7 +81,81 @@
     let elapsedWindow=null,elapsedGeneration=0,elapsedSeal=null;
     const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
 
+    const certificateKey='little-leaf.elapsed-certificate.v1:'+uid;
     const intentKey='little-leaf.elapsed-probe.v1:'+uid;
+    function certificateIntent(){
+      if(!elapsedStorage)return null;const raw=elapsedStorage.getItem(certificateKey);if(!raw)return null;
+      const intent=JSON.parse(raw);
+      if(intent.schema!==1||intent.uid!==uid||!identifier(intent.id)||!identifier(intent.owner)||!identifier(intent.profileId)||!Number.isSafeInteger(intent.epoch)||intent.epoch<1||typeof intent.anchorStamp!=='string'||!/^[a-f0-9]{64}$/.test(intent.baseDigest)||!Number.isSafeInteger(intent.baseRevision)||intent.baseRevision<1||!['starting','open','sealing','sealed'].includes(intent.phase))
+        throw fail('ELAPSED_RECOVERY','Stored interval intent is damaged. It remains protected.');
+      return intent;
+    }
+    function persistCertificate(intent){
+      if(!elapsedStorage)throw fail('ELAPSED_STORAGE','Durable interval storage is unavailable.');
+      elapsedStorage.setItem(certificateKey,JSON.stringify(intent));
+      if(JSON.stringify(certificateIntent())!==JSON.stringify(intent))throw fail('ELAPSED_STORAGE','Interval intent could not be protected.');
+    }
+    function removeCertificate(intent){if(certificateIntent()?.id===intent.id)elapsedStorage.removeItem(certificateKey);}
+    async function fenceCertificate(intent){
+      // This transaction competes with seal/consume on the same certificate.
+      // A confirmed terminal outcome fences all earlier retries, unlike a read.
+      const result=await remote.changeCertificate(({certificate,session},stamp)=>{
+        if(!certificate||certificate.id!==intent.id){
+          // An absent document is not a terminal start result. Changing the
+          // captured session anchor makes a still-running start retry/fail.
+          if(session?.owner===intent.owner&&session.epoch===intent.epoch&&stampIdentity(session.updatedAt)===intent.anchorStamp)
+            return {session:{...session,updatedAt:stamp()}};
+          return {};
+        }
+        if(['consumed','cancelled'].includes(certificate.state))return {};
+        return {certificate:{...certificate,state:'cancelled',resultDigest:null,resultRevision:null}};
+      },guard);guard();
+      if(result.certificate?.id===intent.id&&!['consumed','cancelled'].includes(result.certificate.state))
+        throw fail('ELAPSED_UNCERTAIN','The interval has not been fenced.');
+      receive(result.session);removeCertificate(intent);return result.certificate;
+    }
+    async function recoverCertificate(){const intent=certificateIntent();if(intent)await fenceCertificate(intent);}
+    async function beginCertificate(base){
+      if(certificateIntent())throw fail('ELAPSED_RECOVERY','An interrupted interval must be fenced before another save.');
+      if(elapsedWindow)throw fail('ELAPSED_BUSY','An interval is already open.');
+      const fence=assertActive(),id=root.crypto.randomUUID(),generation=elapsedGeneration;
+      const intent={schema:1,id,uid,owner:fence.writerId,epoch:fence.writerEpoch,anchorStamp:stampIdentity(current.updatedAt),profileId:base.profileId,baseDigest:base.digest,baseRevision:base.revision,phase:'starting'};
+      persistCertificate(intent);const window=elapsedWindow={token:id,state:'arming',generation};
+      const operationGuard=()=>{guard();if(root.navigator?.onLine===false||elapsedWindow!==window||generation!==elapsedGeneration)throw fail('ELAPSED_CANCELLED','Interval cancelled.');};
+      try{
+        const result=await remote.changeCertificate(({session,save,certificate},stamp)=>{
+          operationGuard();if(session?.owner!==fence.writerId||session.epoch!==fence.writerEpoch||stampIdentity(session.updatedAt)!==intent.anchorStamp||session.request!==null||session.ack!==null||save?.digest!==base.digest||save.revision!==base.revision||save.profileId!==base.profileId)
+            throw fail('ELAPSED_CHANGED','Interval baseline changed.');
+          if(certificate&&!['consumed','cancelled'].includes(certificate.state)&&certificate.epoch>=session.epoch)throw fail('ELAPSED_BUSY','An interval is unresolved.');
+          const at=stamp();return {session:{...session,updatedAt:at},certificate:{schema:1,id,profileId:base.profileId,owner:session.owner,epoch:session.epoch,device:session.device,anchorAt:at,startAt:at,state:'open',baseDigest:base.digest,baseRevision:base.revision,endAt:null,resultDigest:null,resultRevision:null}};
+        },operationGuard);operationGuard();
+        const c=result.certificate;
+        if(c?.id!==id||c.state!=='open'||!unchangedSession(result.session,{...result.session,updatedAt:c.anchorAt}))throw fail('ELAPSED_CHANGED','No exact interval confirmation.');
+        receive(result.session);window.state='ready';window.certificate=c;
+        persistCertificate({...intent,phase:'open'});return {token:id};
+      }catch(e){status='offline';onChange(snapshot());throw e;}
+    }
+    async function finishCertificate(token){
+      guard();const window=elapsedWindow;
+      if(!window||window.token!==token||window.state!=='ready')throw fail('ELAPSED_CONSUMED','Interval unavailable or consumed.');
+      const intent=certificateIntent();window.state='sealing';persistCertificate({...intent,phase:'sealing'});
+      const operationGuard=()=>{guard();if(root.navigator?.onLine===false||elapsedWindow!==window||window.generation!==elapsedGeneration||status!=='active')throw fail('ELAPSED_CHANGED','Interval authority changed.');};
+      try{
+        const result=await remote.changeCertificate(({session,save,certificate},stamp)=>{
+          operationGuard();const c=window.certificate;
+          if(certificate?.id!==token||certificate.state!=='open'||!unchangedSession(session,{...session,owner:c.owner,epoch:c.epoch,device:c.device,updatedAt:c.anchorAt,request:null,ack:null})||save?.digest!==c.baseDigest||save.revision!==c.baseRevision||save.profileId!==c.profileId)
+            throw fail('ELAPSED_CHANGED','Server interval changed.');
+          const endAt=stamp();return {session:{...session,updatedAt:endAt},certificate:{...certificate,state:'sealed',endAt}};
+        },operationGuard);operationGuard();
+        const c=result.certificate;
+        if(c?.id!==token||c.state!=='sealed'||stampIdentity(result.session.updatedAt)!==stampIdentity(c.endAt)||result.session.owner!==c.owner||result.session.epoch!==c.epoch||result.session.request||result.session.ack)
+          throw fail('ELAPSED_CHANGED','No exact sealed confirmation.');
+        const seconds=(millis(c.endAt)-millis(c.startAt))/1000;
+        if(!Number.isFinite(seconds)||seconds<0)throw fail('ELAPSED_TIME','Invalid server duration.');
+        receive(result.session);window.state='proved';persistCertificate({...intent,phase:'sealed'});
+        return {token,certificateId:token,seconds,discardedSeconds:0,writerId:c.owner,writerEpoch:c.epoch,commitServerStamp:stampIdentity(result.session.updatedAt),baseDigest:c.baseDigest,baseRevision:c.baseRevision};
+      }catch(e){status='offline';onChange(snapshot());throw e;}
+    }
     function storedProbe(){if(!elapsedStorage)return null;const text=elapsedStorage.getItem(intentKey);return text?JSON.parse(text):null;}
     function persistProbe(intent){
       if(!elapsedStorage)throw fail('ELAPSED_STORAGE','Durable checkpoint storage is unavailable.');
@@ -151,7 +239,7 @@
       }
     }
     async function start(reloadTicket=null){
-      guard();await recoverProbe();if(reloadTicket)await continueReload(reloadTicket);
+      guard();if(remote.changeCertificate)await recoverCertificate();await recoverProbe();if(reloadTicket)await continueReload(reloadTicket);
       await change((value,save,stamp)=>{
         if(value?.owner===sessionId)return {...value,updatedAt:stamp()};
         if(value && now()-millis(value.updatedAt)<LEASE_MS)return value;
@@ -181,7 +269,8 @@
         if(!fenced){status='offline';onChange(snapshot());}throw e;
       }return snapshot();
     }
-    async function beginElapsed(){
+    async function beginElapsed(base){
+      if(remote.changeCertificate)return beginCertificate(base);
       if(storedProbe())throw fail('ELAPSED_RECOVERY','An interrupted checkpoint must be recovered before another interval.');
       if(elapsedWindow)throw fail('ELAPSED_BUSY','An elapsed interval is already open.');
       const fence=assertActive(),token=root.crypto.randomUUID();
@@ -197,6 +286,7 @@
       }catch(e){if(elapsedWindow?.token===token)elapsedWindow=null;throw e;}
     }
     async function finishElapsed(token){
+      if(remote.changeCertificate)return finishCertificate(token);
       guard();const window=elapsedWindow;
       if(!window||window.token!==token||window.state!=='ready')throw fail('ELAPSED_CONSUMED','Background interval is unavailable or already consumed.');
       // Consume before the network wait. Duplicate visibility/retry callbacks
@@ -224,7 +314,16 @@
         removeProbe(intent);return {...proof,token,commitServerStamp:stampIdentity(cleared.updatedAt)};
       }finally{elapsedWindow=null;if(storedProbe()?.id===intent.id){status='offline';onChange(snapshot());}elapsedSeal=null;}
     }
-    function cancelElapsed(){elapsedGeneration++;elapsedWindow=null;if(elapsedSeal){elapsedSeal=null;status='offline';onChange(snapshot());}}
+    function cancelElapsed(){
+      elapsedGeneration++;elapsedWindow=null;
+      const intent=remote.changeCertificate&&certificateIntent();
+      if(intent){status='offline';onChange(snapshot());fenceCertificate(intent).then(()=>{if(!closed&&currentUid()===uid)receive(current);}).catch(()=>{/* Persistent intent blocks ordinary writes until server fencing succeeds. */});}
+      if(elapsedSeal){elapsedSeal=null;status='offline';onChange(snapshot());}
+    }
+    function completeElapsed(token){const intent=certificateIntent();if(intent?.id===token)removeCertificate(intent);elapsedWindow=null;}
+    const offlineListener=()=>{cancelElapsed();status='offline';onChange(snapshot());};
+    root.addEventListener?.('offline',offlineListener);
+
     async function requestTakeover(){
       guard();const generation=++requestGeneration,id=root.crypto.randomUUID();requestId=id;
       const requestGuard=()=>{guard();if(generation!==requestGeneration)throw fail('REQUEST_CANCELLED','The device switch request was canceled. Progress remains paused.');};
@@ -278,10 +377,11 @@
         return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
       });return snapshot();
     }
-    return {start,snapshot,assertActive,renew,beginElapsed,finishElapsed,cancelElapsed,requestTakeover,acknowledge,takeOver,reloadContinuation,
+    return {start,snapshot,assertActive,renew,beginElapsed,finishElapsed,cancelElapsed,completeElapsed,
+      get hasElapsedIntent(){return !!certificateIntent();},get certificateRef(){return remote.certificateRef;},requestTakeover,acknowledge,takeOver,reloadContinuation,
       async refresh(){guard();receive(await remote.read());return snapshot();},
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
-      close(){cancelElapsed();requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
+      close(){cancelElapsed();requestGeneration++;closed=true;status='offline';root.removeEventListener?.('offline',offlineListener);if(unsubscribe)unsubscribe();}};
   }
   root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload,elapsedProof});
 })(globalThis);

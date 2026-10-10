@@ -1,7 +1,8 @@
 extends RefCounted
 ## Open-page account intervals only. No save timestamp import or offline income.
-const STEP=1.0/60.0
-const CHUNK_SECONDS=0.25
+const AVERAGE_WINDOW=300.0
+const MIN_HISTORY=60.0
+const BACKGROUND_FACTOR=0.75
 var game_ref:WeakRef
 var game:
 	get:return game_ref.get_ref()
@@ -20,10 +21,37 @@ var last_seconds=0.0
 var last_discarded=0.0
 var last_error=""
 var replay_remaining=0.0
+var profit_samples:Array=[]
+var history_seconds=0.0
+var history_net=0.0
+var history_revenue=0.0
+var observed_model
+var frozen_profit_rate=0.0
 var holding:bool:
 	get:return phase!="idle"
 
 func _init(owner):game_ref=weakref(owner)
+
+func observe_profit(seconds:float,revenue:float,cost:float):
+	if observed_model!=game.model:
+		profit_samples.clear();history_seconds=0.0;history_net=0.0;history_revenue=0.0;observed_model=game.model
+	if not is_finite(seconds) or seconds<=0.0 or not is_finite(revenue) or revenue<0.0 or not is_finite(cost) or cost<0.0:return
+	# One-second buckets keep memory bounded independently of FPS. Revenue is
+	# actual completed meal income; payroll includes unpaid/accrued liabilities.
+	# Purchases, refunds and campaign wallet credits never become operating profit.
+	if profit_samples.is_empty() or float(profit_samples.back().seconds)>=1.0:
+		profit_samples.append({"seconds":0.0,"net":0.0,"revenue":0.0})
+	var sample=profit_samples.back()
+	sample.seconds+=seconds;sample.net+=revenue-cost;sample.revenue+=revenue
+	history_seconds+=seconds;history_net+=revenue-cost;history_revenue+=revenue
+	while profit_samples.size()>1 and history_seconds-float(profit_samples.front().seconds)>=AVERAGE_WINDOW:
+		var old=profit_samples.pop_front()
+		history_seconds-=old.seconds;history_net-=old.net;history_revenue-=old.revenue
+
+func average_profit_rate()->float:
+	if observed_model!=game.model or history_seconds<MIN_HISTORY or history_revenue<=0.0:return 0.0
+	return maxf(0.0,history_net/history_seconds)
+
 
 func hidden_changed(hidden:bool):
 	if hidden:
@@ -33,6 +61,7 @@ func hidden_changed(hidden:bool):
 		if (not bool(recovery.get("serverOwnership",false)) and recovery.get("backgroundOwnership","")!="local-lock") or recovery.get("status","")!="active":return
 		bridge=game.web_save._recovery_bridge()
 		if bridge==null or not JavaScriptBridge.eval("typeof window.LittleLeafVault.beginBackground === 'function'"):return
+		frozen_profit_rate=average_profit_rate()
 		generation+=1;phase="waiting-save";last_seconds=0.0;last_discarded=0.0;last_error=""
 		_hold_input();save_finished()
 	elif phase=="armed":_seal()
@@ -69,51 +98,27 @@ func _on_seal(args:Array,expected:int):
 	if not bool(value.get("ok",false)) or not is_finite(seconds) or seconds<0.0 or game.paused or game.save_recovery_blocked:
 		last_error=str(value.get("code","ELAPSED_CHANGED"));stop();return
 	last_seconds=seconds;last_discarded=float(value.get("discardedSeconds",0.0))
-	phase="replaying";replay_remaining=seconds
-	_replay_chunk(generation)
-
-func _replay_chunk(expected:int):
-	if expected!=generation or phase!="replaying":return
-	if game.paused or game.save_recovery_blocked:stop();return
-	# Limit work per turn, not guest income. The private snapshot is restored
-	# between chunks, so the public model cannot earn or save speculative progress.
-	var chunk=minf(CHUNK_SECONDS,replay_remaining)
-	candidate_payload=_trial_payload(chunk,candidate_payload)
+	# The approved background formula does not replay customers or payroll.
+	candidate_payload=_trial_payload(seconds)
 	if candidate_payload=="":last_error="ELAPSED_SNAPSHOT";stop();return
-	replay_remaining-=chunk
-	if replay_remaining>0.000000001:
-		game.get_tree().process_frame.connect(_replay_chunk.bind(expected),CONNECT_ONE_SHOT)
-		return
 	phase="committing"
 	callback=JavaScriptBridge.create_callback(_on_commit.bind(generation))
 	bridge.commitBackground(candidate_payload,token,callback)
 
 func _trial_payload(seconds:float,continuation:String="")->String:
-	if not is_finite(seconds) or seconds<0.0 or seconds>60.0:return ""
-	# Replay into a private model with no earnings/audio/save signal bindings.
-	# Existing model and runtime are restored before the asynchronous cloud CAS.
+	if not is_finite(seconds) or seconds<0.0 or continuation!="":return ""
 	var original=game.model
-	if continuation=="":
-		original.service_snapshot=game._service_save_snapshot()
-		if not original.save(game.web_save.STAGING_FILE):return ""
-	else:
-		var file=FileAccess.open(game.web_save.STAGING_FILE,FileAccess.WRITE)
-		if file==null:return ""
-		file.store_string(continuation);file.close()
+	original.service_snapshot=game._service_save_snapshot()
+	if not original.save(game.web_save.STAGING_FILE):return ""
 	candidate_model=game.Model.new()
 	if not candidate_model.load_save(game.web_save.STAGING_FILE):return ""
-	game.model=candidate_model;game._restore_service_runtime()
-	game._background_trial=true
-	var remaining=seconds
-	while remaining>0.000000001:
-		var delta=minf(STEP,remaining)
-		game._advance_business(delta);remaining-=delta
-	candidate_model.service_snapshot=game._service_save_snapshot()
+	var amount=frozen_profit_rate*seconds*BACKGROUND_FACTOR+candidate_model.background_profit_remainder
+	if not is_finite(amount) or amount<0.0 or amount>1000000000.0-float(candidate_model.coins):return ""
+	var whole=floori(amount)
+	candidate_model.coins+=whole
+	candidate_model.background_profit_remainder=amount-float(whole)
 	var valid=candidate_model.save(game.web_save.STAGING_FILE)
-	var payload=FileAccess.get_file_as_string(game.web_save.STAGING_FILE) if valid else ""
-	game.model=original;game._restore_service_runtime()
-	game._background_trial=false
-	return payload
+	return FileAccess.get_file_as_string(game.web_save.STAGING_FILE) if valid else ""
 
 func _on_commit(args:Array,expected:int):
 	if expected!=generation or phase!="committing":return
@@ -128,7 +133,7 @@ func _on_commit(args:Array,expected:int):
 			var confirmed=game.Model.new()
 			if not confirmed.load_save(game.web_save.STAGING_FILE):game.paused=true;game.save_recovery_blocked=true;game.save_writes_suppressed=true;stop();return
 			candidate_model=confirmed;candidate_payload=value.payload
-		game.model=candidate_model;game._connect_model_events();game._restore_service_runtime()
+		game.model=candidate_model;observed_model=candidate_model;game._connect_model_events();game._restore_service_runtime()
 		game.web_save.revision=int(value.revision)
 		game.web_save._confirmed_payload=candidate_payload
 		game.progress_unsaved=not bool(value.get("durable",false))

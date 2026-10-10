@@ -45,10 +45,18 @@
                 throw error('ELAPSED_CHANGED','Background authority changed before its snapshot commit.');
             }
           }
+          const certificateSnapshot=elapsedFence?.certificateId ? await tx.get(ownership.certificateRef) : null;
+          const certificate=certificateSnapshot?.exists()?certificateSnapshot.data():null;
           const snapshot=await tx.get(ref(uid)),old=snapshot.exists()?snapshot.data():null;guard();
-          if(old?.digest===next.digest)return;
+          if(elapsedFence?.certificateId){
+            if(certificate?.id!==elapsedFence.certificateId)throw error('ELAPSED_CHANGED','Interval identity changed.');
+            if(old?.digest===next.digest&&certificate.state==='consumed'&&certificate.resultDigest===next.digest&&certificate.resultRevision===next.revision)return;
+            if(certificate.state!=='sealed'||certificate.owner!==fence.writerId||certificate.epoch!==fence.writerEpoch||certificate.baseDigest!==base||certificate.baseRevision!==next.revision-1||certificate.profileId!==next.profileId)
+              throw error('ELAPSED_CHANGED','Interval cannot be consumed.');
+          }else if(old?.digest===next.digest)return;
           if((old?.digest || null)!==base)throw error('REVISION_CONFLICT','Another device has newer progress. Pending progress is preserved.');
           tx.set(ref(uid),fence?{...next,...fence}:next);
+          if(elapsedFence?.certificateId)tx.set(ownership.certificateRef,{...certificate,state:'consumed',resultDigest:next.digest,resultRevision:next.revision});
         });
       }
     };
@@ -65,7 +73,7 @@
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
     const accountGuard = () => { if(closed || currentUid() !== uid) throw error('NOT_READY','Account changed. Reload to load its progress.'); };
-    const ordinaryWriteGuard=()=>{accountGuard();if(elapsedClaim||entry?.elapsedPending)throw error('ELAPSED_UNCERTAIN','The exact background intent must be reconciled before another save.');};
+    const ordinaryWriteGuard=()=>{accountGuard();if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)throw error('ELAPSED_UNCERTAIN','The exact background intent must be reconciled before another save.');};
     const recoveryRecord=local=>local?.elapsedPending?.record || local?.record;
     const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
     const token = doc => doc ? doc.digest : null;
@@ -289,6 +297,7 @@
         };
       },
       async saveForUpdate(payload,revision,profileId){
+        try{ordinaryWriteGuard();}catch(e){return failure(e);}
         if(updateInProgress)return failure(error('SAVE_BUSY','An update save is already in progress.'));
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership must be confirmed before updating.'));
         updateInProgress=true;updateTicket=null;let saved=null;
@@ -313,7 +322,7 @@
       },
       async checkUpdateReady(profileId,revision,updateToken){
         try {
-          accountGuard();const ticket=updateTicket;
+          ordinaryWriteGuard();const ticket=updateTicket;
           if(!ticket || ticket.consumed || ticket.token!==updateToken || ticket.profileId!==profileId || ticket.revision!==revision)
             throw error('UPDATE_CHANGED','Save and confirm the current café before updating.');
           if(!ownership)throw error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.');
@@ -356,7 +365,7 @@
             throw error('ELAPSED_UNAVAILABLE','No matching account save is available for elapsed progress.');
           while(entry.pending){await networkWait(upload());elapsedGuard(claim);}
           const baseline=entry.record.digest;elapsedGuard(claim);
-          const checkpoint=await networkWait(ownership.beginElapsed());elapsedGuard(claim);
+          const checkpoint=await ownership.beginElapsed(entry.record);elapsedGuard(claim);
           if(entry.record.digest!==baseline||entry.pending)throw error('ELAPSED_CHANGED','The save changed while opening the background interval.');
           Object.assign(claim,{phase:'armed',token:checkpoint.token,baseline,revision,profileId});
           return {ok:true,token:checkpoint.token,revision,profileId};
@@ -367,7 +376,7 @@
         if(!claim||claim.phase!=='armed'||claim.token!==token)return failure(error('ELAPSED_CONSUMED','Background interval already consumed.'));
         claim.phase='sealing';
         try{
-          elapsedGuard(claim);const proof=await networkWait(ownership.finishElapsed(token));elapsedGuard(claim);
+          elapsedGuard(claim);const proof=await ownership.finishElapsed(token);elapsedGuard(claim);
           const local=await journal.read(uid);elapsedGuard(claim);
           if(entry.record.digest!==claim.baseline||entry.pending||!same(local,entry))throw error('REVISION_CONFLICT','The background save baseline changed.');
           const latest=await networkWait(remote.read(uid));elapsedGuard(claim);
@@ -385,7 +394,7 @@
           claim.record=record;
           await serial(async()=>{
             elapsedGuard(claim);
-            const next={...entry,elapsedPending:{uid,state:'prepared',base:entry.base,record,writerId:claim.proof.writerId,writerEpoch:claim.proof.writerEpoch,commitServerStamp:claim.proof.commitServerStamp,token:claim.token}};
+            const next={...entry,elapsedPending:{uid,state:'prepared',base:entry.base,record,writerId:claim.proof.writerId,writerEpoch:claim.proof.writerEpoch,commitServerStamp:claim.proof.commitServerStamp,token:claim.token,certificateId:claim.proof.certificateId||null}};
             await journal.replace(uid,entry,next);entry=next;claim.expected=next;
           });
           elapsedGuard(claim);
@@ -394,7 +403,7 @@
           // Do not race this transaction with a local timeout: a rejected race
           // cannot cancel a Firestore write. Keep the exact trial and block new
           // claims until the actual transaction settles, including after cancel.
-          await remote.compareAndSet(uid,entry.base,candidate,()=>elapsedGuard(claim),claim.proof);committed=true;
+          await remote.compareAndSet(uid,entry.base,candidate,()=>elapsedGuard(claim),claim.proof);committed=true;ownership?.completeElapsed?.(claim.token);
           const next={...claim.expected,base:record.digest,pending:false,uploading:null,elapsedPending:null,record,device:savedDevice};
           await serial(async()=>{accountGuard();await journal.replace(uid,claim.expected,next);entry=next;});
           if(claim.cancelled){stopped=true;state('blocked');}else state('saved');
@@ -476,7 +485,7 @@
       // Remote conflict does not reject its final LOCAL snapshot; account and
       // local-tab CAS protections still apply. Never auto-reload the live model.
       async preserveRuntime(payload,revision,profileId) {
-        if(elapsedClaim||entry?.elapsedPending)return failure(error('ELAPSED_UNCERTAIN','The exact background snapshot is protected. Reload to reconcile before saving the old runtime.'));
+        if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('ELAPSED_UNCERTAIN','The exact background snapshot is protected. Reload to reconcile before saving the old runtime.'));
         if(recoveryBusy)return failure(error('RECOVERY_BUSY','A save choice is already in progress.'));recoveryBusy=true;let preserved=null;
         try {
           accountGuard();preserved=await durableSnapshot(payload,revision,profileId);
@@ -557,7 +566,7 @@
         } finally { recoveryBusy=false; }
       },
       async commit(payload,revision,profileId) {
-        if(elapsedClaim||entry?.elapsedPending)return failure(error('SAVE_BUSY','An elapsed interval is being reconciled.'));
+        if(elapsedClaim||entry?.elapsedPending||ownership?.hasElapsedIntent)return failure(error('SAVE_BUSY','An elapsed interval is being reconciled.'));
         if(updateInProgress)return failure(error('SAVE_BUSY','The café is being saved for an update.'));
         if(busy) return failure(error('SAVE_BUSY','A save is pending.')); busy=true;
         try {

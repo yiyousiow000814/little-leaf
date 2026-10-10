@@ -988,12 +988,17 @@ func _process(delta):
 		ghost.visible=model.is_floor_owned(hover_cell)
 
 func _advance_business(delta:float):
+	if background_elapsed==null:background_elapsed=preload("res://scripts/cafe_background_elapsed.gd").new(self)
+	var revenue_before=model.total_earned
+	var cost_before=float(model.total_wages_paid+model.wages_due)+model.payroll_accrued
 	if _background_trial:_sync_staff_duty()
 	if model.first_guest_pending and model.operating_open and model._arrival_elapsed+delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
 	_tick_live_service(delta)
 	# Reuse the foreground cooking/contact/deadline and payroll order.
 	_animate_staff(delta)
 	if _background_trial:animation_time+=delta
+	if not _background_trial and model.operating_open:
+		background_elapsed.observe_profit(delta,float(model.total_earned-revenue_before),maxf(0.0,float(model.total_wages_paid+model.wages_due)+model.payroll_accrued-cost_before))
 
 func _person(color: Color,apron=false) -> Node3D:
 	var n=Node3D.new()
