@@ -105,17 +105,20 @@ static func candidate(model,x:int,z:int,rot:int,id:int=-1)->Dictionary:
 static func can_place(model,x:int,z:int,rot:int,id:int=-1,actor_positions:Array=[])->bool:
  model.last_error="";model.last_placement_issue={};var data=candidate(model,x,z,rot,id)
  for member in data.omitted:
-  if model._item_in_use(member):return model._fail("Wait until this table set is cleaned")
+  if not model.footprint_placement_enabled and model._item_in_use(member):return model._fail("Wait until this table set is cleaned")
  for part in data.parts:
   var cell=Vector2i(int(part.x),int(part.z))
   if not model.is_floor_owned(cell):return model._fail("Both parts need owned floor")
-  if not model.customers.is_empty() and cell in [model.ENTRANCE,model.ENTRY_LANDING]:return model._fail("Keep the entrance clear")
-  if model._guest_route_uses(cell):return model._fail("A guest is using part of this space")
+  if not model.footprint_placement_enabled and not model.customers.is_empty() and cell in [model.ENTRANCE,model.ENTRY_LANDING]:return model._fail("Keep the entrance clear")
+  if not model.footprint_placement_enabled and model._guest_route_uses(cell):return model._fail("A guest is using part of this space")
   for item in model.items:
    if int(item.id) not in data.omitted and int(item.x)==cell.x and int(item.z)==cell.y:return model._fail("Part of this table set is occupied")
  var actor_error=model._furniture_actor_error(data.parts,data.layout,actor_positions)
  if actor_error!="":return model._fail(actor_error)
  if model.edge_blocked(Vector2i(x,z),Vector2i(int(data.parts[1].x),int(data.parts[1].z))):return model._fail("A wall separates the table and chair")
+ if model.footprint_placement_enabled:
+  var guest_error=model.PlacementPause.body_error(model,model.customers,data.layout,model.owned_parcels)
+  return true if guest_error=="" else model._fail(guest_error)
  if model.customers.is_empty():return true
  if not model._placement_workfaces_allowed(data.layout):return false
  var chair_error=model._chair_egress_error(model.built_walls,data.layout,model.owned_parcels,model.customers)

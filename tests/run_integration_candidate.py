@@ -113,6 +113,8 @@ SUITES = [
     ("test_floor_availability", "FLOOR_AVAILABILITY_RESULT"),
     ("test_physical_placement_policy", "PHYSICAL_PLACEMENT_POLICY_RESULT"),
     ("test_physical_placement_save_compatibility", "PHYSICAL_PLACEMENT_SAVE_COMPATIBILITY_RESULT"),
+    ("test_occupied_placement_protocol", "OCCUPIED_PLACEMENT_PROTOCOL_RESULT"),
+    ("test_occupied_placement_service", "OCCUPIED_PLACEMENT_SERVICE_RESULT"),
     ("test_furniture_worker_egress", "FURNITURE_WORKER_EGRESS"),
     ("test_staff_relocation_service", "STAFF_RELOCATION_SERVICE_RESULT"),
     ("test_autosave_feedback", "AUTOSAVE_FEEDBACK_RESULT"),

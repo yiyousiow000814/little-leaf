@@ -26,6 +26,7 @@ func stamp(model,actors:Array)->Array:
   model.decoration_session_active,hash(model.decoration_purchases),
   model.included_checkout_pending,model.included_bin_pending,
   model.cashiers,model.cooks,model.waiters,model.cleaners,model.operating_open,
+  model.footprint_placement_enabled,
   hash(model.duty_counts),hash(model.duty_targets),
  ]
 
@@ -72,7 +73,9 @@ func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
  var ok=shadow.place(_kind,cell.x,cell.y,_rotation,actors)
  var plan={"placement_valid":placement_valid,"ok":ok,"error":shadow.last_error,"issue":shadow.last_placement_issue.duplicate(true)}
  if ok:
+  if model.footprint_placement_enabled:Motion.Pause.reconcile(shadow,model)
   plan.merge({
+   "guests":shadow.customers,
    "items":shadow.items,"groups":shadow.dining_sets,
    "coins":shadow.coins,"next_id":shadow._next_item_id,
    "decoration_purchases":shadow.decoration_purchases,
@@ -113,6 +116,7 @@ func commit(model,receipt:Dictionary,actors:Array=[],apply_staff:Callable=Callab
    model.cashiers=int(plan.cashiers)
    model.duty_counts["cashier"]=int(plan.cashier_count)
    model.duty_targets["cashier"]=int(plan.cashier_target)
+  Motion.publish_guests(model,plan.guests)
   model._notify()
  invalidate()
  return true

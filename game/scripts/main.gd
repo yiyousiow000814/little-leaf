@@ -1342,6 +1342,7 @@ func _guest_waiting_for_meal(record:Dictionary)->bool:
 func _advance_meal_wait(delta:float):
 	if not is_finite(delta) or delta<=0.0:return
 	for record in service_guests.values():
+		if Model.PlacementPause.blocked(record.get("guest",{})):continue
 		if _guest_waiting_for_meal(record):
 			record.meal_wait_seconds=minf(1000000000.0,float(record.get("meal_wait_seconds",0.0))+minf(delta,60.0))
 
@@ -1368,6 +1369,7 @@ func _meal_prepared(record:Dictionary)->bool:
 
 func _resolve_meal_deadlines():
 	for record in service_guests.values():
+		if Model.PlacementPause.blocked(record.get("guest",{})):continue
 		if _guest_waiting_for_meal(record) and float(record.get("meal_wait_seconds",0.0))>=MEAL_DEPARTURE_SECONDS and not _meal_prepared(record):
 			_abandon_unfinished_meal(record)
 
@@ -1972,6 +1974,7 @@ func _animate_staff(delta: float):
 		if destination!=_service_destination(staff,target_item,from):continue
 		var step=SERVICE_STEPS[staff.job_kind][int(staff.job_step)]
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue
+		if service_guests.has(int(staff.job_guest_id)) and Model.PlacementPause.blocked(service_guests[int(staff.job_guest_id)].guest):continue
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
 		var station_busy=worked_stations.has(int(target_item.id))

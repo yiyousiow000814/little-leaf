@@ -11,6 +11,7 @@ signal meal_completed(customer_id: int, payment: int)
 const Footprint=preload("res://scripts/cafe_footprint.gd")
 const DiningSets=preload("res://scripts/cafe_dining_sets.gd")
 const FurnitureMotion=preload("res://scripts/cafe_furniture_motion.gd")
+const PlacementPause=preload("res://scripts/cafe_placement_pause.gd")
 const LayoutAccess=preload("res://scripts/cafe_layout_access.gd")
 const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
 const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
@@ -199,6 +200,10 @@ var guest_obstacle_positions: Array[Vector2] = []
 var checkout_staff_claims:Array[Vector2]=[] # Transient physical/next-leg reservations for deployment.
 var _motion_preview_cache: Dictionary = {}
 var _mobility_validated: Dictionary = {}
+var footprint_placement_enabled:bool=false
+var _placement_planning:bool=false
+var _placement_pause_revision:Dictionary={}
+func enable_footprint_placement()->void:footprint_placement_enabled=true
 var last_placement_issue: Dictionary = {}
 
 
@@ -207,6 +212,7 @@ func _init() -> void:
 
 
 func reset_new() -> void:
+	_placement_pause_revision.clear();_mobility_validated.clear()
 	tutorial_state.clear()
 	first_guest_pending=false;first_guest_start=Vector2.INF
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
@@ -303,6 +309,8 @@ func _withdraw_exterior_guest(guest:Dictionary):
 	guest["withdrawn"]=true;guest["admitted"]=false;guest["exit_completed"]=false
 	guest.exterior_exit=true;guest.departure_blocked=false
 	guest.route=route;guest.route_index=0;guest.elapsed=0.0
+	if PlacementPause.blocked(guest):
+		guest.mobility={};_placement_pause_revision.erase(int(guest.id));_mobility_validated.erase(int(guest.id))
 	guest.duration=_route_length(Vector2(float(guest.x),float(guest.z)),route)/WALK_SPEED
 
 func ensure_basic_bin() -> bool:
@@ -446,9 +454,9 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 		return _fail("Unknown furnishing")
 	if not is_floor_owned(Vector2i(x, z)):
 		return _fail("Buy this plot first" if not parcel_at(Vector2i(x, z)).is_empty() else "That tile is outside the cafe")
-	if not customers.is_empty() and (Vector2i(x, z) == ENTRANCE or Vector2i(x, z) == ENTRY_LANDING):
+	if not footprint_placement_enabled and not customers.is_empty() and (Vector2i(x, z) == ENTRANCE or Vector2i(x, z) == ENTRY_LANDING):
 		return _fail("Keep the entrance and its landing clear")
-	if kind != "rug" and _guest_route_uses(Vector2i(x, z)):
+	if not footprint_placement_enabled and kind != "rug" and _guest_route_uses(Vector2i(x, z)):
 		return _fail("A guest is using that tile or walking route")
 	var proposed: Array[Dictionary] = []
 	for item in items:
@@ -460,6 +468,9 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 	proposed.append({"id": ignore_id, "kind": kind, "x": x, "z": z, "rot": posmod(rot,4)})
 	var actor_error := _furniture_actor_error([proposed[-1]],proposed,actor_positions)
 	if actor_error!="":return _fail(actor_error)
+	if footprint_placement_enabled:
+		var guest_error=PlacementPause.body_error(self,customers,proposed,owned_parcels)
+		return true if guest_error=="" else _fail(guest_error)
 	# Idle layouts have no guest relocation/checkout ownership transition.
 	# Walking access is a warning; physical bounds and bodies remain required.
 	if customers.is_empty():return true
@@ -478,6 +489,7 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 
 
 func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = []) -> bool:
+	if footprint_placement_enabled and not _placement_planning:return FurnitureMotion.purchase(self,kind,x,z,rot,actor_positions)
 	if is_dining_product(kind):return DiningSets.place(self,x,z,rot,DiningSets.variant_for_product(kind),actor_positions)
 	if not can_place(kind, x, z, -1, rot, actor_positions):
 		return false
@@ -1623,11 +1635,12 @@ func _guest_route_uses(cell: Vector2i) -> bool:
 		if customer.phase in ["dirty", "cleaning"]:
 			continue
 		var mobility:Dictionary=customer.get("mobility",{})
-		if not mobility.is_empty():
+		if not mobility.is_empty() and not PlacementPause.blocked(customer):
 			for index in range(int(mobility.route_index),mobility.route.size()):
 				if Vector2i(floori(mobility.route[index].x),floori(mobility.route[index].y))==cell:return true
 		if int(floor(float(customer.x))) == cell.x and int(floor(float(customer.z))) == cell.y:
 			return true
+		if PlacementPause.blocked(customer):continue
 		if customer.phase in ["arriving", "leaving", "checkout_walk"]:
 			for index in range(int(customer.route_index), customer.route.size()):
 				var point: Vector2 = customer.route[index]
@@ -1715,20 +1728,35 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 	return true
 
 
+func _placement_path_allowed(path:String)->bool:
+	var target=ProjectSettings.globalize_path(path.replace("\\","/")).simplify_path()
+	if not target.is_absolute_path():return false
+	var filename=target.get_file().to_lower()
+	if filename in [SaveContract.PRIMARY_FILE.get_file().to_lower(),"little_leaf_cafe_navigation_v16.json","little_leaf_illustrated_r9.json","little_leaf_illustrated_r7.json","little_leaf_illustrated_r6.json","little_leaf_illustrated_r5.json","little_leaf_illustrated_r4.json"]:return false
+	for profile in SaveContract.PROFILES:
+		if filename==str(profile.file).to_lower():return false
+	return true
+func save_placement(path:String=SaveContract.FOOTPRINT_PLACEMENT_FILE)->bool:
+	if not footprint_placement_enabled or not _placement_path_allowed(path):return _fail("Placement needs its explicit save namespace")
+	return _save_snapshot(path,true)
 func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
+	if path.get_file().to_lower()==SaveContract.FOOTPRINT_PLACEMENT_FILE.get_file().to_lower():return _fail("Use the explicit placement save API")
+	return _save_snapshot(path,false)
+func _save_snapshot(path:String,placement:bool)->bool:
+	var source_version=SaveContract.FOOTPRINT_PLACEMENT_VERSION if placement else SAVE_VERSION
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
-	if not customers.is_empty():checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
+	if not placement and not customers.is_empty():checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
 	if checkout_error!="":return _fail(checkout_error)
 	## Only our explicit reconstructed schema is written; no legacy paths probed.
 	var group_check=DiningSets.validate(dining_sets,items,customers)
 	if not group_check.ok:return _fail(str(group_check.error))
-	var reserved_error:=_reserved_chair_egress_error(built_walls,items,customers,_wall_reachable(built_walls,items,owned_parcels))
+	var reserved_error:="" if placement else _reserved_chair_egress_error(built_walls,items,customers,_wall_reachable(built_walls,items,owned_parcels))
 	if reserved_error!="":return _fail("Could not save inconsistent active service: "+reserved_error)
 	var codec=RuntimeCodec.new()
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
-	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
+	var checked=codec.validate(runtime,items,cooks,PHASES,source_version,staff_roster(),duty_counts,placement)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
@@ -1741,7 +1769,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
 	if checkout_error!="":return _fail(checkout_error)
 	var data: Dictionary = {
-		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
+		"schema": SAVE_SCHEMA, "version": source_version, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
 		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
@@ -1753,6 +1781,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
+	if placement:data["footprint_placement_format"]=SaveContract.FOOTPRINT_PLACEMENT_FORMAT
 	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
 	if not walls_check.ok:return _fail("Could not save walls: "+str(walls_check.error))
@@ -1766,7 +1795,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
 	var physical_error=_furniture_body_error(items,saved_actors)
 	if physical_error!="":return _fail("Could not save physical layout: "+physical_error)
-	var egress_error="" if checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
+	var guest_body_error=PlacementPause.body_error(self,checked.state.customers,items,owned_parcels) if placement else ""
+	if guest_body_error!="":return _fail("Could not save guest bodies: "+guest_body_error)
+	var egress_error="" if placement or checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
 	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in checked.state.customers:
@@ -1791,7 +1822,12 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	return true
 
 
+func load_placement(path:String=SaveContract.FOOTPRINT_PLACEMENT_FILE)->bool:
+	if not _placement_path_allowed(path):return _fail("Placement needs its explicit save namespace")
+	return _load_snapshot(path,false,true)
 func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false) -> bool:
+	return _load_snapshot(path,allow_enclosed_staff,false)
+func _load_snapshot(path:String,allow_enclosed_staff:bool,placement:bool)->bool:
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
 	if not FileAccess.file_exists(path):
@@ -1805,9 +1841,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),placement) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
-	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
+	if not SaveContract.accepts_header(data,placement):return _fail("Unsupported or foreign save format")
+	var physical_version=int(data.version)==SaveContract.FOOTPRINT_PLACEMENT_VERSION
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
 			return _fail("Invalid save statistic: %s" % field)
@@ -1898,10 +1935,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if not data.get("operating_open") is bool or not data.get("included_bin_pending") is bool:return _fail("Invalid operating or included-equipment state")
 		saved_open=bool(data.operating_open);saved_bin_pending=bool(data.included_bin_pending)
 		var codec=RuntimeCodec.new()
-		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
+		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty,placement)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
-	if (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
+	if not physical_version and (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
 		return _fail("Saved layout blocks access to service stations")
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
@@ -1928,7 +1965,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
 	var physical_error=_furniture_body_error(validated,saved_actors)
 	if physical_error!="":return _fail("Invalid saved physical layout: "+physical_error)
-	var egress_error="" if int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty() else _wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var guest_body_error=PlacementPause.body_error(self,runtime_state.customers,validated,saved_parcels) if physical_version else ""
+	if guest_body_error!="":return _fail("Invalid saved guest bodies: "+guest_body_error)
+	var egress_error="" if physical_version or (int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty()) else _wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
@@ -1971,6 +2010,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	tutorial_state=preload("res://scripts/cafe_tutorial_state.gd").read(data.get("tutorial"))
 	if int(tutorial_state.get("baseline_served",0))>served:tutorial_state.clear()
 	first_guest_pending=saved_first_guest;first_guest_start=Vector2.INF
+	footprint_placement_enabled=placement;_placement_pause_revision.clear();_mobility_validated.clear()
 	loaded_save_version=int(data.version)
 	_next_customer_id=int(runtime_state.next_customer_id)
 	_arrival_elapsed=float(runtime_state.arrival_elapsed)
@@ -2102,7 +2142,7 @@ func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> S
 		for point in actors:
 			if point.distance_squared_to(point.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
 				return "A staff member is using part of this space"
-	if customers.is_empty():return ""
+	if footprint_placement_enabled or customers.is_empty():return ""
 	# Staff cannot use the x=0 arrival strip or unowned exterior grass to
 	# bypass furniture. Their escape is an indoor route to the service floor
 	# at ENTRY_LANDING, even when the pocket touches a public outdoor edge.
@@ -2524,7 +2564,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version)!=SAVE_VERSION:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.FOOTPRINT_PLACEMENT_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0
@@ -2842,7 +2882,7 @@ func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,
 		var position=Vector2(float(guest.x),float(guest.z))
 		if not _starter_door_route_clear(position,guest.route,int(guest.route_index),added):return attachments
 		var motion:Dictionary=guest.get("mobility",{})
-		if not motion.is_empty() and not _starter_door_route_clear(position,motion.route,int(motion.route_index),added):return attachments
+		if not motion.is_empty() and not PlacementPause.blocked(guest) and not _starter_door_route_clear(position,motion.route,int(motion.route_index),added):return attachments
 	return proposed
 
 func _starter_door_route_clear(start:Vector2,route:Array,index:int,added:Array)->bool:
