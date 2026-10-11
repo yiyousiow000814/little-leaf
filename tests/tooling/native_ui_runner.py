@@ -20,7 +20,7 @@ import subprocess
 import tempfile
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 from project_layout import stage_project
 EXCLUDED = {".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
