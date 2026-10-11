@@ -49,7 +49,9 @@ var help_text:Label
 var help_box:VBoxContainer
 var help_scroll:ScrollContainer
 var help_footer:GridContainer
+var help_header:HBoxContainer
 var help_heading:Label
+var help_close:Button
 var help_overview:Button
 var help_notes:Button
 var help_scrim:ColorRect
@@ -234,7 +236,10 @@ func setup():
  manage_box.add_child(_small_button("Done",func():management.hide()))
  help_panel=_panel();help_panel.name="QuickHelpPanel"
  help_box=VBoxContainer.new();help_box.add_theme_constant_override("separation",8);help_panel.add_child(help_box)
- help_heading=game.label("Quick help",18);help_box.add_child(help_heading)
+ help_header=HBoxContainer.new();help_box.add_child(help_header)
+ help_heading=game.label("Quick help",18);help_heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_header.add_child(help_heading)
+ help_close=game.button("X",_close_help);help_close.name="CloseHelp";help_close.accessibility_name="Close Help";help_close.tooltip_text="Close Help"
+ help_close.custom_minimum_size=Vector2(44,44);help_header.add_child(help_close)
  help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
  var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
  help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
@@ -459,20 +464,21 @@ func sync():
  _sync_viewport_guard()
  _sync_starter_floor_repair()
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
-func _wrap_themed_popup(panel:PanelContainer,width:float):
+func _wrap_themed_popup(panel:PanelContainer,width:float,fixed_header:Control=null):
  if panel==help_panel:
   panel.set_meta("popup_width",width);hud.theme_scroll(help_scroll)
-  for control in [help_scroll.get_child(0),help_footer,help_heading]:control.minimum_size_changed.connect(_queue_popup_fit)
+  for control in [help_scroll.get_child(0),help_footer,help_header]:control.minimum_size_changed.connect(_queue_popup_fit)
   panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
   return
  panel.z_index=50
  var body=panel.get_child(0);var scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true
  panel.add_child(scroll);body.reparent(scroll);body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;panel.custom_minimum_size=Vector2.ZERO;panel.set_anchors_preset(Control.PRESET_TOP_LEFT);panel.set_meta("popup_width",width)
  var fixed_height=0.0
- if panel==game.settings:
+ if panel==game.settings:fixed_header=game.settings_controls.header
+ if fixed_header!=null:
   var shell=VBoxContainer.new();shell.add_theme_constant_override("separation",11);panel.add_child(shell);scroll.reparent(shell)
-  var header=game.settings_controls.header;header.reparent(shell);shell.move_child(header,0)
-  fixed_height=header.get_combined_minimum_size().y+11
+  fixed_header.reparent(shell);shell.move_child(fixed_header,0)
+  fixed_height=fixed_header.get_combined_minimum_size().y+11
  hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body,"fixed_height":fixed_height})
  body.minimum_size_changed.connect(_queue_popup_fit);panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
 func _queue_popup_fit():
@@ -529,7 +535,7 @@ func _fit_help_panel():
  for button in help_footer.get_children():button.custom_minimum_size.x=action_width if compact_actions else 0.0
  var top=hud.layout_host.get_global_rect().end.y+10
  var footer_height=help_footer.get_combined_minimum_size().y
- var fixed_height=padding.y+help_heading.get_combined_minimum_size().y+footer_height+16
+ var fixed_height=padding.y+help_header.get_combined_minimum_size().y+footer_height+16
  # Prefer a docked panel with at least 100px of readable instructions. Only
  # genuinely short viewports use a scrim and disable the obscured toolbar.
  var modal=(help_choices.visible and view.y<500) or view.y-insets.w-top-12<fixed_height+100
@@ -556,7 +562,7 @@ func _set_help_modal(enabled:bool):
   if focused==null or not help_panel.is_ancestor_of(focused):help_scroll.grab_focus()
 func _help_tab(event:InputEventKey)->bool:
  if not help_panel.visible or event.keycode!=KEY_TAB:return false
- var controls=[help_scroll]
+ var controls=[help_close,help_scroll]
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
@@ -764,7 +770,7 @@ func return_to_help(focus_button:Button=null):
  (focus_button if focus_button!=null else help_notes).grab_focus()
 func _close_help():
  help_panel.hide()
- if help_returns_to_settings:game.settings.show();_fit_themed_popups()
+ if help_returns_to_settings:game.settings.show();_fit_themed_popups();settings_help.grab_focus()
  sync()
 func _move_opening():
  if _selected_opening().is_empty():return

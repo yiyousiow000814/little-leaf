@@ -14,6 +14,9 @@ var compact:
  get:return compact_ref.get_ref()
 var panel:PanelContainer
 var body:VBoxContainer
+var header:HBoxContainer
+var close_button:Button
+var scroll:ScrollContainer
 var back_button:Button
 var menu_entries=[]
 var release:Dictionary={}
@@ -39,7 +42,10 @@ func setup(data_path:String=DATA_PATH):
  body=VBoxContainer.new()
  body.add_theme_constant_override("separation",10)
  panel.add_child(body)
- body.add_child(_label("Update Notes",22))
+ header=HBoxContainer.new();body.add_child(header)
+ var heading=_label("Update Notes",22);header.add_child(heading)
+ close_button=game.button("X",_back_to_help);close_button.name="CloseUpdates";close_button.accessibility_name="Close Updates";close_button.tooltip_text="Close Updates"
+ close_button.custom_minimum_size=Vector2(44,44);header.add_child(close_button)
  if current_version()!="":
   _add_release(release)
   for previous in release.get("history",[]):
@@ -55,8 +61,8 @@ func setup(data_path:String=DATA_PATH):
  body.add_child(back_button)
  compact.hud.theme_panel(panel,true,26)
  compact.hud.theme_panel_contents(panel)
- compact._wrap_themed_popup(panel,PANEL_WIDTH)
- var scroll=panel.get_child(0) as ScrollContainer
+ compact._wrap_themed_popup(panel,PANEL_WIDTH,header)
+ scroll=body.get_parent() as ScrollContainer
  scroll.focus_mode=Control.FOCUS_ALL
  scroll.accessibility_name="Update Notes"
  # Setup must never open a dialog or consume the unread state.
@@ -124,7 +130,6 @@ func show():
  game.settings.hide()
  compact._popup_at(panel,PANEL_WIDTH)
  # Reopening starts at the release header, including after a viewport change.
- var scroll=panel.get_child(0) as ScrollContainer
  scroll.scroll_vertical=0
  compact._queue_popup_fit()
  _mark_seen()
