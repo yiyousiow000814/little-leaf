@@ -21,6 +21,10 @@ const {installEngineLaunchHook}=require('../../tests/tooling/engine_launch_hook.
 const root=path.resolve(import.meta.dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);assert(i>=0 && process.argv[i+1],name+' required');return path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),native=arg('--engine-report');
+const itchVariant=process.argv.includes('--itch-test-variant')?arg('--itch-test-variant'):null;
+const officialOrigin='https://little-leaf-41e5d.firebaseapp.com';
+const itchPage='https://siowyiyou.itch.io/__little_leaf_synthetic_test__';
+const classicPage='https://html-classic.itch.zone/__little_leaf_synthetic_test__';
 const geometryProject=process.env.CLOUD_GEOMETRY_PROJECT;assert(geometryProject,'disposable native geometry required');
 const geometryBinding=JSON.parse(fs.readFileSync(path.join(geometryProject,'../binding.json')));
 for(const [name,digest] of Object.entries(geometryBinding.source_sha256))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(sourcePath(root,name))).digest('hex'),digest,'geometry source '+name);
@@ -51,20 +55,41 @@ const read=(uid,kind='save')=>fixtureStore.read(uid,kind);
 const seed=(uid,r)=>fixtureStore.seed(uid,envelope(r));
 const sdkRoot=path.dirname(require.resolve('firebase/package.json'));
 const source=name=>fs.readFileSync(path.join(root,'platform/web',name),'utf8');
-const loadedRelease={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
+const loadedRelease=itchVariant?JSON.parse(fs.readFileSync(path.join(itchVariant,'public/itch/hosting-release.json'))):{schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
 let release={...loadedRelease};
-const config={apiKey:'emulator-synthetic-key',authDomain:'127.0.0.1',projectId:'demo-little-leaf',appId:'1:123:web:synthetic'};
-let html=fs.readFileSync(path.join(web,'index.html'),'utf8');
+const config={apiKey:'emulator-synthetic-key',authDomain:itchVariant?'little-leaf-41e5d.firebaseapp.com':'127.0.0.1',projectId:'demo-little-leaf',appId:'1:123:web:synthetic'};
+let html;
+if(itchVariant){
+ const packet=JSON.parse(fs.readFileSync(path.join(itchVariant,'firebase-variant-manifest.json')));
+ assert.equal(packet.status,'prepared-same-itch-local-candidate-not-deployable');
+ assert.equal(packet.source_commit,manifest.source_commit);assert.equal(packet.source_tree,manifest.source_tree);
+ for(const [name,digest]of Object.entries(packet.files))assert.equal(sha(fs.readFileSync(path.join(itchVariant,name))),digest,'exact test variant '+name);
+ html=fs.readFileSync(path.join(itchVariant,'public/itch/index.html'),'utf8');
+ report.itch_test_entry=true;report.itch_entry_sha256=sha(fs.readFileSync(path.join(itchVariant,'public/itch/index.html')));
+ report.synthetic_public_config_substitution=true; // No real project, Auth or Firestore endpoint is reachable.
+ const realConfig=JSON.parse(fs.readFileSync(path.join(root,'platform/firebase/public-config.json')));
+ const options={surface:'trusted-itch-frame',runtimeOrigin:officialOrigin,runtimePath:'/itch/'};
+ // The packager uses Python's flat-object JSON spacing. Check the exact bytes before substituting synthetic credentials.
+ const pythonFlatJSON=value=>'{'+Object.entries(value).map(([key,item])=>JSON.stringify(key)+': '+JSON.stringify(item)).join(', ')+'}';
+ const original='m.start('+pythonFlatJSON(realConfig)+','+pythonFlatJSON(options)+')';
+ assert.equal(html.split(original).length,2,'one exact compiled stable entry');
+ html=html.replace(original,'m.start('+JSON.stringify(config)+','+JSON.stringify(options)+')');
+ for(const name of ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs'])assert.equal(sha(fs.readFileSync(path.join(itchVariant,'public/itch',name))),sha(fs.readFileSync(path.join(root,'platform/web',name))));
+}else{
+html=fs.readFileSync(path.join(web,'index.html'),'utf8');
 assert.equal(html.split('window.__littleLeafVault.boot()').length,2);
 html=html.replace('window.__littleLeafVault.boot()','window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())');
 const injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafRelease='+JSON.stringify(loadedRelease).replace(/</g,'\\u003c')+';window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start('+JSON.stringify(config)+'));</script>';
 assert.equal(html.split('<script src="index.js"></script>').length,2);
 html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>');
+}
 const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export const getIdTokenResult=async()=>({claims:{firebase:{sign_in_provider:'google.com'}}});export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signInWithPopup=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
 const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});globalThis.__qaFirestore={db,sdk:real};return db;}`;
 const server=http.createServer((req,res)=>{
  try{const p=new URL(req.url,'http://127.0.0.1').pathname;
  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Embedder-Policy','require-corp');res.setHeader('Cache-Control','no-store');
+ // Synthetic SDK imports from the intercepted HTTPS iframe may reach only this disposable loopback fixture.
+ if(itchVariant && p.startsWith('/sdk/')){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Cross-Origin-Resource-Policy','cross-origin');}
  let body,type='text/javascript';
  if(p==='/index.html'){body=html;type='text/html';}
  else if(p==='/seed.html'){body='<!doctype html><title>Synthetic fixture setup</title>';type='text/html';}
@@ -73,7 +98,7 @@ const server=http.createServer((req,res)=>{
  else if(p==='/sdk/firestore-wrapper.js')body=firestore;
  else if(['/sdk/firebase-app.js','/sdk/firebase-firestore.js'].includes(p))body=fs.readFileSync(path.join(sdkRoot,path.basename(p)));
  else if(['/little_leaf_firebase.js','/little_leaf_firebase_session.js','/little_leaf_update.js','/little_leaf_firebase_boot.mjs'].includes(p))body=source(p.slice(1));
- else {assert.equal(path.basename(p),p.slice(1));body=fs.readFileSync(path.join(web,p.slice(1)));type=p.endsWith('.wasm')?'application/wasm':p.endsWith('.js')?'text/javascript':'application/octet-stream';}
+ else {assert.equal(path.basename(p),p.slice(1));body=fs.readFileSync(path.join(itchVariant?path.join(itchVariant,'public/itch'):web,p.slice(1)));type=p.endsWith('.wasm')?'application/wasm':p.endsWith('.js')?'text/javascript':'application/octet-stream';}
  res.writeHead(200,{'Content-Type':type});res.end(body);
  }catch(e){res.writeHead(404);res.end('Not found');}
 });
@@ -85,16 +110,42 @@ async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=
 async function setup(uid,entry=null){
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin || u.origin==='http://127.0.0.1:8080')return route.continue();
+ if(itchVariant && u.href===itchPage)return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><iframe src="'+classicPage+'" allow="autoplay; fullscreen"></iframe>'});
+ if(itchVariant && u.href===classicPage)return route.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(itchVariant,'itch-wrapper/index.html'))});
+ if(itchVariant && [officialOrigin,'https://html-classic.itch.zone'].includes(u.origin)){
+  const prefix=u.origin===officialOrigin?'/itch/':'/';
+  assert(u.pathname.startsWith(prefix) && !u.search,'only exact isolated fixture paths');
+  const name=u.pathname.slice(prefix.length)||'index.html';assert.equal(path.basename(name),name);
+  if(u.origin==='https://html-classic.itch.zone')return route.fulfill({status:200,body:fs.readFileSync(path.join(itchVariant,'itch-wrapper',name)),contentType:name.endsWith('.js')?'text/javascript':name.endsWith('.wasm')?'application/wasm':'application/octet-stream'});
+  const response=await route.fetch({url:origin+'/'+name,maxRedirects:0});
+  const headers={...response.headers()};if(['index.html'].includes(name))headers['content-security-policy']='frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io';
+  return route.fulfill({response,headers});
+ }
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
  const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
- await page.goto(origin+'/seed.html');
+ await page.goto(itchVariant?officialOrigin+'/itch/seed.html':origin+'/seed.html');
  if(entry)await page.evaluate(async({uid,entry})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});await new Promise((yes,no)=>{const tx=db.transaction('accounts','readwrite');tx.objectStore('accounts').put(entry,uid);tx.oncomplete=yes;tx.onabort=()=>no(tx.error);});db.close();},{uid,entry});
  await page.addInitScript(installEngineLaunchHook,{args:['--','--skip-intro'],reportKey:'__fullflowEngine'});
  return {context,page,uid};
 }
-async function launch(device){await device.page.goto(origin+'/index.html');await device.page.waitForFunction(()=>!document.getElementById('status')&&globalThis.__fullflowEngine?.launchCalls===1,null,{timeout:90000});await device.page.waitForFunction(()=>globalThis.LittleLeafSaveLog?.snapshot().some(e=>e.layer==='controller'&&['read_accepted','read_failure'].includes(e.event)),null,{timeout:30000});await device.page.evaluate(()=>{
+function gameFramePage(page,frame){return new Proxy(frame,{get(target,key){
+ if(key==='mainFrame')return()=>frame;
+ if(['on','off','removeListener','screenshot'].includes(key))return page[key].bind(page);
+ const owner=key in target?target:page,value=owner[key];return typeof value==='function'?value.bind(owner):value;
+}});}
+async function launch(device){
+ if(itchVariant){
+  const page=device.page;await page.goto(itchPage);
+  const classic=await until(()=>page.frames().find(frame=>frame.url()===classicPage),'actual classic wrapper');
+  await classic.locator('#itch-account').click();
+  const frame=await until(()=>page.frames().find(frame=>frame.url()===officialOrigin+'/itch/'),'actual official-origin child');
+  device.page=gameFramePage(page,frame);
+  const ancestors=await frame.evaluate(()=>Array.from(location.ancestorOrigins));
+  assert.deepEqual(ancestors,['https://html-classic.itch.zone','https://siowyiyou.itch.io']);report.itch_ancestor_origins=ancestors;
+ }else await device.page.goto(origin+'/index.html');
+ await device.page.waitForFunction(()=>!document.getElementById('status')&&globalThis.__fullflowEngine?.launchCalls===1,null,{timeout:90000});await device.page.waitForFunction(()=>globalThis.LittleLeafSaveLog?.snapshot().some(e=>e.layer==='controller'&&['read_accepted','read_failure'].includes(e.event)),null,{timeout:30000});await device.page.evaluate(()=>{
  globalThis.__qaAdapterResults=[];const client=globalThis.__littleLeafVault;
  for(const name of ['boot','requestTakeover','finishTakeover','forceTakeover','preserveOwnerRuntime']){
   const original=client[name];client[name]=function(...args){const promise=original.apply(this,args);promise.then(result=>globalThis.__qaAdapterResults.push({method:name,result}),error=>globalThis.__qaAdapterResults.push({method:name,error:String(error)}));return promise;};
@@ -179,7 +230,9 @@ try{
  check(errors.length===0,'compiled runtime reports no script or page errors: '+errors.join('; '));report.passed=true;
 }catch(error){
  report.failure=String(error.stack||error);report.failureStates=[];
- for(const context of contexts)for(const page of context.pages()){
+ for(const context of contexts)for(const originalPage of context.pages()){
+  const frame=itchVariant?originalPage.frames().find(frame=>frame.url().startsWith(officialOrigin+'/itch/')):null;
+  const page=frame?gameFramePage(originalPage,frame):originalPage;
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
    report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
