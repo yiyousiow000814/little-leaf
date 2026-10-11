@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import install_tools
+from ci import install_tools
 from build_web import copy_notices, verify_installer_receipt
 import publish_itch as publisher
 import subprocess
