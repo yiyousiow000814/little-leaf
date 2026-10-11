@@ -41,6 +41,7 @@ def qualify(tag,git=run):
  project=git('git','show',sha+':'+prefix+'project.godot');notes=json.loads(git('git','show',sha+':'+prefix+'data/release_notes.json'))
  if re.findall(r'^config/version="([^"]+)"$',project,re.M)!=[tag[1:]]:raise ValueError('Tag/project mismatch')
  if notes.get('schema_version')!=1 or notes.get('version')!=tag[1:] or notes.get('status')!='released':raise ValueError('Unqualified release metadata')
+ if notes.get('prerelease',False) is not False:raise ValueError('Prerelease metadata cannot qualify for stable Latest')
  if datetime.date.fromisoformat(notes['date'])>datetime.datetime.now(datetime.timezone.utc).date():raise ValueError('Future release date')
  return obj
 

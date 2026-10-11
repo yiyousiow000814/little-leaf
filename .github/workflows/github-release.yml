@@ -24,6 +24,7 @@ jobs:
       sha: ${{ steps.notes.outputs.sha }}
       tag_object: ${{ steps.notes.outputs.tag_object }}
       notes: ${{ steps.notes.outputs.notes }}
+      prerelease: ${{ steps.notes.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -63,6 +64,9 @@ jobs:
               raise ValueError('Tag and project version disagree')
           if notes.get('schema_version') != 1 or notes.get('version') != version or notes.get('status') != 'released':
               raise ValueError('Release metadata must match the release tag and be released')
+          prerelease = notes.get('prerelease', False)
+          if type(prerelease) is not bool:
+              raise ValueError('Release prerelease flag must be a boolean')
           if datetime.date.fromisoformat(notes['date']) > datetime.datetime.now(datetime.timezone.utc).date():
               raise ValueError('Release date is in the future')
           lines = []
@@ -98,7 +102,7 @@ jobs:
           lines.extend(['------', '', '## Changelog', '- chore: record ' + tag + ' source at ' + sha + '.', '', 'Full Changelog: ' + changelog, '', 'Source: ' + sha + '.', '', 'This GitHub Release records tagged source; platform approval and deployment are separate.'])
           encoded = base64.b64encode(('\n'.join(lines) + '\n').encode()).decode()
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              for key, value in [('tag', tag), ('sha', sha), ('tag_object', tag_object), ('notes', encoded)]:
+              for key, value in [('tag', tag), ('sha', sha), ('tag_object', tag_object), ('notes', encoded), ('prerelease', str(prerelease).lower())]:
                   out.write(key + '=' + value + '\n')
           PY
   release:
@@ -114,10 +118,17 @@ jobs:
       SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
       TAG_OBJECT: ${{ needs.prepare.outputs.tag_object }}
       NOTES_BASE64: ${{ needs.prepare.outputs.notes }}
+      RELEASE_PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
     steps:
       - name: Preserve existing releases and verify tag has not moved
         shell: bash
         run: |
+          release_args=()
+          case "$RELEASE_PRERELEASE" in
+            true) release_args=(--prerelease) ;;
+            false) ;;
+            *) echo '::error::Invalid prerelease flag; refusing publication.'; exit 1 ;;
+          esac
           remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
           test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed; refusing publication.'; exit 1; }
           response="$RUNNER_TEMP/release-response.txt"
@@ -128,7 +139,7 @@ jobs:
           # Only an explicit not-found response permits creation. Auth/network failures stop.
           grep -Eq '^HTTP/[0-9.]+ 404([[:space:]]|$)' "$response" || { echo '::error::Cannot establish release absence.'; exit 1; }
           printf '%s' "$NOTES_BASE64" | base64 --decode > "$RUNNER_TEMP/github-release-notes.md"
-          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" --latest=false --title "Little Leaf $RELEASE_TAG" --notes-file "$RUNNER_TEMP/github-release-notes.md"
+          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" --latest=false --title "Little Leaf $RELEASE_TAG" --notes-file "$RUNNER_TEMP/github-release-notes.md" "${release_args[@]}"
           remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
           test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed during publication; investigate without retrying.'; exit 1; }
           echo "Created $RELEASE_TAG from $SOURCE_SHA. No platform deployment was performed." >> "$GITHUB_STEP_SUMMARY"

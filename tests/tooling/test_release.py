@@ -43,6 +43,14 @@ class MetadataTests(unittest.TestCase):
     def test_match(self):
         self.assertEqual(version(self.root, "v0.1.6"), "0.1.6")
 
+    def test_prerelease_flag_is_explicit_boolean_without_relaxing_version(self):
+        self.notes["prerelease"] = True; self.save()
+        self.assertEqual(version(self.root, "v0.1.6"), "0.1.6")
+        for value in ("true", 1, 0, None):
+            self.notes["prerelease"] = value; self.save()
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "boolean"):
+                version(self.root, "v0.1.6")
+
     def test_hotfix_metadata_matches_exactly(self):
         for suffix in "abcz":
             value = "0.1.10" + suffix

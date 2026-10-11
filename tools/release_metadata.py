@@ -40,6 +40,8 @@ def version(root, tag=""):
     notes = json.loads((root / "data/release_notes.json").read_text())
     if notes.get("version") != value:
         raise ValueError("project.godot and data/release_notes.json versions disagree")
+    if type(notes.get("prerelease", False)) is not bool:
+        raise ValueError("Release prerelease flag must be a boolean")
     if tag:
         if tag != "v" + value:
             raise ValueError("Release tag must be vX.Y.Z or vX.Y.Z[a-z] and match both project and release notes")
