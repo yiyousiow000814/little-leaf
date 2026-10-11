@@ -8,7 +8,7 @@ static func copy_model(model):
  var shadow=model.get_script().new()
  # Geometry planning never needs payroll, renderer caches or service ledgers.
  # Their original objects remain untouched by the transaction.
- for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","reception_review_enabled","reception_visits","departing_bodies","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
+ for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","reception_review_enabled","guest_navigation_enabled","reception_visits","departing_bodies","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
   var value=model.get(key)
   shadow.set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
  return shadow
@@ -23,7 +23,7 @@ static func route_to(model,position:Vector2,destination:Vector2i)->Array[Vector2
   var next=model.cell_center(step)
   if result.is_empty() and position.distance_to(next)<.00001:continue
   result.append(next)
- if not result.is_empty() and absf(position.x-result[0].x)>.00001 and absf(position.y-result[0].y)>.00001:return []
+ if not result.is_empty() and (not model.GuestNavigation.leg_clear(model,position,result[0]) if model.guest_navigation_enabled else (absf(position.x-result[0].x)>.00001 and absf(position.y-result[0].y)>.00001)):return []
  return result
 static func seat_route(model,guest:Dictionary,reachable=null)->Array[Vector2]:
  var chair=model.get_item(int(guest.chair_id));var target=model.cell_center(Vector2i(int(chair.x),int(chair.z)))
@@ -134,6 +134,8 @@ static func commit(model,transaction:Dictionary)->bool:
  model.last_error="";model.last_event="Moved furniture · guests and staff keep their work";model._notify();return true
 static func advance(model,guest:Dictionary,delta:float)->void:
  if not active(guest):return
+ if model.guest_navigation_enabled:
+  model.GuestNavigation.advance_mobility(model,guest,delta);return
  var invalid="" if model._mobility_validated.get(int(guest.id),-1)==model.revision else geometry_error(model,[guest],model.items,model.built_walls,model.owned_parcels,model.wall_attachments)
  if invalid!="":
   var kind=str(guest.mobility.kind)
@@ -158,6 +160,17 @@ static func advance(model,guest:Dictionary,delta:float)->void:
   guest.seated=str(mobility.kind)=="to_assigned_seat";guest.mobility={};guest.waiting=guest.phase=="checkout_wait"
   model._mobility_validated.erase(int(guest.id))
 static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership:Array,openings:Array)->String:
+ if model.guest_navigation_enabled:
+  var shadow=copy_model(model);shadow.items.assign(layout);shadow.built_walls.assign(walls);shadow.owned_parcels.assign(ownership);shadow.wall_attachments.assign(openings);shadow._guest_navigation_cache.clear()
+  for guest in guests:
+   if not active(guest):continue
+   var route:Array=guest.mobility.route;var previous=point(guest)
+   if route.is_empty():return "Relocating guest has no walking route"
+   var chair=int(guest.chair_id) if str(guest.mobility.kind)=="to_assigned_seat" else -1
+   for i in range(int(guest.mobility.route_index),route.size()):
+    if not shadow.is_floor_owned(cell(route[i])) or not shadow.GuestNavigation.leg_clear(shadow,previous,route[i],-1,chair):return "Relocation route crosses blocked geometry"
+    previous=route[i]
+  return ""
  var by_id={};var solids={}
  for item in layout:
   by_id[int(item.id)]=item

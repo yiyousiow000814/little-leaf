@@ -44,6 +44,7 @@ static func is_door_landing(m,cell:Vector2i)->bool:
   if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(m.cell_center(cell),opening.a,opening.b).distance_to(m.cell_center(cell))<.76:return true
  return false
 static func path(m,start:Vector2i,finish:Vector2i,blocked:Dictionary={},layout:Array=[])->Array[Vector2i]:
+ if m.guest_navigation_enabled:return m.GuestNavigation.path(m,start,finish,blocked,layout)
  var empty:Array[Vector2i]=[]
  var furniture=m.items if layout.is_empty() else layout
  var solids={}
@@ -159,7 +160,7 @@ static func _route_to(m,guest:Dictionary,destination:Vector2i)->bool:
   if cells.is_empty():return false
   for cell in cells:route.append(m.cell_center(cell))
   # Anchor a mid-edge position before turning; never make a diagonal shortcut.
-  if not route.is_empty() and absf(point(guest).x-route[0].x)>.001 and absf(point(guest).y-route[0].y)>.001:return false
+  if not route.is_empty() and (not m.GuestNavigation.leg_clear(m,point(guest),route[0],int(guest.chair_id)) if m.guest_navigation_enabled else (absf(point(guest).x-route[0].x)>.001 and absf(point(guest).y-route[0].y)>.001)):return false
  guest.phase="checkout_walk";guest.checkout_cell=destination;guest.route=route;guest.route_index=0
  guest.duration=m._route_length(point(guest),route)/m.WALK_SPEED;guest.elapsed=0.0;guest.departure_blocked=false
  if landing!=NONE:
