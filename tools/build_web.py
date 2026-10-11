@@ -7,8 +7,8 @@ import re
 import shutil
 import subprocess
 from release_metadata import version, projected_metadata
-from optimize_web_present import optimize_presentation
-from bound_web_gl_handles import bound_web_gl_handles
+from build.optimize_web_present import optimize_presentation
+from build.bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 from project_layout import resource_name, source_path
 from build_itch_entry import ordinary_entry_html
