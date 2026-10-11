@@ -4,7 +4,13 @@ Only this job is serialized. Every run rereads all pages, so delayed/backfill ru
 converge on the highest eligible published release rather than their own tag.
 """
 import datetime,json,os,re,subprocess
-from release_metadata import release_key
+from pathlib import Path
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from release.release_metadata import release_key
 
 def key(tag):
  if not isinstance(tag, str) or not tag.startswith('v'):return None

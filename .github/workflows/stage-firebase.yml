@@ -111,7 +111,7 @@ jobs:
           python3 - <<'PY'
           import json,os,pathlib,sys
           sys.path.insert(0,'coordinator/tools')
-          from released_live_provenance import manual_context
+          from release.released_live_provenance import manual_context
           selection=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'],'selection/selection.json').read_text())
           manual_context(selection,os.environ,os.environ['GITHUB_RUN_ID'],os.environ['GITHUB_RUN_ATTEMPT'])
           PY

@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from release_metadata import version, projected_metadata
+from release.release_metadata import version, projected_metadata
 from build.optimize_web_present import optimize_presentation
 from build.bound_web_gl_handles import bound_web_gl_handles
 from qualification.artifacts import sha256

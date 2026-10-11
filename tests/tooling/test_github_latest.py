@@ -1,7 +1,7 @@
 import json,unittest
 from pathlib import Path
 from unittest.mock import patch
-from github_latest import key,select,qualify,reconcile,latest
+from release.github_latest import key,select,qualify,reconcile,latest
 from types import SimpleNamespace
 ROOT=Path(__file__).resolve().parents[2]
 def release(tag,**extra):return dict(tag_name=tag,draft=False,prerelease=False,**extra)
@@ -64,11 +64,11 @@ class LatestTests(unittest.TestCase):
    calls.append(args)
    if '--paginate' in args:return json.dumps([[release('v0.1.10a')],[release('v0.1.11')]])
    return 'a'*40 if '--jq' in args else ''
-  with patch('github_latest.run',side_effect=api),patch('github_latest.qualify',return_value='a'*40),patch('github_latest.latest',side_effect=[release('v0.1.10'),release('v0.1.10a'),release('v0.1.11')]):
+  with patch('release.github_latest.run',side_effect=api),patch('release.github_latest.qualify',return_value='a'*40),patch('release.github_latest.latest',side_effect=[release('v0.1.10'),release('v0.1.10a'),release('v0.1.11')]):
    self.assertEqual(reconcile('owner/repo'),'Latest confirmed: v0.1.11')
   self.assertEqual([c for c in calls if 'edit' in c],[('gh','release','edit','v0.1.11','--repo','owner/repo','--latest')])
  def test_newer_latest_during_validation_prevents_mutation(self):
-  with patch('github_latest.run',side_effect=[json.dumps([[release('v0.1.11')]]),'a'*40]) as api,patch('github_latest.qualify',return_value='a'*40),patch('github_latest.latest',side_effect=[release('v0.1.10'),release('v0.1.12')]):
+  with patch('release.github_latest.run',side_effect=[json.dumps([[release('v0.1.11')]]),'a'*40]) as api,patch('release.github_latest.qualify',return_value='a'*40),patch('release.github_latest.latest',side_effect=[release('v0.1.10'),release('v0.1.12')]):
    self.assertIn('advanced',reconcile('owner/repo'));self.assertEqual(api.call_count,2)
  def test_uncertain_promotion_is_not_retried(self):
   calls=[]
@@ -77,16 +77,16 @@ class LatestTests(unittest.TestCase):
    if '--paginate' in args:return json.dumps([[release('v0.1.11')]])
    if 'edit' in args:raise RuntimeError('lost acknowledgment')
    return 'a'*40
-  with patch('github_latest.run',side_effect=api),patch('github_latest.qualify',return_value='a'*40),patch('github_latest.latest',return_value=release('v0.1.10')):
+  with patch('release.github_latest.run',side_effect=api),patch('release.github_latest.qualify',return_value='a'*40),patch('release.github_latest.latest',return_value=release('v0.1.10')):
    with self.assertRaises(RuntimeError):reconcile('owner/repo')
   self.assertEqual(len([c for c in calls if 'edit' in c]),1)
  def test_latest_api_requires_explicit_status_and_valid_json(self):
   for code,text in [(1,'HTTP/2.0 403 Forbidden'),(1,''),(0,'not http'),(0,'HTTP/2.0 200 OK\n\ninvalid')]:
-   with patch('github_latest.subprocess.run',return_value=SimpleNamespace(returncode=code,stdout=text)):
+   with patch('release.github_latest.subprocess.run',return_value=SimpleNamespace(returncode=code,stdout=text)):
     with self.assertRaises((ValueError,IndexError)):latest('owner/repo')
-  with patch('github_latest.subprocess.run',return_value=SimpleNamespace(returncode=1,stdout='HTTP/2.0 404 Not Found')):self.assertIsNone(latest('owner/repo'))
+  with patch('release.github_latest.subprocess.run',return_value=SimpleNamespace(returncode=1,stdout='HTTP/2.0 404 Not Found')):self.assertIsNone(latest('owner/repo'))
  def test_api_failure_never_mutates(self):
-  with patch('github_latest.run',side_effect=RuntimeError('offline')) as run:
+  with patch('release.github_latest.run',side_effect=RuntimeError('offline')) as run:
    with self.assertRaises(RuntimeError):reconcile('owner/repo')
    self.assertEqual(run.call_count,1)
 if __name__=='__main__':unittest.main()

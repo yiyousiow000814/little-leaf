@@ -68,7 +68,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          python3 tools/release_metadata.py --tag "$RELEASE_TAG"
+          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG"
           python3 tools/verify_prebaked_atlases.py
           python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
           node tests/persistence/crazygames_storage.js
