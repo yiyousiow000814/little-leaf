@@ -29,10 +29,10 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
         self.assertIn('test -z "$(git status --porcelain --untracked-files=no)"', self.text)
 
     def test_successful_artifact_preflight_precedes_browser_without_rebuild(self):
-        preflight = self.text.index("python3 tools/reuse_welcome_web.py")
+        preflight = self.text.index("python3 tools/qualification/reuse_welcome_web.py")
         browser = self.text.index("node tests/presentation/welcome_audio_browser.js --source-root")
         selected_download = self.text.index("actions/download-artifact@")
-        verified_download = self.text.index("python3 tools/reuse_welcome_web.py --phase verify")
+        verified_download = self.text.index("python3 tools/qualification/reuse_welcome_web.py --phase verify")
         self.assertLess(preflight, selected_download)
         self.assertLess(selected_download, verified_download)
         self.assertLess(verified_download, browser)

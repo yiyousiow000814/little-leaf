@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from artifacts import sha256
+from qualification.artifacts import sha256
 import build_firebase
 import deploy_firebase_hosting as hosting
 import released_live_provenance as live
@@ -162,7 +162,7 @@ class ManualReuseTests(unittest.TestCase):
         self.rewrite(original)
 
     def api(self):
-        from reuse_main_ci import REQUIRED_JOBS
+        from qualification.reuse_main_ci import REQUIRED_JOBS
         test = self
         class API:
             def __init__(self): self.change = None; self.calls = []; self.release_attempt = 1

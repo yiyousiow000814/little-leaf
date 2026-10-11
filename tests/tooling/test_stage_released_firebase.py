@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 import stage_released_firebase as staging
-from artifacts import sha256
+from qualification.artifacts import sha256
 from deploy_firebase_hosting import verify_package
 
 
@@ -112,7 +112,7 @@ class ReleasedStagingTests(unittest.TestCase):
             self.assertNotIn('google-github-actions/auth', text)
             self.assertNotIn('deploy_firebase_hosting.py', text)
         text = (root / '.github/workflows/stage-firebase.yml').read_text()
-        self.assertIn('tools/reuse_released_web.py', text)
+        self.assertIn('tools/qualification/reuse_released_web.py', text)
         self.assertIn('fullflow.test.mjs', text)
         self.assertIn('rules.log', text)
         self.assertIn('ref: ${{ steps.select.outputs.source_sha }}', text)
