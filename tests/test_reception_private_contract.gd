@@ -1,6 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/cafe_model.gd")
 const Contract=preload("res://scripts/cafe_save_contract.gd")
+const Main=preload("res://scripts/main.gd")
 const Review=preload("res://scripts/cafe_reception_review.gd")
 var checks=0
 var failures=[]
@@ -40,6 +41,9 @@ func run():
 	check(not m.save(primary) and not m.load_save(primary),"enabled empty mode refuses ordinary APIs")
 	for protected in Review.PROTECTED:
 		check(not m.save_reception("user://"+protected) and not m.load_reception("user://"+protected),"protected read/write "+protected)
+	for historical in [Main.RECENT_SAVE_FILE,Main.LEGACY_SAVE_FILE,Main.OLDER_SAVE_FILE,Main.OLDEST_SAVE_FILE,Main.HISTORICAL_SAVE_FILE]:
+		check(not Review.path_allowed(historical) and not Review.path_allowed(historical+".tmp",true),"actual Main historical target and temp refused "+historical)
+		check(not m.save_reception(historical) and not m.load_reception(historical) and not FileAccess.file_exists(historical) and not FileAccess.file_exists(historical+".tmp"),"historical refusals create no generated target/temp "+historical)
 	var before=state(m)
 	check(m.load_reception(path),"exact18 load")
 	var loaded=state(m)

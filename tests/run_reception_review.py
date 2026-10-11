@@ -8,7 +8,9 @@ SUITES={'test_reception_private_contract':'RECEPTION_PRIVATE_CONTRACT_RESULT',
         'test_restaurant_reception':'RESTAURANT_RECEPTION_RESULT',
         'test_reception_service':'RECEPTION_SERVICE_RESULT',
         'test_reception_clearance':'RECEPTION_CLEARANCE_RESULT',
-        'test_reception_fairness':'RECEPTION_FAIRNESS_RESULT'}
+        'test_reception_fairness':'RECEPTION_FAIRNESS_RESULT',
+        'test_reception_retry':'RECEPTION_RETRY_RESULT',
+        'test_reception_scope':'RECEPTION_SCOPE_RESULT'}
 def execute():
  p=argparse.ArgumentParser();p.add_argument('--godot',required=True);p.add_argument('--output',type=Path,required=True)
  p.add_argument('--only',nargs='+',choices=list(SUITES),default=list(SUITES));p.add_argument('--native-service',action='store_true');args=p.parse_args()
@@ -21,7 +23,9 @@ def execute():
  records=[]
  hashes={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for directory in ['game/scripts','tests'] for p in (ROOT/directory).rglob('*') if p.is_file() and p.suffix in ['.gd','.py']}
  def env_for(name):
-  scope=out/('saveguard-'+name);env=os.environ.copy()
+  scope=out/('saveguard-'+name)
+  if name=='test_reception_scope':scope=scope/'Little Leaf Cafe/disposable'
+  env=os.environ.copy()
   for key in ['HOME','APPDATA','LOCALAPPDATA','XDG_DATA_HOME','XDG_CONFIG_HOME','XDG_CACHE_HOME']:
    directory=scope/('windows-data' if os.name=='nt' else key.lower());directory.mkdir(parents=True,exist_ok=True);env[key]=str(directory)
   env['LL_RECEPTION_REVIEW_ROOT']=str(scope)

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Private native review custody. No production profile discovery or imports.
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const PROTECTED=["little_leaf_cafe_layout_motion_v15.json","little_leaf_cafe_navigation_v16.json","little_leaf_cafe_footprint_placement_v17.json","little_leaf_cafe_illustrated_r9.json","little_leaf_cafe_illustrated_r7.json","little_leaf_cafe_illustrated_r6.json","little_leaf_cafe_illustrated_r5.json","little_leaf_cafe_illustrated_r4.json"]
+const PROTECTED=["little_leaf_cafe_layout_motion_v15.json","little_leaf_cafe_navigation_v16.json","little_leaf_cafe_footprint_placement_v17.json","little_leaf_illustrated_r9.json","little_leaf_illustrated_r7.json","little_leaf_illustrated_r6.json","little_leaf_illustrated_r5.json","little_leaf_illustrated_r4.json"]
 
 static func canonical(path:String)->String:
 	var resolved=ProjectSettings.globalize_path(path).replace("\\","/").simplify_path().trim_suffix("/")
@@ -41,7 +41,8 @@ static func scope_allowed()->bool:
 	if not inside(data,scope) or not link_free(scope) or not link_free(data):return false
 	# A dedicated application directory is required, even in a disposable root.
 	for profile in SaveContract.PROFILES:
-		if data.get_file().to_lower()==str(profile.app).to_lower() or scope.get_file().to_lower()==str(profile.app).to_lower():return false
+		for component in (data+"/"+scope).split("/"):
+			if component.to_lower()==str(profile.app).to_lower():return false
 	return true
 
 static func persistence_allowed()->bool:
