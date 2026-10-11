@@ -25,7 +25,7 @@ Only after owner/queue review of the prepared packet and runtime reservation:
 
 ```powershell
 python tests/diagnostics/prepare_depth_occlusion.py --output <new-owned-directory>
-python tests/diagnostics/run_depth_occlusion.py --prepared <same-directory> --engine <official-Godot-4.6.3-console.exe> --shared-lock <task5/.little-leaf-engine.lock>
+python tests/diagnostics/run_depth_occlusion.py --prepared <same-directory> --engine <official-Godot-4.6.3.exe> --shared-lock <task5/.little-leaf-engine.lock>
 ```
 
 The launcher uses a combined import+pilot90-second deadline, Dummy audio,
@@ -34,6 +34,10 @@ directories whose path contains `saveguard`. It holds shared byte0 and its own
 diagnostic byte0 through process exit, then writes a terminal lock/exit receipt.
 It creates no browser/server, uses no Auth and preserves localhost8769. Keep
 source identity, prepared diff/hash, failed runs and all frame evidence.
+Pass the actual engine executable rather than a console wrapper that spawns it,
+so owned-child abort/exit checks refer to the actual native engine process.
+Zero frames, a missing pilot state, dropped observations or engine script errors
+fail closed even if the process exits0.
 
 Existing wall slicing, chair-back/torso/reach layers, atlas inputs and native
 ordering are under observation. No YSort, depth offsets, geometry, collision,

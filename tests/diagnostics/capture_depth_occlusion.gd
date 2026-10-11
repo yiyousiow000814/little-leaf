@@ -60,7 +60,8 @@ func actor_tree():
 	var world=Vector2(-13.1,1.5);camera_at(world)
 	check(art._scenery_tree_visible_at(world),"authored oak remains visible")
 	var street=ProbeStreet.new();var actor={"key":"qa_depth_actor","appearance":102,"position":world+Vector2(.7,.7),"heading":Vector2.UP,"speed":game.model.WALK_SPEED}
-	street.walkers=[actor];street.visible_ambient.clear();street.visible_ambient[actor.key]=true;art.street_pedestrians=street
+	street.walkers.clear();street.walkers.append(actor)
+	street.visible_ambient.clear();street.visible_ambient[actor.key]=true;art.street_pedestrians=street
 	await walk_segment(world+Vector2(.7,.7),world-Vector2(.7,.7),actor,"tree-front-to-back")
 	await walk_segment(world-Vector2(.7,.7),world+Vector2(.7,.7),actor,"tree-back-to-front")
 	await walk_segment(world+Vector2(-.85,.35),world+Vector2(.85,-.35),actor,"tree-diagonal-crown-trunk-edge")
@@ -68,7 +69,9 @@ func actor_tree():
 	check(rows.any(func(row):return row.events.any(func(e):return e.context.part=="scenery_tree")),"actual tree submissions observed")
 func decorate():
 	game.paused=true;game.editing=true;game.model.begin_decoration_session()
-	game.model.items=[{"id":101,"kind":"table","x":3,"z":3,"rot":0},{"id":102,"kind":"chair","x":5,"z":3,"rot":0}]
+	game.model.items.clear()
+	game.model.items.append({"id":101,"kind":"table","x":3,"z":3,"rot":0})
+	game.model.items.append({"id":102,"kind":"chair","x":5,"z":3,"rot":0})
 	game.model.dining_sets.clear();game.model.customers.clear()
 	game.staff_states.clear();game._rebuild_furniture();game._update_ui()
 	camera_at(Vector2(4.5,3.5));game.compact_ui._set_tray_reveal(1)
@@ -109,8 +112,12 @@ func run():
 	if art.get("depth_probe_active")==null:printerr("Use staged probe hooks");game.free();quit(2);return
 	for index in 30:art.queue_redraw();await RenderingServer.frame_post_draw
 	art.depth_probe_active=true
+	var before=rows.size()
 	await actor_tree()
+	check(rows.size()>before,"actor/tree pilot produced completed-frame evidence")
+	before=rows.size()
 	await decorate()
+	check(rows.size()>before,"Decorate pilot produced completed-frame evidence")
 	art.depth_probe_active=false
 	var contours=[]
 	for index in art.exterior_tree_art.layers.size():

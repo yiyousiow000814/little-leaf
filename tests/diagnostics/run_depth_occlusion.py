@@ -81,11 +81,26 @@ def run(output, engine, shared_lock):
                                        'process_exited': child.poll() is not None})
             if code:
                 raise RuntimeError(label + ' exited ' + str(code))
+            log_text = (output / (label + '.log')).read_text(encoding='utf-8', errors='replace')
+            if 'SCRIPT ERROR:' in log_text or 'Parse Error:' in log_text:
+                raise RuntimeError(label + ' logged an engine script/parse error')
         assert (output / 'capture.json').is_file(), 'pilot must write terminal capture'
         data = json.loads((output / 'capture.json').read_text(encoding='utf-8'))
         receipt['capture_sha256'] = sha(output / 'capture.json')
         receipt['frames'] = len(data['frames'])
         receipt['failures'] = data['failures']
+        assert 0 < len(data['frames']) <= 720, 'nonempty bounded completed-frame evidence required'
+        assert not data['failures'], 'fixture assertions failed'
+        assert all(row['dropped'] == 0 for row in data['frames']), 'observation budget overflow'
+        required = {'tree-front-to-back', 'tree-back-to-front', 'tree-diagonal-crown-trunk-edge'}
+        for item in [101, 102]:
+            for rotation in range(4):
+                for state in ['selected', 'preview', 'confirm', 'cancel-preview', 'cancel']:
+                    required.add(f'decorate-{item}-r{rotation}-{state}')
+        actual = {row['label'] for row in data['frames']}
+        assert required <= actual, 'required pilot cases missing: ' + str(sorted(required - actual))
+        numbers = [row['frame'] for row in data['frames']]
+        assert all(b > a for a, b in zip(numbers, numbers[1:])), 'completed frame IDs must increase'
         receipt['status'] = 'captured' if not data['failures'] else 'diagnostic_failed'
     except BaseException as error:
         receipt['status'] = 'failed'

@@ -32,8 +32,10 @@ def prepare(repo, output):
         text = text.replace(old, new)
 
     replace('func _draw():\n', 'func _draw():\n\t_depth_probe_reset()\n')
-    replace('\t\tvar is_guest=entry.has("guest")\n',
-            '\t\t_depth_probe_begin("street_actor",str(entry.get("key",entry.get("guest",{}).get("id",""))),entry.position,entry.position.x+entry.position.y)\n\t\tvar is_guest=entry.has("guest")\n')
+    replace('\tfor entry in entries:\n\t\tif bool(entry.get("parking_car",false)):',
+            '\tfor entry in entries:\n\t\t_depth_probe_begin("street_actor",str(entry.get("key",entry.get("guest",{}).get("id",""))),entry.position,entry.position.x+entry.position.y)\n\t\tif bool(entry.get("parking_car",false)):')
+    replace('\nfunc _draw_bus_stop_people(under_roof:bool,show_people:bool=true):',
+            '\n\tdepth_probe_context={}\n\nfunc _draw_bus_stop_people(under_roof:bool,show_people:bool=true):')
     replace('\t_scenery_tree(Vector2(13.5,-.5),1.10)\n',
             '\t_depth_probe_begin("rear_tree","rear_tree",Vector2(13.5,-.5),13.0)\n\t_scenery_tree(Vector2(13.5,-.5),1.10)\n')
     replace('\tfor e in entities:\n', '\tfor e in entities:\n\t\t_depth_probe_entity(e)\n')
