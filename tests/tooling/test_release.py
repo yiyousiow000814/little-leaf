@@ -487,7 +487,7 @@ class ArtifactTests(unittest.TestCase):
 
 class ItchDiagnosticTests(unittest.TestCase):
     def setUp(self):
-        import diagnose_itch_status as diagnostic
+        from diagnostics import diagnose_itch_status as diagnostic
         self.d = diagnostic
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
