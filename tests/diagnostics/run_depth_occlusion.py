@@ -67,10 +67,14 @@ def run(output, engine, shared_lock):
                                          creationflags=subprocess.CREATE_NO_WINDOW)
                 try:
                     code = child.wait(timeout=remaining)
-                except subprocess.TimeoutExpired:
-                    child.kill(); child.wait()
+                except BaseException as error:
+                    if child.poll() is None:
+                        child.kill()
+                    child.wait()
                     receipt['records'].append({'phase': label, 'pid': child.pid,
-                                               'exit': child.returncode, 'terminated_on_deadline': True})
+                                               'exit': child.returncode, 'process_exited': True,
+                                               'terminated_on_abort': True,
+                                               'terminated_on_deadline': isinstance(error, subprocess.TimeoutExpired)})
                     raise
             receipt['records'].append({'phase': label, 'pid': child.pid, 'exit': code,
                                        'seconds': round(time.monotonic() - before, 3),
