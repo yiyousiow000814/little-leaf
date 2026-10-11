@@ -1394,7 +1394,16 @@ func placement_warning(kind: String, x: int, z: int, ignore_id: int = -1, rot: i
 	for entry in items:
 		if int(entry.id) not in omitted:walking_layout.append(entry)
 	walking_layout.append_array(placement_parts(kind,x,z,rot,ignore_id))
-	if not _layout_has_access(walking_layout,depth):return "Cannot pass: staff and guests may wait"
+	# Warnings follow the same actual openings and wall edges as guest entry.
+	# A moved door cannot leave the historical entrance tile authoritative.
+	var reachable=_wall_reachable(built_walls,walking_layout,owned_parcels)
+	if reachable.is_empty():return "Cannot pass: staff and guests may wait"
+	for entry in walking_layout:
+		if entry.kind not in SERVICE_KINDS or entry.kind=="stove":continue
+		var at=Vector2i(int(entry.x),int(entry.z));var usable=false
+		for direction in DIRECTIONS:
+			if reachable.has(at+direction) and not edge_blocked(at,at+direction):usable=true;break
+		if not usable:return "Cannot pass: staff and guests may wait"
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():
 		var candidate=DiningSets.candidate(self,x,z,rot,ignore_id)
 		for item in candidate.layout:

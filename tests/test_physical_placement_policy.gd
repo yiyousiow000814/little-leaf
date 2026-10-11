@@ -29,7 +29,7 @@ func _init():
    var restored=Model.new()
    check(restored.load_save(path) and restored.items==model.items and restored.coins==model.coins,"blocked-access layout round-trips identity and wallet")
    check(FileAccess.get_sha256(path)==saved_hash,"load leaves synthetic input bytes unchanged")
- check(model.placement_warning("plant",landing.x,landing.y)!="","blocked walking is a separate nonblocking warning")
+ check(model.placement_warning("plant",landing.x,landing.y)=="","other actual open edges avoid a false historical-landing warning")
  var cash=model.coins;model.coins=0
  var unfunded=plan.prepare(model,"plant",-1,0,Vector2i(10,8))
  check(unfunded.placement_valid and not unfunded.ok,"wallet changes purchase permission without changing physical validity")
@@ -52,5 +52,20 @@ func _init():
  var identity=int(moved.id)
  check(moving.move(identity,landing.x,landing.y),"idle existing furnishing can move onto owned clear landing")
  check(moving.get_item(identity).x==landing.x and moving.get_item(identity).z==landing.y,"move preserves furniture identity")
+ door_warning_cases()
  print("PHYSICAL_PLACEMENT_POLICY_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  quit(0 if failures.is_empty() else 1)
+
+func door_warning_cases():
+ var m=Model.new();m.coins=100000
+ check(m.move_wall_attachment(1,"shell:west",2.5),"move the real original doorway")
+ var before=m.items.duplicate(true);var coins=m.coins
+ check(m.can_place("plant",0,5) and m.placement_warning("plant",0,5)=="","vacated original doorway is green without a false cannot-pass warning")
+ check(m.items==before and m.coins==coins,"moved-door warning preview is read only")
+ for x in m.BASE_WIDTH:check(m.place_wall("x",x,m.BASE_DEPTH),"prepare actual front perimeter "+str(x))
+ for z in m.BASE_DEPTH:check(m.place_wall("z",m.BASE_WIDTH,z),"prepare actual right perimeter "+str(z))
+ check(m.can_place("plant",0,2),"closing walking access does not change the clear physical footprint")
+ check(m.placement_warning("plant",0,2)=="Cannot pass: staff and guests may wait","only actual moved entrance produces a separate nonblocking warning")
+ check(m.placement_warning("rug",0,2)=="","a walkable rug does not close the actual doorway")
+ check(m.place_wall_attachment("door","shell:back",7.5),"add an independent actual entrance")
+ check(m.placement_warning("plant",0,2)=="","an alternate real entrance clears the warning")
