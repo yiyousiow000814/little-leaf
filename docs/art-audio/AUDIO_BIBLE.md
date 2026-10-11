@@ -1,6 +1,6 @@
 # Audio Bible
 
-Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **No playable pilot has been produced or approved.** Direction, listening and final mastering decisions remain open.
+Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **This foundation does not approve any playable pilot.** Direction, listening and final mastering decisions remain open.
 
 ## Existing baseline and evidence
 
@@ -36,6 +36,14 @@ Each accepted source package must contain:
 
 Do not replace an unknown historical SoundFont hash with a fresh download's hash. Preserve licence notices in exports and the existing historical records. A future replacement needs its own provenance; supplier permission does not establish blanket clearance of the game.
 
+## Score and arrangement review
+
+Include a score review before audition handoff. Preserve the native editable composition and, where feasible, MusicXML, a readable score export and MIDI in the coordinated repository source location, separate from runtime audio. Bind each revision to its rendered audio SHA256, author, source/tool versions, settings and export command. A score from another trial must never stand in for the current recording.
+
+Inspect melody and harmony, bass movement, exact note/rest durations, ties and legato, beat/accent placement, voice ranges, instrument roles, phrase handoffs, accompaniment continuity, repetition and cadence against the approved brief. Record bar numbers and corresponding audio timestamps, specific findings and the proposed correction. Preserve intended releases and the ending's decay when rendering; a notated duration does not guarantee that generated or sampled audio sustains naturally. A syntactically valid score or in-key note list does not establish a coherent arrangement, convincing performance or a good mix.
+
+Native composition data is authoritative. For audio-only generation, explicitly record absent score, MIDI and stems; a stereo clip project is not a multitrack composition. Any automatic transcription must be labelled **automatically transcribed, unverified**, with source audio hash, excerpt offset, method/model version, settings, confidence/uncertainty and manual corrections. Keep uncertain notes, missing voices and instrument attribution explicit; transcription mistakes are not established composition defects. Compare corrected notation and its playback with the original before relying on it. For example, [Basic Pitch's official guidance](https://github.com/spotify/basic-pitch) says it works best on one instrument at a time; mixed stereo output needs additional review. Missing tools or an unverified transcription must remain a capability gap rather than a fabricated score.
+
 ## Tools and export
 
 The 2026-10-11 Windows audit verified existing Godot 4.6.3 for offline decoding and Python 3.14 for hashes/PCM calculations. Scoped PATH, installation and registry checks did not find usable REAPER, MuseScore, Audacity, FluidSynth, FFmpeg/ffprobe or SoX. OBS libraries were present, but no mastering CLI or editable music workflow was verified. Recheck the actual workstation before selecting tools; this is not a claim of universal absence. No purchase, installation or account change is authorized here.
@@ -51,6 +59,19 @@ Reuse [main.gd](../../game/scripts/main.gd), [cafe_settings.gd](../../game/scrip
 Current states are `service`, `busy` and `decorate`; editing currently keeps the current soundtrack and does not select `decorate`. **Whether Decorate mode should use a dedicated BGM track remains an unresolved product decision.** The current implementation does not establish the approved final audio direction. Zero volume mutes the bus, while disabling stops playback. Track selection uses a 15-second state age and a 1.2-second fade. Activating unused music or changing fade/resume/control semantics requires an explicit scoped decision. The audit identified the fade's possible level dip and shared SFX stream interruption as listening questions, not accepted runtime defects.
 
 Prepare/cache audio once, keep voice/resource ownership bounded and retire inactive decoders. Avoid per-frame synthesis or redundant players. Measure startup, CPU and retained-memory impact when the proposed change affects them, following the existing [performance](../testing/rendering-performance.md) and [memory](../testing/memory-regression.md) contracts. Decoder success is not an FPS or memory qualification.
+
+## Internal musical review before audition
+
+The producer owns whole-track diagnosis before asking the user to approve a candidate. User timestamps are useful hints, not the primary defect-finding method. Review independently where an actual listening reviewer is available; record who or what examined the audio and its demonstrated capability. Text-only peer review and waveform measurements do not count as listening.
+
+Record a concrete finding, timestamp/bar, severity and correction or a justified pass for each of these areas:
+
+- Composition and arrangement: motif, harmony, phrase direction, balance of musical roles, intentional repetition and a suitable cadence.
+- Timbre and performance: instrument credibility, attack and sustain, phrasing, dynamics, groove and vitality; performance energy must support the intended emotion. A sunny composition played with listless instruments requires review even when its notes are correct.
+- Mix and artifacts: masking, foreground space, stereo/mono balance, noise, harshness, smearing, clicks, distortion and transitions.
+- Reference comparison: use permitted, named references for tone and production goals, without copying their music. Record playback level/device and compare the lossless source with the decoded delivery at comparable listening levels; distinguish composition, performance, mix, encoding and playback causes.
+
+Use pass, revise or unassessed with evidence; do not manufacture musical-quality scores from RMS, sample peaks or correlation. Independently inspect the complete track and then relevant excerpts. Technical findings guide listening but cannot certify timbre or emotional coherence. If no genuine audio-perception reviewer is available, state that musical review is unqualified and identify that capability gap before further production or acceptance; do not transfer internal QA responsibility to the user. The user's final audition decides creative acceptance after internal review, and remains separate from technical, imported-runtime, merge and release results.
 
 ## Listening and acceptance
 
