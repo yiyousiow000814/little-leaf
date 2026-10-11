@@ -6,9 +6,19 @@ symptom. Tests, fixtures and manual captures now share this home:
 | Location | Use |
 | --- | --- |
 | `tests/test_*.gd`, browser/Node tests and `run_*.py` | Existing focused gameplay, storage and browser regressions. Ordinary CI retains the critical save-integrity gates. |
+| `tests/world/` | Environment, parking, traffic and outside-queue engine suites; stable `--only` IDs remain in the canonical runner. |
 | `tests/tooling/` | Offline contracts for CI, artifacts, workflow wiring and release tools. Select a case with `python3 -m unittest tests.tooling.test_NAME.CASE`. |
 | `tests/fixtures/` | Synthetic and historical-format fixtures, including the shell segment prototype. Never substitute player saves. |
 | `tests/diagnostics/` | Manual captures, visual audits and profiling scripts. Relocation preserves each distinct script and UID; it does not make every diagnostic a routine check. |
+
+The canonical engine runner owns the stable suite IDs and result markers in
+`SUITES`. Select those IDs with `--only`; `staff-start` retains its five ordered
+starts. The runner resolves each ID to one `test_*.gd` resource beneath `tests/`,
+so organizing a suite does not rename its CLI ID, logs or result receipts.
+Duplicate IDs/resources and missing explicitly selected suites fail before
+staging. `tools/engine_shards.py` imports the same canonical list; do not add a
+second runner or suite registry. Update direct resource consumers atomically
+when moving a suite, and retain its `.uid`.
 
 Build, release and diagnostic orchestration is documented in
 [`tools/README.md`](../tools/README.md). Tooling discovery uses
