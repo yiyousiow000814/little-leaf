@@ -69,6 +69,7 @@ var upgrade_button:Button
 var plot_button:Button
 var hint:PanelContainer
 var hint_text:Label
+var hint_warning:Label
 var selected_wall=""
 var selected_shell=""
 var last_detail=""
@@ -255,7 +256,11 @@ func setup():
  help_panel.visibility_changed.connect(func():
   if not help_panel.visible:_set_help_modal(false))
  hint=PanelContainer.new();hint.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_theme_stylebox_override("panel",game._style(Color("fbefdc"),Color("d4bd95"),9));game.ui.add_child(hint)
- hint_text=game.label("",13,Color("735b3e"));hint_text.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint.add_child(hint_text);hint.hide()
+ var hint_row=HBoxContainer.new();hint_row.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint_row.add_theme_constant_override("separation",7);hint.add_child(hint_row)
+ hint_warning=game.label("!",16,Color("735b3e"));hint_warning.custom_minimum_size=Vector2(18,18);hint_warning.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;hint_warning.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+ var warning_style=game._style(Color("efd095"),Color("d4bd95"),9);warning_style.content_margin_left=4;warning_style.content_margin_right=4;warning_style.content_margin_top=0;warning_style.content_margin_bottom=0
+ hint_warning.add_theme_stylebox_override("normal",warning_style);hint_warning.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint_warning.accessibility_name="Walking warning; placement allowed";hint_row.add_child(hint_warning);hint_warning.hide()
+ hint_text=game.label("",13,Color("735b3e"));hint_text.mouse_filter=Control.MOUSE_FILTER_IGNORE;hint_row.add_child(hint_text);hint.hide()
  top_row=game.ui.get_child(0).get_child(0);title=top_row.get_child(0);settings_button=top_row.get_child(top_row.get_child_count()-1)
  var business_content=VBoxContainer.new();business_content.mouse_filter=Control.MOUSE_FILTER_IGNORE;business_content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);business_content.offset_top=3;business_content.offset_bottom=-3;business_content.add_theme_constant_override("separation",0);game.business_button.add_child(business_content)
  business_state=game.label("Open",13);business_state.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;business_state.mouse_filter=Control.MOUSE_FILTER_IGNORE;business_content.add_child(business_state)
@@ -823,12 +828,14 @@ func short_reason(text:String)->String:
  return short if short.length()<=44 else short.left(41)+"…"
 func update_pointer():
  if not is_instance_valid(hint):return
- var reason="";var b=game.build_tools
+ var reason="";var walking_warning=false;var b=game.build_tools
  if shop_ui!=null:shop_ui.sync_action_details()
  if game.editing and b.active() and b.mode!="select_opening" and not b.preview_valid and b.preview_reason!="":reason=b.preview_reason
+ elif game.editing and b.active() and b.preview_valid and b.preview_warning!="":reason=b.preview_warning;walking_warning=true
  elif game.editing and game.interaction!=null and game.interaction.preview_active:
   if not game.interaction.drag_valid:reason=game.interaction.drag_reason
-  elif game.interaction.drag_warning!="":reason=game.interaction.drag_warning
+  elif game.interaction.drag_warning!="":reason=game.interaction.drag_warning;walking_warning=true
+ if hint_warning.visible!=walking_warning:hint_warning.visible=walking_warning
  var pointer=game.get_viewport().get_mouse_position()
  if reason=="" or (game.interaction!=null and game.interaction._over_ui(pointer)):hint.hide();return
  last_detail=reason;hint_text.text=short_reason(reason);hint.size=Vector2.ZERO

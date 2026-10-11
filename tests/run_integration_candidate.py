@@ -112,6 +112,7 @@ SUITES = [
     ("test_sink_wash_action", "SINK_WASH_ACTION_RESULT"),
     ("test_floor_availability", "FLOOR_AVAILABILITY_RESULT"),
     ("test_physical_placement_policy", "PHYSICAL_PLACEMENT_POLICY_RESULT"),
+    ("test_placement_warning_ui", "PLACEMENT_WARNING_UI_RESULT"),
     ("test_physical_placement_save_compatibility", "PHYSICAL_PLACEMENT_SAVE_COMPATIBILITY_RESULT"),
     ("test_occupied_placement_protocol", "OCCUPIED_PLACEMENT_PROTOCOL_RESULT"),
     ("test_occupied_placement_service", "OCCUPIED_PLACEMENT_SERVICE_RESULT"),

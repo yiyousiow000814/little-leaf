@@ -1050,7 +1050,7 @@ func _draw():
 			if not is_preview and game.build_tools!=null and game.build_tools.active() and (game.build_tools.mode in ["paint","remove"] or (game.build_tools.replacing and game.build_tools.preview_valid)) and WallGeometry.key_of(e.entry)==game.build_tools.selected_key and not game.build_tools.preview.is_empty():continue
 			var tint=Color.WHITE
 			if is_preview:
-				tint=Color("eeb9a1") if not game.build_tools.preview_valid or game.build_tools.mode=="remove" else (Color("efd095") if game.build_tools.preview_warning!="" else Color("c6e1ae"))
+				tint=Color("eeb9a1") if not game.build_tools.preview_valid or game.build_tools.mode=="remove" else Color("c6e1ae")
 			OpeningArt.draw_built_piece(self,e,render_wall_attachments,.68 if is_preview else 1.0,tint);continue
 		if e.type=="door_front":
 			_door_front(); continue
