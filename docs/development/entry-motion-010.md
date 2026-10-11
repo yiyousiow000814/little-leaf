@@ -27,8 +27,11 @@ The welcome headless test exercises the real controller and artist, with generat
 visitor and active worker trips. It checks the frozen title, exact elapsed time,
 people/traffic motion, guard states, speed, no double ticking or catch-up,
 periodic-save deferral, completion and all existing skip/interruption/layout
-checks. Run `python3 tests/run_welcome_intro.py` in an isolated test profile, or
-include these tests in `tests/run_integration_candidate.py`.
+checks. Run both suites with generated disposable profiles and a new output directory:
+
+```sh
+python3 tests/run_integration_candidate.py --only test_intro_lifecycle_headless test_intro_cli_bypass --output /tmp/little-leaf-welcome-review
+```
 
 Headless checks establish simulation and presentation-state behavior. They do not
 establish rendered smoothness, browser first-paint timing or device performance.
