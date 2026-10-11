@@ -81,3 +81,8 @@ The ordinary Main `_service_save_snapshot()` signature remains unchanged for
 existing subclasses and save consumers. Private review export uses the separate
 pure `_service_snapshot_ledger()` helper so refusal probes do not mutate live
 service ownership while taking a snapshot.
+
+Private19 staff rows accept only fields emitted by the explicit serializer.
+Unsupported runtime objects and malformed optional headings, block metadata or
+job identities refuse during shadow validation, before Main stops or publishes.
+Historical reader policies remain unchanged.

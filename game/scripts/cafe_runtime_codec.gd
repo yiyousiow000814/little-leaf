@@ -260,6 +260,18 @@ func _validated_state(state:Dictionary,source_version:int)->Dictionary:
 			if not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
 	return {"ok":true,"state":state}
 
+func _routing_staff_fields_error(staff:Dictionary)->String:
+	# Private19 publishes these rows directly into live Main staff state.
+	# Never restore caller-owned objects, caches or unknown future fields.
+	var allowed=["role","on_duty","duty_pending","pos","destination","path","index","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_dish_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell","navigation_phase"]
+	for key in staff:
+		if key not in allowed:return "Unsupported private19 staff field"
+	if staff.has("art_heading") and (not staff.art_heading is Vector2 or not staff.art_heading.is_finite()):return "Invalid private19 staff heading"
+	if staff.has("blocked_reason") and not staff.blocked_reason is String:return "Invalid private19 staff block reason"
+	for key in ["blocked_target_id","blocked_guest_id","job_mess_id","job_dish_id"]:
+		if staff.has(key) and not _integer(staff[key],-1,1000000000):return "Invalid private19 optional staff identity"
+	return ""
+
 func _staff_navigation_error(staff:Dictionary,source_version:int)->String:
 	if not staff.has("navigation_phase"):return "" # Preserve legacy route semantics.
 	if source_version!=SaveContract.ROUTING_RECEPTION_REVIEW_VERSION:return "Legacy staff contains navigation state"
@@ -482,6 +494,9 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	var floor_job_claims={}
 	for staff in service.staff:
 		if not staff is Dictionary or staff.get("role") not in (["chef","waiter","cleaner","cashier"] if SaveContract.has_checkout(source_version) else ["chef","waiter","cleaner"]):return _fail("Invalid staff role")
+		if source_version==SaveContract.ROUTING_RECEPTION_REVIEW_VERSION:
+			var fields_error=_routing_staff_fields_error(staff)
+			if fields_error!="":return _fail(fields_error)
 		roles[staff.role]=int(roles.get(staff.role,0))+1
 		if source_version>=10:
 			if not staff.get("on_duty") is bool or not staff.get("duty_pending") is bool:return _fail("Invalid worker shift state")

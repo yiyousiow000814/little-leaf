@@ -52,6 +52,9 @@ func run():
  for marker in ["navigation_format","footprint_placement_format","reception_review_format","routing_reception_review_format","navigation_phase"]:
   bad=raw.duplicate(true);bad.runtime[marker]="foreign";refuse(game,bad,"nested marker "+marker)
  bad=raw.duplicate(true);bad.runtime.service.staff[0].navigation_phase="bad";refuse(game,bad,"unknown navigation phase")
+ # Every restored field must be a supported serializer value before publication.
+ for key in ["node","arbitrary_controller","art_heading","blocked_reason","blocked_target_id","blocked_guest_id","job_mess_id","job_dish_id"]:
+  bad=raw.duplicate(true);bad.runtime.service.staff[0][key]={};refuse(game,bad,"unsupported/malformed staff field "+key)
  for name in m.ReceptionReview.PROTECTED+[Contract.RECEPTION_REVIEW_FILE.get_file()]:
   if name==path.get_file():continue
   var target="user://"+str(name)
