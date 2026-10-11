@@ -94,7 +94,13 @@ def validate_focused(root, folder, source, tree, run, attempt):
     return records
 
 
-def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt):
+def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False):
+    if manual_live:
+        from released_live_provenance import manual_context
+        context = manual_context(selection, os.environ, run, attempt)
+        coordinator = Path(__file__).resolve().parents[1]
+        require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
+                == context['coordinator_source_commit'], 'Exact dispatch coordinator checkout required')
     source_identity(root, selection)
     base = validate_export_inventory(reuse / 'web')
     inputs = json.loads((evidence / 'reuse-inputs.json').read_text())
@@ -175,8 +181,39 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         live_activation_allowed=False)
     # Do not present this package as an old fresh-build or preview-reuse contract.
     manifest['status'] = 'qualified-release-staged-not-deployable'
+    if manual_live:
+        from released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
+        require(context['coordinator_source_commit'] == proof['coordinator_source_commit'],
+                'Dispatch coordinator differs from executing source')
+        context['coordinator_source_tree'] = proof['coordinator_source_tree']
+        proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in COORDINATOR_FILES}
+        (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
+        # Separate opt-in contract, never promote the automatic proof's flags.
+        for name, (relative, _, _) in build_firebase.BROWSER_GATES.items():
+            if name != 'firebase-fullflow':
+                destination = target / 'original-browser' / (name + '.json')
+                destination.parent.mkdir(exist_ok=True)
+                shutil.copy2(evidence / 'web-build/evidence' / relative, destination)
+        shutil.copy2(reuse / 'main-release-manifest.json', target / 'base-web-manifest.json')
+        shutil.copy2(root / 'platform/firebase/public-config.json', target / 'public-config.json')
+        (target / 'completed-release-selection.json').write_text(json.dumps(selection, indent=2) + '\n')
+        live = {'schema_version': 1, 'context': context,
+            'qualification': qualification, 'publication': selection['publication'],
+            'compiled_source_sha256': flow['source_sha256'],
+            'public_config_sha256': sha256(target / 'public-config.json'),
+            'fresh_firebase_gate_sha256': records,
+            'ordinary_browser_sha256': {name: sha256(target / 'original-browser' / (name + '.json'))
+                for name in build_firebase.BROWSER_GATES if name != 'firebase-fullflow'},
+            'runtime_sha256': {name: sha256(output / 'public' / name)
+                for name in ['index.js', 'index.wasm', 'index.pck']},
+            'new_engine_suite_run': False, 'new_ordinary_browser_matrix_run': False,
+            'production_security_changes': False, 'hosted_acceptance': False}
+        (target / 'manual-live-reuse.json').write_text(json.dumps(live, indent=2) + '\n')
+        manifest.update(status=STATUS, manual_live_reuse=live)
     manifest['files'] = {p.relative_to(output).as_posix(): sha256(p) for p in sorted(output.rglob('*'))
                          if p.is_file() and p != path}
+    if manual_live:
+        validate_released_live(output, manifest, marker)
     path.write_text(json.dumps(manifest, indent=2) + '\n')
     for name in ['index.js', 'index.wasm', 'index.pck']:
         require(sha256(output / 'public' / name) == base['files'][name]['sha256'], 'Released runtime bytes changed')
@@ -192,6 +229,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode', choices=['prepare', 'stage'])
+    p.add_argument('--manual-live', action='store_true', help='Exact main dispatch only; no deployment')
     for name in ['source-root', 'reuse', 'selection', 'evidence']:
         p.add_argument('--' + name, type=Path, required=True)
     for name in ['focused', 'fullflow', 'output']:
@@ -205,7 +243,7 @@ def main():
         require(all([args.focused, args.fullflow, args.output]), 'Stage evidence paths required')
         result = stage(args.source_root.resolve(), args.reuse, selection, args.evidence,
             args.focused, args.fullflow, args.output, os.environ.get('GITHUB_RUN_ID'),
-            os.environ.get('GITHUB_RUN_ATTEMPT'))
+            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live)
     print(json.dumps(result))
 
 
