@@ -111,6 +111,13 @@ the notice creates a flat panel, 15px heading, 12px status and two unaccented
 after the one-time popup theme pass in `CompactUI.setup`. These are confirmed
 source causes of the theme bypass, not speculation about a developer's intention.
 
+On 2026-10-11 the user explicitly rejected the supplied
+[`image(20261011-095200).png`](https://chatgpt.com/api/library/files/libfile_11ea8b7cbe0081919bbd710b0f10cb7a/download)
+(account-scoped Library reference). Inspection of that 545x352 crop confirms a
+plain pale panel and two equally gray actions beside the illustrated HUD. Its
+build/viewport identity is not embedded in the crop, so it is a concrete rejected
+visual example, not an exact-build regression capture or an approved Golden.
+
 Actual historical desktop and landscape frames from
 [paired run 37926321021](https://github.com/yiyousiow000814/little-leaf/actions/runs/37926321021)
 (artifact 11613444512, after `6caa8af4`) show the flat pale surface and equally
@@ -128,8 +135,9 @@ Treat very long text, focus behavior and short-height fallback as cases to verif
 not defects proven by source inspection alone.
 
 A compact themed notice with “Save and update” as primary and “Later” as secondary
-is the audit's proposed improvement, **still awaiting a separate implementation
-decision**. This document does not implement or approve its pixels, change
+is now the user-authorized first UI pilot, following the foundation. Implementation
+and paired desktop/mobile-landscape visual approval remain separate. This document
+does not implement or approve its pixels, change
 PR135/178, or authorize changes to
 [`CafeWebSave`](../../game/scripts/cafe_web_save.gd) cloud-confirmation,
 revision/generation, freeze or reload fences. PR176 release ordering and PR188
