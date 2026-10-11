@@ -1,7 +1,10 @@
 """Source/attempt fences and production-deploy separation for released staging."""
 import json
+import os
 from pathlib import Path
+import sys
 import tempfile
+import textwrap
 import unittest
 from unittest.mock import patch
 
@@ -113,6 +116,37 @@ class ReleasedStagingTests(unittest.TestCase):
         self.assertIn('fullflow.test.mjs', text)
         self.assertIn('rules.log', text)
         self.assertIn('ref: ${{ steps.select.outputs.source_sha }}', text)
+
+    def test_released_installer_uses_exact_source_layout_and_rejects_missing_or_ambiguous(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/stage-firebase.yml').read_text()
+        step = workflow.split('      - name: Install the official checksum-pinned toolchain;', 1)[1].split('      - name:', 1)[0]
+        self.assertIn('working-directory: source', step)
+        code = textwrap.dedent(step.split("python3 - <<'PY'\n", 1)[1].split('          PY', 1)[0])
+        layouts = ('tools/install_tools.py', 'tools/ci/install_tools.py')
+        for paths in ((layouts[0],), (layouts[1],), (), layouts):
+            with self.subTest(paths=paths), tempfile.TemporaryDirectory() as d:
+                folder = Path(d)
+                for relative in paths:
+                    installer = folder / relative
+                    installer.parent.mkdir(parents=True, exist_ok=True)
+                    installer.write_bytes(b'immutable released installer')
+                    installer.with_name('toolchain.json').write_bytes(b'"immutable released lock"')
+                before = {p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
+                previous = Path.cwd()
+                try:
+                    os.chdir(folder)
+                    with patch.dict(os.environ, {'RUNNER_TEMP': str(folder / 'output')}), patch('subprocess.run') as run:
+                        if len(paths) == 1:
+                            exec(compile(code, 'released-source-installer', 'exec'), {})
+                            run.assert_called_once_with([sys.executable, str(Path(paths[0])), 'godot', '--output', str(folder / 'output/godot-tools')], check=True)
+                        else:
+                            with self.assertRaisesRegex(ValueError, 'exactly one'):
+                                exec(compile(code, 'released-source-installer', 'exec'), {})
+                            run.assert_not_called()
+                finally:
+                    os.chdir(previous)
+                self.assertEqual({p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}, before)
 
 
 if __name__ == '__main__':
