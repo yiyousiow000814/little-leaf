@@ -4,7 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 from project_layout import stage_project
-SUITES={'test_reception_private_contract':'RECEPTION_PRIVATE_CONTRACT_RESULT',
+SUITES={'test_guest_navigation_review':'GUEST_NAVIGATION_REVIEW_RESULT',
+        'test_guest_navigation_service':'GUEST_NAVIGATION_SERVICE_RESULT',
+        'test_reception_private_contract':'RECEPTION_PRIVATE_CONTRACT_RESULT',
         'test_restaurant_reception':'RESTAURANT_RECEPTION_RESULT',
         'test_reception_service':'RECEPTION_SERVICE_RESULT',
         'test_reception_clearance':'RECEPTION_CLEARANCE_RESULT',
@@ -13,8 +15,9 @@ SUITES={'test_reception_private_contract':'RECEPTION_PRIVATE_CONTRACT_RESULT',
         'test_reception_scope':'RECEPTION_SCOPE_RESULT'}
 def execute():
  p=argparse.ArgumentParser();p.add_argument('--godot',required=True);p.add_argument('--output',type=Path,required=True)
- p.add_argument('--only',nargs='+',choices=list(SUITES),default=list(SUITES));p.add_argument('--native-service',action='store_true');args=p.parse_args()
- if args.native_service and args.only!=['test_reception_service']:p.error('--native-service requires --only test_reception_service')
+ p.add_argument('--only',nargs='+',choices=list(SUITES),default=[s for s in SUITES if not s.startswith('test_guest_navigation_')]);p.add_argument('--native-service',action='store_true');args=p.parse_args()
+ if args.native_service and args.only not in [['test_reception_service'],['test_guest_navigation_service'],['test_guest_navigation_review','test_guest_navigation_service']]:p.error('--native-service requires one reception or guest service scenario, optionally its guest path fixture')
+ native_suites={'test_reception_service','test_guest_navigation_service'} if args.native_service else set()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
  project=out/'project';stage_project(ROOT,project,tests=True)
  config=project/'project.godot';text=config.read_text(encoding='utf-8')
@@ -37,12 +40,18 @@ def execute():
    script="New-Item -ItemType Junction -Path '"+str(user/'escape').replace("'","''")+"' -Target '"+str(sibling).replace("'","''")+"' | Out-Null"
    subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',script],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
   else:(user/'escape').symlink_to(sibling,target_is_directory=True)
-  if args.native_service and name=='test_reception_service':
+  if name in native_suites:
    captures=out/'frames';captures.mkdir(exist_ok=True);env['LL_RECEPTION_CAPTURE']=str(captures)
   return env
  def run(name,extra,env,marker=None):
-  start=time.monotonic();cmd=[args.godot,*([] if args.native_service and name=='test_reception_service' else ['--headless']),'--audio-driver','Dummy','--path',str(project),*extra]
-  c=subprocess.run(cmd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
+  start=time.monotonic();cmd=[args.godot,*([] if name in native_suites else ['--headless']),'--audio-driver','Dummy','--path',str(project),*extra]
+  try:c=subprocess.run(cmd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
+  except subprocess.TimeoutExpired as error:
+   log=(error.stdout or b'').decode('utf-8',errors='replace')
+   (out/(name+'.log')).write_text(log,encoding='utf-8')
+   row={'name':name,'exit_code':'timeout','seconds':round(time.monotonic()-start,2),'payloads':[],'script_errors':[l for l in log.splitlines() if 'SCRIPT ERROR' in l or 'Parse Error' in l]}
+   records.append(row);(out/'receipt.json').write_text(json.dumps({'source_hashes':hashes,'records':records},indent=2),encoding='utf-8')
+   raise RuntimeError(name+' timed out; partial engine output retained') from error
   log=c.stdout.decode('utf-8',errors='replace');(out/(name+'.log')).write_text(log,encoding='utf-8')
   payloads=[json.loads(l[len(marker)+1:]) for l in log.splitlines() if marker and l.startswith(marker+' ')]
   row={'name':name,'exit_code':c.returncode,'seconds':round(time.monotonic()-start,2),'payloads':payloads,'script_errors':[l for l in log.splitlines() if 'SCRIPT ERROR' in l or 'Parse Error' in l]}
@@ -51,7 +60,7 @@ def execute():
   if c.returncode or row['script_errors'] or (marker and (len(payloads)!=1 or payloads[0]['failures'])):raise RuntimeError(name+' failed; retained exact log')
  run('import',['--editor','--import','--quit'],env_for('import'))
  for suite in args.only:
-  run(suite,['--script','res://tests/'+suite+'.gd','--','--visual-qa','--fresh-review','--reception-candidate','--reception-persistence-candidate','--skip-intro','--skip-tutorial'],env_for(suite),SUITES[suite])
+  run(suite,['--script','res://tests/'+suite+'.gd','--','--visual-qa','--fresh-review','--reception-candidate',*(['--navigation-candidate','--guest-navigation-candidate'] if suite.startswith('test_guest_navigation_') else ['--reception-persistence-candidate']),'--skip-intro','--skip-tutorial'],env_for(suite),SUITES[suite])
  assert all(hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()==sha for rel,sha in hashes.items())
  print(json.dumps({'checks':sum(p['checks'] for r in records for p in r['payloads']),'source_unchanged':True,'profile_root':str(out)}))
 def main():

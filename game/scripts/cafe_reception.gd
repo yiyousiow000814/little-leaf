@@ -78,6 +78,7 @@ static func _origin_chair(m,v:Dictionary)->int:
 	# Interruptions must route from the furniture actually beneath the body.
 	for id in [int(v.previous_chair_id),int(v.chair_id)]:
 		var chair=m.get_item(id)
+		if m.guest_navigation_enabled and not chair.is_empty() and Rect2(Vector2(chair.x,chair.z),Vector2.ONE).grow(m.GuestNavigation.Nav.CLEARANCE).has_point(point(v)):return id
 		if not chair.is_empty() and cell(point(v))==Vector2i(int(chair.x),int(chair.z)):return id
 	return -1
 
@@ -99,6 +100,10 @@ static func _origins(m,v:Dictionary)->Array:
 			if not m.segment_blocked(at,target):result.append({"cell":landing,"prefix":[target],"entry":{}})
 	elif m._walkable(cell(at)):
 		var center=m.cell_center(cell(at))
+		if m.guest_navigation_enabled and int(v.route_index)<v.route.size():
+			var next:Vector2=v.route[int(v.route_index)]
+			if m._walkable(cell(next)) and m.GuestNavigation.leg_clear(m,at,next):
+				result.append({"cell":cell(next),"prefix":[next],"entry":{}})
 		if absf(at.x-center.x)<.0001 or absf(at.y-center.y)<.0001:
 			result.append({"cell":cell(at),"prefix":[center] if at.distance_to(center)>.0001 else [],"entry":{}})
 	return result
@@ -273,11 +278,15 @@ static func close(m):
 	for v in m.reception_visits:leave(m,v)
 
 static func _move(m,v:Dictionary,delta:float)->float:
-	var at=point(v);var budget=m.WALK_SPEED*delta;var elapsed=0.0;var entered=INF
+	if m.guest_navigation_enabled and not m.GuestNavigation.repair(m,v):v.waiting=true;return INF
+	var at=point(v);var budget=m.WALK_SPEED*delta*(m.GuestNavigation.speed_scale(m,v) if m.guest_navigation_enabled else 1.0);var elapsed=0.0;var entered=INF
 	while budget>.000001 and not settled(v):
+		if m.guest_navigation_enabled:
+			v.x=at.x;v.z=at.y
+			if not m.GuestNavigation.repair(m,v):v.waiting=true;break
 		var target:Vector2=v.route[int(v.route_index)];var distance=at.distance_to(target)
 		if distance<.000001:v.route_index+=1;continue
-		if m.segment_blocked(at,target):v.waiting=true;break
+		if (not m.GuestNavigation.leg_clear(m,at,target,_origin_chair(m,v),int(v.chair_id)) if m.guest_navigation_enabled else m.segment_blocked(at,target)):v.waiting=true;break
 		v.heading=(target-at)/distance
 		var step=minf(distance,budget);var next=at+v.heading*step
 		if int(v.ready_order)<0 and entered==INF and m.is_floor_owned(cell(next)):
@@ -292,7 +301,8 @@ static func _move(m,v:Dictionary,delta:float)->float:
 	v.route=v.route.slice(int(v.route_index));v.route_index=0;v.route_origin=at
 	if int(v.previous_chair_id)>=0:
 		var previous=m.get_item(int(v.previous_chair_id))
-		if previous.is_empty() or cell(at)!=Vector2i(int(previous.x),int(previous.z)):v.previous_chair_id=-1
+		var contact=not previous.is_empty() and (Rect2(Vector2(previous.x,previous.z),Vector2.ONE).grow(m.GuestNavigation.Nav.CLEARANCE).has_point(at) if m.guest_navigation_enabled else cell(at)==Vector2i(int(previous.x),int(previous.z)))
+		if not contact:v.previous_chair_id=-1
 	return entered
 
 static func advance(m,delta:float):
@@ -364,7 +374,9 @@ static func _route_error(m,origin:Vector2,route:Array,origin_chair:int=-1,target
 	for index in range(route.size()):
 		var next=route[index]
 		if not next is Vector2 or not next.is_finite():return "Invalid reception route point"
-		if absf(previous.x-next.x)>.0001 and absf(previous.y-next.y)>.0001:return "Reception route must be cardinal"
+		if m.guest_navigation_enabled:
+			if not m.GuestNavigation.leg_clear(m,previous,next,origin_chair,target_chair):return "Reception route crosses blocked geometry"
+		elif absf(previous.x-next.x)>.0001 and absf(previous.y-next.y)>.0001:return "Reception route must be cardinal"
 		if m.segment_blocked(previous,next):return "Reception route crosses a wall"
 		var samples=maxi(1,ceili(previous.distance_to(next)*8.0))
 		for sample in range(samples+1):

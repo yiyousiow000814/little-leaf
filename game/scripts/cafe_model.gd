@@ -17,6 +17,9 @@ const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
+const GuestNavigation=preload("res://scripts/cafe_guest_navigation_review.gd")
+var guest_navigation_enabled=false
+var _guest_navigation_cache={}
 const Reception=preload("res://scripts/cafe_reception.gd")
 const TableOccupancy=preload("res://scripts/cafe_table_occupancy.gd")
 const DepartingBodies=preload("res://scripts/cafe_departing_bodies.gd")
@@ -221,6 +224,7 @@ func _init() -> void:
 
 
 func reset_new() -> void:
+	guest_navigation_enabled=false;_guest_navigation_cache.clear()
 	tutorial_state.clear()
 	first_guest_pending=false;first_guest_start=Vector2.INF
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
@@ -1462,6 +1466,7 @@ func _arrival_start_position() -> Vector2:
 
 
 func path_between(start: Vector2i, finish: Vector2i) -> Array[Vector2i]:
+	if guest_navigation_enabled:return GuestNavigation.path(self,start,finish)
 	## Cardinal BFS over actual walkable grid cells. Both endpoints must be open.
 	## The route includes start/end. Exterior coordinates are deliberately rejected.
 	var empty: Array[Vector2i] = []
@@ -1528,6 +1533,9 @@ func _choose_walker() -> void:
 	_walking_customer_id = -1
 
 func _advance_walk(customer: Dictionary, delta: float) -> void:
+	if guest_navigation_enabled:
+		if not GuestNavigation.repair(self,customer):customer.waiting=true;return
+		delta*=GuestNavigation.speed_scale(self,customer)
 	if bool(customer.get("departure_blocked", false)):
 		if str(customer.get("settlement_mode","legacy"))=="register" and customer.paid:Checkout.depart(self,customer)
 		else:_begin_departure(customer)
@@ -1538,13 +1546,19 @@ func _advance_walk(customer: Dictionary, delta: float) -> void:
 		customer.waiting=true
 		return
 	var position := Vector2(float(customer.x), float(customer.z))
-	if int(customer.route_index)<customer.route.size() and segment_blocked(position,customer.route[int(customer.route_index)]):
+	if int(customer.route_index)<customer.route.size() and (not GuestNavigation.leg_clear(self,position,customer.route[int(customer.route_index)],int(customer.chair_id)) if guest_navigation_enabled else segment_blocked(position,customer.route[int(customer.route_index)])):
+		if guest_navigation_enabled:customer.waiting=true;return
 		if not reroute_guest(customer):customer.waiting=true;return
 	var budget := WALK_SPEED * delta
 	var route: Array = customer.route
 	while budget > 0.000001 and int(customer.route_index) < route.size():
+		if guest_navigation_enabled:
+			customer.x=position.x;customer.z=position.y
+			if not GuestNavigation.repair(self,customer):customer.waiting=true;break
+			route=customer.route
 		var destination: Vector2 = route[int(customer.route_index)]
-		if segment_blocked(position,destination):
+		if (not GuestNavigation.leg_clear(self,position,destination,int(customer.chair_id)) if guest_navigation_enabled else segment_blocked(position,destination)):
+			if guest_navigation_enabled:customer.waiting=true;break
 			if not reroute_guest(customer):customer.waiting=true;break
 			route=customer.route;continue
 		var difference := destination - position
@@ -1745,6 +1759,7 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 
 
 func _save_snapshot(path:String,reception:bool=false)->bool:
+	if guest_navigation_enabled:return _fail("Transient guest navigation requires a separately reviewed persistence capability")
 	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
 	var snapshot_version=SaveContract.RECEPTION_REVIEW_VERSION if reception else SAVE_VERSION
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or not reception_visits.is_empty() or not departing_bodies.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
@@ -1829,6 +1844,7 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 
 
 func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=false)->bool:
+	if guest_navigation_enabled:return _fail("Transient guest navigation cannot use a historical reader")
 	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.

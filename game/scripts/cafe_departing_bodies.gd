@@ -43,11 +43,15 @@ static func split(m,guest:Dictionary)->bool:
 
 static func advance(m,delta:float,active=null):
 	for body in m.departing_bodies.duplicate() if active==null else active:
-		var at=point(body);var budget=m.WALK_SPEED*delta
+		if m.guest_navigation_enabled and not m.GuestNavigation.repair(m,body):body.waiting=true;continue
+		var at=point(body);var budget=m.WALK_SPEED*delta*(m.GuestNavigation.speed_scale(m,body) if m.guest_navigation_enabled else 1.0)
 		while budget>.000001 and int(body.route_index)<body.route.size():
+			if m.guest_navigation_enabled:
+				body.x=at.x;body.z=at.y
+				if not m.GuestNavigation.repair(m,body):body.waiting=true;break
 			var target:Vector2=body.route[int(body.route_index)];var distance=at.distance_to(target)
 			if distance<.000001:body.route_index+=1;continue
-			if m.segment_blocked(at,target):body.waiting=true;break
+			if (not m.GuestNavigation.leg_clear(m,at,target) if m.guest_navigation_enabled else m.segment_blocked(at,target)):body.waiting=true;break
 			body.heading=(target-at)/distance
 			var step=minf(distance,budget);at+=body.heading*step;budget-=step;body.waiting=false
 			if step+.000001>=distance:at=target;body.route_index+=1
