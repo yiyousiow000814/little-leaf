@@ -41,6 +41,9 @@ export async function start(config,options={}) {
             return {uid,ownership,remote,journal};
           }catch(error){ownership.close();throw error;}
         }});
+      if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
+      window.LittleLeafUpdate=window.LittleLeafUpdates.create({confirmation:'local',checkUpdateReady:(...args)=>window.__littleLeafVault.checkUpdateReady(...args),canReloadUpdate:(...args)=>window.__littleLeafVault.canReloadUpdate(...args),cancelUpdate:()=>window.__littleLeafVault.cancelUpdate()});
+      const localUpdate=window.LittleLeafUpdate;window.addEventListener('pagehide',()=>localUpdate.close(),{once:true});
       return window.__littleLeafVault;
     }
   }

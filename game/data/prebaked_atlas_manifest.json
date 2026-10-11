@@ -83,7 +83,7 @@
     "scripts/cafe_walls.gd": "7687546456ee44331cf9ef6d24d17a0084f03bf4facfe07aff6dc484aa3bb8b6",
     "scripts/cafe_web_lifecycle.gd": "b260c669caedebdb33fd34edb344eba1be23de6b86c3269b813c7b057b75b1f9",
     "scripts/cafe_web_preferences.gd": "6da42c114ed30c70b4e6428db112f532e20c0452e6f549d5d7330054d0061040",
-    "scripts/cafe_web_save.gd": "1010f16a05e58dfbea364beab83f3f5a95ab6b7b76f2277c6bd901d71e3f2fea",
+    "scripts/cafe_web_save.gd": "abc992379ea79824d9f0a189416d49dbe81233863903fce5f72fa9f4a8f134cf",
     "scripts/cafe_workface_guidance.gd": "e1b0b1cb50f9c41344e6f71b486a245b2cb7e65fe0a2c71879e363b5dfb619f3",
     "scripts/character_arm_occlusion.gd": "b986309969b0bc0104248ba03d922683ec332fa09ac11dc08c2deb23869394e2",
     "scripts/character_head_atlas.gd": "d84d34ebaa64a045d169aab10c2c5512ef5b2b38842001b0a4a8c0ef64cc016c",

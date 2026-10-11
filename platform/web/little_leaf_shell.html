@@ -726,9 +726,11 @@ body {
     const locks=options.locks || root.navigator?.locks;
     const monotonic=options.monotonic || (()=>root.performance.now());
     let elapsed=null,elapsedGeneration=0;
+    let localUpdate=null,updateSaving=false,updateGeneration=0;
     const lockName=()=> 'little-leaf.guest-writer.v1:'+record.profileId;
     function elapsedGuard(claim){if(faulted||elapsed!==claim||claim.cancelled)throw fail('ELAPSED_CANCELLED','Background interval was cancelled.');}
     function releaseElapsed(claim){if(elapsed===claim){elapsed=null;if(claim.release)claim.release();}}
+    function updateMatches(profileId,revision,token){return !!(localUpdate && !faulted && !elapsed && root.__littleLeafVault===client && root.location.origin===localUpdate.origin && localUpdate.profileId===profileId && localUpdate.revision===revision && localUpdate.token===token && record?.digest===localUpdate.digest && record?.profileId===profileId && record?.revision===revision);}
 
     function installConnection(connection, stage) {
       db = connection;
@@ -798,6 +800,7 @@ body {
         return opening;
       },
       async commit(payload, expectedRevision, expectedProfileId, origin = 'normal') {
+        if(localUpdate || updateSaving)return resultError(fail('SAVE_BUSY','An update holds this save.'));
         if(elapsed)return resultError(fail('SAVE_BUSY','A background interval holds this save.'));
         if(!locks)return client._commit(payload,expectedRevision,expectedProfileId,origin);
         return locks.request(lockName(),{ifAvailable:true},lock=>lock
@@ -851,7 +854,7 @@ body {
       },
       async beginBackground(revision,profileId){
         if(!locks||!record||faulted)return resultError(fail('ELAPSED_UNAVAILABLE','Exclusive local writer authority is unavailable.'));
-        if(elapsed||busy)return resultError(fail('SAVE_BUSY','A save operation is pending.'));
+        if(elapsed||busy||localUpdate||updateSaving)return resultError(fail('SAVE_BUSY','A save operation is pending.'));
         const claim=elapsed={phase:'arming',generation:++elapsedGeneration,cancelled:false};
         let resolveStart;const started=new Promise(r=>resolveStart=r);
         locks.request(lockName(),{ifAvailable:true},async lock=>{
@@ -893,7 +896,45 @@ body {
         }finally{releaseElapsed(claim);}
       },
       async cancelBackground(){const claim=elapsed;if(claim){claim.cancelled=true;if(claim.phase==='committing')return resultError(fail('ELAPSED_UNCERTAIN','Reconcile the exact in-flight local snapshot before account binding.'));releaseElapsed(claim);}return {ok:true,backgroundCleared:true,...client.recoverySnapshot()};},
-      recoverySnapshot(){return {serverOwnership:false,backgroundOwnership:locks?'local-lock':null,status:faulted?'blocked':'active',ownershipPaused:faulted};},
+      async saveForUpdate(payload,revision,profileId){
+        if(!locks || !record || faulted)return resultError(fail('NOT_READY','Exclusive local save authority is unavailable.'));
+        if(elapsed || busy || localUpdate || updateSaving)return resultError(fail('SAVE_BUSY','A save operation is pending.'));
+        updateSaving=true;const generation=++updateGeneration;
+        let reply;const saved=new Promise(resolve=>reply=resolve);
+        locks.request(lockName(),{ifAvailable:true},async lock=>{
+          let committed=null,ticket=null;
+          try{
+            if(!lock)throw fail('SAVE_BUSY','Another tab holds this save.');
+            if(generation!==updateGeneration || faulted)throw fail('UPDATE_CHANGED','Local update was cancelled.');
+            const held=new Promise(resolve=>ticket={release:resolve,origin:root.location.origin,token:uuid(),consumed:false});
+            localUpdate=ticket;
+            committed=await client._commit(payload,revision,profileId);
+            if(!committed.ok)throw fail(committed.code,committed.error);
+            const current=await transaction(db,'readonly',readCurrent);await verifyRecord(current);
+            compareCurrent(current,committed.revision,profileId);
+            if(localUpdate!==ticket || root.__littleLeafVault!==client)throw fail('UPDATE_CHANGED','Local save authority changed.');
+            Object.assign(ticket,{profileId,revision:current.revision,digest:current.digest});
+            reply({...committed,localConfirmed:true,cloudConfirmed:false,origin:ticket.origin,digest:ticket.digest,updateToken:ticket.token});
+            await held;
+          }catch(e){if(['REVISION_CONFLICT','CORRUPT_AUTHORITY'].includes(e.code))faulted=true;if(localUpdate===ticket)client.cancelUpdate();reply({...committed,...resultError(e),localConfirmed:false});}
+          finally{if(generation===updateGeneration)updateSaving=false;}
+        }).catch(e=>{if(generation===updateGeneration)updateSaving=false;reply(resultError(e));});
+        return saved;
+      },
+      async checkUpdateReady(profileId,revision,token){
+        try{
+          const ticket=localUpdate;
+          if(!ticket || ticket.consumed || !updateMatches(profileId,revision,token))throw fail('UPDATE_CHANGED','Local save authority changed.');
+          const current=await transaction(db,'readonly',readCurrent);await verifyRecord(current);
+          compareCurrent(current,revision,profileId);
+          if(localUpdate!==ticket || !updateMatches(profileId,revision,token))throw fail('UPDATE_CHANGED','Local save authority changed.');
+          ticket.consumed=true;
+          return {ok:true,localConfirmed:true,cloudConfirmed:false,origin:ticket.origin,digest:ticket.digest,profileId,revision,updateToken:token};
+        }catch(e){if(['REVISION_CONFLICT','CORRUPT_AUTHORITY'].includes(e.code))faulted=true;client.cancelUpdate();return resultError(e);}
+      },
+      canReloadUpdate(profileId,revision,token){return localUpdate?.consumed===true && updateMatches(profileId,revision,token);},
+      cancelUpdate(){updateGeneration++;const ticket=localUpdate;localUpdate=null;updateSaving=false;ticket?.release();},
+      recoverySnapshot(){return {serverOwnership:false,localOwnership:!!record&&!faulted&&!elapsed&&root.__littleLeafVault===client,localProfileId:record?.profileId,localRevision:record?.revision,backgroundOwnership:locks?'local-lock':null,status:faulted?'blocked':'active',ownershipPaused:faulted};},
       creditForSave(payload) {
         if (!record || faulted || !campaigns) return 0;
         try {
@@ -904,7 +945,7 @@ body {
       save(payload, revision, profileId, callback) {
         client.commit(payload, revision, profileId).then(result => callback(JSON.stringify(result)));
       },
-      close() {client.cancelBackground(); if (db) db.close(); db = null; faulted = true; }
+      close() {client.cancelUpdate();client.cancelBackground(); if (db) db.close(); db = null; faulted = true; }
     };
     return client;
   }
@@ -927,6 +968,7 @@ body {
     retrying.then(result => callback(JSON.stringify(result)));
   }
   root.LittleLeafVault = Object.freeze({ DB_NAME, STORE, CAMPAIGNS, createClient, retry,
+    saveForUpdate(payload,revision,profileId,callback){root.__littleLeafVault.saveForUpdate(payload,revision,profileId).then(r=>callback(JSON.stringify(r)));},
     recoverySnapshot(){return JSON.stringify(root.__littleLeafVault.recoverySnapshot());},
     beginBackground(revision,profileId,callback){root.__littleLeafVault.beginBackground(revision,profileId).then(r=>callback(JSON.stringify(r)));},
     finishBackground(token,callback){root.__littleLeafVault.finishBackground(token).then(r=>callback(JSON.stringify(r)));},

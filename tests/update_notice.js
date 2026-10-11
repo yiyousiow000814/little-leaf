@@ -1,10 +1,10 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {create}=require('../platform/web/little_leaf_update');
-function setup(initial='0.1.10a'){
+function setup(initial='0.1.10a',confirmation='cloud'){
  let target={schema_version:1,version:initial,source_commit:'a'.repeat(40)},count=0,checks=0,reloads=0,offline=false,canReload=true,gate={ok:true,cloudConfirmed:true,profileId:'cafe',revision:2,updateToken:'token'};
  const seen=new Map();
- const manager=create({canReloadUpdate:()=>canReload,fetch:async(path,options)=>{assert.equal(path,'./hosting-release.json');assert.equal(options.cache,'no-store');count++;if(offline)throw Error('offline');return {ok:true,json:async()=>({...target})};},storage:{getItem:k=>seen.get(k),setItem:(k,v)=>seen.set(k,v)},setInterval:()=>1,clearInterval:()=>{},reload:()=>reloads++,checkUpdateReady:async()=>{checks++;return gate;}});
+ const manager=create({confirmation,canReloadUpdate:()=>canReload,fetch:async(path,options)=>{assert.equal(path,'./hosting-release.json');assert.equal(options.cache,'no-store');count++;if(offline)throw Error('offline');return {ok:true,json:async()=>({...target})};},storage:{getItem:k=>seen.get(k),setItem:(k,v)=>seen.set(k,v)},setInterval:()=>1,clearInterval:()=>{},reload:()=>reloads++,checkUpdateReady:async()=>{checks++;return gate;}});
  return {manager,state:()=>JSON.parse(manager.snapshot()),target:x=>target={...target,...x},offline:x=>offline=x,gate:x=>gate=x,canReload:x=>canReload=x,counts:()=>({checks,reloads,count})};
 }
 (async()=>{
@@ -24,6 +24,11 @@ function setup(initial='0.1.10a'){
 
  s=setup();s.manager.start('0.1.10');await s.manager.poll();s.manager.close();assert(!s.state().available);assert(!(await s.manager.reloadForUpdate('0.1.10a','cafe',2,'token')).ok);await s.manager.poll();assert.equal(s.counts().reloads,0);
  s=setup();s.manager.start('0.1.10');await s.manager.poll();s.canReload(false);assert(!(await s.manager.reloadForUpdate('0.1.10a','cafe',2,'token')).ok);assert.equal(s.counts().reloads,0,'final account/ownership predicate blocks reload');
+ const previousLocation=global.location;global.location={origin:'https://synthetic-local.example'};
+ s=setup('0.1.10a','local');s.manager.start('0.1.10');await s.manager.poll();assert(!(await s.manager.reloadForUpdate('0.1.10a','cafe',2,'token')).ok,'a cloud ACK cannot stand in for local durability');
+ const localReceipt={ok:true,localConfirmed:true,cloudConfirmed:false,origin:global.location.origin,digest:'d'.repeat(64),profileId:'cafe',revision:2,updateToken:'token'};
+ s.gate({...localReceipt,origin:'https://other.example'});assert(!(await s.manager.reloadForUpdate('0.1.10a','cafe',2,'token')).ok,'local receipt is bound to this origin');
+ s.gate(localReceipt);assert((await s.manager.reloadForUpdate('0.1.10a','cafe',2,'token')).ok);assert.equal(s.counts().reloads,1);s.manager.close();if(previousLocation===undefined)delete global.location;else global.location=previousLocation;
  // A deployment rollback during the cloud check must fail before navigation.
  let releaseGate,enterGate;const gateEntered=new Promise(resolve=>enterGate=resolve);
  let deployment={schema_version:1,version:'0.1.10a',source_commit:'a'.repeat(40)},reloads=0;

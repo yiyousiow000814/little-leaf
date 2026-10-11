@@ -19,13 +19,16 @@ class UpdateApi extends RefCounted:
  func reloadForUpdate(version,profile_id,revision,token,fn):reloads+=1;callback=fn
  func finish(result):callback.call([JSON.stringify(result)])
 class Vault extends RefCounted:
+ var localCallbacksAuthority=false
  var value={"serverOwnership":true,"status":"active","ownershipPaused":false,"choicesAvailable":false}
  var calls=0
  var callback:Callable
  var payload=""
  func recoverySnapshot():return JSON.stringify(value)
  func saveForUpdate(data,revision,profile_id,fn):calls+=1;payload=data;callback=fn
- func finish(result):callback.call([JSON.stringify(result)])
+ func finish(result):
+  if result.get("durable",false):value.localProfileId=result.get("profileId");value.localRevision=result.get("revision")
+  callback.call([JSON.stringify(result)])
 class Controller extends WebSave:
  var fake_update=UpdateApi.new()
  var fake_vault=Vault.new()
@@ -107,10 +110,26 @@ func run():
  check(JSON.stringify(game.model.items)==items and game.model.coins==coins,"recovery GUI cannot mutate protected model after unsafe failure")
  controller._release_update_input()
  controller.fake_vault.value.status="active";controller.fake_vault.value.ownershipPaused=false;game.save_recovery_blocked=false;game.save_writes_suppressed=false
+ # Local-only updates require their own explicit authority, never a fake cloud ACK.
+ controller.api=controller.fake_vault;controller.fake_vault.localCallbacksAuthority=true
+ controller.fake_vault.value.serverOwnership=false;controller.fake_vault.value.localOwnership=true
+ controller.fake_update.value.confirmation="local"
+ controller.save_and_update("0.1.12");var local_callback=controller.fake_vault.callback
+ controller.fake_vault.finish({"ok":true,"durable":true,"profileId":"synthetic","revision":11,"localConfirmed":true,"cloudConfirmed":false,"updateToken":"local-token"});await settle()
+ check(controller.fake_update.reloads==2 and controller.update_busy and root.gui_disable_input,"explicit local receipt enters reload gate with input still held")
+ local_callback.call([JSON.stringify({"ok":true,"durable":true,"profileId":"synthetic","revision":11,"localConfirmed":true,"cloudConfirmed":false,"updateToken":"local-token"})])
+ check(controller.fake_update.reloads==2,"duplicate local save callback cannot reload twice")
+ controller.fake_update.finish({"ok":false,"code":"UPDATE_NOT_READY"});await settle()
+ check(not controller.update_busy and not game.save_recovery_blocked and game.model==model and game.is_processing_input()==input_before and root.gui_disable_input==gui_before,"failed local update restores the same verified local model and input")
+ controller.save_and_update("0.1.12")
+ controller.fake_vault.value.localOwnership=false
+ controller.fake_vault.finish({"ok":false,"durable":true,"profileId":"synthetic","revision":12,"localConfirmed":false});await settle()
+ check(game.save_recovery_blocked and not game.is_processing_input(),"unverified local authority cannot resume frozen model")
+ controller._release_update_input();controller.fake_vault.value.localOwnership=true;game.save_recovery_blocked=false;game.save_writes_suppressed=false
  controller.save_and_update("0.1.12");var late_save=controller.fake_vault.callback;controller.stop()
  check(controller.fake_update.closes==1 and not controller.update_busy,"native stop closes update manager and releases operation")
  late_save.call([JSON.stringify({"ok":true,"durable":true,"profileId":"synthetic","revision":11,"cloudConfirmed":true,"updateToken":"late"})])
- check(controller.fake_update.reloads==1,"late save completion after stop cannot request reload")
+ check(controller.fake_update.reloads==2,"late save completion after stop cannot request reload")
  check(game.saves==0,"notice does not use ordinary uncontrolled save path")
  game.web_save=null;game.save_writes_suppressed=true
  print("UPDATE_NOTICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"real_browser":false,"geometry":geometry}))

@@ -315,6 +315,11 @@ func save_and_update(version:String):
 	_update_callback=_make_recovery_callback(_on_update_saved.bind(_update_generation))
 	_recovery_bridge().saveForUpdate(payload,revision,profile_id,_update_callback)
 
+func _local_update_mode()->bool:
+	var bridge=_update_bridge()
+	var state=JSON.parse_string(str(bridge.snapshot())) if bridge!=null else null
+	return state is Dictionary and state.get("confirmation","")=="local" and api!=null and api.localCallbacksAuthority==true
+
 func _on_update_saved(arguments:Array,request_generation:int):
 	if request_generation!=_update_generation or not update_busy or _update_phase!="save":return
 	if game==null or not game.is_inside_tree():return
@@ -323,8 +328,9 @@ func _on_update_saved(arguments:Array,request_generation:int):
 		revision=int(result.revision)
 	else:
 		_update_failed("Could not verify the save. Update postponed.");return
-	if not bool(result.get("ok",false)) or not bool(result.get("cloudConfirmed",false)) or str(result.get("updateToken",""))=="":
-		_update_failed("Your progress is on this device. Cloud confirmation is still needed before updating.");return
+	var confirmed=bool(result.get("localConfirmed",false)) and not bool(result.get("cloudConfirmed",false)) if _local_update_mode() else bool(result.get("cloudConfirmed",false))
+	if not bool(result.get("ok",false)) or not confirmed or str(result.get("updateToken",""))=="":
+		_update_failed("Local save confirmation is still needed before updating." if _local_update_mode() else "Your progress is on this device. Cloud confirmation is still needed before updating.");return
 	_update_phase="reload"
 	_update_callback=_make_recovery_callback(_on_update_reload.bind(request_generation))
 	_update_bridge().reloadForUpdate(_update_expected_version,profile_id,revision,str(result.updateToken),_update_callback)
@@ -341,7 +347,9 @@ func _update_failed(reason:String):
 	var bridge=_recovery_bridge()
 	var state=JSON.parse_string(str(bridge.recoverySnapshot())) if bridge!=null else null
 	# Only a verified current owner with no conflict may resume the frozen model.
-	if state is Dictionary and bool(state.get("serverOwnership",false)) and state.get("status","")=="active" and not bool(state.get("choicesAvailable",false)) and not bool(state.get("accountChanged",false)):
+	var local_owned=_local_update_mode() and state is Dictionary and bool(state.get("localOwnership",false)) and state.get("localProfileId",null)==profile_id and int(state.get("localRevision",-1))==revision
+	var owned=state is Dictionary and (bool(state.get("serverOwnership",false)) or local_owned)
+	if owned and state.get("status","")=="active" and not bool(state.get("choicesAvailable",false)) and not bool(state.get("accountChanged",false)):
 		game.save_recovery_blocked=false;game.save_writes_suppressed=false;game.paused=_update_old_paused
 		_release_update_input()
 	else:

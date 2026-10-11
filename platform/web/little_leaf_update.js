@@ -18,8 +18,9 @@
     let current=null, latest=null, busy=false, reason='', timer=null, started=false, reloaded=false, closed=false;
     let polling=null, generation=0;
     const dismissed=new Set();
+    const local=options.confirmation==='local';
     function readDismissed(v){try{return dismissed.has(v)||storage?.getItem('little-leaf-update-dismissed')===v;}catch(_){return dismissed.has(v);}}
-    function snapshot(){return JSON.stringify({available:!!latest&&!readDismissed(latest.version),version:latest?.version||'',busy,reason});}
+    function snapshot(){return JSON.stringify({available:!!latest&&!readDismissed(latest.version),version:latest?.version||'',busy,reason,confirmation:local?'local':'cloud'});}
     async function manifest(){
       if(!fetcher)throw Error('Update checking is unavailable.');
       const response=await bounded(fetcher('./hosting-release.json',{cache:'no-store',credentials:'same-origin'}));
@@ -53,16 +54,17 @@
         if(fresh.version!==v||fresh.commit!==latest.commit)throw Error('The available update changed. Please try again.');
         if(operation!==generation)throw Error('This update was cancelled.');
         const checked=await bounded(options.checkUpdateReady(profileId,revision,token));
-        if(operation!==generation||!checked?.ok||checked.cloudConfirmed!==true||checked.profileId!==profileId||checked.revision!==revision||checked.updateToken!==token)throw Error(checked?.message||'Your save could not be confirmed. Keep this page open.');
+        const confirmed=local?checked?.localConfirmed===true&&checked.cloudConfirmed===false&&checked.origin===root.location.origin&&/^[a-f0-9]{64}$/.test(checked.digest||''):checked?.cloudConfirmed===true;
+        if(operation!==generation||!checked?.ok||!confirmed||checked.profileId!==profileId||checked.revision!==revision||checked.updateToken!==token)throw Error(checked?.message||'Your save could not be confirmed. Keep this page open.');
         const finalManifest=await manifest();
         if(operation!==generation||finalManifest.version!==v||finalManifest.commit!==fresh.commit)throw Error('The available update changed. Please try again.');
         if(options.canReloadUpdate(profileId,revision,token)!==true)throw Error('Your active save or device changed. Keep this page open.');
-        reloaded=true;reply({ok:true,profileId,revision,cloudConfirmed:true});reload();
+        reloaded=true;reply({ok:true,profileId,revision,cloudConfirmed:!local,localConfirmed:local});reload();
         return {ok:true};
-      }catch(e){reason=e.message||'Could not safely update. Please try again.';return reply({ok:false,code:'UPDATE_NOT_READY',message:reason});}
+      }catch(e){options.cancelUpdate?.();reason=e.message||'Could not safely update. Please try again.';return reply({ok:false,code:'UPDATE_NOT_READY',message:reason});}
       finally{busy=false;}
     }
-    function close(){closed=true;latest=null;generation++;if(timer!==null)(options.clearInterval||root.clearInterval)(timer);root.document?.removeEventListener('visibilitychange',onVisible);}
+    function close(){closed=true;latest=null;generation++;options.cancelUpdate?.();if(timer!==null)(options.clearInterval||root.clearInterval)(timer);root.document?.removeEventListener('visibilitychange',onVisible);}
     return Object.freeze({start,snapshot,dismiss,reloadForUpdate,close,poll});
   }
   root.LittleLeafUpdates=Object.freeze({create});
