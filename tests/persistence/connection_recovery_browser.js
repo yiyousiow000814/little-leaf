@@ -1,16 +1,16 @@
 'use strict';
-const {sourcePath, sourceVersion}=require('./source_paths.js');
+const {sourcePath, sourceVersion}=require('../source_paths.js');
 // Hosted CI only. Actual exported Godot/Game/JavaScriptBridge/vault in disposable
 // HTTPS contexts. The sole injected failure closes a captured native IDB handle.
 // No client.close(), seeded save, fake callback/log entry, or simulation speedup.
 //
 // Inputs are the candidate tools/build_web.py export and its native test evidence.
 // Preflight needs only Node (no Playwright import or browser launch):
-//   node tests/connection_recovery_browser.js --check-inputs --web-build WEB \
+//   node tests/persistence/connection_recovery_browser.js --check-inputs --web-build WEB \
 //     --engine-report ENGINE/summary.json --layout-report ENGINE/test_save_log-result.json
 // Hosted invocation, separately for RUNTIME_BROWSER=webkit and chromium:
 //   RUNTIME_BROWSER=webkit PLAYWRIGHT_MODULE=/tools/node_modules/playwright \
-//     xvfb-run -a node tests/connection_recovery_browser.js --run-hosted \
+//     xvfb-run -a node tests/persistence/connection_recovery_browser.js --run-hosted \
 //     --web-build WEB --engine-report ENGINE/summary.json \
 //     --layout-report ENGINE/test_save_log-result.json --output EVIDENCE/webkit
 // CI=true is required to launch. Chromium defaults to installed official Chrome
@@ -19,8 +19,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {installEngineLaunchHook} = require('./engine_launch_hook');
-const root = path.resolve(__dirname, '..');
+const {installEngineLaunchHook} = require('../engine_launch_hook');
+const root = path.resolve(__dirname, '../..');
 const GAME = 'https://game.little-leaf-recovery.test';
 const HOST = 'https://embed-host-recovery.test';
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -111,7 +111,7 @@ function inputs() {
     export_manifest_sha256: sha(manifestBytes), native_report_sha256: sha(engineBytes),
     native_layout_sha256: sha(layoutBytes), native_layout_log_sha256: sha(layoutLogBytes),
     browser_harness_sha256: sha(fs.readFileSync(__filename)),
-    launch_hook_sha256: sha(fs.readFileSync(path.join(__dirname, 'engine_launch_hook.js'))),
+    launch_hook_sha256: sha(fs.readFileSync(path.join(__dirname, '../engine_launch_hook.js'))),
     export_files: Object.fromEntries(['index.html', 'index.js', 'index.wasm', 'index.pck'].map(name => [name, manifest.files[name]]))
   }};
 }

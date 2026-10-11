@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { webcrypto, createHash } = require('node:crypto');
-const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '..'));
+const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '../..'));
 const shell = fs.readFileSync(path.join(root, 'platform/web/little_leaf_shell.html'), 'utf8');
 const report = { synthetic_only: true, scope: 'Actual legacy readers with read-only IDB fixture; no rendered-browser claim', checks: [] };
 const check = (condition, name) => { assert(condition, name); report.checks.push(name); };

@@ -125,7 +125,7 @@ def main():
         raise RuntimeError("Web template changed after existing gate")
     stages = []
     commands = [
-        ("sdk-contract", ["node", "tests/crazygames_storage.js", "--web-dir", str(project / "web")]
+        ("sdk-contract", ["node", "tests/persistence/crazygames_storage.js", "--web-dir", str(project / "web")]
          + (["--developer-preview"] if args.developer_preview else []), ROOT),
         ("import", [godot, "--headless", "--path", str(project), "--editor", "--import", "--quit"], ROOT),
         ("ack", [godot, "--headless", "--path", str(project), "--script", "res://tests/test_crazygames_ack.gd"], ROOT),

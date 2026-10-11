@@ -1,11 +1,11 @@
 'use strict';
-const {sourcePath}=require('./source_paths.js');
+const {sourcePath}=require('../source_paths.js');
 // CI-only real Chromium + exported Web check under Xvfb. Every browser context is fresh,
 // localhost-only, synthetic, and discarded. No security flags are disabled.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict'),cp=require('node:child_process');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const {installEngineLaunchHook}=require('./engine_launch_hook');
-const root=path.resolve(__dirname,'..');
+const {installEngineLaunchHook}=require('../engine_launch_hook');
+const root=path.resolve(__dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),output=arg('--output'),layoutFile=arg('--layout-report');
 if(!web||!output||!layoutFile)throw Error('--web-build, --output and --layout-report are required');
@@ -17,8 +17,8 @@ report.export_manifest_sha256=crypto.createHash('sha256').update(fs.readFileSync
 report.export_js_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'index.js'))).digest('hex');
 report.web_template_sha256=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json'),'utf8')).web_template_sha256;
 report.launch_hook_scope='Pass through the original feature check; wrap only the actual shell instance startup with official clock arguments';
-report.source_sha256['tests/engine_launch_hook.js']=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'engine_launch_hook.js'))).digest('hex');
-const sources={};for(const [key,file] of Object.entries({old:'tests/fixtures/inbox-vault-018.js',vault:'web/little_leaf_vault.js',markers:'web/little_leaf_inbox.js',suite:'tests/compensation_inbox_suite.js'})){sources[key]=fs.readFileSync(sourcePath(root,file),'utf8');report.source_sha256[file]=crypto.createHash('sha256').update(sources[key]).digest('hex');}
+report.source_sha256['tests/engine_launch_hook.js']=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../engine_launch_hook.js'))).digest('hex');
+const sources={};for(const [key,file] of Object.entries({old:'tests/fixtures/inbox-vault-018.js',vault:'web/little_leaf_vault.js',markers:'web/little_leaf_inbox.js',suite:'tests/persistence/compensation_inbox_suite.js'})){sources[key]=fs.readFileSync(sourcePath(root,file),'utf8');report.source_sha256[file]=crypto.createHash('sha256').update(sources[key]).digest('hex');}
 const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
 (async()=>{
  let browser,server,page;
@@ -58,7 +58,7 @@ const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
   check(report.storage.passed,'real IndexedDB/localStorage regression suite passes');
   // Seed the production namespace only inside this disposable test origin.
   // Use a real engine-loadable fixture with a verified synthetic legacy origin.
-  const payload=fs.readFileSync(path.join(__dirname,'fixtures/startup-retry-v15.json'),'utf8');
+  const payload=fs.readFileSync(path.join(__dirname,'../fixtures/startup-retry-v15.json'),'utf8');
   const seeded=await page.evaluate(async text=>{
    const raw=JSON.parse(text),old={...raw,version:13};delete old.layout_motion_format;
    await new Promise((resolve,reject)=>{const q=indexedDB.open('/userfs',21);q.onupgradeneeded=()=>q.result.createObjectStore('FILE_DATA');q.onsuccess=()=>{const db=q.result,tx=db.transaction('FILE_DATA','readwrite');tx.objectStore('FILE_DATA').put({contents:new Int8Array(new TextEncoder().encode(JSON.stringify(old)).buffer),mode:33188,timestamp:new Date(1000)},'/userfs/synthetic/little_leaf_cafe_v13.json');tx.oncomplete=()=>{db.close();resolve();};tx.onabort=()=>reject(tx.error);};q.onerror=()=>reject(q.error);});

@@ -53,7 +53,7 @@ snapshot data and must not be described as browser-persistence proof.
 
 ## Checks
 
-1. `node tests/compensation_inbox_storage.js` runs the production scripts against
+1. `node tests/persistence/compensation_inbox_storage.js` runs the production scripts against
    the explicit deterministic async transaction fixture. It includes the exact
    shipped 0.1.8 writer so paid history is tested without writing with the new code.
    This is synthetic storage-model evidence, not real browser evidence.
@@ -104,7 +104,7 @@ snapshot data and must not be described as browser-persistence proof.
 Example after the normal engine suite and Web export:
 
 ```
-PLAYWRIGHT_MODULE=/path/to/playwright xvfb-run -a node tests/compensation_inbox_browser.js \
+PLAYWRIGHT_MODULE=/path/to/playwright xvfb-run -a node tests/persistence/compensation_inbox_browser.js \
   --web-build /path/to/web \
   --layout-report /path/to/engine-evidence/test_compensation_inbox-result.json \
   --output /path/to/browser-evidence

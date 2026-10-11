@@ -5,9 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
 const crypto = require('node:crypto');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const {sourceVersion} = require('./source_paths');
-const {installEngineLaunchHook} = require('./engine_launch_hook');
-const root = path.resolve(__dirname, '..');
+const {sourceVersion} = require('../source_paths');
+const {installEngineLaunchHook} = require('../engine_launch_hook');
+const root = path.resolve(__dirname, '../..');
 const option = name => {
   const index = process.argv.indexOf(name);
   assert(index >= 0 && process.argv[index + 1], name + ' is required');
@@ -26,7 +26,7 @@ const logger = fs.readFileSync(path.join(root, 'platform/web/little_leaf_save_lo
 const vault = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
 const html = fs.readFileSync(path.join(web, 'index.html'), 'utf8');
 assert(html.includes(logger.trim()) && html.includes(vault.trim()), 'export embeds the exact diagnostic and vault sources');
-const payload = fs.readFileSync(path.join(__dirname, 'fixtures/startup-retry-v15.json'), 'utf8');
+const payload = fs.readFileSync(path.join(__dirname, '../fixtures/startup-retry-v15.json'), 'utf8');
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 const report = {synthetic_only: true, browser_sandbox: true, checks: [], app_version: version, export_sha256: {},
   ui_scope: 'Native-derived pointer input and actual clipboard contents; frozen simulation also freezes the timed Copying label refresh. Native UI tests cover feedback labels.'};
