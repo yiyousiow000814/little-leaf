@@ -67,7 +67,9 @@ func _position_notice():
  if not is_instance_valid(panel) or ui==null:return
  var view=game.get_viewport().get_visible_rect().size;var inset=ui.hud._safe_insets()
  var right=minf(view.x-inset.z-12,ui.hud.popup_right())
- panel.position=Vector2(maxf(inset.x+12,right-panel.size.x),minf(ui.hud.layout_host.get_global_rect().end.y+8,view.y-inset.w-panel.size.y-12))
+ var left=maxf(inset.x+12,right-panel.size.x)
+ if not ui.hud.layout_host.get_meta("mobile_layout",false):left=(view.x+inset.x-inset.z-panel.size.x)*.5
+ panel.position=Vector2(left,minf(ui.hud.layout_host.get_global_rect().end.y+8,view.y-inset.w-panel.size.y-12))
 func _later():
  if api==null or later_button.disabled:return
  api.dismiss(version)
