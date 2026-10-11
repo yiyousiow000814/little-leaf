@@ -1,4 +1,11 @@
-"""Shared disposable native UI flow; CLI entrypoints select resources and markers."""
+"""Shared native GL flow for run_build_tiles_ui.py and run_shell_segment_ui.py.
+
+CLI: --output EMPTY_DIRECTORY [--native] [--import-cache SOURCE_PROJECT] [--lock PATH].
+GODOT_BIN selects Godot 4.6.3; native mode uses DISPLAY or isolated Xvfb.
+Imported caches require exact SHA256 asset/import metadata and copied-cache
+verification; they do not establish a clean import. Generated profiles and
+staging protect player saves; source remains unchanged.
+"""
 import sys
 import argparse
 from contextlib import contextmanager
