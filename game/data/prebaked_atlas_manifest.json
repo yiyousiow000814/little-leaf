@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact scripts-final source ff240a959d3706c7b126f9874c371f1a2d915ff5/tree3902c155b648e9bb17ba4ba2df2d637aad38b87a; QA a0ac125b3865265d0d8208abbe38a4f8f54e2787; run38158662508; receiptSHA256 4fb420ffeedd5de010934d730295fb3cc2eb1a116a0c99296aa2f7cbe2e266f4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all883 raw Git inputs/120 mapped dependencies verified; candidate helper exactly three namespace preload substitutions, reverse byte-identical original; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR180 namespace source 9c3f35a0c576b92bd6fe8cb658c6872103d4997f/tree348fb0d9bfe591ce64d4ebb1a4c35b3826e45306; QA 80cf822a973c9e7b21e7b055bcc4bc4bd7595d79; run38164438351; receiptSHA256 bead4b1f298fb990b258b630de6e760cdbf3d4aa7850773de957a1809d9e76c4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all884 raw Git inputs/modes and120 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -101,7 +101,7 @@
     "scripts/rendering/waiter_tablet_art.gd": "41ae18add7fb4a7f188f8b76b69c51c7b527ad64c98f6ba44a856c23b203bd38",
     "scripts/ui/cafe_action_help.gd": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73",
     "scripts/ui/cafe_compact_ui.gd": "b294c2260b521b3f8b1b18ed7a8e7935714d7ad03eafeca68d7e7e3210eb41f0",
-    "scripts/ui/cafe_hud.gd": "ff7898d7a00a01f0bf96d91a193a8d5ed1d4e67c0feb6fd80ebfcac167ad5fe5",
+    "scripts/ui/cafe_hud.gd": "59cb6af52ca95fb750a31c9f778348b4f9f4deac06d39c317bff4f7ca1c95f51",
     "scripts/ui/cafe_inbox.gd": "0f4a2e8f7e96f9e7993e4c081eea89ecaabf56bb0c5f1ecc2446eb37d46a61aa",
     "scripts/ui/cafe_intro.gd": "0fbe17ba5ad1966a73800f0dc92b7f15d42a11badb4ef5ec8a02d8df2f5f558e",
     "scripts/ui/cafe_save_log_panel.gd": "e14629f3b4299c886aabf4e4e3c5187d1364e2297716747ccc14b1b0b6729e71",
