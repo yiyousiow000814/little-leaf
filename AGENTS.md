@@ -18,6 +18,7 @@ The second command is an example for janitor cleanup changes, not a default suit
 ## Edit boundaries and evidence
 
 - Keep changes minimal and within the requested scope. Coordinate active owners before implementation; include each stacked dependency delta once in one coherent related PR.
+- Before changing player-facing behavior, use the [Game Production Framework](docs/README.md#game-production-framework) and complete the proportionate [Feature Design Quality Gate](docs/design/README.md#feature-design-quality-gate) in the existing PR/design record. Reuse the canonical domain contracts and existing components; distinguish recorded requirements, unvalidated proposals, tested behavior and explicit user approval. Foundation documentation does not approve new Golden art/audio standards or gameplay, economy or save-policy changes.
 - Review code health while editing and at each small-version closeout, using the single [code-health checklist](docs/development/README.md#code-health-review). Keep cleanup readable, focused and behavior-preserving.
 - Title PRs `type: specific change`, without a version prefix. Apply the plain delivery-version label `0.1.10a` or `0.1.11`, using the earliest intended delivery confirmed by the roadmap and owner; list other affected versions in the body and report ambiguous scope rather than guessing. Use `fix`, `feat`, `refactor` or `docs`; use `test` only for independently meaningful testing changes. Keep related code, necessary tests and docs in one PR. Use GitHub Draft/Ready state rather than WIP/done in titles. Record roadmap IDs, changes, actual verification and remaining gaps in the body; link PRs from the canonical roadmap and update status on merge.
 - Protect original player saves, account/session ownership, cleanup and tutorial behavior. Use generated fixtures or copied saves in disposable profiles; never clear the user's browser storage or alter live Firebase rules without explicit authorization.
@@ -29,7 +30,7 @@ The second command is an example for janitor cleanup changes, not a default suit
 
 For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).
 
-For urgent fixes before the full 0.1.11 scope is complete, follow the approved [SHA prerelease policy](docs/release/README.md#urgent-011-prereleases); verify actual pipeline support and matching platform/source gates before publication. Gameplay acceptance is separate from cleanup merge authority.
+For urgent fixes before the full 0.1.11 scope is complete, follow the approved [SHA prerelease policy](docs/release/README.md#urgent-0111-prereleases); verify actual pipeline support and matching platform/source gates before publication. Gameplay acceptance is separate from cleanup merge authority.
 
 ## Performance and unchanged presentation
 
