@@ -1,4 +1,4 @@
-extends "res://tests/test_render_visibility.gd"
+extends "res://tests/rendering/test_render_visibility.gd"
 ## Compare the public traffic entry point with its authoritative car renderer.
 const Traffic=preload("res://scripts/ambient_road_traffic.gd")
 func _initialize():

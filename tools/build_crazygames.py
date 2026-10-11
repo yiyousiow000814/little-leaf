@@ -111,7 +111,7 @@ def main():
     web.mkdir(); evidence.mkdir()
     (project / "tests").mkdir(exist_ok=True)
     for name in ["test_crazygames_ack.gd", "test_platform_gameplay_gate.gd", "test_crazygames_autosave.gd"]:
-        shutil.copy2(ROOT / "tests" / name, project / "tests" / name)
+        shutil.copy2(ROOT / "tests/persistence" / name, project / "tests" / name)
     env = os.environ.copy()
     for key in ["APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
         folder = out / "synthetic-profile"
