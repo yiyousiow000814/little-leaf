@@ -868,7 +868,7 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 
 var playtest_draw_ms=0.0
 func objects_hidden()->bool:
-	return is_instance_valid(game) and game.compact_ui!=null and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
+	return is_instance_valid(game) and "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
 
 func _draw():
 	var playtest_started=Time.get_ticks_usec()
