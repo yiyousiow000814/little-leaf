@@ -58,6 +58,7 @@ class HostingTests(unittest.TestCase):
         self.package = self.root / 'variant';(self.package / 'public').mkdir(parents=True)
         for name in ['index.html','index.js','index.wasm','index.pck']:
             (self.package / 'public' / name).write_text(name)
+        (self.package / 'public/index.html').write_text('<!doctype html><script src="index.js"></script>')
         self.marker = {'schema_version': 1, 'source_commit': SHA, 'source_tree': TREE,
                        'ci_run_id': 'local', 'base_web_manifest_sha256': 'c' * 64}
         (self.package / 'public/hosting-release.json').write_text(json.dumps(self.marker))
@@ -94,6 +95,62 @@ class HostingTests(unittest.TestCase):
         api = FakeAPI()
         with self.assertRaises(ValueError): self.deploy(api)
         self.assertEqual(api.calls, [])
+
+    def rewrite_manifest(self):
+        self.manifest['files'] = {p.relative_to(self.package).as_posix(): hosting.digest(p)
+            for p in self.package.rglob('*') if p.is_file() and p.name != 'firebase-variant-manifest.json'}
+        path = self.package / 'firebase-variant-manifest.json'
+        path.write_text(json.dumps(self.manifest));self.hash = hosting.digest(path)
+
+    def test_live_refuses_preview_and_diagnostic_identity_before_network(self):
+        cases = [
+            ('manifest', 'production_release_eligible', False),
+            ('manifest', 'ancestor_origins', hosting.ANCESTORS),
+            ('manifest', 'runtime_origin', hosting.FIXTURE_ORIGIN),
+            ('marker', 'runtime_origin', hosting.FIXTURE_ORIGIN),
+            ('marker', 'test_surface', 'trusted-itch-frame'),
+            ('marker', 'diagnostic_only', True),
+            ('marker', 'auth_verification_only', True),
+            ('marker', 'game_start_allowed', False),
+        ]
+        for target, key, value in cases:
+            record = self.manifest if target == 'manifest' else self.marker
+            record[key] = value
+            (self.package / 'public/hosting-release.json').write_text(json.dumps(self.marker))
+            self.rewrite_manifest();api = FakeAPI()
+            with self.subTest(target=target, key=key), self.assertRaises(ValueError):
+                self.deploy(api)
+            self.assertEqual(api.calls, [])
+            self.assertFalse(self.output.exists())
+            del record[key]
+
+    def test_live_refuses_auth_only_html_even_with_retained_engine_files(self):
+        for html in [
+            '<!doctype html><p>Game and saves remain paused.</p>',
+            '<!-- <script src="index.js"></script> -->',
+            '<script src="index.js"></script><script>start({}, {"authVerificationOnly": true});</script>',
+            "<script src='index.js'></script><script>start({}, {authVerificationOnly:true});</script>",
+            '<script src="index.js"></script><script>start({}, {"surface":"trusted-itch-frame"});</script>',
+        ]:
+            (self.package / 'public/index.html').write_text(html)
+            self.rewrite_manifest();api = FakeAPI()
+            # Complete source/hash/binary provenance remains valid. Only live entry eligibility fails.
+            hosting.verify_package(self.package, SHA, self.hash)
+            with self.subTest(html=html), self.assertRaises(ValueError):self.deploy(api)
+            self.assertEqual(api.calls, [])
+            self.assertFalse(self.output.exists())
+
+    def test_live_accepts_normal_entry_and_shared_boot_module(self):
+        self.manifest['production_release_eligible'] = True
+        self.manifest['runtime_origin'] = hosting.ORIGIN.rstrip('/')
+        self.marker.update(diagnostic_only=False, auth_verification_only=False, game_start_allowed=True,
+                           runtime_origin=hosting.ORIGIN)
+        (self.package / 'public/hosting-release.json').write_text(json.dumps(self.marker))
+        (self.package / 'public/little_leaf_firebase_boot.mjs').write_text('function verifyAuthOnly() { return new Promise(() => {}); }')
+        (self.package / 'public/index.html').write_text("<script src='./index.js'></script><script>start({});</script>")
+        self.rewrite_manifest()
+        result = self.deploy(FakeAPI())
+        self.assertEqual(result['status'], 'published-pending-hosted-acceptance')
 
     def test_wrong_manifest_or_source_refused(self):
         for sha, digest in [('d'*40,self.hash),(SHA,'d'*64)]:
