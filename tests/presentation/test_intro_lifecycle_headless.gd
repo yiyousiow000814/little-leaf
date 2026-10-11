@@ -100,9 +100,15 @@ func check_live_motion_guards():
 	game.illustration.tile=Vector2(10,5)
 	var road_time=game.illustration.road_traffic.elapsed
 	var bus_time=game.illustration.bus_stop_pedestrians.elapsed
+	# Main owns the shared traffic tick; the renderer only observes it.
+	game._process(.25)
+	var accepted_road_time=game.model.road_traffic_state.elapsed
+	var accepted_bus_time=game.model.road_bus.elapsed
 	game.illustration._update_street_pedestrians(.25)
 	check(game.illustration.road_traffic.elapsed>road_time, "visible road traffic remains live in the descending scene")
 	check(game.illustration.bus_stop_pedestrians.elapsed>bus_time, "visible bus-stop people remain live in the descending scene")
+	check(game.illustration.road_traffic.elapsed==accepted_road_time and game.model.road_traffic_state.elapsed==accepted_road_time, "intro renderer observes the accepted road clock without double ticking")
+	check(game.illustration.bus_stop_pedestrians.elapsed==accepted_bus_time and game.model.road_bus.elapsed==accepted_bus_time, "intro renderer observes the accepted bus clock without double ticking")
 	game.illustration.origin=previous_origin;game.illustration.tile=previous_tile
 	# A generated visitor provides live position evidence, independent of arrival cadence.
 	game.model._spawn_customer()

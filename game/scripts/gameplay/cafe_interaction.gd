@@ -34,6 +34,7 @@ var _press_pointer = Vector2.ZERO
 var _previous_pointer = Vector2.ZERO
 var _press_item_id = -1
 var _press_parcel_id = ""
+var _press_parking = false
 var _press_selected_id = -1
 var _press_kind = ""
 var _press_editing = false
@@ -201,6 +202,7 @@ func _begin_left(screen: Vector2, device: int = 0):
 	_press_parcel_id = ""
 	_grab_offset = Vector2.ZERO
 	_gesture = "pending"
+	_press_parking = not game.editing and game.illustration.has_method("hit_parking_sign") and game.illustration.hit_parking_sign(screen)
 	if game.editing and _press_kind == "":
 		_press_item_id = game.illustration.hit_item(screen)
 		if _press_item_id < 0:
@@ -268,6 +270,9 @@ func _release_left(screen: Vector2):
 	if not _left_down: return
 	if _gesture == "drag":
 		if drag_valid: _commit_preview()
+	elif _gesture == "pending" and _press_parking and not game.editing and _point_in_view(screen) and not _over_ui(screen):
+		if game.illustration.hit_parking_sign(screen) and game.compact_ui!=null:
+			game.compact_ui.shop_ui.show_parking_purchase()
 	elif _gesture == "pending" and game.editing and _press_editing and _press_parcel_id != "" and _point_in_view(screen) and not _over_ui(screen):
 		if _hit_parcel(screen) == _press_parcel_id and game.has_method("_buy_parcel"):
 			game._buy_parcel(_press_parcel_id)
@@ -338,6 +343,7 @@ func _clear_gesture():
 		if not original.is_empty(): game.rotation_step = game.model.logical_rotation(int(original.id))
 	_left_down = false
 	_gesture = ""
+	_press_parking = false
 	_press_item_id = -1
 	_press_parcel_id = ""
 	_grab_offset = Vector2.ZERO

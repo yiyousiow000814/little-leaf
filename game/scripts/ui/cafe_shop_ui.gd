@@ -52,6 +52,7 @@ var parking_review:PanelContainer
 var parking_review_text:Label
 var parking_sell:Button
 var parking_cancel:Button
+var parking_purchase_review=false
 
 class ParkingIcon extends Control:
  func _draw():
@@ -243,20 +244,37 @@ func _setup_parking():
  parking_cancel=ui._small_button("Cancel",func():parking_review.hide();ui.sync(),80);actions.add_child(parking_cancel)
 func _parking_action_allowed()->bool:
  return game.editing and game.catalog_category=="Decor" and not game.save_recovery_blocked and not ui.viewport_too_small
+func show_parking_purchase():
+ if game.editing or game.model.parking_owned or game.save_recovery_blocked or ui.viewport_too_small or ui.has_open_popup():return
+ parking_purchase_review=true
+ ui._popup_at(parking_review,320);_sync_parking_review();ui.sync()
 func _choose_parking():
- if not _parking_action_allowed() or ui.has_open_popup():return
- game._cancel_selection()
- if game.model.parking_owned:
-  ui._popup_at(parking_review,320);_sync_parking_review();ui.sync();return
- if game.model.buy_parking():game._update_ui();game._save()
- else:ui.sync()
+ if not _parking_action_allowed() or ui.has_open_popup() or not game.model.parking_owned:return
+ game._cancel_selection();parking_purchase_review=false
+ ui._popup_at(parking_review,320);_sync_parking_review();ui.sync()
 func _sell_parking():
+ if parking_purchase_review:
+  if not parking_review.visible or game.editing or game.save_recovery_blocked or ui.viewport_too_small or game.model.parking_owned:return
+  if game.model.buy_parking():
+   parking_review.hide();game._update_ui();game._save();game.illustration.queue_redraw()
+  else:_sync_parking_review();ui.sync()
+  return
  if not parking_review.visible or not _parking_action_allowed() or not game.model.parking_owned or not game.model.parking_visits.is_empty():return
  if game.model.sell_parking():
   parking_review.hide();game._cancel_selection();game._update_ui();game._save()
  else:_sync_parking_review();ui.sync()
 func _sync_parking_review():
  if not parking_review.visible:return
+ if parking_purchase_review:
+  if game.editing or game.model.parking_owned:parking_review.hide();return
+  var price=int(game.model.parking_price());var shortfall=maxi(0,price-int(game.model.coins))
+  parking_review_text.text="Unlock four fixed parking bays here for %s coins.\n\nEach car brings 1–4 restaurant visitors who return to the same car."%ui.Money.amount(price)
+  if shortfall>0:parking_review_text.text+="\n\nNeed %s more %s."%[ui.Money.amount(shortfall),"coin" if shortfall==1 else "coins"]
+  if game.save_recovery_blocked:parking_review_text.text+="\n\nResolve save recovery before buying."
+  parking_sell.text="Buy "+ui.Money.amount(price)
+  parking_sell.disabled=shortfall>0 or game.save_recovery_blocked or ui.viewport_too_small
+  parking_sell.tooltip_text="Buy four bays at this fixed location";parking_sell.accessibility_description=parking_sell.tooltip_text
+  return
  if not game.editing or game.catalog_category!="Decor" or not game.model.parking_owned:parking_review.hide();return
  var occupied=game.model.parking_visits.size();var refund=int(game.model.parking_refund())
  var reason="Wait until all cars have left before selling." if occupied>0 else "Sell this fixed upgrade for %s coins."%ui.Money.amount(refund)
@@ -268,7 +286,7 @@ func _sync_parking_review():
  parking_sell.disabled=occupied>0 or game.save_recovery_blocked or ui.viewport_too_small
  parking_sell.tooltip_text=reason;parking_sell.accessibility_description=reason
 func _sync_parking_card():
- parking_card.visible=game.catalog_category=="Decor"
+ parking_card.visible=game.catalog_category=="Decor" and game.model.parking_owned
  var owned=bool(game.model.parking_owned);var occupied=game.model.parking_visits.size()
  var shortfall=maxi(0,int(game.model.parking_price())-int(game.model.coins))
  parking_price.text="Owned" if owned else ui.Money.amount(game.model.parking_price());parking_coin.visible=not owned

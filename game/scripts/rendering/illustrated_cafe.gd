@@ -277,6 +277,7 @@ func _ground_cell_visible(x: float,z: float,view: Rect2) -> bool:
 	return Rect2(center-tile,tile*2).intersects(view)
 
 func _ready():
+	_sync_bus_controller()
 	ground_art.use_stroke_mesh="--retained-ground-strokes" in OS.get_cmdline_user_args() and not "--legacy-ground-strokes" in OS.get_cmdline_user_args()
 	use_grass_mesh=not "--legacy-grass-strokes" in OS.get_cmdline_user_args()
 	use_cached_moving_art=not "--legacy-moving-art" in OS.get_cmdline_user_args()
@@ -316,7 +317,13 @@ func _process(delta):
 		if game.save_recovery_blocked or (game.compact_ui!=null and game.compact_ui.viewport_too_small):motion_delta=0.0
 	update_motion(motion_delta)
 	if not use_idle_retention or render_idle.needs_redraw(self):queue_redraw()
+func _sync_bus_controller():
+	# Drawing may precede processing after startup, successful load or reset.
+	# Synchronize only the reference; the existing model tick owns progress.
+	if is_instance_valid(game) and game.model!=null and "road_bus" in game.model:
+		bus_stop_pedestrians=game.model.road_bus
 func _update_street_pedestrians(delta:float):
+	_sync_bus_controller()
 	if not is_instance_valid(game):return
 	var active=not game.editing and not game.paused and not game.save_recovery_blocked
 	if game.cafe_intro!=null and game.cafe_intro.active:delta=game.cafe_intro.motion_delta(delta)
@@ -326,8 +333,12 @@ func _update_street_pedestrians(delta:float):
 	for visitor in game.model.outside_queue:
 		if float(visitor.x)>-2.4:queue_positions.append(Vector2(float(visitor.x),float(visitor.z)))
 	street_pedestrians.advance(step,queue_positions)
-	road_traffic.advance(step,origin,tile,render_view_rect())
-	bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
+	if "road_traffic_state" in game.model:
+		road_traffic.cars.assign(game.model.road_traffic_state.cars);road_traffic.elapsed=float(game.model.road_traffic_state.elapsed)
+	else:road_traffic.advance(step,origin,tile,render_view_rect())
+	if "road_bus" in game.model:
+		bus_stop_pedestrians.observe_traffic_motion(step,origin,tile,render_view_rect())
+	else:bus_stop_pedestrians.advance(step,origin,tile,render_view_rect())
 	street_pedestrians.observe_customers(game.model.customers,step,game.model.WALK_SPEED,_parking_visits())
 	street_pedestrians.update_motion(step,origin,tile,render_view_rect())
 
@@ -345,7 +356,7 @@ func _draw_street_people(show_service:bool):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,render_view_rect()) if show_service else []
-	entries.append_array(Neighborhood.parking_cars(_parking_visits()))
+	if show_service:entries.append_array(Neighborhood.parking_cars(_parking_visits()))
 	for guest in game.model.visual_customers():
 		if not show_service:break
 		if (float(guest.x)>=0 and float(guest.z)>=0) or str(guest.phase) in ["dirty","cleaning"]:continue
@@ -366,7 +377,10 @@ func _draw_street_people(show_service:bool):
 		var face=float(facing.mirror)
 		art_transform(iso(entry.position.x,entry.position.y),0,Vector2(face,1)*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
-		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
+		if actor.has("parking_door_plane"):
+			preload("res://scripts/rendering/parking_passenger_portal.gd").draw(self,Vector2.ZERO,int(actor.id),pose.blend>.02,pose,heading,actor.parking_door_plane)
+		else:
+			character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
 
 func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
@@ -774,6 +788,8 @@ func art_line(start:Vector2,finish:Vector2,tint:Color,width:float):
 		art_draw_line(_stroke_to_raster*start,_stroke_to_raster*finish,tint,width*raster_scale,true)
 	art_draw_set_transform_matrix(_art_transform)
 
+func poly_fill(points:Array,c):
+	_retained_fill(PackedVector2Array(points),col(c))
 func poly(points: Array,c):
 	var vertices=PackedVector2Array(points)
 	var tint=col(c)
@@ -868,6 +884,7 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 
 var playtest_draw_ms=0.0
 func _draw():
+	_sync_bus_controller()
 	var playtest_started=Time.get_ticks_usec()
 	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
 	retained_geometry.begin_frame()
@@ -930,8 +947,9 @@ func _draw():
 		if use_batched_ground:ground_art.draw_pavement(self)
 		else:_draw_legacy_pavement(ground_view)
 		Neighborhood.draw_crossing(self,_parking_owned())
-	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),_draw_bus_stop_people.bind(false,show_service))
-	road_traffic.draw(self)
+	Neighborhood.draw_props(self,_draw_bus_stop_people.bind(true,show_service),Callable(),show_service,bus_stop_pedestrians.draw_bus.bind(self,_draw_bus_stop_people.bind(false,show_service)))
+	if show_service:road_traffic.draw(self)
+	preload("res://scripts/world/cafe_parking_sign.gd").draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground(hovered_parcel)
@@ -1371,6 +1389,10 @@ func _parcel_sign(parcel):
 		poly([Vector2(32,-43),Vector2(39,-43),Vector2(39,-37),Vector2(32,-37)],"8b876b")
 		line(Vector2(33,-43),Vector2(33,-46),"8b876b",1.4);line(Vector2(33,-46),Vector2(38,-46),"8b876b",1.4);line(Vector2(38,-46),Vector2(38,-43),"8b876b",1.4)
 	art_transform(Vector2.ZERO)
+func hit_parking_sign(screen:Vector2)->bool:
+	update_projection()
+	return preload("res://scripts/world/cafe_parking_sign.gd").hit(self,screen)
+
 func hit_parcel(screen:Vector2) -> String:
 	if not is_instance_valid(game) or not game.editing or not game.model.has_method("expansion_parcels"):return ""
 	update_projection()
