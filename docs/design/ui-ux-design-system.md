@@ -83,6 +83,36 @@ declared policy; blocking operations may legitimately defer them. A screenshot,
 emitted signal or synthetic touch event does not establish physical-device or
 screen-reader acceptance.
 
+## World-space text and scale readability
+
+Classify scene text by the information it carries: required prices, quantities,
+road/navigation labels and interaction instructions must be readable where the
+player makes the decision; decorative lettering must not carry their only copy.
+Inventory essential text and its source of truth before changing a sign. Keep
+the price/count and action purpose available through an existing themed details
+surface, with touch and keyboard discovery, rather than relying only on hover.
+If a physical sign cannot hold the necessary information, simplify its world
+copy and expose the detail there while preserving the object's proportions.
+Making every object larger or every label bold is not a readability fix.
+
+Check actual text at minimum, normal and maximum supported zoom. Evaluate font
+size/weight, contrast, hierarchy, spacing, edge clarity and background together.
+Visual scale and rendering diagnosis belong to the named pending canonical
+contract `docs/art-audio/ART_BIBLE.md#world-space-text-and-scale-readability`
+([Art Bible, PR187](https://github.com/yiyousiow000814/little-leaf/pull/187)); use
+its relative link once the foundation is composed. Distinguish a design problem
+from font rendering, texture filtering, cache or zoom-path faults before choosing
+the smallest fix; preserve existing theme and interaction semantics.
+
+The first audit case is the parking sign's "FOR SALE" / "4 parking bays" copy,
+followed by the scoped inventory of other essential scene text. Establish the
+screenshot's build/source and exact draw path first; an unbound screenshot is
+an observed example, not proof about a particular commit. A proposed repair needs
+actual Godot before/after frames with matched camera/state at normal and enlarged
+zoom, minimum-scale QA, and affected Web text-clarity/performance evidence. These
+are acceptance gates for that repair, not authorization to edit or recapture the
+whole scene. The current standards addition approves no new game pixels.
+
 ## Repeated and interrupted actions
 
 Describe ready, busy, success, failure and unavailable states before changing the
