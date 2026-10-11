@@ -172,7 +172,13 @@ class WorkflowTests(unittest.TestCase):
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
         self.assertNotIn('id-token:', text)
-        self.assertEqual(text.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 2)
+        diagnostic, publishing = text.split('  gate:', 1)
+        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 2)
+        self.assertEqual(diagnostic.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
+        self.assertIn("github.event_name == 'workflow_dispatch'", diagnostic)
+        self.assertIn("github.ref == 'refs/heads/main'", diagnostic)
+        self.assertNotIn('publish_itch.py', diagnostic)
+        self.assertIn('github.event.created && !github.event.deleted', publishing)
 
 
 if __name__ == '__main__':
