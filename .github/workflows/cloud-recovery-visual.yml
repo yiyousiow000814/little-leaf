@@ -35,7 +35,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install existing checksum-pinned official engine
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/panel-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/panel-tools"
       - name: Prepare Ubuntu native software renderer
         run: |
           sudo apt-get update

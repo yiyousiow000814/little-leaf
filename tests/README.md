@@ -21,7 +21,7 @@ The canonical engine runner owns the stable suite IDs and result markers in
 starts. The runner resolves each ID to one `test_*.gd` resource beneath `tests/`,
 so organizing a suite does not rename its CLI ID, logs or result receipts.
 Duplicate IDs/resources and missing explicitly selected suites fail before
-staging. `tools/engine_shards.py` imports the same canonical list; do not add a
+staging. `tools/ci/engine_shards.py` imports the same canonical list; do not add a
 second runner or suite registry. Update direct resource consumers atomically
 when moving a suite, and retain its `.uid`.
 

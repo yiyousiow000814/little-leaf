@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 STAFF = ['empty-profile', 'fresh', 'saved-load', 'standalone-load', 'bad-load']
 
 

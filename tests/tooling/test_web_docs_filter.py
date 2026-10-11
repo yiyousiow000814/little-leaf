@@ -8,7 +8,7 @@ import unittest
 import os
 import subprocess
 import tempfile
-from pr_ci_scope import classify, lightweight_diff, lightweight_gate, allowed
+from ci.pr_ci_scope import classify, lightweight_diff, lightweight_gate, allowed
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -75,7 +75,7 @@ class PrScopeTests(unittest.TestCase):
         self.assertFalse(lightweight_diff(b""))
         for path in ("game/scripts/main.gd", "platform/web/local.js", "assets/NOTICE.md",
                      "docs/art-audio/third-party/NOTICE.md", "tools/publish_itch.py",
-                     "tools/pr_ci_scope.py", "tools/toolchain.json", ".github/workflows/ci.yml",
+                     "tools/ci/pr_ci_scope.py", "tools/ci/toolchain.json", ".github/workflows/ci.yml",
                      "docs/design/reference.svg", "docs/../game/main.md", "docs/qa\nname.md"):
             self.assertFalse(lightweight_diff(self.raw(path)), path)
             self.assertFalse(lightweight_diff(self.raw("README.md") + self.raw(path)), path)
@@ -139,7 +139,7 @@ class PrScopeTests(unittest.TestCase):
         for job in ("engine", "historical", "build"):
             self.assertIn(f"  {job}:\n    if: needs.guard.outputs.scope != 'lightweight'", workflow)
         self.assertIn("    if: always()\n    needs: [guard, engine, historical, build, browser, compatibility, firebase]", workflow)
-        self.assertIn("python3 tools/pr_ci_scope.py --check-lightweight-gate", workflow)
+        self.assertIn("python3 tools/ci/pr_ci_scope.py --check-lightweight-gate", workflow)
         self.assertIn('for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done', workflow)
         self.assertIn('test -n "$WEB_ARTIFACT"', workflow)
         self.assertIn("python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v", workflow)
