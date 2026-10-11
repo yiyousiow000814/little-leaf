@@ -27,6 +27,14 @@ COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_
     '.github/workflows/deploy-firebase.yml']
 
 
+def publication_attempt(value):
+    # GITHUB_RUN_ATTEMPT is a string in publisher receipts; the API uses an int.
+    if type(value) is str and re.fullmatch(r'[1-9][0-9]*', value):
+        value = int(value)
+    require(type(value) is int and value > 0, 'Invalid canonical publication attempt')
+    return value
+
+
 def manual_context(selection, environment, run, attempt):
     publication = selection.get('publication', {})
     require(type(publication.get('itch_channel_version')) is int
@@ -73,10 +81,11 @@ def validate_origin(manifest, origin):
         and origin.get('source_is_coordinator_ancestor') is True,
         'Fresh API coordinator/source identity evidence required')
     q = manifest['manual_live_reuse']['qualification']; publication = manifest['manual_live_reuse']['publication']
-    require(origin.get('publication_and_qualification') == {
+    require(type(origin.get('publication_and_qualification', {}).get('release_attempt')) is int
+        and origin.get('publication_and_qualification') == {
         'qualification_run_id': q['qualification_run_id'], 'qualification_attempt': q['qualification_attempt'],
         'artifact_id': q['artifact_id'], 'artifact_digest': q['artifact_digest'],
-        'release_run_id': context['release_run_id'], 'release_attempt': publication['workflow_attempt'],
+        'release_run_id': context['release_run_id'], 'release_attempt': publication_attempt(publication.get('workflow_attempt')),
         'source_commit': manifest['source_commit'], 'release_tag': publication['tag']},
         'Current completed publication and mandatory main gates must be revalidated')
 
@@ -106,7 +115,7 @@ def authenticate_origin(api, manifest, origin):
     release = api.read('actions/runs/' + str(manifest['manual_live_reuse']['context']['release_run_id']))
     trusted_run(release, '.github/workflows/release-itch.yml')
     require(release['head_sha'] == source and release.get('head_branch') == publication['tag']
-        and release['run_attempt'] == publication['workflow_attempt'] and peel(api, publication['tag']) == source,
+        and release['run_attempt'] == publication_attempt(publication.get('workflow_attempt')) and peel(api, publication['tag']) == source,
         'Completed publication source/tag/attempt became stale')
     publishes = [job for job in api.pages(f"actions/runs/{release['id']}/attempts/{release['run_attempt']}/jobs", 'jobs')
                  if job.get('name') == 'publish']
