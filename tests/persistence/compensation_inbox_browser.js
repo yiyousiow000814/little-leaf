@@ -4,7 +4,7 @@ const {sourcePath}=require('../source_paths.js');
 // localhost-only, synthetic, and discarded. No security flags are disabled.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict'),cp=require('node:child_process');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const {installEngineLaunchHook}=require('../engine_launch_hook');
+const {installEngineLaunchHook}=require('../tooling/engine_launch_hook');
 const root=path.resolve(__dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);return i<0?null:path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),output=arg('--output'),layoutFile=arg('--layout-report');
@@ -17,7 +17,7 @@ report.export_manifest_sha256=crypto.createHash('sha256').update(fs.readFileSync
 report.export_js_sha256=crypto.createHash('sha256').update(fs.readFileSync(path.join(web,'index.js'))).digest('hex');
 report.web_template_sha256=JSON.parse(fs.readFileSync(path.join(web,'release-manifest.json'),'utf8')).web_template_sha256;
 report.launch_hook_scope='Pass through the original feature check; wrap only the actual shell instance startup with official clock arguments';
-report.source_sha256['tests/engine_launch_hook.js']=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../engine_launch_hook.js'))).digest('hex');
+report.source_sha256['tests/tooling/engine_launch_hook.js']=crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'../tooling/engine_launch_hook.js'))).digest('hex');
 const sources={};for(const [key,file] of Object.entries({old:'tests/fixtures/inbox-vault-018.js',vault:'web/little_leaf_vault.js',markers:'web/little_leaf_inbox.js',suite:'tests/persistence/compensation_inbox_suite.js'})){sources[key]=fs.readFileSync(sourcePath(root,file),'utf8');report.source_sha256[file]=crypto.createHash('sha256').update(sources[key]).digest('hex');}
 const check=(ok,name)=>{assert(ok,name);report.checks.push(name);};
 (async()=>{

@@ -10,7 +10,7 @@ COMMANDS={'adapter.log':['node','tests/persistence/firebase_storage.js'],
  'update-notice.log':['node','tests/presentation/update_notice.js'],
  'recovery-presentation.log':['node','tests/persistence/firebase_recovery_presentation.js'],
  'recovery-browser.log':['node','tests/persistence/firebase_recovery_browser.js'],
- 'staging-tests.log':[sys.executable,'tests/test_firebase_build.py'],
+ 'staging-tests.log':[sys.executable,'tests/tooling/test_firebase_build.py'],
  'rules.log':['npm','--prefix','platform/firebase','run','test:rules']}
 def run(name,output):
     output.mkdir(parents=True,exist_ok=True)
