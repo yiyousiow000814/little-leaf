@@ -6,7 +6,7 @@ func _initialize():
 func run():
  if output=="":output=ProjectSettings.globalize_path("res://evidence/native")
  DirAccess.make_dir_recursive_absolute(output)
- var painter=load("res://tests/chef_hat_review_painter.gd").new()
+ var painter=load("res://tests/fixtures/chef_hat_review_painter.gd").new()
  root.add_child(painter)
  for frame in range(30):await process_frame
  for species in range(3):

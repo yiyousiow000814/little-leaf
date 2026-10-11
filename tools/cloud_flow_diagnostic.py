@@ -10,7 +10,7 @@ def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def unsupported_changes(paths):
  unsupported=[]
  for p in paths:
-  if p=='tests/probe_cloud_recovery_geometry.gd':continue
+  if p in ('tests/probe_cloud_recovery_geometry.gd','tests/diagnostics/probe_cloud_recovery_geometry.gd'):continue
   if p in RUNTIME or p.startswith(('firebase/','tools/','.github/workflows/')):continue
   if p.startswith('tests/') and p.endswith('.js') and p!='tests/engine_launch_hook.js':continue
   unsupported.append(p)

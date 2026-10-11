@@ -36,7 +36,8 @@ def main():
     candidate = output / "candidate-project"
     stage_project(ROOT, candidate, tests=True, ignore=shutil.ignore_patterns(
         ".git", ".godot", "qa-project", "__pycache__", "evidence", "*.log"))
-    shutil.copy2(ROOT / "tests/queue_backward_fixture.gd", baseline / "tests/queue_backward_fixture.gd")
+    shutil.copy2(ROOT / "tests/fixtures/queue_backward_fixture.gd", baseline / "tests/queue_backward_fixture.gd")
+    shutil.copy2(ROOT / "tests/fixtures/queue_backward_fixture.gd", candidate / "tests/queue_backward_fixture.gd")
     report = {"baseline_commit": BASE, "candidate_commit": subprocess.check_output(
         [*git, "rev-parse", "HEAD"], text=True).strip(), "headless_only": True,
         "player_save_used": False, "runs": []}
