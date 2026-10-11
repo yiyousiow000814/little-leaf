@@ -39,15 +39,15 @@ Historical studies under this directory retain their dates and approval limits.
 Where they conflict with newer explicit user direction, record the discrepancy
 and obtain the scoped evidence; do not treat an old document as new approval.
 
-The renderer owner is preparing `docs/development/depth-occlusion.md`, the
-World Depth & Occlusion Contract. Its architecture is **Pending validation**;
-add a navigable link only after the actual file and source have been verified.
-It will own anchors/world projection, footprint versus occlusion region,
-deterministic depth and part order, Play/Decorate/Preview agreement and cache
-consistency. Initial actor/tree continuous paths and Decorate table/chair drag
-cases in four directions precede rollout. Do not invent blanket YSort rules,
-magic offsets or a renderer rewrite here. Art approval cannot excuse depth
-regressions. Any diagnostic anchor/order overlay stays developer-only.
+The renderer-owned canonical home is `docs/development/depth-occlusion.md`.
+Its [verified foundation draft](https://github.com/yiyousiow000814/little-leaf/blob/e3a71b24ca220bc27bb4abbd13fbdaee88e9ecfe/docs/development/depth-occlusion.md)
+records anchors, footprint versus occluding parts, pass/native order and cache
+ownership, bounded actor/tree and Decorate observations, and remaining cases.
+The document is not yet on main; PR189's renderer fix still requires user visual
+approval. Use the pinned draft until the canonical file lands, then replace this
+source link with a relative link. Do not invent blanket YSort rules, magic offsets
+or a renderer rewrite. Art approval cannot waive depth regressions, and a scoped
+observation cannot certify every scene. Diagnostics remain developer-only.
 
 ## Two different visual gates
 
@@ -164,9 +164,17 @@ effort/runtime cost are not measurements or assignments to redraw all categories
 | --- | --- |
 | Inkscape for static props | Preferred proposed route for the Bus Stop. The bus owner's bounded installation/GUI audit has not proved editable save, reopen or transparent export. Qualify the actual executable/version and supported GUI before claiming readiness. No installation is authorized by this document. |
 | Browser vector editor | Bus phase-one report records real Method Draw GUI creation/editing and pixel inspection; save/reopen and transparent PNG attempts yielded no retrievable files, and the exact app version is unknown. The graphical production pipeline is not operationally proven. This is partial capability evidence, not a production asset. |
-| Figma | Account research reports View/Starter, not proven agent-write access. The [official write-to-canvas documentation](https://developers.figma.com/docs/figma-mcp-server/write-to-canvas/) checked 2026-10-11 requires a Full seat and appropriate edit permission. This does not authorize an upgrade, promise production access, or equate UI capture with the requested authoring proof. Recheck exact capabilities if this route is later selected. |
+| Figma | A bounded 2026-10-11 fixture on the existing Starter/View account proved authenticated connected-plugin node editing, persistence through a separate API reopening, and transparent node export. The unsigned browser GUI remained unable to edit; interactive GUI reopening and an offline `.fig` backup are unverified. This is one cloud/API route, not general seat entitlement, complex-art production proof or permission for an upgrade. |
 | Blender | Preserve the separate paused character lane. Do not impose it on all six categories or reopen characters to demonstrate this system. |
 | Existing painters / other suitable art software | Keep existing editable GDScript and simple procedural tiles/markings where appropriate. Other user-approved software can be qualified for its asset type. The Bus Stop request specifically requires genuine drawing-software authoring; more generated polygon/SVG code does not demonstrate that workflow. |
+
+The Figma capability fixture is a single editable swatch, not a Bus Stop asset.
+The generic asset download was opaque and rejected; the targeted node export was
+256×256 RGBA with verified transparency, SHA256
+`43c53def07031c763dd5832ee3ddc418879fe5f7bd648a8e022377c3c4e3cafe`.
+Retain both receipts; Plugin API 1.0.0 is not an application release number.
+The qualified cloud/API route does not prove the requested graphical-authoring
+workflow or native editable-file recovery, and grants no Golden approval.
 
 For new or changed visual assets or an authoring/export toolchain change,
 prove the selected workflow with a small disposable GUI-authored sample: save

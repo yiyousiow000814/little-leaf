@@ -22,11 +22,12 @@ after motion/zoom. Preserve shelter back/people/front layering and existing
 character pauses. Record the basic-chair source discrepancy as Pending actual
 pixel audit unless that scoped audit has been performed; do not repair it here.
 
-For Occlusion QA, defer architecture to the renderer-owned
-`docs/development/depth-occlusion.md` after its actual file/source is verified.
-Its initial actor/tree continuous paths and Decorate table/chair four-direction
-drag cases precede rollout. Keep those gates Pending until evidenced; art
-approval cannot waive depth regressions. The Bible owns the pending reference.
+For Occlusion QA, use the renderer-owned [depth contract](https://github.com/yiyousiow000814/little-leaf/blob/e3a71b24ca220bc27bb4abbd13fbdaee88e9ecfe/docs/development/depth-occlusion.md).
+Its canonical home `docs/development/depth-occlusion.md` awaits main integration.
+Check its actual-order/continuous-frame evidence and explicit open cases, including
+relevant actor/tree crossings and Decorate rotations. Existing bounded observations
+are not all-scene acceptance or PR189 user approval. Art approval cannot waive a
+depth regression; the Bible retains the source reference and approval limits.
 
 Apply the [performance contract](../../../docs/testing/rendering-performance.md)
 to a representative candidate/control sample. Check the measured surface,
