@@ -270,11 +270,11 @@ jobs:
       - name: Read existing release and finalized version only
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/read_firebase_hosting_config.py --output "$RUNNER_TEMP/hosting-readonly/baseline.json"
-      - name: Retain configuration and rollback identity without credentials
+        run: python3 tools/read_firebase_hosting_config.py --output "$RUNNER_TEMP/hosting-readonly/summary.json"
+      - name: Retain only allowlisted hashes and fixed checks without raw configuration
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-hosting-readonly-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/hosting-readonly/baseline.json
+          path: ${{ runner.temp }}/hosting-readonly/summary.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 1
