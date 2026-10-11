@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact wall-form source c10ad13e3ad3985ac7576fd91e354f940321dabc/tree383087e512b65f92ab7ae635e4f5799fc8bb0983; QA 3fc355df6facf3cfb97cf0f3ed5f8b695b42b629; run38106774168; receiptSHA256 fb67936cc9bd8c4bb34c1fbda58be2c81df6d8261cd634aefcda0a1a62495d8f; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact build-preview source b47ac24afa40b99ceab0fc51bd887f88c8557f79/treeff95b15c020d9c9877b38f4816c5720d185de12b; QA d2be4244d197afb34478eaa5384fceff5adaacc3; run38109673629; receiptSHA256 bf1b305484d29f2e34b57d257ef5bc5c7fdc5a4afeca05674f7532a377fb3939; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -20,7 +20,7 @@
     "scripts/cafe_autosave_policy.gd": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d",
     "scripts/cafe_background_cache.gd": "71df38bdcb4da4ce17b8f2cff1166eb8f85358ba12b5098b35ad0c5bbbb54210",
     "scripts/cafe_background_native.gd": "37807975c261b55798441478a4069583fa9ce747342ef82773e6f03ef015d796",
-    "scripts/cafe_build_tools.gd": "abe5d5bc88728e9fc561dca52ff64b9fd4dff5da22bf126548963ae2c07bd31c",
+    "scripts/cafe_build_tools.gd": "22dd5db40f0435cf14c7e8b588c77d47be6e811cf27286c9240a5fec034f0e27",
     "scripts/cafe_camera_bounds.gd": "d0c5b04018248bce592d52d4608cc96da0db823d18f35ceb92d583b6496621e7",
     "scripts/cafe_camera_gestures.gd": "bf4c42878341f64377dea5daf065bfa321cf7d9273ae22acac760b433422b667",
     "scripts/cafe_camera_landmarks.gd": "5d159d8855449d33188e83cf818cd36f2cb66e173a2bf2e9e1a17bacc898e0b8",
