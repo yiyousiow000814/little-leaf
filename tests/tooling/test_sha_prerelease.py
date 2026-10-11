@@ -25,7 +25,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 const root=process.argv[1],fixture=fs.readFileSync(path.join(root,'platform/firebase/fullflow.test.mjs'),'utf8');
 const loaded=fixture.match(/^const loadedRelease=.*;$/m),mutable=fixture.match(/^let release=\{\.\.\.loadedRelease\};$/m);
 assert(loaded&&mutable,'fixture must separate loaded identity from mutable endpoint');
-const context=vm.createContext({manifest:{version:'0.1.11-pre.aaaaaaaa',source_commit:'a'.repeat(40)},config:{projectId:'synthetic'}});
+const context=vm.createContext({manifest:{version:'0.1.11-pre.aaaaaaaa',source_commit:'a'.repeat(40)},config:{projectId:'synthetic'},itchVariant:null});
 vm.runInContext(loaded[0]+'\n'+mutable[0]+"\nrelease.version='99.0.0';",context);
 const expression=fixture.match(/^const injection=(.*);$/m);assert(expression,'actual fixture injection required');
 const injection=vm.runInContext(expression[1],context);
