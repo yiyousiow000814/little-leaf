@@ -33,6 +33,7 @@ SUITES = [
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
@@ -232,7 +233,7 @@ def main():
             stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
             # entirely inside this disposable copy, without changing delivered source.
-            controller = project / "scripts/cafe_web_save.gd"
+            controller = project / "scripts/persistence/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
             assert old in code, "Review native staging adaptation after source changes"

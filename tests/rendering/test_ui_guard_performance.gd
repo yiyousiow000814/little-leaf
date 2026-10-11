@@ -1,6 +1,6 @@
 extends SceneTree
 ## Generated cafe only; compare the exact frozen baseline guard on real controls.
-const Shop=preload("res://scripts/cafe_shop_ui.gd")
+const Shop=preload("res://scripts/ui/cafe_shop_ui.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():return true

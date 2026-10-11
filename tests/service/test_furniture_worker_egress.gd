@@ -1,7 +1,7 @@
 extends SceneTree
 ## Live worker route/body guard through model mutations and native edit input.
 ## All fixtures and save calls are isolated; no player profile is loaded/written.
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const CENTER=Vector2(3.5,3.5)
 class TestMain extends "res://scripts/main.gd":
  var save_calls=0

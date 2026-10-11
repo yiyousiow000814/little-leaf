@@ -1,7 +1,7 @@
 extends SceneTree
 ## Real shop controls and floor input transactions, using generated data only.
-const Model=preload("res://scripts/cafe_model.gd")
-const NoBottom=preload("res://tests/no_bottom_notifications.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

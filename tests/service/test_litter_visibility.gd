@@ -1,8 +1,8 @@
 extends SceneTree
-const Geometry=preload("res://scripts/cafe_floor_geometry.gd")
+const Geometry=preload("res://scripts/rendering/cafe_floor_geometry.gd")
 const LegacyGeometry=preload("res://tests/fixtures/litter_art_v2/cafe_floor_geometry.gd")
 const AcceptedArt=preload("res://tests/fixtures/litter_art_v6/floor_mess_art.gd")
-const Art=preload("res://scripts/floor_mess_art.gd")
+const Art=preload("res://scripts/rendering/floor_mess_art.gd")
 class Recorder extends RefCounted:
  var ui_scale=1.0
  var zoom=1.0

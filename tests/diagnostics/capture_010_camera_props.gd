@@ -4,7 +4,7 @@ class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():saves+=1;return true
-class Props extends "res://scripts/illustrated_cafe.gd":
+class Props extends "res://scripts/rendering/illustrated_cafe.gd":
  func _ready():set_process(false)
  func _process(_delta):pass
  func _draw():

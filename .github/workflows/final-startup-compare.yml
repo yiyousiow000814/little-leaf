@@ -43,7 +43,7 @@ jobs:
           git diff --exit-code
           git -C baseline diff --exit-code
       - name: Install checksum-pinned official engine and Web template
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/descent-tools"
       - name: Export symmetric final10a and immutable-base diagnostic controls
         env:
           EXPECTED_HEAD: ${{ github.sha }}

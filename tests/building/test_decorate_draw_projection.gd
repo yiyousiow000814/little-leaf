@@ -1,6 +1,6 @@
 extends "res://tests/building/test_existing_wall_actions.gd"
 ## Inspect the live production draw boundary, not only the final input origin.
-class ObservedArt extends "res://scripts/illustrated_cafe.gd":
+class ObservedArt extends "res://scripts/rendering/illustrated_cafe.gd":
  var parcel_draws=0
  var projection_refreshes=0
  var inside_parcel=false

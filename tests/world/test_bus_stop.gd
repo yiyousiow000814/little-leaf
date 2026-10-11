@@ -1,7 +1,7 @@
 extends SceneTree
-const Stop=preload("res://scripts/bus_stop_pedestrians.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const Stop=preload("res://scripts/world/bus_stop_pedestrians.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 class KerbProjection:
 	var scale:float
 	func _init(value:float):scale=value

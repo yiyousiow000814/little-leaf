@@ -1,6 +1,6 @@
 extends SceneTree
 ## Offline notes, real Help controls and disposable synthetic preferences only.
-const Notes=preload("res://scripts/cafe_update_notes.gd")
+const Notes=preload("res://scripts/ui/cafe_update_notes.gd")
 const FIXTURE="user://synthetic_update_notes.json"
 class TestMain extends "res://scripts/main.gd":
  var saves=0
@@ -77,7 +77,7 @@ func run():
   check(notes.data_error=="",status+" does not become unavailable")
   check(not notes.panel.visible,status+" setup never opens a panel")
   check(notes.current_version()=="" and not notes.has_unread(),status+" has no released version or unread state")
-  var text=words(notes.body)
+  var text=words(notes.panel)
   check("Release details are being prepared." in text,status+" shows preparation copy")
   check(text.size()==2,status+" shows only title and preparation copy")
   for entry in notes.menu_entries:

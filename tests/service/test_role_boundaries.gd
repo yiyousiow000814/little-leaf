@@ -1,7 +1,7 @@
 extends SceneTree
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 const BeforeFixture=preload("res://tests/fixtures/before_role_fixture.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 var game
 var checks=0
 var failures=[]

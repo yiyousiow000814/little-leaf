@@ -1,5 +1,5 @@
 extends SceneTree
-const NoBottom=preload("res://tests/no_bottom_notifications.gd")
+const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class FixtureMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

@@ -36,13 +36,14 @@ def main():
     candidate = output / "candidate-project"
     stage_project(ROOT, candidate, tests=True, ignore=shutil.ignore_patterns(
         ".git", ".godot", "qa-project", "__pycache__", "evidence", "*.log"))
-    shutil.copy2(ROOT / "tests/queue_backward_fixture.gd", baseline / "tests/queue_backward_fixture.gd")
+    shutil.copy2(ROOT / "tests/fixtures/queue_backward_fixture.gd", baseline / "tests/queue_backward_fixture.gd")
+    shutil.copy2(candidate / "tests/fixtures/queue_backward_fixture.gd", candidate / "tests/queue_backward_fixture.gd")
     report = {"baseline_commit": BASE, "candidate_commit": subprocess.check_output(
         [*git, "rev-parse", "HEAD"], text=True).strip(), "headless_only": True,
         "player_save_used": False, "runs": []}
     report["candidate_source_sha256"] = {
-        name: hashlib.sha256((candidate / "scripts" / name).read_bytes()).hexdigest()
-        for name in ["cafe_model.gd", "cafe_outside_queue.gd", "cafe_runtime_codec.gd", "cafe_save_contract.gd"]}
+        Path(resource).name: hashlib.sha256((candidate / "scripts" / resource).read_bytes()).hexdigest()
+        for resource in ["core/cafe_model.gd", "world/cafe_outside_queue.gd", "persistence/cafe_runtime_codec.gd", "persistence/cafe_save_contract.gd"]}
 
     def run(label, project, mode=None, source=None, destination=None):
         env = os.environ.copy()
