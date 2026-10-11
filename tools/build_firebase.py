@@ -12,6 +12,17 @@ def validate_export_inventory(build):
 def validate_web_gate(build, commit, tree, local_tools=False):
     return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
 
+def update_hosting_marker(public, marker):
+    """Keep the immutable loaded-page identity equal to the final staged marker."""
+    path=public/'hosting-release.json';previous=json.loads(path.read_text())
+    html_path=public/'index.html';html=html_path.read_text(encoding='utf-8')
+    old='window.__littleLeafRelease='+json.dumps(previous).replace('<','\\u003c')+';'
+    new='window.__littleLeafRelease='+json.dumps(marker).replace('<','\\u003c')+';'
+    if html.count(old)!=1:
+        raise ValueError('Exact existing loaded-page release identity required')
+    html_path.write_text(html.replace(old,new),encoding='utf-8')
+    path.write_text(json.dumps(marker,indent=2)+'\n')
+
 def auth_verification_html(html, config, origin):
     """Derived diagnostic page: no engine, adapters, vault or preferences scripts."""
     pattern='https://'+re.escape(config['projectId'])+r'--itch-embed-test-[a-z0-9]+\.web\.app'
@@ -180,7 +191,7 @@ def add_fresh_evidence(build, output, engine_report, focused_logs, proof):
     manifest_path=output/'firebase-variant-manifest.json';manifest=json.loads(manifest_path.read_text())
     base=manifest['base_web_manifest']
     marker_path=output/'public/hosting-release.json';marker=json.loads(marker_path.read_text())
-    marker['engine_source_commit']=base['source_commit'];marker_path.write_text(json.dumps(marker,indent=2)+'\n')
+    marker['engine_source_commit']=base['source_commit'];update_hosting_marker(output/'public',marker)
     manifest.update(source_commit=base['source_commit'],source_tree=base['source_tree'],fresh_ci=proof,
                     canonical_game_url='https://little-leaf-41e5d.firebaseapp.com/')
     manifest['files']={p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*')) if p.is_file() and p.name!='firebase-variant-manifest.json'}

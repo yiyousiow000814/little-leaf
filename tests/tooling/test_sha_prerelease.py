@@ -123,7 +123,9 @@ class ShaPrereleaseTests(unittest.TestCase):
             (web/'index.html').write_text('<script src="index.js"></script><script>window.__littleLeafVault.boot()</script>')
             for name in ['index.js','index.wasm','index.pck']:(web/name).write_bytes(b'synthetic runtime')
             base={'source_commit':'a'*40,'source_tree':'b'*40,'workflow_run':'10',
-                  'version':'0.1.11-pre.aaaaaaaa','files':{p.name:{'bytes':p.stat().st_size,'sha256':artifacts.sha256(p)} for p in web.iterdir()}}
+                  'version':'0.1.11-pre.aaaaaaaa','packed_smoke':'passed','engine_checks':1,'test_processes':1,
+                  'test_report_sha256':'a'*64,'toolchain_verification':'checksum-pinned-official-archives',
+                  'files':{p.name:{'bytes':p.stat().st_size,'sha256':artifacts.sha256(p)} for p in web.iterdir()}}
             (web/'release-manifest.json').write_text(json.dumps(base))
             config={'apiKey':'synthetic','authDomain':'little-leaf-41e5d.firebaseapp.com','projectId':'little-leaf-41e5d','appId':'synthetic'}
             publication={'target':'siowyiyou/little-leaf:html5','state':'completed','source_commit':'a'*40,
@@ -134,6 +136,27 @@ class ShaPrereleaseTests(unittest.TestCase):
             self.assertIn('window.__littleLeafRelease='+json.dumps(marker)+';', (output/'public/index.html').read_text())
             for name in ['index.js','index.wasm','index.pck']:self.assertEqual((output/'public'/name).read_bytes(),(web/name).read_bytes())
             self.assertEqual(json.loads((output/'firebase-variant-manifest.json').read_text())['publication'],publication)
+            # Exercise the real fresh producer sequence, including its final
+            # engine_source_commit mutation; stage-only coverage missed this.
+            engine=root/'engine.json';engine.write_text('{"synthetic_only":true}')
+            (build/'evidence').mkdir();(build/'evidence/export-report.json').write_text('{}')
+            for relative,_,_ in build_firebase.BROWSER_GATES.values():
+                path=build/'evidence'/relative;path.parent.mkdir(parents=True,exist_ok=True);path.write_text('{}')
+            focused=root/'focused';focused.mkdir()
+            for name in build_firebase.FOCUSED_LOGS:
+                for suffix in ['', '.json']:(focused/(name+suffix)).write_text('synthetic fixture')
+            build_firebase.add_fresh_evidence(build,output,engine,focused,{'synthetic_only':True})
+            final_marker=json.loads((output/'public/hosting-release.json').read_text())
+            self.assertEqual(final_marker['engine_source_commit'],base['source_commit'])
+            final_html=(output/'public/index.html').read_text()
+            self.assertIn('window.__littleLeafRelease='+json.dumps(final_marker)+';',final_html)
+            import deploy_firebase_hosting as hosting
+            path=output/'firebase-variant-manifest.json'
+            hosting.verify_live_package(output,base['source_commit'],artifacts.sha256(path))
+            # Rehashing a stale inline marker cannot conceal the discrepancy.
+            (output/'public/index.html').write_text(final_html.replace(json.dumps(final_marker),json.dumps(marker)))
+            manifest=json.loads(path.read_text());manifest['files']['public/index.html']=artifacts.sha256(output/'public/index.html');path.write_text(json.dumps(manifest))
+            with self.assertRaises(ValueError):hosting.verify_live_package(output,base['source_commit'],artifacts.sha256(path))
             for key,value in [('source_commit','c'*40),('state','pending'),('itch_channel_version',True),('target','wrong')]:
                 with self.subTest(key=key), self.assertRaises(ValueError):
                     build_firebase.stage(build,root/key,config,publication={**publication,key:value})

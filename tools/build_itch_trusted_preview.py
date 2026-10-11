@@ -3,7 +3,7 @@ import json
 import re
 import shutil
 from pathlib import Path
-from build_firebase import stage, validate_export_inventory, entry_styles
+from build_firebase import stage, validate_export_inventory, entry_styles, update_hosting_marker
 from build_web import ROOT, sha256
 from project_layout import source_path
 from build_itch_entry import remove_ordinary_entry
@@ -72,7 +72,7 @@ def prepare(build, output, config, origin, source, tree):
     marker.update(source_commit=source, source_tree=tree,
                   engine_source_commit=base['source_commit'], engine_source_tree=base['source_tree'],
                   test_surface='trusted-itch-frame', runtime_origin=origin)
-    marker_path.write_text(json.dumps(marker, indent=2)+'\n')
+    update_hosting_marker(output/'public',marker)
     wrapper = output / 'itch-wrapper'
     shutil.copytree(build / 'web', wrapper)
     (wrapper / 'release-manifest.json').unlink()
