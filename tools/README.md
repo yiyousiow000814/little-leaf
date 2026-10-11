@@ -73,8 +73,8 @@ total runner minutes even while reducing elapsed time.
 | `deploy_firebase_hosting.py` | Authorized publication | Verify/stage or deploy an exact Firebase variant; preserve WIF and hosting contracts. |
 | `github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
 | `reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
-| `capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
-| `cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
+| `diagnostics/capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
+| `diagnostics/cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
 
 Workflows retain their existing triggers: welcome audio and startup comparison
 are manual; paired cloud visuals have scoped PR paths plus manual dispatch;

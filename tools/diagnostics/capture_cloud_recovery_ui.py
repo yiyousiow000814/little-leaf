@@ -12,9 +12,14 @@ import time
 import subprocess
 import tempfile
 import zipfile
+
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from project_layout import stage_project
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 BASE = "b8b80eea57ac3cb141cb5c771b375207a284436a"
 FIXTURE = "tests/diagnostics/capture_cloud_recovery_ui.gd"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"

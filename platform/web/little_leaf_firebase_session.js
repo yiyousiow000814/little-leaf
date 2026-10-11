@@ -12,6 +12,33 @@
   function storeReload(storage,ticket){try{storage.setItem(RELOAD_KEY,JSON.stringify(ticket));return storage.getItem(RELOAD_KEY)===JSON.stringify(ticket);}catch(_){return false;}}
   const fail=(code,message)=>Object.assign(Error(message),{code});
   const millis=value=>typeof value?.toMillis==='function'?value.toMillis():Number(value);
+  // A reload may retain this tab's writer ID only while its exclusive browser
+  // lock is held. Copied sessionStorage alone never grants writer authority.
+  async function acquireRuntime({uid,storage,locks,navigationType,fresh=false}){
+    const key='little-leaf.runtime-session.v1';
+    let sessionId=root.crypto.randomUUID();
+    if(!locks?.request)return {sessionId,assertHeld(){},close(){}};
+    try{
+      const value=JSON.parse(storage.getItem(key));
+      if(!fresh&&navigationType==='reload'&&value?.schema===1&&value.uid===uid&&identifier(value.sessionId))sessionId=value.sessionId;
+    }catch(_){/* Storage unavailable: acquire a fresh, non-continuing identity. */}
+    let held=false,closed=false,release;
+    const lifetime=new Promise(resolve=>{release=resolve;});
+    let acquired,rejected;
+    const ready=new Promise((resolve,reject)=>{acquired=resolve;rejected=reject;});
+    const task=locks.request('little-leaf.runtime:'+uid+':'+sessionId,{mode:'exclusive',ifAvailable:true},async lock=>{
+      if(!lock){rejected(fail('SAVE_BUSY','This tab is still closing. Progress remains paused.'));return;}
+      held=true;acquired();
+      try{await lifetime;}finally{held=false;}
+    });
+    Promise.resolve(task).catch(error=>{held=false;rejected(error);});
+    await ready;
+    try{storage.setItem(key,JSON.stringify({schema:1,uid,sessionId}));}catch(_){/* No continuity receipt; next boot uses a fresh identity. */}
+    return {sessionId,
+      assertHeld(){if(!held||closed)throw fail('NOT_READY','This runtime has closed. Progress remains paused.');},
+      close(){closed=true;release();}
+    };
+  }
   function createRemote(db,sdk,uid){
     const sessionRef=sdk.doc(db,'players',uid,'session','owner');
     const saveRef=sdk.doc(db,'players',uid,'saves','cafe');
@@ -38,9 +65,9 @@
       },onError);}
     };
   }
-  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{}}){
+  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},assertRuntime=()=>{}}){
     let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
-    const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
+    const guard=()=>{assertRuntime();if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
       // A server listener can deliver a queued pre-takeover observation after
@@ -211,5 +238,5 @@
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
       close(){requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
   }
-  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload});
+  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload,acquireRuntime});
 })(globalThis);

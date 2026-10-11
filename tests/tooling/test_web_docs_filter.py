@@ -69,7 +69,7 @@ class PrScopeTests(unittest.TestCase):
         return (f":{old} {new} {'a'*40} {'b'*40} {status}\0{path}\0").encode()
 
     def test_nonempty_regular_allowed_changes_only(self):
-        for path in ("README.md", "docs/qa/review.md", "tools/diagnose_itch_status.py", "tests/tooling/test_release.py"):
+        for path in ("README.md", "docs/qa/review.md", "tools/diagnostics/diagnose_itch_status.py", "tests/tooling/test_release.py"):
             self.assertTrue(lightweight_diff(self.raw(path)))
             self.assertTrue(lightweight_diff(self.raw(path, "A", "000000")))
         self.assertFalse(lightweight_diff(b""))
