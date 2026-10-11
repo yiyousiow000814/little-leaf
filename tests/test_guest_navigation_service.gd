@@ -30,6 +30,7 @@ func run():
 	var second=false;var new_id=-1;var old_id=-1;var old_token=-1
 	var guest_diagonal=false;var staff_diagonal=false;var claim_error=false;var ordered=false;var wiping=false
 	var paid_id=-1;var saw_departure_body=false;var body_finished=false;var walking_capture=false;var departure_capture=false
+	var paid_walk_observed=false;var guest_exit_finished=false;var paid_exit_direction=Vector2i.ZERO
 	for frame in 3600:
 		if frame%100==0:
 			print("GUEST_NAV_SERVICE_PROGRESS ",JSON.stringify({"frame":frame,"served":game.model.served,"guest_phases":game.model.customers.map(func(g):return [g.id,g.phase,g.x,g.z,g.route_index,g.route]),"visitors":game.model.reception_visits.map(func(v):return [v.id,v.phase]),"departures":game.model.departing_bodies.size()}))
@@ -38,8 +39,12 @@ func run():
 		for guest in game.model.customers:
 			if guest.phase=="leaving" and guest.paid:
 				paid_id=int(guest.id)
+				paid_exit_direction=guest.entry_direction
+				if not guest.route.is_empty() and Vector2(guest.x,guest.z).distance_to(guest.route[0])>.01:paid_walk_observed=true
 				if not departure_capture:
 					await capture(game,"paid-physical-departure");departure_capture=true
+			if int(guest.id)==paid_id and guest.paid and guest.phase in ["dirty","cleaning"]:
+				guest_exit_finished=not guest.seated and int(guest.route_index)>=guest.route.size() and game.model._clear_of_entry(guest,Vector2(guest.x,guest.z))
 		if paid_id>=0:
 			if game.model.departing_bodies.any(func(body):return int(body.id)==paid_id):saw_departure_body=true
 			elif saw_departure_body:body_finished=true
@@ -70,8 +75,8 @@ func run():
 	check(not claim_error,"exclusive seat ownership and cleanup token remain authoritative")
 	check(ordered and wiping,"same waiting visitor resumes ordering after actual staff cleanup")
 	check(game.model.served==1 and game.model.total_earned==game.Model.MEAL_PAYMENT,"one completed meal earns exactly one original payment")
-	check(paid_id==old_id and saw_departure_body,"same paid identity transfers to physical departing body before cleanup ownership ends")
-	check(body_finished and not game.model.departing_bodies.any(func(body):return int(body.id)==paid_id),"paid body completes street departure without a duplicate diner before replacement service")
+	check(paid_id==old_id and (paid_walk_observed or saw_departure_body),"same paid identity physically walks its selected exit before original cleanup ownership ends")
+	check((body_finished or guest_exit_finished) and not game.model.departing_bodies.any(func(body):return int(body.id)==paid_id),"paid identity completes its actual exit without a duplicate diner before replacement service")
 	check(game.model.ReceptionReview.scope_allowed()==false,"old private18 gate still refuses composition flags")
 	check(not game.model.save_reception("user://composition-refusal.json") and not FileAccess.file_exists("user://composition-refusal.json"),"private18 cannot serialize combined diagonals")
 	var staff_receipt=[]
@@ -80,7 +85,7 @@ func run():
 	var out=OS.get_environment("LL_RECEPTION_CAPTURE")
 	if not out.is_empty():FileAccess.open(out+"/frames.json",FileAccess.WRITE).store_string(JSON.stringify(captures,"  "))
 	game.queue_free();await process_frame;await process_frame
-	print("GUEST_NAVIGATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"guest_diagonal":guest_diagonal,"staff_diagonal":staff_diagonal,"served":1 if ordered else 0,"paid_id":paid_id,"departing_body_observed":saw_departure_body,"body_finished":body_finished,"frames":captures.size()}))
+	print("GUEST_NAVIGATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"guest_diagonal":guest_diagonal,"staff_diagonal":staff_diagonal,"served":1 if ordered else 0,"paid_id":paid_id,"paid_exit_direction":paid_exit_direction,"paid_walk_observed":paid_walk_observed,"departing_body_observed":saw_departure_body,"body_finished":body_finished,"guest_exit_finished":guest_exit_finished,"frames":captures.size()}))
 	quit(0 if failures.is_empty() else 1)
 
 func capture(game,label:String):
