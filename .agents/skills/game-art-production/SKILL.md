@@ -14,12 +14,17 @@ character/wardrobe work paused and preserve existing user authorization.
 - Pin source/tree and inspect actual original pixels at normal game scale.
   Classify the work as an intentional art upgrade or behavior-preserving
   optimization; use the Bible's different approval/parity gates.
-- Choose software for the asset and prove the actual editable workflow. For
+- For code-only optimization with unchanged art and authoring/export toolchain,
+  preserve existing editable sources and calibration, then prove Pixel Parity;
+  skip new GUI-asset proof and grid-authoring work below.
+- For new/changed visual assets or authoring/export toolchains, choose suitable
+  software and prove the actual editable workflow. For
   the Bus Stop, prefer Inkscape only after GUI authoring, save/reopen/edit and
   transparent export are demonstrated. Generated SVG/code is not that proof.
   Figma access limitations and the separate Blender lane remain as recorded in
   the Bible. Do not upgrade accounts or install software from this skill alone.
-- Calibrate a visible unit grid, logical footprint, pivot and contacts. Keep
+- For that asset-authoring path, calibrate a visible unit grid, logical footprint,
+  pivot and contacts; reuse valid source-bound calibration where unchanged. Keep
   named editable parts and reproducible export settings. Review design before
   integration; preserve the Bus Stop back/people/front split instead of a flat
   sprite. Do not change cameras, routes or collision to fit art.

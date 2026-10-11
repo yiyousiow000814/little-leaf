@@ -168,12 +168,18 @@ effort/runtime cost are not measurements or assignments to redraw all categories
 | Blender | Preserve the separate paused character lane. Do not impose it on all six categories or reopen characters to demonstrate this system. |
 | Existing painters / other suitable art software | Keep existing editable GDScript and simple procedural tiles/markings where appropriate. Other user-approved software can be qualified for its asset type. The Bus Stop request specifically requires genuine drawing-software authoring; more generated polygon/SVG code does not demonstrate that workflow. |
 
-For the selected software, make a small disposable GUI-authored sample, save
+For new or changed visual assets or an authoring/export toolchain change,
+prove the selected workflow with a small disposable GUI-authored sample: save
 its native editable document, close/reopen it, edit a named layer/path/text
 element, and export the intended transparent output. Inspect the saved source,
 alpha edges, colors, bounds and dimensions, then a normal-scale Godot import.
 Record tool/version and source/export hashes. A screenshot, installed executable,
 generated SVG string or advertised export button is insufficient proof.
+
+For code-only performance optimization with unchanged artwork and authoring/
+export toolchain, preserve the existing editable sources and calibration;
+prove Pixel Parity under the existing contracts. No new disposable GUI asset
+or grid-authoring exercise is required for that path.
 
 Retain useful layers, editable typography or licensed outlines, pivots and the
 reproducible export settings. Follow existing notices/import/atlas contracts;
