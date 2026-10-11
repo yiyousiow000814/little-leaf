@@ -11,7 +11,7 @@ function environment({timeoutMs=15000}={}){
  function device(label,prepareReload=null){
    const ownership=sessionApi.createSession({remote,uid:'synthetic-owner',currentUid:()=>uid,deviceLabel:label,now:()=>time});
    let local=null,replaceHook=null,readHook=null;const journal={async read(){if(readHook)await readHook();return clone(local);},async replace(id,expected,next){assert.deepEqual(local,clone(expected));local=clone(next);if(replaceHook)await replaceHook(next);},async readRecoveryBackup(){return null;}};
-   const saveRemote={async read(){if(readGate)await readGate;return clone(cloud);},async compareAndSet(id,base,next,guard){writeCalls++;if(writeGate)await writeGate;guard();const fence=ownership.assertActive(true);if(!session||session.owner!==fence.writerId||session.epoch!==fence.writerEpoch||session.ack)throw fail('OWNERSHIP_LOST');if(writeFail)throw fail(writeFail===true?'OFFLINE':writeFail);if(cloud?.digest===next.digest)return;if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud={...clone(next),...fence};guard();}};
+   const saveRemote={async read(){if(readGate)await readGate;return clone(cloud);},async compareAndSet(id,base,next,guard){writeCalls++;if(writeGate)await writeGate;guard();const fence=ownership.assertActive(true);if(!session||session.owner!==fence.writerId||session.epoch!==fence.writerEpoch||session.ack)throw fail('OWNERSHIP_LOST');if(time-session.updatedAt>=60000)throw fail('permission-denied');if(writeFail)throw fail(writeFail===true?'OFFLINE':writeFail);if(cloud?.digest===next.digest)return;if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud={...clone(next),...fence};guard();}};
    const client=api.createClient({uid:'synthetic-owner',codec,journal,remote:saveRemote,currentUid:()=>uid,status(){},ownership,now:()=>time,deviceLabel:label,networkTimeoutMs:timeoutMs,prepareReload});
    return {ownership,client,local:()=>clone(local),setLocal:x=>local=clone(x),onReplace:fn=>replaceHook=fn,onRead:fn=>readHook=fn};
  }
@@ -39,6 +39,21 @@ function environment({timeoutMs=15000}={}){
  e=environment();a=e.device('Mac');b=e.device('iPhone');await a.ownership.start();boot=await a.client.boot();await b.ownership.start();let requested=false;
  a.onReplace(async next=>{if(next.pending&&!requested){requested=true;await b.client.requestTakeover();}});
  r=await a.client.commit(native,0,boot.profileId);assert(r.ok&&r.durable&&r.revision===1);a.onReplace(null);r=await a.client.preserveOwnerRuntime(native,1,boot.profileId);assert(r.cloudConfirmed);assert((await b.client.finishTakeover()).ok);
+ // A suspended page confirms its same-owner lease before upload, rather than
+ // latching a preventable expiry refusal as a production rules denial.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.commit(payload,0,boot.profileId);
+ const expiredOwner=e.session();e.advance(61000);await a.client.refreshOwnership();await a.client.sync();
+ assert(!a.local().pending);assert.equal(e.cloud().revision,1);assert.equal(e.session().owner,expiredOwner.owner);assert.equal(e.session().epoch,expiredOwner.epoch);assert(e.session().updatedAt>expiredOwner.updatedAt);assert.equal(a.client.ownershipSnapshot().status,'active');
+ e.failWrites('permission-denied');await a.client.commit(native,1,boot.profileId);e.advance(30001);await a.client.sync();assert(a.local().pending);assert.equal(a.client.ownershipSnapshot().status,'resume-needed');const deniedCalls=e.writeCalls();e.failWrites(false);e.advance(61000);await a.client.renewOwnership();await a.client.sync();assert.equal(e.writeCalls(),deniedCalls,'real save permission denial is never silently cleared by renewal');assert(a.local().pending);
+ // Genuine renewal denial receives the same protected export/pause as save
+ // denial. Later renewal success never silently clears that permission latch.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.commit(payload,0,boot.profileId);
+ const normalRenew=e.remote.change;e.remote.change=async()=>{throw fail('permission-denied');};await a.client.sync();assert(a.local().pending);assert(a.client.recoverySnapshot().canExport);assert.equal(a.client.ownershipSnapshot().status,'resume-needed');assert.equal(e.writeCalls(),0);
+ e.remote.change=normalRenew;await a.client.renewOwnership();e.advance(30001);await a.client.sync();assert.equal(e.writeCalls(),0);assert(a.local().pending);assert((await a.client.exportRecovery()).ok);
+ // A separately confirmed competing owner is ownership loss, not a rule-cutover
+ // latch. Keep the explicit takeover path and this device pending data available.
+ e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.commit(payload,0,boot.profileId);
+ const rival={...e.session(),owner:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',epoch:2};e.remote.change=async()=>{e.setSession(rival);throw fail('permission-denied');};await a.client.sync();assert.equal(a.client.ownershipSnapshot().status,'other-device');assert(a.client.ownershipSnapshot().canRequestTakeover);assert(a.local().pending);assert.equal(e.writeCalls(),0);
  // Update flow never mistakes a locally durable snapshot for cloud confirmation.
  e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();
  r=await a.client.saveForUpdate(native,0,boot.profileId);assert(r.ok&&r.durable&&r.cloudConfirmed&&r.updateToken);
@@ -90,5 +105,6 @@ function environment({timeoutMs=15000}={}){
  // Lost acknowledgment after a continuation request leaves all save bytes intact.
  e=environment();a=e.device('Mac');await a.ownership.start();boot=await a.client.boot();await a.client.saveForUpdate(payload,0,boot.profileId);const lost=a.ownership.reloadContinuation(e.cloud().digest,e.cloud().revision),lostSaved=e.cloud();a.ownership.close();const realChange=e.remote.change;e.remote.change=async(...args)=>{await realChange(...args);throw fail('OFFLINE');};b=e.device('Mac');await assert.rejects(b.ownership.start(lost));assert.deepEqual(e.cloud(),lostSaved);assert.equal(e.session().epoch,1);assert.equal(e.session().ack,null);e.remote.change=realChange;const next=e.device('Mac');await next.ownership.start();assert.equal(next.ownership.snapshot().status,'other-device');await assert.rejects(next.ownership.requestTakeover(),e=>e.code==='HANDOFF_BUSY');e.advance(60001);await next.ownership.requestTakeover();assert.equal(next.ownership.snapshot().status,'active');assert.equal(e.session().epoch,2);assert.deepEqual(e.cloud(),lostSaved,'explicit expired-lease recovery never overwrites saved progress');
  await require('./firebase_request_retry.js');
+ await require('./firebase_ack_retry.js');
  console.log('Synthetic session: freeze/snapshot/flush/ack before fenced takeover, timeout force, old-cache resume, offline pending retention, abandoned-request cancel, no ping-pong and account/request races passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

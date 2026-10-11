@@ -28,16 +28,19 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.output = Path(self.temp.name) / 'output'
         self.argv = ['runner', '--output', str(self.output), '--only', 'test_floor_claim_retry', '--lock', str(Path(self.temp.name) / 'lock')]
 
-    def run_synthetic(self, windows=False):
+    def run_synthetic(self, windows=False, script_run=None):
         commands = []
         def run(command, **kwargs):
             if command[0] == 'git':
                 return subprocess.CompletedProcess(command, 0, stdout='synthetic-source\n')
-            commands.append((command, kwargs['env']))
+            commands.append((command, kwargs['env'].copy()))
             script = '--script' in command
-            return subprocess.CompletedProcess(command, 0, stdout=b'FLOOR_CLAIM_RETRY_RESULT {"checks":1,"failures":[]}\n' if script else b'')
+            output = script_run(command, kwargs['env']) if script and script_run else b'FLOOR_CLAIM_RETRY_RESULT {"checks":1,"failures":[]}\n'
+            return subprocess.CompletedProcess(command, 0, stdout=output if script else b'')
         self.runner.os = types.SimpleNamespace(name='nt' if windows else 'posix', environ={})
         self.runner.msvcrt = types.SimpleNamespace(LK_LOCK=1, locking=mock.Mock())
+        if os.name == 'nt':
+            self.runner.fcntl = types.SimpleNamespace(LOCK_EX=2, flock=mock.Mock())
         with mock.patch('sys.argv', self.argv), mock.patch.object(self.runner.subprocess, 'run', side_effect=run), mock.patch('builtins.print'):
             self.runner.main()
         report = json.loads((self.output / 'summary.json').read_text())
@@ -57,6 +60,82 @@ class RunnerInfrastructureTests(unittest.TestCase):
         if windows:
             self.runner.msvcrt.locking.assert_called_once()
         return report
+
+    def select(self, *names):
+        self.output = Path(self.temp.name) / ('output-' + names[0])
+        for name in names:
+            (self.root / 'tests' / (name.replace('staff-start', 'test_staff_start') + '.gd')).touch()
+        self.argv = ['runner', '--output', str(self.output), '--only', *names, '--lock', str(Path(self.temp.name) / 'lock')]
+
+    def test_autosave_and_intro_reject_ordinary_save_names(self):
+        for script in ['test_autosave_feedback', 'test_autosave_feedback_adversarial', 'test_autosave_feedback_ui',
+                       'test_no_bottom_notifications', 'test_hud_layout', 'test_startup_retry',
+                       'test_starter_geometry', 'test_intro_lifecycle_headless', 'test_intro_cli_bypass']:
+            with self.subTest(script=script):
+                self.select(script)
+                def write_save(command, env):
+                    (Path(env['APPDATA']) / 'little_leaf_cafe_layout_motion_v15.json').write_text('{}')
+                    return (dict(self.runner.SUITES)[script] + ' {"checks":1,"failures":[]}\n').encode()
+                with self.assertRaisesRegex(RuntimeError, 'Unexpected regular save filename'):
+                    self.run_synthetic(windows=True, script_run=write_save)
+                self.assertEqual(json.loads((self.output / 'summary.json').read_text())['status'], 'failed')
+
+    def test_litter_requires_complete_matching_results_and_minimum_checks(self):
+        for index, (checks, failures, evidence_checks) in enumerate([
+                (56, [], 56), (55, [], 55), (56, None, 56), (56, [], 57), (56, [], None)]):
+            with self.subTest(checks=checks, failures=failures, evidence_checks=evidence_checks):
+                self.select('test_customer_litter')
+                self.output = self.output.with_name('litter-' + str(index))
+                self.argv[2] = str(self.output)
+                def litter_result(command, env):
+                    payload = {'checks': checks, **({'failures': failures} if failures is not None else {})}
+                    if evidence_checks is not None:
+                        Path(env['LL_LITTER_EVIDENCE']).write_text(json.dumps({**payload, 'checks': evidence_checks}))
+                    return (json.dumps(payload) + '\n').encode()
+                if index == 0:
+                    self.run_synthetic(windows=True, script_run=litter_result)
+                else:
+                    with self.assertRaises((RuntimeError, FileNotFoundError)):
+                        self.run_synthetic(windows=True, script_run=litter_result)
+
+    def test_intro_and_tutorial_flags_preserve_the_intended_entry_paths(self):
+        expected = {
+            'test_intro_lifecycle_headless': ['--visual-qa', '--fresh-review', '--skip-tutorial'],
+            'test_intro_cli_bypass': ['--visual-qa', '--fresh-review', '--skip-tutorial', '--skip-intro'],
+            'test_interactive_tutorial': ['--visual-qa', '--fresh-review', '--skip-intro'],
+            'test_autosave_feedback': ['--skip-intro'],
+            'test_autosave_feedback_adversarial': ['--skip-intro'],
+        }
+        self.select(*expected)
+        def check_flags(command, env):
+            script = Path(command[command.index('--script') + 1]).stem
+            flags = command[command.index('--') + 1:]
+            self.assertEqual(flags, expected[script])
+            return (dict(self.runner.SUITES)[script] + ' {"checks":1,"failures":[]}\n').encode()
+        self.run_synthetic(windows=True, script_run=check_flags)
+
+    def test_staff_starts_share_ordered_generated_saves(self):
+        self.select('staff-start')
+        cases, profiles = [], set()
+        def staff_start(command, env):
+            case = env['LL_START_CASE']
+            cases.append(case)
+            profiles.add(env['APPDATA'])
+            save_dir = Path(env['APPDATA']) / 'Godot/app_userdata/Little Leaf Cafe'
+            save_dir.mkdir(parents=True, exist_ok=True)
+            save_file = save_dir / 'little_leaf_cafe_layout_motion_v15.json'
+            expected = {'saved-load': 'roundtrip', 'standalone-load': 'standalone', 'bad-load': 'not a valid cafe'}
+            if case in expected:
+                self.assertEqual(save_file.read_text(), expected[case])
+            else:
+                self.assertFalse(save_file.exists())
+                for fixture in ['roundtrip', 'standalone']:
+                    (save_dir / ('staff-start-' + fixture + '.json')).write_text(fixture)
+            self.assertEqual('--fresh-review' in command, case == 'fresh')
+            return b'STAFF_START_RESULT {"checks":1,"failures":[]}\n'
+        self.run_synthetic(windows=True, script_run=staff_start)
+        self.assertEqual(cases, ['empty-profile', 'fresh', 'saved-load', 'standalone-load', 'bad-load'])
+        self.assertEqual(len(profiles), 1)
 
     def test_posix_dummy_audio_and_disposable_profile_cleanup(self):
         self.run_synthetic()

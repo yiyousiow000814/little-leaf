@@ -64,7 +64,13 @@ assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080');
       const check=(v,m)=>{if(!v)throw Error(m);checks.push(m);};
       const journal=await LittleLeafFirebase.openJournal(indexedDB);
       check(JSON.stringify(await journal.read(uid))===JSON.stringify(first.pending),'real navigation retains exact pending bytes without storage clearing');
-      const owner={sessionRef:sdk.doc(db,'players',uid,'session','owner'),assertActive:()=>first.fence,snapshot:()=>({status:'active',serverOwnership:true}),close(){}};
+      const owner={sessionRef:sdk.doc(db,'players',uid,'session','owner'),async renew(){
+        await sdk.runTransaction(db,async transaction=>{const snapshot=await transaction.get(this.sessionRef),value=snapshot.data();
+          if(value?.owner!==first.fence.writerId||value.epoch!==first.fence.writerEpoch||value.ack)throw Error('Synthetic ownership changed');
+          transaction.set(this.sessionRef,{...value,updatedAt:sdk.serverTimestamp()});});
+        const confirmed=(await sdk.getDocFromServer(this.sessionRef)).data();
+        check(confirmed.owner===first.fence.writerId&&confirmed.epoch===first.fence.writerEpoch,'renewal confirms same fenced owner before recovery upload');
+      },assertActive:()=>first.fence,snapshot:()=>({status:'active',serverOwnership:true}),close(){}};
       let time=Date.now(),account=uid;const states=[];
       const compatible=LittleLeafFirebase.createClient({uid,codec,ownership:owner,remote:LittleLeafFirebase.createRemote(db,sdk,owner),journal,currentUid:()=>account,status:s=>states.push(s),now:()=>time});
       const resumed=await compatible.boot(),ack=await journal.read(uid),cloud=(await sdk.getDocFromServer(sdk.doc(db,'players',uid,'saves','cafe'))).data();

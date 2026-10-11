@@ -22,7 +22,9 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
       const fail=code=>Object.assign(Error(code),{code}),equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
       const checks=[];
       function ok(value,message){if(!value)throw Error(message);checks.push(message);}
-      const journal=await api.openJournal(indexedDB);
+      let connection,openCount=0;
+      const factory={open(...args){openCount++;const request=indexedDB.open(...args);request.addEventListener('success',()=>{connection=request.result;});return request;}};
+      const journal=await api.openJournal(factory);
       async function record(revision,coins,profileId=crypto.randomUUID()) {
         const r={format:2,profileId,revision,createdAt:1,updatedAt:revision+10,payload:JSON.stringify({...JSON.parse(fixture),coins}),digest:null,origin:{source:'fresh',legacyDigest:null,importedAt:1},previous:null,campaigns:{}};
         r.digest=await codec.hash(codec.fingerprint(r));return r;
@@ -168,11 +170,25 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
       const protectedPair=pair;
       const nextPending={base:h.cloudRecord.digest,pending:true,record:await record(5,111,h.cloudRecord.profileId)};
       await journal.replace(h.id,await journal.read(h.id),nextPending);h.setCloud(doc(await record(6,222,h.cloudRecord.profileId)));
-      const repeated=h.make();await repeated.boot();ok(!repeated.recoverySnapshot().choicesAvailable,'second distinct choice blocks without silently evicting earlier pair');
-      ok(equal(await journal.readChoiceBackup(h.id),protectedPair)&&equal(await journal.read(h.id),nextPending),'archive-full keeps both old protected pair and latest pending data');
+      const repeated=h.make();await repeated.boot();ok(repeated.recoverySnapshot().choicesAvailable,'second distinct choice remains available without evicting earlier pair');
+      ok(equal(await journal.readChoiceBackup(h.id),protectedPair)&&equal(await journal.read(h.id),nextPending),'preview keeps earlier pair and latest pending data');
+      const secondPreview=repeated.recoverySnapshot(),secondChoice=await repeated.prepareChoice('cloud',secondPreview.expectedLocalDigest,secondPreview.expectedCloudDigest);
+      ok(secondChoice.ok&&(await repeated.confirmChoice(secondChoice.selectionToken)).ok,'second conflict completes through real atomic journal');
+      let pairs=(await journal.readChoiceBackup(h.id)).archives;
+      ok(pairs.length===2&&equal(pairs[0],protectedPair),'second choice retains first pair byte-for-byte inside bounded archive');
+      const pairExport=await repeated.exportRecovery();ok(pairExport.ok&&equal(JSON.parse(pairExport.text).protectedChoices,pairs),'export retains every protected pair');
+      for(let i=2;i<8;i++){
+        const active=await journal.read(h.id),pending={base:active.record.digest,pending:true,record:await record(10+i*2,100+i,h.cloudRecord.profileId)};
+        await journal.replace(h.id,active,pending);h.setCloud(doc(await record(11+i*2,200+i,h.cloudRecord.profileId)));
+        const current=h.make();await current.boot();const snapshot=current.recoverySnapshot(),selection=await current.prepareChoice('cloud',snapshot.expectedLocalDigest,snapshot.expectedCloudDigest);
+        ok(selection.ok&&(await current.confirmChoice(selection.selectionToken)).ok,'bounded additional choice '+i+' preserves earlier data');
+      }
+      pairs=(await journal.readChoiceBackup(h.id)).archives;ok(pairs.length===8&&equal(pairs[0],protectedPair),'eight-pair bound retains original pair');
+      const active=await journal.read(h.id);await journal.replace(h.id,active,{base:active.record.digest,pending:true,record:await record(50,111,h.cloudRecord.profileId)});h.setCloud(doc(await record(51,222,h.cloudRecord.profileId)));
+      const full=h.make();await full.boot();ok(!full.recoverySnapshot().choicesAvailable&&(await full.exportRecovery()).ok,'full archive stops safely and all copies remain exportable');
       h=await scenario();await h.client.boot();preview=h.client.recoverySnapshot();choice=await h.client.prepareChoice('cloud',preview.expectedLocalDigest,preview.expectedCloudDigest);
       await rawPut(['choice-v1',h.id],{damaged:'existing'});
-      ok((await h.client.confirmChoice(choice.selectionToken)).code==='RECOVERY_ARCHIVE_FULL','new archive raced after prepare is checked inside real transaction');
+      ok((await h.client.confirmChoice(choice.selectionToken)).code==='RECOVERY_ARCHIVE_DAMAGED','damaged archive raced after prepare is checked inside real transaction');
       ok(equal(await journal.read(h.id),h.pending),'archive race leaves current pending unchanged');
       h=await scenario();await h.client.boot();preview=h.client.recoverySnapshot();choice=await h.client.prepareChoice('local',preview.expectedLocalDigest,preview.expectedCloudDigest);
       let selectedWrites=0;
@@ -181,6 +197,29 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
       ok(selected.ok && selected.revision===choice.revision && selected.payload===choice.payload && selectedWrites===1,'explicit local choice publishes exact prevalidated candidate through CAS');
       pair=await journal.readChoiceBackup(h.id);ok(equal(pair.local,h.pending)&&equal(pair.cloud,h.cloudRecord),'local choice protects both source branches before remote replacement');
       ok(!(await journal.read(h.id)).pending,'selected local branch gets exact cloud acknowledgment');
+      {
+      // A closed connection must not turn every later autosave into a failure.
+      let lifecycleCloud=null;
+      const lifecycle=api.createClient({uid:'synthetic-journal-lifecycle',codec,journal,currentUid:()=> 'synthetic-journal-lifecycle',status(){},
+        remote:{async read(){return lifecycleCloud;},async compareAndSet(id,base,next,guard){guard();lifecycleCloud=next;}}});
+      let lifecycleResult=await lifecycle.boot();ok(lifecycleResult.ok,'lifecycle fixture boots in disposable account');
+      for(let i=0;i<3;i++){
+        connection.close();const beforeOpen=openCount;
+        lifecycleResult=await lifecycle.commit(fixture,lifecycleResult.revision,lifecycleResult.profileId);
+        ok(lifecycleResult.ok&&lifecycleResult.durable&&openCount===beforeOpen+1,'closed journal reopens once and durably saves '+i);
+      }
+      let lifecycleEntry=await journal.read('synthetic-journal-lifecycle');
+      ok(lifecycleEntry.record.revision===3,'three consecutive recovered autosaves advance actual journal revision');
+      connection.close();const other={...lifecycleEntry,record:await record(4,444,lifecycleEntry.record.profileId)};
+      await rawPut('synthetic-journal-lifecycle',other);
+      const stale=await lifecycle.commit(fixture,3,lifecycleEntry.record.profileId);
+      ok(stale.code==='REVISION_CONFLICT'&&equal(await journal.read('synthetic-journal-lifecycle'),other),'reopened connection rechecks CAS and preserves another tab newer save');
+      const lifecyclePut=IDBObjectStore.prototype.put,opensBeforeAbort=openCount;
+      IDBObjectStore.prototype.put=function(...args){const request=lifecyclePut.apply(this,args),transaction=this.transaction;request.addEventListener('success',()=>transaction.abort());return request;};
+      let aborted=false;
+      try{await journal.replace('synthetic-journal-lifecycle',other,{...other,pending:false});}catch(_){aborted=true;}finally{IDBObjectStore.prototype.put=lifecyclePut;}
+      ok(aborted&&openCount===opensBeforeAbort&&equal(await journal.read('synthetic-journal-lifecycle'),other),'created transaction abort is never reopened or replayed');
+      }
       return checks;
     },fixture);
     const {createHash}=require('node:crypto');

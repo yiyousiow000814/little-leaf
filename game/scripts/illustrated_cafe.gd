@@ -66,10 +66,7 @@ var table_dining_directions={}
 const DirectionalCharacter=preload("res://scripts/directional_character_art.gd")
 var directional_character=DirectionalCharacter.new()
 var character_facings={}
-const CompactPose=preload("res://scripts/compact_character_pose.gd")
 const CameraBounds=preload("res://scripts/cafe_camera_bounds.gd")
-const ARM_LENGTH=CompactPose.ARM_LENGTH
-const LEG_LENGTH=CompactPose.LEG_LENGTH
 var pan_offset=Vector2.ZERO
 var _camera_view_size=Vector2.ZERO
 var _camera_inspection_rect=Rect2()
@@ -126,10 +123,7 @@ var ui_scale = 1.0
 const PAVEMENT_EDGE = -3.26
 const PAVEMENT_ROW_WIDTH = 1.0
 const WALL_HEIGHT = 128.0
-const DOOR_HEIGHT = 97.0
 const PAVEMENT_INNER = -0.26
-const DOOR_START = 4.75
-const DOOR_END = 6.25
 # Shared immutable circle samples keep the original 32-sided silhouette, but
 # transform vertices in native code instead of allocating 32 scripted trig calls
 # for every leaf, plate, face, eye, and furniture detail on every live frame.
@@ -1053,8 +1047,6 @@ func _draw():
 			if is_preview:
 				tint=Color("eeb9a1") if not game.build_tools.preview_valid or game.build_tools.mode=="remove" else (Color("efd095") if game.build_tools.preview_warning!="" else Color("c6e1ae"))
 			OpeningArt.draw_built_piece(self,e,render_wall_attachments,.68 if is_preview else 1.0,tint);continue
-		if e.type=="door_front":
-			_door_front(); continue
 		if e.type in ["item","chair_back","beverage_foreground","stove_foreground"]:
 			var d=e.entry
 			var meal_offset:Vector2=e.get("meal_offset",Vector2.ZERO)
@@ -1564,63 +1556,6 @@ func _paint_native_character(p: Vector2, id: int, staff: bool, moving: bool, spe
 	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
 	return {}
 
-func _character_r13_rejected(p: Vector2,id: int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
-	var species=id%3
-	var direction_unit=look.normalized()
-	var away=direction_unit.x+direction_unit.y<-.55
-	var head_view=3 if away else (1 if absf(direction_unit.x-direction_unit.y)<.35 else (2 if absf(direction_unit.x+direction_unit.y)<.35 else 0))
-	var fur="efe5c7" if species!=1 else "c68b46"
-	var shirt=["9cbbbd","c98e83","d6b16b","a9b78a"][id%4] if not staff else {"chef":"739c7f","waiter":"b99578","cleaner":"91b2ad","barista":"d2b485"}.get(role,"739c7f")
-	var reach_overlay=bool(pose.get("reach_overlay",false))
-	var hide_reach=bool(pose.get("hide_reach",false))
-	var phase=float(pose.get("phase",0.0))
-	var blend=float(pose.get("blend",0.0))
-	var mirror=float(pose.get("mirror",1.0))
-	var seat_mix=float(pose.get("seat_mix",1.0 if seated else 0.0))
-	var swing=sin(phase*TAU)*2.1*blend*(1.0-seat_mix)
-	var forward=look.normalized()
-	if forward.length_squared()<.01:forward=Vector2(0,-1)
-	var across=Vector2(-forward.y,forward.x)
-	var fwd=Vector2((forward.x-forward.y)*25*mirror,(forward.x+forward.y)*12.5)
-	var side=Vector2((across.x-across.y)*25*mirror,(across.x+across.y)*12.5)
-	var carry:Vector2=pose.get("carry_hand",CompactPose.CARRY)
-	var gesture=CompactPose.gesture(action,progress,swing,seated,payload,carry)
-	var weight:Vector2=pose.get("body_offset",Vector2.ZERO)
-	var bob=float(pose.get("body_bob",0.0))*(1.0-seat_mix)
-	var shift=Vector2(weight.x*mirror*(1.0-seat_mix),bob+float(gesture.nod))
-	var body=p+shift
-	if not reach_overlay:
-		_person_shadow(p)
-		if species==1:_fox_tail(body,fur)
-		for index in range(2):
-			var x=-4.0 if index==0 else 4.0
-			var sign=-1.0 if index==0 else 1.0
-			var hip=Vector2(x,-11.5).lerp(side*(sign*.12)+fwd*.29-Vector2(0,17),seat_mix)
-			var angle=sin(phase*TAU)*.22*sign*blend*(1.0-seat_mix)
-			var direction=Vector2(sin(angle),cos(angle)).lerp(Vector2(.08,-.02)+Vector2.DOWN,seat_mix).normalized()
-			var foot=hip+direction*LEG_LENGTH
-			_round_limb(body+hip,body+foot,"858366",4.0)
-			_foot(body+foot+Vector2(1,-.25))
-		_body_shape(body,shirt,seated,fwd,side)
-		_round_limb(body+gesture.left.pivot,body+gesture.left.tip,fur,4.8)
-	var hand:Vector2=gesture.right.tip
-	var work_hand:Vector2=gesture.left.tip if tool=="cloth" or (tool in ["mop","broom"] and payload!="none") else hand
-	var prop=CompactPose.prop_offset(action,progress,reach-shift,carry,payload)
-	if tool=="cloth":work_hand=reach-shift+Vector2(sin(progress*TAU*2)*2.5,0)
-	var tool_floor=reach-shift+Vector2(3,-3) if action in ["sweeping","mopping"] else Vector2(22,2)
-	var foreground_sip=not staff and seated and not away and action=="drinking" and payload=="drink"
-	if is_instance_valid(game):render_contacts.append({"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":ARM_LENGTH,"leg_length":LEG_LENGTH,"limb_segments":1,"target_error":(hand+shift).distance_to(reach),"prop_target_error":(prop+shift).distance_to(reach),"lean":0.0})
-	if not hide_reach:
-		_round_limb(body+gesture.right.pivot,body+hand,fur,4.8)
-		_action_prop(body,prop,action,progress,"none" if foreground_sip else payload,tool,work_hand,hand,tool_floor)
-	if reach_overlay:return
-	if staff and not away:_apron(body)
-	var head=body+Vector2(3,3)*seat_mix
-	var blink=is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13
-	_draw_head(head,species,away,blink,staff and role=="chef",action=="blocked",head_view)
-	if foreground_sip:
-		_action_prop(body,prop,action,progress,payload,tool,work_hand,hand,tool_floor)
-
 func _round_limb(start:Vector2,finish:Vector2,color,width:float):
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():
 		var key=moving_atlas.limb_key(start.distance_to(finish),color,width)
@@ -1643,22 +1578,11 @@ func _round_limb_legacy(start:Vector2,finish:Vector2,color,width:float):
 func _rigid_part(key:String,p:Vector2)->bool:
 	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready() and art_cache_covers(Rect2(p+moving_atlas.rectangles[key].position,moving_atlas.rectangles[key].size),MovingAtlas.BAKE_SCALE):moving_atlas.draw_part(self,key,p);return true
 	return false
-func _person_shadow(p:Vector2):
-	if not _rigid_part("shadow",p):_person_shadow_legacy(p)
 func _person_shadow_legacy(p:Vector2):ellipse(p,Vector2(8.5,3.2),Color(.36,.43,.27,.17))
-func _foot(p:Vector2):
-	if not _rigid_part("foot",p):_foot_legacy(p)
 func _foot_legacy(p:Vector2):ellipse(p,Vector2(3.8,2.3),"817657")
-func _fox_tail(body:Vector2,fur):
-	if not _rigid_part("fox_tail",body):_fox_tail_legacy(body,fur)
 func _fox_tail_legacy(body:Vector2,fur):
 	rounded_poly([body+Vector2(-7,-20),body+Vector2(-17,-16),body+Vector2(-23,-22),body+Vector2(-20,-27),body+Vector2(-14,-23),body+Vector2(-7,-26)],2.5,fur)
 	rounded_poly([body+Vector2(-23,-22),body+Vector2(-20,-27),body+Vector2(-16,-24),body+Vector2(-18,-20)],1.2,"f3e7ca")
-func _body_shape(body:Vector2,shirt:String,seated:bool,fwd:Vector2,side:Vector2):
-	if use_cached_moving_art and is_equal_approx(opacity,1.0) and moving_atlas.is_ready():
-		var key=moving_atlas.body_key(shirt,seated,fwd,side)
-		if key!="" and art_cache_covers(Rect2(body+moving_atlas.rectangles[key].position,moving_atlas.rectangles[key].size),MovingAtlas.BAKE_SCALE):moving_atlas.draw_part(self,key,body);return
-	_body_shape_legacy(body,shirt,seated,fwd,side)
 func _body_shape_legacy(body:Vector2,shirt:String,seated:bool,fwd:Vector2,side:Vector2):
 	if seated:
 		rounded_poly([body+Vector2(-8,-27),body+Vector2(8,-27),body+Vector2(10,-17),body+Vector2(-9,-17)],4.0,shirt)
@@ -1666,8 +1590,6 @@ func _body_shape_legacy(body:Vector2,shirt:String,seated:bool,fwd:Vector2,side:V
 	else:
 		rounded_poly([body+Vector2(-8,-28),body+Vector2(8,-28),body+Vector2(10,-12),body+Vector2(-10,-12)],4.3,shirt)
 	line(body+Vector2(-6,-14),body+Vector2(6,-14),Color(.96,.91,.76,.28),1.0)
-func _apron(body:Vector2):
-	if not _rigid_part("apron",body):_apron_legacy(body)
 func _apron_legacy(body:Vector2):
 	rounded_poly([body+Vector2(-5,-25),body+Vector2(5,-25),body+Vector2(7,-13),body+Vector2(-7,-13)],2,"efe5c5")
 	line(body+Vector2(-4,-28),body+Vector2(-3,-21),"d4cdae",1.4)
@@ -1697,69 +1619,6 @@ func _face_line(a:Vector2,b:Vector2,c,width:float):art_draw_line(a,b,col(c),widt
 
 func _draw_head_legacy(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):
 	var artist=DirectionalCharacter.new();artist.a=self;artist.origin=p;artist.back=away;artist.profile=view==2;artist.blink=blink;artist.chef_hat=chef_hat;artist.blocked=blocked;artist.head(species)
-
-func _draw_head_r13_rejected(p:Vector2,species:int,away:bool,blink:bool,chef_hat:bool,blocked:bool,view:int=-1):
-	# Original rounded silhouettes. Face features share a single low facial
-	# plane; three-quarter, front, profile and back are separate readable views.
-	if view<0:view=3 if away else 0
-	var fur="efe5c7" if species!=1 else "c68b46"
-	var cream="f7ecd2"
-	var eye_ink="516248"
-	var front=view==1
-	var profile=view==2
-	var near_x=5.0 if front else (5.5 if profile else 4.0)
-	var far_x=-5.0 if front else (-6.0 if profile else -6.5)
-	if species==0:
-		rounded_poly([p+Vector2(far_x-3,-47),p+Vector2(far_x-4.5,-66),p+Vector2(far_x-1.0,-69),p+Vector2(far_x+2.4,-65),p+Vector2(far_x+3,-48)],3.0,fur)
-		rounded_poly([p+Vector2(near_x-3,-47),p+Vector2(near_x-2.8,-69),p+Vector2(near_x+.8,-72),p+Vector2(near_x+3.5,-68),p+Vector2(near_x+3,-46)],3.1,fur)
-		if not away:
-			line(p+Vector2(far_x-.8,-63),p+Vector2(far_x,-51),"dfc6ae",1.8)
-			line(p+Vector2(near_x+.1,-65),p+Vector2(near_x+.1,-51),"dfc6ae",1.8)
-	elif species==1:
-		rounded_poly([p+Vector2(-12,-42),p+Vector2(-12.5,-57),p+Vector2(-3,-49)],2.0,fur)
-		rounded_poly([p+Vector2(2,-49),p+Vector2(9,-59),p+Vector2(12,-41)],2.0,fur)
-		if not away:
-			rounded_poly([p+Vector2(-10,-46),p+Vector2(-10,-53),p+Vector2(-5,-49)],1,"b57b52")
-			rounded_poly([p+Vector2(5,-49),p+Vector2(8,-55),p+Vector2(10,-46)],1,"b57b52")
-	else:
-		ellipse(p+Vector2(-9,-47),Vector2(5.6,5.9),fur)
-		ellipse(p+Vector2(8,-49),Vector2(5.2,5.7),fur)
-		if not away:
-			ellipse(p+Vector2(-9,-47),Vector2(2.8,3.2),"d7c4a2")
-			ellipse(p+Vector2(8,-49),Vector2(2.5,3.1),"d7c4a2")
-	ellipse(p+Vector2(0,-37.8),Vector2(13.5 if not profile else 12.5,13.0),fur)
-	if away:
-		ellipse(p+Vector2(8,-32.5),Vector2(4.8,4.0),fur)
-		if species==1:ellipse(p+Vector2(7,-31),Vector2(3.6,2.2),"e5c197")
-	else:
-		var center_x=0.0 if front else (8.0 if profile else 4.5)
-		if species==1:
-			# Cream cheek mask joins the chin; no pointed tube-like muzzle.
-			rounded_poly([p+Vector2(-11,-37),p+Vector2(-5,-35),p+Vector2(center_x,-38),p+Vector2(13,-35),p+Vector2(9,-28),p+Vector2(0,-25.5),p+Vector2(-9,-29)],3.8,cream)
-		else:ellipse(p+Vector2(center_x,-32.5),Vector2(8.8 if not profile else 6.8,5.6),cream)
-		var eye_positions=[Vector2(-5.0,-39.6),Vector2(5.0,-39.6)] if front else ([Vector2(7.0,-40)] if profile else [Vector2(-3.6,-40.7),Vector2(5.7,-40.0)])
-		for eye in eye_positions:
-			if blink:
-				_face_line(p+eye+Vector2(-1.6,.2),p+eye+Vector2(0,-.6),eye_ink,1.0)
-				_face_line(p+eye+Vector2(0,-.6),p+eye+Vector2(1.6,.2),eye_ink,1.0)
-			else:
-				_face_ellipse(p+eye,Vector2(1.45,1.8),eye_ink)
-				_face_ellipse(p+eye+Vector2(.25,-.7),Vector2(.35,.40),"f5efd8")
-			if blocked:_face_line(p+eye+Vector2(-1.5,-3),p+eye+Vector2(1.3,-2.3),eye_ink,.8)
-		var nose=p+Vector2(0 if front else (12 if profile else 7.4),-34.5)
-		_face_ellipse(nose,Vector2(1.7,1.2),"b28c7d" if species==0 else "6f654b")
-		_face_line(nose+Vector2(0,.9),nose+Vector2(-.15,2.0),"948369",.75)
-		_face_line(nose+Vector2(-1.8,2),nose+Vector2(-.4,2.8),"948369",.72)
-		_face_line(nose+Vector2(-.4,2.8),nose+Vector2(1.3,2.2),"948369",.72)
-		_face_ellipse(p+Vector2(-5 if front else 1,-33),Vector2(2.0,1.2),Color(.82,.49,.40,.16))
-		if front:_face_ellipse(p+Vector2(6,-33),Vector2(2,1.2),Color(.82,.49,.40,.16))
-	if chef_hat:
-		rounded_poly([p+Vector2(-10,-49),p+Vector2(10,-49),p+Vector2(10,-54),p+Vector2(-10,-54)],1.5,"fff5dd")
-		for x in [-7,0,7]:ellipse(p+Vector2(x,-56),Vector2(5.3,4.8),"fff5dd")
-
-func _arm_pose(target:Vector2,shoulder:Vector2=Vector2(7,-28),_side=1) -> Dictionary:
-	var limb=CompactPose.limb(target,shoulder,ARM_LENGTH)
-	return {"shoulder":limb.pivot,"hand":limb.tip,"length":ARM_LENGTH,"segments":1,"target_error":limb.target_error}
 
 func _table_guest_direction(table_id:int) -> Vector2:
 	if not is_instance_valid(game):return Vector2.DOWN
@@ -1844,21 +1703,6 @@ func _meal(table_id: int):
 			_plate(meal_at,remaining,dirty)
 		if drink:_cup(cup_at)
 
-func _doorway():
-	# Solid doorway assembly, with back-facing soffit/near reveal culled.
-	# The threshold is in the ground pass; only the far jamb reveal is visible.
-	# Its outside edge uses the same -0.26 plane as both adjoining wall caps.
-	var a=DOOR_START; var b=DOOR_END; var h=DOOR_HEIGHT; var n=-.26
-	poly([iso(0,a),iso(n,a),iso(n,a,h),iso(0,a,h)],"dce2c9")
-	poly([iso(0,a,WALL_HEIGHT),iso(0,b,WALL_HEIGHT),iso(0,b,h),iso(0,a,h)],"cfdbc2")
-	poly([iso(0,a,WALL_HEIGHT),iso(0,b,WALL_HEIGHT),iso(n,b,WALL_HEIGHT),iso(n,a,WALL_HEIGHT)],"fff1d0")
-	# Slim solid sage casing on the room face, not disconnected green strokes.
-	var w=.085
-	poly([iso(.01,a-w),iso(.01,a+w),iso(.01,a+w,h+4),iso(.01,a-w,h+4)],"597d60")
-	poly([iso(.01,b-w),iso(.01,b+w),iso(.01,b+w,h+4),iso(.01,b-w,h+4)],"597d60")
-	poly([iso(.01,a-w,h+4),iso(.01,b+w,h+4),iso(.01,b+w,h-1),iso(.01,a-w,h-1)],"597d60")
-	# Threshold joins the pavement and indoor floor without another paving lane.
-
 func _chair_rotation(entry) -> int:
 	# Occupied chairs face the table they actually serve; other placed chairs
 	# retain their independently editable four-way orientation.
@@ -1912,10 +1756,6 @@ func hit_item(screen: Vector2) -> int:
 		var width={"table":30,"chair":19,"plant":23,"lamp":19,"bookshelf":24,"rug":35,"bin":19}.get(d.kind,31)
 		if Rect2(Vector2(-width,-height),Vector2(width*2,height+9)).has_point(local): return int(d.id)
 	return -1
-
-func _door_front():
-	var b=DOOR_END;var h=DOOR_HEIGHT;var w=.085
-	poly([iso(.01,b-w),iso(.01,b+w),iso(.01,b+w,h+4),iso(.01,b-w,h+4)],"597d60")
 
 func _cup(bottom:Vector2,filled=true):
 	# One small clear tumbler, amber juice, planted base and quiet highlight.
@@ -2147,22 +1987,6 @@ func _banana_peel(at:Vector2,scale=1.0):
 	line(at+Vector2(0,-3.5)*scale,at+Vector2(0,.5)*scale,"f4d878",1.7*scale)
 	line(at+Vector2(0,.5)*scale,at+Vector2(5.5,2.6)*scale,"e7c660",1.5*scale)
 	line(at+Vector2(-1,.5)*scale,at+Vector2(-5.3,2.6)*scale,"efd174",1.5*scale)
-
-func _dry_crumbs(at:Vector2):
-	# Angular, warm crumbs with a light cut face read as dry solid scraps.
-	for offset in [Vector2(-4,1),Vector2(2,-1),Vector2(6,2)]:
-		var p=at+offset
-		poly([p+Vector2(-2,0),p+Vector2(-.7,-1.8),p+Vector2(1.8,-.5),p+Vector2(1.4,1.2),p+Vector2(-.8,1.5)],"a37d48")
-		line(p+Vector2(-.7,-1.1),p+Vector2(.9,-.4),"d7b778",.85)
-
-func _wet_spill(at:Vector2,remaining:float):
-	if remaining<=.001:return
-	# A cool, connected low puddle with a reflection, never a crumb cluster.
-	var points=[]
-	for point in [Vector2(-12,0),Vector2(-9,-3),Vector2(-4,-3.5),Vector2(0,-5),Vector2(6,-4),Vector2(8,-2),Vector2(13,-1),Vector2(14,1.5),Vector2(8,3.5),Vector2(2,3),Vector2(-4,4.5),Vector2(-10,2.5)]:points.append(at+point*remaining)
-	rounded_poly(points,2.0*remaining,Color(.40,.59,.59,.60))
-	line(at+Vector2(-7,-1)*remaining,at+Vector2(-2,-2)*remaining,Color(.88,.94,.88,.85),1.1*remaining)
-	ellipse(at+Vector2(8,1)*remaining,Vector2(1.8,.65)*remaining,Color(.84,.92,.86,.68))
 
 func _floor_mess_active(record:Dictionary) -> bool:
 	var phase=str(record.get("guest",{}).get("phase",""))
