@@ -163,11 +163,39 @@
     async function acknowledge(digest,revision){
       const fence=assertActive(true),id=current.request?.id;
       if(!id)throw fail('HANDOFF_CHANGED','The device switch request changed.');
-      await change((value,save)=>{
-        if(save?.digest!==digest||save.revision!==revision)throw fail('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
+      // Compare server timestamps without reducing them to milliseconds. A
+      // fresh transaction may only recover an independently observed renewal
+      // of this exact owner, request and final save; denial alone is no proof.
+      const compareStamp=(a,b)=>{
+        if(Number.isInteger(a?.seconds)&&Number.isInteger(a?.nanoseconds)&&Number.isInteger(b?.seconds)&&Number.isInteger(b?.nanoseconds))
+          return Math.sign(a.seconds-b.seconds)||Math.sign(a.nanoseconds-b.nanoseconds);
+        return typeof a==='number'&&Number.isFinite(a)&&typeof b==='number'&&Number.isFinite(b)?Math.sign(a-b):NaN;
+      };
+      const sameRequest=(a,b)=>a&&b&&a.id===b.id&&a.requester===b.requester&&a.device===b.device&&compareStamp(a.at,b.at)===0;
+      const nextAck=(value,save)=>{
+        if(save?.digest!==digest||save.revision!==revision||save.writerId!==fence.writerId||save.writerEpoch!==fence.writerEpoch)throw fail('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
         if(value?.owner!==sessionId||value.epoch!==fence.writerEpoch||value.request?.id!==id)throw fail('OWNERSHIP_LOST','The device switch changed before acknowledgment.');
+        if(value.ack!==null)throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
         return {...value,ack:{requestId:id,digest,revision}};
-      });return snapshot();
+      };
+      let attempted=null;
+      try {await change((value,save)=>{
+        attempted=null;const next=nextAck(value,save);
+        attempted={...value,request:{...value.request}};return next;
+      });}catch(error){
+        guard();if(error.code!=='permission-denied'||!attempted)throw error;
+        const latest=await remote.read();guard();
+        const renewed=value=>value&&value.schema===attempted.schema&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
+          &&sameRequest(value.request,attempted.request)&&value.ack===null&&compareStamp(value.updatedAt,attempted.updatedAt)>0;
+        if(!renewed(latest))throw error;
+        const confirmedAt=latest.updatedAt;
+        // One fresh CAS only. A second race, changed request/save, account
+        // change or uncertain outcome remains paused with the durable journal.
+        await change((value,save)=>{
+          if(!renewed(value)||compareStamp(value.updatedAt,confirmedAt)!==0)throw fail('HANDOFF_CHANGED','The device switch changed. Progress remains paused.');
+          return nextAck(value,save);
+        });
+      }return snapshot();
     }
     async function takeOver(force=false){
       guard();const id=current?.request?.id;

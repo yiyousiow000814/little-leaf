@@ -22,13 +22,21 @@ class FakeAPI:
         self.finalized = False
         self.releases = 0
         self.release_name = hosting.SITE_PATH + "/releases/original"
+        self.config = {'headers': [{'glob': '/**', 'headers': {'Content-Security-Policy': "frame-ancestors 'none'"}}],
+                       'rewrites': [{'glob': '/game/**', 'path': '/index.html'}], 'futureField': {'retained': True}}
+        self.created_config = None
 
     def request(self, method, path, data=None, upload=False):
         self.calls.append((method, path, data, upload))
         if method == 'GET':
+            if '/versions/' in path:
+                return {'name': path, 'status': 'FINALIZED',
+                        'config': self.created_config if path == NEW else self.config}
             head = hosting.SITE_PATH + '/versions/intervening' if self.fail == 'concurrent' and self.finalized else self.head
             return {'releases': [{'name': hosting.SITE_PATH + '/releases/intervening' if self.fail == 'concurrent-same-version' and self.finalized else self.release_name, 'version': {'name': head}}]} if head else {'releases': []}
-        if path == hosting.SITE_PATH + '/versions': return {'name': NEW, 'status': 'CREATED'}
+        if path == hosting.SITE_PATH + '/versions':
+            self.created_config = data['config']
+            return {'name': NEW, 'status': 'CREATED'}
         if ':populateFiles' in path:
             self.files = data['files']
             return {'uploadUrl': 'https://evil.invalid/upload' if self.fail == 'upload-url' else 'https://upload-firebasehosting.googleapis.com/upload/' + NEW + '/files',
@@ -89,6 +97,8 @@ class HostingTests(unittest.TestCase):
         self.assertNotIn('/firestore.rules', api.files)
         self.assertTrue(all(method != 'DELETE' for method, *_ in api.calls))
         self.assertFalse(any('firestore' in path or 'iam' in path for _, path, *_ in api.calls))
+        self.assertEqual(api.created_config, api.config)
+        self.assertEqual(receipt['preserved_hosting_config'], api.config)
 
     def test_corrupt_package_stops_before_any_network(self):
         (self.package / 'public/index.js').write_text('tampered')
@@ -170,12 +180,12 @@ class HostingTests(unittest.TestCase):
         self.assertEqual(sum(method == 'POST' and '/releases?' in path for method,path,*_ in api.calls), 1)
         self.assertEqual(json.loads(self.output.read_text())['status'], 'release-outcome-pending')
 
-    def test_failed_live_smoke_restores_recorded_prior_version(self):
+    def test_failed_live_smoke_requires_inspection_without_automatic_rollback(self):
         api = FakeAPI()
         with self.assertRaises(RuntimeError):self.deploy(api, False)
-        self.assertEqual(api.head, OLD)
-        self.assertEqual(api.releases, 2)
-        self.assertEqual(json.loads(self.output.read_text())['status'], 'smoke-failed-rolled-back')
+        self.assertEqual(api.head, NEW)
+        self.assertEqual(api.releases, 1)
+        self.assertEqual(json.loads(self.output.read_text())['status'], 'smoke-failed-inspection-required')
 
     def test_failed_smoke_never_rolls_back_an_intervening_release(self):
         api = FakeAPI()
@@ -210,9 +220,34 @@ class HostingTests(unittest.TestCase):
 
     def test_first_deploy_failed_smoke_has_no_fake_rollback_or_delete(self):
         api = FakeAPI(existing=None)
-        with self.assertRaises(RuntimeError):self.deploy(api, False)
-        self.assertEqual(api.releases, 1)
-        self.assertEqual(json.loads(self.output.read_text())['status'], 'smoke-failed')
+        with self.assertRaises(ValueError):self.deploy(api, False)
+        self.assertEqual(api.releases, 0)
+        self.assertFalse(any(method == 'POST' for method, *_ in api.calls))
+
+    def test_changed_candidate_config_stops_before_release(self):
+        api = FakeAPI(); original = api.request
+        def request(method, path, data=None, upload=False):
+            result = original(method, path, data, upload)
+            if method == 'GET' and path == NEW:
+                result['config'] = {'different': True}
+            return result
+        api.request = request
+        with self.assertRaises(RuntimeError): self.deploy(api)
+        self.assertEqual(api.releases, 0)
+
+    def test_configuration_type_change_is_not_equal_preservation(self):
+        for target in [NEW, OLD]:
+            api = FakeAPI(); original = api.request
+            def request(method, path, data=None, upload=False):
+                result = original(method, path, data, upload)
+                if method == 'GET' and path == target and api.finalized:
+                    import copy
+                    result = copy.deepcopy(result)
+                    result['config']['futureField']['retained'] = 1
+                return result
+            api.request = request
+            with self.subTest(target=target), self.assertRaises(RuntimeError): self.deploy(api)
+            self.assertEqual(api.releases, 0)
 
     def test_transport_refuses_arbitrary_credential_destinations(self):
         api = hosting.Transport('synthetic-token-not-a-credential')

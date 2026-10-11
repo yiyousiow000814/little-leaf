@@ -6,11 +6,13 @@ from pathlib import Path
 from build_firebase import stage, validate_export_inventory, entry_styles
 from build_web import ROOT, sha256
 from project_layout import source_path
+from build_itch_entry import remove_ordinary_entry
 
 
 def wrapper_html(html, origin):
     if not re.fullmatch(r'https://little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app', origin):
         raise ValueError('Exact controlled preview origin required')
+    html = remove_ordinary_entry(html)
     entry = '<section id="itch-entry" class="leaf-entry-page" aria-labelledby="entry-heading"><div class="leaf-entry-card"><p class="leaf-entry-brand">Little Leaf</p><p class="leaf-entry-eyebrow">A little café of your own</p><h1 id="entry-heading" class="leaf-entry-title">Welcome to your café</h1><p class="leaf-entry-intro">Choose how you\'d like to begin.</p><div class="leaf-entry-actions"><div class="leaf-entry-option"><button id="itch-account" type="button">Play with Google on itch</button><p>Sign in through a secure Google popup on this itch page.</p></div><div class="leaf-entry-option local"><button id="itch-local" type="button">Continue local play on itch</button><p>Return to your café saved in this browser.</p></div></div><p class="leaf-entry-note">Local progress does not transfer automatically to your Google account.</p></div></section>'
     # Gate only the derived wrapper before its original vault or engine starts.
     marker = 'window.__littleLeafVault.boot()'

@@ -5,6 +5,7 @@ service creation, billing, personal credentials, or site/version deletion APIs.
 Official protocol: https://firebase.google.com/docs/hosting/api-deploy
 """
 import argparse
+import copy
 import gzip
 import hashlib
 import json
@@ -243,12 +244,26 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
     manifest, marker = verify_live_package(folder, source_sha, manifest_sha)
     receipt = {'schema_version': 1, 'status': 'validated', 'source_commit': source_sha,
                'source_tree': marker['source_tree'], 'variant_manifest_sha256': manifest_sha,
-               'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested'}
+               'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested',
+               'automatic_rollback_allowed': False}
     def save():
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(receipt, indent=2) + '\n')
     save()
     previous = release_head(api)
+    if not previous:
+        raise ValueError('Existing finalized Hosting baseline required; no default config replacement')
+    baseline = api.request('GET', previous['version'])
+    if (baseline.get('name') != previous['version'] or baseline.get('status') != 'FINALIZED'
+            or not isinstance(baseline.get('config'), dict)):
+        raise ValueError('Complete current Hosting configuration could not be established')
+    config = copy.deepcopy(baseline['config'])
+    def config_digest(value):
+        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                         ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    config_hash = config_digest(config)
+    receipt['preserved_hosting_config'] = config
+    receipt['preserved_hosting_config_sha256'] = config_hash
     receipt['previous_hosting_version'] = previous['version'] if previous else None
     receipt['previous_hosting_release'] = previous['release'] if previous else None
     save()
@@ -261,7 +276,7 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
         hash_value = hashlib.sha256(payload).hexdigest()
         compressed[hash_value] = payload
         paths['/' + path.relative_to(folder / 'public').as_posix()] = hash_value
-    version = api.request('POST', SITE_PATH + '/versions', {'config': CONFIG}).get('name', '')
+    version = api.request('POST', SITE_PATH + '/versions', {'config': config}).get('name', '')
     if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
         raise ValueError('Unconfirmed version creation; do not retry blindly')
     receipt.update({'status': 'staging', 'hosting_version': version});save()
@@ -277,7 +292,14 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
     if finalized.get('name') != version or finalized.get('status') != 'FINALIZED':
         raise ValueError('New Hosting version was not finalized; live release untouched')
     receipt['status'] = 'finalized-not-released';save()
-    if release_head(api) != previous:
+    candidate = api.request('GET', version)
+    if (candidate.get('name') != version or candidate.get('status') != 'FINALIZED'
+            or config_digest(candidate.get('config')) != config_hash):
+        raise RuntimeError('Finalized candidate configuration differs; live release untouched')
+    current = api.request('GET', previous['version'])
+    if (release_head(api) != previous or current.get('name') != previous['version']
+            or current.get('status') != 'FINALIZED'
+            or config_digest(current.get('config')) != config_hash):
         raise RuntimeError('Another release changed during staging; live release untouched')
     receipt['status'] = 'release-outcome-pending';save()
     release = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': version}), {})
@@ -286,13 +308,7 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
         raise RuntimeError('Hosting release outcome uncertain; inspect before retrying')
     receipt.update({'status': 'published-pending-smoke', 'hosting_release': release['name']});save()
     if not smoke(marker):
-        receipt['status'] = 'smoke-failed';save()
-        if previous and release_head(api) == {'release': release['name'], 'version': version}:
-            receipt['status'] = 'rollback-outcome-pending';save()
-            rollback = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': previous['version']}), {})
-            if rollback.get('version', {}).get('name') != previous['version'] or not RELEASE_RE.fullmatch(rollback.get('name', '')):
-                raise RuntimeError('Rollback outcome uncertain; inspect Hosting before retrying')
-            receipt.update({'status': 'smoke-failed-rolled-back', 'rollback_release': rollback['name']});save()
+        receipt['status'] = 'smoke-failed-inspection-required';save()
         raise RuntimeError('Hosted marker verification failed; review the retained deployment receipt')
     receipt['status'] = 'published-pending-hosted-acceptance';save()
     return receipt
