@@ -30,7 +30,7 @@ func make_game():
  # This funded service fixture reserves a car directly, bypassing the normal
  # arrival dispatcher. It represents existing progress, not a first visit.
  game.model.first_guest_pending=false;game.model.first_guest_start=Vector2.INF
- game.model.coins=10000;game.model.begin_decoration_session();check(game.model.buy_parking(),"Main purchases parking");game.model.finish_decoration_session();check(Parking.reserve(game.model),"Main reserves car guest")
+ game.model.coins=game.model.parking_price()+8000;game.model.begin_decoration_session();check(game.model.buy_parking(),"Main purchases parking");game.model.finish_decoration_session();check(Parking.reserve(game.model),"Main reserves car guest")
  return game
 func save_roundtrip(game,label:String):
  game.model.service_snapshot=game._service_save_snapshot()
