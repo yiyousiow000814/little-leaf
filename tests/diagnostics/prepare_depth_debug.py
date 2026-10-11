@@ -30,10 +30,10 @@ func _depth_probe_tree_contours(p:Vector2,s:float,horizontal_scale:float):
     import difflib
     original = (repo / 'game/scripts/illustrated_cafe.gd').read_text(encoding='utf-8')
     diff = ''.join(difflib.unified_diff(original.splitlines(True), text.splitlines(True), fromfile='tracked/illustrated_cafe.gd', tofile='staged/illustrated_cafe.gd'))
-    (output / 'instrumentation.diff').write_text(diff, encoding='utf-8')
+    (output / 'instrumentation.diff').write_text(diff, encoding='utf-8', newline='\n')
     identity['capture_mode'] = 'debug_view'
     identity['staged_artist_sha256'] = hashlib.sha256(artist.read_bytes()).hexdigest()
-    identity['instrumentation_diff_sha256'] = hashlib.sha256(diff.encode()).hexdigest()
+    identity['instrumentation_diff_sha256'] = hashlib.sha256((output / 'instrumentation.diff').read_bytes()).hexdigest()
     for name in ['capture_depth_debug.gd','depth_debug_overlay.gd','prepare_depth_debug.py']:
         key='tests/diagnostics/'+name
         identity['files'][key]=hashlib.sha256((repo/key).read_bytes()).hexdigest()
