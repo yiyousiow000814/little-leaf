@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact editor source 4f9b65d87f7a2d174cde9dd0782378567fb30c3b/tree2d21ff20bc2c92ca549b598b8d6ff9cdda10bcec; QA bcf6afbe3e982fa3723fc1ad4bf325d01ed1ac7f; run38137014580; receiptSHA256 88c5e77b1c17706b689de507c741ded6897c7263b5746feec4b70d8d40fb58ae; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact editor-outline source 059453f166d7e502b6344f78c48d750914f7dc26/tree9b5cfd0068a82b7a640f57843f2e2ee06267107b; QA 67e09c3fcf279175b1f5b93c2cf77b900b501f3f; run38140309190; receiptSHA256 af37c2388762c105d3c3aa1415991b6f0afd5b6de7bf8a8c7896cdd7112d0450; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -72,7 +72,7 @@
     "scripts/cafe_staff_portrait.gd": "703da7d62d91b023fea46f286080023ca3f4c20d725c39ec921e9e5228e9770a",
     "scripts/cafe_staff_relocation.gd": "168feee3aa249e2731c8c3a14d830f1c678112c5036d82b4aa59bba78142ac25",
     "scripts/cafe_startup_readiness.gd": "9c7e9a4fbe079f7be649d913ead31edc394e7ecfcc54c29cd0c1fab5e1dc4977",
-    "scripts/cafe_tile_paint_preview.gd": "605478b13f6015989a8499192dfd2fee4106c07488f43baa3f99dfc9ecb15809",
+    "scripts/cafe_tile_paint_preview.gd": "d7e961bc6db931518aee5531585ddd63b53958b84fbde41b6e731270954c316c",
     "scripts/cafe_tutorial.gd": "23b69ca7e7e17f99043d4ccacdb0c1da04844d083ad3fcf66edc6efb2dff85ca",
     "scripts/cafe_tutorial_state.gd": "712410d0752d341ff3a1bd1b46c744b9c7996e42de3d7f8c2380bfd99cb41cf0",
     "scripts/cafe_update_notes.gd": "1fe58680c029c47f18beed19aa094657051070ba9d5347b4e3eac871c1407a6a",
