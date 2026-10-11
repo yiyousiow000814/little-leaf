@@ -19,7 +19,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {installEngineLaunchHook} = require('../engine_launch_hook');
+const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
 const root = path.resolve(__dirname, '../..');
 const GAME = 'https://game.little-leaf-recovery.test';
 const HOST = 'https://embed-host-recovery.test';
@@ -111,7 +111,7 @@ function inputs() {
     export_manifest_sha256: sha(manifestBytes), native_report_sha256: sha(engineBytes),
     native_layout_sha256: sha(layoutBytes), native_layout_log_sha256: sha(layoutLogBytes),
     browser_harness_sha256: sha(fs.readFileSync(__filename)),
-    launch_hook_sha256: sha(fs.readFileSync(path.join(__dirname, '../engine_launch_hook.js'))),
+    launch_hook_sha256: sha(fs.readFileSync(path.join(__dirname, '../tooling/engine_launch_hook.js'))),
     export_files: Object.fromEntries(['index.html', 'index.js', 'index.wasm', 'index.pck'].map(name => [name, manifest.files[name]]))
   }};
 }

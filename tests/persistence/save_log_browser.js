@@ -6,7 +6,7 @@ const fs = require('node:fs'), path = require('node:path'), http = require('node
 const crypto = require('node:crypto');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const {sourceVersion} = require('../source_paths');
-const {installEngineLaunchHook} = require('../engine_launch_hook');
+const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
 const root = path.resolve(__dirname, '../..');
 const option = name => {
   const index = process.argv.indexOf(name);

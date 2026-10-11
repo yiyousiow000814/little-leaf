@@ -39,7 +39,7 @@ class TrustedPreviewTests(unittest.TestCase):
             self.assertFalse(manifest['hosted_acceptance']); self.assertFalse(manifest['auth_domains_modified'])
             for name in ['index.js', 'index.wasm', 'index.pck']:
                 self.assertEqual((output / 'public' / name).read_bytes(), (web / name).read_bytes())
-            subprocess.run(['node', 'tests/itch_trusted_preview_entry.js', str(output / 'itch-wrapper/index.html')], cwd=ROOT, check=True, timeout=30)
+            subprocess.run(['node', 'tests/tooling/itch_trusted_preview_entry.js', str(output / 'itch-wrapper/index.html')], cwd=ROOT, check=True, timeout=30)
 
     def test_arbitrary_shared_and_lookalike_origins_are_rejected(self):
         shell = (ROOT / 'platform/web/little_leaf_shell.html').read_text()
