@@ -42,7 +42,7 @@ class NativeUiRunnerTests(unittest.TestCase):
                 data = b''
                 if '--script' in command:
                     resource = command[command.index('--script') + 1]
-                    expected = 'res://tests/test_' + entry + '_ui.gd'
+                    expected = 'res://tests/building/test_' + entry + '_ui.gd'
                     capture = native and len(calls) == (3 if cache else 4)
                     if capture and entry == 'build_tiles':
                         expected = 'res://tests/diagnostics/capture_build_tiles_ui.gd'

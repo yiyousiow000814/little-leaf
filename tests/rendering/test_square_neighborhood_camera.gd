@@ -1,4 +1,4 @@
-extends "res://tests/test_existing_wall_actions.gd"
+extends "res://tests/building/test_existing_wall_actions.gd"
 func run():
  if not "saveguard" in OS.get_user_data_dir():quit(2);return
  game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true
