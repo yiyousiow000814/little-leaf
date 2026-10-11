@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact legacy3d-combined source cab9f67f9c4d297c65c283704bc301e8acc3079e/tree13ccacd66431f9f6caeaecc51de7de4210115ba0; QA e46567d1046836bb95d2f9474c4008ac0026bf0f; run38107421127; receiptSHA256 0510dfca2f26c80934620314c3c7fe6561a8a232604b588b622249ea2a9e469b; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact oak-depth source 102aae5e0bcb49f4a2e21b91c6cb4328ea4528bd/treee275b909cb64ac403932e6364b8b14afad55ff8b; QA b446631f028511b42b4b6293c1e1429f8eff4bd8; run38122914116; receiptSHA256 b6e7127f5b36d6de277d36cd53b5a7418dc6548ff337f1d89f3a8cd3e5ded9da; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -101,7 +101,7 @@
     "scripts/floor_mess_art.gd": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6",
     "scripts/furniture_atlas_painter.gd": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78",
     "scripts/furniture_static_atlas.gd": "c5c1a04a5ac159362b3718a415d01243a6b8f796779dfc22b08234a14fccd427",
-    "scripts/illustrated_cafe.gd": "0788d71e0d16e51066e81af893b65b1eaa7ccf24a810236ee9a362c02379bb62",
+    "scripts/illustrated_cafe.gd": "9a82170042282519d89b47ecba8d2601f88dcd65f7f6707d302fad87b4a16baa",
     "scripts/illustrated_furniture.gd": "80b838c3313164b7052c56235e65d2dbe34de77f200f05ba8e5a6d3647ebe140",
     "scripts/illustrated_ground.gd": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5",
     "scripts/illustrated_motion.gd": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e",
