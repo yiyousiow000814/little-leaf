@@ -41,13 +41,13 @@ static func oldest_pending(model)->int:
 		if visitor.phase=="outside_queue" and (id<0 or int(visitor.id)<id):id=int(visitor.id)
 	return id
 static func reserve(model)->bool:
-	if not model.parking_owned or model.parking_visits.size()>=CAPACITY or model.outside_queue.size()+pending_count(model)>=model.OutsideQueue.CAPACITY:return false
+	if not model.parking_owned or model.parking_visits.size()>=CAPACITY or (model.Reception.pending_count(model) if model.reception_review_enabled else model.outside_queue.size()+pending_count(model))>=model.OutsideQueue.CAPACITY:return false
 	# One throat/aisle maneuver at a time; never stack waiting cars at origin.
 	for visit in model.parking_visits:
 		if visit.car_position.distance_to(CAR_START)<2.8:return false
 	var bays={};var slots=reserved_slots(model)
 	for visit in model.parking_visits:bays[int(visit.bay)]=true
-	for visitor in model.outside_queue:slots[int(visitor.slot)]=true
+	for visitor in model.outside_queue+model.reception_visits:slots[int(visitor.slot)]=true
 	var bay=0;var slot=0
 	while bays.has(bay):bay+=1
 	while slots.has(slot):slot+=1
@@ -95,6 +95,8 @@ static func close(model):
 static func _handoff(model,visit:Dictionary):
 	if visit.cancelled or not model.operating_open:
 		start_return(model,int(visit.id),HANDOFF);return
+	if model.reception_review_enabled:
+		model.Reception.from_parking(model,visit);return
 	var visitor={"id":visit.id,"slot":visit.slot,"phase":"outside_queue","x":HANDOFF.x,"z":HANDOFF.y,"heading":Vector2.DOWN,"origin_z":-82.0,"wait_seconds":0.0,"route":[Vector2(HANDOFF.x,model.OutsideQueue.target(int(visit.slot)).y),model.OutsideQueue.target(int(visit.slot))],"route_index":0,"seated":false,"waiting":false,"table_id":-1,"chair_id":-1}
 	if oldest_pending(model)==int(visit.id) and model._try_admit_queued_visitor(visitor):return
 	visit.phase="queued";model.outside_queue.append(visitor)
@@ -135,7 +137,7 @@ static func _on_route(point:Vector2,origin:Vector2,route:Array,index:int)->bool:
 	var start=origin if index==0 else route[index-1]
 	var end:Vector2=route[index]
 	return absf(point.distance_to(start)+point.distance_to(end)-start.distance_to(end))<.0001
-static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dictionary:
+static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool,departures:Array=[])->Dictionary:
 	var codec=preload("res://scripts/cafe_runtime_codec.gd").new()
 	var data=codec.decode(raw)
 	if codec.error!="" or not data is Dictionary or not data.get("format") is String or data.get("format")!=FORMAT or not data.get("owned") is bool or not codec._integer(data.get("paid_cost"),0,1000000000) or not data.get("visits") is Array:return {"ok":false,"error":"Invalid parking format"}
@@ -144,6 +146,8 @@ static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dic
 	for guest in customers:
 		if guest.has("parking_visit") and (not guest.parking_visit is bool or not guest.parking_visit):return {"ok":false,"error":"Invalid parking guest marker"}
 		guests[int(guest.id)]=guest
+	for body in departures:
+		if bool(body.parking_visit):guests[int(body.id)]=body
 	for visitor in queue:visitors[int(visitor.id)]=visitor;slots[int(visitor.slot)]=int(visitor.id)
 	var pending=0;var driving=0
 	for visit in data.visits:
@@ -185,13 +189,15 @@ static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dic
 		elif visit.slot!=-1:return {"ok":false,"error":"Finished request retains queue slot"}
 		if not open and visit.phase in ["car_arriving","walking_in"] and not visit.cancelled:return {"ok":false,"error":"Closed cafe has uncancelled parking arrival"}
 		if visit.phase=="queued":
-			if not visitors.has(id) or visitors[id].phase!="outside_queue" or int(visitors[id].slot)!=int(visit.slot) or guests.has(id) or visit.cancelled:return {"ok":false,"error":"Parking queue ownership mismatch"}
+			if not visitors.has(id) or visitors[id].phase not in ["outside_queue","approaching","waiting_seat","waiting_table","waiting_cleaning","leaving"] or int(visitors[id].slot)!=int(visit.slot) or guests.has(id) or visit.cancelled:return {"ok":false,"error":"Parking queue ownership mismatch"}
 			if visitors[id].origin_z!=-82.0 or float(visitors[id].z)<HANDOFF.y-.00001:return {"ok":false,"error":"Parking queue guest predates pavement handoff"}
 		elif visitors.has(id):return {"ok":false,"error":"Duplicate parking pedestrian"}
 		if visit.phase=="dining":
 			if not guests.has(id) or guests[id].phase in ["dirty","cleaning"] or guests[id].get("parking_visit",false)!=true:return {"ok":false,"error":"Parking dining ownership mismatch"}
 		elif guests.has(id) and (visit.phase not in ["walking_return","car_departing"] or guests[id].phase not in ["dirty","cleaning"] or guests[id].get("parking_visit",false)!=true):return {"ok":false,"error":"Duplicate parking guest"}
 	if queue.size()+pending>model_queue_capacity():return {"ok":false,"error":"Parking requests exceed outside capacity"}
+	for body in departures:
+		if bool(body.parking_visit)!=ids.has(int(body.id)) or (bool(body.parking_visit) and ids[int(body.id)].phase!="dining"):return {"ok":false,"error":"Orphan or duplicated departing parking body"}
 	for guest in customers:
 		if guest.has("parking_visit"):
 			if guest.parking_visit!=true or (guest.phase not in ["dirty","cleaning"] and (not ids.has(int(guest.id)) or ids[int(guest.id)].phase!="dining")):return {"ok":false,"error":"Orphan parking guest"}

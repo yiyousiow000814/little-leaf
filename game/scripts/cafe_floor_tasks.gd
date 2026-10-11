@@ -30,7 +30,16 @@ func restore(data:Dictionary):
  for entry in data.get("walks",[]):walks[int(entry.guest_id)]=entry.duplicate(true)
 func observe_walks():
  var live={}
- for guest in game.model.customers:
+ var actors=game.model.customers
+ if game.model.get("reception_review_enabled")==true:actors=actors.filter(func(g):return g.phase not in ["dirty","cleaning"])
+ var bodies=game.model.get("departing_bodies")
+ if bodies is Array:
+  actors=actors.filter(func(g):return not bodies.any(func(b):return int(b.id)==int(g.id)))
+  actors.append_array(bodies)
+ # Reception owns no meal record, but its real indoor footsteps are still traffic.
+ for visitor in game.model.get("reception_visits") if game.model.get("reception_visits") is Array else []:
+  if game.model.is_floor_owned(Vector2i(floori(visitor.x),floori(visitor.z))):actors.append(visitor)
+ for guest in actors:
   var id=int(guest.id);live[id]=true;var pos=Vector2(float(guest.x),float(guest.z));var cell=Vector2i(floori(pos.x),floori(pos.y))
   if not walks.has(id):walks[id]={"guest_id":id,"pos":pos,"cell":cell,"inside_steps":0,"dropped":false};continue
   var track=walks[id];var old_cell:Vector2i=track.cell;var moved=pos.distance_to(track.pos)>.00001
@@ -177,8 +186,8 @@ static func _walk_position_valid(walk:Dictionary,guest:Dictionary,codec)->bool:
  if guest.get("street_route_format")!="little_leaf.street_endpoints.v1":return false
  if guest.get("phase")!="arriving" and not (guest.get("phase")=="leaving" and guest.get("withdrawn",false)):return false
  return pos.distance_to(Vector2(float(guest.x),float(guest.z)))<.00001
-static func validate_snapshot(data,staff:Array,item_map:Dictionary,guests:Dictionary,codec)->Dictionary:
- if not data is Dictionary or not codec._integer(data.get("next_id"),1,1000000000) or not codec._integer(data.get("completed"),0,1000000000) or not data.get("messes") is Array or data.messes.size()>MAX_MESSES or not data.get("walks") is Array or data.walks.size()>60:return {"ok":false,"error":"Invalid independent floor task ledger"}
+static func validate_snapshot(data,staff:Array,item_map:Dictionary,guests:Dictionary,codec,max_walks:int=60)->Dictionary:
+ if not data is Dictionary or not codec._integer(data.get("next_id"),1,1000000000) or not codec._integer(data.get("completed"),0,1000000000) or not data.get("messes") is Array or data.messes.size()>MAX_MESSES or not data.get("walks") is Array or data.walks.size()>max_walks:return {"ok":false,"error":"Invalid independent floor task ledger"}
  var ids={};var cells={};var hands={}
  for entry in data.messes:
   if not entry is Dictionary or not codec._integer(entry.get("id"),1,int(data.next_id)-1) or ids.has(int(entry.id)) or entry.get("token")!=entry.id or not codec._cell(entry.get("floor_cell")):return {"ok":false,"error":"Invalid floor task identity"}

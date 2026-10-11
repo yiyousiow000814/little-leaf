@@ -17,6 +17,11 @@ const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/cafe_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
+const Reception=preload("res://scripts/cafe_reception.gd")
+const TableOccupancy=preload("res://scripts/cafe_table_occupancy.gd")
+const DepartingBodies=preload("res://scripts/cafe_departing_bodies.gd")
+const AdmissionLog=preload("res://scripts/cafe_admission_log.gd")
+const ReceptionReview=preload("res://scripts/cafe_reception_review.gd")
 const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
 const Parking=preload("res://scripts/cafe_parking.gd")
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
@@ -130,6 +135,8 @@ func sell_parking()->bool:
 	last_error="";last_event="Parking sold · +%s"%Money.amount(refund);_notify();return true
 
 func visual_customers()->Array:
+	if reception_review_enabled:
+		return customers.filter(func(guest):return guest.phase not in ["dirty","cleaning"])+outside_queue+reception_visits+departing_bodies+Parking.visual_walkers(self)
 	var visible=customers.filter(func(guest):return not (guest.get("parking_visit",false) and guest.phase in ["dirty","cleaning"]))
 	return visible+outside_queue+Parking.visual_walkers(self)
 var dining_sets:Array[Dictionary]=[]
@@ -152,6 +159,13 @@ var _wall_index_revision: int = -1
 var _collision_revision:int=-1
 var _solid_wall_segments:Array=[]
 var _admission_signature:Array=[]
+var _admission_reason="QUEUE_NOT_CHECKED"
+var _admission_log_snapshot:Dictionary={}
+var reception_review_enabled=false
+var _reception_fresh_eligible=true
+var reception_visits:Array[Dictionary]=[]
+var departing_bodies:Array[Dictionary]=[]
+var _reception_plan_signatures:Dictionary={}
 var _fixed_edge_revision:int=-1
 var _fixed_edges:Dictionary={}
 var coins: int = INITIAL_COINS
@@ -214,7 +228,8 @@ func reset_new() -> void:
 	items.clear()
 	dining_sets.clear()
 	customers.clear()
-	outside_queue.clear()
+	outside_queue.clear();reception_visits.clear();departing_bodies.clear();_reception_plan_signatures.clear()
+	reception_review_enabled=false;_reception_fresh_eligible=true;_admission_reason="QUEUE_NOT_CHECKED";_admission_log_snapshot.clear()
 	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
@@ -266,6 +281,8 @@ func operating_status() -> String:
 	if operating_open:return "Open"
 	for guest in customers:
 		if not bool(guest.get("withdrawn",false)) and str(guest.phase) not in ["dirty","cleaning"] and _customer_admitted(guest):return "Closing"
+	for body in departing_bodies:
+		if is_floor_owned(Vector2i(floori(body.x),floori(body.z))):return "Closing"
 	return "Closed"
 
 func _customer_admitted(guest:Dictionary) -> bool:
@@ -278,6 +295,7 @@ func set_operating_open(value:bool) -> bool:
 	operating_open=value;_arrival_elapsed=0.0
 	if not value:
 		Parking.close(self)
+		if reception_review_enabled:Reception.close(self)
 		for visitor in outside_queue:OutsideQueue.cancel(visitor)
 		for guest in customers:
 			if str(guest.phase)=="arriving" and not _customer_admitted(guest):_withdraw_exterior_guest(guest)
@@ -1112,6 +1130,7 @@ func tick(delta: float) -> void:
 
 
 func _tick_step(delta: float) -> void:
+	var departing_at_start=departing_bodies.duplicate()
 	Checkout.advance(self,delta)
 	_choose_walker()
 	var cook_slots := mini(cooks, count_kind("stove"))
@@ -1129,6 +1148,7 @@ func _tick_step(delta: float) -> void:
 		if phase in ["arriving","leaving","checkout_walk"]:
 			customer.waiting = false
 			_advance_walk(customer, delta)
+			if reception_review_enabled:DepartingBodies.split(self,customer)
 			if bool(customer.get("exit_completed",false)):departing.append(customer)
 			continue
 		if phase in ["checkout_wait","paying"]:continue
@@ -1169,8 +1189,12 @@ func _tick_step(delta: float) -> void:
 			customer.duration = PHASE_SECONDS[customer.phase]
 	for customer in departing:
 		customers.erase(customer)
+	if reception_review_enabled:DepartingBodies.refresh_cleanup_references(self)
 	Parking.advance(self,delta)
-	OutsideQueue.advance(self,delta)
+	if reception_review_enabled:
+		DepartingBodies.advance(self,delta,departing_at_start)
+		Reception.advance(self,delta)
+	else:OutsideQueue.advance(self,delta)
 	if operating_open:_arrival_elapsed += delta
 	if operating_open and _arrival_elapsed + 0.000001 >= ARRIVAL_INTERVAL:
 		_arrival_elapsed = 0.0
@@ -1178,6 +1202,20 @@ func _tick_step(delta: float) -> void:
 
 
 func _spawn_customer() -> void:
+	if reception_review_enabled:
+		if not operating_open or count_kind("stove")==0 or count_kind("beverage")==0 or count_kind("sink")==0:return
+		for attempt in range(2):
+			if _nearby_first_guest():
+				# The one tutorial visitor already starts beside this cafe. Preserve
+				# its bounded, camera-aware walk and one-time eligibility exactly.
+				_spawn_walkers(1)
+			elif parking_owned and _next_customer_id%2==0 and Parking.reserve(self):continue
+			else:
+				# Ordinary visitors enter before seeking a place. No offscreen seats.
+				Reception.add(self)
+		if _next_customer_id>1:
+			first_guest_pending=false;first_guest_start=Vector2.INF
+		return
 	if not parking_owned:
 		_spawn_walkers(2)
 	else:
@@ -1194,8 +1232,8 @@ func _spawn_walkers(limit:int) -> void:
 	if not operating_open:return
 	if count_kind("stove") == 0 or count_kind("beverage") == 0 or count_kind("sink") == 0:
 		return
-	if not outside_queue.is_empty() or Parking.pending_count(self)>0:
-		for attempt in range(limit):OutsideQueue.add(self)
+	if not outside_queue.is_empty() or not reception_visits.is_empty() or Parking.pending_count(self)>0:
+		for attempt in range(limit):(Reception.add(self) if reception_review_enabled else OutsideQueue.add(self))
 		return
 	var used_tables: Dictionary = {}
 	var used_chairs: Dictionary = {}
@@ -1246,7 +1284,7 @@ func _spawn_walkers(limit:int) -> void:
 		added += 1
 		arriving += 1
 	if added==0:
-		for attempt in range(limit):OutsideQueue.add(self)
+		for attempt in range(limit):(Reception.add(self) if reception_review_enabled else OutsideQueue.add(self))
 
 func _admit_queued_visitor(visitor:Dictionary)->bool:
 	var oldest=Parking.oldest_pending(self)
@@ -1609,7 +1647,7 @@ func _begin_departure(customer: Dictionary) -> void:
 
 
 func _guest_route_uses(cell: Vector2i) -> bool:
-	if checkout_claims().has(cell):return true
+	if checkout_claims().has(cell) or Reception.uses_cell(self,cell):return true
 	for customer in customers:
 		if customer.phase in ["dirty", "cleaning"]:
 			continue
@@ -1659,7 +1697,7 @@ func _best_stove_speed() -> float:
 
 
 func _item_in_use(id: int) -> bool:
-	if Checkout.busy(self,id):return true
+	if Checkout.busy(self,id) or Reception.uses_item(self,id):return true
 	for customer in customers:
 		if int(customer.table_id) == id or int(customer.chair_id) == id:
 			return true
@@ -1706,8 +1744,10 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 	return true
 
 
-func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
-	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
+func _save_snapshot(path:String,reception:bool=false)->bool:
+	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
+	var snapshot_version=SaveContract.RECEPTION_REVIEW_VERSION if reception else SAVE_VERSION
+	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or not reception_visits.is_empty() or not departing_bodies.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
 	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
@@ -1719,20 +1759,24 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if reserved_error!="":return _fail("Could not save inconsistent active service: "+reserved_error)
 	var codec=RuntimeCodec.new()
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
-	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
+	var checked=codec.validate(runtime,items,cooks,PHASES,snapshot_version,staff_roster(),duty_counts,codec.encode({"format":Reception.FORMAT,"visitors":reception_visits,"departures":departing_bodies}) if reception else null,reception)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
 	if not queue_check.ok:return _fail(str(queue_check.error))
+	var reception_data=codec.encode({"format":Reception.FORMAT,"visitors":reception_visits,"departures":departing_bodies})
+	var reception_check={"ok":true}
+	if reception:reception_check=Reception.validate(self,reception_data,_next_customer_id)
+	if not reception_check.ok:return _fail(str(reception_check.error))
 	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
-	var parking_check=Parking.validate(parking,customers,outside_queue,_next_customer_id,operating_open)
+	var parking_check=Parking.validate(parking,customers,outside_queue+reception_visits,_next_customer_id,operating_open,departing_bodies)
 	if not parking_check.ok:return _fail(str(parking_check.error))
 	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
 	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
 	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
 	if checkout_error!="":return _fail(checkout_error)
 	var data: Dictionary = {
-		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
+		"schema": SAVE_SCHEMA, "version": snapshot_version, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
 		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
@@ -1743,6 +1787,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
+	if reception:
+		data["reception_review_format"]=SaveContract.RECEPTION_REVIEW_FORMAT
+		data["reception_format"]=Reception.FORMAT;data["reception"]=reception_data
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
@@ -1758,11 +1805,12 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	var egress_error=_wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
 	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
-	for guest in checked.state.customers:
+	for guest in checked.state.customers+reception_visits+departing_bodies:
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	var body_error=_opening_body_error(built_walls,openings_check.attachments,actors)
 	if body_error!="":return _fail("Could not save invalid walls: "+body_error)
 	var temp_path := path + ".tmp"
+	if reception and (not ReceptionReview.path_allowed(path) or not ReceptionReview.path_allowed(temp_path,true)):return _fail("Reception path refused before write")
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		return _fail("Could not write the reconstructed save")
@@ -1772,7 +1820,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	file.close()
 	if write_error != OK:
 		return _fail("Save write failed; previous save left unchanged")
-	var result := DirAccess.rename_absolute(temp_path, path)
+	var result := (OK if ReceptionReview.commit(temp_path,path) else ERR_CANT_CREATE) if reception else DirAccess.rename_absolute(temp_path,path)
 	if result != OK:
 		return _fail("Could not finalize the reconstructed save")
 	last_error = ""
@@ -1780,7 +1828,8 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	return true
 
 
-func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false) -> bool:
+func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=false)->bool:
+	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
 	if not FileAccess.file_exists(path):
@@ -1794,9 +1843,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),reception) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
-	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
+	if not SaveContract.accepts_header(data,reception):return _fail("Unsupported or foreign save format")
+	if reception and int(data.version)!=SaveContract.RECEPTION_REVIEW_VERSION:return _fail("Reception requires its explicit version18 envelope")
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
 			return _fail("Invalid save statistic: %s" % field)
@@ -1889,7 +1939,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if not data.get("operating_open") is bool or not data.get("included_bin_pending") is bool:return _fail("Invalid operating or included-equipment state")
 		saved_open=bool(data.operating_open);saved_bin_pending=bool(data.included_bin_pending)
 		var codec=RuntimeCodec.new()
-		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
+		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty,data.get("reception"),reception)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
@@ -1898,8 +1948,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if not saved_first_guest is bool:return _fail("Invalid first-visit eligibility")
 	if saved_first_guest and (int(runtime_state.next_customer_id)!=1 or not runtime_state.customers.is_empty() or not queue_check.visitors.is_empty() or int(data.served)!=0 or int(data.total_earned)!=0):return _fail("First-visit eligibility disagrees with progress")
 	if not saved_open and queue_check.visitors.any(func(v):return v.phase=="outside_queue"):return _fail("Closed cafe has an active outside request")
-	var parking_check=Parking.validate(data.get("parking",Parking.empty_state()),runtime_state.customers,queue_check.visitors,int(runtime_state.next_customer_id),saved_open)
-	if not parking_check.ok:return _fail(str(parking_check.error))
 	if saved_checkout_pending:
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
@@ -1911,24 +1959,38 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if checkout_state_error!="":return _fail(checkout_state_error)
 	checkout_state_error=Checkout.staff_floor_error(self,runtime_state.service,saved_parcels,validated)
 	if checkout_state_error!="":return _fail(checkout_state_error)
-	var motion_error=_layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
+	var geometry=FurnitureMotion.copy_model(self)
+	geometry.shell_products=checked_walls.shell_products;geometry.shell_segment_products=checked_walls.shell_segment_products
+	geometry.items=validated;geometry.dining_sets.assign(saved_sets.groups);geometry.customers.assign(runtime_state.customers)
+	geometry.outside_queue.assign(queue_check.visitors);geometry.reception_visits.clear();geometry.departing_bodies.clear();geometry.parking_visits.clear()
+	geometry.owned_parcels=saved_parcels;geometry._sync_floor_bounds();geometry.operating_open=saved_open
+	geometry.built_walls.assign(checked_walls.walls);geometry.wall_attachments.assign(checked_attachments.attachments)
+	var reception_check={"ok":true,"visitors":[],"departures":[]}
+	if reception:reception_check=Reception.validate(geometry,data.reception,int(runtime_state.next_customer_id))
+	if not reception_check.ok:return _fail(str(reception_check.error))
+	if saved_first_guest and (not reception_check.visitors.is_empty() or not reception_check.departures.is_empty()):return _fail("First-visit eligibility disagrees with reception")
+	var parking_check=Parking.validate(data.get("parking",Parking.empty_state()),runtime_state.customers,queue_check.visitors+reception_check.visitors,int(runtime_state.next_customer_id),saved_open,reception_check.departures)
+	if not parking_check.ok:return _fail(str(parking_check.error))
+	geometry.reception_visits.assign(reception_check.visitors);geometry.departing_bodies.assign(reception_check.departures)
+	var motion_error=geometry._layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
 	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=_wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var egress_error=geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
-		egress_error=_wall_egress_error(checked_walls.walls,[],validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+		egress_error=geometry._wall_egress_error(checked_walls.walls,[],validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="":return _fail("Invalid saved walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in runtime_state.customers:
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
-	var body_error=_opening_body_error(checked_walls.walls,checked_attachments.attachments,actors)
+	for body in reception_check.departures:actors.append(Vector2(float(body.x),float(body.z)))
+	var body_error=geometry._opening_body_error(checked_walls.walls,checked_attachments.attachments,actors)
 	if body_error!="":return _fail("Invalid saved walls: "+body_error)
 	# Validate the saved layout as written first. Narrow only a matching free
 	# starter when its new jambs leave every saved body and remaining route clear.
-	checked_attachments.attachments=_align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
+	checked_attachments.attachments=geometry._align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
 	finish_decoration_session()
 	items = validated
 	dining_sets.assign(saved_sets.groups)
@@ -1952,6 +2014,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	_next_item_id = int(data.next_item_id)
 	customers.assign(runtime_state.customers)
 	outside_queue.assign(queue_check.visitors)
+	reception_visits.assign(reception_check.visitors);departing_bodies.assign(reception_check.departures);_reception_plan_signatures.clear()
 	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
@@ -1959,6 +2022,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if int(tutorial_state.get("baseline_served",0))>served:tutorial_state.clear()
 	first_guest_pending=saved_first_guest;first_guest_start=Vector2.INF
 	loaded_save_version=int(data.version)
+	_reception_fresh_eligible=false
 	_next_customer_id=int(runtime_state.next_customer_id)
 	_arrival_elapsed=float(runtime_state.arrival_elapsed)
 	_walking_customer_id=int(runtime_state.walking_customer_id)
@@ -2128,6 +2192,7 @@ func _wall_actor_list(extra:Array) -> Array[Vector2]:
 		if point is Vector2 and point.is_finite():result.append(point)
 	for guest in customers:
 		if str(guest.phase) not in ["dirty","cleaning"]:result.append(Vector2(float(guest.x),float(guest.z)))
+	for visitor in reception_visits+departing_bodies:result.append(Vector2(float(visitor.x),float(visitor.z)))
 	return result
 
 func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> Dictionary:
@@ -2159,6 +2224,8 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 	return reachable
 
 func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,guests:Array,openings=null) -> String:
+	var reception_error=Reception.layout_error(self,layout,walls,ownership,wall_attachments if openings==null else openings)
+	if reception_error!="":return reception_error
 	var motion_error=_layout_motion_geometry_error(guests,layout,walls,ownership,wall_attachments if openings==null else openings)
 	if motion_error!="":return motion_error
 	var checkout_error=Checkout.layout_error(self,layout,walls,ownership,guests,openings)
@@ -2171,7 +2238,7 @@ func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,gu
 		var cell:=Vector2i(floori(point.x),floori(point.y))
 		if _floor_owned_in(cell,ownership) and not reachable.has(cell):
 			var seated:=false
-			for guest in guests:
+			for guest in guests+reception_visits+departing_bodies:
 				if str(guest.phase) in ["dirty","cleaning"]:continue
 				var guest_point=Vector2(float(guest.x),float(guest.z))
 				# The renderer nudges a seated body .12 tiles toward its table.
@@ -2181,7 +2248,7 @@ func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,gu
 				var same_seat=bool(guest.get("seated",false)) and cell==Vector2i(floori(guest_point.x),floori(guest_point.y)) and guest_point.distance_to(point)<=.15
 				if guest_point.distance_to(point)<.01 or same_seat:seated=true;break
 			if not seated:return "This wall would seal a staff member away from every exit"
-	for guest in guests:
+	for guest in guests+reception_visits+departing_bodies:
 		if str(guest.phase) in ["dirty","cleaning"] or bool(guest.get("withdrawn",false)):continue
 		var position:=Vector2i(floori(float(guest.x)),floori(float(guest.z)))
 		if not _floor_owned_in(position,ownership):continue
@@ -2190,7 +2257,7 @@ func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,gu
 		# suffices. A walking guest, by contrast, must itself be on reachable floor.
 		var chair:Dictionary={}
 		for item in layout:
-			if int(item.id)==int(guest.chair_id):chair=item;break
+			if int(item.id) in [int(guest.chair_id),int(guest.get("previous_chair_id",-1))] and position==Vector2i(int(item.x),int(item.z)):chair=item;break
 		var has_exit:=false
 		if not chair.is_empty() and position==Vector2i(int(chair.x),int(chair.z)):
 			for direction in DIRECTIONS:
@@ -2500,7 +2567,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version)!=SAVE_VERSION:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.RECEPTION_REVIEW_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0
@@ -2797,7 +2864,7 @@ func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,
 	if not changed:return attachments
 	var staff:Array=[];var actors:Array=[]
 	for actor in runtime.service.get("staff",[]):staff.append(actor.pos);actors.append(actor.pos)
-	for guest in runtime.customers:
+	for guest in runtime.customers+reception_visits+departing_bodies:
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	if _opening_body_error(walls,proposed,actors)!="":return attachments
 	if _wall_egress_error(walls,staff,layout,ownership,runtime.customers,proposed)!="":return attachments
@@ -2813,7 +2880,7 @@ func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,
 		var route=[]
 		for cell in actor.path:route.append(cell_center(cell))
 		if not _starter_door_route_clear(actor.pos,route,int(actor.index),added):return attachments
-	for guest in runtime.customers:
+	for guest in runtime.customers+reception_visits+departing_bodies:
 		if str(guest.phase) in ["dirty","cleaning"]:continue
 		var position=Vector2(float(guest.x),float(guest.z))
 		if not _starter_door_route_clear(position,guest.route,int(guest.route_index),added):return attachments
@@ -2831,3 +2898,29 @@ func _starter_door_route_clear(start:Vector2,route:Array,index:int,added:Array)-
 				if Geometry2D.segment_intersects_segment(start,finish,corners[edge],corners[(edge+1)%4])!=null:return false
 		start=finish
 	return true
+func _nearby_first_guest()->bool:
+	return first_guest_pending and _next_customer_id==1 and first_guest_start.is_finite() and absf(first_guest_start.x-ARRIVAL_LANE_X)<.0001 and first_guest_start.y>=10.8 and first_guest_start.y<=26.0
+
+
+func enable_reception_review()->bool:
+	if not ReceptionReview.scope_allowed():return _fail("Reception requires a disposable native fresh-review profile")
+	if reception_review_enabled:return true
+	if not _reception_fresh_eligible or _next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or not service_snapshot.is_empty() or served!=0 or total_earned!=0:return _fail("Reception activation requires a fresh model")
+	reception_review_enabled=true
+	return true
+
+func save_reception(path:String=SaveContract.RECEPTION_REVIEW_FILE)->bool:
+	if not reception_review_enabled or not ReceptionReview.path_allowed(path):return _fail("Reception persistence or path refused")
+	return _save_snapshot(path,true)
+
+func load_reception(path:String=SaveContract.RECEPTION_REVIEW_FILE)->bool:
+	if not reception_review_enabled or not ReceptionReview.path_allowed(path):return _fail("Reception persistence or path refused")
+	return _load_snapshot(path,false,true)
+
+func save(path:String=SaveContract.PRIMARY_FILE)->bool:
+	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path):return _fail("Reception requires its separate explicit writer")
+	return _save_snapshot(path,false)
+
+func load_save(path:String=SaveContract.PRIMARY_FILE,allow_enclosed_staff:bool=false)->bool:
+	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path):return _fail("Reception requires its separate explicit reader")
+	return _load_snapshot(path,allow_enclosed_staff,false)

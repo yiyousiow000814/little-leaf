@@ -8,7 +8,7 @@ static func copy_model(model):
  var shadow=model.get_script().new()
  # Geometry planning never needs payroll, renderer caches or service ledgers.
  # Their original objects remain untouched by the transaction.
- for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
+ for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","reception_review_enabled","reception_visits","departing_bodies","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
   var value=model.get(key)
   shadow.set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
  return shadow
@@ -52,6 +52,8 @@ static func plan(model,id:int,x:int,z:int,rot:int,actors:Array=[])->Dictionary:
  if item.is_empty():return fail("Select a furnishing first")
  if int(item.x)==x and int(item.z)==z and model.logical_rotation(id)==posmod(rot,4):return {"ok":true,"noop":true}
  var members=model.logical_members(id)
+ for member in members:
+  if model.Reception.uses_item(model,int(member)):return fail("Wait until this reception chair or table is clear")
  var shadow=copy_model(model)
  var guests=shadow.customers
  # Existing people and future walking routes are rerouted below; they are not

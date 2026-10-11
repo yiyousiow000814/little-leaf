@@ -223,7 +223,10 @@ func _load_startup():
 	save_writes_suppressed="--visual-qa" in args or "--fresh-review" in args or "--review-checkpoint" in args
 	if "--fresh-review" in args:
 		SaveLog.record("read_accepted",{"layer":"native","source":"review"})
-		fresh_start=true;MinimalStart.apply(model);return
+		fresh_start=true;MinimalStart.apply(model)
+		if "--reception-candidate" in args:
+			model.enable_reception_review()
+		return
 	if "--review-checkpoint" in args:
 		if not model.load_save("res://docs/reconstructed_runtime_save.json"): MinimalStart.apply(model)
 		return
@@ -1016,7 +1019,7 @@ func _ensure_legacy_staff_visuals():
 
 func _update_legacy_customers():
 	var alive = {}
-	for customer in model.customers:
+	for customer in model.customers+model.reception_visits+model.departing_bodies:
 		if str(customer.get("phase","")) in ["dirty","cleaning"]: continue
 		var id = int(customer.id)
 		alive[id] = true
