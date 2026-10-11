@@ -69,10 +69,12 @@ total runner minutes even while reducing elapsed time.
 | --- | --- | --- |
 | `build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
 | `release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
+| `qualification/reuse_main_ci.py` | Release qualification | Reuse a successful exact-main Web package with complete source and artifact checks. |
+| `qualification/reuse_released_web.py` | Staging qualification | Pin the original completed publication's CI run, attempt, artifact and manifest. |
 | `publish_itch.py` | Authorized publication | Validate the tested release artifact and approved itch channel before publication. |
 | `deploy_firebase_hosting.py` | Authorized publication | Verify/stage or deploy an exact Firebase variant; preserve WIF and hosting contracts. |
 | `github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
-| `reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
+| `qualification/reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
 | `diagnostics/capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
 | `diagnostics/cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
 
@@ -83,7 +85,7 @@ listed here does not authorize publication or deployment.
 
 ## Shared implementations and tests
 
-`artifacts.py` owns file hashing, payload verification, and the complete Web
+`qualification/artifacts.py` owns file hashing, payload verification, and the complete Web
 source gate. Firebase and CrazyGames call that contract directly; neither variant
 depends on the other. Variant-specific provenance, staging, namespace and release
 policy remain in their respective commands. `ci/toolchain.json` pins the installer;

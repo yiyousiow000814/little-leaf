@@ -3,10 +3,14 @@ import argparse
 import json
 import os
 from pathlib import Path
+import sys
+
+# Direct CLI execution resolves the existing root tool modules.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from firebase_release_event import artifact_for
 from firebase_release_gate import QUALIFICATION_WORKFLOW, require, trusted_run
-import reuse_main_ci as reuse
+from qualification import reuse_main_ci as reuse
 from stage_released_firebase import IDENTITY, source_identity
 
 
