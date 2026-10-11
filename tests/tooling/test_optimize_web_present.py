@@ -2,7 +2,7 @@ import hashlib
 from pathlib import Path
 import tempfile
 import unittest
-from optimize_web_present import ORIGINAL, OPTIMIZED, optimize_presentation
+from build.optimize_web_present import ORIGINAL, OPTIMIZED, optimize_presentation
 
 
 class PresenterGuardTest(unittest.TestCase):

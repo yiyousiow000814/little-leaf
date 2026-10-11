@@ -7,7 +7,7 @@ import subprocess
 import json
 from unittest.mock import patch
 
-MODULE = Path(__file__).resolve().parents[2] / "tools/bound_web_gl_handles.py"
+MODULE = Path(__file__).resolve().parents[2] / "tools/build/bound_web_gl_handles.py"
 spec = importlib.util.spec_from_file_location("bound_web_gl_handles", MODULE)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
