@@ -82,12 +82,19 @@ export async function start(config,options={}) {
   if(!window.LittleLeafFirebaseSession)throw Error('Device switching support is missing. Reload the full game package.');
   const deviceLabel=window.LittleLeafFirebase.genericDevice?.(window.navigator) || 'Unknown device';
   const sessionRemote=window.LittleLeafFirebaseSession.createRemote(db,{doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot},uid);
-  const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid});
-  let reloadTicket=null;
-  try{reloadTicket=window.LittleLeafFirebaseSession.consumeReload(window.sessionStorage,performance.getEntriesByType('navigation')[0]?.type,uid);}catch(_){}
-  await ownership.start(reloadTicket);
+  let reloadTicket=null,navigationType,storage;
+  try{storage=window.sessionStorage;navigationType=performance.getEntriesByType('navigation')[0]?.type;
+    reloadTicket=window.LittleLeafFirebaseSession.consumeReload(storage,navigationType,uid);}catch(_){}
+  const runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
+  const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid,sessionId:runtime.sessionId,assertRuntime:()=>runtime.assertHeld()});
+  // Close writer authority before releasing the browser lock, including BFCache.
+  const closeRuntime=()=>{ownership.close();client?.close();runtime.close();};
+  window.addEventListener('pagehide',closeRuntime);
+  onAuthStateChanged(auth,user=>{if(user?.uid!==uid)closeRuntime();});
+  try{await ownership.start(reloadTicket);}catch(error){closeRuntime();throw error;}
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
+  runtime.assertHeld();
   client=window.LittleLeafFirebase.createClient({uid,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
   if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
   window.LittleLeafUpdate=window.LittleLeafUpdates.create({currentRelease:window.__littleLeafRelease,checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
@@ -149,7 +156,7 @@ export async function start(config,options={}) {
       return invoke('forceTakeover',[],callback);
     }
   });
-  onAuthStateChanged(auth,user=>{if(user?.uid!==uid){client.close();window.LittleLeafUpdate?.close();state('signed-out');}});
+  onAuthStateChanged(auth,user=>{if(user?.uid!==uid){window.LittleLeafUpdate?.close();state('signed-out');}});
   // A hard minimum interval bounds sustained play to <=120 writes/hour/account.
   // No unload upload: asynchronous unload completion cannot be promised.
   setInterval(()=>client.sync(),30000);
