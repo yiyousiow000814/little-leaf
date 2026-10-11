@@ -25,7 +25,10 @@ Build, release and diagnostic orchestration is documented in
 [`tools/README.md`](../tools/README.md). Tooling discovery uses
 `python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py'` when a complete
 tooling run is appropriate. The package sets its CI import path once; individual
-test files do not carry competing import setup.
+test files do not carry competing import setup. The Build/Tiles and shell-segment
+native CLI entrypoints share `native_ui_runner.py` for disposable staging,
+profiles, imports, GL captures and receipts; their commands and suite/capture
+resources remain distinct.
 
 Old capture, audit and profiling paths under `qa/`, plus `tests/capture_*.gd`,
 now resolve under `tests/diagnostics/`. The shell prototype moved separately to
