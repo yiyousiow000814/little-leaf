@@ -38,6 +38,8 @@ var cancel_face:TextureRect
 const RAIL_WOOD_RIGHT_INSET=47.0
 const PANEL_WOOD_RIGHT_INSET=17.0
 var action_help
+var stats_label:Label
+var stats_timer:Timer
 const ActionHelp=preload("res://scripts/cafe_action_help.gd")
 const SoftMaterial=preload("res://shaders/soft_ui_material.gdshader")
 static var textures={}
@@ -296,6 +298,11 @@ func setup():
  rail.hide()
  game.edit_button.pressed.connect(_after_edit_toggle)
  action_help=ActionHelp.new(self);action_help.setup([game.business_button,game.edit_button,edit_cancel,ui.staff_access,ui.settings_button,game.pause_button])
+ stats_label=game.label("",15,INK);stats_label.name="LiveFPS";stats_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ stats_label.add_theme_stylebox_override("normal",game._style(CREAM,Color("d9dcc4"),8))
+ stats_label.custom_minimum_size=Vector2(82,28);game.ui.add_child(stats_label);game.ui.move_child(stats_label,0);stats_label.hide()
+ # The scene owns both controls. No sampling callbacks run while stats are off.
+ stats_timer=Timer.new();stats_timer.wait_time=1.0;stats_label.add_child(stats_timer);stats_timer.timeout.connect(_update_stats)
 
 func _safe_insets()->Vector4:
  if game.has_meta("hud_safe_insets"):
@@ -354,6 +361,17 @@ func sync(width:float):
  var notice_y=layout_host.get_global_rect().end.y+8
  ui.earnings.position=Vector2(clampf(game.top_text.get_global_rect().get_center().x-60,insets.x+8,width-insets.z-132),notice_y)
  if ui.wallet_notice!=null:ui.wallet_notice.sync_position()
+ _sync_stats()
+
+func _sync_stats():
+ stats_label.visible=game.settings_controls.show_stats
+ if not stats_label.visible:stats_timer.stop();return
+ stats_label.position=Vector2(_safe_insets().x+8,layout_host.get_global_rect().end.y+8)
+ if ui.earnings.visible and stats_label.get_global_rect().intersects(ui.earnings.get_global_rect()):stats_label.position.y=ui.earnings.get_global_rect().end.y+6
+ if stats_timer.is_stopped():_update_stats();stats_timer.start()
+func _update_stats():
+ var text="%d FPS"%Engine.get_frames_per_second()
+ if stats_label.text!=text:stats_label.text=text
 
 func _reduced_motion_requested()->bool:
  if game.has_meta("hud_reduce_motion"):return bool(game.get_meta("hud_reduce_motion"))
