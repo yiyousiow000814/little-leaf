@@ -1,0 +1,39 @@
+{
+  "baseline_head": "56646c3777833fcb94d31b44725b0f202c330ba6",
+  "baseline_tree": "8ac6dac52901c0f29d62b23f227ed9e3ecba07c3",
+  "manifest_sha256": "78e4c52bbbce6e032434d40f44a6c250ace32947a6160de78ce8208db4aa55f8",
+  "atlases": {
+    "furniture": {
+      "png_sha256": "ebd61194bf9765161b0c645b50cbe288cfbc3e828c3080d44108eedaaf128d2f",
+      "import_sha256": "45145bc05ec87962fdc40da4626e6f02975a1c1da9e272b4eae66db8c5ebdd76",
+      "encoded_bytes": 331415,
+      "width": 1280,
+      "height": 3244,
+      "rgba_bytes": 16609280,
+      "rgba_sha256": "7b6b5d8dc0a1f5f5b535f136ecde6cf66ef34a628c5a9987c09e85cbcd35358e"
+    },
+    "moving": {
+      "png_sha256": "e513c2ecc19809af18f52cca66a9943778a4a21dad3f94299bf5035df77e9f8a",
+      "import_sha256": "ddca1edf5a36ec1376c2d3e925a54ee91660559de19cb036b4efad4e5ed4cdf5",
+      "encoded_bytes": 175768,
+      "width": 1024,
+      "height": 1908,
+      "rgba_bytes": 7815168,
+      "rgba_sha256": "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc"
+    },
+    "heads": {
+      "png_sha256": "cc606e0ffa77983ec1b3724cbb74b0ed5c9a65f20aada1e83250140f0ebed34a",
+      "import_sha256": "30660520dd89fc9844354e3fa91f93e55d604870b7934937a363ce6662019a1d",
+      "encoded_bytes": 218510,
+      "width": 1600,
+      "height": 1728,
+      "rgba_bytes": 11059200,
+      "rgba_sha256": "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7"
+    }
+  },
+  "canonical_run": 38105749481,
+  "canonical_qa": "ccc07e210d9b27cb8b1611b38cbb60a7db10e7da",
+  "canonical_receipt_sha256": "a16d4c09a2759bec1f934ff691a95e7b074966a1fcd63be6d3e80bc33d38efcc",
+  "source_closure_count": 132,
+  "scope": "Actual qualified sink-relative PR140 before control; table_body/0-only comparison; no land/cleanup included."
+}

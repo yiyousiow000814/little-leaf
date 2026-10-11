@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from project_layout import stage_project
 SUITES = [
+    ("test_table_ground_contact", "TABLE_GROUND_CONTACT_RESULT"),
+    ("test_table_ground_capture", "TABLE_CAPTURE_RESULT"),
     ("test_shared_stove_stance", "SHARED_STOVE_STANCE_RESULT"),
     ("test_chef_claim_stall", "CHEF_CLAIM_RESULT"),
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),

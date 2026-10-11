@@ -1,0 +1,89 @@
+name: Qualify table ground-contact cache
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        type: choice
+        options: [generate, parity]
+        required: true
+      generation_run_id:
+        description: Exact generation run (parity only)
+        type: string
+      generation_artifact:
+        description: Exact generation artifact name (parity only)
+        type: string
+      proposal_png_sha256:
+        description: Independently frozen encoded PNG hash (parity only)
+        type: string
+      proposal_rgba_sha256:
+        description: Independently frozen furniture RGBA hash (parity only)
+        type: string
+  pull_request:
+    paths: ['.github/workflows/table-ground-contact-visual.yml']
+jobs:
+  table-cache:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install checksum-pinned official engine
+        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/table-tools"
+      - name: Prepare canonical renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
+      - name: Download exact frozen generation proposal
+        if: inputs.phase == 'parity'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.generation_run_id }}
+          name: ${{ inputs.generation_artifact }}
+          path: ${{ runner.temp }}/table-proposal
+      - name: Compare only owned table cell against qualified PR140
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+          TABLE_PHASE: ${{ inputs.phase }}
+          GENERATION_RUN: ${{ inputs.generation_run_id }}
+          PROPOSAL_PNG_SHA: ${{ inputs.proposal_png_sha256 }}
+          PROPOSAL_RGBA_SHA: ${{ inputs.proposal_rgba_sha256 }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,re,subprocess
+          tmp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          control=json.loads(pathlib.Path('tests/diagnostics/table_atlas_control.json').read_text())
+          command=['xvfb-run','-a','python3','tests/diagnostics/qualify_table_atlas.py','--godot',str(tmp/'table-tools/godot'),'--expected-head',os.environ['EXPECTED_HEAD'],'--baseline-ref',control['baseline_head'],'--phase',os.environ['TABLE_PHASE'],'--output',str(tmp/'table-cache')]
+          if os.environ['TABLE_PHASE']=='parity':
+              assert re.fullmatch('[0-9]+',os.environ['GENERATION_RUN'])
+              for key in ['PROPOSAL_PNG_SHA','PROPOSAL_RGBA_SHA']:assert re.fullmatch('[0-9a-f]{64}',os.environ[key])
+              generation=json.loads((tmp/'table-proposal/source-receipt.json').read_text())
+              assert generation['status']=='generated_pending_independent_declaration'
+              assert generation['source_head']==os.environ['EXPECTED_HEAD'] and generation['baseline_head']==control['baseline_head']
+              png=tmp/'table-proposal/furniture-atlas.png'
+              assert hashlib.sha256(png.read_bytes()).hexdigest()==os.environ['PROPOSAL_PNG_SHA']
+              declaration={'source_head':os.environ['EXPECTED_HEAD'],'source_tree':subprocess.check_output(['git','rev-parse','HEAD^{tree}'],text=True).strip(),'baseline_head':control['baseline_head'],'png_sha256':os.environ['PROPOSAL_PNG_SHA'],'rgba_sha256':os.environ['PROPOSAL_RGBA_SHA'],'generation_run':int(os.environ['GENERATION_RUN'])}
+              path=tmp/'table-proposal-declaration.json';path.write_text(json.dumps(declaration,indent=2)+'\n')
+              command+=['--proposal-declaration',str(path),'--proposal-png',str(png)]
+          subprocess.run(command,check=True)
+          PY
+      - name: Preserve source-bound evidence without profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: table-cache-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/table-cache/*.json
+            ${{ runner.temp }}/table-cache/*.png
+            ${{ runner.temp }}/table-cache/*.log
+            ${{ runner.temp }}/table-proposal-declaration.json
+          if-no-files-found: error
+          retention-days: 7
