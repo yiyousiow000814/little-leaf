@@ -42,7 +42,9 @@ func run():
   settings.set_frame_rate(rate);settings.stats_toggle.pressed.emit();await settle()
   check(settings.show_stats and hud.stats_label.visible and not hud.stats_timer.is_stopped(),"button enables display")
   check(Engine.max_fps==rate and settings.frame_rate_choice.get_selected_id()==rate,"stats leaves selected cap unchanged")
+  hud.stats_label.text="waiting for sample"
   await create_timer(1.1).timeout
+  check(hud.stats_label.text!="waiting for sample","timer refreshes the live display")
   hud._update_stats();check(hud.stats_label.text=="%d FPS"%Engine.get_frames_per_second(),"display uses actual measured FPS")
   settings.stats_toggle.pressed.emit();await settle()
   check(not settings.show_stats and not hud.stats_label.visible and hud.stats_timer.is_stopped(),"button disables display and sampling")

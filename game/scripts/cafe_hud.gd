@@ -367,6 +367,8 @@ func _sync_stats():
  stats_label.visible=game.settings_controls.show_stats
  if not stats_label.visible:stats_timer.stop();return
  stats_label.position=Vector2(_safe_insets().x+8,layout_host.get_global_rect().end.y+8)
+ if layout_host.get_meta("mobile_layout",false) and layout_host.get_meta("unified_wrapped",false):
+  stats_label.position=Vector2(game.pause_button.get_global_rect().end.x+8,game.pause_button.global_position.y)
  if ui.earnings.visible and stats_label.get_global_rect().intersects(ui.earnings.get_global_rect()):stats_label.position.y=ui.earnings.get_global_rect().end.y+6
  if stats_timer.is_stopped():_update_stats();stats_timer.start()
 func _update_stats():
