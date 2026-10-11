@@ -521,6 +521,23 @@ class ItchDiagnosticTests(unittest.TestCase):
             with patch.object(self.d, 'command', side_effect=[(0, output, ''), (0, '', '')]):
                 self.assertFalse(self.d.preflight(self.binary)['passed'])
 
+    def test_preflight_accepts_stderr_version_without_leaking_raw_output(self):
+        for stdout, stderr in [('', 'butler v15.31.0'), ('butler v15.31.0', ''),
+                ('', 'butler v15.31.0\nAuthorization: SYNTHETIC_SECRET')]:
+            with self.subTest(stdout=stdout, stderr=stderr), patch.object(self.d, 'command',
+                    side_effect=[(0, stdout, stderr), (0, '', 'status help')]) as run:
+                receipt = self.d.preflight(self.binary)
+                self.assertTrue(receipt['passed'])
+                self.assertEqual(receipt['installed_version'], '15.31.0')
+                self.assertNotIn('SYNTHETIC_SECRET', json.dumps(receipt))
+                self.assertFalse(receipt['publication_allowed'])
+                self.assertEqual([c.args[1] for c in run.call_args_list], [['--version'], ['status', '--help']])
+        for version_code, output, help_code in [(0, '15.31.01', 0), (0, '15.30.0', 0),
+                (1, '15.31.0', 0), (0, '15.31.0', 1)]:
+            with self.subTest(version_code=version_code, output=output, help_code=help_code), \
+                    patch.object(self.d, 'command', side_effect=[(version_code, '', output), (help_code, '', '')]):
+                self.assertFalse(self.d.preflight(self.binary)['passed'])
+
     def test_environment_strips_http_debug_and_preflight_key(self):
         with patch.dict(self.d.os.environ, {'BUTLER_API_KEY': 'SYNTHETIC', 'GO_ITCHIO_DEBUG': '2',
                 'BUTLER_HTTP_DEBUG': '1', 'BUTLER_DEBUG_PORT': '1234', 'BUTLER_DEBUG_HOST': '0.0.0.0'}), \
