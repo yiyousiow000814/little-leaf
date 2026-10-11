@@ -141,7 +141,7 @@ sparse matched samples alone must not be reported as its full visible duration.
 node --check tests/fresh_tutorial_browser.js
 node tests/fresh_tutorial_browser_test.js
 node tests/fresh_tutorial_browser_test.js --ocr-fixtures # needs Tesseract English
-node tests/wall_compatibility_helpers_test.js
+node tests/rendering/wall_compatibility_helpers_test.js
 python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
 python3 tests/run_integration_candidate.py --only test_interactive_tutorial \
   --output /tmp/fresh-tutorial-coordinate-evidence

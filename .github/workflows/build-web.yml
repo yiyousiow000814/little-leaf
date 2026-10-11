@@ -62,13 +62,13 @@ jobs:
           node --check tests/fresh_tutorial_browser.js
           node tests/save_log_observers.js
           node tests/save_log_privacy.js
-          node tests/web_performance_lifecycle.js
+          node tests/rendering/web_performance_lifecycle.js
           node tests/connection_recovery.js
           node tests/compensation_inbox_storage.js
-          node tests/wall_compatibility_parallel_test.js
-          node tests/wall_compatibility_helpers_test.js
-          node tests/wall_compatibility_ocr_test.js
-          node --check tests/wall_compatibility_browser.js
+          node tests/rendering/wall_compatibility_parallel_test.js
+          node tests/rendering/wall_compatibility_helpers_test.js
+          node tests/rendering/wall_compatibility_ocr_test.js
+          node --check tests/rendering/wall_compatibility_browser.js
           node --check tests/save_log_browser.js
           node --check tests/connection_recovery_browser.js
           node --check platform/firebase/fullflow.test.mjs
@@ -361,8 +361,8 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          node tests/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
+          node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
       - name: Collect lane evidence without profiles
         if: always()
         run: |
@@ -410,7 +410,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Require both bound compatibility case receipts
-        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -544,7 +544,7 @@ jobs:
           digest-mismatch: error
       - name: Require both bound compatibility case receipts
         if: needs.build.result == 'success' && needs.compatibility.result == 'success'
-        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
         if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

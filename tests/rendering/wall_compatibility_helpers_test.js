@@ -7,7 +7,7 @@ const path = require('node:path');
 const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, verifyLayout, selectWallReplacement, assertPreserved} = require('./wall_compatibility_helpers');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
-const fixtures = path.join(__dirname, 'fixtures/wall-compatibility');
+const fixtures = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtures, 'contract.json')));
 for (const [name, digest] of Object.entries(contract.fixture_sha256)) check('exact fixture ' + name, () => assert.equal(hash(fs.readFileSync(path.join(fixtures, name))), digest));
 check('candidate sources are required without redundant static hashes', () => {assert(contract.candidate_required_sources.includes('web/little_leaf_vault.js')); assert(!Object.hasOwn(contract, 'candidate_production_sha256'));});

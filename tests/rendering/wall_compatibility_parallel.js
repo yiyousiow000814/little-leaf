@@ -80,7 +80,7 @@ function mergeFromFolder(output) {
   const report = mergeCases(CASES.map(name => JSON.parse(fs.readFileSync(
     path.join(output, name, 'wall-compatibility-browser.json'), 'utf8'))));
   const commit = cp.execFileSync('git', ['rev-parse', 'HEAD'],
-    {cwd: path.resolve(__dirname, '..'), encoding: 'utf8'}).trim();
+    {cwd: path.resolve(__dirname, '../..'), encoding: 'utf8'}).trim();
   assert.equal(report.inputs.new_commit, commit, 'Aggregate must bind this checked-out source');
   report.execution.runner_isolation = true;
   if (fs.existsSync(file)) {

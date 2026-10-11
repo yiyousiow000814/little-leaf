@@ -39,8 +39,8 @@ jobs:
           python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v
           node tests/welcome_audio_test.js
           node tests/welcome_source_binding_test.js
-          node tests/wall_compatibility_helpers_test.js
-          node tests/wall_compatibility_ocr_test.js
+          node tests/rendering/wall_compatibility_helpers_test.js
+          node tests/rendering/wall_compatibility_ocr_test.js
           node --check tests/welcome_audio_browser.js
           node --check tests/welcome_audio_helpers.js
           node --check tests/welcome_audio_observer.js
