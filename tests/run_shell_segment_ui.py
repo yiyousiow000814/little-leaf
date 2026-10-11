@@ -6,8 +6,8 @@ else:
 
 
 def main():
-    runner.main('res://tests/test_shell_segment_ui.gd', 'SHELL_SEGMENT_UI_RESULT',
-                'res://tests/test_shell_segment_ui.gd', 'SHELL_SEGMENT_UI_RESULT')
+    runner.main('res://tests/building/test_shell_segment_ui.gd', 'SHELL_SEGMENT_UI_RESULT',
+                'res://tests/building/test_shell_segment_ui.gd', 'SHELL_SEGMENT_UI_RESULT')
 
 
 if __name__ == "__main__":

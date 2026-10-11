@@ -6,7 +6,7 @@ else:
 
 
 def main():
-    runner.main('res://tests/test_build_tiles_ui.gd', 'BUILD_TILES_UI_RESULT',
+    runner.main('res://tests/building/test_build_tiles_ui.gd', 'BUILD_TILES_UI_RESULT',
                 'res://tests/diagnostics/capture_build_tiles_ui.gd', 'BUILD_TILES_CAPTURE_RESULT')
 
 
