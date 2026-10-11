@@ -227,7 +227,7 @@ class RunnerInfrastructureTests(unittest.TestCase):
 class WorkflowInfrastructureTests(unittest.TestCase):
     def test_parallel_gates_keep_lifecycle_browser_channels_and_single_exports(self):
         workflow = (ROOT / '.github/workflows/build-web.yml').read_text()
-        self.assertIn('node tests/web_performance_lifecycle.js', workflow)
+        self.assertIn('node tests/rendering/web_performance_lifecycle.js', workflow)
         browser = workflow.split('  browser:\n', 1)[1].split('  firebase:\n', 1)[0]
         self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
@@ -246,7 +246,7 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertNotIn('Verify compensation history', play)
         self.assertIn("matrix.case == 'old_opened_after_new'", browser)
         self.assertNotIn('inbox_pid', workflow)
-        self.assertEqual(workflow.count('node tests/wall_compatibility_parallel.js --merge'), 2)
+        self.assertEqual(workflow.count('node tests/rendering/wall_compatibility_parallel.js --merge'), 2)
         gate = workflow.split('  gate:\n', 1)[1]
         self.assertLess(gate.index('actions/checkout@'), gate.index('--merge'))
         firebase = workflow.split('  firebase:\n', 1)[1].split('  gate:\n', 1)[0]

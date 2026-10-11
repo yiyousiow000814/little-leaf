@@ -37,13 +37,13 @@ jobs:
           python3 tools/release_metadata.py
           python3 tools/verify_prebaked_atlases.py
           python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v
-          node tests/welcome_audio_test.js
-          node tests/welcome_source_binding_test.js
-          node tests/wall_compatibility_helpers_test.js
-          node tests/wall_compatibility_ocr_test.js
-          node --check tests/welcome_audio_browser.js
-          node --check tests/welcome_audio_helpers.js
-          node --check tests/welcome_audio_observer.js
+          node tests/presentation/welcome_audio_test.js
+          node tests/presentation/welcome_source_binding_test.js
+          node tests/rendering/wall_compatibility_helpers_test.js
+          node tests/rendering/wall_compatibility_ocr_test.js
+          node --check tests/presentation/welcome_audio_browser.js
+          node --check tests/presentation/welcome_audio_helpers.js
+          node --check tests/presentation/welcome_audio_observer.js
       - name: Select successful equivalent-source ordinary-Web artifact
         id: selected_web
         env:
@@ -81,7 +81,7 @@ jobs:
         timeout-minutes: 6
         run: |
           set -euo pipefail
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/playwright" xvfb-run -a -s '-screen 0 1600x1000x24' node tests/welcome_audio_browser.js --source-root "$GITHUB_WORKSPACE" --web-build "$RUNNER_TEMP/welcome-audio-web/web" --output "$RUNNER_TEMP/welcome-audio-web/evidence/welcome-audio"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/welcome-audio-browser-tools/node_modules/playwright" xvfb-run -a -s '-screen 0 1600x1000x24' node tests/presentation/welcome_audio_browser.js --source-root "$GITHUB_WORKSPACE" --web-build "$RUNNER_TEMP/welcome-audio-web/web" --output "$RUNNER_TEMP/welcome-audio-web/evidence/welcome-audio"
       - name: Retain exact source, raw audio observations and rendered frames on any outcome
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
