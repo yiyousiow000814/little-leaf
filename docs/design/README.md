@@ -35,7 +35,7 @@ runtime test, a new art sample or a new authoring workflow.
   that can expose the relevant failure. Pin the source and preserve failed evidence.
 - **Decision and remaining gaps:** keep requirement recorded, implementation,
   technical validation, actual experience, user decision, integration and release
-  separate. Apply the [evidence and acceptance gates](https://github.com/yiyousiow000814/little-leaf/blob/8c6ca6d571a7ac54a9da4e6503ef191555f491b9/docs/testing/README.md#evidence-and-acceptance-gates)
+  separate. Apply the [evidence and acceptance gates](../testing/README.md#evidence-and-acceptance-gates)
   and record the remaining owner or approval dependency. Do not mark an unseen or
   unheard result accepted because CI passed.
 

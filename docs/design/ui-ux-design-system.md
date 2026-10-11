@@ -97,10 +97,9 @@ Making every object larger or every label bold is not a readability fix.
 
 Check actual text at minimum, normal and maximum supported zoom. Evaluate font
 size/weight, contrast, hierarchy, spacing, edge clarity and background together.
-Visual scale and rendering diagnosis belong to the named pending canonical
-contract `docs/art-audio/ART_BIBLE.md#world-space-text-and-scale-readability`
-([Art Bible, PR187](https://github.com/yiyousiow000814/little-leaf/pull/187)); use
-its relative link once the foundation is composed. Distinguish a design problem
+Visual scale and rendering diagnosis follow the
+[Art Bible scale/readability standard](../art-audio/ART_BIBLE.md#world-space-text-and-scale-readability).
+Distinguish a design problem
 from font rendering, texture filtering, cache or zoom-path faults before choosing
 the smallest fix; preserve existing theme and interaction semantics.
 

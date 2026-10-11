@@ -19,20 +19,19 @@ For agent work, [AGENTS.md](../AGENTS.md) links the canonical rules and develope
 Use the relevant pillars through the [Feature Design Quality Gate](design/README.md#feature-design-quality-gate).
 This is a navigation map, not another roadmap or completion ledger. The
 [roadmap](roadmap.md#current-state) alone owns product scope, priority and status.
-The source links below identify accessible foundation drafts while their canonical
-homes await main integration; they do not imply merge or runtime acceptance.
-Replace a source link with its canonical relative link only after that file lands.
+The canonical homes below maintain the domain contracts. Linking a contract does
+not establish runtime acceptance or approval of a creative standard or pilot.
 
-| Pillar | Canonical home and current source reference | Responsibility |
+| Pillar | Canonical home | Responsibility |
 | --- | --- | --- |
-| Art Direction / Art Bible | `docs/art-audio/ART_BIBLE.md`: [Art Bible](https://github.com/yiyousiow000814/little-leaf/blob/0c8227edda0d79990b628607227a4d7ad9acc17f/docs/art-audio/ART_BIBLE.md); [production skill](https://github.com/yiyousiow000814/little-leaf/blob/0c8227edda0d79990b628607227a4d7ad9acc17f/.agents/skills/game-art-production/SKILL.md), [review skill](https://github.com/yiyousiow000814/little-leaf/blob/0c8227edda0d79990b628607227a4d7ad9acc17f/.agents/skills/game-art-review/SKILL.md) | Original identity, editable authoring, calibration and scoped reference decisions; genuine game pixels before Golden approval. |
-| Technical Art / Occlusion | `docs/development/depth-occlusion.md`: [depth contract](https://github.com/yiyousiow000814/little-leaf/blob/e3a71b24ca220bc27bb4abbd13fbdaee88e9ecfe/docs/development/depth-occlusion.md) | Ground anchors, footprints/parts, pass order, native/cache ownership and continuous Occlusion QA. |
-| Audio Direction / Audio Bible | `docs/art-audio/AUDIO_BIBLE.md`: [Audio Bible](https://github.com/yiyousiow000814/little-leaf/blob/567d6813b447684d5d20c14d2d931da44a2a084c/docs/art-audio/AUDIO_BIBLE.md) | Production/source/licensing and mix/playback review; measured signals and actual listening remain distinct. |
-| Living World Design | `docs/design/living-world.md`: [Living World](https://github.com/yiyousiow000814/little-leaf/blob/e69263f0fc8ffea66afa6fb6742064846ce19ce4/docs/design/living-world.md) | Spatial/causal/identity coherence, clocks, offscreen and bus events, custody and complete journeys. |
-| Game Feel & Animation | `docs/testing/README.md#game-feel-and-animation-review`: [experience review](https://github.com/yiyousiow000814/little-leaf/blob/8c6ca6d571a7ac54a9da4e6503ef191555f491b9/docs/testing/README.md#game-feel-and-animation-review) | Natural-speed animation, feedback, repetition/interruption, listening comfort and newcomer understanding. |
-| UI/UX Design System | `docs/design/ui-ux-design-system.md`: [UI/UX](https://github.com/yiyousiow000814/little-leaf/blob/e99f6133de7779e8b94fe18df280db9dbc4b4ca7/docs/design/ui-ux-design-system.md) | Reuse-first theme/components, typography/states, responsive surfaces, focus/touch and actual interaction review. |
-| Gameplay Reference & Parity | `docs/design/gameplay-reference-parity.md`: [reference and parity](https://github.com/yiyousiow000814/little-leaf/blob/a5160c1a9de12da3775d850009505cc973f03ea4/docs/design/gameplay-reference-parity.md) | Historical era/confidence, strategic loops, intentional adaptations and explicit unresolved product decisions. |
-| Quality Assurance / Acceptance Gates | `docs/testing/README.md#evidence-and-acceptance-gates`: [acceptance gates](https://github.com/yiyousiow000814/little-leaf/blob/8c6ca6d571a7ac54a9da4e6503ef191555f491b9/docs/testing/README.md#evidence-and-acceptance-gates) | Separate source/tests, actual presentation, player decision, integration and delivery; retain scoped failures and gaps. |
+| Art Direction / Art Bible | `docs/art-audio/ART_BIBLE.md`: [Art Bible](art-audio/ART_BIBLE.md); [production skill](../.agents/skills/game-art-production/SKILL.md), [review skill](../.agents/skills/game-art-review/SKILL.md) | Original identity, editable authoring, calibration and scoped reference decisions; genuine game pixels before Golden approval. |
+| Technical Art / Occlusion | `docs/development/depth-occlusion.md`: [depth contract](development/depth-occlusion.md) | Ground anchors, footprints/parts, pass order, native/cache ownership and continuous Occlusion QA. |
+| Audio Direction / Audio Bible | `docs/art-audio/AUDIO_BIBLE.md`: [Audio Bible](art-audio/AUDIO_BIBLE.md) | Production/source/licensing and mix/playback review; measured signals and actual listening remain distinct. |
+| Living World Design | `docs/design/living-world.md`: [Living World](design/living-world.md) | Spatial/causal/identity coherence, clocks, offscreen and bus events, custody and complete journeys. |
+| Game Feel & Animation | `docs/testing/README.md#game-feel-and-animation-review`: [experience review](testing/README.md#game-feel-and-animation-review) | Natural-speed animation, feedback, repetition/interruption, listening comfort and newcomer understanding. |
+| UI/UX Design System | `docs/design/ui-ux-design-system.md`: [UI/UX](design/ui-ux-design-system.md) | Reuse-first theme/components, typography/states, responsive surfaces, focus/touch and actual interaction review. |
+| Gameplay Reference & Parity | `docs/design/gameplay-reference-parity.md`: [reference and parity](design/gameplay-reference-parity.md) | Historical era/confidence, strategic loops, intentional adaptations and explicit unresolved product decisions. |
+| Quality Assurance / Acceptance Gates | `docs/testing/README.md#evidence-and-acceptance-gates`: [acceptance gates](testing/README.md#evidence-and-acceptance-gates) | Separate source/tests, actual presentation, player decision, integration and delivery; retain scoped failures and gaps. |
 
 The implementer owns the proposed change, relevant production evidence and
 unchanged boundaries. The reviewer checks the exact source and actual required
