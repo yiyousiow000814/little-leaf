@@ -1,6 +1,6 @@
 extends SceneTree
 ## QA-only geometry probe: exact observed browser snapshot, production UI/fonts.
-const Fixture=preload("res://tests/test_cloud_recovery_ui.gd")
+const Fixture=preload("res://tests/persistence/test_cloud_recovery_ui.gd")
 func _initialize():run.call_deferred()
 func run():
  var args=OS.get_cmdline_user_args()

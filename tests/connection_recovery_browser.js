@@ -68,7 +68,7 @@ function inputs() {
     .filter(line => line.startsWith('SAVE_LOG_RESULT ')).map(line => JSON.parse(line.slice(16)));
   assert.equal(nativeResults.length, 1);
   assert.deepEqual(nativeResults[0], layout, 'pointer coordinates match the paired native result');
-  assert.equal(engine.source_sha256['tests/test_save_log.gd'], sha(fs.readFileSync(path.join(root, 'tests/test_save_log.gd'))));
+  assert.equal(engine.source_sha256['tests/persistence/test_save_log.gd'], sha(fs.readFileSync(path.join(root, 'tests/persistence/test_save_log.gd'))));
   const requiredSources = ['project.godot', 'main.tscn', 'scripts/main.gd', 'scripts/cafe_web_save.gd',
     'scripts/cafe_web_lifecycle.gd', 'scripts/cafe_save_log.gd', 'scripts/cafe_save_log_panel.gd',
     'web/little_leaf_shell.html', 'web/little_leaf_vault.js', 'web/little_leaf_save_log.js',
