@@ -18,6 +18,36 @@ from tests.tooling.test_release import status
 
 
 class ShaPrereleaseTests(unittest.TestCase):
+    def test_fullflow_actual_injection_binds_loaded_identity_before_updater(self):
+        root=Path(__file__).resolve().parents[2]
+        script=r'''
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const root=process.argv[1],fixture=fs.readFileSync(path.join(root,'platform/firebase/fullflow.test.mjs'),'utf8');
+const loaded=fixture.match(/^const loadedRelease=.*;$/m),mutable=fixture.match(/^let release=\{\.\.\.loadedRelease\};$/m);
+assert(loaded&&mutable,'fixture must separate loaded identity from mutable endpoint');
+const context=vm.createContext({manifest:{version:'0.1.11-pre.aaaaaaaa',source_commit:'a'.repeat(40)},config:{projectId:'synthetic'}});
+vm.runInContext(loaded[0]+'\n'+mutable[0]+"\nrelease.version='99.0.0';",context);
+const expression=fixture.match(/^const injection=(.*);$/m);assert(expression,'actual fixture injection required');
+const injection=vm.runInContext(expression[1],context);
+const assignment=injection.match(/<script>(window\.__littleLeafRelease=.*?;)(?=window\.__littleLeafFirebaseReady)/);
+assert(assignment,'loaded marker must be emitted before boot');
+const page={};vm.runInNewContext(assignment[1],{window:page});
+assert.equal(JSON.stringify(page.__littleLeafRelease),JSON.stringify(vm.runInContext('loadedRelease',context)));
+assert.equal(page.__littleLeafRelease.version,'0.1.11-pre.aaaaaaaa','mutable endpoint must not redefine loaded page');
+const updateSource=fs.readFileSync(path.join(root,'platform/web/little_leaf_update.js'),'utf8');
+async function observe(marker){
+ const window={setTimeout,clearTimeout};vm.runInNewContext(updateSource,{window});let fetches=0;
+ const updater=window.LittleLeafUpdates.create({currentRelease:marker,
+  fetch:async()=>{fetches++;return{ok:true,json:async()=>({schema_version:1,version:'9.0.0',source_commit:'b'.repeat(40)})};},
+  checkUpdateReady:async()=>({}),canReloadUpdate:()=>true,setInterval:()=>1,clearInterval:()=>{}});
+ updater.start('0.1.11-pre.aaaaaaaa');await updater.poll();const state=JSON.parse(updater.snapshot());updater.close();
+ return{fetches,state};
+}
+(async()=>{const missing=await observe(undefined);assert.equal(missing.fetches,0);assert.equal(missing.state.available,false);
+const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1);assert.equal(bound.state.available,true);assert.equal(bound.state.version,'9.0.0');})().catch(e=>{console.error(e);process.exitCode=1;});
+'''
+        subprocess.run(['node','-e',script,str(root)],capture_output=True,text=True,check=True,timeout=30)
+
     def metadata(self, root):
         (root/'data').mkdir()
         (root/'project.godot').write_text('config/version="0.1.11-pre"\n')

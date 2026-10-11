@@ -27,6 +27,8 @@ def prepare(api, root, selection, output):
     manifest = reuse.bind_package(output / 'web', root, selection['source_commit'], selection['source_tree'], run)
     original_hash = reuse.sha256(output / 'web/release-manifest.json')
     require(original_hash == expected['qualified_manifest_sha256'], 'Original release manifest changed')
+    # Preserve exact original bytes for downstream offline provenance validation.
+    (output / 'main-release-manifest.json').write_bytes((output / 'web/release-manifest.json').read_bytes())
     reuse.packed_smoke(output / 'web', output)
     receipt = {**expected, 'tag': '', 'qualified_payload_unchanged': True, 'packed_startup': 'passed'}
     require(all(receipt[k] == expected[k] for k in IDENTITY), 'Original qualification identity changed')
