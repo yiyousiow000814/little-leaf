@@ -283,9 +283,9 @@ func setup():
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
- settings_inbox=_small_button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox)
- settings_updates=_small_button("Updates",func():update_notes.show_from_settings());settings_updates.accessibility_name="Updates";settings_box.add_child(settings_updates)
- settings_help=_small_button("Help",_show_help_from_settings);settings_help.accessibility_name="Help";settings_box.add_child(settings_help)
+ settings_inbox=game.button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox)
+ settings_updates=game.button("Updates",func():update_notes.show_from_settings());settings_updates.accessibility_name="Updates";settings_box.add_child(settings_updates)
+ settings_help=game.button("Help",_show_help_from_settings);settings_help.accessibility_name="Help";settings_box.add_child(settings_help)
  for c in settings_box.get_children():
   if c is Label:
    if c.text=="Changes are saved automatically":c.hide()
