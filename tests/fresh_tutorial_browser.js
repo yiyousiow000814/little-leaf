@@ -169,6 +169,25 @@ function validateNaturalPayment(state, order, layout, initial) {
     'Natural payment earns exactly the real meal value');
 }
 
+async function captureFailureSaveDiagnostics(page) {
+  if (!page || page.isClosed()) return {available: false};
+  const captured_at = new Date().toISOString();
+  try {
+    const read = page.evaluate(() => {
+      const log = window.LittleLeafSaveLog;
+      return {available: Boolean(log), browser_timestamp: new Date().toISOString(),
+        events: log?.snapshot?.() ?? [], text: log?.text?.() ?? null};
+    });
+    const timeout = new Promise((_, reject) => {
+      const timer = setTimeout(() => reject(new Error('Failure save-log read timeout')), 2000);
+      timer.unref();
+    });
+    return {captured_at, ...await Promise.race([read, timeout])};
+  } catch (error) {
+    return {available: false, captured_at, diagnostic_error: String(error)};
+  }
+}
+
 async function main() {
   const arg = name => {
     const index = process.argv.indexOf('--' + name);
@@ -367,6 +386,7 @@ async function main() {
     await context.close();
   } catch (error) {
     report.status = 'failed'; report.error = error.stack; process.exitCode = 1;
+    report.failure_save_diagnostics = await captureFailureSaveDiagnostics(page);
     if (page && !page.isClosed()) try {await page.screenshot({path: path.join(output, 'failure-state.png'), timeout: 10000});} catch (captureError) {report.failure_capture_error = String(captureError);}
   } finally {
     if (browser) await browser.close();
@@ -376,4 +396,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue};
+module.exports = {captureFailureSaveDiagnostics, validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue};
