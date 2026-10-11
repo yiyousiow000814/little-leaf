@@ -21,11 +21,11 @@ jobs:
       - name: Install the unchanged checksum-pinned Butler
         run: python3 tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Check version and status help without credentials
-        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase preflight --output "$RUNNER_TEMP/itch-status/preflight.json"
+        run: python3 tools/diagnostics/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase preflight --output "$RUNNER_TEMP/itch-status/preflight.json"
       - name: Query only the existing authorized channel; emit whitelist fields
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase status --preflight "$RUNNER_TEMP/itch-status/preflight.json" --output "$RUNNER_TEMP/itch-status/status.json"
+        run: python3 tools/diagnostics/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase status --preflight "$RUNNER_TEMP/itch-status/preflight.json" --output "$RUNNER_TEMP/itch-status/status.json"
       - name: Retain only sanitized diagnosis
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

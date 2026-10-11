@@ -1,6 +1,6 @@
 import hashlib,json,tempfile,unittest,zipfile
 from pathlib import Path
-from cloud_flow_diagnostic import BASE,validate_changes,unpack,verify,sha,eligibility
+from diagnostics.cloud_flow_diagnostic import BASE,validate_changes,unpack,verify,sha,eligibility
 class DiagnosticTests(unittest.TestCase):
  def test_only_runtime_and_qa_changes_allowed(self):
   validate_changes(['web/little_leaf_firebase_session.js','firebase/fullflow.test.mjs','tools/build_firebase.py','tests/firebase_session.js'])
