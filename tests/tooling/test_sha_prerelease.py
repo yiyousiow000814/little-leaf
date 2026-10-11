@@ -145,8 +145,9 @@ class ShaPrereleaseTests(unittest.TestCase):
         try:
             fixture.marker.update(version='0.1.11-pre.aaaaaaaa',tag='v0.1.11-pre.aaaaaaaa',
                 release_order={'target':'siowyiyou/little-leaf:html5','channel_version':12})
+            fixture.base['version']=fixture.marker['version']
             fixture.manifest['publication']={'version':fixture.marker['version'],'tag':fixture.marker['tag'],
-                'source_commit':fixtures.SHA,'state':'completed','target':'siowyiyou/little-leaf:html5','itch_channel_version':12}
+                'source_commit':fixtures.SHA,'state':'completed','target':'siowyiyou/little-leaf:html5','itch_channel_version':12,'itch_build_id':40}
             (fixture.package/'public/hosting-release.json').write_text(json.dumps(fixture.marker))
             (fixture.package/'public/index.html').write_text('<script src="index.js"></script><script>window.__littleLeafRelease='+json.dumps(fixture.marker)+';</script>')
             fixture.rewrite_manifest();hosting.verify_live_package(fixture.package,fixtures.SHA,fixture.hash)
@@ -154,6 +155,12 @@ class ShaPrereleaseTests(unittest.TestCase):
             api=fixtures.FakeAPI()
             with self.assertRaises(ValueError):fixture.deploy(api)
             self.assertEqual(api.calls,[])
+            fixture.manifest['publication']['itch_channel_version']=12
+            fixture.marker['version']='0.1.10d'
+            (fixture.package/'public/hosting-release.json').write_text(json.dumps(fixture.marker))
+            fixture.rewrite_manifest()
+            with self.assertRaises(ValueError):fixture.deploy(api)
+            self.assertEqual(api.calls,[],'removing SHA marker cannot bypass SHA base gate')
         finally:fixture.doCleanups()
 
 
