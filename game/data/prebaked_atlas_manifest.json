@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR180 namespace source 9c3f35a0c576b92bd6fe8cb658c6872103d4997f/tree348fb0d9bfe591ce64d4ebb1a4c35b3826e45306; QA 80cf822a973c9e7b21e7b055bcc4bc4bd7595d79; run38164438351; receiptSHA256 bead4b1f298fb990b258b630de6e760cdbf3d4aa7850773de957a1809d9e76c4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all884 raw Git inputs/modes and120 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact native paint state readability source e95d051d547f9012769a8ad834357da2b2e85c55/treee7e52dc0de89cb697a2fb6f04719de099f5f1d6c; QA 76649b0c6a5fd26e73d0bc838a9648a2119f566e; run38177966701 attempt1; artifact11717195505; receiptSHA256 efcee3056bd81c1fd6a856ae56b3d6179ef6e038a368707349ba263c8990ceab; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all890 raw Git inputs/modes and120 dependencies verified; real production native callback87 checks/3 return cases/12 restored fields; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -83,7 +83,7 @@
     "scripts/rendering/floor_mess_art.gd": "9d4d624a54a5245cf0619be43c5f3d6c85ef8c6d0f43f8298fa0a24b93dccd97",
     "scripts/rendering/furniture_atlas_painter.gd": "047360f4a9b05af23063f1744e04cb2622a8e86e2aa6b44e319572e91a7848ac",
     "scripts/rendering/furniture_static_atlas.gd": "e521ec5cb843a0990dad56eb5c5552a3da75add2e5df841a171111792091b5be",
-    "scripts/rendering/illustrated_cafe.gd": "95e73e8f2e1eb8a99674b16203516be995cc8e163adf382999e59fe869ce9f7b",
+    "scripts/rendering/illustrated_cafe.gd": "f4e61d2eaf98b5b78eb949462d37ff0b13902254af1bdc781cc634bebe91a4ad",
     "scripts/rendering/illustrated_furniture.gd": "2a6031a3db5c8b48825c908678e3151361f909015647b9138bb6105ae5387439",
     "scripts/rendering/illustrated_ground.gd": "022096925da3cfc49671f9dd70c5339bd74bfc92065bcabf9bacbaa985fe999a",
     "scripts/rendering/illustrated_motion.gd": "85c229b5370614c49644a4c5cf105f011546009335936c99a3b7bd31bab13f4b",
