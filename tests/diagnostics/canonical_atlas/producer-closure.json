@@ -1,8 +1,8 @@
 {
-  "head": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
-  "tree": "ec2587e7187156c8219bed2e121af8871548cfd5",
+  "head": "608491523be576a11c713353ef72d6dc7c6964c5",
+  "tree": "bdc2db9e86f7a3c0fbcd3019139751a6673bcc23",
   "parents": [
-    "50160069fa24fb8cfc0a97a74589526e7f9f5eff"
+    "1e33781f2c324ba2e7cb4993373f2654dae68615"
   ],
   "reference": "50160069fa24fb8cfc0a97a74589526e7f9f5eff",
   "reference_tree": "30816ea82598e0cfacdb38bbcd7cec50422c42e5",
@@ -63,6 +63,10 @@
       "git_blob": "bc2bb68efe38fc1dcb256f2f4e9bd8e47353deec",
       "sha256": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73"
     },
+    "scripts/cafe_admission_log.gd": {
+      "git_blob": "763e1d2e1cb0e8dfb5630a1c56b085a28e9138a1",
+      "sha256": "4cf9c3a8a99f6ecc5e79b5d06d85af0aae5cc3c20313b4832fecd09dff06be9c"
+    },
     "scripts/cafe_autosave_policy.gd": {
       "git_blob": "2ccde4a72c98dbf79aac70fd28f3af3efea75ee5",
       "sha256": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d"
@@ -115,6 +119,10 @@
       "git_blob": "bbdd9218afcce209103b4a59370add77229ab095",
       "sha256": "279c084b88149ff08264a11d421833f0715c683fd2f29ad56dc1f90db434d109"
     },
+    "scripts/cafe_departing_bodies.gd": {
+      "git_blob": "ac5e5e837acd037d09acaf2aab2fbd874572c61e",
+      "sha256": "9f528ad0998201cf69174c68c73cdf7c1840252893870764e36b684098325afa"
+    },
     "scripts/cafe_dining_sets.gd": {
       "git_blob": "fb4178c581bba9c7b83028a10f1f3df507529f11",
       "sha256": "9b54f86e5e792003145ad37c2b62dbed65ab3d044395e55066d4292000cc22f7"
@@ -144,16 +152,16 @@
       "sha256": "16eb2a64a47bfece983fd65833a5456a4dc5f24cc1788a06bbe8cf8ad93e5075"
     },
     "scripts/cafe_floor_tasks.gd": {
-      "git_blob": "8ac7b74f1953a91fea16f13bde82eeffa8db2348",
-      "sha256": "7ec2ea0540fae530bab2da077bb29edcc4a41262b1a8b47a2f2ea4b4a28eaa1d"
+      "git_blob": "2457c97dcf34e03215479226b189cc69f5aa5653",
+      "sha256": "3bce2c3d83cab68b7a592527e0e55593526a4ed5338328dd2a03a5d4a37ed1e9"
     },
     "scripts/cafe_footprint.gd": {
       "git_blob": "36ad12f0155dcd8968da533ea31226120f46b2c3",
       "sha256": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c"
     },
     "scripts/cafe_furniture_motion.gd": {
-      "git_blob": "265368667cc7c03ad723cc35b043e31a7915b467",
-      "sha256": "f988ed9cf18c9ecc9f9e3812d0091c56c9604b00d34d4e9c08be3f370682728b"
+      "git_blob": "2844458e64df8e2f11a7587e7f6a3d3a08eab514",
+      "sha256": "ab74286c19e91d30a68e42dcc7def1dd07c1f7c6b48eff0493c92534e5f824da"
     },
     "scripts/cafe_hud.gd": {
       "git_blob": "1c12f0ae0f8609f2afbcc80ed3f4d8a630298064",
@@ -176,8 +184,8 @@
       "sha256": "e0c53e55e9def00f3a5d999dd125919de5a0ea0db29f59fb441b34019d3b515e"
     },
     "scripts/cafe_model.gd": {
-      "git_blob": "e9ae25a340f9e3108d07cab15f81cb07e52c9bf2",
-      "sha256": "241afa0c621a01f726533f4b6990a8491507b52f0c0063445ee8802b9e37e042"
+      "git_blob": "59cb6f93bffe3e2f00b1e7c99682322cbd71b07b",
+      "sha256": "b46433b4cfc35b8b1d382e32f3e1960679bce22d9f981af85d5af337ca56fddc"
     },
     "scripts/cafe_money.gd": {
       "git_blob": "dbba164314a50b250789b81f5ba6f64da1b9d372",
@@ -192,8 +200,8 @@
       "sha256": "1e1b701991917fff07c5e5e909b0212ecea2d26d202ed6cdf9d56cc86c8665f4"
     },
     "scripts/cafe_parking.gd": {
-      "git_blob": "64ec9b1de101ed39d9d64e5d4c7691afc92f74a5",
-      "sha256": "286f3cc467e7f35e2140f0fa076e5e6d7f47e4c18d3700b9680676cbc76231f0"
+      "git_blob": "e5428b0f36211b85fed89afd48a1c4f0dfb089b1",
+      "sha256": "152c17489b9a34dc40a06d0a73161a2d403ca16c86271f5ccc25c43d2455ec03"
     },
     "scripts/cafe_platform_state.gd": {
       "git_blob": "915221df982bd9668b31658bf8fd8b73a63d726f",
@@ -207,6 +215,14 @@
       "git_blob": "58109bf07efdfbdb2d7c77d7061277b1d4f3e7fd",
       "sha256": "0842313bf69854b0a14e680ae65359a7c3e7acd324425353c250e561346a6f9e"
     },
+    "scripts/cafe_reception.gd": {
+      "git_blob": "246a95e66f68706ff21fe3409fcdadcc10d27f72",
+      "sha256": "78f1292bfc9effed116eb2e3237932fce342c31594b02b2fa10d5d58bbf74d86"
+    },
+    "scripts/cafe_reception_review.gd": {
+      "git_blob": "aa39baf9fdb1295a53f8e9bb8ac78b42130b39cb",
+      "sha256": "a4f981fab1f8a944f0104d6d6c57d2da1094d3400390a08ae2e23142b379711d"
+    },
     "scripts/cafe_render_idle.gd": {
       "git_blob": "f1d8dd342abdafe00ee9f2952433fa154e67e049",
       "sha256": "b3aea3229d9c66dc2abcd66e6ca040e28d49ff53fa382f40a2def28aacd03247"
@@ -216,12 +232,12 @@
       "sha256": "68a59865661511d919f04c07ec3e9cd667381b600dab6b27d27685910b6f5048"
     },
     "scripts/cafe_runtime_codec.gd": {
-      "git_blob": "05dc6742481626f29a86818479a7c8b934878cb1",
-      "sha256": "a4a12233b751424e85d306fef7cafbd21f331b17ec379eb11b2cdcd02205b671"
+      "git_blob": "25e554d8a18a83926cbce1c65cd931d1d52c8055",
+      "sha256": "3a9882096f44aa2a675015aa2c14b4557a1a78b56a9eb483658890d3e7f9881a"
     },
     "scripts/cafe_save_contract.gd": {
-      "git_blob": "7c3322d0925935f1bc29c7399b1a270117c8b953",
-      "sha256": "11bb0e4f8506fd1d28216a4f8be3b50990adf086c3acddc68d7545c9453f4648"
+      "git_blob": "1cf6db341b00df187d702b6cfa53dd29f8b772d6",
+      "sha256": "45d6aff80153a5dd63639871e52645ee48dbceac49328e6d61b4b9b13bdb983b"
     },
     "scripts/cafe_save_log.gd": {
       "git_blob": "b0c27149d71a953cbd05383017ced41e9aa02de3",
@@ -274,6 +290,10 @@
     "scripts/cafe_startup_readiness.gd": {
       "git_blob": "d782f1eeb35edd36d635b42f52dfa3bb0a34e437",
       "sha256": "9c7e9a4fbe079f7be649d913ead31edc394e7ecfcc54c29cd0c1fab5e1dc4977"
+    },
+    "scripts/cafe_table_occupancy.gd": {
+      "git_blob": "949ec93bd06bd55f52b88962e9ac53f4216ea7a7",
+      "sha256": "98ab8fa9be2b203535bad30637fe7aabefa093935e16e2bc00a1776df5d9474c"
     },
     "scripts/cafe_tutorial.gd": {
       "git_blob": "af0a9bce01afd22f220c5e570eeea2d133dad434",
@@ -404,8 +424,8 @@
       "sha256": "c5c1a04a5ac159362b3718a415d01243a6b8f796779dfc22b08234a14fccd427"
     },
     "scripts/illustrated_cafe.gd": {
-      "git_blob": "acb479b4fe400298496a54e263e15743cd886fae",
-      "sha256": "039daa717a94b75ff5a6d0791f6f9e9275e4bf18b7256c892db8e618aa941384"
+      "git_blob": "f9cef840e6377e3184732fa1b4972b141d1533ed",
+      "sha256": "59966b1e49b4b90e219d4c990d1cb4acb03dda9b4969f9efe515820685bbdf70"
     },
     "scripts/illustrated_furniture.gd": {
       "git_blob": "5a04efb76bddb6b49a19ac7cc1922aecd9138ec5",
@@ -436,12 +456,12 @@
       "sha256": "100dea0f191efe37c76611f5c56ec74071e82495063bdf76e1f94ff83e7de621"
     },
     "scripts/main.gd": {
-      "git_blob": "38929cf0f306374f497e6f52e589ad4a589d4cfe",
-      "sha256": "5aad0463cc2ebd757ae9226ebd457e1adf90462a254c83bf8b3c9d2cac4ee96f"
+      "git_blob": "0e35f040f01231d2b8df0334ec83f632b8820353",
+      "sha256": "8298b22e55d2550f4bc064222931f86fddb1546566f9c81ab77cf6444fe3c94b"
     },
     "scripts/minimal_start.gd": {
-      "git_blob": "0ebeda1b7a8d1809e5fc1ec8977296eafc6531f7",
-      "sha256": "cd03b336b0add2338d289d68e1816dae4966759ba17b308677f4573c5e41ee6b"
+      "git_blob": "6864e28b35218fce61f8ed7f6e46bd0a402a7ace",
+      "sha256": "c767f7a12871028245e586b90309fa1919ef9eb4fb66610a0a6b34a2653d5542"
     },
     "scripts/moving_art_atlas.gd": {
       "git_blob": "ff950a8d31aea2592c231f01960fa399420d95ce",
@@ -493,29 +513,149 @@
     }
   },
   "relative_delta": {
+    "docs/development/reception-private-review.md": {
+      "git_blob": "7c3290bd69076415861adeefe752e8a84a8cb69f",
+      "sha256": "85d3fe0002cc6e1f26ca1294d686b9f05d099d0197807be6b5c61cd12852f60c"
+    },
+    "game/scripts/cafe_admission_log.gd": {
+      "git_blob": "763e1d2e1cb0e8dfb5630a1c56b085a28e9138a1",
+      "sha256": "4cf9c3a8a99f6ecc5e79b5d06d85af0aae5cc3c20313b4832fecd09dff06be9c"
+    },
+    "game/scripts/cafe_admission_log.gd.uid": {
+      "git_blob": "e05658955433ef3581cfcf7600a55b197b1e212e",
+      "sha256": "b3e94089e7817901366d488595a4ed53d05faee5b04e531015a84f41608fa033"
+    },
+    "game/scripts/cafe_departing_bodies.gd": {
+      "git_blob": "ac5e5e837acd037d09acaf2aab2fbd874572c61e",
+      "sha256": "9f528ad0998201cf69174c68c73cdf7c1840252893870764e36b684098325afa"
+    },
+    "game/scripts/cafe_departing_bodies.gd.uid": {
+      "git_blob": "60f966a5ed87b0417d0992b3fdeec5938ca6500e",
+      "sha256": "0d3f483586273dcd0064e6b6925b84b7c2c678b424589516cf3b1b4fd8856e48"
+    },
+    "game/scripts/cafe_floor_tasks.gd": {
+      "git_blob": "2457c97dcf34e03215479226b189cc69f5aa5653",
+      "sha256": "3bce2c3d83cab68b7a592527e0e55593526a4ed5338328dd2a03a5d4a37ed1e9"
+    },
+    "game/scripts/cafe_furniture_motion.gd": {
+      "git_blob": "2844458e64df8e2f11a7587e7f6a3d3a08eab514",
+      "sha256": "ab74286c19e91d30a68e42dcc7def1dd07c1f7c6b48eff0493c92534e5f824da"
+    },
     "game/scripts/cafe_model.gd": {
-      "git_blob": "e9ae25a340f9e3108d07cab15f81cb07e52c9bf2",
-      "sha256": "241afa0c621a01f726533f4b6990a8491507b52f0c0063445ee8802b9e37e042"
+      "git_blob": "59cb6f93bffe3e2f00b1e7c99682322cbd71b07b",
+      "sha256": "b46433b4cfc35b8b1d382e32f3e1960679bce22d9f981af85d5af337ca56fddc"
+    },
+    "game/scripts/cafe_parking.gd": {
+      "git_blob": "e5428b0f36211b85fed89afd48a1c4f0dfb089b1",
+      "sha256": "152c17489b9a34dc40a06d0a73161a2d403ca16c86271f5ccc25c43d2455ec03"
+    },
+    "game/scripts/cafe_reception.gd": {
+      "git_blob": "246a95e66f68706ff21fe3409fcdadcc10d27f72",
+      "sha256": "78f1292bfc9effed116eb2e3237932fce342c31594b02b2fa10d5d58bbf74d86"
+    },
+    "game/scripts/cafe_reception.gd.uid": {
+      "git_blob": "cf35a826f6021e99769c85e7af50fa62b2486ce5",
+      "sha256": "dbce218c618b1b5a9b3218e2a02166e1bb8d2909157f64d8c90963c5b12a86ca"
+    },
+    "game/scripts/cafe_reception_review.gd": {
+      "git_blob": "aa39baf9fdb1295a53f8e9bb8ac78b42130b39cb",
+      "sha256": "a4f981fab1f8a944f0104d6d6c57d2da1094d3400390a08ae2e23142b379711d"
+    },
+    "game/scripts/cafe_reception_review.gd.uid": {
+      "git_blob": "18d1765c413384192f968aba49dfea938d41c67f",
+      "sha256": "230e52e473d051e531e975874e32e8f5680b5c42de33b9954370968d7c422a5a"
+    },
+    "game/scripts/cafe_runtime_codec.gd": {
+      "git_blob": "25e554d8a18a83926cbce1c65cd931d1d52c8055",
+      "sha256": "3a9882096f44aa2a675015aa2c14b4557a1a78b56a9eb483658890d3e7f9881a"
+    },
+    "game/scripts/cafe_save_contract.gd": {
+      "git_blob": "1cf6db341b00df187d702b6cfa53dd29f8b772d6",
+      "sha256": "45d6aff80153a5dd63639871e52645ee48dbceac49328e6d61b4b9b13bdb983b"
+    },
+    "game/scripts/cafe_table_occupancy.gd": {
+      "git_blob": "949ec93bd06bd55f52b88962e9ac53f4216ea7a7",
+      "sha256": "98ab8fa9be2b203535bad30637fe7aabefa093935e16e2bc00a1776df5d9474c"
+    },
+    "game/scripts/cafe_table_occupancy.gd.uid": {
+      "git_blob": "0e48b0c4ffad0d23414325e77cd1476d54f2f241",
+      "sha256": "df16a171f4f93ba9b310e5f38ea0c6cf17cf3ee5ba1ca6efc8b9dca32c7c1ab0"
+    },
+    "game/scripts/illustrated_cafe.gd": {
+      "git_blob": "f9cef840e6377e3184732fa1b4972b141d1533ed",
+      "sha256": "59966b1e49b4b90e219d4c990d1cb4acb03dda9b4969f9efe515820685bbdf70"
     },
     "game/scripts/main.gd": {
-      "git_blob": "38929cf0f306374f497e6f52e589ad4a589d4cfe",
-      "sha256": "5aad0463cc2ebd757ae9226ebd457e1adf90462a254c83bf8b3c9d2cac4ee96f"
+      "git_blob": "0e35f040f01231d2b8df0334ec83f632b8820353",
+      "sha256": "8298b22e55d2550f4bc064222931f86fddb1546566f9c81ab77cf6444fe3c94b"
     },
-    "game/scripts/minimal_start.gd": {
-      "git_blob": "0ebeda1b7a8d1809e5fc1ec8977296eafc6531f7",
-      "sha256": "cd03b336b0add2338d289d68e1816dae4966759ba17b308677f4573c5e41ee6b"
+    "tests/fixtures/reception_original_v15_contract.gd": {
+      "git_blob": "7c3322d0925935f1bc29c7399b1a270117c8b953",
+      "sha256": "11bb0e4f8506fd1d28216a4f8be3b50990adf086c3acddc68d7545c9453f4648"
     },
-    "tests/run_integration_candidate.py": {
-      "git_blob": "324f89b9b2c0f86c3ce482de5810a1eca4e3fbcf",
-      "sha256": "15d6d469718e58220c61d199daf410e2145ec875ed6277aa17fcaa0bd4f7dd7e"
+    "tests/fixtures/reception_original_v15_contract.gd.uid": {
+      "git_blob": "60fef3e3cf4805235152d9a6a5e64aa3503fde14",
+      "sha256": "535afa6d2e5aac2b5d8a7c565addceb8692c4271c401e819ac5ff2597d558754"
     },
-    "tests/test_direct_janitor_cleanup.gd": {
-      "git_blob": "be72eda714c02012bd0193d86e8feb3ddaa98cee",
-      "sha256": "c092fecdd6c944bc8a21e0f0a4bc277c1bbc643343a2f83e7e632523e96d25fa"
+    "tests/run_reception_review.py": {
+      "git_blob": "e112579e78612e7c62133c73fba418e302fd771c",
+      "sha256": "b8eccc6a2c3f372474f44aa8433c67912e20e3e81407616f5ee24b343e7bb942"
     },
-    "tests/test_starter_bin.gd": {
-      "git_blob": "3b39386c0dc62aa14539e70ddacc73c2e5c390d8",
-      "sha256": "5b29f8bbadb2191a5f1897064b9a4201be1fa938e950920b0d254e2290f2fa7e"
+    "tests/test_reception_clearance.gd": {
+      "git_blob": "0f9d36a71c7f19be4cede3ed685e12f283795591",
+      "sha256": "5fb2cc75e9d52235de449ec6ce0ea5da5e3e53005f073e30130fb88becf20086"
+    },
+    "tests/test_reception_clearance.gd.uid": {
+      "git_blob": "d53df467cb99a10bb03cf29b68e5037d681cd1f7",
+      "sha256": "a0b0309c07671b24b58b8849aa319f50e01efd46669fdf4c99520d172dfd671c"
+    },
+    "tests/test_reception_fairness.gd": {
+      "git_blob": "72bb78ae7270e8448df6ac42475199193134a149",
+      "sha256": "a4622a74a976792fef1aa522a37ce1974071ab9f433e993109173eba55c388af"
+    },
+    "tests/test_reception_fairness.gd.uid": {
+      "git_blob": "1fcab9fc82046dfb320a332f15684dea7eec391f",
+      "sha256": "0bd5724fb8bfa226895ed944336954c35930a5ed47d4f5fa1fd9d1544354cbbc"
+    },
+    "tests/test_reception_private_contract.gd": {
+      "git_blob": "1abbfdc3aa76cd442f54cb6a396d961cb0b6f26d",
+      "sha256": "a3ae82ce5db0b603d8cd11a0ea1e12419096a304d641efadd1f1e6e86f7d51e7"
+    },
+    "tests/test_reception_private_contract.gd.uid": {
+      "git_blob": "dc1fddd01e229ccb804d7b6147a183696e63c2bf",
+      "sha256": "94f16fffff5450e083ed02ae1771e56d36f5c95a8ffd2c304446f6dd043538e6"
+    },
+    "tests/test_reception_retry.gd": {
+      "git_blob": "e58c3eae070c1385f6b230f61a5fde6fd305eb95",
+      "sha256": "032dd157b0830ae6a03cd3dae32cd15a7d21c82c1eb243a38c30c4d2385bb5a8"
+    },
+    "tests/test_reception_retry.gd.uid": {
+      "git_blob": "53232c4c602db58422ad300d6b93e443bea38a69",
+      "sha256": "4bf3cd293dde3d39edbaf5baa0e17a113f83d587d753b2f752f470f29b8dc631"
+    },
+    "tests/test_reception_scope.gd": {
+      "git_blob": "63500500acdcfd2599016b4e90f2d6fe7cbb2fb8",
+      "sha256": "7720794b4d14ee5d55d8af6a69d8afda9eaff61469a67de5dd20bd6443878a40"
+    },
+    "tests/test_reception_scope.gd.uid": {
+      "git_blob": "871ab8907b9205a011100ab69e0d4ab9eedf69b6",
+      "sha256": "641677534cf3883472aff089bba10f34cad370cbca5df3f4a9d5d68c231301fd"
+    },
+    "tests/test_reception_service.gd": {
+      "git_blob": "26ee51416faf9d87b1bd52715fb31af28b8bf1f7",
+      "sha256": "ca7d014ffcf8ba5f08afab8a061baedefdaa2122d2f292388482337fa99bf3c6"
+    },
+    "tests/test_reception_service.gd.uid": {
+      "git_blob": "8cf78a31a73b097fe8222e6843ee303fae37e5fa",
+      "sha256": "8cbc68d1ee41830acdb8abef5b1b45f73f553ae8d0cd251b907a8cee7371d50a"
+    },
+    "tests/test_restaurant_reception.gd": {
+      "git_blob": "96e8d41b0c351d44e8e03259ec3094fa4e151afe",
+      "sha256": "90dfa6186b1a2aa0f0fc04970ad496ff10ffb3af8ef5ef57d8432f4c44ad252c"
+    },
+    "tests/test_restaurant_reception.gd.uid": {
+      "git_blob": "0970d1da35d6e5676125ed7e32cd2ff813a8980b",
+      "sha256": "da735d7cd74d8d56e674420143bb916891ffe3ce05952b1ef6894866f4bb0e92"
     }
   },
   "unchanged_assets_and_imports": {
@@ -551,5 +691,5 @@
     "game/scripts/moving_art_painter.gd": "2c94b505d02250c759f4734824285ffac46f3b46ec4cae0a6b3e80f1ba1ce2c0",
     "game/scripts/character_head_painter.gd": "79ee6ffa150323e3ae7f5d078209da5b35003d5ac53970b416fbcef6c8895c38"
   },
-  "bundle_sha256": "912f4dc43546fd26277795bc7e3e667055d9049ac39125a325f61e3125d6e6f8"
+  "bundle_sha256": "13cfaffea48d8cd40eb25988df13bdf178b7ae67e1dba025dd5863539ce11829"
 }

@@ -1,7 +1,7 @@
-"""Frozen PR161 source predicate; candidate and control share original exact pixels."""
+"""Frozen private reception source predicate; candidate and control share original exact pixels."""
 import hashlib,subprocess
-HEAD='35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d'
-TREE='ec2587e7187156c8219bed2e121af8871548cfd5'
+HEAD='608491523be576a11c713353ef72d6dc7c6964c5'
+TREE='bdc2db9e86f7a3c0fbcd3019139751a6673bcc23'
 REFERENCE='50160069fa24fb8cfc0a97a74589526e7f9f5eff'
 def expected_for(label,item,original,declaration):
  if label=='control':return original
@@ -11,12 +11,13 @@ def expected_for(label,item,original,declaration):
 def verify_proposal(work,item,declaration,closure):
  def git(*args):return subprocess.check_output(['git','-C',str(work),*args],text=True).strip()
  assert git('rev-parse','HEAD')==item['commit']==HEAD and git('rev-parse','HEAD^{tree}')==item['tree']==TREE
- assert git('rev-parse','HEAD^')==REFERENCE and closure['parents']==[REFERENCE]
+ assert git('rev-parse','HEAD^')=='1e33781f2c324ba2e7cb4993373f2654dae68615' and closure['parents']==['1e33781f2c324ba2e7cb4993373f2654dae68615']
+ assert git('rev-parse','HEAD^^')==REFERENCE
  assert closure['head']==HEAD and closure['tree']==TREE and closure['reference']==REFERENCE
  assert git('rev-parse',REFERENCE+'^{tree}')==closure['reference_tree']
- assert set(git('diff','--name-only',REFERENCE,HEAD).splitlines())==set(closure['relative_delta']) and len(closure['relative_delta'])==6
- assert {p for p in closure['relative_delta'] if p.startswith('game/')}=={'game/scripts/cafe_model.gd','game/scripts/main.gd','game/scripts/minimal_start.gd'}
- assert len(closure['producer_closure'])==121
+ assert set(git('diff','--name-only',REFERENCE,HEAD).splitlines())==set(closure['relative_delta']) and len(closure['relative_delta'])==36
+ assert {p for p in closure['relative_delta'] if p.startswith('game/')}=={'game/scripts/cafe_admission_log.gd', 'game/scripts/cafe_reception_review.gd.uid', 'game/scripts/cafe_table_occupancy.gd.uid', 'game/scripts/cafe_reception.gd.uid', 'game/scripts/cafe_reception_review.gd', 'game/scripts/main.gd', 'game/scripts/cafe_table_occupancy.gd', 'game/scripts/cafe_parking.gd', 'game/scripts/cafe_floor_tasks.gd', 'game/scripts/cafe_departing_bodies.gd', 'game/scripts/cafe_save_contract.gd', 'game/scripts/cafe_reception.gd', 'game/scripts/cafe_admission_log.gd.uid', 'game/scripts/cafe_furniture_motion.gd', 'game/scripts/cafe_runtime_codec.gd', 'game/scripts/illustrated_cafe.gd', 'game/scripts/cafe_departing_bodies.gd.uid', 'game/scripts/cafe_model.gd'}
+ assert len(closure['producer_closure'])==126
  for path,row in list(closure['relative_delta'].items())+ [('game/'+n,r) for n,r in closure['producer_closure'].items()]:
   assert git('rev-parse',HEAD+':'+path)==row['git_blob'],path
   assert hashlib.sha256((work/path).read_bytes()).hexdigest()==row['sha256'],path
@@ -27,4 +28,4 @@ def verify_proposal(work,item,declaration,closure):
  for path,digest in closure['protected_unchanged'].items():
   assert git('rev-parse',HEAD+':'+path)==git('rev-parse',REFERENCE+':'+path),path
   assert hashlib.sha256((work/path).read_bytes()).hexdigest()==digest,path
- return {'source':item,'reference':REFERENCE,'closure_verified':len(closure['producer_closure']),'relative_files_verified':6,'runtime_files_verified':3,'unchanged_assets_and_imports_verified':6}
+ return {'source':item,'reference':REFERENCE,'closure_verified':len(closure['producer_closure']),'relative_files_verified':36,'runtime_files_verified':18,'unchanged_assets_and_imports_verified':6}

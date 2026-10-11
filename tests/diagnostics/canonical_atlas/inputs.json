@@ -1,12 +1,12 @@
 {
-  "scope": "Exact PR161 source; unchanged original canonical pixel references",
+  "scope": "Exact private reception source; unchanged original pixel references",
   "control": {
     "commit": "d2910b4780bcd5321fb6dc72df1cd6300f6d2bdd",
     "tree": "272899608abf811b62c9d91851916c193b095dcf"
   },
   "candidate": {
-    "commit": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
-    "tree": "ec2587e7187156c8219bed2e121af8871548cfd5"
+    "commit": "608491523be576a11c713353ef72d6dc7c6964c5",
+    "tree": "bdc2db9e86f7a3c0fbcd3019139751a6673bcc23"
   },
   "reuse_control": {
     "run": 38066367866,

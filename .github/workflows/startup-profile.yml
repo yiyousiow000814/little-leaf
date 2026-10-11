@@ -1,10 +1,10 @@
-name: Qualify exact PR161 atlas source
+name: Qualify exact private reception atlas source
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: pr161-atlas-${{ github.ref }}
+  group: reception-atlas-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   canonical-parity:
@@ -48,14 +48,14 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1600x1000x24' python3 tests/diagnostics/canonical_atlas/run.py \
             --godot "$GODOT_BIN" --expected-head "$EXPECTED_HEAD" \
-            --output "$RUNNER_TEMP/pr161-35bdb116-atlas"
+            --output "$RUNNER_TEMP/reception-6084915-atlas"
       - name: Retain exact source and pixel evidence on all outcomes
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: pr161-35bdb116-atlas-${{ github.sha }}-${{ github.run_attempt }}
+          name: reception-6084915-atlas-${{ github.sha }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/pr161-35bdb116-atlas/
+            ${{ runner.temp }}/reception-6084915-atlas/
             ${{ runner.temp }}/canonical-tools/toolchain.json
           if-no-files-found: error
           retention-days: 7

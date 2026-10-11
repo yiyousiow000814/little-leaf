@@ -1,22 +1,22 @@
 {
   "source": {
-    "commit": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
-    "tree": "ec2587e7187156c8219bed2e121af8871548cfd5"
+    "commit": "608491523be576a11c713353ef72d6dc7c6964c5",
+    "tree": "bdc2db9e86f7a3c0fbcd3019139751a6673bcc23"
   },
   "proposal": {
-    "commit": "35bdb116509c2d07229e4cdb2d48a3b55e0c3d2d",
-    "tree": "ec2587e7187156c8219bed2e121af8871548cfd5"
+    "commit": "608491523be576a11c713353ef72d6dc7c6964c5",
+    "tree": "bdc2db9e86f7a3c0fbcd3019139751a6673bcc23"
   },
   "expected_rgba": [
     "31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732",
     "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
     "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7"
   ],
-  "closure_packet_sha256": "a5976c7c5ff4454fa7ff636035ade51d31293e89b7e5cf77b572d736c54ca262",
+  "closure_packet_sha256": "bcd698ea1411db8a9eea4c8bdd554d422ed6e7a30f94272bc950199ceb17b8d8",
   "source_bundle": {
     "path": "source.bundle",
-    "sha256": "912f4dc43546fd26277795bc7e3e667055d9049ac39125a325f61e3125d6e6f8",
+    "sha256": "13cfaffea48d8cd40eb25988df13bdf178b7ae67e1dba025dd5863539ce11829",
     "prerequisite": "50160069fa24fb8cfc0a97a74589526e7f9f5eff"
   },
-  "authorization": "Parent explicitly assigns exact PR161 guard qualification; owner applies/tests/Web/PR update; no product publication here"
+  "authorization": "Parent explicitly authorizes frozen private native opt-in reception canonical qualification only; no activation or product publication"
 }

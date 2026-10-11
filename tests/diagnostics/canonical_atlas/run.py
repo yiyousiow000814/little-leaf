@@ -26,13 +26,13 @@ def main():
  inputs=json.loads((HERE/'inputs.json').read_text());targets=frozen_targets(inputs)
  declaration=json.loads((HERE/'changed-art-declaration.json').read_text());closure=json.loads((HERE/'producer-closure.json').read_text())
  assert sha(HERE/'producer-closure.json')==declaration['closure_packet_sha256']
- assert declaration['source_bundle']=={'path': 'source.bundle', 'sha256': '912f4dc43546fd26277795bc7e3e667055d9049ac39125a325f61e3125d6e6f8', 'prerequisite': '50160069fa24fb8cfc0a97a74589526e7f9f5eff'}
+ assert declaration['source_bundle']=={'path': 'source.bundle', 'sha256': '13cfaffea48d8cd40eb25988df13bdf178b7ae67e1dba025dd5863539ce11829', 'prerequisite': '50160069fa24fb8cfc0a97a74589526e7f9f5eff'}
  assert sha(HERE/'source.bundle')==declaration['source_bundle']['sha256']==closure['bundle_sha256']
  root=pathlib.Path.cwd();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True);assert git('rev-parse','HEAD')==a.expected_head
  env=os.environ.copy();env['LIBGL_ALWAYS_SOFTWARE']='1'
  gl=subprocess.run(['glxinfo','-B'],env=env,capture_output=True,text=True);(out/'glxinfo.txt').write_text(gl.stdout+gl.stderr)
  packages=subprocess.run(['dpkg-query','-W','libgl1-mesa-dri','libglx-mesa0','libllvm20','xvfb'],capture_output=True,text=True);(out/'packages.txt').write_text(packages.stdout+packages.stderr)
- binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','original_policy.py','check_source_png.gd','changed-art-declaration.json','producer-closure.json','source.bundle']},'reference_run':38066367866,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'Exact PR161 source; unchanged original canonical pixels; checksum-bound source bundle'}
+ binding={'verification_commit':a.expected_head,'verification_tree':git('rev-parse','HEAD^{tree}'),'targets':targets,'godot_member_sha256':sha(pathlib.Path(a.godot)),'helpers':{n:sha(HERE/n) for n in ['inputs.json','run.py','parity.gd','check_saved.gd','original_policy.py','check_source_png.gd','changed-art-declaration.json','producer-closure.json','source.bundle']},'reference_run':38066367866,'runner_image':os.environ.get('ImageVersion'),'rows':[],'manifest_updated':False,'asset_replacement':False,'scope':'Exact private reception source; unchanged original canonical pixels; checksum-bound source bundle'}
  def save():(out/'summary.json').write_text(json.dumps(binding,indent=2))
  save();assert binding['godot_member_sha256']=='f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3'
  assert gl.returncode==0 and '25.2.8' in gl.stdout and 'llvmpipe (LLVM 20.1.2, 256 bits)' in gl.stdout,'Canonical fingerprint mismatch'
