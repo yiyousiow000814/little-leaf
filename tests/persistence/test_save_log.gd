@@ -19,20 +19,22 @@ func run():
  var ui=game.compact_ui
  var log=ui.save_log_panel
  check(log!=null and not log.panel.visible,"Log does not open automatically")
- var entry=game.settings.find_child("SaveLogEntry",true,false)
- check(entry!=null and entry.text=="Log","Settings entry is exactly Log")
+ var entry=ui.help_panel.find_child("SaveLogEntry",true,false)
+ check(entry!=null and entry.text=="Log","Help entry is exactly Log")
  check(not log.log_text.editable and log.log_text.wrap_mode==TextEdit.LINE_WRAPPING_BOUNDARY,"Log is read-only with wrapped scrollable text")
  await settle()
  web_points.settings=point(ui.settings_button)
  web_points.pause=point(game.pause_button)
  game.settings.show();await settle();ui._fit_themed_popups();await settle()
+ web_points.help=point(ui.settings_help)
+ ui.settings_help.pressed.emit();await settle()
  web_points.log=point(entry)
  entry.pressed.emit();await settle();ui._fit_themed_popups();await settle()
  web_points.copy=point(log.copy_button)
  for key in web_points:
   var p=web_points[key]
   check(p[0]>=0 and p[0]<1360 and p[1]>=0 and p[1]<880,"browser input point inside viewport: "+key)
- check(log.panel.visible and not game.settings.visible and ui.has_open_popup(),"Settings Log opens within modal flow")
+ check(log.panel.visible and not game.settings.visible and not ui.help_panel.visible and ui.has_open_popup(),"Help Log opens within modal flow")
  check("Session only" in log.log_text.text and "app " in log.log_text.text,"version and copy-before-refresh notice visible")
  var model=game.model;var source=game.startup_save_source;var blocked=game.save_recovery_blocked
  SaveLog.record("save_failure",{"layer":"controller","profileId":"SECRET_PROFILE_ID","revision":12,"code":"secret url /wallet?token=SECRET","payload":"SECRET_SAVE_PAYLOAD","coins":99999})
@@ -52,7 +54,7 @@ func run():
  log._show_copy_status("copied")
  check(not log.waiting_for_copy and log.copy_note.text=="Log copied","copy confirmation shown only after success")
  log.back_button.pressed.emit();await process_frame
- check(not log.panel.visible and game.settings.visible,"Back restores Settings")
+ check(not log.panel.visible and ui.help_panel.visible,"Back restores Help")
  entry.pressed.emit();await process_frame
  check(log.panel.visible and not log.copy_note.visible,"repeated open resets stale copy feedback")
  var event=InputEventKey.new();event.keycode=KEY_ESCAPE;event.pressed=true
