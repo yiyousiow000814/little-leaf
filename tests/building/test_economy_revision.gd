@@ -1,8 +1,8 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const MinimalStart=preload("res://scripts/minimal_start.gd")
-const Sets=preload("res://scripts/cafe_dining_sets.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const Sets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):

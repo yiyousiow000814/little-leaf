@@ -12,7 +12,7 @@ import struct
 
 ROOT = Path(__file__).resolve().parents[1] / 'game'
 MANIFEST = ROOT / 'data/prebaked_atlas_manifest.json'
-SEEDS = ['scripts/furniture_atlas_painter.gd','scripts/moving_art_painter.gd','scripts/character_head_painter.gd']
+SEEDS = ['scripts/rendering/furniture_atlas_painter.gd','scripts/rendering/moving_art_painter.gd','scripts/rendering/character_head_painter.gd']
 NAMES = ['furniture','moving','heads']
 
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()

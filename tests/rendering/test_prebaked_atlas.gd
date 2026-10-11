@@ -1,9 +1,9 @@
 extends SceneTree
 ## Imported lossless-resource bytes and runtime selection; no renderer claim.
-const Loader = preload("res://scripts/cafe_prebaked_atlas.gd")
-const Furniture = preload("res://scripts/furniture_static_atlas.gd")
-const Moving = preload("res://scripts/moving_art_atlas.gd")
-const Heads = preload("res://scripts/character_head_atlas.gd")
+const Loader = preload("res://scripts/rendering/cafe_prebaked_atlas.gd")
+const Furniture = preload("res://scripts/rendering/furniture_static_atlas.gd")
+const Moving = preload("res://scripts/rendering/moving_art_atlas.gd")
+const Heads = preload("res://scripts/rendering/character_head_atlas.gd")
 var checks = 0
 var failures = []
 func check(ok, label):

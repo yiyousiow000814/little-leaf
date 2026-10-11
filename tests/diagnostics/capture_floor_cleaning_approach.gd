@@ -1,6 +1,6 @@
 extends SceneTree
 ## Actual native renderer, synthetic floor jobs, isolated profile, no saves.
-const Approach=preload("res://scripts/floor_cleaning_approach.gd")
+const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 class TestMain extends "res://scripts/main.gd":
 	var saves=0
 	func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

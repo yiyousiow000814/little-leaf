@@ -1,6 +1,6 @@
 extends SceneTree
 ## Legacy decorative-stove saves remain intact; new obstructions are rejected.
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

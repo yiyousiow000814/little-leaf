@@ -1,8 +1,8 @@
 extends SceneTree
-const Visibility=preload("res://scripts/cafe_render_visibility.gd")
-const Art=preload("res://scripts/illustrated_cafe.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Greenery=preload("res://scripts/environment_greenery.gd")
+const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
+const Art=preload("res://scripts/rendering/illustrated_cafe.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Greenery=preload("res://scripts/rendering/environment_greenery.gd")
 class Recorder extends RefCounted:
 	var origin=Vector2.ZERO
 	var ui_scale=1.0
@@ -22,7 +22,7 @@ class Recorder extends RefCounted:
 	func line(a,b,color,width=1.0):record("line",Rect2(a,Vector2.ZERO).expand(b).grow(width*.5),[a,b,color,width])
 	func draw_rect(rect,color,_filled=true,_width=-1.0,_antialiased=false):record("rect",rect,[rect,color])
 	func callback():callbacks+=1
-class BoundsArt extends "res://scripts/illustrated_cafe.gd":
+class BoundsArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var points=[]
 	func _face_line(a:Vector2,b:Vector2,c,width=1.0):line(a,b,c,width)
 	func _face_ellipse(at:Vector2,radius:Vector2,c):ellipse(at,radius,c)

@@ -1,7 +1,7 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Main=preload("res://scripts/main.gd")
-class AdmissionModel extends "res://scripts/cafe_model.gd":
+class AdmissionModel extends "res://scripts/core/cafe_model.gd":
  var attempts=0
  func _try_admit_queued_visitor(_visitor:Dictionary)->bool:attempts+=1;return false
 var checks=0
