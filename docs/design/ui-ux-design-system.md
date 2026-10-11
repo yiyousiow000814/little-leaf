@@ -112,8 +112,7 @@ after the one-time popup theme pass in `CompactUI.setup`. These are confirmed
 source causes of the theme bypass, not speculation about a developer's intention.
 
 On 2026-10-11 the user explicitly rejected the supplied
-[`image(20261011-095200).png`](https://chatgpt.com/api/library/files/libfile_11ea8b7cbe0081919bbd710b0f10cb7a/download)
-(account-scoped Library reference). Inspection of that 545x352 crop confirms a
+`image(20261011-095200).png`. Inspection of that 545x352 crop confirms a
 plain pale panel and two equally gray actions beside the illustrated HUD. Its
 build/viewport identity is not embedded in the crop, so it is a concrete rejected
 visual example, not an exact-build regression capture or an approved Golden.
