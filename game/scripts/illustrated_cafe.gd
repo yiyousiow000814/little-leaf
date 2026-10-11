@@ -897,6 +897,10 @@ func _draw():
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
+	# Resolve input picking before switching to draw-local coordinates. A
+	# projection refresh during drawing would apply the retained camera pan twice.
+	var pointer=get_viewport().get_mouse_position()
+	var hovered_parcel=hit_parcel(pointer) if game.editing and game.interaction!=null and not game.interaction._over_ui(pointer) else ""
 	# Camera translation belongs to retained CanvasItem transforms. Keep world
 	# geometry in the same coordinates while the input projection stays global.
 	var gameplay_view = _warmup_view
@@ -930,7 +934,7 @@ func _draw():
 	road_traffic.draw(self)
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
-	_parcel_ground()
+	_parcel_ground(hovered_parcel)
 	if game.interaction!=null:game.interaction.draw_floor_feedback(self)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
 	if game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
@@ -1330,10 +1334,8 @@ func _tree_crown_legacy(p:Vector2,s:float,horizontal_scale:float=1.0):
 		return
 	# Both the cached atlas and fallback share the same authored tree contours.
 	exterior_tree_art.draw_tree(self,p,s,horizontal_scale)
-func _parcel_ground():
+func _parcel_ground(hovered:String):
 	if not game.editing or not game.model.has_method("expansion_parcels"):return
-	var pointer=get_viewport().get_mouse_position()
-	var hovered=hit_parcel(pointer) if game.interaction!=null and not game.interaction._over_ui(pointer) else ""
 	for parcel in game.model.expansion_parcels():
 		if parcel.owned or not parcel.visible:continue
 		var x=float(parcel.x);var z=float(parcel.z);var w=float(parcel.w);var h=float(parcel.h)
