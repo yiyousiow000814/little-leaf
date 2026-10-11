@@ -206,6 +206,8 @@ func run():
   match interruption:
    "drag":
     var motion=InputEventMouseMotion.new();motion.position=point+Vector2(25,0);motion.button_mask=MOUSE_BUTTON_MASK_LEFT;game.build_tools.handle_input(motion)
+    same_state(before,"drag preview alone cannot buy or save")
+    game.build_tools.on_focus_lost() # Interrupt the paint stroke before its late release.
    "escape":
     var event=InputEventKey.new();event.keycode=KEY_ESCAPE;event.pressed=true;game.build_tools.handle_input(event)
    "right-click":
