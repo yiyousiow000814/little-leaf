@@ -1,6 +1,7 @@
 """Exact-source prerelease tests: no network, account, save or publication."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -68,6 +69,26 @@ class ShaPrereleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):publish_itch.check_previous(status('0.1.11-pre.ffffffff'),'0.1.11-pre.01234567',newer)
         with self.assertRaises(ValueError):publish_itch.check_previous(status('0.1.11'),'0.1.11-pre.01234567',newer)
         self.assertEqual(publish_itch.check_previous(status('0.1.11-pre.01234567'),'0.1.11'),55)
+
+    def test_repeated_prerelease_uses_real_retained_tag_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            def git(*args):return subprocess.check_output(['git','-C',str(root),*args],stderr=subprocess.DEVNULL,text=True).strip()
+            git('init');git('config','user.name','Synthetic test');git('config','user.email','fixture@example.invalid')
+            git('commit','--allow-empty','-m','older');old=git('rev-parse','HEAD')
+            old_version='0.1.11-pre.'+old[:8];git('tag','v'+old_version)
+            git('commit','--allow-empty','-m','newer');new=git('rev-parse','HEAD')
+            previous=os.getcwd()
+            try:
+                os.chdir(root)
+                self.assertEqual(publish_itch.check_previous(status(old_version),'0.1.11-pre.'+new[:8],new),55)
+                git('tag','-d','v'+old_version)
+                with self.assertRaises(subprocess.CalledProcessError):
+                    publish_itch.check_previous(status(old_version),'0.1.11-pre.'+new[:8],new)
+            finally:os.chdir(previous)
+        workflow=(Path(__file__).resolve().parents[2]/'.github/workflows/release-itch.yml').read_text()
+        publish_checkout=workflow.split('  publish:',1)[1].split('      - name:',1)[0]
+        self.assertIn('fetch-depth: 0',publish_checkout,'publisher needs prior immutable tags and ancestor history')
 
     def test_github_workflow_opaque_hash_binding_and_flag(self):
         gate=release_workflow.MetadataGateTests()
