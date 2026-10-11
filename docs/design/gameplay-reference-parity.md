@@ -13,6 +13,8 @@ The user's latest direction makes practical preservation of Restaurant City's me
 
 ## Compact mechanism matrix
 
+The thirteen Restaurant City mechanism categories are the first priority review, not complete coverage of every original gameplay or strategy mechanism. Further evidence and mechanism coverage will be added incrementally, preserving era, confidence and product-approval distinctions.
+
 Historical confidence: **H** = dated official anchor directly verified in this audit or supplied as verified by the parent historical reviewer; **V** = direct pixel observation from the historical review, high confidence only for visible labels, amounts and composition; era/provenance and behavior can remain unverified. **M** = existing roadmap/player-guide digest, precise rule still unverified; **U** = unresolved. Parent-verified anchors have not all been independently reopened here. Strategic value and recommendations below are analysis, not claims about historical intent. Cost is relative integration risk, not a delivery estimate.
 
 | Mechanism / original evidence and era | Strategic value | Little Leaf current / planned difference, pinned source | Impact; proposed treatment; approval/dependency |
