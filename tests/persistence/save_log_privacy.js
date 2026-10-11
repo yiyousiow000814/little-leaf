@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '..'));
+const root = path.resolve(process.env.LITTLE_LEAF_SOURCE_ROOT || path.join(__dirname, '../..'));
 const source = fs.readFileSync(path.join(root, 'platform/web/little_leaf_save_log.js'), 'utf8');
 const report = { synthetic_only: true, scope: 'Diagnostic privacy, bounded lifetime and copy behavior', checks: [] };
 const check = (condition, name) => { assert(condition, name); report.checks.push(name); };

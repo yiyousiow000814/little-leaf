@@ -24,11 +24,11 @@ Run from the repository root:
 
 ```sh
 node tests/boot_presentation.js
-node tests/crazygames_storage.js
-node tests/legacy_byte_storage.js
-node tests/compensation_inbox_storage.js
-node tests/save_log_privacy.js
-node tests/save_log_observers.js
+node tests/persistence/crazygames_storage.js
+node tests/persistence/legacy_byte_storage.js
+node tests/persistence/compensation_inbox_storage.js
+node tests/persistence/save_log_privacy.js
+node tests/persistence/save_log_observers.js
 node tests/rendering/web_performance_lifecycle.js
 ```
 

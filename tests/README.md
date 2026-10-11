@@ -6,7 +6,7 @@ symptom. Tests, fixtures and manual captures now share this home:
 | Location | Use |
 | --- | --- |
 | Root browser/Node tests and `run_*.py` | Current external entrypoints; further family moves must update executable consumers atomically. Reserved update-notice and shared fixture labels remain stable. |
-| `tests/persistence/` | Save, cloud-panel and platform engine regressions; CLI/output IDs remain stable. |
+| `tests/persistence/` | Save, cloud and platform engine/Node/browser regressions; CLI arguments and output IDs remain stable. |
 | `tests/presentation/` | Startup, tutorial and HUD engine regressions; external entrypoints and receipts retain their IDs. |
 | `tests/service/` | Guest/worker service and ordered staff-start engine regressions; use stable canonical IDs. |
 | `tests/world/` | Environment, parking, traffic and outside-queue engine suites; stable `--only` IDs remain in the canonical runner. |

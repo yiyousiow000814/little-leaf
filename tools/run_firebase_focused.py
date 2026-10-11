@@ -2,14 +2,14 @@
 import argparse,json,os,subprocess,sys
 from pathlib import Path
 from build_web import ROOT,sha256
-COMMANDS={'adapter.log':['node','tests/firebase_storage.js'],
- 'delayed-network.log':['node','tests/firebase_delayed_network.js'],
- 'recovery.log':['node','tests/firebase_recovery.js'],
- 'choice.log':['node','tests/firebase_choice.js'],
- 'session.log':['node','tests/firebase_session.js'],
+COMMANDS={'adapter.log':['node','tests/persistence/firebase_storage.js'],
+ 'delayed-network.log':['node','tests/persistence/firebase_delayed_network.js'],
+ 'recovery.log':['node','tests/persistence/firebase_recovery.js'],
+ 'choice.log':['node','tests/persistence/firebase_choice.js'],
+ 'session.log':['node','tests/persistence/firebase_session.js'],
  'update-notice.log':['node','tests/update_notice.js'],
- 'recovery-presentation.log':['node','tests/firebase_recovery_presentation.js'],
- 'recovery-browser.log':['node','tests/firebase_recovery_browser.js'],
+ 'recovery-presentation.log':['node','tests/persistence/firebase_recovery_presentation.js'],
+ 'recovery-browser.log':['node','tests/persistence/firebase_recovery_browser.js'],
  'staging-tests.log':[sys.executable,'tests/test_firebase_build.py'],
  'rules.log':['npm','--prefix','platform/firebase','run','test:rules']}
 def run(name,output):

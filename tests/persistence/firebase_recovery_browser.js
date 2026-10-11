@@ -2,7 +2,7 @@
 // Real browser IndexedDB + synthetic cloud records. No Firebase account, SDK,
 // production save, IAM, or network writes are used by this regression suite.
 const assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http');
-const {sourcePath}=require('./source_paths');
+const {sourcePath}=require('../source_paths');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source=['little_leaf_vault','little_leaf_firebase'].map(name=>fs.readFileSync(`platform/web/${name}.js`,'utf8'));
 const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
@@ -223,7 +223,7 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
       return checks;
     },fixture);
     const {createHash}=require('node:crypto');
-    console.log('Recovery source SHA-256: '+JSON.stringify(Object.fromEntries(['web/little_leaf_vault.js','web/little_leaf_firebase.js','tests/firebase_recovery_browser.js','tests/fixtures/startup-retry-v15.json'].map(name=>[name,createHash('sha256').update(fs.readFileSync(sourcePath(process.cwd(),name))).digest('hex')]))));
+    console.log('Recovery source SHA-256: '+JSON.stringify(Object.fromEntries(['web/little_leaf_vault.js','web/little_leaf_firebase.js','tests/persistence/firebase_recovery_browser.js','tests/fixtures/startup-retry-v15.json'].map(name=>[name,createHash('sha256').update(fs.readFileSync(sourcePath(process.cwd(),name))).digest('hex')]))));
     assert(results.length>=45);console.log(`Firebase recovery: ${results.length} real-IndexedDB/synthetic-cloud assertions passed (${browser.version()}).`);
     for(const result of results)console.log(`PASS ${result}`);
   } finally {if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
