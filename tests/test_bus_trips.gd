@@ -96,6 +96,13 @@ func run():
 	N.draw_oriented_bus(artist,N.BUS_POSITION,Vector2(-.25,-1).normalized())
 	check(node.appearance!=key and artist.native_object_nodes.size()==1,"turn invalidates heading geometry without allocating a new retained slot")
 	artist.canvas_stream.begin(artist,true)
+	# Translated shelter art uses the same two bounded owner-managed slots.
+	for frame in range(32):
+		artist.canvas_stream.begin(artist,true)
+		N.draw_shelter(N.ShelterProjection.new(artist))
+	check(artist.native_object_nodes.size()==2,"translated shelter keeps two retained painter slots across repeated draws")
+	var shelter_ref=weakref(artist.native_object_nodes[1])
+	artist.canvas_stream.begin(artist,true)
 	# Standalone artists intentionally bypass culling; use a live owner here.
 	artist.game=Art.TestGame.new()
 	artist.art_transform(Vector2.ZERO)
@@ -104,4 +111,5 @@ func run():
 	artist.game.free();artist.game=null
 	artist.queue_free();await process_frame;await process_frame
 	check(retained_ref.get_ref()==null,"artist teardown releases retained bus painter")
+	check(shelter_ref.get_ref()==null,"artist teardown releases translated shelter painter")
 	print("BUS_TRIPS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"period":period,"dwell":stop_time,"minimum_rotated_clearance":min_clearance}));quit(0 if failures.is_empty() else 1)

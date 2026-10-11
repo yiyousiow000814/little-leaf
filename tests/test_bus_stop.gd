@@ -48,7 +48,8 @@ func _init():
 	for seam in Neighborhood.stop_grid:
 		check(is_equal_approx(seam[0].x,seam[1].x) and seam[1].y-seam[0].y<=1.00002,"straight clipped seams never bend or stretch with transition")
 	check(Neighborhood.SHELTER_BOARDING.size.x-Neighborhood.KERB_WIDTH>=.88,"kerb leaves a full pedestrian-width clear boarding bypass")
-	check(Neighborhood.stop_kerb.size()<70,"cached kerb samples only curves rather than subdividing entire street")
+	var curve_samples=ceili((Neighborhood.STOP_PAD.position.y-Neighborhood.STOP_APPROACH.x)*Neighborhood.STOP_CURVE_STEPS)+ceili((Neighborhood.STOP_APPROACH.y-Neighborhood.STOP_PAD.end.y)*Neighborhood.STOP_CURVE_STEPS)
+	check(Neighborhood.stop_kerb.size()<=curve_samples+6,"cached kerb samples only curves rather than subdividing entire street")
 	for strip in Neighborhood.stop_kerb:
 		check(strip.outer[1].y<=Neighborhood.BOARDING_GAP.x or strip.outer[0].y>=Neighborhood.BOARDING_GAP.y,"no kerb top or face crosses flush bus doorway")
 		for i in range(2):

@@ -11,7 +11,7 @@ const BUS_SPEED=2.8 # Match existing ambient road motion; not a gameplay setting
 const SPEED=1.05
 const WAIT_SECONDS=14.0
 const LEGACY_ABOARD_SECONDS=16.0 # Frequency reference only; different groups exchange.
-const WALK_X=-12.35
+const WALK_X=-11.8
 const LEGACY_DOOR=Vector2(-10.345,10.1)
 const DOOR_INSIDE=Neighborhood.BUS_POSITION+Vector2(-.2,2.0)
 const APPROACH_LENGTH=10.5
@@ -48,12 +48,13 @@ func _init():
 		actor.walk_speed=[1.18,.98,1.02][i]
 		actor.intent=["onward","returning","outer_onward"][i]
 		actor.exit=actor.exit.slice(0,4)
+		if i!=0:actor.exit.append(Vector2(WALK_X,10.65)) # Clear the end post before turning behind the glass.
 		if i==1:
-			actor.exit.append(Vector2(-13.75,10.55))
-			actor.exit.append_array(sidewalk_route(10.55,Street.Z_MIN,-13.75,-11.50).slice(1))
+			actor.exit.append(Vector2(-14.3,10.65))
+			actor.exit.append_array(sidewalk_route(10.65,Street.Z_MIN,-14.3,-11.50).slice(1))
 		elif i==2:
-			actor.exit.append(Vector2(-13.0,10.55))
-			actor.exit.append_array(sidewalk_route(10.55,Street.Z_MAX,-13.0,-11.50).slice(1))
+			actor.exit.append(Vector2(-13.0,10.65))
+			actor.exit.append_array(sidewalk_route(10.65,Street.Z_MAX,-13.0,-11.50).slice(1))
 		else:actor.exit.append_array(sidewalk_route(Neighborhood.BUS_DOOR.y,Street.Z_MAX).slice(1))
 		actor.leaving=route_duration(actor.exit,actor.walk_speed)
 		actor.exit_offset=0.0 if i==0 else actors[-1].exit_offset+route_duration(actors[-1].exit.slice(0,3),actors[-1].walk_speed)
@@ -168,7 +169,7 @@ func advance(delta:float,origin:Vector2,tile:Vector2,view:Rect2):
 func entries(origin:Vector2,tile:Vector2,view:Rect2,under_roof:bool)->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	for actor in actors:
-		if not actor.visible or (actor.position.x<Neighborhood.SHELTER_ROOF.end.x)!=under_roof:continue
+		if not actor.visible or (actor.position.x<(Neighborhood.SHELTER_ROOF.end.x+Neighborhood.SHELTER_OFFSET.x))!=under_roof:continue
 		if Street.screen_bounds(actor.position,origin,tile).intersects(view):result.append(actor)
 	result.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
 	return result
@@ -177,7 +178,7 @@ static func walkable(p:Vector2)->bool:
 	if p.x>=edges.x and p.x<=edges.y and p.y>=Street.Z_MIN and p.y<=Street.Z_MAX:return true
 	return p.x>=Neighborhood.STOP_CURB and p.x<=DOOR_INSIDE.x+.01 and p.y>=Neighborhood.BOARDING_GAP.x and p.y<=Neighborhood.BOARDING_GAP.y
 static func obstacles()->Array[Rect2]:
-	var shapes:Array[Rect2]=[Neighborhood.STOP_BENCH,Rect2(-13.34,5.75,.08,4.4),Rect2(-13.3,5.71,1.5,.08),Rect2(-10.77,10.98,.14,.14)]
+	var shapes:Array[Rect2]=[Neighborhood.STOP_BENCH,Rect2(Vector2(-13.34,5.75)+Neighborhood.SHELTER_OFFSET,Vector2(.08,4.4)),Rect2(Vector2(-13.3,5.71)+Neighborhood.SHELTER_OFFSET,Vector2(1.5,.08)),Rect2(-10.77,10.98,.14,.14)]
 	for post in Neighborhood.STOP_POSTS:shapes.append(Rect2(post-Vector2(.06,.06),Vector2(.12,.12)))
 	return shapes
 

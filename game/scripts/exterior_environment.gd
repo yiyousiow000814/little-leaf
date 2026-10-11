@@ -21,6 +21,7 @@ const TREES=[Vector3(-13.1,1.5,.86),Vector3(-.0,18.8,.95),Vector3(7.7,14.0,1.0),
 const TREE_VARIANTS=["oak","airy","oak","columnar","airy","sapling"]
 const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
+const SHELTER_OFFSET=Vector2(-.5,0) # Keep original artwork; open the curb-side aisle.
 const STOP_PAD=Rect2(-14.70,3.4,3.10,9.8)
 const STOP_CURB=-11.60
 const STOP_APPROACH=Vector2(-2.1,19.2)
@@ -39,9 +40,9 @@ const BUS_POSITION=Vector2(-10.20,8.1)
 const BUS_DIRECTION=-1
 const BUS_DOOR=BUS_POSITION+Vector2(-.795,2.0)
 const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
-const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
-const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
-const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
+const STOP_BENCH=Rect2(Vector2(-13.05,6.3)+SHELTER_OFFSET,Vector2(.55,3.2))
+const STOP_POSTS=[Vector2(-13.3,5.75)+SHELTER_OFFSET,Vector2(-13.3,10.15)+SHELTER_OFFSET,Vector2(-11.8,5.75)+SHELTER_OFFSET,Vector2(-11.8,10.15)+SHELTER_OFFSET]
+const POCKETS=[Vector2(-15.2,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func inspection_bounds(tile:Vector2)->Rect2:
 	return CameraLandmarks.inspection_bounds(tile)
@@ -283,7 +284,7 @@ static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Ca
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
-	draw_shelter(a,under_roof)
+	draw_shelter(ShelterProjection.new(a),under_roof)
 	if front_people.is_valid():front_people.call()
 	if show_vehicles:
 		if vehicle_draw.is_valid():vehicle_draw.call()
@@ -425,6 +426,16 @@ class BusProjection extends CarProjection:
 		transverse=Vector2(longitudinal.y,-longitudinal.x)
 	func line(a:Vector2,b:Vector2,color,width=1.0):source.line(a,b,color,width)
 	func get_viewport_rect():return source.get_viewport_rect()
+class ShelterProjection extends BusProjection:
+	func _init(artist):
+		source=artist;position=SHELTER_OFFSET;ui_scale=artist.ui_scale;zoom=artist.zoom
+		longitudinal=Vector2.DOWN;transverse=Vector2.RIGHT
+	func art_draw_rect(rect:Rect2,color:Color,filled:bool=true,width:float=-1.0,antialiased:bool=false):
+		preload("res://scripts/cafe_canvas_draw.gd").draw_rect(source,rect,color,filled,width,antialiased)
+	func retain_native_world_object(callback:Callable,at:Vector2,key:Array)->bool:
+		# The existing owner retains/reclaims both painter slots. Offset geometry
+		# is built only when the appearance changes; people stay in world space.
+		return source.has_method("retain_native_world_object") and source.retain_native_world_object(callback,at,[key,SHELTER_OFFSET])
 static func draw_oriented_bus(a,p:Vector2,heading:Vector2,people_draw:Callable=Callable()):
 	# Passengers retain their own callbacks/order; never part of the bus-body key.
 	if people_draw.is_valid():people_draw.call()
