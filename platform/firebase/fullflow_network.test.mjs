@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
-import {isConnectivityProbe} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily} from './fullflow_network.mjs';
 assert(isConnectivityProbe('https://www.google.com/images/cleardot.gif?zx=synthetic','image'));
 assert(isConnectivityProbe('http://www.google.com/images/cleardot.gif','image'));
 for(const [url,type] of [['https://www.google.com/images/cleardot.gif','script'],['https://www.google.com/accounts','image'],['https://www.google.com.evil.test/images/cleardot.gif','image'],['https://accounts.google.com/images/cleardot.gif','image']])assert(!isConnectivityProbe(url,type));
 console.log('Offline network fixture: only exact SDK connectivity image is locally aborted; no external request allowed.');
+for(const [message,category] of [['blocked by Local Network Access: PRIVATE_TOKEN','local-network'],['Mixed Content PRIVATE_TOKEN','mixed-content'],['CORS PRIVATE_TOKEN','cross-origin'],['Failed to fetch PRIVATE_TOKEN','network'],['permission-denied PRIVATE_TOKEN','permission-denied'],['IndexedDB PRIVATE_TOKEN','storage'],['SyntaxError PRIVATE_TOKEN','script'],['PRIVATE_TOKEN','other']])assert.equal(failureCategory(message),category);
+assert.equal(requestFamily('http://127.0.0.1:43123/sdk/firebase-firestore.js?token=PRIVATE_TOKEN','http://127.0.0.1:43123'),'loopback-sdk');
+assert.equal(requestFamily('http://127.0.0.1:8080/PRIVATE_TOKEN','http://127.0.0.1:43123'),'loopback-emulator');
+assert.equal(requestFamily('https://evil.test/PRIVATE_TOKEN','http://127.0.0.1:43123'),'other');
+assert.equal(requestFamily('not a URL PRIVATE_TOKEN','http://127.0.0.1:43123'),'other');
+console.log('Failure observations expose only finite categories, including secret-bearing unknown inputs.');

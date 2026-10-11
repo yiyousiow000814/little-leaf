@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -105,10 +105,18 @@ const server=http.createServer((req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 let browser;const contexts=[],errors=[];
+report.networkObservations=[];
+function networkObservation(kind,family,result){
+ const rows=report.networkObservations,existing=rows.find(row=>row.kind===kind&&row.family===family&&row.result===result);
+ if(existing)existing.count=Math.min(100,existing.count+1);
+ else if(rows.length<64)rows.push({kind,family,result,count:1});
+}
 async function until(fn,label,timeout=45000){const end=Date.now()+timeout;while(Date.now()<end){const value=await fn();if(value)return value;await new Promise(r=>setTimeout(r,150));}throw Error('Timed out: '+label);}
 async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});try{return await new Promise((yes,no)=>{const tx=db.transaction('accounts'),q=tx.objectStore('accounts').get(key || uid);q.onsuccess=()=>yes(q.result||null);q.onerror=()=>no(q.error);});}finally{db.close();}},{uid,key});}
 async function setup(uid,entry=null){
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
+ context.on('requestfailed',request=>networkObservation('failed',requestFamily(request.url(),origin),failureCategory(request.failure()?.errorText)));
+ context.on('response',response=>{const family=requestFamily(response.url(),origin);if(['loopback-sdk','loopback-emulator','sdk-module'].includes(family))networkObservation('response',family,response.status());});
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin || u.origin==='http://127.0.0.1:8080')return route.continue();
  if(itchVariant && u.href===itchPage)return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><iframe src="'+classicPage+'" allow="autoplay; fullscreen"></iframe>'});
  if(itchVariant && u.href===classicPage)return route.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(itchVariant,'itch-wrapper/index.html'))});
@@ -124,7 +132,7 @@ async function setup(uid,entry=null){
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
  const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
- const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')networkObservation('console','browser',failureCategory(m.text()));if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
  await page.goto(itchVariant?officialOrigin+'/itch/seed.html':origin+'/seed.html');
  if(entry)await page.evaluate(async({uid,entry})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});await new Promise((yes,no)=>{const tx=db.transaction('accounts','readwrite');tx.objectStore('accounts').put(entry,uid);tx.oncomplete=yes;tx.onabort=()=>no(tx.error);});db.close();},{uid,entry});
  await page.addInitScript(installEngineLaunchHook,{args:['--','--skip-intro'],reportKey:'__fullflowEngine'});
@@ -234,7 +242,27 @@ try{
   const frame=itchVariant?originalPage.frames().find(frame=>frame.url().startsWith(officialOrigin+'/itch/')):null;
   const page=frame?gameFramePage(originalPage,frame):originalPage;
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
+   // Observe bootstrap first. The original local vault deliberately has no recoverySnapshot.
+   // Each optional observation is independent so one unavailable API cannot hide the cause.
+   const state={uid};report.failureStates.push(state);
+   const observe=async(name,fn)=>{let timer;try{state[name]=await Promise.race([fn(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('observation unavailable')),3000);})]);}catch(_){state[name]={unavailable:true};}finally{clearTimeout(timer);checkpoint();}};
+   await observe('startup',()=>page.evaluate(async()=>{
+    const status=document.getElementById('status-label'),message=status?.textContent||'';
+    const statusDigest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(message)))).map(x=>x.toString(16).padStart(2,'0')).join('');
+    let timer;const ready=globalThis.__littleLeafFirebaseReady;let settlement='absent',reason='';
+    if(ready)try{settlement=await Promise.race([Promise.resolve(ready).then(()=>'resolved',error=>{reason=String(error?.message||error);return 'rejected';}),new Promise(resolve=>{timer=setTimeout(()=>resolve('pending'),250);})]);}finally{clearTimeout(timer);}
+    return {statusPresent:!!document.getElementById('status'),statusDigest,statusLength:message.length,
+      settlement,reasonCategory:/local.network|private.network/i.test(reason)?'local-network':/fetch|network|import/i.test(reason)?'network':/permission/i.test(reason)?'permission':/storage|indexeddb/i.test(reason)?'storage':reason?'other':'none',
+      launchCalls:globalThis.__fullflowEngine?.launchCalls??null,hookInstalled:!!globalThis.__fullflowEngine,
+      firebaseClientInstalled:globalThis.__littleLeafVault?.storageKind==='firebase-firestore',recoverySnapshotAvailable:typeof globalThis.LittleLeafVault?.recoverySnapshot==='function',
+      sdkInstalled:!!globalThis.__qaFirestore,secureContext:isSecureContext,crossOriginIsolated,
+      visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName};
+   }));
+   await observe('snapshot',()=>page.evaluate(()=>typeof globalThis.LittleLeafVault?.recoverySnapshot==='function'?JSON.parse(LittleLeafVault.recoverySnapshot()):null));
+   await observe('journal',()=>journal(page,uid));await observe('owner',()=>read(uid,'owner'));await observe('cloud',()=>read(uid));
+   await observe('nativeLog',()=>page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()));await observe('adapterResults',()=>page.evaluate(()=>globalThis.__qaAdapterResults));
+   await observe('bootReceipt',()=>page.evaluate(()=>globalThis.__littleLeafVault?.bootJson));
+   await observe('screenshot',async()=>{await shot(page,'failure-'+report.failureStates.length);return true;});
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
  }
  throw error;
