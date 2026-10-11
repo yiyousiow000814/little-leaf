@@ -98,7 +98,7 @@ func run():
  scene.save_recovery_blocked=true
  check("Quick help" in scene._unsaved_progress_message() and not "will retry" in scene._unsaved_progress_message(),"blocked failure never promises automatic retry")
  scene.web_save=null
- for orphan in [scene.world,scene.furnishings,scene.people,scene.camera,scene.ui]:orphan.free()
+ for orphan in [scene.people,scene.ui]:orphan.free()
  scene.free()
  print("AUTOSAVE_FEEDBACK_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
