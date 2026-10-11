@@ -40,12 +40,11 @@ Where they conflict with newer explicit user direction, record the discrepancy
 and obtain the scoped evidence; do not treat an old document as new approval.
 
 The renderer-owned canonical home is `docs/development/depth-occlusion.md`.
-Its [verified foundation draft](https://github.com/yiyousiow000814/little-leaf/blob/e3a71b24ca220bc27bb4abbd13fbdaee88e9ecfe/docs/development/depth-occlusion.md)
+Its [depth and occlusion contract](../development/depth-occlusion.md)
 records anchors, footprint versus occluding parts, pass/native order and cache
 ownership, bounded actor/tree and Decorate observations, and remaining cases.
-The document is not yet on main; PR189's renderer fix still requires user visual
-approval. Use the pinned draft until the canonical file lands, then replace this
-source link with a relative link. Do not invent blanket YSort rules, magic offsets
+The documented observations do not establish user visual approval of the renderer
+fix or every remaining case. Do not invent blanket YSort rules, magic offsets
 or a renderer rewrite. Art approval cannot waive depth regressions, and a scoped
 observation cannot certify every scene. Diagnostics remain developer-only.
 
@@ -125,8 +124,8 @@ Signs, prices, quantities, road labels and interaction text must be readable in
 actual normal-scale play. Inspect font size and weight, contrast, hierarchy,
 spacing, glyph-edge clarity and the background at the minimum, normal and maximum
 supported zoom. An enlarged reference alone cannot establish this. Separate
-decorative lettering from essential prices, counts and instructions; the UI/UX
-contract at `docs/design/ui-ux-design-system.md` owns information priority,
+decorative lettering from essential prices, counts and instructions; the
+[UI/UX contract](../design/ui-ux-design-system.md#world-space-text-and-scale-readability) owns information priority,
 accessibility and the existing themed details interaction.
 
 First bind the reported screenshot to its actual build/source and trace the exact
