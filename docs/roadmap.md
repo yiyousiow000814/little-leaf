@@ -2428,13 +2428,13 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Bench/sign detail candidate present; canonical qualification pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Bench/sign detail candidate present; exact-source canonical PASS recorded in PR162 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
-Static candidate composed once on qualified bus/parking822525a: existing seat/back planes gain four narrow wood joins in `_draw_shelter_back`, retaining palette, silhouette, grounded legs and retained painter order. The prior frozen art evidence remains source-bound. The new composition retains both frozen painter functions exactly, while all other exterior bytes match the qualified corridor base; actual paired native pixels and new canonical qualification are pending. Integrated/user acceptance remains separate. No merge or release is claimed.
+Static candidate composed once on qualified bus/parking822525a: existing seat/back planes gain four narrow wood joins in `_draw_shelter_back`, retaining palette, silhouette, grounded legs and retained painter order. The prior frozen art evidence remains source-bound. The new composition retains both frozen painter functions exactly, while all other exterior bytes match the qualified corridor base; paired native1654x951 frames pass with694 changed pixels confined to bench/sign, and canonical run38105321311 passes exact8cc22d1 with all3 original controls unchanged. Integrated/user acceptance remains separate. No merge or release is claimed.
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Bench/sign detail candidate present; canonical qualification pending
+Code status: Bench/sign detail candidate present; exact-source canonical PASS recorded in PR162
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
@@ -2450,13 +2450,13 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Bench/sign detail candidate present; canonical qualification pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Bench/sign detail candidate present; exact-source canonical PASS recorded in PR162 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
 
-The same narrow static candidate refines only the existing sign glyph in `_draw_shelter_front`: cream bus body, split blue windshield and small light details, keeping the plate, post, location and original two colors. No traffic, motion, party, boarding, seam or curb geometry change. Native comparison and canonical/browser qualification must bind this composed source; prior separate-source checks do not transfer user acceptance.
+The same narrow static candidate refines only the existing sign glyph in `_draw_shelter_front`: cream bus body, split blue windshield and small light details, keeping the plate, post, location and original two colors. No traffic, motion, party, boarding, seam or curb geometry change. Native paired pixels and514 focused render/retention checks pass at exact8cc22d1; canonical run38105321311 independently verifies881 raw Git files/124 dependencies and all3 original controls. Manifest-only6001949 preserves production bytes. Final composed-head Web gates and user acceptance remain separate; prior separate-source checks do not transfer them.
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Bench/sign detail candidate present; canonical qualification pending
+Code status: Bench/sign detail candidate present; exact-source canonical PASS recorded in PR162
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
