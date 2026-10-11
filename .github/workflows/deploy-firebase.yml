@@ -7,22 +7,22 @@ on:
         required: true
         default: live
         type: choice
-        options: [live, itch-preview, auth-pause-update, auth-pause-rollback]
+        options: [live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read]
       source_sha:
         description: Exact reviewed Firebase candidate commit; may be an approved unmerged preview
         required: true
         type: string
       variant_run_id:
         description: Successful source-staging workflow run containing the selected artifact
-        required: true
+        required: false
         type: string
       variant_artifact_id:
         description: Exact immutable Firebase variant artifact ID from that run
-        required: true
+        required: false
         type: string
       variant_manifest_sha256:
         description: Reviewed SHA-256 of firebase-variant-manifest.json
-        required: true
+        required: false
         type: string
 permissions:
   contents: read
@@ -238,3 +238,43 @@ jobs:
           path: ${{ runner.temp }}/auth-pause-receipt/deployment.json
           if-no-files-found: warn
           retention-days: 30
+  hosting-config-read:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'hosting-config-read'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Bind read-only request to this exact reviewed main source
+        env:
+          SELECTED_SOURCE: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SELECTED_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SELECTED_SOURCE" == "$GITHUB_SHA" ]]
+      - name: Use only the existing short-lived Hosting identity after exact-source binding
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: little-leaf-41e5d
+          workload_identity_provider: projects/865267465971/locations/global/workloadIdentityPools/github-little-leaf/providers/github
+          service_account: little-leaf-hosting-deployer@little-leaf-41e5d.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: https://www.googleapis.com/auth/firebase.hosting
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Read existing release and finalized version only
+        env:
+          FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: python3 tools/read_firebase_hosting_config.py --diagnose-effective-headers --output "$RUNNER_TEMP/hosting-readonly/summary.json"
+      - name: Retain only allowlisted hashes and fixed checks without raw configuration
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-hosting-readonly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hosting-readonly/summary.json
+          if-no-files-found: error
+          retention-days: 1

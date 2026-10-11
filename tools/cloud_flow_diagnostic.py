@@ -12,7 +12,7 @@ def unsupported_changes(paths):
  for p in paths:
   if p=='tests/probe_cloud_recovery_geometry.gd':continue
   if p in RUNTIME or p.startswith(('firebase/','tools/','.github/workflows/')):continue
-  if p.startswith('tests/') and p.endswith('.js') and p!='tests/engine_launch_hook.js':continue
+  if p.startswith('tests/') and p.endswith('.js') and p not in ('tests/engine_launch_hook.js','tests/tooling/engine_launch_hook.js'):continue
   unsupported.append(p)
  return unsupported
 
