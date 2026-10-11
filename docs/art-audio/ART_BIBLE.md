@@ -69,17 +69,18 @@ release are separate facts.
 describes inspection coverage independently of those decisions.
 
 The four originals below were visually inspected for this documentation audit.
-Their PNG sizes and hashes were read from the actual files. Library IDs identify
-the retained originals; they are not public download URLs. Request the original
-by ID and verify its hash if unavailable. Do not substitute a similar screenshot.
+Their PNG sizes and hashes were read from the actual files. The public registry
+uses filenames, available dates, dimensions and hashes; private storage mappings
+stay in the evidence receipt. Ask the evidence owner for an unavailable original
+and verify its hash. Do not substitute a similar screenshot.
 No images, player profiles or private operational paths are copied into this PR.
 
 | ID / decision | Original and identity | What it establishes / limits |
 | --- | --- | --- |
-| R1 — **Rejected** | Actual empty Bus Stop capture, `LittleLeaf-PR162-45f7cd3-bold-text.png`; Library `libfile_ca38bec963d48191a92da64075173f54`; 1654×951. Source `45f7cd3b57ec2c93c2105b00747819c8540ec2f2`, tree `7f44bcade0b572ee75026f5f3cdc6bb0164d3b7e`; [PR162](https://github.com/yiyousiow000814/little-leaf/pull/162). | User rejected this procedural shelter/road-lettering result. Actual frame shows the empty stop in the world scene. Earlier geometry and text-difference checks do not reverse rejection. Retain as a failure example, never an approved baseline or Golden Reference. |
-| R2 — **Approved: shelter style only** | User-circled shelter reference, `image(20261011-055942).png`; Library `libfile_e2c94668c8f88191a819abc7445e3443`; 1207×723. | Circled cream canopy, supports/glazing and wooden bench provide the shelter direction. This enlarged reference is not an integrated candidate, a scale contract, or permission to copy its yellow road markings/background. No game-source identity or final Golden approval is established. |
-| R3 — **Approved: white road/bay direction; cadence Pending** | Annotated road reference, `image(20261011-054901).png`; Library `libfile_fb67eae619b88191b3f0f08d4b94d10a`; 1309×805. | White drawn road/bay strokes communicate placement direction. Their rough, varying gaps are not a measured dash-ratio specification. Preserve the lettering center opposite the shelter; do not slide it sideways simply to expose it beneath a bus. Exact spacing remains a pilot decision. |
-| R4 — **Approved: bounded Settings layout only** | Actual `settings-390x844.png`; Library `libfile_eb60624c73948191956a2469911bbc74`; 390×844. Source `cc8d64bbc7333f1e882e00b30472aec6ff329d6d`, runtime-equivalent published `1f7c331905b4ce4f743512416894a7553f1dc536`; [PR135](https://github.com/yiyousiow000814/little-leaf/pull/135). | Recorded user acceptance covers this Settings arrangement, entries and X. The inspected wood/cream panel is a bounded UI example, not approval of Help/Updates, later fonts, all UI or world art. |
+| R1 — **Rejected** | Actual empty Bus Stop capture, `LittleLeaf-PR162-45f7cd3-bold-text.png`; 1654×951. Source `45f7cd3b57ec2c93c2105b00747819c8540ec2f2`, tree `7f44bcade0b572ee75026f5f3cdc6bb0164d3b7e`; [PR162](https://github.com/yiyousiow000814/little-leaf/pull/162). | User rejected this procedural shelter/road-lettering result. Actual frame shows the empty stop in the world scene. Earlier geometry and text-difference checks do not reverse rejection. Retain as a failure example, never an approved baseline or Golden Reference. |
+| R2 — **Approved: shelter style only** | User-circled shelter reference, `image(20261011-055942).png`; 1207×723. | Circled cream canopy, supports/glazing and wooden bench provide the shelter direction. This enlarged reference is not an integrated candidate, a scale contract, or permission to copy its yellow road markings/background. No game-source identity or final Golden approval is established. |
+| R3 — **Approved: white road/bay direction; cadence Pending** | Annotated road reference, `image(20261011-054901).png`; 1309×805. | White drawn road/bay strokes communicate placement direction. Their rough, varying gaps are not a measured dash-ratio specification. Preserve the lettering center opposite the shelter; do not slide it sideways simply to expose it beneath a bus. Exact spacing remains a pilot decision. |
+| R4 — **Approved: bounded Settings layout only** | Actual `settings-390x844.png`; 390×844. Source `cc8d64bbc7333f1e882e00b30472aec6ff329d6d`, runtime-equivalent published `1f7c331905b4ce4f743512416894a7553f1dc536`; [PR135](https://github.com/yiyousiow000814/little-leaf/pull/135). | Recorded user acceptance covers this Settings arrangement, entries and X. The inspected wood/cream panel is a bounded UI example, not approval of Help/Updates, later fonts, all UI or world art. |
 | R5 — **Pending** | New software-authored Bus Stop pilot; no candidate identity or approved capture yet. | Shelter/bench are proposed first Golden References only after the pilot refines this framework and the user approves both. |
 
 | Original | SHA256 |
