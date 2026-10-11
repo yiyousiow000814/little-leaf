@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Start=preload("res://scripts/minimal_start.gd")
-const Walls=preload("res://scripts/cafe_walls.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():return true

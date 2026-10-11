@@ -1,6 +1,6 @@
 extends SceneTree
 const Pose=preload("res://scripts/dining_pose.gd")
-const Layout=preload("res://scripts/dining_placement.gd")
+const Layout=preload("res://scripts/gameplay/dining_placement.gd")
 const Checkout=preload("res://scripts/cafe_checkout_art.gd")
 class PlateProbe extends "res://scripts/illustrated_cafe.gd":
  var marks=[]

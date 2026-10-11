@@ -5,7 +5,7 @@ const BODY_CLEARANCE=.27
 const MAX_REACH=1.15
 const NO_CELL=Vector2i(-1,-1)
 const DIRECTIONS=[Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP]
-const FloorApproach=preload("res://scripts/floor_cleaning_approach.gd")
+const FloorApproach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 var game
 var layout_revision=-1
 var layout_cache={}

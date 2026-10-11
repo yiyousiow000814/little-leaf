@@ -1,7 +1,7 @@
 extends SceneTree
 const Cache=preload("res://scripts/cafe_shell_draw_cache.gd")
 const Art=preload("res://scripts/illustrated_openings.gd")
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 class View extends RefCounted:
 	var game={"model":{"built_walls":[]},"wall_detail":true}
 	var origin=Vector2(390,250)

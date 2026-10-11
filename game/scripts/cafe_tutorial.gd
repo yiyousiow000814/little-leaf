@@ -1,7 +1,7 @@
 extends Node
 ## A non-modal guide to real controls and real service. This script never
 ## creates guests, completes jobs, pays coins, edits a layout or moves camera.
-const State=preload("res://scripts/cafe_tutorial_state.gd")
+const State=preload("res://scripts/gameplay/cafe_tutorial_state.gd")
 var game
 var panel:PanelContainer
 var box:VBoxContainer

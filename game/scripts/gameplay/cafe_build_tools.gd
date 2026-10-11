@@ -1,11 +1,11 @@
 extends RefCounted
 ## Reversible grid-edge previews. Only a matching click-release commits a wall.
 ## Dragging the background still pans; GUI, cancel and lost-focus never charge.
-const Geometry=preload("res://scripts/cafe_walls.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_walls.gd")
 const WallArt=preload("res://scripts/illustrated_walls.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const OpeningArt=preload("res://scripts/illustrated_openings.gd")
-const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
+const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const OPENING_MODES=["door","window","move_opening","remove_opening","select_opening"]
 var opening_preview={}
 var opening_source_id=-1

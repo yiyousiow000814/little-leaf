@@ -1,5 +1,5 @@
 extends SceneTree
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 class CaptureGame extends "res://scripts/main.gd":
  var input_hash=""
  func _load_startup():

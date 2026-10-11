@@ -1,8 +1,8 @@
 extends RefCounted
 ## Presentation-only foot placement for an already-routed floor work cell.
-const Relocation=preload("res://scripts/cafe_staff_relocation.gd")
-const Openings=preload("res://scripts/cafe_wall_openings.gd")
-const Walls=preload("res://scripts/cafe_walls.gd")
+const Relocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
+const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const MAX_OFFSET=.50
 const CELL_MARGIN=.05
 const CONTACT_GAP=.50

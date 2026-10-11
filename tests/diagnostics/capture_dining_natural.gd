@@ -70,7 +70,7 @@ var board
 func _initialize():run.call_deferred()
 func run():
  root.size=Vector2i(1400,1250);board=Board.new();board.before=OS.get_environment("BASELINE")=="1"
- if not board.before:board.chair_pull=float(load("res://scripts/dining_placement.gd").CHAIR_PULL)
+ if not board.before:board.chair_pull=float(load("res://scripts/gameplay/dining_placement.gd").CHAIR_PULL)
  root.add_child(board)
  for frame in 4:await process_frame
  await RenderingServer.frame_post_draw

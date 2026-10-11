@@ -1,6 +1,6 @@
 extends RefCounted
 ## Pure hosted-opening geometry. Attachments never become floor furniture.
-const Footprint=preload("res://scripts/cafe_footprint.gd")
+const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
 const WALL_HEIGHT=128.0
 const DOOR_TOP=97.0
 const WINDOW_BOTTOM=43.0

@@ -1,8 +1,8 @@
 extends SceneTree
 const Fixture=preload("res://tests/role_fixture.gd")
-const Tasks=preload("res://scripts/cafe_floor_tasks.gd")
-const Approach=preload("res://scripts/floor_cleaning_approach.gd")
-const Walls=preload("res://scripts/cafe_walls.gd")
+const Tasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
+const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 class StageProbe extends "res://scripts/cafe_floor_geometry.gd":
 	var actions=[]
 	func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:

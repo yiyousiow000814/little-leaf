@@ -37,7 +37,7 @@ var render_idle=preload("res://scripts/cafe_render_idle.gd").new()
 
 const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/cafe_sink_wash_art.gd")
-const FloorCleaningApproach=preload("res://scripts/floor_cleaning_approach.gd")
+const FloorCleaningApproach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/floor_mess_art.gd")
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
@@ -60,7 +60,7 @@ const HeadAtlas=preload("res://scripts/character_head_atlas.gd")
 static var head_atlas=HeadAtlas.new()
 var use_cached_heads=true
 var render_contacts=[]
-const DiningPlacement=preload("res://scripts/dining_placement.gd")
+const DiningPlacement=preload("res://scripts/gameplay/dining_placement.gd")
 var meal_chair_offsets={}
 var table_dining_directions={}
 const DirectionalCharacter=preload("res://scripts/directional_character_art.gd")
@@ -75,14 +75,14 @@ var _camera_safe_rect=Rect2()
 var _camera_fit_zoom=0.0
 const FurnitureArt=preload("res://scripts/illustrated_furniture.gd")
 const LampArt=preload("res://scripts/lamp_art.gd")
-const DiningStyles=preload("res://scripts/cafe_dining_sets.gd")
+const DiningStyles=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const DiningArt=preload("res://scripts/dining_style_art.gd")
 var dining_art=DiningArt.new()
 const OpeningArt=preload("res://scripts/illustrated_openings.gd")
-const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
+const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 var render_wall_attachments:Array=[]
 const WallArt=preload("res://scripts/illustrated_walls.gd")
-const WallGeometry=preload("res://scripts/cafe_walls.gd")
+const WallGeometry=preload("res://scripts/gameplay/cafe_walls.gd")
 const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
 const StreetPedestrians=preload("res://scripts/street_pedestrians.gd")
@@ -1365,7 +1365,7 @@ func _parcel_sign(parcel):
 	line(Vector2(-41,-54),Vector2(41,-54),"ecdbb2",1)
 	var font=game.ArtFont
 	art_draw_string(font,Vector2(-34,-39),"FOR SALE",HORIZONTAL_ALIGNMENT_CENTER,68,12,Color("617452"))
-	art_draw_string(font,Vector2(-38,-25),preload("res://scripts/cafe_money.gd").amount(int(parcel.cost)),HORIZONTAL_ALIGNMENT_CENTER,76,13,Color("796746"))
+	art_draw_string(font,Vector2(-38,-25),preload("res://scripts/gameplay/cafe_money.gd").amount(int(parcel.cost)),HORIZONTAL_ALIGNMENT_CENTER,76,13,Color("796746"))
 	if not parcel.unlocked:
 		# Small geometry-only lock, avoiding emoji/font fallback or extra words.
 		poly([Vector2(32,-43),Vector2(39,-43),Vector2(39,-37),Vector2(32,-37)],"8b876b")

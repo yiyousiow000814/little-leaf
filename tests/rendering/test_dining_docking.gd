@@ -1,5 +1,5 @@
 extends SceneTree
-const Layout=preload("res://scripts/dining_placement.gd")
+const Layout=preload("res://scripts/gameplay/dining_placement.gd")
 const Pose=preload("res://scripts/dining_pose.gd")
 class TestMain extends "res://scripts/main.gd":
  var save_calls=0

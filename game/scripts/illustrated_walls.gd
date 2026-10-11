@@ -3,7 +3,7 @@ extends RefCounted
 ## Four small independently sorted slices give local wall/actor occlusion.
 ## Each slice costs one textured face and one solid cap; only the last slice
 ## adds an end face. No per-frame decorative primitive or texture generation.
-const Geometry=preload("res://scripts/cafe_walls.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_walls.gd")
 const SLICES:=4
 const PALETTES:={
 	"sage_panels":{"base":"dce4cb","panel":"8fa57d","ink":"a5b48d","cap":"fff0d1","end":"aebd98"},

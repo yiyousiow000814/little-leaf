@@ -2,7 +2,7 @@ extends RefCounted
 ## Compact paws grip the handles; long handles bridge the distance to the floor.
 ## All points use the same mirrored character-local ground plane.
 const ARM_LENGTH=10.5
-const DiningPlacement=preload("res://scripts/dining_placement.gd")
+const DiningPlacement=preload("res://scripts/gameplay/dining_placement.gd")
 const TABLE_TOP_RADII=DiningPlacement.ROUND_TOP-Vector2(3,2.5)
 static func table_inset(heading:Vector2)->float:
  # The back-facing worker is in front of the table and steps up to its rim.

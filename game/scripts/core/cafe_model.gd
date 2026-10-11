@@ -8,19 +8,19 @@ extends RefCounted
 signal changed
 signal meal_completed(customer_id: int, payment: int)
 
-const Footprint=preload("res://scripts/cafe_footprint.gd")
-const DiningSets=preload("res://scripts/cafe_dining_sets.gd")
-const FurnitureMotion=preload("res://scripts/cafe_furniture_motion.gd")
-const LayoutAccess=preload("res://scripts/cafe_layout_access.gd")
-const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
-const ShellSegments=preload("res://scripts/cafe_shell_segments.gd")
-const WallGeometry=preload("res://scripts/cafe_walls.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
+const DiningSets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
+const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
+const LayoutAccess=preload("res://scripts/gameplay/cafe_layout_access.gd")
+const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
+const WallGeometry=preload("res://scripts/gameplay/cafe_walls.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/cafe_runtime_codec.gd")
 const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
 const Parking=preload("res://scripts/cafe_parking.gd")
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_SCHEMA = SaveContract.SCHEMA
 const SAVE_VERSION = SaveContract.VERSION
 const INITIAL_COINS := 1200
@@ -1743,7 +1743,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
-	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
+	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
 	if not walls_check.ok:return _fail("Could not save walls: "+str(walls_check.error))
@@ -1955,7 +1955,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	parking_owned=parking_check.state.owned;parking_paid_cost=int(parking_check.state.paid_cost);parking_visits.assign(parking_check.state.visits)
 	service_snapshot=runtime_state.service
 	operating_open=saved_open;included_bin_pending=saved_bin_pending
-	tutorial_state=preload("res://scripts/cafe_tutorial_state.gd").read(data.get("tutorial"))
+	tutorial_state=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(data.get("tutorial"))
 	if int(tutorial_state.get("baseline_served",0))>served:tutorial_state.clear()
 	first_guest_pending=saved_first_guest;first_guest_start=Vector2.INF
 	loaded_save_version=int(data.version)

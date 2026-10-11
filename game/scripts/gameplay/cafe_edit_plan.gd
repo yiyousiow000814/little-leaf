@@ -1,8 +1,8 @@
 extends RefCounted
 ## One authoritative plan for the current hovered whole furnishing.
 ## Background floor colors never request hypothetical placement plans.
-const StaffRelocation=preload("res://scripts/cafe_staff_relocation.gd")
-const Motion=preload("res://scripts/cafe_furniture_motion.gd")
+const StaffRelocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
+const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 var _state:Array=[]
 var _key:Array=[]
 var _kind=""

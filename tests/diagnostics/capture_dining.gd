@@ -73,7 +73,7 @@ func capture(name):
 func run():
  root.size=Vector2i(1800,1200)
  board=Board.new();board.before=OS.get_environment("BASELINE")=="1"
- if not board.before:board.chair_pull=float(load("res://scripts/dining_placement.gd").CHAIR_PULL)
+ if not board.before:board.chair_pull=float(load("res://scripts/gameplay/dining_placement.gd").CHAIR_PULL)
  root.add_child(board)
  for species in range(3):
   board.species=species;board.endpoint=false

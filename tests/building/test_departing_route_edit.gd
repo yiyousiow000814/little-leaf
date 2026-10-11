@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Minimal=preload("res://scripts/minimal_start.gd")
-const Motion=preload("res://scripts/cafe_furniture_motion.gd")
+const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 var checks=0;var failures=[]
 func check(ok,label):
  checks+=1

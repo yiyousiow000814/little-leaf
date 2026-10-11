@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
-const Approach=preload("res://scripts/floor_cleaning_approach.gd")
-const Walls=preload("res://scripts/cafe_walls.gd")
+const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 var checks=0
 var failures=[]
 func check(value:bool,label:String):

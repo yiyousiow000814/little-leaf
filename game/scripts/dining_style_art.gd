@@ -2,7 +2,7 @@ extends RefCounted
 ## Original native geometry shared by placed furniture, placement ghosts and cards.
 ## Cosmetic only: dining tops share a lower plane; seats remain 18px high. No collision,
 ## service points, guest poses, texture files or resource-loader branches live here.
-const Placement=preload("res://scripts/dining_placement.gd")
+const Placement=preload("res://scripts/gameplay/dining_placement.gd")
 var table_geometry=false
 var a:Node2D
 var p:Vector2

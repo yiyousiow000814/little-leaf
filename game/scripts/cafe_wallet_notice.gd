@@ -1,6 +1,6 @@
 extends RefCounted
 ## Transient cash events only. The model remains the sole owner of amounts.
-const Money=preload("res://scripts/cafe_money.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 var compact_ref:WeakRef
 var compact:
  get:return compact_ref.get_ref()

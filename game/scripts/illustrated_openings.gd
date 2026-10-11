@@ -1,7 +1,7 @@
 extends RefCounted
 ## Actual holes: wall faces are partitioned around each hosted aperture.
 ## Casing, reveals and glass never paint a solid wall behind an opening.
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const WallArt=preload("res://scripts/illustrated_walls.gd")
 static func front(host:Dictionary)->Vector2:return Vector2.ZERO if host.shell else host.normal*.5
 static func back(host:Dictionary)->Vector2:return host.normal if host.shell else -host.normal*.5

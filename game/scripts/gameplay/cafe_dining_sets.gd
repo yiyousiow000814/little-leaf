@@ -1,5 +1,5 @@
 extends RefCounted
-const Money=preload("res://scripts/cafe_money.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 ## Bound logical objects over stable physical furniture IDs.
 const DIRECTIONS=[Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT]
 # Product keys are stable UI identities; physical members remain table/chair.

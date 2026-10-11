@@ -1,27 +1,27 @@
 extends Node3D
 const SaveLog=preload("res://scripts/cafe_save_log.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
 const Illustration = preload("res://scripts/illustrated_cafe.gd")
 const Model = preload("res://scripts/core/cafe_model.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
-const Interaction = preload("res://scripts/cafe_interaction.gd")
+const Interaction = preload("res://scripts/gameplay/cafe_interaction.gd")
 const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
 var camera_gestures
 const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
 const WebSave = preload("res://scripts/cafe_web_save.gd")
 var web_lifecycle
 var web_save
-const BuildTools = preload("res://scripts/cafe_build_tools.gd")
+const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
 const SettingsControls = preload("res://scripts/cafe_settings.gd")
 const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
-const FloorTasks = preload("res://scripts/cafe_floor_tasks.gd")
-const Dishwashing = preload("res://scripts/cafe_dishwashing.gd")
+const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
+const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
 const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
 var compact_ui
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
 const LEGACY_SAVE_FILE = "user://little_leaf_illustrated_r7.json"
@@ -688,7 +688,7 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)

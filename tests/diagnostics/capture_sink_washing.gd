@@ -1,6 +1,6 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
-const Dishes=preload("res://scripts/cafe_dishwashing.gd")
+const Dishes=preload("res://scripts/gameplay/cafe_dishwashing.gd")
 const Wash=preload("res://scripts/cafe_sink_wash_art.gd")
 class FixtureGame extends Node:
  var model=Model.new()

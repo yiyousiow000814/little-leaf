@@ -1,10 +1,10 @@
 extends RefCounted
-const EditPlan=preload("res://scripts/cafe_edit_plan.gd")
-const FloorAvailability=preload("res://scripts/cafe_floor_availability.gd")
+const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
+const FloorAvailability=preload("res://scripts/gameplay/cafe_floor_availability.gd")
 var edit_plan=EditPlan.new()
 var floor_availability=FloorAvailability.new()
 var placement_receipt:Dictionary={}
-const Money=preload("res://scripts/cafe_money.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 ## Transactional world input. Furniture positions and coins change only on a
 ## successful drag release (or new-item placement); previews never mutate
 ## the model. Call handle_input BEFORE GUI dispatch to retain an active gesture,
