@@ -17,7 +17,7 @@ import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testin
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const {installEngineLaunchHook}=require('../../tests/engine_launch_hook.js');
+const {installEngineLaunchHook}=require('../../tests/tooling/engine_launch_hook.js');
 const root=path.resolve(import.meta.dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);assert(i>=0 && process.argv[i+1],name+' required');return path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),native=arg('--engine-report');

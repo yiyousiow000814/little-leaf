@@ -39,7 +39,7 @@ class FreshStageTests(unittest.TestCase):
             if name=='webkit-recovery':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),export_files=files)
             if name=='compatibility':report['inputs']={'new_commit':SOURCE,'export_files':{'new':files}}
             if name=='save-log':report['export_sha256']={k:v['sha256'] for k,v in files.items()}
-            if name=='inbox':report.update(export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),export_js_sha256=files['index.js']['sha256'],web_template_sha256=self.base['web_template_sha256'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/persistence/compensation_inbox_suite.js']})
+            if name=='inbox':report.update(export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),export_js_sha256=files['index.js']['sha256'],web_template_sha256=self.base['web_template_sha256'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['tests/tooling/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/persistence/compensation_inbox_suite.js']})
             p.write_text(json.dumps(report))
 
     def write_base(self):

@@ -80,7 +80,7 @@ uses `--time-scale 0.1` so real GUI tweens finish, while its autosave interval i
 150 seconds. The old recovery/autosave case uses scale 1. No production timer is
 changed. A legitimate new page-hide save is allowed to advance revision, then the
 new page is closed before the forbidden-old-write snapshot is frozen.
-The shared `engine_launch_hook.js` binds the actual exported shell instance before
+The shared `tests/tooling/engine_launch_hook.js` binds the actual exported shell instance before
 startup; it forwards the original feature result, startup receiver, options and
 return value while appending the official runtime arguments.
 
