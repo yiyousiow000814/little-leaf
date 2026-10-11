@@ -94,7 +94,14 @@ def wall_main(argv):
             shutil.copytree(build / "project", project)
             tests = project / "tests"
             tests.mkdir(exist_ok=True)
-            shutil.copy2(ROOT / "tests/fixtures/wall_compatibility_layout.gd", tests / "wall_compatibility_layout.gd")
+            layout_fixture = tests / "wall_compatibility_layout.gd"
+            shutil.copy2(ROOT / "tests/fixtures/wall_compatibility_layout.gd", layout_fixture)
+            if label == "old":
+                original = layout_fixture.read_bytes()
+                current_resource = b'res://scripts/persistence/cafe_web_save.gd'
+                if original.count(current_resource) != 1 or not (project / "scripts/cafe_web_save.gd").is_file():
+                    raise RuntimeError("Historical layout requires its exact WebSave resource")
+                layout_fixture.write_bytes(original.replace(current_resource, b'res://scripts/cafe_web_save.gd'))
             shutil.copy2(FIXTURES / "old-format1.json", tests / "wall-fixture-old.json")
             shutil.copy2(FIXTURES / "new-format2.json", tests / "wall-fixture-new.json")
             env = synthetic_profile(temporary / 'saveguard-profile')
