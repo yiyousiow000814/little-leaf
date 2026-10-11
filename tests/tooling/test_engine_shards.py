@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location('engine_shards', ROOT / 'tools/engine_shards.py')
+spec = importlib.util.spec_from_file_location('engine_shards', ROOT / 'tools/ci/engine_shards.py')
 shards = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(shards)
 
