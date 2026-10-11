@@ -257,7 +257,8 @@ func _show_shop_guide():
  for kind in game.catalog_cards:
   var card:Button=game.catalog_cards[kind]
   if not card.visible:continue
-  item_guide_copy.add_child(game.label(game.model.name_of(kind),18))
+  var name=game.label(game.model.name_of(kind),18)
+  name.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(name)
   var explanation=game.label(card.accessibility_description,15)
   explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
  ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
