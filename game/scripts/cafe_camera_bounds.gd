@@ -1,5 +1,5 @@
 extends RefCounted
-const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
+const ViewportLayout=preload("res://scripts/ui/cafe_viewport_layout.gd")
 ## Finite map framing on both screen axes, independent of Decorate's tray.
 static func play_rect(viewport:Vector2,hud_top:float=104.0)->Rect2:
 	# Keep world scale stable; clear the restored tall HUD in both Play and Decorate.

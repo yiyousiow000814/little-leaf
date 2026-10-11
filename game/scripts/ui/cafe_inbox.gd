@@ -2,7 +2,7 @@ extends RefCounted
 ## Receipt-backed letters only. Never writes a wallet, campaign, save or CFG.
 signal unread_changed(unread:bool)
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
-const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
+const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
 const WIDTH=460.0
 const RETENTION_MSEC=14.0*24*60*60*1000
 const KNOWN_CAMPAIGN="little-leaf-0.1.5-existing-profile-compensation"

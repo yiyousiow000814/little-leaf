@@ -1,6 +1,6 @@
 extends SceneTree
 const Main = preload("res://scripts/main.gd")
-const Intro = preload("res://scripts/cafe_intro.gd")
+const Intro = preload("res://scripts/ui/cafe_intro.gd")
 const Warmup = preload("res://scripts/core/cafe_startup_readiness.gd")
 class TestMain extends Main:
 	var autosaves = 0

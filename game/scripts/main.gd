@@ -14,11 +14,11 @@ const WebSave = preload("res://scripts/persistence/cafe_web_save.gd")
 var web_lifecycle
 var web_save
 const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
-const SettingsControls = preload("res://scripts/cafe_settings.gd")
+const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
 const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
-const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
+const CompactUI = preload("res://scripts/ui/cafe_compact_ui.gd")
 var compact_ui
 const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
@@ -157,9 +157,9 @@ func _ready():
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
-	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
+	cafe_intro=preload("res://scripts/ui/cafe_intro.gd").new()
 	cafe_intro.start(self)
-	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
+	tutorial=preload("res://scripts/ui/cafe_tutorial.gd").new()
 	tutorial.setup(self)
 	if DisplayServer.get_name() != "headless" and cafe_intro.active:
 		startup_readiness = preload("res://scripts/core/cafe_startup_readiness.gd").new()

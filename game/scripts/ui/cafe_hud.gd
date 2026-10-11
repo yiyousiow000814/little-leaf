@@ -38,7 +38,7 @@ var cancel_face:TextureRect
 const RAIL_WOOD_RIGHT_INSET=47.0
 const PANEL_WOOD_RIGHT_INSET=17.0
 var action_help
-const ActionHelp=preload("res://scripts/cafe_action_help.gd")
+const ActionHelp=preload("res://scripts/ui/cafe_action_help.gd")
 const SoftMaterial=preload("res://shaders/soft_ui_material.gdshader")
 static var textures={}
 static var icon_textures={}

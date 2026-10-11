@@ -178,7 +178,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn("pointer-events:none", cg.PREVIEW_NOTICE)
 
     def test_platform_help_explains_submission_without_claiming_cloud_confirmation(self):
-        ui = (REPO / "game/scripts/cafe_compact_ui.gd").read_text()
+        ui = (REPO / "game/scripts/ui/cafe_compact_ui.gd").read_text()
         body = ui.split("func _sync_help_content():", 1)[1].split("\nfunc ", 1)[0]
         expected = "Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here."
         self.assertIn(expected, body)
@@ -204,7 +204,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertNotIn('FileAccess.READ', controller)
         self.assertIn('if not game.model.save(STAGING_FILE):', controller)
         self.assertLess(controller.index('if not game.model.save(STAGING_FILE):'), controller.index('FileAccess.get_file_as_string(STAGING_FILE)'))
-        settings = (REPO / "game/scripts/cafe_settings.gd").read_text()
+        settings = (REPO / "game/scripts/ui/cafe_settings.gd").read_text()
         self.assertIn('web_preferences=WebPreferences.new()\n\t\tloaded=web_preferences.load_into(cfg)\n\t\tsource="browser-preferences:"+web_preferences.source\n\telse:', settings)
         self.assertIn('return saved\n\treturn cfg.save(config_path)==OK', settings)
         shell = (self.project / "web/little_leaf_crazygames_shell.html").read_text()

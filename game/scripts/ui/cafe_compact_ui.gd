@@ -2,16 +2,16 @@ extends RefCounted
 ## Presentation only: compact catalog, selection actions, optional details.
 const WorkfaceGuidance=preload("res://scripts/cafe_workface_guidance.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
-const StaffPanel=preload("res://scripts/cafe_staff_panel.gd")
-const Hud=preload("res://scripts/cafe_hud.gd")
-const ShopUI=preload("res://scripts/cafe_shop_ui.gd")
-const WalletNotice=preload("res://scripts/cafe_wallet_notice.gd")
-const Inbox=preload("res://scripts/cafe_inbox.gd")
-const UpdateNotice=preload("res://scripts/cafe_update_notice.gd")
-const SaveLogPanel=preload("res://scripts/cafe_save_log_panel.gd")
+const StaffPanel=preload("res://scripts/ui/cafe_staff_panel.gd")
+const Hud=preload("res://scripts/ui/cafe_hud.gd")
+const ShopUI=preload("res://scripts/ui/cafe_shop_ui.gd")
+const WalletNotice=preload("res://scripts/ui/cafe_wallet_notice.gd")
+const Inbox=preload("res://scripts/ui/cafe_inbox.gd")
+const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
+const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
-const UpdateNotes=preload("res://scripts/cafe_update_notes.gd")
-const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
+const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
+const ViewportLayout=preload("res://scripts/ui/cafe_viewport_layout.gd")
 var viewport_too_small=false
 var viewport_guard:ColorRect
 var viewport_message:PanelContainer

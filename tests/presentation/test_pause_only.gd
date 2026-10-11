@@ -1,6 +1,6 @@
 extends SceneTree
 ## Isolated synthetic progress/preferences only. No existing profile is loaded.
-const Settings=preload("res://scripts/cafe_settings.gd")
+const Settings=preload("res://scripts/ui/cafe_settings.gd")
 const WebPreferences=preload("res://scripts/persistence/cafe_web_preferences.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":

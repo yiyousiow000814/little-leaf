@@ -1,6 +1,6 @@
 extends SceneTree
 const Main=preload("res://scripts/main.gd")
-const Settings=preload("res://scripts/cafe_settings.gd")
+const Settings=preload("res://scripts/ui/cafe_settings.gd")
 const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 class TestSettings extends Settings:
  var writes=0

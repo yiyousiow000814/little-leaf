@@ -3,7 +3,7 @@ extends RefCounted
 ## Existing real catalog keys, callbacks, prices and atomic dining products stay intact.
 const Illustration=preload("res://scripts/illustrated_cafe.gd")
 const ThumbnailAtlas=preload("res://scripts/furniture_static_atlas.gd")
-const ViewportLayout=preload("res://scripts/cafe_viewport_layout.gd")
+const ViewportLayout=preload("res://scripts/ui/cafe_viewport_layout.gd")
 const GroundArt=preload("res://scripts/illustrated_ground.gd")
 const DECOR_THUMBNAILS=["plant","lamp","bookshelf","rug","divider"]
 var owner_ref:WeakRef
