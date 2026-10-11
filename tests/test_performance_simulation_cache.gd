@@ -37,7 +37,7 @@ func run():
  check(not game._staff_route_invalid(staff,m.navigation_signature()),"wall removal restores route")
  staff.path=[Vector2i(4,3),Vector2i(-1,-1)]
  check(game._staff_route_invalid(staff,m.navigation_signature()),"changed route cannot reuse old validation")
- for node in [game.world,game.furnishings,game.people,game.camera,game.ui]:node.free()
+ for node in [game.people,game.ui]:node.free()
  game.free()
  var admission=AdmissionModel.new();admission.customers.clear()
  var visitor={"id":99,"x":-1.6,"z":7.5}

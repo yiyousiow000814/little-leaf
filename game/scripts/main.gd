@@ -31,12 +31,8 @@ const HISTORICAL_SAVE_FILE = "user://little_leaf_illustrated_r4.json"
 const CREAM = Color("f6f0dc")
 const SAGE = Color("72896b")
 const DARK = Color("29473c")
-const WOOD = Color("b88c53")
 var model = Model.new()
-var world = Node3D.new()
-var furnishings = Node3D.new()
 var people = Node3D.new()
-var camera = Camera3D.new()
 var ui = CanvasLayer.new()
 var tray: PanelContainer
 var top_text: Label
@@ -65,7 +61,6 @@ var paused = false
 var platform_music
 var platform_autosave_dirty=false
 var platform_dirty_generation=0
-var ghost: Node3D
 var hover_cell = Vector2i(-100,-100)
 var save_timer = 0.0
 var progress_unsaved = false
@@ -73,10 +68,6 @@ var progress_save_error = ""
 var save_recovery_blocked = false
 var save_writes_suppressed = false
 var visual_timer = 0.0
-var material_cache = {}
-var item_nodes = {}
-var actor_nodes = {}
-var _legacy_staff_sync_pending=true
 var loading = false
 var staff_states = []
 # Runtime-only service ledger. No decorative loops: every job belongs to a live
@@ -106,7 +97,6 @@ const MEAL_DEPARTURE_SECONDS=120.0
 var idle_home_revision=-1
 var idle_home_count=-1
 
-var service_props = {}
 var animation_time = 0.0
 var wall_detail = false
 var audio_players = {}
@@ -135,13 +125,12 @@ func _ready():
 	get_window().size_changed.connect(_sync_window_scale)
 	get_tree().auto_accept_quit=false
 	get_window().close_requested.connect(_on_window_close)
-	# Keep the hidden legacy 3D scene out of the illustrated game's renderer.
-	# Matched native profiling verified the empty camera/MSAA pass was costly.
+	# The game renders through IllustratedCafe; staff nodes only retain identity.
 	get_viewport().disable_3d=true
 	if not "--visual-qa" in OS.get_cmdline_user_args():
 		DisplayServer.window_set_title("Little Leaf Cafe · "+str(ProjectSettings.get_setting("application/config/version","R7 review")))
 	_load_startup()
-	_setup_world()
+	add_child(people)
 	build_tools=BuildTools.new(self)
 	_build_ui()
 	if OS.has_feature("crazygames"):
@@ -162,9 +151,8 @@ func _ready():
 	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
-	world.visible=false; furnishings.visible=false; people.visible=false
 	_update_ui()
-	print("NATIVE_READY children=",get_child_count()," world=",world.get_child_count()," ui=",ui.get_child_count())
+	print("NATIVE_READY children=",get_child_count()," ui=",ui.get_child_count())
 	if "--capture-diagnostics" in OS.get_cmdline_user_args():
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
@@ -243,222 +231,9 @@ func _load_startup():
 	SaveLog.record("read_accepted",{"layer":"native","source":"fresh"})
 	fresh_start=true;MinimalStart.apply(model)
 
-func material(color: Color) -> StandardMaterial3D:
-	var key = color.to_html()
-	if material_cache.has(key): return material_cache[key]
-	var m = StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = 0.9
-	m.metallic_specular = 0.0
-	if color.a < 1: m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material_cache[key] = m
-	return m
-
-func box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
-	var n = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = size
-	n.mesh = mesh
-	n.material_override = material(color)
-	n.position = pos
-	parent.add_child(n)
-	return n
-
-func cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, color: Color, top_radius = -1.0) -> MeshInstance3D:
-	var n = MeshInstance3D.new()
-	var mesh = CylinderMesh.new()
-	mesh.top_radius = radius if top_radius < 0 else top_radius
-	mesh.bottom_radius = radius
-	mesh.height = height
-	mesh.radial_segments = 24
-	n.mesh = mesh
-	n.position = pos
-	n.material_override = material(color)
-	parent.add_child(n)
-	return n
-
-func sphere(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
-	var n = MeshInstance3D.new()
-	var mesh = SphereMesh.new()
-	mesh.radius = 0.5
-	mesh.height = 1.0
-	n.mesh = mesh
-	n.position = pos
-	n.scale = size
-	n.material_override = material(color)
-	parent.add_child(n)
-	return n
-
-func text3(parent: Node3D, words: String, pos: Vector3, font_size=32, tint=DARK) -> Label3D:
-	var n = Label3D.new()
-	n.text = words
-	n.position = pos
-	n.font_size = font_size
-	n.pixel_size = 0.011
-	n.modulate = tint
-	n.outline_size = 0
-	n.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	parent.add_child(n)
-	return n
-
-func _setup_world():
-	add_child(world)
-	add_child(furnishings)
-	add_child(people)
-	var env = WorldEnvironment.new()
-	var e = Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color("becaaa")
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color("fff9ed")
-	e.ambient_light_energy = 0.3
-	e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
-	env.environment = e
-	add_child(env)
-	var sun = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55,-30,0)
-	sun.light_color = Color("fff9ed")
-	sun.light_energy = 0.45
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 40
-	add_child(sun)
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 16.5
-	camera.position = Vector3(20,20,24)
-	add_child(camera)
-	camera.look_at(Vector3(5.2,0,4.7))
-	camera.current = true
-
 func _rebuild_room():
-	for c in world.get_children(): c.queue_free()
-	box(world,Vector3(5,-0.18,4),Vector3(45,0.24,45),Color("b9caa0"))
-	# Exterior circulation is ONLY on the actual entrance/street side.
-	box(world,Vector3(-2.3,-0.045,5),Vector3(2.5,0.10,17),Color("879389"))
-	for z in range(-3,14):
-		box(world,Vector3(-0.65,-0.005,z+0.5),Vector3(1.0,0.06,0.98),Color("d8dcc6"))
-	for x in range(model.MAX_WIDTH):
-		for z in range(model.MAX_DEPTH):
-			var palette=preload("res://scripts/illustrated_ground.gd").floor_palette(model.floor_style_at(Vector2i(x,z)))
-			var c = palette[posmod(x+z,2)]
-			if not model.is_floor_owned(Vector2i(x,z)): c = Color("d5cfb0") if (x+z)%2==0 else Color("dfd7bd")
-			box(world,Vector3(x+0.5,-0.01,z+0.5),Vector3(0.99,0.05,0.99),c)
-	# Walls are solid 0.24-unit volumes, with full exposed end faces and caps.
-	_wall(Vector3(6,1.18,-0.12),Vector3(12.24,2.4,0.24))
-	_wall(Vector3(-0.12,1.18,2.5),Vector3(0.24,2.4,5.0))
-	_wall(Vector3(-0.12,1.18,7.0),Vector3(0.24,2.4,2.0))
-	# Deep jambs and lintel frame the door, rather than a line pasted onto a wall.
-	box(world,Vector3(-0.10,1.06,4.99),Vector3(0.34,2.16,0.13),DARK)
-	box(world,Vector3(-0.10,1.06,6.01),Vector3(0.34,2.16,0.13),DARK)
-	box(world,Vector3(-0.10,2.10,5.5),Vector3(0.34,0.16,1.16),DARK)
-	box(world,Vector3(-0.06,2.32,5.5),Vector3(0.26,0.32,1.0),Color("cddabe"))
-	box(world,Vector3(-0.05,0.04,5.5),Vector3(0.40,0.06,1.0),WOOD)
-	# Real sill/recess depth, window mullions and header give the shell scale.
-	for x in [2.2,5.2,8.2]:
-		box(world,Vector3(x,1.30,0.025),Vector3(1.75,1.05,0.10),DARK)
-		box(world,Vector3(x,1.32,0.09),Vector3(1.57,0.87,0.09),Color("b0cace"))
-		box(world,Vector3(x,1.30,0.16),Vector3(0.06,0.99,0.08),CREAM)
-		box(world,Vector3(x,0.79,0.20),Vector3(1.90,0.10,0.35),CREAM)
-	box(world,Vector3(10.6,1.35,0.08),Vector3(1.18,1.14,0.14),WOOD)
-	box(world,Vector3(10.6,1.35,0.17),Vector3(1.03,0.99,0.04),DARK)
-	for i in range(4): box(world,Vector3(10.6,1.61-i*0.17,0.20),Vector3(0.65 if i>0 else 0.8,0.025,0.01),CREAM)
-	# Only the back of the outward-facing hanging sign is visible from this camera.
-	box(world,Vector3(-0.67,2.16,4.7),Vector3(0.9,0.06,0.06),DARK)
-	box(world,Vector3(-0.84,1.83,4.7),Vector3(0.08,0.48,0.64),WOOD)
-	# Each unowned plot has its own marker. Purchases never add wall geometry.
-	for parcel in model.expansion_parcels():
-		if not editing or parcel.owned or not parcel.visible: continue
-		var cx=float(parcel.x)+float(parcel.w)*.5
-		text3(world,"FOR SALE · %s"%preload("res://scripts/cafe_money.gd").amount(int(parcel.cost)),Vector3(cx,0.08,float(parcel.z)+float(parcel.h)*.5),22,Color("4e6654"))
-	# Small landscaping stays outside the restaurant plan.
-	for p in [Vector3(-2.6,0,-1.5),Vector3(13,0,-1),Vector3(13.5,0,6)]:
-		if model.is_floor_owned(Vector2i(floori(p.x),floori(p.z))):continue
-		var plant = Node3D.new()
-		world.add_child(plant)
-		plant.position = p
-		_plant(plant,1.15)
-
-func _wall(p: Vector3,s: Vector3):
-	box(world,p,s,Color("cddabe"))
-	box(world,Vector3(p.x,0.34,p.z),Vector3(s.x+0.012,0.66,s.z+0.012),Color("879c7c"))
-	box(world,Vector3(p.x,2.41,p.z),Vector3(s.x+0.06,0.10,s.z+0.06),Color("f2e9cd"))
-	box(world,Vector3(p.x,0.055,p.z),Vector3(s.x+0.03,0.11,s.z+0.03),Color("5f775e"))
-
-func _plant(n: Node3D, scale_factor=1.0):
-	cylinder(n,Vector3(0,0.19,0),0.20,0.38,Color("c28153"),0.26)
-	cylinder(n,Vector3(0,0.40,0),0.26,0.05,Color("dbac76"))
-	cylinder(n,Vector3(0,0.41,0),0.21,0.02,Color("5c4d32"))
-	for i in range(7):
-		var a = i*TAU/7
-		var leaf = sphere(n,Vector3(cos(a)*0.18,0.75+sin(a*2)*0.15,sin(a)*0.18),Vector3(0.25,0.55,0.20),Color("547b48") if i%2 else Color("789d59"))
-		leaf.rotation_degrees.z = cos(a)*40
-	n.scale *= scale_factor
-
-func make_item(kind: String) -> Node3D:
-	var n = Node3D.new()
-	match kind:
-		"table":
-			cylinder(n,Vector3(0,0.80,0),0.43,0.10,Color("c7a169"))
-			cylinder(n,Vector3(0,0.40,0),0.07,0.75,WOOD)
-			for v in [Vector3(-.24,.2,-.24),Vector3(.24,.2,.24),Vector3(-.24,.2,.24),Vector3(.24,.2,-.24)]: box(n,v,Vector3(.055,.38,.055),WOOD)
-			cylinder(n,Vector3(.12,.91,.04),0.055,0.13,Color("bd875c"))
-			sphere(n,Vector3(.12,1.04,.04),Vector3(.13,.22,.13),SAGE)
-			cylinder(n,Vector3(-.16,.868,.10),0.095,0.015,CREAM)
-		"chair":
-			box(n,Vector3(0,.46,0),Vector3(.48,.10,.48),Color("bfa06d"))
-			for x in [-.19,.19]:
-				for z in [-.19,.19]: box(n,Vector3(x,.22,z),Vector3(.055,.46,.055),WOOD)
-			box(n,Vector3(0,.84,-.21),Vector3(.48,.11,.065),WOOD)
-			for x in [-.2,.2]: box(n,Vector3(x,.68,-.21),Vector3(.055,.60,.055),WOOD)
-		"stove":
-			box(n,Vector3(0,.43,0),Vector3(.84,.85,.82),Color("c3c3ae"))
-			box(n,Vector3(0,.91,0),Vector3(.90,.12,.87),Color("56655b"))
-			for x in [-.23,.23]:
-				for z in [-.23,.23]: cylinder(n,Vector3(x,.985,z),.15,.02,Color("283e39"))
-			cylinder(n,Vector3(-.23,1.08,.23),.14,.19,Color("dbc18d"))
-			sphere(n,Vector3(-.23,1.18,.23),Vector3(.28,.04,.28),Color("f2da9d"))
-			box(n,Vector3(0,.44,.43),Vector3(.63,.38,.02),Color("52615b"))
-			box(n,Vector3(0,.66,.45),Vector3(.44,.035,.06),CREAM)
-		"beverage":
-			box(n,Vector3(0,.46,0),Vector3(.94,.92,.84),Color("65846e"))
-			box(n,Vector3(0,.97,0),Vector3(1.0,.10,.90),Color("f0e1bd"))
-			box(n,Vector3(-.15,1.22,-.10),Vector3(.52,.42,.40),Color("4f645f"))
-			box(n,Vector3(-.15,1.35,.12),Vector3(.46,.07,.10),Color("be9863"))
-			for x in [-.28,-.02]:
-				cylinder(n,Vector3(x,1.1,.24),.065,.13,CREAM)
-				cylinder(n,Vector3(x,1.173,.24),.05,.009,Color("6d4b31"))
-			cylinder(n,Vector3(.33,1.18,-.12),.10,.33,Color("ca9d4f"))
-			cylinder(n,Vector3(.33,1.36,-.12),.10,.045,CREAM)
-		"sink":
-			box(n,Vector3(0,.42,0),Vector3(.80,.83,.80),Color("9fac99"))
-			box(n,Vector3(0,.87,0),Vector3(.89,.08,.88),Color("d2d9c5"))
-			cylinder(n,Vector3(0,.92,.02),.31,.035,Color("4b746e"))
-			cylinder(n,Vector3(0,.935,.02),.24,.01,Color("90b6ad"))
-			cylinder(n,Vector3(0,1.13,-.28),.033,.42,CREAM)
-			box(n,Vector3(0,1.33,-.19),Vector3(.066,.06,.22),CREAM)
-		"counter":
-			box(n,Vector3(0,.48,0),Vector3(.95,.96,.84),WOOD)
-			box(n,Vector3(0,.99,0),Vector3(1.02,.10,.91),CREAM)
-			box(n,Vector3(0,.52,.43),Vector3(.78,.62,.03),Color("9d794a"))
-		"plant": _plant(n)
-		"lamp":
-			cylinder(n,Vector3(0,.035,0),.25,.07,DARK)
-			cylinder(n,Vector3(0,.8,0),.035,1.6,WOOD)
-			cylinder(n,Vector3(0,1.65,0),.33,.40,Color("ead99c"),.18)
-		"bookshelf":
-			box(n,Vector3(0,.85,0),Vector3(.88,1.70,.48),WOOD)
-			for y in [.36,.85,1.33]:
-				box(n,Vector3(0,y,.26),Vector3(.80,.39,.05),Color("735d3d"))
-				for i in range(6): box(n,Vector3(-.32+i*.13,y,.30),Vector3(.085,.28+float(i%2)*.06,.20),[SAGE,Color("c98a58"),CREAM][i%3])
-		"rug": box(n,Vector3(0,.038,0),Vector3(.90,.025,.90),Color("ab7453"))
-		"bench":
-			box(n,Vector3(0,.48,0),Vector3(.90,.17,.50),Color("76906b"))
-			box(n,Vector3(0,.83,-.2),Vector3(.90,.55,.13),Color("8da17d"))
-			for x in [-.35,.35]: box(n,Vector3(x,.23,0),Vector3(.10,.47,.38),WOOD)
-		"divider":
-			box(n,Vector3(0,.63,0),Vector3(.92,1.26,.16),Color("839570"))
-			box(n,Vector3(0,1.29,0),Vector3(1.0,.08,.24),CREAM)
-		_: box(n,Vector3(0,.4,0),Vector3(.8,.8,.8),SAGE)
-	return n
+	if is_instance_valid(illustration):
+		illustration.update_projection();illustration.queue_redraw()
 
 func _apply_edit_staff_positions(previous:Array,positions:Array)->bool:
 	# Validate every live identity/position before writing either half of the edit.
@@ -480,19 +255,8 @@ func _apply_edit_staff_positions(previous:Array,positions:Array)->bool:
 
 func _rebuild_furniture():
 	static_service_paths.clear();static_service_revision=model.revision
-	for c in furnishings.get_children(): c.queue_free()
-	item_nodes.clear()
-	service_props.clear()
 	for staff in staff_states:
 		staff.destination=Vector2i(-100,-100); staff.path=[]; staff.index=0
-	for item in model.items:
-		var n = make_item(item.kind)
-		n.name = "Furniture_%s_%s" % [item.id,item.kind]
-		n.position = Vector3(item.x+.5,0,item.z+.5)
-		n.rotation.y = float(item.rot)*PI/2
-		furnishings.add_child(n)
-		item_nodes[item.id] = n
-		if item.kind=="stove" and int(item.get("level",1))>1: text3(n,"Lv. "+str(item.level),Vector3(0,1.55,0),22,DARK)
 
 func _style(bg: Color, border=Color.TRANSPARENT, radius=14) -> StyleBoxFlat:
 	var s=StyleBoxFlat.new()
@@ -621,14 +385,6 @@ func _choose(kind: String):
 	_cancel_selection()
 	selected_kind=kind
 	tool_text.text="Place %s · R rotates · right click cancels" % kind.capitalize()
-	ghost=make_item(kind); add_child(ghost)
-	for mesh in ghost.get_children():
-		if mesh is MeshInstance3D:
-			var faded=mesh.material_override.duplicate()
-			faded.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
-			faded.albedo_color.a=0.45
-			mesh.material_override=faded
-			mesh.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func _cancel_selection():
 	if compact_ui!=null:compact_ui.clear_selection()
@@ -636,8 +392,6 @@ func _cancel_selection():
 	if interaction!=null: interaction.cancel(false)
 	selected_kind=""; selected_id=-1
 	if is_instance_valid(tool_text): tool_text.text="Choose an item · click a floor tile to place"
-	if is_instance_valid(ghost): ghost.queue_free()
-	ghost=null
 
 func _rotate():
 	if save_recovery_blocked:return
@@ -886,9 +640,7 @@ func _notification(what):
 
 func _floor_cell(screen: Vector2) -> Vector2i:
 	if is_instance_valid(illustration): return illustration.screen_to_cell(screen)
-	var point=Plane(Vector3.UP,0).intersects_ray(camera.project_ray_origin(screen),camera.project_ray_normal(screen))
-	if point==null: return Vector2i(-100,-100)
-	return Vector2i(floori(point.x),floori(point.z))
+	return Vector2i(-100,-100)
 
 func effective_frame_delta(delta:float)->float:
 	# Background time is never applied to simulation, earnings or presentation.
@@ -946,38 +698,13 @@ func _process(delta):
 	# First periodic save remains after entry, never during the title/descent.
 	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
-		visual_timer=0; _update_ui(); _update_service_props()
+		visual_timer=0; _update_ui()
 	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
-	if not intro_active and is_instance_valid(ghost):
-		hover_cell=_floor_cell(get_viewport().get_mouse_position())
-		ghost.position=Vector3(hover_cell.x+.5,.04,hover_cell.y+.5)
-		ghost.rotation.y=rotation_step*PI/2
-		ghost.visible=model.is_floor_owned(hover_cell)
-
-func _person(color: Color,apron=false) -> Node3D:
-	var n=Node3D.new()
-	cylinder(n,Vector3(0,.51,0),.15,.39,color,.20)
-	for x in [-.095,.095]:
-		cylinder(n,Vector3(x,.16,0),.045,.30,Color("586452"))
-		box(n,Vector3(x,.03,.045),Vector3(.12,.07,.19),DARK)
-	sphere(n,Vector3(0,.87,0),Vector3(.39,.40,.34),Color("e9c49a"))
-	sphere(n,Vector3(0,.82,.14),Vector3(.21,.15,.13),Color("f4dbb5"))
-	for x in [-.15,.15]: sphere(n,Vector3(x,1.025,-.025),Vector3(.14,.17,.11),Color("bc956a"))
-	if apron: cylinder(n,Vector3(0,1.04,0),.20,.10,CREAM)
-	for x in [-.07,.07]: sphere(n,Vector3(x,.88,.164),Vector3(.025,.025,.018),DARK)
-	if apron: box(n,Vector3(0,.48,.16),Vector3(.23,.29,.03),CREAM)
-	return n
 
 func _update_people():
-	# The illustrated view reads model customers directly. Staff synchronization
-	# below still runs, but the disabled legacy renderer needs no customer meshes.
-	if not get_viewport().disable_3d:
-		_update_legacy_customers()
-		_ensure_legacy_staff_visuals()
-	else:_legacy_staff_sync_pending=true
 	# Keep stable staff indices, including the former drink worker. Both
 	# waiters now take whole customer-facing tasks from start to finish.
 	var chef_count=0
@@ -992,53 +719,6 @@ func _update_people():
 		while present<model.staff_count(role):
 			if not _add_staff(role):break
 			present+=1
-
-func _legacy_staff_person(role:String)->Node3D:
-	return _person({"chef":Color("6d8b67"),"waiter":Color("ae8a5c"),"cleaner":Color("7d99a2"),"cashier":Color("b68b92")}[role],true)
-
-func _ensure_legacy_staff_visuals():
-	# Keep the stable placeholder Node3D identity used by restores/relocation.
-	# An explicitly enabled legacy view can lazily acquire its original art.
-	for staff in staff_states:
-		if _legacy_staff_sync_pending or staff.node.get_child_count()==0:
-			staff.node.position=Vector3(staff.pos.x,0.0,staff.pos.y)
-			var facing:Vector2=staff.get("art_heading",Vector2.ZERO)
-			if str(staff.get("art_action","idle")) not in ["walking","carrying_to_pass","carrying_plate","carrying_drink","carrying_dishes","carrying_trash"]:
-				var toward:Vector2=staff.get("art_target",staff.pos)-staff.pos
-				if toward.length_squared()>.000001:facing=toward
-			if facing.length_squared()>.000001:staff.node.rotation.y=atan2(facing.x,facing.y)
-		if staff.node.get_child_count()>0:continue
-		var visual=_legacy_staff_person(str(staff.role))
-		for child in visual.get_children():
-			visual.remove_child(child);staff.node.add_child(child)
-		visual.free()
-	_legacy_staff_sync_pending=false
-
-func _update_legacy_customers():
-	var alive = {}
-	for customer in model.customers:
-		if str(customer.get("phase","")) in ["dirty","cleaning"]: continue
-		var id = int(customer.id)
-		alive[id] = true
-		if not actor_nodes.has(id):
-			var person = _person([Color("ba8259"),Color("709696"),Color("9c8dab"),Color("c4ab68")][id%4])
-			people.add_child(person)
-			var bubble = text3(person,"",Vector3(0,1.4,0),22,DARK)
-			bubble.name="Dialogue"
-			bubble.outline_size=7
-			bubble.outline_modulate=CREAM
-			actor_nodes[id]=person
-		var person=actor_nodes[id]
-		var target=Vector3(float(customer.get("x",0.5)),0,float(customer.get("z",5.5)))
-		var direction=target-person.position
-		if direction.length()>0.005 and direction.length()<1.0: person.rotation.y=atan2(direction.x,direction.z)
-		person.position=target
-		var phase=str(customer.get("phase","ordering"))
-		var words={"arriving":"A table for me?","ordering":"Today's special, please","cooking":"Smells lovely!","drinking":"A drink, please","eating":"","leaving":"Thank you!"}.get(phase,"")
-		person.get_node("Dialogue").text=words
-		if phase in ["arriving","leaving","checkout_walk"]: person.position.y=abs(sin(animation_time*10+id))*0.025
-	for id in actor_nodes.keys():
-		if not alive.has(id): actor_nodes[id].queue_free(); actor_nodes.erase(id)
 
 func _ensure_checkout_deployment():
 	if not model.included_checkout_pending:return
@@ -1060,7 +740,7 @@ func _add_staff(role: String, restored_position=null) -> bool:
 			if staff.pos.distance_to(cashier_start)<.9:return false
 		for guest in model.customers:
 			if guest.phase not in ["dirty","cleaning"] and Checkout.point(guest).distance_to(cashier_start)<.9:return false
-	var n=Node3D.new() if get_viewport().disable_3d else _legacy_staff_person(role)
+	var n=Node3D.new()
 	people.add_child(n)
 	var start=Vector2(7.5,1.5)
 	var found=false
@@ -1878,7 +1558,6 @@ func _staff_route_invalid(staff:Dictionary,geometry:Array)->bool:
 	return false
 
 func _animate_staff(delta: float):
-	if get_viewport().disable_3d:_legacy_staff_sync_pending=true
 	_sync_service_guests()
 	_refresh_idle_homes()
 	for staff in staff_states:staff.idle_return_delay=maxf(0.0,float(staff.get("idle_return_delay",0.0))-delta)
@@ -1941,7 +1620,6 @@ func _animate_staff(delta: float):
 			if not blocked:
 				var direction=point-staff.pos
 				if direction.length()>.005:
-					if not get_viewport().disable_3d:staff.node.rotation.y=atan2(direction.x,direction.y)
 					staff.art_heading=direction
 				moved=staff.pos.distance_to(proposed)>.0001; staff.pos=proposed; staff.blocked_time=0.0
 				if staff.pos.distance_to(point)<.015: staff.index+=1
@@ -1949,7 +1627,6 @@ func _animate_staff(delta: float):
 				staff.blocked_time+=delta
 		elif not at_destination: staff.blocked_time+=delta
 		staff.stalled_time=float(staff.get("stalled_time",0.0))+delta if not moved and not at_destination else 0.0
-		if not get_viewport().disable_3d:staff.node.position=Vector3(staff.pos.x,abs(sin(animation_time*11+index))*.025 if moved else 0.0,staff.pos.y)
 		if staff.blocked_reason!="" and (not moved or target_item.is_empty()):
 			var blocked_item=model.get_item(int(staff.blocked_target_id))
 			# An intentionally unavailable stove is quiet during service.
@@ -1993,7 +1670,6 @@ func _animate_staff(delta: float):
 		_service_contact(staff,index,str(step.action),target_item,phase)
 		payload=_staff_payload(staff,index)
 		_set_staff_art(staff,str(step.action),target_item,phase,payload)
-		if not get_viewport().disable_3d:staff.node.rotation.y=atan2(staff.art_target.x-staff.pos.x,staff.art_target.y-staff.pos.y)
 		if staff.job_elapsed+0.000001<action_seconds: continue
 		if staff.job_kind=="wash":dishwashing.complete(staff);continue
 		if staff.job_kind=="floor":floor_tasks.complete_step(staff,index);continue
@@ -2025,36 +1701,6 @@ func _find_path(start: Vector2i,goal: Vector2i) -> Array:
 	if not path.is_empty(): path.pop_front()
 	return path
 
-func _update_service_props():
-	# Illustrated tableware reads the service ledger, never these hidden meshes.
-	if get_viewport().disable_3d:
-		for prop in service_props.values():prop.node.queue_free()
-		service_props.clear()
-		return
-	var present={}
-	for customer in model.customers:
-		var record=service_guests.get(int(customer.id),{})
-		if str(record.get("plate_owner","kitchen"))!="table": continue
-		var id=int(customer.table_id)
-		var phase="eating" if str(customer.phase) in ["cooking","drinking","eating"] else "dirty"
-		present[id]=true
-		if service_props.has(id) and service_props[id].phase==phase: continue
-		if service_props.has(id): service_props[id].node.queue_free()
-		var item=model.get_item(id)
-		if item.is_empty(): continue
-		var n=Node3D.new(); furnishings.add_child(n)
-		n.position=Vector3(item.x+.5,0,item.z+.5)
-		cylinder(n,Vector3(-.1,.87,-.04),.18,.025,CREAM)
-		if phase=="eating":
-			sphere(n,Vector3(-.1,.905,-.04),Vector3(.24,.07,.24),Color("d8944e"))
-			for d in [Vector3(-.16,.93,-.04),Vector3(-.04,.93,0)]:sphere(n,d,Vector3(.07,.035,.06),SAGE)
-		else:
-			cylinder(n,Vector3(-.1,.89,-.04),.13,.005,Color("9d825c"))
-			text3(n,"Clear dishes",Vector3(0,1.25,0),18,Color("826447"))
-		service_props[id]={"node":n,"phase":phase}
-	for id in service_props.keys():
-		if not present.has(id): service_props[id].node.queue_free(); service_props.erase(id)
-
 func _capture():
 	if not "--capture-diagnostics" in OS.get_cmdline_user_args() or DisplayServer.get_name()=="headless" or "--visual-qa" in OS.get_cmdline_user_args(): return
 	await RenderingServer.frame_post_draw
@@ -2083,14 +1729,6 @@ func _capture():
 func _toggle_wall_detail():
 	wall_detail=not wall_detail
 	settings.hide()
-	if wall_detail:
-		camera.size=7.8
-		camera.position=Vector3(12,12,19)
-		camera.look_at(Vector3(0.5,0.8,6.5))
-	else:
-		camera.size=16.5
-		camera.position=Vector3(20,20,24)
-		camera.look_at(Vector3(5.2,0,4.7))
 
 func _blocked_guest_ids() -> Dictionary:
 	# Compatibility diagnostic: staff bodies never pause guest movement.
