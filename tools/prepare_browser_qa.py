@@ -94,7 +94,7 @@ def wall_main(argv):
             shutil.copytree(build / "project", project)
             tests = project / "tests"
             tests.mkdir(exist_ok=True)
-            shutil.copy2(ROOT / "tests/wall_compatibility_layout.gd", tests / "wall_compatibility_layout.gd")
+            shutil.copy2(ROOT / "tests/fixtures/wall_compatibility_layout.gd", tests / "wall_compatibility_layout.gd")
             shutil.copy2(FIXTURES / "old-format1.json", tests / "wall-fixture-old.json")
             shutil.copy2(FIXTURES / "new-format2.json", tests / "wall-fixture-new.json")
             env = synthetic_profile(temporary / 'saveguard-profile')
@@ -124,6 +124,7 @@ def cloud_main(argv):
  p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args(argv);out=a.output.resolve()
  if out.exists():raise ValueError('Use a new disposable geometry directory')
  out.mkdir(parents=True);project=out/'project';stage_project(ROOT,project,tests=True,ignore=EXCLUDE)
+ shutil.copy2(ROOT/'tests/diagnostics/probe_cloud_recovery_geometry.gd',project/'tests/probe_cloud_recovery_geometry.gd')
  env=synthetic_profile(out/'profile')
  godot=os.environ.get('GODOT_BIN','godot')
  with (out/'import.log').open('w') as log:
@@ -144,7 +145,7 @@ def cloud_main(argv):
    if label=='wrapped' and previous is not None and y==previous:raise ValueError('Wrapped-message regression did not change measured button location')
    previous=y;regressions.append({'viewport':value['viewport'],'message':label,'switch':result['buttons']['switch']})
  (out/'regressions.json').write_text(json.dumps(regressions,indent=2)+'\n')
- receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/probe_cloud_recovery_geometry.gd','tests/persistence/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/persistence/cafe_web_save.gd']},'project':str(project)}
+ receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/diagnostics/probe_cloud_recovery_geometry.gd','tests/persistence/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/persistence/cafe_web_save.gd']},'project':str(project)}
  (out/'binding.json').write_text(json.dumps(receipt,indent=2)+'\n')
 
 def main(argv=None):

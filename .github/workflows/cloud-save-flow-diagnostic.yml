@@ -7,7 +7,7 @@ on:
       - 'platform/web/little_leaf_update.js'
       - 'tools/cloud_flow_diagnostic.py'
       - 'tools/prepare_browser_qa.py'
-      - 'tests/probe_cloud_recovery_geometry.gd'
+      - 'tests/diagnostics/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
 permissions:
   contents: read

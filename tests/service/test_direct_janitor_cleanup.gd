@@ -1,5 +1,5 @@
 extends SceneTree
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const Minimal=preload("res://scripts/minimal_start.gd")
 var game
