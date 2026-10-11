@@ -6,7 +6,7 @@ const DOOR_TOP=97.0
 const WINDOW_BOTTOM=43.0
 const WINDOW_TOP=91.0
 const PRICES={"door":40,"window":30}
-const WIDTHS={"door":.76,"window":.70}
+const WIDTHS={"door":1.0,"window":.70}
 const SHELL_HOSTS=["shell:back","shell:west"]
 static func initial_attachments()->Array[Dictionary]:
 	return [{"id":1,"kind":"door","host_id":"shell:west","offset":Footprint.DOOR_CENTER,"width":Footprint.DOOR_WIDTH,"paid_cost":0}]
