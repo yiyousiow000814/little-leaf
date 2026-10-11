@@ -1,5 +1,5 @@
 extends SceneTree
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 var checks=0
 var failures=[]
 func check(ok,label):
