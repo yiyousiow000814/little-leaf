@@ -29,14 +29,14 @@ window.__littleLeafVault={close(){}};window.LittleLeafAuthorityCodec={};window.L
 window.snapshot=()=>owner.snapshot();
 `;
 (async()=>{
- let value=null,version=0,time=100000,browser,context,cleaned=false,error;
- const checks=[];const check=(name,result)=>{assert(result,name);checks.push(name);};
+ let value=null,version=0,time=Date.now(),browser,context,cleaned=false,error;
+ const externalRequests=[],checks=[];const check=(name,result)=>{assert(result,name);checks.push(name);};
  const server=http.createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');
   if(req.url==='/state'){
    if(req.method==='POST'){let body='';for await(const chunk of req)body+=chunk;const proposal=JSON.parse(body);
     if(proposal.version===version){value=proposal.value;version++;res.end(JSON.stringify({ok:true,value}));}else res.end(JSON.stringify({ok:false}));
-   }else res.end(JSON.stringify({value,version,time}));return;
+   }else{time=Date.now();res.end(JSON.stringify({value,version,time}));}return;
   }
   res.setHeader('Content-Type','text/html');
   res.end('<!doctype html><meta charset="utf-8"><title>Synthetic refresh acceptance</title><p>No Google sign-in or player saves.</p><script>'+sessionSource+'</script><script>'+fixture+'</script><script>'+bootSource+'\nwindow.started=start({authDomain:location.hostname}).then(()=>window.ready=true).catch(e=>{window.failure=e.code||e.message;});</script>');
@@ -44,10 +44,14 @@ window.snapshot=()=>owner.snapshot();
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
  try{
   browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH,chromiumSandbox:true,timeout:20000});
-  context=await browser.newContext();await context.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+  const routeLocal=route=>{const target=new URL(route.request().url()).origin;if(target===origin)return route.continue();externalRequests.push(target);return route.abort();};
+  context=await browser.newContext();await context.route('**/*',routeLocal);
   const page=await context.newPage();page.setDefaultTimeout(10000);
   const ready=async p=>{await p.waitForFunction(()=>window.ready||window.failure);assert.equal(await p.evaluate(()=>window.failure),undefined);};
   await page.goto(origin);await ready(page);check('first synthetic runtime active',(await page.evaluate(()=>snapshot())).status==='active');
+  await page.goto(origin+'/?entry=synthetic-switch');await ready(page);check('fresh runtime sees live prior lease',(await page.evaluate(()=>snapshot())).status==='other-device');
+  await page.evaluate(()=>owner.requestTakeover());await new Promise(resolve=>setTimeout(resolve,10010));await page.evaluate(()=>owner.takeOver(true));
+  check('explicit synthetic device switch becomes active',(await page.evaluate(()=>snapshot())).status==='active');
   const firstOwner=value.owner,firstEpoch=value.epoch;
   await page.reload();await ready(page);check('ordinary refresh retains active owner and epoch',value.owner===firstOwner&&value.epoch===firstEpoch&&(await page.evaluate(()=>snapshot())).status==='active');
   // A browser-created opener actually copies sessionStorage; no receipt injection.
@@ -65,16 +69,17 @@ window.snapshot=()=>owner.snapshot();
   await page.goto(origin+'/?uid=synthetic-changed');await ready(page);
   check('new account cannot reuse prior runtime receipt',(await page.evaluate(()=>snapshot())).status==='other-device');
   const noLocks=await browser.newContext();await noLocks.addInitScript(()=>Object.defineProperty(navigator,'locks',{value:undefined}));
-  await noLocks.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+  await noLocks.route('**/*',routeLocal);
   const unsupported=await noLocks.newPage();await unsupported.goto(origin);await ready(unsupported);
   await unsupported.reload();await ready(unsupported);check('WebLock unavailable remains paused with fresh identity',(await unsupported.evaluate(()=>snapshot())).status==='other-device');await noLocks.close();
   // Strict update tickets still get a fresh requester instead of same-owner renewal.
   const fresh=await page.evaluate(async()=>{const receipt=JSON.parse(sessionStorage.getItem('little-leaf.runtime-session.v1'));
    const runtime=await LittleLeafFirebaseSession.acquireRuntime({uid:auth.currentUser.uid,storage:sessionStorage,locks:navigator.locks,navigationType:'reload',fresh:true});
    const result=runtime.sessionId!==receipt.sessionId;runtime.close();return result;});check('update continuation uses fresh identity',fresh);
+  check('no external requests attempted',externalRequests.length===0);
  }catch(e){error=e;}finally{if(context)await context.close();if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));cleaned=true;}
  const output=path.resolve(process.env.REFRESH_EVIDENCE||'../ownership-refresh-browser');fs.mkdirSync(output,{recursive:true});
- const report={passed:!error,error:error?.message,checks,cleanup_complete:cleaned,real_browser:true,synthetic_auth_cloud_journal:true,real_google_sign_in:false,original_player_data_accessed:false,loopback_only:true,headless:true,chromium_sandbox:true,
+ const report={passed:!error,error:error?.message,checks,external_requests:externalRequests,cleanup_complete:cleaned,real_browser:true,synthetic_auth_cloud_journal:true,real_google_sign_in:false,original_player_data_accessed:false,loopback_only:true,headless:true,chromium_sandbox:true,
   source_sha256:Object.fromEntries(['platform/web/little_leaf_firebase_session.js','platform/web/little_leaf_firebase_boot.mjs','tests/diagnostics/firebase_refresh_browser.js'].map(p=>[p,crypto.createHash('sha256').update(fs.readFileSync(p)).digest('hex')]))};
  fs.writeFileSync(path.join(output,'receipt.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(error)throw error;
 })().catch(error=>{console.error(error);process.exitCode=1;});
