@@ -1,13 +1,13 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Reused exact canonical run38087309465 QA37fe4a85a7249525c49984f84bf6889fa9243133 for runtime 136585a2b82cd4f206a9bdddec1a40078b46b040; all132 closure hashes and6 PNG/import hashes equal qualified8546b844, receipt SHA256268dd5a02857117c3827f736625e52195bef7ef17b4679f436dfc7a384aa6435; current PR125 base3e828422. No new rendered run or old full-inventory claim.",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact reviewed PR140 furniture sourceaac218a6f1a1bc35f824e6bd56519d2a57bc6bdf/treeefa07674688cf6d991009bc1a85f237e2afb7f6e; solePNG proposal201234aedbb5100dde53298ac1ff3971aec406af/treecbdb3c6274c494179eca8eb3aaa1395f90a03f39; QA ccc07e210d9b27cb8b1611b38cbb60a7db10e7da; run38105749481; receiptSHA256 a16d4c09a2759bec1f934ff691a95e7b074966a1fcd63be6d3e80bc33d38efcc; independently declared furniture7b6b5d8d; all3 generated/imported/runtime/directsource/savedPNG exact; immutable original controls, unchanged moving/head/imports",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u95e8\u53e3\u7684\u9633\u5149_\u65e5\u5e38\u8425\u4e1a.mp3": "09fe06367c3d936edecf8c6fd859675c719d3e71e9893089567807178b8282e5",
     "assets/branding/little_leaf_approved_v3.png": "b75415fdf74e98904348264e4851b21401fe2f1ae09a6a277f10849f81564478",
-    "assets/cache/furniture-atlas.png": "a0e1c4c5d51a857f8e634f29e38362463b056fd637233ddba5b19cc406589a00",
+    "assets/cache/furniture-atlas.png": "ebd61194bf9765161b0c645b50cbe288cfbc3e828c3080d44108eedaaf128d2f",
     "assets/cache/heads-atlas.png": "cc606e0ffa77983ec1b3724cbb74b0ed5c9a65f20aada1e83250140f0ebed34a",
     "assets/cache/moving-atlas.png": "e513c2ecc19809af18f52cca66a9943778a4a21dad3f94299bf5035df77e9f8a",
     "assets/fonts/NotoSans-Regular.ttf": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
@@ -27,7 +27,7 @@
     "scripts/cafe_canvas_draw.gd": "3061f9f1b9f3417ed8cd3ebcdde9d5b98f7dda5955b42294b92b63d8ea36388e",
     "scripts/cafe_car_geometry.gd": "7b767e793bb8ce674db50ed6aa0330d666ca29695336017e2771fafb97db340d",
     "scripts/cafe_checkout.gd": "2f720c72dd5c4d50a924cce529544eb3258df7726b816d6228c261305c8072e2",
-    "scripts/cafe_checkout_art.gd": "cf0beb90026df2dfe76c4be35a87e144b952085c45e3e150396bc2f985c12600",
+    "scripts/cafe_checkout_art.gd": "bc748ff3c18e1eadc5368db4542f7e6f05e66e481216c2e914a8fb9ea313a8c4",
     "scripts/cafe_chef_pickup.gd": "52c51233ff62468195824451f0de7773f75910794e7bb5c9899deb4f2ac75082",
     "scripts/cafe_chef_pickup_art.gd": "b61dc04e802631a74ee249d7f1dc5abbeb3d9f7af6b9fbe23ec98a7c90634a42",
     "scripts/cafe_cloud_settings.gd": "4ad9bf3ff919f377e422a3b584849b91c7596af725ec5aae4d535cd7a2b93ff4",
@@ -102,7 +102,7 @@
     "scripts/crazygames_music.gd": "a32b55bbae4efdbc009c79d1b1596020dab2c1c694e31c52c922c2b484c6044a",
     "scripts/dining_placement.gd": "26dc608fb0e8900a84a5c5e73cc125dcd4bab8695410a2da3d67cdce41802617",
     "scripts/dining_pose.gd": "1eb95a9aada308126c9570c3cc2cd5c33e296b95074081127756d6a961021361",
-    "scripts/dining_style_art.gd": "1389d044942085d328fa660cc7512f445e3d4f49f759dc8aba32f2f5a703ce43",
+    "scripts/dining_style_art.gd": "4c48b4f833b72932528a286d0b4bc9573bb607dfecd078c882f8582c757602ee",
     "scripts/directional_character_art.gd": "d74076d4cb321884db9a7394c0ad11487590aab5488e04a845197739f778eff4",
     "scripts/environment_greenery.gd": "f73f13d146fccd4675856ff705cef363227fbf017d82e253d8136382c324a642",
     "scripts/exterior_environment.gd": "3d9486681d10ab20933ed337de750c16a172e7d69b8495871f8c8f3eb6a9b63a",
@@ -113,7 +113,7 @@
     "scripts/floor_mess_art.gd": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6",
     "scripts/furniture_atlas_painter.gd": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78",
     "scripts/furniture_static_atlas.gd": "476b8d5aa6ec50f51a3e7206ba05e4ebf167f10ed807a2821927ac8c3e853b03",
-    "scripts/illustrated_cafe.gd": "4433a997d24d95d87969677b21d0429c9a93b05262cdfbdb9f9adda4adf225d2",
+    "scripts/illustrated_cafe.gd": "5bc632a9fb3c2c8b4f098956d4e397c3928d19d4a5604d3a23c69a67457c7a84",
     "scripts/illustrated_furniture.gd": "117300a4fe207688c16fd9499ee8a288ffda883b498c996e38e3ea35f9588004",
     "scripts/illustrated_ground.gd": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5",
     "scripts/illustrated_motion.gd": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e",
@@ -138,13 +138,13 @@
   },
   "atlases": {
     "furniture": {
-      "png_sha256": "a0e1c4c5d51a857f8e634f29e38362463b056fd637233ddba5b19cc406589a00",
+      "png_sha256": "ebd61194bf9765161b0c645b50cbe288cfbc3e828c3080d44108eedaaf128d2f",
       "import_sha256": "45145bc05ec87962fdc40da4626e6f02975a1c1da9e272b4eae66db8c5ebdd76",
-      "encoded_bytes": 336809,
+      "encoded_bytes": 331415,
       "width": 1280,
       "height": 3244,
       "rgba_bytes": 16609280,
-      "rgba_sha256": "9e0589bcb4f7ce607d402e667b2638bfe1c728f08fa882df584ac97fd8256ea1"
+      "rgba_sha256": "7b6b5d8dc0a1f5f5b535f136ecde6cf66ef34a628c5a9987c09e85cbcd35358e"
     },
     "moving": {
       "png_sha256": "e513c2ecc19809af18f52cca66a9943778a4a21dad3f94299bf5035df77e9f8a",
