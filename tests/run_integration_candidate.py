@@ -233,7 +233,7 @@ def main():
             stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
             # entirely inside this disposable copy, without changing delivered source.
-            controller = project / "scripts/cafe_web_save.gd"
+            controller = project / "scripts/persistence/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
             assert old in code, "Review native staging adaptation after source changes"

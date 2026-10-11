@@ -1,5 +1,5 @@
 extends SceneTree
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 class CaptureGame extends "res://scripts/main.gd":
  var input_hash=""
  func _load_startup():
@@ -15,7 +15,7 @@ class CaptureGame extends "res://scripts/main.gd":
    input_hash=FileAccess.get_sha256("user://synthetic-old.json")
    assert(model.load_save("user://synthetic-old.json"),model.last_error)
    assert(FileAccess.get_sha256("user://synthetic-old.json")==input_hash)
-class FixedArt extends "res://scripts/illustrated_cafe.gd":
+class FixedArt extends "res://scripts/rendering/illustrated_cafe.gd":
  func update_projection(_clamp_camera:bool=true):
   ui_scale=.88;zoom=1.0;tile=Vector2(34.32,17.16);origin=Vector2(576,226)
 var game
@@ -31,5 +31,5 @@ func _run():
  root.get_texture().get_image().save_png(output+"/"+phase+".png")
  var door=game.model.wall_openings()[0]
  var report={"phase":phase,"fixture":OS.get_environment("DOOR_STATE"),"synthetic":true,"source_hash_unchanged":game.input_hash,"viewport":[1360,880],"projection":{"origin":[576,226],"tile":[34.32,17.16],"zoom":1.0},"door":game.model.wall_attachments[0],"aperture_a":str(door.a),"aperture_b":str(door.b),"center_crosses":not game.model.segment_blocked(Vector2(-.5,5.5),Vector2(.5,5.5)),"entrance":str(game.model.ENTRANCE),"landing":str(game.model.ENTRY_LANDING),"coins":game.model.coins,"customers":game.model.customers,"items":game.model.items}
- FileAccess.open(output+"/"+phase+".json",FileAccess.WRITE).store_string(JSON.stringify(preload("res://scripts/cafe_runtime_codec.gd").new().encode(report),"  "))
+ FileAccess.open(output+"/"+phase+".json",FileAccess.WRITE).store_string(JSON.stringify(preload("res://scripts/persistence/cafe_runtime_codec.gd").new().encode(report),"  "))
  print("DOOR_GRID_CAPTURE_COMPLETE ",phase);quit()

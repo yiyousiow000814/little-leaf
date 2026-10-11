@@ -1,6 +1,6 @@
 extends SceneTree
 ## Offline notes, real Help controls and disposable synthetic preferences only.
-const Notes=preload("res://scripts/cafe_update_notes.gd")
+const Notes=preload("res://scripts/ui/cafe_update_notes.gd")
 const FIXTURE="user://synthetic_update_notes.json"
 class TestMain extends "res://scripts/main.gd":
  var saves=0

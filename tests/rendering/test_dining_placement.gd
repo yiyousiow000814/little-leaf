@@ -1,6 +1,6 @@
 extends SceneTree
-const Layout=preload("res://scripts/dining_placement.gd")
-const Pose=preload("res://scripts/dining_pose.gd")
+const Layout=preload("res://scripts/gameplay/dining_placement.gd")
+const Pose=preload("res://scripts/rendering/dining_pose.gd")
 var checks=0
 var failures=[]
 func check(ok,label):

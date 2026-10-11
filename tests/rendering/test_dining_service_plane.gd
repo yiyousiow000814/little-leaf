@@ -1,5 +1,5 @@
 extends "res://tests/diagnostics/capture_dining_service.gd"
-const Wipe=preload("res://scripts/cleaning_tool_pose.gd")
+const Wipe=preload("res://scripts/rendering/cleaning_tool_pose.gd")
 func run():
  for forward in [Vector2.RIGHT,Vector2.DOWN,Vector2.UP,Vector2.LEFT]:
   var back=forward.x+forward.y<0;var mirror=-1.0 if forward.x-forward.y<0 else 1.0

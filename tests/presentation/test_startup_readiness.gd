@@ -1,7 +1,7 @@
 extends SceneTree
 const Main = preload("res://scripts/main.gd")
-const Intro = preload("res://scripts/cafe_intro.gd")
-const Warmup = preload("res://scripts/cafe_startup_readiness.gd")
+const Intro = preload("res://scripts/ui/cafe_intro.gd")
+const Warmup = preload("res://scripts/core/cafe_startup_readiness.gd")
 class TestMain extends Main:
 	var autosaves = 0
 	func _autosave():autosaves += 1
@@ -11,7 +11,7 @@ class RecoveryBridge extends RefCounted:
 	func recoverySnapshot():return JSON.stringify(value)
 	func preserveOwnerRuntime(_payload,_revision,_profile_id,_callback):preserve_calls += 1
 	func preserveRuntime(_payload,_revision,_profile_id,_callback):preserve_calls += 1
-class RecoveryController extends "res://scripts/cafe_web_save.gd":
+class RecoveryController extends "res://scripts/persistence/cafe_web_save.gd":
 	var bridge = RecoveryBridge.new()
 	func _recovery_bridge():return bridge
 	func _make_recovery_callback(handler:Callable):return handler
@@ -123,7 +123,7 @@ func run():
 	check(owner_controller.bridge.preserve_calls == 1 and owner_controller.recovery_busy and game.save_recovery_blocked,"final reveal check cannot duplicate an in-flight recovery transaction")
 	game.web_save = null
 
-	for script in [preload("res://scripts/furniture_static_atlas.gd"),preload("res://scripts/moving_art_atlas.gd"),preload("res://scripts/character_head_atlas.gd")]:
+	for script in [preload("res://scripts/rendering/furniture_static_atlas.gd"),preload("res://scripts/rendering/moving_art_atlas.gd"),preload("res://scripts/rendering/character_head_atlas.gd")]:
 		var atlas = script.new();atlas.state = "warming"
 		var target = atlas._viewport(self)
 		atlas.cancel_prepare("Synthetic timeout")

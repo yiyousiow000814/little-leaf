@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..');
 const fixtureDir = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -175,7 +175,7 @@ async function main() {
     for (const [label, web, source] of [['old', oldWeb, oldSourceRoot], ['new', newWeb, root]]) {
       verifyPreflightBinding(web, source, manifests[label], preflight.production_sha256[label], preflight.export_manifest_sha256[label]);
     }
-    for (const name of contract.candidate_required_sources) assert(Object.hasOwn(preflight.production_sha256.new, name), 'Missing required candidate source ' + name);
+    verifyCandidateSources(preflight.production_sha256.new, contract.candidate_required_sources);
     assert.equal(canonical(manifests.old.toolchain_receipt), canonical(manifests.new.toolchain_receipt));
     const layouts = {};
     for (const label of ['old', 'new']) {

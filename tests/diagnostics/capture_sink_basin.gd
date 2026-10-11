@@ -1,13 +1,13 @@
 extends SceneTree
 ## Enlarged native views rendered by the same sink and queue painters as play.
-const Model=preload("res://scripts/cafe_model.gd")
-const Dishes=preload("res://scripts/cafe_dishwashing.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Dishes=preload("res://scripts/gameplay/cafe_dishwashing.gd")
 class FixtureGame extends Node:
  var model=Model.new()
  var dishwashing=Dishes.new()
  var service_guests={}
  var editing=false
-class Sheet extends "res://scripts/illustrated_cafe.gd":
+class Sheet extends "res://scripts/rendering/illustrated_cafe.gd":
  var font=preload("res://assets/fonts/NotoSans-Regular.ttf")
  func _ready():set_process(false)
  func _process(_delta):pass

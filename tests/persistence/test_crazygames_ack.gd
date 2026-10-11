@@ -1,5 +1,5 @@
 extends SceneTree
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 class Model extends RefCounted:
 	var coins=1200
 	var last_error=""

@@ -1,8 +1,8 @@
 extends SceneTree
 ## Actual GUI input and ordinary service ticks, entirely generated profiles.
 const Main=preload("res://scripts/main.gd")
-const State=preload("res://scripts/cafe_tutorial_state.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const State=preload("res://scripts/gameplay/cafe_tutorial_state.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 class LoadedMain extends "res://scripts/main.gd":
  static var fixture="user://synthetic-tutorial.json"
  func _load_startup():

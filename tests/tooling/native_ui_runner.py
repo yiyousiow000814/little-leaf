@@ -94,7 +94,7 @@ def main(test_resource, test_marker, capture_resource, capture_marker):
             temporary = Path(temporary)
             project = temporary / "project"
             stage_project(ROOT, project, tests=True, ignore=IGNORE)
-            controller = project / "scripts/cafe_web_save.gd"
+            controller = project / "scripts/persistence/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
             assert old in code, "Review isolated native staging adaptation after source changes"

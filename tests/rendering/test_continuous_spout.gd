@@ -1,6 +1,6 @@
 extends SceneTree
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
-const Kitchen=preload("res://scripts/kitchen_worktop_geometry.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
+const Kitchen=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
 class ArtistSpy:
  extends Node2D
  var tubes=[]
