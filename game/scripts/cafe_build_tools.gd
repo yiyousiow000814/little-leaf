@@ -6,7 +6,7 @@ const WallArt=preload("res://scripts/illustrated_walls.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const OpeningArt=preload("res://scripts/illustrated_openings.gd")
 const OpeningGeometry=preload("res://scripts/cafe_wall_openings.gd")
-const OPENING_MODES=["door","window","move_opening","remove_opening","select_opening"]
+const OPENING_MODES=["door","window","move_opening","select_opening"]
 var opening_preview={}
 var opening_source_id=-1
 var opening_hit_id=-1
@@ -42,10 +42,6 @@ var _cache_key=""
 var successful_point=Vector2(INF,INF)
 var successful_key=""
 var tool_buttons={}
-var shell_option:OptionButton
-var paper_option:OptionButton
-var wall_options:VBoxContainer
-var surface_options:VBoxContainer
 
 class WallIcon extends Control:
 	var height="full"
@@ -80,48 +76,19 @@ func _init(owner_game):game=owner_game
 
 func build()->Control:
 	var panel=HBoxContainer.new();panel.add_theme_constant_override("separation",12)
-	for spec in [["half","Half wall","35 coins"],["full","Full wall","55 coins"],["paint","Wallpaper","Free finish"],["remove","Remove wall","Refund shown"],["door","Door","40 coins"],["window","Window","30 coins"],["move_opening","Move opening","Keeps item"],["remove_opening","Remove opening","Restores wall"]]:
+	for spec in [["full","Full wall","55 coins"],["door","Door","40 coins"],["window","Window","30 coins"]]:
 		var chosen=str(spec[0])
 		var card=game.button("",func():choose(chosen));card.toggle_mode=true;card.custom_minimum_size=Vector2(92,105);panel.add_child(card);tool_buttons[chosen]=card
 		var column=VBoxContainer.new();column.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);card.add_child(column)
-		if chosen in ["half","full"]:
+		if chosen=="full":
 			var icon=WallIcon.new();icon.height=chosen;icon.custom_minimum_size=Vector2(84,56);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(icon)
-		elif chosen in ["door","window"]:
-			var icon=OpeningIcon.new();icon.kind=chosen;icon.custom_minimum_size=Vector2(84,56);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(icon)
 		else:
-			var symbol=game.label({"paint":"▧","remove":"×","door":"▯","window":"⊞","move_opening":"↔","remove_opening":"−"}.get(chosen,""),36,Color("819874"));symbol.custom_minimum_size=Vector2(84,56);symbol.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(symbol)
+			var icon=OpeningIcon.new();icon.kind=chosen;icon.custom_minimum_size=Vector2(84,56);icon.mouse_filter=Control.MOUSE_FILTER_IGNORE;column.add_child(icon)
 		for text in [spec[1],spec[2]]:
 			var title=game.label(text,11);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;column.add_child(title)
-	var options=VBoxContainer.new();wall_options=options;options.add_theme_constant_override("separation",6);panel.add_child(options)
-	options.add_child(game.label("Wall finish · included",12))
-	var papers=_option(MATERIAL_NAMES);paper_option=papers;options.add_child(papers)
-	papers.item_selected.connect(func(index):material=Geometry.MATERIALS[index];_cache_key="";refresh(pointer))
-	options.add_child(game.label("R turns edge · Esc cancels",11,Color("7b856c")))
-	var finishes=VBoxContainer.new();surface_options=finishes;finishes.add_theme_constant_override("separation",6);panel.add_child(finishes)
-	var shell_row=HBoxContainer.new();shell_row.add_child(game.label("Back walls",12));shell_option=_option(["Original"]+MATERIAL_NAMES);shell_row.add_child(shell_option);finishes.add_child(shell_row)
-	shell_option.item_selected.connect(func(index):
-		if game.model.set_shell_material((["original"]+Geometry.MATERIALS)[index]):_changed())
-	finishes.add_child(game.label("Flooring is bought per tile · land stays open",11,Color("7b856c")))
 	sync();return panel
 
-func _option(names:Array)->OptionButton:
-	var control=OptionButton.new();control.custom_minimum_size=Vector2(156,29)
-	control.add_theme_font_override("font",game.ArtFont);control.add_theme_font_size_override("font_size",12)
-	for key in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]:control.add_theme_color_override(key,Color("29473c"))
-	for key in ["normal","hover","pressed","focus"]:
-		var style=game._style(Color("e1e3cd") if key in ["hover","pressed"] else Color("ebe8d7"),Color("cdd3b7"),6)
-		style.content_margin_left=9;style.content_margin_right=24;style.content_margin_top=5;style.content_margin_bottom=5
-		control.add_theme_stylebox_override(key,style)
-	var popup=control.get_popup()
-	popup.add_theme_font_override("font",game.ArtFont);popup.add_theme_font_size_override("font_size",13)
-	popup.add_theme_color_override("font_color",Color("29473c"));popup.add_theme_color_override("font_hover_color",Color("29473c"))
-	popup.add_theme_stylebox_override("panel",game._style(Color("f8f4e7"),Color("cdd3b7"),8))
-	popup.add_theme_stylebox_override("hover",game._style(Color("dfdfc8"),Color.TRANSPARENT,4))
-	for title in names:control.add_item(str(title))
-	return control
-
 func sync():
-	if is_instance_valid(shell_option):shell_option.select((["original"]+Geometry.MATERIALS).find(str(game.model.shell_material)))
 	for key in tool_buttons:tool_buttons[key].button_pressed=key==mode
 
 func active()->bool:return game.editing and game.catalog_category=="Build" and mode!="" and not game.save_recovery_blocked
@@ -186,10 +153,9 @@ func refresh(screen:Vector2):
 	var proposed=hit.duplicate(true) if mode in ["half","full"] and not hit.is_empty() else (Geometry.nearest_edge(_world(screen),preferred_axis) if mode in ["half","full"] else hit)
 	if proposed.is_empty():preview={};selected_key="";_cache_key="";preview_reason="Select a built wall";game.tool_text.text=preview_reason;return
 	if mode in ["half","full"]:proposed.height=mode;proposed.material=material
-	elif mode=="paint":proposed=proposed.duplicate();proposed.material=material
 	var key=Geometry.key_of(proposed)
 	var actors=actor_positions()
-	replacing=mode in ["half","full","paint"] and not game.model.get_wall(key).is_empty()
+	replacing=mode in ["half","full"] and not game.model.get_wall(key).is_empty()
 	var signature=str([key,mode,material,preferred_axis,game.model.revision,game.model.coins,actors])
 	preview=proposed;selected_key=key
 	# Replacement quotes are cheap and refreshed even on a cached render so
@@ -208,9 +174,6 @@ func refresh(screen:Vector2):
 		if preview_valid and int(game.model.coins)<int(Geometry.PRICES[mode]):preview_valid=false;preview_reason="Not enough coins · "+Money.amount(int(Geometry.PRICES[mode]))+" needed"
 		if preview_valid:preview_warning=game.model.wall_placement_warning(str(proposed.axis),int(proposed.x),int(proposed.z),mode,material,actors)
 		if preview_valid:preview_reason=preview_warning if preview_warning!="" else "Build %s wall · %s coins · R turns · drag to pan"%[mode,Money.amount(int(Geometry.PRICES[mode]))]
-	elif mode=="remove":
-		preview_valid=game.model.can_remove_wall(key)
-		preview_reason="Remove this wall · refund "+Money.amount(game.model.wall_refund(key)) if preview_valid else str(game.model.last_error)
 	else:preview_valid=false;preview_reason="Select a wall product first"
 	game.tool_text.text=preview_reason
 	if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
@@ -280,8 +243,6 @@ func _commit():
 		game.compact_ui.review_wall_replacement(selected_key,mode if not preview_shell.is_empty() else str(preview.height),material)
 		return
 	elif mode in ["half","full"]:ok=game.model.place_wall(str(preview.axis),int(preview.x),int(preview.z),mode,material,actor_positions())
-	elif mode=="paint":ok=game.model.replace_wall(selected_key,str(preview.height),material,actor_positions())
-	elif mode=="remove":ok=game.model.remove_wall(selected_key)
 	if ok:
 		successful_key=selected_key;successful_point=pointer;_changed()
 	_cache_key="";refresh(pointer)
@@ -296,7 +257,7 @@ func _refresh_opening(screen:Vector2):
 	preview={};opening_preview={};opening_hit_id=-1;selected_key="";preview_valid=false;preview_warning=""
 	var picked=-1
 	var attachment={}
-	if mode in ["move_opening","remove_opening","select_opening"] and (mode in ["remove_opening","select_opening"] or opening_source_id<0):
+	if mode=="select_opening" or (mode=="move_opening" and opening_source_id<0):
 		picked=game.illustration.hit_wall_attachment(screen)
 		if picked>=0:attachment=game.model.get_wall_attachment(picked).duplicate(true)
 		selected_key="opening:%d"%picked if picked>=0 else ""
@@ -328,14 +289,11 @@ func _refresh_opening(screen:Vector2):
 		preview_valid=bool(_opening_cached.get("valid",false));preview_reason=str(_opening_cached.get("reason",""));return
 	_cache_key=signature;_render_attachments=[];_render_preview_active=false
 	if attachment.is_empty():
-		preview_reason="Select an attached door or window" if mode in ["move_opening","remove_opening"] and opening_source_id<0 else "Attach to a full-height wall · empty floor is not a host"
+		preview_reason="Select an attached door or window" if mode=="move_opening" and opening_source_id<0 else "Attach to a full-height wall · empty floor is not a host"
 	else:
 		opening_preview=attachment
 		if mode=="select_opening" or (mode=="move_opening" and opening_source_id<0):
 			preview_valid=true;preview_reason="Select this %s, then click a new wall host"%attachment.kind
-		elif mode=="remove_opening":
-			preview_valid=game.model.can_remove_wall_attachment(int(attachment.id),actors)
-			preview_reason="Remove %s · restore solid wallpapered wall"%attachment.kind if preview_valid else str(game.model.last_error)
 		elif mode=="move_opening":
 			preview_valid=game.model.can_move_wall_attachment(opening_source_id,str(attachment.host_id),float(attachment.offset),actors)
 			preview_reason="Move %s here · old wall restored · no charge"%attachment.kind if preview_valid else str(game.model.last_error)
@@ -345,9 +303,7 @@ func _refresh_opening(screen:Vector2):
 			if preview_valid and game.model.coins<game.model.attachment_price(mode):preview_valid=false;preview_reason="Not enough coins for this "+mode
 		if preview_valid and mode!="select_opening" and not (mode=="move_opening" and opening_source_id<0):
 			_render_preview_active=true;_render_attachments=game.model.wall_attachments.duplicate(true)
-			if mode=="remove_opening":
-				_render_attachments=_render_attachments.filter(func(a):return int(a.id)!=int(attachment.id))
-			elif mode=="move_opening":
+			if mode=="move_opening":
 				_render_attachments=_render_attachments.filter(func(a):return int(a.id)!=opening_source_id)
 				var proposed=attachment.duplicate(true);proposed["preview"]=true;_render_attachments.append(proposed)
 			else:
@@ -366,7 +322,6 @@ func _commit_opening():
 	var ok=false
 	if mode in ["door","window"]:ok=game.model.place_wall_attachment(mode,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
 	elif mode=="move_opening":ok=game.model.move_wall_attachment(opening_source_id,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
-	elif mode=="remove_opening":ok=game.model.remove_wall_attachment(int(opening_preview.id),actor_positions())
 	if ok:
 		successful_key=selected_key;successful_point=pointer
 		if mode=="move_opening":opening_source_id=-1;game.settings_controls.play_sfx("place")

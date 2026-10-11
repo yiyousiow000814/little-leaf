@@ -47,7 +47,7 @@ func run():
  check(ui.selected_shell=="shell:back#2","selection stores unit key")
  ui.show_finishes();check(ui.product_target=="shell:back#2","finish menu retains selected segment")
  check(ui.shop_ui.wall_cards["wall:full:original"].visible and ui.shop_ui.wall_cards["wall:half:original"].visible,"shell segment retains Original room cards")
- ui.finishes.hide();tool.material="cream_stripe";tool.choose("half");tool.refresh(point)
+ tool.material="cream_stripe";tool.choose("half");tool.refresh(point)
  check(tool.replacing and tool.selected_key=="shell:back#2" and tool.preview_valid,"preview targets one shell cell")
  check(tool.replacement_quote.new_cost==35 and tool.replacement_quote.refund==0,"preview costs one tile")
  var rendered=tool.render_shell_host("shell:back")
