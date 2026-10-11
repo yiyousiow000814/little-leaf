@@ -7,22 +7,22 @@ on:
         required: true
         default: live
         type: choice
-        options: [live, itch-preview, auth-pause-update, auth-pause-rollback]
+        options: [live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read]
       source_sha:
         description: Exact reviewed Firebase candidate commit; may be an approved unmerged preview
         required: true
         type: string
       variant_run_id:
         description: Successful source-staging workflow run containing the selected artifact
-        required: true
+        required: false
         type: string
       variant_artifact_id:
         description: Exact immutable Firebase variant artifact ID from that run
-        required: true
+        required: false
         type: string
       variant_manifest_sha256:
         description: Reviewed SHA-256 of firebase-variant-manifest.json
-        required: true
+        required: false
         type: string
 permissions:
   contents: read
@@ -77,8 +77,12 @@ jobs:
           elif os.environ['DEPLOYMENT_MODE'] != 'live':
               raise ValueError('Unknown deployment mode')
           else:
-              assert run['head_sha'] == os.environ['SOURCE_SHA'] and run['head_branch'] == 'main'
+              assert run['head_branch'] == 'main'
               assert run['event'] == 'workflow_dispatch' and run['run_attempt'] == 1
+              import re
+              assert artifact['workflow_run']['head_sha'] == run['head_sha']
+              assert re.fullmatch(r'sha256:[0-9a-f]{64}', artifact.get('digest',''))
+          (folder/'staging-origin.json').write_text(json.dumps({'run':run,'artifact':artifact}))
           PY
       - name: Download only the exact selected Firebase variant
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -91,6 +95,8 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Verify the exact reviewed package before requesting any Google token
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_deploy.py' -v
           preview_args=()
@@ -98,7 +104,10 @@ jobs:
             python3 -m unittest discover -s tests/tooling -t . -p 'test_firebase_hosting_preview.py' -v
             preview_args=(--itch-preview)
           fi
-          python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --verify-only "${preview_args[@]}"
+          if [[ "$DEPLOYMENT_MODE" == live ]]; then
+            python3 tools/released_live_provenance.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --origin "$RUNNER_TEMP/staging-origin.json" --output "$RUNNER_TEMP/staging-origin.json"
+          fi
+          python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json" --verify-only "${preview_args[@]}"
       - name: Obtain a short-lived Hosting-only token after all package checks
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -115,7 +124,7 @@ jobs:
         if: env.DEPLOYMENT_MODE == 'live'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json"
+        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json"
       - name: Publish only the approved one-day itch preview without Auth synchronization
         if: env.DEPLOYMENT_MODE == 'itch-preview'
         env:
@@ -229,3 +238,43 @@ jobs:
           path: ${{ runner.temp }}/auth-pause-receipt/deployment.json
           if-no-files-found: warn
           retention-days: 30
+  hosting-config-read:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'hosting-config-read'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Bind read-only request to this exact reviewed main source
+        env:
+          SELECTED_SOURCE: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SELECTED_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SELECTED_SOURCE" == "$GITHUB_SHA" ]]
+      - name: Use only the existing short-lived Hosting identity after exact-source binding
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          project_id: little-leaf-41e5d
+          workload_identity_provider: projects/865267465971/locations/global/workloadIdentityPools/github-little-leaf/providers/github
+          service_account: little-leaf-hosting-deployer@little-leaf-41e5d.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: https://www.googleapis.com/auth/firebase.hosting
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Read existing release and finalized version only
+        env:
+          FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: python3 tools/read_firebase_hosting_config.py --diagnose-effective-headers --output "$RUNNER_TEMP/hosting-readonly/summary.json"
+      - name: Retain only allowlisted hashes and fixed checks without raw configuration
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-hosting-readonly-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hosting-readonly/summary.json
+          if-no-files-found: error
+          retention-days: 1

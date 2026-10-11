@@ -30,7 +30,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
 
     def test_successful_artifact_preflight_precedes_browser_without_rebuild(self):
         preflight = self.text.index("python3 tools/reuse_welcome_web.py")
-        browser = self.text.index("node tests/welcome_audio_browser.js --source-root")
+        browser = self.text.index("node tests/presentation/welcome_audio_browser.js --source-root")
         selected_download = self.text.index("actions/download-artifact@")
         verified_download = self.text.index("python3 tools/reuse_welcome_web.py --phase verify")
         self.assertLess(preflight, selected_download)
@@ -39,7 +39,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
         self.assertIn("artifact-ids: ${{ steps.selected_web.outputs.artifact_id }}", self.text)
         self.assertIn("run-id: ${{ steps.selected_web.outputs.run_id }}", self.text)
         self.assertIn("digest-mismatch: error", self.text)
-        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/install_tools.py", "continue-on-error"):
+        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/ci/install_tools.py", "continue-on-error"):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("actions: read", self.text)
         for input_name in ("web_run_id", "web_artifact_id"):
@@ -54,11 +54,11 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
             self.assertNotIn(forbidden, executable_lines)
 
     def test_offline_harness_and_guards_are_mandatory(self):
-        self.assertIn("node tests/welcome_audio_test.js", self.text)
+        self.assertIn("node tests/presentation/welcome_audio_test.js", self.text)
         self.assertIn("python3 tools/verify_prebaked_atlases.py", self.text)
         self.assertIn("python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v", self.text)
         for file in ("browser", "helpers", "observer"):
-            self.assertIn("node --check tests/welcome_audio_" + file + ".js", self.text)
+            self.assertIn("node --check tests/presentation/welcome_audio_" + file + ".js", self.text)
 
     def test_failure_evidence_retained_without_disposable_profiles(self):
         upload = self.text.split("      - name: Retain", 1)[1]

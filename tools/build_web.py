@@ -6,15 +6,15 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from release_metadata import version
-from optimize_web_present import optimize_presentation
-from bound_web_gl_handles import bound_web_gl_handles
+from release_metadata import version, projected_metadata
+from build.optimize_web_present import optimize_presentation
+from build.bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 from project_layout import resource_name, source_path
 from build_itch_entry import ordinary_entry_html
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
+LOCK = json.loads((Path(__file__).parent / "ci/toolchain.json").read_text())
 PRODUCTION_DIRS = {"assets", "data", "scripts", "shaders", "web"}
 PRODUCTION_FILES = {"project.godot", "main.tscn", "export_presets.cfg"}
 REQUIRED_NOTICES = {"docs/art-audio/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}
@@ -110,6 +110,10 @@ def main():
         production[name] = sha256(src)
         if test_report.get("source_sha256", {}).get(source_name) != production[name]:
             raise RuntimeError("Test source hash differs: " + name)
+    projected = projected_metadata(ROOT, source_sha)
+    for name, content in projected.items():
+        (project / name).write_bytes(content)
+    exported_inputs = {name: sha256(project / name) for name in production}
     env = os.environ.copy()
     for key in ["HOME", "APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
         folder = out / "disposable-profile" / key.lower()
@@ -146,7 +150,7 @@ def main():
         if name == "packed-smoke" and "SCENE_READY furniture=" not in text:
             raise RuntimeError("Packed game failed to reach scene-ready")
         records.append({"stage": name, "exit_code": result.returncode})
-    for name, digest in production.items():
+    for name, digest in exported_inputs.items():
         if sha256(project / name) != digest:
             raise RuntimeError("Export changed production input: " + name)
     if list((out / "disposable-profile").rglob("little_leaf_cafe_layout_motion_v15.json")):
@@ -174,6 +178,7 @@ def main():
         "engine_checks": test_report["total_checks"], "test_processes": test_report["test_processes"],
         "test_report_sha256": sha256(args.test_report), "packed_smoke": "passed",
         "browser_runtime": "not_covered_by_headless_ci", "production_sha256": production,
+        "projected_metadata_sha256": {name: exported_inputs[name] for name in projected},
         "distribution_notices": notices,
         "presentation_optimization": presentation_optimization,
         "webgl_handle_retention": webgl_handle_retention,

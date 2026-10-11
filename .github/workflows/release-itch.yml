@@ -2,6 +2,7 @@ name: Release Web to itch.io
 on:
   push:
     tags: ['v*']
+  workflow_dispatch: {}
 # No PR, main-push, workflow_run, or manual dispatch can publish.
 permissions:
   contents: read
@@ -9,6 +10,30 @@ concurrency:
   group: itch-production-html5
   cancel-in-progress: false
 jobs:
+  diagnose_status:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Install the unchanged checksum-pinned Butler
+        run: python3 tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+      - name: Check version and status help without credentials
+        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase preflight --output "$RUNNER_TEMP/itch-status/preflight.json"
+      - name: Query only the existing authorized channel; emit whitelist fields
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
+        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase status --preflight "$RUNNER_TEMP/itch-status/preflight.json" --output "$RUNNER_TEMP/itch-status/status.json"
+      - name: Retain only sanitized diagnosis
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-itch-status-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/itch-status/*.json
+          if-no-files-found: error
+          retention-days: 7
   gate:
     if: github.repository == 'yiyousiow000814/little-leaf' && github.event.created && !github.event.deleted
     runs-on: ubuntu-24.04
@@ -27,7 +52,7 @@ jobs:
           REF_TYPE: ${{ github.ref_type }}
         run: |
           test "$REF_TYPE" = tag
-          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)[a-z]?$ ]] || { echo '::error::Expected vX.Y.Z or vX.Y.Z[a-z] release tag.'; exit 1; }
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]|-pre\.[0-9a-f]{8})?$ ]] || { echo '::error::Expected an immutable release tag.'; exit 1; }
           git fetch --no-tags origin main
       - name: Check version binding
         id: metadata
@@ -61,7 +86,7 @@ jobs:
           python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
           python3 tools/verify_prebaked_atlases.py
       - name: Install checksum-pinned official startup verifier
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Wait for exact main CI and verify its immutable package
         env:
           GH_TOKEN: ${{ github.token }}
@@ -95,6 +120,7 @@ jobs:
         with:
           ref: ${{ needs.gate.outputs.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - name: Refuse missing credentials before any upload
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -108,7 +134,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install checksum-pinned official Butler
-        run: python3 tools/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+        run: python3 tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Recheck source, refuse duplicate/older releases, publish and await processing
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}

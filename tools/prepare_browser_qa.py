@@ -4,6 +4,7 @@ Only the selected scenario runs. Wall retains the exact old/new export gate;
 cloud retains its six measured layouts. Neither uses player profiles.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import tempfile
 from project_layout import source_path, stage_project
 from build_web import verify_installer_receipt
 from artifacts import sha256
+from release_metadata import projected_metadata, version
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'tests/fixtures/wall-compatibility'
@@ -44,8 +46,12 @@ def validate_export(build, source, old=False):
             raise RuntimeError("Historical vault hash differs")
     elif not set(CONTRACT["candidate_required_sources"]).issubset(manifest["production_sha256"]):
         raise RuntimeError("Candidate export is missing required production sources")
+    projection = projected_metadata(source, commit)
+    projected_hashes = {name: hashlib.sha256(content).hexdigest() for name, content in projection.items()}
+    if manifest.get("projected_metadata_sha256", {}) != projected_hashes or manifest["version"] != version(source, source_commit=commit):
+        raise RuntimeError("Exact-source metadata projection differs")
     for name, expected in manifest["production_sha256"].items():
-        if sha256(source_path(source, name)) != expected or sha256(build / "project" / name) != expected:
+        if sha256(source_path(source, name)) != expected or sha256(build / "project" / name) != projected_hashes.get(name, expected):
             raise RuntimeError("Source/export production mismatch: " + name)
     for name, spec in manifest["files"].items():
         file = build / "web" / name
@@ -87,7 +93,7 @@ def wall_main(argv):
             shutil.copytree(build / "project", project)
             tests = project / "tests"
             tests.mkdir(exist_ok=True)
-            shutil.copy2(ROOT / "tests/wall_compatibility_layout.gd", tests / "wall_compatibility_layout.gd")
+            shutil.copy2(ROOT / "tests/fixtures/wall_compatibility_layout.gd", tests / "wall_compatibility_layout.gd")
             shutil.copy2(FIXTURES / "old-format1.json", tests / "wall-fixture-old.json")
             shutil.copy2(FIXTURES / "new-format2.json", tests / "wall-fixture-new.json")
             env = synthetic_profile(temporary / 'saveguard-profile')
@@ -107,7 +113,7 @@ def wall_main(argv):
                 raise RuntimeError(label + " layout/codec assertions failed")
             receipt["layouts"][label] = {"sha256": sha256(result_path), "checks": result["checks"]}
             for name, expected in (old if label == "old" else new)["production_sha256"].items():
-                if sha256(project / name) != expected:
+                if sha256(project / name) != (old if label == "old" else new).get("projected_metadata_sha256", {}).get(name, expected):
                     raise RuntimeError("Native preflight changed production source: " + name)
     receipt["status"] = "passed"
     (output / "preflight.json").write_text(json.dumps(receipt, indent=2) + "\n")
@@ -117,6 +123,7 @@ def cloud_main(argv):
  p=argparse.ArgumentParser();p.add_argument('--output',type=Path,required=True);a=p.parse_args(argv);out=a.output.resolve()
  if out.exists():raise ValueError('Use a new disposable geometry directory')
  out.mkdir(parents=True);project=out/'project';stage_project(ROOT,project,tests=True,ignore=EXCLUDE)
+ shutil.copy2(ROOT/'tests/diagnostics/probe_cloud_recovery_geometry.gd',project/'tests/probe_cloud_recovery_geometry.gd')
  env=synthetic_profile(out/'profile')
  godot=os.environ.get('GODOT_BIN','godot')
  with (out/'import.log').open('w') as log:
@@ -137,7 +144,7 @@ def cloud_main(argv):
    if label=='wrapped' and previous is not None and y==previous:raise ValueError('Wrapped-message regression did not change measured button location')
    previous=y;regressions.append({'viewport':value['viewport'],'message':label,'switch':result['buttons']['switch']})
  (out/'regressions.json').write_text(json.dumps(regressions,indent=2)+'\n')
- receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/probe_cloud_recovery_geometry.gd','tests/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/cafe_web_save.gd']},'project':str(project)}
+ receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/diagnostics/probe_cloud_recovery_geometry.gd','tests/persistence/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/cafe_web_save.gd']},'project':str(project)}
  (out/'binding.json').write_text(json.dumps(receipt,indent=2)+'\n')
 
 def main(argv=None):

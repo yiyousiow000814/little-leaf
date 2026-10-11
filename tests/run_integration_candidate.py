@@ -33,6 +33,7 @@ SUITES = [
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
@@ -159,6 +160,23 @@ EXCLUDE = shutil.ignore_patterns(
 UNPACED_UI = {"test_toolbar_help", "test_environment_camera_access"}
 
 
+def suite_resources(repository):
+    """Resolve stable CLI suite IDs to project resources without a second suite list."""
+    stems = {name: name for name, _ in SUITES}
+    if len(stems) != len(SUITES):
+        raise ValueError("Duplicate canonical suite ID")
+    stems["test_staff_start"] = "staff-start"
+    resources = {}
+    for path in sorted((Path(repository) / "tests").rglob("test_*.gd")):
+        suite_id = stems.get(path.stem)
+        if suite_id is None:
+            continue
+        if suite_id in resources:
+            raise ValueError("Duplicate suite resource: " + suite_id)
+        resources[suite_id] = "res://" + path.relative_to(repository).as_posix()
+    return resources
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -168,9 +186,11 @@ def main():
     parser.add_argument("--lock", type=Path, default=Path(os.environ.get(
         "LL_ENGINE_LOCK", str(ROOT.parent / ".little-leaf-engine.lock"))))
     args = parser.parse_args()
-    available = [name for name, _ in SUITES if (ROOT / "tests" / (name + ".gd")).is_file()]
-    if (ROOT / "tests/test_staff_start.gd").is_file():
-        available.append("staff-start")
+    try:
+        resources = suite_resources(ROOT)
+    except ValueError as error:
+        parser.error(str(error))
+    available = list(resources)
     selected = set(args.only or available)
     missing = selected - set(available)
     if missing:
@@ -303,7 +323,7 @@ def main():
                         flags = ["--skip-intro"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
-                    run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
+                    run(script, ["--script", resources[script], "--", *flags], env, marker)
                     # Retain the autosave/Welcome wrappers' ordinary-save tripwire.
                     if script in {
                         "test_autosave_feedback", "test_autosave_feedback_adversarial", "test_autosave_feedback_ui",
@@ -332,7 +352,7 @@ def main():
                     flags = ["--visual-qa", "--skip-intro", "--skip-tutorial"]
                     if case == "fresh":
                         flags.append("--fresh-review")
-                    run("staff-start-" + case, ["--script", "res://tests/test_staff_start.gd", "--", *flags],
+                    run("staff-start-" + case, ["--script", resources["staff-start"], "--", *flags],
                         env, "STAFF_START_RESULT")
                 report["status"] = "passed"
             except BaseException:

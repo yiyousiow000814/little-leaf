@@ -52,7 +52,7 @@ def channel(status):
     return matches[0]
 
 
-def check_previous(status, new_version):
+def check_previous(status, new_version, new_sha=None):
     current = channel(status)
     if current.get("pending"):
         raise ValueError("itch already has a pending build. Wait/review it before another release")
@@ -62,15 +62,28 @@ def check_previous(status, new_version):
     previous = head.get("userVersion", "")
     # Recognize legacy SemVer baselines (including 0.1.5-dev.1) and
     # project-specific hotfixes. Hotfix prerelease combinations stay invalid.
+    sha_previous = re.fullmatch(f"v?({STABLE})-pre\\.([0-9a-f]{{8}})", previous)
+    sha_new = re.fullmatch(f"({STABLE})-pre\\.([0-9a-f]{{8}})", new_version)
     match = re.fullmatch(f"v?({STABLE})(?:-({PRERELEASE}))?(?:\\+{BUILD_METADATA})?", previous)
     hotfix = re.fullmatch(f"v?({STABLE}[a-z])(?:\\+{BUILD_METADATA})?", previous)
-    if not match and not hotfix:
+    if not match and not hotfix and not sha_previous:
         raise ValueError("itch baseline has an empty/unrecognized userVersion. Confirm the live build and give it a normal version before enabling this release; no upload attempted")
-    old = release_key((hotfix or match)[1])
-    new = release_key(new_version)
-    is_prerelease = match is not None and match[2] is not None
+    old = release_key((hotfix or sha_previous or match)[1])
+    new = release_key(sha_new[1] if sha_new else new_version)
+    is_prerelease = bool(sha_previous or (match is not None and match[2] is not None))
     if old > new or (old == new and not is_prerelease):
         raise ValueError("This version or a newer version is already on itch; refusing a duplicate or rollback")
+    if sha_new:
+        if not re.fullmatch(r'[0-9a-f]{40}', new_sha or '') or sha_new[2] != new_sha[:8]:
+            raise ValueError('Prerelease must bind the exact qualified source')
+        if sha_previous and old == new:
+            # SHA is an opaque identity. Source ancestry prevents delayed older
+            # tags from publishing after a newer prerelease in the same family.
+            old_tag = 'refs/tags/v' + previous.removeprefix('v') + '^{commit}'
+            old_sha = subprocess.check_output(['git', 'rev-parse', '--verify', old_tag], text=True).strip()
+            if (not re.fullmatch(r'[0-9a-f]{40}', old_sha) or old_sha[:8] != sha_previous[2]
+                    or old_sha == new_sha or subprocess.run(['git', 'merge-base', '--is-ancestor', old_sha, new_sha], capture_output=True).returncode):
+                raise ValueError('Refusing duplicate, unrelated or older prerelease source')
     return head["id"]
 
 
@@ -78,6 +91,8 @@ def verify_artifact(web, tag, sha):
     if not re.fullmatch("v" + RELEASE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise ValueError("Expected a release version tag and exact commit SHA")
     manifest = json.loads((web / "release-manifest.json").read_text())
+    if '-pre.' in tag and tag.rsplit('.', 1)[1] != sha[:8]:
+        raise ValueError('Prerelease tag differs from exact source')
     if (manifest.get("source_commit") != sha or manifest.get("tag") != tag
             or manifest.get("version") != tag[1:] or manifest.get("packed_smoke") != "passed"
             or manifest.get("engine_checks", 0) <= 0
@@ -120,7 +135,7 @@ def main():
     if not os.environ.get("BUTLER_API_KEY", "").strip():
         raise RuntimeError("Missing BUTLER_API_KEY. The owner must personally set GitHub Actions Secrets; never paste a key into chat or a commit")
     version = args.tag[1:]
-    check_previous(butler("status", TARGET), version)
+    check_previous(butler("status", TARGET), version, args.sha)
     # One attempt only. A timeout may have uploaded successfully; never retry blindly.
     result = butler("push", str(args.web), TARGET, "--userversion", version, "--no-auto-wrap")
     build_id = result.get("buildId")
@@ -131,10 +146,16 @@ def main():
     deadline = time.monotonic() + 600
     while time.monotonic() < deadline:
         remaining = max(1, min(60, int(deadline - time.monotonic())))
-        if completed(butler("status", TARGET, timeout=remaining), build_id, version):
+        observed = butler("status", TARGET, timeout=remaining)
+        if completed(observed, build_id, version):
+            order = channel(observed)['head'].get('version')
+            if '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
+                raise RuntimeError('Completed upload lacks a confirmed channel sequence; inspect before retrying')
             receipt = {"target": TARGET, "version": version, "source_commit": args.sha,
                        "itch_build_id": build_id, "state": "completed",
                        "browser_runtime": "manual post-publish smoke still required"}
+            if type(order) is int and 0 < order <= 9007199254740991:
+                receipt['itch_channel_version'] = order
             if args.receipt:
                 receipt.update(tag=args.tag, workflow_run=os.environ.get("GITHUB_RUN_ID"),
                     workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),

@@ -81,3 +81,7 @@ Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/con
 - [Asset permissions and required notices](../art-audio/README.md)
 
 Use the [roadmap](../roadmap.md) for current readiness and authorization. Historical ledgers describe their pinned source/date, not the current shipped tree.
+
+### Read-only itch diagnosis
+
+The release workflow's manual dispatch on `main` runs only the fixed-channel status diagnostic; tag publishing remains separate. It first runs checksum-pinned Butler `--version` and `status --help` without credentials, then uses the existing credential solely for `--json status siowyiyou/little-leaf:html5`. The artifact records numeric exit codes, whitelisted error categories and verified channel identity, without raw command output, headers, URLs or credential values. HTTP debug is stripped. A successful diagnostic job does not establish publication or authorize a publisher retry. Preserve its exact workflow run/attempt alongside the original failed release evidence.

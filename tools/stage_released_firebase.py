@@ -22,7 +22,7 @@ from run_firebase_focused import COMMANDS
 IDENTITY = ['qualification_run_id', 'qualification_attempt', 'artifact_id', 'artifact_digest',
             'qualified_manifest_sha256', 'source_commit', 'source_tree', 'version']
 FULLFLOW_SOURCES = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs',
-    'firebase/fullflow_network.mjs', 'tests/probe_cloud_recovery_geometry.gd',
+    'firebase/fullflow_network.mjs', 'tests/diagnostics/probe_cloud_recovery_geometry.gd',
     'tools/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
     'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules']
 
@@ -94,7 +94,13 @@ def validate_focused(root, folder, source, tree, run, attempt):
     return records
 
 
-def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt):
+def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False):
+    if manual_live:
+        from released_live_provenance import manual_context
+        context = manual_context(selection, os.environ, run, attempt)
+        coordinator = Path(__file__).resolve().parents[1]
+        require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
+                == context['coordinator_source_commit'], 'Exact dispatch coordinator checkout required')
     source_identity(root, selection)
     base = validate_export_inventory(reuse / 'web')
     inputs = json.loads((evidence / 'reuse-inputs.json').read_text())
@@ -123,13 +129,20 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     # which might inject 0.1.11 binding modules into the frozen 0.1.10c runtime.
     command = ('import json,sys; from pathlib import Path; '
                'sys.path.insert(0,sys.argv[1]); from build_firebase import stage; '
+               'publication=json.loads(Path(sys.argv[5]).read_text()); '
                'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
-               'json.loads(Path(sys.argv[4]).read_text()))')
+               'json.loads(Path(sys.argv[4]).read_text()),**({"publication":publication} if publication is not None else {}))')
     environment = os.environ.copy()
     for key in ['GH_TOKEN', 'GITHUB_TOKEN', 'BUTLER_API_KEY', 'FIREBASE_HOSTING_ACCESS_TOKEN']:
         environment.pop(key, None)
+    publication_path=evidence/'completed-publication.json'
+    publication=selection.get('publication')
+    if publication and 'itch_channel_version' not in publication and '-pre.' not in base['version']:
+        publication=None # Historical stable receipts predate channel-order support.
+    require('-pre.' not in base['version'] or publication is not None, 'Prerelease requires confirmed publication order')
+    publication_path.write_text(json.dumps(publication)+'\n')
     subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
-                    str(output.resolve()), str(root / 'platform/firebase/public-config.json')],
+                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve())],
                    cwd=root, env=environment, check=True, timeout=90)
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())
@@ -168,8 +181,39 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         live_activation_allowed=False)
     # Do not present this package as an old fresh-build or preview-reuse contract.
     manifest['status'] = 'qualified-release-staged-not-deployable'
+    if manual_live:
+        from released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
+        require(context['coordinator_source_commit'] == proof['coordinator_source_commit'],
+                'Dispatch coordinator differs from executing source')
+        context['coordinator_source_tree'] = proof['coordinator_source_tree']
+        proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in COORDINATOR_FILES}
+        (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
+        # Separate opt-in contract, never promote the automatic proof's flags.
+        for name, (relative, _, _) in build_firebase.BROWSER_GATES.items():
+            if name != 'firebase-fullflow':
+                destination = target / 'original-browser' / (name + '.json')
+                destination.parent.mkdir(exist_ok=True)
+                shutil.copy2(evidence / 'web-build/evidence' / relative, destination)
+        shutil.copy2(reuse / 'main-release-manifest.json', target / 'base-web-manifest.json')
+        shutil.copy2(root / 'platform/firebase/public-config.json', target / 'public-config.json')
+        (target / 'completed-release-selection.json').write_text(json.dumps(selection, indent=2) + '\n')
+        live = {'schema_version': 1, 'context': context,
+            'qualification': qualification, 'publication': selection['publication'],
+            'compiled_source_sha256': flow['source_sha256'],
+            'public_config_sha256': sha256(target / 'public-config.json'),
+            'fresh_firebase_gate_sha256': records,
+            'ordinary_browser_sha256': {name: sha256(target / 'original-browser' / (name + '.json'))
+                for name in build_firebase.BROWSER_GATES if name != 'firebase-fullflow'},
+            'runtime_sha256': {name: sha256(output / 'public' / name)
+                for name in ['index.js', 'index.wasm', 'index.pck']},
+            'new_engine_suite_run': False, 'new_ordinary_browser_matrix_run': False,
+            'production_security_changes': False, 'hosted_acceptance': False}
+        (target / 'manual-live-reuse.json').write_text(json.dumps(live, indent=2) + '\n')
+        manifest.update(status=STATUS, manual_live_reuse=live)
     manifest['files'] = {p.relative_to(output).as_posix(): sha256(p) for p in sorted(output.rglob('*'))
                          if p.is_file() and p != path}
+    if manual_live:
+        validate_released_live(output, manifest, marker)
     path.write_text(json.dumps(manifest, indent=2) + '\n')
     for name in ['index.js', 'index.wasm', 'index.pck']:
         require(sha256(output / 'public' / name) == base['files'][name]['sha256'], 'Released runtime bytes changed')
@@ -185,6 +229,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode', choices=['prepare', 'stage'])
+    p.add_argument('--manual-live', action='store_true', help='Exact main dispatch only; no deployment')
     for name in ['source-root', 'reuse', 'selection', 'evidence']:
         p.add_argument('--' + name, type=Path, required=True)
     for name in ['focused', 'fullflow', 'output']:
@@ -198,7 +243,7 @@ def main():
         require(all([args.focused, args.fullflow, args.output]), 'Stage evidence paths required')
         result = stage(args.source_root.resolve(), args.reuse, selection, args.evidence,
             args.focused, args.fullflow, args.output, os.environ.get('GITHUB_RUN_ID'),
-            os.environ.get('GITHUB_RUN_ATTEMPT'))
+            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live)
     print(json.dumps(result))
 
 

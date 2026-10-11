@@ -1,11 +1,12 @@
 """Pure release-to-staging selection. Never dispatches or obtains credentials."""
 import re
+from release_metadata import RELEASE
 
 REPOSITORY = "yiyousiow000814/little-leaf"
 ITCH_WORKFLOW = ".github/workflows/release-itch.yml"
 QUALIFICATION_WORKFLOW = ".github/workflows/ci.yml"
 STAGE_WORKFLOW = "stage-firebase.yml"
-TAG = r"v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)[a-z]?"
+TAG = 'v' + RELEASE
 
 
 def require(condition, message):
@@ -45,6 +46,7 @@ def plan_release(*, release_run, publish_jobs, tag, tag_commit, tag_tree,
     require(isinstance(tag, str) and re.fullmatch(TAG, tag), "Invalid immutable release tag")
     require(release_run.get("head_branch") == tag, "Release run must originate at the exact tag")
     require(hash_value(tag_commit, 40) and hash_value(tag_tree, 40), "Invalid tag source binding")
+    require('-pre.' not in tag or tag.rsplit('.', 1)[1] == tag_commit[:8], 'Prerelease hash/source mismatch')
     require(release_run["head_sha"] == tag_commit and tag == "v" + project_version,
             "Release/tag/project version mismatch")
     publishes = [job for job in publish_jobs if job.get("name") == "publish"]
