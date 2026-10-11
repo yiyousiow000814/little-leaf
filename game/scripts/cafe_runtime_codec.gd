@@ -213,7 +213,7 @@ func _mobility_kind(guest:Dictionary)->String:
 	var mobility=guest.get("mobility",{})
 	return str(mobility.get("kind","")) if mobility is Dictionary else ""
 
-func _mobility_guest_error(guest:Dictionary,item_map:Dictionary)->String:
+func _mobility_guest_error(guest:Dictionary,item_map:Dictionary,routing:bool=false)->String:
 	if not guest.get("mobility") is Dictionary:return "Missing or invalid guest mobility"
 	var mobility:Dictionary=guest.mobility
 	if mobility.is_empty():return ""
@@ -234,7 +234,7 @@ func _mobility_guest_error(guest:Dictionary,item_map:Dictionary)->String:
 	for point in mobility.route:
 		if not _point(point):return "Invalid layout motion route point"
 		var delta:Vector2=point-previous
-		if delta.length()<=.0001 or (absf(delta.x)>.0001 and absf(delta.y)>.0001):return "Layout motion route is not cardinal"
+		if delta.length()<=.0001 or (not routing and absf(delta.x)>.0001 and absf(delta.y)>.0001):return "Layout motion route is not cardinal"
 		previous=point
 	if previous.distance_to(target)>.0001:return "Layout motion route misses its current target"
 	var index=int(mobility.route_index)
@@ -246,6 +246,7 @@ func _mobility_guest_error(guest:Dictionary,item_map:Dictionary)->String:
 		on_segment=absf(position.x-start.x)<=.0001 and position.y>=minf(start.y,finish.y)-.0001 and position.y<=maxf(start.y,finish.y)+.0001
 	else:
 		on_segment=absf(position.y-start.y)<=.0001 and position.x>=minf(start.x,finish.x)-.0001 and position.x<=maxf(start.x,finish.x)+.0001
+	if routing:on_segment=Geometry2D.get_closest_point_to_segment(position,start,finish).distance_to(position)<=.000001
 	if not on_segment:return "Layout motion position is off its active segment"
 	return ""
 
@@ -259,16 +260,39 @@ func _validated_state(state:Dictionary,source_version:int)->Dictionary:
 			if not guest.mobility.is_empty():guest.mobility.route_index=int(guest.mobility.route_index)
 	return {"ok":true,"state":state}
 
-func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},reception_raw=null,allow_reception_review:bool=false)->Dictionary:
+func _staff_navigation_error(staff:Dictionary,source_version:int)->String:
+	if not staff.has("navigation_phase"):return "" # Preserve legacy route semantics.
+	if source_version!=SaveContract.ROUTING_RECEPTION_REVIEW_VERSION:return "Legacy staff contains navigation state"
+	if staff.navigation_phase not in ["follow","replan"]:return "Invalid staff navigation phase"
+	var route:Array=staff.path;var index=int(staff.index)
+	if route.is_empty() or index<1 or not _cell(staff.destination):return "Invalid staff navigation anchor or destination"
+	for i in range(1,route.size()):
+		var step:Vector2i=route[i]-route[i-1]
+		if step==Vector2i.ZERO or absi(step.x)>1 or absi(step.y)>1:return "Invalid staff navigation segment"
+	if staff.navigation_phase=="follow":
+		if route[-1]!=staff.destination:return "Staff navigation endpoint disagrees with destination"
+	elif route.size()>2 or index!=1:return "Invalid staff replan anchor"
+	var finish=Vector2(route[index if index<route.size() else route.size()-1])+Vector2(.5,.5)
+	var closest=finish
+	if index<route.size():
+		var start=Vector2(route[index-1])+Vector2(.5,.5)
+		closest=Geometry2D.get_closest_point_to_segment(staff.pos,start,finish)
+	if staff.pos.distance_to(closest)>.000001:return "Staff position is off its navigation segment"
+	return ""
+
+
+func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staffing:Dictionary={},duty:Dictionary={},reception_raw=null,allow_reception_review:bool=false,allow_routing_reception:bool=false)->Dictionary:
 	error=""
-	if not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime capability")
-	if SaveContract.foreign_runtime_fields(raw):return _fail("Foreign runtime capability")
-	if not allow_reception_review and reception_raw!=null:return _fail("Reception requires its explicit capability")
+	var routing=allow_routing_reception and source_version==SaveContract.ROUTING_RECEPTION_REVIEW_VERSION
+	if allow_routing_reception and (not routing or allow_reception_review or reception_raw==null):return _fail("Routing reception requires its version19 ledger")
+	if not routing and not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime capability")
+	if (not SaveContract.routing_runtime_fields(raw) if routing else SaveContract.foreign_runtime_fields(raw)):return _fail("Foreign runtime capability")
+	if not routing and not allow_reception_review and reception_raw!=null:return _fail("Reception requires its explicit capability")
 	if allow_reception_review and (source_version!=SaveContract.RECEPTION_REVIEW_VERSION or reception_raw==null):return _fail("Reception runtime requires version18 and its ledger")
 	var state=decode(raw)
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
-	if not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime source version")
+	if not routing and not SaveContract.accepts_version(source_version,allow_reception_review):return _fail("Unsupported runtime source version")
 	if SaveContract.has_layout_motion(source_version):
 		if state.get("layout_motion_format")!=SaveContract.LAYOUT_MOTION_FORMAT:return _fail("Invalid layout motion runtime format")
 	elif state.has("layout_motion_format"):return _fail("Legacy runtime contains layout motion format")
@@ -342,7 +366,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 				if absf(position.distance_to(center)+position.distance_to(landing)-1.0)>.0001 or absf(float(guest.dismount_progress)-position.distance_to(center))>.0001:return _fail("Chair departure position disagrees with progress")
 		elif guest.phase=="leaving" and guest.seated:return _fail("Leaving guest is seated without a chair departure")
 		if SaveContract.has_layout_motion(source_version):
-			var mobility_error=_mobility_guest_error(guest,item_map)
+			var mobility_error=_mobility_guest_error(guest,item_map,routing)
 			if mobility_error!="":return _fail(mobility_error)
 		var checkout_error=_checkout_guest_error(guest,item_map,source_version,int(state.next_checkout_ticket))
 		if checkout_error!="":return _fail(checkout_error)
@@ -377,7 +401,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	# Full reception geometry/ownership is validated by the model before commit.
 	var floor_guests=guests.duplicate()
 	if reception_raw!=null:
-		if source_version!=SaveContract.RECEPTION_REVIEW_VERSION or not allow_reception_review:return _fail("Legacy runtime contains reception walkers")
+		if not routing and (source_version!=SaveContract.RECEPTION_REVIEW_VERSION or not allow_reception_review):return _fail("Legacy runtime contains reception walkers")
 		var waiting=decode(reception_raw)
 		if error!="" or not waiting is Dictionary or waiting.get("format")!=SaveContract.RECEPTION_FORMAT or not waiting.get("visitors") is Array or waiting.visitors.size()>6:return _fail("Invalid reception walking source")
 		if waiting.format==SaveContract.RECEPTION_FORMAT and (not waiting.get("departures") is Array or waiting.departures.size()>60):return _fail("Invalid departing walking source")
@@ -390,7 +414,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			body_ids[int(body.id)]=true
 			if floor_guests.has(int(body.id)) and (not guests.has(int(body.id)) or guests[int(body.id)].phase not in ["dirty","cleaning"]):return _fail("Departing walker duplicates live actor")
 			floor_guests[int(body.id)]={"id":int(body.id)} # Native departure validation still required.
-	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,floor_guests,self,126 if source_version==SaveContract.RECEPTION_REVIEW_VERSION and allow_reception_review else 60)
+	var floor_checked=FloorTasks.validate_snapshot(service.get("floor_tasks",{"next_id":1,"completed":0,"messes":[],"walks":[]}),service.staff,item_map,floor_guests,self,126 if routing or (source_version==SaveContract.RECEPTION_REVIEW_VERSION and allow_reception_review) else 60)
 	if not floor_checked.ok:return _fail(floor_checked.error)
 	var records={};var roles={};var tokens={};var counter_slots={}
 	for record in service.records:
@@ -467,6 +491,8 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if not _point(staff.get("pos")) or not _cell(staff.get("destination"),true) or not staff.get("path") is Array or staff.path.size()>512 or not _integer(staff.get("index"),0,staff.path.size()):return _fail("Invalid staff position or route")
 		for cell in staff.path:
 			if not _cell(cell):return _fail("Invalid staff path cell")
+		var navigation_error=_staff_navigation_error(staff,source_version)
+		if navigation_error!="":return _fail(navigation_error)
 		if not JOB_LENGTHS.has(staff.get("job_kind")) or not _integer(staff.get("job_step"),0,int(JOB_LENGTHS[staff.job_kind])-1) or not _number(staff.get("job_elapsed"),0,3600):return _fail("Invalid saved work stage")
 		if str(staff.job_kind) not in {"chef":["","cook"],"waiter":["","order","brew","deliver_meal","deliver_drink","cleanup"],"cleaner":["","cleanup","floor","wash"],"cashier":["","take_payment"]}[staff.role]:return _fail("Work does not match staff role")
 		if staff.has("table_face_id") and (not _integer(staff.table_face_id,-1,1000000000) or (int(staff.table_face_id)!=-1 and (not item_map.has(int(staff.table_face_id)) or item_map[int(staff.table_face_id)].kind!="table"))):return _fail("Invalid reserved table face")

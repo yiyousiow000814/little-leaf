@@ -77,12 +77,13 @@ func export_staff(index:int,saved:Dictionary)->bool:
 	saved.path=[route[next-1],route[next]]
 	return true
 
-func restore_staff():
+func restore_staff(fresh_requests:bool=false):
 	stop();snapshot={};signature=[];tick()
 	for index in game.staff_states.size():
 		var staff:Dictionary=game.staff_states[index]
 		if not staff.has("navigation_phase"):
-			legacy[index]=staff;continue
+			if not fresh_requests:legacy[index]=staff
+			continue
 		serial+=1
 		var context=_context(staff,staff.destination)
 		var record={"staff":staff,"context":context,"goal":staff.destination,"serial":serial,"follower":{},"request":0,"anchoring":false}

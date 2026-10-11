@@ -24,6 +24,7 @@ const Reception=preload("res://scripts/cafe_reception.gd")
 const TableOccupancy=preload("res://scripts/cafe_table_occupancy.gd")
 const DepartingBodies=preload("res://scripts/cafe_departing_bodies.gd")
 const AdmissionLog=preload("res://scripts/cafe_admission_log.gd")
+const RoutingReceptionReview=preload("res://scripts/cafe_routing_reception_review.gd")
 const ReceptionReview=preload("res://scripts/cafe_reception_review.gd")
 const OutsideQueue=preload("res://scripts/cafe_outside_queue.gd")
 const Parking=preload("res://scripts/cafe_parking.gd")
@@ -164,6 +165,7 @@ var _solid_wall_segments:Array=[]
 var _admission_signature:Array=[]
 var _admission_reason="QUEUE_NOT_CHECKED"
 var _admission_log_snapshot:Dictionary={}
+var routing_reception_review_enabled=false
 var reception_review_enabled=false
 var _reception_fresh_eligible=true
 var reception_visits:Array[Dictionary]=[]
@@ -233,7 +235,7 @@ func reset_new() -> void:
 	dining_sets.clear()
 	customers.clear()
 	outside_queue.clear();reception_visits.clear();departing_bodies.clear();_reception_plan_signatures.clear()
-	reception_review_enabled=false;_reception_fresh_eligible=true;_admission_reason="QUEUE_NOT_CHECKED";_admission_log_snapshot.clear()
+	routing_reception_review_enabled=false;reception_review_enabled=false;_reception_fresh_eligible=true;_admission_reason="QUEUE_NOT_CHECKED";_admission_log_snapshot.clear()
 	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
 	built_walls.clear()
 	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
@@ -1758,10 +1760,13 @@ func _layout_has_access(layout: Array[Dictionary], layout_depth: int = MAX_DEPTH
 	return true
 
 
-func _save_snapshot(path:String,reception:bool=false)->bool:
-	if guest_navigation_enabled:return _fail("Transient guest navigation requires a separately reviewed persistence capability")
+func _save_snapshot(path:String,reception:bool=false,routing:bool=false)->bool:
+	if not routing and ReceptionReview.routing_filename(path):return _fail("Routing reception requires its explicit reader/writer")
+	if routing and (not routing_reception_review_enabled or not ReceptionReview.path_allowed(path,false,true)):return _fail("Routing reception snapshot gate refused")
+	if guest_navigation_enabled and not routing:return _fail("Transient guest navigation requires a separately reviewed persistence capability")
 	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
-	var snapshot_version=SaveContract.RECEPTION_REVIEW_VERSION if reception else SAVE_VERSION
+	var ledger=reception or routing
+	var snapshot_version=SaveContract.ROUTING_RECEPTION_REVIEW_VERSION if routing else (SaveContract.RECEPTION_REVIEW_VERSION if reception else SAVE_VERSION)
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or not reception_visits.is_empty() or not departing_bodies.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
 	if checkout_error!="":return _fail(checkout_error)
@@ -1774,14 +1779,17 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 	if reserved_error!="":return _fail("Could not save inconsistent active service: "+reserved_error)
 	var codec=RuntimeCodec.new()
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
-	var checked=codec.validate(runtime,items,cooks,PHASES,snapshot_version,staff_roster(),duty_counts,codec.encode({"format":Reception.FORMAT,"visitors":reception_visits,"departures":departing_bodies}) if reception else null,reception)
+	var checked=codec.validate(runtime,items,cooks,PHASES,snapshot_version,staff_roster(),duty_counts,codec.encode({"format":Reception.FORMAT,"visitors":reception_visits,"departures":departing_bodies}) if ledger else null,reception,routing)
 	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
 	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
 	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
 	if not queue_check.ok:return _fail(str(queue_check.error))
 	var reception_data=codec.encode({"format":Reception.FORMAT,"visitors":reception_visits,"departures":departing_bodies})
 	var reception_check={"ok":true}
-	if reception:reception_check=Reception.validate(self,reception_data,_next_customer_id)
+	if ledger:reception_check=Reception.validate(self,reception_data,_next_customer_id)
+	if routing:
+		var route_error=RoutingReceptionReview.geometry_error(self,checked.state)
+		if route_error!="":return _fail(route_error)
 	if not reception_check.ok:return _fail(str(reception_check.error))
 	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
 	var parking_check=Parking.validate(parking,customers,outside_queue+reception_visits,_next_customer_id,operating_open,departing_bodies)
@@ -1802,8 +1810,8 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
 		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
-	if reception:
-		data["reception_review_format"]=SaveContract.RECEPTION_REVIEW_FORMAT
+	if ledger:
+		data["routing_reception_review_format" if routing else "reception_review_format"]=SaveContract.ROUTING_RECEPTION_REVIEW_FORMAT if routing else SaveContract.RECEPTION_REVIEW_FORMAT
 		data["reception_format"]=Reception.FORMAT;data["reception"]=reception_data
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
@@ -1825,7 +1833,7 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 	var body_error=_opening_body_error(built_walls,openings_check.attachments,actors)
 	if body_error!="":return _fail("Could not save invalid walls: "+body_error)
 	var temp_path := path + ".tmp"
-	if reception and (not ReceptionReview.path_allowed(path) or not ReceptionReview.path_allowed(temp_path,true)):return _fail("Reception path refused before write")
+	if ledger and (not ReceptionReview.path_allowed(path,false,routing) or not ReceptionReview.path_allowed(temp_path,true,routing)):return _fail("Reception path refused before write")
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		return _fail("Could not write the reconstructed save")
@@ -1835,7 +1843,7 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 	file.close()
 	if write_error != OK:
 		return _fail("Save write failed; previous save left unchanged")
-	var result := (OK if ReceptionReview.commit(temp_path,path) else ERR_CANT_CREATE) if reception else DirAccess.rename_absolute(temp_path,path)
+	var result := (OK if ReceptionReview.commit(temp_path,path,routing) else ERR_CANT_CREATE) if ledger else DirAccess.rename_absolute(temp_path,path)
 	if result != OK:
 		return _fail("Could not finalize the reconstructed save")
 	last_error = ""
@@ -1843,8 +1851,10 @@ func _save_snapshot(path:String,reception:bool=false)->bool:
 	return true
 
 
-func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=false)->bool:
-	if guest_navigation_enabled:return _fail("Transient guest navigation cannot use a historical reader")
+func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=false,routing:bool=false)->bool:
+	if not routing and ReceptionReview.routing_filename(path):return _fail("Routing reception requires its explicit reader/writer")
+	if routing and (not routing_reception_review_enabled or not ReceptionReview.path_allowed(path,false,true)):return _fail("Routing reception snapshot gate refused")
+	if guest_navigation_enabled and not routing:return _fail("Transient guest navigation cannot use a historical reader")
 	if reception and (not reception_review_enabled or not ReceptionReview.path_allowed(path)):return _fail("Reception snapshot gate refused")
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
@@ -1859,9 +1869,9 @@ func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=f
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not SaveContract.accepts_version(data.get("version"),reception) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not (data.get("version")==SaveContract.ROUTING_RECEPTION_REVIEW_VERSION if routing else SaveContract.accepts_version(data.get("version"),reception)) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
-	if not SaveContract.accepts_header(data,reception):return _fail("Unsupported or foreign save format")
+	if not (SaveContract.accepts_routing_reception_header(data) if routing else SaveContract.accepts_header(data,reception)):return _fail("Unsupported or foreign save format")
 	if reception and int(data.version)!=SaveContract.RECEPTION_REVIEW_VERSION:return _fail("Reception requires its explicit version18 envelope")
 	for field in ["coins", "served", "total_earned", "total_cleaned"]:
 		if not _valid_int(data.get(field), 0, 1000000000):
@@ -1955,7 +1965,7 @@ func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=f
 		if not data.get("operating_open") is bool or not data.get("included_bin_pending") is bool:return _fail("Invalid operating or included-equipment state")
 		saved_open=bool(data.operating_open);saved_bin_pending=bool(data.included_bin_pending)
 		var codec=RuntimeCodec.new()
-		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty,data.get("reception"),reception)
+		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty,data.get("reception"),reception,routing)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
@@ -1982,12 +1992,15 @@ func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=f
 	geometry.owned_parcels=saved_parcels;geometry._sync_floor_bounds();geometry.operating_open=saved_open
 	geometry.built_walls.assign(checked_walls.walls);geometry.wall_attachments.assign(checked_attachments.attachments)
 	var reception_check={"ok":true,"visitors":[],"departures":[]}
-	if reception:reception_check=Reception.validate(geometry,data.reception,int(runtime_state.next_customer_id))
+	if reception or routing:reception_check=Reception.validate(geometry,data.reception,int(runtime_state.next_customer_id))
 	if not reception_check.ok:return _fail(str(reception_check.error))
 	if saved_first_guest and (not reception_check.visitors.is_empty() or not reception_check.departures.is_empty()):return _fail("First-visit eligibility disagrees with reception")
 	var parking_check=Parking.validate(data.get("parking",Parking.empty_state()),runtime_state.customers,queue_check.visitors+reception_check.visitors,int(runtime_state.next_customer_id),saved_open,reception_check.departures)
 	if not parking_check.ok:return _fail(str(parking_check.error))
 	geometry.reception_visits.assign(reception_check.visitors);geometry.departing_bodies.assign(reception_check.departures)
+	if routing:
+		var route_error=RoutingReceptionReview.geometry_error(geometry,runtime_state)
+		if route_error!="":return _fail(route_error)
 	var motion_error=geometry._layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
@@ -2006,7 +2019,7 @@ func _load_snapshot(path:String,allow_enclosed_staff:bool=false,reception:bool=f
 	if body_error!="":return _fail("Invalid saved walls: "+body_error)
 	# Validate the saved layout as written first. Narrow only a matching free
 	# starter when its new jambs leave every saved body and remaining route clear.
-	checked_attachments.attachments=geometry._align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
+	if not routing:checked_attachments.attachments=geometry._align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
 	finish_decoration_session()
 	items = validated
 	dining_sets.assign(saved_sets.groups)
@@ -2583,7 +2596,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.RECEPTION_REVIEW_VERSION]:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.RECEPTION_REVIEW_VERSION,SaveContract.ROUTING_RECEPTION_REVIEW_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0
@@ -2934,9 +2947,41 @@ func load_reception(path:String=SaveContract.RECEPTION_REVIEW_FILE)->bool:
 	return _load_snapshot(path,false,true)
 
 func save(path:String=SaveContract.PRIMARY_FILE)->bool:
-	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path):return _fail("Reception requires its separate explicit writer")
+	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path) or ReceptionReview.routing_filename(path):return _fail("Reception requires its separate explicit writer")
 	return _save_snapshot(path,false)
 
 func load_save(path:String=SaveContract.PRIMARY_FILE,allow_enclosed_staff:bool=false)->bool:
-	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path):return _fail("Reception requires its separate explicit reader")
+	if reception_review_enabled or not reception_visits.is_empty() or not departing_bodies.is_empty() or ReceptionReview.reception_filename(path) or ReceptionReview.routing_filename(path):return _fail("Reception requires its separate explicit reader")
 	return _load_snapshot(path,allow_enclosed_staff,false)
+
+func enable_routing_reception_review()->bool:
+	if not guest_navigation_enabled or not reception_review_enabled or not ReceptionReview.scope_allowed(true):return _fail("Routing reception enable refused")
+	if not routing_reception_review_enabled and (not _reception_fresh_eligible or _next_customer_id!=1 or not customers.is_empty() or not reception_visits.is_empty() or not outside_queue.is_empty() or not service_snapshot.is_empty() or served!=0 or total_earned!=0):return _fail("Routing reception requires fresh review")
+	routing_reception_review_enabled=true;last_error="";return true
+
+func save_routing_reception_review(path:String=SaveContract.ROUTING_RECEPTION_REVIEW_FILE)->bool:
+	return _save_snapshot(path,false,true)
+
+func _prepare_routing_reception_review(path:String)->Dictionary:
+	if not routing_reception_review_enabled or not ReceptionReview.path_allowed(path,false,true):return {"ok":false,"error":"Routing reception reader gate refused"}
+	var shadow=get_script().new()
+	shadow.reception_review_enabled=true;shadow.guest_navigation_enabled=true;shadow.routing_reception_review_enabled=true
+	if not shadow._load_snapshot(path,false,false,true):return {"ok":false,"error":shadow.last_error}
+	return {"ok":true,"model":shadow}
+
+func _publish_routing_reception_review(shadow,notify:bool=true):
+	# This list mirrors the validated loader publication; never copies capability,
+	# caller objects, callbacks or editor caches from the serialized snapshot.
+	finish_decoration_session()
+	for key in RoutingReceptionReview.LOADED_FIELDS:
+		var value=shadow.get(key)
+		set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
+	wall_actor_positions.clear();guest_obstacle_positions.clear();checkout_staff_claims.clear()
+	_reception_plan_signatures.clear();_guest_navigation_cache.clear();_mobility_validated.clear();_sync_floor_bounds()
+	last_error="";last_event="Private routing reception restored"
+	if notify:_notify()
+
+func load_routing_reception_review(path:String=SaveContract.ROUTING_RECEPTION_REVIEW_FILE)->bool:
+	var prepared=_prepare_routing_reception_review(path)
+	if not prepared.ok:return _fail(str(prepared.error))
+	_publish_routing_reception_review(prepared.model);return true

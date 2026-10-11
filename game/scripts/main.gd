@@ -144,7 +144,9 @@ func _ready():
 		DisplayServer.window_set_title("Little Leaf Cafe · "+str(ProjectSettings.get_setting("application/config/version","R7 review")))
 	_load_startup()
 	if NavigationReview.allowed(self):navigation_review=NavigationReview.new(self)
-	if navigation_review!=null:Model.GuestNavigation.enable(self)
+	if navigation_review!=null:
+		Model.GuestNavigation.enable(self)
+		if "--routing-reception-persistence-candidate" in OS.get_cmdline_user_args():model.enable_routing_reception_review()
 	_setup_world()
 	build_tools=BuildTools.new(self)
 	_build_ui()
@@ -722,8 +724,8 @@ func _update_ui():
 	if build_tools!=null:build_tools.sync()
 	if compact_ui!=null:compact_ui.sync()
 
-func _service_save_snapshot()->Dictionary:
-	_sync_staff_duty();_sync_service_guests()
+func _service_save_snapshot(sync:bool=true)->Dictionary:
+	if sync:_sync_staff_duty();_sync_service_guests()
 	var records=[]
 	for id in service_guests:
 		var record=service_guests[id].duplicate(true);record.erase("guest");record["guest_id"]=int(id);records.append(record)
@@ -777,6 +779,39 @@ func _restore_service_runtime():
 		var arrived=destination!=Vector2i(-1,-1) and staff.pos.distance_to(Vector2(destination)+Vector2(.5,.5))<.03
 		var travel_action={"plate":"carrying_to_pass" if staff.role=="chef" else "carrying_plate","drink":"carrying_drink","dishes":"carrying_dishes","trash":"carrying_trash"}.get(payload,"walking")
 		_set_staff_art(staff,str(step.action) if arrived else travel_action,target,clampf(float(staff.job_elapsed)/seconds,0,1) if arrived else 0.0,payload)
+
+func save_routing_reception_review(path:String=SaveContract.ROUTING_RECEPTION_REVIEW_FILE)->bool:
+	if navigation_review==null or not fresh_start or not save_writes_suppressed or not model.routing_reception_review_enabled or not model.ReceptionReview.path_allowed(path,false,true):return model._fail("Main routing reception writer gate refused")
+	var snapshot=_service_save_snapshot(false)
+	for index in snapshot.staff.size():
+		if not navigation_review.export_staff(index,snapshot.staff[index]):return model._fail("Cannot export a safe staff anchor")
+	var previous=model.service_snapshot
+	model.service_snapshot=snapshot
+	var ok=model.save_routing_reception_review(path)
+	model.service_snapshot=previous
+	return ok
+
+func load_routing_reception_review(path:String=SaveContract.ROUTING_RECEPTION_REVIEW_FILE)->bool:
+	if navigation_review==null or not fresh_start or not save_writes_suppressed or not model.routing_reception_review_enabled:return model._fail("Main routing reception reader gate refused")
+	var prepared=model._prepare_routing_reception_review(path)
+	if not prepared.ok:return model._fail(str(prepared.error))
+	var shadow=prepared.model
+	if shadow.service_snapshot.is_empty():return model._fail("Main restore requires its complete service ledger")
+	# Prepare the Main-owned ledger before any model publication/cancellation.
+	# Codec already validated stages, role/index custody, claims and serials.
+	for saved in shadow.service_snapshot.get("records",[]):
+		var guest=shadow.customers.filter(func(g):return int(g.id)==int(saved.guest_id))
+		if guest.size()!=1:return model._fail("Prepared service record lost its guest")
+	if not model.ReceptionReview.path_allowed(path,false,true):return model._fail("Routing reception scope changed before publication")
+	# No await, I/O or fallible reader step after the publication boundary.
+	navigation_review.stop()
+	model._publish_routing_reception_review(shadow,false)
+	_restore_service_runtime()
+	navigation_review.restore_staff(true)
+	static_service_paths.clear();static_service_revision=-1;idle_home_revision=-1
+	active_staff_passages.clear()
+	model._notify()
+	return true
 
 func _place_fresh_staff_at_posts():
 	# Only a genuinely new cafe has no saved positions to resume. Use the same

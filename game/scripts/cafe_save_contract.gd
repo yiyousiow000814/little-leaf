@@ -3,6 +3,9 @@ extends RefCounted
 ## Version 14 belongs to an unrelated experiment and is never accepted here.
 const SCHEMA = "little_leaf_reconstructed_cafe"
 const VERSION = 15
+const ROUTING_RECEPTION_REVIEW_VERSION = 19
+const ROUTING_RECEPTION_REVIEW_FORMAT = "little_leaf.routing_reception_review.v1"
+const ROUTING_RECEPTION_REVIEW_FILE = "user://little_leaf_cafe_routing_reception_review_v19.json"
 const RECEPTION_REVIEW_VERSION = 18
 const RECEPTION_REVIEW_FORMAT = "little_leaf.reception_review.v1"
 const RECEPTION_REVIEW_FILE = "user://little_leaf_cafe_reception_review_v18.json"
@@ -36,7 +39,7 @@ static func accepts_header(data:Dictionary,allow_reception_review:bool=false)->b
  # through a row or nested envelope. Existing defaults remain cardinal.
  for key in data:
   if key in ["reception_review_format","reception_format","reception"]:continue
-  if key in ["navigation_format","navigation_phase","footprint_placement_format"] or foreign_runtime_fields(data[key]):return false
+  if key in ["routing_reception_review_format","navigation_format","navigation_phase","footprint_placement_format"] or foreign_runtime_fields(data[key]):return false
  if version==RECEPTION_REVIEW_VERSION and foreign_runtime_fields(data.reception):return false
  if has_checkout(version) and data.get("checkout_format")!=CHECKOUT_FORMAT:return false
  if has_layout_motion(version):return data.get("layout_motion_format")==LAYOUT_MOTION_FORMAT
@@ -55,10 +58,36 @@ static func foreign_runtime_fields(value,depth:int=0)->bool:
  if depth>12:return true
  if value is Dictionary:
   for key in value:
-   if key in ["reception","reception_format","reception_review_format","navigation_format","navigation_phase","footprint_placement_format"]:return true
+   if key in ["reception","reception_format","reception_review_format","routing_reception_review_format","navigation_format","navigation_phase","footprint_placement_format"]:return true
    if key=="mobility" and value[key] is Dictionary and value[key].get("kind")=="blocked":return true
    if foreign_runtime_fields(value[key],depth+1):return true
  elif value is Array:
   for entry in value:
    if foreign_runtime_fields(entry,depth+1):return true
  return false
+
+static func accepts_routing_reception_header(data:Dictionary)->bool:
+ if not (data.get("version") is int or data.get("version") is float) or data.version!=ROUTING_RECEPTION_REVIEW_VERSION:return false
+ if data.get("routing_reception_review_format")!=ROUTING_RECEPTION_REVIEW_FORMAT or data.get("reception_format")!=RECEPTION_FORMAT:return false
+ if data.get("checkout_format")!=CHECKOUT_FORMAT or data.get("layout_motion_format")!=LAYOUT_MOTION_FORMAT:return false
+ if not data.get("reception") is Dictionary or data.reception.get("format")!=RECEPTION_FORMAT or not data.reception.get("visitors") is Array or not data.reception.get("departures") is Array:return false
+ for key in data:
+  if key in ["routing_reception_review_format","reception_format","reception"]:continue
+  if key=="runtime":
+   if not routing_runtime_fields(data[key]):return false
+  elif key in ["reception_review_format","navigation_format","navigation_phase","footprint_placement_format"] or foreign_runtime_fields(data[key]):return false
+ return not foreign_runtime_fields(data.reception)
+
+static func routing_runtime_fields(raw)->bool:
+ # Only service.staff rows may grant a phase. Recursive checks still refuse
+ # capabilities hidden in a guest, record, payload or nested staff object.
+ if not raw is Dictionary:return false
+ var ordinary=raw.duplicate(true)
+ var service=ordinary.get("service")
+ if service is Dictionary and service.get("staff") is Array:
+  for staff in service.staff:
+   if not staff is Dictionary:return false
+   if staff.has("navigation_phase"):
+    if staff.navigation_phase not in ["follow","replan"]:return false
+    staff.erase("navigation_phase")
+ return not foreign_runtime_fields(ordinary)
