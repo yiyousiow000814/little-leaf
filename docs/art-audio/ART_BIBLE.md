@@ -119,6 +119,34 @@ These identify current materials, not a universal new palette. Any new palette,
 stroke width, ratio, detail-density limit or other numeric aesthetic tolerance
 is a **proposal requiring user approval** after actual normal-scale inspection.
 
+## World-space text and scale readability
+
+Signs, prices, quantities, road labels and interaction text must be readable in
+actual normal-scale play. Inspect font size and weight, contrast, hierarchy,
+spacing, glyph-edge clarity and the background at the minimum, normal and maximum
+supported zoom. An enlarged reference alone cannot establish this. Separate
+decorative lettering from essential prices, counts and instructions; the UI/UX
+contract at `docs/design/ui-ux-design-system.md` owns information priority,
+accessibility and the existing themed details interaction.
+
+First bind the reported screenshot to its actual build/source and trace the exact
+draw path. If that identity is unresolved, say so and keep the audited source
+separate. Diagnose visual design versus font rendering, texture filtering, cache
+and zoom-path faults before proposing the smallest fix. Enlarging every object
+or making all text bold must not conceal a rendering or hierarchy defect.
+Preserve object proportions. When the available physical area is insufficient,
+simplify the world text and put necessary detail in the existing themed UI;
+changing the information or interaction still requires its owner's review.
+
+Parking **FOR SALE / 4 parking bays** is the first read-only audit case, followed
+by a scoped inventory of other essential scene text. This establishes diagnosis
+and proposal work, not a blanket runtime rewrite or approval of an unbound frame.
+For an eventual fix, retain actual Godot Before/After at the same camera, viewport
+and scene state at normal and enlarged zoom, plus minimum-scale QA, actual Web
+text-clarity checks and proportionate performance evidence. Record the supported
+zoom values and inspect the real captures. User visual acceptance remains
+separate from source review, automated checks and this standard.
+
 ## Draft visual review criteria
 
 | Aspect | Inspect in the actual scene |
