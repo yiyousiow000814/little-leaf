@@ -1,7 +1,7 @@
 extends RefCounted
 ## Fixed four-bay upgrade. Real trips share the existing arrival clock and IDs.
 const FORMAT="little_leaf.parking.v1"
-const PRICE=2000 # Provisional in-game price; historical paid_cost is authoritative.
+const PRICE=50000 # New purchases; historical paid_cost remains authoritative.
 const CAPACITY=4
 const BAY_X=[1.3,4.2,7.1,10.0]
 const BAY_Z=-7.15

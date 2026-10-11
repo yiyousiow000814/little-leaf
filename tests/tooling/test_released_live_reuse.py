@@ -68,7 +68,7 @@ class ManualReuseTests(unittest.TestCase):
             'source_sha256': {name: sha256(staging.source_path(self.root, name)) for name in staging.FULLFLOW_SOURCES}}
         (self.fullflow / 'firebase-fullflow.json').write_text(json.dumps(flow))
         publication = {'source_commit': SOURCE, 'version': self.base['version'], 'tag': 'v' + self.base['version'],
-            'target': live.TARGET, 'state': 'completed', 'workflow_run': 40, 'workflow_attempt': 1,
+            'target': live.TARGET, 'state': 'completed', 'workflow_run': 40, 'workflow_attempt': '1',
             'itch_build_id': 50, 'itch_channel_version': 60, 'qualification': {**qualification, 'tag': 'v' + self.base['version']}}
         self.selection = {'status': 'qualified-release-selected-staging-only', 'source_commit': SOURCE,
             'source_tree': TREE, 'qualification': publication['qualification'], 'publication': publication,
@@ -165,7 +165,7 @@ class ManualReuseTests(unittest.TestCase):
         from reuse_main_ci import REQUIRED_JOBS
         test = self
         class API:
-            def __init__(self): self.change = None; self.calls = []
+            def __init__(self): self.change = None; self.calls = []; self.release_attempt = 1
             def read(self, path):
                 self.calls.append(path)
                 if path == 'actions/runs/10': value = copy.deepcopy(test.origin['run'])
@@ -183,7 +183,7 @@ class ManualReuseTests(unittest.TestCase):
                         'name': 'little-leaf-web-'+SOURCE+'-1', 'workflow_run': {'id': 20, 'head_sha': SOURCE}}
                 elif path == 'actions/runs/40':
                     value = {**test.origin['run'], 'id': 40, 'head_sha': SOURCE, 'head_branch': test.selection['release_tag'],
-                        'path': '.github/workflows/release-itch.yml', 'event': 'push'}
+                        'path': '.github/workflows/release-itch.yml', 'event': 'push', 'run_attempt': self.release_attempt}
                 elif path.startswith('contents/'):
                     name = path[9:].split('?ref=')[0]
                     value = {'encoding': 'base64', 'content': base64.b64encode((test.root/name).read_bytes()).decode()}
@@ -195,7 +195,7 @@ class ManualReuseTests(unittest.TestCase):
                     rows = [{'name': name, 'status': 'completed', 'conclusion': 'success'} for name in REQUIRED_JOBS]
                     if self.change and self.change[0] == 'main-jobs': rows[0]['conclusion'] = 'failure'
                     return rows
-                return [{'name': 'publish', 'run_id': 40, 'run_attempt': 1, 'status': 'completed', 'conclusion': 'success'}]
+                return [{'name': 'publish', 'run_id': 40, 'run_attempt': self.release_attempt, 'status': 'completed', 'conclusion': 'success'}]
         return API()
 
     def test_fresh_api_authenticates_dual_identity_and_rejects_changed_history_source_or_gates(self):
@@ -211,6 +211,40 @@ class ManualReuseTests(unittest.TestCase):
                 live.authenticate_origin(api, manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
         manifest['qualified_release_reuse']['coordinator_sha256']['tools/stage_released_firebase.py'] = '0'*64
         with self.assertRaises(ValueError): live.authenticate_origin(self.api(), manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+
+    def test_publisher_string_attempt_matches_exact_api_attempt_and_rejects_bad_receipts(self):
+        self.selection['publication']['workflow_attempt'] = '3'
+        self.stage(); manifest = self.manifest(); api = self.api(); api.release_attempt = 3
+        origin = {'run': self.origin['run'], 'artifact': self.origin['artifact']}
+        authenticated = live.authenticate_origin(api, manifest, origin)
+        self.assertEqual(authenticated['publication_and_qualification']['release_attempt'], 3)
+        live.validate_origin(manifest, authenticated)
+        for value in [3, '3']:
+            valid = copy.deepcopy(manifest); valid['manual_live_reuse']['publication']['workflow_attempt'] = value
+            live.authenticate_origin(api, valid, origin)
+            live.validate_origin(valid, authenticated)
+        for value in [None, True, False, 0, -1, 3.0, '', '0', '-3', '03', '+3',
+                      ' 3', '3 ', '3.0', '3e0', '٣', {}, [], 2, '2']:
+            invalid = copy.deepcopy(manifest); invalid['manual_live_reuse']['publication']['workflow_attempt'] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                live.authenticate_origin(api, invalid, origin)
+            with self.subTest(origin_value=value), self.assertRaises(ValueError):
+                live.validate_origin(invalid, authenticated)
+        missing = copy.deepcopy(manifest); del missing['manual_live_reuse']['publication']['workflow_attempt']
+        with self.assertRaises(ValueError): live.authenticate_origin(api, missing, origin)
+        with self.assertRaises(ValueError): live.validate_origin(missing, authenticated)
+        for value in [None, True, False, 0, -1, '3', 3.0]:
+            api.change = ('actions/runs/40', 'run_attempt', value)
+            with self.subTest(api_value=value), self.assertRaises(ValueError):
+                live.authenticate_origin(api, manifest, origin)
+
+    def test_authenticated_origin_attempt_remains_an_exact_api_integer(self):
+        self.stage(); manifest = self.manifest()
+        for value in [None, True, False, 0, -1, '1', 1.0, 2]:
+            origin = copy.deepcopy(self.origin)
+            origin['publication_and_qualification']['release_attempt'] = value
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                live.validate_origin(manifest, origin)
 
     def test_rehashed_changed_native_browser_focus_flow_and_runtime_refused(self):
         self.stage(); original = self.manifest()

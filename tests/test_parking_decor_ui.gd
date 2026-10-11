@@ -64,7 +64,7 @@ func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true;await process_frame
  ui=game.compact_ui;shop=ui.shop_ui
  check(not game.catalog_cards.has("parking"),"fixed upgrade is not a placeable furniture catalog product")
- game.model.coins=10000;game._toggle_edit();game._set_catalog_category("Decor");ui._set_tray_reveal(1);await settle();await reveal_parking()
+ game.model.coins=game.model.parking_price();game._toggle_edit();game._set_catalog_category("Decor");ui._set_tray_reveal(1);await settle();await reveal_parking()
  check(shop.parking_card.visible and not shop.parking_card.disabled,"parking is available in Decor")
  check(shop.parking_price.text==ui.Money.amount(game.model.parking_price()),"card displays model parking price")
  check(shop.parking_card.get_child(0).get_child(1).text=="Parking · 4 bays","card explicitly identifies four fixed bays")
@@ -74,7 +74,7 @@ func run():
  game._set_catalog_category("Decor");game.model.coins=game.model.parking_price()-1;await settle();before=state()
  check(shop.parking_card.disabled and shop.parking_status.text=="Need 1","insufficient funds shown and disabled")
  shop._choose_parking();same(before,"insufficient purchase never charges or saves")
- game.model.coins=10000;game.save_recovery_blocked=true;await settle();before=state()
+ game.model.coins=game.model.parking_price();game.save_recovery_blocked=true;await settle();before=state()
  check(shop.parking_card.disabled and shop.parking_status.text=="Save recovery","save recovery locks purchase visibly")
  shop._choose_parking();same(before,"save recovery callback cannot buy")
  game.save_recovery_blocked=false;game.editing=false;before=state();shop._choose_parking();same(before,"Play callback cannot buy")
@@ -83,7 +83,7 @@ func run():
  check(game.selected_kind=="plant","purchase begins with a selected furnishing to cancel")
  var coins=game.model.coins;var saves=game.saves;var items=game.model.items.duplicate(true);var price=game.model.parking_price()
  await click(shop.parking_card)
- check(game.model.parking_owned and game.model.coins==coins-price and game.saves==saves+1,"real card click buys once at model price and requests one save")
+ check(price==50000 and coins==price and game.model.parking_owned and game.model.coins==0 and game.model.parking_paid_cost==price and game.saves==saves+1,"real card click buys once at exact approved model price and requests one save")
  check(game.selected_kind=="" and game.selected_id<0 and game.model.items==items,"fixed parking clears placement selection without creating movable furniture")
  check(shop.parking_price.text=="Owned" and shop.parking_status.text=="0/4 in use","owned card shows bay occupancy")
  before=state();await open_sale();same(before,"repeated buy click only opens review without mutation")
@@ -132,7 +132,7 @@ func run():
  check(not game.model.parking_owned and game.model.coins==coins+half and game.saves==saves+1,"later-session sale credits exactly the advertised half refund")
  # Responsive headless layout checks only; no rendered or graphical benchmark.
  for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]:
-  root.size=view;game.model.coins=10000;game._set_catalog_category("Decor");await settle();await reveal_parking()
+  root.size=view;game.model.coins=game.model.parking_price();game._set_catalog_category("Decor");await settle();await reveal_parking()
   var context=str(view);check(not ui.viewport_too_small,context+" remains supported")
   card_fits(context+" unowned")
   await click(shop.parking_card);await reveal_parking();card_fits(context+" owned")

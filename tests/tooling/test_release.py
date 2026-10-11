@@ -485,5 +485,137 @@ class ArtifactTests(unittest.TestCase):
         self.assertFalse((self.web / "butler").exists())
 
 
+class ItchDiagnosticTests(unittest.TestCase):
+    def setUp(self):
+        import diagnose_itch_status as diagnostic
+        self.d = diagnostic
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.binary = Path(self.temp.name) / 'butler'
+        self.binary.write_bytes(b'pinned-test-binary')
+        self.previous = {'phase': 'credential-free-preflight', 'passed': True,
+            'installed_version': install_tools.LOCK['butler']['version'],
+            'archive_sha256': install_tools.LOCK['butler']['sha256'],
+            'binary_sha256': hashlib.sha256(self.binary.read_bytes()).hexdigest(),
+            'version_exit_code': 0, 'help_exit_code': 0, 'publication_allowed': False}
+
+    def test_error_categories_are_literals_and_http_is_unambiguous(self):
+        cases = [('no such host', 'dns'), ('x509: secret URL', 'tls'),
+            ('context deadline exceeded', 'deadline'), ('connection reset', 'connection'),
+            ('invalid api key SECRET', 'authentication'), ('arbitrary SECRET', 'command-failed-unclassified')]
+        for raw, expected in cases:
+            with self.subTest(raw=raw): self.assertEqual(self.d.classify(1, raw), (expected, None))
+        for value in [401, 403, 404, 429, 500, 503]:
+            self.assertEqual(self.d.classify(1, f'HTTP/1.1 {value} SECRET'),
+                ('http-5xx' if value >= 500 else f'http-{value}', value))
+        self.assertEqual(self.d.classify(1, 'HTTP 401 HTTP 403'), ('command-failed-unclassified', None))
+
+    def test_preflight_uses_only_credential_free_version_and_help(self):
+        with patch.object(self.d, 'command', side_effect=[(0, 'butler v15.31.0', ''), (0, 'SECRET', '')]) as run:
+            receipt = self.d.preflight(self.binary)
+        self.assertTrue(receipt['passed'])
+        self.assertFalse(receipt['publication_allowed'])
+        self.assertEqual([c.args[1] for c in run.call_args_list], [['--version'], ['status', '--help']])
+        self.assertNotIn('SECRET', json.dumps(receipt))
+        for output in ['15.31.01', '15.30.0']:
+            with patch.object(self.d, 'command', side_effect=[(0, output, ''), (0, '', '')]):
+                self.assertFalse(self.d.preflight(self.binary)['passed'])
+
+    def test_preflight_accepts_stderr_version_without_leaking_raw_output(self):
+        for stdout, stderr in [('', 'butler v15.31.0'), ('butler v15.31.0', ''),
+                ('', 'butler v15.31.0\nAuthorization: SYNTHETIC_SECRET')]:
+            with self.subTest(stdout=stdout, stderr=stderr), patch.object(self.d, 'command',
+                    side_effect=[(0, stdout, stderr), (0, '', 'status help')]) as run:
+                receipt = self.d.preflight(self.binary)
+                self.assertTrue(receipt['passed'])
+                self.assertEqual(receipt['installed_version'], '15.31.0')
+                self.assertNotIn('SYNTHETIC_SECRET', json.dumps(receipt))
+                self.assertFalse(receipt['publication_allowed'])
+                self.assertEqual([c.args[1] for c in run.call_args_list], [['--version'], ['status', '--help']])
+        for version_code, output, help_code in [(0, '15.31.01', 0), (0, '15.30.0', 0),
+                (1, '15.31.0', 0), (0, '15.31.0', 1)]:
+            with self.subTest(version_code=version_code, output=output, help_code=help_code), \
+                    patch.object(self.d, 'command', side_effect=[(version_code, '', output), (help_code, '', '')]):
+                self.assertFalse(self.d.preflight(self.binary)['passed'])
+
+    def test_environment_strips_http_debug_and_preflight_key(self):
+        with patch.dict(self.d.os.environ, {'BUTLER_API_KEY': 'SYNTHETIC', 'GO_ITCHIO_DEBUG': '2',
+                'BUTLER_HTTP_DEBUG': '1', 'BUTLER_DEBUG_PORT': '1234', 'BUTLER_DEBUG_HOST': '0.0.0.0'}), \
+                patch.object(self.d.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='', stderr='')) as run:
+            self.d.command(self.binary, ['--version'])
+            self.assertNotIn('BUTLER_API_KEY', run.call_args.kwargs['env'])
+            for name in ['GO_ITCHIO_DEBUG', 'BUTLER_HTTP_DEBUG', 'BUTLER_DEBUG_PORT', 'BUTLER_DEBUG_HOST']:
+                self.assertNotIn(name, run.call_args.kwargs['env'])
+            self.d.command(self.binary, ['--json', 'status', publisher.TARGET], authenticated=True)
+            self.assertEqual(run.call_args.kwargs['env']['BUTLER_API_KEY'], 'SYNTHETIC')
+            for name in ['GO_ITCHIO_DEBUG', 'BUTLER_HTTP_DEBUG', 'BUTLER_DEBUG_PORT', 'BUTLER_DEBUG_HOST']:
+                self.assertNotIn(name, run.call_args.kwargs['env'])
+            self.assertEqual(run.call_args.kwargs['timeout'], 60)
+
+    def test_status_has_fixed_read_only_argv_and_verified_identity(self):
+        raw = json.dumps({'type': 'result', 'value': status()})
+        with patch.dict(self.d.os.environ, {'BUTLER_API_KEY': 'SYNTHETIC'}), \
+                patch.object(self.d, 'command', return_value=(0, raw, '')) as run:
+            receipt = self.d.status(self.binary, self.previous)
+        run.assert_called_once_with(self.binary, ['--json', 'status', publisher.TARGET], authenticated=True)
+        self.assertTrue(receipt['channel_identity_verified'])
+        self.assertEqual(receipt['category'], 'ok')
+        self.assertEqual(receipt['channel_head_state'], 'completed')
+        self.assertEqual(receipt['channel_head_build_id'], 55)
+        self.assertFalse(receipt['channel_pending'])
+        self.assertFalse(receipt['publication_allowed'])
+
+    def test_raw_secrets_headers_urls_and_schema_errors_never_escape(self):
+        poison = 'Authorization: SECRET https://user:SECRET@example.invalid/?token=SECRET'
+        for code, raw, category in [(1, poison + ' HTTP 403', 'http-403'),
+                (0, poison, 'response-schema'),
+                (0, json.dumps({'type': 'result', 'value': {'target': 'OTHER'}}), 'response-schema')]:
+            with patch.dict(self.d.os.environ, {'BUTLER_API_KEY': 'SYNTHETIC'}), \
+                    patch.object(self.d, 'command', return_value=(code, raw, poison)):
+                receipt = self.d.status(self.binary, self.previous)
+            self.assertEqual(receipt['category'], category)
+            encoded = json.dumps(receipt)
+            for sensitive in ['SECRET', 'Authorization', 'example.invalid', 'OTHER', 'SYNTHETIC']:
+                self.assertNotIn(sensitive, encoded)
+            self.assertFalse(receipt['channel_identity_verified'])
+
+    def test_channel_fields_are_whitelisted_without_raw_versions(self):
+        value = status(v='SECRET', state='SECRET', pending={'id': 'SECRET'})
+        value['channels'][0]['head']['id'] = 'SECRET'
+        raw = json.dumps({'type': 'result', 'value': value})
+        with patch.dict(self.d.os.environ, {'BUTLER_API_KEY': 'SYNTHETIC'}), \
+                patch.object(self.d, 'command', return_value=(0, raw, 'invalid api key SECRET')):
+            receipt = self.d.status(self.binary, self.previous)
+        self.assertEqual(receipt['category'], 'ok')
+        self.assertEqual(receipt['channel_head_state'], 'unknown')
+        self.assertIsNone(receipt['channel_head_build_id'])
+        self.assertTrue(receipt['channel_pending'])
+        self.assertNotIn('SECRET', json.dumps(receipt))
+
+    def test_preflight_tampering_and_missing_credential_never_launch(self):
+        for key, value in [('phase', 'other'), ('passed', False), ('installed_version', 'other'),
+                ('archive_sha256', 'other'), ('binary_sha256', 'other'), ('version_exit_code', 1),
+                ('help_exit_code', 1), ('help_exit_code', False), ('publication_allowed', True)]:
+            previous = dict(self.previous); previous[key] = value
+            with patch.object(self.d, 'command') as run, self.assertRaises(ValueError):
+                self.d.status(self.binary, previous)
+            run.assert_not_called()
+        for key in self.previous:
+            previous = dict(self.previous); previous.pop(key)
+            with patch.object(self.d, 'command') as run, self.assertRaises(ValueError):
+                self.d.status(self.binary, previous)
+            run.assert_not_called()
+        with patch.dict(self.d.os.environ, {}, clear=True), patch.object(self.d, 'command') as run:
+            receipt = self.d.status(self.binary, self.previous)
+        run.assert_not_called()
+        self.assertEqual(receipt['category'], 'missing-credential')
+
+    def test_process_exceptions_discard_untrusted_details(self):
+        for error, expected in [(OSError('SECRET'), (None, '', '')),
+                (subprocess.TimeoutExpired('SECRET', 60, output='SECRET'), (None, '', 'context deadline exceeded'))]:
+            with patch.object(self.d.subprocess, 'run', side_effect=error):
+                self.assertEqual(self.d.command(self.binary, ['--version']), expected)
+
+
 if __name__ == "__main__":
     unittest.main()

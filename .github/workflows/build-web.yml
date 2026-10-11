@@ -32,6 +32,8 @@ permissions:
   contents: read
 jobs:
   guard:
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -39,6 +41,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Classify the verified PR merge-tree diff (uncertainty runs full CI)
+        id: scope
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+        run: python3 tools/pr_ci_scope.py
       - name: Verify metadata and CI guard tests
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -64,6 +73,7 @@ jobs:
           node --check tests/connection_recovery_browser.js
           node --check platform/firebase/fullflow.test.mjs
   engine:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -91,6 +101,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   historical:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -133,6 +144,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   build:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: [guard, engine]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -473,7 +485,7 @@ jobs:
           printf 'Fresh source: %s\nRun: %s\nArtifact ID: %s\nManifest SHA256: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$ARTIFACT_ID" "$MANIFEST_SHA256" >> "$GITHUB_STEP_SUMMARY"
           printf 'All existing native/export/browser gates and focused Firebase/emulator checks passed in this run. No historical CI artifact reuse, deployment, or hosted/device acceptance is claimed.\n' >> "$GITHUB_STEP_SUMMARY"
       - name: Keep test and export evidence (never profiles or credentials)
-        if: always()
+        if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-firebase-evidence-${{ github.sha }}-${{ github.run_attempt }}
@@ -534,7 +546,7 @@ jobs:
         if: needs.build.result == 'success' && needs.compatibility.result == 'success'
         run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
-        if: always()
+        if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-evidence-${{ github.sha }}-${{ github.run_attempt }}
@@ -550,8 +562,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Accept explicitly limited PR guard result
+        if: needs.guard.outputs.scope == 'lightweight'
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+          GUARD: ${{ needs.guard.result }}
+          ENGINE: ${{ needs.engine.result }}
+          HISTORICAL: ${{ needs.historical.result }}
+          BUILD: ${{ needs.build.result }}
+          BROWSER: ${{ needs.browser.result }}
+          COMPATIBILITY: ${{ needs.compatibility.result }}
+          FIREBASE: ${{ needs.firebase.result }}
+          FIREBASE_REQUIRED: ${{ inputs.firebase_preview }}
+          WEB_ARTIFACT: ${{ needs.build.outputs.artifact_id }}
+          FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
+          FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
+        run: python3 tools/pr_ci_scope.py --check-lightweight-gate
       - name: Require every mandatory gate before exposing release outputs
         id: accept
+        if: needs.guard.outputs.scope != 'lightweight'
         env:
           GUARD: ${{ needs.guard.result }}
           ENGINE: ${{ needs.engine.result }}
