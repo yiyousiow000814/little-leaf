@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact update-notice source cb42374f0b43ea0e3382ac761b93b811dc078074/tree6f5162744c644cbcbbeec9c79578b1ab994e744d; QA b2395e82ad53cc93944a618b56b3e4f1341e0cb7; run38132007692; receiptSHA256 e84665b3dcc768d3ce2b3b3e1061a74334910835a7e9ee2a3056622ebc7c136c; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact update-notice-center source 584aa41f69deba49da6b24363225092864eacd7f/tree2218a9dc5e59719991da8540229fae99fecae48c; QA 58bfe72ddb708e1493e6428189ac68ec364d191b; run38135545106; receiptSHA256 d189615aae5f83c34fd5b23f08467060fddb32b6653dc3fa8d6f2dd61c11ebb6; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -73,7 +73,7 @@
     "scripts/cafe_tutorial.gd": "23b69ca7e7e17f99043d4ccacdb0c1da04844d083ad3fcf66edc6efb2dff85ca",
     "scripts/cafe_tutorial_state.gd": "712410d0752d341ff3a1bd1b46c744b9c7996e42de3d7f8c2380bfd99cb41cf0",
     "scripts/cafe_update_notes.gd": "1fe58680c029c47f18beed19aa094657051070ba9d5347b4e3eac871c1407a6a",
-    "scripts/cafe_update_notice.gd": "479db558013f879ffbd8597938d6d88061ab7838911df4b0935ac720af9d7067",
+    "scripts/cafe_update_notice.gd": "c2f727497bdc502b2ede8a88c4063076113c85e345dfc7efeccd16e54c8c9fe5",
     "scripts/cafe_viewport_layout.gd": "a52a56c410febc9d73dc44fa56ca791e05632a6de8a1e9b73cb28de7c69df540",
     "scripts/cafe_wall_openings.gd": "1d5f0ec107f894d593e5b3a9020253510d93394ffa8bc3410f372a2ab8027ae6",
     "scripts/cafe_wallet_notice.gd": "449841806b3dd4e613e6a1ab64122d9562ac117aa340f4c5a6cd35b8bea356fe",
