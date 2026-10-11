@@ -1,8 +1,8 @@
 """Run Build/Tiles checks; native_ui_runner documents the shared CLI contract."""
 if __package__:
-    from . import native_ui_runner as runner
+    from .tooling import native_ui_runner as runner
 else:
-    import native_ui_runner as runner
+    from tooling import native_ui_runner as runner
 
 
 def main():
