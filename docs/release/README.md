@@ -58,16 +58,6 @@ Status requests have a 60-second limit, the upload attempt ten minutes, and proc
 
 ## Latest reconciliation
 
-Urgent independently accepted fixes may use a unique immutable hotfix version
-with `"prerelease": true` in `game/data/release_notes.json`. The existing exact
-version, released-status, source ancestry and package gates still apply. The
-GitHub workflow creates that release with `--prerelease --latest=false`; Latest
-reconciliation excludes prereleases. This flag does not select additional
-gameplay or bypass platform qualification. Firebase and itch delivery must use
-the same frozen source/version, with their actual artifacts and hosted acceptance
-reported separately. Omitted or false retains ordinary release behavior; other
-flag types fail before publication.
-
 Each tag publishes its own source-only GitHub Release independently, initially without changing Latest. A separate promotion job rereads all release API pages and qualifies the highest normal numeric/single-letter release against main ancestry and exact tagged metadata. Delayed older runs therefore cannot downgrade Latest. Unknown Latest, API failures or moved tags stop promotion. Existing release content remains unchanged; an idempotent rerun may repair Latest through this separate verified reconciliation.
 
 Only promotion uses the shared concurrency group, with `cancel-in-progress: false` and GitHub's documented `queue: max` (up to 100 pending jobs, not unlimited). If an excess pending promotion is canceled, another reconciliation sees all already-published releases; tag publication itself is independent. This serialization does not lock manual maintainer edits outside the workflow.

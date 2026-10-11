@@ -8,6 +8,10 @@ on:
         type: string
   workflow_dispatch:
     inputs:
+      publication_run_id:
+        description: Completed exact-source itch run for live-eligible SHA prerelease chronology (empty for preview)
+        type: string
+        default: ''
       itch_preview:
         description: Stage a trusted-frame bootstrap packet for the one-day preview route; never deploy
         type: boolean
@@ -18,12 +22,39 @@ concurrency:
   group: firebase-stage-${{ inputs.released_run_id || github.ref }}
   cancel-in-progress: false
 jobs:
+  publication:
+    if: github.event_name == 'workflow_dispatch' && inputs.publication_run_id && !inputs.itch_preview
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      receipt: ${{ steps.select.outputs.receipt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN: ${{ inputs.publication_run_id }}
+        run: |
+          python3 tools/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/publication-selection"
+          python3 - <<'PY'
+          import json,os,pathlib
+          data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'],'publication-selection/selection.json').read_text())
+          if data['source_commit']!=os.environ['GITHUB_SHA']:raise ValueError('Publication must match this exact fresh source')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('receipt='+json.dumps(data['publication'],separators=(',',':'))+'\n')
+          PY
   fresh:
-    if: github.repository == 'yiyousiow000814/little-leaf' && !inputs.released_run_id
+    needs: publication
+    if: always() && github.repository == 'yiyousiow000814/little-leaf' && !inputs.released_run_id && (needs.publication.result == 'success' || needs.publication.result == 'skipped') && (!inputs.publication_run_id || needs.publication.result == 'success')
     uses: ./.github/workflows/build-web.yml
     with:
       firebase_preview: true
       itch_preview: ${{ inputs.itch_preview || false }}
+      publication_receipt: ${{ needs.publication.outputs.receipt || '' }}
   released:
     if: github.repository == 'yiyousiow000814/little-leaf' && inputs.released_run_id && github.ref == 'refs/heads/main' && github.workflow == 'Qualify Firebase after completed itch release' && !inputs.itch_preview
     runs-on: ubuntu-24.04

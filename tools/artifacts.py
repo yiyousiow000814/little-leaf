@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 from project_layout import source_path
+from release_metadata import projected_metadata
 
 
 def sha256(path):
@@ -20,8 +21,12 @@ def validate_web_gate(build, commit, tree, local_tools=False, *, source_root):
         raise RuntimeError("CI requires the existing checksum-pinned official toolchain gate")
     if not manifest.get("production_sha256"):
         raise RuntimeError("Existing production source hashes are required")
+    projected = projected_metadata(source_root, commit) if '-pre.' in manifest.get('version', '') else {}
+    expected_projection = {name: hashlib.sha256(content).hexdigest() for name, content in projected.items()}
+    if manifest.get('projected_metadata_sha256', {}) != expected_projection:
+        raise RuntimeError('Exact-source metadata projection differs')
     for name, digest in manifest["production_sha256"].items():
-        if sha256(source_path(source_root, name)) != digest or sha256(build / "project" / name) != digest:
+        if sha256(source_path(source_root, name)) != digest or sha256(build / "project" / name) != expected_projection.get(name, digest):
             raise RuntimeError("Source changed after existing Web gate: " + name)
     html = (build / "web/index.html").read_text(encoding="utf-8")
     if "https://sdk.crazygames.com/crazygames-sdk-v3.js" in html:

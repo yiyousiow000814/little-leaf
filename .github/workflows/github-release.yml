@@ -42,9 +42,11 @@ jobs:
           python3 - <<'PY'
           import base64, datetime, json, os, re, subprocess
           release_pattern = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]?)"
+          sha_pattern = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-pre\.([0-9a-f]{8})"
           tag = os.environ['RELEASE_TAG']
           match = re.fullmatch(release_pattern, tag)
-          if not match:
+          sha_match = re.fullmatch(sha_pattern, tag)
+          if not match and not sha_match:
               raise ValueError('Expected an existing vX.Y.Z or vX.Y.Z[a-z] tag')
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
@@ -60,13 +62,20 @@ jobs:
           project = git('show', sha + ':' + prefix + 'project.godot')
           notes = json.loads(git('show', sha + ':' + prefix + 'data/release_notes.json'))
           version = tag[1:]
-          if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [version]:
+          source_version = version
+          if sha_match:
+              if sha_match[4] != sha[:8]:
+                  raise ValueError('Prerelease hash must identify the exact tagged source')
+              source_version = version.rsplit('.', 1)[0]
+          if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [source_version]:
               raise ValueError('Tag and project version disagree')
-          if notes.get('schema_version') != 1 or notes.get('version') != version or notes.get('status') != 'released':
+          if notes.get('schema_version') != 1 or notes.get('version') != source_version or notes.get('status') != 'released':
               raise ValueError('Release metadata must match the release tag and be released')
           prerelease = notes.get('prerelease', False)
           if type(prerelease) is not bool:
               raise ValueError('Release prerelease flag must be a boolean')
+          if sha_match and prerelease is not True:
+              raise ValueError('SHA releases must be GitHub prereleases')
           if datetime.date.fromisoformat(notes['date']) > datetime.datetime.now(datetime.timezone.utc).date():
               raise ValueError('Release date is in the future')
           lines = []
@@ -88,7 +97,7 @@ jobs:
           # scripts from the tagged game source to render historical releases.
           def release_key(m):
               return (*map(int, m.groups()[:3]), ord(m[4]) - ord('a') + 1 if m[4] else 0)
-          current = release_key(match)
+          current = release_key(match) if match else (*map(int, sha_match.groups()[:3]), 0)
           previous = []
           for candidate in git('tag', '--list').splitlines():
               m = re.fullmatch(release_pattern, candidate)

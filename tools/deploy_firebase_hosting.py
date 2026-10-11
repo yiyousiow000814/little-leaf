@@ -173,6 +173,17 @@ class _EntryScripts(HTMLParser):
 def verify_live_package(folder, expected_sha, expected_manifest):
     """Keep reviewed previews/diagnostics out of the top-level live game route."""
     manifest, marker = verify_package(folder, expected_sha, expected_manifest)
+    if '-pre.' in marker.get('version',''):
+        publication=manifest.get('publication',{})
+        order=publication.get('itch_channel_version')
+        expected={'source_commit':expected_sha,'version':marker['version'],'tag':'v'+marker['version'],
+                  'target':'siowyiyou/little-leaf:html5','state':'completed'}
+        if (marker['version'].rsplit('.',1)[1]!=expected_sha[:8]
+                or any(publication.get(k)!=v for k,v in expected.items())
+                or type(order) is not int or not 0<order<=9007199254740991
+                or marker.get('release_order')!={'target':expected['target'],'channel_version':order}
+                or ('window.__littleLeafRelease='+json.dumps(marker).replace('<','\\u003c')+';') not in (folder/'public/index.html').read_text()):
+            raise ValueError('SHA prerelease needs exact completed publication and bound update chronology')
     if (manifest.get('production_release_eligible') is False
             or marker.get('diagnostic_only') is True
             or marker.get('auth_verification_only') is True

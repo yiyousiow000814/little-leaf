@@ -14,6 +14,10 @@ on:
         description: Prepare trusted-frame bootstrap after the unchanged fresh Firebase gates
         type: boolean
         default: false
+      publication_receipt:
+        description: Exact completed receipt selected by the read-only Firebase coordinator
+        type: string
+        default: ''
     outputs:
       artifact_id:
         description: Exact artifact from this tested source
@@ -440,9 +444,16 @@ jobs:
       - name: Stage Firebase only from this exact fresh all-gates build
         if: inputs.firebase_preview
         id: firebase_prepare
+        env:
+          PUBLICATION_RECEIPT: ${{ inputs.publication_receipt }}
         run: |
           preview_args=()
           if [[ '${{ inputs.itch_preview }}' == 'true' ]]; then preview_args=(--itch-preview-bootstrap); fi
+          if [[ -n "$PUBLICATION_RECEIPT" ]]; then
+            test '${{ inputs.itch_preview }}' != true
+            python3 -c 'import json,os,pathlib; pathlib.Path(os.environ["RUNNER_TEMP"],"publication.json").write_text(json.dumps(json.loads(os.environ["PUBLICATION_RECEIPT"])))'
+            preview_args+=(--publication-receipt "$RUNNER_TEMP/publication.json")
+          fi
           python3 tools/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config platform/firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused" "${preview_args[@]}"
       - name: Retain the fresh tested Firebase preview without publication
         if: inputs.firebase_preview

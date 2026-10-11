@@ -1,4 +1,5 @@
 'use strict';
+require('./sha_update_notice');
 const assert=require('node:assert/strict');
 const {create}=require('../platform/web/little_leaf_update');
 function setup(initial='0.1.10a'){
