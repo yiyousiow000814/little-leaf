@@ -1,5 +1,5 @@
 extends SceneTree
-## Run with Godot 4.6.3 --headless --path . --script tests/test_hud_layout.gd -- --fresh-review --visual-qa
+## Run with Godot 4.6.3 --headless --path . --script tests/presentation/test_hud_layout.gd -- --fresh-review --visual-qa
 ## The same script runs native pointer dispatch when a display is available.
 var game
 var checks=0

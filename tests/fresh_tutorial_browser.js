@@ -120,7 +120,7 @@ function validateBinding(web, resultFile, engineFile) {
   assert.deepEqual(record[0].failures, []);
   const resultBytes = fs.readFileSync(resultFile);
   assert.equal(record[0].result_sha256, hash(resultBytes), 'Coordinate receipt bound through engine aggregate and export');
-  for (const name of ['tests/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js']) {
+  for (const name of ['tests/presentation/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js']) {
     assert.equal(hash(fs.readFileSync(sourcePath(root,name))), engine.source_sha256[name], 'Exact tested harness source ' + name);
   }
   assert(Object.keys(manifest.production_sha256).length > 0);

@@ -20,14 +20,17 @@ func setup(test_api=null):
   if JavaScriptBridge.eval("typeof window.LittleLeafUpdate === 'object' && typeof window.LittleLeafUpdate.snapshot === 'function'"):
    api=JavaScriptBridge.get_interface("LittleLeafUpdate")
  panel=PanelContainer.new();panel.name="UpdateAvailableNotice";panel.z_index=40
- panel.add_theme_stylebox_override("panel",game._style(Color("fff8e7"),Color("bcb18b"),10));game.ui.add_child(panel)
- var box=VBoxContainer.new();box.add_theme_constant_override("separation",6);panel.add_child(box)
- message=game.label("Update available",15);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(message)
- reason=game.label("",12);reason.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(reason);reason.hide()
+ game.ui.add_child(panel)
+ var box=VBoxContainer.new();box.add_theme_constant_override("separation",8);panel.add_child(box)
+ message=game.label("Update available",18,ui.hud.INK);message.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(message)
+ reason=game.label("",14,ui.hud.INK);reason.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(reason);reason.hide()
  var actions=HBoxContainer.new();actions.add_theme_constant_override("separation",8);box.add_child(actions)
  update_button=ui._small_button("Save and update",_update,0);later_button=ui._small_button("Later",_later,0)
  for button in [update_button,later_button]:
   button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",14);button.custom_minimum_size=Vector2(0,44);button.clip_text=true;actions.add_child(button)
+ ui.hud.theme_panel(panel,false,16)
+ ui.hud.theme_button(update_button,true)
+ ui.hud.theme_panel_contents(panel)
  panel.get_child(0).minimum_size_changed.connect(func():_fit_notice.call_deferred())
  panel.resized.connect(_position_notice)
  panel.hide()
@@ -63,7 +66,10 @@ func _fit_notice():
 func _position_notice():
  if not is_instance_valid(panel) or ui==null:return
  var view=game.get_viewport().get_visible_rect().size;var inset=ui.hud._safe_insets()
- panel.position=Vector2(view.x-inset.z-panel.size.x-12,minf(ui.hud.layout_host.get_global_rect().end.y+8,view.y-inset.w-panel.size.y-12))
+ var right=minf(view.x-inset.z-12,ui.hud.popup_right())
+ var left=maxf(inset.x+12,right-panel.size.x)
+ if not ui.hud.layout_host.get_meta("mobile_layout",false):left=(view.x+inset.x-inset.z-panel.size.x)*.5
+ panel.position=Vector2(left,minf(ui.hud.layout_host.get_global_rect().end.y+8,view.y-inset.w-panel.size.y-12))
 func _later():
  if api==null or later_button.disabled:return
  api.dismiss(version)
