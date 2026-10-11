@@ -275,6 +275,12 @@ def main():
                     raise RuntimeError("Failed: " + name)
                 if marker and (len(payloads) != 1 or record["checks"] <= 0):
                     raise RuntimeError("Missing/duplicate/empty result: " + name)
+                if name == "test_customer_litter":
+                    evidence = json.loads(Path(env["LL_LITTER_EVIDENCE"]).read_text())
+                    if (record["checks"] < 56 or payloads[0].get("failures") != [] or
+                            evidence.get("checks") != record["checks"] or
+                            evidence.get("failures") != [] or "\nERROR:" in text):
+                        raise RuntimeError("Incomplete/failed customer litter result")
 
             try:
                 run("import", ["--editor", "--import", "--quit"], env_for("import"))
@@ -297,6 +303,13 @@ def main():
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
                     run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
+                    # Retain the autosave/Welcome wrappers' ordinary-save tripwire.
+                    if script in {
+                        "test_autosave_feedback", "test_autosave_feedback_adversarial", "test_autosave_feedback_ui",
+                        "test_no_bottom_notifications", "test_hud_layout", "test_startup_retry",
+                        "test_starter_geometry", "test_intro_lifecycle_headless", "test_intro_cli_bypass",
+                    } and any(Path(env["HOME"]).parent.rglob("little_leaf_cafe_layout_motion_v15.json")):
+                        raise RuntimeError("Unexpected regular save filename: " + script)
 
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
