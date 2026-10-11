@@ -92,7 +92,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_SHA: ${{ needs.gate.outputs.sha }}
-        run: python3 tools/reuse_main_ci.py --sha "$RELEASE_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/qualified-release"
+        run: python3 tools/qualification/reuse_main_ci.py --sha "$RELEASE_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/qualified-release"
       - name: Retain verified release package in this release run
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

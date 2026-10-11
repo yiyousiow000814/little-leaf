@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 import re
 
-from artifacts import sha256
+from qualification.artifacts import sha256
 from build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from firebase_release_gate import REPOSITORY, require, trusted_run
 from run_firebase_focused import COMMANDS
@@ -21,7 +21,7 @@ WORKFLOW = '.github/workflows/stage-firebase.yml'
 TARGET = 'siowyiyou/little-leaf:html5'
 RUNTIME = ['index.js', 'index.wasm', 'index.pck']
 COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-    'tools/reuse_released_web.py', 'tools/stage_released_firebase.py',
+    'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
     '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml',
     'tools/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
     '.github/workflows/deploy-firebase.yml']
@@ -100,7 +100,7 @@ def authenticate_origin(api, manifest, origin):
     require(api.read(f'compare/{source}...{coordinator}').get('status') in {'ahead', 'identical'},
         'Released source must be in this exact coordinator history')
     from firebase_release_event import peel
-    from reuse_main_ci import require_jobs
+    from qualification.reuse_main_ci import require_jobs
     q = manifest['manual_live_reuse']['qualification']; publication = manifest['manual_live_reuse']['publication']
     qualification_run = api.read('actions/runs/' + str(q['qualification_run_id']))
     trusted_run(qualification_run, '.github/workflows/ci.yml', ('push', 'workflow_dispatch'))
@@ -285,7 +285,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     from deploy_firebase_hosting import verify_package, verify_live_package
-    from reuse_main_ci import GitHub
+    from qualification.reuse_main_ci import GitHub
     manifest, _ = verify_package(args.variant, args.sha, args.manifest_sha256)
     origin = json.loads(args.origin.read_text())
     if manifest.get('status') == STATUS:
