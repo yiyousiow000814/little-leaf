@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from install_tools import LOCK
+from ci.install_tools import LOCK
 from publish_itch import TARGET, parse_result, channel
 
 
