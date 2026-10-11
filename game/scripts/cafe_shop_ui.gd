@@ -388,7 +388,7 @@ func _make_tile_card(key:String,title:String,price:String,style:String,callback:
  var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;coin.visible=not collection
  var cost=ui.hud._label(price_row,price,18);cost.clip_text=false;cost.size_flags_vertical=Control.SIZE_SHRINK_CENTER
  var status=ui.hud._label(body,"Choose a style" if collection else "per tile",11);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
- card.tooltip_text="Browse floor finishes" if collection else "Change one floor tile. Preview shows charge or refund."
+ card.tooltip_text="Browse floor finishes" if collection else "Change one floor tile."
  card.accessibility_description="Choose a floor finish for owned land." if collection else _build_product_purpose("tiles")
  card.accessibility_name="Browse Tiles" if collection else title+", "+price+" coins per tile"
  return card
@@ -407,7 +407,7 @@ func _setup_walls():
    var height_name="Full wall" if height=="full" else "Half wall"
    card.get_child(0).get_child(3).text=height_name
    card.accessibility_name=title+" · "+height_name+" · "+ui.Money.amount(game.model.wall_price(height))+" coins per tile"
-   card.tooltip_text="Build a wall. Preview shows where it can go."
+   card.tooltip_text="Preview where this wall can be built."
    card.accessibility_description=_build_product_purpose("walls")
  _sync_build_page()
 func _sync_build_page():
