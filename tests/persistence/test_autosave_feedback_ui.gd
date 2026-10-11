@@ -1,6 +1,6 @@
 extends SceneTree
 ## Existing Help/Settings state checks; no player save or new global channel.
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class FakeApi extends RefCounted:
  func creditForSave(_payload):return 0

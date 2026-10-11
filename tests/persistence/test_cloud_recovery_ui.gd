@@ -1,6 +1,6 @@
 extends SceneTree
 ## Native save-choice UI. Generated profile and synthetic JS boundary only.
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  var resumes=0

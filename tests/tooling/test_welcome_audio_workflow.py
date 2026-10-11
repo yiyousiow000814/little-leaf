@@ -39,7 +39,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
         self.assertIn("artifact-ids: ${{ steps.selected_web.outputs.artifact_id }}", self.text)
         self.assertIn("run-id: ${{ steps.selected_web.outputs.run_id }}", self.text)
         self.assertIn("digest-mismatch: error", self.text)
-        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/install_tools.py", "continue-on-error"):
+        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/ci/install_tools.py", "continue-on-error"):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("actions: read", self.text)
         for input_name in ("web_run_id", "web_artifact_id"):

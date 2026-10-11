@@ -1,7 +1,7 @@
 extends SceneTree
-const Cache=preload("res://scripts/cafe_shell_draw_cache.gd")
-const Art=preload("res://scripts/illustrated_openings.gd")
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Cache=preload("res://scripts/rendering/cafe_shell_draw_cache.gd")
+const Art=preload("res://scripts/rendering/illustrated_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 class View extends RefCounted:
 	var game={"model":{"built_walls":[]},"wall_detail":true}
 	var origin=Vector2(390,250)
@@ -78,7 +78,7 @@ func _initialize():
 	var expected=view.commands;view.commands=[]
 	cache.draw(view,unknown,attachments,"e0e7d0","91a27d")
 	check(view.commands==expected and cache.entries.size()==2,"unknown host direct fallback stays bounded")
-	var source=FileAccess.get_file_as_string("res://scripts/illustrated_cafe.gd")
+	var source=FileAccess.get_file_as_string("res://scripts/rendering/illustrated_cafe.gd")
 	var shell_start=source.find('shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back")')
 	var finish=source.find('shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west")')
 	check(shell_start>source.find("_draw_street_people(show_service)") and finish>shell_start and finish<source.find("var corner_height="),"shells keep exact live drawing positions")

@@ -15,7 +15,10 @@ class AtlasSourceGuard(unittest.TestCase):
         patch.object(guard,'ROOT',self.root).start()
         patch.object(guard,'MANIFEST',self.root/'data/prebaked_atlas_manifest.json').start()
         (self.root/'scripts').mkdir();(self.root/'data').mkdir();(self.root/'assets/cache').mkdir(parents=True)
-        for name in guard.SEEDS:(self.root/name).write_text('extends RefCounted\n')
+        for name in guard.SEEDS:
+            source = self.root/name
+            source.parent.mkdir(parents=True,exist_ok=True)
+            source.write_text('extends RefCounted\n',encoding='utf-8')
         for name in guard.NAMES:
             image = self.root/f'assets/cache/{name}-atlas.png'
             # Structural fixture only: actual imported-pixel integrity is tested in Godot.

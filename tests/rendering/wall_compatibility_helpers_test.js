@@ -4,13 +4,33 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, verifyLayout, selectWallReplacement, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, verifyLayout, selectWallReplacement, assertPreserved} = require('./wall_compatibility_helpers');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const fixtures = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtures, 'contract.json')));
 for (const [name, digest] of Object.entries(contract.fixture_sha256)) check('exact fixture ' + name, () => assert.equal(hash(fs.readFileSync(path.join(fixtures, name))), digest));
 check('candidate sources are required without redundant static hashes', () => {assert(contract.candidate_required_sources.includes('web/little_leaf_vault.js')); assert(!Object.hasOwn(contract, 'candidate_production_sha256'));});
+const currentCandidateSources = {
+  'web/little_leaf_vault.js': 'synthetic-vault',
+  'web/little_leaf_shell.html': 'synthetic-shell',
+  'scripts/persistence/cafe_web_save.gd': 'synthetic-save',
+  'scripts/core/cafe_model.gd': 'synthetic-model',
+  'scripts/gameplay/cafe_shell_segments.gd': 'synthetic-segments'
+};
+check('current candidate binds mapped resources without rewriting the pinned contract', () => {
+  const original = JSON.stringify(contract);
+  verifyCandidateSources(currentCandidateSources, contract.candidate_required_sources);
+  assert.equal(JSON.stringify(contract), original);
+});
+for (const name of Object.keys(currentCandidateSources)) check('missing current candidate source rejected: ' + name, () => {
+  const incomplete = {...currentCandidateSources}; delete incomplete[name];
+  assert.throws(() => verifyCandidateSources(incomplete, contract.candidate_required_sources));
+});
+check('historical resource labels cannot qualify a current candidate', () => {
+  const historical = Object.fromEntries(contract.candidate_required_sources.map(name => [name, 'synthetic-old']));
+  assert.throws(() => verifyCandidateSources(historical, contract.candidate_required_sources));
+});
 check('canonical snapshots preserve payload bytes', () => assert.notEqual(canonical({payload: '{"coins":1}'}), canonical({payload: '{ "coins":1}'})));
 check('canonical snapshots disregard only object key enumeration', () => assert.equal(canonical({z: [2, 1], a: 'x'}), canonical({a: 'x', z: [2, 1]})));
 check('snapshot order remains significant for lists', () => assert.notEqual(canonical([1, 2]), canonical([2, 1])));

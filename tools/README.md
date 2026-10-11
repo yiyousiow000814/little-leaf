@@ -9,7 +9,7 @@ an inventory, not a checklist to run after every edit.
 
 | Command | Responsibility |
 | --- | --- |
-| `install_tools.py` | Install checksum-pinned tools into a disposable location. |
+| `ci/install_tools.py` | Install checksum-pinned tools into a disposable location. |
 | `verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
 | `build_web.py` | Export the source already checked by the complete native gate. |
 | `build_crazygames.py` | Build the separate platform variant after the Web gate. |
@@ -24,7 +24,7 @@ The wall scenario remains required by the ordinary save compatibility gate.
 ## Parallel complete CI
 
 The reusable Web workflow runs the source/atlas guard first, then five independent
-engine shards alongside the historical client build. `engine_shards.py` assigns
+engine shards alongside the historical client build. `ci/engine_shards.py` assigns
 every canonical suite and all five staff-start cases using measured suite times;
 new suites receive a default weight and remain mandatory. Each runner keeps its
 own lock, project and disposable profile. The merger rejects missing, duplicate,
@@ -86,7 +86,7 @@ listed here does not authorize publication or deployment.
 `artifacts.py` owns file hashing, payload verification, and the complete Web
 source gate. Firebase and CrazyGames call that contract directly; neither variant
 depends on the other. Variant-specific provenance, staging, namespace and release
-policy remain in their respective commands. `toolchain.json` pins the installer;
+policy remain in their respective commands. `ci/toolchain.json` pins the installer;
 `release/release_metadata.py` is the single version ordering implementation.
 `build_itch_trusted_preview.py` is a shared preparation module used by the
 explicit Firebase preview option; it does not add a standalone launch command

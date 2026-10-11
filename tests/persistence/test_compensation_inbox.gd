@@ -1,5 +1,5 @@
 extends SceneTree
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const CAMPAIGN="little-leaf-0.1.5-existing-profile-compensation"
 const PROFILE="11111111-1111-4111-8111-111111111111"
 const TEST_NOW=1770086400000.0

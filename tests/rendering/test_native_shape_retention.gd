@@ -1,5 +1,5 @@
 extends SceneTree
-class CountingShape extends "res://scripts/cafe_shape_2d.gd":
+class CountingShape extends "res://scripts/rendering/cafe_shape_2d.gd":
 	var draws=0
 	func _draw():
 		draws+=1

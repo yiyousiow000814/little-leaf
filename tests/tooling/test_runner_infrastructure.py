@@ -13,6 +13,47 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 
 class RunnerInfrastructureTests(unittest.TestCase):
+    def test_frozen_controller_preloads_adapt_only_in_disposable_staging(self):
+        from project_layout import stage_project
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'source'
+            (root / 'game/scripts/platform').mkdir(parents=True)
+            (root / 'game/project.godot').write_text('config_version=5\n')
+            (root / 'platform/web').mkdir(parents=True)
+            (root / 'docs/testing').mkdir(parents=True)
+            (root / 'tests/fixtures').mkdir(parents=True)
+            script = root / 'game/scripts/platform/cafe_web_lifecycle.gd'
+            script.write_bytes(b'# Current controller dependency\n')
+            (root / 'game/scripts/core').mkdir()
+            model = root / 'game/scripts/core/cafe_model.gd'
+            model.write_bytes(b'# Current model dependency\n')
+            source = root / 'tests/fixtures/before_dishwashing_main.gd'
+            frozen = b'const Lifecycle=preload("res://scripts/cafe_web_lifecycle.gd")\n# Frozen old role behavior\n'
+            source.write_bytes(frozen)
+            shared = b'const Model=preload("res://scripts/cafe_model.gd")\n# Shared old-reader contract\n'
+            labels = ('tests/queue_backward_fixture.gd', 'tests/fixtures/queue_backward_fixture.gd',
+                      'tests/test_shell_segment_contract.gd', 'tests/fixtures/test_shell_segment_contract.gd')
+            for label in labels:
+                (root / label).write_bytes(shared)
+            destination = Path(temporary) / 'candidate'
+            stage_project(root, destination, tests=True)
+            staged = (destination / 'tests/fixtures/before_dishwashing_main.gd').read_bytes()
+            self.assertEqual(source.read_bytes(), frozen)
+            self.assertEqual(staged.replace(b'scripts/platform/', b'scripts/'), frozen)
+            self.assertEqual((destination / 'scripts/platform/cafe_web_lifecycle.gd').read_bytes(), script.read_bytes())
+            for label in labels:
+                self.assertEqual((root / label).read_bytes(), shared)
+                self.assertEqual((destination / label).read_bytes().replace(b'scripts/core/', b'scripts/'), shared)
+            self.assertEqual((destination / 'scripts/core/cafe_model.gd').read_bytes(), model.read_bytes())
+            script.unlink()
+            with self.assertRaisesRegex(ValueError, 'one current script'):
+                stage_project(root, Path(temporary) / 'missing', tests=True)
+            script.write_bytes(b'# Current controller dependency\n')
+            (root / 'game/scripts/duplicate').mkdir()
+            (root / 'game/scripts/duplicate/cafe_web_lifecycle.gd').write_bytes(script.read_bytes())
+            with self.assertRaisesRegex(ValueError, 'one current script'):
+                stage_project(root, Path(temporary) / 'duplicate', tests=True)
+
     def setUp(self):
         spec = importlib.util.spec_from_file_location('isolated_candidate_runner', ROOT / 'tests/run_integration_candidate.py')
         self.runner = importlib.util.module_from_spec(spec)
@@ -20,9 +61,9 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'source'
-        (self.root / 'scripts').mkdir(parents=True)
+        (self.root / 'scripts/persistence').mkdir(parents=True)
         (self.root / 'tests').mkdir()
-        (self.root / 'scripts/cafe_web_save.gd').write_text('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"\n')
+        (self.root / 'scripts/persistence/cafe_web_save.gd').write_text('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"\n')
         (self.root / 'tests/test_floor_claim_retry.gd').write_text('# Synthetic fixture only\n')
         self.runner.ROOT = self.root
         self.output = Path(self.temp.name) / 'output'
@@ -47,7 +88,7 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.assertEqual(report['status'], 'passed')
         self.assertFalse(report['disposable_fixture_retained'])
         self.assertFalse(report['player_save_used'])
-        self.assertIn('scripts/cafe_web_save.gd', report['source_sha256'])
+        self.assertIn('scripts/persistence/cafe_web_save.gd', report['source_sha256'])
         for command, env in commands:
             self.assertEqual(command[1:4], ['--headless', '--audio-driver', 'Dummy'])
             self.assertNotIn('--fixed-fps', command, 'Unreviewed suites must keep their original pacing')

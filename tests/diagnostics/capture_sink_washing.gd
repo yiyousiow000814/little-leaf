@@ -1,7 +1,7 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
-const Dishes=preload("res://scripts/cafe_dishwashing.gd")
-const Wash=preload("res://scripts/cafe_sink_wash_art.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Dishes=preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const Wash=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
 class FixtureGame extends Node:
  var model=Model.new()
  var dishwashing=Dishes.new()
@@ -11,7 +11,7 @@ class FixtureGame extends Node:
  var paused=false
  var wall_detail=false
  var animation_time=0.0
-class Sheet extends "res://scripts/illustrated_cafe.gd":
+class Sheet extends "res://scripts/rendering/illustrated_cafe.gd":
  var font=preload("res://assets/fonts/NotoSans-Regular.ttf")
  var mode="sheet"
  var seconds=4.3
