@@ -1,6 +1,6 @@
 # Fresh ordinary-Web tutorial gate
 
-`tests/fresh_tutorial_browser.js` runs one isolated, first-time-player journey
+`tests/presentation/fresh_tutorial_browser.js` runs one isolated, first-time-player journey
 against the exact ordinary Web export. It uses a new Chromium context and a new
 localhost origin with no saved state. It does not install an engine hook, change
 launch arguments, skip the intro/tutorial, seed storage, accelerate time, create
@@ -33,7 +33,7 @@ python3 tools/build_web.py --output "$RUNNER_TEMP/web-build" \
   --test-report "$RUNNER_TEMP/engine-evidence/summary.json"
 PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" \
 PLAYWRIGHT_CHROMIUM_CHANNEL=chrome \
-xvfb-run -a node tests/fresh_tutorial_browser.js \
+xvfb-run -a node tests/presentation/fresh_tutorial_browser.js \
   --web-build "$RUNNER_TEMP/web-build/web" \
   --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" \
   --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" \
@@ -138,9 +138,9 @@ sparse matched samples alone must not be reported as its full visible duration.
 ## Local checks without a display
 
 ```sh
-node --check tests/fresh_tutorial_browser.js
-node tests/fresh_tutorial_browser_test.js
-node tests/fresh_tutorial_browser_test.js --ocr-fixtures # needs Tesseract English
+node --check tests/presentation/fresh_tutorial_browser.js
+node tests/presentation/fresh_tutorial_browser_test.js
+node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures # needs Tesseract English
 node tests/rendering/wall_compatibility_helpers_test.js
 python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
 python3 tests/run_integration_candidate.py --only test_interactive_tutorial \

@@ -6,9 +6,9 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 const source = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
-const payload = fs.readFileSync(path.join(__dirname, 'fixtures/startup-retry-v15.json'), 'utf8');
+const payload = fs.readFileSync(path.join(__dirname, '../fixtures/startup-retry-v15.json'), 'utf8');
 const option = name => {
   const index = process.argv.indexOf(name);
   return index < 0 ? null : path.resolve(process.argv[index + 1]);

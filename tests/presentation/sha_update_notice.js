@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict');
-const {create}=require('../platform/web/little_leaf_update');
+const {create}=require('../../platform/web/little_leaf_update');
 function marker(hash,sequence,version='0.1.11-pre.'+hash.slice(0,8)){
  return {schema_version:1,version,source_commit:hash,release_order:{target:'siowyiyou/little-leaf:html5',channel_version:sequence}};
 }
