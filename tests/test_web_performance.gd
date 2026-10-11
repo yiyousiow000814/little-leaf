@@ -11,7 +11,7 @@ class TestSettings extends Settings:
 class QuietMain extends Main:
  var stepped=0.0
  func _ready():
-  for node in [world,furnishings,people,camera,ui]:add_child(node)
+  for node in [people,ui]:add_child(node)
  func _process(delta):stepped+=effective_frame_delta(delta)
 class SyntheticMain extends Main:
  func _load_startup():

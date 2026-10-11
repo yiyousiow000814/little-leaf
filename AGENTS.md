@@ -29,6 +29,8 @@ The second command is an example for janitor cleanup changes, not a default suit
 
 For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).
 
+For urgent fixes before the full 0.1.11 scope is complete, follow the approved [SHA prerelease policy](docs/release/README.md#urgent-011-prereleases); verify actual pipeline support and matching platform/source gates before publication. Gameplay acceptance is separate from cleanup merge authority.
+
 ## Performance and unchanged presentation
 
 For gameplay, art, UI, animation and camera work, identify per-frame cost,
