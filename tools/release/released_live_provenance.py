@@ -36,7 +36,12 @@ def coordinator_files(paths):
     paths = set(paths)
     resolved = []
     for name in COORDINATOR_FILES:
-        aliases = ('tools/reuse_released_web.py', name) if name == 'tools/qualification/reuse_released_web.py' else (name,)
+        if name == 'tools/qualification/reuse_released_web.py':
+            aliases = ('tools/reuse_released_web.py', name)
+        elif name == 'tools/release/released_live_provenance.py':
+            aliases = ('tools/released_live_provenance.py', name)
+        else:
+            aliases = (name,)
         matches = [path for path in aliases if path in paths]
         require(len(matches) == 1, 'Missing or ambiguous coordinator source: ' + name)
         resolved.append(matches[0])
