@@ -1,5 +1,5 @@
 extends SceneTree
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 const Tasks=preload("res://scripts/cafe_floor_tasks.gd")
 const Approach=preload("res://scripts/floor_cleaning_approach.gd")
 const Walls=preload("res://scripts/cafe_walls.gd")

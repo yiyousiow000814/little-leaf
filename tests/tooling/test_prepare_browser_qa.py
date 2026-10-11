@@ -38,13 +38,19 @@ class PreparationTests(unittest.TestCase):
             def run(command, **kwargs):
                 if '--script' not in command:
                     return
+                self.assertEqual(command[command.index('--script') + 1], 'res://tests/probe_cloud_recovery_geometry.gd')
+                project = Path(command[command.index('--path') + 1])
+                self.assertEqual((project / 'tests/probe_cloud_recovery_geometry.gd').read_bytes(),
+                                 (qa.ROOT / 'tests/diagnostics/probe_cloud_recovery_geometry.gd').read_bytes())
                 value = json.loads(Path(command[-2]).read_text())
                 width = value['viewport']['width']
                 reason = value['snapshot']['reason']
                 text = reason + (' Current progress is protected on this device.' if 'nativeCallback' in value else '')
                 result = {'text': text, 'buttons': {'switch': [width if invalid else 1, len(reason), 20, 20]}}
                 Path(command[-1]).write_text(json.dumps(result))
-            with patch.object(qa.shutil, 'copytree'), patch.object(qa.subprocess, 'run', side_effect=run) as engine, patch.object(qa.subprocess, 'check_output', return_value='synthetic-source\n'), patch.object(qa, 'sha256', return_value='synthetic-hash'):
+            def stage_directory(source, destination, **kwargs):
+                Path(destination).mkdir(parents=True, exist_ok=True)
+            with patch.object(qa.shutil, 'copytree', side_effect=stage_directory), patch.object(qa.subprocess, 'run', side_effect=run) as engine, patch.object(qa.subprocess, 'check_output', return_value='synthetic-source\n'), patch.object(qa, 'sha256', return_value='synthetic-hash'):
                 if invalid:
                     with self.assertRaises(ValueError):
                         qa.main(['cloud', '--output', str(out)])
