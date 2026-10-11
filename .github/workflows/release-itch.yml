@@ -95,6 +95,7 @@ jobs:
         with:
           ref: ${{ needs.gate.outputs.sha }}
           persist-credentials: false
+          fetch-depth: 0
       - name: Refuse missing credentials before any upload
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
