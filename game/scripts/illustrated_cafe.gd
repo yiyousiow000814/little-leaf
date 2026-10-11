@@ -341,7 +341,7 @@ func _parking_visits()->Array:
 	var visits=game.model.get("parking_visits")
 	return visits if visits is Array else []
 
-func _draw_street_people(show_service:bool):
+func _draw_street_people(show_service:bool, scenery_tree:Dictionary={}):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,render_view_rect()) if show_service else []
@@ -353,7 +353,12 @@ func _draw_street_people(show_service:bool):
 		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(render_view_rect()):continue
 		entries.append({"position":position,"guest":guest})
 	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
+	# Merge the enrolled oak without changing the existing actor/car tie order.
+	var tree_pending=not scenery_tree.is_empty()
 	for entry in entries:
+		if tree_pending and float(scenery_tree.depth)<=entry.position.x+entry.position.y:
+			_scenery_tree(scenery_tree.position,float(scenery_tree.scale))
+			tree_pending=false
 		if bool(entry.get("parking_car",false)):
 			Neighborhood.draw_oriented_car(self,entry.position,entry.heading,entry.color)
 			continue
@@ -368,6 +373,7 @@ func _draw_street_people(show_service:bool):
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
+	if tree_pending:_scenery_tree(scenery_tree.position,float(scenery_tree.scale))
 
 func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
 	if not show_people:return
@@ -962,7 +968,17 @@ func _draw():
 	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
 	_scenery_tree(Vector2(13.5,-.5),1.10)
-	_draw_street_people(show_service)
+	# This oak overlaps street actors. Partition once so it cannot draw twice.
+	var street_tree={}
+	var scenery_trees=[]
+	for i in range(Neighborhood.TREES.size()):
+		var tree=Neighborhood.TREES[i]
+		var world=Vector2(tree.x,tree.y)
+		if not _scenery_tree_visible_at(world):continue
+		var descriptor={"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]}
+		if world==Vector2(-13.1,1.5) and is_equal_approx(tree.z,.86) and descriptor.variant=="oak":street_tree=descriptor
+		else:scenery_trees.append(descriptor)
+	_draw_street_people(show_service,street_tree)
 	# Existing shell and player walls share the same aperture geometry.
 	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
 	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
@@ -972,10 +988,7 @@ func _draw():
 	var entities=[]
 	# Corner foliage shares the ground-depth order of props and people.
 	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
-	for i in range(Neighborhood.TREES.size()):
-		var tree=Neighborhood.TREES[i]
-		var world=Vector2(tree.x,tree.y)
-		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]})
+	entities.append_array(scenery_trees)
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments():
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
