@@ -101,7 +101,7 @@
     "scripts/floor_mess_art.gd": "b5f89381c7fdda22602a3b04d6251054dd568ddd8f41a51c79f4d07f763a93d6",
     "scripts/furniture_atlas_painter.gd": "019ac6bdf317d6bde7ffd44e95f1f789de745d2a9ff110a9ec3da57cc15ffd78",
     "scripts/furniture_static_atlas.gd": "c5c1a04a5ac159362b3718a415d01243a6b8f796779dfc22b08234a14fccd427",
-    "scripts/illustrated_cafe.gd": "e81ad482a1208a091ed3686b61e7640befa4c28b4fa2f7eb7634dda393e7c087",
+    "scripts/illustrated_cafe.gd": "0788d71e0d16e51066e81af893b65b1eaa7ccf24a810236ee9a362c02379bb62",
     "scripts/illustrated_furniture.gd": "80b838c3313164b7052c56235e65d2dbe34de77f200f05ba8e5a6d3647ebe140",
     "scripts/illustrated_ground.gd": "723e4e2ec9039c6dca21b0a576feec239bf51af581e0b5d970a6e3e1225eb9c5",
     "scripts/illustrated_motion.gd": "bb0b8d353bfb117d2a35029b735c1872b3424b36fd229daf9290e8afa543bf8e",
