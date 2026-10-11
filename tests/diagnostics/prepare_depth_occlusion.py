@@ -21,6 +21,7 @@ def prepare(repo, output):
                   ignore=shutil.ignore_patterns('.godot', '__pycache__'))
     artist = project / 'scripts/illustrated_cafe.gd'
     original = artist.read_bytes()
+    eol = '\r\n' if b'\r\n' in original else '\n'
     text = original.decode('utf-8').replace('\r\n', '\n')
     hooks = (repo / 'tests/diagnostics/depth_occlusion_probe_hooks.gd.txt').read_text(encoding='utf-8')
     text += '\n' + hooks
@@ -42,10 +43,10 @@ def prepare(repo, output):
             '\tshape.configure(method, arguments, placement)\n\t_depth_probe_submit("native_shape",order,shape)\n')
     replace('\t_finish_native_objects()\n\tcanvas_stream.finish()\n',
             '\t_finish_native_objects()\n\t_depth_probe_finish()\n\tcanvas_stream.finish()\n')
-    artist.write_text(text, encoding='utf-8', newline='\n')
+    artist.write_bytes(text.replace('\n', eol).encode('utf-8'))
     # Freeze the exact diagnostic-only changes before requesting any runtime.
     import difflib
-    diff = ''.join(difflib.unified_diff(original.decode('utf-8').splitlines(True),
+    diff = ''.join(difflib.unified_diff(original.decode('utf-8').replace('\r\n', '\n').splitlines(True),
                                      text.splitlines(True),
                                      fromfile='tracked/illustrated_cafe.gd',
                                      tofile='staged/illustrated_cafe.gd'))
