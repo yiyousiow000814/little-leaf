@@ -31,4 +31,4 @@ static func draw(view,targets:Array,material:String,valid:bool):
  var outline=PackedVector2Array()
  for edge in perimeter(cells):
   outline.append(view.iso(edge[0].x,edge[0].y));outline.append(view.iso(edge[1].x,edge[1].y))
- if not outline.is_empty():view.draw_multiline(outline,Color("6d8e7b") if valid else Color("a54e44"),1.15 if valid else 1.5,true)
+ if not outline.is_empty():view.art_draw_multiline(outline,Color("6d8e7b") if valid else Color("a54e44"),1.15 if valid else 1.5,true)
