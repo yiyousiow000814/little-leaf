@@ -22,7 +22,7 @@ func setup(test_api=null):
  panel=PanelContainer.new();panel.name="UpdateAvailableNotice";panel.z_index=40
  game.ui.add_child(panel)
  var box=VBoxContainer.new();box.add_theme_constant_override("separation",8);panel.add_child(box)
- message=game.label("Update available",18,ui.hud.INK);message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(message)
+ message=game.label("Update available",18,ui.hud.INK);message.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(message)
  reason=game.label("",14,ui.hud.INK);reason.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;box.add_child(reason);reason.hide()
  var actions=HBoxContainer.new();actions.add_theme_constant_override("separation",8);box.add_child(actions)
  update_button=ui._small_button("Save and update",_update,0);later_button=ui._small_button("Later",_later,0)
