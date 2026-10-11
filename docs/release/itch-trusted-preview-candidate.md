@@ -73,6 +73,33 @@ physical-mobile acceptance. The final packet has the distinct status
 `fresh-itch-test-entry-not-live-eligible`; historical local packets retain their
 NONDEPLOYABLE status and cannot be promoted by a helper-only CI pass.
 
+#### Compiled iframe fixture transport correction
+
+Official test stage `38165586296` on `06bc3ca7` failed its unchanged 90-second
+startup assertion before completing any cloud-flow checks. The failure collector
+also called an unavailable local-vault method, hiding bootstrap observations.
+The retained failed artifact remains ineligible; its ordinary CI results do not
+qualify the embedded game.
+
+A separately admitted, no-game synthetic probe confirmed that the HTTPS frame's
+HTTP loopback module import is blocked while its same-origin HTTPS control
+succeeds. It did not reproduce a storage partition failure or establish the
+actual SDK/game startup cause. The fixture correction serves the exact pinned
+SDK bytes from the frame's HTTPS origin and forwards only the known demo-project
+RPCs through a fixed Node-side loopback proxy. Local preflight accepts only the
+six header names used by that pinned SDK; it grants no private-network access.
+The real emulator mock credentials, settings and rules remain fenced, with only
+the test transport's host/SSL changed. Synthetic journal setup and exact readback
+occur in the actual nested frame before its game navigation.
+
+The existing startup/read/update timeouts and cloud/save assertions are retained.
+Failure evidence records bounded request categories and independently collects
+bootstrap observations when later APIs are unavailable. Source review and finite
+fixture checks do not prove buffered long-poll timing: fresh compiled full-flow
+qualification is required before a new artifact can enter the bounded test
+selector. No product, browser security flags, live endpoint, account, rules or
+Hosting mutation is part of this fixture correction.
+
 The existing `deploy-firebase.yml` identity has a separate `itch-test-entry` mode.
 Before WIF it binds exact main source/tree, first staging attempt, completed API
 job gates, immutable artifact digest, manifest/inventory and complete retained
