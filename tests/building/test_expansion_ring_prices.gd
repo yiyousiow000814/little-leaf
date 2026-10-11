@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Money=preload("res://scripts/cafe_money.gd")
 const RING_IDS=[
  ["front_0","front_1","front_2","front_3","right_0","right_1","right_2","corner_0"],

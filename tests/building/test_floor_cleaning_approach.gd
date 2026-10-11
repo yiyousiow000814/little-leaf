@@ -2,7 +2,7 @@ extends SceneTree
 const Approach=preload("res://scripts/floor_cleaning_approach.gd")
 const Pose=preload("res://scripts/cleaning_tool_pose.gd")
 const Art=preload("res://scripts/illustrated_cafe.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Relocation=preload("res://scripts/cafe_staff_relocation.gd")
 const Walls=preload("res://scripts/cafe_walls.gd")
 class Fixture extends Node:

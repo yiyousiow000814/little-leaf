@@ -41,8 +41,8 @@ def main():
         [*git, "rev-parse", "HEAD"], text=True).strip(), "headless_only": True,
         "player_save_used": False, "runs": []}
     report["candidate_source_sha256"] = {
-        name: hashlib.sha256((candidate / "scripts" / name).read_bytes()).hexdigest()
-        for name in ["cafe_model.gd", "cafe_outside_queue.gd", "cafe_runtime_codec.gd", "cafe_save_contract.gd"]}
+        Path(resource).name: hashlib.sha256((candidate / "scripts" / resource).read_bytes()).hexdigest()
+        for resource in ["core/cafe_model.gd", "cafe_outside_queue.gd", "cafe_runtime_codec.gd", "cafe_save_contract.gd"]}
 
     def run(label, project, mode=None, source=None, destination=None):
         env = os.environ.copy()

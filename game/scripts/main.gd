@@ -4,7 +4,7 @@ const Money=preload("res://scripts/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
 const Illustration = preload("res://scripts/illustrated_cafe.gd")
-const Model = preload("res://scripts/cafe_model.gd")
+const Model = preload("res://scripts/core/cafe_model.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
 const Interaction = preload("res://scripts/cafe_interaction.gd")
 const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
@@ -162,7 +162,7 @@ func _ready():
 	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
 	tutorial.setup(self)
 	if DisplayServer.get_name() != "headless" and cafe_intro.active:
-		startup_readiness = preload("res://scripts/cafe_startup_readiness.gd").new()
+		startup_readiness = preload("res://scripts/core/cafe_startup_readiness.gd").new()
 		startup_readiness.start(self)
 	elif OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)

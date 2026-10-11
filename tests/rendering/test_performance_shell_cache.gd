@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 var checks=0
 var failures=[]
 func check(value:bool,message:String):

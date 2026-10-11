@@ -1,5 +1,5 @@
 extends SceneTree
-const M=preload("res://scripts/cafe_model.gd")
+const M=preload("res://scripts/core/cafe_model.gd")
 const P=preload("res://scripts/cafe_parking.gd")
 const C=preload("res://scripts/cafe_runtime_codec.gd")
 var checks=0

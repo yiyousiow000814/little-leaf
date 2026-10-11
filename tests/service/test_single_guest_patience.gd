@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Codec=preload("res://scripts/cafe_runtime_codec.gd")
 class MealDrawProbe extends "res://scripts/illustrated_cafe.gd":
  var plates=0;var cups=0

@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 func _init():
 	var model=Model.new();model.coins=100000
 	for cell in [Vector2i(3,6),Vector2i(6,2),Vector2i(9,5),Vector2i(9,7)]:assert(model.place("table_set",cell.x,cell.y,0),model.last_error)

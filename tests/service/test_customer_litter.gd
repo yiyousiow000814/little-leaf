@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Tasks=preload("res://scripts/cafe_floor_tasks.gd")
 const Codec=preload("res://scripts/cafe_runtime_codec.gd")
 const LegacyFixture=preload("res://tests/fixtures/build_litter_legacy_spill.gd")

@@ -44,7 +44,8 @@ def validate_export(build, source, old=False):
     if old:
         if manifest["production_sha256"].get("web/little_leaf_vault.js") != CONTRACT["old_vault_sha256"]:
             raise RuntimeError("Historical vault hash differs")
-    elif not set(CONTRACT["candidate_required_sources"]).issubset(manifest["production_sha256"]):
+    elif not {name.replace('scripts/cafe_model.gd', 'scripts/core/cafe_model.gd')
+              for name in CONTRACT["candidate_required_sources"]}.issubset(manifest["production_sha256"]):
         raise RuntimeError("Candidate export is missing required production sources")
     projection = projected_metadata(source, commit)
     projected_hashes = {name: hashlib.sha256(content).hexdigest() for name, content in projection.items()}

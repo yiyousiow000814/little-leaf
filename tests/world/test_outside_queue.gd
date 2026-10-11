@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Queue=preload("res://scripts/cafe_outside_queue.gd")
 const Codec=preload("res://scripts/cafe_runtime_codec.gd")
 class TestMain extends "res://scripts/main.gd":

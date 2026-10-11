@@ -24,15 +24,27 @@ class RunnerInfrastructureTests(unittest.TestCase):
             (root / 'tests/fixtures').mkdir(parents=True)
             script = root / 'game/scripts/platform/cafe_web_lifecycle.gd'
             script.write_bytes(b'# Current controller dependency\n')
+            (root / 'game/scripts/core').mkdir()
+            model = root / 'game/scripts/core/cafe_model.gd'
+            model.write_bytes(b'# Current model dependency\n')
             source = root / 'tests/fixtures/before_dishwashing_main.gd'
             frozen = b'const Lifecycle=preload("res://scripts/cafe_web_lifecycle.gd")\n# Frozen old role behavior\n'
             source.write_bytes(frozen)
+            shared = b'const Model=preload("res://scripts/cafe_model.gd")\n# Shared old-reader contract\n'
+            labels = ('tests/queue_backward_fixture.gd', 'tests/fixtures/queue_backward_fixture.gd',
+                      'tests/test_shell_segment_contract.gd', 'tests/fixtures/test_shell_segment_contract.gd')
+            for label in labels:
+                (root / label).write_bytes(shared)
             destination = Path(temporary) / 'candidate'
             stage_project(root, destination, tests=True)
             staged = (destination / 'tests/fixtures/before_dishwashing_main.gd').read_bytes()
             self.assertEqual(source.read_bytes(), frozen)
             self.assertEqual(staged.replace(b'scripts/platform/', b'scripts/'), frozen)
             self.assertEqual((destination / 'scripts/platform/cafe_web_lifecycle.gd').read_bytes(), script.read_bytes())
+            for label in labels:
+                self.assertEqual((root / label).read_bytes(), shared)
+                self.assertEqual((destination / label).read_bytes().replace(b'scripts/core/', b'scripts/'), shared)
+            self.assertEqual((destination / 'scripts/core/cafe_model.gd').read_bytes(), model.read_bytes())
             script.unlink()
             with self.assertRaisesRegex(ValueError, 'one current script'):
                 stage_project(root, Path(temporary) / 'missing', tests=True)

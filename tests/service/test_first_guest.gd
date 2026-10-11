@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Minimal=preload("res://scripts/minimal_start.gd")
 const FirstGuest=preload("res://scripts/cafe_first_guest.gd")
 const Main=preload("res://scripts/main.gd")

@@ -1,6 +1,6 @@
 extends SceneTree
 const Furniture=preload("res://scripts/illustrated_furniture.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const AA=preload("res://scripts/retained_aa_strokes.gd")
 const Pose=preload("res://scripts/cooking_tool_pose.gd")
 const Atlas=preload("res://scripts/furniture_static_atlas.gd")

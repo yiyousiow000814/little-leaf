@@ -48,12 +48,9 @@ def stage_project(repository, destination, *, tests=False, ignore=None):
 
 
 def _stage_historical_fixture_paths(destination):
-    """Adapt the frozen controller's preloads in its disposable copy only."""
+    """Adapt shared old-reader preloads in disposable current-source copies."""
     destination = Path(destination)
-    fixture = destination / 'tests/fixtures/before_dishwashing_main.gd'
-    if not fixture.is_file():
-        return
-    original = fixture.read_bytes()
+
     def resource(match):
         name = match.group(1).decode('utf-8')
         if (destination / 'scripts' / name).is_file():
@@ -62,6 +59,16 @@ def _stage_historical_fixture_paths(destination):
         if len(paths) != 1:
             raise ValueError('Historical fixture requires one current script: ' + name)
         return ('res://' + paths[0].relative_to(destination).as_posix()).encode('utf-8')
-    adapted = re.sub(rb'res://scripts/([^/"\s]+\.gd)', resource, original)
-    if adapted != original:
-        fixture.write_bytes(adapted)
+    for label in (
+            'tests/fixtures/before_dishwashing_main.gd',
+            'tests/queue_backward_fixture.gd',
+            'tests/fixtures/queue_backward_fixture.gd',
+            'tests/test_shell_segment_contract.gd',
+            'tests/fixtures/test_shell_segment_contract.gd'):
+        fixture = destination / label
+        if not fixture.is_file():
+            continue
+        original = fixture.read_bytes()
+        adapted = re.sub(rb'res://scripts/([^/"\s]+\.gd)', resource, original)
+        if adapted != original:
+            fixture.write_bytes(adapted)

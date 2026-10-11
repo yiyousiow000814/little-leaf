@@ -1,6 +1,6 @@
 extends SceneTree
 ## Enlarged native views rendered by the same sink and queue painters as play.
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Dishes=preload("res://scripts/cafe_dishwashing.gd")
 class FixtureGame extends Node:
  var model=Model.new()
