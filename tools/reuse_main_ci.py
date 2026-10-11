@@ -16,7 +16,7 @@ from artifacts import sha256, validate_export_inventory
 from build_web import (PRODUCTION_DIRS, PRODUCTION_FILES, REQUIRED_NOTICES,
                        verify_installer_receipt)
 from project_layout import resource_name, source_path
-from release_metadata import version
+from release_metadata import version, projected_metadata
 
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = 'yiyousiow000814/little-leaf'
@@ -142,7 +142,10 @@ def extract(data, expected_digest, destination):
 
 def bind_package(web, root, sha, tree, run, tag=''):
     manifest = validate_export_inventory(web)
-    value = version(root, tag)
+    value = version(root, tag, source_commit=sha)
+    projection = {name: hashlib.sha256(content).hexdigest() for name, content in projected_metadata(root, sha).items()}
+    if manifest.get('projected_metadata_sha256', {}) != projection:
+        raise ValueError('Qualified exact-source metadata projection differs')
     if (manifest.get('source_commit') != sha or manifest.get('source_tree') != tree
             or manifest.get('version') != value or manifest.get('tag') not in {'', tag}
             or str(manifest.get('workflow_run')) != str(run['id'])

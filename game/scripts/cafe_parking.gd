@@ -3,8 +3,8 @@ extends RefCounted
 const LEGACY_FORMAT="little_leaf.parking.v1"
 const FORMAT="little_leaf.parking.v2"
 const APPEARANCE_RECIPE="original_guest_v1"
-const Traffic=preload("res://scripts/cafe_road_traffic.gd")
-const PRICE=2000 # Provisional in-game price; historical paid_cost is authoritative.
+const Traffic=preload("res://scripts/world/cafe_road_traffic.gd")
+const PRICE=50000 # New purchases; historical paid_cost remains authoritative.
 const CAPACITY=4
 const BAY_X=[1.3,4.2,7.1,10.0]
 const BAY_Z=-7.15

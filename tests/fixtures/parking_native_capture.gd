@@ -11,7 +11,7 @@ func run():
 	var game=CaptureGame.new();root.add_child(game);game.set_process(false)
 	game.illustration.free();game.illustration=FixedArt.new();game.illustration.game=game;game.add_child(game.illustration);game.illustration.set_process(false)
 	game.model.first_guest_pending=false;game.model.first_guest_start=Vector2.INF
-	game.paused=false;game.model.coins=10000;game.model.begin_decoration_session();assert(game.model.buy_parking());game.model.finish_decoration_session()
+	game.paused=false;game.model.coins=game.model.parking_price()+8000;game.model.begin_decoration_session();assert(game.model.buy_parking());game.model.finish_decoration_session()
 	var p=game.model.Parking
 	if p.FORMAT=="little_leaf.parking.v1":p.reserve(game.model)
 	else:assert(p.reserve(game.model,4))

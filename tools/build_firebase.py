@@ -4,6 +4,7 @@ from pathlib import Path
 from build_web import ROOT, sha256
 import artifacts
 from project_layout import source_path
+from entry_presentation import entry_styles
 
 def validate_export_inventory(build):
     return artifacts.validate_export_inventory(build / 'web')
@@ -11,11 +12,16 @@ def validate_export_inventory(build):
 def validate_web_gate(build, commit, tree, local_tools=False):
     return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
 
-def entry_styles():
-    """Inline the existing licensed Nunito font; no new external requests."""
-    css=source_path(ROOT,'web/little_leaf_entry.css').read_text(encoding='utf-8')
-    notice=source_path(ROOT,'assets/fonts/Nunito-OFL.txt').read_text(encoding='utf-8')
-    return '/* '+notice+' */\n'+css.replace('$NUNITO_FONT',base64.b64encode(source_path(ROOT,'assets/fonts/Nunito-Variable.ttf').read_bytes()).decode('ascii'))
+def update_hosting_marker(public, marker):
+    """Keep the immutable loaded-page identity equal to the final staged marker."""
+    path=public/'hosting-release.json';previous=json.loads(path.read_text())
+    html_path=public/'index.html';html=html_path.read_text(encoding='utf-8')
+    old='window.__littleLeafRelease='+json.dumps(previous).replace('<','\\u003c')+';'
+    new='window.__littleLeafRelease='+json.dumps(marker).replace('<','\\u003c')+';'
+    if html.count(old)!=1:
+        raise ValueError('Exact existing loaded-page release identity required')
+    html_path.write_text(html.replace(old,new),encoding='utf-8')
+    path.write_text(json.dumps(marker,indent=2)+'\n')
 
 def auth_verification_html(html, config, origin):
     """Derived diagnostic page: no engine, adapters, vault or preferences scripts."""
@@ -27,7 +33,7 @@ def auth_verification_html(html, config, origin):
     if html.count('</body>')!=1:raise ValueError('Diagnostic body contract changed')
     return html.replace('</body>',injection+'</body>')
 
-def stage(build, output, config, trusted_itch_origin=None, auth_verification_only=False):
+def stage(build, output, config, trusted_itch_origin=None, auth_verification_only=False, publication=None):
     validate_export_inventory(build)
     required = {'apiKey','authDomain','projectId','appId'}
     if set(config) != required or any(not isinstance(v,str) or not v or 'REPLACE_' in v for v in config.values()):
@@ -48,19 +54,29 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     (public/'release-manifest.json').unlink()
     base_bytes=(build/'web/release-manifest.json').read_bytes();base=json.loads(base_bytes)
     marker={'schema_version':1,'source_commit':base['source_commit'],'source_tree':base['source_tree'],'ci_run_id':base['workflow_run'],'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'version':base['version'],'tag':base.get('tag','')}
+    if publication is not None:
+        expected = {'target':'siowyiyou/little-leaf:html5','state':'completed',
+                    'source_commit':base['source_commit'],'version':base['version'], 'tag':'v'+base['version']}
+        order = publication.get('itch_channel_version')
+        if (any(publication.get(k)!=v for k,v in expected.items())
+                or type(order) is not int or not 0 < order <= 9007199254740991
+                or type(publication.get('itch_build_id')) is not int or publication['itch_build_id']<=0):
+            raise ValueError('Exact completed channel publication required')
+        marker['tag']=publication['tag']
+        marker['release_order']={'target':publication['target'],'channel_version':order}
     (public/'hosting-release.json').write_text(json.dumps(marker,indent=2)+'\n')
     for name in ['firebase.json','firestore.rules','firestore.indexes.json']:
         shutil.copy2(ROOT/'platform/firebase'/name,output/name)
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'platform/web'/name,public/name)
     html=(public/'index.html').read_text()
-    marker='window.__littleLeafVault.boot()'
-    if html.count(marker)!=1: raise ValueError('Web shell boot contract changed')
-    html=html.replace(marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
+    boot_marker='window.__littleLeafVault.boot()'
+    if html.count(boot_marker)!=1: raise ValueError('Web shell boot contract changed')
+    html=html.replace(boot_marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
     preview_options={'surface':'trusted-itch-frame','runtimeOrigin':trusted_itch_origin}
     if auth_verification_only:preview_options['authVerificationOnly']=True
     options=','+json.dumps(preview_options) if trusted_itch_origin else ''
-    injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
+    injection='<script>window.__littleLeafRelease='+json.dumps(marker).replace('<','\\u003c')+';</script><script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady = import("./little_leaf_firebase_boot.mjs").then(m => m.start('+json.dumps(config).replace('<','\\u003c')+options+'));</script>'
     html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>')
     if injection not in html: raise ValueError('Exported engine script marker changed')
     if auth_verification_only:html=auth_verification_html(html,config,trusted_itch_origin)
@@ -77,6 +93,10 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
             {'key':'Cache-Control','value':'no-store'}]} for path in ['/', '/index.html'])
         (output/'firebase.json').write_text(json.dumps({'hosting':preview_config},indent=2)+'\n')
     (output/'firebase-variant-manifest.json').write_text(json.dumps({'base_web_manifest':base,'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'status':'staged-not-published','files':{p.relative_to(output).as_posix():sha256(p) for p in output.rglob('*') if p.is_file()}},indent=2))
+    if publication is not None:
+        path=output/'firebase-variant-manifest.json';manifest=json.loads(path.read_text())
+        manifest['publication']=publication
+        path.write_text(json.dumps(manifest,indent=2)+'\n')
 
 BROWSER_GATES = {
     'firebase-fullflow': ('firebase-fullflow/firebase-fullflow.json', 'passed', True),
@@ -139,7 +159,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             if report.get('export_manifest_sha256')!=manifest_hash:raise ValueError('Inbox full export binding mismatch')
             if report.get('export_js_sha256')!=base['files']['index.js']['sha256'] or report.get('web_template_sha256')!=base.get('web_template_sha256') or not report.get('source_sha256'):
                 raise ValueError('Inbox export binding mismatch')
-            expected_sources={'tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/compensation_inbox_suite.js'}
+            expected_sources={'tests/tooling/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/persistence/compensation_inbox_suite.js'}
             if set(report['source_sha256'])!=expected_sources:raise ValueError('Incomplete Inbox source binding')
             for relative,digest in report['source_sha256'].items():
                 if sha256(source_path(ROOT,relative))!=digest:
@@ -171,7 +191,7 @@ def add_fresh_evidence(build, output, engine_report, focused_logs, proof):
     manifest_path=output/'firebase-variant-manifest.json';manifest=json.loads(manifest_path.read_text())
     base=manifest['base_web_manifest']
     marker_path=output/'public/hosting-release.json';marker=json.loads(marker_path.read_text())
-    marker['engine_source_commit']=base['source_commit'];marker_path.write_text(json.dumps(marker,indent=2)+'\n')
+    marker['engine_source_commit']=base['source_commit'];update_hosting_marker(output/'public',marker)
     manifest.update(source_commit=base['source_commit'],source_tree=base['source_tree'],fresh_ci=proof,
                     canonical_game_url='https://little-leaf-41e5d.firebaseapp.com/')
     manifest['files']={p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*')) if p.is_file() and p.name!='firebase-variant-manifest.json'}
@@ -183,6 +203,7 @@ def main():
     p.add_argument('--public-config',type=Path,required=True);p.add_argument('--local-tools',action='store_true')
     p.add_argument('--require-fresh-ci',action='store_true');p.add_argument('--engine-report',type=Path);p.add_argument('--focused-logs',type=Path)
     p.add_argument('--itch-preview-bootstrap',action='store_true')
+    p.add_argument('--publication-receipt',type=Path,help='Verified exact completed itch publication from release selection')
     a=p.parse_args();git=lambda *args:subprocess.check_output(['git','-C',str(ROOT),*args],text=True).strip()
     if git('status','--porcelain'):raise RuntimeError('Commit/review all source before staging')
     if os.environ.get('GITHUB_ACTIONS')=='true' and (a.local_tools or not a.require_fresh_ci):
@@ -207,7 +228,8 @@ def main():
         manifest['status']='staged-not-published'
         path.write_text(json.dumps(manifest,indent=2)+'\n')
     else:
-        stage(a.validated_web_build,a.output,config)
+        publication=json.loads(a.publication_receipt.read_text()) if a.publication_receipt else None
+        stage(a.validated_web_build,a.output,config,publication=publication)
     if proof:
         add_fresh_evidence(a.validated_web_build,a.output,a.engine_report,a.focused_logs,proof)
         result={'source_sha':source,'manifest_sha256':sha256(a.output/'firebase-variant-manifest.json'),

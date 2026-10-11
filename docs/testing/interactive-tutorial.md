@@ -34,7 +34,7 @@ Other regression fixtures use `--skip-tutorial` to retain their explicit preexis
 For rendered evidence, prepare an isolated project, import it with Godot 4.6.3, then run that project through the cloud-native Godot window:
 
 ```sh
-python3 tests/prepare_tutorial_native.py --output /tmp/tutorial-native-saveguard
+python3 tests/rendering/prepare_tutorial_native.py --output /tmp/tutorial-native-saveguard
 ```
 
 The generated project has a unique saveguard profile and automatically writes screenshots plus `native-result.json`. Preparation alone is not a render pass. Inspect the actual screenshots before accepting visual QA. All preparation/engine jobs must respect the shared Godot lock and native UI work must be coordinated with other running checks.

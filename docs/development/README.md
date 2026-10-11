@@ -58,6 +58,20 @@ Serve the exported folder over HTTP to test it. Keep the license notice, custom 
 - `assets/`, `shaders/` and `data/`: preserve source/import identity, licensing and release metadata; documentation cleanup does not relocate runtime resources.
 - `platform/firebase/`: rules and emulator contracts; use synthetic fixtures, never player data or live rules without separate authorization.
 
+## Code-health review
+
+Review touched code while editing and perform a focused code-health review at each small-version closeout. Record the inspected scope, confirmed findings, related PRs and remaining gaps; this checklist requires a review, not an automatic scheduled run.
+
+- Keep names and control flow readable, responsibilities coherent, and shared semantic UI styles consistent. Separate actual bug fixes from cleanup so each change's behavior is reviewable.
+- Look for dead or obsolete code, duplication and layers of patches. Prefer removing or simplifying them before adding another path or compatibility layer.
+- Check excessive defensive code and scattered hardcoded policy. Keep meaningful save/security guards; share configuration or functions only where callers truly express the same rule.
+- Identify real extension needs. Reuse existing boundaries and justified shared functions instead of speculative abstractions or frameworks.
+- Check per-frame cost, retained memory, resource ownership and cache invalidation against the existing performance and memory contracts; preserve actual rendered behavior.
+- Target net deletion across the complete cleanup diff, including tests and helpers. Do not use code golf, drop required behavior or add a large test/helper framework to claim a small cleanup.
+- Preserve player saves, assets, imports, licenses and active owner boundaries. Use the minimum relevant existing targeted checks and source-bound visual evidence where affected; required release gates still apply.
+
+Open or update one coherent PR for each confirmed related finding. Reviewed cleanup, organization and optimization may merge under explicit user authority; gameplay and artwork acceptance remain separate. Report actual verification, merge and release inclusion independently.
+
 ## Branch and review hygiene
 
 Keep each work branch tied to a focused PR. State its purpose, base, scope, validation, and any dependent PRs. Retire completed or superseded branches after their source and useful evidence are durably preserved.

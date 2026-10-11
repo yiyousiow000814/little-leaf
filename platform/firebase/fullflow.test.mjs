@@ -17,7 +17,7 @@ import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testin
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const {installEngineLaunchHook}=require('../../tests/engine_launch_hook.js');
+const {installEngineLaunchHook}=require('../../tests/tooling/engine_launch_hook.js');
 const root=path.resolve(import.meta.dirname,'../..');
 const arg=name=>{const i=process.argv.indexOf(name);assert(i>=0 && process.argv[i+1],name+' required');return path.resolve(process.argv[i+1]);};
 const web=arg('--web-build'),out=arg('--output'),native=arg('--engine-report');
@@ -34,7 +34,7 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [name,record] of Object.entries(manifest.files))assert.equal(sha(fs.readFileSync(path.join(web,name))),record.sha256,'exact exported '+name);
 assert.equal(process.env.FIRESTORE_EMULATOR_HOST,'127.0.0.1:8080','explicit local emulator only');
 fs.mkdirSync(out,{recursive:true});
-const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(sourcePath(root,n)))]))};
+const report={passed:false,synthetic_only:true,real_compiled_ui:true,real_firestore_rules:true,real_google_sign_in:false,browser_sandbox:true,headless_browser:process.env.PLAYWRIGHT_HEADLESS==='1',source_commit:manifest.source_commit,source_tree:manifest.source_tree,export_manifest_sha256:sha(fs.readFileSync(path.join(web,'release-manifest.json'))),native_report_sha256:sha(fs.readFileSync(native)),diagnostic_only:process.argv.includes('--diagnostic-only'),checks:[],screenshots:[],source_sha256:Object.fromEntries(['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules'].map(n=>[n,sha(fs.readFileSync(sourcePath(root,n)))]))};
 const checkpoint=()=>fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
 const check=(ok,label)=>{assert(ok,label);report.checks.push(label);checkpoint();};
 const fixture=JSON.parse(fs.readFileSync(path.join(root,'tests/fixtures/startup-retry-v15.json')));
@@ -51,12 +51,13 @@ const read=(uid,kind='save')=>fixtureStore.read(uid,kind);
 const seed=(uid,r)=>fixtureStore.seed(uid,envelope(r));
 const sdkRoot=path.dirname(require.resolve('firebase/package.json'));
 const source=name=>fs.readFileSync(path.join(root,'platform/web',name),'utf8');
-let release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
+const loadedRelease={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};
+let release={...loadedRelease};
 const config={apiKey:'emulator-synthetic-key',authDomain:'127.0.0.1',projectId:'demo-little-leaf',appId:'1:123:web:synthetic'};
 let html=fs.readFileSync(path.join(web,'index.html'),'utf8');
 assert.equal(html.split('window.__littleLeafVault.boot()').length,2);
 html=html.replace('window.__littleLeafVault.boot()','window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())');
-const injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start('+JSON.stringify(config)+'));</script>';
+const injection='<script src="little_leaf_update.js"></script><script src="little_leaf_firebase_session.js"></script><script src="little_leaf_firebase.js"></script><script>window.__littleLeafRelease='+JSON.stringify(loadedRelease).replace(/</g,'\\u003c')+';window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start('+JSON.stringify(config)+'));</script>';
 assert.equal(html.split('<script src="index.js"></script>').length,2);
 html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>');
 const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export const getIdTokenResult=async()=>({claims:{firebase:{sign_in_provider:'google.com'}}});export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signInWithPopup=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
@@ -115,7 +116,7 @@ async function click(p,mode,button){
  const observations=await p.evaluate(()=>globalThis.__qaAdapterResults||[]);
  const nativeCallback=observations.filter(x=>['preserveOwnerRuntime','preserveRuntime','requestTakeover','finishTakeover','forceTakeover'].includes(x.method)).at(-1)||null;
  fs.writeFileSync(input,JSON.stringify({viewport:p.viewportSize(),snapshot:await snapshot(p),recoveryMessage:nativeMessages.get(p)||'',nativeCallback}));
- await promisify(execFile)(process.env.GODOT_BIN||'godot',['--headless','--audio-driver','Dummy','--path',directory,'--script','res://tests/probe_cloud_recovery_geometry.gd','--',input,output],{timeout:30000,env:{...process.env,XDG_DATA_HOME:path.join(out,'native-data'),XDG_CONFIG_HOME:path.join(out,'native-config'),XDG_CACHE_HOME:path.join(out,'native-cache')}});
+ await promisify(execFile)(process.env.GODOT_BIN||'godot',['--headless','--audio-driver','Dummy','--path',directory,'--script','res://tests/probe_cloud_recovery_geometry.gd','--',input,output],{timeout:30000,windowsHide:true,env:{...process.env,XDG_DATA_HOME:path.join(out,'native-data'),XDG_CONFIG_HOME:path.join(out,'native-config'),XDG_CACHE_HOME:path.join(out,'native-cache')}});
  const measured=JSON.parse(fs.readFileSync(output));assert(measured.buttons[button],mode+' '+button+' visible in exact snapshot geometry');
  const [x,y,w,h]=measured.buttons[button];await p.mouse.click(x+w/2,y+h/2,{delay:50});nativeMessages.set(p,'');
 }
@@ -124,7 +125,7 @@ async function confirmedClick(p,mode,button,accept){let finish;const handled=new
 async function resumeProof(d,coins){const e=await nativeSave(d);check(JSON.parse(e.record.payload).coins===coins,'native model really resumed chosen coins '+coins);return e;}
 async function updateClick(p,button,error=false){await foreground(p);const r=updateLayout.geometry.find(x=>x.viewport?.width===1360 && x.viewport?.height===880 && x.error===error);assert(r?.buttons?.[button],'update native geometry');const [x,y,w,h]=r.buttons[button];await p.mouse.click(x+w/2,y+h/2);}
 try{
- browser=await chromium.launch({headless:false,chromiumSandbox:true,channel:process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || 'chrome'});
+ browser=await chromium.launch({headless:report.headless_browser,chromiumSandbox:true,channel:process.env.PLAYWRIGHT_CHROMIUM_CHANNEL || 'chrome'});
  // Old cache has proven no pending branch: cloud wins without upload or prompt.
  {const uid='fullflow-cache',base=await record(1,41000),cloud=await record(8,42000,base.profileId);await seed(uid,cloud);
  const d=await launch(await setup(uid,{record:base,base:base.digest,pending:false,device:'Mac'}));

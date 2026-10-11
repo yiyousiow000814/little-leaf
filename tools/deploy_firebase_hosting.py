@@ -5,6 +5,7 @@ service creation, billing, personal credentials, or site/version deletion APIs.
 Official protocol: https://firebase.google.com/docs/hosting/api-deploy
 """
 import argparse
+import copy
 import gzip
 import hashlib
 import json
@@ -14,10 +15,12 @@ import re
 import shutil
 import time
 from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
+from released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
 
 SITE = 'little-leaf-41e5d'
 ORIGIN = 'https://' + SITE + '.firebaseapp.com/'
@@ -53,7 +56,9 @@ def verify_engine_provenance(folder, manifest):
                 or digest(file) != expected.get('sha256')):
             raise ValueError('Reviewed engine binary changed: ' + name)
     reuse = manifest.get('engine_reuse', {})
-    if manifest.get('status') == 'prepared-local-test-artifact-not-deployed':
+    if manifest.get('status') == RELEASED_LIVE_STATUS:
+        validate_released_live(folder, manifest, json.loads((folder/'public/hosting-release.json').read_text()))
+    elif manifest.get('status') == 'prepared-local-test-artifact-not-deployed':
         if (reuse.get('source_commit') != base['source_commit']
                 or reuse.get('gameplay_godot_inputs_byte_identical') is not True
                 or reuse.get('base_test_report_sha256') != base['test_report_sha256']
@@ -113,8 +118,10 @@ def verify_package(folder, expected_sha, expected_manifest):
     tree = manifest.get('source_tree', base.get('source_tree', ''))
     if sha != expected_sha or not re.fullmatch(r'[0-9a-f]{40}', tree):
         raise ValueError('Firebase package source identity differs')
-    if manifest.get('status') not in {'prepared-local-test-artifact-not-deployed', 'staged-not-published'}:
+    if manifest.get('status') not in {'prepared-local-test-artifact-not-deployed', 'staged-not-published', RELEASED_LIVE_STATUS}:
         raise ValueError('Unexpected Firebase package stage')
+    if ('qualified_release_reuse' in manifest or 'manual_live_reuse' in manifest) and manifest.get('status') != RELEASED_LIVE_STATUS:
+        raise ValueError('Released reuse cannot be relabelled as a legacy fresh/preview package')
     if manifest.get('canonical_game_url', ORIGIN) != ORIGIN:
         raise ValueError('Package was staged for another game origin')
     files = manifest.get('files', {})
@@ -143,6 +150,70 @@ def verify_package(folder, expected_sha, expected_manifest):
                                or not re.fullmatch(r'[A-Za-z0-9_./-]+', file.relative_to(public).as_posix())):
             raise ValueError('Unexpected public artifact filename')
     verify_engine_provenance(folder, manifest)
+    return manifest, marker
+
+
+class _EntryScripts(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.engine = False
+        self.inline = []
+        self.in_inline = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'script':
+            src = dict(attrs).get('src')
+            self.engine |= src in {'index.js', './index.js'}
+            self.in_inline = src is None
+
+    def handle_endtag(self, tag):
+        if tag == 'script':
+            self.in_inline = False
+
+    def handle_data(self, data):
+        if self.in_inline:
+            self.inline.append(data)
+
+
+def verify_live_package(folder, expected_sha, expected_manifest, *, staging_origin=None):
+    """Keep reviewed previews/diagnostics out of the top-level live game route."""
+    manifest, marker = verify_package(folder, expected_sha, expected_manifest)
+    if manifest.get('status') == RELEASED_LIVE_STATUS:
+        validate_origin(manifest, staging_origin)
+    elif staging_origin is not None and staging_origin['run'].get('head_sha') != expected_sha:
+        raise ValueError('Fresh package must match its exact staging source')
+    if '-pre.' in marker.get('version','') or '-pre.' in manifest.get('base_web_manifest',{}).get('version',''):
+        publication=manifest.get('publication',{})
+        order=publication.get('itch_channel_version')
+        expected={'source_commit':expected_sha,'version':marker['version'],'tag':'v'+marker['version'],
+                  'target':'siowyiyou/little-leaf:html5','state':'completed'}
+        if (marker.get('version')!=manifest.get('base_web_manifest',{}).get('version')
+                or marker.get('tag')!=expected['tag']
+                or marker['version'].rsplit('.',1)[-1]!=expected_sha[:8]
+                or any(publication.get(k)!=v for k,v in expected.items())
+                or type(publication.get('itch_build_id')) is not int or publication['itch_build_id']<=0
+                or type(order) is not int or not 0<order<=9007199254740991
+                or marker.get('release_order')!={'target':expected['target'],'channel_version':order}
+                or ('window.__littleLeafRelease='+json.dumps(marker).replace('<','\\u003c')+';') not in (folder/'public/index.html').read_text()):
+            raise ValueError('SHA prerelease needs exact completed publication and bound update chronology')
+    if (manifest.get('production_release_eligible') is False
+            or marker.get('diagnostic_only') is True
+            or marker.get('auth_verification_only') is True
+            or marker.get('game_start_allowed') is False
+            or marker.get('test_surface') is not None
+            or manifest.get('ancestor_origins') is not None):
+        raise ValueError('Preview or diagnostic packets cannot replace the live game')
+    for record in [manifest, marker]:
+        origin = record.get('runtime_origin')
+        if origin is not None and origin.rstrip('/') != ORIGIN.rstrip('/'):
+            raise ValueError('Live game runtime origin differs')
+    scripts = _EntryScripts()
+    scripts.feed((folder / 'public/index.html').read_text(encoding='utf-8'))
+    inline = '\n'.join(scripts.inline)
+    if (not scripts.engine
+            or re.search(r'[\"\']?authVerificationOnly[\"\']?\s*:\s*true\b', inline)
+            or re.search(r'[\"\']?surface[\"\']?\s*:\s*[\"\']trusted-itch-frame[\"\']', inline)):
+        raise ValueError('Live game entry must load the engine without an auth-only or preview bootstrap')
     return manifest, marker
 
 
@@ -192,16 +263,30 @@ def release_head(api):
     return {'release': release, 'version': version}
 
 
-def deploy(folder, source_sha, manifest_sha, output, api, smoke):
-    manifest, marker = verify_package(folder, source_sha, manifest_sha)
+def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None):
+    manifest, marker = verify_live_package(folder, source_sha, manifest_sha, staging_origin=staging_origin)
     receipt = {'schema_version': 1, 'status': 'validated', 'source_commit': source_sha,
                'source_tree': marker['source_tree'], 'variant_manifest_sha256': manifest_sha,
-               'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested'}
+               'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested',
+               'automatic_rollback_allowed': False}
     def save():
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(receipt, indent=2) + '\n')
     save()
     previous = release_head(api)
+    if not previous:
+        raise ValueError('Existing finalized Hosting baseline required; no default config replacement')
+    baseline = api.request('GET', previous['version'])
+    if (baseline.get('name') != previous['version'] or baseline.get('status') != 'FINALIZED'
+            or not isinstance(baseline.get('config'), dict)):
+        raise ValueError('Complete current Hosting configuration could not be established')
+    config = copy.deepcopy(baseline['config'])
+    def config_digest(value):
+        return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                         ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    config_hash = config_digest(config)
+    receipt['preserved_hosting_config'] = config
+    receipt['preserved_hosting_config_sha256'] = config_hash
     receipt['previous_hosting_version'] = previous['version'] if previous else None
     receipt['previous_hosting_release'] = previous['release'] if previous else None
     save()
@@ -214,7 +299,7 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
         hash_value = hashlib.sha256(payload).hexdigest()
         compressed[hash_value] = payload
         paths['/' + path.relative_to(folder / 'public').as_posix()] = hash_value
-    version = api.request('POST', SITE_PATH + '/versions', {'config': CONFIG}).get('name', '')
+    version = api.request('POST', SITE_PATH + '/versions', {'config': config}).get('name', '')
     if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
         raise ValueError('Unconfirmed version creation; do not retry blindly')
     receipt.update({'status': 'staging', 'hosting_version': version});save()
@@ -230,7 +315,14 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
     if finalized.get('name') != version or finalized.get('status') != 'FINALIZED':
         raise ValueError('New Hosting version was not finalized; live release untouched')
     receipt['status'] = 'finalized-not-released';save()
-    if release_head(api) != previous:
+    candidate = api.request('GET', version)
+    if (candidate.get('name') != version or candidate.get('status') != 'FINALIZED'
+            or config_digest(candidate.get('config')) != config_hash):
+        raise RuntimeError('Finalized candidate configuration differs; live release untouched')
+    current = api.request('GET', previous['version'])
+    if (release_head(api) != previous or current.get('name') != previous['version']
+            or current.get('status') != 'FINALIZED'
+            or config_digest(current.get('config')) != config_hash):
         raise RuntimeError('Another release changed during staging; live release untouched')
     receipt['status'] = 'release-outcome-pending';save()
     release = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': version}), {})
@@ -239,13 +331,7 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke):
         raise RuntimeError('Hosting release outcome uncertain; inspect before retrying')
     receipt.update({'status': 'published-pending-smoke', 'hosting_release': release['name']});save()
     if not smoke(marker):
-        receipt['status'] = 'smoke-failed';save()
-        if previous and release_head(api) == {'release': release['name'], 'version': version}:
-            receipt['status'] = 'rollback-outcome-pending';save()
-            rollback = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': previous['version']}), {})
-            if rollback.get('version', {}).get('name') != previous['version'] or not RELEASE_RE.fullmatch(rollback.get('name', '')):
-                raise RuntimeError('Rollback outcome uncertain; inspect Hosting before retrying')
-            receipt.update({'status': 'smoke-failed-rolled-back', 'rollback_release': rollback['name']});save()
+        receipt['status'] = 'smoke-failed-inspection-required';save()
         raise RuntimeError('Hosted marker verification failed; review the retained deployment receipt')
     receipt['status'] = 'published-pending-hosted-acceptance';save()
     return receipt
@@ -428,9 +514,14 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--verify-only', action='store_true')
     parser.add_argument('--itch-preview', action='store_true')
+    parser.add_argument('--staging-origin', type=Path, help='Fresh authenticated run/artifact metadata, required for manual released-live reuse')
     args = parser.parse_args()
+    origin = json.loads(args.staging_origin.read_text()) if args.staging_origin else None
     if args.verify_only:
-        (verify_preview_package if args.itch_preview else verify_package)(args.variant, args.sha, args.manifest_sha256)
+        if args.itch_preview:
+            verify_preview_package(args.variant, args.sha, args.manifest_sha256)
+        else:
+            verify_live_package(args.variant, args.sha, args.manifest_sha256, staging_origin=origin)
         print('Exact selected package verified locally; no Hosting change or hosted acceptance claimed')
         return
     if args.itch_preview:
@@ -439,7 +530,7 @@ def main():
         print('Published one-day preview at ' + result['hosting_url'] + '; exact auth hostname approval remains pending')
     else:
         result = deploy(args.variant, args.sha, args.manifest_sha256, args.output,
-                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), live_smoke)
+                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), live_smoke, staging_origin=origin)
         print('Published selected test build at ' + result['hosting_url'] + '; account/device acceptance remains pending')
 
 

@@ -219,7 +219,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         for preview in [False, True]:
             cg.prepare_variant(self.project, preview)
             for embedded in [False, True]:
-                command = ["node", "tests/crazygames_storage.js", "--web-dir", str(self.project / "web")]
+                command = ["node", "tests/persistence/crazygames_storage.js", "--web-dir", str(self.project / "web")]
                 if preview: command.append("--developer-preview")
                 if embedded: command.append("--embedded")
                 with self.subTest(preview=preview, embedded=embedded):

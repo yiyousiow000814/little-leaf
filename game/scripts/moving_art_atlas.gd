@@ -49,12 +49,6 @@ func add_part(key:String,bounds:Rect2,data:Dictionary):
 	data["key"]=key;data["bounds"]=bounds;entries.append(data);rectangles[key]=bounds
 static func basis_key(fwd:Vector2,side:Vector2)->String:
 	return "%d,%d,%d,%d"%[roundi(fwd.x*2),roundi(fwd.y*2),roundi(side.x*2),roundi(side.y*2)]
-func body_key(shirt:String,seated:bool,fwd:Vector2,side:Vector2)->String:
-	if shirt not in SHIRTS:return ""
-	if not seated:return "body/"+shirt+"/standing"
-	var basis=basis_key(fwd,side)
-	if not bases.has(basis) or not (bases[basis].fwd as Vector2).is_equal_approx(fwd) or not (bases[basis].side as Vector2).is_equal_approx(side):return ""
-	return "body/"+shirt+"/"+basis
 func limb_key(length:float,color,width:float)->String:
 	var tint=Color(color)
 	if is_equal_approx(length,ARM_LENGTH) and is_equal_approx(width,4.8):

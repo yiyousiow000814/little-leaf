@@ -12,6 +12,14 @@ Pull requests, pushes to `main`, and **Actions → Check and build Web → Run w
 
 Downloadable builds and test evidence stay in Actions for **7 days**. Keep any release artifact needed longer. Standard GitHub-hosted runners are free for public repositories; [billing rules](https://docs.github.com/en/billing/concepts/product-billing/github-actions) differ for private repositories or changed runner/storage settings.
 
+## Urgent 0.1.11 prereleases
+
+Approved user policy on 2026-10-11: independently verified urgent fixes may ship before the complete 0.1.11 scope is finished. Use **`0.1.11-pre.<shortSHA>`** (tag **`v0.1.11-pre.<shortSHA>`**) to identify one frozen exact source. A short SHA identifies source; it does not encode release age. Preserve immutable source/tag/package identity, retain prior tags and the frozen 0.1.10d release, and qualify matching Firebase and itch deliveries. A platform upload, a GitHub source release and user gameplay acceptance remain separate facts. Cleanup merge authority does not accept new gameplay or authorize deployment.
+
+Mark each such GitHub Release as a **prerelease** and preserve stable Latest. Update chronology must use independently qualified monotonic publication information; never compare SHA text lexically or interpret an all-digit hash as a release counter. Deriving the display version from the frozen source at build time must preserve exact artifact binding and avoid a commit referring to its own hash. Retain the ordinary save/account, atlas, browser, source/package and platform qualification gates for the actual urgent fix.
+
+**Implementation pending:** inspection of main `d30115b6932af1ab28e30672996eae09becaef16` found that the release metadata and inline tag gates, itch publisher, Firebase release selectors/gates and deployed update adapter do not support this format. The current GitHub source-release workflow also lacks prerelease creation for this path. The release owner retains workflow/helper implementation ownership; build-time version binding, actual prerelease workflow behavior, monotonic ordering (including all-digit hash cases), matching Firebase/itch delivery and old-client transition require reviewed support and focused verification before this policy can be used. The frozen 0.1.10d updater ignores this unrecognized format; do not claim those clients receive an update. Link a related implementation PR only once it exists. This document records approved intent, not an enabled publication path or a completed release.
+
 ## Publish an approved version
 
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
@@ -20,7 +28,7 @@ Downloadable builds and test evidence stay in Actions for **7 days**. Keep any r
 4. Watch **Release Web to itch.io**. It verifies and reuses the successful exact-main CI package, runs final source/atlas/packed-startup checks, then uploads to **`siowyiyou/little-leaf:html5`**. The summary and publication receipt record its source SHA, version, itch build ID and original CI artifact identity. See [qualified artifact reuse](qualified-artifact-reuse.md).
 5. Verify [the live game](https://siowyiyou.itch.io/little-leaf), including fresh and copied-save startup. Successful upload processing does not replace browser, persistence, rendering or audio checks.
 
-Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` tag can publish (for example, `v0.1.10a`, `v0.1.10b`, `v0.1.10c`). Hotfixes order numerically by base, then by letter: `0.1.10 < 0.1.10a < … < 0.1.10z < 0.1.11`. Uppercase, multiple-letter, prerelease and build-metadata release tags are rejected. Existing valid SemVer prerelease/build-metadata itch baselines remain recognized; duplicates and rollbacks are still refused. Both the project and release notes must contain the exact hotfix version. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
+Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` tag can publish through the current pipeline (for example, `v0.1.10a`, `v0.1.10b`, `v0.1.10c`). Hotfixes order numerically by base, then by letter: `0.1.10 < 0.1.10a < … < 0.1.10z < 0.1.11`. Uppercase, multiple-letter, prerelease and build-metadata release tags are rejected. Existing valid SemVer prerelease/build-metadata itch baselines remain recognized; duplicates and rollbacks are still refused. Both the project and release notes must contain the exact hotfix version. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
 
 ## Checks and safety
 
@@ -66,9 +74,14 @@ Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/con
 
 ## Platform boundaries and historical records
 
+- [Firebase release staging alignment](firebase-release-alignment.md): completed itch receipt selects the exact released runtime; automatic qualification is separate from production cutover.
 - [CrazyGames adapter/export contract](crazygames-variant.md)
 - [Trusted itch preview](itch-trusted-preview-candidate.md): preparation is separate from hosted acceptance and publication
 - Historical [CrazyGames slice](history/crazygames-split-ledger.md), [release-metadata ownership](history/split-draft-ownership.md) and [10a overlay provenance](history/010a-release-overlay-provenance.json)
 - [Asset permissions and required notices](../art-audio/README.md)
 
 Use the [roadmap](../roadmap.md) for current readiness and authorization. Historical ledgers describe their pinned source/date, not the current shipped tree.
+
+### Read-only itch diagnosis
+
+The release workflow's manual dispatch on `main` runs only the fixed-channel status diagnostic; tag publishing remains separate. It first runs checksum-pinned Butler `--version` and `status --help` without credentials, then uses the existing credential solely for `--json status siowyiyou/little-leaf:html5`. The artifact records numeric exit codes, whitelisted error categories and verified channel identity, without raw command output, headers, URLs or credential values. HTTP debug is stripped. A successful diagnostic job does not establish publication or authorize a publisher retry. Preserve its exact workflow run/attempt alongside the original failed release evidence.
