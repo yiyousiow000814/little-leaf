@@ -37,9 +37,9 @@ func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  await process_frame
  var ui=game.compact_ui;var hud=ui.hud
- check(ui.settings_help.text=="Help & Updates","Settings capitalizes Updates")
+ check(ui.settings_help.text=="Help" and ui.settings_updates.text=="Updates","Settings separates Help and Updates")
  check(question_buttons(game.ui).is_empty(),"removed catalogue question-mark control is not instantiated")
- check(ui.update_badges.size()==3,"only Settings, Inbox and Settings Help keep unread badges")
+ check(ui.update_badges.size()==3,"only Settings, Inbox and Settings Updates keep unread badges")
  var cases=[Vector2i(960,540),Vector2i(1360,880),Vector2i(390,844),Vector2i(566,360),Vector2i(640,480),Vector2i(344,680),Vector2i(369,700),Vector2i(370,700),Vector2i(565,700),Vector2i(566,700),Vector2i(849,599),Vector2i(850,599),Vector2i(960,599),Vector2i(960,600),Vector2i(606,400)]
  for view in cases:
   root.size=view
