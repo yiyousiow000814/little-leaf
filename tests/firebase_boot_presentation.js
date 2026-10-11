@@ -9,7 +9,7 @@ function fixture(user=null,options={}){
   nodes.set('status-label',element());nodes.set('status-progress',element());
   const auth={currentUser:user,authStateReady:async()=>{if(options.authReady)await options.authReady;}};
   const client={sync(){},close(){clientClosed++;}};
-  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return{};},createSession(value){sessionOptions=value;return {async start(){},close(){ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;return{};},createClient(options){statusCallback=options.status;return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
+  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return{};},createSession(value){sessionOptions=value;return {async start(){},close(){ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return{};},createClient(options){statusCallback=options.status;return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
   const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
@@ -46,6 +46,16 @@ function fixture(user=null,options={}){
   let releaseJournal;const closing=fixture({uid:'synthetic-closing',isAnonymous:false},{journalWait:new Promise(resolve=>{releaseJournal=resolve;})});
   const closingStart=closing.start();await flush();closing.events.get('pagehide')();releaseJournal();
   await assert.rejects(closingStart,{code:'NOT_READY'});assert.equal(closing.accountCounts().clientClosed,0);
+  for(const exit of ['pagehide','account']){
+    let releaseLock;const early=fixture({uid:'synthetic-early',isAnonymous:false},{acquireWait:new Promise(resolve=>{releaseLock=resolve;})});
+    const earlyStart=early.start();await flush();
+    if(exit==='pagehide')early.events.get('pagehide')();else early.setUser({uid:'synthetic-other',isAnonymous:false});
+    releaseLock();await assert.rejects(earlyStart,{code:'NOT_READY'});
+    assert.equal(early.counts().opened,0);assert.equal(early.runtimeState().runtimeClosed,1);
+  }
+  const brokenJournal=fixture({uid:'synthetic-journal-failure',isAnonymous:false},{journalError:true});
+  await assert.rejects(brokenJournal.start(),/synthetic journal unavailable/);
+  assert.equal(brokenJournal.runtimeState().runtimeClosed,1);assert.equal(brokenJournal.runtimeState().ownershipClosed,1);
   const anonymous=fixture({uid:'synthetic-anonymous',isAnonymous:true});await assert.rejects(anonymous.start(),/Sign in with Google/);assert.deepEqual(anonymous.counts(),{opened:0,closed:0});
   const trustedFrame={surface:'trusted-itch-frame',runtimeOrigin:'https://demo--itch-embed-test-abc123.web.app',origin:'https://demo--itch-embed-test-abc123.web.app',iframe:true,ancestors:['https://html-classic.itch.zone','https://siowyiyou.itch.io']};
   const popupFixture=fixture(null,{...trustedFrame,popupUser:{uid:'synthetic-popup',isAnonymous:false}});

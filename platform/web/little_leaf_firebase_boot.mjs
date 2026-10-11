@@ -85,13 +85,16 @@ export async function start(config,options={}) {
   let reloadTicket=null,navigationType,storage;
   try{storage=window.sessionStorage;navigationType=performance.getEntriesByType('navigation')[0]?.type;
     reloadTicket=window.LittleLeafFirebaseSession.consumeReload(storage,navigationType,uid);}catch(_){}
-  const runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
-  const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid,sessionId:runtime.sessionId,assertRuntime:()=>runtime.assertHeld()});
-  // Close writer authority before releasing the browser lock, including BFCache.
-  const closeRuntime=()=>{ownership.close();client?.close();runtime.close();};
+  let runtime,ownership,exited=false;
+  // Register before awaiting the lock: page exit/account change may win that wait.
+  const closeRuntime=()=>{exited=true;ownership?.close();client?.close();runtime?.close();};
   window.addEventListener('pagehide',closeRuntime);
   onAuthStateChanged(auth,user=>{if(user?.uid!==uid)closeRuntime();});
-  try{await ownership.start(reloadTicket);}catch(error){closeRuntime();throw error;}
+  runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
+  if(exited){runtime.close();throw Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});}
+  ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid,sessionId:runtime.sessionId,assertRuntime:()=>runtime.assertHeld()});
+  try{
+  await ownership.start(reloadTicket);
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
   runtime.assertHeld();
@@ -164,6 +167,7 @@ export async function start(config,options={}) {
   window.addEventListener('focus',()=>client.refreshOwnership?.());
   window.addEventListener('online',()=>client.sync());
   return client;
+  }catch(error){closeRuntime();throw error;}
 }
 
 // Deliberately never resolves: the existing shell promise must not boot the vault/game.
