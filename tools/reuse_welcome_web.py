@@ -77,7 +77,7 @@ def reuse(repository, run_id, artifact_id, source_root, output, phase="select"):
     if (selection["source_commit"] != source or selection["run_id"] != run_id
             or selection["artifact_id"] != artifact_id):
         raise ValueError("Downloaded artifact selection must match requested checkout and IDs")
-    helper = source_root / "tests/welcome_audio_helpers.js"
+    helper = source_root / "tests/presentation/welcome_audio_helpers.js"
     script = "const h=require(process.argv[1]);console.log(JSON.stringify(h.verifySource(process.argv[2],process.argv[3],process.argv[4])));"
     binding = json.loads(subprocess.check_output(["node", "-e", script, str(helper), str(output / "web"),
         str(source_root), selection["built_source_commit"]], text=True))

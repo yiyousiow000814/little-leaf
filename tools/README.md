@@ -92,12 +92,13 @@ policy remain in their respective commands. `toolchain.json` pins the installer;
 explicit Firebase preview option; it does not add a standalone launch command
 or authorize deployment.
 
-`test_*.py` files cover these contracts without engines or publication. Select
-the affected cases with `python3 -m unittest tests.tooling.test_NAME.CASE`; do not run every
-suite for a structural edit. `tests/tooling/test_prepare_browser_qa.py` uses synthetic engine
-results to verify scenario selection, disposable profiles and measured-layout
-failure handling. The native/browser save regressions remain in `tests/` and
-the existing ordinary workflow.
+Offline contracts live in `tests/tooling/`; select affected cases using the
+[verification guide](../tests/README.md), rather than running every suite.
+`test_prepare_browser_qa.py` uses synthetic results to check scenario selection,
+disposable profiles and measured-layout failures; ordinary CI retains save gates.
+`project_layout.py` and `tests/source_paths.js` resolve repository source paths;
+staged resource labels can differ. Source-hash keys follow actual source files,
+while historical exports and source-bound receipts retain their original paths.
 
 The old `prepare_wall_compatibility.py` and `prepare_cloud_geometry.py` entrypoints
 are retired in this source. Use the two scenarios above. Historical exports run

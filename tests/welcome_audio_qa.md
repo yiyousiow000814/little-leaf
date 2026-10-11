@@ -9,10 +9,10 @@ URL-policy denial. It is prepared for an authorized CI browser environment.
 ## Offline tests
 
 ```
-node tests/welcome_audio_test.js
-node --check tests/welcome_audio_browser.js
-node --check tests/welcome_audio_observer.js
-node --check tests/welcome_audio_helpers.js
+node tests/presentation/welcome_audio_test.js
+node --check tests/presentation/welcome_audio_browser.js
+node --check tests/presentation/welcome_audio_observer.js
+node --check tests/presentation/welcome_audio_helpers.js
 ```
 
 These use synthetic observations and mocked browser nodes. Passing these checks
@@ -45,7 +45,7 @@ is not a browser pass, music identification, listening test or visual acceptance
    "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps chromium
    sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
    PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" \
-     xvfb-run -a node tests/welcome_audio_browser.js \
+     xvfb-run -a node tests/presentation/welcome_audio_browser.js \
        --source-root "$GITHUB_WORKSPACE" \
        --web-build "$RUNNER_TEMP/web-build/web" \
        --output "$RUNNER_TEMP/web-build/evidence/welcome-audio"

@@ -58,6 +58,8 @@ func run():
    controller.update_message="Your progress is on this device. Cloud confirmation is still needed before updating." if error else ""
    await settle();var insets=ui.hud._safe_insets();var safe=Rect2(insets.x,insets.y,view.x-insets.x-insets.z,view.y-insets.y-insets.w)
    check(safe.encloses(notice.panel.get_global_rect()),str(view)+" update panel fits safe viewport "+str(notice.panel.get_global_rect())+" / "+str(safe))
+   if view==Vector2i(1360,880):check(absf(notice.panel.get_global_rect().get_center().x-safe.get_center().x)<1,"desktop notice centered below HUD")
+   if view==Vector2i(844,390):check(absf(notice.panel.get_global_rect().end.x-(safe.end.x-12))<1,"mobile landscape retains right placement")
    check(absf(notice.update_button.size.x-notice.later_button.size.x)<1,str(view)+" equal button widths")
    for button in [notice.update_button,notice.later_button]:
     var glyph=button.get_theme_font("font").get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,button.get_theme_font_size("font_size")).x

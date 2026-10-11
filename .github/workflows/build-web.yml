@@ -32,6 +32,8 @@ permissions:
   contents: read
 jobs:
   guard:
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -39,6 +41,13 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Classify the verified PR merge-tree diff (uncertainty runs full CI)
+        id: scope
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+        run: python3 tools/pr_ci_scope.py
       - name: Verify metadata and CI guard tests
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -46,24 +55,25 @@ jobs:
           python3 tools/release_metadata.py --tag "$RELEASE_TAG"
           python3 tools/verify_prebaked_atlases.py
           python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
-          node tests/crazygames_storage.js
-          node tests/legacy_byte_storage.js
-          node tests/boot_presentation.js
-          node tests/fresh_tutorial_browser_test.js
-          node --check tests/fresh_tutorial_browser.js
-          node tests/save_log_observers.js
-          node tests/save_log_privacy.js
-          node tests/web_performance_lifecycle.js
-          node tests/connection_recovery.js
-          node tests/compensation_inbox_storage.js
-          node tests/wall_compatibility_parallel_test.js
-          node tests/wall_compatibility_helpers_test.js
-          node tests/wall_compatibility_ocr_test.js
-          node --check tests/wall_compatibility_browser.js
-          node --check tests/save_log_browser.js
-          node --check tests/connection_recovery_browser.js
+          node tests/persistence/crazygames_storage.js
+          node tests/persistence/legacy_byte_storage.js
+          node tests/presentation/boot_presentation.js
+          node tests/presentation/fresh_tutorial_browser_test.js
+          node --check tests/presentation/fresh_tutorial_browser.js
+          node tests/persistence/save_log_observers.js
+          node tests/persistence/save_log_privacy.js
+          node tests/rendering/web_performance_lifecycle.js
+          node tests/persistence/connection_recovery.js
+          node tests/persistence/compensation_inbox_storage.js
+          node tests/rendering/wall_compatibility_parallel_test.js
+          node tests/rendering/wall_compatibility_helpers_test.js
+          node tests/rendering/wall_compatibility_ocr_test.js
+          node --check tests/rendering/wall_compatibility_browser.js
+          node --check tests/persistence/save_log_browser.js
+          node --check tests/persistence/connection_recovery_browser.js
           node --check platform/firebase/fullflow.test.mjs
   engine:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -91,6 +101,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   historical:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -133,6 +144,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   build:
+    if: needs.guard.outputs.scope != 'lightweight'
     needs: [guard, engine]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -246,22 +258,22 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+          node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify exported save diagnostic in sandboxed Chromium
         if: matrix.lane == 'recovery'
         timeout-minutes: 5
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
       - name: Verify closed-connection recovery in actual exported WebKit game
         if: matrix.lane == 'recovery'
         timeout-minutes: 9
         env:
           RUNTIME_BROWSER: webkit
         run: |
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/connection_recovery_browser.js --run-hosted --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/connection-recovery-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Collect lane evidence without profiles
         if: always()
         run: |
@@ -333,7 +345,7 @@ jobs:
         run: |
           node tests/engine_launch_hook_test.js "$RUNNER_TEMP/web-build/web/index.js" > "$RUNNER_TEMP/web-build/evidence/engine-launch-hook.json"
           mkdir -p "$RUNNER_TEMP/web-build/evidence/inbox-browser"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/compensation_inbox_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/inbox-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_compensation_inbox-result.json"
       - name: Check out the exact historical wall-format-1 client
         if: matrix.lane == 'compatibility'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -349,8 +361,8 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          node tests/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
+          node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case ${{ matrix.case }} --old-source .compatibility-old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/${{ matrix.case }}"
       - name: Collect lane evidence without profiles
         if: always()
         run: |
@@ -398,7 +410,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Require both bound compatibility case receipts
-        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -473,7 +485,7 @@ jobs:
           printf 'Fresh source: %s\nRun: %s\nArtifact ID: %s\nManifest SHA256: %s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$ARTIFACT_ID" "$MANIFEST_SHA256" >> "$GITHUB_STEP_SUMMARY"
           printf 'All existing native/export/browser gates and focused Firebase/emulator checks passed in this run. No historical CI artifact reuse, deployment, or hosted/device acceptance is claimed.\n' >> "$GITHUB_STEP_SUMMARY"
       - name: Keep test and export evidence (never profiles or credentials)
-        if: always()
+        if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-firebase-evidence-${{ github.sha }}-${{ github.run_attempt }}
@@ -532,9 +544,9 @@ jobs:
           digest-mismatch: error
       - name: Require both bound compatibility case receipts
         if: needs.build.result == 'success' && needs.compatibility.result == 'success'
-        run: node tests/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
+        run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
-        if: always()
+        if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-evidence-${{ github.sha }}-${{ github.run_attempt }}
@@ -550,8 +562,28 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      - name: Accept explicitly limited PR guard result
+        if: needs.guard.outputs.scope == 'lightweight'
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview }}
+          GUARD: ${{ needs.guard.result }}
+          ENGINE: ${{ needs.engine.result }}
+          HISTORICAL: ${{ needs.historical.result }}
+          BUILD: ${{ needs.build.result }}
+          BROWSER: ${{ needs.browser.result }}
+          COMPATIBILITY: ${{ needs.compatibility.result }}
+          FIREBASE: ${{ needs.firebase.result }}
+          FIREBASE_REQUIRED: ${{ inputs.firebase_preview }}
+          WEB_ARTIFACT: ${{ needs.build.outputs.artifact_id }}
+          FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
+          FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
+        run: python3 tools/pr_ci_scope.py --check-lightweight-gate
       - name: Require every mandatory gate before exposing release outputs
         id: accept
+        if: needs.guard.outputs.scope != 'lightweight'
         env:
           GUARD: ${{ needs.guard.result }}
           ENGINE: ${{ needs.engine.result }}

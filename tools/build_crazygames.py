@@ -111,7 +111,7 @@ def main():
     web.mkdir(); evidence.mkdir()
     (project / "tests").mkdir(exist_ok=True)
     for name in ["test_crazygames_ack.gd", "test_platform_gameplay_gate.gd", "test_crazygames_autosave.gd"]:
-        shutil.copy2(ROOT / "tests" / name, project / "tests" / name)
+        shutil.copy2(ROOT / "tests/persistence" / name, project / "tests" / name)
     env = os.environ.copy()
     for key in ["APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME"]:
         folder = out / "synthetic-profile"
@@ -125,7 +125,7 @@ def main():
         raise RuntimeError("Web template changed after existing gate")
     stages = []
     commands = [
-        ("sdk-contract", ["node", "tests/crazygames_storage.js", "--web-dir", str(project / "web")]
+        ("sdk-contract", ["node", "tests/persistence/crazygames_storage.js", "--web-dir", str(project / "web")]
          + (["--developer-preview"] if args.developer_preview else []), ROOT),
         ("import", [godot, "--headless", "--path", str(project), "--editor", "--import", "--quit"], ROOT),
         ("ack", [godot, "--headless", "--path", str(project), "--script", "res://tests/test_crazygames_ack.gd"], ROOT),
