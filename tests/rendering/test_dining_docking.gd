@@ -1,6 +1,6 @@
 extends SceneTree
-const Layout=preload("res://scripts/dining_placement.gd")
-const Pose=preload("res://scripts/dining_pose.gd")
+const Layout=preload("res://scripts/gameplay/dining_placement.gd")
+const Pose=preload("res://scripts/rendering/dining_pose.gd")
 class TestMain extends "res://scripts/main.gd":
  var save_calls=0
  func _load_startup():save_writes_suppressed=true;fresh_start=false;model.reset_new();paused=true
@@ -78,7 +78,7 @@ func run():
     if item.kind=="register":
      guest.checkout_register_id=int(item.id)
      var toward=Vector2(item.x+.5,item.z+.5)-Vector2(guest.x,guest.z)
-     docking=toward.normalized()*preload("res://scripts/cafe_checkout_art.gd").payment_inset(toward,int(item.rot),false)
+     docking=toward.normalized()*preload("res://scripts/rendering/cafe_checkout_art.gd").payment_inset(toward,int(item.rot),false)
      break
   var prior=Vector2(.6,.2);a.stance_offsets[key]=prior;var before=snapshot()
   a.update_motion(1.0/60.0)

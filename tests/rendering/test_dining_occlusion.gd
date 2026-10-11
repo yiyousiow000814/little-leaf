@@ -1,6 +1,6 @@
 extends SceneTree
-const Character=preload("res://scripts/directional_character_art.gd")
-const Occlusion=preload("res://scripts/character_arm_occlusion.gd")
+const Character=preload("res://scripts/rendering/directional_character_art.gd")
+const Occlusion=preload("res://scripts/rendering/character_arm_occlusion.gd")
 const Harness=preload("res://tests/rendering/test_arm_occlusion.gd")
 var checks=0
 var failures=[]

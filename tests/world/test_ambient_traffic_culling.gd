@@ -1,6 +1,6 @@
 extends "res://tests/rendering/test_render_visibility.gd"
 ## Compare the public traffic entry point with its authoritative car renderer.
-const Traffic=preload("res://scripts/ambient_road_traffic.gd")
+const Traffic=preload("res://scripts/world/ambient_road_traffic.gd")
 func _initialize():
  var recorder=Recorder.new();var traffic=Traffic.new();var cases=0;var proven_visible=0;var offscreen_empty=0
  var world=Vector2(Traffic.LANES[0],0)

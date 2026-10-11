@@ -1,8 +1,8 @@
 extends SceneTree
-const Pose=preload("res://scripts/dining_pose.gd")
-const Layout=preload("res://scripts/dining_placement.gd")
-const Checkout=preload("res://scripts/cafe_checkout_art.gd")
-class PlateProbe extends "res://scripts/illustrated_cafe.gd":
+const Pose=preload("res://scripts/rendering/dining_pose.gd")
+const Layout=preload("res://scripts/gameplay/dining_placement.gd")
+const Checkout=preload("res://scripts/rendering/cafe_checkout_art.gd")
+class PlateProbe extends "res://scripts/rendering/illustrated_cafe.gd":
  var marks=[]
  func ellipse(p:Vector2,r:Vector2,c):marks.append({"at":p,"size":r,"color":str(c)})
  func outlined_ellipse(_p:Vector2,_r:Vector2,_fill,_edge,_width=1.0):pass

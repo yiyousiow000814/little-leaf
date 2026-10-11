@@ -1,6 +1,6 @@
 extends SceneTree
-const Cache=preload("res://scripts/cafe_background_native.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const Cache=preload("res://scripts/rendering/cafe_background_native.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 class TestGame extends "res://scripts/main.gd":
 	func _load_startup():
 		save_writes_suppressed=true;fresh_start=true;model=Model.new();MinimalStart.apply(model)
@@ -11,7 +11,7 @@ class TestGame extends "res://scripts/main.gd":
 # Geometry, colors, AA helpers and transforms remain the actual shipped code.
 func recording_script():
 	var script=GDScript.new()
-	var code=FileAccess.get_file_as_string("res://scripts/illustrated_cafe.gd")
+	var code=FileAccess.get_file_as_string("res://scripts/rendering/illustrated_cafe.gd")
 	code=code.replace("RenderingServer.canvas_item_add_triangle_array(target,", "record_draw_triangle_array(")
 	for name in ["_ready","_draw","_process"]:code=code.replace("func "+name+"(","func disabled"+name+"(")
 	# Keep the explicit art_draw_* adapter intact. Replacing every substring

@@ -1,7 +1,7 @@
 extends SceneTree
-const Art=preload("res://scripts/illustrated_openings.gd")
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const Art=preload("res://scripts/rendering/illustrated_openings.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 class ScreenProjection extends RefCounted:
  var scale=1.0
  func iso(x:float,z:float,h=0.0)->Vector2:return Vector2(137,211)+Vector2((x-z)*39,(x+z)*19.5-h)*scale

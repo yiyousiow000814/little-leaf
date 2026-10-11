@@ -37,6 +37,15 @@ function verifyPreflightBinding(web, source, manifest, production, manifestDiges
     assert.equal(hash(fs.readFileSync(within(source, path.relative(source, sourcePath(source, name))))), digest, 'Checked-out source must match preflight: ' + name);
   }
 }
+function verifyCandidateSources(production, historicalRequired) {
+  // The pinned fixture contract retains its historical namespace.
+  for (const historical of historicalRequired) {
+    const name = historical.replace('scripts/cafe_web_save.gd', 'scripts/persistence/cafe_web_save.gd')
+      .replace('scripts/cafe_model.gd', 'scripts/core/cafe_model.gd')
+      .replace('scripts/cafe_shell_segments.gd', 'scripts/gameplay/cafe_shell_segments.gd');
+    assert(Object.hasOwn(production, name), 'Missing required candidate source ' + name);
+  }
+}
 function normalizedText(text) {
   return text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
@@ -103,4 +112,4 @@ function progress(record) {
 function assertPreserved(before, after) {
   assert.equal(canonical(progress(after)), canonical(progress(before)), 'Wall products, openings, wallet, identity, provenance and receipts must survive');
 }
-module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved};
+module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved};
