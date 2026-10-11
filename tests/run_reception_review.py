@@ -4,7 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 from project_layout import stage_project
-SUITES={'test_guest_navigation_review':'GUEST_NAVIGATION_REVIEW_RESULT',
+SUITES={'test_routing_reception_scope':'ROUTING_RECEPTION_SCOPE_RESULT',
+        'test_routing_reception_persistence':'ROUTING_RECEPTION_PERSISTENCE_RESULT',
+        'test_guest_navigation_review':'GUEST_NAVIGATION_REVIEW_RESULT',
         'test_guest_navigation_service':'GUEST_NAVIGATION_SERVICE_RESULT',
         'test_reception_private_contract':'RECEPTION_PRIVATE_CONTRACT_RESULT',
         'test_restaurant_reception':'RESTAURANT_RECEPTION_RESULT',
@@ -15,9 +17,9 @@ SUITES={'test_guest_navigation_review':'GUEST_NAVIGATION_REVIEW_RESULT',
         'test_reception_scope':'RECEPTION_SCOPE_RESULT'}
 def execute():
  p=argparse.ArgumentParser();p.add_argument('--godot',required=True);p.add_argument('--output',type=Path,required=True)
- p.add_argument('--only',nargs='+',choices=list(SUITES),default=[s for s in SUITES if not s.startswith('test_guest_navigation_')]);p.add_argument('--native-service',action='store_true');args=p.parse_args()
- if args.native_service and args.only not in [['test_reception_service'],['test_guest_navigation_service'],['test_guest_navigation_review','test_guest_navigation_service']]:p.error('--native-service requires one reception or guest service scenario, optionally its guest path fixture')
- native_suites={'test_reception_service','test_guest_navigation_service'} if args.native_service else set()
+ p.add_argument('--only',nargs='+',choices=list(SUITES),default=[s for s in SUITES if not s.startswith('test_guest_navigation_') and not s.startswith('test_routing_reception_')]);p.add_argument('--native-service',action='store_true');args=p.parse_args()
+ if args.native_service and args.only not in [['test_routing_reception_persistence'],['test_reception_service'],['test_guest_navigation_service'],['test_guest_navigation_review','test_guest_navigation_service']]:p.error('--native-service requires one reception or guest service scenario, optionally its guest path fixture')
+ native_suites={'test_reception_service','test_guest_navigation_service','test_routing_reception_persistence'} if args.native_service else set()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
  project=out/'project';stage_project(ROOT,project,tests=True)
  config=project/'project.godot';text=config.read_text(encoding='utf-8')
@@ -60,7 +62,32 @@ def execute():
   if c.returncode or row['script_errors'] or (marker and (len(payloads)!=1 or payloads[0]['failures'])):raise RuntimeError(name+' failed; retained exact log')
  run('import',['--editor','--import','--quit'],env_for('import'))
  for suite in args.only:
-  run(suite,['--script','res://tests/'+suite+'.gd','--','--visual-qa','--fresh-review','--reception-candidate',*(['--navigation-candidate','--guest-navigation-candidate'] if suite.startswith('test_guest_navigation_') else ['--reception-persistence-candidate']),'--skip-intro','--skip-tutorial'],env_for(suite),SUITES[suite])
+  if suite=='test_routing_reception_scope':
+   flags=['--fresh-review','--reception-candidate','--navigation-candidate','--guest-navigation-candidate','--routing-reception-persistence-candidate']
+   cases=[('missing-'+flag,[f for f in flags if f!=flag]) for flag in flags]
+   cases += [(name,flags+[extra]) for name,extra in [('navigation16','--navigation-persistence-candidate'),('reception18','--reception-persistence-candidate'),('placement17','--footprint-placement')]]
+   cases += [('relative-root',flags),('ordinary-nested',flags),('junction-root',flags)]
+   for name,case_flags in cases:
+    case_env=env_for('routing19-'+name)
+    if name=='relative-root':case_env['LL_RECEPTION_REVIEW_ROOT']='relative-root'
+    elif name=='ordinary-nested':
+     scope=out/'Little Leaf Cafe/disposable';data=scope/'windows-data';data.mkdir(parents=True)
+     for key in ['HOME','APPDATA','LOCALAPPDATA','XDG_DATA_HOME','XDG_CONFIG_HOME','XDG_CACHE_HOME']:case_env[key]=str(data)
+     case_env['LL_RECEPTION_REVIEW_ROOT']=str(scope)
+     (data/('Godot' if os.name=='nt' else 'godot')/'app_userdata/Little Leaf Reception Review').mkdir(parents=True)
+    elif name=='junction-root':
+     scope=Path(case_env['LL_RECEPTION_REVIEW_ROOT']);link=scope/'scope-link';target=scope/'link-target';target.mkdir()
+     if os.name=='nt':
+      script="New-Item -ItemType Junction -Path '"+str(link).replace("'","''")+"' -Target '"+str(target).replace("'","''")+"' | Out-Null"
+      subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',script],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+     else:link.symlink_to(target,target_is_directory=True)
+     data=link/'windows-data';data.mkdir()
+     for key in ['HOME','APPDATA','LOCALAPPDATA','XDG_DATA_HOME','XDG_CONFIG_HOME','XDG_CACHE_HOME']:case_env[key]=str(data)
+     case_env['LL_RECEPTION_REVIEW_ROOT']=str(link)
+     (data/('Godot' if os.name=='nt' else 'godot')/'app_userdata/Little Leaf Reception Review').mkdir(parents=True)
+    run('routing19-'+name,['--script','res://tests/'+suite+'.gd','--',*case_flags],case_env,SUITES[suite])
+   continue
+  run(suite,['--script','res://tests/'+suite+'.gd','--','--visual-qa','--fresh-review','--reception-candidate',*(['--navigation-candidate','--guest-navigation-candidate'] if suite.startswith('test_guest_navigation_') else (['--navigation-candidate','--guest-navigation-candidate','--routing-reception-persistence-candidate'] if suite=='test_routing_reception_persistence' else ['--reception-persistence-candidate'])),'--skip-intro','--skip-tutorial'],env_for(suite),SUITES[suite])
  assert all(hashlib.sha256((ROOT/rel).read_bytes()).hexdigest()==sha for rel,sha in hashes.items())
  print(json.dumps({'checks':sum(p['checks'] for r in records for p in r['payloads']),'source_unchanged':True,'profile_root':str(out)}))
 def main():

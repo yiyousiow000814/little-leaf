@@ -1,7 +1,7 @@
 extends RefCounted
 ## Private native review custody. No production profile discovery or imports.
 const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const PROTECTED=["little_leaf_cafe_layout_motion_v15.json","little_leaf_cafe_navigation_v16.json","little_leaf_cafe_footprint_placement_v17.json","little_leaf_illustrated_r9.json","little_leaf_illustrated_r7.json","little_leaf_illustrated_r6.json","little_leaf_illustrated_r5.json","little_leaf_illustrated_r4.json"]
+const PROTECTED=["little_leaf_cafe_layout_motion_v15.json","little_leaf_cafe_navigation_v16.json","little_leaf_cafe_footprint_placement_v17.json","little_leaf_cafe_routing_reception_review_v19.json","little_leaf_illustrated_r9.json","little_leaf_illustrated_r7.json","little_leaf_illustrated_r6.json","little_leaf_illustrated_r5.json","little_leaf_illustrated_r4.json"]
 
 static func canonical(path:String)->String:
 	var resolved=ProjectSettings.globalize_path(path).replace("\\","/").simplify_path().trim_suffix("/")
@@ -29,12 +29,17 @@ static func link_free(path:String,allow_new_file:bool=false)->bool:
 		at=parent;first=false
 	return false
 
-static func scope_allowed()->bool:
+static func scope_allowed(routing:bool=false)->bool:
 	if OS.has_feature("web") or OS.get_name() not in ["Windows","Linux","macOS"]:return false
 	var args=OS.get_cmdline_user_args()
 	if "--fresh-review" not in args or "--reception-candidate" not in args:return false
-	for flag in ["--navigation-candidate","--navigation-persistence-candidate","--footprint-placement"]:
+	if routing:
+		for flag in ["--navigation-candidate","--guest-navigation-candidate","--routing-reception-persistence-candidate"]:
+			if flag not in args:return false
+	elif "--navigation-candidate" in args or "--guest-navigation-candidate" in args or "--routing-reception-persistence-candidate" in args:return false
+	for flag in ["--navigation-persistence-candidate","--footprint-placement"]:
 		if flag in args:return false
+	if routing and "--reception-persistence-candidate" in args:return false
 	var raw=OS.get_environment("LL_RECEPTION_REVIEW_ROOT").replace("\\","/")
 	if not raw.is_absolute_path() or raw.begins_with("user://") or raw.begins_with("res://"):return false
 	var scope=canonical(raw);var data=canonical(OS.get_user_data_dir())
@@ -45,11 +50,11 @@ static func scope_allowed()->bool:
 			if component.to_lower()==str(profile.app).to_lower():return false
 	return true
 
-static func persistence_allowed()->bool:
-	return scope_allowed() and "--reception-persistence-candidate" in OS.get_cmdline_user_args()
+static func persistence_allowed(routing:bool=false)->bool:
+	return scope_allowed(routing) and (routing or "--reception-persistence-candidate" in OS.get_cmdline_user_args())
 
-static func path_allowed(path:String,temporary:bool=false)->bool:
-	if not persistence_allowed():return false
+static func path_allowed(path:String,temporary:bool=false,routing:bool=false)->bool:
+	if not persistence_allowed(routing):return false
 	var target=canonical(path);var data=canonical(OS.get_user_data_dir())
 	if not target.is_absolute_path() or not inside(target,data):return false
 	if DirAccess.dir_exists_absolute(target):return false
@@ -64,7 +69,8 @@ static func path_allowed(path:String,temporary:bool=false)->bool:
 		if not base.ends_with(".json.tmp"):return false
 		base=base.trim_suffix(".tmp")
 	elif not base.ends_with(".json"):return false
-	if base.to_lower() in PROTECTED:return false
+	if base.to_lower() in PROTECTED and not (routing and routing_filename(base)):return false
+	if routing and base.to_lower()==SaveContract.RECEPTION_REVIEW_FILE.get_file().to_lower():return false
 	for profile in SaveContract.PROFILES:
 		if base.to_lower()==str(profile.file).to_lower():return false
 	return link_free(target,true)
@@ -72,8 +78,11 @@ static func path_allowed(path:String,temporary:bool=false)->bool:
 static func reception_filename(path:String)->bool:
 	return canonical(path).get_file().to_lower()==SaveContract.RECEPTION_REVIEW_FILE.get_file().to_lower()
 
-static func commit(temp_path:String,path:String)->bool:
-	if not path_allowed(path) or not path_allowed(temp_path,true):return false
+static func routing_filename(path:String)->bool:
+	return canonical(path).get_file().to_lower().trim_suffix(".tmp")==SaveContract.ROUTING_RECEPTION_REVIEW_FILE.get_file().to_lower()
+
+static func commit(temp_path:String,path:String,routing:bool=false)->bool:
+	if not path_allowed(path,false,routing) or not path_allowed(temp_path,true,routing):return false
 	if OS.get_name()!="Windows":return DirAccess.rename_absolute(temp_path,path)==OK
 	# Godot's Windows rename deletes an existing target first. File.Replace keeps
 	# that target intact on failure; File.Move refuses an unexpected new target.
