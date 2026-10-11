@@ -12,8 +12,8 @@ import shutil
 import subprocess
 
 from build_web import ROOT, LOCK
-from optimize_web_present import optimize_presentation
-from bound_web_gl_handles import bound_web_gl_handles
+from build.optimize_web_present import optimize_presentation
+from build.bound_web_gl_handles import bound_web_gl_handles
 from artifacts import sha256
 import artifacts
 
