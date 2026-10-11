@@ -7,7 +7,7 @@ const {hash, requireWallBackText, requireVisibleText, verifyLayout} = require('.
 const root = path.resolve(__dirname, '../..'), folder = path.join(__dirname, '../fixtures/wall-ocr');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
-const layoutSource = fs.readFileSync(path.join(__dirname, '../wall_compatibility_layout.gd'), 'utf8');
+const layoutSource = fs.readFileSync(path.join(__dirname, '../fixtures/wall_compatibility_layout.gd'), 'utf8');
 const shopSource = fs.readFileSync(path.join(root, 'game/scripts/cafe_shop_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
