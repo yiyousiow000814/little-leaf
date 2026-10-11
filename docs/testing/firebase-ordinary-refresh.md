@@ -20,3 +20,5 @@ These checks neither sign in a player nor access or rewrite player saves.
 Actual browser refresh/duplicate-tab acceptance and exact release qualification
 remain separate gates; synthetic results do not establish the cause or repair
 of a particular player's live warning.
+
+The manual real-browser diagnostic is `node tests/diagnostics/firebase_refresh_browser.js`, using installed Playwright/Chrome, a fresh browser context and a loopback-only synthetic SDK boundary. Run it only in a coordinated runtime window; its source hashes and cleanup receipt are separate from the ordinary CI check.
