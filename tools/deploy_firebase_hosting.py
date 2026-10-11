@@ -20,7 +20,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
-from released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
+from release.released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
 
 SITE = 'little-leaf-41e5d'
 ORIGIN = 'https://' + SITE + '.firebaseapp.com/'

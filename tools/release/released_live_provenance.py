@@ -11,6 +11,10 @@ import os
 from pathlib import Path
 import re
 
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from qualification.artifacts import sha256
 from build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from firebase_release_gate import REPOSITORY, require, trusted_run
@@ -23,7 +27,7 @@ RUNTIME = ['index.js', 'index.wasm', 'index.pck']
 COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
     'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
     '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml',
-    'tools/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
+    'tools/release/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
     '.github/workflows/deploy-firebase.yml']
 
 
@@ -32,7 +36,12 @@ def coordinator_files(paths):
     paths = set(paths)
     resolved = []
     for name in COORDINATOR_FILES:
-        aliases = ('tools/reuse_released_web.py', name) if name == 'tools/qualification/reuse_released_web.py' else (name,)
+        if name == 'tools/qualification/reuse_released_web.py':
+            aliases = ('tools/reuse_released_web.py', name)
+        elif name == 'tools/release/released_live_provenance.py':
+            aliases = ('tools/released_live_provenance.py', name)
+        else:
+            aliases = (name,)
         matches = [path for path in aliases if path in paths]
         require(len(matches) == 1, 'Missing or ambiguous coordinator source: ' + name)
         resolved.append(matches[0])

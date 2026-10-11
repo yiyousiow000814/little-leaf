@@ -3,7 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 from project_layout import source_path
-from release_metadata import projected_metadata
+from release.release_metadata import projected_metadata
 
 
 def sha256(path):
