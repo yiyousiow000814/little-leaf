@@ -3,7 +3,7 @@ const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 const Tasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
-class StageProbe extends "res://scripts/cafe_floor_geometry.gd":
+class StageProbe extends "res://scripts/rendering/cafe_floor_geometry.gd":
 	var actions=[]
 	func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:
 		actions.append(action)

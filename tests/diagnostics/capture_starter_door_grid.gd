@@ -15,7 +15,7 @@ class CaptureGame extends "res://scripts/main.gd":
    input_hash=FileAccess.get_sha256("user://synthetic-old.json")
    assert(model.load_save("user://synthetic-old.json"),model.last_error)
    assert(FileAccess.get_sha256("user://synthetic-old.json")==input_hash)
-class FixedArt extends "res://scripts/illustrated_cafe.gd":
+class FixedArt extends "res://scripts/rendering/illustrated_cafe.gd":
  func update_projection(_clamp_camera:bool=true):
   ui_scale=.88;zoom=1.0;tile=Vector2(34.32,17.16);origin=Vector2(576,226)
 var game

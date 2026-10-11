@@ -1,4 +1,4 @@
-extends "res://scripts/illustrated_cafe.gd"
+extends "res://scripts/rendering/illustrated_cafe.gd"
 ## Bake-only artist. Inherits the live renderer's unchanged native primitives.
 ## This object has no game, does not process, and draws no live service state.
 var atlas

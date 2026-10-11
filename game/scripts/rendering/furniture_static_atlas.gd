@@ -79,7 +79,7 @@ func request(artist: Node2D):
 	if DisplayServer.get_name()=="headless":
 		state="headless_fallback";stats.state=state
 		return
-	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"furniture",size):return
+	if preload("res://scripts/rendering/cafe_prebaked_atlas.gd").try_load(self,"furniture",size):return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
 	_build.call_deferred(artist.get_tree())
@@ -99,7 +99,7 @@ func _build(tree: SceneTree):
 	if state != "warming":return
 	# Load only after all source scripts finish loading; the painter inherits
 	# the real artist's primitives, so no second version of the art is kept.
-	var painter_script=load("res://scripts/furniture_atlas_painter.gd")
+	var painter_script=load("res://scripts/rendering/furniture_atlas_painter.gd")
 	if painter_script==null:
 		_fail("Painter script unavailable")
 		return
@@ -166,4 +166,4 @@ func draw_part(artist: Node2D,part: String,p: Vector2,rotation: int):
 	# Filtering is set once on the artist by the opt-in integration/harness.
 	# Existing outer draw transform supplies the live pan, zoom and placement.
 	var art_rect := bounds(part)
-	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+art_rect.position,art_rect.size),region)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+art_rect.position,art_rect.size),region)

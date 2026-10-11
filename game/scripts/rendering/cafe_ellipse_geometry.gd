@@ -1,5 +1,5 @@
 extends RefCounted
-const Outline = preload("res://scripts/ordered_pocket_triangles.gd")
+const Outline = preload("res://scripts/rendering/ordered_pocket_triangles.gd")
 const LIMIT = 256
 var meshes = {}
 var builds = 0

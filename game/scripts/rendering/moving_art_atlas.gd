@@ -60,14 +60,14 @@ func is_ready()->bool:return state=="ready" and texture!=null
 func request(artist:Node2D):
 	if state!="cold" or not artist.is_inside_tree():return
 	if DisplayServer.get_name()=="headless":state="headless_fallback";stats.state=state;return
-	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"moving",size):return
+	if preload("res://scripts/rendering/cafe_prebaked_atlas.gd").try_load(self,"moving",size):return
 	state="warming";stats.state=state;_started_us=Time.get_ticks_usec();_build.call_deferred(artist.get_tree())
 func _viewport(tree:SceneTree)->SubViewport:
 	var v=SubViewport.new();v.size=size;v.disable_3d=true;v.transparent_bg=true
 	v.render_target_update_mode=SubViewport.UPDATE_ONCE;v.render_target_clear_mode=SubViewport.CLEAR_MODE_ALWAYS;tree.root.add_child(v);_bake_viewports.append(v);return v
 func _build(tree:SceneTree):
 	if state != "warming":return
-	var script=load("res://scripts/moving_art_painter.gd")
+	var script=load("res://scripts/rendering/moving_art_painter.gd")
 	if script==null:_fail("Painter unavailable");return
 	var viewport=_viewport(tree);var painter=script.new();painter.atlas=self;viewport.add_child(painter)
 	await RenderingServer.frame_post_draw
@@ -95,14 +95,14 @@ func _fail(reason:String):
 	state="failed_fallback";stats.state=state;stats["reason"]=reason;push_warning("Moving art cache uses original fallback: "+reason)
 func draw_part(artist:Node2D,key:String,p:Vector2,scale=1.0):
 	var rect:Rect2=rectangles[key]
-	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+rect.position*scale,rect.size*scale),regions[key])
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+rect.position*scale,rect.size*scale),regions[key])
 func draw_limb(artist:Node2D,key:String,start:Vector2,finish:Vector2):
 	var direction=(finish-start).normalized();var across=Vector2(direction.y,-direction.x)
 	var rect:Rect2=rectangles[key];var region:Rect2=regions[key]
 	if use_retained_limb_meshes and "_art_transform" in artist:
 		# Atlas quads are sprites. Native texture-rectangle commands can share
 		# the engine's 2D batches; separate Mesh commands cannot.
-		var draw=preload("res://scripts/cafe_canvas_draw.gd")
+		var draw=preload("res://scripts/rendering/cafe_canvas_draw.gd")
 		var previous=artist._art_transform
 		draw.draw_set_transform_matrix(artist,previous*Transform2D(across,direction,start))
 		draw.draw_texture_rect_region(artist,texture,rect,region)
@@ -118,9 +118,9 @@ func draw_limb(artist:Node2D,key:String,start:Vector2,finish:Vector2):
 			arrays[Mesh.ARRAY_INDEX]=Geometry2D.triangulate_polygon(vertices)
 			var mesh=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
 			limb_meshes[key]=mesh
-		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,limb_meshes[key],texture,Transform2D(across,direction,start))
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(artist,limb_meshes[key],texture,Transform2D(across,direction,start))
 		return
 	var points=PackedVector2Array();var uvs=PackedVector2Array()
 	for uv in [Vector2.ZERO,Vector2.RIGHT,Vector2.ONE,Vector2.DOWN]:
 		var local=rect.position+rect.size*uv;points.append(start+across*local.x+direction*local.y);uvs.append((region.position+region.size*uv)/Vector2(size))
-	preload("res://scripts/cafe_canvas_draw.gd").draw_polygon(artist,points,PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),uvs,texture)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_polygon(artist,points,PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),uvs,texture)

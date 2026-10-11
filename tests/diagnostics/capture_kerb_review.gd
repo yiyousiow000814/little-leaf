@@ -2,7 +2,7 @@ extends SceneTree
 ## Actual Godot render only. Supply a baseline script from the exact source
 ## revision with KERB_BEFORE_SCRIPT and a new KERB_REVIEW_OUTPUT directory.
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
-class KerbArt extends "res://scripts/illustrated_cafe.gd":
+class KerbArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var artist
 	func _ready():set_process(false)
 	func _draw():

@@ -3,7 +3,7 @@ extends RefCounted
 ## shoe centers, including lateral spacing. Body facing cannot move a planted
 ## shoe. The painter consumes these samples without blending toward the torso.
 ## Model positions, service clocks and movement speeds are untouched.
-const CharacterGeometry=preload("res://scripts/directional_character_art.gd")
+const CharacterGeometry=preload("res://scripts/rendering/directional_character_art.gd")
 
 # The floor is drawn at 2:1. A stride is 20 pixels across it or 10 in
 # depth, avoiding a tall body bounce on nearly vertical screen travel.

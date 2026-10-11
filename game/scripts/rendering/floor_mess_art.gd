@@ -1,6 +1,6 @@
 extends RefCounted
 ## Draw litter above its saved ground footprint, which drives cleanup contact.
-const Geometry=preload("res://scripts/cafe_floor_geometry.gd")
+const Geometry=preload("res://scripts/rendering/cafe_floor_geometry.gd")
 
 static func _screen(art,point:Vector2)->Vector2:return art.iso(point.x,point.y)
 

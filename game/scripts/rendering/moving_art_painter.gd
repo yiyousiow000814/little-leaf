@@ -1,4 +1,4 @@
-extends "res://scripts/illustrated_cafe.gd"
+extends "res://scripts/rendering/illustrated_cafe.gd"
 ## Bakes the original source helpers without a game, simulation or UI.
 var atlas
 var bake_draws=0

@@ -3,7 +3,7 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 const Tasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const LegacyFixture=preload("res://tests/fixtures/build_litter_legacy_spill.gd")
-const MessArt=preload("res://scripts/floor_mess_art.gd")
+const MessArt=preload("res://scripts/rendering/floor_mess_art.gd")
 class Fixture extends RefCounted:
 	var model=Model.new()
 	var staff_states=[]

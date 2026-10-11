@@ -1,6 +1,6 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
-const Art=preload("res://scripts/illustrated_cafe.gd")
+const Art=preload("res://scripts/rendering/illustrated_cafe.gd")
 class FakeGame extends Node:
  var model=Model.new()
  var editing=true

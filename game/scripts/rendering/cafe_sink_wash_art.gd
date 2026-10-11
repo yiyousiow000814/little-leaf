@@ -1,6 +1,6 @@
 extends RefCounted
 ## Read-only sink animation: one active dish, fixed basin/tap contacts, no jobs.
-const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
+const Geometry=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
 const ARM=10.5
 const HALF_ARM=ARM*.5
 const INSET=.55

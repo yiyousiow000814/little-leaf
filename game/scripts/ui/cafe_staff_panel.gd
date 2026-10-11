@@ -1,6 +1,6 @@
 extends RefCounted
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
-const Portrait=preload("res://scripts/cafe_staff_portrait.gd")
+const Portrait=preload("res://scripts/rendering/cafe_staff_portrait.gd")
 const ROLE_COLORS={"chef":Color("dce9d5"),"waiter":Color("f0e2cc"),"cleaner":Color("dceae4"),"cashier":Color("e8e3ce")}
 const ROLE_PURPOSES={"chef":"Cooks meals","waiter":"Food & drinks","cleaner":"Dishes & floors","cashier":"Checkout service"}
 const VISIBLE_ROLES=["chef","waiter","cleaner","cashier"]

@@ -1,9 +1,9 @@
 extends SceneTree
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
-const AA=preload("res://scripts/retained_aa_strokes.gd")
-const Pose=preload("res://scripts/cooking_tool_pose.gd")
-const Atlas=preload("res://scripts/furniture_static_atlas.gd")
+const AA=preload("res://scripts/rendering/retained_aa_strokes.gd")
+const Pose=preload("res://scripts/rendering/cooking_tool_pose.gd")
+const Atlas=preload("res://scripts/rendering/furniture_static_atlas.gd")
 var checks=0
 var failures=[]
 class PanSpy:

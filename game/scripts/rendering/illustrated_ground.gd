@@ -6,7 +6,7 @@ extends RefCounted
 ## stroke offsets, preserving the legacy width/feather behavior at every zoom.
 
 const ExteriorExtent=preload("res://scripts/world/exterior_world_extent.gd")
-const AAStrokes=preload("res://scripts/retained_aa_strokes.gd")
+const AAStrokes=preload("res://scripts/rendering/retained_aa_strokes.gd")
 # Native multiline keeps zoom-dependent AA generation inside the engine.
 # The former scripted mesh path remains available for renderer comparisons.
 var use_stroke_mesh := false
@@ -170,23 +170,23 @@ func _begin(artist) -> float:
 
 func draw_pavement(artist):
 	var scale := _begin(artist)
-	preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,pavement_mesh,null)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(artist,pavement_mesh,null)
 	if use_stroke_mesh:
 		prepare_pavement_strokes(scale)
-		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,pavement_stroke_mesh,null)
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(artist,pavement_stroke_mesh,null)
 	else:
 		for i in range(2):
-			if not pavement_edges[i].is_empty():preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,pavement_edges[i],PAVEMENT_COLORS[i],.7/scale,true)
-		preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,pavement_grid,Color("c7cbae"),.7/scale,true)
+			if not pavement_edges[i].is_empty():preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_multiline(artist,pavement_edges[i],PAVEMENT_COLORS[i],.7/scale,true)
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_multiline(artist,pavement_grid,Color("c7cbae"),.7/scale,true)
 	artist.art_transform(Vector2.ZERO)
 
 func draw_floor(artist):
 	var scale := _begin(artist)
-	preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,floor_mesh,null)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(artist,floor_mesh,null)
 	if use_stroke_mesh:
 		prepare_floor_strokes(scale)
-		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(artist,floor_stroke_mesh,null)
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(artist,floor_stroke_mesh,null)
 	else:
 		for batch in floor_strokes:
-			if not batch.lines.is_empty():preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(artist,batch.lines,batch.color,float(batch.width)/scale,true)
+			if not batch.lines.is_empty():preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_multiline(artist,batch.lines,batch.color,float(batch.width)/scale,true)
 	artist.art_transform(Vector2.ZERO)

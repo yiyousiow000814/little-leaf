@@ -1,7 +1,7 @@
 extends SceneTree
 # Native production-art fixtures, with exact live seat docking and depth order.
 # This renderer never creates the game model or reads/writes a player save.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var facing_forward=Vector2.RIGHT
  var pull_override=-1.0
  var chair_pull=.24

@@ -1,5 +1,5 @@
 extends SceneTree
-const Triangles=preload("res://scripts/cafe_polygon_triangulation.gd")
+const Triangles=preload("res://scripts/rendering/cafe_polygon_triangulation.gd")
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 var checks=0
 var failures=[]
@@ -13,7 +13,7 @@ func check(ok:bool,label:String):
 func _init():
  var contours=[PackedVector2Array([Vector2(0,0),Vector2(4,0),Vector2(4,1),Vector2(1,1),Vector2(1,4),Vector2(0,4)])]
  contours.append(PackedVector2Array([Vector2.ZERO,Vector2(4,0),Vector2(4,0),Vector2(4,4),Vector2(0,4),Vector2.ZERO]))
- for layer in preload("res://scripts/exterior_tree_art.gd").new().layers:contours.append(layer[1])
+ for layer in preload("res://scripts/rendering/exterior_tree_art.gd").new().layers:contours.append(layer[1])
  for row in Neighborhood.stop_paving:contours.append(PackedVector2Array(row.points))
  for variant in Neighborhood.greenery.trees:
   for layer in Neighborhood.greenery.trees[variant]:contours.append(layer[1])
@@ -31,7 +31,7 @@ func _init():
     var actual=0.0
     for i in range(0,indices.size(),3):actual+=absf((points[indices[i+1]]-points[indices[i]]).cross(points[indices[i+2]]-points[indices[i]]))*.5
     check(absf(actual-expected)<=maxf(.00001,expected*.001),"triangle areas preserve concave contour and winding")
- for layer in preload("res://scripts/exterior_tree_art.gd").new().layers:
+ for layer in preload("res://scripts/rendering/exterior_tree_art.gd").new().layers:
   var source:PackedVector2Array=layer[1];var indices=Triangles.indices(source)
   check(not indices.is_empty(),"every oak layer has cached source-space triangles")
   for scale in [.04,.08,.2]:

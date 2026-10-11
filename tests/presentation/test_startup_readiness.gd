@@ -123,7 +123,7 @@ func run():
 	check(owner_controller.bridge.preserve_calls == 1 and owner_controller.recovery_busy and game.save_recovery_blocked,"final reveal check cannot duplicate an in-flight recovery transaction")
 	game.web_save = null
 
-	for script in [preload("res://scripts/furniture_static_atlas.gd"),preload("res://scripts/moving_art_atlas.gd"),preload("res://scripts/character_head_atlas.gd")]:
+	for script in [preload("res://scripts/rendering/furniture_static_atlas.gd"),preload("res://scripts/rendering/moving_art_atlas.gd"),preload("res://scripts/rendering/character_head_atlas.gd")]:
 		var atlas = script.new();atlas.state = "warming"
 		var target = atlas._viewport(self)
 		atlas.cancel_prepare("Synthetic timeout")

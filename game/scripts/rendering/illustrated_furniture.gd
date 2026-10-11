@@ -1,5 +1,5 @@
 extends RefCounted
-const CookingFood=preload("res://scripts/cooking_tool_pose.gd")
+const CookingFood=preload("res://scripts/rendering/cooking_tool_pose.gd")
 # Presentation only: the cooking assembly fills the existing range naturally.
 const PAN_WIDTH=1.35
 const PAN_DEPTH=1.15
@@ -8,9 +8,9 @@ const PAN_HANDLE_HEIGHT=39.0
 # Keep the front views and the vessel itself at their established positions.
 const PAN_REAR_HANDLE_DROP=2.0
 const PAN_REAR_HANDLE_OUTSET=.02*PAN_WIDTH
-const KitchenGeometry=preload("res://scripts/kitchen_worktop_geometry.gd")
+const KitchenGeometry=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
 var kitchen_height := false
-const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
+const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 # Original rotatable isometric furniture. Geometry and use-side details share
 # the floor's 2:1 ground basis; height is never screen-rotated.
 var a: Node2D
@@ -19,7 +19,7 @@ var turn: int
 
 # Experimental: off until native same-state pixels and frame callbacks are checked.
 # This singleton holds only static art. It never receives model/service records.
-const StaticAtlas = preload("res://scripts/furniture_static_atlas.gd")
+const StaticAtlas = preload("res://scripts/rendering/furniture_static_atlas.gd")
 static var static_atlas = StaticAtlas.new()
 var cache_enabled := false
 var use_retained_station_parts=true

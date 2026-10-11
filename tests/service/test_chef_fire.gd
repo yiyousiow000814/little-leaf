@@ -1,7 +1,7 @@
 extends SceneTree
-const Pose=preload("res://scripts/cooking_tool_pose.gd")
-const Character=preload("res://scripts/directional_character_art.gd")
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
+const Pose=preload("res://scripts/rendering/cooking_tool_pose.gd")
+const Character=preload("res://scripts/rendering/directional_character_art.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 var checks=0
 var failures=[]

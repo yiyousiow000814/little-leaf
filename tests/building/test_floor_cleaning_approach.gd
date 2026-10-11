@@ -1,7 +1,7 @@
 extends SceneTree
 const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
-const Pose=preload("res://scripts/cleaning_tool_pose.gd")
-const Art=preload("res://scripts/illustrated_cafe.gd")
+const Pose=preload("res://scripts/rendering/cleaning_tool_pose.gd")
+const Art=preload("res://scripts/rendering/illustrated_cafe.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Relocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")

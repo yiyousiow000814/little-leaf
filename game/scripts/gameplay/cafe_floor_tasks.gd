@@ -9,7 +9,7 @@ const DROP_CHANCE_PERCENT=10
 const LITTER_SCALE=1.08
 const WALKING_PHASES=["arriving","checkout_walk","leaving"]
 const KITCHEN_KINDS=["stove","beverage","sink","counter"]
-const Geometry=preload("res://scripts/cafe_floor_geometry.gd")
+const Geometry=preload("res://scripts/rendering/cafe_floor_geometry.gd")
 var geometry
 var game
 var messes={}

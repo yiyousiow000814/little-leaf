@@ -2,9 +2,9 @@ extends SceneTree
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 class CaptureGame extends "res://scripts/main.gd":
 	func _load_startup():save_writes_suppressed=true;fresh_start=false;MinimalStart.apply(model)
-class AfterArt extends "res://scripts/illustrated_cafe.gd":
+class AfterArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	func update_projection(_clamp_camera:bool=true):ui_scale=.86;zoom=1.0;tile=Vector2(33.54,16.77);origin=Vector2(800,345)
-class DetailArt extends "res://scripts/illustrated_cafe.gd":
+class DetailArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var before=false
 	var before_environment
 	func _ready():set_process(false)

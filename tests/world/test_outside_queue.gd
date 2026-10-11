@@ -8,7 +8,7 @@ class TestMain extends "res://scripts/main.gd":
 class StreetDrawGame extends Node:
  var model
  var wall_detail=false
-class StreetDrawProbe extends "res://scripts/illustrated_cafe.gd":
+class StreetDrawProbe extends "res://scripts/rendering/illustrated_cafe.gd":
  var drawn_ids=[]
  var bubbles=[]
  func _ready():set_process(false)

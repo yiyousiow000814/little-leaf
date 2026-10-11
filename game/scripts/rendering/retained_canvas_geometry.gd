@@ -3,7 +3,7 @@ extends RefCounted
 ## Exact submitted coordinates are keys: no quantization or hash-only hits.
 ## Mesh colors are white/transparent; the original float tint is applied at draw.
 ## A bounded FIFO evicts resources, never visible draw commands or live state.
-const Outline=preload("res://scripts/ordered_pocket_triangles.gd")
+const Outline=preload("res://scripts/rendering/ordered_pocket_triangles.gd")
 const MAX_BYTES=16*1024*1024
 const MAX_ENTRIES=4096
 var entries={}

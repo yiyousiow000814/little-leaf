@@ -1,6 +1,6 @@
 extends RefCounted
 ## Presentation only: compact catalog, selection actions, optional details.
-const WorkfaceGuidance=preload("res://scripts/cafe_workface_guidance.gd")
+const WorkfaceGuidance=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const StaffPanel=preload("res://scripts/ui/cafe_staff_panel.gd")
 const Hud=preload("res://scripts/ui/cafe_hud.gd")

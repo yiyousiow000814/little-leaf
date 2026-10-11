@@ -1,5 +1,5 @@
 extends SceneTree
-const Pose=preload("res://scripts/cooking_tool_pose.gd")
+const Pose=preload("res://scripts/rendering/cooking_tool_pose.gd")
 var checks=0
 var failures=[]
 func check(ok,label):

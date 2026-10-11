@@ -1,14 +1,14 @@
 extends RefCounted
 ## Small deterministic collection of authored 2D contours, sampled once.
 ## Ground anchors and palette are shared; silhouettes are not scaled copies.
-const Visibility=preload("res://scripts/cafe_render_visibility.gd")
+const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 var tree_bounds={}
 var static_contours={}
 
 var use_retained_fills=true
 var use_ordered_pockets=true
 var ordered_pocket_cache={}
-const OrderedPocket=preload("res://scripts/ordered_pocket_triangles.gd")
+const OrderedPocket=preload("res://scripts/rendering/ordered_pocket_triangles.gd")
 var fill_meshes={}
 var pocket_bounds=[]
 var trees={}
@@ -127,7 +127,7 @@ func draw_layers(a,items:Array,ground:Vector2,scale:float,local_bounds:Rect2,var
 	for item in items:
 		var mesh=_fill_mesh(item[1]) if retained else null
 		if mesh==null:a.poly(Array(transform*item[1]),item[0]);continue
-		preload("res://scripts/cafe_canvas_draw.gd").draw_mesh(a,mesh,null,transform,a.col(item[0]))
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_mesh(a,mesh,null,transform,a.col(item[0]))
 		var outline:PackedVector2Array=transform*item[1]
 		outline.append(outline[0])
 		a.art_polyline(outline,a.col(item[0]),.7)

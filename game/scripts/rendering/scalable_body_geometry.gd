@@ -1,8 +1,8 @@
 extends RefCounted
 ## Merge adjacent commands with the same AA width, preserving painter order.
 ## Mesh vertices hold the original stroke core; UV holds its AA fringe offset.
-const Outline = preload("res://scripts/ordered_pocket_triangles.gd")
-const Strokes = preload("res://scripts/retained_aa_strokes.gd")
+const Outline = preload("res://scripts/rendering/ordered_pocket_triangles.gd")
+const Strokes = preload("res://scripts/rendering/retained_aa_strokes.gd")
 
 
 static func build(shapes: Array, count: int) -> Array:

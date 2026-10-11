@@ -1,5 +1,5 @@
 extends SceneTree
-const Art=preload("res://scripts/illustrated_openings.gd")
+const Art=preload("res://scripts/rendering/illustrated_openings.gd")
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class ScreenProjection extends RefCounted:

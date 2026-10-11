@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
-class MealDrawProbe extends "res://scripts/illustrated_cafe.gd":
+class MealDrawProbe extends "res://scripts/rendering/illustrated_cafe.gd":
  var plates=0;var cups=0
  func _plate(_at:Vector2,_remaining=1.0,_dirty=false):plates+=1
  func _cup(_bottom:Vector2,_filled=true):cups+=1

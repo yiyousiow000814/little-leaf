@@ -7,7 +7,7 @@ class FixtureGame extends Node:
  var dishwashing=Dishes.new()
  var service_guests={}
  var editing=false
-class Sheet extends "res://scripts/illustrated_cafe.gd":
+class Sheet extends "res://scripts/rendering/illustrated_cafe.gd":
  var font=preload("res://assets/fonts/NotoSans-Regular.ttf")
  func _ready():set_process(false)
  func _process(_delta):pass

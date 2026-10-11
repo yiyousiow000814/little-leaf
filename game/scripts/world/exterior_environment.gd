@@ -1,10 +1,10 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
-const Visibility=preload("res://scripts/cafe_render_visibility.gd")
+const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
-const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
-const Greenery=preload("res://scripts/environment_greenery.gd")
+const CameraLandmarks=preload("res://scripts/rendering/cafe_camera_landmarks.gd")
+const Greenery=preload("res://scripts/rendering/environment_greenery.gd")
 static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
 const ROAD_RIGHT=-3.26
@@ -303,8 +303,8 @@ static func _draw_shelter_front(a):
 	var sign=a.iso(-10.7,11.05)
 	a.line(sign,a.iso(-10.7,11.05,58),"7a8c72",2.2*scale)
 	var top=a.iso(-10.7,11.05,66)
-	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
-	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_rect(a,Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
 	for x in [-3,3]:a.ellipse(top+Vector2(x,11)*scale,Vector2(1.1,1.1)*scale,"e5e3cb")
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):

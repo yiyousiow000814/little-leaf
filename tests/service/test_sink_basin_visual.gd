@@ -1,7 +1,7 @@
 extends SceneTree
-const Geometry=preload("res://scripts/kitchen_worktop_geometry.gd")
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
-const Atlas=preload("res://scripts/furniture_static_atlas.gd")
+const Geometry=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
+const Atlas=preload("res://scripts/rendering/furniture_static_atlas.gd")
 var checks=0
 var failures=[]
 class Probe extends Node2D:

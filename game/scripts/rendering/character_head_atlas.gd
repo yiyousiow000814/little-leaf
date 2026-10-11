@@ -36,7 +36,7 @@ func request(artist:Node2D):
 	if state!="cold" or not artist.is_inside_tree():return
 	if DisplayServer.get_name()=="headless":
 		state="headless_fallback";stats.state=state;return
-	if preload("res://scripts/cafe_prebaked_atlas.gd").try_load(self,"heads",SIZE):return
+	if preload("res://scripts/rendering/cafe_prebaked_atlas.gd").try_load(self,"heads",SIZE):return
 	state="warming";stats.state=state
 	_started_us=Time.get_ticks_usec()
 	_build.call_deferred(artist.get_tree())
@@ -52,7 +52,7 @@ func _viewport(tree:SceneTree)->SubViewport:
 
 func _build(tree:SceneTree):
 	if state != "warming":return
-	var script=load("res://scripts/character_head_painter.gd")
+	var script=load("res://scripts/rendering/character_head_painter.gd")
 	if script==null:_fail("Painter unavailable");return
 	var viewport:=_viewport(tree)
 	var painter=script.new();painter.atlas=self;viewport.add_child(painter)
@@ -94,4 +94,4 @@ func _fail(reason:String):
 
 func draw_head(artist:Node2D,p:Vector2,species:int,away:bool,blink:bool,chef:bool,blocked:bool,view:int=-1):
 	var region:Rect2=regions[key(species,away,blink,chef,blocked,view)]
-	preload("res://scripts/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+ART_RECT.position,ART_RECT.size),region)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_texture_rect_region(artist,texture,Rect2(p+ART_RECT.position,ART_RECT.size),region)

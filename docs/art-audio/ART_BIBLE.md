@@ -96,7 +96,7 @@ control/candidate pair. No collection of these images is a final Golden set.
 
 ## World units and normal-scale calibration
 
-At the audited main source, [illustrated_cafe.gd](../../game/scripts/illustrated_cafe.gd)
+At the audited main source, [illustrated_cafe.gd](../../game/scripts/rendering/illustrated_cafe.gd)
 uses base `tile = Vector2(39,19.5)`. One logical ground tile is a **78×39**
 diamond, with projected axes **(39,19.5)** and **(-39,19.5)**. Before current
 origin/scale, `(x,z)` maps to `((x-z)*39,(x+z)*19.5)`; height projects upward
@@ -111,7 +111,7 @@ Show the grid calibration and a clean view. Use close-ups only to explain a
 finding after the normal-scale view. Do not change camera, picking, collision
 or world dimensions to make the picture fit.
 
-Existing [ground source](../../game/scripts/illustrated_ground.gd) samples are
+Existing [ground source](../../game/scripts/rendering/illustrated_ground.gd) samples are
 warm oak `#edd5ab`, cream tile `#ece8d4`, sage tile `#cbd7ba`, bare floor
 `#cbbfa8`, and pavement `#dfe0c8`/`#d7dcc2`; illustration ink is `#6d7859`.
 These identify current materials, not a universal new palette. Any new palette,
@@ -174,10 +174,10 @@ asset count. Retain existing scoped receipts without promoting a whole category.
 | Category | Verified source entry points | Coverage and next evidence |
 | --- | --- | --- |
 | Outdoor | [exterior](../../game/scripts/world/exterior_environment.gd), [stop pedestrians](../../game/scripts/world/bus_stop_pedestrians.gd) | R1 rejected; R2/R3 direction inspected. Other exterior art **Uninspected** for this audit. Single Bus Stop pilot needs editable/export and actual scene evidence. |
-| Building | [wall painter](../../game/scripts/illustrated_walls.gd), [openings](../../game/scripts/cafe_wall_openings.gd) | **Uninspected** at asset level. Inspect shell/door/window scale, joins, alpha and people crossing the relevant boundaries. |
-| Furniture | [illustration/chair](../../game/scripts/illustrated_cafe.gd), [dining styles](../../game/scripts/dining_style_art.gd), [atlas painter](../../game/scripts/furniture_atlas_painter.gd) | **Uninspected** at asset level; basic-chair source discrepancy above is Pending pixel audit. Include empty/occupied contact and rotations; do not start an unsolicited fix. |
-| Equipment | [furniture/kitchen](../../game/scripts/illustrated_furniture.gd), [checkout](../../game/scripts/cafe_checkout_art.gd), [sink](../../game/scripts/cafe_sink_wash_art.gd) | **Uninspected** here. Review real service phases, hand/plate contact and rim/local occlusion using the owning candidate. |
-| Characters/animals | [directional art](../../game/scripts/directional_character_art.gd), [heads](../../game/scripts/character_head_painter.gd) | **Uninspected** for a new system audit; character/wardrobe authoring and activation remain paused. Preserve the separate existing Blender direction. |
+| Building | [wall painter](../../game/scripts/rendering/illustrated_walls.gd), [openings](../../game/scripts/cafe_wall_openings.gd) | **Uninspected** at asset level. Inspect shell/door/window scale, joins, alpha and people crossing the relevant boundaries. |
+| Furniture | [illustration/chair](../../game/scripts/rendering/illustrated_cafe.gd), [dining styles](../../game/scripts/rendering/dining_style_art.gd), [atlas painter](../../game/scripts/rendering/furniture_atlas_painter.gd) | **Uninspected** at asset level; basic-chair source discrepancy above is Pending pixel audit. Include empty/occupied contact and rotations; do not start an unsolicited fix. |
+| Equipment | [furniture/kitchen](../../game/scripts/rendering/illustrated_furniture.gd), [checkout](../../game/scripts/rendering/cafe_checkout_art.gd), [sink](../../game/scripts/rendering/cafe_sink_wash_art.gd) | **Uninspected** here. Review real service phases, hand/plate contact and rim/local occlusion using the owning candidate. |
+| Characters/animals | [directional art](../../game/scripts/rendering/directional_character_art.gd), [heads](../../game/scripts/rendering/character_head_painter.gd) | **Uninspected** for a new system audit; character/wardrobe authoring and activation remain paused. Preserve the separate existing Blender direction. |
 | UI | [compact UI](../../game/scripts/ui/cafe_compact_ui.gd), [HUD](../../game/scripts/ui/cafe_hud.gd), [asset provenance](../../game/assets/ui/wood_hud/PROVENANCE.json) | R4 has bounded approval. Other screens/fonts/viewport combinations are **Uninspected**, not implicitly accepted. |
 
 When an asset is actually audited, attach its source/tree, reference IDs,

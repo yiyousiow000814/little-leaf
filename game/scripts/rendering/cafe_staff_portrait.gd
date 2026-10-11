@@ -1,4 +1,4 @@
-extends "res://scripts/illustrated_cafe.gd"
+extends "res://scripts/rendering/illustrated_cafe.gd"
 ## A retained UI portrait using the exact in-cafe character painter. It owns
 ## no model, animation loop, viewport, texture bake or simulation state.
 var staff_role="chef"

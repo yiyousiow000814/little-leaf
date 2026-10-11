@@ -1,7 +1,7 @@
 extends RefCounted
 ## Presentation-only citizens. They never reserve a seat, create a service
 ## record, earn money, consume demand, or enter the save payload.
-const Motion=preload("res://scripts/illustrated_motion.gd")
+const Motion=preload("res://scripts/rendering/illustrated_motion.gd")
 const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const COUNT=32
 const END_MARGIN=0.0

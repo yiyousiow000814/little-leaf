@@ -1,7 +1,7 @@
 extends SceneTree
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 const Street=preload("res://scripts/world/street_pedestrians.gd")
-const Visibility=preload("res://scripts/cafe_render_visibility.gd")
+const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 class Recorder extends RefCounted:
 	var origin=Vector2(800,345)
 	var ui_scale=1.0
@@ -30,7 +30,7 @@ class HistoricalModel extends RefCounted:
 class TestGame extends Node:
 	var model
 	var wall_detail=false
-class StreetArt extends "res://scripts/illustrated_cafe.gd":
+class StreetArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var recorded=[]
 	var characters=[]
 	func _ready():set_process(false)

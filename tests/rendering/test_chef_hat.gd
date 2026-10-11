@@ -1,7 +1,7 @@
 extends SceneTree
-const Character=preload("res://scripts/directional_character_art.gd")
+const Character=preload("res://scripts/rendering/directional_character_art.gd")
 const Before=preload("res://tests/fixtures/chef_hat_before.gd")
-const Atlas=preload("res://scripts/character_head_atlas.gd")
+const Atlas=preload("res://scripts/rendering/character_head_atlas.gd")
 class Recorder extends Node2D:
  var commands=[]
  var extents=Rect2()

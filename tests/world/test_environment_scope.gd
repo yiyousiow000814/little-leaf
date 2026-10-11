@@ -1,6 +1,6 @@
 extends SceneTree
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
-const Camera=preload("res://scripts/cafe_camera_landmarks.gd")
+const Camera=preload("res://scripts/rendering/cafe_camera_landmarks.gd")
 class Recorder extends RefCounted:
  var ui_scale=1.0
  var zoom=1.0

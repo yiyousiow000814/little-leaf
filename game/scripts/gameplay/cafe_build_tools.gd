@@ -2,9 +2,9 @@ extends RefCounted
 ## Reversible grid-edge previews. Only a matching click-release commits a wall.
 ## Dragging the background still pans; GUI, cancel and lost-focus never charge.
 const Geometry=preload("res://scripts/gameplay/cafe_walls.gd")
-const WallArt=preload("res://scripts/illustrated_walls.gd")
+const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
-const OpeningArt=preload("res://scripts/illustrated_openings.gd")
+const OpeningArt=preload("res://scripts/rendering/illustrated_openings.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const OPENING_MODES=["door","window","move_opening","remove_opening","select_opening"]
 var opening_preview={}
@@ -53,7 +53,7 @@ class WallIcon extends Control:
 	func _draw():
 		var y=4.0 if height=="full" else 23.0
 		var h=48.0 if height=="full" else 29.0
-		var texture=preload("res://scripts/illustrated_walls.gd").texture_for(wall_material,height)
+		var texture=preload("res://scripts/rendering/illustrated_walls.gd").texture_for(wall_material,height)
 		draw_texture_rect(texture,Rect2(21,y,38,h),false)
 		draw_colored_polygon(PackedVector2Array([Vector2(21,y),Vector2(59,y),Vector2(64,y-4),Vector2(26,y-4)]),Color("fff0d1"))
 		draw_colored_polygon(PackedVector2Array([Vector2(59,y),Vector2(64,y-4),Vector2(64,y+h-4),Vector2(59,y+h)]),Color("aebd98"))
@@ -233,7 +233,7 @@ func draw_shell_selection(view):
 	var shape=OpeningArt.segment_selection_geometry(view,host)
 	# Points are already projected to display coordinates. Subpixel coverage
 	# keeps this soft-gray outline light at every zoom, without a highlight fill.
-	preload("res://scripts/cafe_canvas_draw.gd").draw_multiline(view,shape.edges,Color("8a8d88"),.35,true)
+	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_multiline(view,shape.edges,Color("8a8d88"),.35,true)
 
 func replacement_price_text()->String:
 	if replacement_quote.is_empty():return ""

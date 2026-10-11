@@ -3,7 +3,7 @@ extends SceneTree
 class CaptureGame extends "res://scripts/main.gd":
 	func _load_startup():
 		save_writes_suppressed=true;fresh_start=false
-class FixedArt extends "res://scripts/illustrated_cafe.gd":
+class FixedArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	func update_projection(_clamp_camera:bool=true):
 		ui_scale=.88;zoom=1.0;tile=Vector2(34.32,17.16);origin=Vector2(650,205)
 var game

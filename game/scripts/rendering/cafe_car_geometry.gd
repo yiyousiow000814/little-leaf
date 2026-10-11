@@ -1,5 +1,5 @@
 extends RefCounted
-const Background = preload("res://scripts/cafe_background_cache.gd")
+const Background = preload("res://scripts/rendering/cafe_background_cache.gd")
 const Neighborhood = preload("res://scripts/world/exterior_environment.gd")
 var meshes = {}
 

@@ -1,4 +1,4 @@
-extends "res://scripts/illustrated_cafe.gd"
+extends "res://scripts/rendering/illustrated_cafe.gd"
 ## Bake-only source artist; no game, profile, simulation or live state.
 var atlas
 var bake_draws:=0

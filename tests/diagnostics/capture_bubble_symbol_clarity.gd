@@ -1,6 +1,6 @@
 extends SceneTree
 # Isolated native production art, no player profile or running simulation.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var phase=""
  var scale_label=""
  var capture_scale=1.0

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Retained native commands for the exact static prefix of IllustratedCafe._draw.
 ## No image baking, downsampling, geometry welding or reordered commands.
-const PolygonTriangulation = preload("res://scripts/cafe_polygon_triangulation.gd")
+const PolygonTriangulation = preload("res://scripts/rendering/cafe_polygon_triangulation.gd")
 const Neighborhood = preload("res://scripts/world/exterior_environment.gd")
 var server = RenderingServer
 var canvas = RID()
@@ -44,7 +44,7 @@ class NativeArtist:
 		if view_override.has_area():
 			return (
 				not source.use_screen_culling
-				or preload("res://scripts/cafe_render_visibility.gd").visible(
+				or preload("res://scripts/rendering/cafe_render_visibility.gd").visible(
 					bounds, view_override, 6.0
 				)
 			)

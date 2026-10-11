@@ -2,7 +2,7 @@ extends RefCounted
 ## Three bounded presentation visitors. No model, seat, fare, service or save.
 const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 const Street=preload("res://scripts/world/street_pedestrians.gd")
-const Motion=preload("res://scripts/illustrated_motion.gd")
+const Motion=preload("res://scripts/rendering/illustrated_motion.gd")
 const COUNT=3
 const SPEED=1.05
 const WAIT_SECONDS=14.0

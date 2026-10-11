@@ -1,11 +1,11 @@
 extends Node2D
-const Outline = preload("res://scripts/ordered_pocket_triangles.gd")
+const Outline = preload("res://scripts/rendering/ordered_pocket_triangles.gd")
 static var use_merged_native_geometry = true
-const Strokes = preload("res://scripts/retained_aa_strokes.gd")
+const Strokes = preload("res://scripts/rendering/retained_aa_strokes.gd")
 static var rigid_meshes = {}
 static var body_meshes = {}
 static var unsupported_body_shapes = {}
-const BodyGeometry = preload("res://scripts/scalable_body_geometry.gd")
+const BodyGeometry = preload("res://scripts/rendering/scalable_body_geometry.gd")
 static var rigid_hits = 0
 static var rigid_builds = 0
 ## Godot owns this node's cached draw list. Translation never queues a redraw.
@@ -18,7 +18,7 @@ var paint_opacity: float = 1.0
 var draw_count: int = 0
 var contacts: Array = []
 var resources: Array[Resource] = []
-const CafeShape = preload("res://scripts/cafe_shape_2d.gd")
+const CafeShape = preload("res://scripts/rendering/cafe_shape_2d.gd")
 var shapes: Array[Node2D] = []
 var shape_cursor: int = 0
 

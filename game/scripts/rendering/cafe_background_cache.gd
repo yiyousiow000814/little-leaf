@@ -1,10 +1,10 @@
 extends RefCounted
 ## Retained world geometry. The vertex shader scales centerlines,
 ## while preserving the reference renderer's screen-space antialias offsets.
-const Original = preload("res://scripts/cafe_background_native.gd")
+const Original = preload("res://scripts/rendering/cafe_background_native.gd")
 const Neighborhood = preload("res://scripts/world/exterior_environment.gd")
-const Outline = preload("res://scripts/ordered_pocket_triangles.gd")
-const Strokes = preload("res://scripts/retained_aa_strokes.gd")
+const Outline = preload("res://scripts/rendering/ordered_pocket_triangles.gd")
+const Strokes = preload("res://scripts/rendering/retained_aa_strokes.gd")
 var fallback = Original.new()
 var canvas = RID()
 var screen_canvas = RID()

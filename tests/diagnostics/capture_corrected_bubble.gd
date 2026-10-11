@@ -1,7 +1,7 @@
 extends SceneTree
 # Native production-renderer comparison. Run once against baseline and once
 # against the candidate with isolated profiles; no game saves are loaded.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var comparison_before=false
  var capture_scale=1.0
  var crowded=false
