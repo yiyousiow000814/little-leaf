@@ -21,7 +21,7 @@ class ItchReleaseEntryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'index.html'
             path.write_text(html, encoding='utf-8')
-            subprocess.run(['node', 'tests/itch_release_entry.js', str(path)], cwd=ROOT, check=True, timeout=30)
+            subprocess.run(['node', 'tests/tooling/itch_release_entry.js', str(path)], cwd=ROOT, check=True, timeout=30)
 
     def test_changed_or_duplicate_shell_is_refused(self):
         for html in [self.shell.replace('window.__littleLeafVault.boot()', 'otherBoot()'),

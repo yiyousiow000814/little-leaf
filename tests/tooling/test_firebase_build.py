@@ -1,7 +1,7 @@
 """Synthetic staging checks; does not claim an engine export or publish."""
 import sys, tempfile, json
 from pathlib import Path
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
 from build_firebase import stage, ROOT
 from build_web import sha256
 with tempfile.TemporaryDirectory() as d:
