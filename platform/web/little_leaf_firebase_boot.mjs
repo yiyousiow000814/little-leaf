@@ -88,10 +88,14 @@ export async function start(config,options={}) {
   let reloadTicket=null,navigationType,storage;
   try{storage=window.sessionStorage;navigationType=performance.getEntriesByType('navigation')[0]?.type;
     reloadTicket=window.LittleLeafFirebaseSession.consumeReload(storage,navigationType,uid);}catch(_){}
-  let runtime,ownership,exited=false;
+  let runtime,ownership,exited=false,startupPending=true;
   // Register before awaiting the lock: page exit/account change may win that wait.
-  const closeRuntime=()=>{exited=true;ownership?.close();client?.close();runtime?.close();};
-  window.addEventListener('pagehide',closeRuntime);
+  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();};
+  // Once installed, native pagehide saves finish asynchronously under this same
+  // exclusive lock. Do not close their client or release writer identity early.
+  // Unloading-document cleanup releases browser locks on actual termination;
+  // a retained document keeps its lock. Account changes still close immediately.
+  window.addEventListener('pagehide',()=>{if(startupPending)closeRuntime();});
   onAuthStateChanged(auth,user=>{if(user?.uid!==uid)closeRuntime();});
   runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
   if(exited){runtime.close();throw Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});}
@@ -169,6 +173,7 @@ export async function start(config,options={}) {
   setInterval(()=>client.renewOwnership?.(),20000);
   window.addEventListener('focus',()=>client.refreshOwnership?.());
   window.addEventListener('online',()=>client.sync());
+  startupPending=false;
   return client;
   }catch(error){closeRuntime();throw error;}
 }

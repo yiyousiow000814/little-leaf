@@ -1,6 +1,6 @@
 'use strict';
 // Execute the real boot module with synthetic SDK/DOM boundaries; no network or saves.
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
 const source=fs.readFileSync('platform/web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(user=null,options={}){
@@ -8,12 +8,53 @@ function fixture(user=null,options={}){
   const element=()=>({textContent:'',hidden:false,disabled:false,style:{},setAttribute(){},append(...x){this.children=x;}});
   nodes.set('status-label',element());nodes.set('status-progress',element());
   const auth={currentUser:user,authStateReady:async()=>{if(options.authReady)await options.authReady;}};
-  const client={sync(){},close(){clientClosed++;}};
-  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return{};},createSession(value){sessionOptions=value;return {async start(){},close(){ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return{};},createClient(options){statusCallback=options.status;return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
+  let client={sync(){},close(){clientClosed++;}};
+  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return{};},createSession(value){sessionOptions=value;return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
   const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
-  return {nodes,auth,win,events,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),client};
+  return {nodes,auth,win,events,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),get client(){return client;}};
+}
+async function activePagehideSave(){
+  // Exercise the real codec/client and an intentionally deferred journal write.
+  // The native capture listener starts save before the boot bubble listener;
+  // neither the asynchronous hash nor the journal may finish in that event turn.
+  const root={crypto:webcrypto,TextEncoder,setTimeout,clearTimeout};root.globalThis=root;
+  for(const name of ['little_leaf_vault','little_leaf_firebase'])vm.runInNewContext(fs.readFileSync(`platform/web/${name}.js`,'utf8'),root);
+  const clone=x=>x==null?null:JSON.parse(JSON.stringify(x));
+  async function bounded(promise){let timer;try{return await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Lifecycle journal did not finish')),5000);})]);}finally{clearTimeout(timer);}}
+  let local=null,releaseWrite,enteredWrite,holdWrite=true,cloudWrites=0;
+  const waiting=new Promise(resolve=>{releaseWrite=resolve;}),entered=new Promise(resolve=>{enteredWrite=resolve;});
+  const journal={async read(){return clone(local);},async replace(uid,expected,next){
+    assert.equal(uid,'synthetic-lifecycle');assert.deepEqual(local,clone(expected));
+    if(next.pending&&holdWrite){enteredWrite();await waiting;holdWrite=false;}
+    local=clone(next);
+  }};
+  const remote={async read(){return null;},async compareAndSet(){cloudWrites++;throw Error('Unexpected cloud write');}};
+  const f=fixture({uid:'synthetic-lifecycle',isAnonymous:false},{codec:root.LittleLeafAuthorityCodec,journal,remote,createClient:root.LittleLeafFirebase.createClient});
+  await f.start();const boot=await f.client.boot();assert(boot.ok);
+  const payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
+  const saved=new Promise(resolve=>f.client.save(payload,boot.revision,boot.profileId,raw=>resolve(JSON.parse(raw))));
+  f.events.get('pagehide')({persisted:false});
+  assert.equal(f.accountCounts().clientClosed,0,'pagehide must not close an installed client');
+  await bounded(entered);
+  assert.equal(local.record.revision,0,'deferred lifecycle save has not committed yet');
+  assert.equal(f.runtimeState().runtimeClosed,0,'writer lock stays held through the pending snapshot');
+  f.runtimeState().sessionOptions.assertRuntime();releaseWrite();
+  const receipt=await bounded(saved);assert(receipt.ok&&receipt.durable&&!receipt.cloudConfirmed);
+  assert.equal(local.record.revision,1);assert.equal(local.record.payload,payload);assert(local.pending);
+  f.events.get('pagehide')({persisted:true});
+  assert.equal(f.runtimeState().runtimeClosed,0,'retained document keeps exclusive authority');
+  const next=await f.client.commit(payload,receipt.revision,boot.profileId);
+  assert(next.ok&&next.durable);assert.equal(local.record.revision,2);assert.equal(cloudWrites,0);
+  const preserved=clone(local);
+  f.setUser({uid:'synthetic-different-account',isAnonymous:false});
+  f.events.get('pagehide')();f.setUser(null);
+  assert.equal(f.accountCounts().clientClosed,1,'account closure remains immediate and idempotent');
+  assert.equal(f.runtimeState().runtimeClosed,1);assert.equal(f.runtimeState().ownershipClosed,1);
+  assert.throws(()=>f.runtimeState().sessionOptions.assertRuntime(),{code:'NOT_READY'});
+  assert.equal((await f.client.commit(payload,2,boot.profileId)).code,'NOT_READY');
+  assert.deepEqual(local,preserved,'closed/account-changed callbacks cannot replace the last journal');
 }
 (async()=>{
   const bridgeSource=fs.readFileSync('game/scripts/cafe_cloud_settings.gd','utf8');
@@ -43,8 +84,12 @@ function fixture(user=null,options={}){
   assert.equal(reloading.runtimeState().runtimeOptions.uid,'synthetic-reload');
   assert.equal(reloading.runtimeState().sessionOptions.sessionId,'synthetic-runtime');
   assert.equal(typeof reloading.runtimeState().sessionOptions.assertRuntime,'function');
-  reloading.events.get('pagehide')();assert.equal(reloading.accountCounts().clientClosed,1);
+  reloading.events.get('pagehide')();assert.equal(reloading.accountCounts().clientClosed,0);
+  assert.equal(reloading.runtimeState().runtimeClosed,0);assert.equal(reloading.runtimeState().ownershipClosed,0);
+  reloading.setUser(null);reloading.setUser(null);
+  assert.equal(reloading.accountCounts().clientClosed,1);
   assert.equal(reloading.runtimeState().runtimeClosed,1);assert.equal(reloading.runtimeState().ownershipClosed,1);
+  await activePagehideSave();
   let releaseJournal;const closing=fixture({uid:'synthetic-closing',isAnonymous:false},{journalWait:new Promise(resolve=>{releaseJournal=resolve;})});
   const closingStart=closing.start();await flush();closing.events.get('pagehide')();releaseJournal();
   await assert.rejects(closingStart,{code:'NOT_READY'});assert.equal(closing.accountCounts().clientClosed,0);

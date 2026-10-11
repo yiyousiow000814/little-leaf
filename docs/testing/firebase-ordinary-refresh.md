@@ -6,18 +6,24 @@ after a successful explicit device switch, without another running device.
 
 The candidate retains an account-scoped sessionStorage runtime ID only for a
 reload and only after acquiring its exclusive WebLock. New navigations and
-account changes use a fresh ID; an overlapping holder blocks entry. Page exit
-and account change close writer authority before releasing the lock. The server
-owner and epoch still decide ownership. Existing Save-and-update receipts use a
+account changes use a fresh ID; an overlapping holder blocks entry. Exit during
+startup and account change close writer authority before releasing the lock.
+After successful boot, the document retains its lock so the native pagehide
+snapshot can finish its asynchronous, best-effort local save under the existing
+guards. The browser releases remaining locks when the document unloads; no
+unload listener or timer releases writer identity ahead of a pending save.
+A retained document retains the lock. The server owner and epoch still decide
+ownership. Existing Save-and-update receipts use a
 fresh requester and their original strict one-use handoff. Unsupported WebLocks
 retain fresh-ID behavior; they are not qualified for ordinary refresh continuity.
 
 Run `node tests/persistence/firebase_session_refresh.js` for generated takeover/refresh,
 overlap, copied/new-tab, account, closed/crashed runtime, competing server owner,
 update and unavailable storage/lock cases. The existing boot presentation test
-observes runtime wiring and pagehide closure with synthetic SDK/DOM boundaries.
+observes startup cancellation, active-pagehide deferred journal completion and
+account-change closure using the real client with synthetic SDK/DOM/storage.
 These checks neither sign in a player nor access or rewrite player saves.
-Actual browser refresh/duplicate-tab acceptance and exact release qualification
+Actual browser refresh/duplicate-tab/BFCache acceptance and exact release qualification
 remain separate gates; synthetic results do not establish the cause or repair
 of a particular player's live warning.
 
