@@ -4,7 +4,9 @@ const GuestNav=preload("res://scripts/cafe_guest_navigation_review.gd")
 const Nav=preload("res://scripts/cafe_navigation_candidate.gd")
 var checks=0
 var failures=[]
-func _initialize():run.call_deferred()
+func _initialize():
+	create_timer(30).timeout.connect(func():printerr("GUEST_NAV_REVIEW_TIMEOUT");quit(2))
+	run.call_deferred()
 func check(ok:bool,label:String):
 	checks+=1
 	if not ok:failures.append(label);printerr("FAIL ",label)
@@ -85,6 +87,9 @@ func run():
 	var file="user://synthetic_guest_nav_refusal.json";FileAccess.open(file,FileAccess.WRITE).store_string("synthetic control")
 	check(not m.save(file) and FileAccess.get_file_as_string(file)=="synthetic control" and not FileAccess.file_exists(file+".tmp"),"default save refuses transient route before writes")
 	check(not m.save_reception(file) and FileAccess.get_file_as_string(file)=="synthetic control","private18 writer cannot serialize diagonal capability")
+	var load_before=m.RuntimeCodec.new().encode({"coins":m.coins,"customers":m.customers,"visitors":m.reception_visits,"departures":m.departing_bodies,"next_id":m._next_customer_id})
+	check(not m.load_save(file) and m.last_error=="Transient guest navigation cannot use a historical reader" and m.RuntimeCodec.new().encode({"coins":m.coins,"customers":m.customers,"visitors":m.reception_visits,"departures":m.departing_bodies,"next_id":m._next_customer_id})==load_before,"actual default load entry refuses before parsing and preserves actor/economy state")
+	check(not m.load_reception(file) and m.last_error=="Reception persistence or path refused" and m.guest_navigation_enabled and FileAccess.get_file_as_string(file)=="synthetic control" and not FileAccess.file_exists(file+".tmp"),"actual private18 load entry preserves transient capability and input without staging")
 	check(not Model.SaveContract.accepts_version(19,true),"unagreed19 is not accepted by existing contract")
 	var main=load("res://scripts/main.gd").new();root.add_child(main);main.set_process(false)
 	check(main.navigation_review!=null and main.model.guest_navigation_enabled and main.model.reception_review_enabled,"actual Main strict native triple composition entry active")

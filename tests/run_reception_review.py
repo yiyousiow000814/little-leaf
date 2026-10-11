@@ -16,7 +16,8 @@ SUITES={'test_guest_navigation_review':'GUEST_NAVIGATION_REVIEW_RESULT',
 def execute():
  p=argparse.ArgumentParser();p.add_argument('--godot',required=True);p.add_argument('--output',type=Path,required=True)
  p.add_argument('--only',nargs='+',choices=list(SUITES),default=[s for s in SUITES if not s.startswith('test_guest_navigation_')]);p.add_argument('--native-service',action='store_true');args=p.parse_args()
- if args.native_service and args.only!=['test_reception_service']:p.error('--native-service requires --only test_reception_service')
+ if args.native_service and args.only not in [['test_reception_service'],['test_guest_navigation_service'],['test_guest_navigation_review','test_guest_navigation_service']]:p.error('--native-service requires one reception or guest service scenario, optionally its guest path fixture')
+ native_suites={'test_reception_service','test_guest_navigation_service'} if args.native_service else set()
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
  project=out/'project';stage_project(ROOT,project,tests=True)
  config=project/'project.godot';text=config.read_text(encoding='utf-8')
@@ -39,11 +40,11 @@ def execute():
    script="New-Item -ItemType Junction -Path '"+str(user/'escape').replace("'","''")+"' -Target '"+str(sibling).replace("'","''")+"' | Out-Null"
    subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-WindowStyle','Hidden','-Command',script],check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
   else:(user/'escape').symlink_to(sibling,target_is_directory=True)
-  if args.native_service and name=='test_reception_service':
+  if name in native_suites:
    captures=out/'frames';captures.mkdir(exist_ok=True);env['LL_RECEPTION_CAPTURE']=str(captures)
   return env
  def run(name,extra,env,marker=None):
-  start=time.monotonic();cmd=[args.godot,*([] if args.native_service and name=='test_reception_service' else ['--headless']),'--audio-driver','Dummy','--path',str(project),*extra]
+  start=time.monotonic();cmd=[args.godot,*([] if name in native_suites else ['--headless']),'--audio-driver','Dummy','--path',str(project),*extra]
   try:c=subprocess.run(cmd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=180)
   except subprocess.TimeoutExpired as error:
    log=(error.stdout or b'').decode('utf-8',errors='replace')
