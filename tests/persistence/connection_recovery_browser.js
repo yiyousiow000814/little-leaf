@@ -69,8 +69,8 @@ function inputs() {
   assert.equal(nativeResults.length, 1);
   assert.deepEqual(nativeResults[0], layout, 'pointer coordinates match the paired native result');
   assert.equal(engine.source_sha256['tests/persistence/test_save_log.gd'], sha(fs.readFileSync(path.join(root, 'tests/persistence/test_save_log.gd'))));
-  const requiredSources = ['project.godot', 'main.tscn', 'scripts/main.gd', 'scripts/cafe_web_save.gd',
-    'scripts/platform/cafe_web_lifecycle.gd', 'scripts/cafe_save_log.gd', 'scripts/cafe_save_log_panel.gd',
+  const requiredSources = ['project.godot', 'main.tscn', 'scripts/main.gd', 'scripts/persistence/cafe_web_save.gd',
+    'scripts/platform/cafe_web_lifecycle.gd', 'scripts/persistence/cafe_save_log.gd', 'scripts/cafe_save_log_panel.gd',
     'web/little_leaf_shell.html', 'web/little_leaf_vault.js', 'web/little_leaf_save_log.js',
     'web/little_leaf_inbox.js', 'web/little_leaf_preferences.js'];
   for (const name of requiredSources) assert(Object.hasOwn(manifest.production_sha256, name), 'manifest source: ' + name);

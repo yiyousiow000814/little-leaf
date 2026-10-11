@@ -42,7 +42,7 @@ def main():
         "player_save_used": False, "runs": []}
     report["candidate_source_sha256"] = {
         Path(resource).name: hashlib.sha256((candidate / "scripts" / resource).read_bytes()).hexdigest()
-        for resource in ["core/cafe_model.gd", "cafe_outside_queue.gd", "cafe_runtime_codec.gd", "cafe_save_contract.gd"]}
+        for resource in ["core/cafe_model.gd", "cafe_outside_queue.gd", "persistence/cafe_runtime_codec.gd", "persistence/cafe_save_contract.gd"]}
 
     def run(label, project, mode=None, source=None, destination=None):
         env = os.environ.copy()

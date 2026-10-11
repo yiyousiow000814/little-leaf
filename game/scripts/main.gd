@@ -1,5 +1,5 @@
 extends Node3D
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
@@ -10,17 +10,17 @@ const Interaction = preload("res://scripts/gameplay/cafe_interaction.gd")
 const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
 var camera_gestures
 const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
-const WebSave = preload("res://scripts/cafe_web_save.gd")
+const WebSave = preload("res://scripts/persistence/cafe_web_save.gd")
 var web_lifecycle
 var web_save
 const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
 const SettingsControls = preload("res://scripts/cafe_settings.gd")
-const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
+const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
 const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
 var compact_ui
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
@@ -699,7 +699,7 @@ func _process(delta):
 	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+	if not intro_active and preload("res://scripts/persistence/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)

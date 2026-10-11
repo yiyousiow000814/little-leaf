@@ -1,5 +1,5 @@
 extends SceneTree
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const Notice=preload("res://scripts/cafe_update_notice.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0

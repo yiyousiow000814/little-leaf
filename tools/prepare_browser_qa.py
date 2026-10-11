@@ -44,7 +44,7 @@ def validate_export(build, source, old=False):
     if old:
         if manifest["production_sha256"].get("web/little_leaf_vault.js") != CONTRACT["old_vault_sha256"]:
             raise RuntimeError("Historical vault hash differs")
-    elif not {name.replace('scripts/cafe_model.gd', 'scripts/core/cafe_model.gd').replace('scripts/cafe_shell_segments.gd', 'scripts/gameplay/cafe_shell_segments.gd')
+    elif not {name.replace('scripts/cafe_model.gd', 'scripts/core/cafe_model.gd').replace('scripts/cafe_shell_segments.gd', 'scripts/gameplay/cafe_shell_segments.gd').replace('scripts/cafe_web_save.gd', 'scripts/persistence/cafe_web_save.gd')
               for name in CONTRACT["candidate_required_sources"]}.issubset(manifest["production_sha256"]):
         raise RuntimeError("Candidate export is missing required production sources")
     projection = projected_metadata(source, commit)
@@ -144,7 +144,7 @@ def cloud_main(argv):
    if label=='wrapped' and previous is not None and y==previous:raise ValueError('Wrapped-message regression did not change measured button location')
    previous=y;regressions.append({'viewport':value['viewport'],'message':label,'switch':result['buttons']['switch']})
  (out/'regressions.json').write_text(json.dumps(regressions,indent=2)+'\n')
- receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/probe_cloud_recovery_geometry.gd','tests/persistence/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/cafe_web_save.gd']},'project':str(project)}
+ receipt={'synthetic_only':True,'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'source_sha256':{n:sha256(source_path(ROOT,n)) for n in ['tests/probe_cloud_recovery_geometry.gd','tests/persistence/test_cloud_recovery_ui.gd','scripts/cafe_compact_ui.gd','scripts/persistence/cafe_web_save.gd']},'project':str(project)}
  (out/'binding.json').write_text(json.dumps(receipt,indent=2)+'\n')
 
 def main(argv=None):

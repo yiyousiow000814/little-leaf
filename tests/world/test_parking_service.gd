@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Parking=preload("res://scripts/cafe_parking.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

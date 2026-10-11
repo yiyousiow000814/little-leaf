@@ -61,9 +61,9 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'source'
-        (self.root / 'scripts').mkdir(parents=True)
+        (self.root / 'scripts/persistence').mkdir(parents=True)
         (self.root / 'tests').mkdir()
-        (self.root / 'scripts/cafe_web_save.gd').write_text('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"\n')
+        (self.root / 'scripts/persistence/cafe_web_save.gd').write_text('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"\n')
         (self.root / 'tests/test_floor_claim_retry.gd').write_text('# Synthetic fixture only\n')
         self.runner.ROOT = self.root
         self.output = Path(self.temp.name) / 'output'
@@ -88,7 +88,7 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.assertEqual(report['status'], 'passed')
         self.assertFalse(report['disposable_fixture_retained'])
         self.assertFalse(report['player_save_used'])
-        self.assertIn('scripts/cafe_web_save.gd', report['source_sha256'])
+        self.assertIn('scripts/persistence/cafe_web_save.gd', report['source_sha256'])
         for command, env in commands:
             self.assertEqual(command[1:4], ['--headless', '--audio-driver', 'Dummy'])
             self.assertNotIn('--fixed-fps', command, 'Unreviewed suites must keep their original pacing')

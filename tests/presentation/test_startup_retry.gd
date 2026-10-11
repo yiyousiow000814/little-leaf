@@ -1,5 +1,5 @@
 extends SceneTree
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class FakeGame extends Node:
  const Model=preload("res://scripts/core/cafe_model.gd")

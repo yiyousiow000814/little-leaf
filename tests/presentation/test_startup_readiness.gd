@@ -11,7 +11,7 @@ class RecoveryBridge extends RefCounted:
 	func recoverySnapshot():return JSON.stringify(value)
 	func preserveOwnerRuntime(_payload,_revision,_profile_id,_callback):preserve_calls += 1
 	func preserveRuntime(_payload,_revision,_profile_id,_callback):preserve_calls += 1
-class RecoveryController extends "res://scripts/cafe_web_save.gd":
+class RecoveryController extends "res://scripts/persistence/cafe_web_save.gd":
 	var bridge = RecoveryBridge.new()
 	func _recovery_bridge():return bridge
 	func _make_recovery_callback(handler:Callable):return handler

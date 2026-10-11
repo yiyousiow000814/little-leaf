@@ -1,7 +1,7 @@
 extends RefCounted
 ## Web progress uses only the independent IndexedDB authority. These staging
 ## files live in unmounted MEMFS /tmp; never put them beneath user:// or /userfs.
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
 const MinimalStart=preload("res://scripts/minimal_start.gd")
 const STAGING_FILE="/tmp/little_leaf_vault_staging.json"
 var game_ref:WeakRef

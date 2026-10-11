@@ -1,5 +1,5 @@
 extends RefCounted
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
 var compact_ref:WeakRef
 var compact:
  get:return compact_ref.get_ref()

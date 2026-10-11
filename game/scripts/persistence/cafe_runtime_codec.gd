@@ -2,7 +2,7 @@ extends RefCounted
 ## JSON-only finite snapshot codec. No resource paths, objects or executable data.
 ## Validation is completed before a saved runtime may replace the live model.
 var error:=""
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const CHECKOUT_STAGES=["checkout_wait","checkout_walk","paying"]
 const NONE=Vector2i(-100,-100)
 const PAYMENT_SECONDS=1.6

@@ -16,8 +16,8 @@ class NativeUiRunnerTests(unittest.TestCase):
     def exercise(self, entry, native=False, payload='valid', cache=False):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / 'source'
-            (root / 'scripts').mkdir(parents=True)
-            (root / 'scripts/cafe_web_save.gd').write_text(
+            (root / 'scripts/persistence').mkdir(parents=True)
+            (root / 'scripts/persistence/cafe_web_save.gd').write_text(
                 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"\n')
             (root / 'assets').mkdir()
             (root / 'assets/input.png').write_bytes(b'synthetic asset')

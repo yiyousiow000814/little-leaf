@@ -61,7 +61,7 @@ static func advance(model,delta:float):
 		break
 
 static func validate(raw,customers:Array,next_id:int)->Dictionary:
-	var codec=preload("res://scripts/cafe_runtime_codec.gd").new()
+	var codec=preload("res://scripts/persistence/cafe_runtime_codec.gd").new()
 	var decoded=codec.decode(raw)
 	if codec.error!="" or not decoded is Dictionary or decoded.get("format")!=FORMAT or not decoded.get("visitors") is Array:return {"ok":false,"error":"Invalid outside queue format"}
 	var visitors:Array=decoded.visitors

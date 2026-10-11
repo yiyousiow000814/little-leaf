@@ -138,7 +138,7 @@ func run():
   result.expected_cost=35
   game.compact_ui._hide_popups()
  # Only derive recovery Help bounds and retry button; this is not browser proof.
- game.web_save=preload("res://scripts/cafe_web_save.gd").new(game)
+ game.web_save=preload("res://scripts/persistence/cafe_web_save.gd").new(game)
  game.web_save._block_startup("Invalid saved wall or finish data")
  game.compact_ui.show_help();await settle()
  result.points.retry=point(game.compact_ui.help_retry)

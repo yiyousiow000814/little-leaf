@@ -1,7 +1,7 @@
 extends RefCounted
 ## Isolated native experiment: startup only discovers its own new profile.
 ## Legacy fixtures can be loaded by an explicitly supplied copied path.
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const PROFILES=SaveContract.PROFILES
 static func primary_for_app()->String:
  return SaveContract.PRIMARY_FILE

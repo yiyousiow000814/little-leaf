@@ -194,7 +194,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn('if OS.has_feature("web"):\n\t\tweb_save=WebSave.new(self)\n\t\tweb_save.load_startup()\n\t\treturn', startup)
         save = main.split("func _save():", 1)[1].split("\nfunc ", 1)[0]
         self.assertTrue(save.lstrip().startswith('if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false'))
-        controller = (REPO / "game/scripts/cafe_web_save.gd").read_text()
+        controller = (REPO / "game/scripts/persistence/cafe_web_save.gd").read_text()
         self.assertIn('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"', controller)
         for initial in ['var pending=false', 'var queued=false', 'var _confirmed_payload=""', 'var _inflight_payload=""']:
             self.assertIn(initial, controller)

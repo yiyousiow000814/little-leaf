@@ -2,8 +2,8 @@ extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
-const Contract=preload("res://scripts/cafe_save_contract.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
+const Contract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const OUT="user://door-grid-fixtures"
 var checks=0
 var failures=[]

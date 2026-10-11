@@ -5,7 +5,7 @@ const BeforeArt=preload("res://tests/fixtures/litter_art_v6/floor_mess_art.gd")
 const BeforeGeometry=preload("res://scripts/cafe_floor_geometry.gd")
 const BeforeTasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const AfterTasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 class OldIllustration extends Illustration:
  func _draw_floor_mess(record:Dictionary):
   if _floor_mess_active(record):BeforeArt.draw(self,record)

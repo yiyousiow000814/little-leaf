@@ -136,7 +136,7 @@ static func _on_route(point:Vector2,origin:Vector2,route:Array,index:int)->bool:
 	var end:Vector2=route[index]
 	return absf(point.distance_to(start)+point.distance_to(end)-start.distance_to(end))<.0001
 static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dictionary:
-	var codec=preload("res://scripts/cafe_runtime_codec.gd").new()
+	var codec=preload("res://scripts/persistence/cafe_runtime_codec.gd").new()
 	var data=codec.decode(raw)
 	if codec.error!="" or not data is Dictionary or not data.get("format") is String or data.get("format")!=FORMAT or not data.get("owned") is bool or not codec._integer(data.get("paid_cost"),0,1000000000) or not data.get("visits") is Array:return {"ok":false,"error":"Invalid parking format"}
 	if (data.owned and data.paid_cost<=0) or (not data.owned and (data.paid_cost!=0 or not data.visits.is_empty())) or data.visits.size()>CAPACITY:return {"ok":false,"error":"Invalid parking ownership or capacity"}

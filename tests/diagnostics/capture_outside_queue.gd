@@ -41,5 +41,5 @@ func _run():
 		game.illustration.update_motion(.1)
 		if step%10==0:await capture(step/10)
 	var report={"synthetic":true,"player_save_used":false,"driver":"fixed .1 simulation-second updates; full stock room; first table cleanup starts t64","source":OS.get_environment("QUEUE_SOURCE"),"frames":frames}
-	FileAccess.open(OS.get_environment("QUEUE_OUTPUT")+"/motion.json",FileAccess.WRITE).store_string(JSON.stringify(preload("res://scripts/cafe_runtime_codec.gd").new().encode(report),"  "))
+	FileAccess.open(OS.get_environment("QUEUE_OUTPUT")+"/motion.json",FileAccess.WRITE).store_string(JSON.stringify(preload("res://scripts/persistence/cafe_runtime_codec.gd").new().encode(report),"  "))
 	print("OUTSIDE_QUEUE_CAPTURE_COMPLETE ",OS.get_environment("QUEUE_SOURCE"));quit()

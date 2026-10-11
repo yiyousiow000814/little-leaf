@@ -1,8 +1,8 @@
 extends RefCounted
-const SaveProfiles=preload("res://scripts/cafe_save_profiles.gd")
-const CloudSettings=preload("res://scripts/cafe_cloud_settings.gd")
+const SaveProfiles=preload("res://scripts/persistence/cafe_save_profiles.gd")
+const CloudSettings=preload("res://scripts/persistence/cafe_cloud_settings.gd")
 var cloud_settings
-const WebPreferences=preload("res://scripts/cafe_web_preferences.gd")
+const WebPreferences=preload("res://scripts/persistence/cafe_web_preferences.gd")
 var web_preferences
 var preference_storage_note:Label
 # Compact live controls; preferences are independent of restaurant progress.

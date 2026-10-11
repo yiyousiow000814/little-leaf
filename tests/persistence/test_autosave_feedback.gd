@@ -1,5 +1,5 @@
 extends SceneTree
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const Main=preload("res://scripts/main.gd")
 class FakeModel extends RefCounted:
  var last_error=""
