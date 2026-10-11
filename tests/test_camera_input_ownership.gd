@@ -1,4 +1,4 @@
-extends "res://tests/test_existing_wall_actions.gd"
+extends "res://tests/building/test_existing_wall_actions.gd"
 ## Real visible control geometry, generated model, no original profile.
 func buttons(node:Node, result:Array):
  if node is Control and not node.is_visible_in_tree():return

@@ -1,4 +1,4 @@
-extends "res://tests/test_existing_wall_actions.gd"
+extends "res://tests/building/test_existing_wall_actions.gd"
 ## Shared bounded neighborhood range with an independent frozen-clamp oracle.
 const Baseline=preload("res://tests/fixtures/play_camera_0dd4.gd")
 var observations=[]

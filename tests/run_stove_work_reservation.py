@@ -169,14 +169,14 @@ def main():
                 else:
                     run("import", ["--editor", "--import", "--quit"], profile("import"))
                     report["clean_import_verified"] = True
-                run("model", ["--script", "res://tests/test_stove_work_reservation.gd", *flags], profile("model"), "STOVE_WORK_RESERVATION_RESULT")
-                run("headless", ["--script", "res://tests/test_stove_reservation_ui.gd", *flags], profile("headless"), "STOVE_RESERVATION_UI_RESULT")
+                run("model", ["--script", "res://tests/building/test_stove_work_reservation.gd", *flags], profile("model"), "STOVE_WORK_RESERVATION_RESULT")
+                run("headless", ["--script", "res://tests/building/test_stove_reservation_ui.gd", *flags], profile("headless"), "STOVE_RESERVATION_UI_RESULT")
                 if args.native:
                     captures = output / "captures"
                     captures.mkdir()
                     with native_display(profile("display"), temporary, output) as display:
                         native_env = {**profile("native"), "DISPLAY": display["DISPLAY"], "LL_STOVE_CAPTURE": str(captures)}
-                        run("native", ["--script", "res://tests/test_stove_reservation_ui.gd", *flags], native_env, "STOVE_RESERVATION_UI_RESULT", True)
+                        run("native", ["--script", "res://tests/building/test_stove_reservation_ui.gd", *flags], native_env, "STOVE_RESERVATION_UI_RESULT", True)
                         report["native_render_verified"] = True
                 report["status"] = "passed"
             except BaseException as error:

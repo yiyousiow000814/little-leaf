@@ -1,4 +1,4 @@
-extends "res://tests/test_existing_wall_actions.gd"
+extends "res://tests/building/test_existing_wall_actions.gd"
 ## Wall browsing has the same shelf/back interaction as Tiles at every size.
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use isolated profile");quit(2);return

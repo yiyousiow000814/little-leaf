@@ -7,6 +7,7 @@ symptom. Tests, fixtures and manual captures now share this home:
 | --- | --- |
 | `tests/test_*.gd`, browser/Node tests and `run_*.py` | Existing focused gameplay, storage and browser regressions. Ordinary CI retains the critical save-integrity gates. |
 | `tests/world/` | Environment, parking, traffic and outside-queue engine suites; stable `--only` IDs remain in the canonical runner. |
+| `tests/building/` | Decoration, floors, walls, expansion and work-space engine suites; canonical suite IDs stay unchanged. |
 | `tests/tooling/` | Offline contracts for CI, artifacts, workflow wiring and release tools. Select a case with `python3 -m unittest tests.tooling.test_NAME.CASE`. |
 | `tests/fixtures/` | Synthetic and historical-format fixtures, including the shell segment prototype. Never substitute player saves. |
 | `tests/diagnostics/` | Manual captures, visual audits and profiling scripts. Relocation preserves each distinct script and UID; it does not make every diagnostic a routine check. |
