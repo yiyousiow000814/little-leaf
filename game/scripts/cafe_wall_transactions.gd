@@ -31,6 +31,13 @@ static func removable_error(model,key:String)->String:
  if not hosted(model,key).is_empty():return "Move or sell the attached door/window before selling this wall"
  return ""
 
+static func preserves_inherited_extension(model,wall:Dictionary)->bool:
+ # Historical z:0:8 hides an included free ninth receipt; it never sold or
+ # moved that shell segment. A real shell tombstone must never be cleared.
+ if not Segments.Footprint.is_extension_wall(wall) or wall.has("origin_shell"):return false
+ var receipt:Dictionary=model.shell_segment_products.get(Segments.edge_key(wall),{})
+ return receipt.size()==4 and not receipt.has("removed") and int(receipt.get("paid_cost",-1))==0 and int(receipt.get("refund_credit",-1))==0
+
 static func plan_move(model,key:String,axis:String,x:int,z:int,actors:Array)->Dictionary:
  var wall=editable(model,key)
  if wall.is_empty():return {"ok":false,"error":"Select a wall first"}
@@ -50,7 +57,7 @@ static func plan_move(model,key:String,axis:String,x:int,z:int,actors:Array)->Di
    moved.host_id="wall:"+str(id);moved.offset=float(opening.offset)-float(shell.index)
  else:
   var old_shell_key=Segments.edge_key(wall)
-  if old_shell_key!="" and hosted(model,old_shell_key).is_empty():shadow.shell_segment_products[old_shell_key]["removed"]=true
+  if old_shell_key!="" and not preserves_inherited_extension(model,wall) and hosted(model,old_shell_key).is_empty():shadow.shell_segment_products[old_shell_key]["removed"]=true
   for opening in hosted(model,key):
    if Openings.resolve_host(opening.host_id,model.built_walls).wall_ids.size()>1:return {"ok":false,"error":"Move the wide opening before moving one of its supporting wall tiles"}
  var error=shadow._wall_candidate_error(proposed,model._wall_actor_list(actors),key if shell.is_empty() else "")

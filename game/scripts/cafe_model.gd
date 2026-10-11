@@ -2331,7 +2331,7 @@ func remove_wall(key:String,refund:bool=true) -> bool:
 	else:
 		var wall:=get_wall(key)
 		var shell_key=ShellSegments.edge_key(wall)
-		if shell_key!="" and WallTransactions.hosted(self,shell_key).is_empty():shell_segment_products[shell_key]["removed"]=true
+		if shell_key!="" and not WallTransactions.preserves_inherited_extension(self,wall) and WallTransactions.hosted(self,shell_key).is_empty():shell_segment_products[shell_key]["removed"]=true
 		decoration_build_purchases.erase("wall:"+str(int(wall.id)))
 		built_walls.erase(wall)
 	coins+=returned
