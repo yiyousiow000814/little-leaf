@@ -9,7 +9,7 @@ const MinimalStart = preload("res://scripts/minimal_start.gd")
 const Interaction = preload("res://scripts/cafe_interaction.gd")
 const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
 var camera_gestures
-const WebLifecycle = preload("res://scripts/cafe_web_lifecycle.gd")
+const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
 const WebSave = preload("res://scripts/cafe_web_save.gd")
 var web_lifecycle
 var web_save
@@ -134,7 +134,7 @@ func _ready():
 	build_tools=BuildTools.new(self)
 	_build_ui()
 	if OS.has_feature("crazygames"):
-		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
@@ -668,7 +668,7 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			var playable=preload("res://scripts/platform/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
 			platform.viewportPlayable=not compact_ui.viewport_too_small
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()

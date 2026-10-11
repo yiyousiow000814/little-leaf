@@ -1,5 +1,6 @@
 """Resolve canonical source paths and stage disposable Godot project inputs."""
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 
 
@@ -43,3 +44,24 @@ def stage_project(repository, destination, *, tests=False, ignore=None):
         if tests:
             shutil.copytree(repository / 'tests', destination / 'tests', ignore=ignore)
             shutil.copytree(repository / 'docs/testing', destination / 'docs/testing', ignore=ignore)
+            _stage_historical_fixture_paths(destination)
+
+
+def _stage_historical_fixture_paths(destination):
+    """Adapt the frozen controller's preloads in its disposable copy only."""
+    destination = Path(destination)
+    fixture = destination / 'tests/fixtures/before_dishwashing_main.gd'
+    if not fixture.is_file():
+        return
+    original = fixture.read_bytes()
+    def resource(match):
+        name = match.group(1).decode('utf-8')
+        if (destination / 'scripts' / name).is_file():
+            return match.group(0)
+        paths = sorted((destination / 'scripts').glob('*/' + name))
+        if len(paths) != 1:
+            raise ValueError('Historical fixture requires one current script: ' + name)
+        return ('res://' + paths[0].relative_to(destination).as_posix()).encode('utf-8')
+    adapted = re.sub(rb'res://scripts/([^/"\s]+\.gd)', resource, original)
+    if adapted != original:
+        fixture.write_bytes(adapted)

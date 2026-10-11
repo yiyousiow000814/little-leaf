@@ -46,7 +46,7 @@ Measure decoded duration, clipping, loop join, channel/mono behavior and whole-f
 
 ## Runtime boundaries and cost
 
-Reuse [main.gd](../../game/scripts/main.gd), [cafe_settings.gd](../../game/scripts/cafe_settings.gd) and the [CrazyGames music pack adapter](../../game/scripts/crazygames_music.gd). Preserve BGM/SFX buses, independent preferences, ordinary browser activation, platform mute and save-write fences. Audio changes must not change jobs, economy or save schema.
+Reuse [main.gd](../../game/scripts/main.gd), [cafe_settings.gd](../../game/scripts/cafe_settings.gd) and the [CrazyGames music pack adapter](../../game/scripts/platform/crazygames_music.gd). Preserve BGM/SFX buses, independent preferences, ordinary browser activation, platform mute and save-write fences. Audio changes must not change jobs, economy or save schema.
 
 Current states are `service`, `busy` and `decorate`; editing currently keeps the current soundtrack and does not select `decorate`. **Whether Decorate mode should use a dedicated BGM track remains an unresolved product decision.** The current implementation does not establish the approved final audio direction. Zero volume mutes the bus, while disabling stops playback. Track selection uses a 15-second state age and a 1.2-second fade. Activating unused music or changing fade/resume/control semantics requires an explicit scoped decision. The audit identified the fade's possible level dip and shared SFX stream interruption as listening questions, not accepted runtime defects.
 

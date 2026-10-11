@@ -13,6 +13,35 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 
 class RunnerInfrastructureTests(unittest.TestCase):
+    def test_frozen_controller_preloads_adapt_only_in_disposable_staging(self):
+        from project_layout import stage_project
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / 'source'
+            (root / 'game/scripts/platform').mkdir(parents=True)
+            (root / 'game/project.godot').write_text('config_version=5\n')
+            (root / 'platform/web').mkdir(parents=True)
+            (root / 'docs/testing').mkdir(parents=True)
+            (root / 'tests/fixtures').mkdir(parents=True)
+            script = root / 'game/scripts/platform/cafe_web_lifecycle.gd'
+            script.write_bytes(b'# Current controller dependency\n')
+            source = root / 'tests/fixtures/before_dishwashing_main.gd'
+            frozen = b'const Lifecycle=preload("res://scripts/cafe_web_lifecycle.gd")\n# Frozen old role behavior\n'
+            source.write_bytes(frozen)
+            destination = Path(temporary) / 'candidate'
+            stage_project(root, destination, tests=True)
+            staged = (destination / 'tests/fixtures/before_dishwashing_main.gd').read_bytes()
+            self.assertEqual(source.read_bytes(), frozen)
+            self.assertEqual(staged.replace(b'scripts/platform/', b'scripts/'), frozen)
+            self.assertEqual((destination / 'scripts/platform/cafe_web_lifecycle.gd').read_bytes(), script.read_bytes())
+            script.unlink()
+            with self.assertRaisesRegex(ValueError, 'one current script'):
+                stage_project(root, Path(temporary) / 'missing', tests=True)
+            script.write_bytes(b'# Current controller dependency\n')
+            (root / 'game/scripts/duplicate').mkdir()
+            (root / 'game/scripts/duplicate/cafe_web_lifecycle.gd').write_bytes(script.read_bytes())
+            with self.assertRaisesRegex(ValueError, 'one current script'):
+                stage_project(root, Path(temporary) / 'duplicate', tests=True)
+
     def setUp(self):
         spec = importlib.util.spec_from_file_location('isolated_candidate_runner', ROOT / 'tests/run_integration_candidate.py')
         self.runner = importlib.util.module_from_spec(spec)
