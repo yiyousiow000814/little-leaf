@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -84,11 +84,21 @@ assert.equal(html.split('<script src="index.js"></script>').length,2);
 html=html.replace('<script src="index.js"></script>',injection+'<script src="index.js"></script>');
 }
 const auth=`const auth={currentUser:{uid:globalThis.__qaUid,isAnonymous:false},authStateReady:async()=>{}};export const browserLocalPersistence={};export const setPersistence=async()=>{};export const getRedirectResult=async()=>null;export const getAuth=()=>auth;export const getIdTokenResult=async()=>({claims:{firebase:{sign_in_provider:'google.com'}}});export class GoogleAuthProvider{};export const signInWithRedirect=async()=>{throw Error('SSO is outside this synthetic test')};export const signInWithPopup=async()=>{throw Error('SSO is outside this synthetic test')};export const signOut=async()=>{auth.currentUser=null};export const onAuthStateChanged=(a,fn)=>{queueMicrotask(()=>fn(a.currentUser));return()=>{}};`;
-const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});globalThis.__qaFirestore={db,sdk:real};return db;}`;
+// The pinned SDK's emulator credential provider remains unchanged. Only its HTTP
+// destination becomes a synthetic HTTPS URL; Playwright forwards it outside the browser.
+// This is test-only transport plumbing, never a product SDK/settings change.
+const httpsEmulator=itchVariant?`
+ const before=db._getSettings(),credentials=db._authCredentials,emulatorOptions=db._getEmulatorOptions();
+ if(before.host!=='127.0.0.1:8080'||before.ssl!==false||before.isUsingEmulator!==true||before.credentials!==undefined)throw Error('Pinned emulator settings changed');
+ db._setSettings({...before,emulatorOptions,host:'firestore.fullflow.test:443',ssl:true});
+ const after=db._getSettings();
+ if(db._authCredentials!==credentials||db._getEmulatorOptions()!==emulatorOptions||after.host!=='firestore.fullflow.test:443'||after.ssl!==true||Object.keys(before).some(key=>!['host','ssl'].includes(key)&&JSON.stringify(before[key])!==JSON.stringify(after[key])))throw Error('Only emulator transport may change');
+` : '';
+const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});${httpsEmulator}globalThis.__qaFirestore={db,sdk:real};return db;}`;
 const server=http.createServer((req,res)=>{
  try{const p=new URL(req.url,'http://127.0.0.1').pathname;
  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Embedder-Policy','require-corp');res.setHeader('Cache-Control','no-store');
- // Synthetic SDK imports from the intercepted HTTPS iframe may reach only this disposable loopback fixture.
+ // Only the Node-side fixture fetch may read these SDK bytes in itch mode.
  if(itchVariant && p.startsWith('/sdk/')){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Cross-Origin-Resource-Policy','cross-origin');}
  let body,type='text/javascript';
  if(p==='/index.html'){body=html;type='text/html';}
@@ -105,30 +115,65 @@ const server=http.createServer((req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 let browser;const contexts=[],errors=[];
+report.networkObservations=[];
+function networkObservation(kind,family,result){
+ const rows=report.networkObservations,existing=rows.find(row=>row.kind===kind&&row.family===family&&row.result===result);
+ if(existing)existing.count=Math.min(100,existing.count+1);
+ else if(rows.length<64)rows.push({kind,family,result,count:1});
+}
 async function until(fn,label,timeout=45000){const end=Date.now()+timeout;while(Date.now()<end){const value=await fn();if(value)return value;await new Promise(r=>setTimeout(r,150));}throw Error('Timed out: '+label);}
 async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});try{return await new Promise((yes,no)=>{const tx=db.transaction('accounts'),q=tx.objectStore('accounts').get(key || uid);q.onsuccess=()=>yes(q.result||null);q.onerror=()=>no(q.error);});}finally{db.close();}},{uid,key});}
 async function setup(uid,entry=null){
+ const seedPhase={active:!!itchVariant};
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
- await context.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin || u.origin==='http://127.0.0.1:8080')return route.continue();
+ context.on('requestfailed',request=>networkObservation('failed',requestFamily(request.url(),origin),failureCategory(request.failure()?.errorText)));
+ context.on('response',response=>{const family=requestFamily(response.url(),origin);if(['loopback-sdk','loopback-emulator','sdk-module','frame-sdk','synthetic-emulator'].includes(family))networkObservation('response',family,response.status());});
+ await context.route('**/*',async route=>{const u=new URL(route.request().url());if(!itchVariant && (u.origin===origin || u.origin==='http://127.0.0.1:8080'))return route.continue();
+ if(itchVariant && u.origin===syntheticRPCOrigin){
+  if(route.request().frame().url()!==officialOrigin+'/itch/')return route.abort('blockedbyclient');
+  if(route.request().method()==='OPTIONS'){
+   try{return route.fulfill({status:204,headers:emulatorPreflightHeaders(u.href,route.request().headers()),body:''});}
+   catch(_){errors.push('Nonfixture emulator preflight blocked');return route.abort('blockedbyclient');}
+  }
+  let target;try{target=emulatorProxyTarget(u.href,route.request().method());}
+  catch(_){errors.push('Nonfixture emulator RPC blocked');return route.abort('blockedbyclient');}
+  // APIRequestContext traffic is outside browser offline emulation; honor the
+  // real context's navigator state before forwarding any SDK read/write.
+  if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+  try{
+   const response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
+   if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+   return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'}});
+  }catch(error){networkObservation('proxy','synthetic-emulator',failureCategory(error.message));return route.abort('failed');}
+ }
  if(itchVariant && u.href===itchPage)return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><iframe src="'+classicPage+'" allow="autoplay; fullscreen"></iframe>'});
  if(itchVariant && u.href===classicPage)return route.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(itchVariant,'itch-wrapper/index.html'))});
  if(itchVariant && [officialOrigin,'https://html-classic.itch.zone'].includes(u.origin)){
   const prefix=u.origin===officialOrigin?'/itch/':'/';
   assert(u.pathname.startsWith(prefix) && !u.search,'only exact isolated fixture paths');
+  if(u.origin===officialOrigin && u.pathname==='/itch/sdk/firebase-firestore.js')return route.fulfill({status:200,contentType:'text/javascript',headers:{'Cross-Origin-Resource-Policy':'same-origin'},body:fs.readFileSync(path.join(sdkRoot,'firebase-firestore.js'))});
   const name=u.pathname.slice(prefix.length)||'index.html';assert.equal(path.basename(name),name);
   if(u.origin==='https://html-classic.itch.zone')return route.fulfill({status:200,body:fs.readFileSync(path.join(itchVariant,'itch-wrapper',name)),contentType:name.endsWith('.js')?'text/javascript':name.endsWith('.wasm')?'application/wasm':'application/octet-stream'});
-  const response=await route.fetch({url:origin+'/'+name,maxRedirects:0});
+  const response=await route.fetch({url:origin+'/'+(name==='index.html'&&seedPhase.active?'seed.html':name),maxRedirects:0});
   const headers={...response.headers()};if(['index.html'].includes(name))headers['content-security-policy']='frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io';
   return route.fulfill({response,headers});
  }
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
- const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(u.href.startsWith(prefix)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+origin+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
+ const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(['firebase-app.js','firebase-auth.js','firebase-firestore.js'].some(name=>u.href===prefix+name)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+(itchVariant?officialOrigin+'/itch':origin)+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
- const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
- await page.goto(itchVariant?officialOrigin+'/itch/seed.html':origin+'/seed.html');
- if(entry)await page.evaluate(async({uid,entry})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});await new Promise((yes,no)=>{const tx=db.transaction('accounts','readwrite');tx.objectStore('accounts').put(entry,uid);tx.oncomplete=yes;tx.onabort=()=>no(tx.error);});db.close();},{uid,entry});
+ const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')networkObservation('console','browser',failureCategory(m.text()));if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
+ let seedFrame=page;
+ if(itchVariant){
+  await page.goto(itchPage);
+  const classic=await until(()=>page.frames().find(frame=>frame.url()===classicPage),'actual classic wrapper for seed');
+  await classic.locator('#itch-account').click();
+  seedFrame=await until(()=>page.frames().find(frame=>frame.url()===officialOrigin+'/itch/'),'actual nested seed frame');
+  assert.deepEqual(await seedFrame.evaluate(()=>Array.from(location.ancestorOrigins)),['https://html-classic.itch.zone','https://siowyiyou.itch.io']);
+  report.synthetic_seed_document=true;
+ }else await page.goto(origin+'/seed.html');
+ if(entry){await seedFrame.evaluate(async({uid,entry})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});await new Promise((yes,no)=>{const tx=db.transaction('accounts','readwrite');tx.objectStore('accounts').put(entry,uid);tx.oncomplete=yes;tx.onabort=()=>no(tx.error);});db.close();},{uid,entry});assert.deepEqual(await journal(seedFrame,uid),entry,'exact seed readback in game partition');}
  await page.addInitScript(installEngineLaunchHook,{args:['--','--skip-intro'],reportKey:'__fullflowEngine'});
- return {context,page,uid};
+ return {context,page,uid,seedFrame,seedPhase};
 }
 function gameFramePage(page,frame){return new Proxy(frame,{get(target,key){
  if(key==='mainFrame')return()=>frame;
@@ -137,10 +182,8 @@ function gameFramePage(page,frame){return new Proxy(frame,{get(target,key){
 }});}
 async function launch(device){
  if(itchVariant){
-  const page=device.page;await page.goto(itchPage);
-  const classic=await until(()=>page.frames().find(frame=>frame.url()===classicPage),'actual classic wrapper');
-  await classic.locator('#itch-account').click();
-  const frame=await until(()=>page.frames().find(frame=>frame.url()===officialOrigin+'/itch/'),'actual official-origin child');
+  const page=device.page,frame=device.seedFrame;device.seedPhase.active=false;
+  await frame.goto(officialOrigin+'/itch/');
   device.page=gameFramePage(page,frame);
   const ancestors=await frame.evaluate(()=>Array.from(location.ancestorOrigins));
   assert.deepEqual(ancestors,['https://html-classic.itch.zone','https://siowyiyou.itch.io']);report.itch_ancestor_origins=ancestors;
@@ -220,9 +263,10 @@ try{
  release={schema_version:1,version:'9.0.1',source_commit:'b'.repeat(40)};await d.page.evaluate(()=>LittleLeafUpdate.poll());await d.page.waitForTimeout(350);const before=await journal(d.page,uid);
  // Hold real emulator RPCs, not adapter callbacks. Ownership remains locally active;
  // the network-only deadline must return after the known durable native snapshot.
- let releaseRpc;const held=new Promise(resolve=>releaseRpc=resolve);await d.context.route('http://127.0.0.1:8080/**',async route=>{await held;await route.continue().catch(()=>{});});
+ const rpcPattern=(itchVariant?syntheticRPCOrigin:'http://127.0.0.1:8080')+'/**';
+ let releaseRpc;const held=new Promise(resolve=>releaseRpc=resolve);await d.context.route(rpcPattern,async route=>{await held;await route.fallback().catch(()=>{});});
  await updateClick(d.page,'update');await until(async()=>{const e=await journal(d.page,uid);return e.record.revision>before.record.revision&&e.pending;},'update native durable snapshot');
- await d.page.waitForTimeout(17000);check(navigations===0,'timed-out cloud confirmation never reloads');check((await journal(d.page,uid)).pending,'timed-out update retains pending exact durable snapshot');await shot(d.page,'update-timeout-preserved');releaseRpc();await d.context.unroute('http://127.0.0.1:8080/**');await d.context.close();}
+ await d.page.waitForTimeout(17000);check(navigations===0,'timed-out cloud confirmation never reloads');check((await journal(d.page,uid)).pending,'timed-out update retains pending exact durable snapshot');await shot(d.page,'update-timeout-preserved');releaseRpc();await d.context.unroute(rpcPattern);await d.context.close();}
  // A separate healthy account proves the native Save and update route reaches one reload.
  {release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};const uid='fullflow-update-success',r=await record(1,42000);await seed(uid,r);const d=await launch(await setup(uid));let navigations=0;d.page.on('framenavigated',frame=>{if(frame===d.page.mainFrame())navigations++;});
  release={schema_version:1,version:'9.0.2',source_commit:'c'.repeat(40)};await d.page.evaluate(()=>LittleLeafUpdate.poll());await updateClick(d.page,'update');await until(()=>navigations===1,'confirmed native update reload',45000);
@@ -234,7 +278,27 @@ try{
   const frame=itchVariant?originalPage.frames().find(frame=>frame.url().startsWith(officialOrigin+'/itch/')):null;
   const page=frame?gameFramePage(originalPage,frame):originalPage;
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
-   report.failureStates.push({uid,snapshot:await snapshot(page),journal:await journal(page,uid),owner:await read(uid,'owner'),cloud:await read(uid),nativeLog:await page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()),adapterResults:await page.evaluate(()=>globalThis.__qaAdapterResults),bootReceipt:await page.evaluate(()=>globalThis.__littleLeafVault?.bootJson),domState:await page.evaluate(()=>({visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName}))});await shot(page,'failure-'+report.failureStates.length);
+   // Observe bootstrap first. The original local vault deliberately has no recoverySnapshot.
+   // Each optional observation is independent so one unavailable API cannot hide the cause.
+   const state={uid};report.failureStates.push(state);
+   const observe=async(name,fn)=>{let timer;try{state[name]=await Promise.race([fn(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('observation unavailable')),3000);})]);}catch(_){state[name]={unavailable:true};}finally{clearTimeout(timer);checkpoint();}};
+   await observe('startup',()=>page.evaluate(async()=>{
+    const status=document.getElementById('status-label'),message=status?.textContent||'';
+    const statusDigest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(message)))).map(x=>x.toString(16).padStart(2,'0')).join('');
+    let timer;const ready=globalThis.__littleLeafFirebaseReady;let settlement='absent',reason='';
+    if(ready)try{settlement=await Promise.race([Promise.resolve(ready).then(()=>'resolved',error=>{reason=String(error?.message||error);return 'rejected';}),new Promise(resolve=>{timer=setTimeout(()=>resolve('pending'),250);})]);}finally{clearTimeout(timer);}
+    return {statusPresent:!!document.getElementById('status'),statusDigest,statusLength:message.length,
+      settlement,reasonCategory:/local.network|private.network/i.test(reason)?'local-network':/fetch|network|import/i.test(reason)?'network':/permission/i.test(reason)?'permission':/storage|indexeddb/i.test(reason)?'storage':reason?'other':'none',
+      launchCalls:globalThis.__fullflowEngine?.launchCalls??null,hookInstalled:!!globalThis.__fullflowEngine,
+      firebaseClientInstalled:globalThis.__littleLeafVault?.storageKind==='firebase-firestore',recoverySnapshotAvailable:typeof globalThis.LittleLeafVault?.recoverySnapshot==='function',
+      sdkInstalled:!!globalThis.__qaFirestore,secureContext:isSecureContext,crossOriginIsolated,
+      visible:document.visibilityState,focused:document.hasFocus(),activeElement:document.activeElement?.tagName};
+   }));
+   await observe('snapshot',()=>page.evaluate(()=>typeof globalThis.LittleLeafVault?.recoverySnapshot==='function'?JSON.parse(LittleLeafVault.recoverySnapshot()):null));
+   await observe('journal',()=>journal(page,uid));await observe('owner',()=>read(uid,'owner'));await observe('cloud',()=>read(uid));
+   await observe('nativeLog',()=>page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()));await observe('adapterResults',()=>page.evaluate(()=>globalThis.__qaAdapterResults));
+   await observe('bootReceipt',()=>page.evaluate(()=>globalThis.__littleLeafVault?.bootJson));
+   await observe('screenshot',async()=>{await shot(page,'failure-'+report.failureStates.length);return true;});
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
  }
  throw error;
