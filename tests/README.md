@@ -6,6 +6,7 @@ symptom. Tests, fixtures and manual captures now share this home:
 | Location | Use |
 | --- | --- |
 | `tests/test_*.gd`, browser/Node tests and `run_*.py` | Existing focused gameplay, storage and browser regressions. Ordinary CI retains the critical save-integrity gates. |
+| `tests/persistence/` | Save, cloud-panel and platform engine regressions; CLI/output IDs remain stable. |
 | `tests/presentation/` | Startup, tutorial and HUD engine regressions; external entrypoints and receipts retain their IDs. |
 | `tests/service/` | Guest/worker service and ordered staff-start engine regressions; use stable canonical IDs. |
 | `tests/world/` | Environment, parking, traffic and outside-queue engine suites; stable `--only` IDs remain in the canonical runner. |
