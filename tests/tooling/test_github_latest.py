@@ -49,6 +49,15 @@ class LatestTests(unittest.TestCase):
    if args[-1].endswith(':game/data/release_notes.json'):return json.dumps({'schema_version':1,'version':'0.1.10a','status':'released','date':'2026-01-01'})
    raise AssertionError(args)
   self.assertEqual(qualify('v0.1.10a',git),'a'*40)
+ def test_tagged_prerelease_metadata_blocks_latest_even_if_api_flag_changes(self):
+  for value in [True,'false',0,None]:
+   def git(*args):
+    if args[1]=='rev-parse':return 'a'*40
+    if args[1]=='merge-base':return ''
+    if args[1]=='ls-tree':return ''
+    if args[-1].endswith(':project.godot'):return 'config/version="0.1.10e"'
+    return json.dumps({'schema_version':1,'version':'0.1.10e','status':'released','date':'2026-01-01','prerelease':value})
+   with self.subTest(value=value),self.assertRaisesRegex(ValueError,'stable Latest'):qualify('v0.1.10e',git)
  def test_reconcile_late_older_job_promotes_highest_and_confirms(self):
   calls=[]
   def api(*args):

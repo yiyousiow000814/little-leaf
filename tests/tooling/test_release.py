@@ -43,6 +43,14 @@ class MetadataTests(unittest.TestCase):
     def test_match(self):
         self.assertEqual(version(self.root, "v0.1.6"), "0.1.6")
 
+    def test_prerelease_flag_is_explicit_boolean_without_relaxing_version(self):
+        self.notes["prerelease"] = True; self.save()
+        self.assertEqual(version(self.root, "v0.1.6"), "0.1.6")
+        for value in ("true", 1, 0, None):
+            self.notes["prerelease"] = value; self.save()
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "boolean"):
+                version(self.root, "v0.1.6")
+
     def test_hotfix_metadata_matches_exactly(self):
         for suffix in "abcz":
             value = "0.1.10" + suffix
@@ -123,11 +131,19 @@ class ReleaseNotesContractTests(unittest.TestCase):
     def test_hotfix_keeps_exact_major_update_history(self):
         import hashlib
         notes=json.loads((self.root / "data/release_notes.json").read_text(encoding="utf-8"))
-        self.assertEqual(notes["version"],version(self.root))
+        resolved=version(self.root)
+        current=notes["version"]
+        if current.endswith("-pre"):
+            source=subprocess.check_output(["git","-C",str(self.root),"rev-parse","HEAD"],text=True).strip()
+            self.assertIs(notes.get("prerelease"),True)
+            self.assertEqual(resolved,current+"."+source[:8])
+            current=current.removesuffix("-pre")
+        else:
+            self.assertEqual(current,resolved)
         history_versions=[item["version"] for item in notes["history"]]
         self.assertEqual(len(history_versions),len(set(history_versions)))
         self.assertEqual(history_versions,sorted(history_versions,key=release_key,reverse=True))
-        self.assertTrue(all(release_key(item)<release_key(notes["version"]) for item in history_versions))
+        self.assertTrue(all(release_key(item)<release_key(current) for item in history_versions))
         previous=next(item for item in notes["history"] if item["version"]=="0.1.10")
         self.assertEqual(previous["version"],"0.1.10")
         self.assertNotIn("history",previous)

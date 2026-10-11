@@ -14,6 +14,11 @@
     "fixed"
   ],
   "properties": {
+    "prerelease": {
+      "description": "Publish this unique immutable version as a GitHub prerelease, excluded from stable Latest.",
+      "type": "boolean",
+      "default": false
+    },
     "schema_version": {
       "const": 1
     },
@@ -152,6 +157,9 @@
         "fixed"
       ],
       "properties": {
+        "prerelease": {
+          "type": "boolean"
+        },
         "schema_version": {
           "const": 1
         },

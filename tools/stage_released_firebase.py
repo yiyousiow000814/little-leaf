@@ -123,13 +123,20 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     # which might inject 0.1.11 binding modules into the frozen 0.1.10c runtime.
     command = ('import json,sys; from pathlib import Path; '
                'sys.path.insert(0,sys.argv[1]); from build_firebase import stage; '
+               'publication=json.loads(Path(sys.argv[5]).read_text()); '
                'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
-               'json.loads(Path(sys.argv[4]).read_text()))')
+               'json.loads(Path(sys.argv[4]).read_text()),**({"publication":publication} if publication is not None else {}))')
     environment = os.environ.copy()
     for key in ['GH_TOKEN', 'GITHUB_TOKEN', 'BUTLER_API_KEY', 'FIREBASE_HOSTING_ACCESS_TOKEN']:
         environment.pop(key, None)
+    publication_path=evidence/'completed-publication.json'
+    publication=selection.get('publication')
+    if publication and 'itch_channel_version' not in publication and '-pre.' not in base['version']:
+        publication=None # Historical stable receipts predate channel-order support.
+    require('-pre.' not in base['version'] or publication is not None, 'Prerelease requires confirmed publication order')
+    publication_path.write_text(json.dumps(publication)+'\n')
     subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
-                    str(output.resolve()), str(root / 'platform/firebase/public-config.json')],
+                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve())],
                    cwd=root, env=environment, check=True, timeout=90)
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())

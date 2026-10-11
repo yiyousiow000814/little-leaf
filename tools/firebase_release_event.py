@@ -16,7 +16,7 @@ import zipfile
 
 from firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
 from reuse_main_ci import GitHub, require_jobs
-from release_metadata import version
+from release_metadata import version, RELEASE
 
 
 def extract_tree(data, digest, destination):
@@ -76,7 +76,7 @@ def select(api, run_id, output):
     run = api.read(f'actions/runs/{run_id}')
     trusted_run(run, ITCH_WORKFLOW)
     tag = run['head_branch']
-    require(re.fullmatch(r'v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)[a-z]?', tag),
+    require(re.fullmatch('v' + RELEASE, tag),
             'Only an immutable version release may stage')
     sha = peel(api, tag)
     commit = api.read('git/commits/' + sha)
@@ -88,12 +88,16 @@ def select(api, run_id, output):
         content = api.read(f'contents/game/{name}?ref={sha}')
         require(content.get('encoding') == 'base64', 'Immutable tagged metadata must be plain content')
         (metadata / name).write_bytes(base64.b64decode(content['content']))
-    project_version = version(metadata.parent, tag)
+    project_version = version(metadata.parent, tag, source_commit=sha)
     jobs = api.pages(f"actions/runs/{run_id}/attempts/{run['run_attempt']}/jobs", 'jobs')
     publication_artifact = artifact_for(api, run,
         f"little-leaf-itch-publication-{sha}-{run['run_attempt']}")
     download(api, publication_artifact, output / 'publication')
     publication = json.loads((output / 'publication/receipt.json').read_text())
+    if '-pre.' in tag:
+        require(type(publication.get('itch_channel_version')) is int
+                and 0 < publication['itch_channel_version'] <= 9007199254740991,
+                'Prerelease requires confirmed channel publication order')
     receipt = publication['qualification']
     require(publication.get('state') == 'completed' and type(publication.get('itch_build_id')) is int
             and publication['itch_build_id'] > 0 and publication.get('source_commit') == sha
