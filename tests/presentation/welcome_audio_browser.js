@@ -1,6 +1,6 @@
 'use strict';
 // CI-only actual-browser acceptance. Never run via an alternate access route
-// after a local browser URL-policy denial. See welcome_audio_qa.md.
+// after a local browser URL-policy denial. See docs/testing/welcome-audio-qa.md.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');

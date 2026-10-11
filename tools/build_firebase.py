@@ -159,7 +159,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             if report.get('export_manifest_sha256')!=manifest_hash:raise ValueError('Inbox full export binding mismatch')
             if report.get('export_js_sha256')!=base['files']['index.js']['sha256'] or report.get('web_template_sha256')!=base.get('web_template_sha256') or not report.get('source_sha256'):
                 raise ValueError('Inbox export binding mismatch')
-            expected_sources={'tests/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/persistence/compensation_inbox_suite.js'}
+            expected_sources={'tests/tooling/engine_launch_hook.js','tests/fixtures/inbox-vault-018.js','web/little_leaf_vault.js','web/little_leaf_inbox.js','tests/persistence/compensation_inbox_suite.js'}
             if set(report['source_sha256'])!=expected_sources:raise ValueError('Incomplete Inbox source binding')
             for relative,digest in report['source_sha256'].items():
                 if sha256(source_path(ROOT,relative))!=digest:
