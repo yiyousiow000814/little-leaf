@@ -27,6 +27,18 @@ COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_
     '.github/workflows/deploy-firebase.yml']
 
 
+def coordinator_files(paths):
+    """Keep each authenticated coordinator's original finite path namespace."""
+    paths = set(paths)
+    resolved = []
+    for name in COORDINATOR_FILES:
+        aliases = ('tools/reuse_released_web.py', name) if name == 'tools/qualification/reuse_released_web.py' else (name,)
+        matches = [path for path in aliases if path in paths]
+        require(len(matches) == 1, 'Missing or ambiguous coordinator source: ' + name)
+        resolved.append(matches[0])
+    return resolved
+
+
 def publication_attempt(value):
     # GITHUB_RUN_ATTEMPT is a string in publisher receipts; the API uses an int.
     if type(value) is str and re.fullmatch(r'[1-9][0-9]*', value):
@@ -131,8 +143,14 @@ def authenticate_origin(api, manifest, origin):
     # This opt-in contract supports canonical released sources only.
     source_names = {name: 'platform/' + name if name.startswith(('web/', 'firebase/')) else name
                     for name in FULLFLOW_SOURCES}
-    evidence = {**origin, 'coordinator_source_tree': api.read('git/commits/' + coordinator)['tree']['sha'],
-        'coordinator_sha256': {name: content_hash(name, coordinator) for name in COORDINATOR_FILES},
+    coordinator_tree = api.read('git/commits/' + coordinator)['tree']['sha']
+    tree = api.read('git/trees/' + coordinator_tree + '?recursive=1')
+    require(tree.get('sha') == coordinator_tree and tree.get('truncated') is False,
+        'Complete immutable coordinator tree required')
+    paths = [entry['path'] for entry in tree['tree'] if entry.get('type') == 'blob']
+    require(len(paths) == len(set(paths)), 'Duplicate coordinator source paths')
+    evidence = {**origin, 'coordinator_source_tree': coordinator_tree,
+        'coordinator_sha256': {name: content_hash(name, coordinator) for name in coordinator_files(paths)},
         'released_transformer_sha256': content_hash('tools/build_firebase.py', source),
         'public_config_sha256': content_hash('platform/firebase/public-config.json', source),
         'compiled_source_sha256': {name: content_hash(path, source) for name, path in source_names.items()},
@@ -175,7 +193,7 @@ def validate_released_live(folder, manifest, marker):
         and context['coordinator_source_tree'] == proof.get('coordinator_source_tree')
         and all(re.fullmatch(r'[0-9a-f]{40}', context.get(k, '')) for k in
             ['coordinator_source_commit', 'coordinator_source_tree'])
-        and set(proof.get('coordinator_sha256', {})) == set(COORDINATOR_FILES),
+        and set(proof.get('coordinator_sha256', {})) == set(coordinator_files(proof.get('coordinator_sha256', {}))),
         'Explicit coordinator and released source binding required')
     require(q == base.get('release_reuse') and q.get('schema_version') == 1
         and q.get('repository') == REPOSITORY and q.get('workflow') == '.github/workflows/ci.yml'
