@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath}=require('./source_paths.js');
+const {sourcePath, sourceVersion}=require('./source_paths.js');
 // Hosted CI only. Actual exported Godot/Game/JavaScriptBridge/vault in disposable
 // HTTPS contexts. The sole injected failure closes a captured native IDB handle.
 // No client.close(), seeded save, fake callback/log entry, or simulation speedup.
@@ -92,7 +92,7 @@ function inputs() {
   }
   for (const name of ['index.html', 'index.js', 'index.wasm', 'index.pck']) assert(fileBytes.has(name));
   const html = fileBytes.get('index.html').toString('utf8');
-  const version = /config\/version="([^"]+)"/.exec(fs.readFileSync(sourcePath(root, 'project.godot'), 'utf8'))?.[1];
+  const version = sourceVersion(root, manifest.source_commit);
   assert.equal(manifest.version, version);
   for (const name of ['web/little_leaf_vault.js', 'web/little_leaf_save_log.js',
     'web/little_leaf_inbox.js', 'web/little_leaf_preferences.js']) {
