@@ -16,7 +16,7 @@ import zipfile
 
 from firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
 from reuse_main_ci import GitHub, require_jobs
-from release_metadata import version, RELEASE
+from release.release_metadata import version, RELEASE
 
 
 def extract_tree(data, digest, destination):

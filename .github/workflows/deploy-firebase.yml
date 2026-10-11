@@ -105,7 +105,7 @@ jobs:
             preview_args=(--itch-preview)
           fi
           if [[ "$DEPLOYMENT_MODE" == live ]]; then
-            python3 tools/released_live_provenance.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --origin "$RUNNER_TEMP/staging-origin.json" --output "$RUNNER_TEMP/staging-origin.json"
+            python3 tools/release/released_live_provenance.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --origin "$RUNNER_TEMP/staging-origin.json" --output "$RUNNER_TEMP/staging-origin.json"
           fi
           python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json" --verify-only "${preview_args[@]}"
       - name: Obtain a short-lived Hosting-only token after all package checks

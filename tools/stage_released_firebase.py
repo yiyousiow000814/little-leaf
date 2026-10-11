@@ -96,7 +96,7 @@ def validate_focused(root, folder, source, tree, run, attempt):
 
 def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False):
     if manual_live:
-        from released_live_provenance import manual_context
+        from release.released_live_provenance import manual_context
         context = manual_context(selection, os.environ, run, attempt)
         coordinator = Path(__file__).resolve().parents[1]
         require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
@@ -182,7 +182,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     # Do not present this package as an old fresh-build or preview-reuse contract.
     manifest['status'] = 'qualified-release-staged-not-deployable'
     if manual_live:
-        from released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
+        from release.released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
         require(context['coordinator_source_commit'] == proof['coordinator_source_commit'],
                 'Dispatch coordinator differs from executing source')
         context['coordinator_source_tree'] = proof['coordinator_source_tree']
