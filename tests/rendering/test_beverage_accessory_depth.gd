@@ -1,11 +1,11 @@
 extends SceneTree
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
 class PayloadSpy:
  extends Node2D
  var calls=[]
  func _station_payloads(_id,_kind,_rotation):calls.append("payload")
 class RendererSpy:
- extends "res://scripts/illustrated_furniture.gd"
+ extends "res://scripts/rendering/illustrated_furniture.gd"
  var cached=false
  func _can_cache(_artist,_p=Vector2.ZERO)->bool:return cached
  func _cached_part(artist,part,_p,_rotation):artist.calls.append(part)

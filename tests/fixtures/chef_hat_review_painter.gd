@@ -1,4 +1,4 @@
-extends "res://scripts/illustrated_cafe.gd"
+extends "res://scripts/rendering/illustrated_cafe.gd"
 const BeforeCharacter=preload("res://tests/fixtures/chef_hat_before.gd")
 var reviewed_species=0
 var before=false

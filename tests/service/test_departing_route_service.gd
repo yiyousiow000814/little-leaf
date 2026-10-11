@@ -1,5 +1,5 @@
 extends SceneTree
-const Motion=preload("res://scripts/cafe_furniture_motion.gd")
+const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model);model.coins=100000

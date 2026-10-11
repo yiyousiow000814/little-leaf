@@ -1,7 +1,7 @@
 extends SceneTree
-const Character=preload("res://scripts/directional_character_art.gd")
-const Occlusion=preload("res://scripts/character_arm_occlusion.gd")
-const Checkout=preload("res://scripts/cafe_checkout_art.gd")
+const Character=preload("res://scripts/rendering/directional_character_art.gd")
+const Occlusion=preload("res://scripts/rendering/character_arm_occlusion.gd")
+const Checkout=preload("res://scripts/rendering/cafe_checkout_art.gd")
 class Artist extends Node2D:
  var commands=[]
  func col(c):return Color(c)

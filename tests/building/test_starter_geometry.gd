@@ -1,8 +1,8 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
-const Openings=preload("res://scripts/cafe_wall_openings.gd")
-const Ground=preload("res://scripts/illustrated_ground.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Ground=preload("res://scripts/rendering/illustrated_ground.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const OUT="user://geometry-fixtures"
 var checks=0
 var failures=[]

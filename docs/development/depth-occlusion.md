@@ -33,7 +33,7 @@ footprint dimensions. An object spanning several cells may require separately
 ordered parts where another object crosses it. A single scalar for its whole
 image is not proof of correct overlap.
 
-In [IllustratedCafe](../../game/scripts/illustrated_cafe.gd), furniture centers
+In [IllustratedCafe](../../game/scripts/rendering/illustrated_cafe.gd), furniture centers
 currently use `x + z + 1`, including meal-chair displacement. Chair/bench backs
 are separate parts: body depth plus `.38` for rotations 0/3, minus `.38` for 1/2.
 Interior actor bodies use smoothed ground position plus `.15`. Service reach
@@ -42,8 +42,8 @@ parts can intentionally cover that reach. These are existing scoped
 relationships, not offsets to copy to unrelated artwork. A new split needs an
 identified surface, stable part identity and a concrete crossing case.
 
-[Player walls](../../game/scripts/illustrated_walls.gd) have segmented depth
-entries; [openings](../../game/scripts/illustrated_openings.gd) and wall
+[Player walls](../../game/scripts/rendering/illustrated_walls.gd) have segmented depth
+entries; [openings](../../game/scripts/rendering/illustrated_openings.gd) and wall
 apertures must agree with the corresponding floor/world coordinates. Preserve
 authored trunks, crowns, shadows and furniture geometry. Developer contours
 can expose existing layers; they do not authorize redesigned artwork.
@@ -68,7 +68,7 @@ selection/drag and first-frame visibility changes.
 Native canvas children follow submission-cursor order.
 `_insert_native_canvas_child` inserts the child in scene-tree painter order
 before its first rendered frame; `_finish_native_objects` hides prior-generation
-nodes. [Native draw nodes](../../game/scripts/cafe_native_draw_node.gd) can
+nodes. [Native draw nodes](../../game/scripts/rendering/cafe_native_draw_node.gd) can
 reuse appearance commands while translating. Reuse must preserve current
 generation, visibility, part identity and actual sibling order. A correct
 scalar depth does not establish correct rendered occlusion.
@@ -79,7 +79,7 @@ placement and painter order: moving across another object may require new
 submission order even when appearance commands stay valid. Check visibility,
 part membership, rotation, material/opacity, projection and generation against
 the actual cache's dependencies. For example,
-[shell command replay](../../game/scripts/cafe_shell_draw_cache.gd) belongs at
+[shell command replay](../../game/scripts/rendering/cafe_shell_draw_cache.gd) belongs at
 the original shell boundary and retains its projection/attachment dependencies.
 Atlas reuse must preserve scale/detail admission and first visible frames.
 This is a review requirement, not evidence that every cache or adapter has

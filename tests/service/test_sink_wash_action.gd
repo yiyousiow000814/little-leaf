@@ -1,7 +1,7 @@
 extends SceneTree
-const Art=preload("res://scripts/cafe_sink_wash_art.gd")
+const Art=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
 const Fixture=preload("res://tests/fixtures/role_fixture.gd")
-const Painter=preload("res://scripts/directional_character_art.gd")
+const Painter=preload("res://scripts/rendering/directional_character_art.gd")
 class LimbRecorder extends RefCounted:
  var segments=[]
  var polygons=[]

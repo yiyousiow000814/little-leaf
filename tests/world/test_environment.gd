@@ -1,6 +1,6 @@
 extends SceneTree
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Traffic=preload("res://scripts/ambient_road_traffic.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Traffic=preload("res://scripts/world/ambient_road_traffic.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):

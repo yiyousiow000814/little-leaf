@@ -1,5 +1,5 @@
 extends SceneTree
-const Character=preload("res://scripts/directional_character_art.gd")
+const Character=preload("res://scripts/rendering/directional_character_art.gd")
 class Recorder extends Node2D:
  var commands=[]
  func col(c):return Color(c)

@@ -1,5 +1,5 @@
 extends SceneTree
-const Furniture=preload("res://scripts/illustrated_furniture.gd")
+const Furniture=preload("res://scripts/rendering/illustrated_furniture.gd")
 class MockModel extends RefCounted:
  var customers=[]
 class MockGame extends Node:

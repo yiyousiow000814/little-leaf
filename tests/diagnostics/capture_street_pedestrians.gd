@@ -2,7 +2,7 @@ extends SceneTree
 class TestMain extends "res://scripts/main.gd":
 	func _load_startup():
 		save_writes_suppressed=true;fresh_start=true;model.reset_new();model.ensure_basic_bin();model.ensure_basic_register()
-class PreviewArt extends "res://scripts/illustrated_cafe.gd":
+class PreviewArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var fixed_overview=false
 	func update_projection(clamp_camera:bool=true):
 		if not fixed_overview:super.update_projection(clamp_camera)

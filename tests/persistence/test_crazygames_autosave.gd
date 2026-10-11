@@ -1,5 +1,5 @@
 extends SceneTree
-const Policy=preload("res://scripts/cafe_autosave_policy.gd")
+const Policy=preload("res://scripts/persistence/cafe_autosave_policy.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):

@@ -13,10 +13,10 @@ with their own acceptance limits, not blanket UI Golden images.
 ## Reuse-first components and surface roles
 
 Start with the nearest accepted peer and
-[`CafeHud`](../../game/scripts/cafe_hud.gd), not a new palette or control toolkit.
+[`CafeHud`](../../game/scripts/ui/cafe_hud.gd), not a new palette or control toolkit.
 Its `theme_panel`, `theme_button`, `theme_panel_contents` and `theme_scroll`
 already provide painted surfaces, typography, states and scroll styling.
-[`UpdateNotes`](../../game/scripts/cafe_update_notes.gd) demonstrates a panel
+[`UpdateNotes`](../../game/scripts/ui/cafe_update_notes.gd) demonstrates a panel
 that themes itself; generic `Main.button` and `CompactUI._small_button` alone
 do not provide that HUD theme.
 

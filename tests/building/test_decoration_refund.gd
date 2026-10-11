@@ -1,7 +1,7 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 const Start=preload("res://scripts/minimal_start.gd")
-const Plan=preload("res://scripts/cafe_edit_plan.gd")
+const Plan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  var save_success=true
