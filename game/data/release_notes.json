@@ -1,14 +1,26 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.10c",
-  "date": "2026-10-10",
+  "version": "0.1.10d",
+  "date": "2026-10-11",
   "label": "Developer preview",
   "new": [],
   "fixed": [
-    "Fixed release validation for hotfix versions while preserving previous update notes and cloud-rollout limitations."
+    "Fixed Google-account handoff acknowledgment when the current device renews its ownership lease.",
+    "Refreshed the account/local entry presentation while keeping local and Google-account progress separate."
   ],
   "history": [
+    {
+      "schema_version": 1,
+      "status": "released",
+      "version": "0.1.10c",
+      "date": "2026-10-10",
+      "label": "Developer preview",
+      "new": [],
+      "fixed": [
+        "Fixed release validation for hotfix versions while preserving previous update notes and cloud-rollout limitations."
+      ]
+    },
     {
       "schema_version": 1,
       "status": "released",
