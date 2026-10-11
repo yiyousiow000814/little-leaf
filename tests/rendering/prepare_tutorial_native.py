@@ -13,7 +13,7 @@ import re
 import shutil
 import subprocess
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 from project_layout import stage_project
 EXCLUDE = shutil.ignore_patterns('.git', '.godot', 'qa-project', '__pycache__',

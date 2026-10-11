@@ -29,7 +29,7 @@ Build/release orchestration is in [`tools/README.md`](../tools/README.md).
 For complete tooling discovery, use
 `python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py'`;
 the package owns import setup. The two native UI CLI wrappers share
-`native_ui_runner.py` staging, profiles, imports, GL captures and receipts,
+`tests/tooling/native_ui_runner.py` staging, profiles, imports, GL captures and receipts,
 while keeping distinct suite/capture resources and stable commands.
 
 Old `qa/` and `tests/capture_*.gd` diagnostics resolve under `tests/diagnostics/`;
