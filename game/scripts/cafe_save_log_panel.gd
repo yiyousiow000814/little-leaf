@@ -28,7 +28,7 @@ func setup():
  body.add_child(log_text)
  copy_button=game.button("Copy log",_copy);copy_button.name="CopySaveLog";copy_button.custom_minimum_size.y=44;body.add_child(copy_button)
  copy_note=game.label("",12);copy_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;copy_note.hide();body.add_child(copy_note)
- back_button=game.button("Back to Settings",_back);back_button.custom_minimum_size.y=44;body.add_child(back_button)
+ back_button=game.button("Back to Help",_back);back_button.custom_minimum_size.y=44;body.add_child(back_button)
  compact.hud.theme_panel(panel,true,26);compact.hud.theme_panel_contents(panel);compact._wrap_themed_popup(panel,420)
  var refresh=Timer.new();refresh.wait_time=0.5;refresh.timeout.connect(_refresh);panel.add_child(refresh);refresh.start()
  panel.hide()
@@ -64,4 +64,4 @@ func _show_copy_status(status:String):
  copy_note.show();compact._queue_popup_fit()
 
 func _back():
- panel.hide();compact.game.settings.show();compact._fit_themed_popups()
+ panel.hide();compact.return_to_help(compact.help_log)
