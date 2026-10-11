@@ -1,6 +1,6 @@
 extends SceneTree
 const Triangles=preload("res://scripts/cafe_polygon_triangulation.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 var checks=0
 var failures=[]
 func area(points:PackedVector2Array)->float:

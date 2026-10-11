@@ -1,5 +1,5 @@
 extends SceneTree
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 class CaptureGame extends "res://scripts/main.gd":
 	func _load_startup():save_writes_suppressed=true;fresh_start=false;MinimalStart.apply(model)
 class FixedArt extends "res://scripts/illustrated_cafe.gd":

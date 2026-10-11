@@ -1,7 +1,7 @@
 extends SceneTree
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 const Art=preload("res://scripts/illustrated_cafe.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 const Greenery=preload("res://scripts/environment_greenery.gd")
 class Recorder extends RefCounted:
 	var origin=Vector2.ZERO

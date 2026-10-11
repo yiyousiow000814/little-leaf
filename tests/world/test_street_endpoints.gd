@@ -1,7 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
-const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 class LegacyStart extends "res://scripts/core/cafe_model.gd":
 	func _arrival_start_position()->Vector2:
 		var z=maxf(ARRIVAL_START_Z,float(depth)+.8)

@@ -1,8 +1,8 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
-const Extent=preload("res://scripts/exterior_world_extent.gd")
-const Parking=preload("res://scripts/cafe_parking.gd")
+const Extent=preload("res://scripts/world/exterior_world_extent.gd")
+const Parking=preload("res://scripts/world/cafe_parking.gd")
 const CameraLandmarks=preload("res://scripts/cafe_camera_landmarks.gd")
 const Greenery=preload("res://scripts/environment_greenery.gd")
 static var greenery=Greenery.new()

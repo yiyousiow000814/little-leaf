@@ -1,7 +1,7 @@
 extends RefCounted
 ## Authored landmarks inside the bounded 64-by-64 neighborhood camera square.
 ## The camera envelope grants no land, purchases, or simulation-route changes.
-const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const ROAD_LEFT=-8.76
 const ROAD_RIGHT=-3.26
 const OPPOSITE_LEFT=-11.76

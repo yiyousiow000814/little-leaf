@@ -1,6 +1,6 @@
 extends SceneTree
 const Cache=preload("res://scripts/cafe_background_native.gd")
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
 class TestGame extends "res://scripts/main.gd":
 	func _load_startup():
 		save_writes_suppressed=true;fresh_start=true;model=Model.new();MinimalStart.apply(model)

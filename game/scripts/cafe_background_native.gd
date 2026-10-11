@@ -2,7 +2,7 @@ extends RefCounted
 ## Retained native commands for the exact static prefix of IllustratedCafe._draw.
 ## No image baking, downsampling, geometry welding or reordered commands.
 const PolygonTriangulation = preload("res://scripts/cafe_polygon_triangulation.gd")
-const Neighborhood = preload("res://scripts/exterior_environment.gd")
+const Neighborhood = preload("res://scripts/world/exterior_environment.gd")
 var server = RenderingServer
 var canvas = RID()
 var screen_canvas = RID()

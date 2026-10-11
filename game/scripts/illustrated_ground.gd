@@ -5,7 +5,7 @@ extends RefCounted
 ## Pan transforms the retained vertices. Effective scale changes rebuild only
 ## stroke offsets, preserving the legacy width/feather behavior at every zoom.
 
-const ExteriorExtent=preload("res://scripts/exterior_world_extent.gd")
+const ExteriorExtent=preload("res://scripts/world/exterior_world_extent.gd")
 const AAStrokes=preload("res://scripts/retained_aa_strokes.gd")
 # Native multiline keeps zoom-dependent AA generation inside the engine.
 # The former scripted mesh path remains available for renderer comparisons.

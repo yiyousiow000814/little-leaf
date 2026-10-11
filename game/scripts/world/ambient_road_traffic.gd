@@ -1,7 +1,7 @@
 extends RefCounted
 ## Fixed presentation-only pool. Offscreen road and inactive gameplay freeze it.
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Extent=preload("res://scripts/exterior_world_extent.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const COUNT=8
 const LANES=[-4.65,-7.35]
 var cars:Array[Dictionary]=[]

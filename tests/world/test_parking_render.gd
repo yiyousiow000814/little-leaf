@@ -1,6 +1,6 @@
 extends SceneTree
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Street=preload("res://scripts/street_pedestrians.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Street=preload("res://scripts/world/street_pedestrians.gd")
 const Visibility=preload("res://scripts/cafe_render_visibility.gd")
 class Recorder extends RefCounted:
 	var origin=Vector2(800,345)

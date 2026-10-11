@@ -173,7 +173,7 @@ asset count. Retain existing scoped receipts without promoting a whole category.
 
 | Category | Verified source entry points | Coverage and next evidence |
 | --- | --- | --- |
-| Outdoor | [exterior](../../game/scripts/exterior_environment.gd), [stop pedestrians](../../game/scripts/bus_stop_pedestrians.gd) | R1 rejected; R2/R3 direction inspected. Other exterior art **Uninspected** for this audit. Single Bus Stop pilot needs editable/export and actual scene evidence. |
+| Outdoor | [exterior](../../game/scripts/world/exterior_environment.gd), [stop pedestrians](../../game/scripts/world/bus_stop_pedestrians.gd) | R1 rejected; R2/R3 direction inspected. Other exterior art **Uninspected** for this audit. Single Bus Stop pilot needs editable/export and actual scene evidence. |
 | Building | [wall painter](../../game/scripts/illustrated_walls.gd), [openings](../../game/scripts/cafe_wall_openings.gd) | **Uninspected** at asset level. Inspect shell/door/window scale, joins, alpha and people crossing the relevant boundaries. |
 | Furniture | [illustration/chair](../../game/scripts/illustrated_cafe.gd), [dining styles](../../game/scripts/dining_style_art.gd), [atlas painter](../../game/scripts/furniture_atlas_painter.gd) | **Uninspected** at asset level; basic-chair source discrepancy above is Pending pixel audit. Include empty/occupied contact and rotations; do not start an unsolicited fix. |
 | Equipment | [furniture/kitchen](../../game/scripts/illustrated_furniture.gd), [checkout](../../game/scripts/cafe_checkout_art.gd), [sink](../../game/scripts/cafe_sink_wash_art.gd) | **Uninspected** here. Review real service phases, hand/plate contact and rim/local occlusion using the owning candidate. |
