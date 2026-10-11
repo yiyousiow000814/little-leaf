@@ -24,7 +24,7 @@ func same(a,b)->bool:
   return true
  return a==b
 func owned():
- var m=Model.new();m.coins=10000;m.begin_decoration_session();check(m.buy_parking(),"buy fixed parking");m.finish_decoration_session();return m
+ var m=Model.new();m.coins=Parking.PRICE+8000;m.begin_decoration_session();check(m.buy_parking(),"buy fixed parking");m.finish_decoration_session();return m
 func step(m,seconds:float):
  for frame in range(ceili(seconds/.1)):
   m._arrival_elapsed=0.0;m._tick_step(.1)
@@ -57,16 +57,25 @@ func run():
  check(not m.parking_owned and m.parking_visits.is_empty(),"new parking unowned/empty")
  check(not m.buy_parking() and m.coins==wallet,"purchase requires Decorate")
  m.begin_decoration_session();check(not m.buy_parking() and m.coins==wallet,"insufficient funds atomic")
- m.coins=10000;check(m.buy_parking() and m.coins==8000 and m.parking_paid_cost==2000,"one-time configured purchase")
- check(not m.buy_parking() and m.coins==8000,"repeat purchase cannot charge")
+ var price=m.parking_price();check(price==50000,"approved new parking price")
+ m.coins=price-1;check(not m.buy_parking() and m.coins==price-1 and not m.parking_owned and m.parking_paid_cost==0,"below purchase price rejects without charge or ownership")
+ m.coins=price;check(m.buy_parking() and m.coins==0 and m.parking_paid_cost==price,"exact purchase price charges once")
+ check(not m.buy_parking() and m.coins==0,"repeat purchase cannot charge")
  roundtrip(m,"session-owned")
- check(m.parking_refund()==2000,"saving retains same-session receipt")
- check(m.sell_parking() and m.coins==10000,"same-session sale full refund")
- check(not m.sell_parking() and m.coins==10000,"repeat sale cannot mint money")
+ check(m.parking_refund()==price,"saving retains same-session receipt")
+ check(m.sell_parking() and m.coins==price,"same-session sale full refund")
+ check(not m.sell_parking() and m.coins==price,"repeat sale cannot mint money")
+ m.coins=price*2
  check(m.buy_parking(),"repurchase after cancellation");m.finish_decoration_session();m.begin_decoration_session()
- check(m.parking_refund()==1000 and m.sell_parking() and m.coins==9000,"Done ends full refund")
+ check(m.parking_refund()==int(price/2) and m.sell_parking() and m.coins==price+int(price/2),"Done ends full refund")
  check(m.buy_parking(),"buy before load");var loaded=roundtrip(m,"owned")
- loaded.begin_decoration_session();check(loaded.parking_refund()==1000,"load ends full refund entitlement")
+ loaded.begin_decoration_session();check(loaded.parking_refund()==int(price/2),"load ends full refund entitlement")
+ # A purchased historical lot keeps its paid basis and is never charged again.
+ var historical=Model.new();historical.coins=777;historical.parking_owned=true;historical.parking_paid_cost=2000
+ var old_owned=roundtrip(historical,"historical-owned")
+ old_owned.begin_decoration_session();check(old_owned.parking_owned and old_owned.parking_paid_cost==2000 and old_owned.coins==777,"historical ownership and wallet load without repricing")
+ check(not old_owned.buy_parking() and old_owned.coins==777,"historical owned parking cannot incur new purchase charge")
+ check(old_owned.parking_refund()==1000 and old_owned.sell_parking() and old_owned.coins==1777,"historical sale refunds half original 2000 basis")
  # Old saves migrate without retroactive ownership, charge, or rewrite.
  var legacy=Model.new();check(legacy.save("user://parking-legacy-source.json"),"legacy source")
  var raw=JSON.parse_string(FileAccess.get_file_as_string("user://parking-legacy-source.json"));raw.erase("parking")

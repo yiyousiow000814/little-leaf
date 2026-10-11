@@ -74,7 +74,8 @@ func run():
 	Neighborhood.draw_ground(recorder,model_for_ground.parking_owned);Neighborhood.draw_crossing(recorder,model_for_ground.parking_owned)
 	var unbought=recorder.commands.duplicate(true)
 	check(not unbought.any(func(command):return command.color in ["919f92","dce0ca","d3d9c1"]),"unbought lawn has no asphalt, bay markings or driveway crossing")
-	model_for_ground.coins=10000;model_for_ground.begin_decoration_session()
+	var starting_coins=model_for_ground.parking_price()+8000
+	model_for_ground.coins=starting_coins;model_for_ground.begin_decoration_session()
 	check(model_for_ground.buy_parking(),"buy parking in Decorate")
 	recorder.commands=[];Neighborhood.draw_ground(recorder,model_for_ground.parking_owned);Neighborhood.draw_crossing(recorder,model_for_ground.parking_owned)
 	var bought=recorder.commands.duplicate(true)
@@ -86,7 +87,7 @@ func run():
 	check(reloaded.load_save(path) and reloaded.parking_owned,"reload retains purchased parking")
 	recorder.commands=[];Neighborhood.draw_ground(recorder,reloaded.parking_owned);Neighborhood.draw_crossing(recorder,reloaded.parking_owned)
 	check(recorder.commands==bought,"reload renders identical purchased lot")
-	check(model_for_ground.sell_parking() and model_for_ground.coins==10000,"same-session sale restores full refund")
+	check(model_for_ground.sell_parking() and model_for_ground.coins==starting_coins,"same-session sale restores full refund")
 	recorder.commands=[];Neighborhood.draw_ground(recorder,model_for_ground.parking_owned);Neighborhood.draw_crossing(recorder,model_for_ground.parking_owned)
 	check(recorder.commands==unbought,"sale restores original unbought lawn commands")
 	check(model_for_ground.save(path),"save sold parking")
