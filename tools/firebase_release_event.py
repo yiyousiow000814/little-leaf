@@ -15,7 +15,7 @@ import stat
 import zipfile
 
 from firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
-from reuse_main_ci import GitHub, require_jobs
+from qualification.reuse_main_ci import GitHub, require_jobs
 from release_metadata import version, RELEASE
 
 
