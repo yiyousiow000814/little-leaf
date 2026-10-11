@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
-const {hash, requireVisibleText, normalizedText} = require('./rendering/wall_compatibility_helpers');
+const {hash, requireVisibleText, normalizedText} = require('../rendering/wall_compatibility_helpers');
 const {installWelcomeAudioObserver} = require('./welcome_audio_observer');
 const {PLAYWRIGHT_VERSION, PREFERENCE_KEY, MODES, GESTURES, preferences,
   verifySource, launchOptions, verifyBrowserArguments, gestureTime, sustainedSignal, compareTrials} = require('./welcome_audio_helpers');
@@ -19,7 +19,7 @@ async function main() {
     assert(value, 'Required argument ' + name); return path.resolve(value);
   }
   const web = option('--web-build'), output = option('--output');
-  const source = option('--source-root', path.resolve(__dirname, '..'));
+  const source = option('--source-root', path.resolve(__dirname, '../..'));
   assert(!fs.existsSync(output), 'Fresh evidence directory required');
   fs.mkdirSync(output, {recursive: true});
   const report = {status: 'not-run', trials: [], errors: [], stream_identity: 'unproven',

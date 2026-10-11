@@ -1,12 +1,12 @@
 'use strict';
-const {sourcePath}=require('./source_paths.js');
+const {sourcePath}=require('../source_paths.js');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const os = require('node:os');
 const cp = require('node:child_process');
-const {hash} = require('./rendering/wall_compatibility_helpers');
+const {hash} = require('../rendering/wall_compatibility_helpers');
 const {installWelcomeAudioObserver} = require('./welcome_audio_observer');
 const {preferences, MODES, GESTURES, PREFERENCE_KEY, sustainedSignal, analyzeTrial, compareTrials,
   launchOptions, verifyBrowserArguments, verifySource, SERVICE_MP3} = require('./welcome_audio_helpers');
@@ -31,7 +31,7 @@ async function preferenceTests() {
   for (const mode of MODES) {
     const store = new Map([[PREFERENCE_KEY, JSON.stringify(preferences(mode))]]);
     const sandbox = {localStorage: {getItem: key => store.get(key) ?? null, setItem: (key, value) => store.set(key, value)}, TextEncoder};
-    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../platform/web/little_leaf_preferences.js'), 'utf8'), sandbox);
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../platform/web/little_leaf_preferences.js'), 'utf8'), sandbox);
     const result = await sandbox.__littleLeafPreferences.boot();
     assert(result.ok && result.source === 'preferences'); assert.equal(result.text, preferences(mode).text);
     assert.equal(sandbox.__littleLeafPreferences.acceptLoaded(), true);

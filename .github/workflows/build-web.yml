@@ -57,9 +57,9 @@ jobs:
           python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
           node tests/persistence/crazygames_storage.js
           node tests/persistence/legacy_byte_storage.js
-          node tests/boot_presentation.js
-          node tests/fresh_tutorial_browser_test.js
-          node --check tests/fresh_tutorial_browser.js
+          node tests/presentation/boot_presentation.js
+          node tests/presentation/fresh_tutorial_browser_test.js
+          node --check tests/presentation/fresh_tutorial_browser.js
           node tests/persistence/save_log_observers.js
           node tests/persistence/save_log_privacy.js
           node tests/rendering/web_performance_lifecycle.js
@@ -258,8 +258,8 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
-          node tests/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+          node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify exported save diagnostic in sandboxed Chromium
         if: matrix.lane == 'recovery'
         timeout-minutes: 5

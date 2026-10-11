@@ -1,9 +1,9 @@
 'use strict';
-const {sourcePath}=require('./source_paths.js');
+const {sourcePath}=require('../source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
 const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');
-const {hash, canonical} = require('./rendering/wall_compatibility_helpers');
+const {hash, canonical} = require('../rendering/wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
 const receipt = {checks: 10, failures: [], player_save_used: false,
@@ -68,7 +68,7 @@ assert.deepEqual(summarize(orderAck).guests, [{id: 1, phase: 'cooking', seated: 
 // export/report receipts. Only git's readonly answers are stubbed; source files
 // are genuinely hashed and are never changed by this test.
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), cp = require('node:child_process');
-const root = path.resolve(__dirname, '..'), temp = fs.mkdtempSync(path.join(os.tmpdir(), 'fresh-tutorial-binding-'));
+const root = path.resolve(__dirname, '../..'), temp = fs.mkdtempSync(path.join(os.tmpdir(), 'fresh-tutorial-binding-'));
 const exec = cp.execFileSync;
 // Exercise the same phase/step budget and exact OCR used by the browser with a
 // deterministic clock. Synthetic recognition proves timing, not real gameplay.
@@ -148,9 +148,9 @@ try {
   const commit = 'a'.repeat(40);
   cp.execFileSync = (command, args) => {
     assert.equal(command, 'git');
-    return args[0] === 'rev-parse' ? commit : dirty ? ' M tests/fresh_tutorial_browser.js' : '';
+    return args[0] === 'rev-parse' ? commit : dirty ? ' M tests/presentation/fresh_tutorial_browser.js' : '';
   };
-  const sourceNames = ['tests/presentation/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/rendering/wall_compatibility_helpers.js', 'project.godot'];
+  const sourceNames = ['tests/presentation/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/presentation/fresh_tutorial_browser.js', 'tests/rendering/wall_compatibility_helpers.js', 'project.godot'];
   const engineName = name => path.relative(root, sourcePath(root, name)).split(path.sep).join('/');
   const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [engineName(name), hash(fs.readFileSync(sourcePath(root,name)))])),
     records: [{test: 'test_interactive_tutorial', exit_code: 0, failures: [], result_sha256: hash(JSON.stringify(receipt))}]};
@@ -173,7 +173,7 @@ try {
   write(e => {e.records[0].result_sha256 = 'c'.repeat(64);}); assert.throws(verify, /Coordinate receipt/);
   write(e => {e.records.push(structuredClone(e.records[0]));}); assert.throws(verify);
   write(e => {e.records[0].failures.push('fixture failed');}); assert.throws(verify);
-  write(e => {e.source_sha256['tests/fresh_tutorial_browser.js'] = 'd'.repeat(64);}); assert.throws(verify, /Exact tested harness/);
+  write(e => {e.source_sha256['tests/presentation/fresh_tutorial_browser.js'] = 'd'.repeat(64);}); assert.throws(verify, /Exact tested harness/);
   write(e => {e.source_sha256[engineName('project.godot')] = 'e'.repeat(64);}); assert.throws(verify, /Production source passed/);
   write(() => {}, '<script>LittleLeafPlatform</script>'); assert.throws(verify, /Ordinary Web export/);
   write(); fs.appendFileSync(path.join(temp, 'index.html'), '!'); assert.throws(verify, /size/);
@@ -278,7 +278,7 @@ function retainedRgb(file) {
   }
   return {width, height, pixels};
 }
-const retainedFolder = path.join(__dirname, 'fixtures/tutorial-ocr');
+const retainedFolder = path.join(__dirname, '../fixtures/tutorial-ocr');
 for (const name of ['opening-card-compact', 'staff-card', 'staff-done-card', 'decorate-card', 'return-card', 'completion-title']) {
   retainedRgb(path.join(retainedFolder, name + '.png'));
 }
@@ -305,7 +305,7 @@ completionButtonRegion(completeTarget).forEach((value, index) =>
 assert.throws(() => completionButtonRegion({...completeTarget, point: [550, 145]}), /fully within/);
 assert.throws(() => completionButtonRegion({...completeTarget, point: [765.5, 113]}), /fully within/);
 if (process.argv.includes('--ocr-fixtures')) {
-  const folder = path.join(__dirname, 'fixtures/tutorial-ocr');
+  const folder = path.join(__dirname, '../fixtures/tutorial-ocr');
   const fixtures = JSON.parse(fs.readFileSync(path.join(folder, 'provenance.json'), 'utf8'));
   // Retain the existing provenance-bound fixtures; append the new generic pixel cases.
   fixtures.images.push(

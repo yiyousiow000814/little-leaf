@@ -1,12 +1,12 @@
 'use strict';
-const {sourcePath}=require('./source_paths.js');
+const {sourcePath}=require('../source_paths.js');
 // Source binding only: no audio observations, browser or engine execution.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const cp = require('node:child_process');
-const {hash} = require('./rendering/wall_compatibility_helpers');
+const {hash} = require('../rendering/wall_compatibility_helpers');
 const {verifySource, SERVICE_MP3} = require('./welcome_audio_helpers');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'welcome-source-binding-'));
 let checks = 0;

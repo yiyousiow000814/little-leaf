@@ -167,10 +167,10 @@ class WorkflowTests(unittest.TestCase):
         text=(ROOT/'.github/workflows/build-web.yml').read_text();first=text.index('      - name: Check Firebase adapter')
         for command in ['python3 tools/engine_shards.py run','python3 tools/engine_shards.py merge','python3 tools/build_web.py','python3 tools/build_crazygames.py',
                         'python3 .compatibility-old/tests/run_integration_candidate.py','python3 tools/prepare_browser_qa.py wall',
-                        'node tests/persistence/compensation_inbox_browser.js','node tests/fresh_tutorial_browser.js','node tests/rendering/wall_compatibility_browser.js',
+                        'node tests/persistence/compensation_inbox_browser.js','node tests/presentation/fresh_tutorial_browser.js','node tests/rendering/wall_compatibility_browser.js',
                         'node tests/persistence/save_log_browser.js','node tests/persistence/connection_recovery_browser.js']:
             self.assertLess(text.index(command),first,command)
-        self.assertIn('node tests/fresh_tutorial_browser_test.js --ocr-fixtures',text)
+        self.assertIn('node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures',text)
         self.assertIn('firebase_preview:\n        description:',text)
         self.assertIn('        default: false',text)
         self.assertNotIn('continue-on-error',text)

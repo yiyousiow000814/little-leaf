@@ -3,7 +3,7 @@
 // actual network, engine, SDK or storage is opened by these contract checks.
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '../..');
 let checks = 0;
 function check(condition, message) { assert(condition, message); checks++; }
 function deferred() { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return {promise, resolve, reject}; }

@@ -23,7 +23,7 @@ Startup order remains vault → preferences → engine, with Godot IDBFS mountin
 Run from the repository root:
 
 ```sh
-node tests/boot_presentation.js
+node tests/presentation/boot_presentation.js
 node tests/persistence/crazygames_storage.js
 node tests/persistence/legacy_byte_storage.js
 node tests/persistence/compensation_inbox_storage.js
