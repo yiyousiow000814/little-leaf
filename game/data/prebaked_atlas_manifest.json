@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact Editor current namespace source 03e006eb9db3f66d9544b2c1bc6e9dec7ae5f704/tree67cccc1cea0be4311623b40623bcba370f76caa6; QA 06b93549e3f0b16a19470f8b7ecfe6564623a1e4; run38166204683; receiptSHA256 0af159fc773150fb2b0778b59ebeb401e05cd3832e114b3d3fad87f50f33a958; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all893 raw Git inputs/modes and124 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR180 namespace source 9c3f35a0c576b92bd6fe8cb658c6872103d4997f/tree348fb0d9bfe591ce64d4ebb1a4c35b3826e45306; QA 80cf822a973c9e7b21e7b055bcc4bc4bd7595d79; run38164438351; receiptSHA256 bead4b1f298fb990b258b630de6e760cdbf3d4aa7850773de957a1809d9e76c4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all884 raw Git inputs/modes and120 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged; Separately scoped Editor source 03e006eb9db3f66d9544b2c1bc6e9dec7ae5f704/tree67cccc1cea0be4311623b40623bcba370f76caa6; run38166204683; receiptSHA256 0af159fc773150fb2b0778b59ebeb401e05cd3832e114b3d3fad87f50f33a958; original3RGBA qualification remains exact Editor893-input source; accepted HUD remains exact PR180 source above; composed inputs Editor b709fa0a0ab0f51aabdd482b5168d424fb84da94 plus acceptedmain 3b808fb366ae8709c9ed02df2baf51860b64c378; equivalence-input receiptSHA256 45a92629d4e8654cbb4e7a55cf7f100df148718d24761ec52f7ca03a34e7f435; final composition head/tree/raw binding and CI recorded separately, no full-inventory run claim on composed head",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -105,7 +105,7 @@
     "scripts/rendering/waiter_tablet_art.gd": "41ae18add7fb4a7f188f8b76b69c51c7b527ad64c98f6ba44a856c23b203bd38",
     "scripts/ui/cafe_action_help.gd": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73",
     "scripts/ui/cafe_compact_ui.gd": "0bea43d421f18a6f82ac49f2b28a0b5cce573762750e941f74e0e7456029e3a1",
-    "scripts/ui/cafe_hud.gd": "ff7898d7a00a01f0bf96d91a193a8d5ed1d4e67c0feb6fd80ebfcac167ad5fe5",
+    "scripts/ui/cafe_hud.gd": "59cb6af52ca95fb750a31c9f778348b4f9f4deac06d39c317bff4f7ca1c95f51",
     "scripts/ui/cafe_inbox.gd": "0f4a2e8f7e96f9e7993e4c081eea89ecaabf56bb0c5f1ecc2446eb37d46a61aa",
     "scripts/ui/cafe_intro.gd": "0fbe17ba5ad1966a73800f0dc92b7f15d42a11badb4ef5ec8a02d8df2f5f558e",
     "scripts/ui/cafe_save_log_panel.gd": "e14629f3b4299c886aabf4e4e3c5187d1364e2297716747ccc14b1b0b6729e71",
