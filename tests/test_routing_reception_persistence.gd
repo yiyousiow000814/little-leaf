@@ -119,11 +119,66 @@ func run():
     check(game.save_routing_reception_review(path),"actual chef pass destination saves independently of stove ID: "+m.last_error)
     check(game.load_routing_reception_review(path),"actual chef pass payload/step restores: "+m.last_error)
     chef_pass_saved=true;break
-  if m.served==1 and not paid_saved:
+  if m.served==1 and not paid_saved and m.customers.any(func(g):return g.phase=="leaving" and g.paid and not g.dismounting and not g.seated and m.is_floor_owned(Vector2i(floori(g.x),floori(g.z)))):
    earned=m.total_earned
    check(game.save_routing_reception_review(path),"actual paid departure saves: "+m.last_error)
    check(game.load_routing_reception_review(path) and m.served==1 and m.total_earned==earned,"paid identity restore without payment replay: "+m.last_error)
    var paid=JSON.parse_string(FileAccess.get_file_as_string(path))
+   # An actual paid route retains its old goal after a legal land purchase.
+   var grown=m._prepare_routing_reception_review(path).model
+   var old_goal:Vector2=grown.customers[0].route[-1]
+   var old_body=Vector2(grown.customers[0].x,grown.customers[0].z)
+   var additions=grown.expansion_parcels().filter(func(p):return p.unlocked and not p.owned and int(p.z)+int(p.h)>grown.depth)
+   check(not additions.is_empty(),"retained-route fixture has an eligible depth-growing parcel")
+   if not additions.is_empty():
+    # Funds belong only to this disposable prepared model, never the live game.
+    grown.coins=maxi(grown.coins,int(additions[0].cost))
+    check(grown.buy_parcel(str(additions[0].id)) and old_goal.y!=grown._departure_exit_z(int(grown.customers[0].id)),"actual parcel purchase changes depth without rewriting old exit")
+    check(grown.customers[0].route[-1]==old_goal and Vector2(grown.customers[0].x,grown.customers[0].z)==old_body and grown.served==1 and grown.total_earned==earned,"land growth retains actual body/goal/paid identity")
+    var retained="user://private19-retained-paid-goal.json"
+    check(grown.save_routing_reception_review(retained),"retained paid goal saves after depth growth")
+    check(game.load_routing_reception_review(retained) and m.customers[0].route[-1]==old_goal and Vector2(m.customers[0].x,m.customers[0].z)==old_body and m.served==1 and m.total_earned==earned,"Main restores retained exterior goal without snapping body/payment")
+    check(game.load_routing_reception_review(path),"original paid layout restores after isolated growth probe")
+   # Both legitimate pending chair departure and completed exterior body load.
+   var decoded=Model.RuntimeCodec.new().decode(paid.runtime)
+   var pending=paid.duplicate(true);var pending_guest=decoded.customers[0].duplicate(true)
+   var pending_chair=m.get_item(int(pending_guest.chair_id))
+   pending_guest.x=float(pending_chair.x)+.5;pending_guest.z=float(pending_chair.z)+.5
+   pending_guest.route=[];pending_guest.route_index=0;pending_guest.seated=true;pending_guest.dismounting=true
+   pending_guest.egress_cell=Vector2i(-100,-100);pending_guest.dismount_progress=0.0
+   pending_guest.departure_blocked=true;pending_guest.waiting=true;pending_guest.exterior_exit=false
+   pending.runtime.customers[0]=Model.RuntimeCodec.new().encode(pending_guest)
+   write("user://private19-blocked-paid.json",pending)
+   check(m._prepare_routing_reception_review("user://private19-blocked-paid.json").ok,"existing blocked seated departure remains readable")
+   var completed=paid.duplicate(true);var completed_guest=decoded.customers[0].duplicate(true)
+   completed_guest.x=old_goal.x;completed_guest.z=old_goal.y;completed_guest.route=[old_goal];completed_guest.route_index=1;completed_guest.exterior_exit=true
+   completed.runtime.customers[0]=Model.RuntimeCodec.new().encode(completed_guest)
+   write("user://private19-completed-paid.json",completed)
+   check(m._prepare_routing_reception_review("user://private19-completed-paid.json").ok,"completed exterior route remains readable at its actual endpoint")
+   # Reproduce only the reported existing paid departure contradiction.
+   var paid_guest=paid.runtime.customers[0]
+   var paid_at=Vector2(float(paid_guest.x),float(paid_guest.z))
+   for exhausted in [false,true]:
+    var short=paid.duplicate(true)
+    short.runtime.customers[0].route=Model.RuntimeCodec.new().encode([paid_at]) if exhausted else []
+    short.runtime.customers[0].route_index=1 if exhausted else 0
+    write("user://paid-endpoint-probe.json",short)
+    var probe=m._prepare_routing_reception_review("user://paid-endpoint-probe.json")
+    if probe.ok:
+     var probe_guest=probe.model.customers[0]
+     probe.model._advance_walk(probe_guest,.01)
+     print("PAID_DEPARTURE_TAMPER_TRACE ",JSON.stringify({"exhausted":exhausted,"phase":probe_guest.phase,"indoor":probe.model.is_floor_owned(Vector2i(floori(probe_guest.x),floori(probe_guest.z)))}))
+    refuse(game,short,"paid departure cannot finish indoors "+str(exhausted))
+    check(game.load_routing_reception_review(path),"original paid departure restores after tamper probe")
+   var false_blocked=paid.duplicate(true)
+   false_blocked.runtime.customers[0].route=[];false_blocked.runtime.customers[0].route_index=0
+   false_blocked.runtime.customers[0].departure_blocked=true;false_blocked.runtime.customers[0].waiting=true
+   write("user://private19-blocked-register.json",false_blocked)
+   check(m._prepare_routing_reception_review("user://private19-blocked-register.json").ok,"existing paid register departure retry remains readable")
+   false_blocked.runtime.customers[0].settlement_mode="legacy";false_blocked.runtime.customers[0].checkout_ticket=0
+   false_blocked.runtime.customers[0].checkout_register_id=-1;false_blocked.runtime.customers[0].checkout_token=-1
+   false_blocked.runtime.customers[0].checkout_cell=Model.RuntimeCodec.new().encode(Vector2i(-100,-100))
+   refuse(game,false_blocked,"unseated legacy body cannot claim blocked chair departure")
    var malformed=paid.duplicate(true)
    malformed.runtime.customers[0].mobility={"kind":"blocked","format":"little_leaf.footprint_placement.v1"}
    refuse(game,malformed,"blocked17 intent is disjoint while layout remains saved")

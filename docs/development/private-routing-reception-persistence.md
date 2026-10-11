@@ -86,3 +86,10 @@ Private19 staff rows accept only fields emitted by the explicit serializer.
 Unsupported runtime objects and malformed optional headings, block metadata or
 job identities refuse during shadow validation, before Main stops or publishes.
 Historical reader policies remain unchanged.
+
+Paid admitted departures retain their final point on the existing exterior
+terminal corridor. Indoor empty or exhausted routes refuse before publication.
+Codec-validated blocked chair departure, register retry and completed exterior
+routes remain readable; forged unseated legacy blocked state refuses.
+land growth preserves an earlier terminal point without rewriting body or goal.
+This bounds the terminal corridor, not exact historical-route provenance.

@@ -25,6 +25,14 @@ static func geometry_error(m,state:Dictionary)->String:
   var index=int(mobility.route_index) if not mobility.is_empty() else int(guest.route_index)
   var chair=int(guest.chair_id) if str(guest.phase) not in ["checkout_walk","paying","leaving"] or str(mobility.get("kind",""))=="to_assigned_seat" else -1
   if not route.is_empty() and index==route.size() and at.distance_to(route[-1])>.000001:return "Guest exhausted route lost its final body position"
+  if str(guest.phase)=="leaving" and bool(guest.paid):
+   var pending_shape=(bool(guest.seated) and bool(guest.dismounting)) or (str(guest.get("settlement_mode","legacy"))=="register" and not bool(guest.seated) and not bool(guest.dismounting))
+   var blocked=pending_shape and route.is_empty() and index==0 and bool(guest.departure_blocked) and bool(guest.waiting) and m.is_floor_owned(Vector2i(at.floor()))
+   if not blocked:
+    # Same terminal corridor as historical departing-body handoff. Preserve
+    # the retained endpoint after land growth; never recompute or rewrite it.
+    var end:Vector2=at if route.is_empty() else route[-1]
+    if absf(end.x+.85)>.0001 or end.y< -2.5 or end.y>28:return "Paid departure misses its retained terminal corridor"
   var cell=Vector2i(at.floor())
   if not m.is_floor_owned(cell) and str(guest.phase)!="leaving" and not m.Reception._public(m,at):return "Guest body is outside its owned/public movement domain"
   if m.is_floor_owned(cell):
