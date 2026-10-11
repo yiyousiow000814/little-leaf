@@ -116,8 +116,12 @@ class RunnerInfrastructureTests(unittest.TestCase):
 
     def test_staff_starts_share_ordered_generated_saves(self):
         self.select('staff-start')
+        nested = self.root / 'tests/staff'
+        nested.mkdir()
+        (self.root / 'tests/test_staff_start.gd').rename(nested / 'test_staff_start.gd')
         cases, profiles = [], set()
         def staff_start(command, env):
+            self.assertEqual(command[command.index('--script') + 1], 'res://tests/staff/test_staff_start.gd')
             case = env['LL_START_CASE']
             cases.append(case)
             profiles.add(env['APPDATA'])
@@ -136,6 +140,42 @@ class RunnerInfrastructureTests(unittest.TestCase):
         self.run_synthetic(windows=True, script_run=staff_start)
         self.assertEqual(cases, ['empty-profile', 'fresh', 'saved-load', 'standalone-load', 'bad-load'])
         self.assertEqual(len(profiles), 1)
+
+    def test_nested_suite_preserves_id_receipts_and_cli(self):
+        nested = self.root / 'tests/service'
+        nested.mkdir()
+        (self.root / 'tests/test_floor_claim_retry.gd').rename(nested / 'test_floor_claim_retry.gd')
+        def check_resource(command, env):
+            self.assertEqual(command[command.index('--script') + 1],
+                             'res://tests/service/test_floor_claim_retry.gd')
+            self.assertTrue(env['LL_UI_RESULT'].endswith('test_floor_claim_retry-result.json'))
+            return b'FLOOR_CLAIM_RETRY_RESULT {"checks":1,"failures":[]}\n'
+        report = self.run_synthetic(script_run=check_resource)
+        self.assertEqual(report['records'][-1]['test'], 'test_floor_claim_retry')
+        self.assertEqual(report['records'][-1]['log'], 'test_floor_claim_retry.log')
+
+    def test_duplicate_resource_and_missing_selected_suite_fail_before_staging(self):
+        nested = self.root / 'tests/service'
+        nested.mkdir()
+        duplicate = nested / 'test_floor_claim_retry.gd'
+        duplicate.touch()
+        with mock.patch('sys.argv', self.argv), mock.patch.object(self.runner, 'stage_project') as stage:
+            with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+                self.runner.main()
+            stage.assert_not_called()
+        duplicate.unlink()
+        (self.root / 'tests/test_floor_claim_retry.gd').unlink()
+        with mock.patch('sys.argv', self.argv), mock.patch.object(self.runner, 'stage_project') as stage:
+            with self.assertRaises(SystemExit), mock.patch('sys.stderr'):
+                self.runner.main()
+            stage.assert_not_called()
+
+    def test_canonical_map_covers_existing_suites_and_rejects_duplicate_ids(self):
+        resources = self.runner.suite_resources(ROOT)
+        self.assertEqual(set(resources), {name for name, _ in self.runner.SUITES} | {'staff-start'})
+        with mock.patch.object(self.runner, 'SUITES', self.runner.SUITES + [self.runner.SUITES[0]]):
+            with self.assertRaisesRegex(ValueError, 'Duplicate canonical suite ID'):
+                self.runner.suite_resources(ROOT)
 
     def test_posix_dummy_audio_and_disposable_profile_cleanup(self):
         self.run_synthetic()
