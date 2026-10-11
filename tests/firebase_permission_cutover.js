@@ -10,7 +10,7 @@ async function permissionCutover({api,legacy,codec,journal,fixture}) {
   };
   const doc=r=>({schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r)});
   const fence={writerId:'00000000-0000-4000-8000-000000000010',writerEpoch:1};
-  const owner={assertActive:()=>fence,snapshot:()=>({status:'active',serverOwnership:true}),close(){}};
+  const owner={async renew(){return {status:'active'};},assertActive:()=>fence,snapshot:()=>({status:'active',serverOwnership:true}),close(){}};
   let account='legacy-cutover-synthetic',cloud=doc(await record(1,100)),deny=true,writes=0,time=100000;
   const originalCloud=clone(cloud),states=[];
   const remote={read:async()=>clone(cloud),compareAndSet:async(uid,base,next,guard)=>{
