@@ -7,7 +7,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA = re.compile(r"[0-9a-f]{40}")
-DIAGNOSTICS = {"tools/diagnose_itch_status.py", "tests/tooling/test_release.py"}
+DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py", "tests/tooling/test_release.py"}
 JOBS = ("engine", "historical", "build", "browser", "compatibility", "firebase")
 
 
