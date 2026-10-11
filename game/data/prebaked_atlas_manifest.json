@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "source 9b9205df4c21eb9fee020f3a60a05a7af3da3b82 treefdf95787779a03f7032155790a5731debaf64529; canonical run38069841730 QAb0a82349a7c373f7d705510f0f6a17302981d772; receipt SHA256 24222be1ce393c56ff99428e9b8fae67c8c978edd90b60deb89ec405929e02b3; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2; regenerated/imported and decoded PNG exact RGBA equality; qualified d291 control reused from run38066367866; PR135 UI source6f5e32ac5e574ccb1a3e2f4acb1a4a07b834afdb tree78a35dc349298d62c466b703f578fe19f25fc9d8 canonicalrun38079778122 QAfbc7a5e tree480c7e16776bbba2e4cb2ffabdf660b9f963c6dd receiptSHA256 7450b11db671c00654c3ffbada8ab956f01821f50efc5430cab29cecf7ff46d8; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2 regenerated/imported and savedPNG exactRGBA; PR135 UI source4653c89d0034bef10b2f35468caaaeda35f329dc tree30378313bd770ed4b4d75d24840fd9754fb740d8 canonicalrun38080679169 QAa6d5ff82 tree475e30bc0a01ccd70ed2671a0e9fa502b9c9dc8a receiptSHA256 c3e44294786bc1a8eaa10489d9a24d23b22efdc0ffa121c7deeb9f6df674b9e2; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2 regenerated/imported and savedPNG exactRGBA; PR135 UI source04cb86acdc747e4e93b661a9ebc623811d5ad4cd tree16b83da7a4a8e35d325cff2ea4fd37c76d692f07 canonicalrun38082467049 QA60eb0cde tree960ba461538958cd075675e9c11030cca27aaffe receiptSHA256 c65c9e6de80c10093783b516d78c4e871ca7a6e75d240c320222dedfda79ebaa; official4.6.3 X11 Mesa25.2.8 llvmpipe20.1.2 regenerated/imported and savedPNG exactRGBA",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR135 heading wrap sourceee4617ab4fd363ccf6de3e75bc2e3258c6d5cb72/treecb6fc103af2b06d64039793ec19be4694440f6df; QAe056bc371cbc0785b3bac431c7d04471c8bf2ac7; run38101843640; receiptSHA256 d0f01cd8f4a079eb98b3dddc72b45cef50a9377b235dd5a31c3a21587c97baa9; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact; checksum-bound sourcebundle and immutable original control; candidate assets unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -64,7 +64,7 @@
     "scripts/cafe_shape_2d.gd": "7d17682de704d8ff556b40baf26c183f68c745c4b3e3dcc5449a564baa320485",
     "scripts/cafe_shell_draw_cache.gd": "8775f95ea1f4071325083d96dcff6400ac99500d6faf0677d792afc12e59422a",
     "scripts/cafe_shell_segments.gd": "c1b3cc1ae2ca0f2f0fe0587078a429c39ff1a91cd2a2530528fa7d8ca2acd163",
-    "scripts/cafe_shop_ui.gd": "5425ed30614d09e7bf290f240062851313ea864f3fc0b3a5f47d9aa25e3379ea",
+    "scripts/cafe_shop_ui.gd": "838bc2c5a0c28fe52953bf2c26c28d5a3d129b76586a73536b0ad8d5139538f7",
     "scripts/cafe_sink_wash_art.gd": "2bc60f757b743ececf9320bfd01d9fd3575f3567815c8f6c7c51cf64145a89bc",
     "scripts/cafe_staff_panel.gd": "b092756e03bc88a45ea5cffe039091c1db6d27870f1ec15584235cc881a97b0b",
     "scripts/cafe_staff_portrait.gd": "703da7d62d91b023fea46f286080023ca3f4c20d725c39ec921e9e5228e9770a",
