@@ -1,6 +1,6 @@
 extends SceneTree
-const Plan=preload("res://scripts/cafe_edit_plan.gd")
-const Floor=preload("res://scripts/cafe_floor_availability.gd")
+const Plan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
+const Floor=preload("res://scripts/gameplay/cafe_floor_availability.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

@@ -98,7 +98,8 @@ def main():
                 (project / FIXTURE).parent.mkdir(parents=True, exist_ok=True)
                 (project / FIXTURE).write_bytes(fixture)
                 # Defense in depth: isolate even the native staging fallback.
-                staging = project / "scripts/cafe_web_save.gd"
+                staging = project / ("scripts/persistence/cafe_web_save.gd" if label == "after"
+                                     else "scripts/cafe_web_save.gd")
                 code = staging.read_text()
                 old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
                 if old not in code:

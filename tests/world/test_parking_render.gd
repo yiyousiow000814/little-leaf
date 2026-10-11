@@ -1,7 +1,7 @@
 extends SceneTree
-const Neighborhood=preload("res://scripts/exterior_environment.gd")
-const Street=preload("res://scripts/street_pedestrians.gd")
-const Visibility=preload("res://scripts/cafe_render_visibility.gd")
+const Neighborhood=preload("res://scripts/world/exterior_environment.gd")
+const Street=preload("res://scripts/world/street_pedestrians.gd")
+const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 class Recorder extends RefCounted:
 	var origin=Vector2(800,345)
 	var ui_scale=1.0
@@ -30,7 +30,7 @@ class HistoricalModel extends RefCounted:
 class TestGame extends Node:
 	var model
 	var wall_detail=false
-class StreetArt extends "res://scripts/illustrated_cafe.gd":
+class StreetArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	var recorded=[]
 	var characters=[]
 	func _ready():set_process(false)
@@ -69,7 +69,7 @@ func run():
 	check(Neighborhood.parking_cars([{"id":20,"phase":"dining","car_position":Vector2.INF}]).is_empty(),"nonfinite positions are not submitted to the renderer")
 	var recorder=Recorder.new()
 	# The complete lot is an owned upgrade, not ambient landscape.
-	var model_for_ground=preload("res://scripts/cafe_model.gd").new()
+	var model_for_ground=preload("res://scripts/core/cafe_model.gd").new()
 	check(not model_for_ground.parking_owned,"fresh profile does not own parking")
 	Neighborhood.draw_ground(recorder,model_for_ground.parking_owned);Neighborhood.draw_crossing(recorder,model_for_ground.parking_owned)
 	var unbought=recorder.commands.duplicate(true)
@@ -83,7 +83,7 @@ func run():
 		check(bought.any(func(command):return command.color==color),"purchased parking reveals "+color)
 	var path="user://parking-render-owned.json"
 	check(model_for_ground.save(path),"save purchased parking in disposable profile")
-	var reloaded=preload("res://scripts/cafe_model.gd").new()
+	var reloaded=preload("res://scripts/core/cafe_model.gd").new()
 	check(reloaded.load_save(path) and reloaded.parking_owned,"reload retains purchased parking")
 	recorder.commands=[];Neighborhood.draw_ground(recorder,reloaded.parking_owned);Neighborhood.draw_crossing(recorder,reloaded.parking_owned)
 	check(recorder.commands==bought,"reload renders identical purchased lot")

@@ -1,6 +1,6 @@
 extends SceneTree
 const Main = preload("res://scripts/main.gd")
-const Intro = preload("res://scripts/cafe_intro.gd")
+const Intro = preload("res://scripts/ui/cafe_intro.gd")
 var checks = 0
 var failures = []
 func _initialize(): run.call_deferred()

@@ -1,6 +1,6 @@
 extends SceneTree
-const Atlas=preload("res://scripts/furniture_static_atlas.gd")
-class RecordingArt extends "res://scripts/illustrated_cafe.gd":
+const Atlas=preload("res://scripts/rendering/furniture_static_atlas.gd")
+class RecordingArt extends "res://scripts/rendering/illustrated_cafe.gd":
  var lines=[]
  var ellipses=[]
  var surfaces=[]

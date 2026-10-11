@@ -1,7 +1,7 @@
 extends SceneTree
-const Artist=preload("res://scripts/illustrated_cafe.gd")
+const Artist=preload("res://scripts/rendering/illustrated_cafe.gd")
 class PlateSpy:
- extends "res://scripts/illustrated_cafe.gd"
+ extends "res://scripts/rendering/illustrated_cafe.gd"
  var calls=[]
  func _plate(at:Vector2,remaining=1.0,dirty=false):calls.append({"at":at,"remaining":remaining,"dirty":dirty})
 var checks=0

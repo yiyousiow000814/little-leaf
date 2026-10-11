@@ -49,7 +49,7 @@ Serve the exported folder over HTTP to test it. Keep the license notice, custom 
 
 ## Repository boundaries
 
-- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; `res://scripts/` resource names remain unchanged. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
+- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; Script UIDs remain stable; update runtime and preload consumers atomically when resource paths move. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
 - `platform/web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
 - `tests/`: repeatable regression suites and browser harnesses; `tooling/` holds CI contracts, `fixtures/` holds synthetic source-bound inputs, and `diagnostics/` holds reusable captures, audits and profiling helpers. State whether a check covers engine behavior, browser behavior, or rendered output. Generated screenshots, traces, logs, exports and disposable profiles belong in ignored output directories.
 - `tools/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.

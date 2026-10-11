@@ -1,6 +1,6 @@
 extends SceneTree
 ## Engine-only failure coverage. This script never opens the game scene.
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const Main=preload("res://scripts/main.gd")
 class FakeModel extends RefCounted:
  var last_error=""

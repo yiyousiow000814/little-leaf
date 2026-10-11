@@ -57,7 +57,7 @@ async function activePagehideSave(){
   assert.deepEqual(local,preserved,'closed/account-changed callbacks cannot replace the last journal');
 }
 (async()=>{
-  const bridgeSource=fs.readFileSync('game/scripts/cafe_cloud_settings.gd','utf8');
+  const bridgeSource=fs.readFileSync('game/scripts/persistence/cafe_cloud_settings.gd','utf8');
   const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];
   assert(bridgeSource.indexOf('if not JavaScriptBridge.eval')<bridgeSource.indexOf('api=JavaScriptBridge.get_interface'));
   for(const [window,expected] of [[{},false],[{LittleLeafCloudSettings:null},false],[{LittleLeafCloudSettings:{}},true]])assert.equal(vm.runInNewContext(presence,{window}),expected,'optional bridge presence for ordinary/Firebase Web');
