@@ -14,8 +14,7 @@ var _render_attachments:Array=[]
 var _render_preview_active=false
 const MATERIAL_NAMES=["Sage panels","Cream stripes","Little leaves"]
 const FLOOR_NAMES=["Warm oak","Cream tiles","Sage tiles"]
-const FLOOR_STYLES=["warm_oak","cream_tile","sage_tile"]
-const FLOOR_COLORS=[Color("edd5ab"),Color("ece8d4"),Color("cbd7ba")]
+const FLOOR_STYLES=CafeModel.FLOOR_STYLES
 var floor_material="warm_oak"
 var floor_preview={}
 var floor_quote={}
@@ -65,10 +64,10 @@ class OpeningIcon extends Control:
 	func line(a:Vector2,b:Vector2,color,width=1.0):draw_line(a,b,Color(color),width,true)
 	func _draw():
 		var walls=[{"id":0,"axis":"x","x":0,"z":0,"height":"full","material":"sage_panels"}]
-		var attachment={"id":1,"kind":kind,"host_id":"wall:0","offset":.5,"width":.76 if kind=="door" else .70}
+		var attachment={"id":1,"kind":kind,"host_id":"wall:0","offset":.5,"width":OpeningGeometry.WIDTHS.get(kind,OpeningGeometry.WIDTHS.window)}
 		var host=OpeningGeometry.wall_host(walls[0]);var opening=OpeningGeometry.aperture(attachment,walls)
 		for panel in OpeningGeometry.solid_panels(host,walls,[attachment]):OpeningArt.face(self,host,panel.from,panel.to,panel.bottom,panel.top)
-		OpeningArt.cap(self,host,0,1);OpeningArt.end_face(self,host,1,0,128)
+		OpeningArt.cap(self,host,0,1);OpeningArt.end_face(self,host,1,0,Geometry.HEIGHT_PIXELS.full)
 		OpeningArt.threshold(self,opening)
 		for part in ["start","middle","end"]:OpeningArt.casing(self,opening,part)
 
@@ -364,6 +363,6 @@ func draw_floor_preview(artist):
 	if not active() or mode!="floor" or floor_preview.is_empty():return
 	var x=float(floor_preview.x);var z=float(floor_preview.z)
 	var corners=[artist.iso(x+.04,z+.04),artist.iso(x+.96,z+.04),artist.iso(x+.96,z+.96),artist.iso(x+.04,z+.96)]
-	var color=FLOOR_COLORS[maxi(0,FLOOR_STYLES.find(floor_material))];color.a=.78 if preview_valid else .30
+	var color=preload("res://scripts/illustrated_ground.gd").floor_palette(FLOOR_STYLES[maxi(0,FLOOR_STYLES.find(floor_material))])[0];color.a=.78 if preview_valid else .30
 	artist.poly(corners,color)
 	for i in range(4):artist.line(corners[i],corners[(i+1)%4],"527c58" if preview_valid else "b67561",2.0)
