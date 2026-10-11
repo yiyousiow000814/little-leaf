@@ -125,7 +125,6 @@
     "shaders/soft_ui_material.gdshader": "8ae03c60bef0469a9b16323384dcc6c11a6de9dc83ea62afb06e53db93b1c018"
   },
   "raw_physical_receipt_sha256": "268b33c8aab8083219786074653c1eba78dd3ea15ca2e744edb3ad35f9d17418",
-  "raw_physical_tracked_files": 862,
   "closure_count": 120,
   "source_only_successor_rule": "Only this qualification receipt and the baseline-preserving manifest line ending change after the frozen rendered candidate; every runtime closure input and atlas cache/import byte is equal. No whole-tree/inventory equivalence claimed.",
   "checks": 3,
@@ -160,5 +159,11 @@
   "png_import_provenance_unchanged": true,
   "guard_unchanged": true,
   "fresh_receipt_sha256": "d558551b7cfc9514a7b6e2150f8213b7b5da4bceb0da9e711df58f920a9fc1e0",
-  "player_saves_used": false
+  "player_saves_used": false,
+  "archive_physical_tracked_files": 862,
+  "actual_binary_git_closure_count": 120,
+  "outside_closure_eol_only_archive_differences": 158,
+  "non_eol_archive_differences": 0,
+  "corrected_git_archive_physical_receipt_sha256": "7fd483d557e43ace5c56e6a3c0e1bebd653a9a601cf15c7d52dd4b898fc4bea8",
+  "evidence_label_correction": "The earlier raw/physical count denotes exported archive versus physical files. Actual binary Git equality is verified separately for all 120 rendered closure inputs; 158 archive differences are solely CRLF/LF outside that closure."
 }
