@@ -7,6 +7,8 @@
   "new": [],
   "fixed": [
     "Fixed Google-account handoff acknowledgment when the current device renews its ownership lease.",
+    "Fixed account autosaving after the browser journal connection closes or its ownership lease expires while away.",
+    "Fixed repeated cloud-save choices while preserving and exporting earlier protected copies.",
     "Refreshed the account/local entry presentation while keeping local and Google-account progress separate."
   ],
   "history": [

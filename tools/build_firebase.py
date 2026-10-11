@@ -4,18 +4,13 @@ from pathlib import Path
 from build_web import ROOT, sha256
 import artifacts
 from project_layout import source_path
+from entry_presentation import entry_styles
 
 def validate_export_inventory(build):
     return artifacts.validate_export_inventory(build / 'web')
 
 def validate_web_gate(build, commit, tree, local_tools=False):
     return artifacts.validate_web_gate(build, commit, tree, local_tools, source_root=ROOT)
-
-def entry_styles():
-    """Inline the existing licensed Nunito font; no new external requests."""
-    css=source_path(ROOT,'web/little_leaf_entry.css').read_text(encoding='utf-8')
-    notice=source_path(ROOT,'assets/fonts/Nunito-OFL.txt').read_text(encoding='utf-8')
-    return '/* '+notice+' */\n'+css.replace('$NUNITO_FONT',base64.b64encode(source_path(ROOT,'assets/fonts/Nunito-Variable.ttf').read_bytes()).decode('ascii'))
 
 def auth_verification_html(html, config, origin):
     """Derived diagnostic page: no engine, adapters, vault or preferences scripts."""

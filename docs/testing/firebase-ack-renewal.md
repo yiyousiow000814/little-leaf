@@ -52,3 +52,9 @@ new source and cannot be represented as unchanged released `a5dd2b2b` bytes.
 Fresh source-bound qualification and coordinated approval remain prerequisites
 for publication or Firebase activation; do not rerun or bypass the retained
 failed staging intent.
+
+## Bounded login/save release successor
+
+PR160 also reconnects only synchronously closed IndexedDB handles without replaying an already-created transaction; preserves up to eight validated conflict-selection archives without eviction; and renews exact ownership before upload after suspended time. Renewal or save permission denial preserves the durable pending record and export path. Independently confirmed other-device ownership retains explicit takeover. Synthetic checks cover61-second resume, genuine denial remaining sticky after later renewal, and rival ownership without save writes. Real-IDB92 assertions and isolated SDK/rules14 checks passed; these do not establish real Google acceptance or deployment.
+
+The permanent ordinary itch entry opens the fixed official Firebase origin in a new tab, keeps local play explicit, and states that local/account progress are separate. It adds no embedded SDK, storage transfer or credential path. Normal Hosting preserves the complete existing config and refuses a changed baseline; smoke failure requires inspection and never triggers automatic old-version rollback. Final live eligibility is the separate PR164 guard.
