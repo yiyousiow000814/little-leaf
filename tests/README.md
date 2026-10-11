@@ -35,5 +35,6 @@ while keeping distinct suite/capture resources and stable commands.
 Old `qa/` and `tests/capture_*.gd` diagnostics resolve under `tests/diagnostics/`;
 the shell prototype is `tests/fixtures/shell_segment_contract.gd`.
 Historical source-bound receipts retain original paths/hashes. The frozen startup
-toolkit's temporary `qa/startup_descent` is generated input. Root shared fixtures
-and manual scenario inputs retain resource labels used across families.
+toolkit's temporary `qa/startup_descent` is generated input. Shared fixture source lives under `tests/fixtures/`; disposable historical
+projects retain their established resource labels. Manual scenario inputs remain
+subject to their owners' path mappings.

@@ -18,7 +18,7 @@ with (ROOT.parent/'.little-leaf-engine.lock').open('a') as lock:
    dest=project/name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(subprocess.check_output(['git','-C',str(ROOT),'show',legacy_commit+':'+name]))
   report['old_reader_commit']=legacy_commit
   (project/'tests/fixtures').mkdir(parents=True);shutil.copy2(ROOT/'tests/fixtures/shell_segment_contract.gd',project/'tests/fixtures/shell_segment_contract.gd')
-  (project/'tests').mkdir(exist_ok=True);shutil.copy2(ROOT/'tests/test_shell_segment_contract.gd',project/'tests/test_shell_segment_contract.gd')
+  (project/'tests').mkdir(exist_ok=True);shutil.copy2(ROOT/'tests/fixtures/test_shell_segment_contract.gd',project/'tests/test_shell_segment_contract.gd')
   (project/'project.godot').write_text('config_version=5\n[application]\nconfig/name="Shell Segment Contract"\n[rendering]\nrenderer/rendering_method="gl_compatibility"\n')
   env=os.environ.copy()
   for name in ['HOME','APPDATA','LOCALAPPDATA','XDG_DATA_HOME','XDG_CONFIG_HOME','XDG_CACHE_HOME']:

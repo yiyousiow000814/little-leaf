@@ -1,6 +1,6 @@
 extends SceneTree
 ## Real scene and callbacks, with synthetic startup profiles and no player save.
-const NoBottom=preload("res://tests/no_bottom_notifications.gd")
+const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class TestMain extends "res://scripts/main.gd":
  var startup_kind="fresh"
  var save_calls=0
