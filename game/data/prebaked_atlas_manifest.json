@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR135 heading wrap sourceee4617ab4fd363ccf6de3e75bc2e3258c6d5cb72/treecb6fc103af2b06d64039793ec19be4694440f6df; QAe056bc371cbc0785b3bac431c7d04471c8bf2ac7; run38101843640; receiptSHA256 d0f01cd8f4a079eb98b3dddc72b45cef50a9377b235dd5a31c3a21587c97baa9; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact; checksum-bound sourcebundle and immutable original control; candidate assets unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR135 contextual Build item-help sourceb193fda01a022f9ceae6b02cf84b20a38d6c5f30/tree514f813c44720fb5c15e3a020d4bf0c890cb1c80 onfcba95c; QA1c74e9ef39f62570d8c13aa0d70dbfdebecad241; run38105090287; receiptSHA256 b9027cd38166ea8020933fe5f3a0618b5d866be7ee714ce5e286df8ef4a3f5eb; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact original controls; checksum-bound sourcebundle; sourceassets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -64,7 +64,7 @@
     "scripts/cafe_shape_2d.gd": "7d17682de704d8ff556b40baf26c183f68c745c4b3e3dcc5449a564baa320485",
     "scripts/cafe_shell_draw_cache.gd": "8775f95ea1f4071325083d96dcff6400ac99500d6faf0677d792afc12e59422a",
     "scripts/cafe_shell_segments.gd": "c1b3cc1ae2ca0f2f0fe0587078a429c39ff1a91cd2a2530528fa7d8ca2acd163",
-    "scripts/cafe_shop_ui.gd": "838bc2c5a0c28fe52953bf2c26c28d5a3d129b76586a73536b0ad8d5139538f7",
+    "scripts/cafe_shop_ui.gd": "5a61618cfa0d49fe7ef95c2452f93efc3bb63749f860e93a1d0c0f9f0d928717",
     "scripts/cafe_sink_wash_art.gd": "2bc60f757b743ececf9320bfd01d9fd3575f3567815c8f6c7c51cf64145a89bc",
     "scripts/cafe_staff_panel.gd": "b092756e03bc88a45ea5cffe039091c1db6d27870f1ec15584235cc881a97b0b",
     "scripts/cafe_staff_portrait.gd": "703da7d62d91b023fea46f286080023ca3f4c20d725c39ec921e9e5228e9770a",
