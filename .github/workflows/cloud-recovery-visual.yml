@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/cloud-recovery-visual.yml'
-      - 'tools/capture_cloud_recovery_ui.py'
+      - 'tools/diagnostics/capture_cloud_recovery_ui.py'
       - 'tests/diagnostics/capture_cloud_recovery_ui.gd'
       - 'tests/persistence/test_cloud_recovery_ui.gd'
       - 'tests/test_update_notice.gd'
@@ -47,7 +47,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           LIBGL_ALWAYS_SOFTWARE: '1'
           LL_ENGINE_LOCK: ${{ runner.temp }}/panel-engine.lock
-        run: python3 tools/capture_cloud_recovery_ui.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/panel-paired"
+        run: python3 tools/diagnostics/capture_cloud_recovery_ui.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/panel-paired"
       - name: Retain actual screenshots and exact source receipts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
