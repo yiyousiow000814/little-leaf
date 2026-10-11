@@ -14,7 +14,7 @@ import sys
 import tempfile
 from project_layout import source_path, stage_project
 from build_web import verify_installer_receipt
-from artifacts import sha256
+from qualification.artifacts import sha256
 from release.release_metadata import projected_metadata, version
 
 ROOT = Path(__file__).resolve().parents[1]

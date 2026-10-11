@@ -2,7 +2,7 @@
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 from build_web import ROOT, sha256
-import artifacts
+from qualification import artifacts
 from project_layout import source_path
 from entry_presentation import entry_styles
 
