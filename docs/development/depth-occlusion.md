@@ -94,8 +94,14 @@ atlas proof and passing tests cannot qualify changed renderer source. See the
 [rendering contract](../testing/rendering-performance.md). Art approval cannot
 waive an observed depth regression.
 
-The next narrow candidate is a common exterior ordering stream for the affected
-street actors and greenery, with explicit shell eligibility and once-only
-submission. It remains a proposal. Broad actor-tree, wall, seated-service,
-cache/adapter and first-pan/zoom acceptance remain open; no production fix is
-claimed by the diagnostic.
+The local candidate `3ab8f55dae06f7b1d2154dea608489119e597f77` enrolls only the
+observed oak in the existing exterior stream, once, and retains the original
+actor/car sort and other pass boundaries. Its r5 diagnostic recorded330
+consecutive actual frames. All162 tree-route frames had the expected actual
+native order, and inspected before/after panels show the foreground head/face
+in front of the trunk while the background actor stays behind. The40 Decorate
+state crops and15 visible shelter-edge regions were pixel-identical to the
+baseline. These cropped observations do not establish every crown/shell
+intersection, camera or expansion state. User verification, fresh closure and
+CI remain pending; the candidate is unmerged and unreleased. Broad actor-tree,
+wall, seated-service, cache/adapter and first-pan/zoom acceptance remain open.
