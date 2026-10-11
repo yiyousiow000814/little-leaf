@@ -1,17 +1,29 @@
 {
   "schema_version": 1,
   "status": "released",
-  "version": "0.1.10d",
+  "version": "0.1.11-pre",
+  "prerelease": true,
   "date": "2026-10-11",
-  "label": "Developer preview",
+  "label": "Camera fix prerelease",
   "new": [],
   "fixed": [
-    "Fixed Google-account handoff acknowledgment when the current device renews its ownership lease.",
-    "Fixed account autosaving after the browser journal connection closes or its ownership lease expires while away.",
-    "Fixed repeated cloud-save choices while preserving and exporting earlier protected copies.",
-    "Refreshed the account/local entry presentation while keeping local and Google-account progress separate."
+    "Fixed decoration placement drifting after moving the camera."
   ],
   "history": [
+    {
+      "schema_version": 1,
+      "status": "released",
+      "version": "0.1.10d",
+      "date": "2026-10-11",
+      "label": "Developer preview",
+      "new": [],
+      "fixed": [
+        "Fixed Google-account handoff acknowledgment when the current device renews its ownership lease.",
+        "Fixed account autosaving after the browser journal connection closes or its ownership lease expires while away.",
+        "Fixed repeated cloud-save choices while preserving and exporting earlier protected copies.",
+        "Refreshed the account/local entry presentation while keeping local and Google-account progress separate."
+      ]
+    },
     {
       "schema_version": 1,
       "status": "released",
