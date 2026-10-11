@@ -6,14 +6,27 @@ from pathlib import Path
 from build_firebase import stage, validate_export_inventory, entry_styles, update_hosting_marker
 from build_web import ROOT, sha256
 from project_layout import source_path
-from build_itch_entry import remove_ordinary_entry
+from build_itch_entry import ENTRY, remove_ordinary_entry
 
 
-def wrapper_html(html, origin):
-    if not re.fullmatch(r'https://little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app', origin):
+STABLE_ORIGIN = 'https://little-leaf-41e5d.firebaseapp.com'
+STABLE_PATH = '/itch/'
+
+
+def wrapper_html(html, origin, *, stable=False):
+    valid = origin == STABLE_ORIGIN + STABLE_PATH.rstrip('/') if stable else bool(re.fullmatch(r'https://little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app', origin))
+    if not valid:
         raise ValueError('Exact controlled preview origin required')
     html = remove_ordinary_entry(html)
-    entry = '<section id="itch-entry" class="leaf-entry-page" aria-labelledby="entry-heading"><div class="leaf-entry-card"><p class="leaf-entry-brand">Little Leaf</p><p class="leaf-entry-eyebrow">A little café of your own</p><h1 id="entry-heading" class="leaf-entry-title">Welcome to your café</h1><p class="leaf-entry-intro">Choose how you\'d like to begin.</p><div class="leaf-entry-actions"><div class="leaf-entry-option"><button id="itch-account" type="button">Play with Google on itch</button><p>Sign in through a secure Google popup on this itch page.</p></div><div class="leaf-entry-option local"><button id="itch-local" type="button">Continue local play on itch</button><p>Return to your café saved in this browser.</p></div></div><p class="leaf-entry-note">Local progress does not transfer automatically to your Google account.</p></div></section>'
+    # Reuse the reviewed presentation while preserving the existing frame controller IDs.
+    # Only this explicit preview replaces the outbound link; ordinary release stays unchanged.
+    outbound = '<a id="itch-release-account" aria-describedby="itch-account-detail itch-progress-separation" class="leaf-entry-link" href="https://little-leaf-41e5d.firebaseapp.com/" target="_blank" rel="noopener noreferrer">Play with Google · opens a new tab</a>'
+    if ENTRY.count(outbound) != 1:
+        raise ValueError('Reviewed ordinary account entry contract changed')
+    entry = ENTRY.replace(outbound, '<button id="itch-account" aria-describedby="itch-account-detail itch-progress-separation" type="button">Play with Google</button>')
+    entry = entry.replace('id="itch-release-entry"', 'id="itch-entry"').replace('id="itch-release-local"', 'id="itch-local"')
+    entry = entry.replace('>Continue local play on itch</button>', '>Continue local play</button>')
+    entry = entry.replace('Open the official account game, then sign in with Google.', 'Sign in through a secure Google popup, then continue playing on this itch page.')
     # Gate only the derived wrapper before its original vault or engine starts.
     marker = 'window.__littleLeafVault.boot()'
     if html.count(marker) != 1:raise ValueError('Original local boot contract changed')
@@ -37,9 +50,9 @@ def wrapper_html(html, origin):
             frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;background:#fffaf0;z-index:60';
             frame.setAttribute('allow','fullscreen; autoplay');frame.setAttribute('allowfullscreen','');
             frame.src=PREVIEW_ORIGIN+'/';
-            const back=document.createElement('button');back.textContent='Back to play choices';
-            back.className='leaf-entry-back';
-            back.addEventListener('click',()=>root.location.reload());document.body.append(frame,back);
+            // Returning to local play must be confirmed inside the trusted game
+            // after its save/pending guards; the wrapper cannot safely decide.
+            document.body.append(frame);
         });
     });
 })(window);
@@ -92,8 +105,79 @@ def prepare(build, output, config, origin, source, tree):
         'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase.js',
         'web/little_leaf_firebase_session.js', 'web/little_leaf_update.js',
         'web/little_leaf_shell.html', 'web/little_leaf_entry.css', 'assets/fonts/Nunito-Variable.ttf',
-        'assets/fonts/Nunito-OFL.txt', 'tools/build_firebase.py', 'tools/build_itch_trusted_preview.py']}
+        'assets/fonts/Nunito-OFL.txt', 'tools/build_firebase.py', 'tools/build_itch_entry.py',
+        'tools/build_itch_trusted_preview.py']}
     manifest['files'] = {p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*'))
                          if p.is_file() and p != manifest_path}
+    manifest_path.write_text(json.dumps(manifest, indent=2)+'\n')
+    return manifest
+
+
+def prepare_stable(build, output, config, source, tree, publication=None):
+    """Prepare a nondeployable stable-path candidate from exact-source runtime bytes.
+
+    This does not enable the live selector or mutate Hosting/Auth configuration.
+    Its proposed headers and complete inventories are review artifacts only.
+    """
+    base = validate_export_inventory(build)
+    if (not re.fullmatch(r'[0-9a-f]{40}', source)
+            or not re.fullmatch(r'[0-9a-f]{40}', tree)
+            or base.get('source_commit') != source or base.get('source_tree') != tree
+            or base.get('packed_smoke') != 'passed' or base.get('engine_checks', 0) <= 0
+            or not base.get('production_sha256')):
+        raise ValueError('Exact-source reviewed engine/export provenance required')
+    for name, expected in base['production_sha256'].items():
+        if sha256(source_path(ROOT, name)) != expected:
+            raise ValueError('Same-itch source input changed: ' + name)
+    if config.get('projectId') != 'little-leaf-41e5d' or config.get('authDomain') != 'little-leaf-41e5d.firebaseapp.com':
+        raise ValueError('Existing official Firebase origin required')
+    stage(build, output, config, publication=publication)
+    public = output / 'public'
+    original = sorted(public.iterdir())
+    if any(not path.is_file() or path.is_symlink() for path in original):
+        raise ValueError('Flat verified base inventory required')
+    embedded = public / 'itch'
+    embedded.mkdir()
+    for path in original:
+        shutil.copy2(path, embedded / path.name)
+    html_path = embedded / 'index.html'
+    html = html_path.read_text(encoding='utf-8')
+    call = 'm.start(' + json.dumps(config).replace('<', '\\u003c') + ')'
+    options = {'surface':'trusted-itch-frame', 'runtimeOrigin':STABLE_ORIGIN, 'runtimePath':STABLE_PATH}
+    if html.count(call) != 1:
+        raise ValueError('Exact top-level bootstrap required')
+    html_path.write_text(html.replace(call, call[:-1] + ',' + json.dumps(options) + ')'), encoding='utf-8')
+    marker = json.loads((embedded / 'hosting-release.json').read_text())
+    marker.update(runtime_origin=STABLE_ORIGIN, runtime_path=STABLE_PATH, test_surface='trusted-itch-frame')
+    update_hosting_marker(embedded, marker)
+    wrapper = output / 'itch-wrapper'
+    shutil.copytree(build / 'web', wrapper)
+    (wrapper / 'release-manifest.json').unlink()
+    (wrapper / 'index.html').write_text(wrapper_html((wrapper / 'index.html').read_text(encoding='utf-8'),
+                                                  STABLE_ORIGIN + STABLE_PATH.rstrip('/'), stable=True), encoding='utf-8')
+    hosting = json.loads((output / 'firebase.json').read_text())['hosting']
+    policy = 'frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io'
+    # The existing HTML suffix rule already supplies index.html's no-cache.
+    # Preserve it; do not depend on duplicate-header resolution by the provider.
+    additions = [
+        {'source':'/itch/', 'headers':[
+            {'key':'Content-Security-Policy', 'value':policy}, {'key':'Cache-Control', 'value':'no-cache'}]},
+        {'source':'/itch/index.html', 'headers':[{'key':'Content-Security-Policy', 'value':policy}]},
+        {'source':'/itch/hosting-release.json', 'headers':[{'key':'Cache-Control', 'value':'no-store'}]},
+    ]
+    hosting['headers'].extend(additions)
+    (output / 'firebase.json').write_text(json.dumps({'hosting':hosting}, indent=2)+'\n')
+    manifest_path = output / 'firebase-variant-manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest.update(status='prepared-same-itch-local-candidate-not-deployable', source_commit=source, source_tree=tree,
+                    runtime_origin=STABLE_ORIGIN, runtime_path=STABLE_PATH, hosted_acceptance=False,
+                    production_release_eligible=False, auth_domains_modified=False,
+                    hosting_header_additions=additions, hosting_config_proposal_only=True,
+                    source_sha256={name:sha256(source_path(ROOT, name)) for name in [
+                        'tools/build_itch_entry.py','tools/build_itch_trusted_preview.py','tools/build_firebase.py',
+                        'web/little_leaf_firebase_boot.mjs','web/little_leaf_firebase_session.js','web/little_leaf_update.js',
+                        'web/little_leaf_entry.css']})
+    manifest['files'] = {path.relative_to(output).as_posix():sha256(path) for path in sorted(output.rglob('*'))
+                         if path.is_file() and path != manifest_path}
     manifest_path.write_text(json.dumps(manifest, indent=2)+'\n')
     return manifest

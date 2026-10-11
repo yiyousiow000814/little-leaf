@@ -21,8 +21,11 @@ function fixture(){
   account.elements.get('itch-account').handlers.click();account.elements.get('itch-account').handlers.click();
   account.elements.get('itch-local').handlers.click();await Promise.resolve();
   assert.equal(account.frames.length,1);assert.equal(originalVaultMayBoot,false);
-  assert.match(account.frames[0].src,/^https:\/\/little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app\/$/);
-  assert.equal(account.controls.length,1);account.controls[0].handlers.click();assert.equal(account.reloads(),1);
+  if(process.argv[3])assert.equal(account.frames[0].src,process.argv[3],'stable wrapper uses exact dedicated path');
+  else assert.match(account.frames[0].src,/^https:\/\/little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app\/$/);
+  assert.equal(account.controls.length,0,'wrapper offers no destructive return while account saves may be pending');
+  assert.equal(account.reloads(),0);
+  assert(!/location\.reload/.test(controller),'only the trusted game can authorize a guarded return');
   assert(!/postMessage|addEventListener\(['"]message|indexedDB|localStorage|firebase-auth/.test(controller));
   console.log('Trusted itch wrapper: explicit local/cloud choice and original-vault isolation passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});
