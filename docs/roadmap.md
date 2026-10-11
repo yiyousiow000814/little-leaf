@@ -2086,7 +2086,7 @@ Code status: Wall actions exist; land/discovery improvement incomplete
 
 Exact code evidence: [cafe_compact_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/scripts/cafe_compact_ui.gd)
 
-Tests present: [test_wall_move_sell_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_wall_move_sell_ui.gd); [test_parking_decor_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_parking_decor_ui.gd)
+Tests present: [test_wall_move_sell_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_wall_move_sell_ui.gd); [test_parking_decor_ui.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/world/test_parking_decor_ui.gd)
 
 Visual acceptance: Wall actions captured, discovery not accepted
 
@@ -2106,7 +2106,7 @@ Code status: Required new reception flow absent from audited PRs; existing outsi
 
 Exact code evidence: [cafe_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_outside_queue.gd); [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd)
 
-Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
+Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
 
 Visual acceptance: No new reception production acceptance
 
@@ -2126,7 +2126,7 @@ Code status: Required new reception flow absent from audited PRs; existing outsi
 
 Exact code evidence: [cafe_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_outside_queue.gd); [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd)
 
-Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
+Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
 
 Visual acceptance: No new reception production acceptance
 
@@ -2146,7 +2146,7 @@ Code status: Required new reception flow absent from audited PRs; existing outsi
 
 Exact code evidence: [cafe_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_outside_queue.gd); [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd)
 
-Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
+Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
 
 Visual acceptance: No new reception production acceptance
 
@@ -2166,7 +2166,7 @@ Code status: Required new reception flow absent from audited PRs; existing outsi
 
 Exact code evidence: [cafe_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_outside_queue.gd); [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd)
 
-Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
+Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
 
 Visual acceptance: No new reception production acceptance
 
@@ -2186,7 +2186,7 @@ Code status: Required new reception flow absent from audited PRs; existing outsi
 
 Exact code evidence: [cafe_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_outside_queue.gd); [cafe_model.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/cafe_model.gd)
 
-Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
+Tests present: [test_outside_queue.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_outside_queue.gd); [test_departing_route_service.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_departing_route_service.gd)
 
 Visual acceptance: No new reception production acceptance
 
@@ -2366,7 +2366,7 @@ Code status: Decorate bus/vehicle visibility candidate #103
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/scripts/exterior_environment.gd); [illustrated_cafe.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/scripts/illustrated_cafe.gd)
 
-Tests present: [test_editing_visual_feedback.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_editing_visual_feedback.gd); [test_parking_render.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_parking_render.gd)
+Tests present: [test_editing_visual_feedback.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/test_editing_visual_feedback.gd); [test_parking_render.gd](https://github.com/yiyousiow000814/little-leaf/blob/fc3e584b08b25de48503bc64d17d17778af13d41/tests/world/test_parking_render.gd)
 
 Visual acceptance: Editor native workflow exists; traffic-specific cycle acceptance pending
 
@@ -2386,7 +2386,7 @@ Code status: Distinct bus trips absent; static draw_bus(BUS_POSITION) remains
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/world/test_bus_stop.gd)
 
 Visual acceptance: No new trip/lane production acceptance
 
@@ -2406,7 +2406,7 @@ Code status: Distinct bus trips absent; static draw_bus(BUS_POSITION) remains
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/0669d2ca54007c03595ecfc1e72d360ab9103b15/tests/world/test_bus_stop.gd)
 
 Visual acceptance: No new trip/lane production acceptance
 
@@ -2426,7 +2426,7 @@ Code status: Existing environment artwork only; requested refinements absent fro
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_bus_stop.gd)
 
 Visual acceptance: Historical environment images are not new outcome acceptance
 
@@ -2446,7 +2446,7 @@ Code status: Existing environment artwork only; requested refinements absent fro
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_bus_stop.gd)
 
 Visual acceptance: Historical environment images are not new outcome acceptance
 
@@ -2466,7 +2466,7 @@ Code status: Existing environment artwork only; requested refinements absent fro
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_bus_stop.gd)
 
 Visual acceptance: Historical environment images are not new outcome acceptance
 
@@ -2486,7 +2486,7 @@ Code status: Existing environment artwork only; requested refinements absent fro
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
-Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/test_bus_stop.gd)
+Tests present: [test_bus_stop.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/tests/world/test_bus_stop.gd)
 
 Visual acceptance: Historical environment images are not new outcome acceptance
 
