@@ -97,7 +97,7 @@ jobs:
           path: source
       - name: Install the official checksum-pinned toolchain; do not rebuild the game
         working-directory: source
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Reuse only the exact completed release's qualified ordinary runtime
         env:
           GH_TOKEN: ${{ github.token }}
