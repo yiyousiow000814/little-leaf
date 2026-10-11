@@ -41,7 +41,7 @@ with args.lock.open("a") as lock, tempfile.TemporaryDirectory(prefix="little-lea
     commands = [
         ("import", ["--headless", "--editor", "--import", "--quit"]),
         ("no-bottom-notifications", ([] if args.rendered else ["--headless"]) + [
-            "--script", "res://tests/test_no_bottom_notifications.gd", "--",
+            "--script", "res://tests/presentation/test_no_bottom_notifications.gd", "--",
             "--visual-qa", "--skip-intro", "--fresh-review"] +
             (["--capture-dir=" + str(output)] if args.rendered else [])),
     ]

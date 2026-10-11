@@ -39,7 +39,7 @@ def main():
     config = config.replace('config/name="Little Leaf Cafe"', f'config/name="{name}"\nconfig/use_custom_user_dir=true\nconfig/custom_user_dir_name="{name}"')
     config = config.replace('run/main_scene="res://main.tscn"', 'run/main_scene="res://tutorial_qa.tscn"')
     (project / 'project.godot').write_text(config)
-    code = (ROOT / 'tests/test_interactive_tutorial.gd').read_text()
+    code = (ROOT / 'tests/presentation/test_interactive_tutorial.gd').read_text()
     code = code.replace('extends SceneTree', 'extends Node', 1)
     code = code.replace('const Main=preload("res://scripts/main.gd")', '''class FreshMain extends "res://scripts/main.gd":
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
