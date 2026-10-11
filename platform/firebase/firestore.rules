@@ -23,6 +23,22 @@ service cloud.firestore {
         && (d.request == null || d.request.requester != d.owner)
         && (d.ack == null || d.request != null && d.ack.requestId == d.request.id);
     }
+    function validInterval(d) {
+      return d.keys().hasAll(['schema','id','profileId','owner','epoch','device','anchorAt','startAt','state','baseDigest','baseRevision','endAt','resultDigest','resultRevision'])
+        && d.keys().hasOnly(['schema','id','profileId','owner','epoch','device','anchorAt','startAt','state','baseDigest','baseRevision','endAt','resultDigest','resultRevision'])
+        && d.schema == 1 && identifier(d.id) && identifier(d.profileId) && identifier(d.owner)
+        && d.epoch is int && d.epoch > 0 && d.epoch <= 9007199254740991 && device(d.device)
+        && d.anchorAt is timestamp && d.startAt is timestamp && d.anchorAt == d.startAt
+        && digest(d.baseDigest) && d.baseRevision is int && d.baseRevision > 0 && d.baseRevision < 9007199254740991
+        && d.state in ['open','sealed','consumed','cancelled']
+        && ((d.state == 'open' && d.endAt == null) || (d.state in ['sealed','consumed'] && d.endAt is timestamp && d.endAt >= d.startAt)
+          || (d.state == 'cancelled' && (d.endAt == null || d.endAt is timestamp && d.endAt >= d.startAt)))
+        && ((d.state == 'consumed' && digest(d.resultDigest) && d.resultRevision == d.baseRevision + 1)
+          || (d.state != 'consumed' && d.resultDigest == null && d.resultRevision == null));
+    }
+    function sameInterval(a,b) {
+      return b.diff(a).affectedKeys().hasOnly(['state','endAt','resultDigest','resultRevision']);
+    }
     match /players/{uid}/session/owner {
       function sameOwner(a,b) { return a.owner == b.owner && a.epoch == b.epoch && a.device == b.device; }
       function renew(a,b) { return sameOwner(a,b) && b.updatedAt == request.time && b.request == a.request && b.ack == a.ack; }
@@ -67,10 +83,74 @@ service cloud.firestore {
         return request.resource.data.writerId == session.owner && request.resource.data.writerEpoch == session.epoch
           && session.ack == null && request.time < session.updatedAt + duration.value(60,'s');
       }
+      function elapsedCoupled() {
+        let path = /databases/$(database)/documents/players/$(uid)/background/interval;
+        return !exists(path) || !requiresConsume(get(path).data) || consumes(get(path).data,getAfter(path).data);
+      }
+      function requiresConsume(c) {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        return c.state == 'sealed' && c.profileId == resource.data.profileId
+          && c.baseDigest == resource.data.digest && c.baseRevision == resource.data.revision
+          && c.owner == request.resource.data.writerId && c.epoch == request.resource.data.writerEpoch
+          && session.request == null && session.ack == null;
+      }
+      function consumes(a,b) {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        return validInterval(b) && sameInterval(a,b) && b.state == 'consumed' && b.endAt == a.endAt
+          && b.resultDigest == request.resource.data.digest && b.resultRevision == request.resource.data.revision
+          && session.owner == a.owner && session.epoch == a.epoch && session.request == null && session.ack == null;
+      }
       allow get: if owner(uid);
       allow create: if owner(uid) && valid() && currentWriter();
       allow update: if owner(uid) && valid() && currentWriter() && request.resource.data.profileId == resource.data.profileId
-        && request.resource.data.revision > resource.data.revision;
+        && request.resource.data.revision > resource.data.revision && elapsedCoupled();
+      allow list, delete: if false;
+    }
+    // The explicit certificate grants interval authority; the normal writer
+    // lease and takeover rules above retain their original 60-second contract.
+    match /players/{uid}/background/interval {
+      function baseline(c,saved) {
+        return saved.profileId == c.profileId && saved.digest == c.baseDigest && saved.revision == c.baseRevision;
+      }
+      function originalOwner(c,s) {
+        return s.owner == c.owner && s.epoch == c.epoch && s.device == c.device && s.request == null && s.ack == null;
+      }
+      function start(c) {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        let renewed = getAfter(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        let saved = get(/databases/$(database)/documents/players/$(uid)/saves/cafe).data;
+        return c.state == 'open' && c.startAt == request.time && c.anchorAt == request.time
+          && originalOwner(c,session) && request.time < session.updatedAt + duration.value(60,'s')
+          && originalOwner(c,renewed) && renewed.updatedAt == request.time && baseline(c,saved);
+      }
+      function seal(a,b) {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        let renewed = getAfter(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        let saved = get(/databases/$(database)/documents/players/$(uid)/saves/cafe).data;
+        return a.state == 'open' && b.state == 'sealed' && sameInterval(a,b) && b.endAt == request.time
+          && originalOwner(a,session) && session.updatedAt == a.anchorAt && baseline(a,saved)
+          && originalOwner(a,renewed) && renewed.updatedAt == request.time;
+      }
+      function consume(a,b) {
+        let session = get(/databases/$(database)/documents/players/$(uid)/session/owner).data;
+        let saved = get(/databases/$(database)/documents/players/$(uid)/saves/cafe).data;
+        let result = getAfter(/databases/$(database)/documents/players/$(uid)/saves/cafe).data;
+        return a.state == 'sealed' && b.state == 'consumed' && sameInterval(a,b) && b.endAt == a.endAt
+          && originalOwner(a,session) && request.time < session.updatedAt + duration.value(60,'s') && baseline(a,saved)
+          && result.profileId == a.profileId && result.writerId == a.owner && result.writerEpoch == a.epoch
+          && result.digest == b.resultDigest && result.revision == b.resultRevision;
+      }
+      function cancel(a,b) {
+        return a.state in ['open','sealed'] && b.state == 'cancelled' && sameInterval(a,b) && b.endAt == a.endAt;
+      }
+      function replace(a,b) {
+        return b.id != a.id && (a.state in ['consumed','cancelled'] || b.epoch > a.epoch) && start(b);
+      }
+      allow get: if owner(uid);
+      allow create: if owner(uid) && validInterval(request.resource.data) && start(request.resource.data);
+      allow update: if owner(uid) && validInterval(request.resource.data)
+        && (seal(resource.data,request.resource.data) || consume(resource.data,request.resource.data)
+          || cancel(resource.data,request.resource.data) || replace(resource.data,request.resource.data));
       allow list, delete: if false;
     }
     match /{document=**} { allow read, write: if false; }

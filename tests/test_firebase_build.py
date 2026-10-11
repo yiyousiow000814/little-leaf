@@ -19,6 +19,10 @@ with tempfile.TemporaryDirectory() as d:
     assert not (d/'out/public/release-manifest.json').exists()
     assert 'firebase-firestore' in (d/'out/public/little_leaf_firebase.js').read_text()
     assert 'authVerificationOnly' not in result
+    assert '"localBinding": true' in result
+    for name in ['little_leaf_google_binding.js','little_leaf_google_binding_ui.js','little_leaf_local_google_entry.js']:
+        assert (d/'out/public'/name).read_bytes()==(ROOT/'platform/web'/name).read_bytes()
+        assert result.index('<script src="'+name+'">') < result.index('window.__littleLeafFirebaseReady =')
     origin='https://demo-little-leaf--itch-embed-test-fixture.web.app'
     stage(build,d/'auth-only',config,trusted_itch_origin=origin,auth_verification_only=True)
     assert '"authVerificationOnly": true' in (d/'auth-only/public/index.html').read_text()
@@ -26,6 +30,8 @@ with tempfile.TemporaryDirectory() as d:
     assert '<script src=' not in diagnostic
     assert 'new Engine' not in diagnostic and 'GODOT_CONFIG' not in diagnostic
     assert '__littleLeafVault' not in diagnostic and '__littleLeafPreferences' not in diagnostic
+    assert 'localBinding' not in diagnostic
+    assert not (d/'auth-only/public/little_leaf_google_binding.js').exists()
     try:stage(build,d/'unsafe-auth-only',config,auth_verification_only=True)
     except ValueError:pass
     else:raise AssertionError('auth verification accepted outside trusted preview')

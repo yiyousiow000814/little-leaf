@@ -18,6 +18,32 @@ export async function start(config,options={}) {
   const app=initializeApp(config),auth=getAuth(app);
   if(options.authVerificationOnly===true)return verifyAuthOnly(auth);
   const db=getFirestore(app);
+  if(options.localBinding===true){
+    await setPersistence(auth,browserLocalPersistence);
+    await auth.authStateReady();
+    const entry=window.LittleLeafLocalGoogleEntry;
+    if(!entry)throw Error('Local binding support is missing. Reload the full game package.');
+    if(await entry.chooseMode({auth,document,storage:window.sessionStorage})==='local'){
+      entry.install({auth,signIn:()=>signInWithPopup(auth,new GoogleAuthProvider()),
+        verifyGoogle:async credential=>{
+          const user=credential.user,token=await getIdTokenResult(user);
+          if(auth.currentUser!==user || user.isAnonymous || credential.providerId!=='google.com' || token.claims?.firebase?.sign_in_provider!=='google.com')throw Error('Google authentication not verified');
+        },
+        createTarget:async (user,sessionId)=>{
+          const uid=user.uid,deviceLabel=window.LittleLeafFirebase.genericDevice?.(window.navigator) || 'Unknown device';
+          const sessionRemote=window.LittleLeafFirebaseSession.createRemote(db,{doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot},uid);
+          const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,sessionId,deviceLabel,currentUid:()=>auth.currentUser?.uid});
+          try{
+            const journal=await window.LittleLeafFirebase.openJournal(indexedDB),account=await journal.read(uid);
+            if(account?.pending || account?.uploading || account?.elapsedPending || ownership.hasElapsedIntent)throw Error('Unsettled account progress must be reconciled before binding');
+            await ownership.start();ownership.assertActive();
+            const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
+            return {uid,ownership,remote,journal};
+          }catch(error){ownership.close();throw error;}
+        }});
+      return window.__littleLeafVault;
+    }
+  }
   const panel=document.createElement('div');panel.id='cloud-account';panel.setAttribute('aria-live','polite');
   panel.style.cssText='position:fixed;right:8px;top:8px;z-index:40;background:#fffaf0;color:#493d2e;border-radius:8px;padding:7px;font:12px Arial;max-width:80vw';
   const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;button.style.marginLeft='8px';panel.append(label,button);document.body.append(panel);
@@ -136,6 +162,21 @@ export async function start(config,options={}) {
   window.LittleLeafVault=Object.freeze({
     retry(){if(!recoveryBusy && saveState!=='conflict')location.reload();},
     recoverySnapshot(){return JSON.stringify(recoverySnapshot());},prepareChoice,confirmChoice,
+    beginBackground(revision,profileId,callback){return invoke('beginBackground',[revision,profileId],callback);},
+    finishBackground(token,callback){return invoke('finishBackground',[token],callback);},
+    commitBackground(payload,token,callback){return invoke('commitBackground',[payload,token],callback);},
+    cancelBackground(callback){
+      // Cancellation must run even while begin/seal/consume owns invoke's busy
+      // flag. Its own terminal fence determines whether account binding is safe.
+      const captured=client;
+      const terminal=(async()=>{
+        if(!sameAccount() || typeof captured.cancelBackground!=='function')return failure('NOT_READY');
+        try{const result=await captured.cancelBackground();if(!sameAccount() || client!==captured)return failure('NOT_READY');return result;}
+        catch(_){return failure('ELAPSED_UNCERTAIN');}
+      })();
+      if(callback)terminal.then(result=>callback(JSON.stringify(result)));
+      return terminal;
+    },
     preserveRuntime(payload,revision,profileId,callback){return invoke('preserveRuntime',[payload,revision,profileId],callback);},
     preserveOwnerRuntime(payload,revision,profileId,callback){return invoke('preserveOwnerRuntime',[payload,revision,profileId],callback);},
     requestTakeover(callback){return invoke('requestTakeover',[],callback);},

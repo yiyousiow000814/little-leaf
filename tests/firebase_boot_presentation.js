@@ -11,11 +11,17 @@ function fixture(user=null,options={}){
   const client={sync(){},close(){clientClosed++;}};
   const win={addEventListener(){},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:{},LittleLeafUpdates:{create(){return{};}},LittleLeafFirebaseSession:{createRemote(){return{};},createSession(){return {async start(){}};}},LittleLeafFirebase:{createRemote(){return{};},async openJournal(){opened++;return{};},createClient(options){statusCallback=options.status;return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
+  let entryInstalled=false;
+  win.LittleLeafLocalGoogleEntry={async chooseMode(){return options.mode || 'local';},install(){entryInstalled=true;}};
   const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
-  return {nodes,auth,win,emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),client};
+  return {nodes,auth,win,entryInstalled:()=>entryInstalled,emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},{...(options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin}:{}),...(options.localBinding?{localBinding:true}:{})}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),client};
 }
 (async()=>{
+  for(const user of [null,{uid:'synthetic-signed-in',isAnonymous:false}]){
+    const local=fixture(user,{localBinding:true});assert.equal(await local.start(),local.win.__littleLeafVault);assert(local.entryInstalled());assert.deepEqual(local.counts(),{opened:0,closed:0});assert.deepEqual(local.authCounts(),{popupCalls:0,redirectCalls:0,redirectResults:0});assert(!local.nodes.has('cloud-account'));
+  }
+  const cloudEntry=fixture({uid:'synthetic-explicit-cloud',isAnonymous:false},{localBinding:true,mode:'cloud'});assert.equal(await cloudEntry.start(),cloudEntry.client);assert.equal(cloudEntry.entryInstalled(),false);assert.deepEqual(cloudEntry.counts(),{opened:1,closed:1});
   const bridgeSource=fs.readFileSync('game/scripts/cafe_cloud_settings.gd','utf8');
   const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];
   assert(bridgeSource.indexOf('if not JavaScriptBridge.eval')<bridgeSource.indexOf('api=JavaScriptBridge.get_interface'));
@@ -26,6 +32,18 @@ function fixture(user=null,options={}){
   await button.onclick();assert.equal(f.nodes.get('status-label').textContent,'Sign in with Google to open your café.');assert.equal(ready,false);
   f.failRedirect();await button.onclick();assert.match(f.nodes.get('status-label').textContent,/did not finish/);assert.equal(button.disabled,false);assert.equal(ready,false);assert.deepEqual(f.counts(),{opened:0,closed:0});
   f.setUser({uid:'synthetic-user',isAnonymous:false});assert.equal(await pending,f.client);assert.equal(f.nodes.get('status-label').textContent,'Loading your saved café…');assert.equal(f.nodes.get('status-progress').hidden,false);assert.deepEqual(f.counts(),{opened:1,closed:1});
+  // The real account bridge returns its terminal Promise and native callback,
+  // including cancellation while another background invoke is waiting.
+  let releaseBegin,releaseCancel,cancelReceipt,cancelDone=false;
+  f.client.beginBackground=()=>new Promise(resolve=>{releaseBegin=resolve;});
+  f.client.cancelBackground=()=>new Promise(resolve=>{releaseCancel=resolve;});
+  f.win.LittleLeafVault.beginBackground(1,'profile',()=>{});
+  const terminal=f.win.LittleLeafVault.cancelBackground(raw=>{cancelReceipt=JSON.parse(raw);}).then(value=>{cancelDone=true;return value;});
+  await flush();assert(!cancelDone);assert.equal(cancelReceipt,undefined);
+  releaseCancel({ok:true,backgroundCleared:true});assert((await terminal).backgroundCleared);assert(cancelReceipt.backgroundCleared);
+  releaseBegin({ok:false,code:'ELAPSED_CANCELLED'});await flush();
+  f.client.cancelBackground=async()=>({ok:false,code:'ELAPSED_UNCERTAIN'});
+  assert.equal((await f.win.LittleLeafVault.cancelBackground()).code,'ELAPSED_UNCERTAIN');
   const initialFailure=fixture(null,{redirectResultError:true});await assert.rejects(initialFailure.start(),error=>/Reload Little Leaf.*Sign in with Google/.test(error.message)&&!error.message.includes('SDK'));assert.deepEqual(initialFailure.counts(),{opened:0,closed:0});
   let releaseAuth;const authReady=new Promise(resolve=>{releaseAuth=resolve;});const delayed=fixture(null,{authReady});let delayedReady=false;const delayedStart=delayed.start().then(()=>{delayedReady=true;});await flush();assert.equal(delayed.nodes.get('status-label').textContent,'Checking your sign-in…');assert.equal(delayed.nodes.get('cloud-account').children[1].disabled,true);assert.equal(delayedReady,false);releaseAuth();await flush();assert.equal(delayed.nodes.get('status-label').textContent,'Sign in with Google to open your café.');delayed.setUser({uid:'synthetic-delay',isAnonymous:false});await delayedStart;
   assert.equal(f.nodes.get('cloud-account').hidden,true,'signed-in gameplay has no account strip');

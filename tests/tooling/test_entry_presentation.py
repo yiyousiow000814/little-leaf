@@ -16,7 +16,9 @@ class EntryPresentationTests(unittest.TestCase):
         candidate=(ROOT/'platform/web/little_leaf_firebase_boot.mjs').read_text(encoding='utf-8')
         # Refused-save recovery may change presentation; Google and session setup
         # still follow the exact reviewed path before the adapter is created.
-        login_path=lambda text:text[text.index('  button.onclick=async()=>{'):text.index('  const remote=')]
+        def login_path(text):
+            begin=text.index('  button.onclick=async()=>{')
+            return text[begin:text.index('  const remote=',begin)]
         self.assertEqual(login_path(candidate),login_path(baseline))
         handler=lambda text:text[text.index('  button.onclick=async()=>{',text.index('async function verifyAuthOnly')):]
         self.assertEqual(handler(candidate),handler(baseline))

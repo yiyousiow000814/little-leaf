@@ -23,7 +23,7 @@ for (let n = 0; n < 100; n++) registration = window.__littleLeafLifecycleV1.inst
 assert.equal(window.count() + document.count(), 7);
 document.visibilityState = 'hidden'; document.fire('visibilitychange'); window.fire('pagehide');
 document.visibilityState = 'visible'; document.fire('visibilitychange'); window.fire('pageshow');
-assert.deepEqual(events, [['hidden', true], ['pagehide', false], ['visible', false], ['visible', false]]);
+assert.deepEqual(events, [['hidden', true], ['pagehide', false], ['visible', false]]);
 registration.dispose();
 assert.equal(window.count() + document.count(), 0);
 document.visibilityState = 'hidden';

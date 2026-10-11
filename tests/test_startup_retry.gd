@@ -2,6 +2,7 @@ extends SceneTree
 const WebSave=preload("res://scripts/cafe_web_save.gd")
 const Model=preload("res://scripts/cafe_model.gd")
 class FakeGame extends Node:
+ var background_elapsed=null
  const Model=preload("res://scripts/cafe_model.gd")
  var model=Model.new()
  var fresh_start=false

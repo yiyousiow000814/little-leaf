@@ -1,0 +1,35 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{webcrypto}=require('node:crypto');
+const root={crypto:webcrypto,TextEncoder,setTimeout,clearTimeout,location:{origin:'https://synthetic.invalid'}};root.globalThis=root;
+for(const name of ['little_leaf_vault.js','little_leaf_firebase.js','little_leaf_google_binding.js'])vm.runInNewContext(fs.readFileSync('platform/web/'+name,'utf8'),root);
+const codec=root.LittleLeafAuthorityCodec,copy=x=>x==null?null:JSON.parse(JSON.stringify(x));
+const payload=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8'),fail=code=>Object.assign(Error(code),{code});
+async function record(coins,revision=1){const r={format:2,profileId:webcrypto.randomUUID(),revision,createdAt:1,updatedAt:revision,origin:{source:'fresh',legacyDigest:null,importedAt:1},payload:JSON.stringify({...JSON.parse(payload),coins}),previous:null,campaigns:{}};r.digest=await codec.hash(codec.fingerprint(r));return r;}
+const doc=r=>r?{schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r)}:null;
+async function harness(existing=false){
+ let source=await record(17),cloud=existing?doc(await record(999,5)):null,uid='synthetic-google',writes=0,block=false,intent=false,writeFailure='',readFailure=false;
+ const original=copy(source),previous=copy(cloud),store=new Map();
+ const journal={async read(key){return copy(store.get(JSON.stringify(key)));},async replace(key,expected,next){key=JSON.stringify(key);assert.deepEqual(copy(store.get(key)),copy(expected));store.set(key,copy(next));}};
+ const ownership={assertActive(){if(block)throw fail('OWNERSHIP_LOST');},get hasElapsedIntent(){return intent;},snapshot(){return {elapsedPending:block};}};
+ const remote={async read(){if(readFailure)throw fail('OFFLINE');return copy(cloud);},async compareAndSet(id,base,next,guard){guard();if(writeFailure==='before')throw fail('OFFLINE');if(cloud?.digest!==next.digest){if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud=copy(next);writes++;}if(writeFailure==='after')throw fail('OFFLINE');}};
+ const make=()=>root.LittleLeafGoogleBinding.create({uid:'synthetic-google',currentUid:()=>uid,codec,source:async()=>copy(source),remote,journal,ownership,now:()=>100});
+ return {make,original,previous,source:()=>copy(source),cloud:()=>copy(cloud),writes:()=>writes,store,setCloud:r=>cloud=doc(r),setSource:r=>source=r,setUid:x=>uid=x,block:()=>block=true,intent:()=>intent=true,writeFailure:x=>writeFailure=x,readFailure:x=>readFailure=x};
+}
+async function select(c,id){const p=await c.inspect();assert(p.ok);return c.choose(id,p.localDigest,p.cloudDigest);}
+(async()=>{
+ let h=await harness(),c=h.make(),p=await c.inspect();assert.equal(p.choices.length,1);assert.equal(h.writes(),0);assert(c.cancel().localPreserved);assert.deepEqual(h.source(),h.original);assert.equal(h.writes(),0);
+ let result=await select(c,'local');assert(result.ok&&result.cloudConfirmed);assert.equal(h.cloud().record,JSON.stringify(h.original));assert.equal(h.writes(),1);assert.deepEqual(h.source(),h.original);assert((await h.make().retry()).ok);assert.equal(h.writes(),1,'repeat cannot duplicate coins or restaurants');
+ h=await harness(true);c=h.make();p=await c.inspect();assert.deepEqual(copy(p.choices.map(x=>[x.id,x.coins])),[['local',17],['cloud',999]]);assert.equal(h.writes(),0);result=await c.choose('cloud',p.localDigest,p.cloudDigest);assert(result.ok&&result.cloudConfirmed);assert.equal(JSON.parse(h.cloud().record).payload,JSON.parse(h.previous.record).payload);assert.deepEqual(h.source(),h.original);assert.equal(h.writes(),1,'chosen cloud payload receives current ownership fence without merging local progress');
+ h=await harness(true);c=h.make();result=await select(c,'local');assert(result.ok);const selected=JSON.parse(h.cloud().record);assert.equal(selected.payload,h.original.payload,'entire restaurant copied');assert.equal(selected.profileId,h.previous.profileId);assert.equal(selected.revision,6);assert.equal(JSON.parse(selected.payload).coins,17,'no wallet combination');assert.deepEqual(h.source(),h.original);const archive=[...h.store.values()][0];assert.deepEqual(archive.previousCloud.document,h.previous);assert.deepEqual(archive.source,h.original);
+ for(const phase of ['before','after']){h=await harness(true);c=h.make();h.writeFailure(phase);result=await select(c,'local');assert.equal(result.ok,false);assert.deepEqual(h.source(),h.original);h.writeFailure('');result=await h.make().retry();assert(result.ok&&result.cloudConfirmed);assert.equal(h.writes(),1);assert.deepEqual(h.source(),h.original);}
+ h=await harness(true);c=h.make();p=await c.inspect();const newer=await record(333,7);h.setCloud(newer);assert.equal((await c.choose('local',p.localDigest,p.cloudDigest)).code,'CHOICE_CHANGED');assert.deepEqual(h.cloud(),doc(newer));assert.equal(h.writes(),0);assert.deepEqual(h.source(),h.original);
+ h=await harness();c=h.make();p=await c.inspect();h.setSource(await record(88));assert.equal((await c.choose('local',p.localDigest,p.cloudDigest)).code,'CHOICE_CHANGED');assert.equal(h.writes(),0);
+ h=await harness();c=h.make();p=await c.inspect();h.setUid('other-google');assert.equal((await c.choose('local',p.localDigest,p.cloudDigest)).code,'ACCOUNT_CHANGED');assert.equal(h.writes(),0);
+ h=await harness();h.block();assert.equal((await h.make().inspect()).ok,false);assert.equal(h.writes(),0);
+ h=await harness();h.intent();assert.equal((await h.make().inspect()).code,'ELAPSED_UNCERTAIN','an active owner with a boolean elapsed intent cannot bind');assert.equal(h.writes(),0);
+ h=await harness();h.readFailure(true);assert.equal((await h.make().inspect()).ok,false);assert.deepEqual(h.source(),h.original);assert.equal(h.writes(),0);
+ h=await harness();h.store.set(JSON.stringify('synthetic-google'),{pending:true});assert.equal((await h.make().inspect()).code,'ACCOUNT_PENDING');assert.equal(h.writes(),0);
+ h=await harness();c=h.make();assert((await select(c,'local')).ok);h.setSource(await record(81,3));assert((await select(h.make(),'local')).ok);assert.equal(h.writes(),2);assert.equal(JSON.parse(JSON.parse(h.cloud().record).payload).coins,81);const protectedHistory=h.store.get(JSON.stringify(['google-binding-history-v1','synthetic-google']));assert.deepEqual(protectedHistory[0].source,h.original,'later binding preserves earlier verified transition');
+ h=await harness();assert((await select(h.make(),'local')).ok);const advanced=await record(777,9);h.setCloud(advanced);c=h.make();p=await c.inspect();assert.equal(p.resumable,false,'later cloud progress requires a fresh explicit choice');assert.equal(h.writes(),1);assert((await c.choose('cloud',p.localDigest,p.cloudDigest)).ok);assert.equal(JSON.parse(h.cloud().record).payload,advanced.payload);assert.deepEqual(h.source(),h.original);
+ console.log('Google binding: full source preservation, explicit lower-wallet choice, cloud preservation, no implicit writes, durable retry/lost acknowledgement, stale/account/ownership/origin-safe boundaries passed.');
+})().catch(e=>{console.error(e);process.exit(1);});

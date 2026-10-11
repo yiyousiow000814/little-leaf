@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:rules": "firebase emulators:exec --only firestore --project demo-little-leaf 'node rules.test.mjs && node session.rules.test.mjs && node fullflow_fixtures.test.mjs && node fullflow_network.test.mjs'"
+    "test:rules": "firebase emulators:exec --only firestore --project demo-little-leaf 'node rules.test.mjs && node session.rules.test.mjs && node elapsed.rules.test.mjs && node fullflow_fixtures.test.mjs && node fullflow_network.test.mjs'"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.0",
