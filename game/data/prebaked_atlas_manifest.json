@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact settings-layout source cc8d64bbc7333f1e882e00b30472aec6ff329d6d/tree2f262e87a21d23c8f9d7d97deb6ccdc6b58d3e03; QA 67ce6abd8eb9ea4b786f81481094763c7e2e4d61; run38115850771; receiptSHA256 e24e6846819c2edf8c4f33c3e7f919a86e1f61bb7b284f058ed3c3435b157d36; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact panel-close source ea3ac52c6778e000270c294a1352be17b2d26e85/tree5a25b85b2cc379cb8a384c28c8bfba79494741f4; QA 7fa322fe8e104c46c7935886fb1037dba5d88201; run38118329236; receiptSHA256 166a8b60831dfea813a690f3c6e5b5646fa4871759da25b351cbdad4fcdaaef3; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -29,7 +29,7 @@
     "scripts/cafe_checkout.gd": "e4878ad09e016c974f1efadb3f7d6235d63cd97f8f69e8b9a21c94c5ab29f46c",
     "scripts/cafe_checkout_art.gd": "6106ecc3e0ca5eebb86058844fc53a271e885fdb5cefc5a790fed6a6e7e0d0ee",
     "scripts/cafe_cloud_settings.gd": "4ad9bf3ff919f377e422a3b584849b91c7596af725ec5aae4d535cd7a2b93ff4",
-    "scripts/cafe_compact_ui.gd": "9fe3dba28d61b6684383db75b85533a32216795778a053654afb617037431603",
+    "scripts/cafe_compact_ui.gd": "071fd80aad1c9952d54bd9d861b7ed22a0ca4520131d6e31686aa8ca77e4f2b3",
     "scripts/cafe_dining_sets.gd": "9b54f86e5e792003145ad37c2b62dbed65ab3d044395e55066d4292000cc22f7",
     "scripts/cafe_dishwashing.gd": "6fb65e64071907e12a7470a3ddab7a586c21175055a377d00bce47fa89ce791d",
     "scripts/cafe_edit_plan.gd": "ca3283626ba9977389ff15d988625c0f6fb7ecb54ab24ea33eb0af7bffa76113",
@@ -72,7 +72,7 @@
     "scripts/cafe_startup_readiness.gd": "9c7e9a4fbe079f7be649d913ead31edc394e7ecfcc54c29cd0c1fab5e1dc4977",
     "scripts/cafe_tutorial.gd": "23b69ca7e7e17f99043d4ccacdb0c1da04844d083ad3fcf66edc6efb2dff85ca",
     "scripts/cafe_tutorial_state.gd": "712410d0752d341ff3a1bd1b46c744b9c7996e42de3d7f8c2380bfd99cb41cf0",
-    "scripts/cafe_update_notes.gd": "8851996c467590082b6ec0420f71bbe7c85fea6d1dd38ded928f9f7a6c2d0296",
+    "scripts/cafe_update_notes.gd": "315efe43898d2b687f8dcc4e9db4ccd179968238eff52f8266fce952849dc709",
     "scripts/cafe_update_notice.gd": "5985170663c085348227373676c050eb1b8506f681c18c64ae5bb67cedcd80d8",
     "scripts/cafe_viewport_layout.gd": "a52a56c410febc9d73dc44fa56ca791e05632a6de8a1e9b73cb28de7c69df540",
     "scripts/cafe_wall_openings.gd": "1d5f0ec107f894d593e5b3a9020253510d93394ffa8bc3410f372a2ab8027ae6",
