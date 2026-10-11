@@ -13,7 +13,7 @@ import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
 from publish_itch import check_previous, completed, parse_result, verify_artifact
-from release_metadata import version, require_main_ancestor, release_key
+from release.release_metadata import version, require_main_ancestor, release_key
 from project_layout import game_root
 
 SHA = "a" * 40

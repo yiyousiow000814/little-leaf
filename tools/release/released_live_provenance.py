@@ -11,6 +11,10 @@ import os
 from pathlib import Path
 import re
 
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from artifacts import sha256
 from build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from firebase_release_gate import REPOSITORY, require, trusted_run
@@ -23,7 +27,7 @@ RUNTIME = ['index.js', 'index.wasm', 'index.pck']
 COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
     'tools/reuse_released_web.py', 'tools/stage_released_firebase.py',
     '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml',
-    'tools/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
+    'tools/release/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
     '.github/workflows/deploy-firebase.yml']
 
 

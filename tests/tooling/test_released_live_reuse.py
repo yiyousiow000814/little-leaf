@@ -12,7 +12,7 @@ from unittest.mock import patch
 from artifacts import sha256
 import build_firebase
 import deploy_firebase_hosting as hosting
-import released_live_provenance as live
+from release import released_live_provenance as live
 import stage_released_firebase as staging
 from tests.tooling import test_stage_released_firebase as fixtures
 from tests.tooling.test_firebase_hosting_deploy import FakeAPI

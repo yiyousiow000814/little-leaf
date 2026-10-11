@@ -5,6 +5,10 @@ import json
 from pathlib import Path
 import re
 import subprocess
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from project_layout import game_root
 
 STABLE = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
@@ -98,7 +102,7 @@ def version(root, tag="", source_commit=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument("--tag", default="")
     parser.add_argument("--source-commit", default=None)
     parser.add_argument("--require-main-ancestor", action="store_true")

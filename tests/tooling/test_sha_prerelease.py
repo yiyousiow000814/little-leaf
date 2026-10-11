@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import artifacts
 import build_firebase
 import publish_itch
-from release_metadata import version, projected_metadata, release_key
+from release.release_metadata import version, projected_metadata, release_key
 from tests.tooling import test_github_release_workflow as release_workflow
 from tests.tooling.test_release import status
 
