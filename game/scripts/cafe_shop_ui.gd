@@ -269,6 +269,8 @@ func _show_shop_guide():
    var explanation=game.label(card.accessibility_description,15)
    explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
  ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
+ for record in ui.themed_popups:
+  if record.panel==item_guide:record.scroll.scroll_vertical=0
 func _build_product_purpose(page:String)->String:
  if page=="tiles":return "Change one floor tile on owned land. Choose a finish, then tap the floor to apply it. The preview shows any replacement charge or refund. Cancel stops placement."
  return "Build a wall at the chosen height and finish. Choose a style, then tap a position in your café. The preview shows whether it can be placed. Cancel stops placement."
