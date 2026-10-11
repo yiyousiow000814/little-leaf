@@ -97,7 +97,16 @@ jobs:
           path: source
       - name: Install the official checksum-pinned toolchain; do not rebuild the game
         working-directory: source
-        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: |
+          python3 - <<'PY'
+          import os,pathlib,subprocess,sys
+          layouts=(pathlib.Path('tools/install_tools.py'),pathlib.Path('tools/ci/install_tools.py'))
+          installers=[path for path in layouts if path.is_file()]
+          if len(installers)!=1:
+              raise ValueError('Released source must contain exactly one supported toolchain installer')
+          output=pathlib.Path(os.environ['RUNNER_TEMP'])/'godot-tools'
+          subprocess.run([sys.executable,str(installers[0]),'godot','--output',str(output)],check=True)
+          PY
       - name: Reuse only the exact completed release's qualified ordinary runtime
         env:
           GH_TOKEN: ${{ github.token }}
