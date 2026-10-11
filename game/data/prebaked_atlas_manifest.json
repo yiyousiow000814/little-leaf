@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact private19 source 35b82f45b7a16d57c33a3968240fdba8a7af56e3/tree48786ff5a7f494b9337ad6e86a7751ed76d58b0e; QA 83403a6a9199043203752a7ec89cb5fdd785a613; run38107735274; receiptSHA256 6d6c3cbece776e881d9681625be22294b7500e995700f409b68a0126425e440b; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact private19-fix source c108e8caf7642fde132f65966a025d2f04be54c0/treeecc980786fa698d6ced769ae1ac1bf56629e27dc; QA e3002067d263e9d601d0c70f817fd649c932d9f1; run38108855717; receiptSHA256 aea40b69442fa8cffcee7a1fa136e4ede5d44942f99eb59862915f0eb285f7bd; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; source closure explicitly verified; assets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -120,7 +120,7 @@
     "scripts/illustrated_walls.gd": "9206557f5b7f69803555222a6a4ed8f055c504d102adea34737ad5e87dcd48bc",
     "scripts/kitchen_worktop_geometry.gd": "ca13bc08841e7e5f91962a78a05146ea8c491524b2e520951b8502f6c03595e1",
     "scripts/lamp_art.gd": "100dea0f191efe37c76611f5c56ec74071e82495063bdf76e1f94ff83e7de621",
-    "scripts/main.gd": "e5068317157ce56d631aad440a379dcb3250f560e9c6c6ae1a3579604fbe4d20",
+    "scripts/main.gd": "c6cd91f7e5e415f4dae67739fce72d72ea01de35a0ba3f35dcc482adb26e453c",
     "scripts/minimal_start.gd": "c767f7a12871028245e586b90309fa1919ef9eb4fb66610a0a6b34a2653d5542",
     "scripts/moving_art_atlas.gd": "8bc0d47a07f28fbcd73b3aabce12f875cf4e904d51f3c5db6d3344caa7630c3e",
     "scripts/moving_art_painter.gd": "2c94b505d02250c759f4734824285ffac46f3b46ec4cae0a6b3e80f1ba1ce2c0",
