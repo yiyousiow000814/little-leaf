@@ -1,6 +1,7 @@
 """Offline adversarial exact-source manual reuse; no account or network access."""
 import copy
 import base64
+import hashlib
 import json
 import os
 import subprocess
@@ -9,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from artifacts import sha256
+from qualification.artifacts import sha256
 import build_firebase
 import deploy_firebase_hosting as hosting
 import released_live_provenance as live
@@ -162,10 +163,12 @@ class ManualReuseTests(unittest.TestCase):
         self.rewrite(original)
 
     def api(self):
-        from reuse_main_ci import REQUIRED_JOBS
+        from qualification.reuse_main_ci import REQUIRED_JOBS
         test = self
         class API:
-            def __init__(self): self.change = None; self.calls = []; self.release_attempt = 1
+            def __init__(self):
+                self.change = None; self.calls = []; self.release_attempt = 1
+                self.coordinator_contents = {name: (test.root / name).read_bytes() for name in live.COORDINATOR_FILES}
             def read(self, path):
                 self.calls.append(path)
                 if path == 'actions/runs/10': value = copy.deepcopy(test.origin['run'])
@@ -174,6 +177,9 @@ class ManualReuseTests(unittest.TestCase):
                     value = {'status': 'ahead'}
                 elif path.startswith('git/commits/'):
                     value = {'tree': {'sha': test.origin['coordinator_source_tree']}}
+                elif path.startswith('git/trees/'):
+                    value = {'sha': test.origin['coordinator_source_tree'], 'truncated': False,
+                        'tree': [{'path': name, 'type': 'blob'} for name in self.coordinator_contents]}
                 elif path.startswith('git/ref/tags/'):
                     value = {'object': {'type': 'commit', 'sha': SOURCE}}
                 elif path == 'actions/runs/20':
@@ -186,7 +192,8 @@ class ManualReuseTests(unittest.TestCase):
                         'path': '.github/workflows/release-itch.yml', 'event': 'push', 'run_attempt': self.release_attempt}
                 elif path.startswith('contents/'):
                     name = path[9:].split('?ref=')[0]
-                    value = {'encoding': 'base64', 'content': base64.b64encode((test.root/name).read_bytes()).decode()}
+                    content = self.coordinator_contents[name] if name in self.coordinator_contents else (test.root/name).read_bytes()
+                    value = {'encoding': 'base64', 'content': base64.b64encode(content).decode()}
                 else: raise AssertionError(path)
                 if self.change and self.change[0] == path: value[self.change[1]] = self.change[2]
                 return value
@@ -197,6 +204,69 @@ class ManualReuseTests(unittest.TestCase):
                     return rows
                 return [{'name': 'publish', 'run_id': 40, 'run_attempt': self.release_attempt, 'status': 'completed', 'conclusion': 'success'}]
         return API()
+
+    def test_original_old_and_nested_coordinator_namespaces_authenticate_without_relabelling(self):
+        self.stage()
+        original = self.manifest()
+        current = 'tools/qualification/reuse_released_web.py'
+        historical = 'tools/reuse_released_web.py'
+        for old_layout in [False, True]:
+            with self.subTest(old_layout=old_layout):
+                manifest = copy.deepcopy(original)
+                api = self.api()
+                origin = copy.deepcopy(self.origin)
+                if old_layout:
+                    del api.coordinator_contents[current]
+                    api.coordinator_contents[historical] = b'original immutable coordinator helper bytes'
+                    del manifest['qualified_release_reuse']['coordinator_sha256'][current]
+                    manifest['qualified_release_reuse']['coordinator_sha256'][historical] = hashlib.sha256(api.coordinator_contents[historical]).hexdigest()
+                origin['coordinator_sha256'] = manifest['qualified_release_reuse']['coordinator_sha256']
+                digest = self.rewrite(manifest)
+                authenticated = live.authenticate_origin(api, manifest, {'run': origin['run'], 'artifact': origin['artifact']})
+                self.assertEqual(authenticated['coordinator_sha256'], origin['coordinator_sha256'])
+                self.verify(digest, origin=authenticated)
+                selected = historical if old_layout else current
+                rejected = current if old_layout else historical
+                self.assertIn('contents/' + selected + '?ref=' + origin['run']['head_sha'], api.calls)
+                self.assertFalse(any(call.startswith('contents/' + rejected + '?ref=') for call in api.calls))
+
+    def test_missing_ambiguous_or_incomplete_coordinator_tree_is_rejected_before_content_reads(self):
+        self.stage()
+        manifest = self.manifest()
+        current = 'tools/qualification/reuse_released_web.py'
+        tree_path = 'git/trees/' + self.origin['coordinator_source_tree'] + '?recursive=1'
+        for layout in ['missing', 'ambiguous', 'truncated', 'wrong-tree', 'duplicate']:
+            with self.subTest(layout=layout):
+                api = self.api()
+                if layout == 'missing': del api.coordinator_contents[current]
+                elif layout == 'ambiguous': api.coordinator_contents['tools/reuse_released_web.py'] = b'other helper'
+                elif layout == 'duplicate':
+                    paths = [{'path': name, 'type': 'blob'} for name in api.coordinator_contents]
+                    api.change = (tree_path, 'tree', paths + [paths[0]])
+                else:
+                    key, value = ('truncated', True) if layout == 'truncated' else ('sha', '0' * 40)
+                    api.change = (tree_path, key, value)
+                with self.assertRaises(ValueError):
+                    live.authenticate_origin(api, manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+                self.assertFalse(any(call.startswith('contents/') for call in api.calls))
+
+    def test_coordinator_proof_must_match_complete_authenticated_source_era_map(self):
+        self.stage()
+        original = self.manifest()
+        for layout in ['missing', 'ambiguous', 'extra', 'relabeled']:
+            with self.subTest(layout=layout):
+                manifest = copy.deepcopy(original)
+                hashes = manifest['qualified_release_reuse']['coordinator_sha256']
+                current = 'tools/qualification/reuse_released_web.py'
+                if layout == 'missing': del hashes[current]
+                elif layout == 'extra': hashes['tools/unknown.py'] = '0' * 64
+                else:
+                    hashes['tools/reuse_released_web.py'] = hashes[current]
+                    if layout == 'relabeled': del hashes[current]
+                with self.assertRaises(ValueError):
+                    live.authenticate_origin(self.api(), manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+                if layout != 'relabeled':
+                    with self.assertRaises(ValueError): self.verify(self.rewrite(manifest))
 
     def test_fresh_api_authenticates_dual_identity_and_rejects_changed_history_source_or_gates(self):
         self.stage(); manifest = self.manifest(); api = self.api()

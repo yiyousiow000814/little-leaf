@@ -49,7 +49,7 @@ class ItchTagGateTests(unittest.TestCase):
         source = WORKFLOW.read_text()
         for guard in ["tags: ['v*']", 'github.event.created && !github.event.deleted',
                       '--require-main-ancestor', 'needs: [gate, build]',
-                      'python3 tools/reuse_main_ci.py',
+                      'python3 tools/qualification/reuse_main_ci.py',
                       'ref: ${{ needs.gate.outputs.sha }}',
                       'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
                       'digest-mismatch: error', 'Missing BUTLER_API_KEY',

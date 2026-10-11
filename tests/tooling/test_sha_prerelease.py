@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 from types import SimpleNamespace
 
-import artifacts
+from qualification import artifacts
 import build_firebase
 import publish_itch
 from release_metadata import version, projected_metadata, release_key
