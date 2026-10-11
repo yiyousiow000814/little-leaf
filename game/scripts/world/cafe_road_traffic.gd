@@ -22,11 +22,13 @@ static func validate(state)->bool:
 		for other in state.cars:
 			if car.id!=other.id and car.direction==other.direction and fposmod((other.position.y-car.position.y)*car.direction,float(Extent.STREET_Z_MAX-Extent.STREET_Z_MIN))<GAP-.001:return false
 	return true
-static func allowance(position:Vector2,direction:int,budget:float,road:Array,parking:Array,except_id:int=-1)->float:
+static func allowance(position:Vector2,direction:int,budget:float,road:Array,parking:Array,except_id:int=-1,cyclic_road:bool=true)->float:
 	var allowed=budget;var span=float(Extent.STREET_Z_MAX-Extent.STREET_Z_MIN)
 	for car in road:
 		if car.id==except_id or car.direction!=direction:continue
-		var ahead=fposmod((car.position.y-position.y)*direction,span)
+		var ahead=(car.position.y-position.y)*direction
+		if cyclic_road:ahead=fposmod(ahead,span)
+		elif ahead<0:continue
 		allowed=minf(allowed,maxf(0,ahead-GAP))
 	for car in parking:
 		if car.phase not in ["car_arriving","car_departing"] or absf(car.car_position.x-position.x)>1.7:continue

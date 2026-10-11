@@ -39,6 +39,7 @@ SUITES = [
     ("test_parking", "PARKING_RESULT"),
     ("test_parking_parties", "PARKING_PARTIES_RESULT"),
     ("test_parking_traffic", "PARKING_TRAFFIC_RESULT"),
+    ("test_parking_finite_departure", "PARKING_FINITE_DEPARTURE_RESULT"),
     ("test_parking_decor_ui", "PARKING_DECOR_UI_RESULT"),
     ("test_parking_render", "PARKING_RENDER_RESULT"),
     ("test_parking_service", "PARKING_SERVICE_RESULT"),

@@ -189,7 +189,9 @@ static func advance(model,delta:float):
 			if int(car.id)!=moving_id:continue
 			var budget=CAR_SPEED*delta;var stop_index=-1
 			if absf(car.car_position.x-CAR_START.x)<.01:
-				budget=Traffic.allowance(car.car_position,1,budget,old_road,[])
+				# Final exit is finite: road cars behind the street seam cannot lead it.
+				var cyclic_road=not (car.phase=="car_departing" and car.car_route.size()==35 and int(car.car_index)==34)
+				budget=Traffic.allowance(car.car_position,1,budget,old_road,[],-1,cyclic_road)
 			if car.phase=="car_departing" and car.car_route.size()==35 and (int(car.car_index)<18 or (int(car.car_index)==18 and car.car_position.distance_to(car.car_route[17])<.0001)):
 				# Wait at the aisle before committing the merge arc; once committed,
 				# road followers yield to the physical car instead of restarting it.

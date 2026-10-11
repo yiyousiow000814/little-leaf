@@ -68,3 +68,41 @@ The766eeb2 parking correction has a bounded independent pass across all four den
 Exact467a1364 canonical run38101263431 verifies881raw Git blobs,124dependencies and exact original three-atlas RGBA equality. Manifest-only7272f9e3 binds that proof; no image/import/guard change.662 focused behavior/render checks and17 private actual-Main ordinary-Web lifecycle/traffic checks pass. The latter uses300 fixed1/30 steps and five inspected1280x720 frames; it does not establish real-time browser cadence, ordinary startup/authentication, full-session completion, FPS, memory soak or release qualification. Existing DraftPR158 retains automatic final CI and user/composed-source acceptance gates.
 
 CI clearance correction after PR158 b168be6: the original shelter artwork is translated 0.5 world units toward the lawn through the existing draw_props projection hook. Obstacle bounds and roof classification use the same offset; passengers use the now-clear curb-side aisle and clear the end post before turning behind the glass. The first low planting pocket moves outside the expanded paving. Bus shape/path/door anchor, turning curb clearance, saved pool and party identities are unchanged. Static bench/sign drawing functions stay untouched for PR162 composition. The obsolete fixed kerb sample cap is derived from both actual curved spans plus the six straight/ramp strips; original pedestrian clearance assertions remain intact. Targeted/native/canonical/final CI receipts must be read at the corrected exact source before acceptance.
+
+## Finite final-road departure
+
+A declared coupled traffic fixture exposed a circular wait: a fully boarded car
+on the last straight road segment followed the periodic image of a through-road
+car behind the street seam. That road car waited behind a new parking arrival,
+which the existing single-maneuver selection held until the departure retired.
+The final 35-point departure now considers only physically forward road cars.
+Arrivals, earlier maneuver segments and ordinary road followers retain cyclic
+following; a physical forward blocker still stops the departing car. Existing
+speed, clearance, merge arbitration, membership, endpoint and snapshot fields
+remain authoritative. The additive traffic argument defaults to the old rule.
+
+The exact isolated `822525ab` baseline/candidate fixture passed 72 checks with
+and without the transient bus. It reproduced the declared wait and retired the
+candidate at its existing endpoint after 27 fixed 1/30 steps. This is mechanism
+and recurrence evidence, not recovery of the unknown leader in the earlier
+natural recording and not a naturally completed paid visit. The tracked
+`test_parking_finite_departure` retains the same declared candidate input without
+shipping duplicate historical production helpers.
+
+The current-main composition preserves the approved 50,000 new-purchase price
+and historical paid-cost refunds. `Main`, the runtime codec/save contract,
+project configuration and ambient traffic body remain current-main bytes.
+The new authoritative road helper lives in `scripts/world/`; its literal
+consumers move together. The original `822525ab` source and evidence are frozen.
+Current-source engine, atlas, natural paid-party journey, user playback and
+merge/release acceptance are separate gates; old receipts do not qualify the
+composition. No economy, customer dispatch, service timer, save version, art or
+traffic priority rule is added by the finite-leg correction.
+
+The bounded change follows the [Living World contract](../design/living-world.md)
+and the existing [Feature Design Quality Gate](../design/README.md#feature-design-quality-gate).
+It adds one predicate and one argument at an existing traffic boundary, with no
+new retained objects, per-frame search, cache or invalidation. Audio, UI, assets
+and rendered geometry are unchanged by this correction. The code-health review
+covers only the existing allowance and final-leg dispatch; wider traffic or
+path rewrites remain outside this fix.
