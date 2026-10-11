@@ -6,10 +6,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
-const {installEngineLaunchHook} = require('./engine_launch_hook');
+const {installEngineLaunchHook} = require('../engine_launch_hook');
 const {hash, canonical, within, verifyExport, verifyPreflightBinding, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
-const root = path.resolve(__dirname, '..');
-const fixtureDir = path.join(__dirname, 'fixtures/wall-compatibility');
+const root = path.resolve(__dirname, '../..');
+const fixtureDir = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
 
 // Observation only. Every original storage method and save callback is invoked

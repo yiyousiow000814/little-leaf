@@ -106,7 +106,7 @@ python3 tools/prepare_browser_qa.py wall \
 
 PLAYWRIGHT_CHROMIUM_CHANNEL=chrome \
 PLAYWRIGHT_MODULE=/path/to/node_modules/playwright xvfb-run -a \
-  node tests/wall_compatibility_browser.js \
+  node tests/rendering/wall_compatibility_browser.js \
   --old-source /path/to/exact-old-checkout \
   --old-web /path/to/old-web-build/web \
   --new-web /path/to/new-web-build/web \

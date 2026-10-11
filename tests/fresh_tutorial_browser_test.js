@@ -3,7 +3,7 @@ const {sourcePath}=require('./source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
 const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');
-const {hash, canonical} = require('./wall_compatibility_helpers');
+const {hash, canonical} = require('./rendering/wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
 const receipt = {checks: 10, failures: [], player_save_used: false,
@@ -150,7 +150,7 @@ try {
     assert.equal(command, 'git');
     return args[0] === 'rev-parse' ? commit : dirty ? ' M tests/fresh_tutorial_browser.js' : '';
   };
-  const sourceNames = ['tests/presentation/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/wall_compatibility_helpers.js', 'project.godot'];
+  const sourceNames = ['tests/presentation/test_interactive_tutorial.gd', 'tests/run_integration_candidate.py', 'tests/fresh_tutorial_browser.js', 'tests/rendering/wall_compatibility_helpers.js', 'project.godot'];
   const engineName = name => path.relative(root, sourcePath(root, name)).split(path.sep).join('/');
   const engine = {source_commit: commit, status: 'passed', source_sha256: Object.fromEntries(sourceNames.map(name => [engineName(name), hash(fs.readFileSync(sourcePath(root,name)))])),
     records: [{test: 'test_interactive_tutorial', exit_code: 0, failures: [], result_sha256: hash(JSON.stringify(receipt))}]};

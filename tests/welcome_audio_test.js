@@ -6,7 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const os = require('node:os');
 const cp = require('node:child_process');
-const {hash} = require('./wall_compatibility_helpers');
+const {hash} = require('./rendering/wall_compatibility_helpers');
 const {installWelcomeAudioObserver} = require('./welcome_audio_observer');
 const {preferences, MODES, GESTURES, PREFERENCE_KEY, sustainedSignal, analyzeTrial, compareTrials,
   launchOptions, verifyBrowserArguments, verifySource, SERVICE_MP3} = require('./welcome_audio_helpers');
