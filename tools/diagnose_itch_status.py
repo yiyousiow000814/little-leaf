@@ -48,7 +48,9 @@ def command(binary, arguments, *, authenticated=False):
 
 
 def preflight(binary):
-    version_code, version_text, _ = command(binary, ['--version'])
+    version_code, version_stdout, version_stderr = command(binary, ['--version'])
+    # Kingpin writes --version to stderr; retain neither stream in the report.
+    version_text = version_stdout + '\n' + version_stderr
     expected = LOCK['butler']['version']
     matched = version_code == 0 and bool(re.search(r'(?<![0-9.])v?' + re.escape(expected) + r'(?![0-9.])', version_text))
     help_code, _, _ = command(binary, ['status', '--help'])
