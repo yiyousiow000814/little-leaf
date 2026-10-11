@@ -252,16 +252,26 @@ func _setup_item_guide():
  box.add_child(ui._small_button("Done",func():item_guide.hide();ui.sync(),80))
  ui._wrap_themed_popup(item_guide,340)
 func _show_shop_guide():
- if game.catalog_category=="Build":ui._popup_at(build_guide,340);return
+ if game.catalog_category=="Build" and build_page=="products":ui._popup_at(build_guide,340);return
  for child in item_guide_copy.get_children():item_guide_copy.remove_child(child);child.queue_free()
- for kind in game.catalog_cards:
-  var card:Button=game.catalog_cards[kind]
-  if not card.visible:continue
-  var name=game.label(game.model.name_of(kind),18)
-  name.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(name)
-  var explanation=game.label(card.accessibility_description,15)
-  explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
+ if game.catalog_category=="Build":
+  var instructions=game.label(_build_product_purpose(build_page),15)
+  instructions.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(instructions)
+  for key in _visible_build_keys():
+   var name=game.label(build_cards[key].accessibility_name,18)
+   name.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(name)
+ else:
+  for kind in game.catalog_cards:
+   var card:Button=game.catalog_cards[kind]
+   if not card.visible:continue
+   var name=game.label(game.model.name_of(kind),18)
+   name.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(name)
+   var explanation=game.label(card.accessibility_description,15)
+   explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;item_guide_copy.add_child(explanation)
  ui.hud.theme_panel_contents(item_guide_copy);ui._popup_at(item_guide,340)
+func _build_product_purpose(page:String)->String:
+ if page=="tiles":return "Change one floor tile on owned land. Choose a finish, then tap the floor to apply it. The preview shows any replacement charge or refund. Cancel stops placement."
+ return "Build a wall at the chosen height and finish. Choose a style, then tap a position in your café. The preview shows whether it can be placed. Cancel stops placement."
 func _find_parking():
  build_guide.hide();_pick_category("Decor")
  # The category switch restores its rail before revealing the exterior upgrade.
@@ -376,7 +386,8 @@ func _make_tile_card(key:String,title:String,price:String,style:String,callback:
  var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;coin.visible=not collection
  var cost=ui.hud._label(price_row,price,18);cost.clip_text=false;cost.size_flags_vertical=Control.SIZE_SHRINK_CENTER
  var status=ui.hud._label(body,"Choose a style" if collection else "per tile",11);status.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
- card.tooltip_text="Browse tile styles" if collection else title+" · "+price+" coins per tile"
+ card.tooltip_text="Browse floor finishes" if collection else "Change one floor tile. Preview shows charge or refund."
+ card.accessibility_description="Choose a floor finish for owned land." if collection else _build_product_purpose("tiles")
  card.accessibility_name="Browse Tiles" if collection else title+", "+price+" coins per tile"
  return card
 func _setup_walls():
@@ -393,8 +404,9 @@ func _setup_walls():
    build_previews[key].image=preview;wall_cards[key]=card;wall_styles[key]={"height":height,"material":material}
    var height_name="Full wall" if height=="full" else "Half wall"
    card.get_child(0).get_child(3).text=height_name
-   card.tooltip_text=title+" · "+height_name+" · "+ui.Money.amount(game.model.wall_price(height))+" coins per tile"
-   card.accessibility_name=card.tooltip_text
+   card.accessibility_name=title+" · "+height_name+" · "+ui.Money.amount(game.model.wall_price(height))+" coins per tile"
+   card.tooltip_text="Build a wall. Preview shows where it can go."
+   card.accessibility_description=_build_product_purpose("walls")
  _sync_build_page()
 func _sync_build_page():
  for key in build_cards:
@@ -860,8 +872,9 @@ func sync(width:float):
  ui.context_label.add_theme_font_size_override("font_size",14 if narrow else 16)
  sync_action_details()
  _position_category_panel()
- build_guide_button.text="Build guide" if game.catalog_category=="Build" else "Item guide"
- build_guide_button.accessibility_name="Build guide: move doors, find parking and land" if game.catalog_category=="Build" else "Item guide: contents, uses and availability"
+ var general_build_guide=game.catalog_category=="Build" and build_page=="products"
+ build_guide_button.text="Build guide" if general_build_guide else "Item guide"
+ build_guide_button.accessibility_name="Build guide: move doors, find parking and land" if general_build_guide else "Item guide: contents, uses and availability"
  build_guide_button.visible=game.editing and not header_active and not ui.has_open_popup()
  _put(build_guide_button,Rect2(w-148,-52,132,44))
  footer_hint.hide()
