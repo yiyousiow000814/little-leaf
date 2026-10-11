@@ -76,3 +76,8 @@ tests interrupted/repeated restore, purchased-layout retention, wrong envelopes,
 body/route/ownership failures and protected targets. Headless checks establish
 reader behavior, not rendered-pixel acceptance. Native capture requires a fresh
 exact-source atlas qualification; no previous PR165 proof is transferred.
+
+The ordinary Main `_service_save_snapshot()` signature remains unchanged for
+existing subclasses and save consumers. Private review export uses the separate
+pure `_service_snapshot_ledger()` helper so refusal probes do not mutate live
+service ownership while taking a snapshot.

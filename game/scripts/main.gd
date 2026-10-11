@@ -724,8 +724,11 @@ func _update_ui():
 	if build_tools!=null:build_tools.sync()
 	if compact_ui!=null:compact_ui.sync()
 
-func _service_save_snapshot(sync:bool=true)->Dictionary:
-	if sync:_sync_staff_duty();_sync_service_guests()
+func _service_save_snapshot()->Dictionary:
+	_sync_staff_duty();_sync_service_guests()
+	return _service_snapshot_ledger()
+
+func _service_snapshot_ledger()->Dictionary:
 	var records=[]
 	for id in service_guests:
 		var record=service_guests[id].duplicate(true);record.erase("guest");record["guest_id"]=int(id);records.append(record)
@@ -782,7 +785,7 @@ func _restore_service_runtime():
 
 func save_routing_reception_review(path:String=SaveContract.ROUTING_RECEPTION_REVIEW_FILE)->bool:
 	if navigation_review==null or not fresh_start or not save_writes_suppressed or not model.routing_reception_review_enabled or not model.ReceptionReview.path_allowed(path,false,true):return model._fail("Main routing reception writer gate refused")
-	var snapshot=_service_save_snapshot(false)
+	var snapshot=_service_snapshot_ledger()
 	for index in snapshot.staff.size():
 		if not navigation_review.export_staff(index,snapshot.staff[index]):return model._fail("Cannot export a safe staff anchor")
 	var previous=model.service_snapshot

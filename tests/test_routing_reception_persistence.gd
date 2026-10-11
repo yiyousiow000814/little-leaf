@@ -18,7 +18,7 @@ func check(ok,label):
 func write(path,data):
  var file=FileAccess.open(path,FileAccess.WRITE);assert(file!=null);file.store_string(JSON.stringify(data));file.close()
 func state(game):
- return Model.RuntimeCodec.new().encode([game.model.coins,game.model.items,game.model.owned_parcels,game.model.customers,game.model.reception_visits,game.model.departing_bodies,game.model.served,game.model.total_earned,game.model.service_snapshot,game._service_save_snapshot(false),game.ground_mess_generation,game.navigation_review.serial,game.model.routing_reception_review_enabled])
+ return Model.RuntimeCodec.new().encode([game.model.coins,game.model.items,game.model.owned_parcels,game.model.customers,game.model.reception_visits,game.model.departing_bodies,game.model.served,game.model.total_earned,game.model.service_snapshot,game._service_snapshot_ledger(),game.ground_mess_generation,game.navigation_review.serial,game.model.routing_reception_review_enabled])
 func refuse(game,data,label):
  var path="user://private19-invalid.json";write(path,data)
  var before=state(game);var hash=FileAccess.get_sha256(path)
