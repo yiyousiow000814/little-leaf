@@ -5,10 +5,11 @@ description: Review Little Leaf art changes using actual same-scene normal-scale
 
 # Game art review
 
-Read the [Art Bible](../../../docs/art-audio/ART_BIBLE.md) and relevant
-reference/inventory rows. Respect each reference's scope: rejected45f7cd3 is not
-an approved baseline; the shelter-style image and road annotation are not paired
-Before/After; Settings approval is bounded. Missing inspection stays explicit.
+Read the [Art Bible](../../../docs/art-audio/ART_BIBLE.md) and its relevant
+[reference decisions](../../../docs/art-audio/ART_BIBLE.md#reference-and-evidence-registry).
+Respect each reference's recorded scope: rejected examples are not approved
+baselines, direction images are not paired Before/After, and acceptance of one
+screen or asset does not approve others. Missing inspection stays explicit.
 
 Verify source/tree, editable/export/import identities and actual capture files.
 Require matching scene, normal play scale, camera, viewport, fixture and relevant
@@ -18,16 +19,16 @@ concept, crop or successful geometry/atlas check does not replace game pixels.
 Assess structure/joins, silhouette and proportion, material palette/planes,
 detail and visible glyph ink, ground/service contact, occlusion and neighboring
 interactions. Check relevant rotations, empty/occupied states and first frames
-after motion/zoom. Preserve shelter back/people/front layering and existing
-character pauses. Record the basic-chair source discrepancy as Pending actual
-pixel audit unless that scoped audit has been performed; do not repair it here.
+after motion/zoom. Preserve the asset's layered relationships and current
+roadmap boundaries. Retain unresolved source-versus-pixel discrepancies as gaps;
+a review does not authorize unrelated repairs.
 
-For Occlusion QA, use the renderer-owned [depth contract](https://github.com/yiyousiow000814/little-leaf/blob/e3a71b24ca220bc27bb4abbd13fbdaee88e9ecfe/docs/development/depth-occlusion.md).
-Its canonical home `docs/development/depth-occlusion.md` awaits main integration.
-Check its actual-order/continuous-frame evidence and explicit open cases, including
-relevant actor/tree crossings and Decorate rotations. Existing bounded observations
-are not all-scene acceptance or PR189 user approval. Art approval cannot waive a
-depth regression; the Bible retains the source reference and approval limits.
+For Occlusion QA, follow the renderer-owned depth contract through the Bible's
+[maintained contracts](../../../docs/art-audio/ART_BIBLE.md#authority-and-existing-contracts).
+Check actual-order/continuous-frame evidence and explicit open cases, including
+relevant actor/prop crossings and affected Decorate rotations. A bounded
+observation is not all-scene or user acceptance. Art approval cannot waive a
+depth regression.
 
 Apply the [performance contract](../../../docs/testing/rendering-performance.md)
 to a representative candidate/control sample. Check the measured surface,
@@ -43,7 +44,7 @@ Report exact evidence, specific findings, smallest next action and a bounded
 reviewer recommendation. Keep that recommendation separate from user approval.
 
 Update Approved/Rejected/Pending reference decisions only from actual user
-decisions with scope and source. The Bus Stop pilot must refine the draft system
-before the user approves both and a Golden Reference is recorded. Automated
-checks never grant visual approval. This skill grants no additional merge,
-deployment, account or asset-editing authority.
+decisions with scope and source. Follow the Bible's current pilot/refinement and
+Golden gates before recording a new standard. Automated checks never grant
+visual approval. This skill grants no additional merge, deployment, account or
+asset-editing authority.
