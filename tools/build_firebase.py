@@ -2,7 +2,7 @@
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 from build_web import ROOT, sha256
-import artifacts
+from qualification import artifacts
 from project_layout import source_path
 from entry_presentation import entry_styles
 
@@ -69,7 +69,7 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
         shutil.copy2(ROOT/'platform/firebase'/name,output/name)
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'platform/web'/name,public/name)
-    html=(public/'index.html').read_text()
+    html=(public/'index.html').read_text(encoding='utf-8')
     boot_marker='window.__littleLeafVault.boot()'
     if html.count(boot_marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(boot_marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
@@ -108,7 +108,7 @@ BROWSER_GATES = {
 }
 FOCUSED_LOGS = ['adapter.log', 'delayed-network.log', 'recovery.log', 'choice.log', 'session.log', 'update-notice.log', 'recovery-presentation.log', 'recovery-browser.log', 'staging-tests.log', 'rules.log']
 
-def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt):
+def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, attempt, itch_test_entry=False):
     if not re.fullmatch(r'[1-9][0-9]*', str(run_id)) or not re.fullmatch(r'[1-9][0-9]*', str(attempt)):
         raise ValueError('Fresh CI requires this run and attempt identity')
     base=validate_export_inventory(build)
@@ -134,6 +134,10 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
             expected={'source_commit':source,'source_tree':tree,'export_manifest_sha256':sha256(build/'web/release-manifest.json'),'native_report_sha256':sha256(engine_report),'real_compiled_ui':True,'real_firestore_rules':True,'synthetic_only':True,'browser_sandbox':True,'real_google_sign_in':False,'diagnostic_only':False}
             if any(report.get(k)!=v for k,v in expected.items()) or not report.get('checks'):
                 raise ValueError('Compiled Firebase browser/source binding mismatch')
+            if itch_test_entry and (report.get('itch_test_entry') is not True
+                    or report.get('itch_ancestor_origins') != ['https://html-classic.itch.zone', 'https://siowyiyou.itch.io']
+                    or not re.fullmatch(r'[0-9a-f]{64}', report.get('itch_entry_sha256', ''))):
+                raise ValueError('Compiled exact stable iframe flow is required')
             required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
             if report.get('source_sha256')!={name:sha256(source_path(ROOT,name)) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
@@ -203,6 +207,7 @@ def main():
     p.add_argument('--public-config',type=Path,required=True);p.add_argument('--local-tools',action='store_true')
     p.add_argument('--require-fresh-ci',action='store_true');p.add_argument('--engine-report',type=Path);p.add_argument('--focused-logs',type=Path)
     p.add_argument('--itch-preview-bootstrap',action='store_true')
+    p.add_argument('--itch-test-entry',action='store_true')
     p.add_argument('--publication-receipt',type=Path,help='Verified exact completed itch publication from release selection')
     a=p.parse_args();git=lambda *args:subprocess.check_output(['git','-C',str(ROOT),*args],text=True).strip()
     if git('status','--porcelain'):raise RuntimeError('Commit/review all source before staging')
@@ -213,11 +218,23 @@ def main():
     proof=None
     if a.require_fresh_ci:
         if not a.engine_report or not a.focused_logs:raise ValueError('Fresh CI evidence paths required')
-        proof=validate_fresh_ci(a.validated_web_build,a.engine_report,a.focused_logs,source,tree,os.environ.get('GITHUB_RUN_ID',''),os.environ.get('GITHUB_RUN_ATTEMPT',''))
+        proof=validate_fresh_ci(a.validated_web_build,a.engine_report,a.focused_logs,source,tree,os.environ.get('GITHUB_RUN_ID',''),os.environ.get('GITHUB_RUN_ATTEMPT',''),a.itch_test_entry)
     config=json.loads(a.public_config.read_text())
     if proof and (config.get('projectId')!='little-leaf-41e5d' or config.get('authDomain')!='little-leaf-41e5d.firebaseapp.com'):
         raise ValueError('Fresh preview requires the approved public Firebase project configuration')
-    if a.itch_preview_bootstrap:
+    if a.itch_test_entry:
+        if not proof or a.itch_preview_bootstrap or a.publication_receipt:
+            raise ValueError('Test entry requires fresh gates and excludes preview/publication')
+        from build_itch_trusted_preview import prepare_stable
+        prepare_stable(a.validated_web_build,a.output,config,source,tree)
+        path=a.output/'firebase-variant-manifest.json'
+        manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
+        manifest['status']='fresh-itch-test-entry-not-live-eligible'
+        path.write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+        flow=json.loads((a.validated_web_build/'evidence/firebase-fullflow/firebase-fullflow.json').read_text())
+        if flow['itch_entry_sha256']!=sha256(a.output/'public/itch/index.html'):
+            raise ValueError('Final embedded entry differs from compiled iframe test')
+    elif a.itch_preview_bootstrap:
         if not proof:raise ValueError('Trusted preview bootstrap requires the unchanged fresh CI gates')
         from build_itch_trusted_preview import prepare
         prepare(a.validated_web_build,a.output,config,

@@ -7,6 +7,10 @@ from pathlib import Path
 import re
 import subprocess
 
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from ci.install_tools import LOCK
 from publish_itch import TARGET, parse_result, channel
 

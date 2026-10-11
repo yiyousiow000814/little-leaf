@@ -59,6 +59,17 @@ class FreshStageTests(unittest.TestCase):
         self.assertEqual(result['source_commit'],SOURCE)
         self.assertEqual(set(result['gate_evidence_sha256']),{'native','export',*BROWSER_GATES,*('firebase-'+x+s for x in FOCUSED_LOGS for s in ['', '.json'])})
 
+    def test_stable_test_requires_actual_exact_two_ancestor_flow(self):
+        p=self.build/'evidence/firebase-fullflow/firebase-fullflow.json';original=json.loads(p.read_text())
+        with self.assertRaisesRegex(ValueError,'iframe'):
+            validate_fresh_ci(self.build,self.native,self.logs,SOURCE,TREE,'1','1',True)
+        original.update(itch_test_entry=True,itch_ancestor_origins=['https://html-classic.itch.zone','https://siowyiyou.itch.io'],itch_entry_sha256='c'*64)
+        p.write_text(json.dumps(original))
+        self.assertEqual(validate_fresh_ci(self.build,self.native,self.logs,SOURCE,TREE,'1','1',True)['status'],'fresh-gates-passed')
+        original['itch_ancestor_origins'].reverse();p.write_text(json.dumps(original))
+        with self.assertRaisesRegex(ValueError,'iframe'):
+            validate_fresh_ci(self.build,self.native,self.logs,SOURCE,TREE,'1','1',True)
+
     def test_wrong_source_tree_run_attempt_or_toolchain_rejected(self):
         for key,value in [('source_commit','c'*40),('source_tree','c'*40),('workflow_run','2'),('workflow_attempt','2'),
                           ('test_report_sha256','c'*64),('toolchain_verification','local-tools-unverified-for-release'),('packed_smoke','failed')]:
@@ -151,8 +162,9 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('uses: ./.github/workflows/build-web.yml',text)
         self.assertIn('firebase_preview: true',text)
         self.assertIn('itch_preview: ${{ inputs.itch_preview || false }}',text)
-        self.assertEqual(text.count('type: boolean'),1)
-        self.assertEqual(text.count('default: false'),1)
+        self.assertEqual(text.count('type: boolean'),2)
+        self.assertEqual(text.count('default: false'),2)
+        self.assertIn('itch_test_entry: ${{ inputs.itch_test_entry || false }}',text)
         # The default/manual fresh lane keeps its original no-reuse contract.
         # The separately selected released lane has explicit read-only access.
         fresh=text[text.index('  fresh:'):text.index('  released:')]

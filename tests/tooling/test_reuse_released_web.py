@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import reuse_released_web as pinned
+from qualification import reuse_released_web as pinned
 from tests.tooling.test_firebase_release_event import archive, API as EventAPI
 
 

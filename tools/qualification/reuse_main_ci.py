@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import sys
 import re
 import stat
 import subprocess
@@ -12,13 +13,16 @@ import time
 import urllib.request
 import zipfile
 
-from artifacts import sha256, validate_export_inventory
+# Direct CLI execution resolves the existing root tool modules.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from qualification.artifacts import sha256, validate_export_inventory
 from build_web import (PRODUCTION_DIRS, PRODUCTION_FILES, REQUIRED_NOTICES,
                        verify_installer_receipt)
 from project_layout import resource_name, source_path
-from release_metadata import version, projected_metadata
+from release.release_metadata import version, projected_metadata
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = 'yiyousiow000814/little-leaf'
 WORKFLOW = '.github/workflows/ci.yml'
 REQUIRED_JOBS = {'web / guard', 'web / historical', 'web / build', 'web / gate',

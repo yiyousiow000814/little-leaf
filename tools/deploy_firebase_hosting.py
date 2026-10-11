@@ -20,7 +20,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
-from released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
+from release.released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
 
 SITE = 'little-leaf-41e5d'
 ORIGIN = 'https://' + SITE + '.firebaseapp.com/'
@@ -506,6 +506,359 @@ def preview_smoke(origin, expected):
         return json.load(response) == expected
 
 
+ITCH_TEST_STATUS = 'fresh-itch-test-entry-not-live-eligible'
+ITCH_BASELINE = {'release': SITE_PATH + '/releases/1791701963370000',
+                 'version': SITE_PATH + '/versions/5c3b69acc18fdc94'}
+ITCH_BASELINE_CONFIG = '09113ff8616e7f0d7dd26032952d4932d728f19c8014f2eb2cd54dcf093a53a7'
+ITCH_HEADERS = [
+    {'glob': '/itch/', 'headers': {'Content-Security-Policy': FRAME_POLICY, 'Cache-Control': 'no-cache'}},
+    {'glob': '/itch/index.html', 'headers': {'Content-Security-Policy': FRAME_POLICY}},
+    {'glob': '/itch/hosting-release.json', 'headers': {'Cache-Control': 'no-store'}},
+]
+
+
+def record_digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
+                                    ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+
+
+def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
+    """A separate fresh test contract; never promote local, preview or release packets."""
+    path = folder / 'firebase-variant-manifest.json'
+    if (not re.fullmatch(r'[0-9a-f]{40}', source_sha)
+            or not re.fullmatch(r'[0-9a-f]{64}', manifest_sha)
+            or path.is_symlink() or digest(path) != manifest_sha):
+        raise ValueError('Exact reviewed test source and manifest required')
+    manifest = json.loads(path.read_text(encoding='utf-8'))
+    base, proof = manifest.get('base_web_manifest', {}), manifest.get('fresh_ci', {})
+    run, artifact, jobs = origin.get('run', {}), origin.get('artifact', {}), origin.get('jobs', [])
+    sha, tree = manifest.get('source_commit'), manifest.get('source_tree')
+    run_id, attempt = str(run.get('id')), str(run.get('run_attempt'))
+    if (manifest.get('status') != ITCH_TEST_STATUS or sha != source_sha
+            or not re.fullmatch(r'[0-9a-f]{40}', tree or '')
+            or manifest.get('production_release_eligible') is not False
+            or manifest.get('hosted_acceptance') is not False
+            or manifest.get('auth_domains_modified') is not False
+            or manifest.get('hosting_config_proposal_only') is not True
+            or manifest.get('runtime_origin') != ORIGIN.rstrip('/') or manifest.get('runtime_path') != '/itch/'
+            or manifest.get('hosting_header_additions') != [
+                {'source': row['glob'], 'headers': [{'key': k, 'value': v} for k, v in row['headers'].items()]}
+                for row in ITCH_HEADERS]
+            or 'publication' in manifest or 'manual_live_reuse' in manifest or 'engine_reuse' in manifest
+            or base.get('source_commit') != sha or base.get('source_tree') != tree
+            or base.get('toolchain_verification') != 'checksum-pinned-official-archives'
+            or base.get('packed_smoke') != 'passed' or base.get('engine_checks', 0) <= 0
+            or base.get('test_processes', 0) <= 0
+            or proof.get('status') != 'fresh-gates-passed' or proof.get('new_engine_run') is not True
+            or proof.get('source_commit') != sha or proof.get('source_tree') != tree
+            or proof.get('workflow_run') != run_id or proof.get('workflow_attempt') != attempt
+            or str(base.get('workflow_run')) != run_id or str(base.get('workflow_attempt')) != attempt):
+        raise ValueError('Fresh exact-source official test qualification required')
+    repository = 'yiyousiow000814/little-leaf'
+    if (run.get('repository', {}).get('full_name') != repository
+            or run.get('head_repository', {}).get('full_name') != repository
+            or run.get('path') != '.github/workflows/stage-firebase.yml'
+            or run.get('event') != 'workflow_dispatch' or run.get('head_branch') != 'main'
+            or run.get('head_sha') != sha or run.get('status') != 'completed'
+            or run.get('conclusion') != 'success' or attempt != '1'
+            or not re.fullmatch(r'[1-9][0-9]*', run_id)
+            or type(artifact.get('id')) is not int or artifact['id'] <= 0
+            or artifact.get('workflow_run', {}).get('id') != run.get('id')
+            or artifact.get('workflow_run', {}).get('head_sha') != sha
+            or artifact.get('expired') is not False
+            or artifact.get('name') != 'little-leaf-firebase-' + sha + '-' + attempt
+            or not isinstance(artifact.get('digest'), str)
+            or not re.fullmatch(r'sha256:[0-9a-f]{64}', artifact['digest'])
+            or origin.get('commit', {}).get('sha') != sha
+            or origin.get('commit', {}).get('commit', {}).get('tree', {}).get('sha') != tree):
+        raise ValueError('Fresh authenticated staging artifact origin required')
+    required = {'guard', 'historical', 'build', 'gate', 'firebase',
+                'browser (play)', 'browser (recovery)',
+                'compatibility (compatibility, old_opened_after_new)',
+                'compatibility (compatibility, already_open_old)', *(f'engine ({i})' for i in range(5))}
+    required = {'fresh / ' + name for name in required} | {'selection'}
+    names = [job.get('name') for job in jobs]
+    if (len(names) != len(set(names)) or not required.issubset(names)
+            or any(job.get('status') != 'completed' or job.get('conclusion') != 'success'
+                   for job in jobs if job.get('name') in required)):
+        raise ValueError('Every fresh mandatory staging gate must pass')
+    files = manifest.get('files', {})
+    actual = {p.relative_to(folder).as_posix(): p for p in folder.rglob('*') if p.is_file()}
+    if (not files or set(actual) != set(files) | {'firebase-variant-manifest.json'}
+            or any(p.is_symlink() for p in folder.rglob('*'))):
+        raise ValueError('Exact test inventory required')
+    for name, expected in files.items():
+        if (not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts or '\\' in name
+                or not re.fullmatch(r'[0-9a-f]{64}', expected) or digest(actual[name]) != expected):
+            raise ValueError('Test file path or hash differs')
+    from build_firebase import BROWSER_GATES, FOCUSED_LOGS
+    evidence = proof.get('gate_evidence_sha256', {})
+    expected_labels = {'native', 'export', *BROWSER_GATES,
+                       *('firebase-' + label + suffix for label in FOCUSED_LOGS for suffix in ['', '.json'])}
+    if set(evidence) != expected_labels:
+        raise ValueError('Complete fresh evidence label set required')
+    for label, expected in evidence.items():
+        filename = {'native': 'native-summary.json', 'export': 'export-report.json'}.get(label, label + '.json')
+        if label.startswith('firebase-') and label.endswith('.log'):
+            filename = label
+        elif label.startswith('firebase-') and label.endswith('.log.json'):
+            filename = label
+        if digest(folder / 'evidence' / filename) != expected:
+            raise ValueError('Fresh gate evidence changed')
+    native = json.loads((folder / 'evidence/native-summary.json').read_text())
+    export = json.loads((folder / 'evidence/export-report.json').read_text())
+    if (native.get('status') != 'passed' or native.get('source_commit') != sha
+            or native.get('player_save_used') is not False
+            or type(native.get('total_checks')) is not int or native['total_checks'] <= 0
+            or native['total_checks'] != base.get('engine_checks')
+            or type(native.get('test_processes')) is not int or native['test_processes'] <= 0
+            or native['test_processes'] != base.get('test_processes')
+            or evidence['native'] != base.get('test_report_sha256')
+            or export.get('manifest') != base or not export.get('stages')
+            or any(row.get('exit_code') != 0 for row in export['stages'])):
+        raise ValueError('Complete native/export evidence binding required')
+    from run_firebase_focused import COMMANDS
+    for name in FOCUSED_LOGS:
+        log = folder / 'evidence' / ('firebase-' + name)
+        recorded = json.loads(log.with_name(log.name + '.json').read_text())
+        expected = {'schema_version': 1, 'status': 'passed', 'exit_code': 0, 'command': COMMANDS[name],
+                    'source_commit': sha, 'source_tree': tree, 'workflow_run': run_id,
+                    'workflow_attempt': attempt, 'log_sha256': digest(log)}
+        if recorded != expected or not log.stat().st_size:
+            raise ValueError('Exact focused process success receipt required')
+    flow = json.loads((folder / 'evidence/firebase-fullflow.json').read_text())
+    inner = folder / 'public/itch'
+    marker = json.loads((inner / 'hosting-release.json').read_text())
+    entry = (inner / 'index.html').read_text(encoding='utf-8')
+    if (marker.get('source_commit') != sha or marker.get('source_tree') != tree
+            or marker.get('runtime_origin') != ORIGIN.rstrip('/') or marker.get('runtime_path') != '/itch/'
+            or marker.get('test_surface') != 'trusted-itch-frame' or 'release_order' in marker
+            or marker.get('ci_run_id') != run_id
+            or marker.get('base_web_manifest_sha256') != manifest.get('base_web_manifest_sha256')
+            or marker.get('version') != base.get('version') or marker.get('tag') != base.get('tag', '')
+            or entry.count('window.__littleLeafRelease=' + json.dumps(marker).replace('<', '\\u003c') + ';') != 1
+            or flow.get('passed') is not True or flow.get('synthetic_only') is not True
+            or flow.get('real_google_sign_in') is not False or flow.get('real_compiled_ui') is not True
+            or flow.get('real_firestore_rules') is not True or flow.get('diagnostic_only') is not False
+            or flow.get('itch_test_entry') is not True or flow.get('browser_sandbox') is not True
+            or flow.get('synthetic_public_config_substitution') is not True or not flow.get('checks')
+            or flow.get('itch_ancestor_origins') != ANCESTORS
+            or flow.get('export_manifest_sha256') != manifest.get('base_web_manifest_sha256')
+            or flow.get('native_report_sha256') != evidence['native']
+            or flow.get('itch_entry_sha256') != digest(inner / 'index.html')
+            or flow.get('source_commit') != sha or flow.get('source_tree') != tree):
+        raise ValueError('Exact compiled iframe and marker qualification required')
+    from project_layout import source_path
+    root = Path(__file__).resolve().parents[1]
+    flow_sources = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs', 'firebase/fullflow_network.mjs',
+                    'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/prepare_browser_qa.py',
+                    'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js', 'web/little_leaf_firebase_boot.mjs',
+                    'web/little_leaf_update.js', 'firebase/firestore.rules']
+    entry_sources = ['tools/build_itch_entry.py', 'tools/build_itch_trusted_preview.py', 'tools/build_firebase.py',
+                     'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase_session.js',
+                     'web/little_leaf_update.js', 'web/little_leaf_entry.css']
+    if (flow.get('source_sha256') != {name: digest(source_path(root, name)) for name in flow_sources}
+            or manifest.get('source_sha256') != {name: digest(source_path(root, name)) for name in entry_sources}):
+        raise ValueError('Final source modules changed since qualification')
+    for name in ['index.js', 'index.wasm', 'index.pck']:
+        record = base.get('files', {}).get(name, {})
+        if (digest(inner / name) != record.get('sha256')
+                or (inner / name).stat().st_size != record.get('bytes')):
+            raise ValueError('Qualified runtime bytes changed')
+    additions = {'/' + p.relative_to(folder / 'public').as_posix(): p
+                 for p in inner.iterdir() if p.is_file()}
+    if (any(not p.is_file() or p.is_symlink() for p in inner.iterdir())
+            or not {'/itch/index.html', '/itch/hosting-release.json', '/itch/index.js', '/itch/index.wasm', '/itch/index.pck'}.issubset(additions)
+            or any(not re.fullmatch(r'/itch/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+', name) for name in additions)):
+        raise ValueError('Flat exact /itch file inventory required')
+    return manifest, marker, additions
+
+
+def active_files(api, version):
+    """Exhaust the finalized version inventory; keep unknown path values in memory only."""
+    files, seen, token = {}, set(), None
+    for _ in range(20):
+        query = {'status': 'ACTIVE', 'pageSize': 1000}
+        if token is not None:
+            query['pageToken'] = token
+        response = api.request('GET', version + '/files?' + urlencode(query))
+        rows = response.get('files')
+        if not isinstance(rows, list):
+            raise ValueError('Complete ACTIVE Hosting inventory required')
+        for row in rows:
+            path, value = row.get('path'), row.get('hash')
+            if (not isinstance(path, str) or not path.startswith('/') or path.startswith('//')
+                    or any(part in {'.', '..'} for part in path.split('/')) or '\\' in path or '?' in path or '#' in path
+                    or row.get('status') != 'ACTIVE' or not re.fullmatch(r'[0-9a-f]{64}', value or '') or path in files):
+                raise ValueError('Invalid or duplicate ACTIVE file record')
+            files[path] = value
+        token = response.get('nextPageToken')
+        if not token:
+            if not files:
+                raise ValueError('Empty baseline inventory forbidden')
+            return files
+        if not isinstance(token, str) or token in seen or len(token) > 4096:
+            raise ValueError('Invalid Hosting pagination')
+        seen.add(token)
+    raise ValueError('Hosting inventory exceeded bounded pagination')
+
+
+def itch_test_config(config):
+    from read_firebase_hosting_config import effective_diagnosis, path_match
+    if record_digest(config) != ITCH_BASELINE_CONFIG:
+        raise ValueError('Approved Hosting configuration baseline changed')
+    for family in ['redirects', 'rewrites']:
+        rows = config.get(family, [])
+        if not isinstance(rows, list):
+            raise ValueError('Unknown routing shape')
+        for row in rows:
+            if any(path_match(row, path)[1] != 'no' for path in ['/itch/', '/itch/index.html', '/itch/hosting-release.json']):
+                raise ValueError('Existing routing may intercept the test entry')
+    paths = effective_diagnosis(config)['scenarios']['baseline']
+    for path in ['/itch/', '/itch/index.html', '/itch/hosting-release.json']:
+        row = paths[path]
+        tokens = row['applicable_tokens']
+        expected_cache = ['CACHE_NO_CACHE_EXACT'] if path.endswith('index.html') else []
+        if (row['hold_categories'] or any(tokens.get(key) for key in ['CSP', 'CSP_REPORT_ONLY', 'XFO'])
+                or tokens.get('CACHE_CONTROL', []) != expected_cache):
+            raise ValueError('Approved effective header assumptions changed')
+    result = copy.deepcopy(config)
+    result['headers'] = copy.deepcopy(config.get('headers', [])) + copy.deepcopy(ITCH_HEADERS)
+    return result
+
+
+def deploy_itch_test_entry(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin):
+    if output.exists():
+        raise ValueError('Existing receipt forbids an automatic retry')
+    manifest, marker, additions = verify_itch_test_package(folder, source_sha, manifest_sha, staging_origin)
+    receipt = {'schema_version': 1, 'status': 'validated-itch-test-entry', 'source_commit': source_sha,
+               'source_tree': manifest['source_tree'], 'variant_manifest_sha256': manifest_sha,
+               'hosting_url': ORIGIN + 'itch/', 'approved_header_additions': ITCH_HEADERS,
+               'approval_reference': 'Sentinel_a5f561e9ac4881918febbacb871d259c',
+               'production_release_eligible': False, 'real_google_acceptance': False,
+               'homepage_preserved': False, 'itch_publication_performed': False,
+               'automatic_rollback_allowed': False, 'previous': ITCH_BASELINE,
+               'previous_config_sha256': ITCH_BASELINE_CONFIG, 'target_files_sha256': {
+                   name: digest(path) for name, path in additions.items()}, 'target_files_bytes': {
+                   name: path.stat().st_size for name, path in additions.items()}}
+    def save():
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(receipt, indent=2) + '\n', encoding='utf-8')
+    save()
+    if release_head(api) != ITCH_BASELINE:
+        raise ValueError('Approved release/version baseline changed')
+    baseline = api.request('GET', ITCH_BASELINE['version'])
+    if baseline.get('name') != ITCH_BASELINE['version'] or baseline.get('status') != 'FINALIZED':
+        raise ValueError('Existing finalized baseline required')
+    config = itch_test_config(baseline.get('config'))
+    original = active_files(api, ITCH_BASELINE['version'])
+    if (any(path == '/itch' or path.startswith('/itch/') for path in original)
+            or not {'/index.html', '/hosting-release.json', '/index.js', '/index.wasm', '/index.pck'}.issubset(original)):
+        raise ValueError('Existing test namespace or incomplete homepage baseline')
+    compressed = {}
+    paths = dict(original)
+    for name, path in additions.items():
+        payload = gzip.compress(path.read_bytes(), mtime=0)
+        value = hashlib.sha256(payload).hexdigest()
+        compressed[value] = payload
+        paths[name] = value
+    receipt.update(previous_files_sha256=record_digest(original), previous_file_count=len(original),
+                   candidate_files_sha256=record_digest(paths), candidate_file_count=len(paths),
+                   candidate_config_sha256=record_digest(config), rollback_version_verified=True)
+    save()
+    before = smoke(None, None, None)
+    receipt.update(status='version-create-outcome-pending');save()
+    version = api.request('POST', SITE_PATH + '/versions', {'config': config}).get('name')
+    if not isinstance(version, str) or not VERSION_RE.fullmatch(version) or version == ITCH_BASELINE['version']:
+        raise RuntimeError('Version creation uncertain; no retry')
+    receipt.update(status='staging-test-entry', hosting_version=version);save()
+    populated = api.request('POST', version + ':populateFiles', {'files': paths})
+    upload_url = 'https://upload-firebasehosting.googleapis.com/upload/' + version + '/files'
+    needed = populated.get('uploadRequiredHashes')
+    if (populated.get('uploadUrl') != upload_url or not isinstance(needed, list)
+            or len(needed) != len(set(needed)) or not set(needed).issubset(compressed)):
+        raise RuntimeError('Unexpected upload response; baseline files will never be fetched or replaced')
+    for value in needed:
+        api.request('POST', upload_url + '/' + value, compressed[value], upload=True)
+    finalized = api.request('PATCH', version + '?update_mask=status', {'status': 'FINALIZED'})
+    if finalized.get('name') != version or finalized.get('status') != 'FINALIZED':
+        raise RuntimeError('New test version not finalized; live unchanged')
+    candidate = api.request('GET', version)
+    current = api.request('GET', ITCH_BASELINE['version'])
+    if (candidate.get('name') != version or candidate.get('status') != 'FINALIZED'
+            or record_digest(candidate.get('config')) != record_digest(config)
+            or active_files(api, version) != paths
+            or current.get('name') != ITCH_BASELINE['version'] or current.get('status') != 'FINALIZED'
+            or record_digest(current.get('config')) != ITCH_BASELINE_CONFIG
+            or active_files(api, ITCH_BASELINE['version']) != original or release_head(api) != ITCH_BASELINE):
+        raise RuntimeError('Finalized candidate or baseline drifted; live unchanged')
+    receipt.update(status='release-outcome-pending', candidate_preserves_homepage_files=True);save()
+    release = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': version}), {})
+    if (not RELEASE_RE.fullmatch(release.get('name', '')) or release.get('type') != 'DEPLOY'
+            or release.get('version', {}).get('name') != version):
+        raise RuntimeError('Release outcome uncertain; inspect receipt, no retry')
+    receipt.update(status='published-pending-public-check', hosting_release=release['name']);save()
+    targets = {name: {'sha256': receipt['target_files_sha256'][name], 'bytes': receipt['target_files_bytes'][name]}
+               for name in additions}
+    try:
+        public_ok = smoke(marker, before, targets)
+    except Exception:
+        receipt.update(status='public-check-failed-inspection-required');save()
+        raise RuntimeError('Public checks could not complete; no automatic rollback') from None
+    if not public_ok:
+        receipt.update(status='public-check-failed-inspection-required');save()
+        raise RuntimeError('Public checks failed; no automatic rollback')
+    if release_head(api) != {'release': release['name'], 'version': version}:
+        raise RuntimeError('Concurrent release after publication; inspect before rollback')
+    receipt.update(status='test-entry-public-verified-auth-pending', homepage_preserved=True,
+                   hosted_headers_verified=True, target_http_payloads_verified=True);save()
+    return receipt
+
+
+def itch_test_smoke(expected, before, targets):
+    opener = build_opener(NoRedirect())
+    def read(path):
+        with opener.open(Request(ORIGIN + path, headers={'Cache-Control': 'no-cache'}), timeout=30) as response:
+            data = response.read(4 * 1024 * 1024 + 1)
+            if response.status != 200 or len(data) > 4 * 1024 * 1024:
+                raise ValueError('Bounded public response required')
+            headers = {key: response.headers.get_all(key, []) for key in [
+                'Content-Security-Policy', 'Content-Security-Policy-Report-Only', 'X-Frame-Options', 'Cache-Control']}
+            return hashlib.sha256(data).hexdigest(), headers, data
+    root = {path: read(path)[:2] for path in ['', 'index.html', 'hosting-release.json']}
+    if expected is None:
+        return root
+    if root != before:
+        return False
+    for path, cache in [('itch/', 'no-cache'), ('itch/index.html', 'no-cache'), ('itch/hosting-release.json', 'no-store')]:
+        _, headers, data = read(path)
+        if headers['Cache-Control'] != [cache]:
+            return False
+        if path.endswith('.json'):
+            if json.loads(data) != expected:
+                return False
+        elif (headers['Content-Security-Policy'] != [FRAME_POLICY]
+              or headers['Content-Security-Policy-Report-Only'] or headers['X-Frame-Options']):
+            return False
+    # Hash each newly served payload without retaining engine or account data in the receipt.
+    for path, record in targets.items():
+        if (not re.fullmatch(r'/itch/[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+', path)
+                or type(record.get('bytes')) is not int or not 0 < record['bytes'] <= 256*1024*1024):
+            raise ValueError('Bounded exact public payload expected')
+        with opener.open(Request(ORIGIN+path.lstrip('/'), headers={'Cache-Control': 'no-cache'}), timeout=30) as response:
+            if response.status != 200:
+                return False
+            digest_value, count = hashlib.sha256(), 0
+            while chunk := response.read(min(1024*1024, record['bytes']-count+1)):
+                count += len(chunk)
+                if count > record['bytes']:
+                    return False
+                digest_value.update(chunk)
+            if count != record['bytes'] or digest_value.hexdigest() != record['sha256']:
+                return False
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--variant', required=True, type=Path)
@@ -514,9 +867,25 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--verify-only', action='store_true')
     parser.add_argument('--itch-preview', action='store_true')
+    parser.add_argument('--itch-test-entry', action='store_true')
     parser.add_argument('--staging-origin', type=Path, help='Fresh authenticated run/artifact metadata, required for manual released-live reuse')
     args = parser.parse_args()
     origin = json.loads(args.staging_origin.read_text()) if args.staging_origin else None
+    if args.itch_test_entry:
+        if args.itch_preview or origin is None:
+            raise ValueError('Separate explicit test selection and fresh origin required')
+        try:
+            if args.verify_only:
+                verify_itch_test_package(args.variant, args.sha, args.manifest_sha256, origin)
+                print('Fresh bounded test package verified; no Hosting mutation')
+            else:
+                deploy_itch_test_entry(args.variant, args.sha, args.manifest_sha256, args.output,
+                                      Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')),
+                                      itch_test_smoke, staging_origin=origin)
+                print('Bounded test entry published; real Google acceptance remains pending')
+        except Exception:
+            raise SystemExit('Bounded test request stopped; inspect its sanitized receipt. No automatic retry.') from None
+        return
     if args.verify_only:
         if args.itch_preview:
             verify_preview_package(args.variant, args.sha, args.manifest_sha256)

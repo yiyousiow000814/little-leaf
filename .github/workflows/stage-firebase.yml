@@ -20,14 +20,38 @@ on:
         description: Stage a trusted-frame bootstrap packet for the one-day preview route; never deploy
         type: boolean
         default: false
+      itch_test_entry:
+        description: Fresh stable /itch test packet; no deployment or live-release eligibility
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
   group: firebase-stage-${{ inputs.released_run_id || github.ref }}
   cancel-in-progress: false
 jobs:
+  selection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Reject conflicting bounded test inputs before staging
+        env:
+          ITCH_TEST: ${{ inputs.itch_test_entry || false }}
+          ITCH_PREVIEW: ${{ inputs.itch_preview || false }}
+          PUBLICATION: ${{ inputs.publication_run_id || '' }}
+          RELEASED: ${{ inputs.released_live_run_id || inputs.released_run_id || '' }}
+        run: |
+          if [[ "$ITCH_TEST" == true ]]; then
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            test "$GITHUB_REF" = refs/heads/main
+            test "$GITHUB_RUN_ATTEMPT" = 1
+            test "$ITCH_PREVIEW" = false
+            test -z "$PUBLICATION"
+            test -z "$RELEASED"
+          fi
   publication:
-    if: github.event_name == 'workflow_dispatch' && inputs.publication_run_id && !inputs.released_live_run_id && !inputs.itch_preview
+    needs: selection
+    if: github.event_name == 'workflow_dispatch' && inputs.publication_run_id && !inputs.released_live_run_id && !inputs.itch_preview && !inputs.itch_test_entry
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -52,15 +76,17 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as out:out.write('receipt='+json.dumps(data['publication'],separators=(',',':'))+'\n')
           PY
   fresh:
-    needs: publication
-    if: always() && github.repository == 'yiyousiow000814/little-leaf' && !inputs.released_run_id && !inputs.released_live_run_id && (needs.publication.result == 'success' || needs.publication.result == 'skipped') && (!inputs.publication_run_id || needs.publication.result == 'success')
+    needs: [selection, publication]
+    if: always() && needs.selection.result == 'success' && github.repository == 'yiyousiow000814/little-leaf' && !inputs.released_run_id && !inputs.released_live_run_id && (needs.publication.result == 'success' || needs.publication.result == 'skipped') && (!inputs.publication_run_id || needs.publication.result == 'success') && (!inputs.itch_test_entry || (github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && !inputs.itch_preview && !inputs.publication_run_id))
     uses: ./.github/workflows/build-web.yml
     with:
       firebase_preview: true
       itch_preview: ${{ inputs.itch_preview || false }}
+      itch_test_entry: ${{ inputs.itch_test_entry || false }}
       publication_receipt: ${{ needs.publication.outputs.receipt || '' }}
   released:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && !inputs.itch_preview && ((inputs.released_run_id && github.workflow == 'Qualify Firebase after completed itch release') || (github.event_name == 'workflow_dispatch' && inputs.released_live_run_id && !inputs.publication_run_id && !inputs.released_run_id))
+    needs: selection
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && !inputs.itch_preview && !inputs.itch_test_entry && ((inputs.released_run_id && github.workflow == 'Qualify Firebase after completed itch release') || (github.event_name == 'workflow_dispatch' && inputs.released_live_run_id && !inputs.publication_run_id && !inputs.released_run_id))
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     permissions:
@@ -85,7 +111,7 @@ jobs:
           python3 - <<'PY'
           import json,os,pathlib,sys
           sys.path.insert(0,'coordinator/tools')
-          from released_live_provenance import manual_context
+          from release.released_live_provenance import manual_context
           selection=json.loads(pathlib.Path(os.environ['RUNNER_TEMP'],'selection/selection.json').read_text())
           manual_context(selection,os.environ,os.environ['GITHUB_RUN_ID'],os.environ['GITHUB_RUN_ATTEMPT'])
           PY
@@ -110,7 +136,7 @@ jobs:
       - name: Reuse only the exact completed release's qualified ordinary runtime
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 coordinator/tools/reuse_released_web.py --source-root source --selection "$RUNNER_TEMP/selection/selection.json" --output "$RUNNER_TEMP/reuse"
+        run: python3 coordinator/tools/qualification/reuse_released_web.py --source-root source --selection "$RUNNER_TEMP/selection/selection.json" --output "$RUNNER_TEMP/reuse"
       - name: Bind original complete native and browser evidence to this exact artifact
         env:
           GH_TOKEN: ${{ github.token }}

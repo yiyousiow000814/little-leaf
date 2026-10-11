@@ -19,7 +19,7 @@ entirely there is no permanent ledger: old catch-up must be inspected by an
 operator; this is not a lifetime deduplication guarantee.
 
 `stage-firebase.yml` checks out **the peeled released source**, separately from
-the reviewed coordinator. `reuse_released_web.py` pins the original qualification
+the reviewed coordinator. `tools/qualification/reuse_released_web.py` pins the original qualification
 run/attempt/artifact/digest recorded in the completed publication. It never
 selects a newer CI run for the same SHA. It validates the complete source and Web
 inventory, original manifest hash, official toolchain and packed startup. Runtime
