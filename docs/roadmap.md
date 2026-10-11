@@ -2415,11 +2415,13 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Existing environment artwork only; requested refinements absent from scoped candidates | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Bench/sign detail candidate present; canonical qualification pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+
+Static candidate on qualified bus/parking7272: existing seat/back planes gain four narrow wood joins in `_draw_shelter_back`, retaining palette, silhouette, grounded legs and retained painter order. Paired native1654x951/zoom1 frames inspected; bench/sign-only pixel comparison passes. Same-renderer procedural atlases are unchanged; canonical Linux atlas qualification and integrated/user acceptance remain pending. No merge or release is claimed.
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Existing environment artwork only; requested refinements absent from scoped candidates
+Code status: Bench/sign detail candidate present; canonical qualification pending
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 
@@ -2435,11 +2437,13 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
-| 🟡 YELLOW — Existing environment artwork only; requested refinements absent from scoped candidates | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+| 🟡 YELLOW — Bench/sign detail candidate present; canonical qualification pending | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Historical environment images are not new outcome acceptance | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
+
+The same narrow static candidate refines only the existing sign glyph in `_draw_shelter_front`: cream bus body, split blue windshield and small light details, keeping the plate, post, location and original two colors. Actual normal-scale pixels inspected; no traffic, motion, party, boarding, seam or curb geometry change. Source-bound native comparison is separate from pending canonical atlas, browser and user acceptance.
 
 Contract source (documentation only): [Contract review source](https://github.com/yiyousiow000814/little-leaf/pull/120)
 
-Code status: Existing environment artwork only; requested refinements absent from scoped candidates
+Code status: Bench/sign detail candidate present; canonical qualification pending
 
 Exact code evidence: [exterior_environment.gd](https://github.com/yiyousiow000814/little-leaf/blob/b8b80eea57ac3cb141cb5c771b375207a284436a/scripts/exterior_environment.gd)
 

@@ -286,7 +286,12 @@ static func _draw_shelter_back(a):
 	for z in [6.55,9.2]:
 		for x in [-13.0,-12.6]:a.line(a.iso(x,z),a.iso(x,z,18),"8f8c6c",2.3*scale)
 	quad_height(a,-13.05,6.3,-12.5,9.5,18,"b3a079")
+	# Narrow joins follow the existing wood planes, without changing the seat.
+	for x in [-12.87,-12.68]:
+		a.line(a.iso(x,6.35,18),a.iso(x,9.45,18),"948968",.8*scale)
 	a.poly([a.iso(-13.05,6.3,20),a.iso(-13.05,9.5,20),a.iso(-13.05,9.5,34),a.iso(-13.05,6.3,34)],"b8a581")
+	for h in [24.5,29.5]:
+		a.line(a.iso(-13.05,6.35,h),a.iso(-13.05,9.45,h),"948968",.8*scale)
 	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
 
 static func _draw_shelter_front(a):
@@ -304,8 +309,13 @@ static func _draw_shelter_front(a):
 	a.line(sign,a.iso(-10.7,11.05,58),"7a8c72",2.2*scale)
 	var top=a.iso(-10.7,11.05,66)
 	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top-Vector2(9,0)*scale,Vector2(18,16)*scale),Color("879fa4"))
-	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-5,4)*scale,Vector2(10,6)*scale),Color("e5e3cb"))
-	for x in [-3,3]:a.ellipse(top+Vector2(x,11)*scale,Vector2(1.1,1.1)*scale,"e5e3cb")
+	# Inset cream bus body and split windshield keep the small stop glyph legible.
+	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-5,3)*scale,Vector2(10,9)*scale),Color("e5e3cb"))
+	preload("res://scripts/cafe_canvas_draw.gd").draw_rect(a,Rect2(top+Vector2(-4,4)*scale,Vector2(8,4)*scale),Color("879fa4"))
+	a.line(top+Vector2(0,4)*scale,top+Vector2(0,8)*scale,"e5e3cb",.8*scale)
+	for x in [-3,3]:
+		a.ellipse(top+Vector2(x,10)*scale,Vector2(.7,.7)*scale,"879fa4")
+		a.ellipse(top+Vector2(x,12)*scale,Vector2(1.1,1.1)*scale,"e5e3cb")
 
 static func quad_height(a,x0:float,z0:float,x1:float,z1:float,h:float,color):
 	a.poly([a.iso(x0,z0,h),a.iso(x1,z0,h),a.iso(x1,z1,h),a.iso(x0,z1,h)],color)
