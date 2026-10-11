@@ -35,7 +35,7 @@ class EntryPresentationTests(unittest.TestCase):
             self.assertEqual(len(re.findall(r'<script\b',html)),1)
             subprocess.run(['node','tests/persistence/firebase_auth_verification_pause.js',str(auth),str(manifest)],cwd=ROOT,check=True,timeout=30)
             wrapper=folder/'wrapper.html';wrapper.write_text(wrapper_html(shell,origin),encoding='utf-8')
-            subprocess.run(['node','tests/itch_trusted_preview_entry.js',str(wrapper)],cwd=ROOT,check=True,timeout=30)
+            subprocess.run(['node','tests/tooling/itch_trusted_preview_entry.js',str(wrapper)],cwd=ROOT,check=True,timeout=30)
 
 
 if __name__=='__main__':unittest.main()
