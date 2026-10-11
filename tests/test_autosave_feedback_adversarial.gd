@@ -61,7 +61,7 @@ func ack(save,extra:Dictionary={}):
  var record={"ok":true,"profileId":"synthetic","revision":save.revision+1,"durable":true,"creditedCoins":0}
  record.merge(extra,true);save._on_commit([JSON.stringify(record)])
 func dispose_main(game):
- for orphan in [game.world,game.furnishings,game.people,game.camera,game.ui]:orphan.free()
+ for orphan in [game.people,game.ui]:orphan.free()
  game.free()
 func run():
  var game=FakeGame.new();root.add_child(game)
