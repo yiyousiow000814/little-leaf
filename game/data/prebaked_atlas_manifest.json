@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact integrated bus/parking source467a1364d6ac0f0dba5f24b30269ac76cbc1009c/tree56083e0837b4a673e6d15780a6633a564739c256 onparking766eeb2; QA11451f4986f2b4cdfa7489f64d524ce9f707be12; run38101263431; receiptSHA256 31992723c7ed85ba782da50d751ec6457142ab306f414a5020ba4eb453188231; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact original controls; checksum-bound sourcebundle; sourceassets/imports unchanged",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact integrated bus/parking sourcea7e4736398164df0c6e78cd5cda1f278ecd729d5/treedc58eeb39f2f5372d3a1525ff2141d6b309de0df onparking766eeb2; QAbe5849eaa1a5265105d17e4d23f4d798f43a26d3; run38103944702; receiptSHA256 a6b3eb2eb3868daf0e179759cab49d493cab82f944c0957f550120ad7fa7b502; all3 procedural/imported/runtime/direct-source/emitted-PNG RGBA exact original controls; checksum-bound sourcebundle; sourceassets/imports unchanged",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -15,7 +15,7 @@
     "assets/ui/fidelity_hud/green_face.png": "6828416d007b4bec34f8d63e7b99e13c94b5d38a6660daa2bffc3185f3a7c20c",
     "data/release_notes.json": "f6387320a098511fa04ef0fdf3f1b79136e4889c0c16d17453ca5b87f31fbe4a",
     "scripts/ambient_road_traffic.gd": "72621898ab0413305439e61ed1bc4f7e4259602d80c9dc59dd441759e4ec2887",
-    "scripts/bus_stop_pedestrians.gd": "feb44e778634323b57f9ad7a8ee57eb99dacd4d74153a24d0ef70f15ddb3dc80",
+    "scripts/bus_stop_pedestrians.gd": "c628f8a5cb3aa1f25840672db3a88041bc97bafe7a4e8ad6c5a66bec3bf7e753",
     "scripts/cafe_action_help.gd": "ad33ce05df6149263bbcf07551c021e44a3b1fbd5e3b27d13002c8d091997e73",
     "scripts/cafe_autosave_policy.gd": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d",
     "scripts/cafe_background_cache.gd": "13e630f30777b7c1b999a82f70136eddc87e2ed8fb263d3cdfc8ec01763496b0",
@@ -96,7 +96,7 @@
     "scripts/dining_style_art.gd": "1389d044942085d328fa660cc7512f445e3d4f49f759dc8aba32f2f5a703ce43",
     "scripts/directional_character_art.gd": "b6d919e2ce6db3726b1776ae748fbbd5b522dbd54b308311f10fe503a9321016",
     "scripts/environment_greenery.gd": "f73f13d146fccd4675856ff705cef363227fbf017d82e253d8136382c324a642",
-    "scripts/exterior_environment.gd": "3f75f28764ea2e7b56d27bd0638d58218c4d069d335b4407ccc9a0f82462d03a",
+    "scripts/exterior_environment.gd": "abd673327ce3a44a1d554b027ca692d7211271be956e85ae7df572108ae379c7",
     "scripts/exterior_grass_art.gd": "08ae58acebc53baf01fd80f50047cbf3394c9116501479534117a352120d306a",
     "scripts/exterior_tree_art.gd": "15db8710c5e104812228eb7f2ee86310acac3889c861a607cdc0b68e85081f71",
     "scripts/exterior_world_extent.gd": "9054508861bbd6e3feddbbe5e732e6d260180485450123a484be95f636fe2249",
