@@ -61,6 +61,37 @@ class ShaPrereleaseTests(unittest.TestCase):
             (build/'project/project.godot').write_bytes(projected['project.godot']+b'\nextra=1')
             with self.assertRaises(RuntimeError):artifacts.validate_web_gate(build,sha,'b'*40,source_root=root)
 
+    def test_compatibility_accepts_only_exact_projected_metadata(self):
+        import prepare_browser_qa as qa
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)/'source';root.mkdir();self.metadata(root)
+            build=Path(d)/'build';(build/'project/data').mkdir(parents=True);(build/'web').mkdir()
+            commit='01234567'+'a'*32
+            projection=projected_metadata(root,commit)
+            hashes={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in projection}
+            for name,content in projection.items():(build/'project'/name).write_bytes(content)
+            manifest={'version':'0.1.11-pre.01234567','source_commit':commit,
+                'toolchain_verification':'checksum-pinned-official-archives','production_sha256':hashes,
+                'projected_metadata_sha256':{n:hashlib.sha256(b).hexdigest() for n,b in projection.items()},'files':{}}
+            path=build/'web/release-manifest.json';path.write_text(json.dumps(manifest))
+            with patch.object(qa.subprocess,'check_output',side_effect=lambda command,**kwargs: '' if 'status' in command else commit), patch.dict(qa.CONTRACT,{'candidate_required_sources':list(projection)}):
+                qa.validate_export(build,root)
+                manifest['projected_metadata_sha256']['scripts/main.gd']='a'*64
+                path.write_text(json.dumps(manifest))
+                with self.assertRaises(RuntimeError):qa.validate_export(build,root)
+                del manifest['projected_metadata_sha256']['scripts/main.gd'];path.write_text(json.dumps(manifest))
+                (build/'project/data/release_notes.json').write_bytes(projection['data/release_notes.json']+b' ')
+                with self.assertRaises(RuntimeError):qa.validate_export(build,root)
+                (build/'project/data/release_notes.json').write_bytes(projection['data/release_notes.json'])
+                (root/'data/release_notes.json').write_bytes((root/'data/release_notes.json').read_bytes()+b' ')
+                with self.assertRaises(RuntimeError):qa.validate_export(build,root)
+
+    def test_browser_expected_version_uses_full_export_source(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);self.metadata(root)
+            script="const {sourceVersion}=require('./tests/source_paths');const assert=require('node:assert/strict');const r=process.argv[1];assert.equal(sourceVersion(r,'01234567'+'a'.repeat(32)),'0.1.11-pre.01234567');assert.throws(()=>sourceVersion(r,'01234567'));"
+            subprocess.run(['node','-e',script,str(root)],check=True)
+
     def test_upload_uses_ancestry_not_hash_order(self):
         older='ffffffff'+'a'*32;newer='01234567'+'b'*32
         with patch.object(publish_itch.subprocess,'check_output',return_value=older), patch.object(publish_itch.subprocess,'run',return_value=subprocess.CompletedProcess([],0)):

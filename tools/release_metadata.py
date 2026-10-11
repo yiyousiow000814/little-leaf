@@ -100,8 +100,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--tag", default="")
+    parser.add_argument("--source-commit", default=None)
     parser.add_argument("--require-main-ancestor", action="store_true")
     args = parser.parse_args()
     if args.require_main_ancestor:
         require_main_ancestor(args.root)
-    print(version(args.root, args.tag))
+    print(version(args.root, args.tag, source_commit=args.source_commit))

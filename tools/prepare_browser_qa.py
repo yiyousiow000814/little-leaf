@@ -4,6 +4,7 @@ Only the selected scenario runs. Wall retains the exact old/new export gate;
 cloud retains its six measured layouts. Neither uses player profiles.
 """
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import tempfile
 from project_layout import source_path, stage_project
 from build_web import verify_installer_receipt
 from artifacts import sha256
+from release_metadata import projected_metadata, version
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / 'tests/fixtures/wall-compatibility'
@@ -44,8 +46,12 @@ def validate_export(build, source, old=False):
             raise RuntimeError("Historical vault hash differs")
     elif not set(CONTRACT["candidate_required_sources"]).issubset(manifest["production_sha256"]):
         raise RuntimeError("Candidate export is missing required production sources")
+    projection = projected_metadata(source, commit)
+    projected_hashes = {name: hashlib.sha256(content).hexdigest() for name, content in projection.items()}
+    if manifest.get("projected_metadata_sha256", {}) != projected_hashes or manifest["version"] != version(source, source_commit=commit):
+        raise RuntimeError("Exact-source metadata projection differs")
     for name, expected in manifest["production_sha256"].items():
-        if sha256(source_path(source, name)) != expected or sha256(build / "project" / name) != expected:
+        if sha256(source_path(source, name)) != expected or sha256(build / "project" / name) != projected_hashes.get(name, expected):
             raise RuntimeError("Source/export production mismatch: " + name)
     for name, spec in manifest["files"].items():
         file = build / "web" / name
@@ -107,7 +113,7 @@ def wall_main(argv):
                 raise RuntimeError(label + " layout/codec assertions failed")
             receipt["layouts"][label] = {"sha256": sha256(result_path), "checks": result["checks"]}
             for name, expected in (old if label == "old" else new)["production_sha256"].items():
-                if sha256(project / name) != expected:
+                if sha256(project / name) != (old if label == "old" else new).get("projected_metadata_sha256", {}).get(name, expected):
                     raise RuntimeError("Native preflight changed production source: " + name)
     receipt["status"] = "passed"
     (output / "preflight.json").write_text(json.dumps(receipt, indent=2) + "\n")
