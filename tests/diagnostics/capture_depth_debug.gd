@@ -7,7 +7,12 @@ func pair(state: String) -> void:
 	crop = Rect2i(Vector2i.ZERO,root.size)
 	debug_view.hide();label=state+"-off";await frame()
 	debug_view.observe(rows.back().events,rows.back().frame,rows.back().dropped)
-	check(not rows.back().events.is_empty(),"debug state has actual probe observations")
+	var native_rows=rows.back().events.filter(func(e):return e.has("index_at_completed_frame") and e.visible_at_completed_frame)
+	check(not native_rows.is_empty(),"debug state has actual visible native observations")
+	if state.begins_with("debug-tree"):
+		check(native_rows.any(func(e):return e.context.has("occlusion_contours")),"authored tree contours observed")
+	else:
+		check(native_rows.any(func(e):return e.context.part=="chair_back"),"chair back part observed")
 	debug_view.show();label=state+"-on";await frame()
 	# The annotation shows the explicitly labelled preceding completed frame.
 	# Its fixed state and raw actual-order observations are retained in capture.json.

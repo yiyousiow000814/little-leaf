@@ -60,6 +60,8 @@ def run(output, engine, shared_lock):
                     ('pilot', ['--rendering-method', 'gl_compatibility',
                                '--script', 'res://tests/diagnostics/' + ('capture_depth_debug.gd' if debug_view else 'capture_depth_occlusion.gd'),
                                '--quit-after', '5400'])]
+        if debug_view:
+            commands[1][1].extend(['--', '--skip-intro'])
         # One combined import+pilot deadline; no follow-on retry or broad suite.
         for label, args in commands:
             remaining = 90 - (time.monotonic() - started)

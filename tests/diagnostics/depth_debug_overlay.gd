@@ -40,7 +40,8 @@ func _draw() -> void:
 			if points.size()>2:
 				points.append(points[0]);draw_polyline(points,Color(1,.55,.15,.9),1.5)
 		draw_string(font,Vector2(864,y),key,HORIZONTAL_ALIGNMENT_LEFT,-1,14,Color.CYAN);y+=19
-		draw_string(font,Vector2(864,y),"world %s | anchor %s | depth %.6f"%[str(c.world),str(c.anchor),c.depth],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=19
+		draw_string(font,Vector2(864,y),"world (%.3f, %.3f) | anchor (%.1f, %.1f)"%[c.world[0],c.world[1],c.anchor[0],c.anchor[1]],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=19
+		draw_string(font,Vector2(864,y),"depth %.6f | generation %s"%[c.depth,str(group.generation)],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=19
 		draw_string(font,Vector2(864,y),"cursor %s | native %s"%[str(group.cursors),str(group.indices)],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=19
-		draw_string(font,Vector2(864,y),"visible %s | generation %s"%[str(group.visible),str(group.generation)],HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=26
+		draw_string(font,Vector2(864,y),"visible %s"%str(group.visible),HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE);y+=26
 	draw_string(font,Vector2(864,440),"Orange: authored trunk/crown, not collision or footprint.",HORIZONTAL_ALIGNMENT_LEFT,-1,13,Color.WHITE)

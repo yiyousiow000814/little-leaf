@@ -29,8 +29,10 @@ python tests/diagnostics/run_depth_occlusion.py --prepared <same-directory> --en
 ```
 
 One run captures exactly three static overlay-off/on pairs: actor in front of
-the existing oak, actor behind it, and chair item/back parts. Two initial frames
-prepare the fixture; six are recorded. Reuse the existing combined 90-second
+the existing oak, actor behind it, and chair item/back parts. The diagnostic uses
+the existing `--skip-intro` option so startup's opaque preparation cover is not
+part of this static display check; it does not qualify first-use startup. Two
+initial frames prepare the fixture; six are recorded. Reuse the combined 90-second
 import/native deadline, owned-child kill/wait cleanup, shared/own byte-zero
 locks, Dummy audio and redirected saveguard profiles. Busy means stop. No
 browser/server/Auth, original saves, player profile, broad matrix or FPS claim.
