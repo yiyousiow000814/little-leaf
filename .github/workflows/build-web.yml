@@ -51,6 +51,7 @@ jobs:
           node tests/save_log_privacy.js
           node tests/web_performance_lifecycle.js
           node tests/hidden_elapsed_certificate.js
+          node tests/google_binding_background.js
           node tests/hidden_elapsed_client.js
           node tests/hidden_elapsed_fence.js
           node tests/hidden_elapsed_cancel.js
