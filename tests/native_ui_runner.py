@@ -181,4 +181,3 @@ def main(test_resource, test_marker, capture_resource, capture_marker):
                 report["total_checks"] = sum(record["checks"] for record in report["records"])
                 save()
     print(json.dumps({key: report[key] for key in ["status", "total_checks", "native_render_verified"]}), flush=True)
-
