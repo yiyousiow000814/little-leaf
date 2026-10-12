@@ -185,19 +185,23 @@ class WorkflowTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
-            '--require-main-ancestor', 'digest-mismatch: error', 'tools/release/publish_itch.py',
+        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/release/publish_itch.py',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
         self.assertNotIn('id-token:', text)
-        diagnostic, publishing = text.split('  gate:', 1)
-        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 2)
+        diagnostic, publishing = text.split('  publish:', 1)
+        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
         self.assertEqual(diagnostic.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
         self.assertIn("github.event_name == 'workflow_dispatch'", diagnostic)
         self.assertIn("github.ref == 'refs/heads/main'", diagnostic)
         self.assertNotIn('publish_itch.py', diagnostic)
-        self.assertIn('github.event.created && !github.event.deleted', publishing)
+        common = (root / '.github/workflows/ci.yml').read_text().split('  common_tag:',1)[1]
+        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
+                         '--require-main-ancestor','github.event.created && !github.event.deleted']:
+            self.assertIn(required,common)
+        self.assertIn("github.event_name == 'workflow_run'",publishing)
+        self.assertNotIn('reuse_main_ci.py',publishing)
 
 
 if __name__ == '__main__':

@@ -13,6 +13,16 @@
 ### Current state and ownership
 
 
+Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
+common exact-source build/ordinary qualification with separate itch and Firebase
+CI/publication, without either waiting for the other's upload. The
+[shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
+preserves immutable origins, complete ordinary gates, distinct Firebase gates,
+current-live ancestry/config/rollback and legacy manual/test refusals. Source
+implementation,168 applicable synthetic checks and independent source review
+passed; coherent current-source CI and actual approved delivery remain open.
+No new tag, Hosting mutation, account action or release is established.
+
 Same-itch diagnostic follow-up ([Draft PR237](https://github.com/yiyousiow000814/little-leaf/pull/237)) on2026-10-12: the retained `69f33801`/compiled
 `a897a31f` Windows diagnostic passed ten ownership/cache checks but failed its
 unchanged final zero-errors assertion on three worklet404s. The scoped

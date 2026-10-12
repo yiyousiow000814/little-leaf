@@ -37,7 +37,7 @@ def auth_verification_html(html, config, origin):
     if html.count('</body>')!=1:raise ValueError('Diagnostic body contract changed')
     return html.replace('</body>',injection+'</body>')
 
-def stage(build, output, config, trusted_itch_origin=None, auth_verification_only=False, publication=None):
+def stage(build, output, config, trusted_itch_origin=None, auth_verification_only=False, publication=None, common_order=None):
     validate_export_inventory(build)
     required = {'apiKey','authDomain','projectId','appId'}
     if set(config) != required or any(not isinstance(v,str) or not v or 'REPLACE_' in v for v in config.values()):
@@ -58,6 +58,11 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     (public/'release-manifest.json').unlink()
     base_bytes=(build/'web/release-manifest.json').read_bytes();base=json.loads(base_bytes)
     marker={'schema_version':1,'source_commit':base['source_commit'],'source_tree':base['source_tree'],'ci_run_id':base['workflow_run'],'base_web_manifest_sha256':hashlib.sha256(base_bytes).hexdigest(),'version':base['version'],'tag':base.get('tag','')}
+    if common_order is not None:
+        from release.common_tag import valid_order
+        if publication is not None or trusted_itch_origin is not None or auth_verification_only or not valid_order(common_order):
+            raise ValueError('Separate exact common-tag chronology required')
+        marker['release_order']=common_order
     if publication is not None:
         expected = {'target':'siowyiyou/little-leaf:html5','state':'completed',
                     'source_commit':base['source_commit'],'version':base['version'], 'tag':'v'+base['version']}
