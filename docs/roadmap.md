@@ -12,6 +12,16 @@
 
 ### Current state and ownership
 
+Current same-itch qualification repair on2026-10-12: fresh stage38238105653 on
+`a9bfc3d0` passed its ten recorded cache/ownership checks, then failed an
+uncaught fixture route evaluation during context teardown. The scoped
+[route lifecycle correction](release/itch-trusted-preview-candidate.md#compiled-route-teardown-correction---2026-10-12)
+owns pending callbacks, releases its held update RPC on close, and preserves
+unexpected errors and earlier failures. Focused pure Node checks pass; fresh
+required CI, complete compiled qualification and hosted Google-to-game acceptance
+remain open. Product/save/rules/security source and acceptance thresholds are
+unchanged; no Hosting or itch publication is established.
+
 
 Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
 common exact-source build/ordinary qualification with separate itch and Firebase

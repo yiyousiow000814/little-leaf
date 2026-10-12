@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -114,7 +114,8 @@ const server=http.createServer((req,res)=>{
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
-let browser;const contexts=[],errors=[];
+let browser,caseFailure;const contexts=[],errors=[],routeLifetimes=new WeakMap();
+const closeContext=context=>routeLifetimes.get(context).close();
 report.networkObservations=[];
 function networkObservation(kind,family,result){
  const rows=report.networkObservations,existing=rows.find(row=>row.kind===kind&&row.family===family&&row.result===result);
@@ -126,6 +127,7 @@ async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=
 async function setup(uid,entry=null){
  const seedPhase={active:!!itchVariant};
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
+ const routes=createRouteLifetime(context,errors);routeLifetimes.set(context,routes);
  if(itchVariant){
   const packet=JSON.parse(fs.readFileSync(path.join(itchVariant,'firebase-variant-manifest.json')));
   const modules={};
@@ -138,7 +140,7 @@ async function setup(uid,entry=null){
  }
  context.on('requestfailed',request=>networkObservation('failed',requestFamily(request.url(),origin),failureCategory(request.failure()?.errorText)));
  context.on('response',response=>{const family=requestFamily(response.url(),origin);if(['loopback-sdk','loopback-emulator','sdk-module','frame-sdk','synthetic-emulator'].includes(family))networkObservation('response',family,response.status());});
- await context.route('**/*',async route=>{const u=new URL(route.request().url());if(!itchVariant && (u.origin===origin || u.origin==='http://127.0.0.1:8080'))return route.continue();
+ await context.route('**/*',routes.handle(async route=>{const u=new URL(route.request().url());if(!itchVariant && (u.origin===origin || u.origin==='http://127.0.0.1:8080'))return route.continue();
  if(itchVariant && u.origin===syntheticRPCOrigin){
   if(route.request().frame().url()!==officialOrigin+'/itch/')return route.abort('blockedbyclient');
   if(route.request().method()==='OPTIONS'){
@@ -169,7 +171,7 @@ async function setup(uid,entry=null){
   return route.fulfill({response,headers});
  }
  if(isConnectivityProbe(u.href,route.request().resourceType())){report.blockedConnectivityProbes=(report.blockedConnectivityProbes||0)+1;checkpoint();return route.abort('internetdisconnected');}
- const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(['firebase-app.js','firebase-auth.js','firebase-firestore.js'].some(name=>u.href===prefix+name)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+(itchVariant?officialOrigin+'/itch':origin)+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');});
+ const prefix='https://www.gstatic.com/firebasejs/12.19.0/';if(['firebase-app.js','firebase-auth.js','firebase-firestore.js'].some(name=>u.href===prefix+name)){const name=u.pathname.split('/').pop();const p=name==='firebase-auth.js'?'/sdk/auth.js':name==='firebase-firestore.js'?'/sdk/firestore-wrapper.js':'/sdk/firebase-app.js';return route.fulfill({status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*','Cross-Origin-Resource-Policy':'cross-origin'},body:p==='/sdk/auth.js'?auth:p==='/sdk/firestore-wrapper.js'?firestore.replaceAll("'/sdk/","'"+(itchVariant?officialOrigin+'/itch':origin)+"/sdk/"):fs.readFileSync(path.join(sdkRoot,'firebase-app.js'))});}errors.push('Unexpected external request blocked: '+u.origin+u.pathname);return route.abort('blockedbyclient');}));
  await context.addInitScript(({uid})=>{globalThis.__qaUid=uid;},{uid});
  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'||m.type()==='warning')networkObservation('console','browser',failureCategory(m.text()));if(/SCRIPT ERROR|Parse Error/.test(m.text()))errors.push(m.text());});
  let seedFrame=page;
@@ -241,7 +243,7 @@ try{
  check(sso.accountUnchanged && sso.rejected.join(',')==='signInWithPopup,signInWithRedirect','synthetic popup and redirect reject without changing the authenticated fixture');
  await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'));
  check((await read(uid)).digest===cloud.digest,'harmless cached save never uploaded on re-entry');check(!(await snapshot(d.page)).choicesAvailable,'harmless cache gives no choice');
- check((await journal(d.page,uid)).record.digest===cloud.digest,'latest cloud automatically loaded into journal');await shot(d.page,'old-cache-cloud-loaded');await d.context.close();}
+ check((await journal(d.page,uid)).record.digest===cloud.digest,'latest cloud automatically loaded into journal');await shot(d.page,'old-cache-cloud-loaded');await closeContext(d.context);}
  // Real native takeover button, old native freeze/snapshot/flush, server ack, then epoch switch.
  {const uid='fullflow-graceful',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const owner=await read(uid,'owner');const b=await launch(await setup(uid));
  check((await snapshot(b.page)).status==='other-device','second compiled game waits for explicit switch');
@@ -252,21 +254,21 @@ try{
  check(!!ack && ack.ack.digest===cloud.digest && ack.ack.revision===cloud.revision,'old owner acknowledged exact final cloud save before ownership transfer');
  check(pending.record.digest===cloud.digest && !pending.pending,'old native snapshot durably saved and cloud-confirmed');check((await snapshot(a.page)).ownershipPaused,'old compiled game paused after handoff');
  await resumeProof(b,42000);await shot(a.page,'old-device-paused');
- const stale={...cloud,revision:cloud.revision+100,writerId:owner.owner,writerEpoch:owner.epoch};await assertFails(setDoc(doc(db,'players',uid,'saves','cafe'),stale));check(true,'actual rules reject stale writer even bypassing client checks');await a.context.close();await b.context.close();}
+ const stale={...cloud,revision:cloud.revision+100,writerId:owner.owner,writerEpoch:owner.epoch};await assertFails(setDoc(doc(db,'players',uid,'saves','cafe'),stale));check(true,'actual rules reject stale writer even bypassing client checks');await closeContext(a.context);await closeContext(b.context);}
  // Independent synthetic pending branch uses actual compiled two-card choice + browser confirm.
  for(const choice of ['local','cloud']){const uid='fullflow-choice-'+choice,base=await record(1,42000),local=await record(2,41000,base.profileId),cloud=await record(3,43000,base.profileId);await seed(uid,cloud);
  const original={record:local,base:base.digest,pending:true,device:'Mac'};const d=await launch(await setup(uid,original));await until(async()=>(await snapshot(d.page)).available,'native conflict cards');
  const s=await snapshot(d.page);check(s.choices.length===2 && s.choices[0].coins===41000 && s.choices[1].coins===43000 && s.choices[0].device==='Mac' && s.choices[1].device==='iPhone' && s.choices.every(c=>c.lastSavedLabel && c.lastSavedAt),'two cards expose exact coins/time/device metadata');await shot(d.page,'choice-'+choice);
  await confirmedClick(d.page,'cloud',choice,false);await until(async()=>!(await snapshot(d.page)).busy,'choice cancellation');check((await journal(d.page,uid)).record.digest===local.digest && (await read(uid)).digest===cloud.digest,'cancel leaves both branches unchanged');
  await confirmedClick(d.page,'cloud',choice,true);await until(async()=>!(await snapshot(d.page)).choicesAvailable,'native confirmed selection');
- const backup=await journal(d.page,uid,['choice-v1',uid]);assert.deepEqual(backup.local,original);assert.equal(backup.cloudDocument.record,JSON.stringify(cloud));check(true,'exact local journal and cloud bytes protected before selected model resumes');await resumeProof(d,choice==='local'?41000:43000);await d.context.close();}
+ const backup=await journal(d.page,uid,['choice-v1',uid]);assert.deepEqual(backup.local,original);assert.equal(backup.cloudDocument.record,JSON.stringify(cloud));check(true,'exact local journal and cloud bytes protected before selected model resumes');await resumeProof(d,choice==='local'?41000:43000);await closeContext(d.context);}
  // Offline old native save survives an explicit timed-out takeover and reconnect conflict.
  {const uid='fullflow-offline',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.context.setOffline(true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');const b=await launch(await setup(uid));await click(b.page,'other-device','switch');
  await until(async()=>(await snapshot(b.page)).canForceTakeover,'explicit timeout available',30000);await shot(b.page,'takeover-timeout');
  await confirmedClick(b.page,'timeout','switch',false);check((await read(uid,'owner')).epoch===1,'cancel force does not transfer owner');
  await confirmedClick(b.page,'timeout','switch',true);await until(async()=>(await read(uid,'owner')).epoch===2,'force transfer');await resumeProof(b,42000);await b.page.evaluate(()=>__littleLeafVault.sync());
  await until(async()=>!(await journal(b.page,uid)).pending,'new owner cloud save');await a.context.setOffline(false);await a.page.evaluate(()=>window.dispatchEvent(new Event('focus')));await until(async()=>(await snapshot(a.page)).ownershipPaused,'old device notices fenced owner');
- const retained=await journal(a.page,uid);check(retained.pending && retained.record.revision>=pending.record.revision,'offline pending progress remains local after fencing');await shot(a.page,'offline-pending-preserved');await until(async()=>!(await snapshot(a.page)).busy,'old native snapshot finished');await click(a.page,'other-device','switch');await until(async()=>(await snapshot(a.page)).choicesAvailable,'reconnected incompatible offline branch requires choice');check((await journal(a.page,uid)).pending,'reconnected branch is not silently discarded');await shot(a.page,'offline-return-conflict');await a.context.close();await b.context.close();}
+ const retained=await journal(a.page,uid);check(retained.pending && retained.record.revision>=pending.record.revision,'offline pending progress remains local after fencing');await shot(a.page,'offline-pending-preserved');await until(async()=>!(await snapshot(a.page)).busy,'old native snapshot finished');await click(a.page,'other-device','switch');await until(async()=>(await snapshot(a.page)).choicesAvailable,'reconnected incompatible offline branch requires choice');check((await journal(a.page,uid)).pending,'reconnected branch is not silently discarded');await shot(a.page,'offline-return-conflict');await closeContext(a.context);await closeContext(b.context);}
  // Actual notice buttons. Later never refreshes. Save timeout retains durable progress.
  {const uid='fullflow-update',r=await record(1,42000);await seed(uid,r);const d=await launch(await setup(uid));let navigations=0;d.page.on('framenavigated',frame=>{if(frame===d.page.mainFrame())navigations++;});
  release={schema_version:1,version:'9.0.0',source_commit:'a'.repeat(40)};await d.page.evaluate(()=>LittleLeafUpdate.poll());await d.page.waitForFunction(()=>JSON.parse(LittleLeafUpdate.snapshot()).available);await shot(d.page,'update-available');await updateClick(d.page,'later');check(!(await d.page.evaluate(()=>JSON.parse(LittleLeafUpdate.snapshot()).available)) && navigations===0,'Later dismisses update without reload');
@@ -274,15 +276,16 @@ try{
  // Hold real emulator RPCs, not adapter callbacks. Ownership remains locally active;
  // the network-only deadline must return after the known durable native snapshot.
  const rpcPattern=(itchVariant?syntheticRPCOrigin:'http://127.0.0.1:8080')+'/**';
- let releaseRpc;const held=new Promise(resolve=>releaseRpc=resolve);await d.context.route(rpcPattern,async route=>{await held;await route.fallback().catch(()=>{});});
+ let releaseRpc;const held=new Promise(resolve=>releaseRpc=resolve);d.context.once('close',releaseRpc);await d.context.route(rpcPattern,routeLifetimes.get(d.context).handle(async route=>{await held;await route.fallback();}));
  await updateClick(d.page,'update');await until(async()=>{const e=await journal(d.page,uid);return e.record.revision>before.record.revision&&e.pending;},'update native durable snapshot');
- await d.page.waitForTimeout(17000);check(navigations===0,'timed-out cloud confirmation never reloads');check((await journal(d.page,uid)).pending,'timed-out update retains pending exact durable snapshot');await shot(d.page,'update-timeout-preserved');releaseRpc();await d.context.unroute(rpcPattern);await d.context.close();}
+ await d.page.waitForTimeout(17000);check(navigations===0,'timed-out cloud confirmation never reloads');check((await journal(d.page,uid)).pending,'timed-out update retains pending exact durable snapshot');await shot(d.page,'update-timeout-preserved');releaseRpc();await d.context.unroute(rpcPattern);await closeContext(d.context);}
  // A separate healthy account proves the native Save and update route reaches one reload.
  {release={schema_version:1,version:manifest.version,source_commit:manifest.source_commit};const uid='fullflow-update-success',r=await record(1,42000);await seed(uid,r);const d=await launch(await setup(uid));let navigations=0;d.page.on('framenavigated',frame=>{if(frame===d.page.mainFrame())navigations++;});
  release={schema_version:1,version:'9.0.2',source_commit:'c'.repeat(40)};await d.page.evaluate(()=>LittleLeafUpdate.poll());await updateClick(d.page,'update');await until(()=>navigations===1,'confirmed native update reload',45000);
- await d.page.waitForFunction(()=>globalThis.__littleLeafVault?.storageKind==='firebase-firestore' && !document.getElementById('status'),null,{timeout:90000});await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'),null,{timeout:30000});check((await snapshot(d.page)).status==='active','updated same tab resumes native play with a fresh fenced epoch');const saved=await journal(d.page,uid);check(!saved.pending && saved.record.digest===(await read(uid)).digest,'successful native update reload follows exact cloud confirmation');check(navigations===1,'successful update reloads once');await shot(d.page,'update-confirmed-reloaded');await d.context.close();}
+ await d.page.waitForFunction(()=>globalThis.__littleLeafVault?.storageKind==='firebase-firestore' && !document.getElementById('status'),null,{timeout:90000});await d.page.waitForFunction(()=>LittleLeafSaveLog.snapshot().some(e=>e.layer==='controller'&&e.event==='read_accepted'),null,{timeout:30000});check((await snapshot(d.page)).status==='active','updated same tab resumes native play with a fresh fenced epoch');const saved=await journal(d.page,uid);check(!saved.pending && saved.record.digest===(await read(uid)).digest,'successful native update reload follows exact cloud confirmation');check(navigations===1,'successful update reloads once');await shot(d.page,'update-confirmed-reloaded');await closeContext(d.context);}
  check(errors.length===0,'compiled runtime reports no script or page errors: '+errors.join('; '));report.passed=true;
 }catch(error){
+ caseFailure=error;
  report.failure=String(error.stack||error);report.failureStates=[];
  for(const context of contexts)for(const originalPage of context.pages()){
   const frame=itchVariant?originalPage.frames().find(frame=>frame.url().startsWith(officialOrigin+'/itch/')):null;
@@ -313,6 +316,17 @@ try{
  }
  throw error;
 }finally{
- report.errors=errors;fs.writeFileSync(path.join(out,'firebase-fullflow.json'),JSON.stringify(report,null,2));
- for(const context of contexts)await context.close().catch(()=>{});await browser?.close();await new Promise(resolve=>server.close(resolve));await env.cleanup();
+ let cleanupFailure;
+ const cleanup=async operation=>{try{await operation();}catch(error){cleanupFailure??=error;errors.push('Fixture cleanup failed');}};
+ for(const context of contexts)await cleanup(()=>closeContext(context));
+ await cleanup(()=>browser?.close());await cleanup(()=>new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve())));await cleanup(()=>env.cleanup());
+ // Teardown must not hide an earlier assertion, or make a late route error green.
+ if(cleanupFailure || errors.length){
+  report.passed=false;
+  if(!caseFailure)report.failure=String((cleanupFailure || Error('Fixture route/runtime errors: '+errors.join('; '))).stack);
+ }
+ report.errors=errors;
+ let finalFailure=caseFailure || cleanupFailure || (!report.passed && Error(report.failure));
+ try{checkpoint();}catch(error){console.error('Final fullflow report write failed');finalFailure ||= error;}
+ if(!caseFailure && finalFailure)throw finalFailure;
 }
