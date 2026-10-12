@@ -1,6 +1,6 @@
 # Starter-wall grid implementation: local review candidate
 
-Based on shipped 0.1.8 commit `9110ebd`. The independent design review is retained in `starter-wall-design-review.json`. This candidate is separate from the accepted Build/Tiles and Staff UI branch. No repository publication or deployment has occurred.
+Historical source-bound implementation review, based on shipped 0.1.8 commit `9110ebd`. The independent design review is retained in [starter-wall-design-review.json](starter-wall-design-review.json). Candidate, branch, publication and deployment statements below describe the source revisions recorded here; they do not establish current readiness or integration instructions. Use the [canonical roadmap](../roadmap.md) for current implementation, ownership and acceptance state.
 
 A starter-wall click now selects one floor-grid edge. Its preview, style/height quote and confirmation apply to that edge only. A new full-height tile costs 55 coins, rather than replacing all nine west-wall tiles for 495. Quotes and cancellation do not charge. Existing shell boundaries, thickness, geometric root order, opening identities and offsets remain intact.
 
@@ -44,8 +44,8 @@ This refinement changes no model, save, payment, refund, host or opening geometr
 
 The accepted selection and preview use an antialiased dark-gray `#444744` outline at 0.35 display-pixel width, with no fill on the cap, wall or opening. The complete front, top-cap and side-return geometry stays visible at every zoom. The earlier palette and stroke revisions are superseded. The regression fixture checks passive, valid and invalid previews without changing payment or save state.
 
-## Remaining release gates
+## Historical remaining release gates
 
-Real browser execution remains pending. The independent `REAL_WEB_CI_CONTRACT.md` specifies actual IndexedDB, stale-tab, new-client reload, failed durable write and old-client recovery checks. Native-controller and synthetic transaction evidence do not replace that gate.
+Real browser execution was pending in this recorded review. The [actual Web wall-save compatibility gate](../testing/wall-web-compatibility.md) specifies actual IndexedDB, stale-tab, new-client reload, failed durable write and old-client recovery checks. Native-controller and synthetic transaction evidence do not replace that gate; use the roadmap for its current status.
 
 Integrate with the accepted Build action strip, door-jamb correction, stove reservations, dishwashing and other 0.1.9 work; run combined regressions and fresh import/export CI against the final source before publication. Keep the existing outer save version 15 and receipt authority unchanged.

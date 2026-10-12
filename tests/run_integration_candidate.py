@@ -18,11 +18,22 @@ import shutil
 import subprocess
 import tempfile
 import time
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+from project_layout import stage_project
 SUITES = [
+    ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
+    ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
+    ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
+    ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
+    ("test_startup_readiness", "STARTUP_READINESS_RESULT"),
+    ("test_cloud_recovery_ui", "CLOUD_RECOVERY_UI_RESULT"),
+    ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
@@ -61,6 +72,10 @@ SUITES = [
     ("test_beverage_accessory_depth", "BEVERAGE_ACCESSORY_DEPTH_RESULT"),
     ("test_continuous_spout", "CONTINUOUS_SPOUT_RESULT"),
     ("test_decorate_camera", "DECORATE_CAMERA_RESULT"),
+    ("test_decorate_draw_projection", "DECORATE_DRAW_PROJECTION_RESULT"),
+    ("test_camera_input_ownership", "CAMERA_INPUT_OWNERSHIP_RESULT"),
+    ("test_square_neighborhood_camera", "SQUARE_NEIGHBORHOOD_CAMERA_RESULT"),
+    ("test_overview_triangulation", "OVERVIEW_TRIANGULATION_RESULT"),
 
     ("test_ui_guard_performance", "UI_GUARD_PERFORMANCE_RESULT"),
     ("test_floor_claim_retry", "FLOOR_CLAIM_RETRY_RESULT"),
@@ -140,18 +155,42 @@ SUITES = [
 EXCLUDE = shutil.ignore_patterns(
     ".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
     "export", "exports", "export_templates", "dist", "*.log", "*.zip")
+# These paused, input/layout suites assert frame order rather than wall time.
+# All lifecycle, save, startup, service and FPS suites retain real-time pacing.
+UNPACED_UI = {"test_toolbar_help", "test_environment_camera_access"}
+
+
+def suite_resources(repository):
+    """Resolve stable CLI suite IDs to project resources without a second suite list."""
+    stems = {name: name for name, _ in SUITES}
+    if len(stems) != len(SUITES):
+        raise ValueError("Duplicate canonical suite ID")
+    stems["test_staff_start"] = "staff-start"
+    resources = {}
+    for path in sorted((Path(repository) / "tests").rglob("test_*.gd")):
+        suite_id = stems.get(path.stem)
+        if suite_id is None:
+            continue
+        if suite_id in resources:
+            raise ValueError("Duplicate suite resource: " + suite_id)
+        resources[suite_id] = "res://" + path.relative_to(repository).as_posix()
+    return resources
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--only", nargs="+", choices=[name for name, _ in SUITES] + ["staff-start"])
+    parser.add_argument("--unpaced-ui", action="store_true",
+                        help="Use fixed 60 Hz simulation only for two reviewed paused UI suites")
     parser.add_argument("--lock", type=Path, default=Path(os.environ.get(
         "LL_ENGINE_LOCK", str(ROOT.parent / ".little-leaf-engine.lock"))))
     args = parser.parse_args()
-    available = [name for name, _ in SUITES if (ROOT / "tests" / (name + ".gd")).is_file()]
-    if (ROOT / "tests/test_staff_start.gd").is_file():
-        available.append("staff-start")
+    try:
+        resources = suite_resources(ROOT)
+    except ValueError as error:
+        parser.error(str(error))
+    available = list(resources)
     selected = set(args.only or available)
     missing = selected - set(available)
     if missing:
@@ -191,10 +230,10 @@ def main():
             if not temp.is_relative_to(qa.resolve()):
                 raise RuntimeError("Disposable fixture escaped its reviewed root")
             project = temp / "project"
-            shutil.copytree(ROOT, project, ignore=EXCLUDE)
+            stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
             # entirely inside this disposable copy, without changing delivered source.
-            controller = project / "scripts/cafe_web_save.gd"
+            controller = project / "scripts/persistence/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
             assert old in code, "Review native staging adaptation after source changes"
@@ -213,7 +252,8 @@ def main():
 
             def run(name, arguments, env, marker=None):
                 start = time.monotonic()
-                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *arguments]
+                pacing = ["--fixed-fps", "60"] if args.unpaced_ui and name in UNPACED_UI else []
+                command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *pacing, *arguments]
                 completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT, timeout=300)
                 text = completed.stdout.decode("utf-8", errors="replace")
@@ -242,6 +282,8 @@ def main():
                           "failures": [f for p in payloads for f in p.get("failures", [])],
                           "diagnostics": [l for l in text.splitlines() if "WARNING" in l or "ERROR" in l],
                           "log": name + ".log"}
+                if pacing:
+                    record["simulation_fixed_fps"] = 60
                 # Bind derived UI receipts to the exact aggregate report used
                 # by the export manifest, rather than trusting a loose JSON file.
                 result_file = env.get("LL_UI_RESULT")
@@ -250,10 +292,16 @@ def main():
                 report["records"].append(record)
                 save()
                 print(json.dumps(record), flush=True)
-                if completed.returncode or "SCRIPT ERROR:" in text or record["failures"]:
+                if completed.returncode or "SCRIPT ERROR:" in text or ("Nondegenerate overview contour failed stable triangulation" in text or "Authored overview contour has no source triangles" in text) or record["failures"]:
                     raise RuntimeError("Failed: " + name)
                 if marker and (len(payloads) != 1 or record["checks"] <= 0):
                     raise RuntimeError("Missing/duplicate/empty result: " + name)
+                if name == "test_customer_litter":
+                    evidence = json.loads(Path(env["LL_LITTER_EVIDENCE"]).read_text())
+                    if (record["checks"] < 56 or payloads[0].get("failures") != [] or
+                            evidence.get("checks") != record["checks"] or
+                            evidence.get("failures") != [] or "\nERROR:" in text):
+                        raise RuntimeError("Incomplete/failed customer litter result")
 
             try:
                 run("import", ["--editor", "--import", "--quit"], env_for("import"))
@@ -266,7 +314,7 @@ def main():
                     flags = ["--visual-qa", "--fresh-review"]
                     if script != "test_interactive_tutorial":
                         flags.append("--skip-tutorial")
-                    if script != "test_intro_lifecycle_headless":
+                    if script not in {"test_intro_lifecycle_headless", "test_startup_readiness"}:
                         flags.append("--skip-intro")
                     # These controller fixtures never create the game scene. The
                     # adversarial native harness uses a zero-I/O model and must
@@ -275,7 +323,14 @@ def main():
                         flags = ["--skip-intro"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
-                    run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
+                    run(script, ["--script", resources[script], "--", *flags], env, marker)
+                    # Retain the autosave/Welcome wrappers' ordinary-save tripwire.
+                    if script in {
+                        "test_autosave_feedback", "test_autosave_feedback_adversarial", "test_autosave_feedback_ui",
+                        "test_no_bottom_notifications", "test_hud_layout", "test_startup_retry",
+                        "test_starter_geometry", "test_intro_lifecycle_headless", "test_intro_cli_bypass",
+                    } and any(Path(env["HOME"]).parent.rglob("little_leaf_cafe_layout_motion_v15.json")):
+                        raise RuntimeError("Unexpected regular save filename: " + script)
 
                 # These five starts intentionally share one generated profile so that
                 # the native entry point loads the exact preceding synthetic saves.
@@ -297,7 +352,7 @@ def main():
                     flags = ["--visual-qa", "--skip-intro", "--skip-tutorial"]
                     if case == "fresh":
                         flags.append("--fresh-review")
-                    run("staff-start-" + case, ["--script", "res://tests/test_staff_start.gd", "--", *flags],
+                    run("staff-start-" + case, ["--script", resources["staff-start"], "--", *flags],
                         env, "STAFF_START_RESULT")
                 report["status"] = "passed"
             except BaseException:

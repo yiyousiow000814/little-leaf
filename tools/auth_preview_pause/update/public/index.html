@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<title>Little Leaf Cafe</title>
+		<style>
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+html, body {
+	width: 100%;
+	height: 100%;
+	background: #cce3e8;
+}
+
+body {
+	color: #735f43;
+	font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+	overflow: hidden;
+}
+
+#canvas { display: block; touch-action: none; }
+#canvas:focus { outline: none; }
+
+/* This is visible before any engine, SDK or storage work can begin. */
+#status {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	background: #cce3e8;
+	overflow: auto;
+	touch-action: pan-y;
+}
+
+.status-cloud {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	border-radius: 50%;
+	background: rgba(255, 255, 250, .42);
+	transform: translate(-50%, -50%);
+}
+.status-cloud::before, .status-cloud::after {
+	content: '';
+	position: absolute;
+	border-radius: 50%;
+	background: inherit;
+}
+.status-cloud::before { width: 46px; height: 46px; left: -17px; top: 13px; }
+.status-cloud::after { width: 50px; height: 50px; left: 37px; top: 13px; }
+.status-cloud:nth-child(1) { left: 16%; top: 18%; }
+.status-cloud:nth-child(2) { left: 78%; top: 23%; }
+.status-cloud:nth-child(3) { left: 60%; top: 68%; }
+
+/* Match cafe_intro.gd's opening composition, including short landscapes. */
+#status-brand {
+	position: absolute;
+	left: 50%;
+	top: 42.8%;
+	width: min(91.7937vw, 620px, 90.695vh);
+	aspect-ratio: 783 / 518;
+	transform: translate(-50%, -50%);
+	text-align: center;
+}
+#status-welcome {
+	position: absolute;
+	left: 50%;
+	top: -18px;
+	transform: translateX(-50%);
+	width: 100vw;
+	margin: 0;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 34px;
+}
+#status-splash { display: block; width: 100%; height: 100%; object-fit: contain; }
+#status-brand-fallback {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-content: center;
+	font: bold clamp(32px, 8vw, 64px) Georgia, serif;
+}
+#status-brand-fallback[hidden], #status-splash[hidden] { display: none; }
+
+#status-loading {
+	position: absolute;
+	left: 50%;
+	bottom: 9%;
+	transform: translateX(-50%);
+	width: min(70vw, 320px);
+	text-align: center;
+}
+#status-label { margin: 0 0 12px; font-size: 15px; line-height: 1.4; }
+#status-progress {
+	display: block;
+	width: 100%;
+	height: 12px;
+	box-sizing: border-box;
+	appearance: none;
+	-webkit-appearance: none;
+	border: 1px solid #899b72;
+	border-radius: 999px;
+	background: #f6f3df;
+	color: #708749;
+	accent-color: #708749;
+	overflow: hidden;
+}
+#status-progress::-webkit-progress-bar { background: #f6f3df; border-radius: 999px; }
+#status-progress::-webkit-progress-value { background: #708749; border-radius: 999px; }
+#status-progress::-moz-progress-bar { background: #708749; border-radius: 999px; }
+/* Unknown totals have no invented percentage or time-based advancement. */
+#status-progress:indeterminate { opacity: .65; }
+
+#status-notice {
+	display: none;
+	position: relative;
+	z-index: 1;
+	box-sizing: border-box;
+	width: min(90%, 540px);
+	max-height: 80%;
+	overflow: auto;
+	margin: 10vh auto;
+	padding: 24px;
+	border: 1px solid #907853;
+	border-radius: 16px;
+	background: #fff9e9;
+	color: #56442f;
+	line-height: 1.5;
+	text-align: center;
+	touch-action: pan-y;
+}
+#status-notice h1 { font-size: 22px; margin: 0 0 12px; }
+#status-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+#status-retry {
+	min-height: 44px;
+	padding: 10px 24px;
+	border: 1px solid #596c3b;
+	border-radius: 12px;
+	background: #708749;
+	color: white;
+	font: inherit;
+	cursor: pointer;
+}
+#status-retry:focus-visible { outline: 3px solid #735f43; outline-offset: 4px; }
+#status[data-mode="notice"] #status-brand,
+#status[data-mode="notice"] #status-loading { display: none; }
+#status[data-mode="notice"] #status-notice { display: block; }
+#no-script {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: grid;
+	place-content: center;
+	padding: 24px;
+	background: #cce3e8;
+	text-align: center;
+	line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+	#status-progress:indeterminate { visibility: hidden; }
+}
+@media (max-width: 699px) { #status-welcome { font-size: 18px; } }
+@media (max-height: 340px) {
+	#status-loading { bottom: 5%; }
+	#status-label { font-size: 12px; margin-bottom: 6px; }
+}
+		</style>
+		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+
+	</head>
+	<body>
+		<canvas id="canvas" aria-label="Little Leaf café game" aria-busy="true">
+			Little Leaf needs a browser with canvas support. Please use an up-to-date browser.
+		</canvas>
+
+		<div id="status" data-mode="progress" aria-label="Loading Little Leaf">
+			<div aria-hidden="true"><i class="status-cloud"></i><i class="status-cloud"></i><i class="status-cloud"></i></div>
+			<div id="status-brand">
+				<p id="status-welcome">Welcome to</p>
+				<img id="status-splash" src="index.png" width="783" height="518" alt="Little Leaf" fetchpriority="high">
+				<span id="status-brand-fallback" hidden>Little Leaf</span>
+			</div>
+			<div id="status-loading">
+				<p id="status-label" role="status" aria-live="polite">Preparing your café…</p>
+				<progress id="status-progress" aria-label="Downloading Little Leaf"></progress>
+			</div>
+			<section id="status-notice" role="alert" aria-labelledby="status-error-title">
+				<h1 id="status-error-title">Little Leaf couldn’t open yet</h1>
+				<p id="status-error"></p>
+				<p>Check your connection, then try reloading. If this keeps happening, try an up-to-date browser.</p>
+				<button id="status-retry" type="button">Reload Little Leaf</button>
+			</section>
+		</div>
+		<noscript><div id="no-script"><strong>Little Leaf</strong><p>JavaScript is needed to open your café. Enable JavaScript, then reload this page.</p></div></noscript>
+
+		
+		
+		
+		
+		
+	<script>window.__littleLeafFirebaseReady=import("./little_leaf_firebase_boot.mjs").then(m=>m.start({"apiKey": "AIzaSyCYeU5w72oW5a64XwmBYCwNWsY_IcfYGzs", "authDomain": "little-leaf-41e5d.firebaseapp.com", "projectId": "little-leaf-41e5d", "appId": "1:865267465971:web:a3196c60e6c574e9f30186"},{"surface": "trusted-itch-frame", "runtimeOrigin": "https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app", "authVerificationOnly": true})).catch(()=>{const label=document.getElementById("status-label");if(label)label.textContent="Auth setup did not finish. Game and saves remain paused.";});</script></body>
+</html>
+

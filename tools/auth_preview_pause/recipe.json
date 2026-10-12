@@ -1,0 +1,660 @@
+{
+  "source_commit": "1d7b7b5f12cced3d682cb37ecd0957e2585f19d0",
+  "source_tree": "3fb144590d3ea1f36133664181612fe9c0980a7a",
+  "base_run_id": 38029738586,
+  "base_artifact_id": 11662670060,
+  "base_artifact_name": "little-leaf-firebase-1d7b7b5f12cced3d682cb37ecd0957e2585f19d0-1",
+  "base_manifest_sha256": "79ec16fe11ff9ccee09902194b00be135fce51ab651a9caa6d7767d41a19daa9",
+  "target_origin": "https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app",
+  "channel": "itch-embed-test",
+  "expiry_utc": "2026-10-11T07:18:58.475792680Z",
+  "unchanged_qualified_files": {
+    "GODOT-AA-LICENSE.txt": "25b1e578708448149fe07c1f6f4035bc63cbb6e882d9b266fdff870433860e26",
+    "index.apple-touch-icon.png": "8035c9f636b2f72178077c83880555bc913eccb109097a5d9260c72b96890e6e",
+    "index.audio.position.worklet.js": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8",
+    "index.audio.worklet.js": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3",
+    "index.icon.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+    "index.js": "e3f56ee40e6f84371053db06692cfac15e2c8659547b11c6b2dfa1996dabd981",
+    "index.pck": "d42b6420b431700c7cafbbf991fc2dda715d6fbb847441848b11106aa5a1745d",
+    "index.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+    "index.wasm": "26b61ce95247012ab3dca3ff51e96d1cdbff44ee91a8c20a83e150afca83f1b6",
+    "little_leaf_firebase.js": "f4e857c5ed5c05859029cbba68691caf093e687f9cf73d6576297bcfaf726210",
+    "little_leaf_firebase_session.js": "d82d65df20117382e6be31ba7f693ce9117f42479aa736bd82e0521949ca1056",
+    "little_leaf_update.js": "804faf98cd494c060d497c03b7b95df19c9f3b7ae339ebefb6e780c0c420af54"
+  },
+  "archives": {
+    "update": {
+      "sha256": "f5aaf81d27500e5d82ac9bb2951852e67e7c56cf094adff68e7a1c7eb7c32778",
+      "files": {
+        "GODOT-AA-LICENSE.txt": "25b1e578708448149fe07c1f6f4035bc63cbb6e882d9b266fdff870433860e26",
+        "hosting-release.json": "6a0a4884982d13aa221fd8172bf8dd7ac473a702d78d55cc4b52bfe89e43a2fb",
+        "index.apple-touch-icon.png": "8035c9f636b2f72178077c83880555bc913eccb109097a5d9260c72b96890e6e",
+        "index.audio.position.worklet.js": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8",
+        "index.audio.worklet.js": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3",
+        "index.html": "28e074f046588c110b285d53286e3b4375223dcfec20b62bae2325ecafc203d9",
+        "index.icon.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+        "index.js": "e3f56ee40e6f84371053db06692cfac15e2c8659547b11c6b2dfa1996dabd981",
+        "index.pck": "d42b6420b431700c7cafbbf991fc2dda715d6fbb847441848b11106aa5a1745d",
+        "index.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+        "index.wasm": "26b61ce95247012ab3dca3ff51e96d1cdbff44ee91a8c20a83e150afca83f1b6",
+        "little_leaf_firebase.js": "f4e857c5ed5c05859029cbba68691caf093e687f9cf73d6576297bcfaf726210",
+        "little_leaf_firebase_boot.mjs": "ba19937fcd6e08f1770ed4dde5e233e75999fc104f962addf7a6b8802e1f5838",
+        "little_leaf_firebase_session.js": "d82d65df20117382e6be31ba7f693ce9117f42479aa736bd82e0521949ca1056",
+        "little_leaf_update.js": "804faf98cd494c060d497c03b7b95df19c9f3b7ae339ebefb6e780c0c420af54"
+      },
+      "entries": [
+        {
+          "filename": "public/GODOT-AA-LICENSE.txt",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/hosting-release.json",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            43,
+            12
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.apple-touch-icon.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.audio.position.worklet.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.audio.worklet.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.html",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            43,
+            12
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.icon.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.pck",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.wasm",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase_boot.mjs",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            41,
+            12
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase_session.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_update.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "diagnostic-manifest.json",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            43,
+            12
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        }
+      ]
+    },
+    "rollback": {
+      "sha256": "98b033b91535b63c7818d7f12bca17c567e97c41ba92473a67f832f7d4deb0e6",
+      "files": {
+        "GODOT-AA-LICENSE.txt": "25b1e578708448149fe07c1f6f4035bc63cbb6e882d9b266fdff870433860e26",
+        "hosting-release.json": "c5ededa42e97ffcb234b2c5d7a162124972335ac6fbf881466b4c9682b04626f",
+        "index.apple-touch-icon.png": "8035c9f636b2f72178077c83880555bc913eccb109097a5d9260c72b96890e6e",
+        "index.audio.position.worklet.js": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8",
+        "index.audio.worklet.js": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3",
+        "index.html": "3262767434f717398bda25e477703fbe080ec9b7c08367b69fb7c0c87ad9fbcd",
+        "index.icon.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+        "index.js": "e3f56ee40e6f84371053db06692cfac15e2c8659547b11c6b2dfa1996dabd981",
+        "index.pck": "d42b6420b431700c7cafbbf991fc2dda715d6fbb847441848b11106aa5a1745d",
+        "index.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+        "index.wasm": "26b61ce95247012ab3dca3ff51e96d1cdbff44ee91a8c20a83e150afca83f1b6",
+        "little_leaf_firebase.js": "f4e857c5ed5c05859029cbba68691caf093e687f9cf73d6576297bcfaf726210",
+        "little_leaf_firebase_boot.mjs": "53abe780a8db279dcf4d46c24a900de235ba7025f6703b684f94e6cb5873ef08",
+        "little_leaf_firebase_session.js": "d82d65df20117382e6be31ba7f693ce9117f42479aa736bd82e0521949ca1056",
+        "little_leaf_update.js": "804faf98cd494c060d497c03b7b95df19c9f3b7ae339ebefb6e780c0c420af54"
+      },
+      "entries": [
+        {
+          "filename": "public/GODOT-AA-LICENSE.txt",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/hosting-release.json",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            43,
+            14
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.apple-touch-icon.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.audio.position.worklet.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.audio.worklet.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.html",
+          "date_time": [
+            2026,
+            10,
+            10,
+            17,
+            43,
+            42
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.icon.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.pck",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.png",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/index.wasm",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase_boot.mjs",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_firebase_session.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        },
+        {
+          "filename": "public/little_leaf_update.js",
+          "date_time": [
+            2026,
+            10,
+            10,
+            14,
+            39,
+            6
+          ],
+          "compress_type": 8,
+          "create_system": 0,
+          "create_version": 20,
+          "extract_version": 20,
+          "internal_attr": 0,
+          "external_attr": 2176188416,
+          "extra": "",
+          "comment": ""
+        }
+      ]
+    }
+  }
+}

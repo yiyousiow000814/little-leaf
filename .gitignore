@@ -1,5 +1,7 @@
 # Godot generated cache and export binaries
 .godot/
+/game/export_templates/
+/game/Web/
 /export_templates/
 /exports/
 /export/

@@ -1,0 +1,38 @@
+{
+  "status": "local-diagnostic-not-deployed",
+  "source_base": "1d7b7b5f12cced3d682cb37ecd0957e2585f19d0",
+  "source_changes": {
+    "web/little_leaf_firebase_boot.mjs": "ba19937fcd6e08f1770ed4dde5e233e75999fc104f962addf7a6b8802e1f5838",
+    "ci/build_firebase.py": "8eadb00fcd1237ecdfe63617f5690ddf2bf985abd524a5b6c9f0ffa40409305f",
+    "tests/firebase_auth_verification_pause.js": "11ab6ca2fd5b8861aa01bc83f0d261ca64415408f0efb68845d55b7819731036",
+    "tests/test_firebase_build.py": "9e46ccc648efbfb43ce5df491d1ddedd4769f8802fe83b5b758d6f36004c4aa7"
+  },
+  "runtime_origin": "https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app",
+  "changed_public_files": [
+    "hosting-release.json",
+    "index.html",
+    "little_leaf_firebase_boot.mjs"
+  ],
+  "files": {
+    "GODOT-AA-LICENSE.txt": "25b1e578708448149fe07c1f6f4035bc63cbb6e882d9b266fdff870433860e26",
+    "hosting-release.json": "6a0a4884982d13aa221fd8172bf8dd7ac473a702d78d55cc4b52bfe89e43a2fb",
+    "index.apple-touch-icon.png": "8035c9f636b2f72178077c83880555bc913eccb109097a5d9260c72b96890e6e",
+    "index.audio.position.worklet.js": "be33985bc7160d6bf9646f259cd86b259cd67b02ccb297ee5c44f8ac84327bc8",
+    "index.audio.worklet.js": "5b476a9c9ce642c0ee4256436d1bc31d9c38f868aca0f9a8e2a57c18d2dec2a3",
+    "index.html": "28e074f046588c110b285d53286e3b4375223dcfec20b62bae2325ecafc203d9",
+    "index.icon.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+    "index.js": "e3f56ee40e6f84371053db06692cfac15e2c8659547b11c6b2dfa1996dabd981",
+    "index.pck": "d42b6420b431700c7cafbbf991fc2dda715d6fbb847441848b11106aa5a1745d",
+    "index.png": "39a582dc805a8e0cfec4b873be7286118cab47400eefd5f4bbb5147dbe4e55b0",
+    "index.wasm": "26b61ce95247012ab3dca3ff51e96d1cdbff44ee91a8c20a83e150afca83f1b6",
+    "little_leaf_firebase.js": "f4e857c5ed5c05859029cbba68691caf093e687f9cf73d6576297bcfaf726210",
+    "little_leaf_firebase_boot.mjs": "ba19937fcd6e08f1770ed4dde5e233e75999fc104f962addf7a6b8802e1f5838",
+    "little_leaf_firebase_session.js": "d82d65df20117382e6be31ba7f693ce9117f42479aa736bd82e0521949ca1056",
+    "little_leaf_update.js": "804faf98cd494c060d497c03b7b95df19c9f3b7ae339ebefb6e780c0c420af54"
+  },
+  "fresh_engine_run": false,
+  "real_google_sign_in_verified": false,
+  "production_release_eligible": false,
+  "firestore_rules_in_runtime_bundle": false,
+  "itch_wrapper_changed": false
+}
