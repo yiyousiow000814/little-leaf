@@ -1,7 +1,7 @@
 {
   "version": 1,
   "engine": "4.6.3",
-  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR180 namespace source 9c3f35a0c576b92bd6fe8cb658c6872103d4997f/tree348fb0d9bfe591ce64d4ebb1a4c35b3826e45306; QA 80cf822a973c9e7b21e7b055bcc4bc4bd7595d79; run38164438351; receiptSHA256 bead4b1f298fb990b258b630de6e760cdbf3d4aa7850773de957a1809d9e76c4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all884 raw Git inputs/modes and120 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged; Separately scoped Editor source 03e006eb9db3f66d9544b2c1bc6e9dec7ae5f704/tree67cccc1cea0be4311623b40623bcba370f76caa6; run38166204683; receiptSHA256 0af159fc773150fb2b0778b59ebeb401e05cd3832e114b3d3fad87f50f33a958; original3RGBA qualification remains exact Editor893-input source; accepted HUD remains exact PR180 source above; composed inputs Editor b709fa0a0ab0f51aabdd482b5168d424fb84da94 plus acceptedmain 3b808fb366ae8709c9ed02df2baf51860b64c378; equivalence-input receiptSHA256 45a92629d4e8654cbb4e7a55cf7f100df148718d24761ec52f7ca03a34e7f435; final composition head/tree/raw binding and CI recorded separately, no full-inventory run claim on composed head",
+  "provenance": "Official Godot4.6.3 Linux X11 Mesa25.2.8 llvmpipe LLVM20.1.2; exact PR180 namespace source 9c3f35a0c576b92bd6fe8cb658c6872103d4997f/tree348fb0d9bfe591ce64d4ebb1a4c35b3826e45306; QA 80cf822a973c9e7b21e7b055bcc4bc4bd7595d79; run38164438351; receiptSHA256 bead4b1f298fb990b258b630de6e760cdbf3d4aa7850773de957a1809d9e76c4; all3 procedural/imported/runtime/direct-source/savedPNG RGBA exact original controls; all884 raw Git inputs/modes and120 dependencies verified; candidate helper exactly3 namespace preload substitutions reverse-byte-identical original; original control38066367866 reused; assets/imports unchanged; Separately scoped Editor source 03e006eb9db3f66d9544b2c1bc6e9dec7ae5f704/tree67cccc1cea0be4311623b40623bcba370f76caa6; run38166204683; receiptSHA256 0af159fc773150fb2b0778b59ebeb401e05cd3832e114b3d3fad87f50f33a958; original3RGBA qualification remains exact Editor893-input source; accepted HUD remains exact PR180 source above; composed inputs Editor b709fa0a0ab0f51aabdd482b5168d424fb84da94 plus acceptedmain 3b808fb366ae8709c9ed02df2baf51860b64c378; equivalence-input receiptSHA256 45a92629d4e8654cbb4e7a55cf7f100df148718d24761ec52f7ca03a34e7f435; final composition head/tree/raw binding and CI recorded separately, no full-inventory run claim on composed head; Scoped gameplay-bead source beadf2fdad3f955572702815cb0e94aa43e7033a/tree37abd8edff07c49cff8d9231f462d65d114a5b93; QA a1a67c8c5951d9ce4addc27c97498e19824eed79; run38214584687; receiptSHA256 47f198ee74f5507908ea081ae240fab596563793bca0eaacad0ed9e416c5688c; all899 raw Git/modes and124 dependencies verified; fullModelSHA256 4a650fd2f957b507a8898a5866adfe3062f5481541c0ab65ae75e06bb520fd41; official4.6.3 Linux X11 Mesa25.2.8 llvmpipeLLVM20.1.2; original3 generated/imported/runtime/direct/savedRGBA; control38066367866 reused/exact3 namespace preloads; no other Model/source runtime transfer",
   "source_sha256": {
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u5348\u5e02\u8f7b\u5feb\u6b65_\u5fd9\u788c\u8425\u4e1a.mp3": "96faac5d0317c187765b1015841fa2104f712afcaf8dbe776dea57081d141943",
     "assets/audio/\u5c0f\u53f6\u98df\u5802_\u684c\u8fb9\u7684\u53f6\u5f71_\u5b89\u9759\u5e03\u7f6e.mp3": "04781905403ee035a73190c0d4c25aeab16732ab690dca7b3f54bc16bdff5b9a",
@@ -14,7 +14,7 @@
     "assets/fonts/Nunito-ExtraBold.ttf": "0514da7e4ec2b3d217e22564a0a5f7f21d0930797729762193a7538b02386cc6",
     "assets/ui/fidelity_hud/green_face.png": "6828416d007b4bec34f8d63e7b99e13c94b5d38a6660daa2bffc3185f3a7c20c",
     "data/release_notes.json": "3810cae3a93cfcbbc57143e37792252d4f6d1fb15999ddacab04c4de02d64d02",
-    "scripts/core/cafe_model.gd": "1ec51f313778a9570a2c6d977966ff64da6510a289c2095dc02675ed3311d89a",
+    "scripts/core/cafe_model.gd": "4a650fd2f957b507a8898a5866adfe3062f5481541c0ab65ae75e06bb520fd41",
     "scripts/core/cafe_startup_readiness.gd": "9c7e9a4fbe079f7be649d913ead31edc394e7ecfcc54c29cd0c1fab5e1dc4977",
     "scripts/gameplay/cafe_build_tools.gd": "33f9f9524c8240985e935e45c87cbcf40b56a1b9b6ec5caa7af729e3df66a63d",
     "scripts/gameplay/cafe_checkout.gd": "e4878ad09e016c974f1efadb3f7d6235d63cd97f8f69e8b9a21c94c5ab29f46c",
@@ -39,7 +39,7 @@
     "scripts/gameplay/cafe_walls.gd": "c164308a6a8175583e9ed8e7e82023b397b5e29922d2d1d572e50fb99dc78c0c",
     "scripts/gameplay/dining_placement.gd": "26dc608fb0e8900a84a5c5e73cc125dcd4bab8695410a2da3d67cdce41802617",
     "scripts/gameplay/floor_cleaning_approach.gd": "b842e269da96a7475ec952ee5aca8f53d7295137b456ae1971b0d851c9677692",
-    "scripts/main.gd": "aedd0456c43cb78bf9791a93fd048847b991e6d219c082287e07ec6964edc24d",
+    "scripts/main.gd": "e5e3fd6abbca7e3bb6d8f4851dd66a8df8aa4923a90efeea7f9c5bb8b1995126",
     "scripts/minimal_start.gd": "c767f7a12871028245e586b90309fa1919ef9eb4fb66610a0a6b34a2653d5542",
     "scripts/persistence/cafe_autosave_policy.gd": "c01afa88a4a181e4307aaf1117786ec37e40deafa37a18f6df901c4dbc9c8a6d",
     "scripts/persistence/cafe_cloud_settings.gd": "4ad9bf3ff919f377e422a3b584849b91c7596af725ec5aae4d535cd7a2b93ff4",
