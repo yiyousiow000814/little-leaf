@@ -20,6 +20,7 @@ ARTIFACTS = {
 }
 DRIVER = 'cbe37a713d59c20d9f1d5add35d9d5240f04e003ee838c93d1f6648203812da9'
 OBSERVER = '7a05118efd4a10935eadf0792361e2f0bf5783ef0c6c0864967316a5a6cdcd07'
+FROZEN_DRIVER = 'current_handoff_driver.mjs'
 EXPORT = 'fe6102a697698f3f4df99009fbe83f276cd84c819726b7e6340aabbcf3bc0ca7'
 NATIVE = '2dda0099ac971bfb174022cb5588e30c818bf7d520f8cd12a5507eeb25cfec5f'
 REPORT = '6563f89be153a1fd372645c25f1744b4c7e729f16e3ad9f600dc29c275eeddb9'
@@ -31,6 +32,24 @@ FLOW_SOURCES = (
     'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
     'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules',
 )
+
+
+def select_current59_profile():
+    """One additional immutable failed-source tuple; no arbitrary source inputs."""
+    global SOURCE, TREE, RUN, ARTIFACTS, DRIVER, FROZEN_DRIVER, EXPORT, NATIVE, REPORT, ENTRY
+    SOURCE = '59e3e572e5d7723b7515f1a0a2af226bafe38b2f'
+    TREE = '2dc00d31ff80b9d1ca3e24bdf8f6f712f3d8e199'
+    RUN = 38298556083
+    ARTIFACTS = {
+        'web': (11769252238, 'little-leaf-web-'+SOURCE+'-1', 'd5cdd69fbbe43fecdb9e1842f125bcaa4ee5e5fb9b8c6245c3bc1f5c8d827338'),
+        'evidence': (11769863529, 'little-leaf-firebase-evidence-'+SOURCE+'-1', '00af5e8aecc6d0faa188591866826bd6452b97ece0ec91312d69f7029e1c2cc8'),
+    }
+    DRIVER = 'aa029d5e2c68b002f4788a350b6d850431f6117ac2a3b3e139b239db804c24bd'
+    FROZEN_DRIVER = 'current59_handoff_driver.mjs'
+    EXPORT = '2d69725b1334df815bd63b8eab6e0fe410b1db2e68dcac897a6de188ffe0ecdc'
+    NATIVE = '4153da6afc3b7c917233ef63abcb88fb92d4b7a2f76557021407559122abb466'
+    REPORT = '8cdfc5c27e422ea47071b1bce5e8b2f279178c2f26d45a4f1269df77f1d7115c'
+    ENTRY = '84c50680d4c5309639f892efa9821c043059b55e6ea1b0f7c1b0d2e1f33b4e9d'
 
 
 def remaining():
@@ -117,7 +136,8 @@ def prepare(root, coordinator):
         raise ValueError('Exact current compiled source checkout required')
     frozen = coordinator/'platform/firebase/diagnostics'
     for name, digest in [('current_handoff_driver.mjs', DRIVER), ('current_handoff_observer.mjs', OBSERVER)]:
-        if (frozen/name).is_symlink() or sha(frozen/name) != digest:
+        frozen_name = FROZEN_DRIVER if name == 'current_handoff_driver.mjs' else name
+        if (frozen/frozen_name).is_symlink() or sha(frozen/frozen_name) != digest:
             raise ValueError('Frozen current observer bytes required')
     unpack(root/'web.zip', root/'build/web', ARTIFACTS['web'][2])
     selected = ['engine-evidence/summary.json', 'engine-evidence/test_cloud_recovery_ui.log',
@@ -154,7 +174,7 @@ def prepare(root, coordinator):
         destination = source/'platform/firebase'/name
         if destination.exists():
             raise ValueError('New observation file must not replace retained source')
-        shutil.copyfile(frozen/name, destination)
+        shutil.copyfile(frozen/(FROZEN_DRIVER if name == 'current_handoff_driver.mjs' else name), destination)
     overlay_hashes(source)
     retained_report(root, source)  # Original fullflow and all ten source hashes remain unchanged.
     receipt = {'diagnostic_only': True, 'deployable': False, 'release_qualification': False,
@@ -176,7 +196,11 @@ def prepare(root, coordinator):
     return receipt
 
 
-def main():
+def main(*, current59=False):
+    if type(current59) is not bool:
+        raise ValueError('Finite diagnostic mode required')
+    if current59:
+        select_current59_profile()
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--coordinator', type=Path, required=True)
