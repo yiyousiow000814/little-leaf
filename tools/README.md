@@ -10,12 +10,12 @@ an inventory, not a checklist to run after every edit.
 | Command | Responsibility |
 | --- | --- |
 | `ci/install_tools.py` | Install checksum-pinned tools into a disposable location. |
-| `verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
+| `qualification/verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
 | `build/build_web.py` | Export the source already checked by the complete native gate. |
 | `build/build_crazygames.py` | Build the separate platform variant after the Web gate. |
-| `run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
-| `prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
-| `prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
+| `qualification/run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
+| `qualification/prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
+| `qualification/prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
 
 The cloud scenario also serves the historical retained-artifact diagnostic. The
 ordinary Web workflow selects it only for its optional Firebase preview gates.

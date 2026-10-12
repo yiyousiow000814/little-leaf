@@ -185,7 +185,7 @@ class WorkflowTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/qualification/reuse_main_ci.py', 'tools/verify_prebaked_atlases.py',
+        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
             '--require-main-ancestor', 'digest-mismatch: error', 'tools/publish_itch.py',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)

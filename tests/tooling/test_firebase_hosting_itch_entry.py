@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlsplit
 import deploy_firebase_hosting as h
 from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from build.project_layout import source_path
-from run_firebase_focused import COMMANDS
+from qualification.run_firebase_focused import COMMANDS
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA, TREE = 'a'*40, 'b'*40
@@ -106,7 +106,7 @@ class ItchTestEntry(unittest.TestCase):
         (self.inner/'hosting-release.json').write_text(json.dumps(self.marker))
         (self.inner/'index.html').write_text('<script>window.__littleLeafRelease='+json.dumps(self.marker)+';</script>', encoding='utf-8')
         flow_sources = ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs',
-            'tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js',
+            'tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js',
             'web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
         flow = {'passed': True, 'synthetic_only': True, 'real_google_sign_in': False, 'real_compiled_ui': True,
                 'real_firestore_rules': True, 'diagnostic_only': False, 'browser_sandbox': True, 'itch_test_entry': True,

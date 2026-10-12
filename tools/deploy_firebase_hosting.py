@@ -617,7 +617,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or export.get('manifest') != base or not export.get('stages')
             or any(row.get('exit_code') != 0 for row in export['stages'])):
         raise ValueError('Complete native/export evidence binding required')
-    from run_firebase_focused import COMMANDS
+    from qualification.run_firebase_focused import COMMANDS
     for name in FOCUSED_LOGS:
         log = folder / 'evidence' / ('firebase-' + name)
         recorded = json.loads(log.with_name(log.name + '.json').read_text())
@@ -651,7 +651,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
     from build.project_layout import source_path
     root = Path(__file__).resolve().parents[1]
     flow_sources = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs', 'firebase/fullflow_network.mjs',
-                    'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/prepare_browser_qa.py',
+                    'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/qualification/prepare_browser_qa.py',
                     'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js', 'web/little_leaf_firebase_boot.mjs',
                     'web/little_leaf_update.js', 'firebase/firestore.rules']
     entry_sources = ['tools/build/build_itch_entry.py', 'tools/build/build_itch_trusted_preview.py', 'tools/build/build_firebase.py',
