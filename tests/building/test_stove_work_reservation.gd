@@ -27,7 +27,7 @@ func run():
   check(not body.can_place("plant",front.x,front.y,-1,0,actors),"actual staff body excludes the work tile r"+str(rot))
   check(not body.place("plant",front.x,front.y,0,actors) and state(body)==before,"body rejection preserves the full transaction r"+str(rot))
   var route=fresh();route.place("stove",5,4,rot)
-  route.customers=[{"id":1,"phase":"arriving","x":1.5,"z":5.5,"route":[[front.x,front.y]],"route_index":0}]
+  route.customers.assign([{"id":1,"phase":"arriving","x":1.5,"z":5.5,"route":[Vector2(front.x+.5,front.y+.5)],"route_index":0}])
   check(route.can_place("plant",front.x,front.y),"a future route alone does not occupy the footprint r"+str(rot))
   var wall=fresh();wall.place("stove",5,4,rot)
   var base=Vector2i(5,4);var axis="x" if base.y!=front.y else "z"
