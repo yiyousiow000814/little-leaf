@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -126,6 +126,16 @@ async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=
 async function setup(uid,entry=null){
  const seedPhase={active:!!itchVariant};
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
+ if(itchVariant){
+  const packet=JSON.parse(fs.readFileSync(path.join(itchVariant,'firebase-variant-manifest.json')));
+  const modules={};
+  for(const name of ['index.audio.worklet.js','index.audio.position.worklet.js']){
+   const bytes=fs.readFileSync(path.join(itchVariant,'public/itch',name));
+   assert.equal(sha(bytes),packet.files['public/itch/'+name],'exact packaged worklet '+name);
+   modules[name]=bytes.toString('base64');
+  }
+  await context.addInitScript(installPackagedWorklets,{origin:officialOrigin,pathname:'/itch/',modules});
+ }
  context.on('requestfailed',request=>networkObservation('failed',requestFamily(request.url(),origin),failureCategory(request.failure()?.errorText)));
  context.on('response',response=>{const family=requestFamily(response.url(),origin);if(['loopback-sdk','loopback-emulator','sdk-module','frame-sdk','synthetic-emulator'].includes(family))networkObservation('response',family,response.status());});
  await context.route('**/*',async route=>{const u=new URL(route.request().url());if(!itchVariant && (u.origin===origin || u.origin==='http://127.0.0.1:8080'))return route.continue();
