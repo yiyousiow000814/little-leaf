@@ -28,7 +28,10 @@ DRIVER = '9c2d1c6508a4f4e06df87d6b5696c4c465ddffcf8d01f3e284091b3d3f98dd1a'
 NETWORK = '0565ca829a4ad1249492d72888f986e4689ceb9445085830be5cf65835a27049'
 LOCK = 'a8d7fc1d28f1eb12441ff397220a196a37c25b25247f03f85b6a5f650cd5ba2d'
 JAR = '049ee7814741b481ae5becfdaa7b55693bdf7a03363cd184e35c36c1595a9643'
-VARIANT = '4d9ec006d8f6a3e7b27060ee3d94899706eeb8945a7c47bc70072a9a7a944fbf'
+# Exact Linux serialization of the retained transformer. The previous 4d9ec006
+# digest binds the preserved Windows CRLF packet, not the original Linux entry.
+VARIANT = '28f34875e3ba21a7d4cdb44ded7f962d3390a373bef1b9133de65b649d40e61f'
+EMBEDDED_ENTRY = 'd2b01428612d764dce386b5c644a212b26d7f3e8703385187c90a3e848d514ac'
 CHROME = '154.0.8037.97'
 IMAGE = '20261004.327.1'
 
@@ -83,6 +86,24 @@ def image_gate(env):
     if env.get('ImageOS') != 'ubuntu24' or env.get('ImageVersion') != IMAGE:
         raise ValueError('Original Linux runner image required; no replacement installation')
 
+def validate_derived_variant(root):
+    manifest_hash = sha(root/'variant/firebase-variant-manifest.json')
+    entry_hash = sha(root/'variant/public/itch/index.html')
+    if manifest_hash == VARIANT and entry_hash == EMBEDDED_ENTRY:
+        return
+    # Hashes only: preserve a preparation failure without exporting configuration
+    # or letting an unavailable evidence write replace the original rejection.
+    evidence = {'diagnostic_only': True, 'release_qualification': False, 'deployable': False,
+        'phase': 'prepare-derived-variant', 'expected_manifest_sha256': VARIANT,
+        'actual_manifest_sha256': manifest_hash, 'expected_entry_sha256': EMBEDDED_ENTRY,
+        'actual_entry_sha256': entry_hash, 'runtime_started': False}
+    try:
+        with (root/'diagnostic-prepare-failure.json').open('x', encoding='utf-8', newline='\n') as stream:
+            stream.write(json.dumps(evidence, indent=2)+'\n')
+    except OSError:
+        pass
+    raise ValueError('Original derived variant not reproduced; preserve and STOP')
+
 def prepare(root, coordinator):
     source = root / 'source'
     run = json.loads((root / 'run.metadata.json').read_bytes())
@@ -123,8 +144,7 @@ def prepare(root, coordinator):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     module.prepare_stable(root/'build', root/'variant', json.loads((source/'platform/firebase/public-config.json').read_bytes()), SOURCE, TREE)
-    if sha(root/'variant/firebase-variant-manifest.json') != VARIANT:
-        raise ValueError('Original derived variant not reproduced; preserve and STOP')
+    validate_derived_variant(root)
     # Transparent test-only overlay. Production boot/session/client bytes are untouched.
     shutil.copyfile(frozen/'retained_handoff_driver.mjs', source/'platform/firebase/fullflow.test.mjs')
     shutil.copyfile(frozen/'retained_handoff_network.mjs', source/'platform/firebase/fullflow_network.mjs')

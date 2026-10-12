@@ -108,6 +108,7 @@ jobs:
           name: retained-a897-timing-${{ github.sha }}-${{ github.run_id }}-1
           path: |
             retained/diagnostic-binding.json
+            retained/diagnostic-prepare-failure.json
             retained/diagnostic-output/terminal.json
             retained/diagnostic-output/*.log
             retained/diagnostic-output/scenario/*.json

@@ -2,10 +2,12 @@
 import copy
 import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import stat
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -82,6 +84,49 @@ class FrozenObserverTests(unittest.TestCase):
         self.assertIn("scope:'retained-first-two-cases'", driver)
         self.assertIn('release_qualification:false,deployable:false', driver)
         self.assertIn('report.timingCheckpointUnavailable=true', driver)
+
+class DerivedVariantTests(unittest.TestCase):
+    def fixture(self, root):
+        manifest = root/'variant/firebase-variant-manifest.json'
+        entry = root/'variant/public/itch/index.html'
+        entry.parent.mkdir(parents=True)
+        manifest.write_bytes(b'{"diagnostic_only":true}\n')
+        entry.write_bytes(b'<html>\n<body>retained entry</body>\n</html>\n')
+        return manifest, entry
+
+    def test_exact_manifest_and_linux_entry_are_both_required(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); manifest, entry = self.fixture(root)
+            with mock.patch.object(route, 'VARIANT', route.sha(manifest)), mock.patch.object(route, 'EMBEDDED_ENTRY', route.sha(entry)):
+                route.validate_derived_variant(root)
+                entry.write_bytes(entry.read_bytes().replace(b'\n', b'\r\n'))
+                with self.assertRaisesRegex(ValueError, 'Original derived variant not reproduced'):
+                    route.validate_derived_variant(root)
+            evidence = json.loads((root/'diagnostic-prepare-failure.json').read_bytes())
+            self.assertEqual(evidence['actual_entry_sha256'], route.sha(entry))
+            self.assertNotEqual(evidence['actual_entry_sha256'], evidence['expected_entry_sha256'])
+            self.assertFalse(evidence['runtime_started'])
+            self.assertFalse(evidence['deployable'])
+
+    def test_manifest_mismatch_retains_only_fixed_hash_fields(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary); manifest, entry = self.fixture(root)
+            with mock.patch.object(route, 'VARIANT', route.sha(manifest)), mock.patch.object(route, 'EMBEDDED_ENTRY', route.sha(entry)):
+                manifest.write_bytes(manifest.read_bytes().replace(b'\n', b'\r\n'))
+                with self.assertRaises(ValueError): route.validate_derived_variant(root)
+            evidence = json.loads((root/'diagnostic-prepare-failure.json').read_bytes())
+            self.assertEqual(set(evidence), {'diagnostic_only', 'release_qualification', 'deployable',
+                'phase', 'expected_manifest_sha256', 'actual_manifest_sha256',
+                'expected_entry_sha256', 'actual_entry_sha256', 'runtime_started'})
+            self.assertEqual(evidence['actual_entry_sha256'], evidence['expected_entry_sha256'])
+            self.assertEqual(evidence['actual_manifest_sha256'], route.sha(manifest))
+
+    def test_evidence_write_failure_cannot_mask_original_guard(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            with mock.patch.object(route, 'sha', side_effect=['0'*64, '1'*64]), mock.patch.object(Path, 'open', side_effect=PermissionError('unavailable')):
+                with self.assertRaisesRegex(ValueError, 'Original derived variant not reproduced'):
+                    route.validate_derived_variant(root)
 
 class AbsoluteCutoffTests(unittest.TestCase):
     def test_expired_cleanup_has_zero_wait_not_positive_floor(self):
