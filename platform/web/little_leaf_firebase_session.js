@@ -66,7 +66,7 @@
     };
   }
   function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},assertRuntime=()=>{}}){
-    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
+    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0,pendingRenewal=null;
     const guard=()=>{assertRuntime();if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
@@ -157,18 +157,52 @@
       if(value.ack.requestId===receipt.requestId&&value.ack.digest===digest&&value.ack.revision===revision)return 'acknowledged';
       throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
     }
+    function renewalKey(value){
+      const at=value?.request?.at;
+      const stamp=Number.isInteger(at?.seconds)&&Number.isInteger(at?.nanoseconds)?[at.seconds,at.nanoseconds]:at;
+      return JSON.stringify([value?.schema,value?.owner,value?.epoch,value?.device,
+        value?.request?[value.request.id,value.request.requester,value.request.device,stamp]:null,
+        value?.ack?[value.ack.requestId,value.ack.digest,value.ack.revision]:null]);
+    }
     async function renew(){
-      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch;
-      try{await change((value,save,stamp)=>{if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');return {...value,updatedAt:stamp()};});}
-      catch(e){
-        // A renewal can race the acknowledged takeover. Read back a confirmed
-        // competing owner rather than relabeling a valid fence as an outage.
-        let fenced=false;
-        if(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied'){
-          try{const observed=await remote.read();guard();if(observed && observed.owner!==sessionId){receive(observed);fenced=true;}}catch(_){/* Unconfirmed ownership remains paused offline. */}
-        }
-        if(!fenced){status='offline';onChange(snapshot());}throw e;
-      }return snapshot();
+      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch,key=renewalKey(current);
+      const renewalGuard=()=>{
+        guard();if(current?.owner!==sessionId||current.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
+        if(renewalKey(current)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
+      };
+      renewalGuard();
+      let work=pendingRenewal;
+      if(!work||work.key!==key){
+        work={key};pendingRenewal=work;
+        const stillCurrent=()=>{try{renewalGuard();return pendingRenewal===work;}catch(_){return false;}};
+        work.promise=(async()=>{
+          try{
+            const result=await remote.change((value,save,stamp)=>{
+              renewalGuard();if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
+              if(renewalKey(value)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
+              return {...value,updatedAt:stamp()};
+            },renewalGuard);
+            renewalGuard();
+            // A held confirmation response cannot publish an older same-epoch
+            // request/ACK over a newer server-confirmed local observation.
+            if(renewalKey(result)!==key)throw fail('HANDOFF_CHANGED','The confirmed renewal intent changed.');
+            receive(result);
+          }catch(e){
+            let fenced=false;
+            if(stillCurrent()&&(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied')){
+              try{const observed=await remote.read();guard();if(stillCurrent()&&observed&&renewalKey(observed)!==key){receive(observed);fenced=true;}}
+              catch(_){/* Unconfirmed ownership remains paused offline. */}
+            }
+            if(!fenced&&stillCurrent()){status='offline';onChange(snapshot());}throw e;
+          }finally{if(pendingRenewal===work)pendingRenewal=null;}
+        })();
+      }
+      try{await work.promise;}catch(e){
+        // Rejected shared work grants no authority. Check this caller again,
+        // retaining the original permission/network failure rather than masking it.
+        try{renewalGuard();}catch(_){/* The caller still rejects the shared failure. */}throw e;
+      }
+      renewalGuard();return snapshot();
     }
     async function requestTakeover(){
       guard();const generation=++requestGeneration,id=root.crypto.randomUUID();requestId=id;
