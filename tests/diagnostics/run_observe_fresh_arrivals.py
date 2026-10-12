@@ -1,7 +1,7 @@
 """Real-time, normal-startup arrival observation in generated isolated profiles."""
 import argparse, fcntl, json, os, pathlib, shutil, subprocess
 p=argparse.ArgumentParser()
-p.add_argument('--project',type=pathlib.Path,default=pathlib.Path(__file__).resolve().parents[1])
+p.add_argument('--project',type=pathlib.Path,default=pathlib.Path(__file__).resolve().parents[2])
 p.add_argument('--output',type=pathlib.Path,required=True)
 p.add_argument('--scenario',choices=['untouched','skip','controls','tutorial'],default='untouched')
 p.add_argument('--until',choices=['spawned','seated','paid'],default='paid')
