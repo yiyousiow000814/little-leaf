@@ -1,7 +1,7 @@
 """Offline API fixtures only; no dispatch, renderer, browser or credential use."""
 import copy
 import unittest
-from firebase_release_gate import plan_release, REPOSITORY, ITCH_WORKFLOW, QUALIFICATION_WORKFLOW
+from release.firebase_release_gate import plan_release, REPOSITORY, ITCH_WORKFLOW, QUALIFICATION_WORKFLOW
 
 
 class FirebaseReleaseGateTests(unittest.TestCase):

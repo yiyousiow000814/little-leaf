@@ -17,17 +17,17 @@ if __name__ == "__main__":
 
 from qualification.artifacts import sha256
 from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
-from firebase_release_gate import REPOSITORY, require, trusted_run
+from release.firebase_release_gate import REPOSITORY, require, trusted_run
 from qualification.run_firebase_focused import COMMANDS
 
 STATUS = 'manual-released-live-qualified'
 WORKFLOW = '.github/workflows/stage-firebase.yml'
 TARGET = 'siowyiyou/little-leaf:html5'
 RUNTIME = ['index.js', 'index.wasm', 'index.pck']
-COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-    'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
+COORDINATOR_FILES = ['tools/release/firebase_release_event.py', 'tools/release/firebase_release_gate.py',
+    'tools/qualification/reuse_released_web.py', 'tools/release/stage_released_firebase.py',
     '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml',
-    'tools/release/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
+    'tools/release/released_live_provenance.py', 'tools/release/deploy_firebase_hosting.py',
     '.github/workflows/deploy-firebase.yml']
 
 
@@ -40,6 +40,8 @@ def coordinator_files(paths):
             aliases = ('tools/reuse_released_web.py', name)
         elif name == 'tools/release/released_live_provenance.py':
             aliases = ('tools/released_live_provenance.py', name)
+        elif name.startswith('tools/release/'):
+            aliases = ('tools/' + Path(name).name, name)
         else:
             aliases = (name,)
         matches = [path for path in aliases if path in paths]
@@ -58,7 +60,7 @@ def publication_attempt(value):
 
 def compiled_source_names(paths):
     """Preserve each released source's exact full-flow helper namespace."""
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     paths = set(paths)
     names = []
     for name in FULLFLOW_SOURCES:
@@ -135,7 +137,7 @@ def authenticate_origin(api, manifest, origin):
     source = manifest['source_commit']; coordinator = run['head_sha']
     require(api.read(f'compare/{source}...{coordinator}').get('status') in {'ahead', 'identical'},
         'Released source must be in this exact coordinator history')
-    from firebase_release_event import peel
+    from release.firebase_release_event import peel
     from qualification.reuse_main_ci import require_jobs
     q = manifest['manual_live_reuse']['qualification']; publication = manifest['manual_live_reuse']['publication']
     qualification_run = api.read('actions/runs/' + str(q['qualification_run_id']))
@@ -163,7 +165,7 @@ def authenticate_origin(api, manifest, origin):
         content = api.read(f'contents/{path}?ref={commit}')
         require(content.get('encoding') == 'base64', 'Expected immutable source content')
         return hashlib.sha256(base64.b64decode(content['content'], validate=False)).hexdigest()
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     # This opt-in contract supports canonical released sources only.
     coordinator_tree = api.read('git/commits/' + coordinator)['tree']['sha']
     tree = api.read('git/trees/' + coordinator_tree + '?recursive=1')
@@ -197,7 +199,7 @@ def authenticate_origin(api, manifest, origin):
 
 
 def validate_released_live(folder, manifest, marker):
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     require(manifest.get('status') == STATUS, 'Explicit manual released-live contract required')
     actual = {path.relative_to(folder).as_posix() for path in folder.rglob('*') if path.is_file()}
     require(actual == set(manifest['files']) | {'firebase-variant-manifest.json'},
@@ -335,7 +337,7 @@ def main():
     parser.add_argument('--origin', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    from deploy_firebase_hosting import verify_package, verify_live_package
+    from release.deploy_firebase_hosting import verify_package, verify_live_package
     from qualification.reuse_main_ci import GitHub
     manifest, _ = verify_package(args.variant, args.sha, args.manifest_sha256)
     origin = json.loads(args.origin.read_text())

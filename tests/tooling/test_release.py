@@ -9,10 +9,10 @@ import unittest
 from unittest.mock import patch
 from ci import install_tools
 from build.build_web import copy_notices, verify_installer_receipt
-import publish_itch as publisher
+from release import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
-from publish_itch import check_previous, completed, parse_result, verify_artifact
+from release.publish_itch import check_previous, completed, parse_result, verify_artifact
 from release.release_metadata import version, require_main_ancestor, release_key
 from build.project_layout import game_root
 

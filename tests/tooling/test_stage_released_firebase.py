@@ -8,9 +8,9 @@ import textwrap
 import unittest
 from unittest.mock import patch
 
-import stage_released_firebase as staging
+from release import stage_released_firebase as staging
 from qualification.artifacts import sha256
-from deploy_firebase_hosting import verify_package
+from release.deploy_firebase_hosting import verify_package
 
 
 class ReleasedStagingTests(unittest.TestCase):

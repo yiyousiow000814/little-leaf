@@ -9,7 +9,7 @@ from email.message import Message
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
-import deploy_firebase_hosting as h
+from release import deploy_firebase_hosting as h
 from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from build.project_layout import source_path
 from qualification.run_firebase_focused import COMMANDS

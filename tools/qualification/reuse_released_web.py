@@ -8,10 +8,10 @@ import sys
 # Direct CLI execution resolves the existing root tool modules.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from firebase_release_event import artifact_for
-from firebase_release_gate import QUALIFICATION_WORKFLOW, require, trusted_run
+from release.firebase_release_event import artifact_for
+from release.firebase_release_gate import QUALIFICATION_WORKFLOW, require, trusted_run
 from qualification import reuse_main_ci as reuse
-from stage_released_firebase import IDENTITY, source_identity
+from release.stage_released_firebase import IDENTITY, source_identity
 
 
 def prepare(api, root, selection, output):
