@@ -26,6 +26,7 @@ from build.project_layout import stage_project
 SUITES = [
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
     ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
+    ("test_staff_ground_ring", "STAFF_GROUND_RING_RESULT"),
     ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
     ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
     ("test_startup_readiness", "STARTUP_READINESS_RESULT"),
