@@ -115,7 +115,8 @@ class ReleasedStagingTests(unittest.TestCase):
         self.assertIn('tools/qualification/reuse_released_web.py', text)
         self.assertIn('fullflow.test.mjs', text)
         self.assertIn('rules.log', text)
-        self.assertIn('ref: ${{ steps.select.outputs.source_sha }}', text)
+        self.assertIn('ref: ${{ steps.common.outputs.source_sha || steps.select.outputs.source_sha }}', text)
+        self.assertIn('tools/release/common_tag.py consume', text)
 
     def test_released_installer_uses_exact_source_layout_and_rejects_missing_or_ambiguous(self):
         root = Path(__file__).resolve().parents[2]
