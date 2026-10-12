@@ -2,8 +2,8 @@
 import sys, tempfile, json
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
-from build_firebase import stage, ROOT
-from build_web import sha256
+from build.build_firebase import stage, ROOT
+from build.build_web import sha256
 with tempfile.TemporaryDirectory() as d:
     d=Path(d);build=d/'build';(build/'web').mkdir(parents=True)
     shell=(ROOT/'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL','index.js')

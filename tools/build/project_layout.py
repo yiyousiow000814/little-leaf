@@ -15,6 +15,12 @@ def source_path(repository, resource):
     if path.is_absolute() or '..' in path.parts or '\\' in resource:
         raise ValueError('Unsafe source resource path')
     repository = Path(repository)
+    if path.parts[:1] == ('tools',) and len(path.parts) == 3:
+        candidates = (repository / resource, repository / 'tools' / path.name)
+        matches = [candidate for candidate in candidates if candidate.is_file()]
+        if len(matches) != 1:
+            raise ValueError('Missing or ambiguous source tool: ' + resource)
+        return matches[0]
     if game_root(repository) != repository:
         if path.parts[0] in {'web', 'firebase'}:
             return repository / 'platform' / resource

@@ -591,7 +591,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
         if (not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts or '\\' in name
                 or not re.fullmatch(r'[0-9a-f]{64}', expected) or digest(actual[name]) != expected):
             raise ValueError('Test file path or hash differs')
-    from build_firebase import BROWSER_GATES, FOCUSED_LOGS
+    from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
     evidence = proof.get('gate_evidence_sha256', {})
     expected_labels = {'native', 'export', *BROWSER_GATES,
                        *('firebase-' + label + suffix for label in FOCUSED_LOGS for suffix in ['', '.json'])}
@@ -648,13 +648,13 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or flow.get('itch_entry_sha256') != digest(inner / 'index.html')
             or flow.get('source_commit') != sha or flow.get('source_tree') != tree):
         raise ValueError('Exact compiled iframe and marker qualification required')
-    from project_layout import source_path
+    from build.project_layout import source_path
     root = Path(__file__).resolve().parents[1]
     flow_sources = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs', 'firebase/fullflow_network.mjs',
                     'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/prepare_browser_qa.py',
                     'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js', 'web/little_leaf_firebase_boot.mjs',
                     'web/little_leaf_update.js', 'firebase/firestore.rules']
-    entry_sources = ['tools/build_itch_entry.py', 'tools/build_itch_trusted_preview.py', 'tools/build_firebase.py',
+    entry_sources = ['tools/build/build_itch_entry.py', 'tools/build/build_itch_trusted_preview.py', 'tools/build/build_firebase.py',
                      'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase_session.js',
                      'web/little_leaf_update.js', 'web/little_leaf_entry.css']
     if (flow.get('source_sha256') != {name: digest(source_path(root, name)) for name in flow_sources}
