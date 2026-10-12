@@ -2,7 +2,7 @@ extends Node2D
 ## Opt-in ground layer. Caller supplies presentation foot anchors, never actor state.
 ## Add this layer after rugs and before solids; no gameplay renderer hook is installed.
 const MAX_RINGS = 64
-const RADIUS = Vector2(11.0, 4.5)
+const RADIUS = Vector2(21.0, 10.5)
 const PERIOD_SECONDS = 12.0
 var enabled = false
 var _rings: Dictionary = {}
@@ -26,7 +26,7 @@ static func _make_geometry() -> Array:
 			arc.append(Vector2(cos(angle), sin(angle)))
 		for i in range(32, -1, -1):
 			var angle = half * PI + deg_to_rad(12.0 + 156.0 * i / 32.0)
-			arc.append(Vector2(cos(angle), sin(angle)) * .87)
+			arc.append(Vector2(cos(angle), sin(angle)) * .84)
 		geometry.append(arc)
 	return geometry
 
