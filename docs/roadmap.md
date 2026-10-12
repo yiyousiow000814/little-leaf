@@ -12,14 +12,14 @@
 
 ### Current state and ownership
 
-Independent platform tag delivery candidate on2026-10-12: the user requires one
+Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
 common exact-source build/ordinary qualification with separate itch and Firebase
 CI/publication, without either waiting for the other's upload. The
 [shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
 preserves immutable origins, complete ordinary gates, distinct Firebase gates,
 current-live ancestry/config/rollback and legacy manual/test refusals. Source
-implementation and finite synthetic checks are in progress; independent final
-review, coherent current-source CI and actual approved delivery remain open.
+implementation,165 applicable synthetic checks and independent source review
+passed; coherent current-source CI and actual approved delivery remain open.
 No new tag, Hosting mutation, account action or release is established.
 
 Editor acceptance on 2026-10-12: the user accepted the actual narrow preview for [Draft PR103](https://github.com/yiyousiow000814/little-leaf/pull/103), source `4319a656508ac125d765a4158a8dd3a3a6b2711c`. Its ordinary CI run38169861706 passed all13 required checks. The isolated 390x844 emulated-touch flow completed 32 operations: preview and cancel preserved the complete saved state, then release committed three Cream tiles for exactly30 coins once; actual saved frames were inspected and the accepted narrow image is retained as Library version2. Physical phone input remains unverified. Latest-main integration after PR234 preserves this game source byte for byte; exact final-source checks and the separate merge decision remain pending. This acceptance does not publish a release or deploy a service.
