@@ -119,7 +119,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
     def test_browser_expected_version_uses_full_export_source(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);self.metadata(root)
-            script="const {sourceVersion}=require('./tests/source_paths');const assert=require('node:assert/strict');const r=process.argv[1];assert.equal(sourceVersion(r,'01234567'+'a'.repeat(32)),'0.1.11-pre.01234567');assert.throws(()=>sourceVersion(r,'01234567'));"
+            script="const {sourceVersion}=require('./tests/tooling/source_paths');const assert=require('node:assert/strict');const r=process.argv[1];assert.equal(sourceVersion(r,'01234567'+'a'.repeat(32)),'0.1.11-pre.01234567');assert.throws(()=>sourceVersion(r,'01234567'));"
             subprocess.run(['node','-e',script,str(root)],check=True)
 
     def test_upload_uses_ancestry_not_hash_order(self):

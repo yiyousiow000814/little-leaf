@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath}=require('../source_paths.js');
+const {sourcePath}=require('../tooling/source_paths.js');
 // CI-only real Chromium + exported Web check under Xvfb. Every browser context is fresh,
 // localhost-only, synthetic, and discarded. No security flags are disabled.
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto'),assert=require('node:assert/strict'),cp=require('node:child_process');
