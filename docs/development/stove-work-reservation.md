@@ -40,7 +40,7 @@ Full headless suite:
 
 Focused model, controller and native GL screenshots:
 
-    python3 tests/run_stove_work_reservation.py --output /tmp/stove-work-qa --native
+    python3 tests/building/run_stove_work_reservation.py --output /tmp/stove-work-qa --native
 
 Both commands use disposable projects and generated profiles. When a fresh
 asset import is unavailable, the focused runner can use --import-cache followed
