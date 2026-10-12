@@ -17,7 +17,7 @@ func blank(model=null):
  m.items.clear();m.dining_sets.clear();m.customers.clear();m.built_walls.clear();m.wall_actor_positions.clear()
  m.coins=100000;m._notify();return m
 func state(m):
- return {"items":m.items.duplicate(true),"sets":m.dining_sets.duplicate(true),"guests":m.customers.duplicate(true),"walls":m.built_walls.duplicate(true),"coins":m.coins,"revision":m.revision,"next_id":m._next_item_id,"event":m.last_event,"service":m.service_snapshot.duplicate(true)}
+ return {"items":m.items.duplicate(true),"sets":m.dining_sets.duplicate(true),"guests":m.customers.duplicate(true),"walls":m.built_walls.duplicate(true),"coins":m.coins,"revision":m.revision,"next_id":m._next_item_id,"event":m.last_event,"service":m.service_snapshot.duplicate(true),"served":m.served,"earned":m.total_earned}
 func unchanged(m,before:Dictionary,label:String):check(state(m)==before,label+" preserves layout, IDs, wallet, service and revision")
 func model_cases():
  var m=blank();var center=Vector2(3.5,3.5);var before=state(m)
@@ -84,6 +84,7 @@ func ui_cases():
  await mouse(point,true);await mouse(point,false)
  check(cafe.model.items.size()==before.items.size()+2 and cafe.model.coins==before.coins-cafe.model.price_of("table_set"),"real pointer purchase publishes group and charges once")
  check(cafe.save_calls==saves+1 and cafe.interaction._staff_positions()==actors,"purchase saves once without hypothetical relocation")
+ check(not cafe.model.dining_sets.is_empty(),"real pointer purchase retains dining-group metadata for selected R")
  if not cafe.model.dining_sets.is_empty():
   var id=int(cafe.model.dining_sets[-1].table_id);cafe.interaction._select_item(cafe.model.get_item(id));var money=cafe.model.coins
   var key=InputEventKey.new();key.keycode=KEY_R;key.pressed=true;Input.parse_input_event(key);ui_events+=1;await frames()
