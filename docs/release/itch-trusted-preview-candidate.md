@@ -202,6 +202,25 @@ Preview deployment requires explicit approval. The narrow REST route never invok
 
 Targeted verification: `python -m unittest tests.tooling.test_firebase_boot_presentation` and `python -m unittest tests.tooling.test_itch_trusted_preview`. These use synthetic users/SDK/DOM and package fixtures. Hosted popup delivery, browser storage partitions and cloud continuation remain unverified.
 
+## Packaged worklet fixture transport
+
+The retained Windows Chrome-for-Testing153 diagnostic on `69f33801` with the
+unchanged compiled `a897a31f` package passed its ten ownership/cache checks. Its
+final zero-errors assertion failed on three `/itch/index.audio.worklet.js`404s.
+Both worklet files exist with identical hashes in the ordinary and nested
+packages; none of the instrumented routing, local-serving or response layers
+observed those worklet fetches. The original Linux154 ownership timeout did not
+reproduce, and the404 source and any connection to that timeout remain unknown.
+
+The test fixture supplies only those two inventory-verified module byte strings
+through Blob URLs created inside the exact `/itch/` document. It calls the real
+AudioWorklet implementation, preserves options/results/errors and revokes each
+URL after success or failure. All game, audio, Auth, SDK and persistence source,
+browser security settings, cases, deadlines and final assertions are unchanged.
+Pure transport checks pass; fresh browser/CI qualification is still required.
+This does not establish live HTTP delivery, real Google sign-in or deployment
+eligibility. The failed source-bound reports remain historical evidence.
+
 ## Source-bound manual route
 
 `stage-firebase.yml` has an opt-in `itch_preview` input (default false). It forwards to the unchanged fresh native/export/browser/Firebase gates, then `build_firebase.py --itch-preview-bootstrap` prepares and retains the trusted-frame bootstrap with the exact source/tree, fresh evidence, inventory and wrapper. Ordinary staging remains the default. This unbound bootstrap is never uploaded to Hosting.

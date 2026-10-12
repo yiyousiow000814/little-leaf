@@ -53,3 +53,23 @@ export function emulatorPreflightHeaders(value,headers){
   if(requested.some(name=>!allowed.includes(name)))throw Error('Unknown preflight header');
   return {'access-control-allow-origin':headers.origin,'access-control-allow-credentials':'true','access-control-allow-methods':'GET, POST','access-control-allow-headers':allowed.join(', ')};
 }
+
+// AudioWorklet fetches can escape Playwright's document routing. Keep the exact
+// packaged code executing in its own frame instead of requesting a live host.
+// The caller verifies these bytes against the immutable variant inventory.
+export function installPackagedWorklets({origin,pathname,modules}){
+  if(location.origin!==origin || location.pathname!==pathname)return;
+  const names=['index.audio.worklet.js','index.audio.position.worklet.js'];
+  if(Object.keys(modules).sort().join(',')!==names.sort().join(',')
+      || names.some(name=>typeof modules[name]!=='string'||!modules[name]))throw Error('Exact packaged worklets required');
+  const original=AudioWorklet.prototype.addModule;
+  AudioWorklet.prototype.addModule=async function(value,...options){
+    const url=new URL(value,location.href);
+    const name=names.find(name=>url.href===origin+pathname+name);
+    if(!name)throw Error('Unknown compiled worklet URL');
+    const bytes=Uint8Array.from(atob(modules[name]),character=>character.charCodeAt(0));
+    const blob=URL.createObjectURL(new Blob([bytes],{type:'text/javascript'}));
+    try{return await Reflect.apply(original,this,[blob,...options]);}
+    finally{URL.revokeObjectURL(blob);}
+  };
+}
