@@ -12,7 +12,7 @@
 
 ### Current state and ownership
 
-Same-itch diagnostic follow-up on2026-10-12: the retained `69f33801`/compiled
+Same-itch diagnostic follow-up ([Draft PR237](https://github.com/yiyousiow000814/little-leaf/pull/237)) on2026-10-12: the retained `69f33801`/compiled
 `a897a31f` Windows diagnostic passed ten ownership/cache checks but failed its
 unchanged final zero-errors assertion on three worklet404s. The scoped
 [packaged worklet fixture correction](release/itch-trusted-preview-candidate.md#packaged-worklet-fixture-transport)
