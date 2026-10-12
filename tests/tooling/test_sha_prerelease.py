@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 from qualification import artifacts
 from build import build_firebase
-import publish_itch
+from release import publish_itch
 from release.release_metadata import version, projected_metadata, release_key
 from tests.tooling import test_github_release_workflow as release_workflow
 from tests.tooling.test_release import status
@@ -211,7 +211,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
             self.assertEqual(final_marker['engine_source_commit'],base['source_commit'])
             final_html=(output/'public/index.html').read_text()
             self.assertIn('window.__littleLeafRelease='+json.dumps(final_marker)+';',final_html)
-            import deploy_firebase_hosting as hosting
+            from release import deploy_firebase_hosting as hosting
             path=output/'firebase-variant-manifest.json'
             hosting.verify_live_package(output,base['source_commit'],artifacts.sha256(path))
             # Rehashing a stale inline marker cannot conceal the discrepancy.
@@ -224,7 +224,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
 
     def test_live_prerelease_requires_bound_order_before_any_network(self):
         from tests.tooling import test_firebase_hosting_deploy as fixtures
-        import deploy_firebase_hosting as hosting
+        from release import deploy_firebase_hosting as hosting
         fixture=fixtures.HostingTests();fixture.setUp()
         try:
             fixture.marker.update(version='0.1.11-pre.aaaaaaaa',tag='v0.1.11-pre.aaaaaaaa',

@@ -14,7 +14,11 @@ import re
 import stat
 import zipfile
 
-from firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from release.firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
 from qualification.reuse_main_ci import GitHub, require_jobs
 from release.release_metadata import version, RELEASE
 

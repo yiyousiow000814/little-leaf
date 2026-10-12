@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from build.build_itch_trusted_preview import prepare, prepare_stable, wrapper_html, STABLE_ORIGIN
 from build.build_web import ROOT, sha256
-from read_firebase_hosting_config import effective_diagnosis
+from release.read_firebase_hosting_config import effective_diagnosis
 
 ORIGIN = 'https://little-leaf-41e5d--itch-embed-test-abc123.web.app'
 

@@ -20,6 +20,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from release.released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
 
 SITE = 'little-leaf-41e5d'
@@ -649,7 +653,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or flow.get('source_commit') != sha or flow.get('source_tree') != tree):
         raise ValueError('Exact compiled iframe and marker qualification required')
     from build.project_layout import source_path
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     flow_sources = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs', 'firebase/fullflow_network.mjs',
                     'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/qualification/prepare_browser_qa.py',
                     'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js', 'web/little_leaf_firebase_boot.mjs',
@@ -704,7 +708,7 @@ def active_files(api, version):
 
 
 def itch_test_config(config):
-    from read_firebase_hosting_config import effective_diagnosis, path_match
+    from release.read_firebase_hosting_config import effective_diagnosis, path_match
     if record_digest(config) != ITCH_BASELINE_CONFIG:
         raise ValueError('Approved Hosting configuration baseline changed')
     for family in ['redirects', 'rewrites']:

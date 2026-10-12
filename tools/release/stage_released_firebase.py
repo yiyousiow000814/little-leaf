@@ -11,10 +11,14 @@ import shutil
 import subprocess
 import sys
 
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from build import build_firebase
 from qualification.artifacts import sha256, validate_export_inventory
-from firebase_release_event import artifact_for, download
-from firebase_release_gate import require
+from release.firebase_release_event import artifact_for, download
+from release.firebase_release_gate import require
 from build.project_layout import source_path
 from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
 from qualification.run_firebase_focused import COMMANDS
@@ -98,7 +102,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     if manual_live:
         from release.released_live_provenance import manual_context
         context = manual_context(selection, os.environ, run, attempt)
-        coordinator = Path(__file__).resolve().parents[1]
+        coordinator = Path(__file__).resolve().parents[2]
         require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
                 == context['coordinator_source_commit'], 'Exact dispatch coordinator checkout required')
     source_identity(root, selection)
@@ -167,14 +171,14 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'fresh_firebase_gate_sha256': records, 'hosted_acceptance': False,
         'live_activation_allowed': False, 'production_security_changes': False}
     proof['released_transformer_sha256'] = sha256(transformer)
-    coordinator = Path(__file__).resolve().parents[1]
+    coordinator = Path(__file__).resolve().parents[2]
     proof['coordinator_source_commit'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
     proof['coordinator_source_tree'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
     proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in [
-        'tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-        'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
+        'tools/release/firebase_release_event.py', 'tools/release/firebase_release_gate.py',
+        'tools/qualification/reuse_released_web.py', 'tools/release/stage_released_firebase.py',
         '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml']}
     (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
     path = output / 'firebase-variant-manifest.json'
