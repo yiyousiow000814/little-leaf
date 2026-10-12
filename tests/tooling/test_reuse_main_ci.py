@@ -185,7 +185,7 @@ class WorkflowTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/publish_itch.py',
+        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/release/publish_itch.py',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
@@ -197,7 +197,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("github.ref == 'refs/heads/main'", diagnostic)
         self.assertNotIn('publish_itch.py', diagnostic)
         common = (root / '.github/workflows/ci.yml').read_text().split('  common_tag:',1)[1]
-        for required in ['tools/qualification/reuse_main_ci.py', 'tools/verify_prebaked_atlases.py',
+        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
                          '--require-main-ancestor','github.event.created && !github.event.deleted']:
             self.assertIn(required,common)
         self.assertIn("github.event_name == 'workflow_run'",publishing)

@@ -3,10 +3,14 @@ import json
 import re
 import shutil
 from pathlib import Path
-from build_firebase import stage, validate_export_inventory, entry_styles, update_hosting_marker
-from build_web import ROOT, sha256
-from project_layout import source_path
-from build_itch_entry import ENTRY, remove_ordinary_entry
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.build_firebase import stage, validate_export_inventory, entry_styles, update_hosting_marker
+from build.build_web import ROOT, sha256
+from build.project_layout import source_path
+from build.build_itch_entry import ENTRY, remove_ordinary_entry
 
 
 STABLE_ORIGIN = 'https://little-leaf-41e5d.firebaseapp.com'
@@ -105,8 +109,8 @@ def prepare(build, output, config, origin, source, tree):
         'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase.js',
         'web/little_leaf_firebase_session.js', 'web/little_leaf_update.js',
         'web/little_leaf_shell.html', 'web/little_leaf_entry.css', 'assets/fonts/Nunito-Variable.ttf',
-        'assets/fonts/Nunito-OFL.txt', 'tools/build_firebase.py', 'tools/build_itch_entry.py',
-        'tools/build_itch_trusted_preview.py']}
+        'assets/fonts/Nunito-OFL.txt', 'tools/build/build_firebase.py', 'tools/build/build_itch_entry.py',
+        'tools/build/build_itch_trusted_preview.py']}
     manifest['files'] = {p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*'))
                          if p.is_file() and p != manifest_path}
     manifest_path.write_text(json.dumps(manifest, indent=2)+'\n')
@@ -174,7 +178,7 @@ def prepare_stable(build, output, config, source, tree, publication=None):
                     production_release_eligible=False, auth_domains_modified=False,
                     hosting_header_additions=additions, hosting_config_proposal_only=True,
                     source_sha256={name:sha256(source_path(ROOT, name)) for name in [
-                        'tools/build_itch_entry.py','tools/build_itch_trusted_preview.py','tools/build_firebase.py',
+                        'tools/build/build_itch_entry.py','tools/build/build_itch_trusted_preview.py','tools/build/build_firebase.py',
                         'web/little_leaf_firebase_boot.mjs','web/little_leaf_firebase_session.js','web/little_leaf_update.js',
                         'web/little_leaf_entry.css']})
     manifest['files'] = {path.relative_to(output).as_posix():sha256(path) for path in sorted(output.rglob('*'))

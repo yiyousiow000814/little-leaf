@@ -2,7 +2,7 @@
 // Real browser IndexedDB + synthetic cloud records. No Firebase account, SDK,
 // production save, IAM, or network writes are used by this regression suite.
 const assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http');
-const {sourcePath}=require('../source_paths');
+const {sourcePath}=require('../tooling/source_paths');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source=['little_leaf_vault','little_leaf_firebase'].map(name=>fs.readFileSync(`platform/web/${name}.js`,'utf8'));
 const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');

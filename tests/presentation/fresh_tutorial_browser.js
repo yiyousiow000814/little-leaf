@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath}=require('../source_paths.js');
+const {sourcePath}=require('../tooling/source_paths.js');
 // Short interactive guide, then an independent natural-service regression.
 // Empty origin, normal wall time, real input throughout.
 // No fixtures, runtime hooks, launch flags, artificial guests, ticks or rewards.

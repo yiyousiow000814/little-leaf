@@ -40,7 +40,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
-          python3 tools/verify_prebaked_atlases.py
+          python3 tools/qualification/verify_prebaked_atlases.py
       - name: Install official packed startup verifier once
         run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Reuse complete exact-main qualification; final packed startup once

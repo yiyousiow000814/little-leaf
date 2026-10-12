@@ -17,9 +17,13 @@ from urllib.parse import urlencode
 from urllib.request import Request, build_opener
 import zipfile
 import zlib
-import deploy_firebase_hosting as hosting
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-BUNDLE = Path(__file__).parent / 'auth_preview_pause'
+from release import deploy_firebase_hosting as hosting
+
+BUNDLE = Path(__file__).resolve().parents[1] / 'auth_preview_pause'
 RECIPE_SHA = '2d43c41cf71d85a6b0003afdd0ba9fb53cd4eec1a57ab2b991fc4a24574b21a6'
 ORIGIN = 'https://little-leaf-41e5d--itch-embed-test-0b0pnaf7.web.app'
 EXPIRY = '2026-10-11T07:18:58.475792680Z'

@@ -10,8 +10,8 @@ import sys
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from firebase_release_event import artifact_for, download
-from firebase_release_gate import require, trusted_run, REPOSITORY
+from release.firebase_release_event import artifact_for, download
+from release.firebase_release_gate import require, trusted_run, REPOSITORY
 from qualification.artifacts import sha256
 from qualification.reuse_main_ci import GitHub
 from release.common_tag import authenticate, chronology, git, valid_order
@@ -20,7 +20,7 @@ STATUS='common-tag-firebase-qualified'
 WORKFLOW='.github/workflows/release-firebase.yml'
 ROOT=Path(__file__).resolve().parents[2]
 COORDINATOR_FILES=['tools/release/common_tag.py','tools/release/common_firebase.py',
-    'tools/stage_released_firebase.py','tools/build_firebase.py','tools/run_firebase_focused.py',
+    'tools/release/stage_released_firebase.py','tools/build/build_firebase.py','tools/qualification/run_firebase_focused.py',
     '.github/workflows/ci.yml','.github/workflows/release-firebase.yml',
     '.github/workflows/stage-firebase.yml','.github/workflows/deploy-firebase.yml']
 
@@ -45,7 +45,7 @@ def common_context(selection,env,run,attempt):
 
 
 def seal(root,coordinator,output,manifest,selection,context,inputs,records,flow,evidence,reuse):
-    from build_firebase import BROWSER_GATES
+    from build.build_firebase import BROWSER_GATES
     require(git(coordinator,'rev-parse','HEAD') == context['coordinator_source_commit'],
             'Exact staging coordinator required')
     target=output/'evidence'
@@ -61,7 +61,7 @@ def seal(root,coordinator,output,manifest,selection,context,inputs,records,flow,
         'qualification':selection['qualification'],'ordinary_inputs':inputs,
         'fresh_firebase_gate_sha256':records,'compiled_source_sha256':flow['source_sha256'],
         'public_config_sha256':sha256(target/'public-config.json'),
-        'released_transformer_sha256':sha256(root/'tools/build_firebase.py'),
+        'released_transformer_sha256':sha256(root/'tools/build/build_firebase.py'),
         'coordinator_sha256':{name:sha256(coordinator/name) for name in COORDINATOR_FILES},
         'runtime_sha256':{name:sha256(output/'public'/name) for name in ['index.js','index.wasm','index.pck']},
         'ordinary_browser_sha256':{name:sha256(target/'original-browser'/f'{name}.json') for name in BROWSER_GATES if name!='firebase-fullflow'},
@@ -72,8 +72,8 @@ def seal(root,coordinator,output,manifest,selection,context,inputs,records,flow,
 
 
 def validate_packet(folder,manifest,marker):
-    from build_firebase import BROWSER_GATES
-    from stage_released_firebase import validate_focused
+    from build.build_firebase import BROWSER_GATES
+    from release.stage_released_firebase import validate_focused
     proof=manifest['common_tag_reuse']; common=proof['common']; q=common['qualification']; context=proof['context']
     require(manifest.get('status') == STATUS and common.get('status') == 'common-tag-qualified'
         and proof.get('schema_version') == 1 and proof.get('qualification') == q
@@ -160,10 +160,10 @@ def authenticate_packet(api,folder,manifest,origin,root):
         require(value.get('encoding') == 'base64', 'Exact source content required')
         import hashlib
         return hashlib.sha256(base64.b64decode(value['content'])).hexdigest()
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     require(proof['compiled_source_sha256'] == {name:content_hash('platform/'+name if name.startswith(('web/','firebase/')) else name,manifest['source_commit']) for name in FULLFLOW_SOURCES}
         and proof['public_config_sha256'] == content_hash('platform/firebase/public-config.json',manifest['source_commit'])
-        and proof['released_transformer_sha256'] == content_hash('tools/build_firebase.py',manifest['source_commit'])
+        and proof['released_transformer_sha256'] == content_hash('tools/build/build_firebase.py',manifest['source_commit'])
         and proof['coordinator_sha256'] == {name:content_hash(name,run['head_sha']) for name in COORDINATOR_FILES}
         and api.read('git/commits/'+run['head_sha'])['tree']['sha'] == context['coordinator_source_tree'],
         'Fresh authenticated source/coordinator evidence differs')

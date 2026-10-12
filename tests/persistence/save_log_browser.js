@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs'), path = require('node:path'), http = require('node:http');
 const crypto = require('node:crypto');
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const {sourceVersion} = require('../source_paths');
+const {sourceVersion} = require('../tooling/source_paths');
 const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
 const root = path.resolve(__dirname, '../..');
 const option = name => {

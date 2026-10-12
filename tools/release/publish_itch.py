@@ -6,6 +6,10 @@ from pathlib import Path
 import re
 import subprocess
 import time
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from release.release_metadata import STABLE, RELEASE, release_key
 from qualification.artifacts import verify_files, sha256
 

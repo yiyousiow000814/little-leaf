@@ -66,12 +66,12 @@ class ItchTagGateTests(unittest.TestCase):
             self.assertIn(guard, source)
         publishing=(ROOT/'.github/workflows/release-itch.yml').read_text()
         for guard in ['workflows: [Check and build Web]','common_tag.py consume','common_tag.py verify',
-                      'ref: ${{ steps.common.outputs.source_sha }}','Missing BUTLER_API_KEY','tools/publish_itch.py']:
+                      'ref: ${{ steps.common.outputs.source_sha }}','Missing BUTLER_API_KEY','tools/release/publish_itch.py']:
             self.assertIn(guard,publishing)
         self.assertNotIn('reuse_main_ci.py',publishing)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',
-                     'tools/build_web.py', 'connection_recovery_browser.js',
+                     'tools/build/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)
 

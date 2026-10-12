@@ -12,7 +12,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ci.install_tools import LOCK
-from publish_itch import TARGET, parse_result, channel
+from release.publish_itch import TARGET, parse_result, channel
 
 
 def classify(code, output):

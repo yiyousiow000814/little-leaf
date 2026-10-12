@@ -12,8 +12,8 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from firebase_release_event import artifact_for, download, peel
-from firebase_release_gate import require, trusted_run, REPOSITORY
+from release.firebase_release_event import artifact_for, download, peel
+from release.firebase_release_gate import require, trusted_run, REPOSITORY
 from qualification.artifacts import sha256, validate_export_inventory
 from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
 from release.release_metadata import RELEASE, version

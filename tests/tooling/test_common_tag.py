@@ -119,7 +119,7 @@ class PlatformTests(unittest.TestCase):
         api.read.assert_not_called()
 
     def test_itch_common_rejects_higher_version_on_older_source(self):
-        import publish_itch
+        from release import publish_itch
         from tests.tooling.test_release import status
         from types import SimpleNamespace
         old=status('0.1.10d')
@@ -173,7 +173,7 @@ async function observe(current,next){
         subprocess.run(['node','-e',script,str(root/'platform/web/little_leaf_update.js')],check=True,capture_output=True,text=True,timeout=30)
 
     def packet(self,folder):
-        import stage_released_firebase as stage
+        from release import stage_released_firebase as stage
         from qualification.artifacts import sha256
         root=Path(__file__).resolve().parents[2];reuse=folder/'reuse';web=reuse/'web';web.mkdir(parents=True)
         (web/'index.html').write_text((root/'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL','index.js'),encoding='utf-8')
@@ -221,7 +221,7 @@ async function observe(current,next){
         return output,manifest,marker
 
     def test_complete_typed_packet_preserves_runtime_without_butler_receipt(self):
-        from deploy_firebase_hosting import verify_package,verify_live_package
+        from release.deploy_firebase_hosting import verify_package,verify_live_package
         from qualification.artifacts import sha256
         with tempfile.TemporaryDirectory() as temporary:
             folder,manifest,marker=self.packet(Path(temporary))

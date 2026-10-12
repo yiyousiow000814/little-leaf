@@ -3,9 +3,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from build_web import ROOT
-from build_itch_entry import ordinary_entry_html, remove_ordinary_entry
-from build_itch_trusted_preview import wrapper_html
+from build.build_web import ROOT
+from build.build_itch_entry import ordinary_entry_html, remove_ordinary_entry
+from build.build_itch_trusted_preview import wrapper_html
 
 
 class ItchReleaseEntryTests(unittest.TestCase):
@@ -38,6 +38,6 @@ class ItchReleaseEntryTests(unittest.TestCase):
         self.assertNotIn('LittleLeafItchReleaseEntryReady', html)
 
     def test_export_injects_before_inventory_and_does_not_rewrite_engine(self):
-        code = (ROOT / 'tools/build_web.py').read_text(encoding='utf-8')
+        code = (ROOT / 'tools/build/build_web.py').read_text(encoding='utf-8')
         self.assertLess(code.index('write_text(ordinary_entry_html(html)'), code.index('manifest = {'))
         self.assertIn('"files": {p.name:', code)
