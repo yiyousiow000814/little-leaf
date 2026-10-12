@@ -82,6 +82,24 @@ async function renewalCoalescingChecks(){
  delayed.replace(confirmed);const committed=delayed.writes();delayed.confirmations[0].resolve();
  const oldResult=(await older)[0];assert.equal(oldResult.status,'rejected');assert.equal(oldResult.reason.code,'HANDOFF_CHANGED');assert.deepEqual(delayed.value(),confirmed);assert.equal(delayed.writes(),committed);
  assert.equal(delayed.session.snapshot().ownershipPaused,true);assert.throws(()=>delayed.session.assertActive(true),e=>e.code==='OWNERSHIP_LOST');
+ // A -> B -> A restores the same key but not the old operation's authority.
+ // An older confirmation must not regress the newer confirmed lease timestamp.
+ const aba=fixture();await aba.start();aba.holdConfirmation();const firstA=Promise.allSettled([aba.session.renew()]);
+ aba.replace({...aba.value(),request:request()});const intentB=Promise.allSettled([aba.session.renew()]);
+ aba.replace({...aba.value(),request:null,ack:null});const secondA=aba.session.renew();assert.equal(aba.confirmations.length,3);
+ aba.confirmations[2].resolve();await secondA;const newerLease=aba.value().updatedAt;
+ try{
+  aba.confirmations[0].resolve();const staleA=(await firstA)[0];
+  assert.equal(aba.session.reloadContinuation('c'.repeat(64),1).leaseAt,newerLease,'superseded A response regressed confirmed lease');
+  assert.equal(staleA.status,'rejected');assert.equal(staleA.reason.code,'HANDOFF_CHANGED');assert.equal(aba.session.snapshot().status,'active');
+ }finally{aba.confirmations[1].resolve();await intentB;}
+ // Even without another renewal replacing the slot, confirmed A -> B -> A
+ // observations invalidate the old response instead of reviving its key.
+ const restored=fixture();await restored.start();restored.holdConfirmation();const retired=Promise.allSettled([restored.session.renew()]);
+ restored.replace({...restored.value(),request:request()});restored.replace({...restored.value(),request:null,ack:null,updatedAt:100010});
+ restored.confirmations[0].resolve();const retiredResult=(await retired)[0];
+ assert.equal(retiredResult.status,'rejected');assert.equal(retiredResult.reason.code,'HANDOFF_CHANGED');
+ assert.equal(restored.session.reloadContinuation('d'.repeat(64),1).leaseAt,100010);assert.equal(restored.session.snapshot().status,'active');
  // Shared denial reaches every caller unchanged. A later same-owner server
  // renewal is fresh and can recover connectivity without clearing save latches.
  const denied=fixture();await denied.start();denied.hold();const error=fail('permission-denied');

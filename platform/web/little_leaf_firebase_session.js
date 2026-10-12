@@ -66,7 +66,7 @@
     };
   }
   function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},assertRuntime=()=>{}}){
-    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0,pendingRenewal=null;
+    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0,pendingRenewal=null,renewalGeneration=0;
     const guard=()=>{assertRuntime();if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
@@ -74,6 +74,8 @@
       // the transaction's explicit server readback. Epochs only increase under
       // the rules: never regress a confirmed fence to an older epoch.
       if(current && value && value.epoch<current.epoch)return;
+      // Restoring an earlier key (A -> B -> A) does not revive its old work.
+      if(renewalKey(current)!==renewalKey(value))renewalGeneration++;
       current=value;initialized=true;
       if(!current)status='offline';
       else if(current.owner===sessionId)status=current.request?'handoff-requested':'active';
@@ -165,24 +167,25 @@
         value?.ack?[value.ack.requestId,value.ack.digest,value.ack.revision]:null]);
     }
     async function renew(){
-      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch,key=renewalKey(current);
+      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch,key=renewalKey(current),generation=renewalGeneration;
       const renewalGuard=()=>{
         guard();if(current?.owner!==sessionId||current.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
-        if(renewalKey(current)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
+        if(renewalGeneration!==generation||renewalKey(current)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
       };
       renewalGuard();
       let work=pendingRenewal;
-      if(!work||work.key!==key){
-        work={key};pendingRenewal=work;
-        const stillCurrent=()=>{try{renewalGuard();return pendingRenewal===work;}catch(_){return false;}};
+      if(!work||work.key!==key||work.generation!==generation){
+        work={key,generation};pendingRenewal=work;
+        const operationGuard=()=>{renewalGuard();if(pendingRenewal!==work)throw fail('HANDOFF_CHANGED','This renewal was superseded.');};
+        const stillCurrent=()=>{try{operationGuard();return true;}catch(_){return false;}};
         work.promise=(async()=>{
           try{
             const result=await remote.change((value,save,stamp)=>{
-              renewalGuard();if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
+              operationGuard();if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
               if(renewalKey(value)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
               return {...value,updatedAt:stamp()};
-            },renewalGuard);
-            renewalGuard();
+            },operationGuard);
+            operationGuard();
             // A held confirmation response cannot publish an older same-epoch
             // request/ACK over a newer server-confirmed local observation.
             if(renewalKey(result)!==key)throw fail('HANDOFF_CHANGED','The confirmed renewal intent changed.');
