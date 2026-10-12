@@ -170,7 +170,9 @@ class ManualReuseTests(unittest.TestCase):
                 self.change = None; self.calls = []; self.release_attempt = 1
                 self.coordinator_contents = {name: (test.root / name).read_bytes() for name in live.COORDINATOR_FILES}
                 self.released_transformers = {'tools/build/build_firebase.py':
-                    (test.root / 'tools/build/build_firebase.py').read_bytes()}
+                    (test.root / 'tools/build/build_firebase.py').read_bytes(),
+                    'tools/qualification/prepare_browser_qa.py':
+                    (test.root / 'tools/qualification/prepare_browser_qa.py').read_bytes()}
             def read(self, path):
                 self.calls.append(path)
                 if path == 'actions/runs/10': value = copy.deepcopy(test.origin['run'])
@@ -218,7 +220,9 @@ class ManualReuseTests(unittest.TestCase):
         old, current = 'tools/build_firebase.py', 'tools/build/build_firebase.py'
         for selected in (old, current):
             api = self.api()
-            api.released_transformers = {selected: (self.root / current).read_bytes()}
+            api.released_transformers = {selected: (self.root / current).read_bytes(),
+                'tools/qualification/prepare_browser_qa.py':
+                (self.root / 'tools/qualification/prepare_browser_qa.py').read_bytes()}
             authenticated = live.authenticate_origin(api, manifest,
                 {'run': self.origin['run'], 'artifact': self.origin['artifact']})
             self.assertEqual(authenticated['released_transformer_sha256'],
@@ -233,6 +237,28 @@ class ManualReuseTests(unittest.TestCase):
                 live.authenticate_origin(api, manifest,
                     {'run': self.origin['run'], 'artifact': self.origin['artifact']})
             self.assertFalse(any(call.startswith('contents/') for call in api.calls))
+
+    def test_compiled_helper_source_keeps_historical_keys_and_rejects_relabelling(self):
+        self.stage()
+        original = self.manifest()
+        old, current = 'tools/prepare_browser_qa.py', 'tools/qualification/prepare_browser_qa.py'
+        for selected in (old, current):
+            manifest = copy.deepcopy(original)
+            api = self.api()
+            if selected == old:
+                api.released_transformers[old] = api.released_transformers.pop(current)
+                hashes = manifest['manual_live_reuse']['compiled_source_sha256']
+                hashes[old] = hashes.pop(current)
+            authenticated = live.authenticate_origin(api, manifest,
+                {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+            self.assertEqual(authenticated['compiled_source_sha256'],
+                             manifest['manual_live_reuse']['compiled_source_sha256'])
+            self.assertIn('contents/' + selected + '?ref=' + SOURCE, api.calls)
+            other = current if selected == old else old
+            self.assertNotIn('contents/' + other + '?ref=' + SOURCE, api.calls)
+        for names in ((), (old, current)):
+            with self.assertRaises(ValueError):
+                live.compiled_source_names(names)
 
     def test_original_old_and_nested_coordinator_namespaces_authenticate_without_relabelling(self):
         self.stage()

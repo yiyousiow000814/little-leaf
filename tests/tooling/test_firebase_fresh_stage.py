@@ -4,7 +4,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 from pathlib import Path
 from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS, validate_fresh_ci, validate_export_inventory
-from run_firebase_focused import COMMANDS
+from qualification.run_firebase_focused import COMMANDS
 from build.build_web import sha256
 from build.project_layout import source_path
 
@@ -35,7 +35,7 @@ class FreshStageTests(unittest.TestCase):
         for name,(relative,key,expected) in BROWSER_GATES.items():
             p=self.build/'evidence'/relative;p.parent.mkdir(parents=True,exist_ok=True)
             report={key:expected,'browser_verified':True,'binding':{'source_commit':SOURCE,'export_manifest_sha256':sha256(self.build/'web/release-manifest.json'),'engine_report_sha256':sha256(self.native)}}
-            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,diagnostic_only=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
+            if name=='firebase-fullflow':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),real_compiled_ui=True,real_firestore_rules=True,synthetic_only=True,browser_sandbox=True,real_google_sign_in=False,diagnostic_only=False,checks=['synthetic guard receipt'],source_sha256={n:sha256(source_path(ROOT,n)) for n in ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']})
             if name=='webkit-recovery':report.update(source_commit=SOURCE,source_tree=TREE,export_manifest_sha256=sha256(self.build/'web/release-manifest.json'),native_report_sha256=sha256(self.native),export_files=files)
             if name=='compatibility':report['inputs']={'new_commit':SOURCE,'export_files':{'new':files}}
             if name=='save-log':report['export_sha256']={k:v['sha256'] for k,v in files.items()}
@@ -138,18 +138,18 @@ class FreshStageTests(unittest.TestCase):
 
 class FocusedRunnerTests(unittest.TestCase):
     def test_failed_process_cannot_leave_success_receipt(self):
-        from run_firebase_focused import run
+        from qualification.run_firebase_focused import run
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);receipt=root/'adapter.log.json';receipt.write_text('stale success')
-            with patch('run_firebase_focused.subprocess.run',return_value=SimpleNamespace(returncode=1)):
+            with patch('qualification.run_firebase_focused.subprocess.run',return_value=SimpleNamespace(returncode=1)):
                 with self.assertRaises(SystemExit):run('adapter.log',root)
             self.assertFalse(receipt.exists())
 
     def test_success_receipt_binds_command_source_run_and_log(self):
-        from run_firebase_focused import run
+        from qualification.run_firebase_focused import run
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)
-            with patch('run_firebase_focused.subprocess.run',return_value=SimpleNamespace(returncode=0)), patch('run_firebase_focused.subprocess.check_output',side_effect=[SOURCE,TREE]), patch.dict('os.environ',{'GITHUB_RUN_ID':'1','GITHUB_RUN_ATTEMPT':'2'}):
+            with patch('qualification.run_firebase_focused.subprocess.run',return_value=SimpleNamespace(returncode=0)), patch('qualification.run_firebase_focused.subprocess.check_output',side_effect=[SOURCE,TREE]), patch.dict('os.environ',{'GITHUB_RUN_ID':'1','GITHUB_RUN_ATTEMPT':'2'}):
                 run('adapter.log',root)
             receipt=json.loads((root/'adapter.log.json').read_text())
             self.assertEqual(receipt['source_commit'],SOURCE);self.assertEqual(receipt['source_tree'],TREE)
@@ -198,7 +198,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('secrets.',text)
         tail=text[first:text.index('      - name: Keep test and export evidence')]
         self.assertEqual(tail.count('        if: inputs.firebase_preview'),7)
-        self.assertIn('python3 tools/prepare_browser_qa.py cloud',tail)
+        self.assertIn('python3 tools/qualification/prepare_browser_qa.py cloud',tail)
         self.assertNotIn('always()',tail)
         self.assertLess(tail.index('--require-fresh-ci'),tail.index('id: firebase_upload'))
 
@@ -220,7 +220,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', section)
         for gate in ['recovery.log', 'recovery-presentation.log', 'recovery-browser.log']:
             self.assertIn('--gate '+gate, section)
-        runner=(ROOT/'tools/run_firebase_focused.py').read_text()
+        runner=(ROOT/'tools/qualification/run_firebase_focused.py').read_text()
         self.assertIn("timeout=120 if name=='recovery-browser.log' else None", runner)
 
     def test_public_config_contains_only_approved_public_app_fields(self):

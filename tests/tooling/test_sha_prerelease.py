@@ -92,7 +92,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
             with self.assertRaises(RuntimeError):artifacts.validate_web_gate(build,sha,'b'*40,source_root=root)
 
     def test_compatibility_accepts_only_exact_projected_metadata(self):
-        import prepare_browser_qa as qa
+        from qualification import prepare_browser_qa as qa
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)/'source';root.mkdir();self.metadata(root)
             build=Path(d)/'build';(build/'project/data').mkdir(parents=True);(build/'web').mkdir()

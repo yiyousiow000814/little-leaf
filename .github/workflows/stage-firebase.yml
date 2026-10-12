@@ -158,10 +158,10 @@ jobs:
           export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
           export PATH="$JAVA_HOME/bin:$PATH"
           for gate in adapter.log delayed-network.log recovery.log choice.log session.log update-notice.log recovery-presentation.log recovery-browser.log staging-tests.log rules.log; do
-            python3 tools/run_firebase_focused.py --gate "$gate" --output "$RUNNER_TEMP/firebase-focused"
+            python3 tools/qualification/run_firebase_focused.py --gate "$gate" --output "$RUNNER_TEMP/firebase-focused"
           done
           node --check platform/web/little_leaf_firebase_boot.mjs
-          python3 tools/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
+          python3 tools/qualification/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
       - name: Verify compiled cloud flows against exactly the released runtime in a disposable emulator
         working-directory: source/platform/firebase
         env:
