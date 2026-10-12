@@ -15,6 +15,15 @@ func state(model)->String:
 func fixture():
  var model=Model.new();MinimalStart.apply(model)
  return model
+func staff_snapshot(position:Vector2)->Dictionary:
+ var staff=[]
+ for role in ["chef","waiter","cleaner"]:
+  staff.append({"role":role,"on_duty":true,"duty_pending":false,"pos":position if role=="chef" else Vector2(2.5,6.5 if role=="waiter" else 7.5),"destination":Vector2i(-100,-100),"path":[],"index":0,"job_kind":"","job_step":0,"job_elapsed":0.0,"station_id":-1,"job_guest_id":-1,"job_token":-1})
+ return {"version":Model.SaveContract.SERVICE_VERSION,"checkout_format":Model.SaveContract.CHECKOUT_FORMAT,"serial":0,"records":[],"staff":staff,"animation_time":0.0,"dishwashing":{"format":"little_leaf.dishwashing.v1","next_id":1,"completed":0,"dishes":[]}}
+func synthetic_file(path:String,text:String)->bool:
+ var file=FileAccess.open(path,FileAccess.WRITE)
+ if file==null:return false
+ file.store_string(text);file.close();return true
 func _init():
  if not "placement-saveguard" in OS.get_user_data_dir():printerr("Use isolated placement-saveguard profile");quit(2);return
  var model=fixture();var plan=EditPlan.new();var target=Model.ENTRY_LANDING
@@ -46,6 +55,17 @@ func _init():
    check(loaded.items==model.items and loaded.coins==model.coins and loaded._next_item_id==model._next_item_id,"roundtrip preserves furniture identities, wallet and allocation")
    check(loaded.wall_attachments==model.wall_attachments and loaded.customers.is_empty(),"roundtrip preserves openings and empty service")
   check(FileAccess.get_sha256(path)==source_hash,"reload never rewrites fixture bytes")
+ var body_model=Model.new();body_model.service_snapshot=staff_snapshot(Vector2(1.5,1.5))
+ var body_path=directory+"/saved-body-refusal.json"
+ check(synthetic_file(body_path,"{\"synthetic\":\"previous destination\"}"),"synthetic prior destination seeded")
+ var body_hash=FileAccess.get_sha256(body_path)
+ check(not body_model.save(body_path),"saved staff body overlapping furniture still rejects write")
+ check(FileAccess.get_sha256(body_path)==body_hash,"body refusal preserves existing destination bytes")
+ var malformed_path=directory+"/malformed.json"
+ check(synthetic_file(malformed_path,"{\"schema\":\"foreign\",\"items\":[]}"),"synthetic malformed input seeded")
+ var malformed_hash=FileAccess.get_sha256(malformed_path);var receiver=fixture();before=state(receiver)
+ check(not receiver.load_save(malformed_path) and state(receiver)==before,"malformed input cannot publish partial state")
+ check(FileAccess.get_sha256(malformed_path)==malformed_hash,"malformed input bytes remain unchanged")
  model=fixture();plan=EditPlan.new();model.coins=0;before=state(model)
  receipt=plan.prepare(model,"plant",-1,0,Vector2i(4,6))
  check(receipt.physical_ok and not receipt.ok,"funds do not recolor an otherwise fitting footprint")
