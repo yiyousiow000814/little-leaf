@@ -41,6 +41,48 @@ func capture(name: String) -> Image:
 	records.append({"capture": name, "rings": nodes.size(), "draw_counts": nodes.map(func(n):return n.draw_count), "positions": nodes.map(func(n):return str(n.transform.origin)), "clock": game.animation_time, "editing": game.editing, "zoom": game.illustration.zoom})
 	return image
 
+func own_ring_over_rug(before: Image, after: Image, nodes: Array) -> Dictionary:
+	var target
+	var rug
+	for node in nodes:
+		if int(node.appearance[0][1]) == 1: target = node
+	for node in game.illustration.native_object_nodes.values():
+		if not node.visible or node.appearance.is_empty() or not node.appearance[0] is Array: continue
+		var key = node.appearance[0]
+		if key.size() > 2 and key[0] == "furniture" and key[2] is Dictionary and int(key[2].get("id", -1)) == 9000: rug = node
+	if target == null or rug == null: return {"white_rug_pixels": 0, "target_or_rug_missing": true}
+	var own_inverse: Transform2D = target.transform.affine_inverse()
+	var rug_inverse: Transform2D = rug.transform.affine_inverse()
+	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
+	var bounds = Rect2i(Vector2i(rug.transform.origin - Vector2(30, 17) * unit), Vector2i(Vector2(60, 34) * unit) + Vector2i(2, 2))
+	var count = 0
+	var eligible = 0
+	var excluded_neighbor_samples = 0
+	for y in range(bounds.position.y, bounds.end.y):
+		for x in range(bounds.position.x, bounds.end.x):
+			var pixel = Vector2(x + .5, y + .5)
+			var own = own_inverse * pixel
+			var radius = own.length()
+			var angle = fposmod(atan2(own.y, own.x), PI * .5)
+			if radius < .87 or radius > .98 or angle < deg_to_rad(14) or angle > deg_to_rad(76): continue
+			# Existing real rug: illustrated_furniture.point uses34/17 and its
+			# face is the world rectangle +/- .43 / .34. Stay within its interior.
+			var local = rug_inverse * pixel
+			var rug_x = (local.x / 34.0 + local.y / 17.0) * .5
+			var rug_z = (local.y / 17.0 - local.x / 34.0) * .5
+			if absf(rug_x) > .40 or absf(rug_z) > .30: continue
+			var neighbor = false
+			for node in nodes:
+				if node == target: continue
+				var other_radius = (node.transform.affine_inverse() * pixel).length()
+				# Exclude a widened annulus irrespective of the neighbor's gap phase.
+				if other_radius >= .80 and other_radius <= 1.04: neighbor = true
+			if neighbor: excluded_neighbor_samples += 1; continue
+			eligible += 1
+			var color = after.get_pixel(x, y)
+			if minf(color.r, minf(color.g, color.b)) > .8 and maxf(color.r, maxf(color.g, color.b)) - minf(color.r, minf(color.g, color.b)) < .08 and color.b - before.get_pixel(x, y).b > .2: count += 1
+	return {"white_rug_pixels": count, "eligible_own_annulus_rug_samples": eligible, "neighbor_annulus_samples_excluded": excluded_neighbor_samples, "target_staff_index": 1, "rug_id": 9000, "target_anchor": str(target.transform.origin), "rug_anchor": str(rug.transform.origin), "mask": "own annulus + real rug interior; all neighboring annuli excluded"}
+
 func run():
 	directory = OS.get_environment("STAFF_RING_OUTPUT")
 	root.size = Vector2i(1360, 880)
@@ -73,8 +115,9 @@ func run():
 		staff.art_tool = "none"
 		staff.art_target = staff.pos
 		staff.art_station = staff.pos + Vector2(1, 0)
-	# A real existing rug painter, under the second synthetic employee.
-	game.model.items.append({"id": 9000, "kind": "rug", "x": 2, "z": 2, "rot": 0})
+	# Offset the same real rug one fixture cell so the second staff ring
+	# crosses it; its central hole no longer serves as the rug-order probe.
+	game.model.items.append({"id": 9000, "kind": "rug", "x": 3, "z": 2, "rot": 0})
 	game.illustration.motion = game.illustration.MotionArt.new()
 	game.illustration.stance_offsets.clear()
 	game.illustration.zoom = 1.0
@@ -93,16 +136,9 @@ func run():
 	var nodes = ring_nodes()
 	check(nodes.size() == game.staff_states.size(), "actual ground pass draws once per staff outside contact splits")
 	check(candidate.get_data() != baseline.get_data(), "gameplay ring activation changes actual rendered pixels")
-	var rug_anchor = game.illustration.iso(2.5, 2.5)
-	var rug_area = Rect2i(Vector2i(rug_anchor) - Vector2i(18, 9), Vector2i(36, 18))
-	var white_rug_pixels = 0
-	for y in range(rug_area.position.y, rug_area.end.y):
-		for x in range(rug_area.position.x, rug_area.end.x):
-			var color = candidate.get_pixel(x, y)
-			# The .82-alpha white arc is antialiased and blended over tan rug pixels.
-			if minf(color.r, minf(color.g, color.b)) > .8 and maxf(color.r, maxf(color.g, color.b)) - minf(color.r, minf(color.g, color.b)) < .08 and color.b - baseline.get_pixel(x, y).b > .2: white_rug_pixels += 1
-	check(white_rug_pixels > 3, "employee white ring remains visible above real rug")
-	records.append({"white_rug_pixels": white_rug_pixels})
+	var rug_proof = own_ring_over_rug(baseline, candidate, nodes)
+	check(int(rug_proof.white_rug_pixels) > 3, "target staff ring is above the real rug with every neighboring annulus excluded")
+	records.append(rug_proof)
 	for node in nodes:
 		var i = int(node.appearance[0][1])
 		var position = game.illustration._render_position("staff_%s" % i, game.staff_states[i].pos)
