@@ -1,6 +1,6 @@
 # Little Leaf 版本开发总路线图
 
-> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state source reconciliation is checked against main `a9bfc3d096a9e5486b56a906ff666813dee6f830` on 2026-10-12 UTC; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
+> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state source reconciliation is checked against main `59e3e572e5d7723b7515f1a0a2af226bafe38b2f` on 2026-10-12 UTC; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
 
 ## Read this first
 
@@ -12,6 +12,16 @@
 - [Developer instructions and technical references](development/README.md) — focused disposable verification, current detail contracts and archive provenance.
 
 ### Current state and ownership
+
+Urgent same-itch account/save handoff on2026-10-12: [PR249](https://github.com/yiyousiow000814/little-leaf/pull/249) merged normally as
+`59e3e572e5d7723b7515f1a0a2af226bafe38b2f` (tree `2dc00d31ff80b9d1ca3e24bdf8f6f712f3d8e199`) after all13 exact-head mandatory checks
+in [CI38295834327](https://github.com/yiyousiow000814/little-leaf/actions/runs/38295834327), attempt1, passed.
+The two-path correction wakes the same frozen handoff after late upload/ACK settlement and skips a redundant cloud read when no new upload was needed.
+Atomic ACK still checks the exact server save and owner/request fence; account/generation/profile/digest/revision/writer/epoch/request fences, permission refusal, native snapshot custody and all existing time limits remain unchanged.
+The retained Linux diagnostic38291680853 on coordinator08bcf651 and runtime9ecd failed its original45-second graceful transfer gate after five early checks; Release's measured cloud/journal r2 match and absent ACK invocation identify the incomplete handoff, not release qualification.
+The user's latest-pre-first delivery target is itch and Firebase by2026-10-12 23:00UTC /2026-10-13 07:00MYT.
+Release now owns fresh changed-main compiled qualification, exact eligible package/action binding and the authorized trusted-wrapper/Hosting delivery; Queue owns the distinct runtime admission and Auth validates the actual served-version Google-to-game flow.
+Those gates and actual deployment remain open. Earlier failed/frozen evidence and original profiles/saves remain intact; unrelated music/UI/Art/Car work is not a dependency of this necessary repair.
 
 
 Settings/Help/Updates acceptance on2026-10-12: [PR135](https://github.com/yiyousiow000814/little-leaf/pull/135) merged normally as `73f604272e45de88e165f4c214c9def55ebcdebe` after all13 exact checks in run38152268068 passed. The accepted Settings menu, fixed X/Back/focus, Help placement and shared typography are incorporated once. This source/visual acceptance remains separate from hosted login and release inclusion. The later Help stats source is recorded below.
