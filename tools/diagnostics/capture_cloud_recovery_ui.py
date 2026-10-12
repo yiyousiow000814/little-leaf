@@ -17,7 +17,7 @@ if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from project_layout import stage_project
+from build.project_layout import stage_project
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "b8b80eea57ac3cb141cb5c771b375207a284436a"

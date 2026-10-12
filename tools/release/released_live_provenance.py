@@ -16,7 +16,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from qualification.artifacts import sha256
-from build_firebase import BROWSER_GATES, FOCUSED_LOGS
+from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
 from firebase_release_gate import REPOSITORY, require, trusted_run
 from run_firebase_focused import COMMANDS
 
@@ -158,9 +158,15 @@ def authenticate_origin(api, manifest, origin):
         'Complete immutable coordinator tree required')
     paths = [entry['path'] for entry in tree['tree'] if entry.get('type') == 'blob']
     require(len(paths) == len(set(paths)), 'Duplicate coordinator source paths')
+    released_tree = api.read('git/trees/' + manifest['source_tree'] + '?recursive=1')
+    require(released_tree.get('sha') == manifest['source_tree'] and released_tree.get('truncated') is False,
+        'Complete immutable released source tree required')
+    transformers = [entry['path'] for entry in released_tree['tree'] if entry.get('type') == 'blob'
+                    and entry['path'] in ('tools/build_firebase.py', 'tools/build/build_firebase.py')]
+    require(len(transformers) == 1, 'Missing or ambiguous released transformer source')
     evidence = {**origin, 'coordinator_source_tree': coordinator_tree,
         'coordinator_sha256': {name: content_hash(name, coordinator) for name in coordinator_files(paths)},
-        'released_transformer_sha256': content_hash('tools/build_firebase.py', source),
+        'released_transformer_sha256': content_hash(transformers[0], source),
         'public_config_sha256': content_hash('platform/firebase/public-config.json', source),
         'compiled_source_sha256': {name: content_hash(path, source) for name, path in source_names.items()},
         'source_is_coordinator_ancestor': True,

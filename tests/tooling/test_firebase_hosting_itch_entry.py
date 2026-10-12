@@ -10,8 +10,8 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 import deploy_firebase_hosting as h
-from build_firebase import BROWSER_GATES, FOCUSED_LOGS
-from project_layout import source_path
+from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
+from build.project_layout import source_path
 from run_firebase_focused import COMMANDS
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -133,8 +133,8 @@ class ItchTestEntry(unittest.TestCase):
             'fresh_ci': {'status': 'fresh-gates-passed','new_engine_run': True, 'source_commit': SHA,'source_tree': TREE,
                          'workflow_run': '1','workflow_attempt': '1',
                          'gate_evidence_sha256': {label:h.digest(evidence/name) for label,name in labels.items()}},
-            'source_sha256': {name:h.digest(source_path(ROOT,name)) for name in ['tools/build_itch_entry.py',
-                'tools/build_itch_trusted_preview.py','tools/build_firebase.py','web/little_leaf_firebase_boot.mjs',
+            'source_sha256': {name:h.digest(source_path(ROOT,name)) for name in ['tools/build/build_itch_entry.py',
+                'tools/build/build_itch_trusted_preview.py','tools/build/build_firebase.py','web/little_leaf_firebase_boot.mjs',
                 'web/little_leaf_firebase_session.js','web/little_leaf_update.js','web/little_leaf_entry.css']}}
         names = ['guard','historical','build','gate','firebase','browser (play)','browser (recovery)',
             'compatibility (compatibility, old_opened_after_new)','compatibility (compatibility, already_open_old)',

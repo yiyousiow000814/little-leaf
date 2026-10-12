@@ -1,7 +1,7 @@
 """Export the separate CrazyGames variant after the existing full Web gate.
 
 Portable local smoke: pass --local-tools and --validated-web-build from
-tools/build_web.py. CI keeps every existing integration/browser gate mandatory.
+tools/build/build_web.py. CI keeps every existing integration/browser gate mandatory.
 """
 import argparse
 import hashlib
@@ -11,7 +11,11 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from build_web import ROOT, LOCK
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.build_web import ROOT, LOCK
 from build.optimize_web_present import optimize_presentation
 from build.bound_web_gl_handles import bound_web_gl_handles
 from qualification.artifacts import sha256

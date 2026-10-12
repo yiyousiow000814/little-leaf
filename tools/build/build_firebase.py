@@ -1,10 +1,14 @@
 """Stage an unpublished Firebase/itch-entry variant from the exact complete Web gate."""
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
-from build_web import ROOT, sha256
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.build_web import ROOT, sha256
 from qualification import artifacts
-from project_layout import source_path
-from entry_presentation import entry_styles
+from build.project_layout import source_path
+from build.entry_presentation import entry_styles
 
 def validate_export_inventory(build):
     return artifacts.validate_export_inventory(build / 'web')
@@ -225,7 +229,7 @@ def main():
     if a.itch_test_entry:
         if not proof or a.itch_preview_bootstrap or a.publication_receipt:
             raise ValueError('Test entry requires fresh gates and excludes preview/publication')
-        from build_itch_trusted_preview import prepare_stable
+        from build.build_itch_trusted_preview import prepare_stable
         prepare_stable(a.validated_web_build,a.output,config,source,tree)
         path=a.output/'firebase-variant-manifest.json'
         manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
@@ -236,7 +240,7 @@ def main():
             raise ValueError('Final embedded entry differs from compiled iframe test')
     elif a.itch_preview_bootstrap:
         if not proof:raise ValueError('Trusted preview bootstrap requires the unchanged fresh CI gates')
-        from build_itch_trusted_preview import prepare
+        from build.build_itch_trusted_preview import prepare
         prepare(a.validated_web_build,a.output,config,
                 'https://little-leaf-41e5d--itch-embed-test-localfixture.web.app',source,tree)
         # This fresh source build is not the local reviewed-engine reuse candidate.
