@@ -1809,6 +1809,8 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 06.01 — Clear the original red placement cell while moving an item.
 
+Current physical-placement closeout: [PR157](https://github.com/yiyousiow000814/little-leaf/pull/157) separates owned physical fit from service access and replaces whole-floor/neighbor tint with the actively dragged item's footprint (also 06.04/06.09). The user accepted exact 25d7b750's matched 1360x880/390x844 native images on2026-10-12; its 34 generated placement/save checks and 15 native assertions per side are exact 25 evidence. Cleanup source 993eed0 removes the retired painters/node/veto wrappers and passed fresh 123-dependency original-control qualification in [run 38240502998](https://github.com/yiyousiow000814/little-leaf/actions/runs/38240502998). Updated cleanup tests and final current-head CI remain pending; this PR is not merged/released and does not activate private save versions or widen active-guest readers. PR103 is already merged at b0447db8; the dated evidence below remains historical.
+
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
 | 🟢 GREEN — Editor preview/selection candidate #103 | 🟡 YELLOW — Source presence and result scope below; integrated acceptance incomplete | 🟡 YELLOW — Exact-head editor native workflow passed; ten PNG inspections reported in PR | Runtime merge not established; merged contracts are separate | No integrated11 runtime release verified |
