@@ -1,7 +1,7 @@
 extends SceneTree
 # Native production-art fixtures, with exact live seat docking and depth order.
 # This renderer never creates the game model or reads/writes a player save.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var facing_forward=Vector2.RIGHT
  var pull_override=-1.0
  var chair_pull=.24
@@ -73,7 +73,7 @@ func capture(name):
 func run():
  root.size=Vector2i(1800,1200)
  board=Board.new();board.before=OS.get_environment("BASELINE")=="1"
- if not board.before:board.chair_pull=float(load("res://scripts/dining_placement.gd").CHAIR_PULL)
+ if not board.before:board.chair_pull=float(load("res://scripts/gameplay/dining_placement.gd").CHAIR_PULL)
  root.add_child(board)
  for species in range(3):
   board.species=species;board.endpoint=false

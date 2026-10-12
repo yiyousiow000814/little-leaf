@@ -12,6 +12,33 @@
   function storeReload(storage,ticket){try{storage.setItem(RELOAD_KEY,JSON.stringify(ticket));return storage.getItem(RELOAD_KEY)===JSON.stringify(ticket);}catch(_){return false;}}
   const fail=(code,message)=>Object.assign(Error(message),{code});
   const millis=value=>typeof value?.toMillis==='function'?value.toMillis():Number(value);
+  // A reload may retain this tab's writer ID only while its exclusive browser
+  // lock is held. Copied sessionStorage alone never grants writer authority.
+  async function acquireRuntime({uid,storage,locks,navigationType,fresh=false}){
+    const key='little-leaf.runtime-session.v1';
+    let sessionId=root.crypto.randomUUID();
+    if(!locks?.request)return {sessionId,assertHeld(){},close(){}};
+    try{
+      const value=JSON.parse(storage.getItem(key));
+      if(!fresh&&navigationType==='reload'&&value?.schema===1&&value.uid===uid&&identifier(value.sessionId))sessionId=value.sessionId;
+    }catch(_){/* Storage unavailable: acquire a fresh, non-continuing identity. */}
+    let held=false,closed=false,release;
+    const lifetime=new Promise(resolve=>{release=resolve;});
+    let acquired,rejected;
+    const ready=new Promise((resolve,reject)=>{acquired=resolve;rejected=reject;});
+    const task=locks.request('little-leaf.runtime:'+uid+':'+sessionId,{mode:'exclusive',ifAvailable:true},async lock=>{
+      if(!lock){rejected(fail('SAVE_BUSY','This tab is still closing. Progress remains paused.'));return;}
+      held=true;acquired();
+      try{await lifetime;}finally{held=false;}
+    });
+    Promise.resolve(task).catch(error=>{held=false;rejected(error);});
+    await ready;
+    try{storage.setItem(key,JSON.stringify({schema:1,uid,sessionId}));}catch(_){/* No continuity receipt; next boot uses a fresh identity. */}
+    return {sessionId,
+      assertHeld(){if(!held||closed)throw fail('NOT_READY','This runtime has closed. Progress remains paused.');},
+      close(){closed=true;release();}
+    };
+  }
   function createRemote(db,sdk,uid){
     const sessionRef=sdk.doc(db,'players',uid,'session','owner');
     const saveRef=sdk.doc(db,'players',uid,'saves','cafe');
@@ -38,9 +65,9 @@
       },onError);}
     };
   }
-  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{}}){
+  function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},assertRuntime=()=>{}}){
     let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
-    const guard=()=>{if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
+    const guard=()=>{assertRuntime();if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
       // A server listener can deliver a queued pre-takeover observation after
@@ -163,11 +190,39 @@
     async function acknowledge(digest,revision){
       const fence=assertActive(true),id=current.request?.id;
       if(!id)throw fail('HANDOFF_CHANGED','The device switch request changed.');
-      await change((value,save)=>{
-        if(save?.digest!==digest||save.revision!==revision)throw fail('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
+      // Compare server timestamps without reducing them to milliseconds. A
+      // fresh transaction may only recover an independently observed renewal
+      // of this exact owner, request and final save; denial alone is no proof.
+      const compareStamp=(a,b)=>{
+        if(Number.isInteger(a?.seconds)&&Number.isInteger(a?.nanoseconds)&&Number.isInteger(b?.seconds)&&Number.isInteger(b?.nanoseconds))
+          return Math.sign(a.seconds-b.seconds)||Math.sign(a.nanoseconds-b.nanoseconds);
+        return typeof a==='number'&&Number.isFinite(a)&&typeof b==='number'&&Number.isFinite(b)?Math.sign(a-b):NaN;
+      };
+      const sameRequest=(a,b)=>a&&b&&a.id===b.id&&a.requester===b.requester&&a.device===b.device&&compareStamp(a.at,b.at)===0;
+      const nextAck=(value,save)=>{
+        if(save?.digest!==digest||save.revision!==revision||save.writerId!==fence.writerId||save.writerEpoch!==fence.writerEpoch)throw fail('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
         if(value?.owner!==sessionId||value.epoch!==fence.writerEpoch||value.request?.id!==id)throw fail('OWNERSHIP_LOST','The device switch changed before acknowledgment.');
+        if(value.ack!==null)throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
         return {...value,ack:{requestId:id,digest,revision}};
-      });return snapshot();
+      };
+      let attempted=null;
+      try {await change((value,save)=>{
+        attempted=null;const next=nextAck(value,save);
+        attempted={...value,request:{...value.request}};return next;
+      });}catch(error){
+        guard();if(error.code!=='permission-denied'||!attempted)throw error;
+        const latest=await remote.read();guard();
+        const renewed=value=>value&&value.schema===attempted.schema&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
+          &&sameRequest(value.request,attempted.request)&&value.ack===null&&compareStamp(value.updatedAt,attempted.updatedAt)>0;
+        if(!renewed(latest))throw error;
+        const confirmedAt=latest.updatedAt;
+        // One fresh CAS only. A second race, changed request/save, account
+        // change or uncertain outcome remains paused with the durable journal.
+        await change((value,save)=>{
+          if(!renewed(value)||compareStamp(value.updatedAt,confirmedAt)!==0)throw fail('HANDOFF_CHANGED','The device switch changed. Progress remains paused.');
+          return nextAck(value,save);
+        });
+      }return snapshot();
     }
     async function takeOver(force=false){
       guard();const id=current?.request?.id;
@@ -183,5 +238,5 @@
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
       close(){requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
   }
-  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload});
+  root.LittleLeafFirebaseSession=Object.freeze({createRemote,createSession,LEASE_MS,HANDOFF_WAIT_MS,consumeReload,storeReload,acquireRuntime});
 })(globalThis);

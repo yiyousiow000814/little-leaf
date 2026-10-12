@@ -1,14 +1,9 @@
 name: Check and build Web
 on:
   pull_request:
-    paths:
-      - '**'
-      - '!README.md'
-      - '!docs/**/*.md'
-      # Distribution inputs always build, including current and future notices.
-      - 'docs/art-audio/third-party/**'
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,4 +12,53 @@ concurrency:
   cancel-in-progress: true
 jobs:
   web:
+    if: github.ref_type != 'tag'
     uses: ./.github/workflows/build-web.yml
+  common_tag:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && github.ref_type == 'tag' && github.event.created && !github.event.deleted
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate immutable tag and exact reviewed main ancestry
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$REF_TYPE" = tag
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]|-pre\.[0-9a-f]{8})?$ ]] || { echo '::error::Expected an immutable release tag.'; exit 1; }
+          git fetch --no-tags origin main
+      - name: Check exact version binding and qualified source closure
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 tools/qualification/verify_prebaked_atlases.py
+      - name: Install official packed startup verifier once
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Reuse complete exact-main qualification; final packed startup once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG_CREATED: ${{ github.event.created }}
+        run: |
+          python3 tools/qualification/reuse_main_ci.py --sha "$GITHUB_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/common-release"
+          python3 tools/release/common_tag.py create --folder "$RUNNER_TEMP/common-release" --tag "$RELEASE_TAG"
+      - name: Retain ONE immutable common package and receipt for both platforms
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-common-release-${{ github.sha }}-1
+          path: |
+            ${{ runner.temp }}/common-release/web/
+            ${{ runner.temp }}/common-release/common.json
+            ${{ runner.temp }}/common-release/qualification.json
+            ${{ runner.temp }}/common-release/packed-startup.log
+          if-no-files-found: error
+          retention-days: 30

@@ -23,13 +23,13 @@ Startup order remains vault → preferences → engine, with Godot IDBFS mountin
 Run from the repository root:
 
 ```sh
-node tests/boot_presentation.js
-node tests/crazygames_storage.js
-node tests/legacy_byte_storage.js
-node tests/compensation_inbox_storage.js
-node tests/save_log_privacy.js
-node tests/save_log_observers.js
-node tests/web_performance_lifecycle.js
+node tests/presentation/boot_presentation.js
+node tests/persistence/crazygames_storage.js
+node tests/persistence/legacy_byte_storage.js
+node tests/persistence/compensation_inbox_storage.js
+node tests/persistence/save_log_privacy.js
+node tests/persistence/save_log_observers.js
+node tests/rendering/web_performance_lifecycle.js
 ```
 
 The loader test executes the exact two shell presentation/startup scripts against a synthetic DOM, including both readiness orders, download totals, duplicate and late signals, missing artwork, literal errors, reload, hidden-tab and stalled-frame handling, missing engine, synchronous constructor/feature errors, engine failure, ordinary Web recovery and CrazyGames fail-closed boot. It does not execute a browser or real player storage.

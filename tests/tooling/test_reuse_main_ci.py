@@ -5,12 +5,14 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 import urllib.request
 import zipfile
 
-import reuse_main_ci as reuse
+from qualification import reuse_main_ci as reuse
 
 SHA, TREE = 'a' * 40, 'b' * 40
 
@@ -162,17 +164,44 @@ class PackageTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_direct_entrypoints_resolve_tools_outside_repository_cwd(self):
+        root = Path(__file__).resolve().parents[2]
+        commands = {
+            'reuse_main_ci.py': ['--sha', '--tag', '--output', '--wait-seconds'],
+            'reuse_released_web.py': ['--source-root', '--selection', '--output'],
+            'reuse_welcome_web.py': ['--phase', '--repository', '--run-id', '--artifact-id'],
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, flags in commands.items():
+                with self.subTest(command=name):
+                    result = subprocess.run([sys.executable,
+                        str(root / 'tools/qualification' / name), '--help'],
+                        cwd=folder, capture_output=True, text=True, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    for flag in flags:
+                        self.assertIn(flag, result.stdout)
+
     def test_release_removes_duplicate_matrix_retains_final_checks_and_publishing(self):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/reuse_main_ci.py', 'tools/verify_prebaked_atlases.py',
-            '--require-main-ancestor', 'digest-mismatch: error', 'tools/publish_itch.py',
+        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/release/publish_itch.py',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
         self.assertNotIn('id-token:', text)
-        self.assertEqual(text.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 2)
+        diagnostic, publishing = text.split('  publish:', 1)
+        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
+        self.assertEqual(diagnostic.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
+        self.assertIn("github.event_name == 'workflow_dispatch'", diagnostic)
+        self.assertIn("github.ref == 'refs/heads/main'", diagnostic)
+        self.assertNotIn('publish_itch.py', diagnostic)
+        common = (root / '.github/workflows/ci.yml').read_text().split('  common_tag:',1)[1]
+        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
+                         '--require-main-ancestor','github.event.created && !github.event.deleted']:
+            self.assertIn(required,common)
+        self.assertIn("github.event_name == 'workflow_run'",publishing)
+        self.assertNotIn('reuse_main_ci.py',publishing)
 
 
 if __name__ == '__main__':

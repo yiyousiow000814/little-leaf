@@ -2,10 +2,10 @@ extends RefCounted
 ## Standalone original character study. Four isometric directions rotate the
 ## entire body, not a front-facing paper doll with a different face.
 ## The production renderer now uses this reviewed directional construction.
-const CheckoutArt=preload("res://scripts/cafe_checkout_art.gd")
-const CleaningPose=preload("res://scripts/cleaning_tool_pose.gd")
-const CookingPose=preload("res://scripts/cooking_tool_pose.gd")
-const WaiterTabletArt=preload("res://scripts/waiter_tablet_art.gd")
+const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
+const CleaningPose=preload("res://scripts/rendering/cleaning_tool_pose.gd")
+const CookingPose=preload("res://scripts/rendering/cooking_tool_pose.gd")
+const WaiterTabletArt=preload("res://scripts/rendering/waiter_tablet_art.gd")
 const FUR=["efe5c7","c68b46","efe5c7"]
 const CLOTH=["95b9bb","c78f80","d6b16b"]
 const EYE_PAIR_SIZE=Vector2(1.3,1.65)

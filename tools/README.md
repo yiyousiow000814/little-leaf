@@ -5,17 +5,22 @@ Start with `.github/workflows/ci.yml` for ordinary validation. It calls
 deeper diagnostics only for the symptom being investigated; the table below is
 an inventory, not a checklist to run after every edit.
 
+Only this README and `.gdignore` remain at the tools root. The latter keeps the
+tooling tree excluded from Godot resource scanning. Build, CI, qualification,
+diagnostic and release implementations live in their existing packages; direct
+CLI commands remain callable from the repository root or another directory.
+
 ## Recurring validation and build commands
 
 | Command | Responsibility |
 | --- | --- |
-| `install_tools.py` | Install checksum-pinned tools into a disposable location. |
-| `verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
-| `build_web.py` | Export the source already checked by the complete native gate. |
-| `build_crazygames.py` | Build the separate platform variant after the Web gate. |
-| `run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
-| `prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
-| `prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
+| `ci/install_tools.py` | Install checksum-pinned tools into a disposable location. |
+| `qualification/verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
+| `build/build_web.py` | Export the source already checked by the complete native gate. |
+| `build/build_crazygames.py` | Build the separate platform variant after the Web gate. |
+| `qualification/run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
+| `qualification/prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
+| `qualification/prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
 
 The cloud scenario also serves the historical retained-artifact diagnostic. The
 ordinary Web workflow selects it only for its optional Firebase preview gates.
@@ -24,7 +29,7 @@ The wall scenario remains required by the ordinary save compatibility gate.
 ## Parallel complete CI
 
 The reusable Web workflow runs the source/atlas guard first, then five independent
-engine shards alongside the historical client build. `engine_shards.py` assigns
+engine shards alongside the historical client build. `ci/engine_shards.py` assigns
 every canonical suite and all five staff-start cases using measured suite times;
 new suites receive a default weight and remain mandatory. Each runner keeps its
 own lock, project and disposable profile. The merger rejects missing, duplicate,
@@ -67,14 +72,16 @@ total runner minutes even while reducing elapsed time.
 
 | Command | Class | Responsibility |
 | --- | --- | --- |
-| `build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
-| `release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
-| `publish_itch.py` | Authorized publication | Validate the tested release artifact and approved itch channel before publication. |
-| `deploy_firebase_hosting.py` | Authorized publication | Verify/stage or deploy an exact Firebase variant; preserve WIF and hosting contracts. |
-| `github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
-| `reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
-| `capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
-| `cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
+| `build/build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
+| `release/release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
+| `qualification/reuse_main_ci.py` | Release qualification | Reuse a successful exact-main Web package with complete source and artifact checks. |
+| `qualification/reuse_released_web.py` | Staging qualification | Pin the original completed publication's CI run, attempt, artifact and manifest. |
+| `release/publish_itch.py` | Authorized publication | Validate the tested release artifact and approved itch channel before publication. |
+| `release/deploy_firebase_hosting.py` | Authorized publication | Verify/stage or deploy an exact Firebase variant; preserve WIF and hosting contracts. |
+| `release/github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
+| `qualification/reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
+| `diagnostics/capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
+| `diagnostics/cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
 
 Workflows retain their existing triggers: welcome audio and startup comparison
 are manual; paired cloud visuals have scoped PR paths plus manual dispatch;
@@ -83,21 +90,22 @@ listed here does not authorize publication or deployment.
 
 ## Shared implementations and tests
 
-`artifacts.py` owns file hashing, payload verification, and the complete Web
+`qualification/artifacts.py` owns file hashing, payload verification, and the complete Web
 source gate. Firebase and CrazyGames call that contract directly; neither variant
 depends on the other. Variant-specific provenance, staging, namespace and release
-policy remain in their respective commands. `toolchain.json` pins the installer;
-`release_metadata.py` is the single version ordering implementation.
-`build_itch_trusted_preview.py` is a shared preparation module used by the
+policy remain in their respective commands. `ci/toolchain.json` pins the installer;
+`release/release_metadata.py` is the single version ordering implementation.
+`build/build_itch_trusted_preview.py` is a shared preparation module used by the
 explicit Firebase preview option; it does not add a standalone launch command
 or authorize deployment.
 
-`test_*.py` files cover these contracts without engines or publication. Select
-the affected cases with `python3 -m unittest tests.tooling.test_NAME.CASE`; do not run every
-suite for a structural edit. `tests/tooling/test_prepare_browser_qa.py` uses synthetic engine
-results to verify scenario selection, disposable profiles and measured-layout
-failure handling. The native/browser save regressions remain in `tests/` and
-the existing ordinary workflow.
+Offline contracts live in `tests/tooling/`; select affected cases using the
+[verification guide](../tests/README.md), rather than running every suite.
+`test_prepare_browser_qa.py` uses synthetic results to check scenario selection,
+disposable profiles and measured-layout failures; ordinary CI retains save gates.
+`build/project_layout.py` and `tests/tooling/source_paths.js` resolve repository source paths;
+staged resource labels can differ. Source-hash keys follow actual source files,
+while historical exports and source-bound receipts retain their original paths.
 
 The old `prepare_wall_compatibility.py` and `prepare_cloud_geometry.py` entrypoints
 are retired in this source. Use the two scenarios above. Historical exports run
