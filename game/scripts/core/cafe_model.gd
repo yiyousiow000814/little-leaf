@@ -497,10 +497,6 @@ func placement_access_issues(kind:String,x:int,z:int,ignore_id:int=-1,rot:int=0)
 	proposed.append_array(placement_parts(kind,x,z,rot,ignore_id))
 	return layout_access_issues(proposed)
 
-func _placement_workfaces_allowed(layout:Array)->bool:
-	last_placement_issue=LayoutAccess.introduced(self,layout)
-	return true if last_placement_issue.is_empty() else _fail(str(last_placement_issue.reason))
-
 func can_move(id:int,x:int,z:int,rot:int=0,actor_positions:Array=[])->bool:
 	var key=[revision,id,x,z,rot,hash(items),hash(customers),hash(actor_positions),hash(built_walls),hash(wall_attachments),hash(owned_parcels)]
 	var transaction:Dictionary
@@ -1597,25 +1593,6 @@ func _begin_departure(customer: Dictionary) -> void:
 	customer.entry_outside = access.entry_outside
 
 
-func _guest_route_uses(cell: Vector2i) -> bool:
-	if checkout_claims().has(cell):return true
-	for customer in customers:
-		if customer.phase in ["dirty", "cleaning"]:
-			continue
-		var mobility:Dictionary=customer.get("mobility",{})
-		if not mobility.is_empty():
-			for index in range(int(mobility.route_index),mobility.route.size()):
-				if Vector2i(floori(mobility.route[index].x),floori(mobility.route[index].y))==cell:return true
-		if int(floor(float(customer.x))) == cell.x and int(floor(float(customer.z))) == cell.y:
-			return true
-		if customer.phase in ["arriving", "leaving", "checkout_walk"]:
-			for index in range(int(customer.route_index), customer.route.size()):
-				var point: Vector2 = customer.route[index]
-				if point.x >= 0 and Vector2i(floori(point.x), floori(point.y)) == cell:
-					return true
-	return false
-
-
 func _seating_pairs() -> Array[Dictionary]:
 	var pairs: Array[Dictionary] = []
 	var by_id={}
@@ -2215,10 +2192,6 @@ func _wall_candidate_error(wall:Dictionary,actors:Array,ignore_key:String="") ->
 	var hosted_error=_attachment_layout_error(proposed,wall_attachments)
 	if hosted_error!="":return hosted_error
 	return ""
-
-func _stove_wall_edit_error(walls:Array,openings=null)->String:
-	var issue=LayoutAccess.introduced_stove_wall(self,walls,openings)
-	return "" if issue.is_empty() else str(issue.reason)
 
 func can_place_wall(axis:String,x:int,z:int,height:String="full",material:String="sage_panels",actor_positions:Array=[]) -> bool:
 	last_error=""

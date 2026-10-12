@@ -1,4 +1,5 @@
 extends SceneTree
+const Workfaces=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class GeneratedMain extends "res://scripts/main.gd":
  func _load_startup():
@@ -65,7 +66,7 @@ func run():
     check(not saved_worker.is_empty() and saved_worker.job_elapsed==held[4] and saved_worker.station_id==held[5],"save roundtrip preserves chef meal progress and station")
    if blocked_ticks%300==0:
     check(held==[blocked_worker.job_kind,blocked_worker.job_guest_id,blocked_worker.job_token,blocked_worker.job_step,blocked_worker.job_elapsed,blocked_worker.station_id],"blocked meal progress/identity preserved "+str(blocked_ticks))
-    check(blocked_worker.art_action!="blocked" and game.workface_guidance.blocked_station(game).get("kind","")!="stove","play has no stove warning bubble/locate button")
+    check(blocked_worker.art_action!="blocked" and Workfaces.blocked_station(game).get("kind","")!="stove","play has no stove warning bubble/locate button")
    if blocked_ticks>120:
     if blocked_worker.pos.distance_to(last)<.0001:stationary+=1
     last=blocked_worker.pos
