@@ -240,7 +240,7 @@ def run(root, env, *, driver='fullflow.test.mjs'):
         'PLAYWRIGHT_MODULE': env['LL_RETAINED_PLAYWRIGHT'], 'PLAYWRIGHT_CHROMIUM_CHANNEL': 'chrome',
         'DEBUG': 'pw:browser', 'LANG': 'C.UTF-8'}
     for name in ['HOME', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'TMPDIR']:
-        folder = output/'disposable'/name; folder.mkdir(parents=True); child_env[name] = str(folder)
+        folder = root/'tmp' if name == 'TMPDIR' else output/'disposable'/name; folder.mkdir(parents=True); child_env[name] = str(folder)
     def launch(name, command):
         remaining(work)
         fact = {'name': name, 'pid': None, 'start': None, 'exit_code': None, 'log_closed': False}

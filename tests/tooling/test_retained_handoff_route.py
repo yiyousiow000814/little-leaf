@@ -1,8 +1,9 @@
 """Adversarial fixed-input checks; no child/runtime/network is started."""
 import copy
+import ast
 import hashlib
 import importlib.util
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import stat
 import sys
 import tempfile
@@ -102,6 +103,46 @@ class AbsoluteCutoffTests(unittest.TestCase):
         self.assertFalse(route.completion_flags(True, True, 480, 480.01)['queue_release'])
         self.assertFalse(route.completion_flags(True, False, 480, 479)['queue_release'])
         self.assertFalse(route.completion_flags(False, True, 480, 479)['queue_release'])
+
+class DisposablePathTests(unittest.TestCase):
+    def create_paths(self, root, output):
+        # Execute only the actual finite directory/environment loop, with no child.
+        source = ast.parse((ROOT/'tools/diagnostics/retained_handoff_route.py').read_text())
+        run = next(node for node in source.body if isinstance(node, ast.FunctionDef) and node.name == 'run')
+        loop = next(node for node in run.body if isinstance(node, ast.For)
+                    and isinstance(node.iter, ast.List)
+                    and [item.value for item in node.iter.elts] ==
+                    ['HOME', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'TMPDIR'])
+        namespace = {'root': root, 'output': output, 'child_env': {}}
+        exec(compile(ast.Module(body=[loop], type_ignores=[]), '<owned-directory-loop>', 'exec'), namespace)
+        return namespace['child_env']
+
+    def test_original_linux_workspace_socket_fits_with_only_tmpdir_changed(self):
+        created = []
+        class Directory(PurePosixPath):
+            def mkdir(self, **kwargs):
+                created.append((self, kwargs))
+        root = Directory('/home/runner/work/little-leaf/little-leaf/current')
+        output = root/'diagnostic-output'
+        env = self.create_paths(root, output)
+        socket_suffix = PurePosixPath('com.google.Chrome.DbvziA/SingletonSocket')
+        self.assertEqual(len(str(output/'disposable/TMPDIR'/socket_suffix).encode()), 126)
+        self.assertLess(len(str(PurePosixPath(env['TMPDIR'])/socket_suffix).encode()), 108)
+        self.assertEqual(PurePosixPath(env['TMPDIR']), root/'tmp')
+        for name in ['HOME', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME']:
+            self.assertEqual(env[name], str(output/'disposable'/name))
+        self.assertTrue(all(root in folder.parents for folder, _ in created))
+        self.assertTrue(all(kwargs == {'parents': True} for _, kwargs in created))
+
+    def test_existing_tmpdir_is_refused_without_touching_its_contents(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); output = root/'diagnostic-output'
+            output.mkdir(); (root/'tmp').mkdir()
+            sentinel = root/'tmp/other-owner'; sentinel.write_bytes(b'preserve')
+            with self.assertRaises(FileExistsError):
+                self.create_paths(root, output)
+            self.assertEqual(sentinel.read_bytes(), b'preserve')
+            self.assertEqual(list((root/'tmp').iterdir()), [sentinel])
 
 class CurrentRetainedTests(unittest.TestCase):
     def values(self):
