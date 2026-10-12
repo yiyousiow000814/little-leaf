@@ -1,5 +1,5 @@
 extends SceneTree
-## Workface validation and selected-station ground markers survive notice removal.
+## Operational workfaces remain diagnosable without vetoing physical placement.
 const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class FixtureMain extends "res://scripts/main.gd":
  var save_calls=0
@@ -28,7 +28,7 @@ func run():
  check(guide.markers.size()==1 and guide.markers[0].cell==front and guide.markers[0].clear,"selected clear stove shows its true working tile")
  check(guide.markers[0].reserved and guide.marker_color(guide.markers[0])==Color("aa5845"),"clear selected stove keeps its reserved tile red")
  var before=state();var preview=m.placement_access_issues("plant",front.x,front.y)
- check(not m.can_place("plant",front.x,front.y),"new stove-front obstruction is rejected")
+ check(m.can_place("plant",front.x,front.y),"empty stove-front workface remains physically placeable")
  check(preview.size()==1 and int(preview[0].item_id)==int(stove.id) and preview[0].cell==front,"preview validator still identifies actual obstructed station and cell")
  check(state()==before,"workface preview never mutates layout, money or save")
  var blocker={"id":m._next_item_id,"kind":"plant","x":front.x,"z":front.y,"rot":0};m._next_item_id+=1;m.items.append(blocker);m._notify()
@@ -57,9 +57,9 @@ func run():
   check(guide.markers.size()==2 and guide.markers[0].cell!=guide.markers[1].cell,"both working sides stay distinct for "+kind)
  var register=m.checkout_register();var register_front=m.workface_cell(register)
  before=state()
- check(not m.can_place("plant",register_front.x,register_front.y),"required register-front obstruction stays invalid")
- check(not m.last_placement_issue.is_empty() and int(m.last_placement_issue.item_id)==int(register.id),"invalid placement retains exact validator issue")
- check(state()==before,"rejected placement is nonmutating")
+ check(m.can_place("plant",register_front.x,register_front.y),"empty register-front workface remains physically placeable")
+ check(m.last_placement_issue.is_empty(),"operational workface warning does not become a geometry issue")
+ check(state()==before,"physical-fit preview is nonmutating")
  game.selected_kind="stove";game.selected_id=-1
  var interaction=game.interaction;interaction.preview_active=true;interaction.drag_kind="stove";interaction.drag_item_id=-1;interaction.drag_cell=Vector2i(5,6);interaction.drag_rotation=1
  guide._refresh()

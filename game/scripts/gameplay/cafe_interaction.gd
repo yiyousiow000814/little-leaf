@@ -21,6 +21,7 @@ var drag_rotation = 0
 var drag_cell = NO_CELL
 var drag_position = Vector2.ZERO
 var drag_valid = false
+var drag_footprint_valid = false
 var drag_reason = ""
 var drag_warning = ""
 var preview_active = false
@@ -123,6 +124,7 @@ func refresh(screen: Vector2):
 	if not game.editing:
 		preview_active = false
 		drag_valid = false
+		drag_footprint_valid = false
 		return
 	if drag_active:
 		drag_rotation = posmod(int(game.rotation_step), 4)
@@ -138,6 +140,7 @@ func refresh(screen: Vector2):
 	else:
 		preview_active = false
 		drag_valid = false
+		drag_footprint_valid = false
 	game.hover_cell = drag_cell if preview_active else game._floor_cell(screen)
 	if preview_active and is_instance_valid(game.tool_text):game.tool_text.text=drag_reason
 
@@ -150,6 +153,7 @@ func cancel(clear_selection = true):
 	drag_kind = ""
 	drag_cell = NO_CELL
 	drag_valid = false
+	drag_footprint_valid = false
 	drag_reason = ""
 	drag_warning = ""
 	if clear_selection: game._cancel_selection()
@@ -160,6 +164,7 @@ func on_focus_lost():
 	_middle_down = false
 	preview_active = false
 	drag_valid = false
+	drag_footprint_valid = false
 
 func rotate_selection():
 	if game.save_recovery_blocked:return
@@ -295,6 +300,7 @@ func _select_item(item: Dictionary):
 func _update_validity(screen: Vector2):
 	drag_position = Vector2(drag_cell.x + 0.5, drag_cell.y + 0.5)
 	drag_valid = false
+	drag_footprint_valid = false
 	drag_warning = ""
 	drag_reason = "Move onto an open cafe tile"
 	if not _point_in_view(screen) or _over_ui(screen):
@@ -305,6 +311,7 @@ func _update_validity(screen: Vector2):
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
 	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
+	drag_footprint_valid = bool(placement_receipt.physical_ok)
 	if not placement_receipt.ok:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return
 	drag_valid = true
@@ -344,6 +351,7 @@ func _clear_gesture():
 	drag_active = false
 	preview_active = false
 	drag_valid = false
+	drag_footprint_valid = false
 
 func _pan_by(delta: Vector2):
 	if not delta.is_finite():return

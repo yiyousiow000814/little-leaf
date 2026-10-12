@@ -63,39 +63,9 @@ static func path(m,start:Vector2i,finish:Vector2i,blocked:Dictionary={},layout:A
    previous[next]=cell;cells.append(next)
  return empty
 static func placement_error(m,item:Dictionary,layout:Array,actors:Array)->String:
- actors=actors.duplicate();actors.append_array(m.checkout_staff_claims)
- for guest in m.customers:
-  if guest.phase not in ["dirty","cleaning"]:actors.append(point(guest))
- var front=m.workface_cell(item);var back=rear(m,item)
- if is_door_landing(m,front) or is_door_landing(m,back):return "Keep the register away from door landings"
- for face in [front,back]:
-  if face.x<1 or not m.is_floor_owned(face) or m.edge_blocked(Vector2i(int(item.x),int(item.z)),face):return "Clear the register's customer and staff sides"
-  for other in layout:
-   if str(other.kind)!="rug" and Vector2i(int(other.x),int(other.z))==face:return "Clear the register's customer and staff sides"
-  for actor in actors:
-   if m.cell_center(face).distance_to(actor)<.9:return "Register deployment is waiting for a clear workface"
-  if m._guest_route_uses(face):return "Register deployment is waiting for an active guest route"
- for other in m.items:
-  if int(other.id)==int(item.id) or other.kind not in ["stove","beverage","sink","counter","bin"]:continue
-  if other.kind=="bin":
-   # The bin only needs one free reachable side; do not reserve four faces
-   # forever or treat its saved rotation as an operational front.
-   var before=false;var after=false
-   for cell in m.bin_service_cells(other):
-    if not path(m,m.ENTRY_LANDING,cell).is_empty():before=true
-   for cell in m.bin_service_cells(other,layout):
-    if cell not in [front,back] and not path(m,m.ENTRY_LANDING,cell,{},layout).is_empty():after=true
-   if before and not after:return "Keep an adjacent bin side reachable"
-   continue
-  var workfaces=[m.workface_cell(other)]
-  if other.kind=="counter":workfaces.append(rear(m,other))
-  for face in workfaces:
-   if face in [front,back]:return "Keep the register clear of existing staff work tiles"
-   if not path(m,m.ENTRY_LANDING,face).is_empty() and path(m,m.ENTRY_LANDING,face,{},layout).is_empty():return "Keep existing staff work tiles reachable"
- if path(m,m.ENTRY_LANDING,front,{},layout).is_empty() or path(m,m.ENTRY_LANDING,back,{front:true},layout).is_empty():return "Keep a bypass to the register's staff side"
- for actor in actors:
-  if m.cell_center(Vector2i(int(item.x),int(item.z))).distance_to(actor)<.9:return "Register deployment is waiting for a clear tile"
- return ""
+ # Customer/staff contact faces govern service, not the register's floor mount.
+ return m._furniture_actor_error([item],layout,actors)
+
 static func ensure(m,actors:Array=[])->bool:
  if not m.included_checkout_pending:return not register(m).is_empty() and m.cashiers==1
  if not register(m).is_empty():return m._fail("Included register entitlement is inconsistent")
