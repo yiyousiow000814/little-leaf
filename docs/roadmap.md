@@ -18,7 +18,7 @@ CI/publication, without either waiting for the other's upload. The
 [shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
 preserves immutable origins, complete ordinary gates, distinct Firebase gates,
 current-live ancestry/config/rollback and legacy manual/test refusals. Source
-implementation,165 applicable synthetic checks and independent source review
+implementation,168 applicable synthetic checks and independent source review
 passed; coherent current-source CI and actual approved delivery remain open.
 No new tag, Hosting mutation, account action or release is established.
 

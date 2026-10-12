@@ -3,7 +3,7 @@ on:
   pull_request:
   push:
     branches: [main]
-    tags: ["v*"]
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,9 +29,16 @@ jobs:
       - name: Validate immutable tag and exact reviewed main ancestry
         env:
           RELEASE_TAG: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
         run: |
           test "$GITHUB_RUN_ATTEMPT" = 1
+          test "$REF_TYPE" = tag
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]|-pre\.[0-9a-f]{8})?$ ]] || { echo '::error::Expected an immutable release tag.'; exit 1; }
           git fetch --no-tags origin main
+      - name: Check exact version binding and qualified source closure
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
           python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
           python3 tools/verify_prebaked_atlases.py
       - name: Install official packed startup verifier once
