@@ -9,7 +9,7 @@ if __name__ == "__main__":
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from project_layout import game_root
+from build.project_layout import game_root
 
 STABLE = r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
 # Project-specific hotfix releases, not SemVer prereleases: X.Y.Z < X.Y.Za.

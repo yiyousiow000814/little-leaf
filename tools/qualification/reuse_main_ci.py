@@ -17,9 +17,9 @@ import zipfile
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from qualification.artifacts import sha256, validate_export_inventory
-from build_web import (PRODUCTION_DIRS, PRODUCTION_FILES, REQUIRED_NOTICES,
+from build.build_web import (PRODUCTION_DIRS, PRODUCTION_FILES, REQUIRED_NOTICES,
                        verify_installer_receipt)
-from project_layout import resource_name, source_path
+from build.project_layout import resource_name, source_path
 from release.release_metadata import version, projected_metadata
 
 ROOT = Path(__file__).resolve().parents[2]

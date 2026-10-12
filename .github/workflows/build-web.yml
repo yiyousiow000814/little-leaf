@@ -185,9 +185,9 @@ jobs:
       - name: Export exact source and verify packed resources
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-        run: python3 tools/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+        run: python3 tools/build/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
       - name: Export separate CrazyGames variant after the unchanged complete Web gate
-        run: python3 tools/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+        run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
       - name: Retain separate CrazyGames export for review
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -470,7 +470,7 @@ jobs:
             python3 - <<'PY'
           import json, os, pathlib, subprocess, sys
           sys.path.insert(0,'tools')
-          from build_itch_trusted_preview import prepare_stable
+          from build.build_itch_trusted_preview import prepare_stable
           git=lambda key:subprocess.check_output(['git','rev-parse',key],text=True).strip()
           root=pathlib.Path(os.environ['RUNNER_TEMP'])
           prepare_stable(root/'web-build',root/'itch-test-preflight',json.loads(pathlib.Path('platform/firebase/public-config.json').read_text()),git('HEAD'),git('HEAD^{tree}'))
@@ -500,7 +500,7 @@ jobs:
             python3 -c 'import json,os,pathlib; pathlib.Path(os.environ["RUNNER_TEMP"],"publication.json").write_text(json.dumps(json.loads(os.environ["PUBLICATION_RECEIPT"])))'
             preview_args+=(--publication-receipt "$RUNNER_TEMP/publication.json")
           fi
-          python3 tools/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config platform/firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused" "${preview_args[@]}"
+          python3 tools/build/build_firebase.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/firebase-variant" --public-config platform/firebase/public-config.json --require-fresh-ci --engine-report "$RUNNER_TEMP/engine-evidence/summary.json" --focused-logs "$RUNNER_TEMP/firebase-focused" "${preview_args[@]}"
       - name: Retain the fresh tested Firebase preview without publication
         if: inputs.firebase_preview
         id: firebase_upload

@@ -4,8 +4,8 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from build_itch_trusted_preview import prepare, prepare_stable, wrapper_html, STABLE_ORIGIN
-from build_web import ROOT, sha256
+from build.build_itch_trusted_preview import prepare, prepare_stable, wrapper_html, STABLE_ORIGIN
+from build.build_web import ROOT, sha256
 from read_firebase_hosting_config import effective_diagnosis
 
 ORIGIN = 'https://little-leaf-41e5d--itch-embed-test-abc123.web.app'
@@ -44,8 +44,8 @@ class TrustedPreviewTests(unittest.TestCase):
             self.assertNotIn('id="itch-release-account"', wrapper)
             self.assertIn('aria-describedby="itch-account-detail itch-progress-separation"', wrapper)
             self.assertIn('Local and Google-account progress are separate.', wrapper)
-            self.assertEqual(manifest['source_sha256']['tools/build_itch_entry.py'],
-                             sha256(ROOT / 'tools/build_itch_entry.py'))
+            self.assertEqual(manifest['source_sha256']['tools/build/build_itch_entry.py'],
+                             sha256(ROOT / 'tools/build/build_itch_entry.py'))
             self.assertFalse(manifest['hosted_acceptance']); self.assertFalse(manifest['auth_domains_modified'])
             for name in ['index.js', 'index.wasm', 'index.pck']:
                 self.assertEqual((output / 'public' / name).read_bytes(), (web / name).read_bytes())

@@ -57,7 +57,7 @@ class ItchTagGateTests(unittest.TestCase):
             self.assertIn(guard, source)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',
-                     'tools/build_web.py', 'connection_recovery_browser.js',
+                     'tools/build/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)
 

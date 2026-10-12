@@ -213,6 +213,6 @@ links outside repository artifacts. Publish only authorized Little Leaf source
 and original-game evidence.
 
 Next acceptance decision: choose whole-character and furniture ratios together
-from the canonical scene, then requalify contact, motion, occlusion, door and UI
+from the proposed same-scene review, then requalify contact, motion, occlusion, door and UI
 behavior on the **combined** source. No final ratios or combined acceptance are
 recorded by this documentation PR.
