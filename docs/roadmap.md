@@ -12,6 +12,16 @@
 
 ### Current state and ownership
 
+Current same-itch qualification repair on2026-10-12: fresh stage38238105653 on
+`a9bfc3d0` passed its ten recorded cache/ownership checks, then failed an
+uncaught fixture route evaluation during context teardown. The scoped
+[route lifecycle correction](release/itch-trusted-preview-candidate.md#compiled-route-teardown-correction---2026-10-12)
+owns pending callbacks, releases its held update RPC on close, and preserves
+unexpected errors and earlier failures. Focused pure Node checks pass; fresh
+required CI, complete compiled qualification and hosted Google-to-game acceptance
+remain open. Product/save/rules/security source and acceptance thresholds are
+unchanged; no Hosting or itch publication is established.
+
 
 Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
 common exact-source build/ordinary qualification with separate itch and Firebase
@@ -1809,7 +1819,7 @@ Principal implementation PR: reconcile against PartV; no contract PR counted. Ac
 
 ### 06.01 — Clear the original red placement cell while moving an item.
 
-Current physical-placement closeout: [PR157](https://github.com/yiyousiow000814/little-leaf/pull/157) separates owned physical fit from service access and replaces whole-floor/neighbor tint with the actively dragged item's footprint (also 06.04/06.09). The user accepted exact 25d7b750's matched 1360x880/390x844 native images on2026-10-12; its 34 generated placement/save checks and 15 native assertions per side are exact 25 evidence. Cleanup source 993eed0 removes the retired painters/node/veto wrappers and passed fresh 123-dependency original-control qualification in [run 38240502998](https://github.com/yiyousiow000814/little-leaf/actions/runs/38240502998). Updated cleanup tests and final current-head CI remain pending; this PR is not merged/released and does not activate private save versions or widen active-guest readers. PR103 is already merged at b0447db8; the dated evidence below remains historical.
+Current physical-placement closeout: [PR157](https://github.com/yiyousiow000814/little-leaf/pull/157) separates owned physical fit from service access and replaces whole-floor/neighbor tint with the actively dragged item's footprint (also 06.04/06.09). The user accepted exact 25d7b750's matched 1360x880/390x844 native images on2026-10-12; its 34 generated placement/save checks and 15 native assertions per side are exact 25 evidence. Cleanup source 993eed0 removes the retired painters/node/veto wrappers and passed fresh 123-dependency original-control qualification in [run 38240502998](https://github.com/yiyousiow000814/little-leaf/actions/runs/38240502998). Automatic included-register selection is separated from manual physical placement in exact4d998924: the original operational default is restored while manual fit stays physical. Its generated Main case passed21 checks (default6,4r1/manualr0, private pause save/load and four payments/cleanups); fresh123-dependency canonical qualification passed in [run38262362216](https://github.com/yiyousiow000814/little-leaf/actions/runs/38262362216). Matching manifest adoption retains the earlier scoped993 evidence. Final exact-head CI and affected normal-scale register pixels remain pending; this PR is not merged/released and does not activate private save versions or widen active-guest readers. PR103 is already merged at b0447db8; the dated evidence below remains historical.
 
 | Code | Tests | Visual acceptance | Merged | Released |
 | --- | --- | --- | --- | --- |
