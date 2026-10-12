@@ -239,6 +239,19 @@
     }
     // A timeout does not cancel Firestore or a journal transaction. Native keeps
     // its durable snapshot latched; continue that exact record, never resnapshot.
+    function wakeSettledHandoff(intent){
+      for(const task of [uploadTask,intent.ackTask]){
+        if(!task||intent.wakeTasks.has(task))continue;
+        intent.wakeTasks.add(task);
+        task.then(()=>null,problem=>problem).then(async()=>{
+          // A settlement during an existing retry joins it first. Wake only
+          // this still-current timed-out intent, once per uncertain operation.
+          if(handoffRetryTask)await handoffRetryTask;
+          if(ownerHandoff===intent&&intent.generation===handoffGeneration&&intent.retryable&&!closed&&!permissionDenied)
+            await retryOwnerHandoff();
+        });
+      }
+    }
     function retryOwnerHandoff(){
       if(handoffRetryTask)return handoffRetryTask;
       const intent=ownerHandoff;if(!intent?.retryable)return Promise.resolve();
@@ -260,7 +273,13 @@
           const confirmed=await networkWait(ownership.confirmHandoff(intent.fence,intent.record.digest,intent.record.revision));assertHandoffIntent(intent);
           const exact=document=>document?.digest===intent.record.digest&&document.profileId===intent.record.profileId&&document.revision===intent.record.revision&&document.writerId===intent.fence.writerId&&document.writerEpoch===intent.fence.writerEpoch;
           if(confirmed!=='pending'&&!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
-          if(confirmed==='pending'&&drainedError&&drainedError.code!=='NOT_READY')throw drainedError;
+          if(confirmed==='pending'&&drainedError&&drainedError.code!=='NOT_READY'){
+            // The late upload's paused local guard can report OWNERSHIP_LOST.
+            // Reconcile it only after independently confirming this exact
+            // server owner/request and its already-saved frozen record.
+            if(drainedError.code!=='OWNERSHIP_LOST'||!exact(cloud))throw drainedError;
+            ownership.assertHandoff(intent.fence);
+          }
           await serial(async()=>{
             assertHandoffIntent(intent);
             let next=entry;
@@ -271,8 +290,13 @@
           });
           if(confirmed==='pending'){
             handoffMode=true;stopped=false;guard();
-            while(entry.pending)await networkWait(upload());
-            cloud=await networkWait(remote.read(uid));await validate(cloud);guard();
+            if(entry.pending){
+              while(entry.pending)await networkWait(upload());
+              cloud=await networkWait(remote.read(uid));await validate(cloud);
+            }
+            // Reuse the exact cloud result when reconciliation needed no new
+            // upload. Acknowledge atomically rechecks that save and owner fence.
+            guard();
             if(!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
             intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
             await networkWait(intent.ackTask);assertHandoffIntent(intent);
@@ -280,7 +304,10 @@
           assertHandoffIntent(intent);
           state('saved');
           if(ownerHandoff===intent)ownerHandoff=null;
-        }catch(problem){intent.retryable=ownerHandoff===intent&&intent.generation===handoffGeneration&&problem.code==='NETWORK_TIMEOUT'&&!permissionDenied;}
+        }catch(problem){
+          intent.retryable=ownerHandoff===intent&&intent.generation===handoffGeneration&&problem.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+        }
         finally{if(intent.generation===handoffGeneration){handoffMode=false;stopped=true;}}
       })().finally(()=>{handoffRetryTask=null;});return handoffRetryTask;
     }
@@ -416,9 +443,13 @@
         // Always keep the native snapshot. Only the still-current owner flushes.
         const saved=await client.preserveRuntime(payload,revision,profileId);if(!saved.ok)return saved;
         if(generation!==handoffGeneration||!fence||ownership.snapshot().status!=='handoff-requested')return {...saved,cloudConfirmed:false};
-        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null};ownerHandoff=intent;
+        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null,wakeTasks:new WeakSet()};ownerHandoff=intent;
         try {handoffMode=true;stopped=false;while(entry.pending)await networkWait(upload());assertHandoffIntent(intent);intent.ackTask=ownership.acknowledge(entry.record.digest,entry.record.revision,fence);await networkWait(intent.ackTask);assertHandoffIntent(intent);ownerHandoff=null;const {reconciliationError,...durableSaved}=saved;return {...durableSaved,cloudConfirmed:true};}
-        catch(e){intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;return {...saved,cloudConfirmed:false,handoffError:failure(e)};}
+        catch(e){
+          intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+          return {...saved,cloudConfirmed:false,handoffError:failure(e)};
+        }
         finally{if(generation===handoffGeneration){handoffMode=false;stopped=true;}}
       },
       // Read-only phase. Native validates the full candidate in isolation,
