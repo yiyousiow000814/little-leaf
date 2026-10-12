@@ -1,6 +1,6 @@
 # Audio Bible
 
-Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **This foundation does not approve any playable pilot.** Direction, listening and final mastering decisions remain open.
+Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **This foundation does not approve any playable pilot.** Existing direction and listening acceptance follow the latest explicit user decision for the exact audio; final mastering, derived-loop and runtime qualification remain separate. This foundation does not revoke an already accepted recording.
 
 ## Existing baseline and evidence
 
@@ -12,14 +12,14 @@ Editable compositions, MIDI, stems, lossless masters and the original SoundFont 
 
 Aim for a warm neighbourhood cafe, space for foreground feedback and comfortable repetition. Compose original material. Do not copy or transcribe Restaurant City melodies, recordings or loops, or substitute a final recording for editable source.
 
-Two **untested alternatives** from the audit await user selection or revision:
+The following **untested alternatives** are dated audit proposals, not mandatory directions or replacements for subsequently accepted music:
 
 | Direction | Original pilot brief |
 | --- | --- |
 | Window-box morning | Nylon guitar, short clarinet answers, upright bass and sparse brushes; 96 BPM, 4/4, proposed 32-bar / 80-second loop. Brief calls and rests leave room for play; a later busy variation could add rhythm on the same phrase grid. |
 | Rain beneath the awning | Gentle piano, woody marimba, bass clarinet and plucked bass; 6/8 at dotted-quarter 72 BPM, proposed 48-bar / 80-second loop. A sheltered, reflective mood with a contrasting middle phrase. |
 
-The gate is: approve one direction and scope, establish a usable permitted toolchain, then produce one editable pilot and review it by ear. Do not create final variants or integrate a pilot before that review. Instrument names describe intent, not licensed assets already available. Timing, arrangement and mix values are proposals, not automatic final standards.
+For new creative work, agree the direction and scope, establish a usable permitted toolchain, then produce an editable pilot and review its actual audio. Follow later explicit user authorization when continuing accepted source, loop adaptation or integration; do not reopen creative approval merely because historical metadata remains pending. Instrument names describe intent, not licensed assets already available. Timing, arrangement and mix values are proposals, not automatic final standards.
 
 ## BGM and SFX production
 
@@ -71,7 +71,7 @@ Record a concrete finding, timestamp/bar, severity and correction or a justified
 - Mix and artifacts: masking, foreground space, stereo/mono balance, noise, harshness, smearing, clicks, distortion and transitions.
 - Reference comparison: use permitted, named references for tone and production goals, without copying their music. Record playback level/device and compare the lossless source with the decoded delivery at comparable listening levels; distinguish composition, performance, mix, encoding and playback causes.
 
-Use pass, revise or unassessed with evidence; do not manufacture musical-quality scores from RMS, sample peaks or correlation. Independently inspect the complete track and then relevant excerpts. Technical findings guide listening but cannot certify timbre or emotional coherence. If no genuine audio-perception reviewer is available, state that musical review is unqualified and identify that capability gap before further production or acceptance; do not transfer internal QA responsibility to the user. The user's final audition decides creative acceptance after internal review, and remains separate from technical, imported-runtime, merge and release results.
+Use pass, revise or unassessed with evidence; do not manufacture musical-quality scores from RMS, sample peaks or correlation. Independently inspect the complete track and then relevant excerpts. Technical findings guide listening but cannot certify timbre or emotional coherence. If genuine audio perception is unavailable, mark listening judgement unassessed and identify the capability gap. Continue authorized source, signal and technical work, preserving the user's existing acceptance of the exact recording; those checks must not be presented as listening. The producer remains responsible for technical defect finding and arranging the appropriate review capability. The user decides creative acceptance through actual audition; a new derivative still needs its relevant listening and runtime checks. Keep technical, imported-runtime, merge and release results separate.
 
 ## Listening and acceptance
 
