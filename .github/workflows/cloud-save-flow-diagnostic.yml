@@ -40,6 +40,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import datetime,json,os,re,time
+          started=time.monotonic()
           a=json.loads(os.environ['ADMISSION_JSON'])
           assert set(a)=={'source_sha','workflow_sha256','nonce','expires_at','attempts'}
           assert a['source_sha']==os.environ['GITHUB_SHA'] and re.fullmatch('[0-9a-f]{40}',a['source_sha'])
@@ -49,7 +50,7 @@ jobs:
           now=datetime.datetime.now(datetime.timezone.utc); expiry=datetime.datetime.fromisoformat(a['expires_at'])
           assert expiry.tzinfo is not None and now<expiry<=now+datetime.timedelta(minutes=12)
           assert os.environ['ImageOS']=='ubuntu24' and os.environ['ImageVersion']=='20261004.327.1'
-          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('LL_RETAINED_START_MONOTONIC='+str(time.monotonic())+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('LL_RETAINED_START_MONOTONIC='+str(started)+'\n')
           PY
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
