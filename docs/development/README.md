@@ -42,7 +42,7 @@ Use Godot 4.6.3 and its matching non-threaded release template. From the reposit
 
 ```sh
 python3 tests/run_integration_candidate.py --output /tmp/little-leaf-engine-evidence
-python3 tools/build_web.py --output /tmp/little-leaf-web-build --test-report /tmp/little-leaf-engine-evidence/summary.json
+python3 tools/build/build_web.py --output /tmp/little-leaf-web-build --test-report /tmp/little-leaf-engine-evidence/summary.json
 ```
 
 Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.

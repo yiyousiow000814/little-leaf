@@ -5,9 +5,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from build_firebase import auth_verification_html
-from build_itch_trusted_preview import wrapper_html
-from build_web import ROOT
+from build.build_firebase import auth_verification_html
+from build.build_itch_trusted_preview import wrapper_html
+from build.build_web import ROOT
 
 
 class EntryPresentationTests(unittest.TestCase):

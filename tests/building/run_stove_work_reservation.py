@@ -1,7 +1,7 @@
 import sys
 """Run stove-workspace regressions and optional native GL screenshots in disposable profiles.
 
-Example: python3 tests/run_stove_work_reservation.py --output /tmp/stove-work-qa --native
+Example: python3 tests/building/run_stove_work_reservation.py --output /tmp/stove-work-qa --native
 GODOT_BIN selects Godot 4.6.3. Native mode uses DISPLAY or an isolated Xvfb.
 --import-cache SOURCE_PROJECT reuses only imported assets after exact SHA256
 validation of all asset inputs and import metadata; it is not a clean import.
@@ -20,9 +20,9 @@ import subprocess
 import tempfile
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
-from project_layout import stage_project
+from build.project_layout import stage_project
 EXCLUDED = {".git", ".godot", "qa-project", "evidence", "__pycache__", "build", "builds",
             "export", "exports", "export_templates", "dist"}
 IGNORE = shutil.ignore_patterns(*EXCLUDED, "*.log", "*.zip")

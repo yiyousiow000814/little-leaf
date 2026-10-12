@@ -3,10 +3,10 @@ import copy,json,tempfile,unittest
 from unittest.mock import patch
 from types import SimpleNamespace
 from pathlib import Path
-from build_firebase import BROWSER_GATES, FOCUSED_LOGS, validate_fresh_ci, validate_export_inventory
+from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS, validate_fresh_ci, validate_export_inventory
 from run_firebase_focused import COMMANDS
-from build_web import sha256
-from project_layout import source_path
+from build.build_web import sha256
+from build.project_layout import source_path
 
 ROOT=Path(__file__).resolve().parents[2]
 SOURCE='a'*40
@@ -177,7 +177,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_existing_full_gate_commands_retained_before_firebase(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text();first=text.index('      - name: Check Firebase adapter')
-        for command in ['python3 tools/ci/engine_shards.py run','python3 tools/ci/engine_shards.py merge','python3 tools/build_web.py','python3 tools/build_crazygames.py',
+        for command in ['python3 tools/ci/engine_shards.py run','python3 tools/ci/engine_shards.py merge','python3 tools/build/build_web.py','python3 tools/build/build_crazygames.py',
                         'python3 .compatibility-old/tests/run_integration_candidate.py','python3 tools/prepare_browser_qa.py wall',
                         'node tests/persistence/compensation_inbox_browser.js','node tests/presentation/fresh_tutorial_browser.js','node tests/rendering/wall_compatibility_browser.js',
                         'node tests/persistence/save_log_browser.js','node tests/persistence/connection_recovery_browser.js']:

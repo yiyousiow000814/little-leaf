@@ -10,7 +10,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from qualification import artifacts
-import build_firebase
+from build import build_firebase
 import publish_itch
 from release.release_metadata import version, projected_metadata, release_key
 from tests.tooling import test_github_release_workflow as release_workflow

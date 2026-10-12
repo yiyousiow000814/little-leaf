@@ -24,7 +24,7 @@ without redundant hardcoded current-source hashes. The candidate vault now inclu
 the Inbox projection and is not declared identical to the historical vault.
 
 Both full exports must have a `release-manifest.json` from their own existing
-`tools/build_web.py`, marked `checksum-pinned-official-archives`. Commit identities,
+`tools/build/build_web.py`, marked `checksum-pinned-official-archives`. Commit identities,
 source/packed bytes and installer receipts are checked. The helper derives click
 coordinates from each exact source in a disposable native project, validates both
 fixtures with the candidate codec, and confirms the expected one-tile edit.
