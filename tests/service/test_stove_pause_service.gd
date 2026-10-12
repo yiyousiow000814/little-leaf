@@ -36,13 +36,13 @@ func run():
    for staff in game.staff_states:
     if staff.job_kind!="cook" or int(staff.job_step)!=1 or float(staff.job_elapsed)<.5:continue
     var station=game.model.get_item(int(staff.station_id));var face=game.model.workface_cell(station)
-    # The independent staff-placement candidate owns transactional relocation.
-    # This service-only fixture moves the worker onto safe floor before editing.
+    # This service-only fixture moves the worker onto clear floor first.
+    # Geometry does not invent a relocation or reserve an empty work side.
     check(game._staff_walkable(Vector2i(2,7)) and not game.model.path_between(Vector2i(staff.pos.floor()),Vector2i(2,7)).is_empty(),"synthetic step-aside tile is clear and reachable")
     staff.pos=Vector2(2.5,7.5);staff.path=[];staff.index=0;staff.destination=Vector2i(-100,-100)
-    check(not game.model.place("plant",face.x,face.y),"new in-progress stove obstruction is rejected")
-    # Inject a legacy blocked-layout fixture to keep pause/recovery coverage.
-    game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
+    check(game.model.place("plant",face.x,face.y,0,game.interaction._staff_positions()),"body-clear work-side obstruction follows physical placement")
+    # The real placement above already created exactly one blocker. Its held
+    # meal pause/recovery and ordinary save guards remain under test.
     blocker_id=int(game.model.items[-1].id);blocked_worker=staff
     held=[staff.job_kind,staff.job_guest_id,staff.job_token,staff.job_step,staff.job_elapsed,staff.station_id]
     game._rebuild_furniture();game.idle_home_revision=-1
