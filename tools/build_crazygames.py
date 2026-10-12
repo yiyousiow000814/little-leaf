@@ -14,8 +14,8 @@ import subprocess
 from build_web import ROOT, LOCK
 from build.optimize_web_present import optimize_presentation
 from build.bound_web_gl_handles import bound_web_gl_handles
-from artifacts import sha256
-import artifacts
+from qualification.artifacts import sha256
+from qualification import artifacts
 
 
 PRODUCTION_KEYS = {"profile": "little-leaf.cg.profile.v1",

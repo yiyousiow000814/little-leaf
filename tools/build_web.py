@@ -6,15 +6,15 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-from release_metadata import version, projected_metadata
+from release.release_metadata import version, projected_metadata
 from build.optimize_web_present import optimize_presentation
 from build.bound_web_gl_handles import bound_web_gl_handles
-from artifacts import sha256
+from qualification.artifacts import sha256
 from project_layout import resource_name, source_path
 from build_itch_entry import ordinary_entry_html
 
 ROOT = Path(__file__).resolve().parents[1]
-LOCK = json.loads(Path(__file__).with_name("toolchain.json").read_text())
+LOCK = json.loads((Path(__file__).parent / "ci/toolchain.json").read_text())
 PRODUCTION_DIRS = {"assets", "data", "scripts", "shaders", "web"}
 PRODUCTION_FILES = {"project.godot", "main.tscn", "export_presets.cfg"}
 REQUIRED_NOTICES = {"docs/art-audio/third-party/GODOT-AA-LICENSE.txt": "GODOT-AA-LICENSE.txt"}

@@ -1,6 +1,6 @@
 extends SceneTree
-const Street=preload("res://scripts/street_pedestrians.gd")
-const Model=preload("res://scripts/cafe_model.gd")
+const Street=preload("res://scripts/world/street_pedestrians.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 var checks=0
 var failures=[]
 var measurements={}

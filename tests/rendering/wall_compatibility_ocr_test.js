@@ -8,10 +8,19 @@ const root = path.resolve(__dirname, '../..'), folder = path.join(__dirname, '..
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const layoutSource = fs.readFileSync(path.join(__dirname, '../fixtures/wall_compatibility_layout.gd'), 'utf8');
-const shopSource = fs.readFileSync(path.join(root, 'game/scripts/cafe_shop_ui.gd'), 'utf8');
+const shopSource = fs.readFileSync(path.join(root, 'game/scripts/ui/cafe_shop_ui.gd'), 'utf8');
 const browserSource = fs.readFileSync(path.join(__dirname, 'wall_compatibility_browser.js'), 'utf8');
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/build-web.yml'), 'utf8');
-const size = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
+const literalSize = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,(\d+),(\d+)\)\)/);
+const responsiveSize = shopSource.match(/_put\(tiles_back,Rect2\(category_margin,header_y,back_width,(\d+)\)\)/);
+// The 80px branch applies only to tiny Tiles inspection with a repair button.
+// Walls retains the default width: bind it to the real source expression.
+const responsiveWidth = shopSource.match(/var back_width=(\d+(?:\.\d+)?) if tiny and tiles_active\(\) and repair_width>0 else (\d+(?:\.\d+)?)/);
+const size = literalSize || (responsiveSize && responsiveWidth
+  ? [responsiveSize[0], responsiveWidth[2], responsiveSize[1]] : null);
+check('responsive width reduction is Tiles-only and leaves full Walls bounds', () => {
+  if (!literalSize) assert(responsiveSize && responsiveWidth);
+});
 check('fixture geometry is read from the real back-button layout', () => assert(size));
 check('only wall_back uses complete native Button bounds with single-line 3x OCR', () => {
   assert.match(layoutSource, /result\.regions\.wall_back=region\(shop\.tiles_back\)\s+result\.regions\.wall_back\.psm=7\s+result\.regions\.wall_back\.scale=3/);

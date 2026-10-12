@@ -1,5 +1,5 @@
 extends SceneTree
-const Cache=preload("res://scripts/retained_canvas_geometry.gd")
+const Cache=preload("res://scripts/rendering/retained_canvas_geometry.gd")
 var failures=[]
 var checks=0
 func check(ok,label):

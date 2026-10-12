@@ -9,7 +9,7 @@ an inventory, not a checklist to run after every edit.
 
 | Command | Responsibility |
 | --- | --- |
-| `install_tools.py` | Install checksum-pinned tools into a disposable location. |
+| `ci/install_tools.py` | Install checksum-pinned tools into a disposable location. |
 | `verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
 | `build_web.py` | Export the source already checked by the complete native gate. |
 | `build_crazygames.py` | Build the separate platform variant after the Web gate. |
@@ -24,7 +24,7 @@ The wall scenario remains required by the ordinary save compatibility gate.
 ## Parallel complete CI
 
 The reusable Web workflow runs the source/atlas guard first, then five independent
-engine shards alongside the historical client build. `engine_shards.py` assigns
+engine shards alongside the historical client build. `ci/engine_shards.py` assigns
 every canonical suite and all five staff-start cases using measured suite times;
 new suites receive a default weight and remain mandatory. Each runner keeps its
 own lock, project and disposable profile. The merger rejects missing, duplicate,
@@ -68,13 +68,15 @@ total runner minutes even while reducing elapsed time.
 | Command | Class | Responsibility |
 | --- | --- | --- |
 | `build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
-| `release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
+| `release/release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
+| `qualification/reuse_main_ci.py` | Release qualification | Reuse a successful exact-main Web package with complete source and artifact checks. |
+| `qualification/reuse_released_web.py` | Staging qualification | Pin the original completed publication's CI run, attempt, artifact and manifest. |
 | `publish_itch.py` | Authorized publication | Validate the tested release artifact and approved itch channel before publication. |
 | `deploy_firebase_hosting.py` | Authorized publication | Verify/stage or deploy an exact Firebase variant; preserve WIF and hosting contracts. |
-| `github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
-| `reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
-| `capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
-| `cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
+| `release/github_latest.py` | Release completion | Reconcile Latest after publication without creating a tag or release. |
+| `qualification/reuse_welcome_web.py` | Manual diagnostic | Bind a retained Web artifact to its exact/equivalent full source tree. |
+| `diagnostics/capture_cloud_recovery_ui.py` | On demand visual diagnostic | Capture paired historical/current frames with isolated profiles and retained receipts. |
+| `diagnostics/cloud_flow_diagnostic.py` | Historical branch diagnostic | Validate eligibility and retained compiled artifacts for the branch-specific cloud flow investigation. |
 
 Workflows retain their existing triggers: welcome audio and startup comparison
 are manual; paired cloud visuals have scoped PR paths plus manual dispatch;
@@ -83,11 +85,11 @@ listed here does not authorize publication or deployment.
 
 ## Shared implementations and tests
 
-`artifacts.py` owns file hashing, payload verification, and the complete Web
+`qualification/artifacts.py` owns file hashing, payload verification, and the complete Web
 source gate. Firebase and CrazyGames call that contract directly; neither variant
 depends on the other. Variant-specific provenance, staging, namespace and release
-policy remain in their respective commands. `toolchain.json` pins the installer;
-`release_metadata.py` is the single version ordering implementation.
+policy remain in their respective commands. `ci/toolchain.json` pins the installer;
+`release/release_metadata.py` is the single version ordering implementation.
 `build_itch_trusted_preview.py` is a shared preparation module used by the
 explicit Firebase preview option; it does not add a standalone launch command
 or authorize deployment.

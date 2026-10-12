@@ -16,6 +16,8 @@ class ItchReleaseEntryTests(unittest.TestCase):
         html = ordinary_entry_html(self.shell)
         self.assertIn('SIL OPEN FONT LICENSE', html)
         self.assertIn('Local and Google-account progress are separate.', html)
+        self.assertIn('aria-describedby="itch-account-detail itch-progress-separation"', html)
+        self.assertIn('aria-describedby="itch-local-detail itch-progress-separation"', html)
         self.assertEqual(html.count('window.__littleLeafVault.boot()'), 1)
         self.assertEqual(remove_ordinary_entry(html), self.shell)
         with tempfile.TemporaryDirectory() as temporary:
@@ -31,7 +33,7 @@ class ItchReleaseEntryTests(unittest.TestCase):
 
     def test_explicit_preview_has_only_its_existing_chooser(self):
         html = wrapper_html(ordinary_entry_html(self.shell), 'https://little-leaf-41e5d--itch-embed-test-fixture.web.app')
-        self.assertNotIn('itch-release-entry', html)
+        self.assertNotIn('id="itch-release-entry"', html)
         self.assertIn('id="itch-entry"', html)
         self.assertNotIn('LittleLeafItchReleaseEntryReady', html)
 

@@ -1,7 +1,7 @@
 extends SceneTree
 ## Render actual save controller and existing Help with deterministic synthetic acks.
 ## FakeApi replaces only browser transport and never touches IndexedDB.
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 class FakeApi extends RefCounted:
  func creditForSave(_payload):return 0

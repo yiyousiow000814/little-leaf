@@ -6,8 +6,8 @@ from pathlib import Path
 import re
 import subprocess
 import time
-from release_metadata import STABLE, RELEASE, release_key
-from artifacts import verify_files, sha256
+from release.release_metadata import STABLE, RELEASE, release_key
+from qualification.artifacts import verify_files, sha256
 
 TARGET = "siowyiyou/little-leaf:html5"
 # Numeric prerelease identifiers cannot have leading zeroes; other identifiers

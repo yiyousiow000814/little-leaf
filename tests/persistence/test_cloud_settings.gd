@@ -1,5 +1,5 @@
 extends SceneTree
-const CloudSettings=preload("res://scripts/cafe_cloud_settings.gd")
+const CloudSettings=preload("res://scripts/persistence/cafe_cloud_settings.gd")
 class FakeApi extends RefCounted:
 	var value={"status":"Not saved","reason":"","canSave":true,"reload":false}
 	func snapshot():return JSON.stringify(value)

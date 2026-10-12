@@ -7,13 +7,13 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import install_tools
+from ci import install_tools
 from build_web import copy_notices, verify_installer_receipt
 import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
 from publish_itch import check_previous, completed, parse_result, verify_artifact
-from release_metadata import version, require_main_ancestor, release_key
+from release.release_metadata import version, require_main_ancestor, release_key
 from project_layout import game_root
 
 SHA = "a" * 40
@@ -487,7 +487,7 @@ class ArtifactTests(unittest.TestCase):
 
 class ItchDiagnosticTests(unittest.TestCase):
     def setUp(self):
-        import diagnose_itch_status as diagnostic
+        from diagnostics import diagnose_itch_status as diagnostic
         self.d = diagnostic
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

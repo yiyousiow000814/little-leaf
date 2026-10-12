@@ -12,11 +12,11 @@ import subprocess
 import sys
 
 import build_firebase
-from artifacts import sha256, validate_export_inventory
+from qualification.artifacts import sha256, validate_export_inventory
 from firebase_release_event import artifact_for, download
 from firebase_release_gate import require
 from project_layout import source_path
-from reuse_main_ci import GitHub, bind_package, require_jobs
+from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
 from run_firebase_focused import COMMANDS
 
 IDENTITY = ['qualification_run_id', 'qualification_attempt', 'artifact_id', 'artifact_digest',
@@ -96,7 +96,7 @@ def validate_focused(root, folder, source, tree, run, attempt):
 
 def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False):
     if manual_live:
-        from released_live_provenance import manual_context
+        from release.released_live_provenance import manual_context
         context = manual_context(selection, os.environ, run, attempt)
         coordinator = Path(__file__).resolve().parents[1]
         require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
@@ -170,7 +170,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
     proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in [
         'tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-        'tools/reuse_released_web.py', 'tools/stage_released_firebase.py',
+        'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
         '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml']}
     (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
     path = output / 'firebase-variant-manifest.json'
@@ -182,7 +182,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     # Do not present this package as an old fresh-build or preview-reuse contract.
     manifest['status'] = 'qualified-release-staged-not-deployable'
     if manual_live:
-        from released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
+        from release.released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
         require(context['coordinator_source_commit'] == proof['coordinator_source_commit'],
                 'Dispatch coordinator differs from executing source')
         context['coordinator_source_tree'] = proof['coordinator_source_tree']

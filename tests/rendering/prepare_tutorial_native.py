@@ -47,7 +47,7 @@ def main():
     code = code.replace('game=Main.new()', 'game=FreshMain.new()')
     code = code.replace(' static var fixture=', ' func _setup_music():pass\n static var fixture=', 1)
     code = code.replace('func _initialize():run.call_deferred()', '''func _ready():
- preload("res://scripts/cafe_intro.gd").shown_this_session=true
+ preload("res://scripts/ui/cafe_intro.gd").shown_this_session=true
  run.call_deferred()''')
     code = re.sub(r'\broot\b', 'get_tree().root', code)
     code = re.sub(r'\bprocess_frame\b', 'get_tree().process_frame', code)

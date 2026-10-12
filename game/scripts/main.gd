@@ -1,27 +1,27 @@
 extends Node3D
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
-const Illustration = preload("res://scripts/illustrated_cafe.gd")
-const Model = preload("res://scripts/cafe_model.gd")
+const Illustration = preload("res://scripts/rendering/illustrated_cafe.gd")
+const Model = preload("res://scripts/core/cafe_model.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
-const Interaction = preload("res://scripts/cafe_interaction.gd")
-const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
+const Interaction = preload("res://scripts/gameplay/cafe_interaction.gd")
+const CameraGestures = preload("res://scripts/rendering/cafe_camera_gestures.gd")
 var camera_gestures
-const WebLifecycle = preload("res://scripts/cafe_web_lifecycle.gd")
-const WebSave = preload("res://scripts/cafe_web_save.gd")
+const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
+const WebSave = preload("res://scripts/persistence/cafe_web_save.gd")
 var web_lifecycle
 var web_save
-const BuildTools = preload("res://scripts/cafe_build_tools.gd")
-const SettingsControls = preload("res://scripts/cafe_settings.gd")
-const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
-const FloorTasks = preload("res://scripts/cafe_floor_tasks.gd")
-const Dishwashing = preload("res://scripts/cafe_dishwashing.gd")
-const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
+const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
+const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
+const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
+const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
+const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const CompactUI = preload("res://scripts/ui/cafe_compact_ui.gd")
 var compact_ui
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
 const LEGACY_SAVE_FILE = "user://little_leaf_illustrated_r7.json"
@@ -134,7 +134,7 @@ func _ready():
 	build_tools=BuildTools.new(self)
 	_build_ui()
 	if OS.has_feature("crazygames"):
-		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
@@ -148,7 +148,7 @@ func _ready():
 	interaction=Interaction.new(self)
 	camera_gestures=CameraGestures.new(self)
 	web_lifecycle=WebLifecycle.new(self)
-	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
+	workface_guidance=load("res://scripts/rendering/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
 	_update_ui()
@@ -157,12 +157,12 @@ func _ready():
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
-	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
+	cafe_intro=preload("res://scripts/ui/cafe_intro.gd").new()
 	cafe_intro.start(self)
-	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
+	tutorial=preload("res://scripts/ui/cafe_tutorial.gd").new()
 	tutorial.setup(self)
 	if DisplayServer.get_name() != "headless" and cafe_intro.active:
-		startup_readiness = preload("res://scripts/cafe_startup_readiness.gd").new()
+		startup_readiness = preload("res://scripts/core/cafe_startup_readiness.gd").new()
 		startup_readiness.start(self)
 	elif OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
@@ -668,7 +668,7 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			var playable=preload("res://scripts/platform/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
 			platform.viewportPlayable=not compact_ui.viewport_too_small
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
@@ -688,7 +688,7 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)
@@ -699,7 +699,7 @@ func _process(delta):
 	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+	if not intro_active and preload("res://scripts/persistence/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)

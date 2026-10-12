@@ -2,7 +2,7 @@ extends RefCounted
 ## Deterministic synthetic fixture, independent of profiles or player saves.
 ## Replays seed 60's first geometry attempt from the frozen legacy implementation.
 const LegacyGeometry=preload("res://tests/fixtures/litter_art_v2/cafe_floor_geometry.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 
 static func build()->Dictionary:
 	var cell=Vector2i(4,6)

@@ -1,5 +1,5 @@
 extends SceneTree
-const Gate=preload("res://scripts/cafe_platform_state.gd")
+const Gate=preload("res://scripts/platform/cafe_platform_state.gd")
 var checks=0
 var failures=[]
 func check(value:bool,label:String):

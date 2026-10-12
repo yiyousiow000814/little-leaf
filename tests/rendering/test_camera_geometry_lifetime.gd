@@ -1,9 +1,9 @@
 extends SceneTree
 
-const Background = preload("res://scripts/cafe_background_cache.gd")
-const Body = preload("res://scripts/cafe_native_draw_node.gd")
-const Shape = preload("res://scripts/cafe_shape_2d.gd")
-const BodyGeometry = preload("res://scripts/scalable_body_geometry.gd")
+const Background = preload("res://scripts/rendering/cafe_background_cache.gd")
+const Body = preload("res://scripts/rendering/cafe_native_draw_node.gd")
+const Shape = preload("res://scripts/rendering/cafe_shape_2d.gd")
+const BodyGeometry = preload("res://scripts/rendering/scalable_body_geometry.gd")
 
 class TestGame extends "res://scripts/main.gd":
 	func _load_startup():

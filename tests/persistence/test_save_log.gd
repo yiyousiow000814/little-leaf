@@ -1,5 +1,5 @@
 extends SceneTree
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
 var checks=0
 var failures=[]
 var web_points={}

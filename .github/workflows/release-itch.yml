@@ -19,13 +19,13 @@ jobs:
         with:
           persist-credentials: false
       - name: Install the unchanged checksum-pinned Butler
-        run: python3 tools/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+        run: python3 tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Check version and status help without credentials
-        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase preflight --output "$RUNNER_TEMP/itch-status/preflight.json"
+        run: python3 tools/diagnostics/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase preflight --output "$RUNNER_TEMP/itch-status/preflight.json"
       - name: Query only the existing authorized channel; emit whitelist fields
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
-        run: python3 tools/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase status --preflight "$RUNNER_TEMP/itch-status/preflight.json" --output "$RUNNER_TEMP/itch-status/status.json"
+        run: python3 tools/diagnostics/diagnose_itch_status.py --binary "$RUNNER_TEMP/butler-tools/butler" --phase status --preflight "$RUNNER_TEMP/itch-status/preflight.json" --output "$RUNNER_TEMP/itch-status/status.json"
       - name: Retain only sanitized diagnosis
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -59,7 +59,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          VERSION=$(python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
+          VERSION=$(python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
   build:
@@ -83,16 +83,16 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           git fetch --no-tags origin main
-          python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
           python3 tools/verify_prebaked_atlases.py
       - name: Install checksum-pinned official startup verifier
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Wait for exact main CI and verify its immutable package
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
           RELEASE_SHA: ${{ needs.gate.outputs.sha }}
-        run: python3 tools/reuse_main_ci.py --sha "$RELEASE_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/qualified-release"
+        run: python3 tools/qualification/reuse_main_ci.py --sha "$RELEASE_SHA" --tag "$RELEASE_TAG" --output "$RUNNER_TEMP/qualified-release"
       - name: Retain verified release package in this release run
         id: upload
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -134,7 +134,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install checksum-pinned official Butler
-        run: python3 tools/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
+        run: python3 tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Recheck source, refuse duplicate/older releases, publish and await processing
         env:
           BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}
@@ -142,7 +142,7 @@ jobs:
           RELEASE_SHA: ${{ needs.gate.outputs.sha }}
         run: |
           git fetch --no-tags origin main
-          python3 tools/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
+          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
           python3 tools/publish_itch.py --web "$RUNNER_TEMP/release-web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json"
       - name: Retain confirmed itch publication and reused CI provenance
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

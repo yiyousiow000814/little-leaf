@@ -1,7 +1,7 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
-const Parking=preload("res://scripts/cafe_parking.gd")
-const Codec=preload("res://scripts/cafe_runtime_codec.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Parking=preload("res://scripts/world/cafe_parking.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 var failures=[]
 var checks=0
 var phases={}

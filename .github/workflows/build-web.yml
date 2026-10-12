@@ -14,6 +14,10 @@ on:
         description: Prepare trusted-frame bootstrap after the unchanged fresh Firebase gates
         type: boolean
         default: false
+      itch_test_entry:
+        description: Qualify the fixed stable /itch iframe using the same complete Firebase gates
+        type: boolean
+        default: false
       publication_receipt:
         description: Exact completed receipt selected by the read-only Firebase coordinator
         type: string
@@ -47,12 +51,24 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           FIREBASE_PREVIEW: ${{ inputs.firebase_preview }}
           ITCH_PREVIEW: ${{ inputs.itch_preview }}
-        run: python3 tools/pr_ci_scope.py
+          ITCH_TEST_ENTRY: ${{ inputs.itch_test_entry }}
+          PUBLICATION_RECEIPT: ${{ inputs.publication_receipt }}
+        run: |
+          if [[ "$ITCH_TEST_ENTRY" == true ]]; then
+            test "$FIREBASE_PREVIEW" = true
+            test "$ITCH_PREVIEW" = false
+            test -z "$PUBLICATION_RECEIPT"
+            test -z "$RELEASE_TAG"
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            test "$GITHUB_REF" = refs/heads/main
+            test "$GITHUB_RUN_ATTEMPT" = 1
+          fi
+          python3 tools/ci/pr_ci_scope.py
       - name: Verify metadata and CI guard tests
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          python3 tools/release_metadata.py --tag "$RELEASE_TAG"
+          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG"
           python3 tools/verify_prebaked_atlases.py
           python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
           node tests/persistence/crazygames_storage.js
@@ -88,9 +104,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Run balanced complete engine shard
-        run: python3 tools/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
+        run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
@@ -111,7 +127,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Check out the exact historical wall-format-1 client
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -121,7 +137,7 @@ jobs:
       - name: Test and export the unchanged historical client once
         run: |
           test "$(git -C .compatibility-old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
-          cmp tools/toolchain.json .compatibility-old/ci/toolchain.json
+          cmp tools/ci/toolchain.json .compatibility-old/ci/toolchain.json
           python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -157,7 +173,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           pattern: little-leaf-engine-*-${{ github.sha }}-${{ github.run_attempt }}
@@ -165,7 +181,7 @@ jobs:
           merge-multiple: false
           digest-mismatch: error
       - name: Require all same-source shards and merge complete engine evidence
-        run: python3 tools/engine_shards.py merge --count 5 --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
+        run: python3 tools/ci/engine_shards.py merge --count 5 --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
       - name: Export exact source and verify packed resources
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -330,7 +346,7 @@ jobs:
           digest-mismatch: error
       - name: Install checksum-pinned Godot and official Web template
         if: matrix.lane == 'compatibility'
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -390,7 +406,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           artifact-ids: ${{ needs.build.outputs.inputs_id }}
@@ -449,10 +465,23 @@ jobs:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
         run: |
           set -euo pipefail
+          test '${{ inputs.itch_test_entry }}' != true || test '${{ inputs.itch_preview }}' != true
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then
+            python3 - <<'PY'
+          import json, os, pathlib, subprocess, sys
+          sys.path.insert(0,'tools')
+          from build_itch_trusted_preview import prepare_stable
+          git=lambda key:subprocess.check_output(['git','rev-parse',key],text=True).strip()
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          prepare_stable(root/'web-build',root/'itch-test-preflight',json.loads(pathlib.Path('platform/firebase/public-config.json').read_text()),git('HEAD'),git('HEAD^{tree}'))
+          PY
+          fi
           export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
           export PATH="$JAVA_HOME/bin:$PATH"
           cd platform/firebase
-          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --web-build '$RUNNER_TEMP/web-build/web' --output '$RUNNER_TEMP/web-build/evidence/firebase-fullflow' --engine-report '$RUNNER_TEMP/engine-evidence/summary.json'"
+          test_args=''
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then test_args="--itch-test-variant '$RUNNER_TEMP/itch-test-preflight'"; fi
+          ./node_modules/.bin/firebase emulators:exec --only firestore --project demo-little-leaf "xvfb-run -a node fullflow.test.mjs --web-build '$RUNNER_TEMP/web-build/web' --output '$RUNNER_TEMP/web-build/evidence/firebase-fullflow' --engine-report '$RUNNER_TEMP/engine-evidence/summary.json' $test_args"
       - name: Stage Firebase only from this exact fresh all-gates build
         if: inputs.firebase_preview
         id: firebase_prepare
@@ -461,6 +490,11 @@ jobs:
         run: |
           preview_args=()
           if [[ '${{ inputs.itch_preview }}' == 'true' ]]; then preview_args=(--itch-preview-bootstrap); fi
+          if [[ '${{ inputs.itch_test_entry }}' == true ]]; then
+            test '${{ inputs.itch_preview }}' != true
+            test -z "$PUBLICATION_RECEIPT"
+            preview_args=(--itch-test-entry)
+          fi
           if [[ -n "$PUBLICATION_RECEIPT" ]]; then
             test '${{ inputs.itch_preview }}' != true
             python3 -c 'import json,os,pathlib; pathlib.Path(os.environ["RUNNER_TEMP"],"publication.json").write_text(json.dumps(json.loads(os.environ["PUBLICATION_RECEIPT"])))'
@@ -580,7 +614,7 @@ jobs:
           WEB_ARTIFACT: ${{ needs.build.outputs.artifact_id }}
           FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
           FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
-        run: python3 tools/pr_ci_scope.py --check-lightweight-gate
+        run: python3 tools/ci/pr_ci_scope.py --check-lightweight-gate
       - name: Require every mandatory gate before exposing release outputs
         id: accept
         if: needs.guard.outputs.scope != 'lightweight'

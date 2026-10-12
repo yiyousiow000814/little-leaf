@@ -49,7 +49,7 @@ Serve the exported folder over HTTP to test it. Keep the license notice, custom 
 
 ## Repository boundaries
 
-- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; `res://scripts/` resource names remain unchanged. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
+- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; Script UIDs remain stable; update runtime and preload consumers atomically when resource paths move. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
 - `platform/web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
 - `tests/`: repeatable regression suites and browser harnesses; `tooling/` holds CI contracts, `fixtures/` holds synthetic source-bound inputs, and `diagnostics/` holds reusable captures, audits and profiling helpers. State whether a check covers engine behavior, browser behavior, or rendered output. Generated screenshots, traces, logs, exports and disposable profiles belong in ignored output directories.
 - `tools/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
@@ -69,6 +69,8 @@ Review touched code while editing and perform a focused code-health review at ea
 - Check per-frame cost, retained memory, resource ownership and cache invalidation against the existing performance and memory contracts; preserve actual rendered behavior.
 - Target net deletion across the complete cleanup diff, including tests and helpers. Do not use code golf, drop required behavior or add a large test/helper framework to claim a small cleanup.
 - Preserve player saves, assets, imports, licenses and active owner boundaries. Use the minimum relevant existing targeted checks and source-bound visual evidence where affected; required release gates still apply.
+
+Focused0.1.11 cleanup review covered the canonical suite resolver, family resource consumers, shared native runner and CI/build/release/qualification/diagnostic imports. [PR201](https://github.com/yiyousiow000814/little-leaf/pull/201) removed170 production lines by sharing the two native flows while retaining both14-line CLI wrappers and ten mock scenarios. The existing HUD dead-branch cleanup remains in [PR180](https://github.com/yiyousiow000814/little-leaf/pull/180). Renderer callback-state readability and UI child/theme/error contracts stay with their existing owners. Current service steps and historical codec job/payment validation require separate save-version-aware review before sharing policy. Current merge/check status belongs only in the [roadmap](../roadmap.md#current-state); stable CLI orchestrators, the canonical runner and source resolver remain entrypoints.
 
 Open or update one coherent PR for each confirmed related finding. Reviewed cleanup, organization and optimization may merge under explicit user authority; gameplay and artwork acceptance remain separate. Report actual verification, merge and release inclusion independently.
 

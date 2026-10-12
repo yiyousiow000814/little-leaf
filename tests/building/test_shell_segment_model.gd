@@ -1,7 +1,8 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
-const Segments=preload("res://scripts/cafe_shell_segments.gd")
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Segments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Transactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -112,5 +113,18 @@ func run():
   var nine=Segments.migrate(roots,[]);var eight=Segments.migrate(roots,[{"axis":"z","x":0,"z":8}])
   nine.segments["shell:west#0"]=eight.segments["shell:west#0"].duplicate(true)
   check(Segments.validate(nine,[])!="",height+" incompatible historical bases cannot mix per index")
+ # Only the untouched inherited dormant ninth receipt can reveal for free.
+ # Purchased edges and shell-origin walls retain their existing tombstones.
+ var eligibility=Model.new();var extension={"axis":"z","x":0,"z":8}
+ var inherited=eligibility.shell_segment_products["shell:west#8"].duplicate(true)
+ check(Transactions.preserves_inherited_extension(eligibility,extension),"inherited free ninth receipt remains eligible")
+ for field in ["removed","paid_cost","refund_credit"]:
+  eligibility.shell_segment_products["shell:west#8"]=inherited.duplicate(true)
+  eligibility.shell_segment_products["shell:west#8"][field]=true if field=="removed" else 1
+  check(not Transactions.preserves_inherited_extension(eligibility,extension),"no free reveal for "+field)
+ eligibility.shell_segment_products["shell:west#8"]=inherited
+ var moved_origin=extension.duplicate(true);moved_origin.origin_shell="shell:back#3"
+ check(not Transactions.preserves_inherited_extension(eligibility,moved_origin),"shell-origin wall cannot reveal a free receipt")
+ check(not Transactions.preserves_inherited_extension(eligibility,{"axis":"z","x":0,"z":7}),"exception is only historical ninth edge")
  var report={"checks":checks,"failures":failures,"player_save_used":false,"browser_verified":false,"native_pixels_verified":false}
  print("SHELL_SEGMENT_MODEL_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)
