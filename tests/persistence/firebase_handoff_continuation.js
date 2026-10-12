@@ -27,7 +27,7 @@ function environment(){
   const client=root.LittleLeafFirebase.createClient({uid:'synthetic-owner',currentUid:()=>uid,codec:root.LittleLeafAuthorityCodec,journal,remote:saveRemote,ownership,status(){},now:()=>100000,networkTimeoutMs:10});
   return {client,ownership,saveRemote,local:()=>clone(local),setLocal:value=>{local=clone(value);},onReplace:hook=>{replaceHook=hook;},onRead:hook=>{readHook=hook;}};
  }
- return {device,cloud:()=>clone(cloud),session:()=>clone(session),saveCalls:()=>saveCalls,ackCalls:()=>ackCalls,
+ return {device,sessionRemote:remote,cloud:()=>clone(cloud),session:()=>clone(session),saveCalls:()=>saveCalls,ackCalls:()=>ackCalls,
    setUid:value=>{uid=value;},setCloud:value=>{cloud=clone(value);},setSession(value){session=clone(value);for(const watch of watchers)watch(clone(session));},denySave:value=>{denySave=value;},denyAck:value=>{denyAck=value;},holdUpload:gate=>{uploadGate=gate;},onAck:hook=>{ackHook=hook;}};
 }
 async function setup(){
@@ -43,6 +43,36 @@ async function journalTimeout(){
  return {...state,gate,result};
 }
 module.exports=(async()=>{
+ // The original upload and exact journal receipt have settled. A stalled
+ // standalone read must not postpone the atomic ACK which rechecks the save.
+ phase='successful frozen upload continues without redundant reads';
+ let receiptState=await setup(),receiptGate=deferred(),receiptAck=deferred(),readGate=deferred(),readObserved=deferred(),receiptReads=0;
+ receiptState.e.holdUpload(receiptGate);
+ assert.equal((await receiptState.a.client.preserveOwnerRuntime(native,1,receiptState.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
+ const receiptCloud=receiptState.e.cloud(),receiptWrites=receiptState.e.saveCalls();
+ receiptState.a.onRead(async()=>{receiptReads++;readObserved.resolve(false);await readGate.promise;});
+ receiptState.e.onAck(()=>receiptAck.resolve(true));receiptGate.resolve();
+ try {assert.equal(await Promise.race([receiptAck.promise,readObserved.promise]),true,'successful original receipt reaches the atomic ACK without a separate save read');}
+ finally {readGate.resolve();}
+ await tick();assert.equal(receiptReads,0);assert.equal(receiptState.e.saveCalls(),receiptWrites);assert.equal(receiptState.e.ackCalls(),1);
+ assert.deepEqual(receiptState.e.cloud(),receiptCloud);assert.equal(receiptState.a.local().pending,false);
+ assert((await receiptState.b.client.finishTakeover()).ok);assert.equal(receiptState.e.session().epoch,2);
+ // A failed overlapping renewal may leave only the cached status offline.
+ // That cannot disqualify the same server intent: retain fresh readback.
+ phase='cached offline fence keeps confirmed readback';
+ receiptState=await setup();receiptGate=deferred();receiptAck=deferred();receiptReads=0;
+ receiptState.e.holdUpload(receiptGate);
+ assert.equal((await receiptState.a.client.preserveOwnerRuntime(native,1,receiptState.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
+ receiptState.a.onReplace(async next=>{if(next.record.revision===2&&!next.pending){
+  const change=receiptState.e.sessionRemote.change;
+  receiptState.e.sessionRemote.change=async()=>{throw fail('NETWORK_TIMEOUT');};
+  try {await receiptState.a.ownership.renew();}catch(_){/* Actual session enters offline. */}
+  finally {receiptState.e.sessionRemote.change=change;}
+ }});
+ receiptState.a.onRead(()=>{receiptReads++;});receiptState.e.onAck(()=>receiptAck.resolve());
+ receiptGate.resolve();await receiptAck.promise;await tick();
+ assert.equal(receiptReads,1,'unconfirmed cached fence retains fresh cloud/session proof');
+ assert.equal(receiptState.e.ackCalls(),1);assert((await receiptState.b.client.finishTakeover()).ok);
  // Firestore can invoke a dispatched transaction's guard after the local
  // wait times out. The exact frozen intent must survive that UI pause.
  phase='delayed SDK guard with unchanged handoff fence';
@@ -82,15 +112,15 @@ module.exports=(async()=>{
   assert.equal(s.e.saveCalls(),writes+(mutation==='permission'?1:0),mutation+' never automatically retries the refused save');
  }
  // A late response wakes the existing frozen intent without a timer, focus,
- // second native snapshot or additional save CAS. The already exact cloud
- // read is sufficient; the real session ACK transaction rechecks its save.
+ // second native snapshot or additional save CAS. Its successful upload
+ // receipt suffices; the real session ACK transaction rechecks its save.
  phase='late upload must wake its frozen continuation';
  s=await setup();let lateUpload=deferred();acknowledged=deferred();s.e.holdUpload(lateUpload);
  assert.equal((await s.a.client.preserveOwnerRuntime(native,1,s.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
  let saved=s.e.cloud(),reads=0;writes=s.e.saveCalls();s.e.onAck(()=>acknowledged.resolve());
- s.a.onRead(()=>{reads++;assert.equal(reads,1,'confirmed exact r2 needs no duplicate save read before the atomic ACK');});
+ s.a.onRead(()=>{reads++;});
  lateUpload.resolve();await acknowledged.promise;await tick();
- assert.deepEqual(s.e.cloud(),saved);assert.equal(s.e.saveCalls(),writes);assert.equal(s.e.ackCalls(),1);
+ assert.deepEqual(s.e.cloud(),saved);assert.equal(s.e.saveCalls(),writes);assert.equal(s.e.ackCalls(),1);assert.equal(reads,0);
  assert.equal(s.a.local().pending,false);assert.equal(s.a.local().record.revision,2);
  assert((await s.b.client.finishTakeover()).ok);assert.equal(s.e.session().epoch,2);
  assert.equal((await s.a.client.commit(payload,2,s.boot.profileId)).code,'OWNERSHIP_LOST');
@@ -151,9 +181,13 @@ module.exports=(async()=>{
  }
  // Explicit same-owner cancel/recovery invalidates a delayed continuation.
  // Its finally block cannot pause the freshly loaded client afterwards.
- phase='explicit recovery read';s=await journalTimeout();const read=deferred(),reading=deferred();let readOnce=true;
+ phase='explicit recovery read';s=await setup();lateUpload=deferred();s.e.holdUpload(lateUpload);
+ const uncertainCAS=s.a.saveRemote.compareAndSet;
+ s.a.saveRemote.compareAndSet=async(...args)=>{await uncertainCAS(...args);throw fail('NOT_READY');};
+ assert.equal((await s.a.client.preserveOwnerRuntime(native,1,s.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
+ const read=deferred(),reading=deferred();let readOnce=true;
  s.a.onRead(async()=>{if(readOnce){readOnce=false;reading.resolve();await read.promise;}});
- s.gate.resolve();
+ lateUpload.resolve();
  const retry=s.a.client.refreshOwnership();await reading.promise;
  phase='explicit recovery finish';const recovered=await s.a.client.requestTakeover();assert(recovered.ok,JSON.stringify(recovered));await retry;
  assert.equal(recovered.revision,2);assert.equal(s.e.session().request,null);
