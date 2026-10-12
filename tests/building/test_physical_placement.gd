@@ -59,7 +59,8 @@ func _init():
  var body_path=directory+"/saved-body-refusal.json"
  check(synthetic_file(body_path,"{\"synthetic\":\"previous destination\"}"),"synthetic prior destination seeded")
  var body_hash=FileAccess.get_sha256(body_path)
- check(not body_model.save(body_path),"saved staff body overlapping furniture still rejects write")
+ var body_saved=body_model.save(body_path)
+ check(not body_saved and body_model.last_error.contains("physical layout"),"saved staff body overlapping furniture still rejects write through the physical guard")
  check(FileAccess.get_sha256(body_path)==body_hash,"body refusal preserves existing destination bytes")
  var malformed_path=directory+"/malformed.json"
  check(synthetic_file(malformed_path,"{\"schema\":\"foreign\",\"items\":[]}"),"synthetic malformed input seeded")
