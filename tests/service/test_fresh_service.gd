@@ -19,7 +19,8 @@ func release_game(game):
  game.queue_free();await process_frame;await process_frame
  check(reference.get_ref()==null,"owned game released after service fixture")
 func guest_identity(guest:Dictionary)->Array:
- return [guest.id,guest.table_id,guest.chair_id,guest.x,guest.z,guest.get("appearance_sequence",guest.id)]
+ # JSON numbers decode as floats; compare the schema's identity types exactly.
+ return [int(guest.id),int(guest.table_id),int(guest.chair_id),float(guest.x),float(guest.z),int(guest.get("appearance_sequence",guest.id))]
 func completion_clock():
  var game=ClockMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  game.model._spawn_customer()
