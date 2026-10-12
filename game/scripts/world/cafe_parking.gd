@@ -351,6 +351,7 @@ static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dic
 	if legacy_format:data.traffic=Traffic.initial()
 	if not Traffic.validate(data.get("traffic")):return {"ok":false,"error":"Invalid road traffic snapshot"}
 	var ids={};var bays={};var slots={};var moving=0;var pending=0
+	var approaches=[]
 	for visitor in queue:slots[int(visitor.slot)]=int(visitor.id)
 	for car in data.visits:
 		if not car is Dictionary or not car.get("members") is Array or car.members.size()<1 or car.members.size()>4:return {"ok":false,"error":"Invalid parking membership"}
@@ -368,7 +369,12 @@ static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dic
 		if car.phase=="parked" and (car.car_position!=bay_point(int(car.bay)) or int(car.car_index)!=car.car_route.size()):return {"ok":false,"error":"Members left an unparked car"}
 		# Route/body validation above remains authoritative; only a pre-turn
 		# street arrival is excluded from the V2 aggregate maneuver count.
-		if _driving(car) and not _street_approach(car):moving+=1
+		if _driving(car):
+			if _street_approach(car):
+				for position in approaches:
+					if absf(car.car_position.y-position.y)<Traffic.GAP-.001:return {"ok":false,"error":"Parking street approaches overlap"}
+				approaches.append(car.car_position)
+			else:moving+=1
 		if moving>1:return {"ok":false,"error":"Multiple parking maneuvers"}
 		for member in car.members:
 			if not member is Dictionary or not codec._integer(member.get("id"),1,next_id-1) or ids.has(int(member.id)):return {"ok":false,"error":"Duplicate/invalid parking member"}

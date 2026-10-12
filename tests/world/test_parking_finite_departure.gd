@@ -187,6 +187,38 @@ func reader_boundary(input:Dictionary):
 	legacy.visits.append(Parking._legacy_member(state.visits[1],state.visits[1].members[0]))
 	var rejection=Parking.validate(Codec.new().encode(legacy),[],[],17,true)
 	check(not rejection.ok and rejection.error=="Multiple cars own parking maneuver","Historical full V1 rejects multiple displaced cars before migration")
+	# Two otherwise valid approaches share the same first street target. The
+	# aggregate reader must examine their physical gap, not just exclude turns.
+	var pair=state.duplicate(true)
+	pair.visits[1].car_index=1;pair.visits[1].car_position=pair.visits[1].car_route[0]
+	var second=pair.visits[1].duplicate(true);second.id=17;second.bay=1
+	second.car_route=Parking.car_route(1);second.car_index=0;second.car_position=second.car_route[0]-Vector2(0,Traffic.GAP)
+	var member=second.members[0];member.id=17;member.member_id=17;member.car_id=17;member.appearance_sequence=17;member.species_index=posmod(17,3);member.bay=1
+	for slot in range(Parking.model_queue_capacity()):
+		if slot!=int(pair.visits[1].members[0].slot):member.slot=slot;break
+	member.walk_origin=Parking.door_point(1);member.walk_position=member.walk_origin;member.walk_route=Parking.inward_route(1)
+	pair.visits.append(second)
+	check(Parking.validate(Codec.new().encode(pair),[],[],18,true).ok,"Distinct approaches exactly GAP apart remain valid")
+	for gap in [0.0,Traffic.GAP-.25]:
+		var bad=pair.duplicate(true)
+		bad.visits[2].car_index=1 if gap==0 else 0
+		bad.visits[2].car_position=bad.visits[2].car_route[0]-Vector2(0,gap)
+		var result=Parking.validate(Codec.new().encode(bad),[],[],18,true)
+		check(not result.ok and result.error=="Parking street approaches overlap","On-route coincident/below-GAP approaches refuse")
+		check(same(Parking.snapshot(model),state),"Pair validation never mutates its live source")
+		if saved:
+			var data=JSON.parse_string(FileAccess.get_file_as_string(path));data.parking=Codec.new().encode(bad);data.runtime.next_customer_id=18
+			var bad_path="user://parking-approach-gap-"+str(gap)+".json"
+			var file=FileAccess.open(bad_path,FileAccess.WRITE)
+			if file==null:check(false,"Cannot write generated spacing refusal fixture");continue
+			file.store_string(JSON.stringify(data));file.close()
+			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.money;var next_id=restored._next_customer_id
+			check(not restored.load_save(bad_path) and restored.last_error.contains("Parking street approaches overlap"),"Ordinary reader reaches pair spacing refusal")
+			check(same(Parking.snapshot(restored),before) and restored.money==wallet and restored._next_customer_id==next_id,"Spacing refusal preserves live state/custody/counter atomically")
+	var dormant=pair.duplicate(true)
+	for car in dormant.visits:
+		if car.phase=="car_arriving":car.car_position=Parking.CAR_START;car.car_index=0
+	check(Parking.validate(Codec.new().encode(dormant),[],[],18,true).ok,"Historical dormant CAR_START placeholders remain valid")
 	var obstacle=state.visits[1].duplicate(true);obstacle.car_position=Parking.CAR_START
 	check(is_equal_approx(Traffic.allowance(Vector2(-4.65,79.9),1,5,[],[obstacle]),1.6),"Cyclic road preserves parking GAP across seam")
 	check(Traffic.allowance(Vector2(-4.65,80),1,1,[],[obstacle],-1,false)==1,"Finite exit still ignores behind-seam parking body")
