@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 from qualification.artifacts import sha256
 from build import build_firebase
-import deploy_firebase_hosting as hosting
+from release import deploy_firebase_hosting as hosting
 from release import released_live_provenance as live
-import stage_released_firebase as staging
+from release import stage_released_firebase as staging
 from tests.tooling import test_stage_released_firebase as fixtures
 from tests.tooling.test_firebase_hosting_deploy import FakeAPI
 
@@ -285,6 +285,28 @@ class ManualReuseTests(unittest.TestCase):
                 self.assertIn('contents/' + selected + '?ref=' + origin['run']['head_sha'], api.calls)
                 self.assertFalse(any(call.startswith('contents/' + rejected + '?ref=') for call in api.calls))
 
+    def test_remaining_coordinator_moves_keep_source_era_keys_and_reject_ambiguity(self):
+        self.stage()
+        original = self.manifest()
+        for current in ('tools/release/firebase_release_event.py', 'tools/release/firebase_release_gate.py',
+                        'tools/release/stage_released_firebase.py', 'tools/release/deploy_firebase_hosting.py'):
+            old = 'tools/' + Path(current).name
+            api = self.api()
+            manifest = copy.deepcopy(original)
+            api.coordinator_contents[old] = api.coordinator_contents.pop(current)
+            hashes = manifest['qualified_release_reuse']['coordinator_sha256']
+            hashes[old] = hashes.pop(current)
+            authenticated = live.authenticate_origin(api, manifest,
+                {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+            self.assertEqual(authenticated['coordinator_sha256'], hashes)
+            self.assertIn('contents/' + old + '?ref=' + self.origin['run']['head_sha'], api.calls)
+            api.coordinator_contents[current] = b'ambiguous second helper'
+            with self.assertRaises(ValueError):
+                live.coordinator_files(api.coordinator_contents)
+            del api.coordinator_contents[current]; del api.coordinator_contents[old]
+            with self.assertRaises(ValueError):
+                live.coordinator_files(api.coordinator_contents)
+
     def test_provenance_original_namespace_authenticates_and_rejects_missing_or_duplicate_sources(self):
         self.stage()
         original = self.manifest()
@@ -372,7 +394,7 @@ class ManualReuseTests(unittest.TestCase):
             api = self.api(); api.change = change
             with self.subTest(change=change), self.assertRaises(ValueError):
                 live.authenticate_origin(api, manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
-        manifest['qualified_release_reuse']['coordinator_sha256']['tools/stage_released_firebase.py'] = '0'*64
+        manifest['qualified_release_reuse']['coordinator_sha256']['tools/release/stage_released_firebase.py'] = '0'*64
         with self.assertRaises(ValueError): live.authenticate_origin(self.api(), manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
 
     def test_publisher_string_attempt_matches_exact_api_attempt_and_rejects_bad_receipts(self):

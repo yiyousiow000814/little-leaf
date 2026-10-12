@@ -74,7 +74,7 @@ class PrScopeTests(unittest.TestCase):
             self.assertTrue(lightweight_diff(self.raw(path, "A", "000000")))
         self.assertFalse(lightweight_diff(b""))
         for path in ("game/scripts/main.gd", "platform/web/local.js", "assets/NOTICE.md",
-                     "docs/art-audio/third-party/NOTICE.md", "tools/publish_itch.py",
+                     "docs/art-audio/third-party/NOTICE.md", "tools/release/publish_itch.py",
                      "tools/ci/pr_ci_scope.py", "tools/ci/toolchain.json", ".github/workflows/ci.yml",
                      "docs/design/reference.svg", "docs/../game/main.md", "docs/qa\nname.md"):
             self.assertFalse(lightweight_diff(self.raw(path)), path)

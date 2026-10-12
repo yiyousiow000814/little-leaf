@@ -53,7 +53,7 @@ class ItchTagGateTests(unittest.TestCase):
                       'ref: ${{ needs.gate.outputs.sha }}',
                       'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
                       'digest-mismatch: error', 'Missing BUTLER_API_KEY',
-                      'python3 tools/publish_itch.py']:
+                      'python3 tools/release/publish_itch.py']:
             self.assertIn(guard, source)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',

@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from urllib.parse import parse_qs, urlsplit
-import deploy_firebase_hosting as hosting
+from release import deploy_firebase_hosting as hosting
 
 SHA = 'a' * 40
 TREE = 'b' * 40
