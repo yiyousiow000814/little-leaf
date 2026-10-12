@@ -1,10 +1,14 @@
 """Stage an unpublished Firebase/itch-entry variant from the exact complete Web gate."""
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
-from build_web import ROOT, sha256
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.build_web import ROOT, sha256
 from qualification import artifacts
-from project_layout import source_path
-from entry_presentation import entry_styles
+from build.project_layout import source_path
+from build.entry_presentation import entry_styles
 
 def validate_export_inventory(build):
     return artifacts.validate_export_inventory(build / 'web')
@@ -138,7 +142,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
                     or report.get('itch_ancestor_origins') != ['https://html-classic.itch.zone', 'https://siowyiyou.itch.io']
                     or not re.fullmatch(r'[0-9a-f]{64}', report.get('itch_entry_sha256', ''))):
                 raise ValueError('Compiled exact stable iframe flow is required')
-            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
             if report.get('source_sha256')!={name:sha256(source_path(ROOT,name)) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:
@@ -173,7 +177,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
         path=focused_logs/name
         if not path.is_file() or not path.stat().st_size:
             raise ValueError('Missing fresh focused evidence: '+name)
-        from run_firebase_focused import COMMANDS
+        from qualification.run_firebase_focused import COMMANDS
         receipt_path=focused_logs/(name+'.json');receipt=json.loads(receipt_path.read_text())
         expected={'schema_version':1,'status':'passed','exit_code':0,'command':COMMANDS[name],
                   'source_commit':source,'source_tree':tree,'workflow_run':str(run_id),'workflow_attempt':str(attempt),'log_sha256':sha256(path)}
@@ -225,7 +229,7 @@ def main():
     if a.itch_test_entry:
         if not proof or a.itch_preview_bootstrap or a.publication_receipt:
             raise ValueError('Test entry requires fresh gates and excludes preview/publication')
-        from build_itch_trusted_preview import prepare_stable
+        from build.build_itch_trusted_preview import prepare_stable
         prepare_stable(a.validated_web_build,a.output,config,source,tree)
         path=a.output/'firebase-variant-manifest.json'
         manifest=json.loads(path.read_text());manifest.pop('engine_reuse',None)
@@ -236,7 +240,7 @@ def main():
             raise ValueError('Final embedded entry differs from compiled iframe test')
     elif a.itch_preview_bootstrap:
         if not proof:raise ValueError('Trusted preview bootstrap requires the unchanged fresh CI gates')
-        from build_itch_trusted_preview import prepare
+        from build.build_itch_trusted_preview import prepare
         prepare(a.validated_web_build,a.output,config,
                 'https://little-leaf-41e5d--itch-embed-test-localfixture.web.app',source,tree)
         # This fresh source build is not the local reviewed-engine reuse candidate.

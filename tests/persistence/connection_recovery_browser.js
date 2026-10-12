@@ -1,10 +1,10 @@
 'use strict';
-const {sourcePath, sourceVersion}=require('../source_paths.js');
+const {sourcePath, sourceVersion}=require('../tooling/source_paths.js');
 // Hosted CI only. Actual exported Godot/Game/JavaScriptBridge/vault in disposable
 // HTTPS contexts. The sole injected failure closes a captured native IDB handle.
 // No client.close(), seeded save, fake callback/log entry, or simulation speedup.
 //
-// Inputs are the candidate tools/build_web.py export and its native test evidence.
+// Inputs are the candidate tools/build/build_web.py export and its native test evidence.
 // Preflight needs only Node (no Playwright import or browser launch):
 //   node tests/persistence/connection_recovery_browser.js --check-inputs --web-build WEB \
 //     --engine-report ENGINE/summary.json --layout-report ENGINE/test_save_log-result.json

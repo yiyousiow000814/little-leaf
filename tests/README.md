@@ -5,7 +5,7 @@ symptom. Tests, fixtures and manual captures now share this home:
 
 | Location | Use |
 | --- | --- |
-| Root browser/Node tests and `run_*.py` | Current external entrypoints; further family moves must update executable consumers atomically. Reserved update-notice and shared fixture labels remain stable. |
+| `tests/` root | README and Python package initialization; the sole canonical runner and two stable native UI CLI wrappers. |
 | `tests/persistence/` | Save, cloud and platform engine/Node/browser regressions; CLI arguments and output IDs remain stable. |
 | `tests/presentation/` | Startup, tutorial, HUD and browser/audio regressions; external entrypoints and receipts retain their IDs. |
 | `tests/service/` | Guest/worker service and ordered staff-start engine regressions; use stable canonical IDs. |
@@ -24,6 +24,13 @@ Duplicate IDs/resources and missing explicitly selected suites fail before
 staging. `tools/ci/engine_shards.py` imports the same canonical list; do not add a
 second runner or suite registry. Update direct resource consumers atomically
 when moving a suite, and retain its `.uid`.
+
+The five root files are this README, `__init__.py`,
+`run_integration_candidate.py`, `run_build_tiles_ui.py` and
+`run_shell_segment_ui.py`. Python discovery requires the package initializer;
+the canonical runner and two native wrappers preserve their public commands.
+Scenario runners live with their test families, and the shared Node filesystem
+resolver is `tests/tooling/source_paths.js`.
 
 Build/release orchestration is in [`tools/README.md`](../tools/README.md).
 For complete tooling discovery, use

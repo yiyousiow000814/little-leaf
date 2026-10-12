@@ -11,9 +11,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-import build_crazygames as cg
+from build import build_crazygames as cg
 from build import bound_web_gl_handles as handles
-from project_layout import source_path
+from build.project_layout import source_path
 
 REPO = Path(__file__).resolve().parents[2]
 

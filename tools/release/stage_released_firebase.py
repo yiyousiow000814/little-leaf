@@ -11,19 +11,23 @@ import shutil
 import subprocess
 import sys
 
-import build_firebase
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build import build_firebase
 from qualification.artifacts import sha256, validate_export_inventory
-from firebase_release_event import artifact_for, download
-from firebase_release_gate import require
-from project_layout import source_path
+from release.firebase_release_event import artifact_for, download
+from release.firebase_release_gate import require
+from build.project_layout import source_path
 from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
-from run_firebase_focused import COMMANDS
+from qualification.run_firebase_focused import COMMANDS
 
 IDENTITY = ['qualification_run_id', 'qualification_attempt', 'artifact_id', 'artifact_digest',
             'qualified_manifest_sha256', 'source_commit', 'source_tree', 'version']
 FULLFLOW_SOURCES = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs',
     'firebase/fullflow_network.mjs', 'tests/diagnostics/probe_cloud_recovery_geometry.gd',
-    'tools/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
+    'tools/qualification/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
     'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules']
 
 
@@ -98,7 +102,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     if manual_live:
         from release.released_live_provenance import manual_context
         context = manual_context(selection, os.environ, run, attempt)
-        coordinator = Path(__file__).resolve().parents[1]
+        coordinator = Path(__file__).resolve().parents[2]
         require(subprocess.check_output(['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
                 == context['coordinator_source_commit'], 'Exact dispatch coordinator checkout required')
     source_identity(root, selection)
@@ -120,15 +124,19 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'synthetic_only': True, 'browser_sandbox': True, 'real_google_sign_in': False, 'diagnostic_only': False}
     require(all(type(flow.get(k)) is type(v) and flow.get(k) == v for k, v in expected.items())
             and flow.get('checks') and flow.get('source_sha256') ==
-            {n: sha256(source_path(root, n)) for n in FULLFLOW_SOURCES}, 'Compiled Firebase full-flow proof differs')
+            {(source_path(root, n).relative_to(root).as_posix() if n.startswith('tools/') else n):
+             sha256(source_path(root, n)) for n in FULLFLOW_SOURCES}, 'Compiled Firebase full-flow proof differs')
     records['firebase-fullflow.json'] = sha256(flow_path)
     config = json.loads((root / 'platform/firebase/public-config.json').read_text())
     require(config.get('projectId') == 'little-leaf-41e5d'
             and config.get('authDomain') == 'little-leaf-41e5d.firebaseapp.com', 'Wrong public Firebase project')
     # Execute the released source's transformer, never a newer main version
     # which might inject 0.1.11 binding modules into the frozen 0.1.10c runtime.
+    transformer = source_path(root, 'tools/build/build_firebase.py')
+    transformer_import = ('from build.build_firebase import stage' if transformer.parent.name == 'build'
+                          else 'from build_firebase import stage')
     command = ('import json,sys; from pathlib import Path; '
-               'sys.path.insert(0,sys.argv[1]); from build_firebase import stage; '
+               'sys.path.insert(0,sys.argv[1]); ' + transformer_import + '; '
                'publication=json.loads(Path(sys.argv[5]).read_text()); '
                'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
                'json.loads(Path(sys.argv[4]).read_text()),**({"publication":publication} if publication is not None else {}))')
@@ -162,15 +170,15 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'release_run_id': selection['release_run_id'], 'release_tag': selection['release_tag'],
         'fresh_firebase_gate_sha256': records, 'hosted_acceptance': False,
         'live_activation_allowed': False, 'production_security_changes': False}
-    proof['released_transformer_sha256'] = sha256(root / 'tools/build_firebase.py')
-    coordinator = Path(__file__).resolve().parents[1]
+    proof['released_transformer_sha256'] = sha256(transformer)
+    coordinator = Path(__file__).resolve().parents[2]
     proof['coordinator_source_commit'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()
     proof['coordinator_source_tree'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD^{tree}'], text=True).strip()
     proof['coordinator_sha256'] = {name: sha256(coordinator / name) for name in [
-        'tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-        'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
+        'tools/release/firebase_release_event.py', 'tools/release/firebase_release_gate.py',
+        'tools/qualification/reuse_released_web.py', 'tools/release/stage_released_firebase.py',
         '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml']}
     (target / 'released-ci-reuse.json').write_text(json.dumps(proof, indent=2) + '\n')
     path = output / 'firebase-variant-manifest.json'
