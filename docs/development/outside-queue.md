@@ -75,4 +75,4 @@ after that reader resaves the new synthetic queue file.
 
 This split retains the latest bubble-free queue rendering and Decorate/Done
 exterior visibility regression. Historical captures are not proof of this
-independent split; regenerate them with `run_outside_queue_capture.py`.
+independent split; regenerate them with `tests/diagnostics/run_outside_queue_capture.py`.
