@@ -171,13 +171,28 @@ static func _driving(car:Dictionary)->bool:
 	if car.phase not in ["car_arriving","car_departing"]:return false
 	var origin=CAR_START if car.phase=="car_arriving" else bay_point(int(car.bay))
 	return int(car.car_index)>0 or car.car_position!=origin
+static func _street_approach(car:Dictionary)->bool:
+	# Before the first turn, an arrival is a street follower, not an aisle owner.
+	if car.phase!="car_arriving" or car.car_route.size()<2:return false
+	var target:Vector2=car.car_route[0];var position:Vector2=car.car_position
+	if target.x!=CAR_START.x or position.x!=CAR_START.x or target.y<CAR_START.y:return false
+	if int(car.car_index)==0:return position.y>=CAR_START.y and position.y<=target.y
+	return int(car.car_index)==1 and position==target
+static func _finite_exit(car:Dictionary)->bool:
+	return car.phase=="car_departing" and car.car_route.size()==35 and int(car.car_index)==34
 static func advance(model,delta:float):
 	if not is_finite(delta) or delta<=0:return
 	var old_road=model.road_traffic_state.cars.duplicate(true)
-	Traffic.advance(model.road_traffic_state,model.parking_visits,delta,model.road_bus)
-	var moving_id=-1
+	var old_parking=[]
 	for car in model.parking_visits:
-		if _driving(car):moving_id=int(car.id);break
+		old_parking.append({"id":car.id,"phase":car.phase,"car_position":car.car_position,"car_index":car.car_index,"car_route":car.car_route})
+	Traffic.advance(model.road_traffic_state,model.parking_visits,delta,model.road_bus)
+	var moving_id=-1;var exiting_owner=false
+	# Keep the existing maneuver/departure owner ahead of straight street arrivals.
+	for car in model.parking_visits:
+		if _driving(car) and not _street_approach(car):moving_id=int(car.id);exiting_owner=_finite_exit(car);break
+	for car in model.parking_visits:
+		if moving_id<0 and _driving(car):moving_id=int(car.id)
 	for car in model.parking_visits:
 		if moving_id<0 and car.phase in ["car_arriving","car_departing"]:moving_id=int(car.id)
 	var retired=[]
@@ -186,12 +201,17 @@ static func advance(model,delta:float):
 			for m in car.members:
 				if m.phase in ["in_car","walking_in"]:m.cancelled=true
 		if car.phase in ["car_arriving","car_departing"]:
-			if int(car.id)!=moving_id:continue
 			var budget=CAR_SPEED*delta;var stop_index=-1
+			if int(car.id)!=moving_id:
+				# An incoming street body must move to release the cyclic road queue,
+				# but cannot enter a parking turn before the departure retires.
+				if not (exiting_owner and _street_approach(car) and int(car.car_index)==0):continue
+				stop_index=1
 			if absf(car.car_position.x-CAR_START.x)<.01:
 				# Final exit is finite: road cars behind the street seam cannot lead it.
-				var cyclic_road=not (car.phase=="car_departing" and car.car_route.size()==35 and int(car.car_index)==34)
-				budget=Traffic.allowance(car.car_position,1,budget,old_road,[],-1,cyclic_road)
+				var cyclic_road=not _finite_exit(car)
+				var other_parking=old_parking.filter(func(other):return int(other.id)!=int(car.id))
+				budget=Traffic.allowance(car.car_position,1,budget,old_road,other_parking,-1,cyclic_road)
 			if car.phase=="car_departing" and car.car_route.size()==35 and (int(car.car_index)<18 or (int(car.car_index)==18 and car.car_position.distance_to(car.car_route[17])<.0001)):
 				# Wait at the aisle before committing the merge arc; once committed,
 				# road followers yield to the physical car instead of restarting it.
@@ -346,7 +366,9 @@ static func validate(raw,customers:Array,queue:Array,next_id:int,open:bool)->Dic
 		if car.car_route!=car_route(int(car.bay),departing) and car.car_route!=_legacy_car_route(int(car.bay),departing):return {"ok":false,"error":"Invalid car route"}
 		if not codec._integer(car.car_index,0,car.car_route.size()) or not _on_route(car.car_position,bay_point(int(car.bay)) if departing else CAR_START,car.car_route,int(car.car_index)):return {"ok":false,"error":"Car moved off its owned route"}
 		if car.phase=="parked" and (car.car_position!=bay_point(int(car.bay)) or int(car.car_index)!=car.car_route.size()):return {"ok":false,"error":"Members left an unparked car"}
-		if _driving(car):moving+=1
+		# Route/body validation above remains authoritative; only a pre-turn
+		# street arrival is excluded from the V2 aggregate maneuver count.
+		if _driving(car) and not _street_approach(car):moving+=1
 		if moving>1:return {"ok":false,"error":"Multiple parking maneuvers"}
 		for member in car.members:
 			if not member is Dictionary or not codec._integer(member.get("id"),1,next_id-1) or ids.has(int(member.id)):return {"ok":false,"error":"Duplicate/invalid parking member"}
