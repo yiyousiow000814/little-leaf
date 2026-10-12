@@ -14,6 +14,9 @@ func _initialize():run.call_deferred()
 func run():
  var game=GeneratedMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  check(not game.save_recovery_blocked and game.model.dining_sets.size()==4,"fresh public default plus explicit four-table fixture starts")
+ var initial_register=game.model.checkout_register()
+ check(Vector2i(initial_register.x,initial_register.z)==Vector2i(6,4) and int(initial_register.rot)==1,"automatic register keeps the original separate counter/checkout work sides")
+ check(game.model.can_place("register",6,4,int(initial_register.id),0,game.interaction._staff_positions()),"manual register geometry does not inherit automatic work-side selection")
  check(game.model.place("stove",5,1),"second accessible stove places")
  game.model.cooks=2;game.model.duty_targets.chef=2;game.model.duty_counts.chef=2;game._update_people();game._sync_staff_duty()
  # Request exactly four dining visits in the original two street-approach
