@@ -202,6 +202,26 @@ Preview deployment requires explicit approval. The narrow REST route never invok
 
 Targeted verification: `python -m unittest tests.tooling.test_firebase_boot_presentation` and `python -m unittest tests.tooling.test_itch_trusted_preview`. These use synthetic users/SDK/DOM and package fixtures. Hosted popup delivery, browser storage partitions and cloud continuation remain unverified.
 
+## Compiled route teardown correction - 2026-10-12
+
+Fresh current-source stage `38238105653` on `a9bfc3d0` recorded ten passing
+cache/ownership checks, including the exact final cloud-save ACK, before an
+uncaught route callback `frame.evaluate` failed as its context closed. Its
+checkpoint contains no earlier failed assertion; the remaining cases and final
+qualification did not complete. The old retained Linux ownership timeout is
+separate evidence.
+
+The fixture now owns and drains intercepted callbacks during explicit context
+closure. Only a target-closed error from requested, confirmed teardown is
+expected; live or unrelated errors remain fatal with their original cause.
+The held update RPC releases on close even when its case fails. Cleanup and final
+report writing preserve an earlier case failure, and late errors cannot mark a
+report passed. Focused pure Node regressions reproduce the old callback rejection
+and cover these lifecycle boundaries. No product, rule, allowlist, deadline or
+save/ownership assertion changes. Fresh complete CI/compiled qualification and
+hosted Google-to-game acceptance remain required; no deployment follows from
+source or unit-test success.
+
 ## Packaged worklet fixture transport
 
 The retained Windows Chrome-for-Testing153 diagnostic on `69f33801` with the
