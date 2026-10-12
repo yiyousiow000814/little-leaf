@@ -1,5 +1,8 @@
 name: Deploy reviewed Firebase test build
 on:
+  workflow_run:
+    workflows: [Qualify Firebase release]
+    types: [completed]
   workflow_dispatch:
     inputs:
       deployment_mode:
@@ -30,6 +33,62 @@ concurrency:
   group: firebase-static-little-leaf-41e5d
   cancel-in-progress: false
 jobs:
+  common-tag:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate exact common and distinct Firebase gates before any Google token
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FIREBASE_RUN: ${{ github.event.workflow_run.id }}
+        run: |
+          git fetch --no-tags origin main
+          python3 tools/release/common_firebase.py --run "$FIREBASE_RUN" --output "$RUNNER_TEMP/common-firebase"
+      - name: Recheck full package independently before credentials
+        env:
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+          MANIFEST_SHA: ${{ steps.select.outputs.manifest_sha256 }}
+        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json" --verify-only
+      - name: Obtain only the existing Hosting workflow identity and scope
+        if: steps.select.outputs.already_current != 'true'
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: little-leaf-41e5d
+          workload_identity_provider: projects/865267465971/locations/global/workloadIdentityPools/github-little-leaf/providers/github
+          service_account: little-leaf-hosting-deployer@little-leaf-41e5d.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: https://www.googleapis.com/auth/firebase.hosting
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Publish only Firebase with current-live drift and rollback fences
+        if: steps.select.outputs.already_current != 'true'
+        env:
+          FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+          MANIFEST_SHA: ${{ steps.select.outputs.manifest_sha256 }}
+        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json"
+      - name: Preserve this platform's partial, failed or completed outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-firebase-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/firebase-receipt/deployment.json
+            ${{ runner.temp }}/common-firebase/status.json
+          if-no-files-found: warn
+          retention-days: 30
   deploy:
     if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && (inputs.deployment_mode == 'live' || inputs.deployment_mode == 'itch-preview')
     runs-on: ubuntu-24.04

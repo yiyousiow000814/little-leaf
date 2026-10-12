@@ -12,6 +12,16 @@
 
 ### Current state and ownership
 
+Independent platform tag delivery candidate on2026-10-12: the user requires one
+common exact-source build/ordinary qualification with separate itch and Firebase
+CI/publication, without either waiting for the other's upload. The
+[shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
+preserves immutable origins, complete ordinary gates, distinct Firebase gates,
+current-live ancestry/config/rollback and legacy manual/test refusals. Source
+implementation and finite synthetic checks are in progress; independent final
+review, coherent current-source CI and actual approved delivery remain open.
+No new tag, Hosting mutation, account action or release is established.
+
 Bounded same-itch qualification repair on 2026-10-11: [PR233](https://github.com/yiyousiow000814/little-leaf/pull/233) merged as `a897a31f20ad4b95a6f350b219cc12f56a17f3b6` after all13 exact checks in run38170059576 passed. It follows official test stage38165586296 on `06bc3ca7`, which failed compiled iframe startup; no deployable Firebase test artifact or activation resulted. The [compiled fixture transport correction](release/itch-trusted-preview-candidate.md#compiled-iframe-fixture-transport-correction) retains the original assertions/timeouts, serves pinned SDK bytes over HTTPS, uses a finite demo-only emulator proxy and seeds the actual nested frame. A no-game probe confirmed public-frame loopback module rejection; storage partition failure did not reproduce and actual SDK/game cause remains unqualified. Bounded source review and finite fixture checks passed; fresh compiled full-flow timing and immutable eligible-artifact review remain required. The existing homepage, current itch publication, original profiles, Auth/IAM/rules and earlier failed/frozen evidence are preserved; no hosted or real-Google acceptance is claimed.
 
 Bounded same-itch account test source on 2026-10-11: [PR230](https://github.com/yiyousiow000814/little-leaf/pull/230) merged as `06bc3ca7722f439da1725542e0c7ba9fc2d04120` after all13 exact-head checks in run38164495239 passed. The merged source composes the frozen centered short-label chooser and fenced refresh dependency once with current main, plus the separate `itch_test_entry` staging and Hosting mode. The user approved one `/itch/` test update after independent review and final CI, preserving the exact existing homepage, current itch publication, Auth/IAM/rules and original saves. Complete fresh official native/export/browser/Firebase evidence is required; the earlier a95 local package stays NONDEPLOYABLE. Source and mocked protocol checks do not establish real Google, hosted full flow or mobile acceptance. See the [bounded test contract](release/itch-trusted-preview-candidate.md#bounded-test-qualification-and-activation); source merge does not complete official staging, final platform qualification or the single authorized update.

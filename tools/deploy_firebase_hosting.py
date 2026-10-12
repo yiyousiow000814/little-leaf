@@ -21,6 +21,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
 from release.released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
+from release.common_firebase import STATUS as COMMON_LIVE_STATUS, validate_packet as validate_common_packet, require_origin as require_common_origin
 
 SITE = 'little-leaf-41e5d'
 ORIGIN = 'https://' + SITE + '.firebaseapp.com/'
@@ -56,7 +57,9 @@ def verify_engine_provenance(folder, manifest):
                 or digest(file) != expected.get('sha256')):
             raise ValueError('Reviewed engine binary changed: ' + name)
     reuse = manifest.get('engine_reuse', {})
-    if manifest.get('status') == RELEASED_LIVE_STATUS:
+    if manifest.get('status') == COMMON_LIVE_STATUS:
+        validate_common_packet(folder,manifest,json.loads((folder/'public/hosting-release.json').read_text()))
+    elif manifest.get('status') == RELEASED_LIVE_STATUS:
         validate_released_live(folder, manifest, json.loads((folder/'public/hosting-release.json').read_text()))
     elif manifest.get('status') == 'prepared-local-test-artifact-not-deployed':
         if (reuse.get('source_commit') != base['source_commit']
@@ -118,9 +121,9 @@ def verify_package(folder, expected_sha, expected_manifest):
     tree = manifest.get('source_tree', base.get('source_tree', ''))
     if sha != expected_sha or not re.fullmatch(r'[0-9a-f]{40}', tree):
         raise ValueError('Firebase package source identity differs')
-    if manifest.get('status') not in {'prepared-local-test-artifact-not-deployed', 'staged-not-published', RELEASED_LIVE_STATUS}:
+    if manifest.get('status') not in {'prepared-local-test-artifact-not-deployed', 'staged-not-published', RELEASED_LIVE_STATUS, COMMON_LIVE_STATUS}:
         raise ValueError('Unexpected Firebase package stage')
-    if ('qualified_release_reuse' in manifest or 'manual_live_reuse' in manifest) and manifest.get('status') != RELEASED_LIVE_STATUS:
+    if ('qualified_release_reuse' in manifest or 'manual_live_reuse' in manifest) and manifest.get('status') not in {RELEASED_LIVE_STATUS, COMMON_LIVE_STATUS}:
         raise ValueError('Released reuse cannot be relabelled as a legacy fresh/preview package')
     if manifest.get('canonical_game_url', ORIGIN) != ORIGIN:
         raise ValueError('Package was staged for another game origin')
@@ -178,11 +181,13 @@ class _EntryScripts(HTMLParser):
 def verify_live_package(folder, expected_sha, expected_manifest, *, staging_origin=None):
     """Keep reviewed previews/diagnostics out of the top-level live game route."""
     manifest, marker = verify_package(folder, expected_sha, expected_manifest)
-    if manifest.get('status') == RELEASED_LIVE_STATUS:
+    if manifest.get('status') == COMMON_LIVE_STATUS:
+        require_common_origin(folder,manifest,staging_origin)
+    elif manifest.get('status') == RELEASED_LIVE_STATUS:
         validate_origin(manifest, staging_origin)
     elif staging_origin is not None and staging_origin['run'].get('head_sha') != expected_sha:
         raise ValueError('Fresh package must match its exact staging source')
-    if '-pre.' in marker.get('version','') or '-pre.' in manifest.get('base_web_manifest',{}).get('version',''):
+    if manifest.get('status') != COMMON_LIVE_STATUS and ('-pre.' in marker.get('version','') or '-pre.' in manifest.get('base_web_manifest',{}).get('version','')):
         publication=manifest.get('publication',{})
         order=publication.get('itch_channel_version')
         expected={'source_commit':expected_sha,'version':marker['version'],'tag':'v'+marker['version'],
@@ -265,13 +270,19 @@ def release_head(api):
 
 def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None):
     manifest, marker = verify_live_package(folder, source_sha, manifest_sha, staging_origin=staging_origin)
+    common=manifest.get('status') == COMMON_LIVE_STATUS
+    if common:
+        from release.common_firebase import current_marker
+        if output.exists() or current_marker()!=staging_origin.get('live_baseline'):
+            raise ValueError('Existing or changed live baseline requires inspection; no retry')
     receipt = {'schema_version': 1, 'status': 'validated', 'source_commit': source_sha,
                'source_tree': marker['source_tree'], 'variant_manifest_sha256': manifest_sha,
                'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested',
                'automatic_rollback_allowed': False}
     def save():
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(receipt, indent=2) + '\n')
+        recorded={k:v for k,v in receipt.items() if not (common and k=='preserved_hosting_config')}
+        output.write_text(json.dumps(recorded, indent=2) + '\n')
     save()
     previous = release_head(api)
     if not previous:
@@ -325,6 +336,8 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
             or config_digest(current.get('config')) != config_hash):
         raise RuntimeError('Another release changed during staging; live release untouched')
     receipt['status'] = 'release-outcome-pending';save()
+    if common and current_marker()!=staging_origin['live_baseline']:
+        raise RuntimeError('Live marker changed during staging; release refused')
     release = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': version}), {})
     if (not RELEASE_RE.fullmatch(release.get('name', ''))
             or release.get('version', {}).get('name') != version or release.get('type') != 'DEPLOY'):
