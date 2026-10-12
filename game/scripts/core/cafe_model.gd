@@ -1740,11 +1740,15 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if not floors_check.ok:return _fail("Could not save flooring: "+str(floors_check.error))
 	var openings_check=_validate_saved_attachments(data,built_walls)
 	if not openings_check.ok:return _fail("Could not save wall attachments: "+str(openings_check.error))
-	# Match load's structural safety gates before touching either destination.
-	# In particular an explicitly imported v13 enclosure must be repaired first.
+	# Match load's physical safety gates before touching either destination.
+	# Active diner intent also keeps the existing structural gates.
 	var saved_actors:Array=[]
 	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=_wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
+	# With no diner intent to relocate, save physical bodies without making
+	# walking access a placement rule. Active service keeps its existing gates.
+	var physical_error=_furniture_body_error(items,saved_actors) if checked.state.customers.is_empty() else ""
+	if physical_error!="":return _fail("Could not save physical layout: "+physical_error)
+	var egress_error="" if checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
 	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in checked.state.customers:
@@ -1848,7 +1852,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var point := Vector2i(int(raw.x), int(raw.z))
 		if not _floor_owned_in(point, saved_parcels) or (int(data.version)<12 and not _legacy_floor_owned(point,saved_parcels,int(data.version))):
 			return _fail("Saved furniture is on an unowned plot")
-		if point == ENTRANCE or point == ENTRY_LANDING or occupied.has(point) or ids.has(int(raw.id)):
+		if (int(data.version)<SAVE_VERSION and point in [ENTRANCE,ENTRY_LANDING]) or occupied.has(point) or ids.has(int(raw.id)):
 			return _fail("Overlapping furniture or blocked entrance in save")
 		var item: Dictionary = {"id": int(raw.id), "kind": str(raw.kind), "x": int(raw.x), "z": int(raw.z), "rot": int(raw.rot)}
 		if item.kind == "stove":
@@ -1863,8 +1867,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=saved_cashiers):return _fail("Register count disagrees with deployment")
 	if not _valid_int(data.get("next_item_id"), highest_id + 1, 1000000001):
 		return _fail("Invalid saved furniture sequence")
-	if not _layout_has_access(validated, saved_depth, saved_parcels):
-		return _fail("Saved layout blocks access to service stations")
 	var checked_walls=_validate_saved_walls(data,saved_parcels)
 	if not checked_walls.ok:return _fail(str(checked_walls.error))
 	var checked_floors=_validate_saved_floors(data,saved_parcels,str(checked_walls.floor_style))
@@ -1881,6 +1883,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
+	if (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
+		return _fail("Saved layout blocks access to service stations")
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
 	var saved_first_guest=data.get("first_guest_pending",false)
@@ -1906,7 +1910,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
 	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var idle_physical=int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty()
+	var physical_error=_furniture_body_error(validated,saved_actors) if idle_physical else ""
+	if physical_error!="":return _fail("Invalid saved physical layout: "+physical_error)
+	var egress_error="" if idle_physical else geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
@@ -2062,6 +2069,16 @@ func _furniture_actor_positions(extra:Array) -> Array[Vector2]:
 	for point in extra:
 		if point is Vector2 and point.is_finite():result.append(point)
 	return result
+
+func _furniture_body_error(layout:Array,actors:Array) -> String:
+	# Physical clearance only. Reachability never enlarges occupied space.
+	for item in layout:
+		if str(item.kind)=="rug":continue
+		var minimum=Vector2(int(item.x),int(item.z));var maximum=minimum+Vector2.ONE
+		for position in actors:
+			if position.distance_squared_to(position.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
+				return "A staff member is using part of this space"
+	return ""
 
 func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> String:
 	var actors:=_furniture_actor_positions(actor_positions)
