@@ -11,7 +11,7 @@ are distinguished in the [source manifest](../../scores/corner-cafe-loops/SOURCE
 The [historical register](music-reference-register.original-redacted.json)
 retains the creation-time decisions. The [canonical working register](../music-reference-register.json)
 preserves the later explicit fourth-track and Street/Shop decisions and records
-the frozen local native outcome separately from source-only publication.
+the frozen local native outcome separately from exact audio/source preservation.
 Exact originals remain local. The RC MP3, samples, stems and account-specific
 private links are excluded. Original creation-time status is historical; later
 explicit user decisions take precedence.

@@ -2,7 +2,7 @@
   "schema": "little-leaf.music-source-preservation.v1",
   "user_authority": "Sentinel_4819f712409c819180da6b347208ef8f; preserve the supplied music materials on GitHub",
   "scope": "Only the five supplied packages in this main conversation and existing A/B technical derivatives; no other conversation music accepted",
-  "publication_status": "Prepared permitted source subset; actual remote verification is recorded separately",
+  "publication_status": "User-authorized exact source/audio preservation; actual remote identities recorded in the matching PR and verification receipt",
   "original_package_sources": [
     {
       "name": "01_LittleLeaf_Music_Skills_v2_Corrected.zip",
@@ -1151,8 +1151,8 @@
     },
     {
       "path": "docs/art-audio/reference-studies/music-reference-register.json",
-      "bytes": 12335,
-      "sha256": "ee575dbcfe56fe2db12e692d65124d3224498cdb2865a83681fa754f34b79ee2",
+      "bytes": 12455,
+      "sha256": "082b010e5947dd0a9afc513567386ed039525a89c7981dd69aaeedc4cb6b98d3",
       "source": {
         "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
         "member": "docs/art-audio/reference-studies/music-reference-register.json"
@@ -1162,291 +1162,1321 @@
       "redactions": [
         "Private RC checksum omitted; working status updated to preserved actual native outcome and source-only publication boundaries"
       ]
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/A_V2_control.mp3",
+      "bytes": 803569,
+      "sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
+      "original_sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Harmony_Study.zip",
+        "member": "A_V2_control.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/B_reduced_harmony.mp3",
+      "bytes": 803569,
+      "sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
+      "original_sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Harmony_Study.zip",
+        "member": "B_reduced_harmony.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/AB_comparison.mp3",
+      "bytes": 1643667,
+      "sha256": "589cd42781cdaa5a5bfae8d2f3a6bb7564cd70dbd445eb9a6d0839600165ae20",
+      "original_sha256": "589cd42781cdaa5a5bfae8d2f3a6bb7564cd70dbd445eb9a6d0839600165ae20",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Harmony_Study.zip",
+        "member": "AB_comparison.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/Corner_Cafe_Reference_Rearrangement_112bpm.flac",
+      "bytes": 5437038,
+      "sha256": "79c2cbaccc85bc4095f5952bc5a4c3e5b86322f0a27daff07570c6f864c1f630",
+      "original_sha256": "79c2cbaccc85bc4095f5952bc5a4c3e5b86322f0a27daff07570c6f864c1f630",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/Corner_Cafe_Reference_Rearrangement_112bpm.mp3",
+      "bytes": 2123413,
+      "sha256": "403800e963e883e0130343608c39360fe952fe40f94b44bc9c59af58217556fa",
+      "original_sha256": "403800e963e883e0130343608c39360fe952fe40f94b44bc9c59af58217556fa",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/bass.flac",
+      "bytes": 2397818,
+      "sha256": "67db53ffedef58edf0ebed8d969414b13888bcfc09300b90e7899f657a53baff",
+      "original_sha256": "67db53ffedef58edf0ebed8d969414b13888bcfc09300b90e7899f657a53baff",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "stems/bass.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/drums.flac",
+      "bytes": 3609582,
+      "sha256": "c87791e41c73ba819d8013630c958c2c4c607718a71e54687e864b6a6213b7fa",
+      "original_sha256": "c87791e41c73ba819d8013630c958c2c4c607718a71e54687e864b6a6213b7fa",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "stems/drums.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/guitar.flac",
+      "bytes": 3577290,
+      "sha256": "9a0a2df33bbca2399f3dfed8aff539b66017394370ec73a0ff22f8f6bb9b03b2",
+      "original_sha256": "9a0a2df33bbca2399f3dfed8aff539b66017394370ec73a0ff22f8f6bb9b03b2",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "stems/guitar.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/rhodes.flac",
+      "bytes": 4802273,
+      "sha256": "a14faeacbc539fb346e8cd1f17565b6193b2b58312af3a3e641ae212dd320a10",
+      "original_sha256": "a14faeacbc539fb346e8cd1f17565b6193b2b58312af3a3e641ae212dd320a10",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
+        "member": "stems/rhodes.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Loop_Seam_Check.mp3",
+      "bytes": 345991,
+      "sha256": "41eea99a039460e49bf7210a56952e26f9ebc45593db25ea3b76736020e96450",
+      "original_sha256": "41eea99a039460e49bf7210a56952e26f9ebc45593db25ea3b76736020e96450",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Loop_Seam_Check.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Loop_Two_Cycles_Preview.mp3",
+      "bytes": 4117028,
+      "sha256": "99432cc611842370206fd18bb0ee6c38189a59474554abd54d8a04b57ee3b10b",
+      "original_sha256": "99432cc611842370206fd18bb0ee6c38189a59474554abd54d8a04b57ee3b10b",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Loop_Two_Cycles_Preview.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.flac",
+      "bytes": 5431363,
+      "sha256": "af43eb90e050f924affe66d0cdda17ab7177fe523a0d78363daf26ccfe70e4d6",
+      "original_sha256": "af43eb90e050f924affe66d0cdda17ab7177fe523a0d78363daf26ccfe70e4d6",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.mp3",
+      "bytes": 2059624,
+      "sha256": "6dfc56d4a8da63bb2da1408dd5ccbc38a8f3ef38a923204d7340cebe4aa9c2b5",
+      "original_sha256": "6dfc56d4a8da63bb2da1408dd5ccbc38a8f3ef38a923204d7340cebe4aa9c2b5",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.ogg",
+      "bytes": 827145,
+      "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "original_sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.ogg"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.wav",
+      "bytes": 13608044,
+      "sha256": "9c5a876e42edd8d4c75bfabc6c830050318139235572bf93e759b6c2793b229d",
+      "original_sha256": "9c5a876e42edd8d4c75bfabc6c830050318139235572bf93e759b6c2793b229d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.wav"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/bass_loop.flac",
+      "bytes": 2380339,
+      "sha256": "26d37753f26b21804bfd1d67be655f481db5c3245d990a9959c905546238a65d",
+      "original_sha256": "26d37753f26b21804bfd1d67be655f481db5c3245d990a9959c905546238a65d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "stems/bass_loop.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/drums_loop.flac",
+      "bytes": 3637767,
+      "sha256": "ee9b761422b066b809c91d61ff6c6f352c941a81d14fd472471fe14c99c26e4a",
+      "original_sha256": "ee9b761422b066b809c91d61ff6c6f352c941a81d14fd472471fe14c99c26e4a",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "stems/drums_loop.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/guitar_loop.flac",
+      "bytes": 3528674,
+      "sha256": "41c5987c9b8e8330082e9f721c4a22cc78d9e36c2f130b4037915de8fb6689a6",
+      "original_sha256": "41c5987c9b8e8330082e9f721c4a22cc78d9e36c2f130b4037915de8fb6689a6",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "stems/guitar_loop.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/rhodes_loop.flac",
+      "bytes": 4801736,
+      "sha256": "49fb75e01df394e8edaf68101ad942426ed4bcd759ce9cff77bc448ac61a3f0e",
+      "original_sha256": "49fb75e01df394e8edaf68101ad942426ed4bcd759ce9cff77bc448ac61a3f0e",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+        "member": "stems/rhodes_loop.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3",
+      "bytes": 2059626,
+      "sha256": "d96ad1e65a8fd11796c8d6295e37498b92ace18270032b938662e0e18d969b8f",
+      "original_sha256": "d96ad1e65a8fd11796c8d6295e37498b92ace18270032b938662e0e18d969b8f",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg",
+      "bytes": 980781,
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "original_sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac",
+      "bytes": 6575059,
+      "sha256": "076d477f2a170e3530dff8c5c9b684d8f8a09833ddb7cec103da048da111352d",
+      "original_sha256": "076d477f2a170e3530dff8c5c9b684d8f8a09833ddb7cec103da048da111352d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3",
+      "bytes": 345993,
+      "sha256": "8c3c92a0f9632f62f2b335a10376ffe7d1de863a0496e5c0b32cd328c620d8bd",
+      "original_sha256": "8c3c92a0f9632f62f2b335a10376ffe7d1de863a0496e5c0b32cd328c620d8bd",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3",
+      "bytes": 4117030,
+      "sha256": "0f1aabc0b58d1d84c3ca5710337041faa025b9d7e1103271668928ad0a444185",
+      "original_sha256": "0f1aabc0b58d1d84c3ca5710337041faa025b9d7e1103271668928ad0a444185",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/bass.flac",
+      "bytes": 2901063,
+      "sha256": "4dfdece14b68181ea3f3b4e3e08a91c820b44872083823397a53828de4b5e45d",
+      "original_sha256": "4dfdece14b68181ea3f3b4e3e08a91c820b44872083823397a53828de4b5e45d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/stems/bass.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/drums.flac",
+      "bytes": 3474877,
+      "sha256": "862a9641232f29076ae20342908732dc9b8186d0d9546a8d9c9d261261f7fd0a",
+      "original_sha256": "862a9641232f29076ae20342908732dc9b8186d0d9546a8d9c9d261261f7fd0a",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/stems/drums.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/guitar.flac",
+      "bytes": 3414771,
+      "sha256": "89c5818d42de603169e2c787f466963837ad19d78b69e15afc000d4649ca55ea",
+      "original_sha256": "89c5818d42de603169e2c787f466963837ad19d78b69e15afc000d4649ca55ea",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/stems/guitar.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/rhodes.flac",
+      "bytes": 4654399,
+      "sha256": "71180ed335975e06f261377368d396e23cf0d159d7df41267c9ec57c82b435f5",
+      "original_sha256": "71180ed335975e06f261377368d396e23cf0d159d7df41267c9ec57c82b435f5",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/stems/rhodes.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/shaker.flac",
+      "bytes": 4779859,
+      "sha256": "302894a1659c06e04016d469db8ac7650f435b59668fb4386d57d103329b095d",
+      "original_sha256": "302894a1659c06e04016d469db8ac7650f435b59668fb4386d57d103329b095d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "01_Main_Street/stems/shaker.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3",
+      "bytes": 2059628,
+      "sha256": "bd3125c1af6573d5f286bee27a4e4f79b1407351156031fedda641f27970b4b3",
+      "original_sha256": "bd3125c1af6573d5f286bee27a4e4f79b1407351156031fedda641f27970b4b3",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg",
+      "bytes": 899254,
+      "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "original_sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Master.flac",
+      "bytes": 5854649,
+      "sha256": "7d86e15f22288fe8cf380cd7877d3794cd542b1f872c321a5c1d9578ba80bd5d",
+      "original_sha256": "7d86e15f22288fe8cf380cd7877d3794cd542b1f872c321a5c1d9578ba80bd5d",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Master.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Seam_Check.mp3",
+      "bytes": 345995,
+      "sha256": "3a3e5a790afe212e7afc0390bd43b65469ea3070b7d7b5bfca87667dc82c0302",
+      "original_sha256": "3a3e5a790afe212e7afc0390bd43b65469ea3070b7d7b5bfca87667dc82c0302",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Seam_Check.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Two_Cycles.mp3",
+      "bytes": 4117032,
+      "sha256": "7d668e6edf737689c9dae6d91133356182a60d3fd87dc68c96afc6a228d23bcd",
+      "original_sha256": "7d668e6edf737689c9dae6d91133356182a60d3fd87dc68c96afc6a228d23bcd",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Two_Cycles.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/bass.flac",
+      "bytes": 1702287,
+      "sha256": "65d2af3096870323446a4bf7db5b69f91b67d15ee8110ac95f90a990bc49b06e",
+      "original_sha256": "65d2af3096870323446a4bf7db5b69f91b67d15ee8110ac95f90a990bc49b06e",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/stems/bass.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/bell_theme.flac",
+      "bytes": 1631858,
+      "sha256": "4e29da3761118880c4729b584e7cd9661a51ef8e0f67342c62dca42d2098cc79",
+      "original_sha256": "4e29da3761118880c4729b584e7cd9661a51ef8e0f67342c62dca42d2098cc79",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/stems/bell_theme.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/kalimba.flac",
+      "bytes": 2821287,
+      "sha256": "18f329dc9ab9dc728ca91906153fc0aa77491ee7e05d9e6a82cfaf052171b792",
+      "original_sha256": "18f329dc9ab9dc728ca91906153fc0aa77491ee7e05d9e6a82cfaf052171b792",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/stems/kalimba.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/percussion.flac",
+      "bytes": 2053010,
+      "sha256": "2a8d263b746ced918be97468e50dce7dcb68312412f6dfa05c6e65770b2c2c17",
+      "original_sha256": "2a8d263b746ced918be97468e50dce7dcb68312412f6dfa05c6e65770b2c2c17",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/stems/percussion.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/wood_theme.flac",
+      "bytes": 5063370,
+      "sha256": "3fc1865d53f7474fc7c9cb5392fd90f5d67afa55c156ed3718c28cf99517b2f6",
+      "original_sha256": "3fc1865d53f7474fc7c9cb5392fd90f5d67afa55c156ed3718c28cf99517b2f6",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "02_Shop_Rhythm_Fix/stems/wood_theme.flac"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/previews/Shop_Rhythm_Before_After_8bars.mp3",
+      "bytes": 1413849,
+      "sha256": "a25ccff0d29ae5fee1b086b2a8aab3cf8aa6932daca5dc393ec46ecd84f09b7c",
+      "original_sha256": "a25ccff0d29ae5fee1b086b2a8aab3cf8aa6932daca5dc393ec46ecd84f09b7c",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+        "member": "previews/Shop_Rhythm_Before_After_8bars.mp3"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.flac",
+      "bytes": 2287075,
+      "sha256": "f43d033e7b1b87a2e9eca49e1a49537e549b651ade3a90f592a3200484702d75",
+      "original_sha256": "f43d033e7b1b87a2e9eca49e1a49537e549b651ade3a90f592a3200484702d75",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_harmony_loop.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.ogg",
+      "bytes": 208268,
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "original_sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_harmony_loop.ogg",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.wav",
+      "bytes": 4536044,
+      "sha256": "efd7ffdf216f5281c3c2547a0d65fe360c07785123a392cb5906177428d889dd",
+      "original_sha256": "efd7ffdf216f5281c3c2547a0d65fe360c07785123a392cb5906177428d889dd",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_harmony_loop.wav",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "bytes": 1373805,
+      "sha256": "783f0ed2732267ddbc72fdb7944b74fa9c059c3c4ac7a95a3f6b424db9def841",
+      "original_sha256": "783f0ed2732267ddbc72fdb7944b74fa9c059c3c4ac7a95a3f6b424db9def841",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/bass.flac",
+      "bytes": 826633,
+      "sha256": "5f7b5f8a4ce825d2eb760b71312272ee69b9ef881a65d0e5d4fe8059c8a843b3",
+      "original_sha256": "5f7b5f8a4ce825d2eb760b71312272ee69b9ef881a65d0e5d4fe8059c8a843b3",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/bass.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/drums.flac",
+      "bytes": 1738033,
+      "sha256": "cd53f439a6eb2e8711bb667dcd2026d47732b629574288aed7d81efc8b952651",
+      "original_sha256": "cd53f439a6eb2e8711bb667dcd2026d47732b629574288aed7d81efc8b952651",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/drums.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/flute.flac",
+      "bytes": 121077,
+      "sha256": "c8bdc69d8b68d7b8cd6310735a2c4b9c78d95fe64d3c5af1521e009c11ea9576",
+      "original_sha256": "c8bdc69d8b68d7b8cd6310735a2c4b9c78d95fe64d3c5af1521e009c11ea9576",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/flute.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/guitar.flac",
+      "bytes": 1294112,
+      "sha256": "716c1a764f6eff74e0d3c0e4afc0533a03e360f09faf8091f8cd4ca78faebe04",
+      "original_sha256": "716c1a764f6eff74e0d3c0e4afc0533a03e360f09faf8091f8cd4ca78faebe04",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/guitar.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/rhodes.flac",
+      "bytes": 1591773,
+      "sha256": "0ca054cbb74cc9ec9542a7678dff9279be74abe8ae1052acbe2d6ceecc50db72",
+      "original_sha256": "0ca054cbb74cc9ec9542a7678dff9279be74abe8ae1052acbe2d6ceecc50db72",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/rhodes.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/shaker.flac",
+      "bytes": 761305,
+      "sha256": "eb78ff27baab26b67ce0876fe965f79efa104e3ec71c6b2404939e7a02a3d6b7",
+      "original_sha256": "eb78ff27baab26b67ce0876fe965f79efa104e3ec71c6b2404939e7a02a3d6b7",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/shaker.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/vibes.flac",
+      "bytes": 581193,
+      "sha256": "32f05e00212fd3a958ebbe907ee92b502b93bb98082f19901f775aa878fe8994",
+      "original_sha256": "32f05e00212fd3a958ebbe907ee92b502b93bb98082f19901f775aa878fe8994",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "A technical loop v3",
+        "member": "A_stems/vibes.flac",
+        "receipt": "A_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.flac",
+      "bytes": 1805955,
+      "sha256": "6ae3d739a20e4518e725ae4565be37dad5d3f951d61746ef2126f04b2f087d64",
+      "original_sha256": "6ae3d739a20e4518e725ae4565be37dad5d3f951d61746ef2126f04b2f087d64",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_harmony_loop.flac",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.ogg",
+      "bytes": 174876,
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "original_sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_harmony_loop.ogg",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.wav",
+      "bytes": 4536044,
+      "sha256": "5e2bb79be93d06187d82fdd25651f45b894f9302528e44850b1f6295394fffcd",
+      "original_sha256": "5e2bb79be93d06187d82fdd25651f45b894f9302528e44850b1f6295394fffcd",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_harmony_loop.wav",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "bytes": 1373805,
+      "sha256": "f0a58f9e4fc79db31ab7479fab2d496550bb7824378d3c5d1d8791a55daf3b92",
+      "original_sha256": "f0a58f9e4fc79db31ab7479fab2d496550bb7824378d3c5d1d8791a55daf3b92",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/bass.flac",
+      "bytes": 797961,
+      "sha256": "47d611d69e8151212dbd1b44eb806d87ac3711ca3226bf4979d26fe92df7f61b",
+      "original_sha256": "47d611d69e8151212dbd1b44eb806d87ac3711ca3226bf4979d26fe92df7f61b",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_stems/bass.flac",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/drums.flac",
+      "bytes": 1163694,
+      "sha256": "972c07480c9044cb709e24cb29d21c4b7f2a562ecc5cce4d8e2c3c68d903b95c",
+      "original_sha256": "972c07480c9044cb709e24cb29d21c4b7f2a562ecc5cce4d8e2c3c68d903b95c",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_stems/drums.flac",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/guitar.flac",
+      "bytes": 1087240,
+      "sha256": "c3535200f030671c3d475b3e2ccde17816e9bc7e24a2d32aa5b372195802ea41",
+      "original_sha256": "c3535200f030671c3d475b3e2ccde17816e9bc7e24a2d32aa5b372195802ea41",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_stems/guitar.flac",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/rhodes.flac",
+      "bytes": 1604618,
+      "sha256": "ebf711c266d8fea86ebb8ea9742a6f3347073314b1a78e0ecf2e77924457f04b",
+      "original_sha256": "ebf711c266d8fea86ebb8ea9742a6f3347073314b1a78e0ecf2e77924457f04b",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "derivative": "B technical loop v3",
+        "member": "B_stems/rhodes.flac",
+        "receipt": "B_DERIVATION_RECEIPT.json",
+        "existing_source_head": "7c3de91"
+      }
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+      "bytes": 208268,
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "original_sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+        "scope": "Exact runtime asset alias; playback code not activated"
+      }
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+      "bytes": 174876,
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "original_sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+        "scope": "Exact runtime asset alias; playback code not activated"
+      }
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+      "bytes": 980781,
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "original_sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+        "scope": "Exact runtime asset alias; playback code not activated"
+      }
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+      "bytes": 827145,
+      "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "original_sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+        "scope": "Exact runtime asset alias; playback code not activated"
+      }
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+      "bytes": 899254,
+      "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "original_sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+        "scope": "Exact runtime asset alias; playback code not activated"
+      }
+    },
+    {
+      "path": "game/assets/audio/TIMGM6MB_PACKAGE_NOTICE.txt",
+      "bytes": 2307,
+      "sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
+      "original_sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "source": "Exact supplied Debian bank notice",
+        "scope": "Bank licence, not a recording licence election"
+      }
+    },
+    {
+      "path": "game/assets/audio/SUPPLIED_MUSIC_PRESERVATION.json",
+      "bytes": 2566,
+      "sha256": "3241b22bb57ffdf2eadf8c53d9b2864c85ea6ea9536ea8107171888e2943baa9",
+      "original_sha256": "3241b22bb57ffdf2eadf8c53d9b2864c85ea6ea9536ea8107171888e2943baa9",
+      "exact_original_bytes": true,
+      "redactions": [],
+      "source": {
+        "source": "Preservation provenance authored for exact runtime aliases"
+      }
     }
   ],
-  "rendered_archive_members_not_published": [
+  "private_reference": {
+    "file": "Restaurant_City_Default_original.mp3",
+    "status": "PRIVATE_LOCAL_ONLY; no audio, checksum, samples or account-specific private links published"
+  },
+  "bank_or_font_binaries": "EXCLUDED; no raw third-party bank/font or authoring executable copied",
+  "preserved_audio_versions": "All 40 supplied audio members and existing A/B-v3 audio are copied byte-for-byte. Originals/full ZIPs remain unchanged locally; runtime aliases match their exact frozen versions.",
+  "recording_rights_status": "The previous blanket TimGM publication hold was an owner risk assumption, not an identified prohibition. User-authorized original recordings are preserved with accurate provenance and bank notices; no automatic GPL inheritance, licence election or blanket legal clearance is asserted.",
+  "runtime_changes": "Five exact unused OGG assets and provenance/bank notice added; no playback code, imports, export settings, source guards, deployment or release change",
+  "historical_status": "Supplied creation-time approval/validation records remain historical; latest user directions take precedence. Lead sheets are not full scores.",
+  "checksum_scope": "Original SHA256SUMS may name withheld audio or original private-redacted metadata. Use this member-to-path manifest for the public subset; do not claim a complete archive reconstruction.",
+  "preservation_controls": [
+    {
+      "path": "docs/art-audio/reference-studies/.gitattributes",
+      "bytes": 9,
+      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/.gitattributes",
+      "bytes": 9,
+      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/README.md",
+      "bytes": 4040,
+      "sha256": "6d6af9968383d4943b02670578982921a2eaaaaf469afb26f04adf1bf67dafe8"
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/RECORDING_DISTRIBUTION_STATUS.md",
+      "bytes": 3366,
+      "sha256": "62551c66fbd4915d478e7a3813bae2afd071f8b74dc10904dbaac489122ce545"
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/.gitattributes",
+      "bytes": 9,
+      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
+    },
+    {
+      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/README.md",
+      "bytes": 1402,
+      "sha256": "d0f5f5ebf5a424f5db2d5726fe58a54a4d7944c594f94b43c8a680f230346bf9"
+    },
+    {
+      "path": "docs/art-audio/reference-studies/music-skills-v2/README.md",
+      "bytes": 1405,
+      "sha256": "c5a0e7f230f197004b220fbf1c023c770ffbf717cee38b509a214a41c5ff93ae"
+    },
+    {
+      "path": ".agents/skills/game-music-production/.gitattributes",
+      "bytes": 15,
+      "sha256": "ea4846c1ea1cb85f5484d69f616d7fe94683c02ce4e0a97c31e098db985b1c3f"
+    },
+    {
+      "path": ".agents/skills/game-music-review/.gitattributes",
+      "bytes": 15,
+      "sha256": "ea4846c1ea1cb85f5484d69f616d7fe94683c02ce4e0a97c31e098db985b1c3f"
+    }
+  ],
+  "reused_street_member_inventory_sha256": "4f04baa31cb372542d8923a7c7e2b5e2c5fc3aa4d40e88dbced4e325345d0621",
+  "current_reference_register": "Canonical register follows later explicit user decisions; supplied creation-time register separately preserved as historical source.",
+  "rendered_archive_members_preserved": [
     {
       "package": "Corner_Cafe_Harmony_Study.zip",
       "member": "A_V2_control.mp3",
       "bytes": 803569,
       "sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/A_V2_control.mp3"
     },
     {
       "package": "Corner_Cafe_Harmony_Study.zip",
       "member": "B_reduced_harmony.mp3",
       "bytes": 803569,
       "sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/B_reduced_harmony.mp3"
     },
     {
       "package": "Corner_Cafe_Harmony_Study.zip",
       "member": "AB_comparison.mp3",
       "bytes": 1643667,
       "sha256": "589cd42781cdaa5a5bfae8d2f3a6bb7564cd70dbd445eb9a6d0839600165ae20",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-harmony-study/AB_comparison.mp3"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm.flac",
       "bytes": 5437038,
       "sha256": "79c2cbaccc85bc4095f5952bc5a4c3e5b86322f0a27daff07570c6f864c1f630",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/Corner_Cafe_Reference_Rearrangement_112bpm.flac"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm.mp3",
       "bytes": 2123413,
       "sha256": "403800e963e883e0130343608c39360fe952fe40f94b44bc9c59af58217556fa",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/Corner_Cafe_Reference_Rearrangement_112bpm.mp3"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "stems/bass.flac",
       "bytes": 2397818,
       "sha256": "67db53ffedef58edf0ebed8d969414b13888bcfc09300b90e7899f657a53baff",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/bass.flac"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "stems/drums.flac",
       "bytes": 3609582,
       "sha256": "c87791e41c73ba819d8013630c958c2c4c607718a71e54687e864b6a6213b7fa",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/drums.flac"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "stems/guitar.flac",
       "bytes": 3577290,
       "sha256": "9a0a2df33bbca2399f3dfed8aff539b66017394370ec73a0ff22f8f6bb9b03b2",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/guitar.flac"
     },
     {
       "package": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "stems/rhodes.flac",
       "bytes": 4802273,
       "sha256": "a14faeacbc539fb346e8cd1f17565b6193b2b58312af3a3e641ae212dd320a10",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/original-reference-rearrangement/stems/rhodes.flac"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Loop_Seam_Check.mp3",
       "bytes": 345991,
       "sha256": "41eea99a039460e49bf7210a56952e26f9ebc45593db25ea3b76736020e96450",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Loop_Seam_Check.mp3"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Loop_Two_Cycles_Preview.mp3",
       "bytes": 4117028,
       "sha256": "99432cc611842370206fd18bb0ee6c38189a59474554abd54d8a04b57ee3b10b",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Loop_Two_Cycles_Preview.mp3"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.flac",
       "bytes": 5431363,
       "sha256": "af43eb90e050f924affe66d0cdda17ab7177fe523a0d78363daf26ccfe70e4d6",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.flac"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.mp3",
       "bytes": 2059624,
       "sha256": "6dfc56d4a8da63bb2da1408dd5ccbc38a8f3ef38a923204d7340cebe4aa9c2b5",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.mp3"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.ogg",
       "bytes": 827145,
       "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.ogg"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop.wav",
       "bytes": 13608044,
       "sha256": "9c5a876e42edd8d4c75bfabc6c830050318139235572bf93e759b6c2793b229d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/Corner_Cafe_Reference_Rearrangement_112bpm_Loop.wav"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "stems/bass_loop.flac",
       "bytes": 2380339,
       "sha256": "26d37753f26b21804bfd1d67be655f481db5c3245d990a9959c905546238a65d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/bass_loop.flac"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "stems/drums_loop.flac",
       "bytes": 3637767,
       "sha256": "ee9b761422b066b809c91d61ff6c6f352c941a81d14fd472471fe14c99c26e4a",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/drums_loop.flac"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "stems/guitar_loop.flac",
       "bytes": 3528674,
       "sha256": "41c5987c9b8e8330082e9f721c4a22cc78d9e36c2f130b4037915de8fb6689a6",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/guitar_loop.flac"
     },
     {
       "package": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
       "member": "stems/rhodes_loop.flac",
       "bytes": 4801736,
       "sha256": "49fb75e01df394e8edaf68101ad942426ed4bcd759ce9cff77bc448ac61a3f0e",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/corner-cafe-loops/source/supplied-fourth-loop/stems/rhodes_loop.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3",
       "bytes": 2059626,
       "sha256": "d96ad1e65a8fd11796c8d6295e37498b92ace18270032b938662e0e18d969b8f",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg",
       "bytes": 980781,
       "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac",
       "bytes": 6575059,
       "sha256": "076d477f2a170e3530dff8c5c9b684d8f8a09833ddb7cec103da048da111352d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3",
       "bytes": 345993,
       "sha256": "8c3c92a0f9632f62f2b335a10376ffe7d1de863a0496e5c0b32cd328c620d8bd",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3",
       "bytes": 4117030,
       "sha256": "0f1aabc0b58d1d84c3ca5710337041faa025b9d7e1103271668928ad0a444185",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/stems/bass.flac",
       "bytes": 2901063,
       "sha256": "4dfdece14b68181ea3f3b4e3e08a91c820b44872083823397a53828de4b5e45d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/bass.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/stems/drums.flac",
       "bytes": 3474877,
       "sha256": "862a9641232f29076ae20342908732dc9b8186d0d9546a8d9c9d261261f7fd0a",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/drums.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/stems/guitar.flac",
       "bytes": 3414771,
       "sha256": "89c5818d42de603169e2c787f466963837ad19d78b69e15afc000d4649ca55ea",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/guitar.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/stems/rhodes.flac",
       "bytes": 4654399,
       "sha256": "71180ed335975e06f261377368d396e23cf0d159d7df41267c9ec57c82b435f5",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/rhodes.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "01_Main_Street/stems/shaker.flac",
       "bytes": 4779859,
       "sha256": "302894a1659c06e04016d469db8ac7650f435b59668fb4386d57d103329b095d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/01_Main_Street/stems/shaker.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3",
       "bytes": 2059628,
       "sha256": "bd3125c1af6573d5f286bee27a4e4f79b1407351156031fedda641f27970b4b3",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg",
       "bytes": 899254,
       "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Master.flac",
       "bytes": 5854649,
       "sha256": "7d86e15f22288fe8cf380cd7877d3794cd542b1f872c321a5c1d9578ba80bd5d",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Master.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Seam_Check.mp3",
       "bytes": 345995,
       "sha256": "3a3e5a790afe212e7afc0390bd43b65469ea3070b7d7b5bfca87667dc82c0302",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Seam_Check.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Two_Cycles.mp3",
       "bytes": 4117032,
       "sha256": "7d668e6edf737689c9dae6d91133356182a60d3fd87dc68c96afc6a228d23bcd",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Two_Cycles.mp3"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/stems/bass.flac",
       "bytes": 1702287,
       "sha256": "65d2af3096870323446a4bf7db5b69f91b67d15ee8110ac95f90a990bc49b06e",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/bass.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/stems/bell_theme.flac",
       "bytes": 1631858,
       "sha256": "4e29da3761118880c4729b584e7cd9661a51ef8e0f67342c62dca42d2098cc79",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/bell_theme.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/stems/kalimba.flac",
       "bytes": 2821287,
       "sha256": "18f329dc9ab9dc728ca91906153fc0aa77491ee7e05d9e6a82cfaf052171b792",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/kalimba.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/stems/percussion.flac",
       "bytes": 2053010,
       "sha256": "2a8d263b746ced918be97468e50dce7dcb68312412f6dfa05c6e65770b2c2c17",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/percussion.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "02_Shop_Rhythm_Fix/stems/wood_theme.flac",
       "bytes": 5063370,
       "sha256": "3fc1865d53f7474fc7c9cb5392fd90f5d67afa55c156ed3718c28cf99517b2f6",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/02_Shop_Rhythm_Fix/stems/wood_theme.flac"
     },
     {
       "package": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
       "member": "previews/Shop_Rhythm_Before_After_8bars.mp3",
       "bytes": 1413849,
       "sha256": "a25ccff0d29ae5fee1b086b2a8aab3cf8aa6932daca5dc393ec46ecd84f09b7c",
-      "status": "NOT_PUBLISHED_TIMGM_RECORDING_RIGHTS_UNRESOLVED"
+      "status": "EXACT_USER_AUTHORIZED_PRESERVATION; REMOTE_IDENTITY_VERIFIED_SEPARATELY",
+      "repository_path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/previews/Shop_Rhythm_Before_After_8bars.mp3"
     }
   ],
-  "five_runtime_OGGs_not_published": [
+  "technical_AB_v3_audio_preserved": [
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.flac",
+      "sha256": "f43d033e7b1b87a2e9eca49e1a49537e549b651ade3a90f592a3200484702d75",
+      "bytes": 2287075
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.ogg",
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "bytes": 208268
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_harmony_loop.wav",
+      "sha256": "efd7ffdf216f5281c3c2547a0d65fe360c07785123a392cb5906177428d889dd",
+      "bytes": 4536044
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "sha256": "783f0ed2732267ddbc72fdb7944b74fa9c059c3c4ac7a95a3f6b424db9def841",
+      "bytes": 1373805
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/bass.flac",
+      "sha256": "5f7b5f8a4ce825d2eb760b71312272ee69b9ef881a65d0e5d4fe8059c8a843b3",
+      "bytes": 826633
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/drums.flac",
+      "sha256": "cd53f439a6eb2e8711bb667dcd2026d47732b629574288aed7d81efc8b952651",
+      "bytes": 1738033
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/flute.flac",
+      "sha256": "c8bdc69d8b68d7b8cd6310735a2c4b9c78d95fe64d3c5af1521e009c11ea9576",
+      "bytes": 121077
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/guitar.flac",
+      "sha256": "716c1a764f6eff74e0d3c0e4afc0533a03e360f09faf8091f8cd4ca78faebe04",
+      "bytes": 1294112
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/rhodes.flac",
+      "sha256": "0ca054cbb74cc9ec9542a7678dff9279be74abe8ae1052acbe2d6ceecc50db72",
+      "bytes": 1591773
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/shaker.flac",
+      "sha256": "eb78ff27baab26b67ce0876fe965f79efa104e3ec71c6b2404939e7a02a3d6b7",
+      "bytes": 761305
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/A_stems/vibes.flac",
+      "sha256": "32f05e00212fd3a958ebbe907ee92b502b93bb98082f19901f775aa878fe8994",
+      "bytes": 581193
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.flac",
+      "sha256": "6ae3d739a20e4518e725ae4565be37dad5d3f951d61746ef2126f04b2f087d64",
+      "bytes": 1805955
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.ogg",
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "bytes": 174876
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_harmony_loop.wav",
+      "sha256": "5e2bb79be93d06187d82fdd25651f45b894f9302528e44850b1f6295394fffcd",
+      "bytes": 4536044
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "sha256": "f0a58f9e4fc79db31ab7479fab2d496550bb7824378d3c5d1d8791a55daf3b92",
+      "bytes": 1373805
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/bass.flac",
+      "sha256": "47d611d69e8151212dbd1b44eb806d87ac3711ca3226bf4979d26fe92df7f61b",
+      "bytes": 797961
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/drums.flac",
+      "sha256": "972c07480c9044cb709e24cb29d21c4b7f2a562ecc5cce4d8e2c3c68d903b95c",
+      "bytes": 1163694
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/guitar.flac",
+      "sha256": "c3535200f030671c3d475b3e2ccde17816e9bc7e24a2d32aa5b372195802ea41",
+      "bytes": 1087240
+    },
+    {
+      "path": "docs/art-audio/scores/corner-cafe-loops/technical-AB-v3/B_stems/rhodes.flac",
+      "sha256": "ebf711c266d8fea86ebb8ea9742a6f3347073314b1a78e0ecf2e77924457f04b",
+      "bytes": 1604618
+    }
+  ],
+  "five_runtime_OGGs_preserved": [
     {
       "path": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
       "mode": "100644",
@@ -1483,63 +2513,29 @@
       "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4"
     }
   ],
-  "private_reference": {
-    "file": "Restaurant_City_Default_original.mp3",
-    "status": "PRIVATE_LOCAL_ONLY; no audio, checksum, samples or account-specific private links published"
+  "storage": {
+    "method": "Existing regular Git asset storage; no LFS introduced",
+    "supplied_audio_member_bytes": 127201607,
+    "largest_supplied_audio_file_bytes": 13608044,
+    "single_file_size_blocker": false,
+    "policy": "docs/development/history/repository-notes.md:15; GitHub regular-Git size limits verified separately"
   },
-  "bank_or_font_binaries": "EXCLUDED; none copied",
-  "preserved_audio_versions": "No audio converted, normalized, rerendered or overwritten. Full original ZIPs and exact audio remain private and unchanged.",
-  "recording_rights_status": "TimGM output scope remains unresolved; no prohibition or automatic GPL inheritance claimed. Audio-specific clarification or an explicit compliant recording route is required before public audio preservation.",
-  "runtime_changes": "NONE; no game code, audio assets, imports, export settings or guards changed",
-  "historical_status": "Supplied creation-time approval/validation records remain historical; latest user directions take precedence. Lead sheets are not full scores.",
-  "checksum_scope": "Original SHA256SUMS may name withheld audio or original private-redacted metadata. Use this member-to-path manifest for the public subset; do not claim a complete archive reconstruction.",
-  "preservation_controls": [
-    {
-      "path": "docs/art-audio/reference-studies/.gitattributes",
-      "bytes": 9,
-      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
-    },
-    {
-      "path": "docs/art-audio/scores/corner-cafe-loops/.gitattributes",
-      "bytes": 9,
-      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
-    },
-    {
-      "path": "docs/art-audio/scores/corner-cafe-loops/README.md",
-      "bytes": 4202,
-      "sha256": "148f850d992299404d52a545d8ba55e38bb275d8ad831575254ca9915505897e"
-    },
-    {
-      "path": "docs/art-audio/scores/corner-cafe-loops/RECORDING_DISTRIBUTION_STATUS.md",
-      "bytes": 2742,
-      "sha256": "503905e8f5d35a3632edf8e68a93b94cac123d2fd9c64fea837f6d41dd749745"
-    },
-    {
-      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/.gitattributes",
-      "bytes": 9,
-      "sha256": "48747480eddba024928d03be9bf83dc579e5515768647507a767e8187a85c9ab"
-    },
-    {
-      "path": "docs/art-audio/scores/mainstreet-shop-rhythmfix/README.md",
-      "bytes": 1178,
-      "sha256": "ca538937c8aaf735e9f0b991ee68561babca49120fdb323a21a9d97c06614259"
-    },
-    {
-      "path": "docs/art-audio/reference-studies/music-skills-v2/README.md",
-      "bytes": 1397,
-      "sha256": "26397cf94379435a598b5d4ffe4931c176fc936e1cb7bcb6a183b033126d95cd"
-    },
-    {
-      "path": ".agents/skills/game-music-production/.gitattributes",
-      "bytes": 15,
-      "sha256": "ea4846c1ea1cb85f5484d69f616d7fe94683c02ce4e0a97c31e098db985b1c3f"
-    },
-    {
-      "path": ".agents/skills/game-music-review/.gitattributes",
-      "bytes": 15,
-      "sha256": "ea4846c1ea1cb85f5484d69f616d7fe94683c02ce4e0a97c31e098db985b1c3f"
-    }
-  ],
-  "reused_street_member_inventory_sha256": "4f04baa31cb372542d8923a7c7e2b5e2c5fc3aa4d40e88dbced4e325345d0621",
-  "current_reference_register": "Canonical register follows later explicit user decisions; supplied creation-time register separately preserved as historical source."
+  "bank_preset_evidence_correction": {
+    "bank0_programs_zero_based": [
+      4,
+      8,
+      11,
+      12,
+      24,
+      32,
+      33,
+      73,
+      108
+    ],
+    "bank128_programs_zero_based": [
+      0,
+      40
+    ],
+    "prior_nine_preset_list_incomplete": "A has active vibraphone11 and flute73 notes; now corrected to11 used presets"
+  }
 }

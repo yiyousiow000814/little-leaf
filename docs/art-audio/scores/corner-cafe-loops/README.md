@@ -1,58 +1,58 @@
-# Supplied music source preservation
+# Supplied music and production source preservation
 
-This is the GitHub preservation entry point for the music materials supplied in
-the current Little Leaf conversation. It preserves editable source without
-changing gameplay or activating a recording. The earlier Sunlit Table study in
-this PR remains intact and is separate from this intake.
+This is the GitHub preservation entry point for the five music packages supplied
+in the current Little Leaf conversation. Exact original audio and editable
+production material are preserved through the existing PR228. The earlier Sunlit
+Table study stays unchanged and remains separate from this intake.
 
-| Supplied package | Preserved material | Rendered audio |
-| --- | --- | --- |
-| Music Skills v2 Corrected | [Production skill](../../../../.agents/skills/game-music-production/SKILL.md), [review skill](../../../../.agents/skills/game-music-review/SKILL.md), [companion source](../../reference-studies/music-skills-v2/README.md), reference case/register and analysis scripts | Private RC reference is excluded |
-| Corner Cafe Harmony Study A/B | [Original MIDI, lead sheets, events, scripts, metrics and notices](original-harmony-study/) | Original A/B and comparison MP3s remain private |
-| 04 Reference Rearrangement | [Original fourth-track MIDI, lead sheet, events, scripts, validation and notices](original-reference-rearrangement/) | Master MP3/FLAC and four stems remain private |
-| 112 BPM Loop Package | [Exact supplied loop MIDI, lead sheet, events, mix settings, scripts, validation and notices](source/supplied-fourth-loop/) | Loop WAV/FLAC/OGG, audition MP3s and four stems remain private |
-| Main Street and Shop Rhythm Fix | [Both editable track sources and shared authoring material](../mainstreet-shop-rhythmfix/) | Both masters, loops, previews and supplied stems remain private |
+| Supplied package | Preserved source and audio |
+| --- | --- |
+| Music Skills v2 Corrected | [Production skill](../../../../.agents/skills/game-music-production/SKILL.md), [review skill](../../../../.agents/skills/game-music-review/SKILL.md), [companion material](../../reference-studies/music-skills-v2/README.md), analysis, case/register; private RC reference excluded |
+| Harmony Study A/B | [Exact original MP3s/comparison, MIDI, lead sheets, events, scripts, metrics and notices](original-harmony-study/) |
+| 04 Reference Rearrangement | [Exact original master MP3/FLAC, four stems, MIDI, lead sheet, events, scripts and notices](original-reference-rearrangement/) |
+| 112 BPM Loop Package | [Exact supplied loop WAV/FLAC/OGG, auditions, four stems, MIDI, lead sheet, events, mix settings and scripts](source/supplied-fourth-loop/) |
+| Main Street and Shop Rhythm Fix | [Exact original masters, loops, previews, stems and complete editable source](../mainstreet-shop-rhythmfix/) |
 
-The [member-to-path manifest](SOURCE_PRESERVATION_MANIFEST.json) records the five
-archive hashes and each public member's SHA256. The 75 original source/document
-members are preserved; 72 have exact supplied bytes. Three Music Skills metadata
-files replace only the private RC recording checksum. The exact originals and
-all full ZIPs are retained locally. A/B technical loop derivatives, their
-derivation receipts and authoring scripts are separate from the original study.
-Lead sheets remain labelled as lead sheets, not complete orchestral scores.
+The [member-to-path manifest](SOURCE_PRESERVATION_MANIFEST.json) identifies all
+five original ZIP hashes, 75 supplied non-audio members and all 40 supplied audio
+members. Every audio byte is unchanged. Of the 75 non-audio members, 72 retain
+exact original bytes; three metadata copies redact only the private RC recording
+checksum. Full ZIPs and exact originals remain local. Public mapped files are
+not a claim that the original ZIP container bytes were uploaded.
 
-Original package checksum lists and validation/approval records retain their
-creation-time meaning. They may name withheld audio or the unredacted original
-metadata. They do not certify that the public subset reconstructs a whole ZIP.
-Later explicit user directions accept the fourth arrangement and request Street
-as a selectable theme and Shop while Decorate is open. Preserving their source
-does not activate those behaviors or assert new listening acceptance.
+The existing A/B-v3 technical derivatives are separate from the original study:
+[masters, WAV/OGG, auditions and stems](technical-AB-v3/), matching their preserved
+derivation receipts. Five exact runtime OGG aliases are under
+`game/assets/audio/`; all other production audio stays outside `game/`.
+Lead sheets remain labelled as lead sheets, not full scores. Original approval,
+validation and checksum records retain their creation-time meaning. Later user
+decisions take precedence and are reflected in the canonical reference register.
 
-## Exact audio still awaiting public preservation
+## Provenance and excluded dependencies
 
-The manifest enumerates 40 rendered members withheld from the supplied archives,
-plus the five exact proposed runtime OGG identities. No master, stem, comparison,
-RC recording, SoundFont, synthesizer binary or font binary is added here.
-The [recording distribution status](RECORDING_DISTRIBUTION_STATUS.md) identifies
-the remaining TimGM question and the two concrete rights/compliance routes.
-Do not delete the local audio, stems, full original ZIPs or dependencies while
-these materials are not preserved remotely.
+[Recording provenance and licence scope](RECORDING_DISTRIBUTION_STATUS.md)
+corrects the earlier blanket hold. The bank notice does not state a prohibition
+on original recordings. Production use is recorded per file; it does not by
+itself establish automatic GPL inheritance or an unconditional legal clearance.
+The actual TimGM notice and full GPL text for that dependency are retained.
+No new licence is imposed on the user's music or the game.
 
-The original three game MP3s and their GeneralUser notices already exist under
-`game/assets/audio/`. Their historical editable source/bank gaps remain recorded;
-they are not replaced or relabelled by this source preservation.
+Private RC audio/checksum, raw SoundFont/font binaries and authoring executables
+are excluded. No local original is deleted or overwritten. The original three
+game MP3s and their GeneralUser records remain unchanged, with their historical
+editable-source/bank gaps still recorded separately.
 
-## Reconstruction boundaries
+## Storage and reconstruction
 
-The source preserves instruments, tempo, note events, delays/gates, mixing and
-export parameters as supplied. Required authoring libraries and dependency
-identity remain in the original scripts/requirements/notices. No supplied
-producer script was executed for this preservation. The exact TimGM bank is a
-separate dependency and is not committed; its GPL text is retained under
-[source/licenses](source/licenses/GPL-2.0.txt), without relicensing the recordings.
+The largest supplied audio file is 13,608,044 bytes (about13 MiB). Existing regular
+Git asset storage is used; no LFS is introduced. Audio aliases share identical
+Git blobs. Source preserves tempo, notes, instruments, performance delays/gates,
+mix and export parameters. No producer, encoder, decoder, engine or model is run
+for preservation. Rebuilding requires the separately identified lawful local
+bank and authoring dependencies; these are not embedded in the source archive.
 
-The private frozen integration candidate remains at local `7c3de91`; its actual
-native Web analogue/context/decoder checks passed 150/0. That proof covers its
-exact local source and the declared native scope. This preservation commit has
-no runtime change, browser qualification, canonical atlas adoption, audio
-distribution clearance, deployment or release claim.
+The frozen local integration candidate7c3de91 and its actual150/0 native outcome
+remain intact. This preservation adds assets/provenance only: Main, Settings,
+catalog, platform playback code, import controls, export settings and source
+guards are unchanged. Runtime activation, canonical qualification, browser,
+actual audition, export acceptance, merge, deployment and release remain separate.

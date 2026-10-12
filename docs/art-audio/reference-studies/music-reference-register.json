@@ -128,7 +128,7 @@
     ],
     "comparison_track_runtime": false,
     "music_specific_preferences_only": true,
-    "technical_integration_status": "Frozen local7c3de91 passed native Web analogue30/context76/decoder44=150/0. Runtime code/audio are not in this source-only GitHub publication; browser/canonical/audition/export remain separate.",
+    "technical_integration_status": "Assets and production material preserved on the PR branch without activating playback code. Frozen local7c3de91 passed native150/0; browser/canonical/audition/export remain separate.",
     "decorate_context_track": "corner-cafe-shop-rhythm-fix-112",
     "decorating_does_not_write_music_preference": true,
     "context_restore": "Prior actual gameplay state/age restored when selection unchanged; explicitly changed selection during Decorate honored on exit"
@@ -206,7 +206,7 @@
       "notice_member": "licenses/TimGM6mb_package_notice.txt",
       "notice_sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
       "bank_binary_in_archive": false,
-      "recorded_distribution_assessment": "Existing TimGM output applicability/obligations unresolved; no additional output permission or completed assessment supplied in this package. GeneralUser scope does not transfer."
+      "recorded_distribution_assessment": "Actual bank GPL-2 notice preserved. No specific original-recording prohibition identified; the prior blanket hold was an owner assumption and is withdrawn. No automatic recording GPL inheritance, unilateral licence election or blanket legal clearance claimed."
     },
     "owner_rerender_or_conversion": false,
     "independent_intake": "45 CRC/member checksum identities and two Vorbis container headers; existing supplied signal records inspected, not remeasured; listening unassessed"
@@ -214,7 +214,7 @@
   "source_preservation": {
     "user_authority": "Sentinel_4819f712409c819180da6b347208ef8f",
     "historical_supplied_register": "music-skills-v2/music-reference-register.original-redacted.json",
-    "scope": "Permitted editable source/documents published through existing PR228; all TimGM rendered audio remains local pending distribution route",
+    "scope": "Exact supplied original audio, complete editable source and existing A/B-v3 production preserved through PR228 under explicit user authority; private RC and bank/font binaries excluded.",
     "private_RC": "No recording/checksum/account-specific private link published",
     "local_runtime_source_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
     "actual_native_outcome_sha256": "21485ef37621d7e5ed24943d6c999d40b3be797551504c3c505dfa658a80f2e2"

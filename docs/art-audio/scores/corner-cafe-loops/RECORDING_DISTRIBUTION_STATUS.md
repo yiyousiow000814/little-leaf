@@ -1,42 +1,55 @@
-# Recording distribution status
+# Recording provenance and licence scope
 
-The five proposed game recordings are original mixed performances rendered with
+The user explicitly authorized GitHub preservation of the supplied original
+music and complete production material (Sentinel_4819f712409c819180da6b347208ef8f).
+The previous blanket hold on all40 audio members was an owner's conservative
+assumption, not an identified prohibition in the supplied bank notice. It is
+withdrawn as a publication precondition. Exact recording versions are preserved
+without regenerating them or assigning a new licence to the songs or game.
+
+## Actual production dependency
+
+The A/B, fourth arrangement/loop, Street and Shop production records identify
 TimGM6mb.sf2, SHA256
 `c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854`.
-The bank, extracted sample libraries and authoring binaries are not committed.
-This does not by itself resolve the copyright scope of samples in a recording.
+TimGM provides instrument sounds; the supplied MIDI/events contain the musical
+writing and arrangement. The bank itself is not redistributed here.
 
-The [official Debian bank notice](https://metadata.ftp-master.debian.org/changelogs/main/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_copyright)
-identifies GPL-2 and Tim Brechbill/David Bolton. The bank's metadata and notice
-do not map the nine used presets to self-created, public-domain or GPL sample
-origins, and contain no explicit recording exception. Presets are bank 0
-programs 4/24/32/33/12/8/108 and bank 128 programs 0/40, all zero-based.
+Direct evidence is in A/B `source/metrics.json` and `source/make_study.py`, the
+fourth `technical_validation.json`/`source/render_arrangement.py`, the loop
+`evidence/loop_validation.json`/`source/build_loop.py`, and Street/Shop validation
+and authoring scripts. Their exact file mappings are in the
+[manifest](SOURCE_PRESERVATION_MANIFEST.json). Shop retains three original stems
+and re-renders only kalimba/percussion. The before/after comparison has declared
+V1/V2 provenance, with weaker code-level evidence than the production tracks.
 
-[GPL-2 section 0](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
-does not license all output automatically; coverage depends on the output's
-content. No distribution prohibition was identified, but neither automatic
-recording GPL inheritance nor an unconditional recording exception is claimed.
-The [author's MIDI-to-WAV/MP3 page](https://www.timbrechbill.com/saxguru/Timidity.php)
-supports intended musical use without establishing permissions for every sample.
-The [upstream font/document exception](https://raw.githubusercontent.com/musescore/musescore-old/90c33ef9d87b3f5ff92efd3b07d89eb455fb1fef/mscore/COPYING)
-does not expressly address TimGM recordings. GeneralUser permission stays scoped
-to the existing three game MP3s and cannot be transferred to TimGM.
+The earlier nine-preset list omitted A's active vibraphone/flute parts. The actual
+11 presets are bank0 programs4/8/11/12/24/32/33/73/108 and bank128 programs0/40,
+all zero-based. A also contains separately generated shaker noise. Source/data
+and individual mixed recordings are not all assigned one licence merely because
+the same bank appears in a render chain.
 
-Before public preservation of the rendered files, complete one specific route:
+## Bank terms and recording treatment
 
-1. Obtain scoped output-rights clarification covering the exact bank/used
-   presets, original mixed recordings in free/commercial games, and any
-   underlying GPL sample contributor's applicable conditions.
-2. Explicitly choose an audio-specific GPL-2 compliance route where applicable:
-   contribution rights, retained notices/full licence, adaptation dates, the
-   preferred modification source and qualifying source access for non-source
-   distribution. The appropriate source package is not established merely by a
-   bank hash or unrelated upstream link. This does not silently license all
-   music, source or the whole game under GPL.
+The [actual supplied notice](original-harmony-study/source/TimGM6mb_package_notice.txt)
+and [official Debian source](https://metadata.ftp-master.debian.org/changelogs/main/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_copyright)
+identify GPL-2 for `TimGM6mb.sf2` and name Tim Brechbill/David Bolton. Their sample
+origin statement is not a per-preset ledger. Keep the notice and
+[full bank licence text](source/licenses/GPL-2.0.txt). No notice clause found says
+that original recordings must not be published or that separate permission is
+always required solely because this bank was used.
 
-The same question applies to the supplied TimGM masters, stems and audition
-files, not only the runtime OGGs. Their exact versions/hashes and excluded status
-are preserved in the [manifest](SOURCE_PRESERVATION_MANIFEST.json). The user's
-musical approval remains intact and distinct from this distribution question.
-No rightsholder contact was sent, bank substituted, music regenerated or licence
-imposed for this preservation.
+[GNU output guidance](https://www.gnu.org/licenses/gpl-faq.en.html#WhatCaseIsOutputGPL)
+distinguishes ordinary program output from copied licensed art/audio. Likewise,
+[MuseScore's general ownership statement](https://musescore.org/en/node/20202)
+concerns scores/exported output and is not a new TimGM-specific exception.
+Neither statement justifies automatic GPL inheritance, nor a blanket legal
+clearance for all sample content. If a particular copied element is subject to
+applicable licence conditions, those remain relevant; this record does not
+silently waive them or relicense the user's original contributions.
+
+GeneralUser permission remains scoped to the three pre-existing game MP3s.
+Private RC audio/checksum, bank/font binaries and sample libraries are excluded.
+Preserved stems are musical production parts, not a repackaged raw SoundFont.
+No rightsholder contact, licence election, bank substitution or new music
+production occurred for this preservation.

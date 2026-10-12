@@ -1,20 +1,22 @@
-# Main Street and Shop Rhythm Fix supplied source
+# Main Street and Shop Rhythm Fix supplied production package
 
-These are the 24 exact non-audio members of
-`LittleLeaf_MainStreet_and_Shop_RhythmFix.zip`, archive SHA256
+All45 supplied members are preserved here:24 exact non-audio members and21 exact
+original audio members from `LittleLeaf_MainStreet_and_Shop_RhythmFix.zip`,
+archive SHA256
 `4e640cf492dfbad6fd08a9cd631c9b00030ebc2802c385e48e0a61d94569ef85`.
-They retain both MIDI files, lead sheets, note events, rhythm grid, authoring and
-revision scripts, requirements/export parameters, validation, provenance and
-TimGM notice. The [complete public-subset manifest](../corner-cafe-loops/SOURCE_PRESERVATION_MANIFEST.json)
-binds member names and hashes.
+They include master FLACs, MP3/OGG loops, previews/comparison, stems, both MIDI
+files, lead sheets, events, rhythm grid, authoring/revision scripts,
+requirements/export parameters, provenance, validation and the actual TimGM
+notice. The [manifest](../corner-cafe-loops/SOURCE_PRESERVATION_MANIFEST.json)
+binds every exact member name/hash and its repository path.
 
-The original master recordings, loops, previews and stems remain unchanged
-locally. They are not in this source-only GitHub preservation while the
-[recording distribution route](../corner-cafe-loops/RECORDING_DISTRIBUTION_STATUS.md)
-is unresolved. Original `SHA256SUMS.txt` and audio validation name those withheld
-members; they are historical producer records, not proof of a complete public
-ZIP or a new codec/listening test.
+Original creation-time approval/validation records remain historical; they were
+not rerun or rewritten to claim new hearing. Street members are the exact supplied
+unchanged versions. Shop's three retained stems and two revised stems keep their
+recorded identities. No audio is normalized, encoded or rerendered here.
 
-The user's intended behavior is Street as a selectable theme and Shop while
-Decorate is open. This commit preserves source only; it does not activate that
-runtime behavior or supersede the original musical approval history.
+[Production dependency/licence scope](../corner-cafe-loops/RECORDING_DISTRIBUTION_STATUS.md)
+corrects the unsupported blanket hold while retaining bank notices and provenance.
+No new licence is imposed on the songs. Private RC and raw bank/font binaries are
+excluded. The user's intended Street selector and Decorate-specific Shop behavior
+remain separate runtime work; preservation does not activate playback code.
