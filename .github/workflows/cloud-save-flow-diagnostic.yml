@@ -9,10 +9,110 @@ on:
       - 'tools/prepare_browser_qa.py'
       - 'tests/diagnostics/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
+  workflow_dispatch:
+    inputs:
+      diagnostic_mode:
+        type: choice
+        required: true
+        options: [retained-a897-timing]
+      admission_id:
+        description: Queue-reviewed one-use diagnostic nonce; no credentials
+        type: string
+        required: true
+      admission_json:
+        description: Exact source/workflow hash, nonce, expiry and attempts1 from Queue
+        type: string
+        required: true
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Retained a897 timing {0}', inputs.admission_id) || 'Cloud save flow diagnostic (retained compiled UI)' }}
 permissions:
   contents: read
   actions: read
 jobs:
+  retained-a897:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'retained-a897-timing' && github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Start absolute420+60 budget before checkout
+        env:
+          ADMISSION_ID: ${{ inputs.admission_id }}
+          ADMISSION_JSON: ${{ inputs.admission_json }}
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,re,time
+          a=json.loads(os.environ['ADMISSION_JSON'])
+          assert set(a)=={'source_sha','workflow_sha256','nonce','expires_at','attempts'}
+          assert a['source_sha']==os.environ['GITHUB_SHA'] and re.fullmatch('[0-9a-f]{40}',a['source_sha'])
+          assert re.fullmatch('[0-9a-f]{64}',a['workflow_sha256'])
+          assert a['nonce']==os.environ['ADMISSION_ID'] and re.fullmatch('[0-9a-f]{32}',a['nonce'])
+          assert type(a['attempts']) is int and a['attempts']==1 and os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          now=datetime.datetime.now(datetime.timezone.utc); expiry=datetime.datetime.fromisoformat(a['expires_at'])
+          assert expiry.tzinfo is not None and now<expiry<=now+datetime.timedelta(minutes=12)
+          assert os.environ['ImageOS']=='ubuntu24' and os.environ['ImageVersion']=='20261004.327.1'
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('LL_RETAINED_START_MONOTONIC='+str(time.monotonic())+'\n')
+          PY
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: coordinator
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Bind exact admitted workflow and refuse nonce reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ADMISSION_JSON: ${{ inputs.admission_json }}
+          ADMISSION_ID: ${{ inputs.admission_id }}
+        run: |
+          gh api --paginate --slurp 'repos/yiyousiow000814/little-leaf/actions/workflows/cloud-save-flow-diagnostic.yml/runs?per_page=100' > "$RUNNER_TEMP/retained-route-runs.json"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          a=json.loads(os.environ['ADMISSION_JSON']); p=pathlib.Path('coordinator/.github/workflows/cloud-save-flow-diagnostic.yml')
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==a['workflow_sha256']
+          pages=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'retained-route-runs.json').read_text())
+          name='Retained a897 timing '+os.environ['ADMISSION_ID']
+          assert not any(r['display_title']==name and str(r['id'])!=os.environ['GITHUB_RUN_ID'] for page in pages for r in page['workflow_runs'])
+          PY
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a897a31f20ad4b95a6f350b219cc12f56a17f3b6
+          path: retained/source
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fetch fixed retained inputs; no current build or export
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/yiyousiow000814/little-leaf/actions/runs/38171476207 > retained/run.metadata.json
+          for pair in web:11714480498 evidence:11713229962; do
+            name=${pair%:*}; id=${pair#*:}
+            gh api "repos/yiyousiow000814/little-leaf/actions/artifacts/$id" > "retained/$name.metadata.json"
+            gh api "repos/yiyousiow000814/little-leaf/actions/artifacts/$id/zip" > "retained/$name.zip"
+          done
+          python3 coordinator/tools/diagnostics/cloud_flow_diagnostic.py --retained-a897 --root retained --coordinator coordinator
+      - name: Install only exact locked synthetic SDK and pinned Playwright
+        run: |
+          set -euo pipefail
+          npm --prefix retained/source/platform/firebase ci --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/retained-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          curl --fail --silent --show-error --location 'https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-firestore-emulator-v1.20.4.jar' -o retained/cloud-firestore-emulator-v1.20.4.jar
+          echo '049ee7814741b481ae5becfdaa7b55693bdf7a03363cd184e35c36c1595a9643  retained/cloud-firestore-emulator-v1.20.4.jar' | sha256sum --check --strict
+      - name: One retained first-two-case Linux154 timing observation
+        env:
+          LL_RETAINED_PLAYWRIGHT: ${{ runner.temp }}/retained-browser-tools/node_modules/playwright
+        run: python3 coordinator/tools/diagnostics/cloud_flow_diagnostic.py --retained-a897 --root retained --coordinator coordinator --run
+      - name: Retain diagnostic timing and terminal evidence only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: retained-a897-timing-${{ github.sha }}-${{ github.run_id }}-1
+          path: |
+            retained/diagnostic-binding.json
+            retained/diagnostic-output/terminal.json
+            retained/diagnostic-output/*.log
+            retained/diagnostic-output/scenario/*.json
+            retained/diagnostic-output/scenario/*.png
+          if-no-files-found: warn
+          retention-days: 7
   diagnostic:
     if: github.head_ref == 'fix/cloud-save-choice-handoff-010a' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
