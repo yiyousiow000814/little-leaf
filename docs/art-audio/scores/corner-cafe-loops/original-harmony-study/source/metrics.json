@@ -1,0 +1,23 @@
+{
+  "audio": {
+    "A_V2_control": {
+      "integrated_lufs": -18.00000022820841,
+      "sample_peak_dbfs": -4.576959314190478,
+      "estimated_4x_true_peak_dbtp": -4.571431440144476,
+      "normalization_gain_db": 3.9392362729698682,
+      "duration_seconds": 20.014285714285716
+    },
+    "B_reduced_harmony": {
+      "integrated_lufs": -17.99999988474733,
+      "sample_peak_dbfs": -5.6834108266853125,
+      "estimated_4x_true_peak_dbtp": -5.675671271781889,
+      "normalization_gain_db": 4.63800631739307,
+      "duration_seconds": 20.014285714285716
+    }
+  },
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "reference_audio_used": false,
+  "A_definition": "First 8 bars of V2 rerendered plus shared 2-beat ending",
+  "B_definition": "Reduced harmonic/arrangement study, same tempo and primary instruments; not RC reference analysis",
+  "secondary_audio_notation": "MIDI plus JSON event ledger; no original soundtrack transcription"
+}

@@ -1,0 +1,13 @@
+{
+  "order": [
+    "Original Shop V1",
+    "Revised Shop V2"
+  ],
+  "bars_each": 8,
+  "silence_seconds": 1,
+  "original_master_lufs": -18.499999902913643,
+  "revised_master_lufs": -18.557305081966373,
+  "comparison_only_revised_gain": 1.006619314012542,
+  "excerpt_end_fade_ms": 45,
+  "final_music_files_affected": false
+}

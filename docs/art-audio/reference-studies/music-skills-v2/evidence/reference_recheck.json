@@ -1,0 +1,194 @@
+{
+  "input_name": "Restaurant City Music - Default.mp3",
+  "sha256": "PRIVATE_REFERENCE_HASH_REDACTED",
+  "decoded_duration_seconds": 128.80108843537414,
+  "source_rate": 44100,
+  "channels": 2,
+  "librosa_version": "0.11.0",
+  "analysis_rate": 22050,
+  "hop_length": 220,
+  "windows": [
+    {
+      "start_seconds": 0.0,
+      "end_seconds": 32.0,
+      "tracker_grid_bpm": 120.27272727272727,
+      "beat_count": 63,
+      "candidate_pulses": [
+        {
+          "bpm": 60.13636363636363,
+          "normalized_autocorrelation": 0.674757182598114
+        },
+        {
+          "bpm": 120.27272727272727,
+          "normalized_autocorrelation": 0.6086252927780151
+        },
+        {
+          "bpm": 70.74866310160428,
+          "normalized_autocorrelation": 0.46960872411727905
+        },
+        {
+          "bpm": 51.841692789968654,
+          "normalized_autocorrelation": 0.445433109998703
+        },
+        {
+          "bpm": 176.8716577540107,
+          "normalized_autocorrelation": 0.41434431076049805
+        },
+        {
+          "bpm": 91.11570247933884,
+          "normalized_autocorrelation": 0.40643635392189026
+        }
+      ]
+    },
+    {
+      "start_seconds": 32.0,
+      "end_seconds": 64.0,
+      "tracker_grid_bpm": 120.27272727272727,
+      "beat_count": 63,
+      "candidate_pulses": [
+        {
+          "bpm": 60.13636363636363,
+          "normalized_autocorrelation": 0.6696034669876099
+        },
+        {
+          "bpm": 120.27272727272727,
+          "normalized_autocorrelation": 0.6098596453666687
+        },
+        {
+          "bpm": 70.74866310160428,
+          "normalized_autocorrelation": 0.46892985701560974
+        },
+        {
+          "bpm": 51.841692789968654,
+          "normalized_autocorrelation": 0.44657421112060547
+        },
+        {
+          "bpm": 176.8716577540107,
+          "normalized_autocorrelation": 0.42151522636413574
+        },
+        {
+          "bpm": 91.11570247933884,
+          "normalized_autocorrelation": 0.40891674160957336
+        }
+      ]
+    },
+    {
+      "start_seconds": 64.0,
+      "end_seconds": 96.0,
+      "tracker_grid_bpm": 120.27272727272727,
+      "beat_count": 63,
+      "candidate_pulses": [
+        {
+          "bpm": 60.13636363636363,
+          "normalized_autocorrelation": 0.6658560037612915
+        },
+        {
+          "bpm": 120.27272727272727,
+          "normalized_autocorrelation": 0.6069298386573792
+        },
+        {
+          "bpm": 71.5909090909091,
+          "normalized_autocorrelation": 0.4661672115325928
+        },
+        {
+          "bpm": 51.841692789968654,
+          "normalized_autocorrelation": 0.4416850805282593
+        },
+        {
+          "bpm": 176.8716577540107,
+          "normalized_autocorrelation": 0.4154300391674042
+        },
+        {
+          "bpm": 91.11570247933884,
+          "normalized_autocorrelation": 0.40507346391677856
+        }
+      ]
+    },
+    {
+      "start_seconds": 96.0,
+      "end_seconds": 128.0,
+      "tracker_grid_bpm": 120.27272727272727,
+      "beat_count": 63,
+      "candidate_pulses": [
+        {
+          "bpm": 60.13636363636363,
+          "normalized_autocorrelation": 0.6658600568771362
+        },
+        {
+          "bpm": 120.27272727272727,
+          "normalized_autocorrelation": 0.6078459620475769
+        },
+        {
+          "bpm": 70.74866310160428,
+          "normalized_autocorrelation": 0.46678778529167175
+        },
+        {
+          "bpm": 51.841692789968654,
+          "normalized_autocorrelation": 0.44159209728240967
+        },
+        {
+          "bpm": 176.8716577540107,
+          "normalized_autocorrelation": 0.417298287153244
+        },
+        {
+          "bpm": 91.11570247933884,
+          "normalized_autocorrelation": 0.40660250186920166
+        }
+      ]
+    },
+    {
+      "start_seconds": 0.0,
+      "end_seconds": 128.80108843537414,
+      "tracker_grid_bpm": 120.27272727272727,
+      "beat_count": 257,
+      "candidate_pulses": [
+        {
+          "bpm": 60.13636363636363,
+          "normalized_autocorrelation": 0.6796357035636902
+        },
+        {
+          "bpm": 120.27272727272727,
+          "normalized_autocorrelation": 0.6132951378822327
+        },
+        {
+          "bpm": 71.5909090909091,
+          "normalized_autocorrelation": 0.48158013820648193
+        },
+        {
+          "bpm": 51.841692789968654,
+          "normalized_autocorrelation": 0.450634628534317
+        },
+        {
+          "bpm": 176.8716577540107,
+          "normalized_autocorrelation": 0.41915273666381836
+        },
+        {
+          "bpm": 91.11570247933884,
+          "normalized_autocorrelation": 0.41708701848983765
+        }
+      ]
+    }
+  ],
+  "repeat_matches": [
+    {
+      "search_center_seconds": 32.0,
+      "lag_seconds": 32.09170068027211,
+      "template_correlation": 0.9979867731663588
+    },
+    {
+      "search_center_seconds": 64.0,
+      "lag_seconds": 64.18380952380953,
+      "template_correlation": 0.9975303817055831
+    },
+    {
+      "search_center_seconds": 96.0,
+      "lag_seconds": 96.27532879818594,
+      "template_correlation": 0.9984416709456561
+    }
+  ],
+  "limits": [
+    "Grid BPM is quantized, not authored tempo. Check half/double time and phrase alignment.",
+    "Autocorrelation coefficients do not measure musical quality.",
+    "This script does not listen, identify exact instruments, transcribe a score or approve use."
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "base_scene_package_sha256": "e6d87c8db2ec9a8916b254ce185282a7e69adcfdf632d5ded8362c1c2c790ea8",
+  "main_street_user_feedback": "User says this is very good; keep unchanged",
+  "original_shop_user_feedback": "Generally good; kalimba/percussion feel disorderly; targeted revision requested",
+  "revised_shop_user_feedback": "Not yet auditioned by user",
+  "main_street_files": [
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mid",
+      "sha256": "25e1d52a3e51e736618401744a5ca59f167ddf5db3aa01584aa9c7b24f374140",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3",
+      "sha256": "d96ad1e65a8fd11796c8d6295e37498b92ace18270032b938662e0e18d969b8f",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg",
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac",
+      "sha256": "076d477f2a170e3530dff8c5c9b684d8f8a09833ddb7cec103da048da111352d",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3",
+      "sha256": "8c3c92a0f9632f62f2b335a10376ffe7d1de863a0496e5c0b32cd328c620d8bd",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3",
+      "sha256": "0f1aabc0b58d1d84c3ca5710337041faa025b9d7e1103271668928ad0a444185",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/Theme_Lead_Sheet.musicxml",
+      "sha256": "c12a9d2b4b21309806e7105bbf6c33b5f22f9fd65904d80d0f2d24271f4155cd",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/music_events.json",
+      "sha256": "765c9fa20cf62d2122671569f4ac624dfba375034569b48c5b491a095b8cbb46",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/stems/bass.flac",
+      "sha256": "4dfdece14b68181ea3f3b4e3e08a91c820b44872083823397a53828de4b5e45d",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/stems/drums.flac",
+      "sha256": "862a9641232f29076ae20342908732dc9b8186d0d9546a8d9c9d261261f7fd0a",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/stems/guitar.flac",
+      "sha256": "89c5818d42de603169e2c787f466963837ad19d78b69e15afc000d4649ca55ea",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/stems/rhodes.flac",
+      "sha256": "71180ed335975e06f261377368d396e23cf0d159d7df41267c9ec57c82b435f5",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/stems/shaker.flac",
+      "sha256": "302894a1659c06e04016d469db8ac7650f435b59668fb4386d57d103329b095d",
+      "unchanged": true
+    },
+    {
+      "path": "01_Main_Street/validation.json",
+      "sha256": "ccd09a834ce90d1391757c22ebffbe9d4fdb4f713022723c0a77fc67d7660b72",
+      "unchanged": true
+    }
+  ],
+  "unchanged_shop_stems": [
+    {
+      "part": "wood_theme",
+      "sha256": "3fc1865d53f7474fc7c9cb5392fd90f5d67afa55c156ed3718c28cf99517b2f6",
+      "unchanged": true
+    },
+    {
+      "part": "bell_theme",
+      "sha256": "4e29da3761118880c4729b584e7cd9661a51ef8e0f67342c62dca42d2098cc79",
+      "unchanged": true
+    },
+    {
+      "part": "bass",
+      "sha256": "65d2af3096870323446a4bf7db5b69f91b67d15ee8110ac95f90a990bc49b06e",
+      "unchanged": true
+    }
+  ],
+  "preserved_theme_notes": 123,
+  "preserved_bass_notes": 41,
+  "only_changed_event_parts": [
+    "kalimba",
+    "percussion"
+  ],
+  "tempo_bpm": 112,
+  "duration_seconds": 51.42857142857143,
+  "revised_note_ons": 249,
+  "theme_score_unchanged": true,
+  "revised_composer_matches_saved_events": true,
+  "no_godot_test": true,
+  "no_repo_write": true
+}
