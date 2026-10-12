@@ -1,6 +1,6 @@
 """Pure release-to-staging selection. Never dispatches or obtains credentials."""
 import re
-from release_metadata import RELEASE
+from release.release_metadata import RELEASE
 
 REPOSITORY = "yiyousiow000814/little-leaf"
 ITCH_WORKFLOW = ".github/workflows/release-itch.yml"

@@ -13,7 +13,7 @@ from unittest.mock import patch
 from qualification.artifacts import sha256
 import build_firebase
 import deploy_firebase_hosting as hosting
-import released_live_provenance as live
+from release import released_live_provenance as live
 import stage_released_firebase as staging
 from tests.tooling import test_stage_released_firebase as fixtures
 from tests.tooling.test_firebase_hosting_deploy import FakeAPI
@@ -229,6 +229,44 @@ class ManualReuseTests(unittest.TestCase):
                 rejected = current if old_layout else historical
                 self.assertIn('contents/' + selected + '?ref=' + origin['run']['head_sha'], api.calls)
                 self.assertFalse(any(call.startswith('contents/' + rejected + '?ref=') for call in api.calls))
+
+    def test_provenance_original_namespace_authenticates_and_rejects_missing_or_duplicate_sources(self):
+        self.stage()
+        original = self.manifest()
+        current = 'tools/release/released_live_provenance.py'
+        historical = 'tools/released_live_provenance.py'
+        for old_reuse in [False, True]:
+            with self.subTest(old_reuse=old_reuse):
+                manifest = copy.deepcopy(original)
+                api = self.api()
+                del api.coordinator_contents[current]
+                api.coordinator_contents[historical] = b'original immutable provenance helper bytes'
+                hashes = manifest['qualified_release_reuse']['coordinator_sha256']
+                del hashes[current]
+                hashes[historical] = hashlib.sha256(api.coordinator_contents[historical]).hexdigest()
+                if old_reuse:
+                    nested_reuse = 'tools/qualification/reuse_released_web.py'
+                    root_reuse = 'tools/reuse_released_web.py'
+                    api.coordinator_contents[root_reuse] = api.coordinator_contents.pop(nested_reuse)
+                    hashes[root_reuse] = hashes.pop(nested_reuse)
+                origin = live.authenticate_origin(api, manifest, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+                self.assertEqual(origin['coordinator_sha256'], hashes)
+                self.verify(self.rewrite(manifest), origin=origin)
+                self.assertIn('contents/' + historical + '?ref=' + self.origin['run']['head_sha'], api.calls)
+                self.assertFalse(any(call.startswith('contents/' + current + '?ref=') for call in api.calls))
+        for layout in ['missing', 'ambiguous']:
+            with self.subTest(layout=layout):
+                api = self.api()
+                if layout == 'missing': del api.coordinator_contents[current]
+                else: api.coordinator_contents[historical] = b'other provenance helper'
+                with self.assertRaises(ValueError):
+                    live.authenticate_origin(api, original, {'run': self.origin['run'], 'artifact': self.origin['artifact']})
+                self.assertFalse(any(call.startswith('contents/') for call in api.calls))
+                manifest = copy.deepcopy(original)
+                hashes = manifest['qualified_release_reuse']['coordinator_sha256']
+                if layout == 'missing': del hashes[current]
+                else: hashes[historical] = hashes[current]
+                with self.assertRaises(ValueError): self.verify(self.rewrite(manifest))
 
     def test_missing_ambiguous_or_incomplete_coordinator_tree_is_rejected_before_content_reads(self):
         self.stage()
