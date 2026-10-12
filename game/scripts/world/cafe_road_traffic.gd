@@ -34,7 +34,9 @@ static func allowance(position:Vector2,direction:int,budget:float,road:Array,par
 		if car.phase not in ["car_arriving","car_departing"] or absf(car.car_position.x-position.x)>1.7:continue
 		if car.phase=="car_departing" and car.car_route.size()==35 and (int(car.car_index)<18 or (int(car.car_index)==18 and car.car_position.distance_to(car.car_route[17])<.0001)):continue
 		var ahead=(car.car_position.y-position.y)*direction
-		if ahead>=0:allowed=minf(allowed,maxf(0,ahead-GAP))
+		if cyclic_road:ahead=fposmod(ahead,span)
+		elif ahead<0:continue
+		allowed=minf(allowed,maxf(0,ahead-GAP))
 	return allowed
 static func merge_clear(state:Dictionary,z:float)->bool:
 	for car in state.cars:

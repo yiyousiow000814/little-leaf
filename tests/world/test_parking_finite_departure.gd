@@ -1,6 +1,8 @@
 extends SceneTree
 const Traffic=preload("res://scripts/world/cafe_road_traffic.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 var failures=[]
 var checks=0
 var outcomes=[]
@@ -47,6 +49,20 @@ func car_for(model,id:int)->Dictionary:
 	for car in model.parking_visits:
 		if int(car.id)==id:return car
 	return {}
+
+func same(a,b)->bool:
+	if (a is int or a is float) and (b is int or b is float):return absf(float(a)-float(b))<1e-8
+	if a is Dictionary and b is Dictionary:
+		if a.size()!=b.size():return false
+		for key in a:
+			if not b.has(key) or not same(a[key],b[key]):return false
+		return true
+	if a is Array and b is Array:
+		if a.size()!=b.size():return false
+		for i in range(a.size()):
+			if not same(a[i],b[i]):return false
+		return true
+	return a==b
 
 func model_from(input:Dictionary,with_bus:bool)->ModelStub:
 	var model=ModelStub.new()
@@ -100,7 +116,7 @@ func compatibility(input:Dictionary):
 	var serialized=model_from(input,false);var arrival=car_for(serialized,12)
 	var arrival_body:Vector2=arrival.car_position
 	Parking.advance(serialized,1.0/30.0)
-	check(arrival.car_position==arrival_body and int(arrival.car_index)==0,"Unstarted arrival still yields to serialized departure")
+	check(int(arrival.car_index)==0 and arrival.car_position.distance_to(arrival_body)<=Parking.CAR_SPEED/30.0+.0001,"Straight arrival relief cannot enter a turn or exceed speed")
 	var physical=model_from(input,false)
 	physical.road_traffic_state.cars[4].position.y=83.9
 	check(Traffic.validate(physical.road_traffic_state),"Physical-leader control pool invalid")
@@ -115,6 +131,98 @@ func compatibility(input:Dictionary):
 	check(primary.car_position.distance_to(before)<=Parking.CAR_SPEED/30.0+.0001,"Earlier maneuver exceeded existing speed")
 	check(int(primary.car_index)==33 and before_final.parking_visits.has(primary),"Earlier maneuver skipped to retirement")
 
+func retained_cycle(input:Dictionary,reverse_order:bool):
+	var model=model_from(input,false)
+	if reverse_order:model.parking_visits.reverse()
+	var primary=car_for(model,2);var arrival=car_for(model,16)
+	var members=primary.members.duplicate(true);var incoming=arrival.members.duplicate(true)
+	var retired_tick=-1;var maximum_move=0.0
+	for tick in range(180):
+		var before:Vector2=primary.car_position
+		Parking.advance(model,1.0/30.0)
+		maximum_move=maxf(maximum_move,before.distance_to(primary.car_position))
+		if car_for(model,2).is_empty():retired_tick=tick+1;break
+	check(retired_tick>0,"Retained cycle releases actual finite departure")
+	check(primary.car_position==Parking.CAR_END and int(primary.car_index)==35,"Retained departure retires only at original endpoint")
+	check(maximum_move<=Parking.CAR_SPEED/30.0+.0001,"Retained departure preserves original speed")
+	check(int(arrival.car_index)==0 and arrival.car_position.y>Parking.CAR_START.y,"Relief stays before first parking turn")
+	check(primary.members==members and arrival.members==incoming,"Relief preserves original member custody")
+	check(Traffic.validate(model.road_traffic_state),"Retained final road pool preserves road spacing")
+	outcomes.append({"retained_cycle":true,"reversed_order":reverse_order,"retired_tick":retired_tick,"departure_after":primary.car_position,"arrival_after":arrival.car_position})
+
+func reader_boundary(input:Dictionary):
+	var model=Model.new();model.parking_owned=true;model.parking_paid_cost=Parking.PRICE;model._next_customer_id=17
+	model.road_traffic_state=restore(input.road);model.parking_visits.assign(restore(input.parking));model.road_bus=null
+	Parking.advance(model,1.0/30.0)
+	var state=Parking.snapshot(model).duplicate(true)
+	check(Parking.validate(Codec.new().encode(state),[],[],17,true).ok,"One departure plus legal straight approach validates")
+	var path="user://parking-straight-approach.json"
+	var saved=model.save(path);check(saved,"Ordinary generated straight-approach save: "+model.last_error)
+	var restored=Model.new()
+	if saved:
+		var loaded=restored.load_save(path);check(loaded,"Ordinary straight-approach reload: "+restored.last_error)
+		if loaded:check(same(Parking.snapshot(restored),state),"Reload preserves exact traffic/car/member custody")
+	for fault in ["second-maneuver","unsafe-approach"]:
+		var bad=state.duplicate(true);var arrival=bad.visits[1]
+		if fault=="second-maneuver":arrival.car_index=1;arrival.car_position=arrival.car_route[1]
+		else:arrival.car_position.x+=.25
+		check(not Parking.validate(Codec.new().encode(bad),[],[],17,true).ok,"Reject "+fault)
+		if saved:
+			var data=JSON.parse_string(FileAccess.get_file_as_string(path));data.parking=Codec.new().encode(bad)
+			var bad_path="user://parking-straight-approach-"+fault+".json"
+			var file=FileAccess.open(bad_path,FileAccess.WRITE)
+			if file==null:check(false,"Cannot write generated refusal fixture");continue
+			file.store_string(JSON.stringify(data));file.close()
+			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.coins
+			check(not restored.load_save(bad_path),"Ordinary reader refuses "+fault)
+			check(same(Parking.snapshot(restored),before) and restored.coins==wallet,"Refusal preserves live custody and wallet atomically")
+	var boundary=state.duplicate(true);boundary.visits[1].car_index=1;boundary.visits[1].car_position=boundary.visits[1].car_route[0]
+	check(Parking.validate(Codec.new().encode(boundary),[],[],17,true).ok,"Exact first-waypoint hold stays outside turn ownership")
+	var gate=model_from(input,false);gate.parking_visits=boundary.visits
+	var incoming=car_for(gate,16);var body:Vector2=incoming.car_position;var members=incoming.members.duplicate(true)
+	Parking.advance(gate,1.0/30.0)
+	check(incoming.car_position==body and int(incoming.car_index)==1 and incoming.members==members,"Restored gate waits without turn/passenger replay")
+	var legacy={"format":Parking.LEGACY_FORMAT,"owned":true,"paid_cost":Parking.PRICE,"visits":[Parking._legacy_member(state.visits[0],state.visits[0].members[0])]}
+	check(Parking.validate(Codec.new().encode(legacy),[],[],17,true).ok,"Historical one-driver V1 remains valid")
+	legacy.visits.append(Parking._legacy_member(state.visits[1],state.visits[1].members[0]))
+	var rejection=Parking.validate(Codec.new().encode(legacy),[],[],17,true)
+	check(not rejection.ok and rejection.error=="Multiple cars own parking maneuver","Historical full V1 rejects multiple displaced cars before migration")
+	# Two otherwise valid approaches share the same first street target. The
+	# aggregate reader must examine their physical gap, not just exclude turns.
+	var pair=state.duplicate(true)
+	pair.visits[1].car_index=1;pair.visits[1].car_position=pair.visits[1].car_route[0]
+	var second=pair.visits[1].duplicate(true);second.id=17;second.bay=1
+	second.car_route=Parking.car_route(1);second.car_index=0;second.car_position=second.car_route[0]-Vector2(0,Traffic.GAP)
+	var member=second.members[0];member.id=17;member.member_id=17;member.car_id=17;member.appearance_sequence=17;member.species_index=posmod(17,3);member.bay=1
+	for slot in range(Parking.model_queue_capacity()):
+		if slot!=int(pair.visits[1].members[0].slot):member.slot=slot;break
+	member.walk_origin=Parking.door_point(1);member.walk_position=member.walk_origin;member.walk_route=Parking.inward_route(1)
+	pair.visits.append(second)
+	check(Parking.validate(Codec.new().encode(pair),[],[],18,true).ok,"Distinct approaches exactly GAP apart remain valid")
+	for gap in [0.0,Traffic.GAP-.25]:
+		var bad=pair.duplicate(true)
+		bad.visits[2].car_index=1 if gap==0 else 0
+		bad.visits[2].car_position=bad.visits[2].car_route[0]-Vector2(0,gap)
+		var result=Parking.validate(Codec.new().encode(bad),[],[],18,true)
+		check(not result.ok and result.error=="Parking street approaches overlap","On-route coincident/below-GAP approaches refuse")
+		check(same(Parking.snapshot(model),state),"Pair validation never mutates its live source")
+		if saved:
+			var data=JSON.parse_string(FileAccess.get_file_as_string(path));data.parking=Codec.new().encode(bad);data.runtime.next_customer_id=18
+			var bad_path="user://parking-approach-gap-"+str(gap)+".json"
+			var file=FileAccess.open(bad_path,FileAccess.WRITE)
+			if file==null:check(false,"Cannot write generated spacing refusal fixture");continue
+			file.store_string(JSON.stringify(data));file.close()
+			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.coins;var next_id=restored._next_customer_id
+			check(not restored.load_save(bad_path) and restored.last_error.contains("Parking street approaches overlap"),"Ordinary reader reaches pair spacing refusal")
+			check(same(Parking.snapshot(restored),before) and restored.coins==wallet and restored._next_customer_id==next_id,"Spacing refusal preserves live state/custody/counter atomically")
+	var dormant=pair.duplicate(true)
+	for car in dormant.visits:
+		if car.phase=="car_arriving":car.car_position=Parking.CAR_START;car.car_index=0
+	check(Parking.validate(Codec.new().encode(dormant),[],[],18,true).ok,"Historical dormant CAR_START placeholders remain valid")
+	var obstacle=state.visits[1].duplicate(true);obstacle.car_position=Parking.CAR_START
+	check(is_equal_approx(Traffic.allowance(Vector2(-4.65,79.9),1,5,[],[obstacle]),1.6),"Cyclic road preserves parking GAP across seam")
+	check(Traffic.allowance(Vector2(-4.65,80),1,1,[],[obstacle],-1,false)==1,"Finite exit still ignores behind-seam parking body")
+
 func _initialize():
 	var input=JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/parking-finite-departure.json"))
 	if not input is Dictionary or not input.candidate_only or input.historical_r2_state_recovered:
@@ -122,5 +230,11 @@ func _initialize():
 	compatibility(input)
 	coupled(input,false)
 	coupled(input,true)
+	var retained=JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/parking-stationary-tail.json"))
+	if not retained is Dictionary or not retained.candidate_only or not retained.original_natural_attempt_failed:
+		printerr("STATIONARY_TAIL_FIXTURE_INVALID");quit(2);return
+	retained_cycle(retained,false)
+	retained_cycle(retained,true)
+	reader_boundary(retained)
 	print("PARKING_FINITE_DEPARTURE_RESULT ",JSON.stringify(clean({"checks":checks,"failures":failures,"coupled_outcomes":outcomes,"candidate_snapshot_only":true,"historical_r2_state_recovered":false,"natural_journey_acceptance":false})))
 	quit(0 if failures.is_empty() else 1)
