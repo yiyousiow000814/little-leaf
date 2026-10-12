@@ -315,5 +315,46 @@ class Current59FixedInputTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             current.main(current59=1)
 
+class Current11FixedInputTests(unittest.TestCase):
+    def module(self):
+        spec = importlib.util.spec_from_file_location('current11_test', ROOT/'tools/diagnostics/current_handoff_route.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.select_current11_profile()
+        return module
+
+    def test_current11_does_not_alias_prior_modes_or_overlay(self):
+        actual = self.module()
+        self.assertEqual(actual.SOURCE, '11b3d9b864fc764654fdfc25c30cd0ea85d300cd')
+        self.assertEqual(actual.TREE, '950655dbb59a4549ada6082031cf6331c1e44d12')
+        self.assertEqual(actual.RUN, 38314607257)
+        self.assertEqual(actual.ARTIFACTS['web'][0], 11776123114)
+        self.assertEqual(actual.ARTIFACTS['evidence'][0], 11776855171)
+        self.assertEqual(actual.DRIVER, route.sha(ROOT/'platform/firebase/diagnostics/current11_handoff_driver.mjs'))
+        self.assertEqual(actual.OBSERVER, current.OBSERVER)
+        self.assertEqual(current.SOURCE, '9ecd88481f0f4c3faf06662b992efab6c99a3849')
+        actual.select_current59_profile()
+        self.assertEqual(actual.SOURCE, '59e3e572e5d7723b7515f1a0a2af226bafe38b2f')
+
+    def test_old_or_mixed_source_and_successful_stage_cannot_cover11(self):
+        actual = self.module()
+        identifier, name, digest = actual.ARTIFACTS['web']
+        artifact = {'id': identifier, 'name': name, 'digest': 'sha256:'+digest,
+            'expired': False, 'expires_at': '2099-01-01T00:00:00Z',
+            'workflow_run': {'id': actual.RUN, 'head_sha': actual.SOURCE}}
+        run = {'id': actual.RUN, 'run_attempt': 1, 'head_sha': actual.SOURCE,
+            'status': 'completed', 'conclusion': 'failure', 'event': 'workflow_dispatch',
+            'path': '.github/workflows/stage-firebase.yml'}
+        route.validate_metadata('web', artifact, run, artifacts=actual.ARTIFACTS,
+                                source=actual.SOURCE, run_id=actual.RUN)
+        for field, value in [('head_sha', current.SOURCE),
+                             ('head_sha', '59e3e572e5d7723b7515f1a0a2af226bafe38b2f'),
+                             ('conclusion', 'success'), ('run_attempt', 2)]:
+            changed = dict(run); changed[field] = value
+            with self.subTest(field=field, value=value), self.assertRaises(ValueError):
+                route.validate_metadata('web', artifact, changed, artifacts=actual.ARTIFACTS,
+                                        source=actual.SOURCE, run_id=actual.RUN)
+
+
 if __name__ == '__main__':
     unittest.main()

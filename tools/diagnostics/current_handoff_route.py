@@ -52,6 +52,24 @@ def select_current59_profile():
     ENTRY = '84c50680d4c5309639f892efa9821c043059b55e6ea1b0f7c1b0d2e1f33b4e9d'
 
 
+def select_current11_profile():
+    """One additional immutable failed-source tuple; no arbitrary source inputs."""
+    global SOURCE, TREE, RUN, ARTIFACTS, DRIVER, FROZEN_DRIVER, EXPORT, NATIVE, REPORT, ENTRY
+    SOURCE = '11b3d9b864fc764654fdfc25c30cd0ea85d300cd'
+    TREE = '950655dbb59a4549ada6082031cf6331c1e44d12'
+    RUN = 38314607257
+    ARTIFACTS = {
+        'web': (11776123114, 'little-leaf-web-'+SOURCE+'-1', '73194a69ba5a8eeb910157c03c244cfbe227849c25c0894e70db66458bd29182'),
+        'evidence': (11776855171, 'little-leaf-firebase-evidence-'+SOURCE+'-1', 'bfba45d6f22ea480bf8b334ceadf1c7daebb21d6ef7b17bf808f3ab8b679104e'),
+    }
+    DRIVER = '81b333b2811ade87970418bd23c3623d7257c2f127bf3367da2933404f80bdc5'
+    FROZEN_DRIVER = 'current11_handoff_driver.mjs'
+    EXPORT = 'd351a5cd5c16901b9eed6bc3d529ae8b1a5dd5a69dff4fe2d761cf42554e9db1'
+    NATIVE = '263c836f907f2a664b49784fdf854855a1558011fb73b106a6921741d40e1507'
+    REPORT = '10852f6e003ddd342436fb73533c9386fe6dc1f6c993f1e345a1ec620ac67758'
+    ENTRY = 'e4881b0281f557763549af68a92c787b116bfbdba630a7f5c422f6a2e505ab7a'
+
+
 def remaining():
     value = float(os.environ['LL_RETAINED_START_MONOTONIC'])+420-time.monotonic()
     if value <= 0:
@@ -222,6 +240,11 @@ def main(*, current59=False):
         run(root, os.environ, driver='current_handoff_driver.mjs')
     else:
         prepare(root, args.coordinator.resolve())
+
+
+def main_current11():
+    select_current11_profile()
+    main()
 
 
 if __name__ == '__main__':

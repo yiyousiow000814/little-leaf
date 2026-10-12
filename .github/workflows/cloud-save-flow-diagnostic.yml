@@ -14,7 +14,7 @@ on:
       diagnostic_mode:
         type: choice
         required: true
-        options: [retained-a897-timing, retained-9ecd-phase, retained-59e3-poll]
+        options: [retained-a897-timing, retained-9ecd-phase, retained-59e3-poll, retained-11b3-poll]
       admission_id:
         description: Queue-reviewed one-use diagnostic nonce; no credentials
         type: string
@@ -23,7 +23,7 @@ on:
         description: Exact source/workflow hash, nonce, expiry and attempts1 from Queue
         type: string
         required: true
-run-name: ${{ github.event_name == 'workflow_dispatch' && format(inputs.diagnostic_mode == 'retained-a897-timing' && 'Retained a897 timing {0}' || inputs.diagnostic_mode == 'retained-59e3-poll' && 'Current 59e3 poll {0}' || 'Current 9ecd phase {0}', inputs.admission_id) || 'Cloud save flow diagnostic (retained compiled UI)' }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && format(inputs.diagnostic_mode == 'retained-a897-timing' && 'Retained a897 timing {0}' || inputs.diagnostic_mode == 'retained-11b3-poll' && 'Current 11b3 poll {0}' || inputs.diagnostic_mode == 'retained-59e3-poll' && 'Current 59e3 poll {0}' || 'Current 9ecd phase {0}', inputs.admission_id) || 'Cloud save flow diagnostic (retained compiled UI)' }}
 permissions:
   contents: read
   actions: read
@@ -278,6 +278,92 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: current-59e3-poll-${{ github.sha }}-${{ github.run_id }}-1
+          path: |
+            current/diagnostic-binding.json
+            current/diagnostic-output/terminal.json
+            current/diagnostic-output/*.log
+            current/diagnostic-output/scenario/*.json
+            current/diagnostic-output/scenario/*.png
+          if-no-files-found: warn
+          retention-days: 7
+  current-11b3:
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnostic_mode == 'retained-11b3-poll' && github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Start absolute420+60 budget before checkout
+        env:
+          ADMISSION_ID: ${{ inputs.admission_id }}
+          ADMISSION_JSON: ${{ inputs.admission_json }}
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,re,time
+          started=time.monotonic()
+          a=json.loads(os.environ['ADMISSION_JSON'])
+          assert set(a)=={'source_sha','workflow_sha256','nonce','expires_at','attempts'}
+          assert a['source_sha']==os.environ['GITHUB_SHA'] and re.fullmatch('[0-9a-f]{40}',a['source_sha'])
+          assert re.fullmatch('[0-9a-f]{64}',a['workflow_sha256'])
+          assert a['nonce']==os.environ['ADMISSION_ID'] and re.fullmatch('[0-9a-f]{32}',a['nonce'])
+          assert type(a['attempts']) is int and a['attempts']==1 and os.environ['GITHUB_RUN_ATTEMPT']=='1'
+          now=datetime.datetime.now(datetime.timezone.utc); expiry=datetime.datetime.fromisoformat(a['expires_at'])
+          assert expiry.tzinfo is not None and now<expiry<=now+datetime.timedelta(minutes=12)
+          assert os.environ['ImageOS']=='ubuntu24' and os.environ['ImageVersion']=='20261004.327.1'
+          with open(os.environ['GITHUB_ENV'],'a') as f:f.write('LL_RETAINED_START_MONOTONIC='+str(started)+'\n')
+          PY
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: coordinator
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Bind exact admitted workflow and refuse nonce reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ADMISSION_JSON: ${{ inputs.admission_json }}
+          ADMISSION_ID: ${{ inputs.admission_id }}
+        run: |
+          gh api --paginate --slurp 'repos/yiyousiow000814/little-leaf/actions/workflows/cloud-save-flow-diagnostic.yml/runs?per_page=100' > "$RUNNER_TEMP/current-route-runs.json"
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib
+          a=json.loads(os.environ['ADMISSION_JSON']); p=pathlib.Path('coordinator/.github/workflows/cloud-save-flow-diagnostic.yml')
+          assert hashlib.sha256(p.read_bytes()).hexdigest()==a['workflow_sha256']
+          pages=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'current-route-runs.json').read_text())
+          name='Current 11b3 poll '+os.environ['ADMISSION_ID']
+          assert not any(r['display_title']==name and str(r['id'])!=os.environ['GITHUB_RUN_ID'] for page in pages for r in page['workflow_runs'])
+          PY
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 11b3d9b864fc764654fdfc25c30cd0ea85d300cd
+          path: current/source
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fetch fixed retained inputs; no current build or export
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/yiyousiow000814/little-leaf/actions/runs/38314607257 > current/run.metadata.json
+          for pair in web:11776123114 evidence:11776855171; do
+            name=${pair%:*}; id=${pair#*:}
+            gh api "repos/yiyousiow000814/little-leaf/actions/artifacts/$id" > "current/$name.metadata.json"
+            gh api "repos/yiyousiow000814/little-leaf/actions/artifacts/$id/zip" > "current/$name.zip"
+          done
+          python3 coordinator/tools/diagnostics/cloud_flow_diagnostic.py --retained-11b3-poll --root current --coordinator coordinator
+      - name: Install only exact locked synthetic SDK and pinned Playwright
+        run: |
+          set -euo pipefail
+          npm --prefix current/source/platform/firebase ci --ignore-scripts --no-audit --no-fund
+          npm install --prefix "$RUNNER_TEMP/current-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          curl --fail --silent --show-error --location 'https://storage.googleapis.com/firebase-preview-drop/emulator/cloud-firestore-emulator-v1.20.4.jar' -o current/cloud-firestore-emulator-v1.20.4.jar
+          echo '049ee7814741b481ae5becfdaa7b55693bdf7a03363cd184e35c36c1595a9643  current/cloud-firestore-emulator-v1.20.4.jar' | sha256sum --check --strict
+      - name: One fixed11 cache-then-graceful headed Linux154 predicate and phase observation
+        env:
+          LL_RETAINED_PLAYWRIGHT: ${{ runner.temp }}/current-browser-tools/node_modules/playwright
+        run: python3 coordinator/tools/diagnostics/cloud_flow_diagnostic.py --retained-11b3-poll --root current --coordinator coordinator --run
+      - name: Retain diagnostic timing and terminal evidence only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: current-11b3-poll-${{ github.sha }}-${{ github.run_id }}-1
           path: |
             current/diagnostic-binding.json
             current/diagnostic-output/terminal.json
