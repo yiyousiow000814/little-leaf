@@ -1,8 +1,8 @@
 import sys
 """Run real-scene bottom-notification removal checks with a disposable profile.
 
-Usage: python3 tests/run_no_bottom_notifications.py
-       python3 tests/run_no_bottom_notifications.py --rendered --output /tmp/leaf-captures
+Usage: python3 tests/presentation/run_no_bottom_notifications.py
+       python3 tests/presentation/run_no_bottom_notifications.py --rendered --output /tmp/leaf-captures
 Rendered mode requires a working native display; captures are written to --output.
 """
 import argparse
@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 parser = argparse.ArgumentParser(description=__doc__)
