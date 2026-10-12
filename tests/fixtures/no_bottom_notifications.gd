@@ -21,7 +21,8 @@ static func verify(game,assertion:Callable,label:String):
  assertion.call(not game.compact_ui.has_method("refresh_status"),label+": no bottom refresh")
  assertion.call(not has_property(game,"workface_guidance"),label+": retired guidance node is absent")
  var methods=[]
- for method in Workfaces.get_script_method_list():methods.append(str(method.name))
+ var workface_script:Script=Workfaces
+ for method in workface_script.get_script_method_list():methods.append(str(method.name))
  for name in ["show_access_issue","current_access_issue","access_message","_fit_access_camera","draw_access_focus","draw_ground","_process"]:
   assertion.call(not methods.has(name),label+": no retired guide function "+name)
  assertion.call(not FileAccess.file_exists("res://scripts/cafe_status_notice.gd"),label+": component source deleted")

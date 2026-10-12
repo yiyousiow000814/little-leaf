@@ -13,7 +13,8 @@ func _initialize():run.call_deferred()
 func run():
  var game=FixtureMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.editing=true;game.paused=true
  var methods=[]
- for value in Guide.get_script_method_list():methods.append(str(value.name))
+ var guide_script:Script=Guide
+ for value in guide_script.get_script_method_list():methods.append(str(value.name))
  for name in ["draw_ground","marker_color","_process","_refresh"]:check(not methods.has(name),"retired guide function is deleted: "+name)
  check(not game.interaction.has_method("draw_floor_feedback"),"whole-floor painter is deleted")
  var nodes=[]
