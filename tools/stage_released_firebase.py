@@ -11,11 +11,11 @@ import shutil
 import subprocess
 import sys
 
-import build_firebase
+from build import build_firebase
 from qualification.artifacts import sha256, validate_export_inventory
 from firebase_release_event import artifact_for, download
 from firebase_release_gate import require
-from project_layout import source_path
+from build.project_layout import source_path
 from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
 from run_firebase_focused import COMMANDS
 
@@ -127,8 +127,11 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
             and config.get('authDomain') == 'little-leaf-41e5d.firebaseapp.com', 'Wrong public Firebase project')
     # Execute the released source's transformer, never a newer main version
     # which might inject 0.1.11 binding modules into the frozen 0.1.10c runtime.
+    transformer = source_path(root, 'tools/build/build_firebase.py')
+    transformer_import = ('from build.build_firebase import stage' if transformer.parent.name == 'build'
+                          else 'from build_firebase import stage')
     command = ('import json,sys; from pathlib import Path; '
-               'sys.path.insert(0,sys.argv[1]); from build_firebase import stage; '
+               'sys.path.insert(0,sys.argv[1]); ' + transformer_import + '; '
                'publication=json.loads(Path(sys.argv[5]).read_text()); '
                'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
                'json.loads(Path(sys.argv[4]).read_text()),**({"publication":publication} if publication is not None else {}))')
@@ -162,7 +165,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'release_run_id': selection['release_run_id'], 'release_tag': selection['release_tag'],
         'fresh_firebase_gate_sha256': records, 'hosted_acceptance': False,
         'live_activation_allowed': False, 'production_security_changes': False}
-    proof['released_transformer_sha256'] = sha256(root / 'tools/build_firebase.py')
+    proof['released_transformer_sha256'] = sha256(transformer)
     coordinator = Path(__file__).resolve().parents[1]
     proof['coordinator_source_commit'] = subprocess.check_output(
         ['git', '-C', str(coordinator), 'rev-parse', 'HEAD'], text=True).strip()

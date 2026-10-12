@@ -11,8 +11,8 @@ an inventory, not a checklist to run after every edit.
 | --- | --- |
 | `ci/install_tools.py` | Install checksum-pinned tools into a disposable location. |
 | `verify_prebaked_atlases.py` | Check checked-in atlas inputs before export. |
-| `build_web.py` | Export the source already checked by the complete native gate. |
-| `build_crazygames.py` | Build the separate platform variant after the Web gate. |
+| `build/build_web.py` | Export the source already checked by the complete native gate. |
+| `build/build_crazygames.py` | Build the separate platform variant after the Web gate. |
 | `run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
 | `prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
 | `prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
@@ -67,7 +67,7 @@ total runner minutes even while reducing elapsed time.
 
 | Command | Class | Responsibility |
 | --- | --- | --- |
-| `build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
+| `build/build_firebase.py` | On demand staging | Stage an unpublished Firebase variant with complete fresh source/run evidence. |
 | `release/release_metadata.py` | Release preparation | Validate version/tag/release notes and main ancestry; also provide version ordering. |
 | `qualification/reuse_main_ci.py` | Release qualification | Reuse a successful exact-main Web package with complete source and artifact checks. |
 | `qualification/reuse_released_web.py` | Staging qualification | Pin the original completed publication's CI run, attempt, artifact and manifest. |
@@ -90,7 +90,7 @@ source gate. Firebase and CrazyGames call that contract directly; neither varian
 depends on the other. Variant-specific provenance, staging, namespace and release
 policy remain in their respective commands. `ci/toolchain.json` pins the installer;
 `release/release_metadata.py` is the single version ordering implementation.
-`build_itch_trusted_preview.py` is a shared preparation module used by the
+`build/build_itch_trusted_preview.py` is a shared preparation module used by the
 explicit Firebase preview option; it does not add a standalone launch command
 or authorize deployment.
 
@@ -98,7 +98,7 @@ Offline contracts live in `tests/tooling/`; select affected cases using the
 [verification guide](../tests/README.md), rather than running every suite.
 `test_prepare_browser_qa.py` uses synthetic results to check scenario selection,
 disposable profiles and measured-layout failures; ordinary CI retains save gates.
-`project_layout.py` and `tests/source_paths.js` resolve repository source paths;
+`build/project_layout.py` and `tests/source_paths.js` resolve repository source paths;
 staged resource labels can differ. Source-hash keys follow actual source files,
 while historical exports and source-bound receipts retain their original paths.
 
