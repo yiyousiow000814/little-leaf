@@ -67,6 +67,8 @@ migration, character activation, merge or publication.
 
 An area's `history/` preserves dated approvals, reviews, failed evidence and recovery records. Their statements describe the source and date recorded there; they do not establish current implementation, merge, release or pixel acceptance. Use the roadmap's current-state section first.
 
+[Recorded art scale/contact studies](art-audio/art-scale-contact-011.md) distinguish historical measurements, superseded cabinet designs and proposed combined review from current Art Bible authority and accepted targets.
+
 The [historical evidence directory](testing/history/README.md) links original reviews across these areas. [Source recovery records](development/history/repository-notes.md) and the [original manifest](development/history/SOURCE_MANIFEST.json) retain original hashes and paths. Commands and JSON inside historical records refer to their original repository or capture environment.
 
 Distribution notices live under `art-audio/third-party/`; the retained QA output placeholders live under `testing/litter-remnants-visibility/` and `testing/role-boundaries/`. Their build and diagnostic consumers use these category paths.
