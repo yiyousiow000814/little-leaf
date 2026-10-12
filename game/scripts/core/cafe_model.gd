@@ -1100,6 +1100,19 @@ func readiness_text() -> String:
 	return "Cafe ready · service stations connected"
 
 
+func complete_meal_delivery(customer: Dictionary) -> bool:
+	# Main confirms final delivery/custody. Consume that meal once without
+	# waiting for another diner's logical stove slot; standalone tick stays timed.
+	if str(customer.get("phase", "")) != "cooking" or bool(customer.get("meal_abandoned", false)):
+		return false
+	if FurnitureMotion.active(customer) or not customers.any(func(active): return is_same(active, customer)):
+		return false
+	customer.phase = "drinking"
+	customer.elapsed = 0.0
+	customer.duration = PHASE_SECONDS.drinking
+	return true
+
+
 func tick(delta: float) -> void:
 	## Small internal slices keep outcomes stable with variable rendering rates.
 	## Pausing is the caller's responsibility. Long offline catch-up is not done.
