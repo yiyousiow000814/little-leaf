@@ -39,7 +39,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
         self.assertIn("artifact-ids: ${{ steps.selected_web.outputs.artifact_id }}", self.text)
         self.assertIn("run-id: ${{ steps.selected_web.outputs.run_id }}", self.text)
         self.assertIn("digest-mismatch: error", self.text)
-        for forbidden in ("tests/run_integration_candidate.py", "tools/build_web.py", "tools/ci/install_tools.py", "continue-on-error"):
+        for forbidden in ("tests/run_integration_candidate.py", "tools/build/build_web.py", "tools/ci/install_tools.py", "continue-on-error"):
             self.assertNotIn(forbidden, self.text)
         self.assertIn("actions: read", self.text)
         for input_name in ("web_run_id", "web_artifact_id"):
@@ -55,7 +55,7 @@ class WelcomeAudioWorkflowTests(unittest.TestCase):
 
     def test_offline_harness_and_guards_are_mandatory(self):
         self.assertIn("node tests/presentation/welcome_audio_test.js", self.text)
-        self.assertIn("python3 tools/verify_prebaked_atlases.py", self.text)
+        self.assertIn("python3 tools/qualification/verify_prebaked_atlases.py", self.text)
         self.assertIn("python3 -m unittest tests.tooling.test_welcome_audio_workflow tests.tooling.test_reuse_welcome_web -v", self.text)
         for file in ("browser", "helpers", "observer"):
             self.assertIn("node --check tests/presentation/welcome_audio_" + file + ".js", self.text)

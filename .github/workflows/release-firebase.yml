@@ -32,7 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_RUN: ${{ github.event.workflow_run.id || inputs.release_run_id }}
-        run: python3 tools/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/request" --reserve
+        run: python3 tools/release/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/request" --reserve
       - name: Persist staging intent before starting any source checks
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

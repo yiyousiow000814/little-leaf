@@ -9,10 +9,10 @@ from email.message import Message
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
-import deploy_firebase_hosting as h
-from build_firebase import BROWSER_GATES, FOCUSED_LOGS
-from project_layout import source_path
-from run_firebase_focused import COMMANDS
+from release import deploy_firebase_hosting as h
+from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
+from build.project_layout import source_path
+from qualification.run_firebase_focused import COMMANDS
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA, TREE = 'a'*40, 'b'*40
@@ -106,7 +106,7 @@ class ItchTestEntry(unittest.TestCase):
         (self.inner/'hosting-release.json').write_text(json.dumps(self.marker))
         (self.inner/'index.html').write_text('<script>window.__littleLeafRelease='+json.dumps(self.marker)+';</script>', encoding='utf-8')
         flow_sources = ['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs',
-            'tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/prepare_browser_qa.py','web/little_leaf_firebase.js',
+            'tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js',
             'web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
         flow = {'passed': True, 'synthetic_only': True, 'real_google_sign_in': False, 'real_compiled_ui': True,
                 'real_firestore_rules': True, 'diagnostic_only': False, 'browser_sandbox': True, 'itch_test_entry': True,
@@ -133,8 +133,8 @@ class ItchTestEntry(unittest.TestCase):
             'fresh_ci': {'status': 'fresh-gates-passed','new_engine_run': True, 'source_commit': SHA,'source_tree': TREE,
                          'workflow_run': '1','workflow_attempt': '1',
                          'gate_evidence_sha256': {label:h.digest(evidence/name) for label,name in labels.items()}},
-            'source_sha256': {name:h.digest(source_path(ROOT,name)) for name in ['tools/build_itch_entry.py',
-                'tools/build_itch_trusted_preview.py','tools/build_firebase.py','web/little_leaf_firebase_boot.mjs',
+            'source_sha256': {name:h.digest(source_path(ROOT,name)) for name in ['tools/build/build_itch_entry.py',
+                'tools/build/build_itch_trusted_preview.py','tools/build/build_firebase.py','web/little_leaf_firebase_boot.mjs',
                 'web/little_leaf_firebase_session.js','web/little_leaf_update.js','web/little_leaf_entry.css']}}
         names = ['guard','historical','build','gate','firebase','browser (play)','browser (recovery)',
             'compatibility (compatibility, old_opened_after_new)','compatibility (compatibility, already_open_old)',

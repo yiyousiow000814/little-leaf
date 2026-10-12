@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath,resourceName}=require('../source_paths.js');
+const {sourcePath,resourceName}=require('../tooling/source_paths.js');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');

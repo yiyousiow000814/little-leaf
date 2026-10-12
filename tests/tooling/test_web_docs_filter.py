@@ -47,14 +47,14 @@ class WebDocsFilterTests(unittest.TestCase):
 
     def test_mixed_docs_and_non_docs_build(self):
         for path in ("scripts/main.gd", "assets/NOTICE.md", "data/save-schema.json",
-                     "firebase/package-lock.json", "tools/build_web.py", ".github/workflows/ci.yml",
+                     "firebase/package-lock.json", "tools/build/build_web.py", ".github/workflows/ci.yml",
                      "tests/welcome_audio_qa.md", "docs/design/reference.svg"):
             with self.subTest(path=path):
                 self.assertTrue(pr_runs(["docs/README.md", path]))
 
     def test_markdown_consumed_by_build_helpers_stays_eligible(self):
         inputs = set()
-        for helper in (ROOT / "tools").glob("build*.py"):
+        for helper in (ROOT / "tools/build").glob("build*.py"):
             inputs.update(re.findall(r'''["'](docs/[^"']+\.md)["']''', helper.read_text(encoding="utf-8")))
         self.assertIn("docs/art-audio/third-party/CRAZYGAMES-SDK-NOTICE.md", inputs)
         for path in inputs:
@@ -74,7 +74,7 @@ class PrScopeTests(unittest.TestCase):
             self.assertTrue(lightweight_diff(self.raw(path, "A", "000000")))
         self.assertFalse(lightweight_diff(b""))
         for path in ("game/scripts/main.gd", "platform/web/local.js", "assets/NOTICE.md",
-                     "docs/art-audio/third-party/NOTICE.md", "tools/publish_itch.py",
+                     "docs/art-audio/third-party/NOTICE.md", "tools/release/publish_itch.py",
                      "tools/ci/pr_ci_scope.py", "tools/ci/toolchain.json", ".github/workflows/ci.yml",
                      "docs/design/reference.svg", "docs/../game/main.md", "docs/qa\nname.md"):
             self.assertFalse(lightweight_diff(self.raw(path)), path)

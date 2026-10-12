@@ -12,12 +12,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from project_layout import source_path, stage_project
-from build_web import verify_installer_receipt
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.project_layout import source_path, stage_project
+from build.build_web import verify_installer_receipt
 from qualification.artifacts import sha256
 from release.release_metadata import projected_metadata, version
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = ROOT / 'tests/fixtures/wall-compatibility'
 CONTRACT = json.loads((FIXTURES / 'contract.json').read_text())
 sys.path.insert(0, str(ROOT / 'tests'))

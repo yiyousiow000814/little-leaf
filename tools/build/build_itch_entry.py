@@ -1,9 +1,13 @@
 """Add the permanent itch chooser to the ordinary export before inventory hashing."""
 from pathlib import Path
-from entry_presentation import entry_styles
-from project_layout import source_path
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-ROOT = Path(__file__).resolve().parents[1]
+from build.entry_presentation import entry_styles
+from build.project_layout import source_path
+
+ROOT = Path(__file__).resolve().parents[2]
 BOOT = 'window.__littleLeafVault.boot()'
 GATED_BOOT = 'window.LittleLeafItchReleaseEntryReady.then(() => ' + BOOT + ')'
 PAGE_BEGIN = '<!-- little-leaf-release-entry:begin -->'

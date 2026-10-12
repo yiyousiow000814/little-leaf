@@ -1,9 +1,13 @@
 """Shared, licensed entry styling; no external font requests."""
 import base64
 from pathlib import Path
-from project_layout import source_path
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-ROOT = Path(__file__).resolve().parents[1]
+from build.project_layout import source_path
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def entry_styles():

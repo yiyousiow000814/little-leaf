@@ -8,7 +8,11 @@ import re
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
-from deploy_firebase_hosting import Transport, release_head, SITE_PATH, VERSION_RE
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from release.deploy_firebase_hosting import Transport, release_head, SITE_PATH, VERSION_RE
 
 
 FIXED_FRAME_CSP = 'frame-ancestors https://html-classic.itch.zone https://siowyiyou.itch.io'

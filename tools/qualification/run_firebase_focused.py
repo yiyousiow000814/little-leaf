@@ -1,7 +1,11 @@
 """Run fixed focused gates and record successful same-run command evidence."""
 import argparse,json,os,subprocess,sys
 from pathlib import Path
-from build_web import ROOT,sha256
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from build.build_web import ROOT,sha256
 COMMANDS={'adapter.log':['node','tests/persistence/firebase_storage.js'],
  'delayed-network.log':['node','tests/persistence/firebase_delayed_network.js'],
  'recovery.log':['node','tests/persistence/firebase_recovery.js'],

@@ -11,7 +11,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
-from project_layout import stage_project
+from build.project_layout import stage_project
 BASE = "11c1f8d904b0c4c9a2565cbd557d1552b4ba9401"
 
 def main():

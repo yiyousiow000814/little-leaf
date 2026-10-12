@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 import struct
 
-ROOT = Path(__file__).resolve().parents[1] / 'game'
+ROOT = Path(__file__).resolve().parents[2] / 'game'
 MANIFEST = ROOT / 'data/prebaked_atlas_manifest.json'
 SEEDS = ['scripts/rendering/furniture_atlas_painter.gd','scripts/rendering/moving_art_painter.gd','scripts/rendering/character_head_painter.gd']
 NAMES = ['furniture','moving','heads']
