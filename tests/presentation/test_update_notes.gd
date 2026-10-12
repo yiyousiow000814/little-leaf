@@ -1,5 +1,5 @@
 extends SceneTree
-## Offline notes, real Help controls and disposable synthetic preferences only.
+## Offline notes, real Settings controls and disposable synthetic preferences only.
 const Notes=preload("res://scripts/ui/cafe_update_notes.gd")
 const FIXTURE="user://synthetic_update_notes.json"
 class TestMain extends "res://scripts/main.gd":
@@ -27,7 +27,7 @@ func load_fixture(document:Variant):
  var file=FileAccess.open(FIXTURE,FileAccess.WRITE)
  file.store_string(JSON.stringify(document));file.close()
  var ui=game.compact_ui;var notes=ui.update_notes
- # Rebuild only the test panel; existing Help callbacks keep their controller.
+ # Rebuild only the test panel; existing Settings callbacks keep their controller.
  for record in ui.themed_popups.duplicate():
   if record.panel==notes.panel:ui.themed_popups.erase(record)
  notes.panel.free();notes.panel=null;notes.session_seen_version=""
@@ -84,27 +84,28 @@ func run():
    check(not entry.badge.visible and entry.button.accessibility_name=="Update Notes",status+" menu has no unread badge or announcement")
   for entry in ui.update_badges:
    if entry.button!=ui.settings_button and entry.button!=ui.settings_inbox:
-    check(not entry.badge.visible,status+" Help has no update badge")
+    check(not entry.badge.visible,status+" Settings Updates has no update badge")
   for view in [Vector2i(960,540),Vector2i(390,844),Vector2i(566,360)]:
-   root.size=view;ui.show_help();await settle()
-   ui.help_notes.pressed.emit();await settle()
-   check(notes.panel.visible and not ui.help_panel.visible,status+" opens through Help at "+str(view))
+   root.size=view;game.settings.show();await settle()
+   ui.settings_updates.pressed.emit();await settle()
+   check(notes.panel.visible and not game.settings.visible and not ui.help_panel.visible,status+" opens through Settings at "+str(view))
    check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),status+" preparation panel fits "+str(view))
-   notes.show();await settle()
+   notes.show_from_settings();await settle()
    check(notes.panel.visible and notes.session_seen_version=="",status+" repeated open never marks draft seen")
    notes.back_button.pressed.emit();await settle()
-   check(ui.help_panel.visible and not notes.panel.visible,status+" Back returns to Help")
+   check(game.settings.visible and not notes.panel.visible,status+" Back returns to Settings")
   check(preferences.last_seen_update_version=="8.0.0",status+" preserves previously seen version")
  await load_fixture(released)
  check(notes.current_version()=="9.8.7" and notes.has_unread(),"released notes retain version and unread behavior")
  check("Version 9.8.7 · 2026-01-01" in words(notes.body),"released panel retains version and date")
  check("Synthetic shipped change" in words(notes.body),"released panel retains shipped changes")
  check(not notes.panel.visible and notes.session_seen_version=="","released setup does not mark seen")
- for entry in notes.menu_entries:check(entry.badge.visible,"released notes show unread badge")
- ui.help_notes.pressed.emit();await settle()
+ for entry in ui.update_badges:
+  if entry.button==ui.settings_updates:check(entry.badge.visible,"released notes show unread badge on Settings Updates")
+ ui.settings_updates.pressed.emit();await settle()
  check(notes.session_seen_version=="9.8.7" and not notes.has_unread(),"reading released notes clears session unread state")
  check(preferences.last_seen_update_version=="8.0.0","review session never persists seen release")
- notes._back_to_help();await settle();ui.help_notes.pressed.emit();await settle()
+ notes._back_to_help();await settle();ui.settings_updates.pressed.emit();await settle()
  check(not notes.has_unread(),"reopening released notes does not restore unread badge")
  var historical=released.duplicate(true)
  historical.version="9.8.6";historical.new=["Historical major feature"]

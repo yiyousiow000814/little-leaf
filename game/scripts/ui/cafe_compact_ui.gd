@@ -46,6 +46,7 @@ var finishes:PanelContainer
 var management:PanelContainer
 var help_panel:PanelContainer
 var help_text:Label
+var help_stats_row:HBoxContainer
 var help_box:VBoxContainer
 var help_scroll:ScrollContainer
 var help_footer:GridContainer
@@ -53,7 +54,6 @@ var help_header:HBoxContainer
 var help_heading:Label
 var help_close:Button
 var help_overview:Button
-var help_notes:Button
 var help_scrim:ColorRect
 var help_modal=false
 var help_done:Button
@@ -242,6 +242,7 @@ func setup():
  help_close.custom_minimum_size=Vector2(44,44);help_header.add_child(help_close)
  help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
  var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
+ help_stats_row=game.settings_controls.build_stats_row();help_content.add_child(help_stats_row)
  help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
  help_choices=GridContainer.new();help_choices.columns=1;help_choices.add_theme_constant_override("h_separation",10);help_choices.add_theme_constant_override("v_separation",10);help_content.add_child(help_choices);help_content.move_child(help_choices,0);help_choices.hide()
  for choice in ["local","cloud"]:
@@ -298,8 +299,7 @@ func setup():
  update_notice=UpdateNotice.new(self);update_notice.setup()
  help_log=save_log_panel.make_menu_entry();help_footer.add_child(help_log);help_footer.move_child(help_log,help_done.get_index())
  update_notes=UpdateNotes.new(self);update_notes.setup()
- help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,help_overview.get_index()+1)
- for button in [help_overview,help_notes,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ for button in [help_overview,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
  _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
@@ -568,12 +568,13 @@ func _set_help_modal(enabled:bool):
 func _help_tab(event:InputEventKey)->bool:
  if not help_panel.visible or event.keycode!=KEY_TAB:return false
  var controls=[help_close,help_scroll]
+ if help_stats_row.visible:controls.append(game.settings_controls.stats_toggle)
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
  for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry]:
   if button.visible and not button.disabled:controls.append(button)
- for button in [help_overview,help_notes,help_log,help_done]:
+ for button in [help_overview,help_log,help_done]:
   if button.visible and not button.disabled:controls.append(button)
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
  index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())
@@ -727,6 +728,7 @@ func _sync_help_content():
  var recovery_busy=bool(recovery.get("busy",false))
  var choices_available=bool(recovery.get("available",false))
  var ownership_paused=bool(recovery.get("serverOwnership",false)) and bool(recovery.get("ownershipPaused",false))
+ help_stats_row.visible=not game.save_recovery_blocked and not choices_available and not ownership_paused
  help_switch_device.visible=ownership_paused and (bool(recovery.get("canRequestTakeover",false)) or bool(recovery.get("canForceTakeover",false)));help_switch_device.disabled=recovery_busy or not bool(recovery.get("canSwitch",false))
  help_switch_device.text="Switching…" if recovery_busy else "Try again" if recovery.get("status","")=="resume-needed" else "Continue from cloud" if bool(recovery.get("canForceTakeover",false)) else "Switch to this device"
  help_heading.text="Could not resume yet" if ownership_paused and recovery.get("status","")=="resume-needed" else "Waiting for connection" if ownership_paused and recovery.get("status","")=="offline" else "Your game is running on another device" if ownership_paused else "Choose your save" if choices_available else "Quick help"
@@ -738,7 +740,6 @@ func _sync_help_content():
  help_choices.visible=choices_available
  if choices_available:help_choices.get_parent().move_child(help_choices,0)
  help_overview.visible=not choices_available and not ownership_paused
- help_notes.visible=not choices_available and not ownership_paused
  for choice in recovery.get("choices",[]):
   if not choice is Dictionary or not help_choice_labels.has(str(choice.get("id",""))):continue
   var name="This device" if choice.id=="local" else "Cloud save"
@@ -773,7 +774,7 @@ func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
 func return_to_help(focus_button:Button=null):
  _popup_at(help_panel,340);_fit_help_panel()
- (focus_button if focus_button!=null else help_notes).grab_focus()
+ (focus_button if focus_button!=null else help_scroll).grab_focus()
 func _close_help():
  help_panel.hide()
  if help_returns_to_settings:game.settings.show();_fit_themed_popups();settings_help.grab_focus()
