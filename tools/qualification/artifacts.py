@@ -2,7 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
-from project_layout import source_path
+from build.project_layout import source_path
 from release.release_metadata import projected_metadata
 
 

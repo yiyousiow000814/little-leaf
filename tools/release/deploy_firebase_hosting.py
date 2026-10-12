@@ -20,6 +20,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import zipfile
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from release.released_live_provenance import STATUS as RELEASED_LIVE_STATUS, validate_released_live, validate_origin
 
 SITE = 'little-leaf-41e5d'
@@ -591,7 +595,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
         if (not isinstance(name, str) or Path(name).is_absolute() or '..' in Path(name).parts or '\\' in name
                 or not re.fullmatch(r'[0-9a-f]{64}', expected) or digest(actual[name]) != expected):
             raise ValueError('Test file path or hash differs')
-    from build_firebase import BROWSER_GATES, FOCUSED_LOGS
+    from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
     evidence = proof.get('gate_evidence_sha256', {})
     expected_labels = {'native', 'export', *BROWSER_GATES,
                        *('firebase-' + label + suffix for label in FOCUSED_LOGS for suffix in ['', '.json'])}
@@ -617,7 +621,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or export.get('manifest') != base or not export.get('stages')
             or any(row.get('exit_code') != 0 for row in export['stages'])):
         raise ValueError('Complete native/export evidence binding required')
-    from run_firebase_focused import COMMANDS
+    from qualification.run_firebase_focused import COMMANDS
     for name in FOCUSED_LOGS:
         log = folder / 'evidence' / ('firebase-' + name)
         recorded = json.loads(log.with_name(log.name + '.json').read_text())
@@ -648,13 +652,13 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or flow.get('itch_entry_sha256') != digest(inner / 'index.html')
             or flow.get('source_commit') != sha or flow.get('source_tree') != tree):
         raise ValueError('Exact compiled iframe and marker qualification required')
-    from project_layout import source_path
-    root = Path(__file__).resolve().parents[1]
+    from build.project_layout import source_path
+    root = Path(__file__).resolve().parents[2]
     flow_sources = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs', 'firebase/fullflow_network.mjs',
-                    'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/prepare_browser_qa.py',
+                    'tests/diagnostics/probe_cloud_recovery_geometry.gd', 'tools/qualification/prepare_browser_qa.py',
                     'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js', 'web/little_leaf_firebase_boot.mjs',
                     'web/little_leaf_update.js', 'firebase/firestore.rules']
-    entry_sources = ['tools/build_itch_entry.py', 'tools/build_itch_trusted_preview.py', 'tools/build_firebase.py',
+    entry_sources = ['tools/build/build_itch_entry.py', 'tools/build/build_itch_trusted_preview.py', 'tools/build/build_firebase.py',
                      'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_firebase_session.js',
                      'web/little_leaf_update.js', 'web/little_leaf_entry.css']
     if (flow.get('source_sha256') != {name: digest(source_path(root, name)) for name in flow_sources}
@@ -704,7 +708,7 @@ def active_files(api, version):
 
 
 def itch_test_config(config):
-    from read_firebase_hosting_config import effective_diagnosis, path_match
+    from release.read_firebase_hosting_config import effective_diagnosis, path_match
     if record_digest(config) != ITCH_BASELINE_CONFIG:
         raise ValueError('Approved Hosting configuration baseline changed')
     for family in ['redirects', 'rewrites']:

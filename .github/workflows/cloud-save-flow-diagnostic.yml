@@ -6,7 +6,7 @@ on:
       - 'platform/web/little_leaf_firebase*'
       - 'platform/web/little_leaf_update.js'
       - 'tools/diagnostics/cloud_flow_diagnostic.py'
-      - 'tools/prepare_browser_qa.py'
+      - 'tools/qualification/prepare_browser_qa.py'
       - 'tests/diagnostics/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
 permissions:
@@ -40,7 +40,7 @@ jobs:
         if: steps.eligibility.outputs.eligible == 'true'
         run: |
           python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
-          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 tools/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
+          GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 tools/qualification/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
       - name: Install pinned test dependencies
         if: steps.eligibility.outputs.eligible == 'true'
         run: |
