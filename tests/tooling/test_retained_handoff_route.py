@@ -4,14 +4,19 @@ import hashlib
 import importlib.util
 from pathlib import Path
 import stat
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
+import json
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location('route', ROOT/'tools/diagnostics/retained_handoff_route.py')
 route = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(route)
+sys.path.insert(0, str(ROOT/'tools/diagnostics'))
+import current_handoff_route as current
 
 class RetainedMetadataTests(unittest.TestCase):
     def values(self):
@@ -97,6 +102,124 @@ class AbsoluteCutoffTests(unittest.TestCase):
         self.assertFalse(route.completion_flags(True, True, 480, 480.01)['queue_release'])
         self.assertFalse(route.completion_flags(True, False, 480, 479)['queue_release'])
         self.assertFalse(route.completion_flags(False, True, 480, 479)['queue_release'])
+
+class CurrentRetainedTests(unittest.TestCase):
+    def values(self):
+        identifier, name, digest = current.ARTIFACTS['web']
+        return ({'id': identifier, 'name': name, 'digest': 'sha256:'+digest, 'expired': False,
+                 'expires_at': '2099-01-01T00:00:00Z',
+                 'workflow_run': {'id': current.RUN, 'head_sha': current.SOURCE}},
+                {'id': current.RUN, 'run_attempt': 1, 'head_sha': current.SOURCE, 'status': 'completed',
+                 'conclusion': 'failure', 'event': 'workflow_dispatch', 'path': '.github/workflows/stage-firebase.yml'})
+
+    def test_current_profile_never_aliases_legacy_input(self):
+        values = self.values()
+        route.validate_metadata('web', *values, artifacts=current.ARTIFACTS,
+                                source=current.SOURCE, run_id=current.RUN)
+        with self.assertRaises(ValueError):
+            route.validate_metadata('web', *values)
+        for field, value in [('head_sha', route.SOURCE), ('run_attempt', 2), ('event', 'pull_request')]:
+            artifact, run = self.values(); run[field] = value
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                route.validate_metadata('web', artifact, run, artifacts=current.ARTIFACTS,
+                                        source=current.SOURCE, run_id=current.RUN)
+
+    def test_headed_report_and_complete_original_sources_required(self):
+        hashes = {name: '0'*64 for name in current.FLOW_SOURCES}
+        report = {'source_commit':current.SOURCE, 'source_tree':current.TREE,
+                  'export_manifest_sha256':current.EXPORT, 'native_report_sha256':current.NATIVE,
+                  'itch_entry_sha256':current.ENTRY, 'headless_browser':False, 'passed':False,
+                  'source_sha256':hashes}
+        current.validate_report(report, hashes)
+        for key, value in [('headless_browser',True), ('headless_browser',0), ('passed',True),
+                           ('source_commit',route.SOURCE), ('itch_entry_sha256','0'*64),
+                           ('source_sha256',dict(list(hashes.items())[1:]))]:
+            changed=copy.deepcopy(report);changed[key]=value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                current.validate_report(changed, hashes)
+
+    def variant(self, root):
+        inner=root/'variant/public/itch';inner.mkdir(parents=True)
+        web=root/'build/web';web.mkdir(parents=True)
+        report={'source_sha256':{}}
+        for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js',
+                     'little_leaf_firebase_boot.mjs','little_leaf_update.js']:
+            (inner/name).write_bytes(b'original current module')
+            report['source_sha256']['web/'+name]=route.sha(inner/name)
+        base={'files':{}}
+        for name in ['index.js','index.wasm','index.pck']:
+            (inner/name).write_bytes(b'original compiled runtime')
+            base['files'][name]={'sha256':route.sha(inner/name)}
+        (web/'release-manifest.json').write_text(json.dumps(base))
+        (inner/'hosting-release.json').write_text(json.dumps({'source_commit':current.SOURCE,
+            'source_tree':current.TREE,'ci_run_id':str(current.RUN),'runtime_path':'/itch/',
+            'base_web_manifest_sha256':current.EXPORT}))
+        (inner/'index.html').write_bytes(b'original LF entry\n')
+        self.seal(root)
+        return report, route.sha(inner/'index.html')
+
+    def seal(self, root):
+        folder=root/'variant';manifest=folder/'firebase-variant-manifest.json'
+        files={p.relative_to(folder).as_posix():route.sha(p) for p in folder.rglob('*')
+               if p.is_file() and p!=manifest}
+        manifest.write_text(json.dumps({'files':files}))
+
+    def test_original_linux_entry_not_normalized_or_windows_relabelled(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);report, entry=self.variant(root)
+            with patch.object(current,'ENTRY',entry):
+                current.validate_variant(root,report)
+                (root/'variant/public/itch/index.html').write_bytes(b'original LF entry\r\n')
+                self.seal(root)
+                with self.assertRaises(ValueError):current.validate_variant(root,report)
+
+    def test_self_consistent_inventory_cannot_replace_source_module(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);report,entry=self.variant(root)
+            (root/'variant/public/itch/little_leaf_firebase.js').write_bytes(b'changed client')
+            self.seal(root)
+            with patch.object(current,'ENTRY',entry), self.assertRaises(ValueError):
+                current.validate_variant(root,report)
+
+    def test_frozen_overlay_is_separate_from_original_fullflow(self):
+        folder=ROOT/'platform/firebase/diagnostics'
+        self.assertEqual(route.sha(folder/'current_handoff_driver.mjs'),current.DRIVER)
+        self.assertEqual(route.sha(folder/'current_handoff_observer.mjs'),current.OBSERVER)
+        self.assertEqual(route.sha(ROOT/'platform/firebase/fullflow.test.mjs'),
+                         '974845a2def8c952cea4e7d547f82f0c8026e6a3f6c9b14310258ff2aa9266b2')
+
+    def test_expired_preparation_and_arbitrary_driver_stop_before_runtime(self):
+        with patch.dict(current.os.environ,{'LL_RETAINED_START_MONOTONIC':'0'}), \
+                patch.object(current.time,'monotonic',return_value=420.1), self.assertRaises(TimeoutError):
+            current.remaining()
+        with self.assertRaises(ValueError):route.run(Path('unused'),{},driver='../other.mjs')
+
+    def test_changed_preparation_receipt_stops_before_source_or_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'diagnostic-binding.json').write_text('{}')
+            args=['route','--root',str(root),'--coordinator',str(root),'--run']
+            with patch.object(sys,'argv',args), patch.object(current,'remaining',return_value=10), \
+                    patch.dict(current.os.environ,{'LL_CURRENT_BINDING_SHA256':'0'*64}), \
+                    patch.object(current,'retained_report',side_effect=AssertionError('must stop first')), \
+                    self.assertRaises(ValueError):
+                current.main()
+
+    def test_geometry_change_after_preparation_stops_before_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);geometry=root/'evidence'/current.PREFIX
+            geometry.mkdir(parents=True);(geometry/'geometry-1-input.json').write_text('changed')
+            binding={'reconstructed_variant_manifest_sha256':'a'*64,'source_sha256':{},
+                     'geometry_input_sha256':'0'*64,'geometry_result_sha256':'0'*64}
+            receipt=root/'diagnostic-binding.json';receipt.write_text(json.dumps(binding))
+            args=['route','--root',str(root),'--coordinator',str(root),'--run']
+            with patch.object(sys,'argv',args), patch.object(current,'remaining',return_value=10), \
+                    patch.dict(current.os.environ,{'LL_CURRENT_BINDING_SHA256':route.sha(receipt)}), \
+                    patch.object(current,'retained_report',return_value={}), \
+                    patch.object(current,'validate_variant',return_value='a'*64), \
+                    patch.object(current,'source_hashes',return_value={}), \
+                    patch.object(current,'run',side_effect=AssertionError('no runtime')), \
+                    self.assertRaises(ValueError):
+                current.main()
 
 if __name__ == '__main__':
     unittest.main()

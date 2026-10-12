@@ -36,14 +36,14 @@ def sha(path):
     with Path(path).open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
-def validate_metadata(kind, artifact, run):
-    identifier, name, digest = ARTIFACTS[kind]
+def validate_metadata(kind, artifact, run, *, artifacts=ARTIFACTS, source=SOURCE, run_id=RUN):
+    identifier, name, digest = artifacts[kind]
     if (type(artifact.get('id')) is not int or artifact['id'] != identifier or artifact.get('name') != name
             or artifact.get('expired') is not False or artifact.get('digest') != 'sha256:'+digest
-            or artifact.get('workflow_run', {}).get('id') != RUN
-            or artifact.get('workflow_run', {}).get('head_sha') != SOURCE
-            or run.get('id') != RUN or type(run.get('run_attempt')) is not int or run['run_attempt'] != 1
-            or run.get('head_sha') != SOURCE or run.get('status') != 'completed'
+            or artifact.get('workflow_run', {}).get('id') != run_id
+            or artifact.get('workflow_run', {}).get('head_sha') != source
+            or run.get('id') != run_id or type(run.get('run_attempt')) is not int or run['run_attempt'] != 1
+            or run.get('head_sha') != source or run.get('status') != 'completed'
             or run.get('conclusion') != 'failure' or run.get('event') != 'workflow_dispatch'
             or run.get('path') != '.github/workflows/stage-firebase.yml'):
         raise ValueError('Exact retained failed-stage metadata required')
@@ -204,7 +204,9 @@ def completion_flags(physical, durable, hard, observed):
         'complete_within_hard_cap': physical and durable and within,
         'queue_release': physical and durable and within}
 
-def run(root, env):
+def run(root, env, *, driver='fullflow.test.mjs'):
+    if driver not in {'fullflow.test.mjs', 'current_handoff_driver.mjs'}:
+        raise ValueError('Finite reviewed diagnostic driver required')
     image_gate(env)
     start = float(env['LL_RETAINED_START_MONOTONIC'])
     work, hard = start+420, start+480
@@ -295,7 +297,7 @@ def run(root, env):
             if java.poll() is not None:
                 raise RuntimeError('Owned emulator exited')
             time.sleep(min(.1, remaining(ready_end)))
-        node = launch('scenario', ['node', str(root/'source/platform/firebase/fullflow.test.mjs'),
+        node = launch('scenario', ['node', str(root/'source/platform/firebase'/driver),
             '--web-build', str(root/'build/web'), '--output', str(output/'scenario'),
             '--engine-report', str(root/'evidence/engine-evidence/summary.json'),
             '--itch-test-variant', str(root/'variant'), '--diagnostic-only',

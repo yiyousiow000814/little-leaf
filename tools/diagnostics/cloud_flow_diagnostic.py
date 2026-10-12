@@ -40,6 +40,9 @@ def verify(web,native):
  return manifest
 if __name__=='__main__':
  import sys
+ if '--retained-9ecd-phase' in sys.argv:
+  from current_handoff_route import main
+  sys.argv.remove('--retained-9ecd-phase');main();raise SystemExit(0)
  if '--retained-a897' in sys.argv:
   from retained_handoff_route import main
   sys.argv.remove('--retained-a897');main();raise SystemExit(0)
