@@ -83,5 +83,20 @@ class FrozenObserverTests(unittest.TestCase):
         self.assertIn('release_qualification:false,deployable:false', driver)
         self.assertIn('report.timingCheckpointUnavailable=true', driver)
 
+class AbsoluteCutoffTests(unittest.TestCase):
+    def test_expired_cleanup_has_zero_wait_not_positive_floor(self):
+        self.assertEqual(route.cleanup_timeout(480, 5, 480.1), 0)
+        self.assertEqual(route.cleanup_timeout(480, 10, 479.9), 480-479.9)
+    def test_late_physical_terminal_is_incomplete(self):
+        late = route.completion_flags(True, True, 480, 480.1)
+        self.assertTrue(late['physically_released'])
+        self.assertFalse(late['complete_within_hard_cap'])
+        self.assertFalse(late['queue_release'])
+    def test_durability_crossing_cutoff_and_unknown_terminal_hold(self):
+        self.assertTrue(route.completion_flags(True, True, 480, 479.9)['queue_release'])
+        self.assertFalse(route.completion_flags(True, True, 480, 480.01)['queue_release'])
+        self.assertFalse(route.completion_flags(True, False, 480, 479)['queue_release'])
+        self.assertFalse(route.completion_flags(False, True, 480, 479)['queue_release'])
+
 if __name__ == '__main__':
     unittest.main()

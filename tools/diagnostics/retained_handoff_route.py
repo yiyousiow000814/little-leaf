@@ -195,6 +195,15 @@ def display_owned(pid):
     matches = [row for row in rows if len(row) == 8 and row[7] == '/tmp/.X11-unix/X199']
     return bool(matches) and all(row[6] in inodes for row in matches)
 
+def cleanup_timeout(hard, cap, observed):
+    return max(0, min(cap, hard-observed))
+
+def completion_flags(physical, durable, hard, observed):
+    within = observed <= hard
+    return {'physically_released': physical, 'durable_terminal_written': durable,
+        'complete_within_hard_cap': physical and durable and within,
+        'queue_release': physical and durable and within}
+
 def run(root, env):
     image_gate(env)
     start = float(env['LL_RETAINED_START_MONOTONIC'])
@@ -311,14 +320,14 @@ def run(root, env):
                 attempt('group-term', lambda p=process: os.killpg(p.pid, signal.SIGTERM))
         end = min(hard, time.monotonic()+10)
         for process, fact in roots:
-            attempt('root-wait', lambda p=process: p.wait(timeout=max(.001, end-time.monotonic())))
+            attempt('root-wait', lambda p=process: p.wait(timeout=cleanup_timeout(end, 10, time.monotonic())))
         children = attempt('owned-descendants', descendants)
         for row in children or []:
             current = attempt('child-identity', lambda p=row['pid']: proc_identity(p))
             if current and current['start'] == row['start']:
                 attempt('owned-child-kill', lambda p=row['pid']: os.kill(p, signal.SIGKILL))
         for process, fact in roots:
-            fact['exit_code'] = attempt('final-root-wait', lambda p=process: p.wait(timeout=max(.001, min(5, hard-time.monotonic()))))
+            fact['exit_code'] = attempt('final-root-wait', lambda p=process: p.wait(timeout=cleanup_timeout(hard, 5, time.monotonic())))
         def reap():
             while True:
                 try:
@@ -341,12 +350,24 @@ def run(root, env):
         final = attempt('final-owned-tree', descendants)
         facts['owned_tree_zero'] = final == []
         facts['remaining_owned_pids'] = None if final is None else [r['pid'] for r in final]
-        facts['queue_release'] = facts['owned_tree_zero'] and all(f['exit_code'] is not None and f['log_closed'] for f in facts['roots']) and not errors
-        facts['elapsed_seconds'] = time.monotonic()-start
-        facts['status'] = 'TERMINAL_RELEASED' if facts['queue_release'] else 'HOLD_CLEANUP_UNRESOLVED'
+        physical = facts['owned_tree_zero'] and all(f['exit_code'] is not None and f['log_closed'] for f in facts['roots']) and not errors
+        observed = time.monotonic()
+        facts.update(completion_flags(physical, False, hard, observed))
+        facts['elapsed_seconds'] = observed-start
+        facts['status'] = 'PHYSICAL_TERMINAL_PENDING_DURABILITY' if physical else 'HOLD_CLEANUP_UNRESOLVED'
         saved = attempt('durable-terminal', lambda: (save(), True)[1])
-        if saved is not True:
-            facts['queue_release'] = False
+        observed = time.monotonic()
+        facts.update(completion_flags(physical, saved is True, hard, observed))
+        facts['elapsed_seconds'] = observed-start
+        facts['status'] = ('TERMINAL_RELEASED' if facts['queue_release'] else
+            'LATE_PHYSICAL_TERMINAL_INCOMPLETE' if physical and saved is True else 'HOLD_CLEANUP_UNRESOLVED')
+        sealed = attempt('durable-completion', lambda: (save(), True)[1])
+        observed = time.monotonic()
+        if sealed is not True or observed > hard:
+            facts.update(completion_flags(physical, sealed is True, hard, observed))
+            facts['elapsed_seconds'] = observed-start
+            facts['status'] = 'LATE_PHYSICAL_TERMINAL_INCOMPLETE' if physical and sealed is True else 'HOLD_CLEANUP_UNRESOLVED'
+            attempt('durable-incomplete', save)
     if not facts['queue_release'] or facts.get('scenario_exit_code') != 0 or facts.get('failure_type'):
         raise SystemExit(1)
 
