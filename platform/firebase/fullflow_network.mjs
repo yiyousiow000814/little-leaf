@@ -54,6 +54,49 @@ export function emulatorPreflightHeaders(value,headers){
   return {'access-control-allow-origin':headers.origin,'access-control-allow-credentials':'true','access-control-allow-methods':'GET, POST','access-control-allow-headers':allowed.join(', ')};
 }
 
+// A context owns its intercepted requests. Closing it cancels outstanding frame
+// evaluations/fetches; drain those callbacks before starting the next case.
+// Only cancellation from an explicitly requested, confirmed close is expected.
+export function createRouteLifetime(context,errors){
+  let retiring=false,closed=false,closing,callbackFailure;
+  const pending=new Set(),cancelled=[];
+  context.on('close',()=>{closed=true;});
+  const targetClosed=error=>/^(frame\.evaluate|route\.(fetch|fulfill|abort|continue|fallback)): Target page, context or browser has been closed(?:\n|$)/.test(String(error?.message));
+  const failed=error=>{callbackFailure??=error;errors.push('Fixture route callback failed: '+(targetClosed(error)?'target-closed':failureCategory(error?.message||error)));};
+  return {
+    handle(callback){return route=>{
+      const operation=(async()=>{
+        try{
+          if(retiring){if(!closed)await route.abort('blockedbyclient');return;}
+          await callback(route);
+        }catch(error){
+          if(retiring && targetClosed(error))cancelled.push(error);
+          else failed(error);
+        }
+      })();
+      pending.add(operation);
+      operation.finally(()=>pending.delete(operation));
+      return operation;
+    };},
+    close(){
+      if(!closing){
+        retiring=true;
+        closing=(async()=>{
+          let failure;
+          try{await context.close();if(!closed)throw Error('Fixture context close not confirmed');}
+          catch(error){failure=error;}
+          if(closed)while(pending.size)await Promise.all([...pending]);
+          if(!closed)for(const error of cancelled)failed(error);
+          cancelled.length=0;
+          if(failure)errors.push('Fixture context cleanup failed');
+          if(failure || callbackFailure)throw failure || callbackFailure;
+        })();
+      }
+      return closing;
+    },
+  };
+}
+
 // AudioWorklet fetches can escape Playwright's document routing. Keep the exact
 // packaged code executing in its own frame instead of requesting a live host.
 // The caller verifies these bytes against the immutable variant inventory.
