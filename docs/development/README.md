@@ -78,11 +78,15 @@ Open or update one coherent PR for each confirmed related finding. Reviewed clea
 
 Keep each work branch tied to a focused PR. State its purpose, base, scope, validation, and any dependent PRs. Retire completed or superseded branches after their source and useful evidence are durably preserved.
 
+Temporary QA stays local by default. If CI requires a remote ref, record its owner, purpose, exact tip, corresponding PR and retirement condition. Retire it after validation once its source and evidence are independently recoverable and no active run or branch-name consumer needs it. Preserve genuine changes in the corresponding principal PR; do not create empty or duplicate PRs merely to account for a diagnostic ref.
+
 One coherent related feature/change uses one principal PR, including its code, tests and fixes. Do not open successor experiment PRs for the same feature. Audit and consolidate existing overlaps with history and evidence preserved; include each dependency-relative delta once. Historical PR links are evidence, not additional completed features.
 
-A temporary integration or preview branch needs a clearly marked tracking draft with pinned source references and an explicit retirement plan. It does not replace separately reviewed feature or platform PRs, and must not become a bundled merge shortcut.
+A temporary integration or preview branch with meaningful implementation changes needs a clearly marked tracking draft with pinned source references and an explicit retirement plan. It does not replace separately reviewed feature or platform PRs, and must not become a bundled merge shortcut.
 
 Keep runtime changes, platform integration, test-only repairs, and deployment changes independently reviewable. Prefer a small documentation update to an unrelated cleanup or file move. Preserve asset inputs, history, and recovery evidence before removing obsolete material.
+
+At task closeout, enumerate every remote branch page and every open, closed and merged PR page. Record each branch's exact tip, PR/dependencies and disposition. Resolve refs without a PR by preserving useful approved work once in the corresponding coherent Draft, or retiring obsolete refs after full-history backup and independent restored commit/tree verification. Check actual named dependencies and active edits/runs; ancestry alone does not require a remote branch name. Protect main, platform refs, active work and dirty local checkouts. Immediately before retirement, recheck the remote tip and named consumers; retire only the verified unchanged ref within explicit user-authorized scope. For a blocked retirement, record the exact ref/tip, owner, consumer, blocker and next action, then finish reconciliation when the blocker clears.
 
 ## Project files
 
