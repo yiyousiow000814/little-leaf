@@ -148,6 +148,50 @@ class ReleasedStagingTests(unittest.TestCase):
                     os.chdir(previous)
                 self.assertEqual({p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}, before)
 
+    def test_released_gate_helpers_use_exact_source_layout_before_subprocess(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/stage-firebase.yml').read_text()
+        step = workflow.split('      - name: Run all focused Firebase and local emulator gates on the released source', 1)[1].split('      - name:', 1)[0]
+        self.assertIn('working-directory: source', step)
+        self.assertIn('node --check platform/web/little_leaf_firebase_boot.mjs', step)
+        blocks = [textwrap.dedent(part.split('          PY', 1)[0])
+                  for part in step.split("python3 - <<'PY'\n")[1:]]
+        self.assertEqual(len(blocks), 2)
+        gates = ['adapter.log', 'delayed-network.log', 'recovery.log', 'choice.log',
+                 'session.log', 'update-notice.log', 'recovery-presentation.log',
+                 'recovery-browser.log', 'staging-tests.log', 'rules.log']
+        for helper, code in zip(('run_firebase_focused.py', 'prepare_browser_qa.py'), blocks):
+            layouts = ('tools/' + helper, 'tools/qualification/' + helper)
+            for paths in ((layouts[0],), (layouts[1],), (), layouts):
+                with self.subTest(helper=helper, paths=paths), tempfile.TemporaryDirectory() as d:
+                    folder = Path(d)
+                    for relative in paths:
+                        path = folder / relative
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_bytes(b'immutable released helper')
+                    before = {p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
+                    previous = Path.cwd()
+                    try:
+                        os.chdir(folder)
+                        with patch.dict(os.environ, {'RUNNER_TEMP': str(folder / 'output')}), patch('subprocess.run') as run:
+                            if len(paths) == 1:
+                                exec(compile(code, 'released-source-gate', 'exec'), {})
+                                command = [sys.executable, str(Path(paths[0]))]
+                                if helper == 'run_firebase_focused.py':
+                                    expected = [command + ['--gate', gate, '--output', str(folder / 'output/firebase-focused')]
+                                                for gate in gates]
+                                else:
+                                    expected = [command + ['cloud', '--output', str(folder / 'output/cloud-geometry')]]
+                                self.assertEqual([call.args[0] for call in run.call_args_list], expected)
+                                self.assertTrue(all(call.kwargs == {'check': True} for call in run.call_args_list))
+                            else:
+                                with self.assertRaisesRegex(ValueError, 'exactly one'):
+                                    exec(compile(code, 'released-source-gate', 'exec'), {})
+                                run.assert_not_called()
+                    finally:
+                        os.chdir(previous)
+                    self.assertEqual({p.relative_to(folder): p.read_bytes() for p in folder.rglob('*') if p.is_file()}, before)
+
 
 if __name__ == '__main__':
     unittest.main()

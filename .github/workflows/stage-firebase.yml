@@ -157,11 +157,26 @@ jobs:
           set -euo pipefail
           export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
           export PATH="$JAVA_HOME/bin:$PATH"
-          for gate in adapter.log delayed-network.log recovery.log choice.log session.log update-notice.log recovery-presentation.log recovery-browser.log staging-tests.log rules.log; do
-            python3 tools/qualification/run_firebase_focused.py --gate "$gate" --output "$RUNNER_TEMP/firebase-focused"
-          done
+          python3 - <<'PY'
+          import os,pathlib,subprocess,sys
+          layouts=(pathlib.Path('tools/run_firebase_focused.py'),pathlib.Path('tools/qualification/run_firebase_focused.py'))
+          helpers=[path for path in layouts if path.is_file()]
+          if len(helpers)!=1:
+              raise ValueError('Released source must contain exactly one supported focused gate helper')
+          output=pathlib.Path(os.environ['RUNNER_TEMP'])/'firebase-focused'
+          for gate in ['adapter.log','delayed-network.log','recovery.log','choice.log','session.log','update-notice.log','recovery-presentation.log','recovery-browser.log','staging-tests.log','rules.log']:
+              subprocess.run([sys.executable,str(helpers[0]),'--gate',gate,'--output',str(output)],check=True)
+          PY
           node --check platform/web/little_leaf_firebase_boot.mjs
-          python3 tools/qualification/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
+          python3 - <<'PY'
+          import os,pathlib,subprocess,sys
+          layouts=(pathlib.Path('tools/prepare_browser_qa.py'),pathlib.Path('tools/qualification/prepare_browser_qa.py'))
+          helpers=[path for path in layouts if path.is_file()]
+          if len(helpers)!=1:
+              raise ValueError('Released source must contain exactly one supported browser geometry helper')
+          output=pathlib.Path(os.environ['RUNNER_TEMP'])/'cloud-geometry'
+          subprocess.run([sys.executable,str(helpers[0]),'cloud','--output',str(output)],check=True)
+          PY
       - name: Verify compiled cloud flows against exactly the released runtime in a disposable emulator
         working-directory: source/platform/firebase
         env:
