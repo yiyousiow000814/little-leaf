@@ -154,7 +154,7 @@ the audited main. The complete historical scene is not current-main proof, and
 the receipt says `rendered_pending_pixel_review`; its before desktop view has no
 notice. Do not claim there were no screenshots or infer who accepted them.
 
-[`test_update_notice.gd`](../../tests/test_update_notice.gd) checks geometry,
+[`test_update_notice.gd`](../../tests/presentation/test_update_notice.gd) checks geometry,
 44px targets, repeated actions and safe update behavior. It does not check shared
 material/font reuse or primary/secondary visual hierarchy. **Review expectation:**
 inspect every dynamically created surface's theme path and actual appearance

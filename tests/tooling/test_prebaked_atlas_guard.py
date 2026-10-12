@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import verify_prebaked_atlases as guard
+from qualification import verify_prebaked_atlases as guard
 
 class AtlasSourceGuard(unittest.TestCase):
     def setUp(self):

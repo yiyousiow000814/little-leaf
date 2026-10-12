@@ -16,7 +16,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tools'))
-from project_layout import stage_project
+from build.project_layout import stage_project
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--rendered", action="store_true")
 parser.add_argument("--output", type=Path, default=ROOT / "evidence/no-bottom-notifications")
