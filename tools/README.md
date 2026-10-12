@@ -5,6 +5,11 @@ Start with `.github/workflows/ci.yml` for ordinary validation. It calls
 deeper diagnostics only for the symptom being investigated; the table below is
 an inventory, not a checklist to run after every edit.
 
+Only this README and `.gdignore` remain at the tools root. The latter keeps the
+tooling tree excluded from Godot resource scanning. Build, CI, qualification,
+diagnostic and release implementations live in their existing packages; direct
+CLI commands remain callable from the repository root or another directory.
+
 ## Recurring validation and build commands
 
 | Command | Responsibility |
@@ -98,7 +103,7 @@ Offline contracts live in `tests/tooling/`; select affected cases using the
 [verification guide](../tests/README.md), rather than running every suite.
 `test_prepare_browser_qa.py` uses synthetic results to check scenario selection,
 disposable profiles and measured-layout failures; ordinary CI retains save gates.
-`build/project_layout.py` and `tests/source_paths.js` resolve repository source paths;
+`build/project_layout.py` and `tests/tooling/source_paths.js` resolve repository source paths;
 staged resource labels can differ. Source-hash keys follow actual source files,
 while historical exports and source-bound receipts retain their original paths.
 

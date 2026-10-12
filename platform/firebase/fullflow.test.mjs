@@ -1,5 +1,5 @@
 import {createRequire as sourceRequire} from 'node:module';
-const {sourcePath}=sourceRequire(import.meta.url)('../../tests/source_paths.js');
+const {sourcePath}=sourceRequire(import.meta.url)('../../tests/tooling/source_paths.js');
 // Actual compiled Godot UI + production boot/adapter/session/update + Firestore emulator.
 // Only authentication is synthetic. No production endpoint, token or player save is used.
 import assert from 'node:assert/strict';

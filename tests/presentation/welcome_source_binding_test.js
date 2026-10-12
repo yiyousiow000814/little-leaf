@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath}=require('../source_paths.js');
+const {sourcePath}=require('../tooling/source_paths.js');
 // Source binding only: no audio observations, browser or engine execution.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
