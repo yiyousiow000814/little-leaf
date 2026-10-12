@@ -2,7 +2,11 @@ extends Node2D
 ## Opt-in ground layer. Caller supplies presentation foot anchors, never actor state.
 ## Add this layer after rugs and before solids; no gameplay renderer hook is installed.
 const MAX_RINGS = 64
-const RADIUS = Vector2(21.0, 10.5)
+# Same projected half axes as IllustratedCafe.tile before its UI/zoom scale.
+const TILE_HALF_AXES = Vector2(39.0, 19.5)
+# Four 24-degree gaps need 1/cos(12deg) clearance; 1.03 keeps visible bounds
+# at least one tile wide/high even when a gap crosses an extreme axis.
+const RADIUS = TILE_HALF_AXES * 1.03
 const PERIOD_SECONDS = 12.0
 var enabled = false
 var _rings: Dictionary = {}
@@ -19,13 +23,13 @@ class Ring:
 static func _make_geometry() -> Array:
 	var geometry: Array = []
 	# Unit annular arcs are built once. Rotation precedes isometric flattening.
-	for half in range(2):
+	for quarter in range(4):
 		var arc = PackedVector2Array()
-		for i in range(33):
-			var angle = half * PI + deg_to_rad(12.0 + 156.0 * i / 32.0)
+		for i in range(17):
+			var angle = quarter * PI * .5 + deg_to_rad(12.0 + 66.0 * i / 16.0)
 			arc.append(Vector2(cos(angle), sin(angle)))
-		for i in range(32, -1, -1):
-			var angle = half * PI + deg_to_rad(12.0 + 156.0 * i / 32.0)
+		for i in range(16, -1, -1):
+			var angle = quarter * PI * .5 + deg_to_rad(12.0 + 66.0 * i / 16.0)
 			arc.append(Vector2(cos(angle), sin(angle)) * .84)
 		geometry.append(arc)
 	return geometry

@@ -36,6 +36,8 @@ func capture(name: String) -> Image:
 	var image = root.get_texture().get_image()
 	image.save_png(directory.path_join(name))
 	var nodes = ring_nodes()
+	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
+	records.append({"tile_bbox_px": str(game.illustration.tile * 2.0), "ring_outer_bbox_px": str(game.illustration.StaffGroundRing.RADIUS * unit * 2.0), "ring_gap_min_bbox_px": str(game.illustration.StaffGroundRing.RADIUS * unit * 2.0 * cos(deg_to_rad(12.0))), "segments": game.illustration.StaffGroundRing._geometry.size()})
 	records.append({"capture": name, "rings": nodes.size(), "draw_counts": nodes.map(func(n):return n.draw_count), "positions": nodes.map(func(n):return str(n.transform.origin)), "clock": game.animation_time, "editing": game.editing, "zoom": game.illustration.zoom})
 	return image
 
@@ -80,6 +82,10 @@ func run():
 	game.illustration.update_projection()
 	var positions = game.staff_states.map(func(s):return s.pos)
 	var economy = [game.model.coins, game.model.total_wages_paid, game.model.total_earned]
+	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
+	var tile_minimum = game.illustration.tile * 2.0
+	var visible_ring_minimum = game.illustration.StaffGroundRing.RADIUS * unit * 2.0 * cos(deg_to_rad(12.0))
+	check(visible_ring_minimum.x >= tile_minimum.x and visible_ring_minimum.y >= tile_minimum.y and game.illustration.StaffGroundRing._geometry.size() == 4, "four-segment outer ring bounds are at least one projected ground tile")
 	game.illustration.use_staff_ground_rings = false
 	var baseline: Image = await capture("game-baseline.png")
 	game.illustration.use_staff_ground_rings = true
@@ -102,9 +108,10 @@ func run():
 		var position = game.illustration._render_position("staff_%s" % i, game.staff_states[i].pos)
 		check(node.transform.origin.distance_to(game.illustration.iso(position.x, position.y)) < .01, "ring shares rendered staff foot anchor " + str(i))
 	var draws = nodes.map(func(n):return n.draw_count)
-	game.animation_time = 3.0
+	game.animation_time = 1.5
 	var rotated: Image = await capture("game-rotated.png")
 	check(ring_nodes() == nodes and nodes.map(func(n):return n.draw_count) == draws, "rotation updates retained transforms without geometry repaint")
+	check(rotated.get_data() != candidate.get_data(), "four-segment gap rotation is visible at a nonsymmetric 45-degree phase")
 	var paused: Image = await capture("game-paused.png")
 	check(rotated.get_data() == paused.get_data(), "paused Main clock preserves exact game pixels")
 	game.editing = true
