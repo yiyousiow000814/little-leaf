@@ -48,7 +48,7 @@ func model_cases():
  m=blank();before=state(m)
  check(not m.place_wall("z",4,3,"full","sage_panels",[Vector2(4,3.5)]),"wall refuses actual crossing body")
  unchanged(m,before,"crossing refusal")
- m.customers=[{"id":900,"phase":"arriving","x":9.5,"z":7.5,"route":[Vector2(3.5,3.5)]}]
+ m.customers.assign([{"id":900,"phase":"arriving","x":9.5,"z":7.5,"route":[Vector2(3.5,3.5)]}])
  check(m.can_place("plant",3,3),"future guest route is not an occupied footprint")
  m.customers[0].x=3.5;m.customers[0].z=3.5;before=state(m)
  check(not m.can_place("plant",3,3),"present guest body refuses physical overlap")

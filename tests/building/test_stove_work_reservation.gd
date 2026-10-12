@@ -34,7 +34,7 @@ func run():
   var x=maxi(base.x,front.x);var z=maxi(base.y,front.y)
   check(wall.can_place_wall(axis,x,z),"working edge alone does not veto a physical wall r"+str(rot))
   var mid=(Vector2(base)+Vector2(front)+Vector2.ONE)*.5
-  check(not wall.can_place_wall(axis,x,z,[mid]),"a real body on the wall edge still rejects r"+str(rot))
+  check(not wall.can_place_wall(axis,x,z,"full","sage_panels",[mid]),"a real body on the wall edge still rejects r"+str(rot))
   check(wall.place_wall(axis,x,z),"body-free working edge wall commits r"+str(rot))
   var plan=Plan.new();var receipt=plan.prepare(body,"plant",-1,0,front,actors);var count=plan.validations
   for repeat in 100:plan.prepare(body,"plant",-1,0,front,actors)

@@ -32,14 +32,14 @@ func run():
  m.wall_actor_positions.clear()
  var actors=interaction._staff_positions()
  var receipt=plan.prepare(m,"table_set",-1,0,Vector2i(5,8),actors)
- check(not receipt.ok and not receipt.physical_ok and receipt.error=="Chair needs owned floor","whole table rejects a seat beyond owned floor")
+ check(not receipt.ok and not receipt.physical_ok and receipt.error=="Both parts need owned floor","whole table rejects a seat beyond owned floor")
  var count=plan.validations
  for repeat in 100:plan.prepare(m,"table_set",-1,0,Vector2i(5,8),actors)
  check(plan.validations==count,"unchanged hover reuses the current receipt")
  receipt=plan.prepare(m,"table_set",-1,2,Vector2i(5,8),actors)
  check(receipt.ok and receipt.physical_ok,"rotated whole footprint fits owned edge")
  receipt=plan.prepare(m,"table_set",-1,0,Vector2i(3,2),actors)
- check(not receipt.ok and not receipt.physical_ok and receipt.error=="Chair overlaps table","hidden member overlap remains rejected")
+ check(not receipt.ok and not receipt.physical_ok and receipt.error=="Part of this table set is occupied","hidden member overlap remains rejected")
  var coins=m.coins;m.coins=0
  receipt=plan.prepare(m,"plant",-1,0,Vector2i(5,6),actors)
  check(not receipt.ok and receipt.physical_ok,"funding and physical fit stay independent")

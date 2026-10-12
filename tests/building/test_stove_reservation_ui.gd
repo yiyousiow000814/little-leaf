@@ -34,7 +34,7 @@ func run():
   game.selected_kind="plant";game.selected_id=-1;game.interaction.refresh(game.illustration.iso(front.x+.5,front.y+.5))
   var coins=m.coins;var saves=game.saves;game.interaction._commit_preview()
   check(m.coins==coins-m.price_of("plant") and game.saves==saves+1,"real UI purchase charges and saves once r"+str(rot))
-  var blocker=m.items[-1];game.interaction._select_item(stove);facts=Guide.describe(game)
+  var blocker=m.items[-1];game.interaction.cancel();game.interaction._select_item(stove);facts=Guide.describe(game)
   check(facts.size()==1 and not facts[0].clear,"committed obstruction is still operationally diagnosable r"+str(rot))
   check(m.remove(int(blocker.id),false),"physical blocker can be removed r"+str(rot));game._rebuild_furniture()
   var next_front=m.workface_cell({"kind":"stove","x":5,"z":4,"rot":posmod(rot+1,4)})
