@@ -8,15 +8,22 @@
     if(!parts.every(Number.isSafeInteger))return null;
     return {parts,hotfix:match[4]?match[4].charCodeAt(0)-96:0,pre:match[5]||''};
   }
-  function order(data){const item=data?.release_order;return item?.target==='siowyiyou/little-leaf:html5'&&Number.isSafeInteger(item.channel_version)&&item.channel_version>0?item.channel_version:null;}
+  function order(data){
+    const item=data?.release_order;
+    if(item?.kind==='main-first-parent'&&item.repository==='yiyousiow000814/little-leaf'&&/^[a-f0-9]{40}$/.test(item.anchor||'')&&/^[a-f0-9]{64}$/.test(item.chain_sha256||'')&&Number.isSafeInteger(item.sequence)&&item.sequence>0)
+      return {authority:item.kind+':'+item.repository+':'+item.anchor,value:item.sequence};
+    if(item?.target==='siowyiyou/little-leaf:html5'&&Number.isSafeInteger(item.channel_version)&&item.channel_version>0)
+      return {authority:'itch:'+item.target,value:item.channel_version};
+    return null;
+  }
   function identity(data){const parsed=version(data?.version);return parsed&&/^[a-f0-9]{40}$/.test(data.source_commit||'')&&(!parsed.pre||data.source_commit.startsWith(parsed.pre))?{...parsed,commit:data.source_commit,order:order(data)}:null;}
   function newer(a,b){
     for(let i=0;i<3;i++){if(a.parts[i]!==b.parts[i])return a.parts[i]>b.parts[i];}
     if(!!a.pre!==!!b.pre)return !a.pre;
     if(!a.pre)return a.hotfix>b.hotfix;
-    return a.commit!==b.commit&&a.order!==null&&b.order!==null&&a.order>b.order;
+    return a.commit!==b.commit&&a.order!==null&&b.order!==null&&a.order.authority===b.order.authority&&a.order.value>b.order.value;
   }
-  function same(a,b){return a.version===b.version&&a.commit===b.commit&&a.order===b.order;}
+  function same(a,b){return a.version===b.version&&a.commit===b.commit&&a.order?.authority===b.order?.authority&&a.order?.value===b.order?.value;}
   function create(options={}){
     const fetcher=options.fetch || root.fetch?.bind(root);
     const reload=options.reload || (()=>root.location.reload());

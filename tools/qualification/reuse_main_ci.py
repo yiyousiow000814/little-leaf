@@ -84,7 +84,7 @@ def require_jobs(jobs):
         raise ValueError('The complete main CI acceptance gate must pass')
     if any(j['status'] != 'completed' or
            (j['conclusion'] != 'success' and not
-            (j['name'] == 'web / firebase' and j['conclusion'] == 'skipped')) for j in jobs):
+            (j['name'] in {'web / firebase', 'common_tag'} and j['conclusion'] == 'skipped')) for j in jobs):
         raise ValueError('A mandatory CI job did not succeed')
 
 

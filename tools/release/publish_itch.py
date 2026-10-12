@@ -91,6 +91,21 @@ def check_previous(status, new_version, new_sha=None):
     return head["id"]
 
 
+def check_common_previous(status,new_version,new_sha):
+    """New common route: all versions must move forward in immutable source."""
+    baseline=check_previous(status,new_version,new_sha)
+    previous=channel(status)['head']['userVersion'].removeprefix('v')
+    # Unknown legacy labels cannot assert their compiled source. Inspect them;
+    # do not interpret version text as an ancestry proof.
+    if not re.fullmatch(RELEASE,previous):
+        raise ValueError('Common publication needs an immutable known baseline tag')
+    old_sha=subprocess.check_output(['git','rev-parse','--verify','refs/tags/v'+previous+'^{commit}'],text=True).strip()
+    if (not re.fullmatch('[0-9a-f]{40}',old_sha) or old_sha==new_sha
+            or subprocess.run(['git','merge-base','--is-ancestor',old_sha,new_sha],capture_output=True).returncode):
+        raise ValueError('Refusing unrelated, duplicate or older common release source')
+    return baseline
+
+
 def verify_artifact(web, tag, sha):
     if not re.fullmatch("v" + RELEASE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise ValueError("Expected a release version tag and exact commit SHA")
@@ -134,12 +149,25 @@ def main():
     parser.add_argument("--tag", required=True)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--receipt", type=Path, help="Write only the confirmed completed publication")
+    parser.add_argument("--common-receipt", type=Path, help="Already authenticated immutable common qualification")
     args = parser.parse_args()
     manifest = verify_artifact(args.web, args.tag, args.sha)
+    common_path = getattr(args,'common_receipt',None)
+    common = json.loads(common_path.read_text()) if common_path else None
+    if common is not None:
+        from release.common_tag import STATUS, valid_order
+        if (common.get('status') != STATUS or common.get('source_commit') != args.sha
+                or common.get('release_tag') != args.tag or common.get('version') != manifest['version']
+                or common.get('web_manifest_sha256') != sha256(args.web/'release-manifest.json')
+                or common.get('qualification') != manifest.get('release_reuse')
+                or not valid_order(common.get('release_order'))):
+            raise ValueError('Exact authenticated common qualification required')
     if not os.environ.get("BUTLER_API_KEY", "").strip():
         raise RuntimeError("Missing BUTLER_API_KEY. The owner must personally set GitHub Actions Secrets; never paste a key into chat or a commit")
     version = args.tag[1:]
-    check_previous(butler("status", TARGET), version, args.sha)
+    previous_status=butler("status", TARGET)
+    if common is not None:check_common_previous(previous_status,version,args.sha)
+    else:check_previous(previous_status,version,args.sha)
     # One attempt only. A timeout may have uploaded successfully; never retry blindly.
     result = butler("push", str(args.web), TARGET, "--userversion", version, "--no-auto-wrap")
     build_id = result.get("buildId")
@@ -165,6 +193,8 @@ def main():
                     workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
                     release_manifest_sha256=sha256(args.web / "release-manifest.json"),
                     qualification=manifest.get("release_reuse"))
+                if common is not None:
+                    receipt['common_qualification'] = common
                 args.receipt.parent.mkdir(parents=True, exist_ok=True)
                 args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
             print(json.dumps(receipt), flush=True)

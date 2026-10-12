@@ -12,6 +12,25 @@
 
 ### Current state and ownership
 
+
+Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
+common exact-source build/ordinary qualification with separate itch and Firebase
+CI/publication, without either waiting for the other's upload. The
+[shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
+preserves immutable origins, complete ordinary gates, distinct Firebase gates,
+current-live ancestry/config/rollback and legacy manual/test refusals. Source
+implementation,168 applicable synthetic checks and independent source review
+passed; coherent current-source CI and actual approved delivery remain open.
+No new tag, Hosting mutation, account action or release is established.
+
+Same-itch diagnostic follow-up ([Draft PR237](https://github.com/yiyousiow000814/little-leaf/pull/237)) on2026-10-12: the retained `69f33801`/compiled
+`a897a31f` Windows diagnostic passed ten ownership/cache checks but failed its
+unchanged final zero-errors assertion on three worklet404s. The scoped
+[packaged worklet fixture correction](release/itch-trusted-preview-candidate.md#packaged-worklet-fixture-transport)
+retains exact module bytes and all original assertions. Source/pure tests pass;
+fresh browser/CI, live URL delivery and real Google acceptance remain open. No
+Hosting update, tag, account action or unchanged diagnostic retry follows from
+this source correction.
 Remaining root classification on 2026-10-12: [PR236](https://github.com/yiyousiow000814/little-leaf/pull/236) merged as `7dbb28bf9caa1723d7c0c16e6915344239462b2b` after all13 exact checks in run38199812309 passed, moving six scenario CLIs into their test families. [PR238](https://github.com/yiyousiow000814/little-leaf/pull/238) merged as `f55aa66a6c800310e7bcbf89024b68d7c30e7879` after all13 exact checks in run38204994959 passed, delivering the seven build-helper relocations. [PR239](https://github.com/yiyousiow000814/little-leaf/pull/239) merged as `6e4a9055ac688dfeda13aba9b0658f0a6ace2a57` after all13 exact checks in run38209406758 passed, delivering the three qualification-helper relocations. [PR240](https://github.com/yiyousiow000814/little-leaf/pull/240) merged as `202b82a75b794302e85e4cf869535887b3e1a24e` after all13 exact checks in run38210980100 passed, delivering the seven release-helper relocations. [PR242](https://github.com/yiyousiow000814/little-leaf/pull/242) relocates the shared Node resolver, Firebase boot test and update-notice suite, leaving only the justified tools2/tests5/scripts4 root files in the final source. Current ownership/source review and required exact-source CI remain merge gates; the PR's source, checks and actual merge record govern completion. Arguments, stable suite IDs, staging labels, receipts and historical qualification namespaces are preserved.
 
 Editor acceptance on 2026-10-12: the user accepted the actual narrow preview for [Draft PR103](https://github.com/yiyousiow000814/little-leaf/pull/103), source `4319a656508ac125d765a4158a8dd3a3a6b2711c`. Its ordinary CI run38169861706 passed all13 required checks. The isolated 390x844 emulated-touch flow completed 32 operations: preview and cancel preserved the complete saved state, then release committed three Cream tiles for exactly30 coins once; actual saved frames were inspected and the accepted narrow image is retained as Library version2. Physical phone input remains unverified. Latest-main integration after PR234 preserved this game source byte for byte; PR103 merged normally as b0447db894583321b4605c0a46dec672b5ded63f after all13 exact-head checks in run38197371877 passed. This acceptance does not publish a release or deploy a service.

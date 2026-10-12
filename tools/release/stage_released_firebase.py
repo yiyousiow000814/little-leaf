@@ -40,16 +40,24 @@ def source_identity(root, selection):
                 'Unchanged released checkout required')
 
 
-def prepare(root, reuse, selection, output, api):
+def prepare(root, reuse, selection, output, api, *, common_tag=False):
     source_identity(root, selection)
+    if common_tag:
+        from release.common_tag import STATUS, verify_local
+        require(selection.get('kind') == STATUS, 'Separate common-tag selection required')
+        verify_local(root, reuse, selection, api)
     qualification = json.loads((reuse / 'qualification.json').read_text())
     require(all(qualification.get(k) == selection['qualification'].get(k) for k in IDENTITY)
-            and qualification.get('tag') == '' and qualification.get('mandatory_gate_success') is True
+            and qualification.get('tag') == (selection['release_tag'] if common_tag else '') and qualification.get('mandatory_gate_success') is True
             and qualification.get('qualified_payload_unchanged') is True
             and qualification.get('packed_startup') == 'passed', 'Reuse differs from completed release')
-    run = api.read(f"actions/runs/{qualification['qualification_run_id']}")
+    endpoint=f"actions/runs/{qualification['qualification_run_id']}"
+    if common_tag:
+        endpoint+=f"/attempts/{qualification['qualification_attempt']}"
+    run = api.read(endpoint)
     require_jobs(api.pages(f"actions/runs/{run['id']}/attempts/{run['run_attempt']}/jobs", 'jobs'))
-    base = bind_package(reuse / 'web', root, selection['source_commit'], selection['source_tree'], run)
+    base = bind_package(reuse / 'web', root, selection['source_commit'], selection['source_tree'], run,
+                        selection['release_tag'] if common_tag else '')
     require(base.get('release_reuse') == qualification, 'Ordinary reuse manifest differs')
     evidence_artifact = artifact_for(api, run,
         f"little-leaf-evidence-{selection['source_commit']}-{qualification['qualification_attempt']}")
@@ -59,6 +67,8 @@ def prepare(root, reuse, selection, output, api):
     original = json.loads((output / 'web-build/evidence/export-report.json').read_text())
     unmodified = dict(base)
     unmodified.pop('release_reuse')
+    if common_tag:
+        unmodified['tag'] = '' # Original main export remains an original main receipt.
     require(original.get('manifest') == unmodified and sha256(native) == base['test_report_sha256']
             and report.get('status') == 'passed' and report.get('player_save_used') is False
             and report.get('source_commit') == selection['source_commit']
@@ -98,7 +108,11 @@ def validate_focused(root, folder, source, tree, run, attempt):
     return records
 
 
-def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False):
+def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False, common_tag=False):
+    require(not (manual_live and common_tag), 'Separate typed staging contracts required')
+    if common_tag:
+        from release.common_firebase import common_context
+        context = common_context(selection, os.environ, run, attempt)
     if manual_live:
         from release.released_live_provenance import manual_context
         context = manual_context(selection, os.environ, run, attempt)
@@ -138,8 +152,9 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     command = ('import json,sys; from pathlib import Path; '
                'sys.path.insert(0,sys.argv[1]); ' + transformer_import + '; '
                'publication=json.loads(Path(sys.argv[5]).read_text()); '
+               'common_order=json.loads(Path(sys.argv[6]).read_text()) if len(sys.argv)>6 else None; '
                'stage(Path(sys.argv[2]),Path(sys.argv[3]),'
-               'json.loads(Path(sys.argv[4]).read_text()),**({"publication":publication} if publication is not None else {}))')
+               'json.loads(Path(sys.argv[4]).read_text()),**({"common_order":common_order} if common_order is not None else {"publication":publication} if publication is not None else {}))')
     environment = os.environ.copy()
     for key in ['GH_TOKEN', 'GITHUB_TOKEN', 'BUTLER_API_KEY', 'FIREBASE_HOSTING_ACCESS_TOKEN']:
         environment.pop(key, None)
@@ -147,10 +162,15 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     publication=selection.get('publication')
     if publication and 'itch_channel_version' not in publication and '-pre.' not in base['version']:
         publication=None # Historical stable receipts predate channel-order support.
-    require('-pre.' not in base['version'] or publication is not None, 'Prerelease requires confirmed publication order')
+    require('-pre.' not in base['version'] or publication is not None or common_tag, 'Prerelease requires confirmed publication order')
     publication_path.write_text(json.dumps(publication)+'\n')
+    order_args=[]
+    if common_tag:
+        order_path=evidence/'common-order.json'
+        order_path.write_text(json.dumps(selection['common']['release_order'])+'\n')
+        order_args=[str(order_path.resolve())]
     subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
-                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve())],
+                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve()), *order_args],
                    cwd=root, env=environment, check=True, timeout=90)
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())
@@ -189,6 +209,10 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         live_activation_allowed=False)
     # Do not present this package as an old fresh-build or preview-reuse contract.
     manifest['status'] = 'qualified-release-staged-not-deployable'
+    if common_tag:
+        from release.common_firebase import STATUS, seal
+        manifest.update(status=STATUS)
+        seal(root, coordinator, output, manifest, selection, context, inputs, records, flow, evidence, reuse)
     if manual_live:
         from release.released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
         require(context['coordinator_source_commit'] == proof['coordinator_source_commit'],
@@ -238,6 +262,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode', choices=['prepare', 'stage'])
     p.add_argument('--manual-live', action='store_true', help='Exact main dispatch only; no deployment')
+    p.add_argument('--common-tag', action='store_true', help='Independent exact common-tag qualification; no deployment')
     for name in ['source-root', 'reuse', 'selection', 'evidence']:
         p.add_argument('--' + name, type=Path, required=True)
     for name in ['focused', 'fullflow', 'output']:
@@ -246,12 +271,12 @@ def main():
     selection = json.loads(args.selection.read_text())
     if args.mode == 'prepare':
         result = prepare(args.source_root.resolve(), args.reuse, selection, args.evidence,
-                         GitHub(os.environ.get('GH_TOKEN', '')))
+                         GitHub(os.environ.get('GH_TOKEN', '')), common_tag=args.common_tag)
     else:
         require(all([args.focused, args.fullflow, args.output]), 'Stage evidence paths required')
         result = stage(args.source_root.resolve(), args.reuse, selection, args.evidence,
             args.focused, args.fullflow, args.output, os.environ.get('GITHUB_RUN_ID'),
-            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live)
+            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live, common_tag=args.common_tag)
     print(json.dumps(result))
 
 

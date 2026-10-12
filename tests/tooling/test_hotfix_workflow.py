@@ -1,4 +1,4 @@
-"""Run the real itch tag shell gate offline; pin the full-build safety contract."""
+"""Run the shared immutable tag shell gate offline; pin both publication consumers."""
 import os
 from pathlib import Path
 import shutil
@@ -7,25 +7,37 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-WORKFLOW = ROOT / '.github/workflows/release-itch.yml'
+WORKFLOW = ROOT / '.github/workflows/ci.yml'
+BASH = shutil.which('bash')
+if os.name == 'nt':
+    # The Windows system bash may be a WSL relay without a Linux runtime.
+    # Use the existing Git Bash for this Unix-shell fixture; never install one.
+    git_binary=shutil.which('git')
+    candidate=Path(git_binary).resolve().parents[1]/'bin/bash.exe' if git_binary else None
+    BASH=str(candidate) if candidate and candidate.is_file() else None
 
 
-@unittest.skipUnless(shutil.which('bash'), 'Bash is required for runner shell tests')
+@unittest.skipUnless(BASH, 'A working Bash is required for runner shell tests')
 class ItchTagGateTests(unittest.TestCase):
     def gate(self, tag, ref_type='tag'):
         workflow = WORKFLOW.read_text()
-        source = workflow.split('        run: |\n', 1)[1].split('      - name:', 1)[0]
+        source = workflow.split('  common_tag:', 1)[1].split('        run: |\n', 1)[1].split('      - name:', 1)[0]
         source = '\n'.join(line[10:] for line in source.splitlines())
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             git = root / 'git'
-            git.write_text('#!/bin/sh\nprintf "%s\\n" "$*" > "$FETCH_LOG"\n')
+            git.write_text('#!/bin/sh\nprintf "%s\\n" "$*" > "$FETCH_LOG"\n',newline='\n')
             git.chmod(0o755)
             log = root / 'fetch.log'
+            fixture_bin=root.as_posix()
+            if os.name=='nt':fixture_bin='/'+root.drive[0].lower()+fixture_bin[2:]
             env = dict(os.environ, PATH=folder + os.pathsep + os.environ['PATH'],
-                       RELEASE_TAG=tag, REF_TYPE=ref_type, FETCH_LOG=str(log))
-            result = subprocess.run(['bash', '-e', '-o', 'pipefail', '-c', source],
-                                    env=env, capture_output=True, text=True)
+                       RELEASE_TAG=tag, REF_TYPE=ref_type, FETCH_LOG='fetch.log',FIXTURE_BIN=fixture_bin,GITHUB_RUN_ATTEMPT='1')
+            # Git Bash initializes PATH itself. Prepend the fixture afterwards,
+            # and use a relative log in the disposable cwd on both platforms.
+            script='PATH="$FIXTURE_BIN:$PATH"\nexport PATH\n'+source
+            result = subprocess.run([BASH, '-e', '-o', 'pipefail', '-c', script],
+                                    cwd=folder,env=env, capture_output=True, text=True)
             return result.returncode, log.read_text() if log.exists() else ''
 
     def test_numeric_and_every_single_lowercase_hotfix(self):
@@ -48,13 +60,15 @@ class ItchTagGateTests(unittest.TestCase):
     def test_release_reuses_full_qualification_and_exact_source(self):
         source = WORKFLOW.read_text()
         for guard in ["tags: ['v*']", 'github.event.created && !github.event.deleted',
-                      '--require-main-ancestor', 'needs: [gate, build]',
-                      'python3 tools/qualification/reuse_main_ci.py',
-                      'ref: ${{ needs.gate.outputs.sha }}',
-                      'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
-                      'digest-mismatch: error', 'Missing BUTLER_API_KEY',
-                      'python3 tools/release/publish_itch.py']:
+                      '--require-main-ancestor', 'python3 tools/qualification/reuse_main_ci.py',
+                      'python3 tools/release/common_tag.py create',
+                      'little-leaf-common-release-${{ github.sha }}-1']:
             self.assertIn(guard, source)
+        publishing=(ROOT/'.github/workflows/release-itch.yml').read_text()
+        for guard in ['workflows: [Check and build Web]','common_tag.py consume','common_tag.py verify',
+                      'ref: ${{ steps.common.outputs.source_sha }}','Missing BUTLER_API_KEY','tools/release/publish_itch.py']:
+            self.assertIn(guard,publishing)
+        self.assertNotIn('reuse_main_ci.py',publishing)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',
                      'tools/build/build_web.py', 'connection_recovery_browser.js',
