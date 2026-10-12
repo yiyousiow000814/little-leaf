@@ -21,6 +21,8 @@ var loaded_preferences_source=""
 var last_seen_update_version=""
 var frame_rate=60
 var frame_rate_choice:OptionButton
+var show_stats=false
+var stats_toggle:Button
 var preference_timer:Timer
 var preferences_dirty=false
 var audio_rows={}
@@ -59,6 +61,8 @@ func load_preferences():
 		bgm_volume=clampf(float(cfg.get_value("audio","bgm_volume",70)),0,100)
 		sfx_volume=clampf(float(cfg.get_value("audio","sfx_volume",55)),0,100)
 		frame_rate=30 if cfg.get_value("display","frame_rate",60)==30 else 60
+		var stored_stats=cfg.get_value("display","show_stats",false)
+		show_stats=stored_stats if stored_stats is bool else false
 		var seen=cfg.get_value("updates","last_seen_version","")
 		last_seen_update_version=seen if seen is String else ""
 	Engine.max_fps=frame_rate
@@ -77,6 +81,7 @@ func save_preferences()->bool:
 	# canonicalize only on an ordinary permitted preference save.
 	cfg.set_value("play","speed",1)
 	cfg.set_value("display","frame_rate",frame_rate)
+	cfg.set_value("display","show_stats",show_stats)
 	cfg.set_value("updates","last_seen_version",last_seen_update_version)
 	if OS.has_feature("web") and config_path=="user://little_leaf_settings.cfg":
 		var saved=web_preferences!=null and web_preferences.save_from(cfg)
@@ -127,6 +132,10 @@ func set_frame_rate(value:int):
 	frame_rate=30 if value==30 else 60
 	Engine.max_fps=frame_rate
 	sync();save_preferences()
+func set_show_stats(value:bool):
+	show_stats=value;sync()
+	if game!=null:game._update_ui()
+	save_preferences()
 func set_audio_enabled(kind:String,value:bool):
 	if kind=="BGM":
 		bgm_enabled=value;game.music_enabled=value
@@ -201,6 +210,12 @@ func build() -> PanelContainer:
 	var cloud_box=cloud_settings.build()
 	if cloud_box!=null:box.add_child(cloud_box)
 	sync();panel.hide();return panel
+func build_stats_row() -> HBoxContainer:
+	var row=HBoxContainer.new();row.add_theme_constant_override("separation",8)
+	var title=game.label("Show stats",15);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(title)
+	stats_toggle=game.button("Off",func():set_show_stats(not show_stats));stats_toggle.toggle_mode=true
+	stats_toggle.custom_minimum_size=Vector2(60,44);stats_toggle.accessibility_name="Show stats";stats_toggle.tooltip_text="Display live FPS"
+	row.add_child(stats_toggle);sync();return row
 func dismiss():
 	flush_preferences();panel.hide()
 func build_play_controls() -> HBoxContainer:
@@ -227,6 +242,9 @@ func sync():
 	if game==null:return
 	_sync_preference_storage_notice()
 	if cloud_settings!=null:cloud_settings.sync()
+	if is_instance_valid(stats_toggle):
+		stats_toggle.text="On" if show_stats else "Off";stats_toggle.set_pressed_no_signal(show_stats)
+		stats_toggle.accessibility_description="Live FPS display on" if show_stats else "Live FPS display off"
 	if is_instance_valid(frame_rate_choice):
 		var selected=0 if frame_rate==30 else 1
 		if frame_rate_choice.selected!=selected:

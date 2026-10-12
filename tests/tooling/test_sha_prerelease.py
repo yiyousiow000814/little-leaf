@@ -10,8 +10,8 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 from qualification import artifacts
-import build_firebase
-import publish_itch
+from build import build_firebase
+from release import publish_itch
 from release.release_metadata import version, projected_metadata, release_key
 from tests.tooling import test_github_release_workflow as release_workflow
 from tests.tooling.test_release import status
@@ -92,7 +92,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
             with self.assertRaises(RuntimeError):artifacts.validate_web_gate(build,sha,'b'*40,source_root=root)
 
     def test_compatibility_accepts_only_exact_projected_metadata(self):
-        import prepare_browser_qa as qa
+        from qualification import prepare_browser_qa as qa
         with tempfile.TemporaryDirectory() as d:
             root=Path(d)/'source';root.mkdir();self.metadata(root)
             build=Path(d)/'build';(build/'project/data').mkdir(parents=True);(build/'web').mkdir()
@@ -119,7 +119,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
     def test_browser_expected_version_uses_full_export_source(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);self.metadata(root)
-            script="const {sourceVersion}=require('./tests/source_paths');const assert=require('node:assert/strict');const r=process.argv[1];assert.equal(sourceVersion(r,'01234567'+'a'.repeat(32)),'0.1.11-pre.01234567');assert.throws(()=>sourceVersion(r,'01234567'));"
+            script="const {sourceVersion}=require('./tests/tooling/source_paths');const assert=require('node:assert/strict');const r=process.argv[1];assert.equal(sourceVersion(r,'01234567'+'a'.repeat(32)),'0.1.11-pre.01234567');assert.throws(()=>sourceVersion(r,'01234567'));"
             subprocess.run(['node','-e',script,str(root)],check=True)
 
     def test_upload_uses_ancestry_not_hash_order(self):
@@ -211,7 +211,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
             self.assertEqual(final_marker['engine_source_commit'],base['source_commit'])
             final_html=(output/'public/index.html').read_text()
             self.assertIn('window.__littleLeafRelease='+json.dumps(final_marker)+';',final_html)
-            import deploy_firebase_hosting as hosting
+            from release import deploy_firebase_hosting as hosting
             path=output/'firebase-variant-manifest.json'
             hosting.verify_live_package(output,base['source_commit'],artifacts.sha256(path))
             # Rehashing a stale inline marker cannot conceal the discrepancy.
@@ -224,7 +224,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
 
     def test_live_prerelease_requires_bound_order_before_any_network(self):
         from tests.tooling import test_firebase_hosting_deploy as fixtures
-        import deploy_firebase_hosting as hosting
+        from release import deploy_firebase_hosting as hosting
         fixture=fixtures.HostingTests();fixture.setUp()
         try:
             fixture.marker.update(version='0.1.11-pre.aaaaaaaa',tag='v0.1.11-pre.aaaaaaaa',

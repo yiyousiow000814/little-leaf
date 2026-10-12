@@ -39,6 +39,10 @@ def verify(web,native):
   if sha(p)!=item['sha256'] or p.stat().st_size!=item['bytes']:raise ValueError('Export bytes mismatch')
  return manifest
 if __name__=='__main__':
+ import sys
+ if '--retained-a897' in sys.argv:
+  from retained_handoff_route import main
+  sys.argv.remove('--retained-a897');main();raise SystemExit(0)
  p=argparse.ArgumentParser();p.add_argument('--artifacts',type=Path);p.add_argument('--eligibility',type=Path);a=p.parse_args()
  paths=subprocess.check_output(['git','diff','--name-only',BASE,'HEAD'],text=True).splitlines()
  if a.eligibility:

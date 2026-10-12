@@ -46,6 +46,7 @@ var finishes:PanelContainer
 var management:PanelContainer
 var help_panel:PanelContainer
 var help_text:Label
+var help_stats_row:HBoxContainer
 var help_box:VBoxContainer
 var help_scroll:ScrollContainer
 var help_footer:GridContainer
@@ -53,7 +54,6 @@ var help_header:HBoxContainer
 var help_heading:Label
 var help_close:Button
 var help_overview:Button
-var help_notes:Button
 var help_scrim:ColorRect
 var help_modal=false
 var help_done:Button
@@ -242,6 +242,7 @@ func setup():
  help_close.custom_minimum_size=Vector2(44,44);help_header.add_child(help_close)
  help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
  var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
+ help_stats_row=game.settings_controls.build_stats_row();help_content.add_child(help_stats_row)
  help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
  help_choices=GridContainer.new();help_choices.columns=1;help_choices.add_theme_constant_override("h_separation",10);help_choices.add_theme_constant_override("v_separation",10);help_content.add_child(help_choices);help_content.move_child(help_choices,0);help_choices.hide()
  for choice in ["local","cloud"]:
@@ -298,8 +299,7 @@ func setup():
  update_notice=UpdateNotice.new(self);update_notice.setup()
  help_log=save_log_panel.make_menu_entry();help_footer.add_child(help_log);help_footer.move_child(help_log,help_done.get_index())
  update_notes=UpdateNotes.new(self);update_notes.setup()
- help_notes=update_notes.make_menu_entry();help_footer.add_child(help_notes);help_footer.move_child(help_notes,help_overview.get_index()+1)
- for button in [help_overview,help_notes,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ for button in [help_overview,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
  _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
@@ -356,35 +356,40 @@ func _sync_update_badges():
 func clear_selection():
  selected_wall="";selected_shell=""
  if is_instance_valid(context):context.hide()
+func _selected_wall_key()->String:return selected_shell if selected_shell!="" else selected_wall
+func _selected_editable_wall()->Dictionary:
+ return game.model.get_editable_wall(_selected_wall_key()) if game.model.has_method("get_editable_wall") else game.model.get_wall(selected_wall)
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
 func sync():
  if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
- var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=game.model.get_wall(selected_wall)
+ var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=_selected_editable_wall()
  var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode=="floor"
  var selected=not item.is_empty() or not opening.is_empty() or not wall.is_empty() or selected_shell!="" or placing or edge or flooring
  context.visible=game.editing and (selected or game.catalog_category=="Build")
  var selected_kind=game.model.logical_kind(int(item.id)) if not item.is_empty() else game.selected_kind
  context_label.text=game.model.name_of(selected_kind) if game.model.has_method("is_dining_product") and game.model.is_dining_product(selected_kind) else SHORT_NAMES.get(selected_kind,selected_kind.capitalize())
- if not opening.is_empty():context_label.text=str(opening.kind).capitalize()
+ if not opening.is_empty():context_label.text=str(opening.kind).capitalize()+" selected"
  elif not wall.is_empty() or selected_shell!="":context_label.text="Wall"
  elif edge:context_label.text="Half wall" if b.mode=="half" else "Full wall"
  elif flooring:context_label.text=b.floor_name()
- rotate_button.visible=(not item.is_empty() or placing or edge or not wall.is_empty()) and opening.is_empty() and selected_shell==""
- move_button.visible=not opening.is_empty() and b.mode!="move_opening"
+ rotate_button.visible=(not item.is_empty() or placing or edge or not wall.is_empty()) and opening.is_empty()
+ move_button.visible=(not opening.is_empty() or not wall.is_empty()) and b.mode not in ["move_opening","move_wall"]
+ move_button.disabled=game.save_recovery_blocked
  finish_button.visible=not wall.is_empty() or selected_shell!="" or edge
  finish_button.text="Style" if edge else "Replace"
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
- remove_button.disabled=false
+ remove_button.disabled=false;remove_button.tooltip_text=""
  var refund=0
  if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
  elif not wall.is_empty():
-  refund=game.model.wall_refund(selected_wall)
-  remove_button.disabled=not game.model.can_remove_wall(selected_wall)
-  if remove_button.disabled:context_label.text="Move opening first"
+  refund=game.model.wall_refund(_selected_wall_key())
+  remove_button.disabled=not game.model.can_remove_wall(_selected_wall_key())
+  remove_button.tooltip_text=game.model.last_error if remove_button.disabled else "Sell wall for "+Money.amount(refund)+" coins"
  elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
+ remove_button.disabled=remove_button.disabled or game.save_recovery_blocked
  remove_button.text="Sell +"+Money.amount(refund)
  for kind in game.catalog_prices:game.catalog_prices[kind].text=Money.amount(game.model.price_of(kind))
  build_scroll.visible=game.editing and game.catalog_category=="Build"
@@ -564,12 +569,13 @@ func _set_help_modal(enabled:bool):
 func _help_tab(event:InputEventKey)->bool:
  if not help_panel.visible or event.keycode!=KEY_TAB:return false
  var controls=[help_close,help_scroll]
+ if help_stats_row.visible:controls.append(game.settings_controls.stats_toggle)
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
  for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry]:
   if button.visible and not button.disabled:controls.append(button)
- for button in [help_overview,help_notes,help_log,help_done]:
+ for button in [help_overview,help_log,help_done]:
   if button.visible and not button.disabled:controls.append(button)
  var focused=game.get_viewport().gui_get_focus_owner();var index=controls.find(focused)
  index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())
@@ -702,12 +708,13 @@ func _confirm_wall_replacement():
  selected_wall=chosen.key if selected_shell=="" else ""
  game.build_tools._changed();sync()
 func _rotate_selected():
- if game.save_recovery_blocked:return
- var wall=game.model.get_wall(selected_wall)
+ if not game.editing or game.save_recovery_blocked:return
+ if game.build_tools.mode=="move_wall":game.build_tools.rotate();sync();return
+ var wall=_selected_editable_wall()
  if wall.is_empty():game._rotate();return
- var key=selected_wall;var axis="z" if wall.axis=="x" else "x"
+ var key=_selected_wall_key();var axis="z" if wall.axis=="x" else "x"
  if game.model.move_wall(key,axis,int(wall.x),int(wall.z),game.build_tools.actor_positions()):
-  selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed()
+  selected_shell="";selected_wall=game.model.WallGeometry.key(axis,int(wall.x),int(wall.z));game.build_tools._changed()
  sync()
 func show_management():
  game.settings.hide();sync();_popup_at(management)
@@ -722,6 +729,7 @@ func _sync_help_content():
  var recovery_busy=bool(recovery.get("busy",false))
  var choices_available=bool(recovery.get("available",false))
  var ownership_paused=bool(recovery.get("serverOwnership",false)) and bool(recovery.get("ownershipPaused",false))
+ help_stats_row.visible=not game.save_recovery_blocked and not choices_available and not ownership_paused
  help_switch_device.visible=ownership_paused and (bool(recovery.get("canRequestTakeover",false)) or bool(recovery.get("canForceTakeover",false)));help_switch_device.disabled=recovery_busy or not bool(recovery.get("canSwitch",false))
  help_switch_device.text="Switching…" if recovery_busy else "Try again" if recovery.get("status","")=="resume-needed" else "Continue from cloud" if bool(recovery.get("canForceTakeover",false)) else "Switch to this device"
  help_heading.text="Could not resume yet" if ownership_paused and recovery.get("status","")=="resume-needed" else "Waiting for connection" if ownership_paused and recovery.get("status","")=="offline" else "Your game is running on another device" if ownership_paused else "Choose your save" if choices_available else "Quick help"
@@ -733,7 +741,6 @@ func _sync_help_content():
  help_choices.visible=choices_available
  if choices_available:help_choices.get_parent().move_child(help_choices,0)
  help_overview.visible=not choices_available and not ownership_paused
- help_notes.visible=not choices_available and not ownership_paused
  for choice in recovery.get("choices",[]):
   if not choice is Dictionary or not help_choice_labels.has(str(choice.get("id",""))):continue
   var name="This device" if choice.id=="local" else "Cloud save"
@@ -768,19 +775,22 @@ func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
 func return_to_help(focus_button:Button=null):
  _popup_at(help_panel,340);_fit_help_panel()
- (focus_button if focus_button!=null else help_notes).grab_focus()
+ (focus_button if focus_button!=null else help_scroll).grab_focus()
 func _close_help():
  help_panel.hide()
  if help_returns_to_settings:game.settings.show();_fit_themed_popups();settings_help.grab_focus()
  sync()
 func _move_opening():
- if _selected_opening().is_empty():return
+ if not game.editing or game.save_recovery_blocked:return
+ if _selected_opening().is_empty():
+  if not _selected_editable_wall().is_empty():game.build_tools.begin_wall_move(_selected_wall_key())
+  return
  game.build_tools.mode="move_opening";game.build_tools._cache_key="";game.build_tools.refresh(game.get_viewport().get_mouse_position());sync()
 func _remove_selected():
- if game.save_recovery_blocked:return
+ if not game.editing or game.save_recovery_blocked:return
  var opening=_selected_opening();var ok=false
  if not opening.is_empty():ok=game.model.remove_wall_attachment(int(opening.id),game.build_tools.actor_positions())
- elif selected_wall!="":ok=game.model.remove_wall(selected_wall)
+ elif _selected_wall_key()!="":ok=game.model.remove_wall(_selected_wall_key())
  else:game._sell();sync();return
  if ok:game._cancel_selection();game._save();game._update_ui();game.illustration.queue_redraw()
  sync()
@@ -803,9 +813,15 @@ func handle_input(event:InputEvent)->bool:
   _dismiss_from_pointer(event);return true
  return false
 func handle_unhandled_input(event:InputEvent)->bool:
- if not game.editing or game.catalog_category!="Build" or game.build_tools.mode not in ["","select_opening"]:return false
+ if not game.editing or game.selected_kind!="" or game.build_tools.mode not in ["","select_opening"]:return false
  if not event is InputEventMouseButton or not event.pressed or event.button_index!=MOUSE_BUTTON_LEFT:return false
  if game.interaction==null or game.interaction._over_ui(event.position):return false
+ # Shop categories only filter products. Existing world objects remain
+ # selectable, while active placement and foreground furniture keep priority.
+ if game.illustration.hit_item(event.position)>=0:
+  clear_selection()
+  if game.build_tools.mode=="select_opening":game.build_tools.cancel()
+  return false
  var opening=game.illustration.hit_wall_attachment(event.position)
  if opening>=0:
   game.build_tools.choose("select_opening");return false

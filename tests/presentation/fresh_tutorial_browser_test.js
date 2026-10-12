@@ -1,5 +1,5 @@
 'use strict';
-const {sourcePath}=require('../source_paths.js');
+const {sourcePath}=require('../tooling/source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
 const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');

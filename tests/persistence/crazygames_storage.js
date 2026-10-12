@@ -2,7 +2,7 @@
 // Synthetic SDK contract fixtures; no real account/cloud persistence claim.
 const assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
 const {webcrypto} = require('node:crypto');
-const {sourcePath} = require('../source_paths.js');
+const {sourcePath} = require('../tooling/source_paths.js');
 let webDir = path.dirname(sourcePath(path.resolve(__dirname, '../..'), 'web/little_leaf_crazygames_shell.html')), preview = false, embedded = false;
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];

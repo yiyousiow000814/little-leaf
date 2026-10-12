@@ -68,8 +68,10 @@ func run():
   check(ui.help_log.get_parent()==ui.help_footer and ui.help_log.is_visible_in_tree(),"Log lives in Help "+str(view))
   await click(ui.help_log);check(ui.save_log_panel.panel.visible and not ui.help_panel.visible,"Log opens from Help "+str(view))
   await click(ui.save_log_panel.back_button);check(ui.help_panel.visible and not ui.save_log_panel.panel.visible,"Log returns to Help "+str(view))
-  await click(ui.help_notes);await click(ui.update_notes.close_button)
-  check(ui.help_panel.visible and not ui.update_notes.panel.visible and root.gui_get_focus_owner()==ui.help_notes,"Updates X preserves Help entry and focus "+str(view))
+  var help_actions=[]
+  for button in ui.help_footer.get_children():
+   if button is Button and button.visible:help_actions.append(button.text)
+  check(help_actions==["Show whole café","Log","Back to Settings"],"Quick Help footer excludes Updates and preserves its actions "+str(view))
   var help_close=ui.help_close.get_global_rect();ui.help_scroll.scroll_vertical=100000;await settle()
   check(ui.help_close.get_global_rect().is_equal_approx(help_close),"Help X remains fixed while instructions scroll "+str(view))
   ui.help_scroll.grab_focus();var tab=InputEventKey.new();tab.keycode=KEY_TAB;tab.shift_pressed=true
@@ -84,8 +86,8 @@ func run():
   check(game.saves==0 and game.save_writes_suppressed,"Navigation never saves restaurant "+str(view))
  root.size=Vector2i(390,844);ui.show_help();await settle();await touch(ui.help_close)
  check(not ui.help_panel.visible and not game.settings.visible,"Touch X dismisses standalone Help without opening Settings")
- ui.show_help();await settle();await click(ui.help_notes);await touch(ui.update_notes.close_button)
- check(ui.help_panel.visible and not ui.update_notes.panel.visible,"Touch Updates X returns to Help")
+ game.settings.show();await settle();await click(ui.settings_updates);await touch(ui.update_notes.close_button)
+ check(game.settings.visible and not ui.update_notes.panel.visible and root.gui_get_focus_owner()==ui.settings_updates,"Touch Updates X returns to Settings entry")
  check(game.saves==0 and game.save_writes_suppressed,"New X controls never save restaurant")
  print("SETTINGS_NAVIGATION_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
