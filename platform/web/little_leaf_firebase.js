@@ -196,7 +196,13 @@
     }
     async function performUpload() {
       const handoff=handoffMode?ownerHandoff:null;
-      const uploadGuard=()=>{guard();if(handoff){assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);}};
+      const uploadGuard=()=>{
+        if(!handoff){guard();return;}
+        // A local wait timeout pauses native/UI work, not this already-started
+        // frozen transaction. Its captured intent remains the only authority.
+        assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);
+        if(permissionDenied)throw error('permission-denied',permissionReason);
+      };
       uploadGuard();
       if(!entry?.pending) return;
       lastAttempt=now();

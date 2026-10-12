@@ -25,7 +25,7 @@ function environment(){
    assert.equal(cloud?.digest||null,base);cloud={...clone(next),...fence};if(uploadGate)await uploadGate.promise;
   }};
   const client=root.LittleLeafFirebase.createClient({uid:'synthetic-owner',currentUid:()=>uid,codec:root.LittleLeafAuthorityCodec,journal,remote:saveRemote,ownership,status(){},now:()=>100000,networkTimeoutMs:10});
-  return {client,ownership,local:()=>clone(local),setLocal:value=>{local=clone(value);},onReplace:hook=>{replaceHook=hook;},onRead:hook=>{readHook=hook;}};
+  return {client,ownership,saveRemote,local:()=>clone(local),setLocal:value=>{local=clone(value);},onReplace:hook=>{replaceHook=hook;},onRead:hook=>{readHook=hook;}};
  }
  return {device,cloud:()=>clone(cloud),session:()=>clone(session),saveCalls:()=>saveCalls,ackCalls:()=>ackCalls,
    setUid:value=>{uid=value;},setCloud:value=>{cloud=clone(value);},setSession(value){session=clone(value);for(const watch of watchers)watch(clone(session));},denySave:value=>{denySave=value;},denyAck:value=>{denyAck=value;},holdUpload:gate=>{uploadGate=gate;},onAck:hook=>{ackHook=hook;}};
@@ -43,13 +43,51 @@ async function journalTimeout(){
  return {...state,gate,result};
 }
 module.exports=(async()=>{
+ // Firestore can invoke a dispatched transaction's guard after the local
+ // wait times out. The exact frozen intent must survive that UI pause.
+ phase='delayed SDK guard with unchanged handoff fence';
+ let s=await setup(),dispatch=deferred(),dispatched=deferred(),acknowledged=deferred();
+ const originalCAS=s.a.saveRemote.compareAndSet;
+ s.a.saveRemote.compareAndSet=async(...args)=>{await dispatch.promise;try{await originalCAS(...args);dispatched.resolve({ok:true});}catch(problem){dispatched.resolve({ok:false,code:problem.code});throw problem;}};
+ assert.equal((await s.a.client.preserveOwnerRuntime(native,1,s.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
+ let writes=s.e.saveCalls(),frozen=s.a.local().record;
+ assert.equal(s.e.cloud().revision,1);assert.equal(s.a.local().pending,true);
+ assert.equal((await s.a.client.commit(payload,2,s.boot.profileId)).ok,false,'ordinary writes remain paused');
+ s.e.onAck(()=>acknowledged.resolve());dispatch.resolve();
+ assert.deepEqual(await dispatched.promise,{ok:true},'local timeout cannot cancel an unchanged frozen transaction');
+ await acknowledged.promise;await tick();
+ assert.equal(s.e.saveCalls(),writes+1,'one original final-save CAS, no replacement upload');
+ assert.equal(s.e.cloud().record,JSON.stringify(frozen));assert.equal(s.a.local().pending,false);
+ assert((await s.b.client.finishTakeover()).ok);assert.equal(s.e.session().epoch,2);
+ // Allowing the captured transaction through a local timeout does not grant
+ // it authority after any identity change or an actual permission refusal.
+ for(const mutation of ['request','requester','epoch','account','close','record','ack','permission']){
+  phase='delayed SDK guard refuses '+mutation;s=await setup();dispatch=deferred();dispatched=deferred();
+  const cas=s.a.saveRemote.compareAndSet;
+  s.a.saveRemote.compareAndSet=async(...args)=>{await dispatch.promise;try{await cas(...args);dispatched.resolve({ok:true});}catch(problem){dispatched.resolve({ok:false,code:problem.code});throw problem;}};
+  assert.equal((await s.a.client.preserveOwnerRuntime(native,1,s.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
+  const before=s.e.cloud(),owner=s.e.session();writes=s.e.saveCalls();
+  if(mutation==='request')owner.request.id=webcrypto.randomUUID();
+  if(mutation==='requester')owner.request.requester=webcrypto.randomUUID();
+  if(mutation==='epoch')owner.epoch++;
+  if(mutation==='ack')owner.ack={requestId:owner.request.id,digest:s.a.local().record.digest,revision:2};
+  if(['request','requester','epoch','ack'].includes(mutation))s.e.setSession(owner);
+  if(mutation==='account')s.e.setUid('different-account');
+  if(mutation==='close')s.a.client.close();
+  if(mutation==='record')assert((await s.a.client.preserveRuntime(payload,2,s.boot.profileId)).ok);
+  if(mutation==='permission')s.e.denySave(true);
+  const retained=s.a.local();dispatch.resolve();assert.equal((await dispatched.promise).ok,false,mutation+' refuses delayed transaction');
+  await tick();await s.a.client.refreshOwnership();await s.a.client.renewOwnership();
+  assert.deepEqual(s.e.cloud(),before,mutation+' cannot overwrite cloud');assert.deepEqual(s.a.local(),retained,mutation+' preserves local snapshot');
+  assert.equal(s.e.saveCalls(),writes+(mutation==='permission'?1:0),mutation+' never automatically retries the refused save');
+ }
  // A late response wakes the existing frozen intent without a timer, focus,
  // second native snapshot or additional save CAS. The already exact cloud
  // read is sufficient; the real session ACK transaction rechecks its save.
  phase='late upload must wake its frozen continuation';
- let s=await setup(),lateUpload=deferred(),acknowledged=deferred();s.e.holdUpload(lateUpload);
+ s=await setup();let lateUpload=deferred();acknowledged=deferred();s.e.holdUpload(lateUpload);
  assert.equal((await s.a.client.preserveOwnerRuntime(native,1,s.boot.profileId)).handoffError.code,'NETWORK_TIMEOUT');
- let saved=s.e.cloud(),writes=s.e.saveCalls(),reads=0;s.e.onAck(()=>acknowledged.resolve());
+ let saved=s.e.cloud(),reads=0;writes=s.e.saveCalls();s.e.onAck(()=>acknowledged.resolve());
  s.a.onRead(()=>{reads++;assert.equal(reads,1,'confirmed exact r2 needs no duplicate save read before the atomic ACK');});
  lateUpload.resolve();await acknowledged.promise;await tick();
  assert.deepEqual(s.e.cloud(),saved);assert.equal(s.e.saveCalls(),writes);assert.equal(s.e.ackCalls(),1);
