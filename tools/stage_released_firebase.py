@@ -17,13 +17,13 @@ from firebase_release_event import artifact_for, download
 from firebase_release_gate import require
 from build.project_layout import source_path
 from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
-from run_firebase_focused import COMMANDS
+from qualification.run_firebase_focused import COMMANDS
 
 IDENTITY = ['qualification_run_id', 'qualification_attempt', 'artifact_id', 'artifact_digest',
             'qualified_manifest_sha256', 'source_commit', 'source_tree', 'version']
 FULLFLOW_SOURCES = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs',
     'firebase/fullflow_network.mjs', 'tests/diagnostics/probe_cloud_recovery_geometry.gd',
-    'tools/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
+    'tools/qualification/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
     'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules']
 
 
@@ -120,7 +120,8 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         'synthetic_only': True, 'browser_sandbox': True, 'real_google_sign_in': False, 'diagnostic_only': False}
     require(all(type(flow.get(k)) is type(v) and flow.get(k) == v for k, v in expected.items())
             and flow.get('checks') and flow.get('source_sha256') ==
-            {n: sha256(source_path(root, n)) for n in FULLFLOW_SOURCES}, 'Compiled Firebase full-flow proof differs')
+            {(source_path(root, n).relative_to(root).as_posix() if n.startswith('tools/') else n):
+             sha256(source_path(root, n)) for n in FULLFLOW_SOURCES}, 'Compiled Firebase full-flow proof differs')
     records['firebase-fullflow.json'] = sha256(flow_path)
     config = json.loads((root / 'platform/firebase/public-config.json').read_text())
     require(config.get('projectId') == 'little-leaf-41e5d'

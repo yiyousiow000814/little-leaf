@@ -84,7 +84,7 @@ jobs:
         run: |
           git fetch --no-tags origin main
           python3 tools/release/release_metadata.py --tag "$RELEASE_TAG" --require-main-ancestor
-          python3 tools/verify_prebaked_atlases.py
+          python3 tools/qualification/verify_prebaked_atlases.py
       - name: Install checksum-pinned official startup verifier
         run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Wait for exact main CI and verify its immutable package

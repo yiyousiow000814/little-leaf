@@ -1,6 +1,6 @@
 # Audio Bible
 
-Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **No playable pilot has been produced or approved.** Direction, listening and final mastering decisions remain open.
+Draft Audio Direction foundation, 2026-10-11. The [canonical roadmap](../roadmap.md#current-state) owns framework priorities, owners and approval status. This document defines the proposed production workflow; it does not accept a soundtrack or authorize a runtime change. **This foundation does not approve any playable pilot.** Existing direction and listening acceptance follow the latest explicit user decision for the exact audio; final mastering, derived-loop and runtime qualification remain separate. This foundation does not revoke an already accepted recording.
 
 ## Existing baseline and evidence
 
@@ -12,14 +12,14 @@ Editable compositions, MIDI, stems, lossless masters and the original SoundFont 
 
 Aim for a warm neighbourhood cafe, space for foreground feedback and comfortable repetition. Compose original material. Do not copy or transcribe Restaurant City melodies, recordings or loops, or substitute a final recording for editable source.
 
-Two **untested alternatives** from the audit await user selection or revision:
+The following **untested alternatives** are dated audit proposals, not mandatory directions or replacements for subsequently accepted music:
 
 | Direction | Original pilot brief |
 | --- | --- |
 | Window-box morning | Nylon guitar, short clarinet answers, upright bass and sparse brushes; 96 BPM, 4/4, proposed 32-bar / 80-second loop. Brief calls and rests leave room for play; a later busy variation could add rhythm on the same phrase grid. |
 | Rain beneath the awning | Gentle piano, woody marimba, bass clarinet and plucked bass; 6/8 at dotted-quarter 72 BPM, proposed 48-bar / 80-second loop. A sheltered, reflective mood with a contrasting middle phrase. |
 
-The gate is: approve one direction and scope, establish a usable permitted toolchain, then produce one editable pilot and review it by ear. Do not create final variants or integrate a pilot before that review. Instrument names describe intent, not licensed assets already available. Timing, arrangement and mix values are proposals, not automatic final standards.
+For new creative work, agree the direction and scope, establish a usable permitted toolchain, then produce an editable pilot and review its actual audio. Follow later explicit user authorization when continuing accepted source, loop adaptation or integration; do not reopen creative approval merely because historical metadata remains pending. Instrument names describe intent, not licensed assets already available. Timing, arrangement and mix values are proposals, not automatic final standards.
 
 ## BGM and SFX production
 
@@ -36,6 +36,14 @@ Each accepted source package must contain:
 
 Do not replace an unknown historical SoundFont hash with a fresh download's hash. Preserve licence notices in exports and the existing historical records. A future replacement needs its own provenance; supplier permission does not establish blanket clearance of the game.
 
+## Score and arrangement review
+
+Include a score review before audition handoff. Preserve the native editable composition and, where feasible, MusicXML, a readable score export and MIDI in the coordinated repository source location, separate from runtime audio. Bind each revision to its rendered audio SHA256, author, source/tool versions, settings and export command. A score from another trial must never stand in for the current recording.
+
+Inspect melody and harmony, bass movement, exact note/rest durations, ties and legato, beat/accent placement, voice ranges, instrument roles, phrase handoffs, accompaniment continuity, repetition and cadence against the approved brief. Record bar numbers and corresponding audio timestamps, specific findings and the proposed correction. Preserve intended releases and the ending's decay when rendering; a notated duration does not guarantee that generated or sampled audio sustains naturally. A syntactically valid score or in-key note list does not establish a coherent arrangement, convincing performance or a good mix.
+
+Native composition data is authoritative. For audio-only generation, explicitly record absent score, MIDI and stems; a stereo clip project is not a multitrack composition. Any automatic transcription must be labelled **automatically transcribed, unverified**, with source audio hash, excerpt offset, method/model version, settings, confidence/uncertainty and manual corrections. Keep uncertain notes, missing voices and instrument attribution explicit; transcription mistakes are not established composition defects. Compare corrected notation and its playback with the original before relying on it. For example, [Basic Pitch's official guidance](https://github.com/spotify/basic-pitch) says it works best on one instrument at a time; mixed stereo output needs additional review. Missing tools or an unverified transcription must remain a capability gap rather than a fabricated score.
+
 ## Tools and export
 
 The 2026-10-11 Windows audit verified existing Godot 4.6.3 for offline decoding and Python 3.14 for hashes/PCM calculations. Scoped PATH, installation and registry checks did not find usable REAPER, MuseScore, Audacity, FluidSynth, FFmpeg/ffprobe or SoX. OBS libraries were present, but no mastering CLI or editable music workflow was verified. Recheck the actual workstation before selecting tools; this is not a claim of universal absence. No purchase, installation or account change is authorized here.
@@ -51,6 +59,19 @@ Reuse [main.gd](../../game/scripts/main.gd), [cafe_settings.gd](../../game/scrip
 Current states are `service`, `busy` and `decorate`; editing currently keeps the current soundtrack and does not select `decorate`. **Whether Decorate mode should use a dedicated BGM track remains an unresolved product decision.** The current implementation does not establish the approved final audio direction. Zero volume mutes the bus, while disabling stops playback. Track selection uses a 15-second state age and a 1.2-second fade. Activating unused music or changing fade/resume/control semantics requires an explicit scoped decision. The audit identified the fade's possible level dip and shared SFX stream interruption as listening questions, not accepted runtime defects.
 
 Prepare/cache audio once, keep voice/resource ownership bounded and retire inactive decoders. Avoid per-frame synthesis or redundant players. Measure startup, CPU and retained-memory impact when the proposed change affects them, following the existing [performance](../testing/rendering-performance.md) and [memory](../testing/memory-regression.md) contracts. Decoder success is not an FPS or memory qualification.
+
+## Internal musical review before audition
+
+The producer owns whole-track diagnosis before asking the user to approve a candidate. User timestamps are useful hints, not the primary defect-finding method. Review independently where an actual listening reviewer is available; record who or what examined the audio and its demonstrated capability. Text-only peer review and waveform measurements do not count as listening.
+
+Record a concrete finding, timestamp/bar, severity and correction or a justified pass for each of these areas:
+
+- Composition and arrangement: motif, harmony, phrase direction, balance of musical roles, intentional repetition and a suitable cadence.
+- Timbre and performance: instrument credibility, attack and sustain, phrasing, dynamics, groove and vitality; performance energy must support the intended emotion. A sunny composition played with listless instruments requires review even when its notes are correct.
+- Mix and artifacts: masking, foreground space, stereo/mono balance, noise, harshness, smearing, clicks, distortion and transitions.
+- Reference comparison: use permitted, named references for tone and production goals, without copying their music. Record playback level/device and compare the lossless source with the decoded delivery at comparable listening levels; distinguish composition, performance, mix, encoding and playback causes.
+
+Use pass, revise or unassessed with evidence; do not manufacture musical-quality scores from RMS, sample peaks or correlation. Independently inspect the complete track and then relevant excerpts. Technical findings guide listening but cannot certify timbre or emotional coherence. If genuine audio perception is unavailable, mark listening judgement unassessed and identify the capability gap. Continue authorized source, signal and technical work, preserving the user's existing acceptance of the exact recording; those checks must not be presented as listening. The producer remains responsible for technical defect finding and arranging the appropriate review capability. The user decides creative acceptance through actual audition; a new derivative still needs its relevant listening and runtime checks. Keep technical, imported-runtime, merge and release results separate.
 
 ## Listening and acceptance
 
