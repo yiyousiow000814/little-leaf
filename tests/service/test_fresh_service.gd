@@ -3,6 +3,8 @@ const Main=preload("res://scripts/main.gd")
 class ClockMain extends Main:
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;paused=true;model.reset_new()
+  for item in model.items:
+   if item.kind in ["stove","beverage","sink"]:item.rot=2
 var checks=0
 var failures=[]
 func _initialize():run.call_deferred()
