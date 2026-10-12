@@ -158,7 +158,7 @@
       "redactions": []
     },
     {
-      "path": "docs/art-audio/reference-studies/music-reference-register.json",
+      "path": "docs/art-audio/reference-studies/music-skills-v2/music-reference-register.original-redacted.json",
       "bytes": 2816,
       "sha256": "abc1f71863098120a955c65792925ed906bfa6d5c988e70b26171b2c073c285b",
       "source": {
@@ -1148,6 +1148,20 @@
       "original_sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
       "exact_original_bytes": true,
       "redactions": []
+    },
+    {
+      "path": "docs/art-audio/reference-studies/music-reference-register.json",
+      "bytes": 12335,
+      "sha256": "ee575dbcfe56fe2db12e692d65124d3224498cdb2865a83681fa754f34b79ee2",
+      "source": {
+        "frozen_local_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+        "member": "docs/art-audio/reference-studies/music-reference-register.json"
+      },
+      "original_sha256": "05ccf972e93261a2893c2ed29f3393e28b12f8aed12b0c2dcb1df1300489565f",
+      "exact_original_bytes": false,
+      "redactions": [
+        "Private RC checksum omitted; working status updated to preserved actual native outcome and source-only publication boundaries"
+      ]
     }
   ],
   "rendered_archive_members_not_published": [
@@ -1512,8 +1526,8 @@
     },
     {
       "path": "docs/art-audio/reference-studies/music-skills-v2/README.md",
-      "bytes": 1052,
-      "sha256": "6db50cde9760957516e6ef1a8decd4a7a4b0664a2bc6f2b91ef9c7afdc64b2b8"
+      "bytes": 1397,
+      "sha256": "26397cf94379435a598b5d4ffe4931c176fc936e1cb7bcb6a183b033126d95cd"
     },
     {
       "path": ".agents/skills/game-music-production/.gitattributes",
@@ -1526,5 +1540,6 @@
       "sha256": "ea4846c1ea1cb85f5484d69f616d7fe94683c02ce4e0a97c31e098db985b1c3f"
     }
   ],
-  "reused_street_member_inventory_sha256": "4f04baa31cb372542d8923a7c7e2b5e2c5fc3aa4d40e88dbced4e325345d0621"
+  "reused_street_member_inventory_sha256": "4f04baa31cb372542d8923a7c7e2b5e2c5fc3aa4d40e88dbced4e325345d0621",
+  "current_reference_register": "Canonical register follows later explicit user decisions; supplied creation-time register separately preserved as historical source."
 }

@@ -1,7 +1,7 @@
 {
   "schema": "little-leaf.music-reference-register.v2",
   "updated": "2026-10-12",
-  "authority": "Latest explicit user correction in this conversation; replaces earlier assistant attribution",
+  "authority": "Explicit user correction and subsequent direction/listening/in-game/Settings authorization, 2026-10-12; immutable creation-time records remain historical.",
   "references": [
     {
       "id": "harmony-study-A",
@@ -46,18 +46,177 @@
       "status": "private_style_reference_only",
       "approx_bpm": 120,
       "bpm_is_estimate": true,
-      "do_not_commit_reference_audio_to_public_repo": true
+      "do_not_commit_reference_audio_to_public_repo": true,
+      "source_policy": "PRIVATE EXTERNAL REFERENCE ONLY: no repository/build attachment, no sample/stem reuse; no public private-storage links"
     },
     {
       "id": "corner-cafe-reference-rearrangement-112",
       "container": "04_Corner_Cafe_Reference_Rearrangement.zip",
       "member": "Corner_Cafe_Reference_Rearrangement_112bpm.mp3",
       "sha256": "403800e963e883e0130343608c39360fe952fe40f94b44bc9c59af58217556fa",
-      "status": "new_unaccepted_audition",
+      "status": "user_accepted_direction_and_listening_integration_authorized",
       "basis": "Harmony Study B; does not supersede A or B",
-      "user_listening_approval": false,
-      "runtime_or_release_approval": false
+      "user_listening_approval": true,
+      "container_sha256": "ceeb6bcfab9e58a09eaf369357095e7009bb00d02a27988224bb2cdadf5ef276",
+      "game_integration_authorized": true,
+      "technical_loop_and_level_processing_authorized": true,
+      "live_deployment_or_release_authorized": false,
+      "historical_package_status": "new_unaccepted_audition; superseded for current work by later explicit user decision, original bytes unchanged"
+    },
+    {
+      "id": "corner-cafe-main-street-112",
+      "container": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+      "container_sha256": "4e640cf492dfbad6fd08a9cd631c9b00030ebc2802c385e48e0a61d94569ef85",
+      "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3",
+      "sha256": "d96ad1e65a8fd11796c8d6295e37498b92ace18270032b938662e0e18d969b8f",
+      "status": "user_requested_integration_source_candidate",
+      "runtime_intent": "Selectable theme for the user",
+      "bpm": 112,
+      "bars": 24,
+      "user_instruction_authority": "Sentinel_b9f46deed5ac8191bd305b7a7a51716c;2026-10-12T07:55:48Z",
+      "loop_derivative": {
+        "member": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg",
+        "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+        "sample_rate": 44100,
+        "frames": 2268000,
+        "source": "exact supplied loop; no owner re-render",
+        "container_checked": true,
+        "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending",
+        "auditory_review": "unassessed by this reviewer",
+        "runtime_path": "game/assets/audio/corner_cafe_main_street_loop.ogg"
+      },
+      "recorded_creation_status": "README/approval receipt report Street positive approval; original event/status file remains historical",
+      "game_integration_authorized": true,
+      "live_deployment_or_release_authorized": false
+    },
+    {
+      "id": "corner-cafe-shop-rhythm-fix-112",
+      "container": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+      "container_sha256": "4e640cf492dfbad6fd08a9cd631c9b00030ebc2802c385e48e0a61d94569ef85",
+      "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3",
+      "sha256": "bd3125c1af6573d5f286bee27a4e4f79b1407351156031fedda641f27970b4b3",
+      "status": "user_requested_integration_source_candidate",
+      "runtime_intent": "Play specifically while Decorate is open",
+      "bpm": 112,
+      "bars": 24,
+      "user_instruction_authority": "Sentinel_b9f46deed5ac8191bd305b7a7a51716c;2026-10-12T07:55:48Z",
+      "loop_derivative": {
+        "member": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg",
+        "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+        "sample_rate": 44100,
+        "frames": 2268000,
+        "source": "exact supplied loop; no owner re-render",
+        "container_checked": true,
+        "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending",
+        "auditory_review": "unassessed by this reviewer",
+        "runtime_path": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg"
+      },
+      "recorded_creation_status": "README/approval receipt report revised Shop awaiting listening; latest explicit intended-use request preserved separately",
+      "game_integration_authorized": true,
+      "live_deployment_or_release_authorized": false
     }
   ],
-  "precedence_note": "Historical readmes inside the unchanged A/B ZIP retain their creation-time status. This later register records the user's subsequent feedback; do not rewrite the archive to hide history."
+  "precedence_note": "Historical readmes inside the unchanged A/B ZIP retain their creation-time status. This later register records the user's subsequent feedback; do not rewrite the archive to hide history.",
+  "runtime_selection": {
+    "default": "automatic",
+    "existing_tracks_retained": true,
+    "new_selectable_tracks": [
+      "harmony-study-A",
+      "harmony-study-B",
+      "corner-cafe-reference-rearrangement-112",
+      "corner-cafe-main-street-112"
+    ],
+    "comparison_track_runtime": false,
+    "music_specific_preferences_only": true,
+    "technical_integration_status": "Frozen local7c3de91 passed native Web analogue30/context76/decoder44=150/0. Runtime code/audio are not in this source-only GitHub publication; browser/canonical/audition/export remain separate.",
+    "decorate_context_track": "corner-cafe-shop-rhythm-fix-112",
+    "decorating_does_not_write_music_preference": true,
+    "context_restore": "Prior actual gameplay state/age restored when selection unchanged; explicitly changed selection during Decorate honored on exit"
+  },
+  "loop_derivatives": [
+    {
+      "id": "harmony-study-A",
+      "runtime_path": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "sample_rate": 44100,
+      "frames": 756000,
+      "source": "owner source adaptation: six common beat32 outro notes removed",
+      "auditory_review": "unassessed",
+      "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending"
+    },
+    {
+      "id": "harmony-study-B",
+      "runtime_path": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "sample_rate": 44100,
+      "frames": 756000,
+      "source": "owner source adaptation: six common beat32 outro notes removed",
+      "auditory_review": "unassessed",
+      "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending"
+    },
+    {
+      "id": "corner-cafe-reference-rearrangement-112",
+      "runtime_path": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+      "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "sample_rate": 44100,
+      "frames": 2268000,
+      "source": "exact user-supplied loop, no owner re-render",
+      "auditory_review": "unassessed",
+      "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending"
+    },
+    {
+      "id": "corner-cafe-main-street-112",
+      "runtime_path": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "sample_rate": 44100,
+      "frames": 2268000,
+      "source": "exact user-supplied loop; no owner conversion or re-render",
+      "auditory_review": "unassessed",
+      "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending",
+      "context_only": false
+    },
+    {
+      "id": "corner-cafe-shop-rhythm-fix-112",
+      "runtime_path": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+      "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "sample_rate": 44100,
+      "frames": 2268000,
+      "source": "exact user-supplied loop; no owner conversion or re-render",
+      "auditory_review": "unassessed",
+      "actual_godot_web_loop": "Native imported decoder verified at frozen local7c3de91; actual WebMEMFS and audible acceptance pending",
+      "context_only": true
+    }
+  ],
+  "supplied_fourth_loop": {
+    "container": "Corner_Cafe_Reference_Rearrangement_112bpm_Loop_Package.zip",
+    "container_sha256": "68f42b187398e5366b7a4b6aa5f2c6c64717c1ca1fcec207a3e723e84724cfe3",
+    "prior_accepted_container_sha256": "ceeb6bcfab9e58a09eaf369357095e7009bb00d02a27988224bb2cdadf5ef276",
+    "owner_derivation_stopped": true,
+    "latest_user_instruction": "Use supplied fourth loop; adapt only A/B",
+    "loop_turnaround_listening_and_engine_acceptance": "Native imported decoder verified at frozen local7c3de91; parent original acceptance preserved; loop listening/browser acceptance pending"
+  },
+  "supplied_street_shop": {
+    "container": "LittleLeaf_MainStreet_and_Shop_RhythmFix.zip",
+    "container_sha256": "4e640cf492dfbad6fd08a9cd631c9b00030ebc2802c385e48e0a61d94569ef85",
+    "source_location": "docs/art-audio/scores/mainstreet-shop-rhythmfix",
+    "original_archive_preserved_privately": true,
+    "source_bank": {
+      "name": "TimGM6mb.sf2",
+      "sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+      "notice_member": "licenses/TimGM6mb_package_notice.txt",
+      "notice_sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
+      "bank_binary_in_archive": false,
+      "recorded_distribution_assessment": "Existing TimGM output applicability/obligations unresolved; no additional output permission or completed assessment supplied in this package. GeneralUser scope does not transfer."
+    },
+    "owner_rerender_or_conversion": false,
+    "independent_intake": "45 CRC/member checksum identities and two Vorbis container headers; existing supplied signal records inspected, not remeasured; listening unassessed"
+  },
+  "source_preservation": {
+    "user_authority": "Sentinel_4819f712409c819180da6b347208ef8f",
+    "historical_supplied_register": "music-skills-v2/music-reference-register.original-redacted.json",
+    "scope": "Permitted editable source/documents published through existing PR228; all TimGM rendered audio remains local pending distribution route",
+    "private_RC": "No recording/checksum/account-specific private link published",
+    "local_runtime_source_head": "7c3de91d823762f3b0c0c220e50f6ae5ed4ed7ff",
+    "actual_native_outcome_sha256": "21485ef37621d7e5ed24943d6c999d40b3be797551504c3c505dfa658a80f2e2"
+  }
 }
