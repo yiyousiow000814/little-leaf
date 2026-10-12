@@ -152,7 +152,7 @@ func retained_cycle(input:Dictionary,reverse_order:bool):
 
 func reader_boundary(input:Dictionary):
 	var model=Model.new();model.parking_owned=true;model.parking_paid_cost=Parking.PRICE;model._next_customer_id=17
-	model.road_traffic_state=restore(input.road);model.parking_visits=restore(input.parking);model.road_bus=null
+	model.road_traffic_state=restore(input.road);model.parking_visits.assign(restore(input.parking));model.road_bus=null
 	Parking.advance(model,1.0/30.0)
 	var state=Parking.snapshot(model).duplicate(true)
 	check(Parking.validate(Codec.new().encode(state),[],[],17,true).ok,"One departure plus legal straight approach validates")
@@ -173,9 +173,9 @@ func reader_boundary(input:Dictionary):
 			var file=FileAccess.open(bad_path,FileAccess.WRITE)
 			if file==null:check(false,"Cannot write generated refusal fixture");continue
 			file.store_string(JSON.stringify(data));file.close()
-			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.money
+			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.coins
 			check(not restored.load_save(bad_path),"Ordinary reader refuses "+fault)
-			check(same(Parking.snapshot(restored),before) and restored.money==wallet,"Refusal preserves live custody and wallet atomically")
+			check(same(Parking.snapshot(restored),before) and restored.coins==wallet,"Refusal preserves live custody and wallet atomically")
 	var boundary=state.duplicate(true);boundary.visits[1].car_index=1;boundary.visits[1].car_position=boundary.visits[1].car_route[0]
 	check(Parking.validate(Codec.new().encode(boundary),[],[],17,true).ok,"Exact first-waypoint hold stays outside turn ownership")
 	var gate=model_from(input,false);gate.parking_visits=boundary.visits
@@ -212,9 +212,9 @@ func reader_boundary(input:Dictionary):
 			var file=FileAccess.open(bad_path,FileAccess.WRITE)
 			if file==null:check(false,"Cannot write generated spacing refusal fixture");continue
 			file.store_string(JSON.stringify(data));file.close()
-			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.money;var next_id=restored._next_customer_id
+			var before=Parking.snapshot(restored).duplicate(true);var wallet=restored.coins;var next_id=restored._next_customer_id
 			check(not restored.load_save(bad_path) and restored.last_error.contains("Parking street approaches overlap"),"Ordinary reader reaches pair spacing refusal")
-			check(same(Parking.snapshot(restored),before) and restored.money==wallet and restored._next_customer_id==next_id,"Spacing refusal preserves live state/custody/counter atomically")
+			check(same(Parking.snapshot(restored),before) and restored.coins==wallet and restored._next_customer_id==next_id,"Spacing refusal preserves live state/custody/counter atomically")
 	var dormant=pair.duplicate(true)
 	for car in dormant.visits:
 		if car.phase=="car_arriving":car.car_position=Parking.CAR_START;car.car_index=0
