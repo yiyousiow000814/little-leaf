@@ -8,7 +8,7 @@ The existing save schema remains unchanged: receipts are not serialized, existin
 
 The planner copies the session ledger into its isolated model, then publishes it only with a validated purchase. Its stamp includes session state so Done rejects stale previews. Existing Sell labels already read logical_refund and display the eligible value.
 
-Focused verification: tests/test_decoration_refund.gd exercises actual model transactions and the controller Decorate/Done boundary. The baseline mode runs identical purchase/move/sale cases against v0.1.9. All fixtures use generated saveguard profiles; the player save is never read.
+Focused verification: tests/building/test_decoration_refund.gd exercises actual model transactions and the controller Decorate/Done boundary. The baseline mode runs identical purchase/move/sale cases against v0.1.9. All fixtures use generated saveguard profiles; the player save is never read.
 
 ## Scope remaining from the broader wording
 

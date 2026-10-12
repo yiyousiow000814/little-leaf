@@ -24,6 +24,7 @@ jobs:
       sha: ${{ steps.notes.outputs.sha }}
       tag_object: ${{ steps.notes.outputs.tag_object }}
       notes: ${{ steps.notes.outputs.notes }}
+      prerelease: ${{ steps.notes.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,9 +42,11 @@ jobs:
           python3 - <<'PY'
           import base64, datetime, json, os, re, subprocess
           release_pattern = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)([a-z]?)"
+          sha_pattern = r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-pre\.([0-9a-f]{8})"
           tag = os.environ['RELEASE_TAG']
           match = re.fullmatch(release_pattern, tag)
-          if not match:
+          sha_match = re.fullmatch(sha_pattern, tag)
+          if not match and not sha_match:
               raise ValueError('Expected an existing vX.Y.Z or vX.Y.Z[a-z] tag')
           def git(*args):
               return subprocess.check_output(['git', *args], text=True).strip()
@@ -59,10 +62,20 @@ jobs:
           project = git('show', sha + ':' + prefix + 'project.godot')
           notes = json.loads(git('show', sha + ':' + prefix + 'data/release_notes.json'))
           version = tag[1:]
-          if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [version]:
+          source_version = version
+          if sha_match:
+              if sha_match[4] != sha[:8]:
+                  raise ValueError('Prerelease hash must identify the exact tagged source')
+              source_version = version.rsplit('.', 1)[0]
+          if re.findall(r'^config/version="([^"]+)"$', project, re.M) != [source_version]:
               raise ValueError('Tag and project version disagree')
-          if notes.get('schema_version') != 1 or notes.get('version') != version or notes.get('status') != 'released':
+          if notes.get('schema_version') != 1 or notes.get('version') != source_version or notes.get('status') != 'released':
               raise ValueError('Release metadata must match the release tag and be released')
+          prerelease = notes.get('prerelease', False)
+          if type(prerelease) is not bool:
+              raise ValueError('Release prerelease flag must be a boolean')
+          if sha_match and prerelease is not True:
+              raise ValueError('SHA releases must be GitHub prereleases')
           if datetime.date.fromisoformat(notes['date']) > datetime.datetime.now(datetime.timezone.utc).date():
               raise ValueError('Release date is in the future')
           lines = []
@@ -80,11 +93,11 @@ jobs:
                   lines.append('')
           if not lines:
               raise ValueError('Release notes must describe changes')
-          # Keep in sync with release_metadata.release_key; do not execute
+          # Keep in sync with release.release_metadata.release_key; do not execute
           # scripts from the tagged game source to render historical releases.
           def release_key(m):
               return (*map(int, m.groups()[:3]), ord(m[4]) - ord('a') + 1 if m[4] else 0)
-          current = release_key(match)
+          current = release_key(match) if match else (*map(int, sha_match.groups()[:3]), 0)
           previous = []
           for candidate in git('tag', '--list').splitlines():
               m = re.fullmatch(release_pattern, candidate)
@@ -98,7 +111,7 @@ jobs:
           lines.extend(['------', '', '## Changelog', '- chore: record ' + tag + ' source at ' + sha + '.', '', 'Full Changelog: ' + changelog, '', 'Source: ' + sha + '.', '', 'This GitHub Release records tagged source; platform approval and deployment are separate.'])
           encoded = base64.b64encode(('\n'.join(lines) + '\n').encode()).decode()
           with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              for key, value in [('tag', tag), ('sha', sha), ('tag_object', tag_object), ('notes', encoded)]:
+              for key, value in [('tag', tag), ('sha', sha), ('tag_object', tag_object), ('notes', encoded), ('prerelease', str(prerelease).lower())]:
                   out.write(key + '=' + value + '\n')
           PY
   release:
@@ -114,10 +127,17 @@ jobs:
       SOURCE_SHA: ${{ needs.prepare.outputs.sha }}
       TAG_OBJECT: ${{ needs.prepare.outputs.tag_object }}
       NOTES_BASE64: ${{ needs.prepare.outputs.notes }}
+      RELEASE_PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
     steps:
       - name: Preserve existing releases and verify tag has not moved
         shell: bash
         run: |
+          release_args=()
+          case "$RELEASE_PRERELEASE" in
+            true) release_args=(--prerelease) ;;
+            false) ;;
+            *) echo '::error::Invalid prerelease flag; refusing publication.'; exit 1 ;;
+          esac
           remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
           test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed; refusing publication.'; exit 1; }
           response="$RUNNER_TEMP/release-response.txt"
@@ -128,7 +148,7 @@ jobs:
           # Only an explicit not-found response permits creation. Auth/network failures stop.
           grep -Eq '^HTTP/[0-9.]+ 404([[:space:]]|$)' "$response" || { echo '::error::Cannot establish release absence.'; exit 1; }
           printf '%s' "$NOTES_BASE64" | base64 --decode > "$RUNNER_TEMP/github-release-notes.md"
-          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" --latest=false --title "Little Leaf $RELEASE_TAG" --notes-file "$RUNNER_TEMP/github-release-notes.md"
+          gh release create "$RELEASE_TAG" --repo "$GH_REPO" --verify-tag --target "$SOURCE_SHA" --latest=false --title "Little Leaf $RELEASE_TAG" --notes-file "$RUNNER_TEMP/github-release-notes.md" "${release_args[@]}"
           remote_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
           test "$remote_object" = "$TAG_OBJECT" || { echo '::error::Tag changed during publication; investigate without retrying.'; exit 1; }
           echo "Created $RELEASE_TAG from $SOURCE_SHA. No platform deployment was performed." >> "$GITHUB_STEP_SUMMARY"
@@ -153,4 +173,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python3 tools/github_latest.py
+        run: python3 tools/release/github_latest.py

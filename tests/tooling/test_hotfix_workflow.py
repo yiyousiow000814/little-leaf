@@ -49,7 +49,7 @@ class ItchTagGateTests(unittest.TestCase):
         source = WORKFLOW.read_text()
         for guard in ["tags: ['v*']", 'github.event.created && !github.event.deleted',
                       '--require-main-ancestor', 'needs: [gate, build]',
-                      'python3 tools/reuse_main_ci.py',
+                      'python3 tools/qualification/reuse_main_ci.py',
                       'ref: ${{ needs.gate.outputs.sha }}',
                       'artifact-ids: ${{ needs.build.outputs.artifact_id }}',
                       'digest-mismatch: error', 'Missing BUTLER_API_KEY',
@@ -57,7 +57,7 @@ class ItchTagGateTests(unittest.TestCase):
             self.assertIn(guard, source)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
         for gate in ['unittest discover', 'run_integration_candidate.py',
-                     'tools/build_web.py', 'connection_recovery_browser.js',
+                     'tools/build/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)
 

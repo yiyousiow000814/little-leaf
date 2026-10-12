@@ -12,4 +12,11 @@ function sourcePath(root, name) {
 function resourceName(name) {
   return name.startsWith('game/') ? name.slice(5) : name.startsWith('platform/web/') ? name.slice(9) : name;
 }
-module.exports = {sourcePath, resourceName};
+function sourceVersion(root, commit) {
+  // Use the same metadata resolver as the exporter; never duplicate tag rules.
+  const python = process.env.PYTHON_BIN || (process.platform === 'win32' ? 'python' : 'python3');
+  return require('node:child_process').execFileSync(python,
+    ['-X', 'utf8', path.join(__dirname, '../tools/release/release_metadata.py'), '--root', root, '--source-commit', commit],
+    {encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe']}).trim();
+}
+module.exports = {sourcePath, resourceName, sourceVersion};

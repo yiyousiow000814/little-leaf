@@ -11,8 +11,12 @@ class FirebaseBootPresentation(unittest.TestCase):
         subprocess.run(['node', 'tests/firebase_boot_presentation.js'],
                        cwd=ROOT, check=True, timeout=30)
 
+    def test_ordinary_refresh_with_synthetic_sessions_and_locks(self):
+        subprocess.run(['node', 'tests/persistence/firebase_session_refresh.js'],
+                       cwd=ROOT, check=True, timeout=30)
+
     def test_recovery_bridge_with_disposable_account_and_dom(self):
-        subprocess.run(['node', 'tests/firebase_recovery_presentation.js'],
+        subprocess.run(['node', 'tests/persistence/firebase_recovery_presentation.js'],
                        cwd=ROOT, check=True, timeout=30)
 
 

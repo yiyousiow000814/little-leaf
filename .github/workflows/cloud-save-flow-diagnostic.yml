@@ -5,9 +5,9 @@ on:
       - 'platform/firebase/**'
       - 'platform/web/little_leaf_firebase*'
       - 'platform/web/little_leaf_update.js'
-      - 'tools/cloud_flow_diagnostic.py'
+      - 'tools/diagnostics/cloud_flow_diagnostic.py'
       - 'tools/prepare_browser_qa.py'
-      - 'tests/probe_cloud_recovery_geometry.gd'
+      - 'tests/diagnostics/probe_cloud_recovery_geometry.gd'
       - '.github/workflows/cloud-save-flow-diagnostic.yml'
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
       - name: Check retained diagnostic eligibility without qualifying a release
         id: eligibility
-        run: python3 tools/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
+        run: python3 tools/diagnostics/cloud_flow_diagnostic.py --eligibility "$RUNNER_TEMP/retained/diagnostic-eligibility.json"
       - name: Fetch exact retained a7 artifacts and verify all bytes and source inputs
         if: steps.eligibility.outputs.eligible == 'true'
         env:
@@ -35,11 +35,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/retained"
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11600374596/zip > "$RUNNER_TEMP/retained/web.zip"
           gh api repos/yiyousiow000814/little-leaf/actions/artifacts/11602076197/zip > "$RUNNER_TEMP/retained/evidence.zip"
-          python3 tools/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
+          python3 tools/diagnostics/cloud_flow_diagnostic.py --artifacts "$RUNNER_TEMP/retained"
       - name: Install pinned native geometry tool and prepare disposable probe
         if: steps.eligibility.outputs.eligible == 'true'
         run: |
-          python3 tools/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+          python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
           GODOT_BIN="$RUNNER_TEMP/godot-tools/godot" python3 tools/prepare_browser_qa.py cloud --output "$RUNNER_TEMP/cloud-geometry"
       - name: Install pinned test dependencies
         if: steps.eligibility.outputs.eligible == 'true'

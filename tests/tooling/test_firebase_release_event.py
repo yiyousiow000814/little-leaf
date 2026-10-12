@@ -12,7 +12,7 @@ import zipfile
 
 import firebase_release_event as event
 from tests.tooling import test_firebase_release_gate as gate_fixture
-from reuse_main_ci import REQUIRED_JOBS
+from qualification.reuse_main_ci import REQUIRED_JOBS
 
 
 def archive(files):

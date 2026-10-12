@@ -42,14 +42,14 @@ Use Godot 4.6.3 and its matching non-threaded release template. From the reposit
 
 ```sh
 python3 tests/run_integration_candidate.py --output /tmp/little-leaf-engine-evidence
-python3 tools/build_web.py --output /tmp/little-leaf-web-build --test-report /tmp/little-leaf-engine-evidence/summary.json
+python3 tools/build/build_web.py --output /tmp/little-leaf-web-build --test-report /tmp/little-leaf-engine-evidence/summary.json
 ```
 
 Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
 
 ## Repository boundaries
 
-- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; `res://scripts/` resource names remain unchanged. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
+- `game/`: Godot project, scene, export presets, scripts, assets, data and shaders. Gameplay/UI/rendering and engine-side adapters stay under `game/scripts/`; Script UIDs remain stable; update runtime and preload consumers atomically when resource paths move. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
 - `platform/web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
 - `tests/`: repeatable regression suites and browser harnesses; `tooling/` holds CI contracts, `fixtures/` holds synthetic source-bound inputs, and `diagnostics/` holds reusable captures, audits and profiling helpers. State whether a check covers engine behavior, browser behavior, or rendered output. Generated screenshots, traces, logs, exports and disposable profiles belong in ignored output directories.
 - `tools/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
@@ -57,6 +57,22 @@ Serve the exported folder over HTTP to test it. Keep the license notice, custom 
 - `docs/`: this developer guide, one roadmap, release guidance and licenses. `design/`, `development/`, `art-audio/`, `testing/` and `release/` group guidance by reader purpose. Each area keeps its dated evidence in `history/`; the roadmap alone maintains current product status. Keep current roadmap status in one place.
 - `assets/`, `shaders/` and `data/`: preserve source/import identity, licensing and release metadata; documentation cleanup does not relocate runtime resources.
 - `platform/firebase/`: rules and emulator contracts; use synthetic fixtures, never player data or live rules without separate authorization.
+
+## Code-health review
+
+Review touched code while editing and perform a focused code-health review at each small-version closeout. Record the inspected scope, confirmed findings, related PRs and remaining gaps; this checklist requires a review, not an automatic scheduled run.
+
+- Keep names and control flow readable, responsibilities coherent, and shared semantic UI styles consistent. Separate actual bug fixes from cleanup so each change's behavior is reviewable.
+- Look for dead or obsolete code, duplication and layers of patches. Prefer removing or simplifying them before adding another path or compatibility layer.
+- Check excessive defensive code and scattered hardcoded policy. Keep meaningful save/security guards; share configuration or functions only where callers truly express the same rule.
+- Identify real extension needs. Reuse existing boundaries and justified shared functions instead of speculative abstractions or frameworks.
+- Check per-frame cost, retained memory, resource ownership and cache invalidation against the existing performance and memory contracts; preserve actual rendered behavior.
+- Target net deletion across the complete cleanup diff, including tests and helpers. Do not use code golf, drop required behavior or add a large test/helper framework to claim a small cleanup.
+- Preserve player saves, assets, imports, licenses and active owner boundaries. Use the minimum relevant existing targeted checks and source-bound visual evidence where affected; required release gates still apply.
+
+Focused0.1.11 cleanup review covered the canonical suite resolver, family resource consumers, shared native runner and CI/build/release/qualification/diagnostic imports. [PR201](https://github.com/yiyousiow000814/little-leaf/pull/201) removed170 production lines by sharing the two native flows while retaining both14-line CLI wrappers and ten mock scenarios. The existing HUD dead-branch cleanup remains in [PR180](https://github.com/yiyousiow000814/little-leaf/pull/180). Renderer callback-state readability and UI child/theme/error contracts stay with their existing owners. Current service steps and historical codec job/payment validation require separate save-version-aware review before sharing policy. Current merge/check status belongs only in the [roadmap](../roadmap.md#current-state); stable CLI orchestrators, the canonical runner and source resolver remain entrypoints.
+
+Open or update one coherent PR for each confirmed related finding. Reviewed cleanup, organization and optimization may merge under explicit user authority; gameplay and artwork acceptance remain separate. Report actual verification, merge and release inclusion independently.
 
 ## Branch and review hygiene
 
@@ -70,7 +86,7 @@ A temporary integration or preview branch with meaningful implementation changes
 
 Keep runtime changes, platform integration, test-only repairs, and deployment changes independently reviewable. Prefer a small documentation update to an unrelated cleanup or file move. Preserve asset inputs, history, and recovery evidence before removing obsolete material.
 
-At task closeout, enumerate every remote branch page and every open, closed and merged PR page. Record each branch's exact tip, PR/dependencies and disposition. Resolve refs without a PR by preserving useful approved work once in the corresponding coherent Draft, or retiring obsolete refs after full-history backup and independent restored commit/tree verification. Check actual named dependencies and active edits/runs; ancestry alone does not require a remote branch name. Protect main, platform refs, active work and dirty local checkouts. For a blocked retirement, record the exact ref/tip, owner, consumer, blocker and next action, then finish reconciliation when the blocker clears.
+At task closeout, enumerate every remote branch page and every open, closed and merged PR page. Record each branch's exact tip, PR/dependencies and disposition. Resolve refs without a PR by preserving useful approved work once in the corresponding coherent Draft, or retiring obsolete refs after full-history backup and independent restored commit/tree verification. Check actual named dependencies and active edits/runs; ancestry alone does not require a remote branch name. Protect main, platform refs, active work and dirty local checkouts. Immediately before retirement, recheck the remote tip and named consumers; retire only the verified unchanged ref within explicit user-authorized scope. For a blocked retirement, record the exact ref/tip, owner, consumer, blocker and next action, then finish reconciliation when the blocker clears.
 
 ## Project files
 

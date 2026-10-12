@@ -1,4 +1,4 @@
-extends "res://tests/test_existing_wall_actions.gd"
+extends "res://tests/building/test_existing_wall_actions.gd"
 func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true;await settle()
  var art=game.illustration;var records=[]
