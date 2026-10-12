@@ -139,6 +139,24 @@
       if(!current || current.owner!==sessionId || status!=='active'&&!(allowHandoff&&status==='handoff-requested'&&!current.ack))throw fail('OWNERSHIP_LOST','Your game was opened on another device. Current changes stay on this device.');
       return {writerId:sessionId,writerEpoch:current.epoch};
     }
+    function handoffReceipt(){
+      const fence=assertActive(true);
+      if(!current.request)throw fail('HANDOFF_CHANGED','The device switch request changed.');
+      return Object.freeze({...fence,requestId:current.request.id,requester:current.request.requester});
+    }
+    const sameHandoff=(value,receipt)=>value?.owner===receipt.writerId&&value.epoch===receipt.writerEpoch&&value.request?.id===receipt.requestId&&value.request.requester===receipt.requester;
+    function assertHandoff(receipt){
+      assertActive(true);
+      if(!sameHandoff(current,receipt))throw fail('HANDOFF_CHANGED','The device switch request changed.');
+    }
+    async function confirmHandoff(receipt,digest,revision){
+      guard();const value=await remote.read();guard();receive(value);
+      if(value?.owner===receipt.requester&&value.epoch===receipt.writerEpoch+1&&value.request===null&&value.ack===null)return 'transferred';
+      if(!sameHandoff(value,receipt))throw fail('HANDOFF_CHANGED','The device switch request changed.');
+      if(value.ack===null)return 'pending';
+      if(value.ack.requestId===receipt.requestId&&value.ack.digest===digest&&value.ack.revision===revision)return 'acknowledged';
+      throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
+    }
     async function renew(){
       guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch;
       try{await change((value,save,stamp)=>{if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');return {...value,updatedAt:stamp()};});}
@@ -187,9 +205,10 @@
         });
       }return snapshot();
     }
-    async function acknowledge(digest,revision){
+    async function acknowledge(digest,revision,expected=null){
       const fence=assertActive(true),id=current.request?.id;
       if(!id)throw fail('HANDOFF_CHANGED','The device switch request changed.');
+      if(expected)assertHandoff(expected);
       // Compare server timestamps without reducing them to milliseconds. A
       // fresh transaction may only recover an independently observed renewal
       // of this exact owner, request and final save; denial alone is no proof.
@@ -202,6 +221,7 @@
       const nextAck=(value,save)=>{
         if(save?.digest!==digest||save.revision!==revision||save.writerId!==fence.writerId||save.writerEpoch!==fence.writerEpoch)throw fail('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
         if(value?.owner!==sessionId||value.epoch!==fence.writerEpoch||value.request?.id!==id)throw fail('OWNERSHIP_LOST','The device switch changed before acknowledgment.');
+        if(expected&&!sameHandoff(value,expected))throw fail('HANDOFF_CHANGED','The device switch request changed.');
         if(value.ack!==null)throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
         return {...value,ack:{requestId:id,digest,revision}};
       };
@@ -233,7 +253,7 @@
         return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
       });return snapshot();
     }
-    return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,
+    return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,handoffReceipt,assertHandoff,confirmHandoff,
       async refresh(){guard();receive(await remote.read());return snapshot();},
       get fence(){return assertActive(true);},get sessionRef(){return remote.ref;},
       close(){requestGeneration++;closed=true;status='offline';if(unsubscribe)unsubscribe();}};
