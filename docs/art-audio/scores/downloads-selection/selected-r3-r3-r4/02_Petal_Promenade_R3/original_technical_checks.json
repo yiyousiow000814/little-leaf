@@ -1,0 +1,13 @@
+{
+  "sample_rate": 44100,
+  "sample_count": 1861324,
+  "duration_seconds": 42.20689342403628,
+  "peak_dbfs": -9.593712313065744,
+  "finite_samples": true,
+  "notes": 174,
+  "loop_qualified": false,
+  "godot_tested": false,
+  "suno_used": false,
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "integrated_lufs": -19.833395819564917
+}

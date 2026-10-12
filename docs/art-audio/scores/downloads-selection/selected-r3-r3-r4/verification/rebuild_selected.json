@@ -1,0 +1,24 @@
+{
+  "original_selected_masters_and_stems_sample_identical": true,
+  "tracks": [
+    {
+      "track": "01_Cloverlight_R3",
+      "master_pcm_identical": true,
+      "max_integer_difference": 0,
+      "container_sha256_identical": true
+    },
+    {
+      "track": "02_Petal_Promenade_R3",
+      "master_pcm_identical": true,
+      "max_integer_difference": 0,
+      "container_sha256_identical": true
+    },
+    {
+      "track": "03_Fiesta_en_Flor_R4",
+      "master_pcm_identical": true,
+      "max_integer_difference": 0,
+      "container_sha256_identical": true
+    }
+  ],
+  "new_composer_exact_ledger_match": true
+}
