@@ -37,6 +37,37 @@ class AtlasSourceGuard(unittest.TestCase):
         (self.root/'scripts/new.gd').write_text('extends RefCounted\n')
         (self.root/guard.SEEDS[0]).write_text('extends "res://scripts/new.gd"\n')
         with self.assertRaises(AssertionError):self.run_guard()
+    def add_main(self,source):
+        main=self.root/'scripts/main.gd';main.write_text('extends RefCounted\n',encoding='utf-8')
+        (self.root/guard.SEEDS[0]).write_text(source,encoding='utf-8')
+        return guard.sources()
+    def test_resource_identity_comparisons_do_not_load_main(self):
+        sources=self.add_main('if script.resource_path == "res://scripts/main.gd": pass\n'
+                              'if "res://scripts/main.gd" != game.get_script().resource_path: pass\n')
+        self.assertNotIn('scripts/main.gd',sources)
+    def test_real_main_load_is_retained_beside_identity_comparison(self):
+        sources=self.add_main('if script.resource_path == "res://scripts/main.gd": pass\n'
+                              'var loaded=load("res://scripts/main.gd")\n')
+        self.assertIn('scripts/main.gd',sources)
+        with self.assertRaises(AssertionError):self.run_guard()
+    def test_preload_and_inherited_main_still_require_parity(self):
+        for source in ['const Main=preload("res://scripts/main.gd")\n','extends "res://scripts/main.gd"\n']:
+            with self.subTest(source=source):
+                self.assertIn('scripts/main.gd',self.add_main(source))
+                with self.assertRaises(AssertionError):self.run_guard()
+    def test_dynamic_load_constants_and_cycles_are_retained(self):
+        sources=self.add_main('const PATH="res://scripts/main.gd"\nvar loaded=load(PATH)\n')
+        (self.root/'scripts/main.gd').write_text('extends "res://'+guard.SEEDS[0]+'"\n',encoding='utf-8')
+        self.assertIn('scripts/main.gd',sources)
+        self.assertEqual(sources.keys(),guard.sources().keys())
+    def test_comment_references_are_not_dependencies(self):
+        sources=self.add_main('# preload("res://scripts/main.gd")\n'
+                              '# script.resource_path ==\nvar unused="unrelated"\n')
+        self.assertNotIn('scripts/main.gd',sources)
+    def test_resource_name_hash_is_not_a_comment(self):
+        (self.root/'scripts/art#detail.gd').write_text('extends RefCounted\n',encoding='utf-8')
+        (self.root/guard.SEEDS[0]).write_text('const Art=preload("res://scripts/art#detail.gd")\n',encoding='utf-8')
+        self.assertIn('scripts/art#detail.gd',guard.sources())
     def test_changed_image_is_rejected(self):
         image=self.root/'assets/cache/heads-atlas.png';image.write_bytes(image.read_bytes()+b'changed')
         with self.assertRaises(AssertionError):self.run_guard()
