@@ -1,7 +1,7 @@
 name: Deploy reviewed Firebase test build
 on:
   workflow_run:
-    workflows: [Qualify Firebase release]
+    workflows: [Release Web to itch.io]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -34,7 +34,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   common-tag:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -50,10 +50,10 @@ jobs:
         id: select
         env:
           GH_TOKEN: ${{ github.token }}
-          FIREBASE_RUN: ${{ github.event.workflow_run.id }}
+          ITCH_RUN: ${{ github.event.workflow_run.id }}
         run: |
           git fetch --no-tags origin main
-          python3 tools/release/common_firebase.py --run "$FIREBASE_RUN" --output "$RUNNER_TEMP/common-firebase"
+          python3 tools/release/common_firebase.py --itch-run "$ITCH_RUN" --output "$RUNNER_TEMP/common-firebase"
       - name: Recheck full package independently before credentials
         env:
           SOURCE_SHA: ${{ steps.select.outputs.source_sha }}

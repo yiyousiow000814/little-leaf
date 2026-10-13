@@ -11,6 +11,8 @@ const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
 const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
+const INFORMATION_PANEL_PADDING=32.0
+const INFORMATION_PANEL_GAP=8
 const ViewportLayout=preload("res://scripts/ui/cafe_viewport_layout.gd")
 var viewport_too_small=false
 var viewport_guard:ColorRect
@@ -235,13 +237,13 @@ func setup():
  plot_button=_small_button("",func():game._expand();sync());manage_box.add_child(plot_button)
  manage_box.add_child(_small_button("Done",func():management.hide()))
  help_panel=_panel();help_panel.name="QuickHelpPanel"
- help_box=VBoxContainer.new();help_box.add_theme_constant_override("separation",8);help_panel.add_child(help_box)
+ help_box=VBoxContainer.new();help_box.add_theme_constant_override("separation",INFORMATION_PANEL_GAP);help_panel.add_child(help_box)
  help_header=HBoxContainer.new();help_box.add_child(help_header)
  help_heading=game.label("Quick help",18);help_heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_header.add_child(help_heading)
  help_close=game.button("X",_close_help);help_close.name="CloseHelp";help_close.accessibility_name="Close Help";help_close.tooltip_text="Close Help"
  help_close.custom_minimum_size=Vector2(44,44);help_header.add_child(help_close)
  help_scroll=ScrollContainer.new();help_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;help_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;help_scroll.follow_focus=true;help_scroll.focus_mode=Control.FOCUS_ALL;help_scroll.accessibility_name="Quick help instructions";help_box.add_child(help_scroll)
- var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",8);help_scroll.add_child(help_content)
+ var help_content=VBoxContainer.new();help_content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;help_content.add_theme_constant_override("separation",INFORMATION_PANEL_GAP);help_scroll.add_child(help_content)
  help_stats_row=game.settings_controls.build_stats_row();help_content.add_child(help_stats_row)
  help_text=game.label("",14);help_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;help_content.add_child(help_text)
  help_choices=GridContainer.new();help_choices.columns=1;help_choices.add_theme_constant_override("h_separation",10);help_choices.add_theme_constant_override("v_separation",10);help_content.add_child(help_choices);help_content.move_child(help_choices,0);help_choices.hide()
@@ -284,6 +286,7 @@ func setup():
  settings_button.pressed.connect(sync)
  game.business_button.toggle_mode=true;game.business_button.add_theme_stylebox_override("pressed",game._style(Color("547961"),Color.TRANSPARENT,9));game.business_button.add_theme_color_override("font_pressed_color",Color("fff3d8"))
  var settings_box=game.settings.get_child(0)
+ settings_box.add_theme_constant_override("separation",INFORMATION_PANEL_GAP)
  settings_inbox=game.button("Inbox",func():inbox.show());settings_box.add_child(settings_inbox)
  settings_updates=game.button("Updates",func():update_notes.show_from_settings());settings_updates.accessibility_name="Updates";settings_box.add_child(settings_updates)
  settings_help=game.button("Help",_show_help_from_settings);settings_help.accessibility_name="Help";settings_box.add_child(settings_help)
@@ -293,7 +296,7 @@ func setup():
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
-  hud.theme_panel(popup,true,32 if popup==help_panel else 26);hud.theme_panel_contents(popup)
+  hud.theme_panel(popup,true,INFORMATION_PANEL_PADDING if popup in [help_panel,game.settings] else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
  update_notice=UpdateNotice.new(self);update_notice.setup()
@@ -478,13 +481,12 @@ func _wrap_themed_popup(panel:PanelContainer,width:float,fixed_header:Control=nu
  panel.z_index=50
  var body=panel.get_child(0);var scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true
  panel.add_child(scroll);body.reparent(scroll);body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;panel.custom_minimum_size=Vector2.ZERO;panel.set_anchors_preset(Control.PRESET_TOP_LEFT);panel.set_meta("popup_width",width)
- var fixed_height=0.0
  if panel==game.settings:fixed_header=game.settings_controls.header
  if fixed_header!=null:
-  var shell=VBoxContainer.new();shell.add_theme_constant_override("separation",11);panel.add_child(shell);scroll.reparent(shell)
+  var shell=VBoxContainer.new();shell.add_theme_constant_override("separation",INFORMATION_PANEL_GAP);panel.add_child(shell);scroll.reparent(shell)
   fixed_header.reparent(shell);shell.move_child(fixed_header,0)
-  fixed_height=fixed_header.get_combined_minimum_size().y+11
- hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body,"fixed_height":fixed_height})
+  fixed_header.minimum_size_changed.connect(_queue_popup_fit)
+ hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body,"header":fixed_header})
  body.minimum_size_changed.connect(_queue_popup_fit);panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
 func _queue_popup_fit():
  if not is_instance_valid(game):return
@@ -511,7 +513,14 @@ func _fit_themed_popups():
    for action in actions.get_children():needed+=action.get_combined_minimum_size().x
    actions.vertical=needed>width-padding.x-gutter
   body.size.x=maxf(0,width-padding.x-gutter)
-  var available=maxf(44,hud.popup_height_budget()-padding.y-float(record.get("fixed_height",0)))
+  # A wrapping title has no meaningful height until its final width is known.
+  # Measure it on each fit; caching during setup can reserve hundreds of pixels.
+  var fixed_height=0.0
+  var fixed_header:Control=record.header
+  if is_instance_valid(fixed_header):
+   fixed_header.size.x=maxf(0,width-padding.x)
+   fixed_height=fixed_header.get_combined_minimum_size().y+INFORMATION_PANEL_GAP
+  var available=maxf(44,hud.popup_height_budget()-padding.y-fixed_height)
   record.scroll.custom_minimum_size=Vector2(0,minf(available,body.get_combined_minimum_size().y))
   panel.size=Vector2(width,0);panel.position=Vector2(hud.popup_left(panel.size.x),hud.popup_y(panel.size.y))
 func _fit_help_panel():
@@ -540,7 +549,7 @@ func _fit_help_panel():
  for button in help_footer.get_children():button.custom_minimum_size.x=action_width if compact_actions else 0.0
  var top=hud.layout_host.get_global_rect().end.y+10
  var footer_height=help_footer.get_combined_minimum_size().y
- var fixed_height=padding.y+help_header.get_combined_minimum_size().y+footer_height+16
+ var fixed_height=padding.y+help_header.get_combined_minimum_size().y+footer_height+INFORMATION_PANEL_GAP*2
  # Prefer a docked panel with at least 100px of readable instructions. Only
  # genuinely short viewports use a scrim and disable the obscured toolbar.
  var modal=(help_choices.visible and view.y<500) or view.y-insets.w-top-12<fixed_height+100

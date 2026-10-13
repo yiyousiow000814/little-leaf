@@ -133,6 +133,29 @@ def verify_artifact(web, tag, sha):
     return manifest
 
 
+def verify_qualified_ordinary_entry(web, variant, origin, tag, sha):
+    """Publish the exact ordinary producer separately from same-page qualification."""
+    from release.common_firebase import validate_packet, require_origin
+    if not re.fullmatch('v'+RELEASE,tag) or not re.fullmatch('[0-9a-f]{40}',sha):
+        raise ValueError('Exact release tag and source required')
+    packet=json.loads((variant/'firebase-variant-manifest.json').read_text())
+    marker=json.loads((variant/'public/hosting-release.json').read_text())
+    proof=validate_packet(variant,packet,marker)
+    require_origin(variant,packet,origin)
+    common=proof['common']
+    if web.resolve() != (variant/'itch-ordinary').resolve() or common['source_commit']!=sha or common['release_tag']!=tag:
+        raise ValueError('Exact authenticated ordinary Root/new-tab entry required')
+    base=verify_artifact(web,tag,sha)
+    if base!=packet['base_web_manifest']:
+        raise ValueError('Ordinary source/tag manifest differs from the qualified packet')
+    return base,common,sha256(variant/'firebase-variant-manifest.json')
+
+
+def packet_ordinary_inventory(variant):
+    from release.common_firebase import surface_inventory
+    return surface_inventory(variant,'itch-ordinary')
+
+
 def completed(status, build_id, version):
     current = channel(status)
     for record in [current.get("head") or {}, current.get("pending") or {}]:
@@ -150,15 +173,26 @@ def main():
     parser.add_argument("--sha", required=True)
     parser.add_argument("--receipt", type=Path, help="Write only the confirmed completed publication")
     parser.add_argument("--common-receipt", type=Path, help="Already authenticated immutable common qualification")
+    parser.add_argument("--firebase-variant", type=Path, help="Authenticated full qualification packet with separate ordinary entry")
+    parser.add_argument("--staging-origin", type=Path, help="Fresh authenticated staging origin")
     args = parser.parse_args()
-    manifest = verify_artifact(args.web, args.tag, args.sha)
+    variant=getattr(args,'firebase_variant',None)
+    origin_path=getattr(args,'staging_origin',None)
+    if variant:
+        if not origin_path or getattr(args,'common_receipt',None):
+            raise ValueError('Separate full qualification origin required; ordinary common alias refused')
+        manifest,common,variant_digest=verify_qualified_ordinary_entry(args.web,variant,json.loads(origin_path.read_text()),args.tag,args.sha)
+    else:
+        if origin_path:raise ValueError('Full qualification origin requires its exact packet')
+        manifest = verify_artifact(args.web, args.tag, args.sha)
+        common=None;variant_digest=None
     common_path = getattr(args,'common_receipt',None)
-    common = json.loads(common_path.read_text()) if common_path else None
+    if common_path:common=json.loads(common_path.read_text())
     if common is not None:
         from release.common_tag import STATUS, valid_order
         if (common.get('status') != STATUS or common.get('source_commit') != args.sha
                 or common.get('release_tag') != args.tag or common.get('version') != manifest['version']
-                or common.get('web_manifest_sha256') != sha256(args.web/'release-manifest.json')
+                or common.get('web_manifest_sha256') != (sha256(variant/'evidence/base-web-manifest.json') if variant else sha256(args.web/'release-manifest.json'))
                 or common.get('qualification') != manifest.get('release_reuse')
                 or not valid_order(common.get('release_order'))):
             raise ValueError('Exact authenticated common qualification required')
@@ -191,10 +225,19 @@ def main():
             if args.receipt:
                 receipt.update(tag=args.tag, workflow_run=os.environ.get("GITHUB_RUN_ID"),
                     workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
-                    release_manifest_sha256=sha256(args.web / "release-manifest.json"),
+                    release_manifest_sha256=common['web_manifest_sha256'] if variant else sha256(args.web / "release-manifest.json"),
                     qualification=manifest.get("release_reuse"))
                 if common is not None:
                     receipt['common_qualification'] = common
+                if variant:
+                    staging_origin=json.loads(origin_path.read_text())
+                    staging_run=staging_origin['run'];staging_artifact=staging_origin['artifact']
+                    receipt.update(delivery_surface='qualified-root-new-tab-entry',
+                        firebase_variant_manifest_sha256=variant_digest,
+                        ordinary_itch_sha256=packet_ordinary_inventory(variant),
+                        same_page_staging_origin={'run_id':staging_run['id'],'attempt':staging_run['run_attempt'],
+                            'coordinator_source_commit':staging_run['head_sha'],
+                            'artifact_id':staging_artifact['id'],'artifact_digest':staging_artifact['digest']})
                 args.receipt.parent.mkdir(parents=True, exist_ok=True)
                 args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
             print(json.dumps(receipt), flush=True)
