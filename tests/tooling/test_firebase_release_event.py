@@ -75,6 +75,35 @@ class API:
 
 
 class ReleaseEventTests(unittest.TestCase):
+    def test_producer_budget_preserves_payload_and_checks_both_boundaries(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d); (folder / 'runtime').write_bytes(b'audio-fixture' * 4096)
+            before = (folder / 'runtime').read_bytes()
+            measured = event.check_firebase_packet_budget(folder)
+            self.assertEqual(measured['expanded_bytes'], len(before))
+            self.assertEqual(measured['member_count'], 1)
+            self.assertEqual((folder / 'runtime').read_bytes(), before)
+            for expanded, compressed, accepted in [
+                    (len(before), measured['compressed_bytes_with_reserve'], True),
+                    (len(before) - 1, measured['compressed_bytes_with_reserve'], False),
+                    (len(before), measured['compressed_bytes_with_reserve'] - 1, False)]:
+                with self.subTest(expanded=expanded, compressed=compressed), \
+                        patch.object(event, 'FIREBASE_PACKET_EXPANDED_BYTES', expanded), \
+                        patch.object(event, 'MAX_FIREBASE_ARTIFACT_BYTES', compressed):
+                    if accepted: event.check_firebase_packet_budget(folder)
+                    else:
+                        with self.assertRaises(ValueError): event.check_firebase_packet_budget(folder)
+
+    def test_producer_budget_refuses_member_count_and_symlinks_before_compression(self):
+        folder = Mock(); item = Mock(); item.is_symlink.return_value = False
+        item.is_file.return_value = True; item.stat.return_value.st_size = 1
+        folder.rglob.return_value = [item] * 5001
+        with patch.object(event.zipfile, 'ZipFile') as compressed, self.assertRaises(ValueError):
+            event.check_firebase_packet_budget(folder)
+        compressed.assert_not_called()
+        item.is_symlink.return_value = True; folder.rglob.return_value = [item]
+        with self.assertRaises(ValueError): event.check_firebase_packet_budget(folder)
+
     def firebase_artifact(self, data):
         return {'id': 7, 'name': 'little-leaf-firebase-' + 'a' * 40 + '-1',
             'expired': False, 'size_in_bytes': len(data),

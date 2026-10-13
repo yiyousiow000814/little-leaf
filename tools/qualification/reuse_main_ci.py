@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = 'yiyousiow000814/little-leaf'
 WORKFLOW = '.github/workflows/ci.yml'
 DEFAULT_RESPONSE_BYTES = 100 * 1024 * 1024
-MAX_FIREBASE_ARTIFACT_BYTES = 128 * 1024 * 1024
+# Four authenticated runtime surfaces plus room for future audio/assets.
+MAX_FIREBASE_ARTIFACT_BYTES = 512 * 1024 * 1024
 REQUIRED_JOBS = {'web / guard', 'web / historical', 'web / build', 'web / gate',
     'web / browser (play)', 'web / browser (recovery)',
     'web / compatibility (compatibility, old_opened_after_new)',

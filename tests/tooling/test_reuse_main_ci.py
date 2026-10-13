@@ -91,6 +91,22 @@ class QualificationTests(unittest.TestCase):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_future_packet_headroom_remains_exact_and_finite(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size):
+                self.requested = size
+                return b'synthetic'
+        response = Response(); api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=response):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024)
+        self.assertEqual(response.requested, 512 * 1024 * 1024 + 1)
+        # Exercise metadata headroom without allocating a half-GiB fixture.
+        with patch.object(api.opener, 'open') as opened, self.assertRaises(ValueError):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024 + 1)
+        opened.assert_not_called()
+
     def test_real_firebase_response_size_has_explicit_finite_zip_budget(self):
         # Actual PR263 qualified archive: 119110054 bytes, larger than the
         # unchanged ordinary reader. Generate only the requested response chunk.

@@ -233,11 +233,25 @@ async function observe(current,next){
         manifest=json.loads((output/'firebase-variant-manifest.json').read_text());marker=json.loads((output/'public/hosting-release.json').read_text())
         return output,manifest,marker
 
+    def test_incompatible_producer_packet_never_emits_upload_handoff(self):
+        import os
+        from release import firebase_release_event as event
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'github-output'
+            with patch.dict(os.environ, {'GITHUB_OUTPUT': str(output)}), \
+                    patch.object(event, 'check_firebase_packet_budget', side_effect=ValueError('over budget')):
+                with self.assertRaisesRegex(ValueError, 'over budget'):
+                    self.packet(Path(temporary))
+            self.assertFalse(output.exists())
+
     def test_complete_typed_packet_preserves_runtime_without_butler_receipt(self):
         from release.deploy_firebase_hosting import verify_package,verify_live_package
         from qualification.artifacts import sha256
-        with tempfile.TemporaryDirectory() as temporary:
+        from release import firebase_release_event as event
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.object(event,'check_firebase_packet_budget',wraps=event.check_firebase_packet_budget) as budget:
             folder,manifest,marker=self.packet(Path(temporary))
+            budget.assert_called_once_with(folder)
             firebase.validate_packet(folder,manifest,marker)
             self.assertNotIn('publication',manifest);self.assertNotIn('manual_live_reuse',manifest)
             self.assertEqual(manifest['status'],firebase.STATUS)
