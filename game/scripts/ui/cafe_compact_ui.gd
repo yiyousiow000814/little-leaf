@@ -753,10 +753,11 @@ func _sync_help_content():
  help_choices.visible=choices_available
  # Keep the save-safety explanation readable before the comparison cards.
  var help_body=help_choices.get_parent()
- var first=help_text if choices_available else help_stats_row
- var second=help_choices if choices_available else help_text
- if first.get_index()!=0:help_body.move_child(first,0)
- if second.get_index()!=1:help_body.move_child(second,1)
+ # Tutorial entries retain their normal Help priority above the instructions.
+ if choices_available and help_text.get_index()>help_choices.get_index():
+  help_body.move_child(help_text,help_choices.get_index())
+ elif not choices_available and help_stats_row.get_index()>help_text.get_index():
+  help_body.move_child(help_stats_row,help_text.get_index())
  help_overview.visible=not choices_available and not ownership_paused
  for choice in recovery.get("choices",[]):
   if not choice is Dictionary or not help_choice_labels.has(str(choice.get("id",""))):continue
