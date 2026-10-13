@@ -4,6 +4,9 @@ extends RefCounted
 static func apply(model):
 	model.reset_new()
 	model.first_guest_pending=true
+	# Direct cleanup needs no starter bin. Optional shop purchases use the
+	# catalog price; historical entitlements are retained by the save reader.
+	model.included_bin_pending=false
 	var basics:Array[Dictionary]=[]
 	for item in model.items:
 		if int(item.id) in [1,2,3,4,6,7]:
