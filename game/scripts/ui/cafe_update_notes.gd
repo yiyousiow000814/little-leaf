@@ -24,6 +24,9 @@ var data_error=""
 var session_seen_version=""
 var last_unread=false
 var returns_to_settings=false
+var history_button:Button
+var history_body:VBoxContainer
+var older_releases=[]
 
 func _init(owner):
  compact_ref=weakref(owner)
@@ -37,6 +40,7 @@ func setup(data_path:String=DATA_PATH):
   document=JSON.parse_string(FileAccess.get_file_as_string(data_path))
  release=validate_document(document)
  data_error=str(release.get("error",""))
+ history_button=null;history_body=null;older_releases=[]
  panel=compact._panel()
  panel.name="UpdateNotesPanel"
  body=VBoxContainer.new()
@@ -47,10 +51,20 @@ func setup(data_path:String=DATA_PATH):
  close_button=game.button("X",_back_to_help);close_button.name="CloseUpdates";close_button.accessibility_name="Close Updates";close_button.tooltip_text="Close Updates"
  close_button.custom_minimum_size=Vector2(44,44);header.add_child(close_button)
  if current_version()!="":
-  _add_release(release)
-  for previous in release.get("history",[]):
-   body.add_child(HSeparator.new())
-   _add_release(previous)
+  var current=cumulative_family(release)
+  body.add_child(_label(display_version(current_version()),18))
+  body.add_child(_label("Latest changes · "+release.date,13,MUTED))
+  if not current.new.is_empty():_add_section("New",current.new)
+  if not current.fixed.is_empty():_add_section("Fixed",current.fixed)
+  older_releases=current.older
+  if not older_releases.is_empty():
+   history_button=game.button("Earlier versions",_toggle_history)
+   history_button.name="EarlierVersions";history_button.toggle_mode=true
+   history_button.custom_minimum_size=Vector2(0,44)
+   history_button.accessibility_name="Earlier versions, collapsed"
+   body.add_child(history_button)
+   history_body=VBoxContainer.new();history_body.add_theme_constant_override("separation",compact.INFORMATION_PANEL_GAP)
+   body.add_child(history_body);history_body.hide()
  else:
   var message="Release details are being prepared."
   if data_error!="":message="Update notes are unavailable in this build."
@@ -69,11 +83,27 @@ func setup(data_path:String=DATA_PATH):
  panel.hide()
  sync()
 
-func _add_release(entry:Dictionary):
- if str(entry.get("label",""))!="":body.add_child(_label(entry.label,14,MUTED))
- body.add_child(_label("Version %s · %s"%[entry.version,entry.date],13,MUTED))
- if not entry.new.is_empty():_add_section("New",entry.new)
- if not entry.fixed.is_empty():_add_section("Fixed",entry.fixed)
+func _add_release(entry:Dictionary,container:VBoxContainer):
+ if str(entry.get("label",""))!="":container.add_child(_label(entry.label,14,MUTED))
+ container.add_child(_label("Version %s · %s"%[entry.version,entry.date],13,MUTED))
+ if not entry.new.is_empty():_add_section("New",entry.new,container)
+ if not entry.fixed.is_empty():_add_section("Fixed",entry.fixed,container)
+
+func _toggle_history():
+ if history_body.get_child_count()==0:
+  for previous in older_releases:
+   history_body.add_child(HSeparator.new())
+   _add_release(previous,history_body)
+  compact.hud.theme_panel_contents(history_body)
+ _set_history_visible(not history_body.visible)
+
+func _set_history_visible(expanded:bool):
+ if not is_instance_valid(history_body):return
+ history_body.visible=expanded
+ history_button.set_pressed_no_signal(expanded)
+ history_button.text="Hide earlier versions" if expanded else "Earlier versions"
+ history_button.accessibility_name=history_button.text+(", expanded" if expanded else ", collapsed")
+ compact._queue_popup_fit()
 
 func make_menu_entry()->Button:
  var button=game.button("Update Notes",show)
@@ -127,6 +157,7 @@ func show():
  returns_to_settings=false
  back_button.text="Back to Help";back_button.accessibility_name="Back to Quick Help"
  if not is_instance_valid(panel):return
+ _set_history_visible(false)
  game.settings.hide()
  compact._popup_at(panel,PANEL_WIDTH)
  # Reopening starts at the release header, including after a viewport change.
@@ -164,10 +195,11 @@ func _label(words:String,font_size:int,color:Color=INK)->Label:
  label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  return label
 
-func _add_section(heading:String,items:Array):
- body.add_child(_label(heading,18))
+func _add_section(heading:String,items:Array,container:VBoxContainer=null):
+ var target=body if container==null else container
+ target.add_child(_label(heading,18))
  if items.is_empty():
-  body.add_child(_label("No changes in this section.",14,MUTED))
+  target.add_child(_label("No changes in this section.",14,MUTED))
   return
  for item in items:
   var row=HBoxContainer.new()
@@ -179,7 +211,30 @@ func _add_section(heading:String,items:Array):
   bullet.size_flags_vertical=Control.SIZE_SHRINK_BEGIN
   row.add_child(bullet)
   row.add_child(_label(str(item),14))
-  body.add_child(row)
+  target.add_child(row)
+
+static func display_version(version:String)->String:
+ var exact=RegEx.create_from_string("^([0-9]+\\.[0-9]+\\.[0-9]+-pre)\\.[0-9a-f]{8}$").search(version)
+ return exact.get_string(1) if exact!=null else version
+
+static func _version_family(version:String)->String:
+ var family=RegEx.create_from_string("^([0-9]+\\.[0-9]+\\.[0-9]+)(?:[a-z]|-pre(?:\\.[0-9a-f]{8})?)?$").search(version)
+ return family.get_string(1) if family!=null else version
+
+static func cumulative_family(current:Dictionary)->Dictionary:
+ var combined={"new":[],"fixed":[],"older":[]}
+ var family=_version_family(str(current.get("version","")))
+ var entries=[current]
+ for previous in current.get("history",[]):
+  if _version_family(previous.version)==family:entries.append(previous)
+  else:combined.older.append(previous)
+ for section in ["new","fixed"]:
+  var seen={}
+  for entry in entries:
+   for item in entry[section]:
+    if seen.has(item):continue
+    seen[item]=true;combined[section].append(item)
+ return combined
 
 static func review_mode(args:PackedStringArray)->bool:
  for flag in REVIEW_FLAGS:
