@@ -33,9 +33,8 @@ func check_wallet_notices(bounds:Rect2,label:String):
     check(bounds.encloses(rect),phase+" notice inside safe bounds")
     for control in [game.pause_button,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:
      check(not rect.intersects(control.get_global_rect()),phase+" notice clears "+control.accessibility_name)
-    if not hud.layout_host.get_meta("unified_wrapped",false):
-     var lift=0.0 if reduced else 4.0*(1.0-clampf(elapsed/.16,0.0,1.0))
-     check(is_equal_approx(rect.position.y,hud.wallet.get_global_rect().end.y+6+lift),phase+" one-row wallet anchor unchanged")
+    var lift=0.0 if reduced else 4.0*(1.0-clampf(elapsed/.16,0.0,1.0))
+    check(is_equal_approx(rect.position.y,hud.wallet.get_global_rect().end.y+6+lift),phase+" notice stays directly below balance")
   notice.tick(notice.HOLD)
   check(notice.active.is_empty() and not notice.panel.visible,label+" notice expires normally")
  game.remove_meta("hud_reduce_motion")
@@ -61,11 +60,24 @@ func run():
     game.editing=editing;await settle()
     var controls=[hud.wallet,game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
+    check(ui.staff_access.find_next_valid_focus()==game.pause_button,label+" Tab moves from Staff to Pause")
+    check(game.pause_button.find_next_valid_focus()==ui.settings_button,label+" Tab moves from Pause to Settings")
+    check(ui.settings_button.find_prev_valid_focus()==game.pause_button,label+" Shift-Tab returns to Pause")
     for i in controls.size():
      check(controls[i].size.x>=43.9 and controls[i].size.y>=43.9,label+" 44px "+controls[i].accessibility_name)
      check(bounds.encloses(controls[i].get_global_rect()),label+" safe bounds "+controls[i].accessibility_name)
      for j in range(i+1,controls.size()):check(not controls[i].get_global_rect().intersects(controls[j].get_global_rect()),label+" separate targets %d/%d"%[i,j])
    game.editing=false;await settle()
+   var pause=game.pause_button.get_global_rect();var settings=ui.settings_button.get_global_rect()
+   check(pause.end.x<=settings.position.x and is_equal_approx(pause.get_center().y,settings.get_center().y),label+" Pause immediately left of Settings")
+   for control in [game.business_button,game.edit_button,ui.staff_access]:
+    check(control.get_global_rect().get_center().x<pause.get_center().x or not is_equal_approx(control.get_global_rect().get_center().y,pause.get_center().y),label+" no action between Pause and Settings")
+   if mobile:check(is_equal_approx(settings.position.x-pause.end.x,6),label+" mobile Pause Settings gap")
+   game.settings_controls.show_stats=true;hud._sync_stats()
+   check(bounds.encloses(hud.stats_label.get_global_rect()),label+" FPS remains in safe bounds")
+   for control in [game.pause_button,ui.settings_button]:
+    check(not hud.stats_label.get_global_rect().intersects(control.get_global_rect()),label+" FPS clears Pause and Settings")
+   game.settings_controls.show_stats=false;hud._sync_stats()
    await check_wallet_notices(bounds,label)
    ui.show_wage_payment(50);await settle()
    var paused=game.paused;await click(game.pause_button);check(paused!=game.paused,label+" pause works")

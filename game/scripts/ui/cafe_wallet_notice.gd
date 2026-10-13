@@ -68,6 +68,4 @@ func sync_position():
  var h=compact.hud;var view=compact.game.get_viewport().get_visible_rect().size;var inset=h._safe_insets()
  var anchor=h.wallet.get_global_rect();var width=maxf(panel.size.x,panel.get_combined_minimum_size().x)
  var lift=0.0 if h._reduced_motion_requested() else 4.0*(1.0-clampf(elapsed/.16,0.0,1.0))
- # Wrapped toolbars put Pause below the wallet; clear that entire second row.
- var bottom=h.layout_host.get_global_rect().end.y if h.layout_host.get_meta("unified_wrapped",false) else anchor.end.y
- panel.position=Vector2(clampf(anchor.get_center().x-width/2,inset.x+8,maxf(inset.x+8,view.x-inset.z-width-8)),bottom+6+lift)
+ panel.position=Vector2(clampf(anchor.get_center().x-width/2,inset.x+8,maxf(inset.x+8,view.x-inset.z-width-8)),anchor.end.y+6+lift)

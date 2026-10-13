@@ -291,7 +291,7 @@ func setup():
  game.business_button.accessibility_name="Café service controls";game.edit_button.accessibility_name="Decorate café";ui.staff_access.accessibility_name="Staff";ui.settings_button.accessibility_name="Settings"
  layout_host=Control.new();layout_host.mouse_filter=Control.MOUSE_FILTER_IGNORE;game.ui.add_child(layout_host)
  for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:control.reparent(layout_host)
- layout_host.add_child(edit_cancel);edit_cancel.hide()
+ layout_host.add_child(edit_cancel);layout_host.move_child(edit_cancel,game.edit_button.get_index()+1);edit_cancel.hide()
  for button in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:
   var surface=Panel.new();surface.mouse_filter=Control.MOUSE_FILTER_IGNORE;surface.show_behind_parent=true;surface.material=_art_material(2 if button==game.business_button else 1)
   surface.add_theme_stylebox_override("panel",texture_style("green_face" if button==game.business_button else "cream_face",14));button.add_child(surface);button.move_child(surface,0);surface.hide();mobile_surfaces[button]=surface
@@ -367,8 +367,6 @@ func _sync_stats():
  stats_label.visible=game.settings_controls.show_stats
  if not stats_label.visible:stats_timer.stop();return
  stats_label.position=Vector2(_safe_insets().x+8,layout_host.get_global_rect().end.y+8)
- if layout_host.get_meta("mobile_layout",false) and layout_host.get_meta("unified_wrapped",false):
-  stats_label.position=Vector2(game.pause_button.get_global_rect().end.x+8,game.pause_button.global_position.y)
  if ui.earnings.visible and stats_label.get_global_rect().intersects(ui.earnings.get_global_rect()):stats_label.position.y=ui.earnings.get_global_rect().end.y+6
  if stats_timer.is_stopped():_update_stats();stats_timer.start()
 func _update_stats():
@@ -432,6 +430,9 @@ func _settle_layout():
  sync(game.get_viewport().get_visible_rect().size.x)
 
 func _layout_unified_toolbar(width:float):
+ # Keep keyboard traversal in the same order as the action group.
+ if ui.play_controls.get_index()!=ui.settings_button.get_index()-1:
+  layout_host.move_child(ui.play_controls,ui.settings_button.get_index()-1)
  var safe=_safe_insets();var view=game.get_viewport().get_visible_rect().size
  var mobile=width-safe.x-safe.z<700 or (view.y-safe.y-safe.w<500 and width<1000)
  layout_host.set_meta("mobile_layout",mobile)
@@ -507,9 +508,8 @@ func _layout_unified_toolbar(width:float):
  var controls_x=wallet_width+sign_width+gap*2
  var controls_y=maxf(2,(h-56*scale)*.5)
  _layout_unified_play_controls(scale)
- _place(ui.play_controls,Rect2(controls_x,controls_y,PLAY_CONTROL_WIDTH,56))
  var center_y=controls_y+28
- var action_x=controls_x+PLAY_CONTROL_WIDTH+group_gap
+ var action_x=controls_x
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -519,6 +519,8 @@ func _layout_unified_toolbar(width:float):
  action_x+=edit_width+action_gap
  _place_action_art(ui.staff_access,"staff",Vector2(action_x,center_y),staff_size)
  action_x+=staff_size.x+action_gap
+ _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56))
+ action_x+=PLAY_CONTROL_WIDTH+group_gap
  _place_action_art(ui.settings_button,"settings",Vector2(action_x,center_y),settings_size)
  for name in ["decorate","staff","settings"]:action_captions[name].hide()
  if game.editing:
@@ -553,9 +555,10 @@ func _layout_mobile_toolbar(width:float):
  game.business_button.tooltip_text=game.business_button.accessibility_name
  var tool_y=48.0 if wrapped else 0.0
  _layout_unified_play_controls(1.0,true)
- _place(ui.play_controls,Rect2(0 if wrapped else 198,tool_y,PLAY_CONTROL_WIDTH,44))
+ # Pause belongs beside Settings; cash notices retain the space below the wallet.
+ _place(ui.play_controls,Rect2(w-94,0,PLAY_CONTROL_WIDTH,44))
  var action_width=44.0;var gap=6.0
- var action_count=(2 if wrapped else 3)+(1 if game.editing else 0)
+ var action_count=(2 if wrapped else 4)+(1 if game.editing else 0)
  var action_x=w-action_count*action_width-(action_count-1)*gap
  _place(game.edit_button,Rect2(action_x,tool_y,44,44))
  _mobile_action_art(game.edit_button,"decorate")
