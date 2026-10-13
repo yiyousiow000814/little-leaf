@@ -108,7 +108,55 @@ async function renewalCoalescingChecks(){
  const recovery=denied.session.renew();assert.equal(denied.calls.length,2);denied.calls[1].resolve();await recovery;assert.equal(denied.session.snapshot().status,'active');
  console.log('Renewal coalescing: identical calls, fresh settlement, nine delayed fences, replacement rejection and shared permission/offline recovery passed.');
 }
+async function ackLeaseWriteChecks(){
+ const id='11111111-1111-4111-8111-111111111111',requester='22222222-2222-4222-8222-222222222222',requestId='33333333-3333-4333-8333-333333333333',digest='a'.repeat(64);
+ async function fixture({renewals=0,mutate=null,denied=false}={}){
+  let uid='ack-write',held=true,watch,version=0,remaining=renewals,ackAttempts=0,sets=0,updates=0,retries=0;
+  let owner={schema:1,owner:id,epoch:2,device:'Linux device',updatedAt:100000,request:{id:requestId,requester,device:'Mac',at:100000},ack:null};
+  let saved={digest,revision:3,writerId:id,writerEpoch:2};
+  const sdk={doc:(db,...parts)=>parts.join('/'),getDocFromServer:async()=>({exists:()=>true,data:()=>clone(owner)}),onSnapshot:(ref,options,receive)=>{watch=receive;return()=>{};},serverTimestamp:()=>100000,
+   async runTransaction(db,callback){
+    for(let attempt=0;attempt<5;attempt++){
+     const readVersion=version;let write=null;
+     const result=await callback({get:async ref=>({exists:()=>true,data:()=>clone(ref.endsWith('/owner')?owner:saved)}),set:(ref,value)=>{write={value:clone(value),kind:'set'};},update:(ref,value)=>{write={value:clone(value),kind:'update'};}});
+     if(!write)return result;
+     if(write.value.ack){
+      ackAttempts++;
+      if(remaining>0){remaining--;version++;owner={...owner,updatedAt:owner.updatedAt+1};}
+      if(mutate){mutate({owner,saved,setUid:value=>uid=value,release:()=>held=false});mutate=null;version++;}
+      if(denied)throw fail('permission-denied');
+      const after=write.kind==='update'?{...owner,...write.value}:write.value;
+      // The unchanged Rules evaluate a full replacement's stale lease before
+      // Firestore handles its read precondition. A field update keeps the lease.
+      if(after.updatedAt!==owner.updatedAt)throw fail('permission-denied');
+      if(readVersion!==version){retries++;continue;}
+      assert.equal(after.owner,owner.owner);assert.equal(after.epoch,owner.epoch);assert.deepEqual(after.request,owner.request);
+      assert.equal(after.ack.digest,saved.digest);assert.equal(after.ack.revision,saved.revision);
+     }
+     if(write.kind==='update'){assert.deepEqual(Object.keys(write.value),['ack']);updates++;owner={...owner,...write.value};}
+     else {sets++;owner=write.value;}
+     version++;return result;
+    }
+    throw fail('aborted');
+   }};
+  const session=sessionApi.createSession({uid:'ack-write',currentUid:()=>uid,sessionId:id,now:()=>100000,deviceLabel:'Linux device',assertRuntime:()=>{if(!held)throw fail('NOT_READY');},remote:sessionApi.createRemote({},sdk,'ack-write')});
+  await session.start();const receipt=session.handoffReceipt();
+  const baseline=clone(owner),beforeSets=sets;
+  return {session,receipt,baseline,run:()=>session.acknowledge(digest,3,receipt),facts:()=>({owner:clone(owner),saved:clone(saved),remaining,ackAttempts,sets:sets-beforeSets,updates,retries}),close:()=>session.close()};
+ }
+ for(const renewals of [2,0,1]){
+  const test=await fixture({renewals});try{await test.run();const facts=test.facts();assert.equal(facts.owner.updatedAt,100000+renewals);assert.equal(facts.remaining,0);assert.equal(facts.owner.ack.digest,'a'.repeat(64));assert.equal(facts.owner.ack.revision,3);assert.equal(facts.sets,0,'ACK rewrote unrelated owner fields');assert.equal(facts.updates,1);assert.equal(facts.retries,renewals);}finally{test.close();}
+ }
+ const mutations=[
+  ({owner})=>owner.owner=requester,({owner})=>owner.epoch++,({owner})=>owner.request.id=requester,({owner})=>owner.request.requester=id,
+  ({owner})=>owner.ack={requestId,digest,revision:3},({saved})=>saved.digest='b'.repeat(64),({saved})=>saved.revision++,({saved})=>saved.writerId=requester,({saved})=>saved.writerEpoch++,({setUid})=>setUid('other'),({release})=>release()
+ ];
+ for(const mutate of mutations){const test=await fixture({mutate});try{await assert.rejects(test.run());const facts=test.facts();assert.equal(facts.updates,0);assert.equal(facts.sets,0);}finally{test.close();}}
+ const denied=await fixture({denied:true});try{await assert.rejects(denied.run(),error=>error.code==='permission-denied');assert.equal(denied.facts().ackAttempts,1,'Unchanged permission denial was retried');assert.equal(denied.facts().owner.ack,null);}finally{denied.close();}
+ console.log('ACK lease writes: no/one/two renewals, atomic retries, eleven changed fences and genuine permission refusal passed.');
+}
 (async()=>{
+ await ackLeaseWriteChecks();
  await renewalCoalescingChecks();
  // A successful write is followed by an independent transaction readback,
  // not a document read that can still reflect queued pre-transition state.

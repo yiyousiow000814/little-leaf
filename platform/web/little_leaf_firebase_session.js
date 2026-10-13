@@ -45,12 +45,17 @@
     return {
       ref:sessionRef,
       async read(){const s=await sdk.getDocFromServer(sessionRef);return s.exists()?s.data():null;},
-      async change(transition,guard){
+      async change(transition,guard,ackOnly=false){
         await sdk.runTransaction(db,async tx=>{
           guard();const snapshot=await tx.get(sessionRef),saved=await tx.get(saveRef);guard();
           const current=snapshot.exists()?snapshot.data():null;
           const next=transition(current,saved.exists()?saved.data():null,sdk.serverTimestamp);guard();
-          if(next!==current)tx.set(sessionRef,next);
+          if(next!==current){
+            // ACK does not renew the lease. Preserve a concurrent renewal's
+            // timestamp; the transaction still fences both owner and save reads.
+            if(ackOnly)tx.update(sessionRef,{ack:next.ack});
+            else tx.set(sessionRef,next);
+          }
         });
         // Confirm through a server transaction read, independent of queued
         // document-listener/cache observations. This second transaction has
@@ -89,7 +94,7 @@
         canRequestTakeover:initialized&&['other-device','handoff-requested'].includes(status),canForceTakeover:timedOut,
         reason:status==='handoff-requested'?'Saving and pausing for another device.':status==='other-device'?'Your game was opened on another device.':status==='offline'?'Connection to save ownership is unavailable. Progress is paused.':status==='waiting'?'Waiting for the other device to save and pause.':''};
     }
-    async function change(action){guard();const result=await remote.change(action,guard);guard();receive(result);return result;}
+    async function change(action,ackOnly=false){guard();const result=await remote.change(action,guard,ackOnly);guard();receive(result);return result;}
     function reloadContinuation(digest,revision){
       const fence=assertActive();
       if(!/^[a-f0-9]{64}$/.test(digest)||!Number.isSafeInteger(revision)||revision<1)throw fail('UPDATE_CHANGED','No confirmed save for reload.');
@@ -266,7 +271,7 @@
       try {await change((value,save)=>{
         attempted=null;const next=nextAck(value,save);
         attempted={...value,request:{...value.request}};return next;
-      });}catch(error){
+      },true);}catch(error){
         guard();if(error.code!=='permission-denied'||!attempted)throw error;
         const latest=await remote.read();guard();
         const renewed=value=>value&&value.schema===attempted.schema&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
@@ -278,7 +283,7 @@
         await change((value,save)=>{
           if(!renewed(value)||compareStamp(value.updatedAt,confirmedAt)!==0)throw fail('HANDOFF_CHANGED','The device switch changed. Progress remains paused.');
           return nextAck(value,save);
-        });
+        },true);
       }return snapshot();
     }
     async function takeOver(force=false){
