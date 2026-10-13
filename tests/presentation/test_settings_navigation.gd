@@ -49,7 +49,7 @@ func settings_scroll()->ScrollContainer:
  for record in game.compact_ui.themed_popups:
   if record.panel==game.settings:return record.scroll
  return null
-func touch_drag(button:BaseButton):
+func touch_drag(button:Button):
  var scroll=settings_scroll();scroll.ensure_control_visible(button);await settle()
  var middle=scroll.get_global_rect().get_center().y
  scroll.scroll_vertical+=roundi(button.get_global_rect().get_center().y-middle);await settle()
