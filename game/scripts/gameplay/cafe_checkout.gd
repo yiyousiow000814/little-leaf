@@ -63,6 +63,31 @@ static func path(m,start:Vector2i,finish:Vector2i,blocked:Dictionary={},layout:A
    previous[next]=cell;cells.append(next)
  return empty
 static func placement_error(m,item:Dictionary,layout:Array,actors:Array)->String:
+ # Customer/staff contact faces govern service, not the register's floor mount.
+ return m._furniture_actor_error([item],layout,actors)
+
+# Automatic entitlement deployment must pick an operational station.
+# Player placement keeps the separate physical-only predicate above.
+static func _automatic_guest_route_uses(m,cell: Vector2i) -> bool:
+ if m.checkout_claims().has(cell):return true
+ for customer in m.customers:
+  if customer.phase in ["dirty", "cleaning"]:
+   continue
+  var mobility:Dictionary=customer.get("mobility",{})
+  if not mobility.is_empty():
+   for index in range(int(mobility.route_index),mobility.route.size()):
+    if Vector2i(floori(mobility.route[index].x),floori(mobility.route[index].y))==cell:return true
+  if int(floor(float(customer.x))) == cell.x and int(floor(float(customer.z))) == cell.y:
+   return true
+  if customer.phase in ["arriving", "leaving", "checkout_walk"]:
+   for index in range(int(customer.route_index), customer.route.size()):
+    var point: Vector2 = customer.route[index]
+    if point.x >= 0 and Vector2i(floori(point.x), floori(point.y)) == cell:
+     return true
+ return false
+
+
+static func _automatic_placement_error(m,item:Dictionary,layout:Array,actors:Array)->String:
  actors=actors.duplicate();actors.append_array(m.checkout_staff_claims)
  for guest in m.customers:
   if guest.phase not in ["dirty","cleaning"]:actors.append(point(guest))
@@ -74,7 +99,7 @@ static func placement_error(m,item:Dictionary,layout:Array,actors:Array)->String
    if str(other.kind)!="rug" and Vector2i(int(other.x),int(other.z))==face:return "Clear the register's customer and staff sides"
   for actor in actors:
    if m.cell_center(face).distance_to(actor)<.9:return "Register deployment is waiting for a clear workface"
-  if m._guest_route_uses(face):return "Register deployment is waiting for an active guest route"
+  if _automatic_guest_route_uses(m,face):return "Register deployment is waiting for an active guest route"
  for other in m.items:
   if int(other.id)==int(item.id) or other.kind not in ["stove","beverage","sink","counter","bin"]:continue
   if other.kind=="bin":
@@ -109,7 +134,7 @@ static func ensure(m,actors:Array=[])->bool:
    if not m.can_place("register",cell.x,cell.y,-1,rotation):continue
    var item={"id":m._next_item_id,"kind":"register","x":cell.x,"z":cell.y,"rot":rotation}
    var layout=m.items.duplicate(true);layout.append(item)
-   if placement_error(m,item,layout,actors)!="":continue
+   if _automatic_placement_error(m,item,layout,actors)!="":continue
    adopt(m,item);return true
  m.last_error=PENDING_NOTICE
  return false

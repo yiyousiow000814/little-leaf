@@ -116,7 +116,6 @@ var startup_preparation_report = {}
 var tutorial
 var illustration: Node2D
 var interaction
-var workface_guidance
 var settings_controls
 var responsive_view=Vector2(-1,-1)
 
@@ -148,7 +147,6 @@ func _ready():
 	interaction=Interaction.new(self)
 	camera_gestures=CameraGestures.new(self)
 	web_lifecycle=WebLifecycle.new(self)
-	workface_guidance=load("res://scripts/rendering/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
 	_update_ui()
