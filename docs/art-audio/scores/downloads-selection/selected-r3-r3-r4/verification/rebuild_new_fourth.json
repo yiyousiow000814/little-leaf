@@ -1,0 +1,49 @@
+{
+  "all_master_and_stems_identical": true,
+  "files": [
+    {
+      "file": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/brushes_dry.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/guitar_dry.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/brushes_mix.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/accordion_dry.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/guitar_mix.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/pizzicato_dry.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/bass_dry.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/bass_mix.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/accordion_mix.flac",
+      "rebuild_pcm_identical": true
+    },
+    {
+      "file": "04_Sunshine_Skip/stems/pizzicato_mix.flac",
+      "rebuild_pcm_identical": true
+    }
+  ]
+}

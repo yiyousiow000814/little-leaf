@@ -1,0 +1,2848 @@
+{
+  "title": "Corner Cafe - Shop and Decorating Variation",
+  "status": "NEW_SCENE_VARIANT_AWAITING_USER_LISTENING",
+  "bpm": 112,
+  "meter": "4/4",
+  "bars": 24,
+  "duration_beats": 96,
+  "key": "C major",
+  "preserved": "All 123 theme pitch/onset/notated-duration events, harmony, 24-bar form and 112 BPM.",
+  "reference_use": "Uploaded Main Street/Shop recordings informed broad orchestration and density only; no original-game melody transcription or sampling.",
+  "sections": [
+    {
+      "bar": 1,
+      "label": "A - preserved study phrase"
+    },
+    {
+      "bar": 9,
+      "label": "B - lower answer"
+    },
+    {
+      "bar": 17,
+      "label": "A return - open turnaround back to A"
+    }
+  ],
+  "harmony": [
+    [
+      [
+        0,
+        "C6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Cmaj7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "F6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Fmaj7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ],
+      [
+        2,
+        "F6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ]
+  ],
+  "notes": [
+    {
+      "part": "bass",
+      "beat": 0,
+      "pitch": 48,
+      "duration": 0.95,
+      "velocity": 63,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 0.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 0.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 1.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 1,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 1.5,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 1.5,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 2.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 2.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 3.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 3,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 3.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 4,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 4.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 4,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 4.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 5.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 5,
+      "pitch": 79,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 6,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 51,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 6.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 6,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 67,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 6.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "percussion",
+      "beat": 7.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "kalimba",
+      "beat": 7.25,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 8,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 8.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 8.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 9.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 9,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 9.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 10,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 10.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 10.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 11.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 11,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 11.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 12,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 60,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 12.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 12,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 13.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 13.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 14,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 51,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "bell_theme",
+      "beat": 14,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 67,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "kalimba",
+      "beat": 14.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "percussion",
+      "beat": 15.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bell_theme",
+      "beat": 15.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 65,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "bass",
+      "beat": 16,
+      "pitch": 52,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 16.0,
+      "pitch": 67,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 16.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 17.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 17,
+      "pitch": 83,
+      "duration": 1,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 17.5,
+      "pitch": 71,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 18,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 55,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 18,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 18.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 18.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 19.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 19,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 19.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 20,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 20.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 20,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 20.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 21.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 21,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 22,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 55,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 22.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "percussion",
+      "beat": 22.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 22.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 23.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 23,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 23.25,
+      "pitch": 71,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 23.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 24,
+      "pitch": 48,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 24.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 24,
+      "pitch": 79,
+      "duration": 1.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 25.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "kalimba",
+      "beat": 25.5,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 25.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 26,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 55,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 26,
+      "pitch": 72,
+      "duration": 1.0,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 26.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "percussion",
+      "beat": 27.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 28,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 28.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 28.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 29.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 32,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 29,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 29.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 30,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 54,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 30.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 30.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bell_theme",
+      "beat": 31,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "bell_theme",
+      "beat": 31.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "percussion",
+      "beat": 31.5,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 25,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 32,
+      "pitch": 41,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 32.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 32.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 59,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 33.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 33,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 33.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 33.5,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 64,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 34.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 34.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 35.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 35,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 36,
+      "pitch": 52,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 36.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 36,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 59,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 37.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 37.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 38,
+      "pitch": 47,
+      "duration": 0.95,
+      "velocity": 50,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 38.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 38,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 38.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "percussion",
+      "beat": 39.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 39,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 39.25,
+      "pitch": 71,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 39.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 40,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 40.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 40.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 59,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 41.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 41,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 41.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 41.5,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 64,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 42.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 42.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 43.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 43,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 43.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 58,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 44,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 58,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 44.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 44,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 59,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 45.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 45.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 46,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 49,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "bell_theme",
+      "beat": 46,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "kalimba",
+      "beat": 46.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bell_theme",
+      "beat": 46.5,
+      "pitch": 67,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "percussion",
+      "beat": 47.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 48,
+      "pitch": 41,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 48.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 48,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 59,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 48.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 49.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 49,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 49.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "kalimba",
+      "beat": 50.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 50.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 51.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 51,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 51.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 58,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 52,
+      "pitch": 52,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 52.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 52.5,
+      "pitch": 67,
+      "duration": 0.5,
+      "velocity": 59,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 53.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 53,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 54,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 53,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 54.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 54,
+      "pitch": 72,
+      "duration": 1,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 54.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "percussion",
+      "beat": 55.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "kalimba",
+      "beat": 55.25,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 55.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 56,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 56.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 56,
+      "pitch": 77,
+      "duration": 1,
+      "velocity": 59,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 57.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 57,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 57.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 57.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 58,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 53,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 58.5,
+      "pitch": 74,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 58.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 59.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 59,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 60,
+      "pitch": 48,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 60.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 60,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 59,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 61.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 32,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 61,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 61.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 62,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 53,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "bell_theme",
+      "beat": 62,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "kalimba",
+      "beat": 62.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bell_theme",
+      "beat": 63.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 58,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "percussion",
+      "beat": 63.5,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 25,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 64,
+      "pitch": 48,
+      "duration": 0.95,
+      "velocity": 63,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 64.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 64.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 65.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 65,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 65.5,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 65.5,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 66.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 66.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 67.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 67,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 67.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 68,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 68.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 68,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 68.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 69.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 69,
+      "pitch": 79,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 70,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 51,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 70.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 70,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 67,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 70.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "percussion",
+      "beat": 71.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "kalimba",
+      "beat": 71.25,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 72,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 72.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 72.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 73.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 73,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 73.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 74,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 74.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 74.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 75.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 75,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 75.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 76,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 60,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 76.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 76,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 77.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 77.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 78,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 51,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "bell_theme",
+      "beat": 78,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 67,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "kalimba",
+      "beat": 78.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "percussion",
+      "beat": 79.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "bell_theme",
+      "beat": 79.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 65,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "bass",
+      "beat": 80,
+      "pitch": 52,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 80.0,
+      "pitch": 67,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 80.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 81.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 81,
+      "pitch": 83,
+      "duration": 1,
+      "velocity": 66,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 81.5,
+      "pitch": 71,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 82,
+      "pitch": 45,
+      "duration": 0.95,
+      "velocity": 55,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 82,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 82.5,
+      "pitch": 69,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 82.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 83.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 83,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 83.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 84,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 61,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 84.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 84,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 84.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 66,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 85.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 85,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 69,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 86,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 55,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 86.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "percussion",
+      "beat": 86.5,
+      "pitch": 60,
+      "duration": 0.11,
+      "velocity": 24,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 86.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 67,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 87.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 87,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 87.25,
+      "pitch": 71,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 87.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 62,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 88,
+      "pitch": 48,
+      "duration": 0.95,
+      "velocity": 60,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 88.0,
+      "pitch": 64,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 88,
+      "pitch": 79,
+      "duration": 1.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 89.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 36,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "kalimba",
+      "beat": 89.5,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 89.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 63,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 90,
+      "pitch": 41,
+      "duration": 0.95,
+      "velocity": 52,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 90,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 63,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 90.5,
+      "pitch": 72,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 90.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 61,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 91.0,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 31,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 91,
+      "pitch": 77,
+      "duration": 0.75,
+      "velocity": 60,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 92,
+      "pitch": 50,
+      "duration": 0.95,
+      "velocity": 59,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 92.0,
+      "pitch": 65,
+      "duration": 0.6,
+      "velocity": 53,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "wood_theme",
+      "beat": 92,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 64,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "wood_theme",
+      "beat": 92.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 63,
+      "delay_ms": 8,
+      "gate": 0.91
+    },
+    {
+      "part": "percussion",
+      "beat": 93.0,
+      "pitch": 76,
+      "duration": 0.11,
+      "velocity": 32,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    },
+    {
+      "part": "wood_theme",
+      "beat": 93,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 62,
+      "delay_ms": 4,
+      "gate": 0.91
+    },
+    {
+      "part": "bass",
+      "beat": 94,
+      "pitch": 43,
+      "duration": 0.95,
+      "velocity": 54,
+      "delay_ms": -4,
+      "gate": 0.91
+    },
+    {
+      "part": "kalimba",
+      "beat": 94.0,
+      "pitch": 67,
+      "duration": 0.4,
+      "velocity": 48,
+      "delay_ms": 5.0,
+      "gate": 0.94
+    },
+    {
+      "part": "bell_theme",
+      "beat": 94.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 59,
+      "delay_ms": 8,
+      "gate": 0.95
+    },
+    {
+      "part": "bell_theme",
+      "beat": 95,
+      "pitch": 74,
+      "duration": 0.75,
+      "velocity": 57,
+      "delay_ms": 4,
+      "gate": 0.95
+    },
+    {
+      "part": "percussion",
+      "beat": 95.5,
+      "pitch": 77,
+      "duration": 0.11,
+      "velocity": 25,
+      "delay_ms": 11.0,
+      "gate": 1.0
+    }
+  ],
+  "parent_events_sha256": "54c45c8ef079af31f56f81e784f6e5159303a883779c2157ecf1ec1f07bcbe29",
+  "parts": {
+    "wood_theme": {
+      "name": "Marimba - original theme",
+      "program": 12,
+      "bank": 0,
+      "channel": 0,
+      "pan": -0.12,
+      "rms_db": -24.7,
+      "hp": 190,
+      "lp": 6900,
+      "wet": 0.1
+    },
+    "bell_theme": {
+      "name": "Celesta - phrase handoffs from the same theme",
+      "program": 8,
+      "bank": 0,
+      "channel": 1,
+      "pan": 0.18,
+      "rms_db": -27.5,
+      "hp": 330,
+      "lp": 5900,
+      "wet": 0.13
+    },
+    "kalimba": {
+      "name": "Kalimba - sparse harmonic plucks",
+      "program": 108,
+      "bank": 0,
+      "channel": 2,
+      "pan": 0.28,
+      "rms_db": -34,
+      "hp": 250,
+      "lp": 5800,
+      "wet": 0.07
+    },
+    "bass": {
+      "name": "Upright bass - reduced accompaniment",
+      "program": 32,
+      "bank": 0,
+      "channel": 3,
+      "pan": 0,
+      "rms_db": -29,
+      "hp": 46,
+      "lp": 2200,
+      "wet": 0.012
+    },
+    "percussion": {
+      "name": "Wood blocks and soft bongo - sparse pulse",
+      "program": 0,
+      "bank": 128,
+      "channel": 9,
+      "pan": -0.13,
+      "rms_db": -36.5,
+      "hp": 130,
+      "lp": 5600,
+      "wet": 0.045
+    }
+  },
+  "changes": [
+    "Melody split between marimba and celesta without adding or removing theme notes",
+    "Sparse kalimba harmony",
+    "Reduced upright bass and wood-block/bongo percussion",
+    "No full snare/hi-hat bed"
+  ],
+  "loop": {
+    "bpm": 112,
+    "bars": 24,
+    "meter": "4/4",
+    "sample_rate": 44100,
+    "samples": 2268000,
+    "start_sample": 0,
+    "end_sample_exclusive": 2268000,
+    "seconds": 51.42857142857143,
+    "baked_fade": false
+  }
+}
