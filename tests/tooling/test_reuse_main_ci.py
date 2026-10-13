@@ -185,7 +185,12 @@ class WorkflowTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/release/publish_itch.py',
+        for required in ['workflows: [Qualify Firebase release]',
+            'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
+            'tools/release/publish_itch.py',
+            '--web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary"',
+            '--firebase-variant "$RUNNER_TEMP/common-firebase/variant"',
+            '--staging-origin "$RUNNER_TEMP/common-firebase/origin.json"',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
@@ -201,6 +206,12 @@ class WorkflowTests(unittest.TestCase):
                          '--require-main-ancestor','github.event.created && !github.event.deleted']:
             self.assertIn(required,common)
         self.assertIn("github.event_name == 'workflow_run'",publishing)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",publishing)
+        self.assertIn('FIREBASE_RUN: ${{ github.event.workflow_run.id }}',publishing)
+        self.assertIn('ref: ${{ steps.common.outputs.source_sha }}',publishing)
+        self.assertLess(publishing.index('--platform itch'),publishing.index('ref: ${{ steps.common.outputs.source_sha }}'))
+        self.assertLess(publishing.index('ref: ${{ steps.common.outputs.source_sha }}'),publishing.index('BUTLER_API_KEY:'))
+        self.assertNotIn('common_tag.py consume',publishing)
         self.assertNotIn('reuse_main_ci.py',publishing)
 
 
