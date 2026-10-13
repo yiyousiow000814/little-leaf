@@ -22,7 +22,54 @@ function harness(){
 // WebCrypto completes off the event loop; a tick count is not a time budget on
 // different CI runners. Wait for the same real request with a bounded deadline.
 async function waiting(h){const deadline=Date.now()+5000;while(!h.requests.length&&Date.now()<deadline)await new Promise(r=>setTimeout(r,1));assert(h.requests.length,'network request started within 5 seconds');}
+// Exercise the production timer boundary without a real 15-second delay.
+async function freshBootReadTimeout(){
+  const timers=new Map();let timerId=0,uid='synthetic-fresh';
+  const timedRoot={crypto:webcrypto,TextEncoder,setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);}};
+  timedRoot.globalThis=timedRoot;
+  for(const name of ['little_leaf_vault','little_leaf_firebase'])vm.runInNewContext(fs.readFileSync(`platform/web/${name}.js`,'utf8'),timedRoot);
+  let local=null,readCalls=0,localWrites=0,cloudWrites=0,finishRead,readMode='pending';
+  const states=[];
+  const journal={read:async()=>clone(local),replace:async(_id,old,next)=>{assert.deepEqual(local,old);local=clone(next);localWrites++;}};
+  const remote={read(){readCalls++;if(readMode==='denied')return Promise.reject(fail('permission-denied'));if(readMode==='empty')return Promise.resolve(null);return new Promise(resolve=>{finishRead=resolve;});},compareAndSet:async()=>{cloudWrites++;throw Error('Unexpected fresh cloud write');}};
+  const make=()=>timedRoot.LittleLeafFirebase.createClient({uid,currentUid:()=>uid,codec:timedRoot.LittleLeafAuthorityCodec,journal,remote,status:s=>states.push(s)});
+  let client=make();const boot=client.boot();
+  const deadline=Date.now()+1000;while(!timers.size&&Date.now()<deadline)await new Promise(r=>setTimeout(r,1));
+  assert.equal(timers.size,1,'initial cloud read must use the existing network deadline');
+  const timer=timers.values().next().value;assert.equal(timer.ms,15000,'retain the production 15-second budget');timer.fn();
+  const result=await boot;assert.equal(result.ok,false);assert.equal(result.code,'NETWORK_TIMEOUT');
+  assert.equal(local,null);assert.equal(localWrites,0);assert.equal(cloudWrites,0);assert.equal(states.at(-1),'blocked');
+  const blockedBoot=client.bootJson;
+  finishRead(null);await new Promise(r=>setImmediate(r));
+  assert.equal(timers.size,0);assert.equal(client.bootJson,blockedBoot,'late empty read cannot replace failed boot');
+  assert.equal(localWrites,0);assert.equal(cloudWrites,0);
+  assert.equal((await client.commit(payload,0,webcrypto.randomUUID())).code,'NOT_READY','timeout cannot admit new progress');
+  assert.equal((await client.boot()).code,'NETWORK_TIMEOUT');assert.equal(readCalls,1,'same blocked boot cannot duplicate a pending read');
+  client.close();
+
+  // A fresh retry is a new client; only a successful empty read permits creation.
+  readMode='empty';client=make();const fresh=await client.boot();
+  assert.equal(fresh.ok,true);assert.equal(fresh.source,'fresh');assert.equal(fresh.revision,0);
+  assert.equal(localWrites,1);assert.equal(cloudWrites,0);assert.equal(timers.size,0);client.close();
+
+  // A genuine refusal remains a refusal and preserves an existing local entry.
+  const savedLocal=clone(local),writesBefore=localWrites;
+  readMode='denied';client=make();const denied=await client.boot();
+  assert.equal(denied.ok,false);assert.equal(denied.code,'permission-denied');
+  assert.deepEqual(local,savedLocal);assert.equal(localWrites,writesBefore);assert.equal(cloudWrites,0);assert.equal(timers.size,0);client.close();
+  for(const interrupted of ['close','account']){
+    uid='synthetic-fresh';readMode='pending';client=make();const pending=client.boot();
+    const deadline=Date.now()+1000;while(!timers.size&&Date.now()<deadline)await new Promise(r=>setTimeout(r,1));
+    assert.equal(timers.size,1);const before=clone(local),writes=localWrites;
+    if(interrupted==='close')client.close();else uid='other-account';
+    finishRead(null);const stopped=await pending;
+    assert.equal(stopped.ok,false);assert.equal(stopped.code,'NOT_READY');
+    assert.deepEqual(local,before);assert.equal(localWrites,writes);assert.equal(cloudWrites,0);
+    assert.equal(timers.size,0);client.close();
+  }
+}
 (async()=>{
+  await freshBootReadTimeout();
   // New edits and hide-save can become locally durable during a long upload.
   let h=harness(),c=h.make(),b=await c.boot();await c.commit(payload,0,b.profileId);h.setMode('before');let sync=c.sync();await waiting(h);
   const newer=await c.commit(changed,1,b.profileId);assert(newer.ok);assert.equal(h.local.get('alice').record.payload,changed);assert.equal(h.local.get('alice').record.revision,2);
