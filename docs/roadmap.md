@@ -19,8 +19,11 @@ Purchased corridor-side land may add an entrance only where its corridor edge is
 The former whole-perimeter candidate and its back-entry `(3,-1)` images are explicitly NOT accepted.
 Source42bf native1028+6 and current-main1cc CI38404952346 remain historical evidence, not qualification of the corridor-only successor.
 The narrow successor retains candidate ownership and wall/aperture guards; focused corridor/default/unowned-side/owned-open/owned-walled evidence and fresh CI are pending.
-Historical sole-back or far-side saves may be atomically refused under this rule. Original save bytes, actors and ledgers are not silently rewritten;
+Arrival eligibility is separate from the original physical-layout and save safety checks: a valid rear-only layout can remain, but admits no new customers without a corridor connection.
+Original save bytes, actors, openings and ledgers are not silently rewritten;
 automatic replay of previously saved private-land routes remains unchanged and unqualified. Player acceptance, merge and delivery remain pending.
+
+Initial cloud-read startup reliability (0.1.11), [Draft PR266](https://github.com/yiyousiow000814/little-leaf/pull/266), is scoped from main `5700fbe1f2c389ad4bd353f8c2e478cfd8f06ce2`: apply the existing15-second network deadline to boot's initial cloud read. Controlled synthetic timeout, late completion, repeated boot, close/account interruption, successful fresh retry and permission-refusal checks pass in the existing delayed-network suite; existing Recovery contracts pass separately. Failed reads remain protected Recovery and never mean missing save. The reported approximately five-minute wait and manual-refresh recovery are not measured or cause-confirmed. Signed-in/browser gameplay acceptance, exact-head CI, merge and deployment remain separate; deployment repair retains priority.
 
 Current delivery and next tagged candidate on2026-10-13 MYT: [PR257](https://github.com/yiyousiow000814/little-leaf/pull/257) is merged as
 `3a5c8553f210f13173ccca265f79e8f96d8fc8f5` (tree `b0ea319c4a2db4aa9e70b082adbae97e0a22f54b`) after all13 exact-head checks in

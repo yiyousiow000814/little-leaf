@@ -23,7 +23,40 @@ from qualification.reuse_main_ci import GitHub, require_jobs, MAX_FIREBASE_ARTIF
 from release.release_metadata import version, RELEASE
 
 
-FIREBASE_PACKET_EXPANDED_BYTES = 256 * 1024 * 1024
+FIREBASE_PACKET_EXPANDED_BYTES = 1024 * 1024 * 1024
+
+
+def check_firebase_packet_budget(folder):
+    """Reject an incompatible complete producer packet before artifact upload."""
+    files, expanded = [], 0
+    for path in folder.rglob('*'):
+        require(not path.is_symlink(), 'Packet budget cannot follow symlinks')
+        if path.is_file():
+            files.append(path)
+            expanded += path.stat().st_size
+            require(len(files) <= 5000 and expanded <= FIREBASE_PACKET_EXPANDED_BYTES,
+                    'Firebase producer packet exceeds extraction bounds')
+    require(files, 'Firebase producer packet is empty')
+    # upload-artifact uses level-6 DEFLATE. Allow additional archive metadata;
+    # the consumer still checks the actual authenticated API size and digest.
+    overhead = 64 * 1024 + 1024 * len(files)
+
+    class Counter:
+        def __init__(self): self.size = 0
+        def tell(self): return self.size
+        def flush(self): pass
+        def write(self, data):
+            self.size += len(data)
+            require(self.size + overhead <= MAX_FIREBASE_ARTIFACT_BYTES,
+                    'Firebase producer packet exceeds archive response bounds')
+            return len(data)
+
+    counter = Counter()
+    with zipfile.ZipFile(counter, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        for path in sorted(files):
+            archive.write(path, path.relative_to(folder).as_posix())
+    return {'member_count': len(files), 'expanded_bytes': expanded,
+            'compressed_bytes_with_reserve': counter.size + overhead}
 
 
 def extract_tree(data, digest, destination, *, firebase_packet=False):
