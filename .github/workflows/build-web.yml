@@ -103,8 +103,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Install checksum-pinned Godot for native tests
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/godot-tools"
       - name: Run balanced complete engine shard
         run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

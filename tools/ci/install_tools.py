@@ -37,18 +37,25 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tool", choices=["godot", "butler"])
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--native-only", action="store_true", help="Install Godot without unused Web export templates for native tests")
     args = parser.parse_args()
+    if args.native_only and args.tool != "godot":
+        parser.error("--native-only applies only to Godot")
     folder = args.output.resolve()
     folder.mkdir(parents=True, exist_ok=True)
     installed = install(args.tool, folder / args.tool)
     if args.tool == "godot":
-        template = folder / "web_nothreads_release.zip"
-        templates = install("templates", template)
+        verified = {"godot": installed}
+        if not args.native_only:
+            template = folder / "web_nothreads_release.zip"
+            verified["templates"] = install("templates", template)
         receipt = folder / "godot-toolchain-receipt.json"
-        receipt.write_text(json.dumps({"godot": installed, "templates": templates}, indent=2) + "\n")
+        receipt.write_text(json.dumps(verified, indent=2) + "\n")
         if os.environ.get("GITHUB_ENV"):
             with open(os.environ["GITHUB_ENV"], "a") as output:
-                output.write(f"GODOT_TEMPLATE={template}\nGODOT_TOOLCHAIN_RECEIPT={receipt}\n")
+                if not args.native_only:
+                    output.write(f"GODOT_TEMPLATE={template}\n")
+                output.write(f"GODOT_TOOLCHAIN_RECEIPT={receipt}\n")
     if os.environ.get("GITHUB_PATH"):
         with open(os.environ["GITHUB_PATH"], "a") as output:
             output.write(str(folder) + "\n")
