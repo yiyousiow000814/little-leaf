@@ -56,6 +56,36 @@ func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  await process_frame
  var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
+ # Real shipped history exercises the long-body case; the former setup-time
+ # header measurement wrongly consumed 361px before width/wrapping settled.
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show_from_settings();await settle()
+  var style=notes.panel.get_theme_stylebox("panel")
+  var padding=style.get_minimum_size()
+  var expected=minf(notes.body.get_combined_minimum_size().y,ui.hud.popup_height_budget()-padding.y-notes.header.size.y-ui.INFORMATION_PANEL_GAP)
+  check(absf(notes.scroll.size.y-expected)<2,"Updates uses available readable height after final header layout "+str(view))
+  var bounds=notes.panel.get_global_rect()
+  var inside=Rect2(bounds.position+Vector2(style.get_margin(SIDE_LEFT),style.get_margin(SIDE_TOP)),bounds.size-padding)
+  check(inside.grow(1).encloses(notes.header.get_global_rect()) and inside.grow(1).encloses(notes.scroll.get_global_rect()),"Updates header and text viewport keep safe panel padding "+str(view))
+  var first_bullet:Control=notes.body.get_child(3)
+  check(notes.scroll.get_global_rect().grow(1).encloses(first_bullet.get_global_rect()),"Updates first shipped paragraph is fully readable "+str(view))
+  notes.scroll.scroll_vertical=100000;await settle()
+  check(notes.scroll.get_global_rect().grow(1).encloses(notes.back_button.get_global_rect()),"Updates scroll bottom exposes Back "+str(view))
+  notes._back_to_help();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates Back preserves Settings route "+str(view))
+  notes.show_from_settings();await settle()
+  check(notes.scroll.scroll_vertical==0,"Updates reopening restores first paragraph "+str(view))
+  root.size=Vector2i(390,844) if view.x>view.y else Vector2i(844,390);await settle()
+  check(Rect2(Vector2.ZERO,Vector2(root.size)).encloses(notes.panel.get_global_rect()),"Updates open resize remains bounded "+str(view))
+  notes.close_button.pressed.emit();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates X preserves Settings route after resize "+str(view))
+ for peer in [ui.help_panel,game.settings]:
+  var style=peer.get_theme_stylebox("panel")
+  var notes_style=notes.panel.get_theme_stylebox("panel")
+  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:
+   check(style.get_content_margin(side)==notes_style.get_content_margin(side),"Information panels share text-safe margin "+str(side))
+ check(notes.body.get_theme_constant("separation")==ui.help_box.get_theme_constant("separation") and notes.body.get_theme_constant("separation")==game.settings_controls.preference_storage_note.get_parent().get_theme_constant("separation"),"Information panels share peer content gaps")
+ notes.hide()
  var shipped_text=words(notes.body)
  check(checked.label in shipped_text and "Version %s · %s"%[checked.version,checked.date] in shipped_text,"actual checked-in preview header is rendered")
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
