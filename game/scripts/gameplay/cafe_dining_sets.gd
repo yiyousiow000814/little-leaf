@@ -104,26 +104,16 @@ static func candidate(model,x:int,z:int,rot:int,id:int=-1)->Dictionary:
  return {"parts":additions,"layout":proposed,"omitted":omitted,"group":group}
 static func can_place(model,x:int,z:int,rot:int,id:int=-1,actor_positions:Array=[])->bool:
  model.last_error="";model.last_placement_issue={};var data=candidate(model,x,z,rot,id)
- for member in data.omitted:
-  if model._item_in_use(member):return model._fail("Wait until this table set is cleaned")
  for part in data.parts:
   var cell=Vector2i(int(part.x),int(part.z))
   if not model.is_floor_owned(cell):return model._fail("Both parts need owned floor")
-  if cell in [model.ENTRANCE,model.ENTRY_LANDING]:return model._fail("Keep the entrance clear")
-  if model._guest_route_uses(cell):return model._fail("A guest is using part of this space")
   for item in model.items:
    if int(item.id) not in data.omitted and int(item.x)==cell.x and int(item.z)==cell.y:return model._fail("Part of this table set is occupied")
  var actor_error=model._furniture_actor_error(data.parts,data.layout,actor_positions)
  if actor_error!="":return model._fail(actor_error)
  if model.edge_blocked(Vector2i(x,z),Vector2i(int(data.parts[1].x),int(data.parts[1].z))):return model._fail("A wall separates the table and chair")
- if not model._placement_workfaces_allowed(data.layout):return false
- var chair_error=model._chair_egress_error(model.built_walls,data.layout,model.owned_parcels,model.customers)
- if chair_error!="":return model._fail(chair_error)
- if not model._layout_has_access(data.layout,model.depth):return model._fail("Leave a walkable service route")
- if not model.built_walls.is_empty():
-  var reason=model._wall_egress_error(model.built_walls,[],data.layout,model.owned_parcels,model.customers)
-  if reason!="":return model._fail(reason)
  return true
+
 static func place(model,x:int,z:int,rot:int,variant:String="oak_single",actor_positions:Array=[])->bool:
  if not VARIANTS.has(variant) or variant=="legacy_bench":return model._fail("Unknown dining style")
  if not can_place(model,x,z,rot,-1,actor_positions):return false
