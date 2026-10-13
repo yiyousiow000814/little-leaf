@@ -369,9 +369,13 @@ def require_origin(folder,manifest,origin):
 
 
 def consume_publication(api,run_id,output):
-    """Consume only this completed automatic ordinary-entry publisher's receipt."""
+    """Consume a completed ordinary-entry publication, including a named retry."""
     from release.firebase_release_gate import ITCH_WORKFLOW
-    run=api.read(f'actions/runs/{run_id}');trusted_run(run,ITCH_WORKFLOW,('workflow_run',))
+    run=api.read(f'actions/runs/{run_id}');trusted_run(run,ITCH_WORKFLOW,('workflow_run','workflow_dispatch'))
+    retry=None
+    if run['event']=='workflow_dispatch':
+        retry=re.fullmatch(r'Retry qualified itch ([1-9][0-9]*)',run.get('display_title',''))
+        require(retry is not None and run['run_attempt']==1,'Only a named first-attempt qualified platform retry is allowed')
     require(run.get('head_branch')=='main','Default-main automatic wrapper publisher required')
     workflow=api.read('actions/workflows/release-itch.yml')
     require(workflow.get('state')=='active' and workflow.get('path')==ITCH_WORKFLOW
@@ -392,6 +396,10 @@ def consume_publication(api,run_id,output):
         and str(receipt.get('workflow_attempt'))==str(run['run_attempt'])
         and artifact['name']==f"little-leaf-itch-publication-{receipt.get('source_commit')}-{run['run_attempt']}",
         'Exact immutable wrapper receipt identity required')
+    if retry:
+        qualified_run=receipt.get('same_page_staging_origin',{}).get('run_id')
+        require(type(qualified_run) is int and qualified_run==int(retry[1]),
+                'Platform retry must retain its named qualified run')
     return receipt_path,{'run':run,'artifact':artifact}
 
 
@@ -436,8 +444,16 @@ def main():
         selected_run=publication.get('same_page_staging_origin',{}).get('run_id')
         require(type(selected_run) is int and selected_run>0,'Exact qualified Firebase origin required')
     else:selected_run=args.run
-    run=api.read(f'actions/runs/{selected_run}')
+    latest=api.read(f'actions/runs/{selected_run}')
+    trusted_run(latest,WORKFLOW,('workflow_run',))
+    # The latest-run and attempt endpoints use different jobs/logs URLs.
+    # Construct origin from the same canonical view used by authentication;
+    # never rewrite API objects or relax its strict equality comparison.
+    run=api.read(f"actions/runs/{selected_run}/attempts/{latest['run_attempt']}")
     trusted_run(run,WORKFLOW,('workflow_run',))
+    require(run['id']==selected_run and run['run_attempt']==latest['run_attempt']
+            and run['head_sha']==latest['head_sha'] and run['head_branch']==latest['head_branch'],
+            'Pinned qualification attempt differs from latest run')
     artifacts=[a for a in api.pages(f'actions/runs/{selected_run}/artifacts','artifacts') if re.fullmatch('little-leaf-firebase-[0-9a-f]{40}-'+str(run['run_attempt']),a.get('name',''))]
     require(len(artifacts)==1,'Exact current-attempt Firebase artifact required')
     artifact=artifact_for(api,run,artifacts[0]['name'])

@@ -58,9 +58,21 @@ common/original qualification evidence stops delivery. The common package has
 30-day retention, but the original main evidence's shorter lifetime still
 limits eligibility; retention is not a promise of continuing qualification.
 
+After an inspected pre-upload failure and a reviewed coordinator repair, the
+existing **Release Web to itch.io** manual request can take one exact
+`qualified_run_id`. An empty value still runs status diagnosis only. The named
+`Retry qualified itch <run ID>` job authenticates the completed original
+Firebase attempt and all immutable inputs before credentials, then uses the
+unchanged publisher. Hosting accepts its completed first-attempt publication
+only when its receipt binds that same qualified run; ordinary status requests
+cannot activate Hosting. Use the fresh reviewed main workflow for this scoped
+retry: rerunning an old job retains its old SHA and does not load a repair.
+
 Only a newly created valid version tag from reviewed main history can create a
 common qualification. PRs, main pushes, manual status requests and synthetic
-test packages cannot publish via this route. GitHub source Releases/Latest,
+test packages cannot create qualification or publish via this route. A named
+platform retry consumes existing qualification and never rebuilds it.
+GitHub source Releases/Latest,
 hosted Google acceptance and gameplay acceptance remain separate facts. See
 [GitHub workflow-run semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)
 for default-main execution; upstream data and artifacts are verified before
