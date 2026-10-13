@@ -60,7 +60,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}
-        run: python3 coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch --output "$RUNNER_TEMP/common-firebase"
+        run: |
+          git -C coordinator fetch --no-tags origin main
+          python3 coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch --output "$RUNNER_TEMP/common-firebase"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ steps.common.outputs.source_sha }}
