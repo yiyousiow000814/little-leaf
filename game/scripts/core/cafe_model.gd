@@ -2122,7 +2122,8 @@ func _wall_actor_list(extra:Array) -> Array[Vector2]:
 	return result
 
 func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> Dictionary:
-	# Start on every still-open public edge. Locked parcels are not pavement.
+	# Preserve structural layout/save safety independently of guest admission.
+	# These original boundary seeds do not authorize a customer entrance.
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
@@ -2138,7 +2139,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 			if not _floor_owned_in(cell,ownership) or blocked.has(cell):continue
 			for direction in DIRECTIONS:
 				var outside:Vector2i=cell+direction
-				if _public_exterior_cell(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
+				if not _floor_owned_in(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
 					reachable[cell]=true;queue.append(cell);break
 	var cursor:=0
 	while cursor<queue.size():

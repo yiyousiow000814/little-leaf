@@ -62,14 +62,23 @@ func ownership_routes():
  check(not m.boundary_entries().any(func(entry):return entry.cell.y>=Model.BASE_DEPTH),"walled side land creates no side entrance")
  verify_public_routes(m,"side-owned-walled")
  var snapshot=state(m);var openings=m.wall_attachments.duplicate(true)
- check(not m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"back door cannot replace last corridor connection")
- check(state(m)==snapshot and m.wall_attachments==openings,"inaccessible door move preserves layout, identity and economy")
+ check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"valid rear-only door remains editable without admitting customers")
+ check(m.wall_attachments[0].id==openings[0].id and m.coins==snapshot[2] and m.items==snapshot[0],"door edit preserves identity, inventory and money")
+ check(m.boundary_entries().is_empty() and m.guest_access_for(7).is_empty(),"walled side plot plus rear-only door has no corridor admission")
+ var path="user://corridor-rear-only.json"
+ check(m.save(path),"valid rear-only layout still saves")
+ var digest=FileAccess.get_sha256(path);var loaded=Model.new()
+ check(loaded.load_save(path) and FileAccess.get_sha256(path)==digest,"rear-only save loads without rewriting its source bytes")
+ check(loaded.wall_attachments==m.wall_attachments and loaded.coins==m.coins and loaded.items==m.items,"rear-only load preserves door, wallet and inventory")
  var sealed=Model.new();Minimal.apply(sealed);sealed.coins=10000000
  check(sealed.buy_parcel("right_0"),"synthetic disconnected-side fixture buys land elsewhere")
  sealed.wall_attachments[0].host_id="shell:back";sealed.wall_attachments[0].offset=3.5
  snapshot=state(sealed)
  check(sealed.boundary_entries().is_empty() and sealed.guest_access_for(7).is_empty(),"purchased elsewhere plus sole back opening has no corridor access")
  check(state(sealed)==snapshot,"inaccessible synthetic route queries are read-only")
+ sealed._spawn_customer()
+ check(sealed.customers.is_empty() and sealed.outside_queue.size()==2,"no legal corridor access queues real requests instead of admitting guests")
+ check(sealed.outside_queue.all(func(visitor):return visitor.x<0 and visitor.table_id==-1 and visitor.chair_id==-1),"queued visitors stay on corridor and claim no dining place")
 func public_reroutes():
  for expanded in [false,true]:
   var m=Model.new();Minimal.apply(m);m.coins=10000000
