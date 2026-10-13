@@ -13,7 +13,7 @@ Keep the relevant notices when redistributing code or assets:
 
 The music records document supplier permission for the included recordings and uncertainty about some historical sample origins. The SoundFont and original composition source are not included.
 
-The source attribution comment in `scripts/retained_aa_strokes.gd` retains its historical notice path because the script is part of the qualified atlas source hashes. The linked notice above is its current location; build helpers copy that same unchanged license from `docs/art-audio/third-party/`.
+The source attribution comment in `scripts/rendering/retained_aa_strokes.gd` retains its historical notice path because the script is part of the qualified atlas source hashes. The linked notice above is its current location; build helpers copy that same unchanged license from `docs/art-audio/third-party/`.
 
 ## Authoring and visual references
 

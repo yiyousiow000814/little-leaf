@@ -1,6 +1,6 @@
 extends SceneTree
 ## Synthetic native reproduction: one janitor washes while a waiter drops at a side.
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 var game
 var failures=[]
 var checks=0

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Synthetic game viewport only: no desktop capture or real player profile.
-const Fixture=preload("res://tests/role_fixture.gd")
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
 var game
 var facts={"synthetic":true,"viewport":[1360,880],"player_save_used":false,"states":[]}
 func _initialize():run.call_deferred()

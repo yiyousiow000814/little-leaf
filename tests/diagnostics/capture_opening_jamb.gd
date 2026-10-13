@@ -1,7 +1,7 @@
 extends SceneTree
 # Native production opening renderer, synthetic geometry only. No game Main,
 # saved profile, service loop, or storage APIs are instantiated by this capture.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var sample_kind="door"
  var sample_width=1.0
  var phase_label="after"
