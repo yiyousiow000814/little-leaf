@@ -58,3 +58,47 @@ Keep completion and ownership only in the [canonical roadmap](../roadmap.md#curr
 A concise evidence record contains source/tree and relevant export hashes; deterministic fixture inputs; engine/browser/device, viewport/DPR, renderer, focus/visibility and audio route/volume; actions and observed states; original clip/frame/audio locations and timing uncertainty; test results, inspected differences, user decision and unobserved cases. Retain it outside tracked source with failures and teardown receipts, and link it from the existing owner handoff/PR. Do not add another global recording framework or commit private player evidence.
 
 Use generated profiles and synthetic identities, block unnecessary external requests, and never inspect original saves, credentials or player sessions to manufacture acceptance. Admit runtime work through the coordinated nonblocking shared lock; stop if busy, hold it through owned-process cleanup, and report terminal release. Evidence from a different source, engine, viewport or device may explain a hypothesis but must not be relabelled as the current candidate. New asset/toolchain authoring proof belongs to the art/audio contracts; unchanged-art code work reuses valid authoring provenance and proves the affected presentation instead.
+
+## CI scheduling and qualification
+
+The five native runners use `tools/ci/engine_suite_times.json` only to schedule
+all canonical suites. Timing weights never select coverage or change deadlines.
+New suites retain the existing fallback weight and remain mandatory. Same-source,
+same-run/attempt shard completeness and failed-diagnostic checks remain unchanged.
+Refresh measured weights when the suite mix changes rather than adding runners.
+
+The Oct13 refresh uses the larger per-suite measurement from successful main
+[38405011523](https://github.com/yiyousiow000814/little-leaf/actions/runs/38405011523)
+and PR [38406032748](https://github.com/yiyousiow000814/little-leaf/actions/runs/38406032748).
+Their actual engine run steps were 70/166/105/165/198s and 51/221/91/132/166s.
+Replaying their measured suite records under the refreshed assignment reduces
+the slowest suite sum from 187.91 to 139.70s and 207.66 to 129.60s respectively.
+This projects about 48–78s off the native barrier; actual remote elapsed savings
+remain unmeasured until the candidate run finishes. Imports, setup, queue and
+browser variability are outside that replay. Tutorial/payment and WebKit recovery
+remain mandatory; their measured 178–213s tutorial and 95–170s recovery work is
+not removed. Historical export remains parallel and can become the limiting
+prerequisite for compatibility after rebalancing.
+
+The graph remains `guard -> five engine shards -> build -> browser/compatibility
+-> gate`, with `guard -> historical -> compatibility` in parallel. Main runs full
+qualification; tag jobs already reuse an exact successful main artifact with
+final source/package checks. A PR result is never substituted for main source or
+a release package. No new change-selection rule, cache or cross-run evidence
+reuse is introduced by this timing refresh.
+
+Current-snapshot jobs (`engine`, `build`, `browser`, `gate`) need HEAD, its tree,
+tracked file inventory and clean-source status, not ancestor objects. Their
+one-commit checkouts retain all those exact-source checks and every test. Guard
+PR-parent/diff classification, historical clients, compatibility, Firebase and
+common-tag ancestry retain full history. This removes nine full-history fetches
+per ordinary full run (five native, one build, two browser, one final gate), with
+no cache or cross-run evidence substitution. A real shallow Git fixture verifies
+snapshot/tree/inventory equality and detection of modified tracked bytes.
+
+The scheduling-only candidate38409945856 passed all13 mandatory jobs in10m25s
+including28s initial queue; native steps157–170s replace the two baseline ranges
+70–198s and51–221s. It is31s faster than the PR baseline but23s slower than the
+main baseline; queue/browser variability prevents claiming a repeatable total
+speedup. The subsequent checkout reduction and current-main composition need
+fresh automatic qualification and their own measured result.
