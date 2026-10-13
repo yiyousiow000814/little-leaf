@@ -213,7 +213,7 @@ class AddedCoverageTest(unittest.TestCase):
         self.assertIn("python3 tools/ci/pr_ci_scope.py --check-lightweight-gate", workflow)
         self.assertIn('for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done', workflow)
         self.assertIn('test -n "$WEB_ARTIFACT"', workflow)
-        self.assertIn("python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v", workflow)
+        self.assertIn("python3 tools/ci/preflight.py", workflow)
 
 
 if __name__ == "__main__":

@@ -286,7 +286,8 @@ class RunnerInfrastructureTests(unittest.TestCase):
 class WorkflowInfrastructureTests(unittest.TestCase):
     def test_parallel_gates_keep_lifecycle_browser_channels_and_single_exports(self):
         workflow = (ROOT / '.github/workflows/build-web.yml').read_text()
-        self.assertIn('node tests/rendering/web_performance_lifecycle.js', workflow)
+        from ci.preflight import NODE_CHECKS
+        self.assertIn('tests/rendering/web_performance_lifecycle.js', NODE_CHECKS)
         browser = workflow.split('  browser:\n', 1)[1].split('  firebase:\n', 1)[0]
         self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
