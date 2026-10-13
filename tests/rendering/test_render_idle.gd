@@ -51,6 +51,7 @@ func run():
 	changed("build preview",func():game.build_tools.preview={"x":1},func():game.build_tools.preview={})
 	changed("floor preview",func():game.build_tools.floor_preview={"x":1},func():game.build_tools.floor_preview={})
 	changed("drag validity",func():game.interaction.drag_valid=true,func():game.interaction.drag_valid=false)
+	changed("physical footprint validity",func():game.interaction.drag_footprint_valid=true,func():game.interaction.drag_footprint_valid=false)
 	changed("selected shell",func():game.compact_ui.selected_shell="shell:west#0",func():game.compact_ui.selected_shell="")
 	changed("camera pan",func():art.pan_offset+=Vector2(5,5),func():art.pan_offset-=Vector2(5,5))
 	changed("docking",func():art.meal_chair_offsets[-44]=Vector2.ONE,func():art.meal_chair_offsets.erase(-44))
