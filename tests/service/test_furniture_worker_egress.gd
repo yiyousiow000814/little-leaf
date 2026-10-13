@@ -53,6 +53,15 @@ func model_cases():
  m.customers[0].x=3.5;m.customers[0].z=3.5;before=state(m)
  check(not m.can_place("plant",3,3),"present guest body refuses physical overlap")
  unchanged(m,before,"guest-body preview")
+ # Structural exit seeds stay independent of corridor-only guest admission.
+ for spec in [{"cell":Vector2i(1,3),"closing":Vector2i(2,3),"public_escape":true},{"cell":Vector2i(11,3),"closing":Vector2i(10,3),"public_escape":false}]:
+  m=blank();var cell:Vector2i=spec.cell;var closing:Vector2i=spec.closing
+  check(m.place("plant",cell.x,cell.y-1),"corridor fixture upper obstacle places")
+  check(m.place("plant",cell.x,cell.y+1),"corridor fixture lower obstacle places")
+  var candidate=m.items.duplicate(true);candidate.append({"id":-1,"kind":"plant","x":closing.x,"z":closing.y,"rot":0})
+  check(m._wall_reachable(m.built_walls,candidate,m.owned_parcels).has(cell),"original structural exit remains distinct from guest admission")
+  var approach=Vector2i(-1,cell.y) if cell.x==1 else Vector2i(Model.BASE_WIDTH,cell.y)
+  check(m._public_exterior_cell(approach)==spec.public_escape,"guest approach keeps corridor distinct from private land")
 func frames(n=2):
  for unused in range(n):await process_frame
 func mouse(point:Vector2,pressed:bool):

@@ -880,7 +880,9 @@ func boundary_entries() -> Array[Dictionary]:
 
 
 func _public_exterior_cell(cell:Vector2i,ownership:Variant=null)->bool:
-	return not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
+	# The west roadside corridor is the only public cafe approach. Buying a
+	# plot adds indoor floor, not public access around its other edges.
+	return cell.x<0 and not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
 
 func _arrival_front()->float:return maxf(EXTERIOR_ARRIVAL_FRONT,float(depth)+.5)
 func _exit_front()->float:return maxf(EXTERIOR_EXIT_FRONT,float(depth)+1.4)
@@ -891,35 +893,11 @@ func _departure_exit_z(id:int)->float:return -2.5 if id%2==0 else maxf(12.5,floa
 
 func _exterior_approach(entry: Dictionary, arriving: bool, exit_z: float = 12.5) -> Array[Vector2]:
 	var outside := cell_center(entry.outside)
-	# Jagged open edges use their unowned column down to the shared front
-	# walkway; never cut diagonally through another purchased plot.
-	if entry.outside.x>=0 and entry.outside.x<MAX_WIDTH and entry.outside.y>=BASE_DEPTH and entry.outside.y<MAX_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(outside.x-.26,_arrival_front()),Vector2(outside.x-.26,outside.y),outside]
-		return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
-	# Right-side gaps have an empty horizontal route to the outer lane: each
-	# right column owns a prefix, so no later plot can block that route.
-	if entry.outside.x>=BASE_WIDTH and entry.outside.y>=0 and entry.outside.y<RIGHT_PARCEL_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(_arrival_right(),_arrival_front()),Vector2(_arrival_right(),outside.y),outside]
-		return [outside,Vector2(_exit_right(),outside.y),Vector2(_exit_right(),_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
-	if arriving:
-		if entry.direction == Vector2i.UP:
-			return [Vector2(ARRIVAL_LANE_X,-1.76),Vector2(outside.x,-1.76),outside]
-		if entry.direction == Vector2i.LEFT:
-			return [Vector2(ARRIVAL_LANE_X, outside.y), outside]
-		if entry.direction == Vector2i.DOWN:
-			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(outside.x-.26, _arrival_front()),Vector2(outside.x-.26,outside.y),outside]
-		if entry.direction == Vector2i.RIGHT:
-			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(_arrival_right(), _arrival_front()), Vector2(_arrival_right(), outside.y), outside]
-	else:
-		if entry.direction == Vector2i.UP:
-			return [outside,Vector2(outside.x,-.85),Vector2(-.85,-.85),Vector2(-.85,exit_z)]
-		if entry.direction == Vector2i.LEFT:
-			return [outside, Vector2(-0.85, outside.y), Vector2(-0.85, exit_z)]
-		if entry.direction == Vector2i.DOWN:
-			return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-0.85,_exit_front()),Vector2(-0.85,exit_z)]
-		if entry.direction == Vector2i.RIGHT:
-			return [outside, Vector2(_exit_right(), outside.y), Vector2(_exit_right(), _exit_front()), Vector2(-0.85, _exit_front()), Vector2(-0.85, exit_z)]
-	return []
+	# Only an owned threshold opening directly onto the corridor qualifies.
+	# This also refuses stale north/right/front candidates without a shortcut.
+	if entry.direction!=Vector2i.LEFT or entry.outside.x!=-1 or not _public_exterior_cell(entry.outside):return []
+	if arriving:return [Vector2(ARRIVAL_LANE_X,outside.y),outside]
+	return [outside,Vector2(-.85,outside.y),Vector2(-.85,exit_z)]
 
 
 func guest_access_for(chair_id: int, arriving: bool = true, start: Vector2 = Vector2(ARRIVAL_LANE_X, ARRIVAL_START_Z), exit_z: float = 12.5, table_id: int = -1, customer_id: int = -1) -> Dictionary:
@@ -2086,7 +2064,8 @@ func _wall_actor_list(extra:Array) -> Array[Vector2]:
 	return result
 
 func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> Dictionary:
-	# Start on every still-open public edge. Locked parcels are not pavement.
+	# Preserve structural layout/save safety independently of guest admission.
+	# These original boundary seeds do not authorize a customer entrance.
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
@@ -2102,7 +2081,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 			if not _floor_owned_in(cell,ownership) or blocked.has(cell):continue
 			for direction in DIRECTIONS:
 				var outside:Vector2i=cell+direction
-				if _public_exterior_cell(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
+				if not _floor_owned_in(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
 					reachable[cell]=true;queue.append(cell);break
 	var cursor:=0
 	while cursor<queue.size():
@@ -2588,17 +2567,10 @@ func reroute_guest(guest:Dictionary) -> bool:
 		_begin_departure(guest)
 		return not bool(guest.departure_blocked)
 	elif not is_floor_owned(cell) and str(guest.phase)=="arriving":
-		# Outside walkways form three clear perimeter lanes. Return to the
-		# corresponding lane before choosing another open edge; never diagonal
-		# through unowned plots or across the fixed shell.
-		var prefix:Array[Vector2]=[]
-		if position.x>=BASE_WIDTH and position.y<RIGHT_PARCEL_DEPTH:
-			prefix=[Vector2(_arrival_right(),position.y),Vector2(_arrival_right(),_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
-		elif position.y>=BASE_DEPTH and position.x>=0 and position.x<MAX_WIDTH:
-			prefix=[Vector2(position.x,_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
-		elif position.x<0:prefix=[Vector2(ARRIVAL_LANE_X,position.y)]
-		elif position.y<0:prefix=[Vector2(position.x,-1.76),Vector2(ARRIVAL_LANE_X,-1.76)]
-		else:return false
+		# Replan from the actual west corridor only. Other exterior positions
+		# cannot invent access through a back edge or an unpurchased plot.
+		if not _public_exterior_cell(cell):return false
+		var prefix:Array[Vector2]=[Vector2(ARRIVAL_LANE_X,position.y)]
 		var access:=guest_access_for(int(guest.chair_id),true,prefix[-1],12.5,int(guest.table_id))
 		if not access.is_empty():
 			route=prefix;route.append_array(access.route);best=access
