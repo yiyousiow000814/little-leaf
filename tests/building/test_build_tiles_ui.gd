@@ -6,6 +6,14 @@ class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():saves+=1;return true
+class FloorPreviewRecorder extends RefCounted:
+ var polygons=[]
+ var seams=[]
+ var overlays=[]
+ func iso(x:float,z:float)->Vector2:return Vector2(x*42-z*17,x*7+z*6)
+ func poly(points:Array,color):polygons.append([points,color])
+ func line(a:Vector2,b:Vector2,color,width):seams.append([a,b,color,width])
+ func art_draw_multiline(points,color,width,antialias):overlays.append([points,color,width,antialias])
 var game
 var ui
 var shop
@@ -16,6 +24,15 @@ func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func _initialize():run.call_deferred()
+func _check_floor_preview_without_overlay():
+ var preview=preload("res://scripts/rendering/cafe_tile_paint_preview.gd")
+ var valid=FloorPreviewRecorder.new();var refused=FloorPreviewRecorder.new()
+ var cells=[Vector2i(4,5),Vector2i(5,5)]
+ preview.draw(valid,cells,"cream_tile",true);preview.draw(refused,cells,"cream_tile",false)
+ check(valid.polygons.size()==2 and refused.polygons.size()==2,"floor preview keeps both material tiles")
+ check(not valid.seams.is_empty() and valid.seams==refused.seams,"natural floor seams survive transaction refusal")
+ check(valid.polygons==refused.polygons,"transaction validity cannot recolor the floor material")
+ check(valid.overlays.is_empty() and refused.overlays.is_empty(),"floor preview emits no valid or refused obstruction outline")
 func settle():
  game._update_ui()
  for frame in 5:await process_frame
@@ -139,6 +156,7 @@ func shell_point(host_id:String)->Vector2:
    if game.build_tools._available(point) and game.illustration.hit_wall_host(point).get("host_id","")==host_id:return point
  return Vector2(-1000,-1000)
 func run():
+ _check_floor_preview_without_overlay()
  if not "saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED: use the isolated runner");quit(2);return
  root.size=Vector2i(1360,880)
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
