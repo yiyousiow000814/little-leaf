@@ -15,8 +15,7 @@ var web_lifecycle
 var web_save
 const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
 const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
-const ServiceSfx = preload("res://scripts/audio/cafe_service_sfx.gd")
-var service_sfx
+const FeedbackSfx = preload("res://scripts/audio/cafe_feedback_sfx.gd")
 const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
@@ -140,8 +139,7 @@ func _ready():
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
-	service_sfx = ServiceSfx.new(self)
-	service_sfx.setup_audio()
+	FeedbackSfx.install(settings_controls)
 	_connect_model_events()
 	_rebuild_room()
 	_rebuild_furniture()
@@ -202,8 +200,6 @@ func _resume_loaded_cafe():
 	_update_ui();illustration.queue_redraw()
 
 func _exit_tree():
-	if service_sfx != null: service_sfx.suspend()
-	service_sfx = null
 	if web_lifecycle!=null:web_lifecycle.stop()
 	if web_save!=null:web_save.stop()
 
@@ -681,7 +677,6 @@ func _process(delta):
 			AudioServer.set_bus_mute(AudioServer.get_bus_index("Master"),bool(platform.muteAudio))
 	var intro_active=cafe_intro!=null and cafe_intro.active
 	var world_delta=cafe_intro.motion_delta(delta) if intro_active else delta
-	if service_sfx != null and not service_sfx.can_play(): service_sfx.suspend()
 	if compact_ui!=null and compact_ui.viewport_too_small:
 		if intro_active:_music_tick(delta)
 		return
@@ -709,7 +704,6 @@ func _process(delta):
 	if not intro_active and preload("res://scripts/persistence/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
-	if service_sfx != null: service_sfx.tick(world_delta)
 	_music_tick(delta)
 
 func _update_people():

@@ -17,34 +17,6 @@
       "subtype": "PCM_24"
     },
     {
-      "id": "cooking",
-      "runtime_file": "cooking_volume_v01.wav",
-      "gain_db": -26.0,
-      "source_file": "sizzling_hot_oil_in_raw_need_adjusting.wav",
-      "source_sha256": "a2b2350b50b2ed60ad51ca4886583e3eb9a9a04ba0ba3f15134f74d70d8b8847",
-      "bytes": 648044,
-      "sha256": "1a2ca4baacb3529e4672bf0447b48da215254425df1cf4ceb012bd6d5ef91f40",
-      "rate": 48000,
-      "channels": 2,
-      "frames": 108000,
-      "seconds": 2.25,
-      "subtype": "PCM_24"
-    },
-    {
-      "id": "eating",
-      "runtime_file": "eating_volume_v01.wav",
-      "gain_db": -7.0,
-      "source_file": "SfxEating.wav",
-      "source_sha256": "9926903e275fea2b93792dbdafb60406ac51e13330b581ee9b954cb40a8276bf",
-      "bytes": 615212,
-      "sha256": "f9e110d7d4afeebaf9a66dba60178ef917d54b8a9a40ddff37cc760d28fbe3c3",
-      "rate": 44100,
-      "channels": 1,
-      "frames": 205056,
-      "seconds": 4.649795918367347,
-      "subtype": "PCM_24"
-    },
-    {
       "id": "placement",
       "runtime_file": "placement_volume_v01.wav",
       "gain_db": -13.0,
