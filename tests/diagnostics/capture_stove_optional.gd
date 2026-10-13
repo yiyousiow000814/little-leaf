@@ -1,4 +1,5 @@
 extends SceneTree
+const Workfaces=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
@@ -11,7 +12,7 @@ func capture(label):
  for frame in 5:await process_frame
  await RenderingServer.frame_post_draw
  root.get_texture().get_image().save_png(OS.get_environment("OUTPUT")+"/"+OS.get_environment("PHASE")+"-"+label+"-1360x880.png")
- rows.append({"label":label,"editing":game.editing,"access_issues":game.model.layout_access_issues(),"ground_markers":game.workface_guidance.describe(game),"chef_action":game.staff_states[0].art_action,"chef_reason":game.staff_states[0].art_block_reason,"saves":game.saves})
+ rows.append({"label":label,"editing":game.editing,"access_issues":game.model.layout_access_issues(),"ground_markers":Workfaces.describe(game),"chef_action":game.staff_states[0].art_action,"chef_reason":game.staff_states[0].art_block_reason,"saves":game.saves})
 func run():
  root.size=Vector2i(1360,880);game=TestMain.new();root.add_child(game);game.set_process(false)
  await process_frame

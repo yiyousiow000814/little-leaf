@@ -62,9 +62,10 @@ func run():
  check(m.place_wall_attachment("door",host,.5),"new hosted door")
  var door_id=int(m.wall_attachments[-1].id);wallet=m.coins
  check(not m.remove_wall(wall_key) and m.coins==wallet and m.wall_refund(wall_key)==55 and m.wall_attachment_refund(door_id)==40,"failed host removal keeps both receipts")
- check(m.place("stove",5,3),"stove uses paid doorway");var stove_id=m._next_item_id-1;wallet=m.coins
- check(not m.remove_wall_attachment(door_id) and m.coins==wallet and m.wall_attachment_refund(door_id)==40,"failed door removal preserves receipt")
- check(m.remove(stove_id),"remove blocking stove");wallet=m.coins
+ var crossing=[Vector2(5.5,4.0)];wallet=m.coins
+ var receipts=m.decoration_build_purchases.duplicate(true)
+ check(not m.remove_wall_attachment(door_id,crossing) and m.coins==wallet and m.wall_attachment_refund(door_id)==40 and m.decoration_build_purchases==receipts,"actual crossing body preserves paid door receipt")
+ check(not m.get_wall_attachment(door_id).is_empty(),"refused body collision preserves the door");wallet=m.coins
  check(m.remove_wall_attachment(door_id) and m.coins==wallet+40,"unblocked door credits once")
  wallet=m.coins;check(m.remove_wall(wall_key) and m.coins==wallet+55 and m.decoration_build_purchases.is_empty(),"unblocked host credits once")
  # Height difference and paid replacement cannot recycle old full receipts.

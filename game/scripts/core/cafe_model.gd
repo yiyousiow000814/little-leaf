@@ -446,37 +446,20 @@ func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, 
 	last_error = "";last_placement_issue={}
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():return DiningSets.can_place(self,x,z,rot,ignore_id,actor_positions)
 	if kind=="register" and ignore_id<0 and not included_checkout_pending:return _fail("The included register is already placed")
-	if price_of(kind) < 0:
-		return _fail("Unknown furnishing")
-	if not is_floor_owned(Vector2i(x, z)):
-		return _fail("Buy this plot first" if not parcel_at(Vector2i(x, z)).is_empty() else "That tile is outside the cafe")
-	if Vector2i(x, z) == ENTRANCE or Vector2i(x, z) == ENTRY_LANDING:
-		return _fail("Keep the entrance and its landing clear")
-	if kind != "rug" and _guest_route_uses(Vector2i(x, z)):
-		return _fail("A guest is using that tile or walking route")
+	if price_of(kind) < 0:return _fail("Unknown furnishing")
+	if not is_floor_owned(Vector2i(x,z)):
+		return _fail("Buy this plot first" if not parcel_at(Vector2i(x,z)).is_empty() else "That tile is outside the cafe")
 	var proposed: Array[Dictionary] = []
 	for item in items:
-		if int(item.id) == ignore_id:
-			continue
-		if int(item.x) == x and int(item.z) == z:
-			return _fail("That tile is occupied")
+		if int(item.id)==ignore_id:continue
+		if int(item.x)==x and int(item.z)==z:return _fail("That tile is occupied")
 		proposed.append(item)
-	proposed.append({"id": ignore_id, "kind": kind, "x": x, "z": z, "rot": posmod(rot,4)})
-	var actor_error := _furniture_actor_error([proposed[-1]],proposed,actor_positions)
+	proposed.append({"id":ignore_id,"kind":kind,"x":x,"z":z,"rot":posmod(rot,4)})
+	var actor_error:=Checkout.placement_error(self,proposed[-1],proposed,actor_positions) if kind=="register" else _furniture_actor_error([proposed[-1]],proposed,actor_positions)
 	if actor_error!="":return _fail(actor_error)
-	if not _placement_workfaces_allowed(proposed):return false
-	var chair_error := _chair_egress_error(built_walls,proposed,owned_parcels,customers)
-	if chair_error!="":return _fail(chair_error)
-	if kind=="register":
-		var register_error=Checkout.placement_error(self,proposed[-1],proposed,_furniture_actor_positions(actor_positions))
-		if register_error!="":return _fail(register_error)
-	if not _layout_has_access(proposed, depth):
-		return _fail("Leave a walkable route to the entrance and service stations")
-	if not built_walls.is_empty() or not checkout_claims().is_empty():
-		var reason=_wall_egress_error(built_walls,[],proposed,owned_parcels,customers)
-		if reason!="":return _fail(reason)
+	# Entry, walking routes and station workfaces are operational facts.
+	# They do not change the physical legality of an owned, clear footprint.
 	return true
-
 
 func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = []) -> bool:
 	if is_dining_product(kind):return DiningSets.place(self,x,z,rot,DiningSets.variant_for_product(kind),actor_positions)
@@ -510,10 +493,6 @@ func placement_access_issues(kind:String,x:int,z:int,ignore_id:int=-1,rot:int=0)
 		if int(item.id) not in omitted:proposed.append(item)
 	proposed.append_array(placement_parts(kind,x,z,rot,ignore_id))
 	return layout_access_issues(proposed)
-
-func _placement_workfaces_allowed(layout:Array)->bool:
-	last_placement_issue=LayoutAccess.introduced(self,layout)
-	return true if last_placement_issue.is_empty() else _fail(str(last_placement_issue.reason))
 
 func can_move(id:int,x:int,z:int,rot:int=0,actor_positions:Array=[])->bool:
 	var key=[revision,id,x,z,rot,hash(items),hash(customers),hash(actor_positions),hash(built_walls),hash(wall_attachments),hash(owned_parcels)]
@@ -901,7 +880,9 @@ func boundary_entries() -> Array[Dictionary]:
 
 
 func _public_exterior_cell(cell:Vector2i,ownership:Variant=null)->bool:
-	return not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
+	# The west roadside corridor is the only public cafe approach. Buying a
+	# plot adds indoor floor, not public access around its other edges.
+	return cell.x<0 and not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
 
 func _arrival_front()->float:return maxf(EXTERIOR_ARRIVAL_FRONT,float(depth)+.5)
 func _exit_front()->float:return maxf(EXTERIOR_EXIT_FRONT,float(depth)+1.4)
@@ -912,35 +893,11 @@ func _departure_exit_z(id:int)->float:return -2.5 if id%2==0 else maxf(12.5,floa
 
 func _exterior_approach(entry: Dictionary, arriving: bool, exit_z: float = 12.5) -> Array[Vector2]:
 	var outside := cell_center(entry.outside)
-	# Jagged open edges use their unowned column down to the shared front
-	# walkway; never cut diagonally through another purchased plot.
-	if entry.outside.x>=0 and entry.outside.x<MAX_WIDTH and entry.outside.y>=BASE_DEPTH and entry.outside.y<MAX_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(outside.x-.26,_arrival_front()),Vector2(outside.x-.26,outside.y),outside]
-		return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
-	# Right-side gaps have an empty horizontal route to the outer lane: each
-	# right column owns a prefix, so no later plot can block that route.
-	if entry.outside.x>=BASE_WIDTH and entry.outside.y>=0 and entry.outside.y<RIGHT_PARCEL_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(_arrival_right(),_arrival_front()),Vector2(_arrival_right(),outside.y),outside]
-		return [outside,Vector2(_exit_right(),outside.y),Vector2(_exit_right(),_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
-	if arriving:
-		if entry.direction == Vector2i.UP:
-			return [Vector2(ARRIVAL_LANE_X,-1.76),Vector2(outside.x,-1.76),outside]
-		if entry.direction == Vector2i.LEFT:
-			return [Vector2(ARRIVAL_LANE_X, outside.y), outside]
-		if entry.direction == Vector2i.DOWN:
-			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(outside.x-.26, _arrival_front()),Vector2(outside.x-.26,outside.y),outside]
-		if entry.direction == Vector2i.RIGHT:
-			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(_arrival_right(), _arrival_front()), Vector2(_arrival_right(), outside.y), outside]
-	else:
-		if entry.direction == Vector2i.UP:
-			return [outside,Vector2(outside.x,-.85),Vector2(-.85,-.85),Vector2(-.85,exit_z)]
-		if entry.direction == Vector2i.LEFT:
-			return [outside, Vector2(-0.85, outside.y), Vector2(-0.85, exit_z)]
-		if entry.direction == Vector2i.DOWN:
-			return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-0.85,_exit_front()),Vector2(-0.85,exit_z)]
-		if entry.direction == Vector2i.RIGHT:
-			return [outside, Vector2(_exit_right(), outside.y), Vector2(_exit_right(), _exit_front()), Vector2(-0.85, _exit_front()), Vector2(-0.85, exit_z)]
-	return []
+	# Only an owned threshold opening directly onto the corridor qualifies.
+	# This also refuses stale north/right/front candidates without a shortcut.
+	if entry.direction!=Vector2i.LEFT or entry.outside.x!=-1 or not _public_exterior_cell(entry.outside):return []
+	if arriving:return [Vector2(ARRIVAL_LANE_X,outside.y),outside]
+	return [outside,Vector2(-.85,outside.y),Vector2(-.85,exit_z)]
 
 
 func guest_access_for(chair_id: int, arriving: bool = true, start: Vector2 = Vector2(ARRIVAL_LANE_X, ARRIVAL_START_Z), exit_z: float = 12.5, table_id: int = -1, customer_id: int = -1) -> Dictionary:
@@ -1583,25 +1540,6 @@ func _begin_departure(customer: Dictionary) -> void:
 	customer.entry_outside = access.entry_outside
 
 
-func _guest_route_uses(cell: Vector2i) -> bool:
-	if checkout_claims().has(cell):return true
-	for customer in customers:
-		if customer.phase in ["dirty", "cleaning"]:
-			continue
-		var mobility:Dictionary=customer.get("mobility",{})
-		if not mobility.is_empty():
-			for index in range(int(mobility.route_index),mobility.route.size()):
-				if Vector2i(floori(mobility.route[index].x),floori(mobility.route[index].y))==cell:return true
-		if int(floor(float(customer.x))) == cell.x and int(floor(float(customer.z))) == cell.y:
-			return true
-		if customer.phase in ["arriving", "leaving", "checkout_walk"]:
-			for index in range(int(customer.route_index), customer.route.size()):
-				var point: Vector2 = customer.route[index]
-				if point.x >= 0 and Vector2i(floori(point.x), floori(point.y)) == cell:
-					return true
-	return false
-
-
 func _seating_pairs() -> Array[Dictionary]:
 	var pairs: Array[Dictionary] = []
 	var by_id={}
@@ -1737,11 +1675,15 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if not floors_check.ok:return _fail("Could not save flooring: "+str(floors_check.error))
 	var openings_check=_validate_saved_attachments(data,built_walls)
 	if not openings_check.ok:return _fail("Could not save wall attachments: "+str(openings_check.error))
-	# Match load's structural safety gates before touching either destination.
-	# In particular an explicitly imported v13 enclosure must be repaired first.
+	# Match load's physical safety gates before touching either destination.
+	# Active diner intent also keeps the existing structural gates.
 	var saved_actors:Array=[]
 	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=_wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
+	# With no diner intent to relocate, save physical bodies without making
+	# walking access a placement rule. Active service keeps its existing gates.
+	var physical_error=_furniture_body_error(items,saved_actors) if checked.state.customers.is_empty() else ""
+	if physical_error!="":return _fail("Could not save physical layout: "+physical_error)
+	var egress_error="" if checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
 	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
 	var actors=saved_actors.duplicate()
 	for guest in checked.state.customers:
@@ -1845,7 +1787,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var point := Vector2i(int(raw.x), int(raw.z))
 		if not _floor_owned_in(point, saved_parcels) or (int(data.version)<12 and not _legacy_floor_owned(point,saved_parcels,int(data.version))):
 			return _fail("Saved furniture is on an unowned plot")
-		if point == ENTRANCE or point == ENTRY_LANDING or occupied.has(point) or ids.has(int(raw.id)):
+		if (int(data.version)<SAVE_VERSION and point in [ENTRANCE,ENTRY_LANDING]) or occupied.has(point) or ids.has(int(raw.id)):
 			return _fail("Overlapping furniture or blocked entrance in save")
 		var item: Dictionary = {"id": int(raw.id), "kind": str(raw.kind), "x": int(raw.x), "z": int(raw.z), "rot": int(raw.rot)}
 		if item.kind == "stove":
@@ -1860,8 +1802,6 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=saved_cashiers):return _fail("Register count disagrees with deployment")
 	if not _valid_int(data.get("next_item_id"), highest_id + 1, 1000000001):
 		return _fail("Invalid saved furniture sequence")
-	if not _layout_has_access(validated, saved_depth, saved_parcels):
-		return _fail("Saved layout blocks access to service stations")
 	var checked_walls=_validate_saved_walls(data,saved_parcels)
 	if not checked_walls.ok:return _fail(str(checked_walls.error))
 	var checked_floors=_validate_saved_floors(data,saved_parcels,str(checked_walls.floor_style))
@@ -1878,6 +1818,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
+	if (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
+		return _fail("Saved layout blocks access to service stations")
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
 	var saved_first_guest=data.get("first_guest_pending",false)
@@ -1903,7 +1845,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
 	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var egress_error=geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var idle_physical=int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty()
+	var physical_error=_furniture_body_error(validated,saved_actors) if idle_physical else ""
+	if physical_error!="":return _fail("Invalid saved physical layout: "+physical_error)
+	var egress_error="" if idle_physical else geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
@@ -2060,9 +2005,18 @@ func _furniture_actor_positions(extra:Array) -> Array[Vector2]:
 		if point is Vector2 and point.is_finite():result.append(point)
 	return result
 
+func _furniture_body_error(layout:Array,actors:Array) -> String:
+	# Physical clearance only. Reachability never enlarges occupied space.
+	for item in layout:
+		if str(item.kind)=="rug":continue
+		var minimum=Vector2(int(item.x),int(item.z));var maximum=minimum+Vector2.ONE
+		for position in actors:
+			if position.distance_squared_to(position.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
+				return "A staff member is using part of this space"
+	return ""
+
 func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> String:
 	var actors:=_furniture_actor_positions(actor_positions)
-	if actors.is_empty():return ""
 	# Authoritative body clearance also covers selected-item R rotation, which
 	# does not pass through the drag preview. Rugs are still walkable.
 	for part in parts:
@@ -2071,25 +2025,12 @@ func _furniture_actor_error(parts:Array,layout:Array,actor_positions:Array) -> S
 		for point in actors:
 			if point.distance_squared_to(point.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
 				return "A staff member is using part of this space"
-	# Staff cannot use the x=0 arrival strip or unowned exterior grass to
-	# bypass furniture. Their escape is an indoor route to the service floor
-	# at ENTRY_LANDING, even when the pocket touches a public outdoor edge.
-	var reachable:=_furniture_actor_component(ENTRY_LANDING,layout)
-	var previous_reachable:Dictionary={}
-	var checked_previous:=false
-	for point in actors:
-		var cell:=Vector2i(floori(point.x),floori(point.y))
-		if not _floor_owned_in(cell,owned_parcels) or reachable.has(cell):continue
-		if not checked_previous:
-			previous_reachable=_furniture_actor_component(ENTRY_LANDING,items);checked_previous=true
-		if previous_reachable.has(cell):
-			return "This layout would seal a staff member away from every exit"
-		# A legacy save can already contain a trapped worker. Allow opening its
-		# enclosure and unrelated edits, but do not take away more of its aisle.
-		var before:=_furniture_actor_component(cell,items)
-		var after:=_furniture_actor_component(cell,layout)
-		for accessible in before:
-			if not after.has(accessible):return "Keep the trapped staff member's remaining walkway clear"
+		# A present guest is a real body; a future route is not a footprint.
+		for guest in customers:
+			if str(guest.phase) in ["dirty","cleaning"]:continue
+			var point=Vector2(float(guest.x),float(guest.z))
+			if point.distance_squared_to(point.clamp(minimum,maximum))<STAFF_PLACEMENT_RADIUS*STAFF_PLACEMENT_RADIUS:
+				return "A guest is standing in this footprint"
 	return ""
 
 func _furniture_actor_component(start:Vector2i,layout:Array,walls=null,openings=null) -> Dictionary:
@@ -2123,7 +2064,8 @@ func _wall_actor_list(extra:Array) -> Array[Vector2]:
 	return result
 
 func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> Dictionary:
-	# Start on every still-open public edge. Locked parcels are not pavement.
+	# Preserve structural layout/save safety independently of guest admission.
+	# These original boundary seeds do not authorize a customer entrance.
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
@@ -2139,7 +2081,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 			if not _floor_owned_in(cell,ownership) or blocked.has(cell):continue
 			for direction in DIRECTIONS:
 				var outside:Vector2i=cell+direction
-				if _public_exterior_cell(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
+				if not _floor_owned_in(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
 					reachable[cell]=true;queue.append(cell);break
 	var cursor:=0
 	while cursor<queue.size():
@@ -2202,26 +2144,13 @@ func _wall_candidate_error(wall:Dictionary,actors:Array,ignore_key:String="") ->
 		for group in dining_sets:
 			var table=get_item(int(group.table_id));var seat=get_item(int(group.seat_id))
 			if not table.is_empty() and not seat.is_empty() and WallGeometry.edge_between(Vector2i(int(table.x),int(table.z)),Vector2i(int(seat.x),int(seat.z)))==key:return "A wall cannot split a table set"
-	var sides:=WallGeometry.adjacent_cells(wall)
-	for guest in customers:
-		if str(guest.phase) in ["dirty","cleaning"]:continue
-		var table:=get_item(int(guest.table_id));var chair:=get_item(int(guest.chair_id))
-		if not table.is_empty() and not chair.is_empty() and sides.has(Vector2i(int(table.x),int(table.z))) and sides.has(Vector2i(int(chair.x),int(chair.z))):return "A guest is using this dining edge · wait until the table is clear"
 	var proposed:Array=[]
 	for current in built_walls:
 		if WallGeometry.key_of(current)!=ignore_key:proposed.append(current)
 	proposed.append(wall)
 	var hosted_error=_attachment_layout_error(proposed,wall_attachments)
 	if hosted_error!="":return hosted_error
-	var stove_error=_stove_wall_edit_error(proposed)
-	if stove_error!="":return stove_error
-	var chair_error:=_chair_egress_error(proposed,items,owned_parcels,customers)
-	if chair_error!="":return chair_error
-	return _wall_egress_error(proposed,actors,items,owned_parcels,customers)
-
-func _stove_wall_edit_error(walls:Array,openings=null)->String:
-	var issue=LayoutAccess.introduced_stove_wall(self,walls,openings)
-	return "" if issue.is_empty() else str(issue.reason)
+	return ""
 
 func can_place_wall(axis:String,x:int,z:int,height:String="full",material:String="sage_panels",actor_positions:Array=[]) -> bool:
 	last_error=""
@@ -2638,17 +2567,10 @@ func reroute_guest(guest:Dictionary) -> bool:
 		_begin_departure(guest)
 		return not bool(guest.departure_blocked)
 	elif not is_floor_owned(cell) and str(guest.phase)=="arriving":
-		# Outside walkways form three clear perimeter lanes. Return to the
-		# corresponding lane before choosing another open edge; never diagonal
-		# through unowned plots or across the fixed shell.
-		var prefix:Array[Vector2]=[]
-		if position.x>=BASE_WIDTH and position.y<RIGHT_PARCEL_DEPTH:
-			prefix=[Vector2(_arrival_right(),position.y),Vector2(_arrival_right(),_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
-		elif position.y>=BASE_DEPTH and position.x>=0 and position.x<MAX_WIDTH:
-			prefix=[Vector2(position.x,_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
-		elif position.x<0:prefix=[Vector2(ARRIVAL_LANE_X,position.y)]
-		elif position.y<0:prefix=[Vector2(position.x,-1.76),Vector2(ARRIVAL_LANE_X,-1.76)]
-		else:return false
+		# Replan from the actual west corridor only. Other exterior positions
+		# cannot invent access through a back edge or an unpurchased plot.
+		if not _public_exterior_cell(cell):return false
+		var prefix:Array[Vector2]=[Vector2(ARRIVAL_LANE_X,position.y)]
 		var access:=guest_access_for(int(guest.chair_id),true,prefix[-1],12.5,int(guest.table_id))
 		if not access.is_empty():
 			route=prefix;route.append_array(access.route);best=access
@@ -2707,26 +2629,16 @@ func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
 func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	var reason=_attachment_layout_error(built_walls,proposed)
 	if reason!="":return reason
-	# Adding a door only removes collision; windows never alter ground-level
-	# collision. If every existing doorway survives unchanged, no route, body
-	# clearance, seat exit or workface can become worse. Do not re-reject an
-	# unrelated existing obstruction elsewhere in the cafe for such an edit.
 	if _preserves_existing_doorways(proposed):return ""
-	reason=_stove_wall_edit_error(built_walls,proposed)
+	reason=_opening_body_error(built_walls,proposed,_wall_actor_list(actor_positions))
 	if reason!="":return reason
-	var actors=_wall_actor_list(actor_positions)
-	reason=_opening_body_error(built_walls,proposed,actors)
-	if reason!="":return reason
-	# Closing a door next to a used chair/table may not obstruct the meal.
-	for guest in customers:
-		if str(guest.phase) in ["dirty","cleaning"] or bool(guest.get("withdrawn",false)):continue
-		var table=get_item(int(guest.table_id));var chair=get_item(int(guest.chair_id))
-		if table.is_empty() or chair.is_empty():continue
-		var a=Vector2i(int(table.x),int(table.z));var b=Vector2i(int(chair.x),int(chair.z))
-		if _built_edge_blocked(a,b,built_walls,proposed) and not _built_edge_blocked(a,b,built_walls):return "A guest is using this dining opening · wait until the table is clear"
-	var chair_error:=_chair_egress_error(built_walls,items,owned_parcels,customers,proposed)
-	if chair_error!="":return chair_error
-	return _wall_egress_error(built_walls,actors,items,owned_parcels,customers,proposed)
+	# A logical table/seat pair must remain physically mounted together.
+	for group in dining_sets:
+		var table=get_item(int(group.table_id));var seat=get_item(int(group.seat_id))
+		if table.is_empty() or seat.is_empty():continue
+		var a=Vector2i(int(table.x),int(table.z));var b=Vector2i(int(seat.x),int(seat.z))
+		if _built_edge_blocked(a,b,built_walls,proposed) and not _built_edge_blocked(a,b,built_walls):return "A wall cannot split a table set"
+	return ""
 
 func _preserves_existing_doorways(proposed:Array)->bool:
 	for existing in wall_attachments:
