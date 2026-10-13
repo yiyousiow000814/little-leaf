@@ -40,6 +40,12 @@ def verify(web,native):
  return manifest
 if __name__=='__main__':
  import sys
+ if '--retained-11b3-poll' in sys.argv:
+  from current_handoff_route import main_current11
+  sys.argv.remove('--retained-11b3-poll');main_current11();raise SystemExit(0)
+ if '--retained-59e3-poll' in sys.argv:
+  from current_handoff_route import main
+  sys.argv.remove('--retained-59e3-poll');main(current59=True);raise SystemExit(0)
  if '--retained-9ecd-phase' in sys.argv:
   from current_handoff_route import main
   sys.argv.remove('--retained-9ecd-phase');main();raise SystemExit(0)

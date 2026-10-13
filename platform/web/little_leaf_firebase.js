@@ -196,7 +196,13 @@
     }
     async function performUpload() {
       const handoff=handoffMode?ownerHandoff:null;
-      const uploadGuard=()=>{guard();if(handoff){assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);}};
+      const uploadGuard=()=>{
+        if(!handoff){guard();return;}
+        // A local wait timeout pauses native/UI work, not this already-started
+        // frozen transaction. Its captured intent remains the only authority.
+        assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);
+        if(permissionDenied)throw error('permission-denied',permissionReason);
+      };
       uploadGuard();
       if(!entry?.pending) return;
       lastAttempt=now();
@@ -236,6 +242,7 @@
         const next={...entry,base:candidate.digest,pending:entry.record.digest!==candidate.digest,uploading:null};
         await journal.replace(uid,entry,next);entry=next;state(next.pending?'pending':'saved');
       });
+      if(handoff)handoff.uploadConfirmed=true;
     }
     // A timeout does not cancel Firestore or a journal transaction. Native keeps
     // its durable snapshot latched; continue that exact record, never resnapshot.
@@ -269,6 +276,19 @@
             assertHandoffIntent(intent);const local=await journal.read(uid);await validateLocal(local);assertHandoffIntent(intent);
             if(ownerHandoff!==intent||!same(local,entry)||!same(entry.record,intent.record))throw error('HANDOFF_CHANGED','The frozen progress changed.');
           });
+          // A fulfilled captured upload includes its exact durable receipt.
+          // Its first atomic ACK rechecks the server save and request itself;
+          // uncertain uploads or ACKs still need the readback path below.
+          let receiptReady=false;
+          if(intent.uploadConfirmed&&!intent.ackTask&&!drainedError&&!entry.pending&&!entry.uploading&&entry.base===intent.record.digest){
+            try{ownership.assertHandoff(intent.fence);receiptReady=true;}catch(_){/* Unconfirmed cached ownership needs fresh readback. */}
+          }
+          if(receiptReady){
+            handoffMode=true;stopped=false;guard();
+            intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
+            await networkWait(intent.ackTask);assertHandoffIntent(intent);
+            state('saved');if(ownerHandoff===intent)ownerHandoff=null;return;
+          }
           let cloud=await networkWait(remote.read(uid));await validate(cloud);assertHandoffIntent(intent);
           const confirmed=await networkWait(ownership.confirmHandoff(intent.fence,intent.record.digest,intent.record.revision));assertHandoffIntent(intent);
           const exact=document=>document?.digest===intent.record.digest&&document.profileId===intent.record.profileId&&document.revision===intent.record.revision&&document.writerId===intent.fence.writerId&&document.writerEpoch===intent.fence.writerEpoch;

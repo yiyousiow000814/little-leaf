@@ -1,6 +1,6 @@
 # Little Leaf 版本开发总路线图
 
-> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state source reconciliation is checked against main `59e3e572e5d7723b7515f1a0a2af226bafe38b2f` on 2026-10-12 UTC; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
+> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state source reconciliation is checked against main `3a5c8553f210f13173ccca265f79e8f96d8fc8f5` on 2026-10-13 MYT; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
 
 ## Read this first
 
@@ -12,6 +12,26 @@
 - [Developer instructions and technical references](development/README.md) — focused disposable verification, current detail contracts and archive provenance.
 
 ### Current state and ownership
+
+Current delivery and next tagged candidate on2026-10-13 MYT: [PR257](https://github.com/yiyousiow000814/little-leaf/pull/257) is merged as
+`3a5c8553f210f13173ccca265f79e8f96d8fc8f5` (tree `b0ea319c4a2db4aa9e70b082adbae97e0a22f54b`) after all13 exact-head checks in
+[CI38347904377](https://github.com/yiyousiow000814/little-leaf/actions/runs/38347904377) passed. The original ACK and bounded fallback update only the ACK field;
+their owner/save reads, identity checks, independent confirmation, rules and time limits remain intact. Exact-source real-SDK0/1/2 renewal controls passed with the second renewal exercised;
+the former failed source and diagnostic controls remain preserved and are not relabelled.
+Fresh full qualification [38350747243](https://github.com/yiyousiow000814/little-leaf/actions/runs/38350747243) passed all15 active jobs on that actual main.
+Release reports Hosting [38356107381](https://github.com/yiyousiow000814/little-leaf/actions/runs/38356107381) succeeded for the qualified `/itch/` namespace while retaining the original ROOT payload/configuration;
+the private Draft's selected wrapper19731604 and its CDN bytes were verified, with old uploads retained. These are delivery facts under the earlier scoped approval.
+Fresh SSO, same-tab reload and ownership/concurrency acceptance remain separately assessed; a restored account or an open old ROOT tab does not prove those outcomes.
+
+The latest user requires each prerelease to represent the newest integrated releasable main through a newly created unique tag and the automatic delivery workflows.
+The former proposed `v0.1.11-pre.3a5c8553` tag was never created and is cancelled; the next tag must identify the actual candidate after approved ready changes and necessary routing/refresh gates.
+The current automatic route's ordinary itch channel and replacement Hosting file map require correction before tag creation; the served qualified content must remain intact.
+[PR259](https://github.com/yiyousiow000814/little-leaf/pull/259) prepares complete ACTIVE file-inventory preservation and exact reviewed header application; its exact074e815 source passed all13 ordinary checks,
+but the paired route producer/validator interface and coherent integration are still pending.
+The accepted text-only Saving preview in [PR258](https://github.com/yiyousiow000814/little-leaf/pull/258) has36 focused checks and retained native frames;
+its exact CI38364440409 failed the unchanged atlas provenance guard, so source-bound canonical qualification/final CI remain required before merge.
+PR256 wallet/Pause, PR235 readability, music, Art, Car and other unaccepted/WIP runtime changes are not silently included in the release.
+Ready independent PRs may be merged within scope after actual current-source/required checks and applicable user acceptance; no completed change needs to wait for all0.1.11 work.
 
 Urgent same-itch account/save handoff on2026-10-12: [PR249](https://github.com/yiyousiow000814/little-leaf/pull/249) merged normally as
 `59e3e572e5d7723b7515f1a0a2af226bafe38b2f` (tree `2dc00d31ff80b9d1ca3e24bdf8f6f712f3d8e199`) after all13 exact-head mandatory checks
