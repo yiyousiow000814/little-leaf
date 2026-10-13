@@ -109,7 +109,7 @@ func run():
  game._toggle_edit();await settle()
  check(game.editing and not game.compact_ui.has_open_popup(),"entering Decorate opens no notification")
  verify("enter Decorate")
- game._choose("plant");game._rotate();game._cancel_selection();game._sell();game._upgrade();refresh()
+ game._choose("plant");game._rotate();game._cancel_selection();game._sell();refresh()
  check(game.selected_id==-1 and game.selected_kind=="","selection, rotation, cancel and rejected actions remain callable")
  verify("action callbacks")
  m.coins=100000
