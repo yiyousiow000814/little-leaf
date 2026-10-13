@@ -86,3 +86,19 @@ qualification; tag jobs already reuse an exact successful main artifact with
 final source/package checks. A PR result is never substituted for main source or
 a release package. No new change-selection rule, cache or cross-run evidence
 reuse is introduced by this timing refresh.
+
+Current-snapshot jobs (`engine`, `build`, `browser`, `gate`) need HEAD, its tree,
+tracked file inventory and clean-source status, not ancestor objects. Their
+one-commit checkouts retain all those exact-source checks and every test. Guard
+PR-parent/diff classification, historical clients, compatibility, Firebase and
+common-tag ancestry retain full history. This removes nine full-history fetches
+per ordinary full run (five native, one build, two browser, one final gate), with
+no cache or cross-run evidence substitution. A real shallow Git fixture verifies
+snapshot/tree/inventory equality and detection of modified tracked bytes.
+
+The scheduling-only candidate38409945856 passed all13 mandatory jobs in10m25s
+including28s initial queue; native steps157–170s replace the two baseline ranges
+70–198s and51–221s. It is31s faster than the PR baseline but23s slower than the
+main baseline; queue/browser variability prevents claiming a repeatable total
+speedup. The subsequent checkout reduction and current-main composition need
+fresh automatic qualification and their own measured result.
