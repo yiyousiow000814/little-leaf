@@ -28,6 +28,7 @@ func verify_public_routes(m,label:String):
   check(not m._public_exterior_cell(Vector2i(parcel.x,parcel.z)),label+": sale parcel is never public "+str(parcel.id))
  for entry in entries:
   check(m.is_floor_owned(entry.cell) and m._public_exterior_cell(entry.outside),label+": owned threshold/public outside")
+  check(entry.cell.x==0 and entry.outside.x==-1 and entry.direction==Vector2i.LEFT,label+": entrance opens directly to west corridor")
   for arriving in [true,false]:
    var route=m._exterior_approach(entry,arriving)
    check(not route.is_empty(),label+": public approach exists")
@@ -48,30 +49,36 @@ func verify_public_routes(m,label:String):
 func ownership_routes():
  var m=Model.new();Minimal.apply(m);m.coins=10000000
  verify_public_routes(m,"original")
- for cell in [Vector2i(3,9),Vector2i(12,3),Vector2i(12,9)]:
+ for cell in [Vector2i(3,9),Vector2i(12,3),Vector2i(12,9),Vector2i(3,-1),Vector2i(18,3),Vector2i(3,18)]:
   check(not m._public_exterior_cell(cell,[]),"unbought front/right/corner is not pavement")
   check(m._exterior_approach({"outside":cell,"direction":Vector2i.DOWN},true).is_empty(),"stale private approach rejected")
  check(m.buy_parcel("front_0"),"buy one front plot")
  verify_public_routes(m,"expanded")
- for id in ["right_0","right_1","right_2","right2_0"]:check(m.buy_parcel(id),"buy outer-right fixture "+id)
- verify_public_routes(m,"outer-right")
- check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"move door onto actual public back edge")
- verify_public_routes(m,"moved-door")
- var guard=0
- while not m.next_parcel().is_empty() and guard<24:
-  check(m.buy_parcel(str(m.next_parcel().id)),"complete purchased map")
-  guard+=1
- verify_public_routes(m,"fully-owned")
+ check(m.buy_parcel("right_0"),"buy land elsewhere without authorizing a new public approach")
+ verify_public_routes(m,"right-owned")
+ check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:west",3.5),"move door within real corridor edge")
+ verify_public_routes(m,"moved-corridor-door")
+ for z in range(Model.BASE_DEPTH,Model.BASE_DEPTH+Model.PARCEL_DEPTH):check(m.place_wall("z",0,z),"wall purchased corridor-side plot")
+ check(not m.boundary_entries().any(func(entry):return entry.cell.y>=Model.BASE_DEPTH),"walled side land creates no side entrance")
+ verify_public_routes(m,"side-owned-walled")
+ var snapshot=state(m);var openings=m.wall_attachments.duplicate(true)
+ check(not m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"back door cannot replace last corridor connection")
+ check(state(m)==snapshot and m.wall_attachments==openings,"inaccessible door move preserves layout, identity and economy")
+ var sealed=Model.new();Minimal.apply(sealed);sealed.coins=10000000
+ check(sealed.buy_parcel("right_0"),"synthetic disconnected-side fixture buys land elsewhere")
+ sealed.wall_attachments[0].host_id="shell:back";sealed.wall_attachments[0].offset=3.5
+ snapshot=state(sealed)
+ check(sealed.boundary_entries().is_empty() and sealed.guest_access_for(7).is_empty(),"purchased elsewhere plus sole back opening has no corridor access")
+ check(state(sealed)==snapshot,"inaccessible synthetic route queries are read-only")
 func public_reroutes():
  for expanded in [false,true]:
   var m=Model.new();Minimal.apply(m);m.coins=10000000
-  if expanded:
-   for id in Model.RIGHT_PARCEL_IDS:check(m.buy_parcel(id),"reroute fixture buys "+id)
+  if expanded:check(m.buy_parcel("front_0"),"reroute fixture buys corridor-connected side land")
   m._spawn_customer();var guest=m.customers[0]
-  for position in [Vector2(19.76,3.5),Vector2(19.76,12.0),Vector2(3.5,19.4)]:
+  for position in [Vector2(-2.76,3.5),Vector2(-2.76,12.0),Vector2(-.85,19.4)]:
    guest.x=position.x;guest.z=position.y
    var original=guest.duplicate(true);var snapshot=state(m)
-   check(m.reroute_guest(guest),"lawful public-perimeter arrival replans "+str(position))
+   check(m.reroute_guest(guest),"actual corridor arrival replans "+str(position))
    var previous=position
    for point in guest.route:
     var cell=Vector2i(floori(point.x),floori(point.y))
@@ -83,9 +90,10 @@ func public_reroutes():
     retained.erase(key);original.erase(key)
    check(retained==original,"replan preserves guest identity, position, claims and payment")
    check(m.items==snapshot[0] and m.coins==snapshot[2] and m.served==snapshot[3] and m.total_earned==snapshot[4],"replan preserves layout and economy")
-  guest.x=12.5;guest.z=10.5
-  var before=guest.duplicate(true)
-  check(not m.reroute_guest(guest) and guest==before,"private-corner origin refuses atomically")
+  for position in [Vector2(12.5,10.5),Vector2(19.76,3.5),Vector2(3.5,-.5),Vector2(3.5,19.4)]:
+   guest.x=position.x;guest.z=position.y
+   var before=guest.duplicate(true)
+   check(not m.reroute_guest(guest) and guest==before,"non-corridor origin refuses without rewriting guest "+str(position))
 func _initialize():
  ownership_routes()
  public_reroutes()

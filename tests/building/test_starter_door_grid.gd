@@ -30,6 +30,10 @@ func legacy():
  var model=Model.new();model.coins=54321;model.wall_attachments[0].width=1.5
  return model
 func roundtrip(model,label:String,expected_width:float):
+ # Back-door migration fixtures retain a real missing-wall corridor exit.
+ # A sole rear opening is separately tested as inaccessible under the corridor rule.
+ if model.wall_attachments[0].host_id=="shell:back" and model.boundary_has_wall(Vector2i(0,7),Vector2i.LEFT):
+  check(model.remove_wall("shell:west#7",false),label+" synthetic corridor gap uses checked wall API")
  var path=OUT+"/"+label+".json"
  check(model.save(path),label+" synthetic save: "+model.last_error)
  if not FileAccess.file_exists(path):return null

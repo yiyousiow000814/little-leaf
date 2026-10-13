@@ -84,10 +84,15 @@ func run():
  var reread=Model.new();check(reread.load_save("user://half-root-mixed.json"),"mixed heights with supported window reload")
  # Historical allocation remains fixed when a retained extension moves or
  # is removed, including half roots and a previously repurchased neighbor.
+ var corridor_fixture=Model.new();corridor_fixture.coins=20000
+ check(corridor_fixture.buy_parcel("front_0") and corridor_fixture.coins==10000,"legacy extension fixture purchases actual corridor-connected side land")
+ check(corridor_fixture.save("user://corridor-side-ownership.json"),"generated corridor ownership saves through ordinary writer")
+ var corridor_payload=JSON.parse_string(FileAccess.get_file_as_string("user://corridor-side-ownership.json"))
  for height in ["full","half"]:
   for edited in [false,true]:
    for action in ["remove","move"]:
     raw=legacy.duplicate(true);raw.shell_products["shell:west"]={"height":height,"material":"cream_stripe","paid_cost":int(Segments.LEGACY_PRICES[height])*9}
+    raw.owned_parcels=corridor_payload.owned_parcels.duplicate();raw.expanded=corridor_payload.expanded
     raw.built_walls=[{"id":41,"axis":"z","x":0,"z":8,"height":"full","material":"leaf_print"}];raw.next_wall_id=42
     # Keep the payment-extension fixture's public door clear of the default bookshelf at x5.
     raw.wall_attachments=[{"id":77,"kind":"door","host_id":"shell:back","offset":3.5,"width":1.5,"paid_cost":40}];raw.next_attachment_id=78

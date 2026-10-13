@@ -14,12 +14,13 @@
 ### Current state and ownership
 
 Customer ownership routing ([Draft PR268](https://github.com/yiyousiow000814/little-leaf/pull/268), 0.1.11 / 07.03-07.04):
-source `42bf187aaa0ef056977fa69338560bd58c01dab1` restricts approaches and exterior replanning to the permanent public perimeter.
-One isolated Godot4.6.3 run passed1028 existing route assertions plus six paired actual native capture cases, with no diagnostics;
-the moved-door reproduction changes the old private-land approach `(0,9)` to the actual new public doorway `(3,-1)`.
-Original and front-expanded routes and images remain byte-identical. Three generated baseline active saves load without changing their source bytes;
-an explicit replan from private land refuses without mutating that guest. Automatic replay of previously saved private-land routes remains unchanged and unqualified.
-Required current CI, player acceptance and merge remain pending; the subsequent test-only fixture alignment is separate from the exact42bf runtime evidence. No release or player-save mutation is established.
+the user clarified that arrivals must connect from the actual west corridor to owned floor through a door or missing-wall opening.
+Purchased corridor-side land may add an entrance only where its corridor edge is unblocked; buying land elsewhere does not grant another public approach.
+The former whole-perimeter candidate and its back-entry `(3,-1)` images are explicitly NOT accepted.
+Source42bf native1028+6 and current-main1cc CI38404952346 remain historical evidence, not qualification of the corridor-only successor.
+The narrow successor retains candidate ownership and wall/aperture guards; focused corridor/default/unowned-side/owned-open/owned-walled evidence and fresh CI are pending.
+Historical sole-back or far-side saves may be atomically refused under this rule. Original save bytes, actors and ledgers are not silently rewritten;
+automatic replay of previously saved private-land routes remains unchanged and unqualified. Player acceptance, merge and delivery remain pending.
 
 Current delivery and next tagged candidate on2026-10-13 MYT: [PR257](https://github.com/yiyousiow000814/little-leaf/pull/257) is merged as
 `3a5c8553f210f13173ccca265f79e8f96d8fc8f5` (tree `b0ea319c4a2db4aa9e70b082adbae97e0a22f54b`) after all13 exact-head checks in
