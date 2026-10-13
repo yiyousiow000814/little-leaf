@@ -1,9 +1,10 @@
 # Little Leaf 版本开发总路线图
 
-> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state cleanup/UI-scope reconciliation is pinned to main `97ee8a34bdfe60cf9dae8a396065d6d07b6cdb85` on 2026-10-11 UTC; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
+> This is the single canonical editing plan for Little Leaf, established by merged [PR132](https://github.com/yiyousiow000814/little-leaf/pull/132). Current-state source reconciliation is checked against main `3a5c8553f210f13173ccca265f79e8f96d8fc8f5` on 2026-10-13 MYT; other dated entries retain their original scope. The complete requirements and dated evidence below retain the reviewed historical master snapshot from 03:10 UTC. Library master v3 remains a historical snapshot and has not been synchronized to this repository roadmap.
 
 ## Read this first
 
+- [Latest approved 0.1.11 decisions](#approved-011-decisions) — retained requirements and scoped acceptance; current implementation/status remains separate.
 - [Current state and ownership](#current-state) — exact source/date, code/tests/visual/merged/released remain separate.
 - [Original complete version requirements](#original-requirements) — all0.1.10–0.3.2 plans, including proposals and numeric hypotheses.
 - [Version reconciliation](#version-reconciliation), [10a changes](#10a-changes), [all76 outcomes for11](#outcomes-011).
@@ -12,38 +13,65 @@
 
 ### Current state and ownership
 
-Current same-itch qualification repair on2026-10-12: fresh stage38238105653 on
-`a9bfc3d0` passed its ten recorded cache/ownership checks, then failed an
-uncaught fixture route evaluation during context teardown. The scoped
-[route lifecycle correction](release/itch-trusted-preview-candidate.md#compiled-route-teardown-correction---2026-10-12)
-owns pending callbacks, releases its held update RPC on close, and preserves
-unexpected errors and earlier failures. Focused pure Node checks pass; fresh
-required CI, complete compiled qualification and hosted Google-to-game acceptance
-remain open. Product/save/rules/security source and acceptance thresholds are
-unchanged; no Hosting or itch publication is established.
+Current delivery and next tagged candidate on2026-10-13 MYT: [PR257](https://github.com/yiyousiow000814/little-leaf/pull/257) is merged as
+`3a5c8553f210f13173ccca265f79e8f96d8fc8f5` (tree `b0ea319c4a2db4aa9e70b082adbae97e0a22f54b`) after all13 exact-head checks in
+[CI38347904377](https://github.com/yiyousiow000814/little-leaf/actions/runs/38347904377) passed. The original ACK and bounded fallback update only the ACK field;
+their owner/save reads, identity checks, independent confirmation, rules and time limits remain intact. Exact-source real-SDK0/1/2 renewal controls passed with the second renewal exercised;
+the former failed source and diagnostic controls remain preserved and are not relabelled.
+Fresh full qualification [38350747243](https://github.com/yiyousiow000814/little-leaf/actions/runs/38350747243) passed all15 active jobs on that actual main.
+Release reports Hosting [38356107381](https://github.com/yiyousiow000814/little-leaf/actions/runs/38356107381) succeeded for the qualified `/itch/` namespace while retaining the original ROOT payload/configuration;
+the private Draft's selected wrapper19731604 and its CDN bytes were verified, with old uploads retained. These are delivery facts under the earlier scoped approval.
+Fresh SSO, same-tab reload and ownership/concurrency acceptance remain separately assessed; a restored account or an open old ROOT tab does not prove those outcomes.
+
+The latest user requires each prerelease to represent the newest integrated releasable main through a newly created unique tag and the automatic delivery workflows.
+The former proposed `v0.1.11-pre.3a5c8553` tag was never created and is cancelled; the next tag must identify the actual candidate after approved ready changes and necessary routing/refresh gates.
+The current automatic route's ordinary itch channel and replacement Hosting file map require correction before tag creation; the served qualified content must remain intact.
+[PR259](https://github.com/yiyousiow000814/little-leaf/pull/259) prepares complete ACTIVE file-inventory preservation and exact reviewed header application; its exact074e815 source passed all13 ordinary checks,
+but the paired route producer/validator interface and coherent integration are still pending.
+The accepted text-only Saving preview in [PR258](https://github.com/yiyousiow000814/little-leaf/pull/258) has36 focused checks and retained native frames;
+its exact CI38364440409 failed the unchanged atlas provenance guard, so source-bound canonical qualification/final CI remain required before merge.
+PR256 wallet/Pause, PR235 readability, music, Art, Car and other unaccepted/WIP runtime changes are not silently included in the release.
+Ready independent PRs may be merged within scope after actual current-source/required checks and applicable user acceptance; no completed change needs to wait for all0.1.11 work.
+
+Urgent same-itch account/save handoff on2026-10-12: [PR249](https://github.com/yiyousiow000814/little-leaf/pull/249) merged normally as
+`59e3e572e5d7723b7515f1a0a2af226bafe38b2f` (tree `2dc00d31ff80b9d1ca3e24bdf8f6f712f3d8e199`) after all13 exact-head mandatory checks
+in [CI38295834327](https://github.com/yiyousiow000814/little-leaf/actions/runs/38295834327), attempt1, passed.
+The two-path correction wakes the same frozen handoff after late upload/ACK settlement and skips a redundant cloud read when no new upload was needed.
+Atomic ACK still checks the exact server save and owner/request fence; account/generation/profile/digest/revision/writer/epoch/request fences, permission refusal, native snapshot custody and all existing time limits remain unchanged.
+The retained Linux diagnostic38291680853 on coordinator08bcf651 and runtime9ecd failed its original45-second graceful transfer gate after five early checks; Release's measured cloud/journal r2 match and absent ACK invocation identify the incomplete handoff, not release qualification.
+The user's latest-pre-first delivery target is itch and Firebase by2026-10-12 23:00UTC /2026-10-13 07:00MYT.
+Release now owns fresh changed-main compiled qualification, exact eligible package/action binding and the authorized trusted-wrapper/Hosting delivery; Queue owns the distinct runtime admission and Auth validates the actual served-version Google-to-game flow.
+Those gates and actual deployment remain open. Earlier failed/frozen evidence and original profiles/saves remain intact; unrelated music/UI/Art/Car work is not a dependency of this necessary repair.
 
 
-Independent platform tag delivery ([Draft PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
+Settings/Help/Updates acceptance on2026-10-12: [PR135](https://github.com/yiyousiow000814/little-leaf/pull/135) merged normally as `73f604272e45de88e165f4c214c9def55ebcdebe` after all13 exact checks in run38152268068 passed. The accepted Settings menu, fixed X/Back/focus, Help placement and shared typography are incorporated once. This source/visual acceptance remains separate from hosted login and release inclusion. The later Help stats source is recorded below.
+
+Independent platform tag delivery ([PR241](https://github.com/yiyousiow000814/little-leaf/pull/241)) on2026-10-12: the user requires one
 common exact-source build/ordinary qualification with separate itch and Firebase
 CI/publication, without either waiting for the other's upload. The
 [shared tag contract](release/README.md#shared-tag-qualification-and-independent-platforms)
 preserves immutable origins, complete ordinary gates, distinct Firebase gates,
 current-live ancestry/config/rollback and legacy manual/test refusals. Source
 implementation,168 applicable synthetic checks and independent source review
-passed; coherent current-source CI and actual approved delivery remain open.
+passed. PR241 merged normally as `83438fa050eaa08cf8c9800b7c33da0db485e8c9`
+after all13 exact checks in run38220066280 passed; the tag-only common job was
+skipped on this PR event. Actual common-tag/platform execution and approved
+delivery remain open.
 No new tag, Hosting mutation, account action or release is established.
 
-Same-itch diagnostic follow-up ([Draft PR237](https://github.com/yiyousiow000814/little-leaf/pull/237)) on2026-10-12: the retained `69f33801`/compiled
+Same-itch diagnostic follow-up ([PR237](https://github.com/yiyousiow000814/little-leaf/pull/237)) on2026-10-12: the retained `69f33801`/compiled
 `a897a31f` Windows diagnostic passed ten ownership/cache checks but failed its
 unchanged final zero-errors assertion on three worklet404s. The scoped
 [packaged worklet fixture correction](release/itch-trusted-preview-candidate.md#packaged-worklet-fixture-transport)
-retains exact module bytes and all original assertions. Source/pure tests pass;
-fresh browser/CI, live URL delivery and real Google acceptance remain open. No
+retains exact module bytes and all original assertions. PR237 merged normally
+as `db71efec8b4abd163205d28551f1a6a34878883e` after all13 exact checks in
+run38217537554 passed, including ordinary browser gates. Retained compiled
+diagnostic execution, live URL delivery and real Google acceptance remain open. No
 Hosting update, tag, account action or unchanged diagnostic retry follows from
 this source correction.
-Remaining root classification on 2026-10-12: [PR236](https://github.com/yiyousiow000814/little-leaf/pull/236) merged as `7dbb28bf9caa1723d7c0c16e6915344239462b2b` after all13 exact checks in run38199812309 passed, moving six scenario CLIs into their test families. [PR238](https://github.com/yiyousiow000814/little-leaf/pull/238) merged as `f55aa66a6c800310e7bcbf89024b68d7c30e7879` after all13 exact checks in run38204994959 passed, delivering the seven build-helper relocations. [PR239](https://github.com/yiyousiow000814/little-leaf/pull/239) merged as `6e4a9055ac688dfeda13aba9b0658f0a6ace2a57` after all13 exact checks in run38209406758 passed, delivering the three qualification-helper relocations. [PR240](https://github.com/yiyousiow000814/little-leaf/pull/240) merged as `202b82a75b794302e85e4cf869535887b3e1a24e` after all13 exact checks in run38210980100 passed, delivering the seven release-helper relocations. [PR242](https://github.com/yiyousiow000814/little-leaf/pull/242) relocates the shared Node resolver, Firebase boot test and update-notice suite, leaving only the justified tools2/tests5/scripts4 root files in the final source. Current ownership/source review and required exact-source CI remain merge gates; the PR's source, checks and actual merge record govern completion. Arguments, stable suite IDs, staging labels, receipts and historical qualification namespaces are preserved.
+Remaining root classification on 2026-10-12: [PR236](https://github.com/yiyousiow000814/little-leaf/pull/236) merged as `7dbb28bf9caa1723d7c0c16e6915344239462b2b` after all13 exact checks in run38199812309 passed, moving six scenario CLIs into their test families. [PR238](https://github.com/yiyousiow000814/little-leaf/pull/238) merged as `f55aa66a6c800310e7bcbf89024b68d7c30e7879` after all13 exact checks in run38204994959 passed, delivering the seven build-helper relocations. [PR239](https://github.com/yiyousiow000814/little-leaf/pull/239) merged as `6e4a9055ac688dfeda13aba9b0658f0a6ace2a57` after all13 exact checks in run38209406758 passed, delivering the three qualification-helper relocations. [PR240](https://github.com/yiyousiow000814/little-leaf/pull/240) merged as `202b82a75b794302e85e4cf869535887b3e1a24e` after all13 exact checks in run38210980100 passed, delivering the seven release-helper relocations. [PR242](https://github.com/yiyousiow000814/little-leaf/pull/242) merged normally as `de4e3022285ad01ef07181ba0dcd4881713c4775` after all13 exact checks in run38212067958 passed, relocating the shared Node resolver, Firebase boot test and update-notice suite. The final root classification is delivered with the justified tools2/tests5/scripts4 root files; current-source review and exact merge records bind this source completion. Arguments, stable suite IDs, staging labels, receipts and historical qualification namespaces are preserved.
 
-Editor acceptance on 2026-10-12: the user accepted the actual narrow preview for [Draft PR103](https://github.com/yiyousiow000814/little-leaf/pull/103), source `4319a656508ac125d765a4158a8dd3a3a6b2711c`. Its ordinary CI run38169861706 passed all13 required checks. The isolated 390x844 emulated-touch flow completed 32 operations: preview and cancel preserved the complete saved state, then release committed three Cream tiles for exactly30 coins once; actual saved frames were inspected and the accepted narrow image is retained as Library version2. Physical phone input remains unverified. Latest-main integration after PR234 preserved this game source byte for byte; PR103 merged normally as b0447db894583321b4605c0a46dec672b5ded63f after all13 exact-head checks in run38197371877 passed. This acceptance does not publish a release or deploy a service.
+Editor acceptance on 2026-10-12: the user accepted the actual narrow preview for [PR103](https://github.com/yiyousiow000814/little-leaf/pull/103), source `4319a656508ac125d765a4158a8dd3a3a6b2711c`. Its ordinary CI run38169861706 passed all13 required checks. The isolated 390x844 emulated-touch flow completed 32 operations: preview and cancel preserved the complete saved state, then release committed three Cream tiles for exactly30 coins once; actual saved frames were inspected and the accepted narrow image is retained as Library version2. Physical phone input remains unverified. Latest-main integration after PR234 preserved this game source byte for byte; PR103 merged normally as b0447db894583321b4605c0a46dec672b5ded63f after all13 exact-head checks in run38197371877 passed. This acceptance does not publish a release or deploy a service.
 
 Bounded same-itch qualification repair on 2026-10-11: [PR233](https://github.com/yiyousiow000814/little-leaf/pull/233) merged as `a897a31f20ad4b95a6f350b219cc12f56a17f3b6` after all13 exact checks in run38170059576 passed. It follows official test stage38165586296 on `06bc3ca7`, which failed compiled iframe startup; no deployable Firebase test artifact or activation resulted. The [compiled fixture transport correction](release/itch-trusted-preview-candidate.md#compiled-iframe-fixture-transport-correction) retains the original assertions/timeouts, serves pinned SDK bytes over HTTPS, uses a finite demo-only emulator proxy and seeds the actual nested frame. A no-game probe confirmed public-frame loopback module rejection; storage partition failure did not reproduce and actual SDK/game cause remains unqualified. Bounded source review and finite fixture checks passed; fresh compiled full-flow timing and immutable eligible-artifact review remain required. The existing homepage, current itch publication, original profiles, Auth/IAM/rules and earlier failed/frozen evidence are preserved; no hosted or real-Google acceptance is claimed.
 
@@ -67,7 +95,7 @@ Cleanup reconciliation on2026-10-11, main `97ee8a34bdfe60cf9dae8a396065d6d07b6cd
 
 The approved urgent SHA prerelease policy is documented separately in [Draft PR173](https://github.com/yiyousiow000814/little-leaf/pull/173). Actual pipeline support and old-client transition remain pending with the release owner; the policy PR does not publish or accept gameplay. [Draft PR169](https://github.com/yiyousiow000814/little-leaf/pull/169) retains the separately reviewed QA branch-closeout rule unchanged.
 
-Additional0.1.11 UI scope confirmed on2026-10-11: Settings **Show stats** defaults off and displays actual live FPS separately from the FPS cap. Keep it lightweight and readable, reusing existing diagnostics; no telemetry or new performance framework. Inbox text sizing uses shared semantic styles in the separately owned UI candidate. The user accepted source dd91904 and its three actual preview images on2026-10-12 at04:03:59UTC; technical count, exit-warning review, current-main composition and exact CI remain pending. The existing HUD/UI owner retains sole implementation ownership and will deliver coherent candidates separately from cleanup. These requirements supplement the historical76-outcome snapshot; recording them does not establish code, visual acceptance or completion.
+Additional0.1.11 UI scope confirmed on2026-10-11: Settings **Show stats** defaults off and displays actual live FPS separately from the FPS cap. Keep it lightweight and readable, reusing existing diagnostics; no telemetry or new performance framework. Inbox text sizing uses shared semantic styles in the separately owned UI candidate. The user accepted source dd91904 and its three actual preview images on2026-10-12 at04:03:59UTC; technical count, bounded exit-warning disposition and current-main composition are complete. [PR178](https://github.com/yiyousiow000814/little-leaf/pull/178) merged normally as `7eed3c1b156c256d499703f46c994922fab78f3d` after all13 exact checks in run38213955075 passed, with the source-bound three-UI-row atlas qualification from run38210238730 adopted. The earlier full-navigation ObjectDB warning remains unattributed; the accepted bounded disposition does not certify all leaks absent. Stable-60, physical-phone, hosted acceptance and release inclusion remain separate. The existing HUD/UI owner retains sole implementation ownership for subsequent UI work. These requirements supplement the historical76-outcome snapshot; subsequent UI work still needs its own source-bound verification and acceptance.
 
 Login/save repair release preparation on2026-10-11: [Draft PR160](https://github.com/yiyousiow000814/little-leaf/pull/160) pairs the ACK renewal repair with bounded closed-IndexedDB reconnection, retained conflict-choice archives, and renewal before resumed cloud upload. Genuine permission denial remains sticky with durable pending/export; independently confirmed ownership loss retains explicit takeover. The ordinary itch export now carries the styled permanent chooser and official top-level new-tab account link, with original local play and separate progress wording. Independent scoped review passed; real IndexedDB regression passed92 assertions and isolated SDK/rules cutover passed14 checks. Frozen c+ACK `7783a366` / tree `a75d3f8a` passed official run38102748710 separately; it does not qualify this successor. [PR164](https://github.com/yiyousiow000814/little-leaf/pull/164) independently guards normal live-package eligibility. Final composed-source qualification, paired Hosting/itch delivery and real Google-to-game acceptance remain distinct; no activation is claimed. Exact user approval covers project-wide production rules cutover and repair release, without any new separately maintained old-rule backup; existing history and player data remain preserved. Background/binding0.1.11 is excluded.
 
@@ -143,6 +171,56 @@ PR128 `8a97a45`已推送画面回归修复；当前接入main `af61a3f`的新目
 安全边界：使用合成/可丢弃存档及独立checkout；不改玩家原始存档、用户浏览器或live Firebase rules。本文不授权merge/main变化、部署或发布。保留已发布b8b80ee的清理、教程、账号与存档行为。开始代码工作前，核对实际branch/head、该checkout指引及对应PR依赖。
 
 执行交接：本便携主文档未验证某个本地checkout路径或下一位执行者联系方式。开始任何代码修改前，向对应所有者确认checkout、branch、head及正在进行的任务，避免重复。使用Godot4.6.3 GL Compatibility；先读取该checkout的tests/run_integration_candidate.py --help，再只选择与当前症状相关的已存在测试名，并使用新的绝对路径可丢弃输出。PR114音乐QA仍暂停；FPS128仅由用户当前授权的收尾任务处理；不扩展为全局暂停。
+
+## Latest approved 0.1.11 decisions
+
+<a id="approved-011-decisions"></a>
+
+These user decisions were recorded on 2026-10-10 in [PR141's frozen requirements](https://github.com/yiyousiow000814/little-leaf/blob/48e4a815eb58dd40d88f41c266df0ebbadc9555a/docs/roadmap.md#approved-011-decisions). They supplement the existing 76 outcomes; retaining Stove Upgrade benefits and the whole-map green/red placement overlay are superseded. Background earnings belongs entirely to 0.1.11, outside the 10a release gate. Implementation, ownership, actual verification, merge and release status remain governed by [current state](#current-state) and the corresponding domain contracts. Restoring requirements does not activate a private save capability, transfer old evidence or approve new gameplay/economy policy.
+
+### Stove Upgrade removal — 04.03
+
+Remove the upgrade UI, purchase paths, runtime mechanism and legacy level/speed bonuses; all stoves use base cooking behavior. Normalize historical upgraded placed/inventory stoves safely through save/reload while preserving unrelated identity, ownership, dishes/jobs and save/wallet integrity. Do not invent refunds, compensation, tiers or prices. Acceptance covers fresh and legacy levels 2/3, base-speed consistency, absence of upgrade paths and the actual UI.
+
+### Physical placement — 06.01 / 06.09
+
+Remove the entire green/red map overlay. Invalid feedback belongs only to the selected physical footprint for overlap, bounds or floor/wall surface violations. Reachability and door connectivity produce a separate nonblocking walking/access warning, not a purchase/move/confirm veto; physically valid staff islands do not require front-door connectivity. Preserve actual routing, bodies and ownership without teleportation. Verify enclosed placement and blocked/unblocked access after save/reload, and door move/cancel/confirm/restore with no stale red area at either position. The reported stale door area does not establish a hardcoding cause.
+
+### Concurrent sink wash, dropoff and fallback — 04.07
+
+A wash job must allow dirty-plate dropoff through another accessible side until capacity is full, preserving the janitor's job/contact and existing washing mechanic. If that sink is full or unusable, use another reachable sink with capacity. If all options are blocked, retain the carried dish and retry without stealing claims, exceeding capacity, teleporting or invisibly dropping it. Acceptance includes multiple waiters, both fallback cases, cancellation, pause and save/reload with exactly-once plate/queue custody; hand/plate contact and rim/occlusion need their own rendered evidence.
+
+### Direct workstation pickup — 10.01 / 10.02
+
+Remove the new service flow's serving-table dependency and reuse the existing direct chef-workstation pickup, preserving legacy owned counters and outstanding handoffs needed by old saves. The waiter may share the chef's logical standing tile, with distinct physical/visual contact positions so full sprites do not overlap; this is a Little Leaf decision, not verified original Restaurant City behavior. Keep one output/plate owner and one transfer. Verify repeated two-chef orders, genuine blocked-path retry, pause and save/reload without duplicate/lost plates or stranded orders; this requirement does not restate an old defect as currently unfixed.
+
+### Fixed four-bay parking purchase
+
+Unlock the existing four bays through a fixed map For Sale/unlock sign, analogous to land expansion. Remove parking purchase from the placeable Decorate catalog; it cannot be dragged, relocated or instantiated as furniture. Show locked/unlocked state and a clear action. Cancellation/insufficient funds preserve the wallet; repeated activation and save/reload must not double-charge, duplicate bays or reset ownership. Retain the existing location, prices and economy policy. Acceptance includes actual sign interaction and usable unlocked bays.
+
+### Coherent traffic and persistent visitor parties
+
+<a id="parking-visitor-party-011"></a>
+
+Road/parking cars share coherent traffic rules and velocity scale: slow on approach, yield on conflict, turn smoothly into a bay and yield before exit merging. Preserve ownership through transitions without speed jumps, teleportation, snapping or conflicting-car overlap. Each car carries 1–4 persistent restaurant visitors using existing customer/seating rules. Keep each member's stable party/customer identity, species and appearance tied to the same vehicle through disembarkation, the visit, return and applicable save/restore. Staggered meals/returns are allowed; the car waits until all original members board, with no replacement or unrelated passenger. Verify parties of 1–4, full/occupied restaurant handling, entry/exit conflicts, interrupted phases and recovery without orphan cars, stranded claims or identity substitutions. Do not invent admission, payment or seating policy; reported speed/appearance discrepancies remain observations until reproduced.
+
+### Orthogonal land-expansion frontier
+
+<a id="land-expansion-adjacency"></a>
+
+Any in-bounds unowned plot sharing an orthogonal edge with any owned plot is eligible; no prescribed purchase chain or diagonal-only contact qualifies. After each purchase and load, recompute every eligible fixed sign from saved ownership, including subsequent north/south/east/west neighbors; eligibility is not automatic purchase. Verify the existing 10,000-to-adjacent-18,000 example, continued frontier expansion, diagonal/out-of-bounds exclusion, insufficient funds/cancellation and save/reload without missing signs or duplicate charges. Those amounts identify existing examples, not new prices or refund policy.
+
+### Background earnings — 0.1.11 only
+
+<a id="background-earnings-011"></a>
+
+Settle eligible open-game hidden duration × the observed pre-absence average net-profit rate × 0.75 once. Use actual-play net profit with matching time units, not gross revenue, a wallet multiplier or an invented estimate. The averaging window, sufficient samples and fallback require explicit design/verification. Exclude manual Pause and close/reopen catch-up. Verify interval eligibility, local/cloud session authority, owner/device/clock/visibility changes and repeated-return/retry/interruption/save-reload without duplicate, lost or foreign-owner credit. Historical brief-callback or emulator evidence does not accept this formula or its authority boundaries.
+
+### Explicit local progress migration and in-game Google binding
+
+<a id="local-google-binding-011"></a>
+
+Provide an explicit in-game bind/sign-in action after local play begins; account entry alone is insufficient. Keep the complete local restaurant intact until the intended cloud write and account/profile/revision are verified. If cloud progress exists, show both states for an explicit choice/cancellation; never silently prefer, overwrite or combine them, and protect the unselected state. Refresh cloud ownership/version at choice time so concurrent writes invalidate stale choices safely. Verify cancellation, denied/failed sign-in, network/interruption/retry and repeated actions without data loss, duplicate coins/items/restaurants or replayed transfer. State which origin's local save is actually accessible; cross-origin transfer requires an explicit supported path and verified source identity. Actual in-game presentation, recovery and hosted acceptance remain separate from source/mock checks; no Auth/rules change is authorized here.
 
 <a id="original-requirements"></a>
 
