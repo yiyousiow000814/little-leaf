@@ -53,7 +53,7 @@ func ownership_routes():
   check(m._exterior_approach({"outside":cell,"direction":Vector2i.DOWN},true).is_empty(),"stale private approach rejected")
  check(m.buy_parcel("front_0"),"buy one front plot")
  verify_public_routes(m,"expanded")
- for id in ["right_0","right2_0"]:check(m.buy_parcel(id),"buy outer-right fixture "+id)
+ for id in ["right_0","right_1","right_2","right2_0"]:check(m.buy_parcel(id),"buy outer-right fixture "+id)
  verify_public_routes(m,"outer-right")
  check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"move door onto actual public back edge")
  verify_public_routes(m,"moved-door")
