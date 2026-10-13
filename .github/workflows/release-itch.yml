@@ -43,7 +43,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   publish:
-    if: github.repository == 'yiyousiow000814/little-leaf' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != ''))
+    if: github.repository == 'yiyousiow000814/little-leaf' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
