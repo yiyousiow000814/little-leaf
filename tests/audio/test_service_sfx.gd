@@ -1,6 +1,7 @@
 extends SceneTree
 const ServiceSfx = preload("res://scripts/audio/cafe_service_sfx.gd")
 const Model = preload("res://scripts/core/cafe_model.gd")
+const Main = preload("res://scripts/main.gd")
 
 class Settings extends RefCounted:
 	var sfx_enabled = true
@@ -69,6 +70,7 @@ func fixture() -> Owner:
 	return owner
 
 func run():
+	check(Main.ServiceSfx == ServiceSfx, "actual Main compiles with the service audio hook")
 	if AudioServer.get_bus_index("SFX") < 0:
 		var index = AudioServer.bus_count
 		AudioServer.set_bus_count(index + 1)
