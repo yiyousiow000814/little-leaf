@@ -15,7 +15,55 @@ func fresh(x=-.00000665):
  check(m.place("plant",11,7),"fixture plant places")
  return m
 func state(m):return [m.items.duplicate(true),m.customers.duplicate(true),m.coins,m.served,m.total_earned,m.revision,m._next_item_id]
+func public_segment(m,a:Vector2,b:Vector2)->bool:
+ if not is_zero_approx(a.x-b.x) and not is_zero_approx(a.y-b.y):return false
+ for step in range(1,ceili(a.distance_to(b)*20.0)+1):
+  var p=a.lerp(b,float(step)/float(ceili(a.distance_to(b)*20.0)))
+  if not m._public_exterior_cell(Vector2i(floori(p.x),floori(p.y))):return false
+ return true
+func verify_public_routes(m,label:String):
+ var snapshot=state(m);var entries=m.boundary_entries()
+ check(not entries.is_empty(),label+": real public access remains")
+ for parcel in m.expansion_parcels():
+  check(not m._public_exterior_cell(Vector2i(parcel.x,parcel.z)),label+": sale parcel is never public "+str(parcel.id))
+ for entry in entries:
+  check(m.is_floor_owned(entry.cell) and m._public_exterior_cell(entry.outside),label+": owned threshold/public outside")
+  for arriving in [true,false]:
+   var route=m._exterior_approach(entry,arriving)
+   check(not route.is_empty(),label+": public approach exists")
+   for index in range(1,route.size()):
+    check(public_segment(m,route[index-1],route[index]),label+": whole exterior leg avoids parcels")
+ var chair_id=int(m.items.filter(func(item):return item.kind=="chair")[0].id)
+ for arriving in [true,false]:
+  var access=m.guest_access_for(chair_id,arriving)
+  check(not access.is_empty(),label+": chair journey remains connected")
+  if not access.is_empty():check(m._public_exterior_cell(access.entry_outside),label+": selected entrance is public")
+ check(state(m)==snapshot,label+": queries preserve customer identity, wallet and layout")
+ var path="user://route-ownership-"+label+".json"
+ check(m.save(path),label+": synthetic save")
+ var digest=FileAccess.get_sha256(path);var loaded=Model.new()
+ check(loaded.load_save(path),label+": synthetic reload")
+ check(FileAccess.get_sha256(path)==digest and loaded.coins==m.coins and loaded.owned_parcels==m.owned_parcels,label+": source save and economy preserved")
+ check(loaded.boundary_entries()==entries,label+": reload preserves public thresholds")
+func ownership_routes():
+ var m=Model.new();Minimal.apply(m);m.coins=10000000
+ verify_public_routes(m,"original")
+ for cell in [Vector2i(3,9),Vector2i(12,3),Vector2i(12,9)]:
+  check(not m._public_exterior_cell(cell,[]),"unbought front/right/corner is not pavement")
+  check(m._exterior_approach({"outside":cell,"direction":Vector2i.DOWN},true).is_empty(),"stale private approach rejected")
+ check(m.buy_parcel("front_0"),"buy one front plot")
+ verify_public_routes(m,"expanded")
+ for id in ["right_0","right2_0"]:check(m.buy_parcel(id),"buy outer-right fixture "+id)
+ verify_public_routes(m,"outer-right")
+ check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"move door onto actual public back edge")
+ verify_public_routes(m,"moved-door")
+ var guard=0
+ while not m.next_parcel().is_empty() and guard<24:
+  check(m.buy_parcel(str(m.next_parcel().id)),"complete purchased map")
+  guard+=1
+ verify_public_routes(m,"fully-owned")
 func _initialize():
+ ownership_routes()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
   var m=fresh(x);var before=state(m);var id=int(m.items[-1].id);var g=m.customers[0].duplicate(true)
   var plan=Motion.plan(m,id,2,0,0)

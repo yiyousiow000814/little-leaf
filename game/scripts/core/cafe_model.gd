@@ -933,7 +933,9 @@ func boundary_entries() -> Array[Dictionary]:
 
 
 func _public_exterior_cell(cell:Vector2i,ownership:Variant=null)->bool:
-	return not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
+	# A sale parcel remains private ground even before purchase. Only the
+	# permanent perimeter is public; purchased plots join the indoor graph.
+	return _parcel_index_at(cell)<0 and not _floor_owned_in(cell,owned_parcels if ownership==null else ownership)
 
 func _arrival_front()->float:return maxf(EXTERIOR_ARRIVAL_FRONT,float(depth)+.5)
 func _exit_front()->float:return maxf(EXTERIOR_EXIT_FRONT,float(depth)+1.4)
@@ -944,16 +946,11 @@ func _departure_exit_z(id:int)->float:return -2.5 if id%2==0 else maxf(12.5,floa
 
 func _exterior_approach(entry: Dictionary, arriving: bool, exit_z: float = 12.5) -> Array[Vector2]:
 	var outside := cell_center(entry.outside)
-	# Jagged open edges use their unowned column down to the shared front
-	# walkway; never cut diagonally through another purchased plot.
-	if entry.outside.x>=0 and entry.outside.x<MAX_WIDTH and entry.outside.y>=BASE_DEPTH and entry.outside.y<MAX_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(outside.x-.26,_arrival_front()),Vector2(outside.x-.26,outside.y),outside]
-		return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
-	# Right-side gaps have an empty horizontal route to the outer lane: each
-	# right column owns a prefix, so no later plot can block that route.
-	if entry.outside.x>=BASE_WIDTH and entry.outside.y>=0 and entry.outside.y<RIGHT_PARCEL_DEPTH:
-		if arriving:return [Vector2(ARRIVAL_LANE_X,_arrival_front()),Vector2(_arrival_right(),_arrival_front()),Vector2(_arrival_right(),outside.y),outside]
-		return [outside,Vector2(_exit_right(),outside.y),Vector2(_exit_right(),_exit_front()),Vector2(-.85,_exit_front()),Vector2(-.85,exit_z)]
+	# Reject private plot approaches, including stale candidates. Right-side
+	# journeys go around the whole sale area, not through an unbought corner.
+	if not _public_exterior_cell(entry.outside):return []
+	var arrival_front:=maxf(_arrival_front(),float(MAX_DEPTH)+.5)
+	var exit_front:=maxf(_exit_front(),float(MAX_DEPTH)+1.4)
 	if arriving:
 		if entry.direction == Vector2i.UP:
 			return [Vector2(ARRIVAL_LANE_X,-1.76),Vector2(outside.x,-1.76),outside]
@@ -962,7 +959,7 @@ func _exterior_approach(entry: Dictionary, arriving: bool, exit_z: float = 12.5)
 		if entry.direction == Vector2i.DOWN:
 			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(outside.x-.26, _arrival_front()),Vector2(outside.x-.26,outside.y),outside]
 		if entry.direction == Vector2i.RIGHT:
-			return [Vector2(ARRIVAL_LANE_X, _arrival_front()), Vector2(_arrival_right(), _arrival_front()), Vector2(_arrival_right(), outside.y), outside]
+			return [Vector2(ARRIVAL_LANE_X, arrival_front), Vector2(_arrival_right(), arrival_front), Vector2(_arrival_right(), outside.y), outside]
 	else:
 		if entry.direction == Vector2i.UP:
 			return [outside,Vector2(outside.x,-.85),Vector2(-.85,-.85),Vector2(-.85,exit_z)]
@@ -971,7 +968,7 @@ func _exterior_approach(entry: Dictionary, arriving: bool, exit_z: float = 12.5)
 		if entry.direction == Vector2i.DOWN:
 			return [outside,Vector2(outside.x+.26,outside.y),Vector2(outside.x+.26,_exit_front()),Vector2(-0.85,_exit_front()),Vector2(-0.85,exit_z)]
 		if entry.direction == Vector2i.RIGHT:
-			return [outside, Vector2(_exit_right(), outside.y), Vector2(_exit_right(), _exit_front()), Vector2(-0.85, _exit_front()), Vector2(-0.85, exit_z)]
+			return [outside, Vector2(_exit_right(), outside.y), Vector2(_exit_right(), exit_front), Vector2(-0.85, exit_front), Vector2(-0.85, exit_z)]
 	return []
 
 
