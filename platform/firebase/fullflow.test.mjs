@@ -189,7 +189,7 @@ async function setup(uid,entry=null){
 }
 function gameFramePage(page,frame){return new Proxy(frame,{get(target,key){
  if(key==='mainFrame')return()=>frame;
- if(['on','off','removeListener','screenshot'].includes(key))return page[key].bind(page);
+ if(['on','once','off','removeListener','screenshot'].includes(key))return page[key].bind(page);
  const owner=key in target?target:page,value=owner[key];return typeof value==='function'?value.bind(owner):value;
 }});}
 async function launch(device){
