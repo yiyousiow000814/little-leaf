@@ -4,9 +4,8 @@ extends Node2D
 const MAX_RINGS = 64
 # Same projected half axes as IllustratedCafe.tile before its UI/zoom scale.
 const TILE_HALF_AXES = Vector2(39.0, 19.5)
-# Four 24-degree gaps need 1/cos(12deg) clearance; 1.03 keeps visible bounds
-# at least one tile wide/high even when a gap crosses an extreme axis.
-const RADIUS = TILE_HALF_AXES * 1.03
+# Match one projected tile; the four gaps no longer enlarge the ring.
+const RADIUS = TILE_HALF_AXES
 const PERIOD_SECONDS = 12.0
 var enabled = false
 var _rings: Dictionary = {}

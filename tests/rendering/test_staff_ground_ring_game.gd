@@ -127,8 +127,7 @@ func run():
 	var economy = [game.model.coins, game.model.total_wages_paid, game.model.total_earned]
 	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
 	var tile_minimum = game.illustration.tile * 2.0
-	var visible_ring_minimum = game.illustration.StaffGroundRing.RADIUS * unit * 2.0 * cos(deg_to_rad(12.0))
-	check(visible_ring_minimum.x >= tile_minimum.x and visible_ring_minimum.y >= tile_minimum.y and game.illustration.StaffGroundRing._geometry.size() == 4, "four-segment outer ring bounds are at least one projected ground tile")
+	check((game.illustration.StaffGroundRing.RADIUS * unit * 2.0).is_equal_approx(tile_minimum) and game.illustration.StaffGroundRing._geometry.size() == 4, "four-segment ring uses one projected tile without gap-compensation enlargement")
 	game.illustration.use_staff_ground_rings = false
 	var baseline: Image = await capture("game-baseline.png")
 	game.illustration.use_staff_ground_rings = true
