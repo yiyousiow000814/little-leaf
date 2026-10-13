@@ -108,6 +108,28 @@ func run():
  for kind in ["wages","earned","due"]:
   check(notice.active.kind==kind,"wallet queue preserves "+kind);notice.tick(notice.HOLD)
  check(notice.active.is_empty() and not notice.panel.visible,"queued notices expire normally")
+ # Long exact amounts wrap within the left-hand space instead of covering Done.
+ game.set_meta("hud_safe_insets",Vector4(8,20,8,16));game.editing=true
+ root.size=Vector2i(360,680);await settle()
+ check(not ui.viewport_too_small,"long-notice fixture retains344px usable width")
+ game.settings_controls.show_stats=true;hud._sync_stats()
+ ui.show_wages_due(1000000000);notice.elapsed=.16
+ for frame in 6:
+  await process_frame
+  check(not notice.panel.get_global_rect().intersects(hud.stats_label.get_global_rect()),"long notice clears FPS during container settling")
+ await settle()
+ var long_bounds=Rect2(8,20,344,644);var long_rect=notice.panel.get_global_rect()
+ check(long_bounds.encloses(long_rect),"long due stays in safe bounds")
+ check(notice.text.text=="Wages due 1,000,000,000" and notice.text.get_line_count()>1,"long amount remains complete and wraps")
+ for control in [game.pause_button,game.edit_button,hud.edit_cancel,ui.staff_access,ui.settings_button]:
+  check(not long_rect.intersects(control.get_global_rect()),"long due clears "+control.accessibility_name)
+ check(is_equal_approx(long_rect.position.y,hud.wallet.get_global_rect().end.y+6),"wrapped long due stays below balance")
+ root.size=Vector2i(566,700);await settle()
+ check(notice.text.autowrap_mode==TextServer.AUTOWRAP_OFF and notice.text.get_line_count()==1,"long notice unwraps after resize")
+ root.size=Vector2i(360,680);await settle();ui.show_wages_due(50);await settle()
+ check(notice.text.autowrap_mode==TextServer.AUTOWRAP_OFF and notice.panel.size.x<160,"short coalesced amount restores compact notice")
+ notice.tick(notice.HOLD);game.editing=false
+ game.settings_controls.show_stats=false;hud._sync_stats()
  check(game.saves==expected_save_callbacks,"only Done and service toggle invoke zero-I/O save callbacks")
  check(game.save_writes_suppressed,"player persistence remains disabled in synthetic harness")
  print("MOBILE_TOOLBAR_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"save_callbacks":game.saves,"expected_save_callbacks":expected_save_callbacks}))
