@@ -63,7 +63,8 @@ func run():
     check(text_width<=ui.business_state.size.x,"Recovery badge text fits "+str(view))
    if choice:
     var gap=ui.help_choices.get_global_rect().position.y-ui.help_text.get_global_rect().end.y
-    check(ui.help_text.get_index()==0 and ui.help_choices.get_index()==1,"save safety explanation precedes both cards")
+    var visible_content=ui.help_choices.get_parent().get_children().filter(func(child):return child is Control and child.visible)
+    check(visible_content.size()>=2 and visible_content[0]==ui.help_text and visible_content[1]==ui.help_choices,"save safety explanation precedes both cards")
     check(gap>=0 and gap<=ui.help_choices.get_parent().get_theme_constant("separation")+1,"hidden tutorial leaves no blank row")
    if view.x>=1000:
     var sign_scale=game.business_button.size.y/56.0
