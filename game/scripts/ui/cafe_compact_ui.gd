@@ -478,8 +478,18 @@ func _wrap_themed_popup(panel:PanelContainer,width:float,fixed_header:Control=nu
   var shell=VBoxContainer.new();shell.add_theme_constant_override("separation",INFORMATION_PANEL_GAP);panel.add_child(shell);scroll.reparent(shell)
   fixed_header.reparent(shell);shell.move_child(fixed_header,0)
   fixed_header.minimum_size_changed.connect(_queue_popup_fit)
+ if panel==game.settings:_allow_settings_scroll(body)
  hud.theme_scroll(scroll);themed_popups.append({"panel":panel,"scroll":scroll,"body":body,"header":fixed_header})
  body.minimum_size_changed.connect(_queue_popup_fit);panel.visibility_changed.connect(_queue_popup_fit);panel.resized.connect(_queue_popup_fit)
+func _allow_settings_scroll(node:Node):
+ # Reuse native ScrollContainer drag cancellation; buttons activate on release.
+ if node is BaseButton:
+  node.mouse_filter=Control.MOUSE_FILTER_PASS
+  node.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
+ for child in node.get_children():_allow_settings_scroll(child)
+ # Account controls can arrive after the Settings body has been wrapped.
+ if not node.child_entered_tree.is_connected(_allow_settings_scroll):
+  node.child_entered_tree.connect(_allow_settings_scroll)
 func _queue_popup_fit():
  if not is_instance_valid(game):return
  if popup_fit_queued:return
@@ -533,6 +543,7 @@ func _fit_help_panel():
  for button in help_footer.get_children():
   if button.visible:visible_actions+=1
  var desired_columns=3 if compact_actions and visible_actions>4 else 2
+ if compact_actions and help_choices.visible:desired_columns=maxi(2,mini(4,visible_actions))
  var target_width=maxf(340,padding.x+action_width*desired_columns+8*(desired_columns-1)) if compact_actions else 340.0
  if help_choices.visible and view.x>view.y:target_width=maxf(target_width,620)
  var width=minf(target_width,maxf(0,view.x-insets.x-insets.z-24))
@@ -739,7 +750,12 @@ func _sync_help_content():
  help_choose_cloud.visible=choices_available;help_choose_cloud.disabled=recovery_busy
  help_choose_cloud.text="Checking…" if recovery_busy and recovery.get("operation","")=="cloud" else "Keep cloud save"
  help_choices.visible=choices_available
- if choices_available:help_choices.get_parent().move_child(help_choices,0)
+ # Keep the save-safety explanation readable before the comparison cards.
+ var help_body=help_choices.get_parent()
+ var first=help_text if choices_available else help_stats_row
+ var second=help_choices if choices_available else help_text
+ if first.get_index()!=0:help_body.move_child(first,0)
+ if second.get_index()!=1:help_body.move_child(second,1)
  help_overview.visible=not choices_available and not ownership_paused
  for choice in recovery.get("choices",[]):
   if not choice is Dictionary or not help_choice_labels.has(str(choice.get("id",""))):continue

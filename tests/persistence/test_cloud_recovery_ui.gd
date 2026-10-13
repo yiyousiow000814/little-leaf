@@ -62,7 +62,8 @@ func run():
     var text_width=ui.business_state.get_theme_font("font").get_string_size(ui.business_state.text,HORIZONTAL_ALIGNMENT_LEFT,-1,ui.business_state.get_theme_font_size("font_size")).x
     check(text_width<=ui.business_state.size.x,"Recovery badge text fits "+str(view))
    if choice:
-    var gap=ui.help_text.get_global_rect().position.y-ui.help_choices.get_global_rect().end.y
+    var gap=ui.help_choices.get_global_rect().position.y-ui.help_text.get_global_rect().end.y
+    check(ui.help_text.get_index()==0 and ui.help_choices.get_index()==1,"save safety explanation precedes both cards")
     check(gap>=0 and gap<=ui.help_choices.get_parent().get_theme_constant("separation")+1,"hidden tutorial leaves no blank row")
    if view.x>=1000:
     var sign_scale=game.business_button.size.y/56.0
@@ -83,7 +84,10 @@ func run():
     check(action.size.x>=glyph+24,label+" horizontal text padding "+action.text)
     check(inside.encloses(action.get_global_rect()),label+" action inside panel")
    check(ui.help_scroll.size.y>=99,label+" readable detail viewport")
-   if choice:check(ui.help_scroll.get_global_rect().encloses(ui.help_choices.get_global_rect()),label+" both save cards visible before scrolling")
+   if choice:
+    check(ui.help_scroll.get_global_rect().encloses(ui.help_text.get_global_rect()),label+" save safety explanation visible before scrolling")
+    ui.help_scroll.ensure_control_visible(ui.help_choice_labels.cloud);await settle()
+    check(ui.help_scroll.get_global_rect().encloses(ui.help_choice_labels.cloud.get_global_rect()),label+" cloud metadata reachable by native scrolling")
    var footer=ui.help_footer.get_global_rect();ui.help_scroll.scroll_vertical=100000;await settle()
    check(ui.help_footer.get_global_rect().is_equal_approx(footer),label+" footer stays fixed while scrolling")
    check(ui.help_scroll.get_v_scroll_bar().value+ui.help_scroll.get_v_scroll_bar().page>=ui.help_scroll.get_v_scroll_bar().max_value-1,label+" all details reachable")
