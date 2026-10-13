@@ -75,7 +75,7 @@ class ItchTagGateTests(unittest.TestCase):
                       "github.event.workflow_run.conclusion == 'success'",
                       "github.event.workflow_run.event == 'workflow_run'",
                       "startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')",
-                      'FIREBASE_RUN: ${{ github.event.workflow_run.id }}',
+                      "FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",
                       'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
                       'ref: ${{ steps.common.outputs.source_sha }}',
                       'RELEASE_TAG: ${{ steps.common.outputs.release_tag }}',

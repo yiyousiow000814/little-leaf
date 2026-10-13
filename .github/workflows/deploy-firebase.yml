@@ -34,7 +34,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   common-tag:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run'
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'workflow_run' || (github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Retry qualified itch ')))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
