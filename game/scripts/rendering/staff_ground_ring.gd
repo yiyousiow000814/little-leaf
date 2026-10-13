@@ -2,10 +2,16 @@ extends Node2D
 ## Opt-in ground layer. Caller supplies presentation foot anchors, never actor state.
 ## Add this layer after rugs and before solids; no gameplay renderer hook is installed.
 const MAX_RINGS = 64
-# Same projected half axes as IllustratedCafe.tile before its UI/zoom scale.
-const TILE_HALF_AXES = Vector2(39.0, 19.5)
-# Match one projected tile; the four gaps no longer enlarge the ring.
-const RADIUS = TILE_HALF_AXES
+# A floor cell has world side1. The circle's INTERNAL diameter is that side;
+# its stroke grows outward before the usual ground-plane isometric projection.
+const TILE_WORLD_SIDE = 1.0
+const INNER_FRACTION = .84
+const INNER_RADIUS_WORLD = TILE_WORLD_SIDE * .5
+const OUTER_RADIUS_WORLD = INNER_RADIUS_WORLD / INNER_FRACTION
+const WORLD_X = Vector2(39.0, 19.5)
+const WORLD_Z = Vector2(-39.0, 19.5)
+# Projected ellipse half axes are diagnostics only, not the sizing definition.
+const RADIUS = Vector2(39.0, 19.5) * 1.4142135623730951 * OUTER_RADIUS_WORLD
 const PERIOD_SECONDS = 12.0
 var enabled = false
 var _rings: Dictionary = {}
@@ -29,7 +35,7 @@ static func _make_geometry() -> Array:
 			arc.append(Vector2(cos(angle), sin(angle)))
 		for i in range(16, -1, -1):
 			var angle = quarter * PI * .5 + deg_to_rad(12.0 + 66.0 * i / 16.0)
-			arc.append(Vector2(cos(angle), sin(angle)) * .84)
+			arc.append(Vector2(cos(angle), sin(angle)) * INNER_FRACTION)
 		geometry.append(arc)
 	return geometry
 
@@ -37,9 +43,13 @@ func _init():
 	_arcs = _geometry
 	visible = false
 
+static func _ground_transform(foot_anchor: Vector2, scale_factor: float) -> Transform2D:
+	var outer_scale = OUTER_RADIUS_WORLD * scale_factor
+	return Transform2D(WORLD_X * outer_scale, WORLD_Z * outer_scale, foot_anchor)
+
 static func placement(foot_anchor: Vector2, visual_seconds: float, scale_factor: float) -> Transform2D:
 	var angle = fposmod(visual_seconds, PERIOD_SECONDS) * TAU / PERIOD_SECONDS
-	return Transform2D(0, RADIUS * scale_factor, 0, foot_anchor) * Transform2D(angle, Vector2.ZERO)
+	return _ground_transform(foot_anchor, scale_factor) * Transform2D(angle, Vector2.ZERO)
 
 static func paint(artist):
 	# For the existing native retained-object painter: static unit geometry,
@@ -65,9 +75,8 @@ func sync_staff(foot_anchors: Dictionary, visual_seconds: float, paused: bool = 
 			add_child(placement)
 			_rings[key] = placement
 		var placement: Node2D = _rings[key]
-		if placement.position != anchor: placement.position = anchor
-		var projected = RADIUS * scale_factor
-		if placement.scale != projected: placement.scale = projected
+		var projected = _ground_transform(anchor, scale_factor)
+		if placement.transform != projected: placement.transform = projected
 		var ring: Node2D = placement.get_child(0)
 		if ring.rotation != _phase: ring.rotation = _phase
 	for key in _rings.keys():

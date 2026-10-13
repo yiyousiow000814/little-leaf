@@ -37,6 +37,8 @@ func capture(name: String) -> Image:
 	image.save_png(directory.path_join(name))
 	var nodes = ring_nodes()
 	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
+	var ring_ground = game.illustration.StaffGroundRing.placement(Vector2.ZERO, 0.0, unit)
+	records.append({"tile_side_world": 1.0, "ring_internal_diameter_world": game.illustration.StaffGroundRing.INNER_RADIUS_WORLD * 2.0, "ring_outer_diameter_world": game.illustration.StaffGroundRing.OUTER_RADIUS_WORLD * 2.0, "stroke_world": game.illustration.StaffGroundRing.OUTER_RADIUS_WORLD - game.illustration.StaffGroundRing.INNER_RADIUS_WORLD, "internal_x_diameter_projected": str(ring_ground * Vector2(game.illustration.StaffGroundRing.INNER_FRACTION, 0.0) * 2.0), "internal_z_diameter_projected": str(ring_ground * Vector2(0.0, game.illustration.StaffGroundRing.INNER_FRACTION) * 2.0), "tile_x_side_projected": str(game.illustration.iso(1.0, 0.0) - game.illustration.iso(0.0, 0.0)), "tile_z_side_projected": str(game.illustration.iso(0.0, 1.0) - game.illustration.iso(0.0, 0.0))})
 	records.append({"tile_bbox_px": str(game.illustration.tile * 2.0), "ring_outer_bbox_px": str(game.illustration.StaffGroundRing.RADIUS * unit * 2.0), "ring_gap_min_bbox_px": str(game.illustration.StaffGroundRing.RADIUS * unit * 2.0 * cos(deg_to_rad(12.0))), "segments": game.illustration.StaffGroundRing._geometry.size()})
 	records.append({"capture": name, "rings": nodes.size(), "draw_counts": nodes.map(func(n):return n.draw_count), "positions": nodes.map(func(n):return str(n.transform.origin)), "clock": game.animation_time, "editing": game.editing, "zoom": game.illustration.zoom})
 	return image
@@ -108,6 +110,9 @@ func run():
 	for i in range(game.staff_states.size()):
 		var staff = game.staff_states[i]
 		staff.pos = Vector2(1.5 + i, 2.5)
+		# Synthetic rug-order witness: the smaller ground-plane circle crosses
+		# the real neighboring rug when this staff stands a quarter-cell closer.
+		if i == 1: staff.pos.x += .25
 		staff.path = []
 		staff.job_kind = ""
 		staff.art_action = "standby"
@@ -126,8 +131,12 @@ func run():
 	var positions = game.staff_states.map(func(s):return s.pos)
 	var economy = [game.model.coins, game.model.total_wages_paid, game.model.total_earned]
 	var unit = game.illustration.ui_scale * game.illustration.zoom * (1.55 if game.wall_detail else 1.0)
-	var tile_minimum = game.illustration.tile * 2.0
-	check((game.illustration.StaffGroundRing.RADIUS * unit * 2.0).is_equal_approx(tile_minimum) and game.illustration.StaffGroundRing._geometry.size() == 4, "four-segment ring uses one projected tile without gap-compensation enlargement")
+	var ground_x = game.illustration.iso(1.0, 0.0) - game.illustration.iso(0.0, 0.0)
+	var ground_z = game.illustration.iso(0.0, 1.0) - game.illustration.iso(0.0, 0.0)
+	var ring_ground = game.illustration.StaffGroundRing.placement(Vector2.ZERO, 0.0, unit)
+	var inner_x = ring_ground * Vector2(game.illustration.StaffGroundRing.INNER_FRACTION, 0.0) * 2.0
+	var inner_z = ring_ground * Vector2(0.0, game.illustration.StaffGroundRing.INNER_FRACTION) * 2.0
+	check(inner_x.is_equal_approx(ground_x) and inner_z.is_equal_approx(ground_z) and game.illustration.StaffGroundRing.OUTER_RADIUS_WORLD > game.illustration.StaffGroundRing.INNER_RADIUS_WORLD and game.illustration.StaffGroundRing._geometry.size() == 4, "ring internal world diameter equals one square tile side; stroke extends outward through actual isometric ground basis")
 	game.illustration.use_staff_ground_rings = false
 	var baseline: Image = await capture("game-baseline.png")
 	game.illustration.use_staff_ground_rings = true
