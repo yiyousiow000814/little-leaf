@@ -76,14 +76,14 @@ func model_cases():
  before=state(m)
  check(not m.place("plant",4,3,0,[CENTER]),"already-trapped worker cannot lose remaining walkway")
  unchanged(m,before,"worsened legacy trap rejected")
- # Guest/public egress can go through x=0 or grass; staff transit cannot.
- for spec in [{"cell":Vector2i(1,3),"closing":Vector2i(2,3),"label":"x0 arrival strip"},{"cell":Vector2i(11,3),"closing":Vector2i(10,3),"label":"unowned exterior grass"}]:
+ # Genuine public x=0 egress differs from staff transit; sale land is private.
+ for spec in [{"cell":Vector2i(1,3),"closing":Vector2i(2,3),"label":"x0 arrival strip","public_escape":true},{"cell":Vector2i(11,3),"closing":Vector2i(10,3),"label":"unowned exterior grass","public_escape":false}]:
   m=blank();var cell:Vector2i=spec.cell;var closing:Vector2i=spec.closing;var actor=m.cell_center(cell)
   check(m.place("plant",cell.x,cell.y-1),spec.label+" upper obstacle places")
   check(m.place("plant",cell.x,cell.y+1),spec.label+" lower obstacle places")
   check(m._furniture_actor_component(Model.ENTRY_LANDING,m.items).has(cell),spec.label+" worker initially connected to indoor service floor")
   var candidate=m.items.duplicate(true);candidate.append({"id":-1,"kind":"plant","x":closing.x,"z":closing.y,"rot":0})
-  check(m._wall_reachable(m.built_walls,candidate,m.owned_parcels).has(cell),spec.label+" fixture proves generic public graph would miss trap")
+  check(m._wall_reachable(m.built_walls,candidate,m.owned_parcels).has(cell)==spec.public_escape,spec.label+" public graph preserves pavement and excludes sale land")
   check(not m._furniture_actor_component(Model.ENTRY_LANDING,candidate).has(cell),spec.label+" staff-specific graph rejects apparent escape")
   before=state(m)
   check(not m.can_place("plant",closing.x,closing.y,-1,0,[actor]),spec.label+" live preview rejects new trap")

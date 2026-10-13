@@ -76,6 +76,9 @@ func _init():
  for change in [{"id":9},{"offset":5.6},{"offset":5.50001},{"host_id":"shell:back"},{"paid_cost":40}]:
   var customized=legacy()
   for key in change:customized.wall_attachments[0][key]=change[key]
+  if change.get("host_id","")=="shell:back":
+   # Door identity migration requires a real public threshold, not a sale-plot escape.
+   check(customized.move(12,7,0),"clear bookshelf from synthetic back-door threshold")
   customized._next_attachment_id=10
   var label="custom-"+str(checks)
   roundtrip(customized,label,1.5)
@@ -86,6 +89,7 @@ func _init():
  for change in [{},{"id":9},{"offset":5.6},{"host_id":"shell:back"}]:
   var narrow=Model.new();narrow.wall_attachments[0].width=.76;narrow.wall_attachments[0].paid_cost=40
   for key in change:narrow.wall_attachments[0][key]=change[key]
+  if change.get("host_id","")=="shell:back":check(narrow.move(12,7,0),"clear bookshelf from synthetic narrow back-door threshold")
   narrow._next_attachment_id=10
   roundtrip(narrow,"narrow-custom-"+str(checks),1.0)
  var free_narrow=Model.new();free_narrow.wall_attachments[0].width=.76

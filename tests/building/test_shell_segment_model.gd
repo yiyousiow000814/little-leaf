@@ -89,7 +89,8 @@ func run():
    for action in ["remove","move"]:
     raw=legacy.duplicate(true);raw.shell_products["shell:west"]={"height":height,"material":"cream_stripe","paid_cost":int(Segments.LEGACY_PRICES[height])*9}
     raw.built_walls=[{"id":41,"axis":"z","x":0,"z":8,"height":"full","material":"leaf_print"}];raw.next_wall_id=42
-    raw.wall_attachments=[{"id":77,"kind":"door","host_id":"shell:back","offset":5.5,"width":1.5,"paid_cost":40}];raw.next_attachment_id=78
+    # Keep the payment-extension fixture's public door clear of the default bookshelf at x5.
+    raw.wall_attachments=[{"id":77,"kind":"door","host_id":"shell:back","offset":3.5,"width":1.5,"paid_cost":40}];raw.next_attachment_id=78
     var transition=Model.new();var label=str([height,edited,action])
     check(transition.load_save(write("extension-transition",raw)),label+" inherited extension load")
     if edited:check(transition.replace_wall("shell:west#2",height,"sage_panels"),label+" prior neighbor purchase")
