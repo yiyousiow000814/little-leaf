@@ -78,7 +78,7 @@ The prototype proves root extent/thickness/ordering and homogeneous-render eligi
 
 ## Focused evidence completed
 
-`tests/run_shell_segment_contract.py` runs a disposable, asset-free headless project. No editor import, copied asset cache, player profile, or browser storage is involved.
+`tests/building/run_shell_segment_contract.py` runs a disposable, asset-free headless project. No editor import, copied asset cache, player profile, or browser storage is involved.
 
 The current pass has 27,219 assertions covering:
 
@@ -91,7 +91,7 @@ The current pass has 27,219 assertions covering:
 - Atomic invalid/insufficient-funds paths, same-style no-op, and normalized JSON round-trip
 - Real unmodified v15 model rejection of wall format 2 without live-model mutation or original-file writes
 
-Files: `tests/fixtures/shell_segment_contract.gd`, `tests/test_shell_segment_contract.gd`, and `tests/run_shell_segment_contract.py`.
+Files: `tests/fixtures/shell_segment_contract.gd`, `tests/fixtures/test_shell_segment_contract.gd`, and `tests/building/run_shell_segment_contract.py`.
 
 ## Historical review and implementation gates
 

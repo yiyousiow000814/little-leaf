@@ -65,6 +65,7 @@ class MetadataGateTests(unittest.TestCase):
         self.assertEqual(result["tag"], "v0.1.9")
         self.assertEqual(result["sha"], SHA)
         self.assertEqual(result["tag_object"], OBJECT)
+        self.assertEqual(result["prerelease"], "false")
         notes = base64.b64decode(result["notes"]).decode()
         self.assertIn("## New Features\n- Inbox letters.", notes)
         self.assertIn("## Bug Fixes\n- Save recovery.", notes)
@@ -75,6 +76,14 @@ class MetadataGateTests(unittest.TestCase):
         result = self.run_prepare(tag="v0.1.10a", version="0.1.10a", prefix="game/")
         self.assertEqual(result["sha"], SHA)
         self.assertEqual(result["tag"], "v0.1.10a")
+
+    def test_explicit_prerelease_keeps_exact_tag_and_source(self):
+        result = self.run_prepare({"prerelease": True}, tag="v0.1.10e", version="0.1.10e", prefix="game/")
+        self.assertEqual(result["prerelease"], "true")
+        self.assertEqual(result["sha"], SHA)
+        for value in ("false", 0, 1, None, []):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "boolean"):
+                self.run_prepare({"prerelease": value})
 
     def test_hotfix_changelog_uses_immediate_lower_release(self):
         versions = ["0.1.9", "0.1.10", "0.1.10a", "0.1.10b", "0.1.10c", "0.1.10z", "0.1.11"]
@@ -112,7 +121,7 @@ class MetadataGateTests(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which("bash"), "Bash is required for runner shell tests")
 class PublicationGateTests(unittest.TestCase):
-    def run_publish(self, scenario):
+    def run_publish(self, scenario, prerelease="false"):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             log = root / "gh-calls.jsonl"
@@ -148,11 +157,12 @@ sys.exit(1)
                        SCENARIO=scenario, MOCK_LOG=str(log), RUNNER_TEMP=str(root),
                        GITHUB_STEP_SUMMARY=str(summary), GH_REPO="owner/repo",
                        RELEASE_TAG="v0.1.9", SOURCE_SHA=SHA, TAG_OBJECT=OBJECT,
+                       RELEASE_PRERELEASE=prerelease,
                        NOTES_BASE64=base64.b64encode(b"source-bound notes\n").decode(),
                        GH_TOKEN="synthetic-test-token")
             completed = subprocess.run(["bash", "-e", "-o", "pipefail", "-c", run_blocks()[1]],
                                        env=env, capture_output=True, text=True)
-            calls = [json.loads(line) for line in log.read_text().splitlines()]
+            calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
             return completed.returncode, [call for call in calls if call[:2] == ["release", "create"]]
 
     def test_existing_release_is_retained(self):
@@ -167,6 +177,23 @@ sys.exit(1)
         self.assertIn("--verify-tag", writes[0])
         self.assertIn(SHA, writes[0])
         self.assertIn("--notes-file", writes[0])
+        self.assertNotIn("--prerelease", writes[0])
+
+    def test_prerelease_is_explicit_and_never_requests_latest(self):
+        code, writes = self.run_publish("missing", "true")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(writes), 1)
+        self.assertIn("--prerelease", writes[0])
+        self.assertIn("--latest=false", writes[0])
+
+    def test_prerelease_existing_and_invalid_flag_never_write(self):
+        code, writes = self.run_publish("existing", "true")
+        self.assertEqual((code, writes), (0, []))
+        for value in ("", "True", "0", "true; echo injected"):
+            with self.subTest(value=value):
+                code, writes = self.run_publish("missing", value)
+                self.assertNotEqual(code, 0)
+                self.assertEqual(writes, [])
 
     def test_tag_change_auth_and_network_failure_never_publish(self):
         for scenario in ("moved", "auth", "network"):
