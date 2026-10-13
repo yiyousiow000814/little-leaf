@@ -549,6 +549,7 @@ func _fit_help_panel():
  var width=minf(target_width,maxf(0,view.x-insets.x-insets.z-24))
  compact_actions=compact_actions and width-padding.x>=action_width*2+8
  help_footer.columns=mini(desired_columns,int(floor((width-padding.x+8)/(action_width+8)))) if compact_actions else 1
+ if help_choices.visible and visible_actions==4 and help_footer.columns==3:help_footer.columns=2
  for button in help_footer.get_children():button.custom_minimum_size.x=action_width if compact_actions else 0.0
  var top=hud.layout_host.get_global_rect().end.y+10
  var footer_height=help_footer.get_combined_minimum_size().y
