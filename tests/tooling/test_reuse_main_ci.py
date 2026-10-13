@@ -91,6 +91,36 @@ class QualificationTests(unittest.TestCase):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_real_firebase_response_size_has_explicit_finite_zip_budget(self):
+        # Actual PR263 qualified archive: 119110054 bytes, larger than the
+        # unchanged ordinary reader. Generate only the requested response chunk.
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size): return b'0' * min(size, 119110054)
+        api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=Response()):
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True)
+            data = api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110054)
+            self.assertEqual(len(data), 119110054)
+            del data
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110053)
+
+    def test_zip_budget_cannot_expand_json_wrong_paths_or_unbounded_responses(self):
+        api = reuse.GitHub('synthetic')
+        for path, binary, size in [('actions/runs/1', True, 119110054),
+                ('actions/artifacts/1/zip', False, 119110054),
+                ('actions/artifacts/01/zip', True, 119110054),
+                ('actions/artifacts/1/zip?other=1', True, 119110054),
+                ('actions/artifacts/1/zip', True, True),
+                ('actions/artifacts/1/zip', True, 0),
+                ('actions/artifacts/1/zip', True, reuse.MAX_FIREBASE_ARTIFACT_BYTES + 1)]:
+            with self.subTest(path=path, size=size), patch.object(api.opener, 'open') as opened:
+                with self.assertRaises(ValueError): api.read(path, binary=binary, artifact_bytes=size)
+                opened.assert_not_called()
+
     def archive(self, names):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w') as z:
