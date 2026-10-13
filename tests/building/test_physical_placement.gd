@@ -95,5 +95,22 @@ func _init():
  plan=EditPlan.new();receipt=plan.prepare(model,"plant",-1,0,target);before=state(model)
  model.coins+=1;var changed=state(model)
  check(not plan.commit(model,receipt) and state(model)==changed,"changed wallet invalidates receipt before commit")
+ # Moving the default door releases its original two placement cells.
+ var moved=fixture();var original_door=moved.get_wall_attachment(1).duplicate(true)
+ check(moved.move_wall_attachment(1,"shell:west",3.5),"default door moves to another valid shell tile")
+ var moved_door=moved.get_wall_attachment(1)
+ check(moved_door.id==original_door.id and moved_door.width==original_door.width and moved_door.paid_cost==original_door.paid_cost,"door move retains identity, width and payment")
+ for former_cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:
+  var former_plan=EditPlan.new();var former_receipt=former_plan.prepare(moved,"plant",-1,0,former_cell)
+  check(former_receipt.physical_ok and former_receipt.ok,"former default-door cell is no longer reserved: "+str(former_cell))
+  check(former_plan.commit(moved,former_receipt),"former default-door cell accepts ordinary atomic placement: "+str(former_cell))
+  check(not former_plan.prepare(moved,"plant",-1,0,former_cell).physical_ok,"real overlap still blocks the former door cell: "+str(former_cell))
+ var moved_path=directory+"/moved-door-former-cells.json"
+ check(moved.save(moved_path),"moved door and former-cell furniture save in the current idle contract")
+ var moved_loaded=Model.new();var moved_load_ok=moved_loaded.load_save(moved_path)
+ check(moved_load_ok,"moved door and former-cell furniture reload")
+ if moved_load_ok:
+  check(moved_loaded.items==moved.items and moved_loaded.coins==moved.coins,"former-cell furniture and payment survive roundtrip")
+  check(moved_loaded.wall_attachments==moved.wall_attachments and is_equal_approx(float(moved_loaded.get_wall_attachment(1).offset),3.5),"reload keeps the moved door at its new host offset")
  print("PHYSICAL_PLACEMENT_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"original_player_save_used":false,"generated_fixture":path}))
  quit(0 if failures.is_empty() else 1)
