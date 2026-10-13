@@ -102,3 +102,44 @@ including28s initial queue; native steps157–170s replace the two baseline rang
 main baseline; queue/browser variability prevents claiming a repeatable total
 speedup. The subsequent checkout reduction and current-main composition need
 fresh automatic qualification and their own measured result.
+
+## Unit-tested tooling and retained-diagnostic PRs
+
+The existing lightweight PR selector accepts additions/edits to top-level
+`tests/tooling/test_[A-Za-z0-9_]+.py` unittest modules and two exact optional QA
+helpers: `tools/diagnostics/retained_handoff_route.py` and
+`tools/diagnostics/current_handoff_route.py`. Guard still discovers every tooling
+unit and runs metadata, atlas, Node and static checks. The unchanged native,
+export and ordinary browser inputs add no coverage of these unit modules or the
+retained diagnostic routes, which ordinary heavy jobs never execute.
+
+A history scan of180main commits found one newly eligible real case:
+PR248 `08bcf651`, the two-file Linux diagnostic temporary-path fix/test. The
+unit executes the actual directory/environment loop without launching a child;
+restoring the old126-byte socket path fails its108-byte bound. Missing mandatory
+native-job validation also fails under real unittest discovery in a disposable
+mutation. Both relevant defects remain detected without native/browser runs.
+The generic tooling-test rule added no other observed case in that sample;
+its benefit is future unit-test maintenance, not all recent runtime PRs.
+
+Actual clean merge SHA, ordered base/head parents and the entire Git raw diff
+must prove every changed path eligible. Runtime/build/release/qualification/CI
+helpers, workflows, fixtures, shared test helpers, deletions, renames, executable
+modes and uncertainty remain full. Every main/tag/build-web dispatch/platform
+preview remains full; the lightweight gate emits no build or release artifact.
+A failed unit guard cannot pass. The two optional diagnostic helpers still need
+source review and their finite runtime evidence when that diagnostic is requested;
+ordinary CI success does not accept a diagnostic or authorize publication.
+
+Source tests retain every original provenance/gate control, exercise real Git
+merges for docs and tooling paths, and reject mixed runtime changes. The old
+selector rejects the newly admitted paths; the candidate passes those same
+fixtures. Role/save migration and compiled Auth/recovery coverage are unchanged
+for applicable runtime changes and all main/release qualification.
+
+Measured focused validation:38tests in2.042s using unchanged canonical Git
+fixture bytes. PR269 measured a39s guard and2s final checkout; these components
+suggest roughly one minute rather than its9m31s full graph for an eligible future
+PR, subject to queue/test runtime. Actual new lightweight hosted elapsed remains
+unmeasured. This selector-source change itself runs full automatic qualification;
+no extra QA-only remote ref/manual matrix is used to manufacture that timing.

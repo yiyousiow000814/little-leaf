@@ -57,7 +57,9 @@ check('actual Case B payment, conflict, preservation and reload assertions remai
   ]) assert(browserSource.includes(guard), guard);
 });
 check('workflow runs fast guards and retained OCR before the unchanged browser gate', () => {
-  assert(workflow.includes('node tests/rendering/wall_compatibility_ocr_test.js\n'));
+  assert(workflow.includes('run: python3 tools/ci/preflight.py\n'));
+  const fastGuard = fs.readFileSync(path.join(root, 'tools/ci/preflight.py'), 'utf8');
+  assert(fastGuard.includes('"tests/rendering/wall_compatibility_ocr_test.js",'));
   const ocr = workflow.indexOf('node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures');
   assert(ocr > workflow.indexOf('sudo apt-get install -y --no-install-recommends tesseract-ocr'));
   assert(ocr < workflow.indexOf('xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case'));
