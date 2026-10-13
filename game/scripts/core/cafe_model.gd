@@ -2659,11 +2659,14 @@ func reroute_guest(guest:Dictionary) -> bool:
 		# Outside walkways form three clear perimeter lanes. Return to the
 		# corresponding lane before choosing another open edge; never diagonal
 		# through unowned plots or across the fixed shell.
+		if not _public_exterior_cell(cell):return false
 		var prefix:Array[Vector2]=[]
-		if position.x>=BASE_WIDTH and position.y<RIGHT_PARCEL_DEPTH:
-			prefix=[Vector2(_arrival_right(),position.y),Vector2(_arrival_right(),_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
-		elif position.y>=BASE_DEPTH and position.x>=0 and position.x<MAX_WIDTH:
-			prefix=[Vector2(position.x,_arrival_front()),Vector2(ARRIVAL_LANE_X,_arrival_front())]
+		var public_front:=maxf(_arrival_front(),float(MAX_DEPTH)+.5)
+		var public_right:=maxf(_arrival_right(),float(MAX_WIDTH)+1.76)
+		if position.x>=MAX_WIDTH:
+			prefix=[Vector2(public_right,position.y),Vector2(public_right,public_front),Vector2(ARRIVAL_LANE_X,public_front)]
+		elif position.y>=MAX_DEPTH and position.x>=0 and position.x<MAX_WIDTH:
+			prefix=[Vector2(position.x,public_front),Vector2(ARRIVAL_LANE_X,public_front)]
 		elif position.x<0:prefix=[Vector2(ARRIVAL_LANE_X,position.y)]
 		elif position.y<0:prefix=[Vector2(position.x,-1.76),Vector2(ARRIVAL_LANE_X,-1.76)]
 		else:return false

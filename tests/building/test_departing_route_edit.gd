@@ -62,8 +62,33 @@ func ownership_routes():
   check(m.buy_parcel(str(m.next_parcel().id)),"complete purchased map")
   guard+=1
  verify_public_routes(m,"fully-owned")
+func public_reroutes():
+ for expanded in [false,true]:
+  var m=Model.new();Minimal.apply(m);m.coins=10000000
+  if expanded:
+   for id in Model.RIGHT_PARCEL_IDS:check(m.buy_parcel(id),"reroute fixture buys "+id)
+  m._spawn_customer();var guest=m.customers[0]
+  for position in [Vector2(19.76,3.5),Vector2(19.76,12.0),Vector2(3.5,19.4)]:
+   guest.x=position.x;guest.z=position.y
+   var original=guest.duplicate(true);var snapshot=state(m)
+   check(m.reroute_guest(guest),"lawful public-perimeter arrival replans "+str(position))
+   var previous=position
+   for point in guest.route:
+    var cell=Vector2i(floori(point.x),floori(point.y))
+    if m.is_floor_owned(cell):break
+    check(public_segment(m,previous,point),"entire replan prefix avoids private parcels")
+    previous=point
+   var retained=guest.duplicate(true)
+   for key in ["route","route_index","entry_cell","entry_direction","entry_outside","service_cell","waiting","departure_blocked"]:
+    retained.erase(key);original.erase(key)
+   check(retained==original,"replan preserves guest identity, position, claims and payment")
+   check(m.items==snapshot[0] and m.coins==snapshot[2] and m.served==snapshot[3] and m.total_earned==snapshot[4],"replan preserves layout and economy")
+  guest.x=12.5;guest.z=10.5
+  var before=guest.duplicate(true)
+  check(not m.reroute_guest(guest) and guest==before,"private-corner origin refuses atomically")
 func _initialize():
  ownership_routes()
+ public_reroutes()
  for x in [-.5,-.00000665,-.0000001,0.0,.0000001,.2]:
   var m=fresh(x);var before=state(m);var id=int(m.items[-1].id);var g=m.customers[0].duplicate(true)
   var plan=Motion.plan(m,id,2,0,0)
