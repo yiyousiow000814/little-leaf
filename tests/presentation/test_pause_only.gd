@@ -99,7 +99,7 @@ func run():
  game._resume_frame=-1;game.paused=true;game.model.operating_open=false
  for level in [1,2,3]:
   var multiplier=Model.stove_speed_multiplier({"level":level})
-  check(is_equal_approx(multiplier,1.0+.4*(level-1)) and is_equal_approx(Model.cooking_seconds(multiplier),45.0/multiplier),"stove upgrade retains recipe-only multiplier")
+  check(is_equal_approx(multiplier,1.0) and is_equal_approx(Model.cooking_seconds(multiplier),45.0),"legacy stove levels cannot accelerate cooking")
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
  print("PAUSE_ONLY_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))

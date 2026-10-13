@@ -1,0 +1,272 @@
+[
+  {
+    "track": "Cloverlight_PhraseFix_R3",
+    "selected_revision": "R3",
+    "files": [
+      {
+        "file": "01_Cloverlight_R3/performance_events.json",
+        "sha256": "45baf330a8b80b11a4e916a7f3b9e72fc9db6622b44497cf320b0aa6be8b3b30",
+        "original_file": "r3/01_Cloverlight_PhraseFix/performance_events.json",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/original_technical_checks.json",
+        "sha256": "ef32d916ec3d1512e560133ccc9046ee62ad9a77df1e4130670b29132d814919",
+        "original_file": "r3/01_Cloverlight_PhraseFix/technical_checks.json",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+        "sha256": "78948695efa00a67723ee427e78c2c62170d1cf67172b83434110717161fb2cc",
+        "original_file": "r3/01_Cloverlight_PhraseFix/Cloverlight_PhraseFix_R3.mp3",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.flac",
+        "sha256": "8be058322cac2b0ceb89de1e9be0137f7f5f9cd58493390a992bb1ad16c87f34",
+        "original_file": "r3/01_Cloverlight_PhraseFix/Cloverlight_PhraseFix_R3.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Lead_Sheet.musicxml",
+        "sha256": "4e129fb493e46050378b138a2dae1e2d4cbee6f1dbb727f69998c1f87f26ebd7",
+        "original_file": "r3/01_Cloverlight_PhraseFix/Cloverlight_PhraseFix_R3_Lead_Sheet.musicxml",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Performance.mid",
+        "sha256": "54ca9062345d2d2a877ecd589bc26d4543f770d97018d3172769f751f3abc6d9",
+        "original_file": "r3/01_Cloverlight_PhraseFix/Cloverlight_PhraseFix_R3_Performance.mid",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/harp_mix.flac",
+        "sha256": "b8b84aa7bf7bbf5c29375cda17b2d90c799d9cb8ebd66fb30b9fade17fe3c27a",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/harp_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/frame_drum_mix.flac",
+        "sha256": "5655d94f14a89171fd774424f48ae3a461c5f189c6c7d113696fc94cfe790e8e",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/frame_drum_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/whistle_mix.flac",
+        "sha256": "b42b8c83caf5afec0432f4405281b0fa434658674421043e4728307a8d21e193",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/whistle_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/guitar_dry.flac",
+        "sha256": "86e58c6221b340aabeca1c86a2b9ea8226bbebc2907120d7d9d66af11b59fd96",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/guitar_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/guitar_mix.flac",
+        "sha256": "bdc305843433b3b960e14a66133273d07d564f83291a5100137ad6430a368ea9",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/guitar_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/harp_dry.flac",
+        "sha256": "feea1085d475b27ef2add5d5cd4b092ff16347a4ae5d909b925d48a0e89b5e7a",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/harp_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/frame_drum_dry.flac",
+        "sha256": "7352d157f4d307dbcbc98f88f237087d86b7f03d9ccbfdffc53c2a331018eb19",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/frame_drum_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "01_Cloverlight_R3/stems/whistle_dry.flac",
+        "sha256": "25c82ac2702dd3cea2bf4ea5ca94ccd0e100f2f64042174c15a82ad241e34102",
+        "original_file": "r3/01_Cloverlight_PhraseFix/stems/whistle_dry.flac",
+        "byte_identical": true
+      }
+    ]
+  },
+  {
+    "track": "Petal_Promenade_Clarinet_Main_R3",
+    "selected_revision": "R3",
+    "files": [
+      {
+        "file": "02_Petal_Promenade_R3/performance_events.json",
+        "sha256": "843255d0c07cdedec17b9f4dca1403b1e1897dcd37e4e6479077bf9ae4172e1b",
+        "original_file": "r3/02_Petal_Clarinet_Main/performance_events.json",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/original_technical_checks.json",
+        "sha256": "b9b417ce56f366fe5e749fd4cc1a0ddda7ef4eeedeae89f6bf621beb36da570c",
+        "original_file": "r3/02_Petal_Clarinet_Main/technical_checks.json",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Lead_Sheet.musicxml",
+        "sha256": "35318fcaff69f6203eca4114299848f44298b5334a4027cfc8bb6431a61ce29f",
+        "original_file": "r3/02_Petal_Clarinet_Main/Petal_Promenade_Clarinet_Main_R3_Lead_Sheet.musicxml",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+        "sha256": "35472bfcb7110c16db942e10b7dc2a518124d5964196d6c332711159d125e965",
+        "original_file": "r3/02_Petal_Clarinet_Main/Petal_Promenade_Clarinet_Main_R3.mp3",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.flac",
+        "sha256": "be9793c39479ca449fd6427faad3f64d942ffd5ed8f761fc5a0b105d2b315248",
+        "original_file": "r3/02_Petal_Clarinet_Main/Petal_Promenade_Clarinet_Main_R3.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Performance.mid",
+        "sha256": "86b2ffc0d441406d343c2351da5b6ace7e5d6660069cc6702ad675a6a9eb3cfb",
+        "original_file": "r3/02_Petal_Clarinet_Main/Petal_Promenade_Clarinet_Main_R3_Performance.mid",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/violin_dry.flac",
+        "sha256": "a494a5cfc2b741a5d9a4b71f1b25618585f68ce5377bf00ae5022d57d7296086",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/violin_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/violin_mix.flac",
+        "sha256": "7ab6280fd0e5e5ff6b6aa26bc8a9fa5fe140dd64951b1a9a54d6d1591d0f40e6",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/violin_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/cello_mix.flac",
+        "sha256": "ec0f3390106c710f3133281dec32aabbd8c41e8e15da42e22e0eb0c489feee99",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/cello_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/cello_dry.flac",
+        "sha256": "6b23e7ec38b77e84c9fd56eaef403e7ba528bf9652f36b908de65e1192e8d80e",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/cello_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/clarinet_mix.flac",
+        "sha256": "1a3c3ed3c94f806011543bc706a280ea90cc07e83fb22e7a1ee668ee52950cb2",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/clarinet_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/pizzicato_dry.flac",
+        "sha256": "9d8c7b6a63bc9a8e7374ec5c0cfaab330e518ab812acedf66394caf72039f1a2",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/pizzicato_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/clarinet_dry.flac",
+        "sha256": "70881bdefe91c4c923bf74bba2021acf547d9c037e7a0a2cd4149cc76a4bc038",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/clarinet_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "02_Petal_Promenade_R3/stems/pizzicato_mix.flac",
+        "sha256": "e2563cd88138905b8e1b990e5dd3b85a5e7b2a025581b8c8fe5045a57457fe87",
+        "original_file": "r3/02_Petal_Clarinet_Main/stems/pizzicato_mix.flac",
+        "byte_identical": true
+      }
+    ]
+  },
+  {
+    "track": "Fiesta_en_Flor_Trumpet_Throughout_R4",
+    "selected_revision": "R4",
+    "files": [
+      {
+        "file": "03_Fiesta_en_Flor_R4/performance_events.json",
+        "sha256": "a803cd422a16c1e6b5eca94cee180eefceacd6e2068d9196d51e6405c8f45b2b",
+        "original_file": "r4/03_Fiesta_Trumpet/performance_events.json",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/original_technical_checks.json",
+        "sha256": "ffacf9f2290f30e59918bc3b7ce903bef73e76df36b3ae63327f37adc172d93c",
+        "original_file": "r4/03_Fiesta_Trumpet/technical_checks.json",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+        "sha256": "231bebbee3d4b0675c2e3f628fb1f1aa3f53670ff605114146d5c9b921526de8",
+        "original_file": "r4/03_Fiesta_Trumpet/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+        "sha256": "53272b0d9b67d162972b3d27ba7cda75afd3fa3abb1394ba85489cd3f76c5a37",
+        "original_file": "r4/03_Fiesta_Trumpet/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Lead_Sheet.musicxml",
+        "sha256": "b51679db98360641a26ff5485954ffd2703e97ba06bd05d41c825c349420a6b7",
+        "original_file": "r4/03_Fiesta_Trumpet/Fiesta_en_Flor_Trumpet_Throughout_R4_Lead_Sheet.musicxml",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Performance.mid",
+        "sha256": "ac1c1e0b1b21cbef9088188dc8890eb2b1987dbab4ac604470e4d377609c77c3",
+        "original_file": "r4/03_Fiesta_Trumpet/Fiesta_en_Flor_Trumpet_Throughout_R4_Performance.mid",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/percussion_dry.flac",
+        "sha256": "bdae19afd0351a8c35222f1f074d849ec97ff8f27c1442dd8b067f9596b38d1c",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/percussion_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/guitar_dry.flac",
+        "sha256": "f7dbeb3ef104c40cc95bb64fba1d8d77b4d27a6488808beed8316d392a053ae4",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/guitar_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/guitar_mix.flac",
+        "sha256": "6d9957e0e383d387b1a4a3ea5284599901985f9bd12413f72ffcb687b62f13be",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/guitar_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/trumpet_mix.flac",
+        "sha256": "b1dcf490a57addad1dcfbdd0803734c7f41a41c7f5d3d7e4f08909c69d3e2f73",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/trumpet_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/bass_dry.flac",
+        "sha256": "9c1a04f0909c91d3454f1dbc2985bb6392bb7dbd92b80c8dda4c085eb7a676d9",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/bass_dry.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/percussion_mix.flac",
+        "sha256": "5a3c2d3eab430ef183ff78ffcdd3e51755da270abd621df3f6aef9fc820a3fe0",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/percussion_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/bass_mix.flac",
+        "sha256": "aa1d58ff8ffde994a49c94aa7507089755a880ed41b6e34075a9bc2669b8051d",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/bass_mix.flac",
+        "byte_identical": true
+      },
+      {
+        "file": "03_Fiesta_en_Flor_R4/stems/trumpet_dry.flac",
+        "sha256": "03dd60e01012326f01e7a919ffab8d8925df7f9455faf7318645bb69998a01b4",
+        "original_file": "r4/03_Fiesta_Trumpet/stems/trumpet_dry.flac",
+        "byte_identical": true
+      }
+    ]
+  }
+]

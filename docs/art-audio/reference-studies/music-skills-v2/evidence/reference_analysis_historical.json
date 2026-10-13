@@ -1,0 +1,291 @@
+{
+  "analysis_date": "2026-10-12",
+  "source": {
+    "filename": "Restaurant City Music - Default.mp3",
+    "sha256": "PRIVATE_REFERENCE_HASH_REDACTED",
+    "duration_seconds": 128.80108843537414,
+    "sample_rate": 44100,
+    "channels": 2,
+    "lufs_at_24k_analysis": -10.027584163423066,
+    "sample_peak_dbfs": -0.05877889959281092
+  },
+  "musical_tempo": {
+    "rounded_quarter_note_bpm": 120,
+    "confidence": "high for approximate pulse; not an original score or project tempo",
+    "beat_interval_seconds_approx": 0.5,
+    "half_time_alternative_bpm": 60,
+    "automatic_grid_bpm": 120.27272727272727,
+    "caution": "120.2727 is a quantized analysis-grid estimate, not evidence for that exact authored tempo. Some groove onsets and loop edits shift fitted beat times. This file alone does not identify every RC soundtrack tempo."
+  },
+  "window_estimates": [
+    {
+      "start": 0,
+      "end": 32,
+      "librosa_bpm": 120.27272727272727,
+      "onset_autocorrelation_top": [
+        [
+          60.13636363636364,
+          0.674757182598114
+        ],
+        [
+          120.27272727272728,
+          0.6086252927780151
+        ],
+        [
+          70.74866310160428,
+          0.46960872411727905
+        ],
+        [
+          51.841692789968654,
+          0.445433109998703
+        ],
+        [
+          176.8716577540107,
+          0.41434431076049805
+        ],
+        [
+          91.11570247933885,
+          0.40643635392189026
+        ]
+      ]
+    },
+    {
+      "start": 32,
+      "end": 64,
+      "librosa_bpm": 120.27272727272727,
+      "onset_autocorrelation_top": [
+        [
+          60.13636363636364,
+          0.6696034073829651
+        ],
+        [
+          120.27272727272728,
+          0.6098596453666687
+        ],
+        [
+          70.74866310160428,
+          0.46892985701560974
+        ],
+        [
+          51.841692789968654,
+          0.44657424092292786
+        ],
+        [
+          176.8716577540107,
+          0.42151522636413574
+        ],
+        [
+          91.11570247933885,
+          0.40891674160957336
+        ]
+      ]
+    },
+    {
+      "start": 64,
+      "end": 96,
+      "librosa_bpm": 120.27272727272727,
+      "onset_autocorrelation_top": [
+        [
+          60.13636363636364,
+          0.6658560037612915
+        ],
+        [
+          120.27272727272728,
+          0.6069298386573792
+        ],
+        [
+          71.5909090909091,
+          0.4661672115325928
+        ],
+        [
+          51.841692789968654,
+          0.4416850805282593
+        ],
+        [
+          176.8716577540107,
+          0.4154300391674042
+        ],
+        [
+          91.11570247933885,
+          0.40507346391677856
+        ]
+      ]
+    },
+    {
+      "start": 96,
+      "end": 128,
+      "librosa_bpm": 120.27272727272727,
+      "onset_autocorrelation_top": [
+        [
+          60.13636363636364,
+          0.6658600568771362
+        ],
+        [
+          120.27272727272728,
+          0.6078459620475769
+        ],
+        [
+          70.74866310160428,
+          0.46678778529167175
+        ],
+        [
+          51.841692789968654,
+          0.44159209728240967
+        ],
+        [
+          176.8716577540107,
+          0.41729822754859924
+        ],
+        [
+          91.11570247933885,
+          0.40660250186920166
+        ]
+      ]
+    },
+    {
+      "start": 0,
+      "end": 128.80108843537414,
+      "librosa_bpm": 120.27272727272727,
+      "onset_autocorrelation_top": [
+        [
+          60.13636363636364,
+          0.6796357035636902
+        ],
+        [
+          120.27272727272728,
+          0.6132951378822327
+        ],
+        [
+          71.5909090909091,
+          0.48158013820648193
+        ],
+        [
+          51.841692789968654,
+          0.450634628534317
+        ],
+        [
+          176.8716577540107,
+          0.41915273666381836
+        ],
+        [
+          91.11570247933885,
+          0.41708704829216003
+        ]
+      ]
+    }
+  ],
+  "repeat_alignment": [
+    {
+      "near_seconds": 32,
+      "measured_lag_seconds": 32.09170068027211,
+      "template_correlation": 0.9979867731663588,
+      "template_seconds": [
+        1,
+        5
+      ]
+    },
+    {
+      "near_seconds": 64,
+      "measured_lag_seconds": 64.18380952380953,
+      "template_correlation": 0.9975303817055831,
+      "template_seconds": [
+        1,
+        5
+      ]
+    },
+    {
+      "near_seconds": 96,
+      "measured_lag_seconds": 96.27532879818594,
+      "template_correlation": 0.9984416709456561,
+      "template_seconds": [
+        1,
+        5
+      ]
+    }
+  ],
+  "structure_interpretation": "Approximately 32.09-second repeat. A 16-bar phrase at approximately 120 quarter-note BPM is a plausible metrical reading, not a verified score. Repetition is not a quality defect.",
+  "listening_observations": [
+    {
+      "role": "main pitched foreground",
+      "family": "rounded bell/tine-like electric keyboard",
+      "candidates": [
+        "soft Rhodes-like electric piano",
+        "FM electric piano or mallet-like keyboard patch"
+      ],
+      "confidence": "medium-high for family; low for exact patch",
+      "limitations": "Mixed stereo MP3, no isolated stems or instrument manifest."
+    },
+    {
+      "role": "short offbeat accompaniment",
+      "family": "clean plucked/strummed strings",
+      "candidates": [
+        "nylon/clean guitar",
+        "muted/plucked guitar-like keyboard layer"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "role": "bass",
+      "family": "rounded plucked bass",
+      "candidates": [
+        "electric bass sample",
+        "upright-like plucked bass patch"
+      ],
+      "confidence": "high for bass role; medium for acoustic/electric identity"
+    },
+    {
+      "role": "percussion",
+      "family": "soft low drum, dry rim/wood-like taps, faint high-frequency texture",
+      "candidates": [
+        "kick",
+        "side-stick/rim-click",
+        "light closed-hat/shaker/brush-like layer"
+      ],
+      "confidence": "medium; exact kit uncertain"
+    }
+  ],
+  "groove_observation": "Stable repeating accompaniment with syncopation, space and softer attacks. There is a relaxed/uneven-subdivision impression; no universal swing ratio has been measured or approved.",
+  "comparators": {
+    "A": {
+      "filename": "A_V2_control.mp3",
+      "sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
+      "duration_seconds": 20.014285714285716,
+      "sample_rate": 44100,
+      "channels": 2,
+      "lufs_at_24k_analysis": -17.99847720543149,
+      "sample_peak_dbfs": -4.550759853102612
+    },
+    "B": {
+      "filename": "B_reduced_harmony.mp3",
+      "sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
+      "duration_seconds": 20.014285714285716,
+      "sample_rate": 44100,
+      "channels": 2,
+      "lufs_at_24k_analysis": -17.997837430561987,
+      "sample_peak_dbfs": -5.6838112330899655
+    },
+    "source_tempo_bpm": 112,
+    "user_feedback": "其实两个现在都很不错了",
+    "scope": "Positive short-excerpt musical-direction feedback for both versions. No A/B winner or causal attribution established. Tempo preference, long-play comfort, final mix, game integration and publication remain open."
+  },
+  "level_comparison": {
+    "reference_minus_A_lu_approx": 7.970893042008425,
+    "note": "For audition comparisons attenuate the louder reference approximately 8 dB as an initial alignment, then verify perceived level. This is not a game-master loudness target."
+  },
+  "method": {
+    "decoder": "libsndfile via soundfile/librosa; ffprobe used for container metadata",
+    "librosa_version": "0.11.0",
+    "analysis_sr": 22050,
+    "hop_length": 220,
+    "tempo_method": "onset-strength autocorrelation and dynamic-programming beat tracking in four 32-second windows plus whole track",
+    "loudness_method": "pyloudnorm integrated BS.1770-style measurement at 24 kHz analysis rate; values approximate; no true-peak or device output qualification",
+    "repeat_method": "4-second waveform template at 1-5 seconds, FFT cross-correlation near 32/64/96-second offsets"
+  },
+  "not_done": [
+    "No exact source instrument/plugin attribution",
+    "No original score reconstruction",
+    "No reference stems",
+    "No final game mix or long-session acceptance",
+    "No repository or Dots configuration written"
+  ]
+}

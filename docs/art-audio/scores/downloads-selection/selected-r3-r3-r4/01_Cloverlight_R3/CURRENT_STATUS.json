@@ -1,0 +1,21 @@
+{
+  "music_title": "三叶微风 · Cloverlight",
+  "selected_version": "R3",
+  "user_selection": "User explicitly selected this existing version as good-sounding.",
+  "current_status": "USER_SELECTED_POSITIVE_VERSION",
+  "audio_mp3": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+  "audio_sha256": "78948695efa00a67723ee427e78c2c62170d1cf67172b83434110717161fb2cc",
+  "lossless_master": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.flac",
+  "master_sha256": "8be058322cac2b0ceb89de1e9be0137f7f5f9cd58493390a992bb1ad16c87f34",
+  "duration_seconds": 29.23748299319728,
+  "nominal_bpm": 108,
+  "meter": [
+    6,
+    8
+  ],
+  "preserved_original_audio": true,
+  "approved_for_automatic_publication": false,
+  "seamless_loop_qualified": false,
+  "game_integration_tested": false,
+  "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+}

@@ -1,0 +1,1144 @@
+{
+  "source_inventory_recorded_utc": "2026-10-12T19:00:16.144220+00:00",
+  "source_inventory_sha256": "9f4d0fe6642dc50b5614a3319a539961bfc0b22c8ba2eeaab727481823e518ab",
+  "comparison_sha256": "086333ae20c051ffdfda57a5951b69a3870064658c403855c45ab85155ffaded",
+  "base_head": "c5e4674939abfd5d17321b79e6a8c26276a231b2",
+  "base_tree": "e3ba79a64fa73d85706b9f88e747c21f6d3ac83c",
+  "files": [
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_1nd.mp3",
+      "source_relative_path": "Cloverlight_PhraseFix_R3_1nd.mp3",
+      "bytes": 3247990,
+      "sha256": "0c6e401a3a68a234fb4b01a0d760ccb90b52a204f5edfbef0397d558fccb0ff5",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_1nd.wav",
+      "source_relative_path": "Cloverlight_PhraseFix_R3_1nd.wav",
+      "bytes": 25806188,
+      "sha256": "0ca19b364983ceeb6bb78672008acd0d228a123a3c1855262ab0b7a66e2cd9fe",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_2nd.mp3",
+      "source_relative_path": "Cloverlight_PhraseFix_R3_2nd.mp3",
+      "bytes": 3620478,
+      "sha256": "989efb8466e844ae2b1fd9a5f537c0fc101aeff58878b53f10d1ba7415066f89",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_2nd.wav",
+      "source_relative_path": "Cloverlight_PhraseFix_R3_2nd.wav",
+      "bytes": 28786028,
+      "sha256": "c072440d7065d6ce9b21396a7cf77ec0325a4bde1553a0a3aa86aa2a0ee1a6ca",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_1nd.mp3",
+      "source_relative_path": "Corner_Cafe_Main_Street_112bpm_Loop_1nd.mp3",
+      "bytes": 3345341,
+      "sha256": "7f61f4945557b96672d18d3d3d9afad4d5766d1a48c2c54d9744077dc9573c11",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_1nd.wav",
+      "source_relative_path": "Corner_Cafe_Main_Street_112bpm_Loop_1nd.wav",
+      "bytes": 26643308,
+      "sha256": "591ebb246096ef65dfe8818b58d947d4ad52794671127cf2989a5c955862d64c",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_2nd.mp3",
+      "source_relative_path": "Corner_Cafe_Main_Street_112bpm_Loop_2nd.mp3",
+      "bytes": 3477616,
+      "sha256": "b860d6d3d4ddcb5d55d8d5ac1ddd6dde96595ec8255c0325945e4e6c6c36321a",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_2nd.wav",
+      "source_relative_path": "Corner_Cafe_Main_Street_112bpm_Loop_2nd.wav",
+      "bytes": 27703148,
+      "sha256": "779894968325aabf386eac0b089db915e9d89945e6b1706cf78fe4da62e9a906",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.mp3",
+      "source_relative_path": "Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.mp3",
+      "bytes": 3040413,
+      "sha256": "ba0b745319de0632b1e19056938eb14aee36c650df3f2a13944d9221d4b1cbc4",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.wav",
+      "source_relative_path": "Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.wav",
+      "bytes": 24193388,
+      "sha256": "650ddf0fe2927de150c9d284a020de4418a3b2400012766aa9f3c3c081850e28",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.mp3",
+      "source_relative_path": "Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.mp3",
+      "bytes": 2858683,
+      "sha256": "f85b6d82fb299daa018dc08e5a9b28258569c884e47f37650e1727eaa12e6e6f",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.wav",
+      "source_relative_path": "Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.wav",
+      "bytes": 22734188,
+      "sha256": "7d85d73d36427e712e92aa5e7f4d7e7c634c5f354ee4d1df6d36d1b8957c00d6",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.mp3",
+      "source_relative_path": "Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.mp3",
+      "bytes": 3821345,
+      "sha256": "4485807829fe19dde9b89b92540ea64387b514c6b6a749262eab2c42634d3b96",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.wav",
+      "source_relative_path": "Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.wav",
+      "bytes": 30429548,
+      "sha256": "7cd440e1df1223c74bdfd4951d8f4de85111d8393e25da8c07aba1c7fa88467d",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.mp3",
+      "source_relative_path": "Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.mp3",
+      "bytes": 3593306,
+      "sha256": "03937950d2557d72665827f1a4904e086c4309c4e6e3f79608c3477418457d87",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.wav",
+      "source_relative_path": "Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.wav",
+      "bytes": 28609388,
+      "sha256": "1244c2d168153c919b73d97d7b2e74dd9f13789c888999dccded488139e03ac7",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_1nd.mp3",
+      "source_relative_path": "Petal_Promenade_Clarinet_Main_R3_1nd.mp3",
+      "bytes": 4216285,
+      "sha256": "4d54a6072abb0b5a2f07f216fc8a6855fc30ead53fd253f3ad83b5092f3fd67f",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_1nd.wav",
+      "source_relative_path": "Petal_Promenade_Clarinet_Main_R3_1nd.wav",
+      "bytes": 33624428,
+      "sha256": "09cda1ab16203dee054f415afd33c000dce49d97f4368037eb1d1486ef47eec0",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_2nd.mp3",
+      "source_relative_path": "Petal_Promenade_Clarinet_Main_R3_2nd.mp3",
+      "bytes": 3588792,
+      "sha256": "e377af33820133a34c050a6df5cfca0a43ac38b95a14a70a45f0a4ab431609c2",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_2nd.wav",
+      "source_relative_path": "Petal_Promenade_Clarinet_Main_R3_2nd.wav",
+      "bytes": 28609388,
+      "sha256": "090f53b4b2c66c1eb7de5f9c9a28bb62112442b04b13e9a3b7cd1a8effa0c783",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Sunshine_Skip_150bpm_R6_2nd.mp3",
+      "source_relative_path": "Sunshine_Skip_150bpm_R6_2nd.mp3",
+      "bytes": 3550287,
+      "sha256": "07da0e58522476b7651e2e64210ac60f0d40204ec3475499c1ecf9f1e641ae98",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/Sunshine_Skip_150bpm_R6_2nd.wav",
+      "source_relative_path": "Sunshine_Skip_150bpm_R6_2nd.wav",
+      "bytes": 28256108,
+      "sha256": "09beaccfcf64a6ea464527b9de0aa76d95eb8683255f12e312c26656dcf8d9c0",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_1nd.mp3",
+      "source_relative_path": "小叶食堂_午市轻快步_忙碌营业_1nd.mp3",
+      "bytes": 4519073,
+      "sha256": "a0fcaf801270d3863d9eafbcea64cf094a5a854b4fd204f0c28eea7b057aeae3",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_1nd.wav",
+      "source_relative_path": "小叶食堂_午市轻快步_忙碌营业_1nd.wav",
+      "bytes": 36012908,
+      "sha256": "f5c289eff17081b90f219800961611c6f82c2f18ecc4f68a38352c852d166ce9",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_2nd.mp3",
+      "source_relative_path": "小叶食堂_午市轻快步_忙碌营业_2nd.mp3",
+      "bytes": 4577215,
+      "sha256": "c76861b12ed625009908454d718000fc959fdc32e17b7cda3389ca6ec346091f",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_2nd.wav",
+      "source_relative_path": "小叶食堂_午市轻快步_忙碌营业_2nd.wav",
+      "bytes": 36481388,
+      "sha256": "488077830bff79b037272db037e5452563d3a91d7eaf0517e749a47d79abcbc5",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_1nd.mp3",
+      "source_relative_path": "小叶食堂_桌边的叶影_安静布置_1nd.mp3",
+      "bytes": 4482441,
+      "sha256": "581d60b1a9154d9e9797eeeaa510eee59fb520291c71d9b52741c94443f0fb92",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_1nd.wav",
+      "source_relative_path": "小叶食堂_桌边的叶影_安静布置_1nd.wav",
+      "bytes": 35713388,
+      "sha256": "77e7213f5e97552f7992cf0b46999d2c8e7ecbc06e0344d3320747ad1b676525",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_2nd.mp3",
+      "source_relative_path": "小叶食堂_桌边的叶影_安静布置_2nd.mp3",
+      "bytes": 4573188,
+      "sha256": "e90804376f6b81a0e345393a20bd828185bd69312d81b757267126f397cd7392",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_2nd.wav",
+      "source_relative_path": "小叶食堂_桌边的叶影_安静布置_2nd.wav",
+      "bytes": 36442988,
+      "sha256": "0498295fad55be4c05cc0e1745a476dc75ad64a85b9f21ca690e5db33859bbd0",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_1nd.mp3",
+      "source_relative_path": "小叶食堂_门口的阳光_日常营业_1nd.mp3",
+      "bytes": 4913829,
+      "sha256": "f19a380172e13eec6a66e45771d0938ec1d1ed72c9a7ea39d2d3d916abe9ba95",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_1nd.wav",
+      "source_relative_path": "小叶食堂_门口的阳光_日常营业_1nd.wav",
+      "bytes": 39161708,
+      "sha256": "352711b6e108eebdc71a0a8940657b37fd2e0afda745154492b1211ef652f082",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_2nd.mp3",
+      "source_relative_path": "小叶食堂_门口的阳光_日常营业_2nd.mp3",
+      "bytes": 4035250,
+      "sha256": "866f984c27abf90ac4ab79db8c7ad94389ebfb260a685dd443844d11c3fd7c19",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_2nd.wav",
+      "source_relative_path": "小叶食堂_门口的阳光_日常营业_2nd.wav",
+      "bytes": 32142188,
+      "sha256": "b422e78332eb576045724aa7bb9f61fd184923e56b8f817b5889f11a609919c4",
+      "kind": "exact marked original",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/CURRENT_STATUS.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/CURRENT_STATUS.json",
+      "bytes": 937,
+      "sha256": "c05b3cab107480c3a9bcf62b7f2a5e97238b5e8dc6fd117457fbd98b84668b49",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/Cloverlight_PhraseFix_R3.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.flac",
+      "bytes": 2774152,
+      "sha256": "8be058322cac2b0ceb89de1e9be0137f7f5f9cd58493390a992bb1ad16c87f34",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+      "bytes": 1172477,
+      "sha256": "78948695efa00a67723ee427e78c2c62170d1cf67172b83434110717161fb2cc",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Lead_Sheet.musicxml",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Lead_Sheet.musicxml",
+      "bytes": 19075,
+      "sha256": "4e129fb493e46050378b138a2dae1e2d4cbee6f1dbb727f69998c1f87f26ebd7",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Performance.mid",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3_Performance.mid",
+      "bytes": 30724,
+      "sha256": "54ca9062345d2d2a877ecd589bc26d4543f770d97018d3172769f751f3abc6d9",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/LEAD_SHEET_README.md",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/LEAD_SHEET_README.md",
+      "bytes": 1320,
+      "sha256": "0ec21ffded870968f495a2b93fb8ad28b355ba0c83b4e9b01bea9de37735a266",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/original_technical_checks.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/original_technical_checks.json",
+      "bytes": 377,
+      "sha256": "ef32d916ec3d1512e560133ccc9046ee62ad9a77df1e4130670b29132d814919",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/performance_events.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/performance_events.json",
+      "bytes": 381883,
+      "sha256": "45baf330a8b80b11a4e916a7f3b9e72fc9db6622b44497cf320b0aa6be8b3b30",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/frame_drum_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/frame_drum_dry.flac",
+      "bytes": 260838,
+      "sha256": "7352d157f4d307dbcbc98f88f237087d86b7f03d9ccbfdffc53c2a331018eb19",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/frame_drum_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/frame_drum_mix.flac",
+      "bytes": 727761,
+      "sha256": "5655d94f14a89171fd774424f48ae3a461c5f189c6c7d113696fc94cfe790e8e",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/guitar_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/guitar_dry.flac",
+      "bytes": 1360475,
+      "sha256": "86e58c6221b340aabeca1c86a2b9ea8226bbebc2907120d7d9d66af11b59fd96",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/guitar_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/guitar_mix.flac",
+      "bytes": 2391109,
+      "sha256": "bdc305843433b3b960e14a66133273d07d564f83291a5100137ad6430a368ea9",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/harp_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/harp_dry.flac",
+      "bytes": 158495,
+      "sha256": "feea1085d475b27ef2add5d5cd4b092ff16347a4ae5d909b925d48a0e89b5e7a",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/harp_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/harp_mix.flac",
+      "bytes": 149706,
+      "sha256": "b8b84aa7bf7bbf5c29375cda17b2d90c799d9cb8ebd66fb30b9fade17fe3c27a",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/whistle_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/whistle_dry.flac",
+      "bytes": 1325331,
+      "sha256": "25c82ac2702dd3cea2bf4ea5ca94ccd0e100f2f64042174c15a82ad241e34102",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/stems/whistle_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "01_Cloverlight_R3/stems/whistle_mix.flac",
+      "bytes": 2566658,
+      "sha256": "b42b8c83caf5afec0432f4405281b0fa434658674421043e4728307a8d21e193",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/CURRENT_STATUS.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/CURRENT_STATUS.json",
+      "bytes": 967,
+      "sha256": "fbb55b922fafc6e6a74bd89238cea7d161d625d33c05edc5688ee6410d5eedf9",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/LEAD_SHEET_README.md",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/LEAD_SHEET_README.md",
+      "bytes": 1531,
+      "sha256": "c1dcc63c680833760bfd40ad41736b7caea563df88aabba7ae4691fc31900f0c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.flac",
+      "bytes": 4346261,
+      "sha256": "be9793c39479ca449fd6427faad3f64d942ffd5ed8f761fc5a0b105d2b315248",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+      "bytes": 1690755,
+      "sha256": "35472bfcb7110c16db942e10b7dc2a518124d5964196d6c332711159d125e965",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Lead_Sheet.musicxml",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Lead_Sheet.musicxml",
+      "bytes": 22585,
+      "sha256": "35318fcaff69f6203eca4114299848f44298b5334a4027cfc8bb6431a61ce29f",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Performance.mid",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3_Performance.mid",
+      "bytes": 36779,
+      "sha256": "86b2ffc0d441406d343c2351da5b6ace7e5d6660069cc6702ad675a6a9eb3cfb",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/original_technical_checks.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/original_technical_checks.json",
+      "bytes": 378,
+      "sha256": "b9b417ce56f366fe5e749fd4cc1a0ddda7ef4eeedeae89f6bf621beb36da570c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/performance_events.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/performance_events.json",
+      "bytes": 437020,
+      "sha256": "843255d0c07cdedec17b9f4dca1403b1e1897dcd37e4e6479077bf9ae4172e1b",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/cello_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/cello_dry.flac",
+      "bytes": 1459825,
+      "sha256": "6b23e7ec38b77e84c9fd56eaef403e7ba528bf9652f36b908de65e1192e8d80e",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/cello_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/cello_mix.flac",
+      "bytes": 2390573,
+      "sha256": "ec0f3390106c710f3133281dec32aabbd8c41e8e15da42e22e0eb0c489feee99",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/clarinet_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/clarinet_dry.flac",
+      "bytes": 1513567,
+      "sha256": "70881bdefe91c4c923bf74bba2021acf547d9c037e7a0a2cd4149cc76a4bc038",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/clarinet_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/clarinet_mix.flac",
+      "bytes": 3243039,
+      "sha256": "1a3c3ed3c94f806011543bc706a280ea90cc07e83fb22e7a1ee668ee52950cb2",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/pizzicato_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/pizzicato_dry.flac",
+      "bytes": 896570,
+      "sha256": "9d8c7b6a63bc9a8e7374ec5c0cfaab330e518ab812acedf66394caf72039f1a2",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/pizzicato_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/pizzicato_mix.flac",
+      "bytes": 2102687,
+      "sha256": "e2563cd88138905b8e1b990e5dd3b85a5e7b2a025581b8c8fe5045a57457fe87",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/violin_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/violin_dry.flac",
+      "bytes": 703667,
+      "sha256": "a494a5cfc2b741a5d9a4b71f1b25618585f68ce5377bf00ae5022d57d7296086",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/stems/violin_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "02_Petal_Promenade_R3/stems/violin_mix.flac",
+      "bytes": 1106873,
+      "sha256": "7ab6280fd0e5e5ff6b6aa26bc8a9fa5fe140dd64951b1a9a54d6d1591d0f40e6",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/CURRENT_STATUS.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/CURRENT_STATUS.json",
+      "bytes": 971,
+      "sha256": "190ebef6ed51866d3e2fc7b7d45d0a1403a3b5cc8bec3aa626dd3bd6392edba1",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+      "bytes": 3164976,
+      "sha256": "231bebbee3d4b0675c2e3f628fb1f1aa3f53670ff605114146d5c9b921526de8",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+      "bytes": 1190252,
+      "sha256": "53272b0d9b67d162972b3d27ba7cda75afd3fa3abb1394ba85489cd3f76c5a37",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Lead_Sheet.musicxml",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Lead_Sheet.musicxml",
+      "bytes": 20623,
+      "sha256": "b51679db98360641a26ff5485954ffd2703e97ba06bd05d41c825c349420a6b7",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Performance.mid",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4_Performance.mid",
+      "bytes": 17535,
+      "sha256": "ac1c1e0b1b21cbef9088188dc8890eb2b1987dbab4ac604470e4d377609c77c3",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/LEAD_SHEET_README.md",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/LEAD_SHEET_README.md",
+      "bytes": 1355,
+      "sha256": "6b3bed33c116aa4bad3da916466d83ea02bd805c711c4242b4b3eab642186965",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/original_technical_checks.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/original_technical_checks.json",
+      "bytes": 923,
+      "sha256": "ffacf9f2290f30e59918bc3b7ce903bef73e76df36b3ae63327f37adc172d93c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/performance_events.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/performance_events.json",
+      "bytes": 475893,
+      "sha256": "a803cd422a16c1e6b5eca94cee180eefceacd6e2068d9196d51e6405c8f45b2b",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/bass_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/bass_dry.flac",
+      "bytes": 1081155,
+      "sha256": "9c1a04f0909c91d3454f1dbc2985bb6392bb7dbd92b80c8dda4c085eb7a676d9",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/bass_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/bass_mix.flac",
+      "bytes": 1254533,
+      "sha256": "aa1d58ff8ffde994a49c94aa7507089755a880ed41b6e34075a9bc2669b8051d",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/guitar_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/guitar_dry.flac",
+      "bytes": 837665,
+      "sha256": "f7dbeb3ef104c40cc95bb64fba1d8d77b4d27a6488808beed8316d392a053ae4",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/guitar_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/guitar_mix.flac",
+      "bytes": 1743359,
+      "sha256": "6d9957e0e383d387b1a4a3ea5284599901985f9bd12413f72ffcb687b62f13be",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/percussion_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/percussion_dry.flac",
+      "bytes": 133828,
+      "sha256": "bdae19afd0351a8c35222f1f074d849ec97ff8f27c1442dd8b067f9596b38d1c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/percussion_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/percussion_mix.flac",
+      "bytes": 775373,
+      "sha256": "5a3c2d3eab430ef183ff78ffcdd3e51755da270abd621df3f6aef9fc820a3fe0",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/trumpet_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/trumpet_dry.flac",
+      "bytes": 1787585,
+      "sha256": "03dd60e01012326f01e7a919ffab8d8925df7f9455faf7318645bb69998a01b4",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/stems/trumpet_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "03_Fiesta_en_Flor_R4/stems/trumpet_mix.flac",
+      "bytes": 3087922,
+      "sha256": "b1dcf490a57addad1dcfbdd0803734c7f41a41c7f5d3d7e4f08909c69d3e2f73",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/CURRENT_STATUS.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/CURRENT_STATUS.json",
+      "bytes": 960,
+      "sha256": "233f46aed35fb5b38d7238816997399c04f7308b611311a9b87b645ecd3ca985",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/LEAD_SHEET_README.md",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/LEAD_SHEET_README.md",
+      "bytes": 3039,
+      "sha256": "e2e18d30feff6058f18547b54eada1c51b54749a8127e63ffba30c1e9f579bb5",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.flac",
+      "bytes": 6010405,
+      "sha256": "2e0a939686b7ebe0324c949fd92723f2be33429ee5db03b0b9240aacafa98b55",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.mp3",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.mp3",
+      "bytes": 1943618,
+      "sha256": "541f42271598bd90295a6157a3b57569d8ea149fedac6b1826ca7cc19010f7e1",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme_Lead_Sheet.musicxml",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme_Lead_Sheet.musicxml",
+      "bytes": 53852,
+      "sha256": "b458a66ebd4401b2dff023c4c8f26ea4d8d870b2eddde46700d3742a57b96234",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme_Performance.mid",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme_Performance.mid",
+      "bytes": 17920,
+      "sha256": "13a6f46433d5cc046f73177ef2b023bcf499d65b28b24385a338d0edf106814f",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/performance_events.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/performance_events.json",
+      "bytes": 568977,
+      "sha256": "5907fd6326b06d53ab9ec4e8343a194c75abc1fe4b2f4681eff60f052c643945",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/accordion_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/accordion_dry.flac",
+      "bytes": 5511058,
+      "sha256": "1f75811e28e9ced51efb563b0ecdfaef5b7058ca64d849670fdbe690e0ad4baf",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/accordion_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/accordion_mix.flac",
+      "bytes": 5354967,
+      "sha256": "36944249540abb1d4ab94c30987a6d84bd7bb2b413a0dff9673d713456b4c1c7",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/bass_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/bass_dry.flac",
+      "bytes": 2170686,
+      "sha256": "6d0742c9f1ff3b604e2cb9c2f1b7cd1bcdafee72767d74341ced3bd0fbc06f6c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/bass_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/bass_mix.flac",
+      "bytes": 2207871,
+      "sha256": "b4f0915fc4782cbfa3bd32f7a18ee919faf367bbc323a2b283848efb69121d87",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/brushes_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/brushes_dry.flac",
+      "bytes": 2224008,
+      "sha256": "7b40101c5f9fb84695203646b4dbd0881f4b0fac9a186394109c391c2509d48a",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/brushes_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/brushes_mix.flac",
+      "bytes": 4077896,
+      "sha256": "35c0a6838ed126919f998a1f593b9d2d469cbaaf20f86e66d85e69b18a865eb4",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/guitar_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/guitar_dry.flac",
+      "bytes": 1727835,
+      "sha256": "8c6b5922b2656dd387cf9624145e5125c0f4f522633dd0aa41ce91ac35e4416b",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/guitar_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/guitar_mix.flac",
+      "bytes": 3258992,
+      "sha256": "2d68c60d0e5bb45b5b04f033b0de7560311296e393dbfd9a560486c17816cf6c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/pizzicato_dry.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/pizzicato_dry.flac",
+      "bytes": 1180346,
+      "sha256": "34c399d64b5bc49dad1c65b79c0f687936c97c4e4e446e0a38973aeaef137f6a",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/stems/pizzicato_mix.flac",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/stems/pizzicato_mix.flac",
+      "bytes": 2597487,
+      "sha256": "a921eeb8dd44b9d60429aaa89ab05dcecfac714cfe6cd1d6c9eae95f16e11f8a",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/technical_checks.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "04_Sunshine_Skip/technical_checks.json",
+      "bytes": 1010,
+      "sha256": "e513dc0412201695d121b7ebf7f249210b83c663f907c6139496244a0356e97c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/README_先读_正确版本.md",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "README_先读_正确版本.md",
+      "bytes": 5203,
+      "sha256": "16a98de05afedb98ab0a7edd434fe4269d650b2a38c3daae6c8f03e0ec1e8a77",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/SELECTION_MANIFEST.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "SELECTION_MANIFEST.json",
+      "bytes": 4815,
+      "sha256": "f716a0a99731b82584f9db25fd92b09f3b9350cd1221038cc6d0483a39939b62",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/SHA256SUMS.txt",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "SHA256SUMS.txt",
+      "bytes": 8907,
+      "sha256": "192f9810567c1e92a70074c9c921bda83fc0b698ea215238f2defb3adb0c6819",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/licenses/GPL-2.txt",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "licenses/GPL-2.txt",
+      "bytes": 17984,
+      "sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/licenses/TimGM6mb_package_notice.txt",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "licenses/TimGM6mb_package_notice.txt",
+      "bytes": 2307,
+      "sha256": "6ef01652619cf29b289a9403cd2ab59550fa3e2c30844c67292eea5421f993e9",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/audio_engine.py",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/audio_engine.py",
+      "bytes": 4447,
+      "sha256": "7c972bc6a70ed0baea4ac5d4d5be19b13ff4ad010e35f54711125e769e73ee5f",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/compose_sunshine_skip.py",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/compose_sunshine_skip.py",
+      "bytes": 14808,
+      "sha256": "ecb48d63800325d68a1de2f68cd8c6034f4206c3947bbd96bca9c7ab5525f5f1",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/percussion.py",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/percussion.py",
+      "bytes": 2170,
+      "sha256": "37b347fb212b976d72b0737f2215edfbfbe4228f034c49c157b1cbe5950a5e38",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/render_environment.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/render_environment.json",
+      "bytes": 512,
+      "sha256": "a8f13aa6c485b3771632f544d351b3330d1c4952d464e53933268164faa9be9b",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/render_selected.py",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/render_selected.py",
+      "bytes": 6569,
+      "sha256": "6aec90cc8ef9d6d4438972060abdb33b905795370bacd82f95af8c68555ed62c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/requirements.txt",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/requirements.txt",
+      "bytes": 164,
+      "sha256": "02118b016b4e5bfff0c3a5cb0e37e768146c8834acb7b238099d4a582bf0af34",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/source/score_export.py",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "source/score_export.py",
+      "bytes": 6696,
+      "sha256": "5ecf9964e13cb6de64c57184fd393a2eba8cee02a568633ef7a248f34da4acd6",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/verification/package_checks.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "verification/package_checks.json",
+      "bytes": 2660,
+      "sha256": "478cab62393e22d79d6712e53492de2e5c6a3af2f96dd91c603caad3ca94c51c",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/verification/rebuild_new_fourth.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "verification/rebuild_new_fourth.json",
+      "bytes": 1241,
+      "sha256": "bdc2210b4a3d6546e6897e2122042b0398b9681ff297c8f6fe9b74e5c4541f41",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/verification/rebuild_selected.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "verification/rebuild_selected.json",
+      "bytes": 618,
+      "sha256": "113267f550bc4700bfd5db7938b399cb8daa5973a3e4847629b8d6d6bb11bb6d",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    },
+    {
+      "path": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/verification/selected_files_byte_identity.json",
+      "archive": "LittleLeaf_Selected_R3_R3_R4_and_NewTheme_Complete.zip",
+      "archive_sha256": "e41b66b69c739359d351e0de439591f432fcee90a8bba03cbebde05c0914a111",
+      "member": "verification/selected_files_byte_identity.json",
+      "bytes": 12261,
+      "sha256": "91cb8a1b74bd1343d429c5e72d88d5f48af81df8ba678b46041c20807f54e6b8",
+      "kind": "exact supplied package member",
+      "runtime_asset": false
+    }
+  ],
+  "exact_marked_originals": 34,
+  "exact_package_members": 82,
+  "supplied_checksum_entries_verified": 81,
+  "raw_zip_copied": false,
+  "original_inputs_changed": false,
+  "deduplicated_existing": {
+    "mainstreet_shop_members": 45,
+    "fourth_loop_members": 25,
+    "existing_three_game_mp3s": 3,
+    "note": "These existing original paths remain in PR228/base; no duplicate copies added."
+  },
+  "current_requirement": {
+    "authority": [
+      "Sentinel_efb16397e5e081918e30d391691d3f22",
+      "Sentinel_9944ae176f5c8191b4caf3f647ecceee"
+    ],
+    "default": "Unmarked compositions",
+    "premium": "Exact _1nd or _2nd versions",
+    "premium_currently_free": true,
+    "entitlement_or_payment_change": false,
+    "marked_loop_processing": "One representative source-reviewed pilot before broader processing",
+    "historical_status_records": "Preserved unchanged; current integration request does not invent listening acceptance"
+  },
+  "classification": {
+    "new_requested_tracks": 27,
+    "default": 10,
+    "premium": 17,
+    "retain_existing_harmony_studies": [
+      "harmony-study-A",
+      "harmony-study-B"
+    ]
+  },
+  "qualification": {
+    "preservation": "Exact source bytes, archive CRC and supplied SHA checks only",
+    "supplied_scripts_executed": false,
+    "new_codec_or_model_or_engine_run": false,
+    "actual_hearing": "UNASSESSED",
+    "new_loop_derivatives": 0,
+    "runtime_integration": "PENDING",
+    "publication_merge_release": false,
+    "marked_editable_source": "Not supplied for these exact 1nd/2nd recordings; unrelated unmarked scores must not determine their loop boundaries",
+    "dependency_scope": "TimGM notice and full GPL-2 text preserved; no bank binary; recording distribution assessment is separate"
+  }
+}
