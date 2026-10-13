@@ -1,0 +1,184 @@
+{
+  "id": "harmony-study-B",
+  "original_audio_sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
+  "original_events_sha256": "ec1ef479d1de0b21e1dc603d60f283b890c860e200cad1058ccacb2025223d24",
+  "removed_closing_events": [
+    {
+      "part": "rhodes",
+      "beat": 32,
+      "pitch": 72,
+      "duration": 1.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 32,
+      "pitch": 48,
+      "duration": 1.5,
+      "velocity": 71,
+      "delay_ms": -4,
+      "gate": 0.88
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 52,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 7.0,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 55,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 12.4,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 57,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 17.8,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 60,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.92
+    }
+  ],
+  "preserved_phrase_events": 170,
+  "phrase_events_exactly_unchanged": true,
+  "bpm": 112,
+  "loop_beats": 32,
+  "sample_rate": 44100,
+  "frames": 756000,
+  "period_seconds": 17.142857142857142,
+  "first_note_rule": "Original max(0, beat time + delay); initial bass -4ms is clamped to zero as in the accepted source, identically each cycle",
+  "processing": "Only surviving phrase release folded; periodic original HP/LP, saturation and pan; seeded circular room convolution; no phrase crossfade/fade",
+  "calibration": "Original full A shared per-part gains retained for both; not independently normalized short loops",
+  "stem_gains": {
+    "rhodes": 2.368053537292822,
+    "guitar": 2.015373993192718,
+    "bass": 3.024315104521585,
+    "vibes": 1.7712450420215806,
+    "flute": 2.202638588057142,
+    "drums": 6.677415769309474
+  },
+  "original_master_gain_db_preserved": 4.63800631739307,
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "fluidsynth_dll_sha256": "d5a8382dabf8f3d9e43eb733afc31ea8477ecb86b2b6ff2a6d1e11f60f982126",
+  "fluidsynth_version": "2.3.1",
+  "helpers": {
+    "source_sha256": "b75b9ecda7ef67a68e23685a7193891f48f4d1257dc44a805353b6603f004d90",
+    "selected_helpers": [
+      "Note",
+      "Synth",
+      "apply_performance",
+      "make_shaker",
+      "room_ir"
+    ],
+    "portable_adapter": "Synth library lookup only changed to the pinned absolute DLL",
+    "selected_adapted_ast_sha256": "5ac5c7a3806792be0a1422ef0d9ed0c040b06364853372567b2388e115bb020d"
+  },
+  "lossless_signal": {
+    "sample_peak": 0.5198867321014404,
+    "rms": 0.09865952770228692,
+    "seam_adjacent_sample_step": 0.0015333890914916992,
+    "ordinary_adjacent_step_p99_9": 0.03294968605041504,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "ogg_signal": {
+    "sample_peak": 0.5222774147987366,
+    "rms": 0.09887756231613927,
+    "seam_adjacent_sample_step": 0.0017803609371185303,
+    "ordinary_adjacent_step_p99_9": 0.03252130001783371,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "ogg_encoder": "libsndfile 1.2.2 default Vorbis encoder through soundfile 0.13.1",
+  "preview": {
+    "resample": "scipy resample_poly 160/147; no tempo or pitch change",
+    "encoder": "retained OBS FFmpeg n8.1.2 libmp3lame; 320k stereo 48000; gapless metadata",
+    "encoder_source_sha256": "aa011b85f311406509d2fe35175779454563c75fcb1511e9b5d2d29955c56365",
+    "decoded_frames": 1645715,
+    "sample_rate": 48000,
+    "signal": {
+      "sample_peak": 0.5226337313652039,
+      "rms": 0.09815809099266921,
+      "seam_adjacent_sample_step": 0.02921367809176445,
+      "ordinary_adjacent_step_p99_9": 0.029887743294239044,
+      "finite": true,
+      "full_scale_clipping": false
+    }
+  },
+  "preview_join_seconds": 17.142857142857142,
+  "auditory_review": "UNASSESSED",
+  "actual_godot_web_loop": "PENDING",
+  "files": [
+    {
+      "path": "B_harmony_loop.flac",
+      "bytes": 1805955,
+      "sha256": "6ae3d739a20e4518e725ae4565be37dad5d3f951d61746ef2126f04b2f087d64"
+    },
+    {
+      "path": "B_harmony_loop.ogg",
+      "bytes": 174876,
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da"
+    },
+    {
+      "path": "B_harmony_loop.wav",
+      "bytes": 4536044,
+      "sha256": "5e2bb79be93d06187d82fdd25651f45b894f9302528e44850b1f6295394fffcd"
+    },
+    {
+      "path": "B_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "bytes": 1373805,
+      "sha256": "f0a58f9e4fc79db31ab7479fab2d496550bb7824378d3c5d1d8791a55daf3b92"
+    },
+    {
+      "path": "B_loop.mid",
+      "bytes": 1689,
+      "sha256": "ac1d5cf5069463b6b382f94ff194f9a9b186dda528e8a25ed405b6a18bba0f6b"
+    },
+    {
+      "path": "B_loop_events.json",
+      "bytes": 27762,
+      "sha256": "49013fb8fb977ccffa972967af30b6e7365128784c7c12715769b4c4811cb0fc"
+    },
+    {
+      "path": "B_stems/bass.flac",
+      "bytes": 797961,
+      "sha256": "47d611d69e8151212dbd1b44eb806d87ac3711ca3226bf4979d26fe92df7f61b"
+    },
+    {
+      "path": "B_stems/drums.flac",
+      "bytes": 1163694,
+      "sha256": "972c07480c9044cb709e24cb29d21c4b7f2a562ecc5cce4d8e2c3c68d903b95c"
+    },
+    {
+      "path": "B_stems/guitar.flac",
+      "bytes": 1087240,
+      "sha256": "c3535200f030671c3d475b3e2ccde17816e9bc7e24a2d32aa5b372195802ea41"
+    },
+    {
+      "path": "B_stems/rhodes.flac",
+      "bytes": 1604618,
+      "sha256": "ebf711c266d8fea86ebb8ea9742a6f3347073314b1a78e0ecf2e77924457f04b"
+    }
+  ],
+  "private_render_event_bytes_sha256": "306b5d3ce362357ba599a65d071b8ea8080900e94ae1ecf72b9ea510b70f4d60",
+  "public_event_format": "LF formatting only; semantic events unchanged, private rendering receipt retained"
+}

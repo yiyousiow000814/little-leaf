@@ -1,57 +1,74 @@
-# Development
+# Little Leaf documentation
 
-## Run
+Start with the [repository README](../README.md) to open the game. Read the [canonical roadmap](roadmap.md) before choosing work: it is the single current editing plan, with original requirements through 0.3.2, dependencies, ownership and acceptance gates. Library master v3 is a historical snapshot, not a synchronized editing copy.
 
-Open `project.godot` in Godot **4.6.3**, use **GL Compatibility**, and press **F5**. From the repository root, `godot --path .` also starts the game.
+Choose the guide for what you want to do:
 
-Normal play reads and writes local saves. Use a separate profile and copied saves for experiments.
+| Purpose | Start here | What it covers |
+| --- | --- | --- |
+| Design | [Design](design/README.md) | Player outcomes, character and building contracts, routing rules |
+| Development | [Development](development/README.md) | Open/build the project, implementation and save boundaries |
+| Art and audio | [Art and audio](art-audio/README.md) | Asset permissions, provenance and source-bound visual records |
+| Testing | [Testing](testing/README.md) | Acceptance criteria, browser gates, focused regression and visual evidence |
+| Release | [Release](release/README.md) | Checked builds, platform previews, publication and recovery |
 
-## Test
+For agent work, [AGENTS.md](../AGENTS.md) links the canonical rules and developer commands. Generated profiles, screenshots, logs and private operational handoffs stay outside tracked source.
 
-With Python 3 and Godot 4.6.3 on Linux or macOS:
+## Game Production Framework
 
-```sh
-python3 tests/run_integration_candidate.py --output /tmp/little-leaf-qa
-```
+Use the relevant pillars through the [Feature Design Quality Gate](design/README.md#feature-design-quality-gate).
+This is a navigation map, not another roadmap or completion ledger. The
+[roadmap](roadmap.md#current-state) alone owns product scope, priority and status.
+The canonical homes below maintain the domain contracts. Linking a contract does
+not establish runtime acceptance or approval of a creative standard or pilot.
 
-Use a new output directory for each run. Set `GODOT_BIN` if the executable is not named `godot`. Add `--only` followed by test names for a focused run; `--help` lists the choices.
+| Pillar | Canonical home | Responsibility |
+| --- | --- | --- |
+| Art Direction / Art Bible | `docs/art-audio/ART_BIBLE.md`: [Art Bible](art-audio/ART_BIBLE.md); [production skill](../.agents/skills/game-art-production/SKILL.md), [review skill](../.agents/skills/game-art-review/SKILL.md) | Original identity, editable authoring, calibration and scoped reference decisions; genuine game pixels before Golden approval. |
+| Technical Art / Occlusion | `docs/development/depth-occlusion.md`: [depth contract](development/depth-occlusion.md) | Ground anchors, footprints/parts, pass order, native/cache ownership and continuous Occlusion QA. |
+| Audio Direction / Audio Bible | `docs/art-audio/AUDIO_BIBLE.md`: [Audio Bible](art-audio/AUDIO_BIBLE.md) | Production/source/licensing and mix/playback review; measured signals and actual listening remain distinct. |
+| Living World Design | `docs/design/living-world.md`: [Living World](design/living-world.md) | Spatial/causal/identity coherence, clocks, offscreen and bus events, custody and complete journeys. |
+| Game Feel & Animation | `docs/testing/README.md#game-feel-and-animation-review`: [experience review](testing/README.md#game-feel-and-animation-review) | Natural-speed animation, feedback, repetition/interruption, listening comfort and newcomer understanding. |
+| UI/UX Design System | `docs/design/ui-ux-design-system.md`: [UI/UX](design/ui-ux-design-system.md) | Reuse-first theme/components, typography/states, responsive surfaces, focus/touch and actual interaction review. |
+| Gameplay Reference & Parity | `docs/design/gameplay-reference-parity.md`: [reference and parity](design/gameplay-reference-parity.md) | Historical era/confidence, strategic loops, intentional adaptations and explicit unresolved product decisions. |
+| Quality Assurance / Acceptance Gates | `docs/testing/README.md#evidence-and-acceptance-gates`: [acceptance gates](testing/README.md#evidence-and-acceptance-gates) | Separate source/tests, actual presentation, player decision, integration and delivery; retain scoped failures and gaps. |
 
-The runner uses a disposable project and generated saves. It checks engine behavior, not browser storage or rendered visuals.
+The implementer owns the proposed change, relevant production evidence and
+unchanged boundaries. The reviewer checks the exact source and actual required
+pixels, motion or listening evidence rather than granting approval from CI.
+The user decides new visual/audio Golden standards and substantive product-policy
+choices; integration and release owners retain their existing separate gates.
+A recorded mandatory review process can be complete while its pilot or creative
+standard is still unvalidated. Do not turn an unapproved proposal into a rule.
 
-## Build
+### Task entry examples
 
-For automated builds and publishing, see [GitHub Web builds and releases](github-release.md).
+- **New furniture:** use Art production, Technical Art and Art review; preserve
+  footprint/contact/part relationships and select the affected continuous depth
+  and interaction checks. An unchanged-art optimization reuses existing authoring
+  proof and calibration with Pixel Parity instead of making a new GUI sample.
+- **UI notification:** start with UI/UX reuse and the Feature Design Quality Gate;
+  review actual affected layouts, input/focus, repeat/interruption and visual
+  feedback through Game Feel/QA. Keep its save, update or Auth action owner intact.
+- **Vehicle/customer behavior:** start with Living World and its complete journey;
+  involve Technical Art for overlap/render handoffs and Gameplay Reference for
+  changed strategic rules. Demand, economics and persistence need their own approval.
+- **Audio:** use the Audio Bible's production/source package and review gates,
+  then affected Game Feel/QA listening and platform checks. A decoded waveform or
+  successful test is not listening approval. No separate per-pillar skill is needed.
 
-Use the **Web** export preset with Godot 4.6.3 and its matching non-threaded release template at `export_templates/web_nothreads_release.zip`.
+Existing [rendering/performance](testing/rendering-performance.md),
+[memory](testing/memory-regression.md), [asset permissions](art-audio/README.md),
+[development](development/README.md) and [release](release/README.md) rules remain
+in force. Apply them proportionately; this index starts no runtime run, asset
+migration, character activation, merge or publication.
 
-```sh
-mkdir -p build/web
-godot --headless --path . --export-release Web build/web/index.html
-cp docs/third-party/GODOT-AA-LICENSE.txt build/web/
-```
+## Reading historical evidence
 
-Serve the exported folder over HTTP to test it. Keep the license notice, custom HTML shell and export include/exclude rules.
+An area's `history/` preserves dated approvals, reviews, failed evidence and recovery records. Their statements describe the source and date recorded there; they do not establish current implementation, merge, release or pixel acceptance. Use the roadmap's current-state section first.
 
-## Repository boundaries
+[Recorded art scale/contact studies](art-audio/art-scale-contact-011.md) distinguish historical measurements, superseded cabinet designs and proposed combined review from current Art Bible authority and accepted targets.
 
-- `scripts/`: gameplay state, UI, rendering, and engine-side adapters. Keep game rules independent of publishing tools; route platform-specific behavior through the existing adapters.
-- `web/`: browser shells and JavaScript storage/platform bridges. Keep browser persistence and SDK integration here rather than in release scripts.
-- `tests/`: repeatable regression suites, browser harnesses, and small source-bound fixtures. State whether a check covers engine behavior, browser behavior, or rendered output.
-- `qa/`: reusable capture, profiling, and diagnostic helpers. Generated screenshots, traces, logs, exports, and disposable profiles belong in ignored output directories, not beside the helpers.
-- `ci/`: build, validation, release-metadata, and publishing helpers. Build/test success is separate from permission to publish.
-- `.github/workflows/`: orchestration of checks, builds, GitHub Releases, and platform publication. Keep release creation and platform deployment as distinct operations.
-- `docs/`: current development guidance and feature contracts; `docs/archive/` keeps historical review and recovery context. Link from this guide when adding an enduring development workflow.
+The [historical evidence directory](testing/history/README.md) links original reviews across these areas. [Source recovery records](development/history/repository-notes.md) and the [original manifest](development/history/SOURCE_MANIFEST.json) retain original hashes and paths. Commands and JSON inside historical records refer to their original repository or capture environment.
 
-## Branch and review hygiene
-
-Keep each work branch tied to a focused PR. State its purpose, base, scope, validation, and any dependent PRs. Retire completed or superseded branches after their source and useful evidence are durably preserved.
-
-A temporary integration or preview branch needs a clearly marked tracking draft with pinned source references and an explicit retirement plan. It does not replace separately reviewed feature or platform PRs, and must not become a bundled merge shortcut.
-
-Keep runtime changes, platform integration, test-only repairs, and deployment changes independently reviewable. Prefer a small documentation update to an unrelated cleanup or file move. Preserve asset inputs, history, and recovery evidence before removing obsolete material.
-
-## Project files
-
-Keep asset inputs, `.import` settings and script `.uid` files tracked. Some fonts and HUD assets use `importer="keep"`; preserve those settings. Generated `.godot/` files, exports and player saves stay out of Git.
-
-See [assets and licenses](licenses.md) before reusing or distributing content. Older review notes and recovery records are in the [archive](archive/README.md).
+Distribution notices live under `art-audio/third-party/`; the retained QA output placeholders live under `testing/litter-remnants-visibility/` and `testing/role-boundaries/`. Their build and diagnostic consumers use these category paths.
