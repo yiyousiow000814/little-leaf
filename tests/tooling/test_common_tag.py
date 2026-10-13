@@ -96,6 +96,25 @@ class CommonTagTests(unittest.TestCase):
             self.assertEqual(before['sequence'],2)
             with self.assertRaises(ValueError):common.chronology(root,side,'HEAD')
 
+    def test_explicit_main_fetch_binds_checkout_fetch_head_without_weakening_chronology(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);remote=root/'remote';remote.mkdir();consumer=root/'coordinator'
+            command=lambda cwd,*args:subprocess.check_output(['git','-C',str(cwd),*args],stderr=subprocess.DEVNULL,text=True).strip()
+            command(remote,'init','-qb','main');command(remote,'config','user.name','Synthetic');command(remote,'config','user.email','synthetic@example.invalid')
+            for number in range(2):
+                (remote/'fixture').write_text(str(number));command(remote,'add','fixture');command(remote,'commit','-qm','synthetic')
+            source=command(remote,'rev-parse','HEAD');expected=common.chronology(remote,source,'HEAD')
+            command(remote,'checkout','--orphan','unrelated');command(remote,'rm','-f','--','fixture');command(remote,'commit','--allow-empty','-qm','unrelated')
+            unrelated=command(remote,'rev-parse','HEAD');command(remote,'checkout','-q','main')
+            command(root,'clone','-q','--no-local',str(remote),str(consumer))
+            command(consumer,'fetch','--no-tags','origin','unrelated')
+            with self.assertRaisesRegex(ValueError,'Tagged source must be on main first-parent history'):
+                common.chronology(consumer,source)
+            command(consumer,'fetch','--no-tags','origin','main')
+            self.assertEqual(common.chronology(consumer,source),expected)
+            with self.assertRaisesRegex(ValueError,'Tagged source must be on main first-parent history'):
+                common.chronology(consumer,unrelated)
+
 
 class PlatformTests(unittest.TestCase):
     def marker(self,source='a',version='0.1.11-pre.aaaaaaaa'):

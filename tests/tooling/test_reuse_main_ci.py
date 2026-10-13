@@ -260,6 +260,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1", publish_condition)
         self.assertIn("inputs.qualified_run_id == ''",diagnostic)
         self.assertIn('ref: ${{ steps.common.outputs.source_sha }}',publishing)
+        self.assertLess(publishing.index('git -C coordinator fetch --no-tags origin main'),
+                        publishing.index('coordinator/tools/release/common_firebase.py'))
         self.assertLess(publishing.index('--platform itch'),publishing.index('ref: ${{ steps.common.outputs.source_sha }}'))
         self.assertLess(publishing.index('ref: ${{ steps.common.outputs.source_sha }}'),publishing.index('BUTLER_API_KEY:'))
         self.assertNotIn('common_tag.py consume',publishing)
