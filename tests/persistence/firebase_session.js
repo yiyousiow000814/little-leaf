@@ -17,7 +17,99 @@ function environment({timeoutMs=15000}={}){
  }
  return {device,remote,deliver:value=>{for(const watch of watchers)watch(clone(value));},setSession:x=>session=clone(x),setCloud:x=>cloud=clone(x),session:()=>clone(session),cloud:()=>clone(cloud),advance:ms=>time+=ms,failWrites:x=>writeFail=x,setUid:x=>uid=x,writeCalls:()=>writeCalls,holdWrites(){let resolve;writeGate=new Promise(r=>resolve=r);return ()=>{writeGate=null;resolve();};},holdReads(){let resolve;readGate=new Promise(r=>resolve=r);return ()=>{readGate=null;resolve();};}};
 }
+async function renewalCoalescingChecks(){
+ function fixture(){
+  let value=null,uid='renewal-fixture',runtimeHeld=true,time=100000,held=false,confirmationHeld=false,receive,writes=0;
+  const calls=[],confirmations=[];
+  const remote={
+   async read(){return clone(value);},
+   async change(action,guard){
+    guard();
+    if(held){let resolve,reject;const ready=new Promise((a,b)=>{resolve=a;reject=b;});calls.push({resolve,reject});await ready;}
+    guard();const next=action(clone(value),null,()=>++time);guard();value=clone(next);writes++;if(receive)receive(clone(value));const result=clone(value);
+    if(confirmationHeld){let resolve;const ready=new Promise(done=>{resolve=done;});confirmations.push({resolve});await ready;}
+    return result;
+   },watch(fn){receive=fn;return()=>{receive=null;};}
+  };
+  const session=sessionApi.createSession({remote,uid:'renewal-fixture',currentUid:()=>uid,now:()=>time,
+   assertRuntime(){if(!runtimeHeld)throw fail('NOT_READY');}});
+  return {session,calls,confirmations,start:()=>session.start(),hold(){held=true;},holdConfirmation(){confirmationHeld=true;},value:()=>clone(value),writes:()=>writes,
+   replace(next){value=clone(next);if(receive)receive(clone(value));},uid(next){uid=next;},runtime(next){runtimeHeld=next;}};
+ }
+ const request=()=>({id:webcrypto.randomUUID(),requester:webcrypto.randomUUID(),device:'Phone',at:{seconds:100,nanoseconds:1}});
+ for(const handoff of [false,true]){
+  const f=fixture();await f.start();if(handoff)f.replace({...f.value(),request:request()});f.hold();
+  const before=f.writes(),calls=[f.session.renew(),f.session.renew()];
+  try{assert.equal(f.calls.length,1,'identical concurrent renewal callers must share one server change');}
+  finally{for(const call of f.calls)call.resolve();await Promise.allSettled(calls);}
+  const results=await Promise.all(calls);assert.equal(f.writes(),before+1);assert.equal(results[0].status,handoff?'handoff-requested':'active');
+  const next=f.session.renew();assert.equal(f.calls.length,2,'settled renewal is never a completed-result cache');f.calls[1].resolve();await next;
+ }
+ // Each delayed caller retains its captured account/runtime/owner/request/ACK
+ // fences. Neither same-owner intent changes nor closure can authorize a write.
+ const mutations={
+  account:f=>f.uid('other'),runtime:f=>f.runtime(false),close:f=>f.session.close(),
+  owner:f=>f.replace({...f.value(),owner:webcrypto.randomUUID()}),epoch:f=>f.replace({...f.value(),epoch:2}),
+  request:f=>f.replace({...f.value(),request:{...f.value().request,id:webcrypto.randomUUID()}}),
+  requester:f=>f.replace({...f.value(),request:{...f.value().request,requester:webcrypto.randomUUID()}}),
+  requestStamp:f=>f.replace({...f.value(),request:{...f.value().request,at:{seconds:100,nanoseconds:2}}}),
+  ack:f=>f.replace({...f.value(),ack:{requestId:f.value().request.id,digest:'a'.repeat(64),revision:1}})
+ };
+ for(const [name,mutate] of Object.entries(mutations)){
+  const f=fixture();await f.start();f.replace({...f.value(),request:request()});f.hold();const before=f.writes();
+  const pending=Promise.allSettled([f.session.renew(),f.session.renew()]);assert.equal(f.calls.length,1,name);mutate(f);
+  const after=f.value();f.calls[0].resolve();const results=await pending;
+  const code=['account','runtime','close'].includes(name)?'NOT_READY':['owner','epoch'].includes(name)?'OWNERSHIP_LOST':'HANDOFF_CHANGED';
+  assert(results.every(x=>x.status==='rejected'&&x.reason.code===code),name+' must refuse every stale caller');assert.equal(f.writes(),before,name+' wrote after its fence changed');assert.deepEqual(f.value(),after);
+ }
+ // A rejected old intent cannot clear a replacement slot or mark its newer
+ // confirmed state offline. A third matching caller still joins that new work.
+ const replacement=fixture();await replacement.start();replacement.hold();
+ const old=Promise.allSettled([replacement.session.renew()]);replacement.replace({...replacement.value(),request:request()});
+ const newer=replacement.session.renew();assert.equal(replacement.calls.length,2);
+ const denial=fail('permission-denied');replacement.calls[0].reject(denial);assert.equal((await old)[0].reason,denial);
+ assert.equal(replacement.session.snapshot().status,'handoff-requested');
+ const joined=replacement.session.renew();assert.equal(replacement.calls.length,2,'late rejection cleared the replacement');
+ replacement.calls[1].resolve();await Promise.all([newer,joined]);assert.equal(replacement.session.snapshot().status,'handoff-requested');
+ const newerEpoch=fixture();await newerEpoch.start();newerEpoch.hold();const stale=Promise.allSettled([newerEpoch.session.renew()]);
+ newerEpoch.replace({...newerEpoch.value(),epoch:2});const confirmedRenewal=newerEpoch.session.renew();newerEpoch.calls[1].resolve();await confirmedRenewal;
+ newerEpoch.calls[0].reject(denial);assert.equal((await stale)[0].reason,denial);assert.equal(newerEpoch.session.snapshot().status,'active','late rejection made the confirmed replacement offline');
+ // A late successful response is also stale: do not publish the old active
+ // state over a newer same-epoch request/ACK confirmed by the listener.
+ const delayed=fixture();await delayed.start();delayed.holdConfirmation();
+ const older=Promise.allSettled([delayed.session.renew()]);assert.equal(delayed.confirmations.length,1);
+ const intent=request(),confirmed={...delayed.value(),request:intent,ack:{requestId:intent.id,digest:'b'.repeat(64),revision:2}};
+ delayed.replace(confirmed);const committed=delayed.writes();delayed.confirmations[0].resolve();
+ const oldResult=(await older)[0];assert.equal(oldResult.status,'rejected');assert.equal(oldResult.reason.code,'HANDOFF_CHANGED');assert.deepEqual(delayed.value(),confirmed);assert.equal(delayed.writes(),committed);
+ assert.equal(delayed.session.snapshot().ownershipPaused,true);assert.throws(()=>delayed.session.assertActive(true),e=>e.code==='OWNERSHIP_LOST');
+ // A -> B -> A restores the same key but not the old operation's authority.
+ // An older confirmation must not regress the newer confirmed lease timestamp.
+ const aba=fixture();await aba.start();aba.holdConfirmation();const firstA=Promise.allSettled([aba.session.renew()]);
+ aba.replace({...aba.value(),request:request()});const intentB=Promise.allSettled([aba.session.renew()]);
+ aba.replace({...aba.value(),request:null,ack:null});const secondA=aba.session.renew();assert.equal(aba.confirmations.length,3);
+ aba.confirmations[2].resolve();await secondA;const newerLease=aba.value().updatedAt;
+ try{
+  aba.confirmations[0].resolve();const staleA=(await firstA)[0];
+  assert.equal(aba.session.reloadContinuation('c'.repeat(64),1).leaseAt,newerLease,'superseded A response regressed confirmed lease');
+  assert.equal(staleA.status,'rejected');assert.equal(staleA.reason.code,'HANDOFF_CHANGED');assert.equal(aba.session.snapshot().status,'active');
+ }finally{aba.confirmations[1].resolve();await intentB;}
+ // Even without another renewal replacing the slot, confirmed A -> B -> A
+ // observations invalidate the old response instead of reviving its key.
+ const restored=fixture();await restored.start();restored.holdConfirmation();const retired=Promise.allSettled([restored.session.renew()]);
+ restored.replace({...restored.value(),request:request()});restored.replace({...restored.value(),request:null,ack:null,updatedAt:100010});
+ restored.confirmations[0].resolve();const retiredResult=(await retired)[0];
+ assert.equal(retiredResult.status,'rejected');assert.equal(retiredResult.reason.code,'HANDOFF_CHANGED');
+ assert.equal(restored.session.reloadContinuation('d'.repeat(64),1).leaseAt,100010);assert.equal(restored.session.snapshot().status,'active');
+ // Shared denial reaches every caller unchanged. A later same-owner server
+ // renewal is fresh and can recover connectivity without clearing save latches.
+ const denied=fixture();await denied.start();denied.hold();const error=fail('permission-denied');
+ const failed=Promise.allSettled([denied.session.renew(),denied.session.renew()]);assert.equal(denied.calls.length,1);denied.calls[0].reject(error);
+ const failures=await failed;assert(failures.every(x=>x.status==='rejected'&&x.reason===error));assert.equal(denied.session.snapshot().status,'offline');
+ const recovery=denied.session.renew();assert.equal(denied.calls.length,2);denied.calls[1].resolve();await recovery;assert.equal(denied.session.snapshot().status,'active');
+ console.log('Renewal coalescing: identical calls, fresh settlement, nine delayed fences, replacement rejection and shared permission/offline recovery passed.');
+}
 (async()=>{
+ await renewalCoalescingChecks();
  // A successful write is followed by an independent transaction readback,
  // not a document read that can still reflect queued pre-transition state.
  let confirmedSession=null,transactionCalls=0,writes=0;
