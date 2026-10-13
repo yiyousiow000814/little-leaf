@@ -13,6 +13,8 @@
 
 ### Current state and ownership
 
+Initial cloud-read startup reliability (0.1.11), [Draft PR266](https://github.com/yiyousiow000814/little-leaf/pull/266), is scoped from main `5700fbe1f2c389ad4bd353f8c2e478cfd8f06ce2`: apply the existing15-second network deadline to boot's initial cloud read. Controlled synthetic timeout, late completion, repeated boot, close/account interruption, successful fresh retry and permission-refusal checks pass in the existing delayed-network suite; existing Recovery contracts pass separately. Failed reads remain protected Recovery and never mean missing save. The reported approximately five-minute wait and manual-refresh recovery are not measured or cause-confirmed. Signed-in/browser gameplay acceptance, exact-head CI, merge and deployment remain separate; deployment repair retains priority.
+
 Current delivery and next tagged candidate on2026-10-13 MYT: [PR257](https://github.com/yiyousiow000814/little-leaf/pull/257) is merged as
 `3a5c8553f210f13173ccca265f79e8f96d8fc8f5` (tree `b0ea319c4a2db4aa9e70b082adbae97e0a22f54b`) after all13 exact-head checks in
 [CI38347904377](https://github.com/yiyousiow000814/little-leaf/actions/runs/38347904377) passed. The original ACK and bounded fallback update only the ACK field;
