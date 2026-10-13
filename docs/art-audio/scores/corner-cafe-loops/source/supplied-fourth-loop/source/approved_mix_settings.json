@@ -1,0 +1,73 @@
+{
+  "status": "TECHNICAL_CHECKS_ONLY; LISTENING_AND_USER_ACCEPTANCE_PENDING",
+  "duration_seconds": 53.02857142857143,
+  "bpm_from_events": 112,
+  "sample_rate": 44100,
+  "bars": 24,
+  "events": 517,
+  "lufs_lossless": -18.000000147816667,
+  "lufs_mp3_decode": -18.000004737807394,
+  "sample_peak_dbfs_lossless": -2.780383953872919,
+  "estimated_4x_true_peak_dbtp_mp3": -2.7747848333933267,
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "soundfont": "TimGM6mb.sf2",
+  "instruments_zero_based_GM": {
+    "rhodes": {
+      "name": "Electric piano - theme",
+      "program": 4,
+      "bank": 0,
+      "channel": 0,
+      "pan": -0.08,
+      "rms_db": -23.8,
+      "hp": 130,
+      "lp": 7200,
+      "wet": 0.095
+    },
+    "guitar": {
+      "name": "Nylon guitar - light comping",
+      "program": 24,
+      "bank": 0,
+      "channel": 1,
+      "pan": -0.3,
+      "rms_db": -28.5,
+      "hp": 160,
+      "lp": 6400,
+      "wet": 0.065
+    },
+    "bass": {
+      "name": "Upright bass - two feel",
+      "program": 32,
+      "bank": 0,
+      "channel": 2,
+      "pan": 0.0,
+      "rms_db": -25.2,
+      "hp": 44,
+      "lp": 3000,
+      "wet": 0.012
+    },
+    "drums": {
+      "name": "Brush kit - restrained pulse",
+      "program": 40,
+      "bank": 128,
+      "channel": 9,
+      "pan": 0.0,
+      "rms_db": -31.4,
+      "hp": 65,
+      "lp": 7800,
+      "wet": 0.027
+    }
+  },
+  "calibration_first_8_bars_linear_gains": {
+    "rhodes": 2.339396764755548,
+    "guitar": 2.094135668624142,
+    "bass": 3.1625167574996738,
+    "drums": 11.52841610976219
+  },
+  "master_linear_gain": 1.7166800771253854,
+  "python": "3.13.5",
+  "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "no_paid_api_or_network": true,
+  "reference_audio_sampled": false,
+  "notation_scope": "Main melody and harmony only; full performance in MIDI/JSON, not a full ensemble score",
+  "loop_status": "Closed listening excerpt with natural tail; not a certified gapless game loop"
+}

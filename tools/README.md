@@ -5,6 +5,20 @@ Start with `.github/workflows/ci.yml` for ordinary validation. It calls
 deeper diagnostics only for the symptom being investigated; the table below is
 an inventory, not a checklist to run after every edit.
 
+Run `python3 tools/ci/preflight.py --release` before submitting release-tooling
+changes. It checks metadata and atlas provenance, then runs the existing six
+focused release-contract modules once. The API/checkout regression uses local
+Git and synthetic API/archive data; it cannot certify live artifacts or delivery.
+Run `python3 tools/ci/preflight.py` only when the complete fast guard is needed;
+it uses the same commands as ordinary CI, without a second focused run. Neither
+mode runs the engine/export/browser matrix or changes tags or deployments.
+
+Keep failures at the boundary they identify: API run/attempt views and fetched
+main history are coordinator contracts; a changed atlas source closure still
+needs fresh canonical RGBA evidence before manifest updates. Do not bypass the
+guard or rerun an old workflow to pick up a source fix. Keep regression coverage
+with the fix; a reminder-only skill or installed Git hook is not a substitute.
+
 Only this README and `.gdignore` remain at the tools root. The latter keeps the
 tooling tree excluded from Godot resource scanning. Build, CI, qualification,
 diagnostic and release implementations live in their existing packages; direct
