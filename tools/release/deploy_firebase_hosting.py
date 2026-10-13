@@ -275,6 +275,25 @@ def release_head(api):
 def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None):
     manifest, marker = verify_live_package(folder, source_sha, manifest_sha, staging_origin=staging_origin)
     common=manifest.get('status') == COMMON_LIVE_STATUS
+    additions = []
+    if common:
+        proposed = manifest.get('hosting_header_additions')
+        if not isinstance(proposed, list):
+            raise ValueError('Common same-page release requires a Hosting header list')
+        for row in proposed:
+            if (not isinstance(row, dict) or set(row) != {'source', 'headers'}
+                    or not isinstance(row['source'], str) or not isinstance(row['headers'], list)):
+                raise ValueError('Exact producer Hosting header fields required')
+            headers = {}
+            for header in row['headers']:
+                if (not isinstance(header, dict) or set(header) != {'key', 'value'}
+                        or not isinstance(header['key'], str) or not isinstance(header['value'], str)
+                        or header['key'] in headers):
+                    raise ValueError('Exact unique producer Hosting header values required')
+                headers[header['key']] = header['value']
+            additions.append({'glob': row['source'], 'headers': headers})
+        if record_digest(additions) != record_digest(ITCH_HEADERS):
+            raise ValueError('Common same-page release requires the exact reviewed Hosting headers')
     if common:
         from release.common_firebase import current_marker
         if output.exists() or current_marker()!=staging_origin.get('live_baseline'):
@@ -295,18 +314,40 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
     if (baseline.get('name') != previous['version'] or baseline.get('status') != 'FINALIZED'
             or not isinstance(baseline.get('config'), dict)):
         raise ValueError('Complete current Hosting configuration could not be established')
-    config = copy.deepcopy(baseline['config'])
+    baseline_config = copy.deepcopy(baseline['config'])
+    config = copy.deepcopy(baseline_config)
+    if additions:
+        headers = config.setdefault('headers', [])
+        if not isinstance(headers, list):
+            raise ValueError('Complete current Hosting headers required')
+        for addition in additions:
+            matches = [i for i, row in enumerate(headers)
+                       if isinstance(row, dict) and row.get('glob') == addition['glob']]
+            if len(matches) > 1:
+                raise ValueError('Ambiguous managed Hosting header rule; inspect before changing it')
+            if matches:
+                row = headers[matches[0]]
+                if not isinstance(row.get('headers'), dict):
+                    raise ValueError('Complete managed Hosting header values required')
+                row['headers'].update(addition['headers'])
+            else:
+                headers.append(copy.deepcopy(addition))
     def config_digest(value):
         return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'),
                                          ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+    baseline_config_hash = config_digest(baseline_config)
     config_hash = config_digest(config)
-    receipt['preserved_hosting_config'] = config
-    receipt['preserved_hosting_config_sha256'] = config_hash
+    receipt['preserved_hosting_config'] = baseline_config
+    receipt['preserved_hosting_config_sha256'] = baseline_config_hash
+    receipt['candidate_hosting_config_sha256'] = config_hash
+    if additions:
+        receipt['approved_hosting_header_additions'] = additions
     receipt['previous_hosting_version'] = previous['version'] if previous else None
     receipt['previous_hosting_release'] = previous['release'] if previous else None
     save()
     # Hash compressed bytes as required by the official Hosting upload protocol.
-    compressed, paths = {}, {}
+    original = active_files(api, previous['version'])
+    compressed, paths = {}, dict(original)
     for path in sorted((folder / 'public').rglob('*')):
         if not path.is_file():
             continue
@@ -314,6 +355,15 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
         hash_value = hashlib.sha256(payload).hexdigest()
         compressed[hash_value] = payload
         paths['/' + path.relative_to(folder / 'public').as_posix()] = hash_value
+    receipt.update(previous_files_sha256=record_digest(original), previous_file_count=len(original),
+                   candidate_files_sha256=record_digest(paths), candidate_file_count=len(paths))
+    save()
+    def baseline_unchanged():
+        current = api.request('GET', previous['version'])
+        return (release_head(api) == previous and current.get('name') == previous['version']
+                and current.get('status') == 'FINALIZED'
+                and config_digest(current.get('config')) == baseline_config_hash
+                and active_files(api, previous['version']) == original)
     version = api.request('POST', SITE_PATH + '/versions', {'config': config}).get('name', '')
     if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
         raise ValueError('Unconfirmed version creation; do not retry blindly')
@@ -326,18 +376,18 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
         raise ValueError('Untrusted upload response; nothing outside the exact approved site will be sent')
     for hash_value in required:
         api.request('POST', upload_url + '/' + hash_value, compressed[hash_value], upload=True)
+    if not baseline_unchanged():
+        raise RuntimeError('Existing Hosting inventory or configuration changed; candidate not finalized')
     finalized = api.request('PATCH', version + '?update_mask=status', {'status': 'FINALIZED'})
     if finalized.get('name') != version or finalized.get('status') != 'FINALIZED':
         raise ValueError('New Hosting version was not finalized; live release untouched')
     receipt['status'] = 'finalized-not-released';save()
     candidate = api.request('GET', version)
     if (candidate.get('name') != version or candidate.get('status') != 'FINALIZED'
-            or config_digest(candidate.get('config')) != config_hash):
-        raise RuntimeError('Finalized candidate configuration differs; live release untouched')
-    current = api.request('GET', previous['version'])
-    if (release_head(api) != previous or current.get('name') != previous['version']
-            or current.get('status') != 'FINALIZED'
-            or config_digest(current.get('config')) != config_hash):
+            or config_digest(candidate.get('config')) != config_hash
+            or active_files(api, version) != paths):
+        raise RuntimeError('Finalized candidate inventory or configuration differs; live release untouched')
+    if not baseline_unchanged():
         raise RuntimeError('Another release changed during staging; live release untouched')
     receipt['status'] = 'release-outcome-pending';save()
     if common and current_marker()!=staging_origin['live_baseline']:
