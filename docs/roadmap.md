@@ -13,15 +13,16 @@
 
 ### Current state and ownership
 
-Customer ownership routing ([Draft PR268](https://github.com/yiyousiow000814/little-leaf/pull/268), 0.1.11 / 07.03-07.04):
-the user clarified that arrivals must connect from the actual west corridor to owned floor through a door or missing-wall opening.
-Purchased corridor-side land may add an entrance only where its corridor edge is unblocked; buying land elsewhere does not grant another public approach.
-The former whole-perimeter candidate and its back-entry `(3,-1)` images are explicitly NOT accepted.
-Source42bf native1028+6 and current-main1cc CI38404952346 remain historical evidence, not qualification of the corridor-only successor.
-The narrow successor retains candidate ownership and wall/aperture guards; focused corridor/default/unowned-side/owned-open/owned-walled evidence and fresh CI are pending.
-Arrival eligibility is separate from the original physical-layout and save safety checks: a valid rear-only layout can remain, but admits no new customers without a corridor connection.
-Original save bytes, actors, openings and ledgers are not silently rewritten;
-automatic replay of previously saved private-land routes remains unchanged and unqualified. Player acceptance, merge and delivery remain pending.
+Customer ownership routing ([PR268](https://github.com/yiyousiow000814/little-leaf/pull/268),0.1.11 /07.03-07.04): the accepted corridor-only source `c848398426d71438ba19b754ce715d6c327f184c` admits customers through a door or missing-wall opening directly joining the actual west corridor and owned floor. Purchased corridor-side land adds entry only at an unblocked corridor edge; purchasing elsewhere creates no public approach. Structural layout/save safety remains separate: a valid rear-only layout may remain but admits no customers without corridor connection. Original saves, actors, openings, ledgers and economy are not silently rewritten; old private-land route replay remains separately unqualified. The former42bf/1cc whole-perimeter/back-entry proposal is rejected historical evidence.
+Exact original [CI38413170896](https://github.com/yiyousiow000814/little-leaf/actions/runs/38413170896), attempt1, passed all13 required gates on c848. The user accepted five actual V5 scenes with “行” (`Sentinel_106f6759bdd4819191d04094b5827c1d`); physical release was independently verified by receiptSHA256 `8fc45bde1416101ed6136aabd93e71d35d97974c02d01007e31ad3409cbfe44f`. Earlier failed V4/type-oracle evidence and ObjectDB warning remain preserved. Architecture's current-source composition preserves accepted142/152 Model functions and the newer roadmap/CI272; its fresh requiredCI and actual source merge remain pending, with no unchanged image/native recapture or old-CI transfer. Delivery is separate.
+
+Serial source closeout on2026-10-13: [PR269](https://github.com/yiyousiow000814/little-leaf/pull/269) merged as `4d5da550` after all13 checks in38412290526; [PR142](https://github.com/yiyousiow000814/little-leaf/pull/142) merged as `7a78d93a` with accepted mobile stove-upgrade removal and all13 checks in38400149814. Necessary release coordinator [PR270](https://github.com/yiyousiow000814/little-leaf/pull/270) merged as `dc07ef9a` and [PR274](https://github.com/yiyousiow000814/little-leaf/pull/274) as `3cbaf75ef980e408884a7b0e2bc03e23545c4df4` (tree `4d714a04ca408dd1da8fb6fe5419d8514f2c32f2`) after their exact13-gate runs38420651579 and38425130882. These are source/CI facts, not new package or live acceptance. Immutable `v0.1.11-pre.e0cca38d`, qualification38413426493 and artifact11823541052 retain their original source; consumed failed platform retry38423812101 remains preserved. Release owns the separately reconciled same-artifact platform action and explicitly released the unrelated main merge hold at16:32; its retry remains bound to immutable coordinator `3cbaf75e`. Accepted [PR152](https://github.com/yiyousiow000814/little-leaf/pull/152) merged normally as `0d43507153317d6437f93e0d657d4b50341dc5e9` (tree `09c04d72480df17128095fa39072a589c03f11d3`, parent `3cbaf75e`) after all13 exact-head checks in38426432709 passed and Release released the unrelated main hold. Its actual current-main delta is exactly the two accepted Model/test files; all release workflow/helper/qualification objects remain unchanged. No unchanged native, visual or full tests were repeated. Accepted PR189 needs a fresh matching current renderer/atlas binding and finalCI, not another unchanged-pixel approval. Accepted PR91 has current successor `59678475`, with matching qualification/manifest/finalCI still pending. Release's retry remains bound to immutable coordinator `3cbaf75e`; these source merges do not change the qualified tag/artifact or perform a platform action.
+
+Bounded backlog reconciliation on2026-10-13: [PR100](https://github.com/yiyousiow000814/little-leaf/pull/100) and [PR114](https://github.com/yiyousiow000814/little-leaf/pull/114) are closed without merge; original branches/source and dated evidence remain preserved. PR100's still-applicable flower work stays with [PR140](https://github.com/yiyousiow000814/little-leaf/pull/140), while its character study follows the authored-character foundation [PR153](https://github.com/yiyousiow000814/little-leaf/pull/153). PR114 is paused historical music QA with no demonstrated remaining playback defect; closure does not claim hearing or playback acceptance. No other backlog candidate is classified obsolete by this bounded review.
+
+Customer outfits (0.1.11), user decision2026-10-13: [PR129](https://github.com/yiyousiow000814/little-leaf/pull/129) is closed without merge. Preserve head `1109c78b71b35580861b4164b31439456caa444e`, its branch, assets, contracts and evidence as reusable history. Schedule requirements03.01–03.08 only after the accepted real3D character foundation in [01.01](#0101--unified-3d-character-authoring-and-game-sprite-import-pipeline-preserve-the-original-2d-isometric-game-style). Do not merge or request fresh visual approval of the old2D bear outfits; this ordering change does not restart character production.
+
+Bus shelter (0.1.11), [PR162](https://github.com/yiyousiow000814/little-leaf/pull/162): the original D normal/enlarged actual images were accepted on2026-10-12 at02:11UTC, bound to `fe415d0643d97ccabc333bdcd12efb039edf423b` / tree `3b0b93907dacd6256fc902ce2c49a9a937575fcb`. Current remote17da93d is the older source, not that accepted D successor. Appearance does not wait for another colour approval. Strict WHOLE/layer checks remain failed:2x116 and4x198 pixels exceed the unchanged3/255 threshold. Preserve accepted art and the unaccepted5b690ce experiment separately. The remaining technical work is the narrow shared-overlay/common sampling reference with real production characters between shelter layers, then exact current-source integration/qualification. Earlier prototype authorization was pending in the accepted-evidence note; the latest instruction to resolve this technical issue covers source preparation, with bounded runtime admission still separate. No lower threshold, conditioned-art substitution, new framework or complete bus/FPS/Web/Golden/merge/release claim follows from the static-image acceptance.
 
 Initial cloud-read startup reliability (0.1.11), [Draft PR266](https://github.com/yiyousiow000814/little-leaf/pull/266), is scoped from main `5700fbe1f2c389ad4bd353f8c2e478cfd8f06ce2`: apply the existing15-second network deadline to boot's initial cloud read. Controlled synthetic timeout, late completion, repeated boot, close/account interruption, successful fresh retry and permission-refusal checks pass in the existing delayed-network suite; existing Recovery contracts pass separately. Failed reads remain protected Recovery and never mean missing save. The reported approximately five-minute wait and manual-refresh recovery are not measured or cause-confirmed. Signed-in/browser gameplay acceptance, exact-head CI, merge and deployment remain separate; deployment repair retains priority.
 
@@ -129,9 +130,11 @@ Release correction at18:11UTC: immutable10a/10b GitHub source Releases succeeded
 | Combined startup113 | Implemented on main `ae4ff8bb417b4d381cdb824fc9604f4ffaa2d148` | Scoped source-bound checks exist; complete Web/save result is recorded for PR130 below | Final hosted/platform and strict temporal audio acceptance remain separate; no demonstrated music playback bug | PR113 merged | No new live publication |
 | CI simplification130 | Implemented on main `0328d5d8ef3f30edd91cc568c8640f56befda985` | [Web run38022596424](https://github.com/yiyousiow000814/little-leaf/actions/runs/38022596424) passed engine/export/browser save gates on exact tree `ab3eac103045ee7ebd390bc3da41c73890dae8f9` | Manual deep audio/startup diagnostics and strict artifact identity retained | PR130 merged | Live remains unchanged |
 | CI parallelism143 | Five complete engine shards, parallel historical build and four focused browser runners; isolated compatibility cases and tutorial, two reviewed UI pacing exemptions; final outputs require every mandatory gate | Exact-source CI and timing evidence are recorded in [PR143](https://github.com/yiyousiow000814/little-leaf/pull/143); canonical suites, including new main suites, remain mandatory | Five-minute target requires measurement; CI timing does not establish game, FPS or hosted acceptance | [PR143 merge state](https://github.com/yiyousiow000814/little-leaf/pull/143) | No runtime publication |
+| CI native scheduling (0.1.11) | [Draft PR269](https://github.com/yiyousiow000814/little-leaf/pull/269): measured Oct13 weights rebalance five runners; current-snapshot jobs avoid unused full history | Existing adversarial shard completeness/source checks retained; six shard checks and real shallow-snapshot fixture; complete CI retained | Scheduling run38409945856 passed13 gates at10m25s; checkout follow-on timing pending; no skipped failing test | No | No |
+| [Unit-tested QA PR scope272](https://github.com/yiyousiow000814/little-leaf/pull/272) (0.1.11) | Existing lightweight selector admits tooling unit edits and two exact optional retained-diagnostic helpers; runtime/build/release source remains full. Local and CI fast checks share one preflight; release mode selects existing contracts once | Real merge baseline-red/candidate-green; Linux socket-path and mandatory-job mutations; joint real CLI/authentication/local-Git regression catches API-view and missing-main-fetch incidents | Actual PR248 would avoid unrelated native/export/browser work. Focused release preflight 5.54s before the new joint check; 20 affected checks 0.438s. New composed-head CI pending; hosted saving remains projected | No | No |
 | Release artifact reuse (0.1.10a) | [Draft PR150](https://github.com/yiyousiow000814/little-leaf/pull/150): scoped candidate replaces duplicate tag engine/browser qualification with trusted exact-main CI artifact reuse; [contract](release/qualified-artifact-reuse.md) | Focused provenance, hostile ZIP, package and publication receipt checks; mandatory main CI retained | Actual optimized release timing and final package review pending; no new tag or upload | No | No |
 | Repository organization132 | Canonical roadmap, root AGENTS and organized documentation/verification merged as `cbf402fbfa118f99434e55610873ce3dc1b3950c` | Documentation coverage, navigation and scoped organization evidence remain distinct from runtime acceptance | Merged documentation establishes the editing home; it does not accept game visuals or hosted behavior | PR132 merged | No runtime release established by this organization change |
-| Staff/customer wardrobes and character foundation | Candidate wardrobe work, including[PR129](https://github.com/yiyousiow000814/little-leaf/pull/129), is separate from character-foundation completion | Local scoped tests do not establish visual acceptance | 🔴 Wardrobe visual acceptance is held until the finished3D-authored character foundation; preserve original2D isometric game presentation | No merge acceptance established | No |
+| Staff/customer wardrobes and character foundation | [PR129](https://github.com/yiyousiow000814/little-leaf/pull/129) closed on2026-10-13; old bear-only source preserved, not merged | Historical scoped tests retained; no new character/outfit qualification transferred | Customer outfits03.01–03.08 deferred until the accepted real3D foundation01.01; no repeat old2D appearance approval | PR129 closed without merge | No outfit release |
 | Unreachable renderer cleanup (0.1.11) | [PR168](https://github.com/yiyousiow000814/little-leaf/pull/168) deletes 236 lines of rejected/unused render code; active art and atlas painters preserved | Four existing suites:99,823 assertions; final CI38106560113 all13 required gates passed | Canonical38106174288 verified863 raw blobs/120 closure and exact original3 atlas RGBA; no wardrobe activation | `b6c91f8c4b234dc6b4755bd5d855a0c21bb07253` | Excluded from frozen0.1.10d; later release not established |
 | Routing125 | 🟢439aba98 contains127; one related principal PR | Web/navigation source-bound checks reported | 🟡 Production routing/reception/codec integration remain explicit gates | Not merged | No |
 | FPS128 | [PR128](https://github.com/yiyousiow000814/little-leaf/pull/128): retained-rendering closeout integrated with the current main directory layout; frame-rate helper text removed at `8251540` | 124 engine suites/start cases and 1,235,482 assertions; 192 tooling tests; 184 scene pairs and 192 moving-occlusion pairs. Latest UI change: 1,786 settings assertions and exact native atlas RGBA passed. Final remote gate result is recorded in PR128 | Clean 10a regression closeout authorized; remaining stable-60 work moves to 11. Player options 30/60; no stable-60 or phone acceptance | User authorizes merge after final gates; [merge record](https://github.com/yiyousiow000814/little-leaf/pull/128) | No |
@@ -1573,7 +1576,7 @@ Missing work / next action: Integration coordinator must obtain frozen staff UI 
 
 Principal implementation PR: reconcile against PartV; no contract PR counted. Acceptance still requires applicable integrated behavior, exact-source tests, reviewed native/Web visuals, save compatibility and separate release approval.
 
-> Current wardrobe gate: candidate wardrobe code/tests do not accept the pixels. Final staff/customer wardrobe visual acceptance awaits the finished3D-authored character foundation; obtain owner results rather than duplicating art work.
+> Current wardrobe order (user2026-10-13): finish the real3D character foundation01.01 first, then adapt and qualify modular customer outfits03.01–03.08. PR129 is closed without merge; head1109c78 and its original assets/contracts/tests/captures remain historical reusable work. Do not revive its old2D bear implementation as a release bridge or ask its pixels to be approved again. Existing staff/character ownership is retained; no production restart is requested.
 
 ### 03.01 — Generate genuinely modular outfits rather than choosing fixed prebuilt sets.
 
@@ -1593,9 +1596,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 03.02 — Keep each customer's appearance stable and restore it faithfully after save/load.
 
@@ -1615,9 +1618,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 03.03 — Combine upper/lower clothing including trousers/skirts and color choices.
 
@@ -1637,9 +1640,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 03.04 — Combine shoes and stockings/socks; show them cleanly from every direction.
 
@@ -1659,9 +1662,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 03.05 — Support compatible glasses, hats, ribbons and back bows; clips remain flat and hat/headband geometry avoids ear collisions.
 
@@ -1681,9 +1684,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 03.06 — Fit clothes and head accessories to every supported species and check clipping through idle, walking, seating and work poses.
 
@@ -1703,9 +1706,9 @@ Tests evidence: historical audit had no item-specific tests. Current PR129 focus
 
 Visual acceptance: No complete modular outfit acceptance in audited heads
 
-Missing work / next action: Review customer-outfits Draft PR129 at1109c78b71b35580861b4164b31439456caa444e; focused local tests passed, Web pending. Verify save/load stability, six-species clipping and directional captures; shoes remain separate.
+Missing work / next action: Deferred until the accepted real3D character foundation01.01. Then use preserved PR129 contracts/source as reference for current modular outfits, stable visit IDs/save compatibility and species/directional integration; shoes remain separate. PR129 is closed, not awaiting oldbear visual approval.
 
-Principal implementation PR: Draft PR129, head1109c78b71b35580861b4164b31439456caa444e; base main93a4221b. Focused local checks passed; Web and integrated item acceptance pending. Shoes remain a separate owner scope.
+Principal implementation history: closed PR129, preserved head1109c78b71b35580861b4164b31439456caa444e/base93a4221b. Its local results remain source-bound history; the next implementation follows real3D foundation01.01 with current integration gates. Shoes remain a separate owner scope.
 
 ### 04.01 — Suitable furniture occupies the complete standard grid cell without silently changing logical footprints.
 

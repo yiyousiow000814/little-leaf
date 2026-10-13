@@ -75,7 +75,7 @@ class ItchTagGateTests(unittest.TestCase):
                       "github.event.workflow_run.conclusion == 'success'",
                       "github.event.workflow_run.event == 'workflow_run'",
                       "startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')",
-                      'FIREBASE_RUN: ${{ github.event.workflow_run.id }}',
+                      "FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",
                       'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
                       'ref: ${{ steps.common.outputs.source_sha }}',
                       'RELEASE_TAG: ${{ steps.common.outputs.release_tag }}',
@@ -88,7 +88,7 @@ class ItchTagGateTests(unittest.TestCase):
         self.assertNotIn('common_tag.py consume',publishing)
         self.assertNotIn('reuse_main_ci.py',publishing)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
-        for gate in ['unittest discover', 'run_integration_candidate.py',
+        for gate in ['tools/ci/preflight.py', 'run_integration_candidate.py',
                      'tools/build/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)

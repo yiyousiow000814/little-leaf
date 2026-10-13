@@ -1,0 +1,38 @@
+{
+  "sample_rate": 44100,
+  "sample_count": 2140353,
+  "seconds": 48.53408163265306,
+  "peak_dbfs": -5.10617348979387,
+  "oversampled_4x_peak_dbfs": -5.045958339220685,
+  "integrated_lufs": -20.5,
+  "finite_samples": true,
+  "notes": 925,
+  "part_levels": {
+    "accordion": {
+      "peak_dbfs": -12.608106270776055,
+      "rms_dbfs": -26.312976597713153
+    },
+    "guitar": {
+      "peak_dbfs": -13.569605836997116,
+      "rms_dbfs": -32.96925272026552
+    },
+    "pizzicato": {
+      "peak_dbfs": -13.120587520645557,
+      "rms_dbfs": -34.90172520803691
+    },
+    "bass": {
+      "peak_dbfs": -13.840837359596993,
+      "rms_dbfs": -30.01408955895764
+    },
+    "brushes": {
+      "peak_dbfs": -13.904633964997435,
+      "rms_dbfs": -36.401324770319995
+    }
+  },
+  "loop_qualified": false,
+  "godot_tested": false,
+  "user_audition_accepted": false,
+  "paid_api_used": false,
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "reference_recording_used": false
+}

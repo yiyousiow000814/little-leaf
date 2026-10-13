@@ -1,0 +1,63 @@
+{
+  "schema": "little-leaf.music-reference-register.v2",
+  "updated": "2026-10-12",
+  "authority": "Latest explicit user correction in this conversation; replaces earlier assistant attribution",
+  "references": [
+    {
+      "id": "harmony-study-A",
+      "container": "Corner_Cafe_Harmony_Study.zip",
+      "container_sha256": "7e06811b4946ab2a633de8942dfb81f423a4e5e49e32e38a1435313d88e9eb3e",
+      "member": "A_V2_control.mp3",
+      "sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
+      "status": "positive_working_reference",
+      "scope": "Only this ~20-second A audition; not the full V2 track",
+      "bpm": 112,
+      "winner_selected": false
+    },
+    {
+      "id": "harmony-study-B",
+      "container": "Corner_Cafe_Harmony_Study.zip",
+      "container_sha256": "7e06811b4946ab2a633de8942dfb81f423a4e5e49e32e38a1435313d88e9eb3e",
+      "member": "B_reduced_harmony.mp3",
+      "sha256": "9b14a25312169ff8668159ac77c0c3c3564c85bab9f030d7588f762b01ec7ba6",
+      "status": "positive_working_reference",
+      "scope": "Only this ~20-second B audition",
+      "bpm": 112,
+      "winner_selected": false
+    },
+    {
+      "id": "full-corner-cafe-v2",
+      "container": "LittleLeaf_Corner_Cafe_v2_Package.zip",
+      "container_sha256": "f94b9a822cf2278e88622e84742a41d1612f4f5bac082e1c19c1013ee48d2826",
+      "status": "not_approved_as_positive_reference",
+      "reason": "User identifies this as the earlier version with awkward/strange notes; prior assistant overstated approval",
+      "included_in_current_handoff": false
+    },
+    {
+      "id": "daybreak-steps-104-and-112",
+      "status": "rejected",
+      "reason": "User rejected both Daybreak auditions; do not present them as successful RC-informed results",
+      "included_in_current_handoff": false
+    },
+    {
+      "id": "rc-default-private",
+      "file": "Restaurant_City_Default_original.mp3",
+      "sha256": "PRIVATE_REFERENCE_HASH_REDACTED",
+      "status": "private_style_reference_only",
+      "approx_bpm": 120,
+      "bpm_is_estimate": true,
+      "do_not_commit_reference_audio_to_public_repo": true
+    },
+    {
+      "id": "corner-cafe-reference-rearrangement-112",
+      "container": "04_Corner_Cafe_Reference_Rearrangement.zip",
+      "member": "Corner_Cafe_Reference_Rearrangement_112bpm.mp3",
+      "sha256": "403800e963e883e0130343608c39360fe952fe40f94b44bc9c59af58217556fa",
+      "status": "new_unaccepted_audition",
+      "basis": "Harmony Study B; does not supersede A or B",
+      "user_listening_approval": false,
+      "runtime_or_release_approval": false
+    }
+  ],
+  "precedence_note": "Historical readmes inside the unchanged A/B ZIP retain their creation-time status. This later register records the user's subsequent feedback; do not rewrite the archive to hide history."
+}

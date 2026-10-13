@@ -1,9 +1,16 @@
 name: Release Web to itch.io
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id != '' && format('Retry qualified itch {0}', inputs.qualified_run_id) || 'Release Web to itch.io' }}
 on:
   workflow_run:
     workflows: [Qualify Firebase release]
     types: [completed]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      qualified_run_id:
+        description: Exact successful Firebase qualification run for an inspected platform-only retry; empty means status diagnosis
+        required: false
+        default: ''
+        type: string
 # Same-page qualification precedes both independent platform publications.
 permissions:
   contents: read
@@ -12,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   diagnose_status:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -36,7 +43,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   publish:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')
+    if: github.repository == 'yiyousiow000814/little-leaf' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -52,8 +59,10 @@ jobs:
         id: common
         env:
           GH_TOKEN: ${{ github.token }}
-          FIREBASE_RUN: ${{ github.event.workflow_run.id }}
-        run: python3 coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch --output "$RUNNER_TEMP/common-firebase"
+          FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}
+        run: |
+          git -C coordinator fetch --no-tags origin main
+          python3 coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch --output "$RUNNER_TEMP/common-firebase"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ steps.common.outputs.source_sha }}

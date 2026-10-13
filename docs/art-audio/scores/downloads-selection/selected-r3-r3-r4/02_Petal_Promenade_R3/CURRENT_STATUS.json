@@ -1,0 +1,21 @@
+{
+  "music_title": "花影小序曲 · Petal Promenade",
+  "selected_version": "R3",
+  "user_selection": "User explicitly selected this existing version as good-sounding.",
+  "current_status": "USER_SELECTED_POSITIVE_VERSION",
+  "audio_mp3": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+  "audio_sha256": "35472bfcb7110c16db942e10b7dc2a518124d5964196d6c332711159d125e965",
+  "lossless_master": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.flac",
+  "master_sha256": "be9793c39479ca449fd6427faad3f64d942ffd5ed8f761fc5a0b105d2b315248",
+  "duration_seconds": 42.20689342403628,
+  "nominal_bpm": 92,
+  "meter": [
+    3,
+    4
+  ],
+  "preserved_original_audio": true,
+  "approved_for_automatic_publication": false,
+  "seamless_loop_qualified": false,
+  "game_integration_tested": false,
+  "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+}

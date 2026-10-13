@@ -7,7 +7,10 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 SHA = re.compile(r"[0-9a-f]{40}")
-DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py", "tests/tooling/test_release.py"}
+DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py",
+               "tools/diagnostics/retained_handoff_route.py",
+               "tools/diagnostics/current_handoff_route.py"}
+TOOLING_TEST = re.compile(r"tests/tooling/test_[A-Za-z0-9_]+\.py")
 JOBS = ("engine", "historical", "build", "browser", "compatibility", "firebase")
 
 
@@ -17,7 +20,9 @@ def allowed(path):
     parts = path.split("/")
     if any(p in ("", ".", "..") for p in parts):
         return False
-    return (path in DIAGNOSTICS or path == "README.md" or
+    # Guard always discovers these unittest modules; engine/browser jobs do not
+    # consume them. Shared helpers, fixtures and runtime test scripts stay full.
+    return (path in DIAGNOSTICS or TOOLING_TEST.fullmatch(path) is not None or path == "README.md" or
             path.startswith("docs/") and path.endswith(".md") and
             not path.startswith("docs/art-audio/third-party/"))
 
@@ -78,7 +83,7 @@ def main():
         if not lightweight_gate(os.environ):
             raise SystemExit("Invalid lightweight PR gate; full build evidence is required")
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-            summary.write("PR docs/diagnostic guard passed. Heavy jobs intentionally skipped. No build artifact or full Web/release qualification.\n")
+            summary.write("PR docs, tooling tests or diagnostic guard passed. Heavy jobs intentionally skipped. No build artifact or full Web/release qualification.\n")
         return
     try:
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8"))
