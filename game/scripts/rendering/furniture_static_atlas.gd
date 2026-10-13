@@ -10,7 +10,7 @@ const PARTS := ["counter","stove_base","stove_pan","stove_controls","beverage_ba
 # Kitchen equipment translates down 9px as a whole; keep the same cell sizes
 # and move those crops with it so the lower machine cannot be clipped.
 const PART_BOUNDS := {
-	"counter":Rect2(-31,-47,62,64), "stove_base":Rect2(-35,-49,70,69),
+	"counter":Rect2(-31,-47,62,64), "stove_base":Rect2(-43,-49,86,69),
 	"stove_pan":Rect2(-29,-46,58,40), "stove_controls":Rect2(-28,-30,56,40),
 	"beverage_base":Rect2(-35,-49,70,69), "beverage_machine":Rect2(-27,-61,54,56),
 	"beverage_accessories":Rect2(-27,-51,54,47), "sink":Rect2(-32,-60,64,78),
