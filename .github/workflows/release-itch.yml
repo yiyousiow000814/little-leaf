@@ -1,10 +1,17 @@
 name: Release Web to itch.io
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id != '' && format('Retry qualified itch {0}', inputs.qualified_run_id) || 'Release Web to itch.io' }}
 on:
   workflow_run:
-    workflows: [Check and build Web]
+    workflows: [Qualify Firebase release]
     types: [completed]
-  workflow_dispatch: {}
-# Only an authenticated successful original common tag qualification can publish.
+  workflow_dispatch:
+    inputs:
+      qualified_run_id:
+        description: Exact successful Firebase qualification run for an inspected platform-only retry; empty means status diagnosis
+        required: false
+        default: ''
+        type: string
+# Same-page qualification precedes both independent platform publications.
 permissions:
   contents: read
 concurrency:
@@ -12,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   diagnose_status:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -36,7 +43,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   publish:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')
+    if: github.repository == 'yiyousiow000814/little-leaf' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -48,24 +55,20 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           path: coordinator
-      - name: Authenticate the ONE common tag package; no engine or common test rerun
+      - name: Authenticate common source and complete same-page qualification; no export rerun
         id: common
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMON_RUN: ${{ github.event.workflow_run.id }}
-        run: python3 coordinator/tools/release/common_tag.py consume --run "$COMMON_RUN" --folder "$RUNNER_TEMP/common-release"
+          FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}
+        run: python3 coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch --output "$RUNNER_TEMP/common-firebase"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ steps.common.outputs.source_sha }}
           fetch-depth: 0
           persist-credentials: false
           path: source
-      - name: Revalidate immutable common bytes against exact tagged source
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git -C source fetch --no-tags origin main
-          python3 coordinator/tools/release/common_tag.py verify --folder "$RUNNER_TEMP/common-release" --source-root source
+      - name: Fetch immutable prior tags for the existing channel ancestry fence
+        run: git -C source fetch --tags origin
       - name: Install unchanged checksum-pinned Butler
         run: python3 coordinator/tools/ci/install_tools.py butler --output "$RUNNER_TEMP/butler-tools"
       - name: Publish only this platform; existing duplicate/older/uncertain safeguards
@@ -76,7 +79,7 @@ jobs:
           RELEASE_SHA: ${{ steps.common.outputs.source_sha }}
         run: |
           test -n "$BUTLER_API_KEY" || { echo '::error::Missing BUTLER_API_KEY. The owner must personally verify the existing authorized repository secret.'; exit 1; }
-          python3 ../coordinator/tools/release/publish_itch.py --web "$RUNNER_TEMP/common-release/web" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json" --common-receipt "$RUNNER_TEMP/common-release/common.json"
+          python3 ../coordinator/tools/release/publish_itch.py --web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json" --firebase-variant "$RUNNER_TEMP/common-firebase/variant" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json"
       - name: Preserve confirmed publication; failures never become success receipts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

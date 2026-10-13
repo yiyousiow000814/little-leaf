@@ -91,6 +91,52 @@ class QualificationTests(unittest.TestCase):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_future_packet_headroom_remains_exact_and_finite(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size):
+                self.requested = size
+                return b'synthetic'
+        response = Response(); api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=response):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024)
+        self.assertEqual(response.requested, 512 * 1024 * 1024 + 1)
+        # Exercise metadata headroom without allocating a half-GiB fixture.
+        with patch.object(api.opener, 'open') as opened, self.assertRaises(ValueError):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024 + 1)
+        opened.assert_not_called()
+
+    def test_real_firebase_response_size_has_explicit_finite_zip_budget(self):
+        # Actual PR263 qualified archive: 119110054 bytes, larger than the
+        # unchanged ordinary reader. Generate only the requested response chunk.
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size): return b'0' * min(size, 119110054)
+        api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=Response()):
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True)
+            data = api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110054)
+            self.assertEqual(len(data), 119110054)
+            del data
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110053)
+
+    def test_zip_budget_cannot_expand_json_wrong_paths_or_unbounded_responses(self):
+        api = reuse.GitHub('synthetic')
+        for path, binary, size in [('actions/runs/1', True, 119110054),
+                ('actions/artifacts/1/zip', False, 119110054),
+                ('actions/artifacts/01/zip', True, 119110054),
+                ('actions/artifacts/1/zip?other=1', True, 119110054),
+                ('actions/artifacts/1/zip', True, True),
+                ('actions/artifacts/1/zip', True, 0),
+                ('actions/artifacts/1/zip', True, reuse.MAX_FIREBASE_ARTIFACT_BYTES + 1)]:
+            with self.subTest(path=path, size=size), patch.object(api.opener, 'open') as opened:
+                with self.assertRaises(ValueError): api.read(path, binary=binary, artifact_bytes=size)
+                opened.assert_not_called()
+
     def archive(self, names):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w') as z:
@@ -185,7 +231,12 @@ class WorkflowTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/release/common_tag.py consume', 'tools/release/common_tag.py verify', 'tools/release/publish_itch.py',
+        for required in ['workflows: [Qualify Firebase release]',
+            'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
+            'tools/release/publish_itch.py',
+            '--web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary"',
+            '--firebase-variant "$RUNNER_TEMP/common-firebase/variant"',
+            '--staging-origin "$RUNNER_TEMP/common-firebase/origin.json"',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
@@ -201,6 +252,17 @@ class WorkflowTests(unittest.TestCase):
                          '--require-main-ancestor','github.event.created && !github.event.deleted']:
             self.assertIn(required,common)
         self.assertIn("github.event_name == 'workflow_run'",publishing)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",publishing)
+        self.assertIn("FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",publishing)
+        self.assertIn("inputs.qualified_run_id != ''",publishing)
+        # A rerun must be refused by the job before Butler credentials or upload.
+        publish_condition = publishing.split('    runs-on:', 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1", publish_condition)
+        self.assertIn("inputs.qualified_run_id == ''",diagnostic)
+        self.assertIn('ref: ${{ steps.common.outputs.source_sha }}',publishing)
+        self.assertLess(publishing.index('--platform itch'),publishing.index('ref: ${{ steps.common.outputs.source_sha }}'))
+        self.assertLess(publishing.index('ref: ${{ steps.common.outputs.source_sha }}'),publishing.index('BUTLER_API_KEY:'))
+        self.assertNotIn('common_tag.py consume',publishing)
         self.assertNotIn('reuse_main_ci.py',publishing)
 
 

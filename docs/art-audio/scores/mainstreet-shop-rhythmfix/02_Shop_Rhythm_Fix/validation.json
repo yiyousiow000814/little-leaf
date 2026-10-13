@@ -1,0 +1,95 @@
+{
+  "status": "TECHNICAL_CHECKS_ONLY; SHOP_REVISION_USER_LISTENING_PENDING",
+  "original_events_sha256": "7c29005ff5c0f59c8ba9ec56ff5c4a042f5d0d6898a93ee8830ca73f3d259daa",
+  "original_validation_sha256": "7f97f52e362793ff2fd4d437622655eb0f81cfc0b21538f6c36c66c813ef6a5d",
+  "source_sha256": "97910e390731e29d08cd70e794c94944a0a4ad3eca4c32052204e5672ee11563",
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "tempo_bpm": 112,
+  "bars": 24,
+  "fixed_original_master_gain": 1.939002615935285,
+  "preserved_stems": {
+    "wood_theme": {
+      "mode": "copied_processed_original_without_reencoding",
+      "sha256": "3fc1865d53f7474fc7c9cb5392fd90f5d67afa55c156ed3718c28cf99517b2f6",
+      "identical_bytes": true
+    },
+    "bell_theme": {
+      "mode": "copied_processed_original_without_reencoding",
+      "sha256": "4e29da3761118880c4729b584e7cd9661a51ef8e0f67342c62dca42d2098cc79",
+      "identical_bytes": true
+    },
+    "bass": {
+      "mode": "copied_processed_original_without_reencoding",
+      "sha256": "65d2af3096870323446a4bf7db5b69f91b67d15ee8110ac95f90a990bc49b06e",
+      "identical_bytes": true
+    },
+    "kalimba": {
+      "mode": "rerendered",
+      "calibration_gain": 2.752245860936853,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0,
+      "sha256": "18f329dc9ab9dc728ca91906153fc0aa77491ee7e05d9e6a82cfaf052171b792",
+      "note_count": 42
+    },
+    "percussion": {
+      "mode": "rerendered",
+      "calibration_gain": 5.251349342921961,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0,
+      "sha256": "2a8d263b746ced918be97468e50dce7dcb68312412f6dfa05c6e65770b2c2c17",
+      "note_count": 43
+    }
+  },
+  "old_event_counts": {
+    "bass": 41,
+    "kalimba": 66,
+    "wood_theme": 111,
+    "percussion": 54,
+    "bell_theme": 12
+  },
+  "new_event_counts": {
+    "bass": 41,
+    "kalimba": 42,
+    "wood_theme": 111,
+    "percussion": 43,
+    "bell_theme": 12
+  },
+  "preserved_event_identity": {
+    "wood_theme": true,
+    "bell_theme": true,
+    "bass": true
+  },
+  "preserved_harmony": true,
+  "master": {
+    "samples": 2268000,
+    "seconds": 51.42857142857143,
+    "integrated_lufs": -18.557305081966373,
+    "peak_dbfs": -2.9642367157511957,
+    "estimated_4x_true_peak_dbtp": -2.955782434445586,
+    "boundary_step_peak": 0.005166292190551758,
+    "ordinary_adjacent_step_p99_9": 0.09694015979766846,
+    "finite": true,
+    "sample_clipping": false
+  },
+  "decoded_ogg": {
+    "samples": 2268000,
+    "seconds": 51.42857142857143,
+    "integrated_lufs": -18.512362591481477,
+    "peak_dbfs": -2.9306712595138795,
+    "estimated_4x_true_peak_dbtp": -2.924618477602845,
+    "boundary_step_peak": 0.005736902356147766,
+    "ordinary_adjacent_step_p99_9": 0.09687003493309021,
+    "finite": true,
+    "sample_clipping": false
+  },
+  "sum_stems_master_max_error": 0.0,
+  "paid_services_used": false,
+  "runtime_game_tested": false,
+  "limitations": [
+    "No Godot or browser runtime tested.",
+    "Signal/event checks do not prove perceptual improvement.",
+    "Main Street is copied unchanged, not rerendered or newly normalized.",
+    "No font or SoundFont file is distributed."
+  ],
+  "source_validation_note": "After rendering, added stricter hash guards for the same three preserved input files; audio generation unchanged."
+}

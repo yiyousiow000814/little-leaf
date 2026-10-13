@@ -19,15 +19,53 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from release.firebase_release_gate import REPOSITORY, plan_release, require, trusted_run, ITCH_WORKFLOW
-from qualification.reuse_main_ci import GitHub, require_jobs
+from qualification.reuse_main_ci import GitHub, require_jobs, MAX_FIREBASE_ARTIFACT_BYTES
 from release.release_metadata import version, RELEASE
 
 
-def extract_tree(data, digest, destination):
+FIREBASE_PACKET_EXPANDED_BYTES = 1024 * 1024 * 1024
+
+
+def check_firebase_packet_budget(folder):
+    """Reject an incompatible complete producer packet before artifact upload."""
+    files, expanded = [], 0
+    for path in folder.rglob('*'):
+        require(not path.is_symlink(), 'Packet budget cannot follow symlinks')
+        if path.is_file():
+            files.append(path)
+            expanded += path.stat().st_size
+            require(len(files) <= 5000 and expanded <= FIREBASE_PACKET_EXPANDED_BYTES,
+                    'Firebase producer packet exceeds extraction bounds')
+    require(files, 'Firebase producer packet is empty')
+    # upload-artifact uses level-6 DEFLATE. Allow additional archive metadata;
+    # the consumer still checks the actual authenticated API size and digest.
+    overhead = 64 * 1024 + 1024 * len(files)
+
+    class Counter:
+        def __init__(self): self.size = 0
+        def tell(self): return self.size
+        def flush(self): pass
+        def write(self, data):
+            self.size += len(data)
+            require(self.size + overhead <= MAX_FIREBASE_ARTIFACT_BYTES,
+                    'Firebase producer packet exceeds archive response bounds')
+            return len(data)
+
+    counter = Counter()
+    with zipfile.ZipFile(counter, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        for path in sorted(files):
+            archive.write(path, path.relative_to(folder).as_posix())
+    return {'member_count': len(files), 'expanded_bytes': expanded,
+            'compressed_bytes_with_reserve': counter.size + overhead}
+
+
+def extract_tree(data, digest, destination, *, firebase_packet=False):
     require(digest == 'sha256:' + hashlib.sha256(data).hexdigest(), 'Artifact ZIP digest mismatch')
+    require(type(firebase_packet) is bool, 'Explicit artifact extraction profile required')
+    expanded_limit = FIREBASE_PACKET_EXPANDED_BYTES if firebase_packet else 200 * 1024 * 1024
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         members = archive.infolist()
-        require(len(members) <= 5000 and sum(m.file_size for m in members) <= 200 * 1024 * 1024,
+        require(len(members) <= 5000 and sum(m.file_size for m in members) <= expanded_limit,
                 'Artifact extraction exceeds bounds')
         seen = set()
         for member in members:
@@ -63,7 +101,25 @@ def artifact_for(api, run, name):
 
 
 def download(api, artifact, destination):
-    extract_tree(api.read(f"actions/artifacts/{artifact['id']}/zip", binary=True), artifact['digest'], destination)
+    # The qualified Firebase packet retains four separately bound Web surfaces.
+    # Ordinary exports and small receipts keep their original 100/200 MiB limits.
+    match = re.fullmatch(r'little-leaf-firebase-([0-9a-f]{40})-([1-9][0-9]*)', artifact.get('name', ''))
+    path = f"actions/artifacts/{artifact['id']}/zip"
+    if match:
+        size = artifact.get('size_in_bytes')
+        origin = artifact.get('workflow_run', {})
+        require(type(artifact['id']) is int and artifact['id'] > 0
+                and artifact.get('expired') is False
+                and type(origin.get('id')) is int and origin['id'] > 0
+                and origin.get('head_sha') == match[1]
+                and re.fullmatch(r'sha256:[0-9a-f]{64}', artifact.get('digest', ''))
+                and type(size) is int and 0 < size <= MAX_FIREBASE_ARTIFACT_BYTES,
+                'Bounded authenticated Firebase artifact metadata required')
+        data = api.read(path, binary=True, artifact_bytes=size)
+        require(len(data) == size, 'Firebase archive differs from authenticated byte count')
+        extract_tree(data, artifact['digest'], destination, firebase_packet=True)
+    else:
+        extract_tree(api.read(path, binary=True), artifact['digest'], destination)
 
 
 def peel(api, tag):
