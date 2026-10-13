@@ -9,11 +9,22 @@ import unittest
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 from release import deploy_firebase_hosting as hosting
+from build import build_itch_trusted_preview as producer
 
 SHA = 'a' * 40
 TREE = 'b' * 40
 OLD = hosting.SITE_PATH + '/versions/old'
 NEW = hosting.SITE_PATH + '/versions/new'
+
+PACKET_HEADERS = [
+    {'source': '/itch/', 'headers': [
+        {'key': 'Content-Security-Policy', 'value': hosting.FRAME_POLICY},
+        {'key': 'Cache-Control', 'value': 'no-cache'}]},
+    {'source': '/itch/index.html', 'headers': [
+        {'key': 'Content-Security-Policy', 'value': hosting.FRAME_POLICY}]},
+    {'source': '/itch/hosting-release.json', 'headers': [
+        {'key': 'Cache-Control', 'value': 'no-store'}]},
+]
 
 
 class FakeAPI:
@@ -304,7 +315,7 @@ class HostingTests(unittest.TestCase):
 
     def common_deploy(self, api, additions=None):
         manifest = {'status': hosting.COMMON_LIVE_STATUS,
-                    'hosting_header_additions': copy.deepcopy(hosting.ITCH_HEADERS if additions is None else additions)}
+                    'hosting_header_additions': copy.deepcopy(PACKET_HEADERS if additions is None else additions)}
         baseline = {'source_commit': 'd' * 40}
         with mock.patch.object(hosting, 'verify_live_package', return_value=(manifest, self.marker)), \
                 mock.patch('release.common_firebase.current_marker', return_value=baseline):
@@ -344,9 +355,9 @@ class HostingTests(unittest.TestCase):
         self.assertEqual(api.created_config['futureField'], api.config['futureField'])
 
     def test_common_unreviewed_headers_stop_before_hosting_api(self):
-        cases = [[], hosting.ITCH_HEADERS + [{'glob': '/**', 'headers': {'X-Frame-Options': 'DENY'}}]]
-        changed = copy.deepcopy(hosting.ITCH_HEADERS)
-        changed[0]['headers']['Content-Security-Policy'] = 'frame-ancestors *'
+        cases = [[], PACKET_HEADERS + [{'source': '/**', 'headers': [{'key': 'X-Frame-Options', 'value': 'DENY'}]}]]
+        changed = copy.deepcopy(PACKET_HEADERS)
+        changed[0]['headers'][0]['value'] = 'frame-ancestors *'
         cases.append(changed)
         for additions in cases:
             api = FakeAPI()
@@ -354,6 +365,62 @@ class HostingTests(unittest.TestCase):
                 self.common_deploy(api, additions)
             self.assertEqual(api.calls, [])
             self.assertFalse(self.output.exists())
+
+    def test_common_packet_header_projection_is_strict_before_any_network(self):
+        cases = [None, {}, copy.deepcopy(hosting.ITCH_HEADERS)]
+        duplicate_key = copy.deepcopy(PACKET_HEADERS)
+        duplicate_key[0]['headers'].append(copy.deepcopy(duplicate_key[0]['headers'][0]))
+        duplicate_source = copy.deepcopy(PACKET_HEADERS)
+        duplicate_source[1] = copy.deepcopy(duplicate_source[0])
+        extra_row_field = copy.deepcopy(PACKET_HEADERS)
+        extra_row_field[0]['glob'] = '/itch/'
+        extra_value_field = copy.deepcopy(PACKET_HEADERS)
+        extra_value_field[0]['headers'][0]['extra'] = True
+        non_string = copy.deepcopy(PACKET_HEADERS)
+        non_string[0]['headers'][0]['value'] = ['frame-ancestors *']
+        non_list = copy.deepcopy(PACKET_HEADERS)
+        non_list[0]['headers'] = {'Content-Security-Policy': hosting.FRAME_POLICY}
+        empty = copy.deepcopy(PACKET_HEADERS)
+        empty[0]['headers'] = []
+        cases.extend([duplicate_key, duplicate_source, extra_row_field, extra_value_field,
+                      non_string, non_list, empty])
+        for additions in cases:
+            api = FakeAPI()
+            manifest = {'status': hosting.COMMON_LIVE_STATUS, 'hosting_header_additions': additions}
+            with self.subTest(additions=additions), \
+                    mock.patch.object(hosting, 'verify_live_package', return_value=(manifest, self.marker)), \
+                    self.assertRaises(ValueError):
+                hosting.deploy(self.package, SHA, self.hash, self.output, api, lambda _: True)
+            self.assertEqual(api.calls, [])
+            self.assertFalse(self.output.exists())
+
+    def test_common_accepts_actual_prepare_stable_header_output(self):
+        build = self.root / 'producer-build'
+        web = build / 'web';web.mkdir(parents=True)
+        shell = (producer.ROOT / 'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL', 'index.js')
+        (web / 'index.html').write_text(shell)
+        for name in ['index.js', 'index.wasm', 'index.pck']:
+            (web / name).write_bytes(b'synthetic engine fixture')
+        base = {'source_commit': SHA, 'source_tree': TREE, 'workflow_run': '1', 'version': 'synthetic',
+                'packed_smoke': 'passed', 'engine_checks': 1, 'test_processes': 1,
+                'production_sha256': {'project.godot': hosting.digest(producer.ROOT / 'game/project.godot')},
+                'files': {p.name: {'sha256': hosting.digest(p), 'bytes': p.stat().st_size} for p in web.iterdir()}}
+        (web / 'release-manifest.json').write_text(json.dumps(base))
+        public_config = json.loads((producer.ROOT / 'platform/firebase/public-config.json').read_text())
+        self.package = self.root / 'producer-output'
+        manifest = producer.prepare_stable(build, self.package, public_config, SHA, TREE)
+        proposed = copy.deepcopy(manifest['hosting_header_additions'])
+        self.assertEqual(proposed, PACKET_HEADERS)
+        self.assertFalse(manifest['production_release_eligible'])
+        api = FakeAPI();api.paginated = True
+        receipt = self.common_deploy(api, manifest['hosting_header_additions'])
+        self.assertEqual(api.created_config['headers'], api.config['headers'] + hosting.ITCH_HEADERS)
+        self.assertEqual(receipt['approved_hosting_header_additions'], hosting.ITCH_HEADERS)
+        self.assertEqual(manifest['hosting_header_additions'], proposed)
+        for path, value in api.original_files.items():
+            if not (self.package / 'public' / path.lstrip('/')).is_file():
+                self.assertEqual(api.files[path], value)
+        self.assertEqual(api.releases, 1)
 
     def test_ambiguous_managed_header_rows_stop_before_version_creation(self):
         api = FakeAPI()

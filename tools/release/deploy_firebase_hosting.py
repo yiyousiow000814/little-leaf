@@ -275,9 +275,25 @@ def release_head(api):
 def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None):
     manifest, marker = verify_live_package(folder, source_sha, manifest_sha, staging_origin=staging_origin)
     common=manifest.get('status') == COMMON_LIVE_STATUS
-    additions = manifest.get('hosting_header_additions') if common else []
-    if common and record_digest(additions) != record_digest(ITCH_HEADERS):
-        raise ValueError('Common same-page release requires the exact reviewed Hosting headers')
+    additions = []
+    if common:
+        proposed = manifest.get('hosting_header_additions')
+        if not isinstance(proposed, list):
+            raise ValueError('Common same-page release requires a Hosting header list')
+        for row in proposed:
+            if (not isinstance(row, dict) or set(row) != {'source', 'headers'}
+                    or not isinstance(row['source'], str) or not isinstance(row['headers'], list)):
+                raise ValueError('Exact producer Hosting header fields required')
+            headers = {}
+            for header in row['headers']:
+                if (not isinstance(header, dict) or set(header) != {'key', 'value'}
+                        or not isinstance(header['key'], str) or not isinstance(header['value'], str)
+                        or header['key'] in headers):
+                    raise ValueError('Exact unique producer Hosting header values required')
+                headers[header['key']] = header['value']
+            additions.append({'glob': row['source'], 'headers': headers})
+        if record_digest(additions) != record_digest(ITCH_HEADERS):
+            raise ValueError('Common same-page release requires the exact reviewed Hosting headers')
     if common:
         from release.common_firebase import current_marker
         if output.exists() or current_marker()!=staging_origin.get('live_baseline'):
