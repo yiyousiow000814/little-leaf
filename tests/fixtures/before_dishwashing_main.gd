@@ -139,7 +139,7 @@ func _ready():
 	interaction=Interaction.new(self)
 	camera_gestures=CameraGestures.new(self)
 	web_lifecycle=WebLifecycle.new(self)
-	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
+	# Current test dependencies retire the drawing-only workface node; legacy service logic stays unchanged.
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
 	world.visible=false; furnishings.visible=false; people.visible=false
