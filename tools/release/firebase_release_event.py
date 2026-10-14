@@ -100,18 +100,30 @@ def artifact_for(api, run, name):
     return artifact
 
 
-def download(api, artifact, destination):
+def download(api, artifact, destination, *, qualified_run=None):
     # The qualified Firebase packet retains four separately bound Web surfaces.
     # Ordinary exports and small receipts keep their original 100/200 MiB limits.
     match = re.fullmatch(r'little-leaf-firebase-([0-9a-f]{40})-([1-9][0-9]*)', artifact.get('name', ''))
+    require(qualified_run is None or match is not None, 'Qualified run context requires a Firebase packet')
     path = f"actions/artifacts/{artifact['id']}/zip"
     if match:
         size = artifact.get('size_in_bytes')
         origin = artifact.get('workflow_run', {})
+        expected_head = match[1]
+        if qualified_run is not None:
+            # workflow_run executes the coordinator at main; the archive name
+            # retains the separately authenticated immutable game source.
+            require(isinstance(qualified_run, dict), 'Typed qualification run required')
+            trusted_run(qualified_run, '.github/workflows/release-firebase.yml', ('workflow_run',))
+            require(type(qualified_run['id']) is int and qualified_run['id'] == origin.get('id')
+                    and qualified_run.get('head_branch') == 'main'
+                    and type(qualified_run['run_attempt']) is int
+                    and qualified_run['run_attempt'] == int(match[2]), 'Qualified artifact run/attempt differs')
+            expected_head = qualified_run['head_sha']
         require(type(artifact['id']) is int and artifact['id'] > 0
                 and artifact.get('expired') is False
                 and type(origin.get('id')) is int and origin['id'] > 0
-                and origin.get('head_sha') == match[1]
+                and origin.get('head_sha') == expected_head
                 and re.fullmatch(r'sha256:[0-9a-f]{64}', artifact.get('digest', ''))
                 and type(size) is int and 0 < size <= MAX_FIREBASE_ARTIFACT_BYTES,
                 'Bounded authenticated Firebase artifact metadata required')
