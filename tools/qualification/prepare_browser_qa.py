@@ -36,12 +36,14 @@ def synthetic_profile(folder):
     return env
 
 
-def validate_export(build, source, old=False):
+def validate_export(build, source, old=False, *, verify_project=True):
     manifest = json.loads((build / "web/release-manifest.json").read_text())
     commit = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if subprocess.check_output(["git", "-C", str(source), "status", "--porcelain", "--untracked-files=no"], text=True).strip():
         raise RuntimeError("Compatibility inputs require clean tracked source")
-    if manifest["source_commit"] != commit or (old and commit != CONTRACT["old_commit"]):
+    tree = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD^{tree}"], text=True).strip()
+    if (manifest["source_commit"] != commit or manifest["source_tree"] != tree
+            or (old and commit != CONTRACT["old_commit"])):
         raise RuntimeError("Export/source commit mismatch")
     if manifest.get("toolchain_verification") != "checksum-pinned-official-archives":
         raise RuntimeError("Compatibility CI requires the pinned official toolchain")
@@ -56,7 +58,8 @@ def validate_export(build, source, old=False):
     if manifest.get("projected_metadata_sha256", {}) != projected_hashes or manifest["version"] != version(source, source_commit=commit):
         raise RuntimeError("Exact-source metadata projection differs")
     for name, expected in manifest["production_sha256"].items():
-        if sha256(source_path(source, name)) != expected or sha256(build / "project" / name) != projected_hashes.get(name, expected):
+        if (sha256(source_path(source, name)) != expected or
+                verify_project and sha256(build / "project" / name) != projected_hashes.get(name, expected)):
             raise RuntimeError("Source/export production mismatch: " + name)
     for name, spec in manifest["files"].items():
         file = build / "web" / name
@@ -65,33 +68,85 @@ def validate_export(build, source, old=False):
     return manifest
 
 
+def wall_binding(builds):
+    """One source-bound recipe for producer and consumer; no native work here."""
+    receipt = {"browser_verified": False, "synthetic_only": True,
+               "fixture_sha256": CONTRACT["fixture_sha256"], "layouts": {},
+               "production_sha256": {}, "export_manifest_sha256": {},
+               "workflow_run": os.environ.get("GITHUB_RUN_ID", "local"),
+               "workflow_attempt": os.environ.get("GITHUB_RUN_ATTEMPT", "local"),
+               "coordinator_source": os.environ.get("GITHUB_SHA", "local"),
+               "layout_fixture_sha256": sha256(ROOT / "tests/fixtures/wall_compatibility_layout.gd"),
+               "preparer_sha256": sha256(Path(__file__))}
+    for label, (build, manifest) in builds.items():
+        receipt[label + "_commit"] = manifest["source_commit"]
+        receipt[label + "_tree"] = manifest["source_tree"]
+        receipt["production_sha256"][label] = manifest["production_sha256"]
+        receipt["export_manifest_sha256"][label] = sha256(build / "web/release-manifest.json")
+        receipt["toolchain_receipt"] = manifest["toolchain_receipt"]
+    return receipt
+
+
+def layout_record(folder, label):
+    result_path, log_path = (folder / (label + suffix) for suffix in ("-layout.json", "-layout.log"))
+    result = json.loads(result_path.read_text())
+    if result["failures"] or type(result["checks"]) is not int or result["checks"] < 1:
+        raise RuntimeError(label + " layout/codec assertions failed")
+    if not log_path.is_file() or "ERROR:" in log_path.read_text():
+        raise RuntimeError(label + " layout/codec log failed")
+    return {"sha256": sha256(result_path), "checks": result["checks"], "log_sha256": sha256(log_path)}
+
+
 def wall_main(argv):
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ["old-source", "old-build", "new-build", "output"]:
-        parser.add_argument("--" + name, type=Path, required=True)
+        parser.add_argument("--" + name, type=Path, required=name == "output")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--prepare-side", choices=["old", "new"])
+    mode.add_argument("--merge-only", action="store_true", help="Validate same-run producer layouts without Godot or staged projects")
     args = parser.parse_args(argv)
+    labels = [args.prepare_side] if args.prepare_side else ["old", "new"]
+    if ("old" in labels and (args.old_source is None or args.old_build is None)
+            or "new" in labels and args.new_build is None):
+        parser.error("Selected sides require their source/build paths")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     for name, expected in CONTRACT["fixture_sha256"].items():
         if sha256(FIXTURES / name) != expected:
             raise RuntimeError("Fixture changed: " + name)
-    old = validate_export(args.old_build, args.old_source, old=True)
-    new = validate_export(args.new_build, ROOT)
-    if old["toolchain_receipt"] != new["toolchain_receipt"]:
+    builds = {label: (build, validate_export(build, source, old=label == "old", verify_project=not args.merge_only))
+              for label, build, source in [("old", args.old_build, args.old_source), ("new", args.new_build, ROOT)]
+              if label in labels}
+    toolchain = next(iter(builds.values()))[1]["toolchain_receipt"]
+    if any(manifest["toolchain_receipt"] != toolchain for _, manifest in builds.values()):
         raise RuntimeError("Old and new exports must use the same pinned toolchain")
+    receipt = wall_binding(builds)
+    if args.merge_only:
+        for label, (build, manifest) in builds.items():
+            folder = build / "evidence/wall-layout"
+            expected_files = {"preflight.json", label + "-layout.json", label + "-layout.log"}
+            if (folder.is_symlink() or any(p.is_symlink() for p in folder.iterdir())
+                    or {p.name for p in folder.iterdir()} != expected_files):
+                raise RuntimeError("Incomplete or unexpected producer layout files")
+            expected = wall_binding({label: (build, manifest)})
+            expected["layouts"][label] = layout_record(folder, label)
+            expected["status"] = "passed"
+            observed = json.loads((folder / "preflight.json").read_text())
+            if json.dumps(observed, sort_keys=True) != json.dumps(expected, sort_keys=True):
+                raise RuntimeError("Producer layout source, run, toolchain or payload differs: " + label)
+            receipt["layouts"][label] = expected["layouts"][label]
+            for suffix in ("-layout.json", "-layout.log"):
+                shutil.copy2(folder / (label + suffix), output / (label + suffix))
+        receipt["status"] = "passed"
+        (output / "preflight.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        return
     godot = os.environ.get("GODOT_BIN", "godot")
     installed = verify_installer_receipt(
         Path(shutil.which(godot) or godot).resolve(), Path(os.environ["GODOT_TEMPLATE"]),
         Path(os.environ["GODOT_TOOLCHAIN_RECEIPT"]))
-    if installed != new["toolchain_receipt"]:
+    if installed != toolchain:
         raise RuntimeError("Native layout preflight must use the exports' verified toolchain")
-    receipt = {"browser_verified": False, "synthetic_only": True, "old_commit": old["source_commit"],
-               "new_commit": new["source_commit"], "fixture_sha256": CONTRACT["fixture_sha256"], "layouts": {},
-               "production_sha256": {"old": old["production_sha256"], "new": new["production_sha256"]},
-               "export_manifest_sha256": {
-                   "old": sha256(args.old_build / "web/release-manifest.json"),
-                   "new": sha256(args.new_build / "web/release-manifest.json")}}
-    for label, build in [("old", args.old_build), ("new", args.new_build)]:
+    for label, (build, manifest) in builds.items():
         with tempfile.TemporaryDirectory(prefix="wall-layout-saveguard-") as temporary:
             temporary = Path(temporary)
             project = temporary / "project"
@@ -120,12 +175,9 @@ def wall_main(argv):
             (output / (label + "-layout.log")).write_text(text)
             if completed.returncode or "ERROR:" in text or not result_path.is_file():
                 raise RuntimeError(label + " layout/codec preflight failed; inspect retained log")
-            result = json.loads(result_path.read_text())
-            if result["failures"] or result["checks"] < 1:
-                raise RuntimeError(label + " layout/codec assertions failed")
-            receipt["layouts"][label] = {"sha256": sha256(result_path), "checks": result["checks"]}
-            for name, expected in (old if label == "old" else new)["production_sha256"].items():
-                if sha256(project / name) != (old if label == "old" else new).get("projected_metadata_sha256", {}).get(name, expected):
+            receipt["layouts"][label] = layout_record(output, label)
+            for name, expected in manifest["production_sha256"].items():
+                if sha256(project / name) != manifest.get("projected_metadata_sha256", {}).get(name, expected):
                     raise RuntimeError("Native preflight changed production source: " + name)
     receipt["status"] = "passed"
     (output / "preflight.json").write_text(json.dumps(receipt, indent=2) + "\n")
