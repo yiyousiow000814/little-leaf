@@ -963,7 +963,14 @@ func _draw():
 	for opening in openings:OpeningArt.threshold(self,opening)
 	var interaction=game.interaction if "interaction" in game else null
 	var preview=show_objects and interaction!=null and interaction.preview_active
-	# The furnishing preview keeps its material without a placement-status tint.
+	if preview and interaction.drag_active:
+		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
+		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
+			var c=Vector2i(int(part.x),int(part.z))
+			var corners=[iso(c.x+.03,c.y+.03),iso(c.x+.97,c.y+.03),iso(c.x+.97,c.y+.97),iso(c.x+.03,c.y+.97)]
+			poly(corners,Color("cad2b6") if interaction.drag_footprint_valid else Color("ddcbb6"))
+			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
+	# Placement colors belong only to the dragged furnishing's own footprint.
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
 	_scenery_tree(Vector2(13.5,-.5),1.10)
 	# This oak overlaps street actors. Partition once so it cannot draw twice.
