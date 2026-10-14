@@ -486,6 +486,14 @@ func update_motion(delta: float):
 			# this job steps close to the edge; serving keeps its small aisle lean.
 			if str(station.get("kind",""))=="table" and str(staff.get("art_action",""))=="wiping":inset=DirectionalCharacter.CleaningPose.table_inset(target-staff.pos)
 			if target.distance_to(staff.pos)>.1:docking=(target-staff.pos).normalized()*inset
+		# A front drop uses the outer corner of the existing work tile. Begin the
+		# sidestep on arrival; the janitor retains its authored washing contact.
+		if str(staff.get("art_action","")) in ["carrying_dishes","dropping_dishes"]:
+			var sink=game.model.get_item(int(staff.get("art_target_id",-1)))
+			if sink.get("kind","")=="sink":
+				var front=game.model.workface_cell(sink)
+				if staff.destination==front and staff.pos.distance_to(game.model.cell_center(front))<.75:
+					docking=SinkWashArt.front_drop_stance(int(sink.rot))
 		stance_offsets[key]=(stance_offsets.get(key,Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
 		motion.update(key,staff.pos+stance_offsets[key],delta)
 		var direction=_staff_visual_heading(staff,motion.sample(key))

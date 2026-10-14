@@ -224,6 +224,7 @@ func run():
  bad.staff[last_job].job_dish_id=bad.staff[first_job].job_dish_id;bad.staff[last_job].station_id=bad.staff[first_job].station_id;bad.staff[last_job].job_token=bad.staff[first_job].job_token
  check(not valid(bad).ok,"two cleaners cannot own the same queued dish")
  await concurrent_dropoff_cases()
+ front_dropoff_cases()
  var report={"checks":checks,"failures":failures,"stages":stages,"queue_capacity":6,"wash_seconds":20,"normal_saves_suppressed":game.save_writes_suppressed}
  print("DISHWASHING_QUEUE_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)
 
@@ -309,20 +310,90 @@ func concurrent_dropoff_cases():
  game._prepare_cleanup_step(c.waiter,game.staff_states.find(c.waiter))
  check(int(r.dish_sink_id)==int(c.alternate.id) and game.dishwashing.load_at(int(c.basin.id))==6 and game.dishwashing.load_at(int(c.alternate.id))==1,"full sink redirects carried dish and reserves one alternate slot")
  check(finish_drop(r) and game.dishwashing.count_at(int(c.alternate.id))==1 and game.dishwashing.count_at(int(c.basin.id))==6,"full-sink fallback physically deposits at alternate only")
- # An active wash plus blocked lateral approaches must not monopolize all sinks.
+ # A sink with every approach blocked must not monopolize all sinks.
  c=side_drop_case();r=c.record
- block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+ block_drop_cells([Vector2i(5,4),Vector2i(7,4),Vector2i(6,5)])
  c.waiter.job_elapsed=.2
  game._prepare_cleanup_step(c.waiter,game.staff_states.find(c.waiter))
  check(int(r.dish_sink_id)==int(c.alternate.id) and c.waiter.job_elapsed==0.0,"unusable approach redirects to another sink and restarts its physical drop gesture")
  check(game.dishwashing.load_at(int(c.basin.id))==1 and game.dishwashing.load_at(int(c.alternate.id))==1,"alternate selection transfers reservation without duplicate ownership")
  check(finish_drop(r) and game.dishwashing.count_at(int(c.alternate.id))==1,"blocked-side alternate sink completes without deadlock")
- # With no immediate drop side, keep the held dish and reserved capacity.
+ # With every physical approach closed, keep custody and release the
+ # unreachable reservation. Reopening one approach permits a fresh reservation.
  c=side_drop_case();r=c.record
- var blockers=block_drop_cells([Vector2i(5,4),Vector2i(7,4),Vector2i(8,4),Vector2i(10,4),Vector2i(9,5)])
+ var blockers=block_drop_cells([Vector2i(5,4),Vector2i(7,4),Vector2i(6,5),Vector2i(8,4),Vector2i(10,4),Vector2i(9,5)])
  advance(1.0)
- check(r.plate_owner=="staff" and int(r.dish_sink_id)==int(c.basin.id) and game.dishwashing.count_at(int(c.basin.id))==1,"all blocked approaches preserve carried dish and original reservation")
- check(c.cleaner.job_elapsed>5.0,"waiting drop does not stop janitor washing")
+ check(r.plate_owner=="staff" and int(r.dish_sink_id)==-1 and game.dishwashing.count_at(int(c.basin.id))==1,"all physical approaches blocked preserve custody and release the unreachable reservation")
+ check(c.cleaner.job_elapsed==5.0,"a physical front obstruction also freezes the wash clock")
  game.model.items.erase(blockers[1]);game.model.revision+=1
  check(finish_drop(r) and game.dishwashing.count_at(int(c.basin.id))==2,"unblocked side retries and completes without deadlock")
  check(game.dishwashing.load_at(int(c.basin.id))<=6 and game.dishwashing.count_at(int(c.alternate.id))==0,"retry keeps capacity bounded and avoids phantom alternate deposits")
+
+func front_dropoff_cases():
+ for reverse in [false,true]:
+  var c=side_drop_case();var r=c.record
+  block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+  var front=game.model.workface_cell(c.basin)
+  c.waiter.pos=game.model.cell_center(front);c.waiter.destination=front
+  if reverse:
+   var wi=game.staff_states.find(c.waiter);var ci=game.staff_states.find(c.cleaner)
+   game.staff_states[wi]=c.cleaner;game.staff_states[ci]=c.waiter;r.plate_staff_index=ci
+  check(game._service_destination(c.waiter,c.basin,front)==front,"front drop is available during washing in either roster order")
+  check(game._service_destination(c.waiter,c.basin,front,[front])==Vector2i(-1,-1),"anonymous front claim is not waived by a janitor")
+  advance(.45)
+  check(r.plate_owner=="staff" and game.dishwashing.count_at(int(c.basin.id))==1,"front drop retains custody before normalized .65 beat")
+  check(is_equal_approx(c.cleaner.job_elapsed,5.45) and is_equal_approx(c.waiter.job_elapsed,.45),"both front clocks advance without skipping a roster peer")
+  var wash=c.cleaner.job_elapsed;game.paused=true;game._process(.5)
+  check(c.cleaner.job_elapsed==wash and r.plate_owner=="staff","pause freezes front handoff and washing")
+  if not reverse:
+   roundtrip("concurrent front drop before contact")
+   r=record();c.waiter=game.worker("waiter");c.cleaner=game.worker("cleaner")
+  advance(.05)
+  check(r.plate_owner=="dish_queue" and game.dishwashing.count_at(int(c.basin.id))==2,"front contact enqueues exactly once")
+  advance(.3)
+  check(is_equal_approx(c.cleaner.job_elapsed,5.8),"wash continues through front drop completion and departure")
+  check(game.dishwashing.deposit(r,c.waiter,game.staff_states.find(c.waiter),c.basin) and game.dishwashing.count_at(int(c.basin.id))==2,"replayed front contact does not duplicate custody")
+  if reverse:
+   var wi=game.staff_states.find(c.waiter);var ci=game.staff_states.find(c.cleaner)
+   game.staff_states[wi]=c.cleaner;game.staff_states[ci]=c.waiter;r.plate_staff_index=-1
+ # A table already wiped clears the drop job immediately at gesture completion.
+ var done=side_drop_case();done.record.table_wiped=true
+ block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+ done.waiter.pos=game.model.cell_center(game.model.workface_cell(done.basin))
+ done.waiter.destination=game.model.workface_cell(done.basin)
+ advance(.75)
+ check(done.waiter.job_kind=="" and done.record.plate_owner=="dish_queue" and is_equal_approx(done.cleaner.job_elapsed,5.75),"clearing a completed front drop does not steal the later washer's frame")
+ # The earlier washer can complete before the later waiter is processed.
+ var c=side_drop_case();var r=c.record;var front=game.model.workface_cell(c.basin)
+ block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+ c.waiter.pos=game.model.cell_center(front);c.waiter.destination=front
+ var wi=game.staff_states.find(c.waiter);var ci=game.staff_states.find(c.cleaner)
+ game.staff_states[wi]=c.cleaner;game.staff_states[ci]=c.waiter;r.plate_staff_index=ci
+ c.cleaner.job_elapsed=19.95;game.dishwashing.entry(c.cleaner).elapsed=19.95
+ advance(.05)
+ check(game.dishwashing.completed==1 and is_equal_approx(c.waiter.job_elapsed,.05) and r.plate_owner=="staff","completed washer's frame claim still permits only the complementary drop")
+ game.staff_states[wi]=c.waiter;game.staff_states[ci]=c.cleaner;r.plate_staff_index=wi
+ # Unrelated bodies, work claims and another dropper keep their exclusion.
+ c=side_drop_case();front=game.model.workface_cell(c.basin)
+ block_drop_cells([Vector2i(5,4),Vector2i(7,4)])
+ var peer=game.worker("chef");var before=peer.duplicate(true)
+ peer.pos=game.model.cell_center(front)
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"unrelated body blocks front drop")
+ peer.pos=Vector2(2.5,2.5);peer.job_kind="cook";peer.destination=front
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"unrelated work claim blocks front drop")
+ peer.role="waiter";peer.job_kind="cleanup";peer.job_step=1;peer.station_id=int(c.basin.id);peer.job_elapsed=.2
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"second front dropper cannot share the waiter contact")
+ peer.clear();peer.merge(before)
+ var blocked=block_drop_cells([front])
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"front sharing never bypasses solid furniture")
+ game.model.items.erase(blocked[0]);game.model.revision+=1
+ # Front-only alternate selection uses the prospective sink, not stale station_id.
+ c.waiter.station_id=int(c.alternate.id)
+ check(game.dishwashing.drop_destination(c.waiter,c.basin,Vector2i(6,6))==front,"prospective front reservation recognizes the target sink's janitor")
+ # Older saved cleanup jobs may be held by a cleaner. They retain exclusive
+ # front access when free, but do not gain the waiter's sharing exception.
+ c.waiter.station_id=int(c.basin.id);c.waiter.role="cleaner"
+ check(game.dishwashing.drop_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"legacy cleaner drop cannot share an active washer contact")
+ game._clear_service_job(c.cleaner);c.cleaner.pos=Vector2(2.5,3.5)
+ check(game.dishwashing.drop_destination(c.waiter,c.basin,Vector2i(6,6))==front,"legacy cleaner drop still reaches a free front")
+ c.waiter.role="waiter"

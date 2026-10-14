@@ -875,7 +875,7 @@ func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,cla
 		if route.size()<shortest:best=cell;shortest=route.size()
 	return best
 
-func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[])->Vector2i:
+func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[],front_claims:Dictionary={})->Vector2i:
 	if str(item.get("kind",""))=="floor_disposal":
 		if _staff_walkable(from) and not claimed.has(from):return from
 		return _staff_idle_cell(staff_states.find(staff),claimed)
@@ -888,8 +888,9 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
 	if str(item.get("kind",""))=="sink":
-		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed)
-		if not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
+		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed,false,front_claims)
+		if not dishwashing.front_available(staff,item,claimed,front_claims):return Vector2i(-1,-1)
+		return _service_cell(item,from,[],str(staff.role))
 	return _service_cell(item,from,claimed,str(staff.role))
 
 func _update_floor_state(record:Dictionary):
@@ -1588,21 +1589,23 @@ func _animate_staff(delta: float):
 	active_staff_passages.clear() # Retained runtime field; no physical transit claims.
 	var claimed=[]
 	var worked_stations={}
+	var front_claims={} # Value snapshots survive a peer completing its job this frame.
 	model.navigation_cells()
 	var route_geometry=model.navigation_signature()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		var target_item=_service_target(staff)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-		var destination=_service_destination(staff,target_item,from,claimed) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
+		var destination=_service_destination(staff,target_item,from,claimed,front_claims) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
 		var interaction_available=destination!=Vector2i(-1,-1)
-		if not target_item.is_empty() and _service_destination(staff,target_item,from)==Vector2i(-1,-1):
+		if not target_item.is_empty() and _service_destination(staff,target_item,from,[],front_claims)==Vector2i(-1,-1):
 			staff.blocked_reason="Waiting for the sink" if str(target_item.kind)=="sink" and not dishwashing.workface_available(staff,int(target_item.id)) else ("Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate"));staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
 		elif not target_item.is_empty(): staff.blocked_reason=""
 		if not interaction_available: destination=_staff_idle_cell(index,claimed,str(target_item.get("kind",""))!="stove")
 		# v13 may restore an old avoidance timer; it has no effect on work now.
 		staff.yield_time=0.0
 		claimed.append(destination)
+		front_claims[index]=dishwashing.front_claim(staff,target_item,destination) if interaction_available else {}
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
 		var route_invalid=_staff_route_invalid(staff,route_geometry)
 		if route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size()))):
@@ -1648,12 +1651,13 @@ func _animate_staff(delta: float):
 		if staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))>=.03: continue
 		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and absi(destination.x-int(target_item.x))+absi(destination.y-int(target_item.z))!=1: continue
 		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and model.edge_blocked(destination,Vector2i(int(target_item.x),int(target_item.z))):continue
-		if destination!=_service_destination(staff,target_item,from):continue
+		if destination!=_service_destination(staff,target_item,from,[],front_claims):continue
 		var step=SERVICE_STEPS[staff.job_kind][int(staff.job_step)]
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
 		var station_key=Vector3i(int(target_item.id),destination.x,destination.y) if str(step.kind)=="sink" else int(target_item.id)
+		if not front_claims[index].is_empty():station_key=Vector4i(int(target_item.id),destination.x,destination.y,int(front_claims[index].lane))
 		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():

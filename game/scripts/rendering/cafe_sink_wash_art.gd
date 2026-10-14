@@ -5,6 +5,13 @@ const ARM=10.5
 const HALF_ARM=ARM*.5
 const INSET=.55
 const DROP_INSET=.55
+static func front_drop_stance(rotation:int)->Vector2:
+ # Stay outside the cabinet's front plane, within the same logical work tile.
+ # Choose the corner with horizontal screen separation from the central washer.
+ var front=Vector2.DOWN.rotated(posmod(rotation,4)*PI/2)
+ var side=Vector2(-front.y,front.x)
+ if (side.x-side.y)*(front.x-front.y)<0:side=-side
+ return -front*.35+side*.45
 static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int)->Dictionary:
  # Ownership changes at .65. The plate clears the opening and stack at that beat,
  # then lowers into its queue slot while the empty hands withdraw.

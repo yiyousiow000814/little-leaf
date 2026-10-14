@@ -98,8 +98,8 @@ func assign(staff:Dictionary,index:int)->bool:
  staff.blocked_reason="";staff.blocked_target_id=-1;staff.blocked_guest_id=-1
  return true
 func workface_available(staff:Dictionary,sink_id:int)->bool:
- # Do not let the earlier waiter index steal an in-progress cleaner's face.
- # Once a wash ends, waiting drop-offs get the next turn before another wash.
+ # One washer and one front dropper have separate contacts. Peers doing the
+ # same job still arbitrate by in-progress work, then roster order.
  var own_index=game.staff_states.find(staff)
  var winner=-1;var best=-1
  for i in game.staff_states.size():
@@ -107,6 +107,7 @@ func workface_available(staff:Dictionary,sink_id:int)->bool:
   var dropping=other.job_kind=="cleanup" and int(other.job_step)==1
   if not dropping and other.job_kind!="wash":continue
   if int(other.station_id)!=sink_id:continue
+  if _front_lane(staff)+_front_lane(other)==3:continue
   # A lateral drop-off does not own the cleaner's front workface.
   var sink=game.model.get_item(sink_id)
   if dropping and not sink.is_empty():
@@ -116,7 +117,39 @@ func workface_available(staff:Dictionary,sink_id:int)->bool:
   var rank=3 if float(other.job_elapsed)>0.0 else (2 if dropping else 1)
   if rank>best:best=rank;winner=i
  return winner<0 or winner==own_index
-func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],reserving=false)->Vector2i:
+func _front_lane(staff:Dictionary)->int:
+ if staff.role=="cleaner" and staff.job_kind=="wash":return 1
+ if staff.role=="waiter" and staff.job_kind=="cleanup" and int(staff.job_step)==1:return 2
+ return 0
+func front_claim(staff:Dictionary,sink:Dictionary,cell:Vector2i)->Dictionary:
+ if sink.get("kind","")!="sink" or int(staff.station_id)!=int(sink.id) or cell!=game.model.workface_cell(sink):return {}
+ var lane=_front_lane(staff)
+ return {} if lane==0 else {"cell":cell,"sink_id":int(sink.id),"lane":lane}
+func front_available(staff:Dictionary,sink:Dictionary,claimed:Array=[],front_claims:Dictionary={})->bool:
+ var face=game.model.workface_cell(sink);var lane=_front_lane(staff)
+ if not workface_available(staff,int(sink.id)) or game.model.checkout_claims().has(face):return false
+ var shared_claims=0;var partners=0
+ for i in game.staff_states.size():
+  var other=game.staff_states[i]
+  if is_same(other,staff):continue
+  # A preceding worker may already have completed/cleared its job this frame.
+  # Its value snapshot still owns that frame's destination and contact lane.
+  var claim=front_claims.get(i,front_claim(other,sink,other.destination))
+  var shared=claim.get("cell",Vector2i(-1,-1))==face and int(claim.get("sink_id",-1))==int(sink.id) and int(claim.get("lane",0))+lane==3
+  if shared:
+   partners+=1
+   if partners>1:return false
+   if front_claims.has(i):shared_claims+=1
+   continue
+  # Washing already permits transit bodies; retain that behavior when the
+  # dropper finishes or leaves. Only the drop contact needs body exclusion.
+  if lane==1:continue
+  if Vector2i(floori(other.pos.x),floori(other.pos.y))==face:return false
+  if other.job_kind!="" and (other.destination==face or other.get("table_face_cell",Vector2i(-1,-1))==face):return false
+ # An anonymous caller claim, unrelated worker or a second front dropper is
+ # never exempted merely because a compatible janitor is also present.
+ return claimed.count(face)<=shared_claims
+func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],reserving=false,front_claims:Dictionary={})->Vector2i:
  # Drop through a clear basin edge; washing keeps its authored front pose.
  # Destination claims and current bodies are checked separately from routes.
  var center=Vector2i(int(sink.x),int(sink.z));var front=game.model.workface_cell(sink)
@@ -125,17 +158,20 @@ func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],
  var own_index=game.staff_states.find(staff);var best=Vector2i(-1,-1);var shortest=1000000
  var pinned:Vector2i=staff.destination if staff.job_kind=="cleanup" and int(staff.job_step)==1 and int(staff.station_id)==int(sink.id) else Vector2i(-1,-1)
  for cell in cells:
-  if claimed.has(cell) or not game._staff_walkable(cell) or game.model.edge_blocked(center,cell):continue
+  if not game._staff_walkable(cell) or game.model.edge_blocked(center,cell):continue
+  if reserving and claimed.has(cell):continue
   # Capacity reservations survive temporary actor occupancy. Actual drop-off
-  # still waits for an exclusive cell, including the between-washes front turn.
+  # still checks ownership; only complementary front contacts can share.
   if not reserving:
-   if cell==front and not workface_available(staff,int(sink.id)):continue
-   if game._staff_cell_claimed(cell,own_index):continue
-   var occupied=false
-   for other in game.staff_states:
-    if is_same(other,staff):continue
-    if Vector2i(floori(other.pos.x),floori(other.pos.y))==cell:occupied=true;break
-   if occupied:continue
+   if cell==front:
+    if not front_available(staff,sink,claimed,front_claims):continue
+   else:
+    if claimed.has(cell) or game._staff_cell_claimed(cell,own_index):continue
+    var occupied=false
+    for other in game.staff_states:
+     if is_same(other,staff):continue
+     if Vector2i(floori(other.pos.x),floori(other.pos.y))==cell:occupied=true;break
+    if occupied:continue
   var route=game._static_service_path(from,cell)
   if route.is_empty() and from!=cell:continue
   if cell==pinned:return cell
