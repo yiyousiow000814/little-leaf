@@ -25,6 +25,9 @@ from release.release_metadata import version, projected_metadata
 ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = 'yiyousiow000814/little-leaf'
 WORKFLOW = '.github/workflows/ci.yml'
+DEFAULT_RESPONSE_BYTES = 100 * 1024 * 1024
+# Four authenticated runtime surfaces plus room for future audio/assets.
+MAX_FIREBASE_ARTIFACT_BYTES = 512 * 1024 * 1024
 REQUIRED_JOBS = {'web / guard', 'web / historical', 'web / build', 'web / gate',
     'web / browser (play)', 'web / browser (recovery)',
     'web / compatibility (compatibility, old_opened_after_new)',
@@ -48,13 +51,20 @@ class GitHub:
         self.token = token
         self.opener = urllib.request.build_opener(NoAuthorizationRedirect())
 
-    def read(self, path, binary=False):
+    def read(self, path, binary=False, *, artifact_bytes=None):
+        limit = DEFAULT_RESPONSE_BYTES
+        if artifact_bytes is not None:
+            if (binary is not True or not re.fullmatch(r'actions/artifacts/[1-9][0-9]*/zip', path)
+                    or type(artifact_bytes) is not int
+                    or not 0 < artifact_bytes <= MAX_FIREBASE_ARTIFACT_BYTES):
+                raise ValueError('Bounded artifact ZIP response required')
+            limit = artifact_bytes
         request = urllib.request.Request('https://api.github.com/repos/' + REPOSITORY + '/' + path,
             headers={'Authorization': 'Bearer ' + self.token,
                      'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
         with self.opener.open(request, timeout=60) as response:
-            data = response.read(100 * 1024 * 1024 + 1)
-        if len(data) > 100 * 1024 * 1024:
+            data = response.read(limit + 1)
+        if len(data) > limit:
             raise ValueError('Response exceeds the bounded artifact size')
         return data if binary else json.loads(data)
 

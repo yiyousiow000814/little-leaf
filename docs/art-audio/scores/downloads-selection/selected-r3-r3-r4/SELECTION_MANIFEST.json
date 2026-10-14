@@ -1,0 +1,101 @@
+{
+  "package": "Little Leaf selected themes + newly written fourth track",
+  "date": "2026-10-12",
+  "selection_authority": "Current user message: Cloverlight R3; Petal Promenade R3; Fiesta en Flor R4. Pinwheel Parade rejected.",
+  "not_a_global_r5_rerender": "R5 labels the combined handoff only; the first three track versions remain R3/R3/R4.",
+  "tracks": [
+    {
+      "music_title": "三叶微风 · Cloverlight",
+      "selected_version": "R3",
+      "user_selection": "User explicitly selected this existing version as good-sounding.",
+      "current_status": "USER_SELECTED_POSITIVE_VERSION",
+      "audio_mp3": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+      "audio_sha256": "78948695efa00a67723ee427e78c2c62170d1cf67172b83434110717161fb2cc",
+      "lossless_master": "01_Cloverlight_R3/Cloverlight_PhraseFix_R3.flac",
+      "master_sha256": "8be058322cac2b0ceb89de1e9be0137f7f5f9cd58493390a992bb1ad16c87f34",
+      "duration_seconds": 29.23748299319728,
+      "nominal_bpm": 108,
+      "meter": [
+        6,
+        8
+      ],
+      "preserved_original_audio": true,
+      "approved_for_automatic_publication": false,
+      "seamless_loop_qualified": false,
+      "game_integration_tested": false,
+      "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+    },
+    {
+      "music_title": "花影小序曲 · Petal Promenade",
+      "selected_version": "R3",
+      "user_selection": "User explicitly selected this existing version as good-sounding.",
+      "current_status": "USER_SELECTED_POSITIVE_VERSION",
+      "audio_mp3": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+      "audio_sha256": "35472bfcb7110c16db942e10b7dc2a518124d5964196d6c332711159d125e965",
+      "lossless_master": "02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.flac",
+      "master_sha256": "be9793c39479ca449fd6427faad3f64d942ffd5ed8f761fc5a0b105d2b315248",
+      "duration_seconds": 42.20689342403628,
+      "nominal_bpm": 92,
+      "meter": [
+        3,
+        4
+      ],
+      "preserved_original_audio": true,
+      "approved_for_automatic_publication": false,
+      "seamless_loop_qualified": false,
+      "game_integration_tested": false,
+      "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+    },
+    {
+      "music_title": "花巷庆典 · Fiesta en Flor",
+      "selected_version": "R4",
+      "user_selection": "User explicitly selected this existing version as good-sounding.",
+      "current_status": "USER_SELECTED_POSITIVE_VERSION",
+      "audio_mp3": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+      "audio_sha256": "53272b0d9b67d162972b3d27ba7cda75afd3fa3abb1394ba85489cd3f76c5a37",
+      "lossless_master": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+      "master_sha256": "231bebbee3d4b0675c2e3f628fb1f1aa3f53670ff605114146d5c9b921526de8",
+      "duration_seconds": 29.6802947845805,
+      "nominal_bpm": 142.0,
+      "meter": [
+        4,
+        4
+      ],
+      "preserved_original_audio": true,
+      "approved_for_automatic_publication": false,
+      "seamless_loop_qualified": false,
+      "game_integration_tested": false,
+      "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+    },
+    {
+      "music_title": "晴日蹦跳 · Sunshine Skip",
+      "selected_version": "new replacement",
+      "user_selection": "New fourth-track candidate; user has not auditioned this new work.",
+      "current_status": "AWAITING_USER_LISTENING",
+      "audio_mp3": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.mp3",
+      "audio_sha256": "541f42271598bd90295a6157a3b57569d8ea149fedac6b1826ca7cc19010f7e1",
+      "lossless_master": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.flac",
+      "master_sha256": "2e0a939686b7ebe0324c949fd92723f2be33429ee5db03b0b9240aacafa98b55",
+      "duration_seconds": 48.53408163265306,
+      "nominal_bpm": 176.0,
+      "meter": [
+        4,
+        4
+      ],
+      "preserved_original_audio": false,
+      "approved_for_automatic_publication": false,
+      "seamless_loop_qualified": false,
+      "game_integration_tested": false,
+      "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+    }
+  ],
+  "excluded_audio": [
+    "Pinwheel Parade",
+    "Cloverlight R4 R2 restore",
+    "Petal violin-throughout R4",
+    "Fiesta guitar-main R3"
+  ],
+  "third_party_reference_recordings_included": false,
+  "soundfont_or_font_binaries_included": false,
+  "repo_modified": false
+}

@@ -1,0 +1,77 @@
+{
+  "actual_checks": [
+    {
+      "folder": "01_Cloverlight_R3",
+      "mp3_decoded": true,
+      "lossless_finite": true,
+      "stems_count": 4,
+      "midi_note_count": 201,
+      "ledger_note_count": 201,
+      "note_times_valid": true,
+      "musicxml_parsed": true,
+      "full_bar_durations_valid": true,
+      "score_format": "melody and harmony lead sheet, not full ensemble notation",
+      "mix_stems_sum_max_error": 1.1920928955078125e-07,
+      "source_mp3_hash_identical": true,
+      "new_score_notation_application_import_tested": false,
+      "listening_acceptance": true,
+      "game_tested": false
+    },
+    {
+      "folder": "02_Petal_Promenade_R3",
+      "mp3_decoded": true,
+      "lossless_finite": true,
+      "stems_count": 4,
+      "midi_note_count": 174,
+      "ledger_note_count": 174,
+      "note_times_valid": true,
+      "musicxml_parsed": true,
+      "full_bar_durations_valid": true,
+      "score_format": "melody and harmony lead sheet, not full ensemble notation",
+      "mix_stems_sum_max_error": 2.384185791015625e-07,
+      "source_mp3_hash_identical": true,
+      "new_score_notation_application_import_tested": false,
+      "listening_acceptance": true,
+      "game_tested": false
+    },
+    {
+      "folder": "03_Fiesta_en_Flor_R4",
+      "mp3_decoded": true,
+      "lossless_finite": true,
+      "stems_count": 4,
+      "midi_note_count": 237,
+      "ledger_note_count": 237,
+      "note_times_valid": true,
+      "musicxml_parsed": true,
+      "full_bar_durations_valid": true,
+      "score_format": "melody and harmony lead sheet, not full ensemble notation",
+      "mix_stems_sum_max_error": 2.384185791015625e-07,
+      "source_mp3_hash_identical": true,
+      "new_score_notation_application_import_tested": false,
+      "listening_acceptance": true,
+      "game_tested": false
+    },
+    {
+      "folder": "04_Sunshine_Skip",
+      "mp3_decoded": true,
+      "lossless_finite": true,
+      "stems_count": 5,
+      "midi_note_count": 925,
+      "ledger_note_count": 925,
+      "note_times_valid": true,
+      "musicxml_parsed": true,
+      "full_bar_durations_valid": true,
+      "score_format": "melody and harmony lead sheet, not full ensemble notation",
+      "mix_stems_sum_max_error": 2.384185791015625e-07,
+      "source_mp3_hash_identical": null,
+      "new_score_notation_application_import_tested": false,
+      "listening_acceptance": false,
+      "game_tested": false
+    }
+  ],
+  "limits": [
+    "No new listening approval is claimed for the fourth composition.",
+    "No game engine run or seamless loop acceptance.",
+    "Score XML parsed/measure-checked, not imported into a notation GUI."
+  ]
+}

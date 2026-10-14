@@ -1,0 +1,52 @@
+{
+  "user_publication_authority": "Sentinel_4819f712409c819180da6b347208ef8f",
+  "tracks": [
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+      "mode": "100644",
+      "git_blob": "9942682cd7f18b449ca36629c386617d947ba324",
+      "bytes": 208268,
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+      "mode": "100644",
+      "git_blob": "5a3625ecfb4a6faedc0234c40ec51dd2dc0e21c5",
+      "bytes": 174876,
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+      "mode": "100644",
+      "git_blob": "c9ba99926fb7c1a663f139a00e246b4756f93aa2",
+      "bytes": 980781,
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+      "mode": "100644",
+      "git_blob": "74c82bc70c1455a517b7a91277d60be39ba29a48",
+      "bytes": 827145,
+      "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+      "mode": "100644",
+      "git_blob": "86786ddeeab1f108dec756f466d5f5d82c0ff468",
+      "bytes": 899254,
+      "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4"
+    }
+  ],
+  "source_manifest": "docs/art-audio/scores/corner-cafe-loops/SOURCE_PRESERVATION_MANIFEST.json",
+  "bank": {
+    "name": "TimGM6mb.sf2",
+    "sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+    "notice": "TIMGM6MB_PACKAGE_NOTICE.txt",
+    "bank_binary_in_repository": false
+  },
+  "audio_bytes": "Exact approved/supplied recording or named existing technical derivative; no new rendering/encoding/normalization",
+  "ownership_and_licence": "User-authorized publication of supplied original music. No new licence is imposed on songs or the game. Bank licence and recording treatment remain distinct; no blanket legal clearance claimed.",
+  "bank_use_evidence": "Original package render records and scripts; A/B derivative receipts bind their exact outputs. Shop before/after comparison has declared provenance with weaker code-level evidence.",
+  "runtime_activation": "Assets preserved only. Catalog/Main/Settings/CG playback integration remains frozen locally and is not activated by this preservation.",
+  "private_RC_and_raw_bank_font_binaries": "EXCLUDED"
+}

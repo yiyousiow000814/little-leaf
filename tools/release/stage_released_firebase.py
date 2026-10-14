@@ -108,7 +108,50 @@ def validate_focused(root, folder, source, tree, run, attempt):
     return records
 
 
-def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False, common_tag=False):
+def prepare_common_surface(root, reuse, selection, output):
+    """Run only the frozen source's same-page transformer, before compiled gates."""
+    source_identity(root, selection)
+    require(selection.get('kind') == 'common-tag-qualified', 'Authenticated common tag required')
+    require(not output.exists(), 'Same-page candidate output must be unused')
+    command = ('import json,sys; from pathlib import Path; '
+               'sys.path.insert(0,sys.argv[1]); '
+               'from build.build_itch_trusted_preview import prepare_stable; '
+               'prepare_stable(Path(sys.argv[2]),Path(sys.argv[3]),'
+               'json.loads(Path(sys.argv[4]).read_text()),sys.argv[5],sys.argv[6])')
+    environment = os.environ.copy()
+    for key in ['GH_TOKEN', 'GITHUB_TOKEN', 'BUTLER_API_KEY', 'FIREBASE_HOSTING_ACCESS_TOKEN']:
+        environment.pop(key, None)
+    subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
+                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'),
+                    selection['source_commit'], selection['source_tree']],
+                   cwd=root, env=environment, check=True, timeout=90)
+    return json.loads((output / 'firebase-variant-manifest.json').read_text())
+
+
+def validate_common_surface(folder, selection, base, flow):
+    manifest = json.loads((folder / 'firebase-variant-manifest.json').read_text())
+    require(manifest.get('status') == 'prepared-same-itch-local-candidate-not-deployable'
+            and manifest.get('source_commit') == selection['source_commit']
+            and manifest.get('source_tree') == selection['source_tree']
+            and manifest.get('base_web_manifest') == base,
+            'Exact frozen common same-page candidate required')
+    actual = {p.relative_to(folder).as_posix() for p in folder.rglob('*') if p.is_file()}
+    require(not any(p.is_symlink() for p in folder.rglob('*'))
+            and actual == set(manifest['files']) | {'firebase-variant-manifest.json'}
+            and all(sha256(folder / name) == digest for name, digest in manifest['files'].items()),
+            'Same-page candidate inventory changed after compiled qualification')
+    require(flow.get('itch_test_entry') is True
+            and flow.get('itch_ancestor_origins') == ['https://html-classic.itch.zone', 'https://siowyiyou.itch.io']
+            and flow.get('itch_entry_sha256') == sha256(folder / 'public/itch/index.html'),
+            'Original complete compiled same-page flow required')
+    for surface in ['public', 'public/itch', 'itch-wrapper']:
+        for name in ['index.js', 'index.wasm', 'index.pck']:
+            require(sha256(folder / surface / name) == base['files'][name]['sha256'],
+                    'Frozen common runtime changed on ' + surface)
+    return manifest
+
+
+def stage(root, reuse, selection, evidence, focused, fullflow, output, run, attempt, *, manual_live=False, common_tag=False, itch_variant=None):
     require(not (manual_live and common_tag), 'Separate typed staging contracts required')
     if common_tag:
         from release.common_firebase import common_context
@@ -169,9 +212,22 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         order_path=evidence/'common-order.json'
         order_path.write_text(json.dumps(selection['common']['release_order'])+'\n')
         order_args=[str(order_path.resolve())]
-    subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
-                    str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve()), *order_args],
-                   cwd=root, env=environment, check=True, timeout=90)
+    if common_tag:
+        require(itch_variant is not None, 'Common release requires its qualified same-page candidate')
+        validate_common_surface(itch_variant, selection, base, flow)
+        shutil.copytree(itch_variant, output)
+        # Publish the same embedded wrapper whose runtime passed the compiled gates.
+        # The frozen transformer supplied the tested bytes. Only the coordinator's
+        # authenticated common chronology is added after those gates pass.
+        from build.build_firebase import update_hosting_marker
+        for surface in ['public', 'public/itch']:
+            marker = json.loads((output / surface / 'hosting-release.json').read_text())
+            marker.update(tag=selection['release_tag'], release_order=selection['common']['release_order'])
+            update_hosting_marker(output / surface, marker)
+    else:
+        subprocess.run([sys.executable, '-c', command, str(root / 'tools'), str(reuse.resolve()),
+                        str(output.resolve()), str(root / 'platform/firebase/public-config.json'), str(publication_path.resolve()), *order_args],
+                       cwd=root, env=environment, check=True, timeout=90)
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())
     marker['tag'] = selection['release_tag']
@@ -211,7 +267,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     manifest['status'] = 'qualified-release-staged-not-deployable'
     if common_tag:
         from release.common_firebase import STATUS, seal
-        manifest.update(status=STATUS)
+        manifest.update(status=STATUS, production_release_eligible=True)
         seal(root, coordinator, output, manifest, selection, context, inputs, records, flow, evidence, reuse)
     if manual_live:
         from release.released_live_provenance import STATUS, COORDINATOR_FILES, validate_released_live
@@ -247,6 +303,9 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
     if manual_live:
         validate_released_live(output, manifest, marker)
     path.write_text(json.dumps(manifest, indent=2) + '\n')
+    if common_tag:
+        from release.firebase_release_event import check_firebase_packet_budget
+        check_firebase_packet_budget(output)
     for name in ['index.js', 'index.wasm', 'index.pck']:
         require(sha256(output / 'public' / name) == base['files'][name]['sha256'], 'Released runtime bytes changed')
     result = {'source_sha': selection['source_commit'], 'manifest_sha256': sha256(path),
@@ -260,23 +319,27 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('mode', choices=['prepare', 'stage'])
+    p.add_argument('mode', choices=['prepare', 'surface', 'stage'])
     p.add_argument('--manual-live', action='store_true', help='Exact main dispatch only; no deployment')
     p.add_argument('--common-tag', action='store_true', help='Independent exact common-tag qualification; no deployment')
     for name in ['source-root', 'reuse', 'selection', 'evidence']:
         p.add_argument('--' + name, type=Path, required=True)
-    for name in ['focused', 'fullflow', 'output']:
+    for name in ['focused', 'fullflow', 'output', 'itch-variant']:
         p.add_argument('--' + name, type=Path)
     args = p.parse_args()
     selection = json.loads(args.selection.read_text())
     if args.mode == 'prepare':
         result = prepare(args.source_root.resolve(), args.reuse, selection, args.evidence,
                          GitHub(os.environ.get('GH_TOKEN', '')), common_tag=args.common_tag)
+    elif args.mode == 'surface':
+        require(args.common_tag and args.output, 'Common same-page output required')
+        result = prepare_common_surface(args.source_root.resolve(), args.reuse, selection, args.output)
     else:
         require(all([args.focused, args.fullflow, args.output]), 'Stage evidence paths required')
         result = stage(args.source_root.resolve(), args.reuse, selection, args.evidence,
             args.focused, args.fullflow, args.output, os.environ.get('GITHUB_RUN_ID'),
-            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live, common_tag=args.common_tag)
+            os.environ.get('GITHUB_RUN_ATTEMPT'), manual_live=args.manual_live, common_tag=args.common_tag,
+            itch_variant=args.itch_variant)
     print(json.dumps(result))
 
 

@@ -8,17 +8,77 @@ const deviceByDigest=new Map();
 const clone=x=>x==null?null:JSON.parse(JSON.stringify(x)),same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),fail=code=>Object.assign(Error(code),{code});
 async function record(revision,coins,profileId,device){const r={format:2,profileId,revision,createdAt:1,updatedAt:100+revision,payload:JSON.stringify({...JSON.parse(payload),coins}),digest:null,origin:{source:'fresh',legacyDigest:null,importedAt:1},previous:null,campaigns:{}};r.digest=await codec.hash(codec.fingerprint(r));if(device)deviceByDigest.set(r.digest,device);return r;}
 const doc=r=>({schema:1,profileId:r.profileId,revision:r.revision,digest:r.digest,record:JSON.stringify(r),device:deviceByDigest.get(r.digest)||'Unknown device'});
-async function harness({normal=false}={}){
+async function harness({normal=false,clientApi=api,ownership=null}={}){
  const profile=webcrypto.randomUUID(),base=await record(1,500,profile),localRecord=await record(2,100,profile),cloudRecord=normal?base:await record(3,900,profile,'iPhone');
  const original={base:base.digest,pending:true,record:localRecord,uploading:{base:base.digest,record:localRecord}};
  let uid='choice-user',local=clone(original),backup=null,cloud=doc(cloudRecord),writes=0,writeHook=null,chooseHook=null,readHook=null;
  const journal={async read(){return clone(local);},async replace(id,old,next){if(!same(local,old))throw fail('REVISION_CONFLICT');local=clone(next);},async readRecoveryBackup(){return null;},async recover(){throw Error('legacy API unused');},async readChoiceBackup(){return clone(backup);},async choose(id,expected,next,bundle,guard,expectedArchive=null){if(chooseHook)await chooseHook();guard();const pairs=backup?.format==='little-leaf.choices.v1'?backup.archives:backup?[backup]:[];const previous=pairs.find(b=>b.selectionToken===bundle.selectionToken);if(same(local,next)&&same(previous,bundle))return;if(!same(backup,expectedArchive))throw fail('RECOVERY_CHANGED');if(!same(local,expected))throw fail('REVISION_CONFLICT');if(pairs.length>=8)throw fail('RECOVERY_ARCHIVE_FULL');backup=clone(pairs.length?{format:'little-leaf.choices.v1',archives:[...pairs,bundle]}:bundle);local=clone(next);}};
  const remote={async read(){if(readHook)await readHook();return clone(cloud);},async compareAndSet(id,base,next,guard){guard();if(writeHook)await writeHook('before');if(cloud?.digest!==next.digest){if((cloud?.digest||null)!==base)throw fail('REVISION_CONFLICT');cloud=clone(next);writes++;}if(writeHook)await writeHook('after');}};
- const make=()=>api.createClient({uid:'choice-user',codec,journal,remote,currentUid:()=>uid,status(){},now:()=>1000,deviceLabel:'Mac'});
+ const make=()=>clientApi.createClient({uid:'choice-user',codec,journal,remote,currentUid:()=>uid,status(){},now:()=>1000,deviceLabel:'Mac',ownership});
  return {c:make(),make,original,cloudRecord,base,journal,remote,local:()=>clone(local),backup:()=>clone(backup),cloud:()=>clone(cloud),writes:()=>writes,setCloud:x=>cloud=x,setLocal:x=>local=x,setBackup:x=>backup=x,setUid:x=>uid=x,onWrite:x=>writeHook=x,onChoose:x=>chooseHook=x,onRead:x=>readHook=x};
 }
 async function prepare(h,choice){const s=h.c.recoverySnapshot();return h.c.prepareChoice(choice,s.expectedLocalDigest,s.expectedCloudDigest);}
+async function metadataLifecycle(){
+ const maps=[],records=[];
+ // Observers retain neither the actual cache nor its record keys.
+ const observedRoot={crypto:webcrypto,TextEncoder,
+  Map:class extends Map{constructor(){super();maps.push(new WeakRef(this));}},
+  WeakMap:class extends WeakMap{set(key,value){records.push(new WeakRef(key));return super.set(key,value);}}};
+ observedRoot.globalThis=observedRoot;
+ vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase.js','utf8'),observedRoot);
+ let takeovers=0;
+ const ownership={assertActive(){return{};},async renew(){},async takeOver(){takeovers++;},close(){}};
+ const h=await harness({clientApi:observedRoot.LittleLeafFirebase,ownership});h.setLocal(null);assert((await h.c.boot()).ok);
+ for(let i=0;i<2000;i++){
+  h.setCloud({...doc(await record(i+4,900,h.cloudRecord.profileId)),device:i%2?'iPhone':'Mac'});
+  const loaded=await h.c.finishTakeover();assert(loaded.ok);assert.equal(loaded.revision,i+4);
+ }
+ assert.equal(takeovers,2000);assert.equal(h.writes(),0);
+ assert(maps.every(ref=>(ref.deref()?.size||0)<=1),'obsolete recovery metadata must not retain a growing strong digest inventory');
+ if(typeof global.gc==='function'){
+  for(let i=0;i<6;i++){await new Promise(resolve=>setImmediate(resolve));global.gc();}
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(records.filter(ref=>ref.deref()).length,1,'only the current entry may retain its validated device record');
+ }
+ h.c.close();assert.equal(h.c.recoverySnapshot().choices.length,0);
+}
+async function choiceReadDeadline(){
+ const timers=new Map();let timerId=0;
+ const timedRoot={crypto:webcrypto,TextEncoder,setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);}};timedRoot.globalThis=timedRoot;
+ vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase.js','utf8'),timedRoot);
+ const flush=()=>new Promise(resolve=>setImmediate(resolve));
+ for(const action of ['prepare','confirm']){
+  const h=await harness({clientApi:timedRoot.LittleLeafFirebase});await h.c.boot();
+  const prepared=action==='confirm'?await prepare(h,'local'):null;
+  const snapshot=clone(h.c.recoverySnapshot()),cloud=h.cloud(),boot=h.c.bootJson;let releaseRead;
+  h.onRead(()=>new Promise(resolve=>{releaseRead=resolve;}));
+  const pending=action==='prepare'?prepare(h,'local'):h.c.confirmChoice(prepared.selectionToken);await flush();
+  assert.equal(h.c.recoverySnapshot().busy,true);assert.equal((await prepare(h,'cloud')).code,'RECOVERY_BUSY');
+  assert.equal(timers.size,1,'choice revalidation must use the existing network deadline');
+  const timer=timers.values().next().value;assert.equal(timer.ms,15000);timer.fn();
+  const result=await pending;assert.equal(result.ok,false);assert.equal(result.code,'NETWORK_TIMEOUT');
+  assert.equal(h.c.recoverySnapshot().busy,false);assert.deepEqual(h.local(),h.original);assert.equal(h.backup(),null);assert.deepEqual(h.cloud(),cloud);assert.equal(h.writes(),0);
+  // A late missing result cannot erase the preview, accept boot or stage a choice.
+  h.setCloud(null);releaseRead();await flush();
+  assert.equal(h.c.bootJson,boot);assert.deepEqual(clone(h.c.recoverySnapshot().choices),snapshot.choices);
+  assert.equal(h.c.recoverySnapshot().expectedCloudDigest,snapshot.expectedCloudDigest);
+  assert.deepEqual(h.local(),h.original);assert.equal(h.backup(),null);assert.equal(h.writes(),0);assert.equal(timers.size,0);
+  h.onRead(null);h.setCloud(cloud);
+  const retry=await prepare(h,'cloud');assert(retry.ok);assert((await h.c.confirmChoice(retry.selectionToken)).ok);assert.equal(h.writes(),0);h.c.close();
+ }
+ // Existing account and close fences still reject a read completing before its deadline.
+ for(const exit of ['account','close']){
+  const h=await harness({clientApi:timedRoot.LittleLeafFirebase});await h.c.boot();const prepared=await prepare(h,'local');let releaseRead;
+  h.onRead(()=>new Promise(resolve=>{releaseRead=resolve;}));const cloud=h.cloud();
+  const pending=h.c.confirmChoice(prepared.selectionToken);await flush();assert.equal(timers.size,1);
+  if(exit==='account')h.setUid('other-account');else h.c.close();
+  releaseRead();assert.equal((await pending).code,'NOT_READY');assert.equal(h.c.recoverySnapshot().busy,false);
+  assert.deepEqual(h.local(),h.original);assert.deepEqual(h.cloud(),cloud);assert.equal(h.backup(),null);assert.equal(h.writes(),0);assert.equal(timers.size,0);h.c.close();
+ }
+}
 (async()=>{
+ await metadataLifecycle();
+ await choiceReadDeadline();
  let h=await harness();assert.equal((await h.c.boot()).code,'REVISION_CONFLICT');let s=h.c.recoverySnapshot();assert(s.choicesAvailable);assert.deepEqual(clone(s.choices),[{id:'local',coins:100,lastSavedAt:102,timeSource:'device-local-save',device:'Unknown device'},{id:'cloud',coins:900,lastSavedAt:103,timeSource:'device-local-save',device:'iPhone'}]);assert.equal(h.writes(),0);assert.deepEqual(h.local(),h.original);
  let p=await prepare(h,'cloud');assert(p.ok);assert.deepEqual(h.local(),h.original);assert.equal(h.backup(),null);let r=await h.c.confirmChoice(p.selectionToken);assert(r.ok);assert.equal(r.payload,p.payload);assert.equal(r.revision,p.revision);assert.equal(h.writes(),0);assert.deepEqual(h.backup().local,h.original);assert.deepEqual(h.backup().cloud,h.cloudRecord);assert.equal(h.backup().cloudDocument.record,JSON.stringify(h.cloudRecord));assert((await h.c.confirmChoice(p.selectionToken)).ok);
  assert((await h.c.commit(payload,r.revision,r.profileId)).ok);assert.equal((await h.c.confirmChoice(p.selectionToken)).code,'RECOVERY_CHANGED');
@@ -31,6 +91,13 @@ async function prepare(h,choice){const s=h.c.recoverySnapshot();return h.c.prepa
  h=await harness();await h.c.boot();p=await prepare(h,'local');h.onWrite(phase=>{if(phase==='after')throw fail('OFFLINE');});await h.c.confirmChoice(p.selectionToken);h.onWrite(null);r=await h.make().boot();assert(r.ok);assert.equal(r.payload,p.payload);assert.equal(h.writes(),1);assert(h.backup());
  h=await harness();await h.c.boot();p=await prepare(h,'local');const newer=doc(await record(8,800,h.cloudRecord.profileId));h.onWrite(phase=>{if(phase==='before')h.setCloud(newer);});assert.equal((await h.c.confirmChoice(p.selectionToken)).code,'REVISION_CONFLICT');assert.deepEqual(h.cloud(),newer);assert.equal(h.local().record.payload,p.payload);assert.deepEqual(h.backup().local,h.original);
  for(const backup of [{damaged:true}]){const other=await harness();other.setBackup(backup);await other.c.boot();assert.equal(other.c.recoverySnapshot().choicesAvailable,false);assert(!(await prepare(other,'cloud')).ok);assert.deepEqual(other.backup(),backup);assert.deepEqual(other.local(),other.original);}
+ // Verifying an archived document with the same digest must not relabel the live preview.
+ h=await harness();await h.c.boot();const liveLabels=clone(h.c.recoverySnapshot().choices);
+ h.setBackup({format:'little-leaf.choice.v1',selectionToken:'synthetic-archive',choice:'cloud',local:h.original,
+  cloud:h.cloudRecord,cloudDocument:{...h.cloud(),device:'Android device'},selected:h.cloudRecord});
+ const protectedArchive=h.backup(),unchangedCloud=h.cloud();p=await prepare(h,'cloud');assert(p.ok);
+ assert.deepEqual(clone(h.c.recoverySnapshot().choices),liveLabels);assert.deepEqual(h.backup(),protectedArchive);
+ assert.deepEqual(h.local(),h.original);assert.deepEqual(h.cloud(),unchangedCloud);assert.equal(h.writes(),0);
  // A second conflict appends, and export includes both protected pairs.
  h=await harness();await h.c.boot();p=await prepare(h,'cloud');assert((await h.c.confirmChoice(p.selectionToken)).ok);const firstPair=h.backup();
  h.setLocal({base:h.cloudRecord.digest,pending:true,record:await record(4,120,h.cloudRecord.profileId)});h.setCloud(doc(await record(5,950,h.cloudRecord.profileId)));

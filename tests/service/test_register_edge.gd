@@ -27,6 +27,7 @@ func _initialize():
    probe.commands.clear()
    var before=JSON.stringify([probe.game.staff_states,probe.game.model.customers])
    furniture.draw_item(probe,"register",Vector2.ZERO,rotation,15)
+   check(not furniture.checkout_height,label+" checkout height mode released after draw")
    var seams=[];var doors=0;var handles=0;var base_index=-1;var cabinet_top=-1;var expected_light="526f62"
    if phase=="paying":expected_light="e2c973"
    if phase=="recent":expected_light="79ac78"
@@ -42,7 +43,7 @@ func _initialize():
     if command.color=="a4bbb0":screen_index=index
     if command.color=="fff5d8":
      receipts+=1;receipt_index=index
-     check(command.points==[furniture.point(-.05,.15,33.25),furniture.point(.07,.15,33.25),furniture.point(.07,.27,33.25),furniture.point(-.05,.27,33.25)],label+" receipt keeps its surface and extent")
+     check(command.points==[furniture.point(-.05,.15,30.25),furniture.point(.07,.15,30.25),furniture.point(.07,.27,30.25),furniture.point(-.05,.27,30.25)],label+" receipt keeps its surface and extent")
    check(seams.is_empty(),label+" no drawer seam on the plain panel or rear view")
    check(doors==0 and handles==0,label+" no customer-facing doors or handles")
    check(cabinet_top>=0 and base_index>cabinet_top,label+" same cabinet top under terminal equipment")

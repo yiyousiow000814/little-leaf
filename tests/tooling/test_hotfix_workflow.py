@@ -65,12 +65,30 @@ class ItchTagGateTests(unittest.TestCase):
                       'little-leaf-common-release-${{ github.sha }}-1']:
             self.assertIn(guard, source)
         publishing=(ROOT/'.github/workflows/release-itch.yml').read_text()
-        for guard in ['workflows: [Check and build Web]','common_tag.py consume','common_tag.py verify',
-                      'ref: ${{ steps.common.outputs.source_sha }}','Missing BUTLER_API_KEY','tools/release/publish_itch.py']:
+        qualification=(ROOT/'.github/workflows/release-firebase.yml').read_text()
+        for guard in ['workflows: [Check and build Web]',
+                      "github.event.workflow_run.conclusion == 'success'",
+                      'uses: ./.github/workflows/stage-firebase.yml',
+                      "common_tag_run_id: ${{ format('{0}', github.event.workflow_run.id) }}"]:
+            self.assertIn(guard,qualification)
+        for guard in ['workflows: [Qualify Firebase release]',
+                      "github.event.workflow_run.conclusion == 'success'",
+                      "github.event.workflow_run.event == 'workflow_run'",
+                      "startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')",
+                      "FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",
+                      'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
+                      'ref: ${{ steps.common.outputs.source_sha }}',
+                      'RELEASE_TAG: ${{ steps.common.outputs.release_tag }}',
+                      'RELEASE_SHA: ${{ steps.common.outputs.source_sha }}',
+                      '--tag "$RELEASE_TAG" --sha "$RELEASE_SHA"',
+                      '--firebase-variant "$RUNNER_TEMP/common-firebase/variant"',
+                      '--staging-origin "$RUNNER_TEMP/common-firebase/origin.json"',
+                      'Missing BUTLER_API_KEY','tools/release/publish_itch.py']:
             self.assertIn(guard,publishing)
+        self.assertNotIn('common_tag.py consume',publishing)
         self.assertNotIn('reuse_main_ci.py',publishing)
         build = (ROOT / '.github/workflows/build-web.yml').read_text()
-        for gate in ['unittest discover', 'run_integration_candidate.py',
+        for gate in ['tools/ci/preflight.py', 'run_integration_candidate.py',
                      'tools/build/build_web.py', 'connection_recovery_browser.js',
                      'wall_compatibility_browser.js', 'save_log_browser.js']:
             self.assertIn(gate, build)
