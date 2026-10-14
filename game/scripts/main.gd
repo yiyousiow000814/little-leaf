@@ -153,7 +153,8 @@ func _ready():
 	_ensure_checkout_deployment()
 	_update_ui()
 	print("NATIVE_READY children=",get_child_count()," ui=",ui.get_child_count())
-	if "--capture-diagnostics" in OS.get_cmdline_user_args():
+	_start_floor_diagnostic_web()
+	if _diagnostics_mode(OS.get_cmdline_user_args())!="":
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
@@ -1700,30 +1701,97 @@ func _find_path(start: Vector2i,goal: Vector2i) -> Array:
 	if not path.is_empty(): path.pop_front()
 	return path
 
+# Developer QA installs the existing engine launch hook before startup and
+# passes -- --floor-diagnostics. No public query flag or player control.
+const FLOOR_DIAGNOSTIC_WEB_SOURCE = """
+(() => {
+    const key = 'LittleLeafFloorDiagnostics';
+    const previous = window[key];
+    if (previous && typeof previous.dispose === 'function') previous.dispose();
+    const api = {
+        callback: null,
+        latest_json: '',
+        capture() { if (api.callback) api.callback(); },
+        dispose() {
+            api.callback = null;
+            api.latest_json = '';
+            if (window[key] === api) delete window[key];
+        }
+    };
+    window[key] = api;
+})();
+"""
+
+func _start_floor_diagnostic_web():
+	if not OS.has_feature("web") or _diagnostics_mode(OS.get_cmdline_user_args())!="floor":return
+	JavaScriptBridge.eval(FLOOR_DIAGNOSTIC_WEB_SOURCE,true)
+	var api=JavaScriptBridge.get_interface("LittleLeafFloorDiagnostics")
+	if api==null:return
+	# Retain the Godot callback until its exact JS registration is detached.
+	var callback=JavaScriptBridge.create_callback(_on_floor_diagnostic_web_capture)
+	set_meta("floor_diagnostic_web_api",api)
+	set_meta("floor_diagnostic_web_callback",callback)
+	api.callback=callback
+	tree_exiting.connect(_stop_floor_diagnostic_web,CONNECT_ONE_SHOT)
+
+func _stop_floor_diagnostic_web():
+	var api=get_meta("floor_diagnostic_web_api") if has_meta("floor_diagnostic_web_api") else null
+	if api!=null:api.dispose()
+	if has_meta("floor_diagnostic_web_api"):remove_meta("floor_diagnostic_web_api")
+	if has_meta("floor_diagnostic_web_callback"):remove_meta("floor_diagnostic_web_callback")
+
+func _on_floor_diagnostic_web_capture(_arguments:Array):
+	_capture()
+
+static func _diagnostics_mode(args)->String:
+	if "--floor-diagnostics" in args:return "floor"
+	if "--capture-diagnostics" in args:return "runtime"
+	return ""
+
 func _capture():
-	if not "--capture-diagnostics" in OS.get_cmdline_user_args() or DisplayServer.get_name()=="headless" or "--visual-qa" in OS.get_cmdline_user_args(): return
+	var mode=_diagnostics_mode(OS.get_cmdline_user_args())
+	if mode=="" or DisplayServer.get_name()=="headless" or "--visual-qa" in OS.get_cmdline_user_args():return
+	if get_meta("diagnostic_capture_pending",false):return
+	set_meta("diagnostic_capture_pending",true)
 	await RenderingServer.frame_post_draw
-	# Exported resources are read-only. Diagnostics are an explicit local opt-in.
-	if not _save(): return
+	_write_diagnostic_capture(get_viewport().get_texture().get_image(),mode)
+	remove_meta("diagnostic_capture_pending")
+
+func _write_diagnostic_capture(image:Image,mode:String)->bool:
+	if mode not in ["floor","runtime"]:return false
+	# Floor observation never calls the historical save-before-capture path.
+	if mode=="runtime" and not _save():return false
+	var floor_only=mode=="floor"
+	var diagnostics={"engine":Engine.get_version_info().string,"rendered_frames":Engine.get_frames_drawn()}
+	if floor_only:
+		var snapshot=preload("res://scripts/rendering/floor_state_diagnostics.gd").capture(illustration)
+		diagnostics["floor"]={"current":snapshot,"previous":get_meta("floor_diagnostic_previous",{})}
+	else:
+		diagnostics.merge({"served":model.served,"coins":model.coins,"expanded":model.expanded,"music_state":music_state,"music_enabled":music_enabled,"audio_streams":[]})
+		for state in audio_players:
+			var player=audio_players[state]
+			diagnostics.audio_streams.append({"state":state,"playing":player.playing,"length_seconds":player.stream.get_length(),"loop":player.stream.loop})
+	# Only the newest image and current/previous numeric receipts are retained.
 	var directory="user://diagnostics"
 	if DirAccess.make_dir_recursive_absolute(directory)!=OK:
-		push_error("Could not create diagnostic folder");return
-	var path=directory+"/LittleLeaf_Runtime.png"
-	if get_viewport().get_texture().get_image().save_png(path)!=OK:
-		push_error("Could not save diagnostic screenshot");return
-	var diagnostics={"engine":Engine.get_version_info().string,"rendered_frames":Engine.get_frames_drawn(),"served":model.served,"coins":model.coins,"expanded":model.expanded,"music_state":music_state,"music_enabled":music_enabled,"audio_streams":[]}
-	for state in audio_players:
-		var player=audio_players[state]
-		diagnostics.audio_streams.append({"state":state,"playing":player.playing,"length_seconds":player.stream.get_length(),"loop":player.stream.loop})
-	var diagnostics_path=directory+"/runtime_diagnostics.json"
+		push_error("Could not create diagnostic folder");return false
+	var path=directory+("/LittleLeaf_Floor.png" if floor_only else "/LittleLeaf_Runtime.png")
+	if image.save_png(path)!=OK:
+		push_error("Could not save diagnostic screenshot");return false
+	var diagnostics_path=directory+("/floor_diagnostics.json" if floor_only else "/runtime_diagnostics.json")
 	var file=FileAccess.open(diagnostics_path,FileAccess.WRITE)
 	if file==null:
-		push_error("Screenshot saved; diagnostic details could not be written");return
+		push_error("Screenshot saved; diagnostic details could not be written");return false
 	var diagnostics_text=JSON.stringify(diagnostics,"\t")
 	file.store_string(diagnostics_text);file.flush()
 	var write_error=file.get_error();file.close()
 	var details_saved=write_error==OK and FileAccess.get_file_as_string(diagnostics_path)==diagnostics_text
+	if details_saved and floor_only:
+		set_meta("floor_diagnostic_previous",diagnostics.floor.current)
+		var api=get_meta("floor_diagnostic_web_api") if has_meta("floor_diagnostic_web_api") else null
+		if api!=null:api.latest_json=diagnostics_text
 	print("Diagnostic screenshot saved" if details_saved else "Screenshot saved; diagnostic details could not be written")
+	return details_saved
 
 func _toggle_wall_detail():
 	wall_detail=not wall_detail

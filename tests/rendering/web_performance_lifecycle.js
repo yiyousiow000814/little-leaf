@@ -63,3 +63,36 @@ console.log(JSON.stringify({ checks: 4, failures: [], scope: 'pagehide/foregroun
   assert.equal(JSON.parse(saved.get('little-leaf.preferences.v1')).format, 1);
   console.log(JSON.stringify({ checks: 4, failures: [], scope: 'exact preference adapter mock-storage round-trip; old CFG and new display key retained' }));
 })().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Exact opt-in Main bridge source. It has no storage/network/DOM dependency.
+// The actual Godot callback/WebGL runtime still requires browser qualification.
+{
+  const main = fs.readFileSync(path.join(__dirname, '../../game/scripts/main.gd'), 'utf8');
+  const bridge = main.split('const FLOOR_DIAGNOSTIC_WEB_SOURCE = """')[1].split('"""')[0];
+  const scopedWindow = {};
+  const context = {window: scopedWindow};
+  let calls = 0;
+  let previous;
+  for (let n = 0; n < 100; n++) {
+    vm.runInNewContext(bridge, context);
+    const current = scopedWindow.LittleLeafFloorDiagnostics;
+    current.callback = () => calls++;
+    current.latest_json = '{"floor":{"current":{},"previous":{}}}';
+    if (previous) {
+      assert.equal(previous.callback, null, 'old callback detached');
+      assert.equal(previous.latest_json, '', 'old packet released');
+      previous.capture();
+      previous.dispose();
+      assert.equal(scopedWindow.LittleLeafFloorDiagnostics, current, 'old owner cannot remove successor');
+    }
+    current.capture();
+    previous = current;
+  }
+  assert.equal(calls, 100, 'one current callback per explicit request');
+  assert.deepEqual(Object.keys(scopedWindow), ['LittleLeafFloorDiagnostics'], 'single bounded opt-in global');
+  previous.dispose();
+  previous.capture();
+  assert.equal(calls, 100, 'detached callback cannot fire');
+  assert.deepEqual(Object.keys(scopedWindow), [], 'shutdown removes exact registration');
+  console.log(JSON.stringify({checks: 4 + 99 * 3, failures: [], scope: 'exact developer floor bridge source;100 install/dispose cycles, no browser/Godot/storage execution'}));
+}
