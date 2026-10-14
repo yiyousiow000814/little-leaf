@@ -2,6 +2,24 @@
 
 ## Shared tag qualification and independent platforms
 
+An authenticated same-build `queued` or `processing` response counts as successful
+itch upload acceptance. Its receipt is `accepted-processing`, carries no fabricated
+completed channel order and claims no live/playable acceptance. Rejected uploads,
+uncertain build identity and actual processing failures remain failures; inspect
+the same build instead of uploading again. A later status/selected-entry check owns
+actual provider completion and live smoke. Hosting may authenticate this acceptance
+and consume the unchanged independently qualified Firebase packet; only an actual
+completed itch receipt permits the existing channel-order metadata projection.
+
+Manual `qualified-firebase-live` uses the same exact qualified run/artifact/source/
+manifest inputs, plus the approved previous release/version/configuration digest.
+It uses the existing Hosting-only identity after all package gates. If a confirmed
+candidate publication fails smoke, opt-in recovery restores only that recorded
+previous finalized version while the candidate still owns live and both inventories
+are unchanged. Restore is one POST, uncertain/concurrent outcomes are GET-only,
+and recovery preserves the original failed outcome. Default modes do not gain
+automatic rollback. A Hosting restore changes static content, not cloud save data.
+
 The current source candidate follows the2026-10-12 user requirement: one
 immutable approved tag consumes one successful exact-main CI build and complete
 ordinary qualification; its common tag job runs final packed startup once and

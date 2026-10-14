@@ -63,6 +63,7 @@ SUITES = [
     ("test_crazygames_ack", "CRAZYGAMES_ACK_RESULT"),
     ("test_platform_gameplay_gate", "PLATFORM_GATE_RESULT"),
     ("test_crazygames_autosave", "CRAZYGAMES_AUTOSAVE_RESULT"),
+    ("test_crazygames_music", "CRAZYGAMES_MUSIC_RESULT"),
     ("test_save_log", "SAVE_LOG_RESULT"),
     ("test_ambient_traffic_culling", "AMBIENT_TRAFFIC_CULLING_RESULT"),
     ("test_environment_scope", "ENVIRONMENT_SCOPE_RESULT"),
