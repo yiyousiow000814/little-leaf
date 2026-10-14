@@ -1,4 +1,5 @@
 extends SceneTree
+const Workfaces=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class GeneratedMain extends "res://scripts/main.gd":
  func _load_startup():
@@ -13,6 +14,9 @@ func _initialize():run.call_deferred()
 func run():
  var game=GeneratedMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  check(not game.save_recovery_blocked and game.model.dining_sets.size()==4,"fresh public default plus explicit four-table fixture starts")
+ var initial_register=game.model.checkout_register()
+ check(Vector2i(initial_register.x,initial_register.z)==Vector2i(6,4) and int(initial_register.rot)==1,"automatic register keeps the original separate counter/checkout work sides")
+ check(game.model.can_place("register",6,4,int(initial_register.id),0,game.interaction._staff_positions()),"manual register geometry does not inherit automatic work-side selection")
  check(game.model.place("stove",5,1),"second accessible stove places")
  game.model.cooks=2;game.model.duty_targets.chef=2;game.model.duty_counts.chef=2;game._update_people();game._sync_staff_duty()
  # Request exactly four dining visits in the original two street-approach
@@ -35,13 +39,13 @@ func run():
    for staff in game.staff_states:
     if staff.job_kind!="cook" or int(staff.job_step)!=1 or float(staff.job_elapsed)<.5:continue
     var station=game.model.get_item(int(staff.station_id));var face=game.model.workface_cell(station)
-    # The independent staff-placement candidate owns transactional relocation.
-    # This service-only fixture moves the worker onto safe floor before editing.
+    # This service-only fixture moves the worker onto clear floor first.
+    # Geometry does not invent a relocation or reserve an empty work side.
     check(game._staff_walkable(Vector2i(2,7)) and not game.model.path_between(Vector2i(staff.pos.floor()),Vector2i(2,7)).is_empty(),"synthetic step-aside tile is clear and reachable")
     staff.pos=Vector2(2.5,7.5);staff.path=[];staff.index=0;staff.destination=Vector2i(-100,-100)
-    check(not game.model.place("plant",face.x,face.y),"new in-progress stove obstruction is rejected")
-    # Inject a legacy blocked-layout fixture to keep pause/recovery coverage.
-    game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
+    check(game.model.place("plant",face.x,face.y,0,game.interaction._staff_positions()),"body-clear work-side obstruction follows physical placement")
+    # The real placement above already created exactly one blocker. Its held
+    # meal pause/recovery and ordinary save guards remain under test.
     blocker_id=int(game.model.items[-1].id);blocked_worker=staff
     held=[staff.job_kind,staff.job_guest_id,staff.job_token,staff.job_step,staff.job_elapsed,staff.station_id]
     game._rebuild_furniture();game.idle_home_revision=-1
@@ -65,7 +69,7 @@ func run():
     check(not saved_worker.is_empty() and saved_worker.job_elapsed==held[4] and saved_worker.station_id==held[5],"save roundtrip preserves chef meal progress and station")
    if blocked_ticks%300==0:
     check(held==[blocked_worker.job_kind,blocked_worker.job_guest_id,blocked_worker.job_token,blocked_worker.job_step,blocked_worker.job_elapsed,blocked_worker.station_id],"blocked meal progress/identity preserved "+str(blocked_ticks))
-    check(blocked_worker.art_action!="blocked" and game.workface_guidance.blocked_station(game).get("kind","")!="stove","play has no stove warning bubble/locate button")
+    check(blocked_worker.art_action!="blocked" and Workfaces.blocked_station(game).get("kind","")!="stove","play has no stove warning bubble/locate button")
    if blocked_ticks>120:
     if blocked_worker.pos.distance_to(last)<.0001:stationary+=1
     last=blocked_worker.pos

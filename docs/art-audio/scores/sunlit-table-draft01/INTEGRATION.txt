@@ -1,0 +1,39 @@
+SUNLIT TABLE - SCORE-FIRST SOURCE HANDOFF
+
+This is original draft 01, authored from notes rather than transcribed from V6.
+No audio, MIDI, instrument bank, stems, runtime replacement or release is included.
+
+Import sunlit_table_draft01.musicxml into an available, verified notation tool.
+Check all four parts, 4/4 C major, quarter=84, eight bars; then compare with
+score_events.json and score_readme.txt. These carry exact pitches, durations,
+rests, ties, articulations, dynamics, intended harmony and bar timestamps.
+The supplied PDF is manually laid-out reference staff notation, not an engraver
+export. Tiny numbers beneath each staff indicate beats 1-4. The two final C5
+notes are tied: half note on beat 1, quarter note on beat 3, rest on beat 4.
+
+Do not alter the existing V6 recording or imply this score corresponds to it.
+Do not render sound until independent score review is closed and the parent
+confirms the authorized production path. Instrument-role names and GM metadata
+are suggestions; no instrument sample, sound realism or audible vitality has
+been validated. MIDI remains applicable but is deferred pending review and a
+verified exporter. Timbral, performance and mix QA require genuine audio review.
+
+Future rendering: merge tied notes into single sustained events. Articulation
+must remain deliberate. Respect written rests and pp/p/mp role balance. Keep
+m4 chordal handoff, m5-to-m6 descent, m6-to-m7 tie and m7-to-m8 cadence intact.
+All notated pitched sounds release at 22.142857 s. Final written rest ends at
+22.857143 s; preserve a natural release/reverb tail beyond this if required.
+This is a closed excerpt. No seamless loop or exact loop sample boundaries
+have been approved. Never hard-cut releases to force the notated duration.
+
+Reproduction (no installs): Python 3 with installed ReportLab; system NotoMusic
+and DejaVuSans fonts at the explicit paths in build_score.py; Poppler only for
+PDF preview images. Run python build_score.py then python validate_score.py.
+PDF uses invariant metadata for stable reproduction with the recorded toolchain.
+Validation is structural and score-data based, not notation-app import or sound QA.
+provenance_review.json records versions, reviewed AudioBible commit and gaps.
+
+Repository integration belongs to the local Audio owner. Preserve this package
+as source/evidence, separate from runtime assets, and record chosen repository
+paths, source revision, any later MIDI/audio hashes and exact export commands.
+No repository path or score direction is silently approved by this handoff.

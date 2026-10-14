@@ -39,6 +39,9 @@ const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
 const FloorCleaningApproach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/rendering/floor_mess_art.gd")
+const StaffGroundRing=preload("res://scripts/rendering/staff_ground_ring.gd")
+# Comparison fixture switch; normal gameplay enables the separate ground layer.
+var use_staff_ground_rings=true
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
 const MovingAtlas=preload("res://scripts/rendering/moving_art_atlas.gd")
@@ -341,7 +344,7 @@ func _parking_visits()->Array:
 	var visits=game.model.get("parking_visits")
 	return visits if visits is Array else []
 
-func _draw_street_people(show_service:bool):
+func _draw_street_people(show_service:bool, scenery_tree:Dictionary={}):
 	# Street traffic and exterior customers share the original scale and wall
 	# occlusion. Sort their ground depth together before drawing the shell.
 	var entries=street_pedestrians.entries(origin,tile,render_view_rect()) if show_service else []
@@ -353,7 +356,12 @@ func _draw_street_people(show_service:bool):
 		if not StreetPedestrians.screen_bounds(position,origin,tile).intersects(render_view_rect()):continue
 		entries.append({"position":position,"guest":guest})
 	entries.sort_custom(func(a,b):return a.position.x+a.position.y<b.position.x+b.position.y)
+	# Merge the enrolled oak without changing the existing actor/car tie order.
+	var tree_pending=not scenery_tree.is_empty()
 	for entry in entries:
+		if tree_pending and float(scenery_tree.depth)<=entry.position.x+entry.position.y:
+			_scenery_tree(scenery_tree.position,float(scenery_tree.scale))
+			tree_pending=false
 		if bool(entry.get("parking_car",false)):
 			Neighborhood.draw_oriented_car(self,entry.position,entry.heading,entry.color)
 			continue
@@ -368,6 +376,7 @@ func _draw_street_people(show_service:bool):
 		pose["mirror"]=face;pose["view_back"]=bool(facing.back)
 		character(Vector2.ZERO,int(actor.id if is_guest else actor.appearance),false,pose.blend>.02,false,"walking",0,Vector2(18,-28),heading,"none","none",pose)
 		art_transform(Vector2.ZERO)
+	if tree_pending:_scenery_tree(scenery_tree.position,float(scenery_tree.scale))
 
 func _draw_bus_stop_people(under_roof:bool,show_people:bool=true):
 	if not show_people:return
@@ -401,6 +410,8 @@ func _prune_departed_guest_motion():
 
 func update_motion(delta: float):
 	if not is_instance_valid(game):return
+	for index in sink_drop_lowering.keys():
+		if int(index)>=game.staff_states.size() or str(game.staff_states[int(index)].get("art_action",""))!="dropping_dishes":sink_drop_lowering.erase(index)
 	# A bounded sweep avoids rebuilding the live-ID set every rendered frame.
 	guest_motion_cleanup_elapsed+=maxf(0.0,delta)
 	if guest_motion_cleanup_elapsed>=1.0:
@@ -444,6 +455,7 @@ func update_motion(delta: float):
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
 			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
+			if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.DROP_INSET
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
 			# this job steps close to the edge; serving keeps its small aisle lean.
@@ -867,6 +879,38 @@ func _render_anchor_visible(anchor:Vector2,extra:Vector2=Vector2.INF)->bool:
 	return render_bounds_visible(bounds)
 
 var playtest_draw_ms=0.0
+func objects_hidden()->bool:
+	return is_instance_valid(game) and "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
+
+func _draw_ground_rugs(render_items:Array):
+	var rugs=render_items.filter(func(entry):return entry.kind=="rug")
+	# Preserve the old rug-prefix tie order without changing entity sorting.
+	rugs.sort_custom(func(a,b):return str(a.get("id",0))<str(b.get("id",0)))
+	for entry in rugs:
+		var offset=_meal_chair_offset(entry)
+		var anchor=iso(entry.x+.5+offset.x,entry.z+.5+offset.y)
+		if not _render_anchor_visible(anchor):continue
+		opacity=.63 if bool(entry.get("preview",false)) else 1.0
+		art_transform(anchor,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot))
+		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),str(entry.get("dining_variant",""))),Vector2.ZERO]
+		if not retain_native_local_object(callback,appearance,_art_transform):callback.call()
+		art_transform(Vector2.ZERO)
+		opacity=1.0
+
+func _draw_staff_ground_rings(show_service:bool):
+	if not show_service or not use_staff_ground_rings:return
+	var scale_factor=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	for index in range(mini(game.staff_states.size(),StaffGroundRing.MAX_RINGS)):
+		var staff=game.staff_states[index]
+		var position=_render_position("staff_%s"%index,staff.pos)
+		var anchor=iso(position.x,position.y)
+		if not _render_anchor_visible(anchor):continue
+		_set_art_matrix(StaffGroundRing.placement(anchor+_presentation_offset,game.animation_time,scale_factor))
+		var callback=StaffGroundRing.paint.bind(self)
+		if not retain_native_local_object(callback,["staff-ground-ring",index],_art_transform):callback.call()
+	art_transform(Vector2.ZERO)
+
 func _draw():
 	var playtest_started=Time.get_ticks_usec()
 	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
@@ -884,6 +928,7 @@ func _draw():
 		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
+	var show_objects=not objects_hidden()
 	# Keep admission in landed coordinates, including the complete descent band.
 	# Changing the admitted prefix while descending shifts painter-order slots
 	# and rebuilds unchanged downstream art. Godot still culls retained nodes to
@@ -893,7 +938,7 @@ func _draw():
 	_warmup_view=Rect2(Vector2(0,-size.y*1.35),Vector2(size.x,size.y*2.35)) if stable_admission or preparing else Rect2()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
 	var openings=[]
-	for attachment in render_wall_attachments:
+	for attachment in render_wall_attachments if show_objects else []:
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
@@ -935,9 +980,20 @@ func _draw():
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground(hovered_parcel)
-	if game.interaction!=null:game.interaction.draw_floor_feedback(self)
+	var interaction=game.interaction if "interaction" in game else null
+	var preview=show_objects and interaction!=null and interaction.preview_active
+	var render_items=[]
+	var moving_members=game.model.logical_members(int(interaction.drag_item_id)) if preview and interaction.drag_active and int(interaction.drag_item_id)>=0 else []
+	for actual in game.model.items if show_objects else []:
+		if int(actual.id) not in moving_members:render_items.append(actual)
+	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
+		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
+			var entry=part.duplicate();entry["preview"]=true
+			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
+	_draw_ground_rugs(render_items)
+	_draw_staff_ground_rings(show_service)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
-	if game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
+	if show_objects and game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
 		var selected=game.model.get_item(game.selected_id)
 		if not selected.is_empty():
 			for member in game.model.logical_members(game.selected_id):
@@ -949,48 +1005,46 @@ func _draw():
 		if not show_service:break
 		_draw_floor_mess(record)
 	for opening in openings:OpeningArt.threshold(self,opening)
-	var interaction=game.interaction if "interaction" in game else null
-	var preview=interaction!=null and interaction.preview_active
-	if preview:
-		var outline=Color(.34,.50,.28,.80) if interaction.drag_valid else Color(.62,.37,.29,.80)
+	if preview and interaction.drag_active:
+		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
 			var c=Vector2i(int(part.x),int(part.z))
 			var corners=[iso(c.x+.03,c.y+.03),iso(c.x+.97,c.y+.03),iso(c.x+.97,c.y+.97),iso(c.x+.03,c.y+.97)]
-			poly(corners,Color(.32,.52,.30,.22) if interaction.drag_valid else Color(.66,.38,.29,.22))
+			poly(corners,Color("cad2b6") if interaction.drag_footprint_valid else Color("ddcbb6"))
 			for i in range(4):line(corners[i],corners[(i+1)%4],outline,1.7)
-	# Work tiles share the current ground projection and sit below all props.
-	if game.workface_guidance!=null:game.workface_guidance.draw_ground(self)
+	# Placement colors belong only to the dragged furnishing's own footprint.
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
 	_scenery_tree(Vector2(13.5,-.5),1.10)
-	_draw_street_people(show_service)
-	# Existing shell and player walls share the same aperture geometry.
-	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
-	shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
-	var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
-	poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
-	game.build_tools.draw_shell_selection(self)
-	var entities=[]
-	# Corner foliage shares the ground-depth order of props and people.
-	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
+	# This oak overlaps street actors. Partition once so it cannot draw twice.
+	var street_tree={}
+	var scenery_trees=[]
 	for i in range(Neighborhood.TREES.size()):
 		var tree=Neighborhood.TREES[i]
 		var world=Vector2(tree.x,tree.y)
-		if _scenery_tree_visible_at(world):entities.append({"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]})
+		if not _scenery_tree_visible_at(world):continue
+		var descriptor={"depth":tree.x+tree.y,"type":"scenery_tree","entry":{"id":str(world)},"position":world,"scale":tree.z,"variant":Neighborhood.TREE_VARIANTS[i]}
+		if world==Vector2(-13.1,1.5) and is_equal_approx(tree.z,.86) and descriptor.variant=="oak":street_tree=descriptor
+		else:scenery_trees.append(descriptor)
+	_draw_street_people(show_service,street_tree)
+	# Existing shell and player walls share the same aperture geometry.
+	if show_objects:
+		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
+		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
+		var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
+		poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
+		game.build_tools.draw_shell_selection(self)
+	var entities=[]
+	# Corner foliage shares the ground-depth order of props and people.
+	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
+	entities.append_array(scenery_trees)
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
-	for wall in game.model.built_wall_segments():
+	for wall in game.model.built_wall_segments() if show_objects else []:
 		for piece in WallArt.depth_entries(wall):entities.append(piece)
-	if game.build_tools!=null and game.build_tools.active() and not game.build_tools.preview.is_empty():
+	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.paint_stroke.active and not game.build_tools.preview.is_empty():
 		for piece in WallArt.depth_entries(game.build_tools.preview):
 			piece["wall_preview"]=true;piece.depth+=.001;entities.append(piece)
-	var render_items=[]
-	var moving_members=game.model.logical_members(int(interaction.drag_item_id)) if preview and interaction.drag_active and int(interaction.drag_item_id)>=0 else []
-	for actual in game.model.items:
-		if int(actual.id) not in moving_members:render_items.append(actual)
-	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
-		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
-			var entry=part.duplicate();entry["preview"]=true
-			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
 	for entry in render_items:
+		if entry.kind=="rug":continue
 		var meal_offset=_meal_chair_offset(entry)
 		if not _render_anchor_visible(iso(entry.x+.5+meal_offset.x,entry.z+.5+meal_offset.y)):continue
 		var item_depth=float(entry.x+entry.z)+1+meal_offset.x+meal_offset.y
@@ -1141,6 +1195,9 @@ func _draw():
 						pose["washing_seconds"]=float(wash.seconds)
 						var ref=SinkWashArt.geometry(int(target_item.rot),1.0,int(wash.count));var ref_axes:Transform2D=ref.basis
 						pose["washing_grip_reference"]={"center":(ground+ref.center)*Vector2(face,1),"basis":Transform2D(ref_axes.x*Vector2(face,1),ref_axes.y*Vector2(face,1),Vector2.ZERO)}
+				elif kind=="sink" and action=="dropping_dishes":
+					var drop=_sink_drop_geometry(d,int(e.index))
+					pose["sink_drop_center"]=(ground+drop.center)*Vector2(face,1)
 				elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
 				elif kind=="bin":surface=Vector2(0,-25)
 				elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
@@ -1169,6 +1226,10 @@ func _draw():
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
+	if game.editing and game.build_tools!=null:
+		for opening in openings:
+			if int(opening.id)==game.build_tools.opening_source_id:OpeningArt.selection_outline(self,opening)
+	if show_objects and game.build_tools!=null:game.build_tools.paint_stroke.draw_walls(self)
 	# Plot boards are editing affordances. Keep their ground anchors centered
 	# inside the actual purchase boundary and readable over retained foliage.
 	if game.editing and game.model.has_method("expansion_parcels"):
@@ -1276,6 +1337,7 @@ func _wall(a: Vector2,b: Vector2,n: Vector2,c1,c2):
 	poly([iso(a.x,a.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(a.x+n.x,a.y+n.y,WALL_HEIGHT)],cap_color)
 
 func hit_wall(screen:Vector2)->Dictionary:
+	if objects_hidden():return {}
 	update_projection()
 	var walls=game.model.built_wall_segments()
 	walls.sort_custom(func(a,b):return int(a.x+a.z)>int(b.x+b.z))
@@ -1555,7 +1617,7 @@ func _paint_native_character(p: Vector2, id: int, staff: bool, moving: bool, spe
 	var payment_pose=geometry.get("payment_pose",{})
 	var cooking_pose=geometry.get("cooking_pose",{})
 	var dining_pose=geometry.get("dining_pose",{})
-	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
+	if is_instance_valid(game):return {"id":id,"staff":staff,"action":action,"progress":progress,"payload":payload,"arm_length":12.0 if not cooking_pose.is_empty() else 10.5,"leg_length":9.5,"limb_segments":2 if not cooking_pose.is_empty() else 1,"target_error":geometry.near_hand.distance_to(reach),"prop_target_error":geometry.carry.distance_to(reach),"washing_pose":geometry.get("washing_pose",{}),"drop_pose":geometry.get("drop_pose",{}),"dining_pose":dining_pose,"payment_pose":payment_pose,"payment_target_error":payment_pose.hand.distance_to(payment_pose.target) if not payment_pose.is_empty() else -1.0,"lean":0.0}
 	return {}
 
 func _round_limb(start:Vector2,finish:Vector2,color,width:float):
@@ -1747,6 +1809,7 @@ func _chair(p: Vector2,r: int,back_only: bool,style:String="basic"):
 	rounded_poly(points,2.5,"d7bd89")
 
 func hit_item(screen: Vector2) -> int:
+	if objects_hidden():return -1
 	var ordered=game.model.items.duplicate()
 	ordered.sort_custom(func(a,b):
 		if (a.kind=="rug")!=(b.kind=="rug"): return b.kind=="rug"
@@ -1834,23 +1897,81 @@ func _draw_floor_tools(at:Vector2,pose:Dictionary,action:String,payload:String):
 		for i in range(6):line(heel+across*(-3.75+i*1.5),edge+across*(-5+i*2),"ddc68d",.7)
 
 
+var sink_drop_lowering={}
+func _sink_queue_ids(sink_id:int,active_id:int)->Array:
+	var ids=[]
+	for dish in game.dishwashing.dishes.values():
+		if int(dish.sink_id)==sink_id and int(dish.id)!=active_id:ids.append(int(dish.id))
+	ids.sort();return ids
+
+func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
+	var sink=game.model.get_item(int(staff.art_target_id))
+	var key="staff_%s"%index;var at=_render_position(key,staff.pos)
+	var scale=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	var origin=(iso(at.x,at.y)-iso(sink.x+.5,sink.z+.5))/scale
+	var facing=character_facings.get(key,{"back":false,"mirror":1.0})
+	var carry=carry_hand_offsets.get(key,DirectionalCharacter.carry_anchor(bool(facing.back))*Vector2(float(facing.mirror),1))
+	var start=origin+carry+Vector2(4*float(facing.mirror),0)
+	var wash=SinkWashArt.state(game,int(sink.id))
+	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
+	var ids=_sink_queue_ids(int(sink.id),active_id)
+	var record=game.service_guests.get(int(staff.job_guest_id),{})
+	var slot=ids.find(int(record.get("dish_id",-1)))
+	if slot<0:slot=0 if int(record.get("dish_id",-1))==active_id else ids.size()
+	var phase=float(staff.art_phase)
+	var result=SinkWashArt.drop_geometry(int(sink.rot),phase,start,slot)
+	# A queue can advance during the .25-second withdrawal. Rebase the
+	# remaining lowering path from its previous sample rather than jump slots.
+	var identity=[int(staff.job_guest_id),int(staff.job_token),int(sink.id),int(sink.rot)]
+	var previous=sink_drop_lowering.get(index,{})
+	if previous.is_empty() or previous.identity!=identity or phase<float(previous.phase):
+		previous={"identity":identity,"slot":slot,"from":result.release,"from_height":result.release_height,"from_phase":.65}
+	elif phase>=.65 and slot!=int(previous.slot):
+		previous.from=previous.center;previous.from_height=previous.height;previous.from_phase=previous.phase;previous.slot=slot
+	if phase>=.65:
+		var blend=smoothstep(float(previous.from_phase),1.0,phase)
+		var final=FurnitureArt.KitchenGeometry.sink_plate_anchor(int(sink.rot))+Vector2(0,-slot*2.2)
+		result.center=(previous.from as Vector2).lerp(final,blend)
+		result.height=lerpf(float(previous.from_height),FurnitureArt.KitchenGeometry.height(FurnitureArt.KitchenGeometry.SINK_STACK_HEIGHT)+slot*2.2,blend)
+	previous.center=result.center;previous.height=result.height;previous.phase=phase
+	sink_drop_lowering[index]=previous
+	return result
+
 func _sink_dishes(sink_id: int):
 	var sink=game.model.get_item(sink_id)
 	var count=game.dishwashing.count_at(sink_id) if "dishwashing" in game else 0
 	if not "dishwashing" in game:
 		for record in game.service_guests.values():
 			if record.plate_owner=="sink" and int(record.plate_target_id)==sink_id:count+=1
-	if count<=0:return
+	var dropping=[]
+	for index in game.staff_states.size():
+		var staff=game.staff_states[index]
+		if str(staff.get("art_action",""))=="dropping_dishes" and int(staff.get("art_target_id",-1))==sink_id:dropping.append({"staff":staff,"index":index})
+	if count<=0 and dropping.is_empty():return
 	var rotation=int(sink.get("rot",0));var geometry=FurnitureArt.KitchenGeometry
 	var aperture=geometry.sink_outline(geometry.SINK_BASIN_INNER,geometry.SINK_OPENING_HEIGHT,rotation)
 	var at=geometry.sink_plate_anchor(rotation)
 	var wash=SinkWashArt.state(game,sink_id)
-	var stored=count-1 if not wash.is_empty() else count
-	for index in range(stored):
+	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
+	var ids=_sink_queue_ids(sink_id,active_id);var in_flight=[]
+	for drop in dropping:
+		var record=game.service_guests.get(int(drop.staff.job_guest_id),{})
+		if float(drop.staff.art_phase)>=.65:in_flight.append(int(record.get("dish_id",-1)))
+	for index in ids.size():
+		if in_flight.has(ids[index]):continue
 		_plate_clip=aperture if geometry.height(geometry.SINK_STACK_HEIGHT)+index*2.2<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
 		_plate(at+Vector2(0,-index*2.2),0.0,true)
 	_plate_clip=PackedVector2Array()
-	if not wash.is_empty():
+	for drop in dropping:
+		var drop_geometry=_sink_drop_geometry(drop.staff,drop.index)
+		_plate_clip=aperture if float(drop_geometry.height)<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
+		_plate(drop_geometry.center,0.0,true)
+		if bool(drop_geometry.held):
+			var mirror=float(character_facings.get("staff_%s"%drop.index,{"mirror":1.0}).mirror)
+			var hand:Vector2=drop_geometry.center-Vector2(4*mirror,0)
+			rounded_poly([hand+Vector2(0,-7),hand+Vector2(5*mirror,-7),hand+Vector2(4*mirror,-1),hand+Vector2(mirror,-1)],1,"eee2bf")
+		_plate_clip=PackedVector2Array()
+	if not wash.is_empty() and not in_flight.has(active_id):
 		var action_geometry=SinkWashArt.geometry(rotation,float(wash.seconds),count)
 		_plate_transform=action_geometry.transform
 		_plate_clip=aperture if float(action_geometry.height)<geometry.height(geometry.SINK_OPENING_HEIGHT) else PackedVector2Array()
@@ -1999,6 +2120,7 @@ func _draw_floor_mess(record:Dictionary):
 	FloorMessArt.draw(self,record)
 
 func hit_wall_host(screen:Vector2)->Dictionary:
+	if objects_hidden():return {}
 	update_projection()
 	var hosts=game.model.selectable_wall_hosts()
 	hosts.sort_custom(func(a,b):return float(a.a.x+a.a.y+a.b.x+a.b.y)>float(b.a.x+b.a.y+b.b.x+b.b.y))
@@ -2006,6 +2128,7 @@ func hit_wall_host(screen:Vector2)->Dictionary:
 		if OpeningArt.hit_host(self,screen,host):return host
 	return {}
 func hit_wall_attachment(screen:Vector2)->int:
+	if objects_hidden():return -1
 	update_projection()
 	var openings=game.model.wall_openings()
 	openings.sort_custom(func(a,b):return float(a.a.x+a.a.y+a.b.x+a.b.y)>float(b.a.x+b.a.y+b.b.x+b.b.y))

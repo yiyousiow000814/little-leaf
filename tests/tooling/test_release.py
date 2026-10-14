@@ -8,13 +8,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from ci import install_tools
-from build_web import copy_notices, verify_installer_receipt
-import publish_itch as publisher
+from build.build_web import copy_notices, verify_installer_receipt
+from release import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
-from publish_itch import check_previous, completed, parse_result, verify_artifact
+from release.publish_itch import check_previous, completed, parse_result, verify_artifact
 from release.release_metadata import version, require_main_ancestor, release_key
-from project_layout import game_root
+from build.project_layout import game_root
 
 SHA = "a" * 40
 
@@ -313,6 +313,14 @@ class ItchGuardTests(unittest.TestCase):
     def test_processing_failure(self):
         with self.assertRaises(RuntimeError): completed(status("0.1.6", "failed"), 55, "0.1.6")
 
+    def test_queue_acceptance_requires_exact_build_version_and_known_state(self):
+        record = {'id': 56, 'state': 'queued', 'userVersion': '0.1.6'}
+        self.assertEqual(publisher.accepted_processing(status(pending=record), 56, '0.1.6'),
+                         {'build_id': 56, 'state': 'queued', 'version': '0.1.6'})
+        for field, value in [('id', 57), ('id', True), ('userVersion', '0.1.5'), ('state', 'failed'), ('state', 'unknown')]:
+            with self.subTest(field=field, value=value):
+                self.assertIsNone(publisher.accepted_processing(status(pending={**record, field: value}), 56, '0.1.6'))
+
 
 class DistributionNoticeTests(unittest.TestCase):
     def test_notice_is_in_export_and_hash_bound(self):
@@ -373,6 +381,35 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(result["workflow_attempt"], "2")
         self.assertEqual(result["qualification"], self.manifest["release_reuse"])
         self.assertEqual(result["release_manifest_sha256"], hashlib.sha256((self.web / "release-manifest.json").read_bytes()).hexdigest())
+
+    def test_verified_queue_returns_success_without_waiting_or_another_upload(self):
+        receipt = self.web / 'queued.json'
+        args = SimpleNamespace(web=self.web, tag='v0.1.6', sha=SHA, receipt=receipt)
+        responses = [status(), {'buildId': 56, 'channel': 'html5'},
+                     status(pending={'id': 56, 'state': 'queued', 'userVersion': '0.1.6'})]
+        with patch.dict(publisher.os.environ, {'BUTLER_API_KEY': 'synthetic'}, clear=True), \
+                patch.object(publisher.argparse.ArgumentParser, 'parse_args', return_value=args), \
+                patch.object(publisher, 'butler', side_effect=responses) as command, \
+                patch.object(publisher.time, 'sleep') as sleep:
+            publisher.main()
+        result = json.loads(receipt.read_text())
+        self.assertEqual(result['state'], 'accepted-processing')
+        self.assertFalse(result['live_playable_verified'])
+        self.assertNotIn('itch_channel_version', result)
+        self.assertEqual([call.args[0] for call in command.call_args_list], ['status', 'push', 'status'])
+        sleep.assert_not_called()
+
+    def test_genuine_processing_failure_still_fails_without_receipt_or_retry(self):
+        receipt = self.web / 'failed-processing.json'
+        args = SimpleNamespace(web=self.web, tag='v0.1.6', sha=SHA, receipt=receipt)
+        failed = status('0.1.6', 'failed'); failed['channels'][0]['head']['id'] = 56
+        with patch.dict(publisher.os.environ, {'BUTLER_API_KEY': 'synthetic'}, clear=True), \
+                patch.object(publisher.argparse.ArgumentParser, 'parse_args', return_value=args), \
+                patch.object(publisher, 'butler', side_effect=[status(), {'buildId': 56, 'channel': 'html5'}, failed]) as command:
+            with self.assertRaisesRegex(RuntimeError, 'processing failed'):
+                publisher.main()
+        self.assertFalse(receipt.exists())
+        self.assertEqual(sum(call.args[0]=='push' for call in command.call_args_list), 1)
 
     def test_failed_publication_never_writes_receipt(self):
         receipt = self.web / "publication" / "receipt.json"
@@ -484,6 +521,55 @@ class ArtifactTests(unittest.TestCase):
             with self.assertRaises(RuntimeError): install_tools.install("butler", self.web / "butler")
         self.assertFalse((self.web / "butler").exists())
 
+
+class NativeToolInstallationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.folder = Path(self.temp.name)
+        self.env = self.folder / 'github-env'
+        self.path = self.folder / 'github-path'
+    def install(self, *args):
+        def synthetic(name, destination):
+            destination.write_bytes(b'synthetic never-executed tool')
+            return {'url': install_tools.LOCK[name]['url'],
+                    'archive_sha256': install_tools.LOCK[name]['sha256'],
+                    'member': install_tools.LOCK[name]['member'],
+                    'member_sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
+        with patch.dict(install_tools.os.environ, {'GITHUB_ENV': str(self.env), 'GITHUB_PATH': str(self.path)}, clear=True), \
+             patch('sys.argv', ['install', *args, '--output', str(self.folder)]), \
+             patch.object(install_tools, 'install', side_effect=synthetic) as command:
+            install_tools.main()
+        return [call.args[0] for call in command.call_args_list]
+    def test_export_default_still_installs_and_binds_template(self):
+        self.assertEqual(self.install('godot'), ['godot', 'templates'])
+        receipt = self.folder / 'godot-toolchain-receipt.json'
+        verified = verify_installer_receipt(self.folder / 'godot', self.folder / 'web_nothreads_release.zip', receipt)
+        self.assertEqual(set(verified), {'godot', 'templates'})
+        self.assertIn('GODOT_TEMPLATE=', self.env.read_text())
+        self.assertIn('GODOT_TOOLCHAIN_RECEIPT=', self.env.read_text())
+    def test_native_only_does_not_download_or_claim_export_template(self):
+        self.assertEqual(self.install('godot', '--native-only'), ['godot'])
+        receipt = self.folder / 'godot-toolchain-receipt.json'
+        self.assertEqual(set(json.loads(receipt.read_text())), {'godot'})
+        self.assertNotIn('GODOT_TEMPLATE=', self.env.read_text())
+        self.assertFalse((self.folder / 'web_nothreads_release.zip').exists())
+        self.assertIn(str(self.folder), self.path.read_text())
+        with self.assertRaises((RuntimeError, KeyError, FileNotFoundError)):
+            verify_installer_receipt(self.folder / 'godot', self.folder / 'web_nothreads_release.zip', receipt)
+    def test_native_flag_cannot_change_butler_installation(self):
+        with patch('sys.argv', ['install', 'butler', '--native-only', '--output', str(self.folder)]), \
+             patch.object(install_tools, 'install') as command:
+            with self.assertRaises(SystemExit) as error: install_tools.main()
+        self.assertEqual(error.exception.code, 2)
+        command.assert_not_called()
+    def test_only_native_engine_job_uses_native_only(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/build-web.yml').read_text()
+        engine = workflow.split('  engine:\n', 1)[1].split('  historical:\n', 1)[0]
+        self.assertEqual(engine.count('--native-only'), 1)
+        self.assertEqual(workflow.count('--native-only'), 1)
+        self.assertIn('shard: [0, 1, 2, 3, 4]', engine)
+        self.assertIn('engine_shards.py run', engine)
 
 class ItchDiagnosticTests(unittest.TestCase):
     def setUp(self):

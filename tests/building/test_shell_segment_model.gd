@@ -2,6 +2,7 @@ extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Segments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Transactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -83,12 +84,18 @@ func run():
  var reread=Model.new();check(reread.load_save("user://half-root-mixed.json"),"mixed heights with supported window reload")
  # Historical allocation remains fixed when a retained extension moves or
  # is removed, including half roots and a previously repurchased neighbor.
+ var corridor_fixture=Model.new();corridor_fixture.coins=20000
+ check(corridor_fixture.buy_parcel("front_0") and corridor_fixture.coins==10000,"legacy extension fixture purchases actual corridor-connected side land")
+ check(corridor_fixture.save("user://corridor-side-ownership.json"),"generated corridor ownership saves through ordinary writer")
+ var corridor_payload=JSON.parse_string(FileAccess.get_file_as_string("user://corridor-side-ownership.json"))
  for height in ["full","half"]:
   for edited in [false,true]:
    for action in ["remove","move"]:
     raw=legacy.duplicate(true);raw.shell_products["shell:west"]={"height":height,"material":"cream_stripe","paid_cost":int(Segments.LEGACY_PRICES[height])*9}
+    raw.owned_parcels=corridor_payload.owned_parcels.duplicate();raw.expanded=corridor_payload.expanded
     raw.built_walls=[{"id":41,"axis":"z","x":0,"z":8,"height":"full","material":"leaf_print"}];raw.next_wall_id=42
-    raw.wall_attachments=[{"id":77,"kind":"door","host_id":"shell:back","offset":5.5,"width":1.5,"paid_cost":40}];raw.next_attachment_id=78
+    # Keep the payment-extension fixture's public door clear of the default bookshelf at x5.
+    raw.wall_attachments=[{"id":77,"kind":"door","host_id":"shell:back","offset":3.5,"width":1.5,"paid_cost":40}];raw.next_attachment_id=78
     var transition=Model.new();var label=str([height,edited,action])
     check(transition.load_save(write("extension-transition",raw)),label+" inherited extension load")
     if edited:check(transition.replace_wall("shell:west#2",height,"sage_panels"),label+" prior neighbor purchase")
@@ -112,5 +119,18 @@ func run():
   var nine=Segments.migrate(roots,[]);var eight=Segments.migrate(roots,[{"axis":"z","x":0,"z":8}])
   nine.segments["shell:west#0"]=eight.segments["shell:west#0"].duplicate(true)
   check(Segments.validate(nine,[])!="",height+" incompatible historical bases cannot mix per index")
+ # Only the untouched inherited dormant ninth receipt can reveal for free.
+ # Purchased edges and shell-origin walls retain their existing tombstones.
+ var eligibility=Model.new();var extension={"axis":"z","x":0,"z":8}
+ var inherited=eligibility.shell_segment_products["shell:west#8"].duplicate(true)
+ check(Transactions.preserves_inherited_extension(eligibility,extension),"inherited free ninth receipt remains eligible")
+ for field in ["removed","paid_cost","refund_credit"]:
+  eligibility.shell_segment_products["shell:west#8"]=inherited.duplicate(true)
+  eligibility.shell_segment_products["shell:west#8"][field]=true if field=="removed" else 1
+  check(not Transactions.preserves_inherited_extension(eligibility,extension),"no free reveal for "+field)
+ eligibility.shell_segment_products["shell:west#8"]=inherited
+ var moved_origin=extension.duplicate(true);moved_origin.origin_shell="shell:back#3"
+ check(not Transactions.preserves_inherited_extension(eligibility,moved_origin),"shell-origin wall cannot reveal a free receipt")
+ check(not Transactions.preserves_inherited_extension(eligibility,{"axis":"z","x":0,"z":7}),"exception is only historical ninth edge")
  var report={"checks":checks,"failures":failures,"player_save_used":false,"browser_verified":false,"native_pixels_verified":false}
  print("SHELL_SEGMENT_MODEL_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)

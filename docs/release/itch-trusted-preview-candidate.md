@@ -194,13 +194,52 @@ The preview boot uses `start(config, {surface:'trusted-itch-frame', runtimeOrigi
 
 The preview also emits `frame-ancestors` for those two origins on `/` and `/index.html`. Browsers without `location.ancestorOrigins` fail closed in this candidate; cross-browser acceptance is pending. The default mode still rejects all frames.
 
-`tools/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
+`tools/build/build_itch_trusted_preview.py` reuses existing Firebase staging and a complete reviewed Web export. It checks all recorded production inputs except the deliberately changed boot module before reusing compiled Godot binaries. The output distinguishes candidate runtime source from retained engine source, hashes runtime inputs and every packaged file, and is marked ineligible for production release. No new native run is claimed.
 
 Upload only `itch-wrapper`, to a separate private test project. Selecting local play opens the original local vault. Selecting account mode embeds the exact preview and leaves the original vault boot promise unresolved; returning to the choice requires reloading. Progress is explicitly separate, with no automatic migration. Google sign-in requires a direct click within the trusted frame and uses the existing SDK popup result/auth-state listener. A cancelled/blocked popup cannot open the account journal or replace the local vault.
 
 Preview deployment requires explicit approval. The narrow REST route never invokes Auth-domain synchronization. The exact generated hostname needs separate approval before real Google sign-in. Preview links are shareable, not private. No domain, OAuth scope, credential, Firestore rule, live hosting, original itch upload or user save is changed by preparation.
 
 Targeted verification: `python -m unittest tests.tooling.test_firebase_boot_presentation` and `python -m unittest tests.tooling.test_itch_trusted_preview`. These use synthetic users/SDK/DOM and package fixtures. Hosted popup delivery, browser storage partitions and cloud continuation remain unverified.
+
+## Compiled route teardown correction - 2026-10-12
+
+Fresh current-source stage `38238105653` on `a9bfc3d0` recorded ten passing
+cache/ownership checks, including the exact final cloud-save ACK, before an
+uncaught route callback `frame.evaluate` failed as its context closed. Its
+checkpoint contains no earlier failed assertion; the remaining cases and final
+qualification did not complete. The old retained Linux ownership timeout is
+separate evidence.
+
+The fixture now owns and drains intercepted callbacks during explicit context
+closure. Only a target-closed error from requested, confirmed teardown is
+expected; live or unrelated errors remain fatal with their original cause.
+The held update RPC releases on close even when its case fails. Cleanup and final
+report writing preserve an earlier case failure, and late errors cannot mark a
+report passed. Focused pure Node regressions reproduce the old callback rejection
+and cover these lifecycle boundaries. No product, rule, allowlist, deadline or
+save/ownership assertion changes. Fresh complete CI/compiled qualification and
+hosted Google-to-game acceptance remain required; no deployment follows from
+source or unit-test success.
+
+## Packaged worklet fixture transport
+
+The retained Windows Chrome-for-Testing153 diagnostic on `69f33801` with the
+unchanged compiled `a897a31f` package passed its ten ownership/cache checks. Its
+final zero-errors assertion failed on three `/itch/index.audio.worklet.js`404s.
+Both worklet files exist with identical hashes in the ordinary and nested
+packages; none of the instrumented routing, local-serving or response layers
+observed those worklet fetches. The original Linux154 ownership timeout did not
+reproduce, and the404 source and any connection to that timeout remain unknown.
+
+The test fixture supplies only those two inventory-verified module byte strings
+through Blob URLs created inside the exact `/itch/` document. It calls the real
+AudioWorklet implementation, preserves options/results/errors and revokes each
+URL after success or failure. All game, audio, Auth, SDK and persistence source,
+browser security settings, cases, deadlines and final assertions are unchanged.
+Pure transport checks pass; fresh browser/CI qualification is still required.
+This does not establish live HTTP delivery, real Google sign-in or deployment
+eligibility. The failed source-bound reports remain historical evidence.
 
 ## Source-bound manual route
 

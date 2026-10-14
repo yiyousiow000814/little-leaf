@@ -1,0 +1,43 @@
+{
+  "asset_id": "little-leaf-sunlit-table-score-draft01",
+  "revision": "01",
+  "date_utc": "2026-10-11",
+  "author": "Original composition prepared for Little Leaf",
+  "intended_state": "Warm, bright, lively-but-unbusy restaurant composition study; runtime state not assigned",
+  "source_authority": "score_events.json contains original composition data; build_score.py exports matching MusicXML and hand-laid-out PDF. No audio was transcribed.",
+  "direction_status": "Bounded draft only. Does not approve either AudioBible alternative. 84 BPM is this study's compositional choice, not a replacement of the Bible's unapproved 96 BPM proposal.",
+  "audio_bible_reviewed": "https://github.com/yiyousiow000814/little-leaf/blob/17839b5dc4ce4c2767172d2cee6663d9e24cd0dd/docs/art-audio/AUDIO_BIBLE.md",
+  "tools": {
+    "python": "3.12.14",
+    "reportlab": "4.4.9",
+    "xml": "Python standard library xml.etree.ElementTree",
+    "pdf_font": "System NotoMusic-Regular and DejaVuSans; no audio instrument dependency"
+  },
+  "commands": [
+    "python build_score.py",
+    "python validate_score.py",
+    "pdftoppm -scale-to 1500 -png sunlit_table_draft01_score.pdf score-page"
+  ],
+  "bar_start_seconds": [
+    0.0,
+    2.857142857142857,
+    5.714285714285714,
+    8.571428571428571,
+    11.428571428571429,
+    14.285714285714286,
+    17.142857142857142,
+    20.0
+  ],
+  "notated_end_seconds": 22.857142857142858,
+  "last_note_off_seconds": 22.142857142857142,
+  "score_review": "Independent symbolic/structural musical review completed 2026-10-11: no musical blockers. Current PDF independently rerendered and m8 ending verified. Initial visual concern withdrawn; no duration bug established. This is not audible review.",
+  "audio_hash": null,
+  "midi_status": "Not supplied in this score-only pass. MIDI is applicable to this note-based work but deferred pending score review and a verified import/export or independently checked encoder.",
+  "audio_status": "No sound rendered; timbre, performance, groove, mix and audible continuity unassessed. No instrument realism or professional-quality claim.",
+  "loop_status": "Closed excerpt with cadence and final rest; no exact loop boundary or seamless-loop claim.",
+  "integration_status": "No repository or AudioBible edit, upload, runtime replacement, installation, purchase, merge or release.",
+  "notation_revision": "Beat labels and m8 crop added for clarity; original MusicXML and musical content unchanged. No renderer duration bug was established.",
+  "pdf_sha256": "956a35d1d0620b297a4b246250ec552dee92e73f45c2bb6b29fc76ddfde0072a",
+  "musicxml_sha256": "2175713d9a995c05aaf0d1caff354204818d8f1df8483fd9e173d7890a418a6e",
+  "status_precedence": "PDF/source draft wording records authoring-time status. This provenance and independent_review.txt record the subsequent symbolic review; audible QA and creative acceptance remain unassessed."
+}

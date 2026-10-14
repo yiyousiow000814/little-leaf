@@ -16,18 +16,18 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from qualification.artifacts import sha256
-from build_firebase import BROWSER_GATES, FOCUSED_LOGS
-from firebase_release_gate import REPOSITORY, require, trusted_run
-from run_firebase_focused import COMMANDS
+from build.build_firebase import BROWSER_GATES, FOCUSED_LOGS
+from release.firebase_release_gate import REPOSITORY, require, trusted_run
+from qualification.run_firebase_focused import COMMANDS
 
 STATUS = 'manual-released-live-qualified'
 WORKFLOW = '.github/workflows/stage-firebase.yml'
 TARGET = 'siowyiyou/little-leaf:html5'
 RUNTIME = ['index.js', 'index.wasm', 'index.pck']
-COORDINATOR_FILES = ['tools/firebase_release_event.py', 'tools/firebase_release_gate.py',
-    'tools/qualification/reuse_released_web.py', 'tools/stage_released_firebase.py',
+COORDINATOR_FILES = ['tools/release/firebase_release_event.py', 'tools/release/firebase_release_gate.py',
+    'tools/qualification/reuse_released_web.py', 'tools/release/stage_released_firebase.py',
     '.github/workflows/release-firebase.yml', '.github/workflows/stage-firebase.yml',
-    'tools/release/released_live_provenance.py', 'tools/deploy_firebase_hosting.py',
+    'tools/release/released_live_provenance.py', 'tools/release/deploy_firebase_hosting.py',
     '.github/workflows/deploy-firebase.yml']
 
 
@@ -40,6 +40,8 @@ def coordinator_files(paths):
             aliases = ('tools/reuse_released_web.py', name)
         elif name == 'tools/release/released_live_provenance.py':
             aliases = ('tools/released_live_provenance.py', name)
+        elif name.startswith('tools/release/'):
+            aliases = ('tools/' + Path(name).name, name)
         else:
             aliases = (name,)
         matches = [path for path in aliases if path in paths]
@@ -54,6 +56,21 @@ def publication_attempt(value):
         value = int(value)
     require(type(value) is int and value > 0, 'Invalid canonical publication attempt')
     return value
+
+
+def compiled_source_names(paths):
+    """Preserve each released source's exact full-flow helper namespace."""
+    from release.stage_released_firebase import FULLFLOW_SOURCES
+    paths = set(paths)
+    names = []
+    for name in FULLFLOW_SOURCES:
+        if name == 'tools/qualification/prepare_browser_qa.py':
+            matches = [path for path in ('tools/prepare_browser_qa.py', name) if path in paths]
+            require(len(matches) == 1, 'Missing or ambiguous compiled helper source')
+            names.append(matches[0])
+        else:
+            names.append(name)
+    return names
 
 
 def manual_context(selection, environment, run, attempt):
@@ -120,7 +137,7 @@ def authenticate_origin(api, manifest, origin):
     source = manifest['source_commit']; coordinator = run['head_sha']
     require(api.read(f'compare/{source}...{coordinator}').get('status') in {'ahead', 'identical'},
         'Released source must be in this exact coordinator history')
-    from firebase_release_event import peel
+    from release.firebase_release_event import peel
     from qualification.reuse_main_ci import require_jobs
     q = manifest['manual_live_reuse']['qualification']; publication = manifest['manual_live_reuse']['publication']
     qualification_run = api.read('actions/runs/' + str(q['qualification_run_id']))
@@ -148,19 +165,28 @@ def authenticate_origin(api, manifest, origin):
         content = api.read(f'contents/{path}?ref={commit}')
         require(content.get('encoding') == 'base64', 'Expected immutable source content')
         return hashlib.sha256(base64.b64decode(content['content'], validate=False)).hexdigest()
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     # This opt-in contract supports canonical released sources only.
-    source_names = {name: 'platform/' + name if name.startswith(('web/', 'firebase/')) else name
-                    for name in FULLFLOW_SOURCES}
     coordinator_tree = api.read('git/commits/' + coordinator)['tree']['sha']
     tree = api.read('git/trees/' + coordinator_tree + '?recursive=1')
     require(tree.get('sha') == coordinator_tree and tree.get('truncated') is False,
         'Complete immutable coordinator tree required')
     paths = [entry['path'] for entry in tree['tree'] if entry.get('type') == 'blob']
     require(len(paths) == len(set(paths)), 'Duplicate coordinator source paths')
+    released_tree = api.read('git/trees/' + manifest['source_tree'] + '?recursive=1')
+    require(released_tree.get('sha') == manifest['source_tree'] and released_tree.get('truncated') is False,
+        'Complete immutable released source tree required')
+    released_paths = [entry['path'] for entry in released_tree['tree'] if entry.get('type') == 'blob']
+    require(len(released_paths) == len(set(released_paths)), 'Duplicate released source paths')
+    transformers = [entry['path'] for entry in released_tree['tree'] if entry.get('type') == 'blob'
+                    and entry['path'] in ('tools/build_firebase.py', 'tools/build/build_firebase.py')]
+    require(len(transformers) == 1, 'Missing or ambiguous released transformer source')
+    source_names = {name: 'platform/' + name if name.startswith(('web/', 'firebase/')) else name
+                    for name in compiled_source_names(entry['path'] for entry in released_tree['tree']
+                                                      if entry.get('type') == 'blob')}
     evidence = {**origin, 'coordinator_source_tree': coordinator_tree,
         'coordinator_sha256': {name: content_hash(name, coordinator) for name in coordinator_files(paths)},
-        'released_transformer_sha256': content_hash('tools/build_firebase.py', source),
+        'released_transformer_sha256': content_hash(transformers[0], source),
         'public_config_sha256': content_hash('platform/firebase/public-config.json', source),
         'compiled_source_sha256': {name: content_hash(path, source) for name, path in source_names.items()},
         'source_is_coordinator_ancestor': True,
@@ -173,7 +199,7 @@ def authenticate_origin(api, manifest, origin):
 
 
 def validate_released_live(folder, manifest, marker):
-    from stage_released_firebase import FULLFLOW_SOURCES
+    from release.stage_released_firebase import FULLFLOW_SOURCES
     require(manifest.get('status') == STATUS, 'Explicit manual released-live contract required')
     actual = {path.relative_to(folder).as_posix() for path in folder.rglob('*') if path.is_file()}
     require(actual == set(manifest['files']) | {'firebase-variant-manifest.json'},
@@ -278,7 +304,7 @@ def validate_released_live(folder, manifest, marker):
         and isinstance(flow.get('checks'), list) and flow['checks']
         and all(isinstance(check, str) and check for check in flow['checks'])
         and flow.get('source_sha256') == live['compiled_source_sha256']
-        and set(live['compiled_source_sha256']) == set(FULLFLOW_SOURCES)
+        and set(live['compiled_source_sha256']) == set(compiled_source_names(live['compiled_source_sha256']))
         and all(re.fullmatch(r'[0-9a-f]{64}', value) for value in live['compiled_source_sha256'].values()),
         'Failed or mismatched compiled Firebase proof')
     # These adapter/rules inputs are covered by the original complete production inventory.
@@ -311,7 +337,7 @@ def main():
     parser.add_argument('--origin', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    from deploy_firebase_hosting import verify_package, verify_live_package
+    from release.deploy_firebase_hosting import verify_package, verify_live_package
     from qualification.reuse_main_ci import GitHub
     manifest, _ = verify_package(args.variant, args.sha, args.manifest_sha256)
     origin = json.loads(args.origin.read_text())

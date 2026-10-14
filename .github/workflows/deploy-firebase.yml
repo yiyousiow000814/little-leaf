@@ -1,5 +1,8 @@
 name: Deploy reviewed Firebase test build
 on:
+  workflow_run:
+    workflows: [Release Web to itch.io]
+    types: [completed]
   workflow_dispatch:
     inputs:
       deployment_mode:
@@ -7,7 +10,7 @@ on:
         required: true
         default: live
         type: choice
-        options: [live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read, itch-test-entry]
+        options: [live, qualified-firebase-live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read, itch-test-entry]
       source_sha:
         description: Exact reviewed Firebase candidate commit; may be an approved unmerged preview
         required: true
@@ -24,12 +27,124 @@ on:
         description: Reviewed SHA-256 of firebase-variant-manifest.json
         required: false
         type: string
+      expected_previous_release:
+        description: Exact reviewed current Hosting release; required for independent Firebase publication
+        required: false
+        type: string
+      expected_previous_version:
+        description: Exact finalized previous Hosting version, restored only after owned-candidate smoke failure
+        required: false
+        type: string
+      expected_previous_config_sha256:
+        description: Exact previous configuration digest; drift stops publication before a live change
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
   group: firebase-static-little-leaf-41e5d
   cancel-in-progress: false
 jobs:
+  common-tag:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'workflow_run' || (github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Retry qualified itch ')))) || (github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'qualified-firebase-live' && github.run_attempt == 1))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Authenticate exact common and distinct Firebase gates before any Google token
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ITCH_RUN: ${{ github.event.workflow_run.id }}
+          INDEPENDENT: ${{ github.event_name == 'workflow_dispatch' }}
+          SELECTED_SOURCE: ${{ inputs.source_sha }}
+          SELECTED_RUN: ${{ inputs.variant_run_id }}
+          SELECTED_ARTIFACT: ${{ inputs.variant_artifact_id }}
+          SELECTED_MANIFEST: ${{ inputs.variant_manifest_sha256 }}
+          PREVIOUS_RELEASE: ${{ inputs.expected_previous_release }}
+          PREVIOUS_VERSION: ${{ inputs.expected_previous_version }}
+          PREVIOUS_CONFIG: ${{ inputs.expected_previous_config_sha256 }}
+        run: |
+          git fetch --no-tags origin main
+          if [[ "$INDEPENDENT" == true ]]; then
+            test "$GITHUB_RUN_ATTEMPT" = 1
+            [[ "$SELECTED_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$SELECTED_RUN" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SELECTED_ARTIFACT" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SELECTED_MANIFEST" =~ ^[0-9a-f]{64}$ ]]
+            python3 - <<'PY'
+          import os,sys
+          sys.path.insert(0,'tools')
+          from release.deploy_firebase_hosting import approved_previous
+          assert approved_previous(os.environ['PREVIOUS_RELEASE'],os.environ['PREVIOUS_VERSION'],os.environ['PREVIOUS_CONFIG']) is not None
+          PY
+            python3 tools/release/common_firebase.py --run "$SELECTED_RUN" --output "$RUNNER_TEMP/common-firebase"
+            python3 - <<'PY'
+          import json,os,pathlib,sys
+          sys.path.insert(0,'tools')
+          from qualification.artifacts import sha256
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'common-firebase'
+          origin=json.loads((root/'origin.json').read_text())
+          manifest=json.loads((root/'variant/firebase-variant-manifest.json').read_text())
+          assert origin['run']['id']==int(os.environ['SELECTED_RUN'])
+          assert origin['artifact']['id']==int(os.environ['SELECTED_ARTIFACT'])
+          assert manifest['source_commit']==os.environ['SELECTED_SOURCE']
+          assert sha256(root/'variant/firebase-variant-manifest.json')==os.environ['SELECTED_MANIFEST']
+          PY
+          else
+            python3 tools/release/common_firebase.py --itch-run "$ITCH_RUN" --output "$RUNNER_TEMP/common-firebase"
+          fi
+      - name: Recheck full package independently before credentials
+        env:
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+          MANIFEST_SHA: ${{ steps.select.outputs.manifest_sha256 }}
+        run: python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json" --verify-only
+      - name: Obtain only the existing Hosting workflow identity and scope
+        if: steps.select.outputs.already_current != 'true'
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          project_id: little-leaf-41e5d
+          workload_identity_provider: projects/865267465971/locations/global/workloadIdentityPools/github-little-leaf/providers/github
+          service_account: little-leaf-hosting-deployer@little-leaf-41e5d.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_lifetime: 900s
+          access_token_scopes: https://www.googleapis.com/auth/firebase.hosting
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Publish only Firebase with current-live drift and rollback fences
+        if: steps.select.outputs.already_current != 'true'
+        env:
+          FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
+          MANIFEST_SHA: ${{ steps.select.outputs.manifest_sha256 }}
+          INDEPENDENT: ${{ github.event_name == 'workflow_dispatch' }}
+          PREVIOUS_RELEASE: ${{ inputs.expected_previous_release }}
+          PREVIOUS_VERSION: ${{ inputs.expected_previous_version }}
+          PREVIOUS_CONFIG: ${{ inputs.expected_previous_config_sha256 }}
+        run: |
+          recovery=()
+          if [[ "$INDEPENDENT" == true ]]; then
+            recovery=(--expected-previous-release "$PREVIOUS_RELEASE" --expected-previous-version "$PREVIOUS_VERSION" --expected-previous-config-sha256 "$PREVIOUS_CONFIG")
+          fi
+          python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json" "${recovery[@]}"
+      - name: Preserve this platform's partial, failed or completed outcome
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-firebase-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/firebase-receipt/deployment.json
+            ${{ runner.temp }}/common-firebase/status.json
+          if-no-files-found: warn
+          retention-days: 30
   deploy:
     if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && (inputs.deployment_mode == 'live' || inputs.deployment_mode == 'itch-preview')
     runs-on: ubuntu-24.04
@@ -107,7 +222,7 @@ jobs:
           if [[ "$DEPLOYMENT_MODE" == live ]]; then
             python3 tools/release/released_live_provenance.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --origin "$RUNNER_TEMP/staging-origin.json" --output "$RUNNER_TEMP/staging-origin.json"
           fi
-          python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json" --verify-only "${preview_args[@]}"
+          python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json" --verify-only "${preview_args[@]}"
       - name: Obtain a short-lived Hosting-only token after all package checks
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -124,12 +239,12 @@ jobs:
         if: env.DEPLOYMENT_MODE == 'live'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json"
+        run: python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/staging-origin.json"
       - name: Publish only the approved one-day itch preview without Auth synchronization
         if: env.DEPLOYMENT_MODE == 'itch-preview'
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --itch-preview
+        run: python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/firebase-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --itch-preview
       - name: Retain deployment and rollback receipt without credentials
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -203,7 +318,7 @@ jobs:
       - name: Verify bounded protocol and every exact staged source gate before WIF
         run: |
           python3 -m unittest tests.tooling.test_firebase_hosting_itch_entry -v
-          python3 tools/deploy_firebase_hosting.py --itch-test-entry --verify-only --variant "$RUNNER_TEMP/itch-test-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --staging-origin "$RUNNER_TEMP/itch-test-origin.json" --output "$RUNNER_TEMP/itch-test-receipt/deployment.json"
+          python3 tools/release/deploy_firebase_hosting.py --itch-test-entry --verify-only --variant "$RUNNER_TEMP/itch-test-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --staging-origin "$RUNNER_TEMP/itch-test-origin.json" --output "$RUNNER_TEMP/itch-test-receipt/deployment.json"
       - name: Obtain only the existing short-lived Hosting identity
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
@@ -219,7 +334,7 @@ jobs:
       - name: Add only the approved itch namespace and headers with baseline drift rejection
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/deploy_firebase_hosting.py --itch-test-entry --variant "$RUNNER_TEMP/itch-test-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --staging-origin "$RUNNER_TEMP/itch-test-origin.json" --output "$RUNNER_TEMP/itch-test-receipt/deployment.json"
+        run: python3 tools/release/deploy_firebase_hosting.py --itch-test-entry --variant "$RUNNER_TEMP/itch-test-variant" --sha "$SOURCE_SHA" --manifest-sha256 "$VARIANT_MANIFEST_SHA256" --staging-origin "$RUNNER_TEMP/itch-test-origin.json" --output "$RUNNER_TEMP/itch-test-receipt/deployment.json"
       - name: Retain sanitized target and rollback identity without raw configuration
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -260,7 +375,7 @@ jobs:
           python - <<'PY'
           import json, os, pathlib, sys
           sys.path.insert(0, 'tools')
-          from update_auth_preview import recipe
+          from release.update_auth_preview import recipe
           p = recipe(); folder = pathlib.Path(os.environ['RUNNER_TEMP'])
           run = json.loads((folder/'base-run.json').read_text()); artifact = json.loads((folder/'base-artifact.json').read_text())
           assert os.environ['SOURCE_SHA'] == p['source_commit']
@@ -286,8 +401,8 @@ jobs:
           digest-mismatch: error
       - name: Verify qualified base and reconstruct only the exact reviewed ZIPs
         run: |
-          python tools/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/qualified-base" --sha 1d7b7b5f12cced3d682cb37ecd0957e2585f19d0 --manifest-sha256 79ec16fe11ff9ccee09902194b00be135fce51ab651a9caa6d7767d41a19daa9 --output "$RUNNER_TEMP/unused.json" --verify-only --itch-preview
-          python tools/update_auth_preview.py --stage "$RUNNER_TEMP/qualified-base" --output "$RUNNER_TEMP/auth-pause-packets"
+          python tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/qualified-base" --sha 1d7b7b5f12cced3d682cb37ecd0957e2585f19d0 --manifest-sha256 79ec16fe11ff9ccee09902194b00be135fce51ab651a9caa6d7767d41a19daa9 --output "$RUNNER_TEMP/unused.json" --verify-only --itch-preview
+          python tools/release/update_auth_preview.py --stage "$RUNNER_TEMP/qualified-base" --output "$RUNNER_TEMP/auth-pause-packets"
           python -m unittest tests.tooling.test_auth_preview_update -v
           node tests/fixtures/auth_preview_pause.js "$RUNNER_TEMP/auth-pause-packets/update/public/index.html" tools/auth_preview_pause/update/diagnostic-manifest.json "$RUNNER_TEMP/auth-pause-packets/update/public/little_leaf_firebase_boot.mjs"
       - name: Obtain the existing short-lived Hosting-only token after all checks
@@ -309,7 +424,7 @@ jobs:
         run: |
           mode=update
           if [[ "$DEPLOYMENT_MODE" == auth-pause-rollback ]]; then mode=rollback; fi
-          python tools/update_auth_preview.py --archive "$RUNNER_TEMP/auth-pause-packets/$mode.zip" --mode "$mode" --output "$RUNNER_TEMP/auth-pause-receipt/deployment.json"
+          python tools/release/update_auth_preview.py --archive "$RUNNER_TEMP/auth-pause-packets/$mode.zip" --mode "$mode" --output "$RUNNER_TEMP/auth-pause-receipt/deployment.json"
       - name: Retain the bounded receipt without credentials
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -350,7 +465,7 @@ jobs:
       - name: Read existing release and finalized version only
         env:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
-        run: python3 tools/read_firebase_hosting_config.py --diagnose-effective-headers --output "$RUNNER_TEMP/hosting-readonly/summary.json"
+        run: python3 tools/release/read_firebase_hosting_config.py --diagnose-effective-headers --output "$RUNNER_TEMP/hosting-readonly/summary.json"
       - name: Retain only allowlisted hashes and fixed checks without raw configuration
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

@@ -81,7 +81,7 @@ func run():
     check(absf(panel.end.x-hud.PANEL_WOOD_RIGHT_INSET-wood_right)<1,label+" wooden frame right edges align help=%s rail=%s"%[panel.end.x-hud.PANEL_WOOD_RIGHT_INSET,wood_right])
    else:
     check(absf(panel.end.x-(view.x-inset.z-8))<1,label+" mobile help aligns to safe right margin")
-   for button in [ui.help_overview,ui.help_notes,ui.help_done,ui.help_retry]:
+   for button in [ui.help_overview,ui.help_log,ui.help_done,ui.help_retry]:
     check(button.get_theme_font_size("font_size")==14 and button.get_theme_font("font")==hud.font_bold,label+" Help buttons use14px Nunito800")
     check(button.custom_minimum_size.y>=44,label+" footer touch target")
    ui.help_scroll.scroll_vertical=100000;await settle()
@@ -105,11 +105,14 @@ func run():
    check(ui.help_done.text=="Back to Settings",label+" Settings return label")
    await click(ui.help_done.get_global_rect().get_center(),safe)
    check(game.settings.visible and not ui.help_panel.visible,label+" mouse/touch Back to Settings")
-   game.settings.hide();ui.show_help();await settle()
-   await click(ui.help_notes.get_global_rect().get_center())
-   check(ui.update_notes.panel.visible and not ui.help_panel.visible,label+" Update Notes opens")
+   game.settings.show();await settle()
+   for record in ui.themed_popups:
+    if record.panel==game.settings:record.scroll.ensure_control_visible(ui.settings_updates)
+   await settle();await click(ui.settings_updates.get_global_rect().get_center())
+   check(ui.update_notes.panel.visible and not ui.help_panel.visible and not game.settings.visible,label+" Settings Updates opens")
    ui.update_notes._back_to_help();await settle()
-   check(ui.help_panel.visible and not ui.update_notes.panel.visible,label+" Update Notes returns")
+   check(game.settings.visible and not ui.update_notes.panel.visible,label+" Updates returns to Settings")
+   game.settings.hide();ui.show_help();await settle()
    game.editing=true;game.selected_kind="plant";await settle()
    var old_coins=game.model.coins;var old_pan=game.illustration.pan_offset;var old_paused=game.paused
    await click(Vector2(inset.x+2,view.y-inset.w-2),safe)

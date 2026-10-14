@@ -61,9 +61,12 @@ static func draw_shell_runs(view,root:Dictionary,attachments:Array,base_color,pa
 		for panel in panels:
 			face(view,host,maxf(a,float(panel.from)),minf(b,float(panel.to)),panel.bottom,panel.top,base_color,panel_color)
 		cap(view,host,a,b)
-		if b>=length-.00001:
+		if a>0 and (index==0 or float(runs[index-1].to)<a-.00001):
 			for panel in panels:
-				if float(panel.to)>=length-.00001:end_face(view,host,length,panel.bottom,panel.top)
+				if float(panel.from)<=a+.00001 and float(panel.to)>a+.00001:end_face(view,host,a,panel.bottom,panel.top)
+		if b>=length-.00001 or index+1==runs.size() or float(runs[index+1].from)>b+.00001:
+			for panel in panels:
+				if float(panel.to)>=b-.00001 and float(panel.from)<b-.00001:end_face(view,host,b,panel.bottom,panel.top)
 		elif index+1<runs.size():
 			var next:Dictionary=runs[index+1]
 			if run.height=="full" and next.height=="half":end_face(view,host,b,58,128)
@@ -72,7 +75,7 @@ static func draw_shell_runs(view,root:Dictionary,attachments:Array,base_color,pa
 static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
 	var wall:Dictionary=piece.entry
 	var host=Geometry.wall_host(wall)
-	if bool(wall.get("preview",false)) or int(wall.get("id",-1))<0 or Geometry.cuts(host,view.game.model.built_walls,attachments).is_empty():WallArt.draw_piece(view,piece,alpha,tint);return
+	if wall.material!="original" and (bool(wall.get("preview",false)) or int(wall.get("id",-1))<0 or Geometry.cuts(host,view.game.model.built_walls,attachments).is_empty()):WallArt.draw_piece(view,piece,alpha,tint);return
 	var a=float(piece.wall_t0);var b=float(piece.wall_t1)
 	var panels=Geometry.solid_panels(host,view.game.model.built_walls,attachments)
 	for panel in panels:
@@ -131,3 +134,11 @@ static func hit_host(view,screen:Vector2,host:Dictionary)->bool:
 static func hit_opening(view,screen:Vector2,opening:Dictionary)->bool:
 	var near=front(opening.host);var a:Vector2=opening.a+near;var b:Vector2=opening.b+near
 	return Geometry2D.is_point_in_polygon(screen,PackedVector2Array([view.iso(a.x,a.y,opening.bottom),view.iso(b.x,b.y,opening.bottom),view.iso(b.x,b.y,opening.top+4),view.iso(a.x,a.y,opening.top+4)]))
+
+static func selection_outline(view,opening:Dictionary):
+	# Selection is a presentation overlay; preserve the exact hosted aperture.
+	var near=front(opening.host);var a:Vector2=opening.a+near;var b:Vector2=opening.b+near
+	var points=[view.iso(a.x,a.y,opening.bottom),view.iso(b.x,b.y,opening.bottom),view.iso(b.x,b.y,opening.top+4),view.iso(a.x,a.y,opening.top+4)]
+	for index in 4:
+		view.line(points[index],points[(index+1)%4],"fff3d8",4.5)
+		view.line(points[index],points[(index+1)%4],"477050",2.0)

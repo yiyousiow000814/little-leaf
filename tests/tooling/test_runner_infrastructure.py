@@ -13,8 +13,26 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 
 class RunnerInfrastructureTests(unittest.TestCase):
+    def test_source_tool_layout_preserves_each_source_era_and_rejects_ambiguity(self):
+        from build.project_layout import source_path
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'tools/build').mkdir(parents=True)
+            old = root / 'tools/build_firebase.py'
+            current = root / 'tools/build/build_firebase.py'
+            for selected in (old, current):
+                selected.write_bytes(b'original source transformer bytes')
+                self.assertEqual(source_path(root, 'tools/build/build_firebase.py'), selected)
+                self.assertEqual(selected.read_bytes(), b'original source transformer bytes')
+                selected.unlink()
+            with self.assertRaises(ValueError):
+                source_path(root, 'tools/build/build_firebase.py')
+            old.touch(); current.touch()
+            with self.assertRaises(ValueError):
+                source_path(root, 'tools/build/build_firebase.py')
+
     def test_frozen_controller_preloads_adapt_only_in_disposable_staging(self):
-        from project_layout import stage_project
+        from build.project_layout import stage_project
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / 'source'
             (root / 'game/scripts/platform').mkdir(parents=True)
@@ -268,7 +286,8 @@ class RunnerInfrastructureTests(unittest.TestCase):
 class WorkflowInfrastructureTests(unittest.TestCase):
     def test_parallel_gates_keep_lifecycle_browser_channels_and_single_exports(self):
         workflow = (ROOT / '.github/workflows/build-web.yml').read_text()
-        self.assertIn('node tests/rendering/web_performance_lifecycle.js', workflow)
+        from ci.preflight import NODE_CHECKS
+        self.assertIn('tests/rendering/web_performance_lifecycle.js', NODE_CHECKS)
         browser = workflow.split('  browser:\n', 1)[1].split('  firebase:\n', 1)[0]
         self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
@@ -291,9 +310,9 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         gate = workflow.split('  gate:\n', 1)[1]
         self.assertLess(gate.index('actions/checkout@'), gate.index('--merge'))
         firebase = workflow.split('  firebase:\n', 1)[1].split('  gate:\n', 1)[0]
-        self.assertLess(firebase.index('--merge'), firebase.index('tools/build_firebase.py'))
-        self.assertEqual(workflow.count('python3 tools/build_web.py --output'), 1)
-        self.assertEqual(workflow.count('python3 tools/build_crazygames.py --validated-web-build'), 1)
+        self.assertLess(firebase.index('--merge'), firebase.index('tools/build/build_firebase.py'))
+        self.assertEqual(workflow.count('python3 tools/build/build_web.py --output'), 1)
+        self.assertEqual(workflow.count('python3 tools/build/build_crazygames.py --validated-web-build'), 1)
         self.assertIn('needs: [guard, engine]', workflow)
         self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]', workflow)
         self.assertIn('"$BUILD" "$BROWSER" "$COMPATIBILITY";', workflow)

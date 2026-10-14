@@ -40,7 +40,7 @@ func setup(data_path:String=DATA_PATH):
  panel=compact._panel()
  panel.name="UpdateNotesPanel"
  body=VBoxContainer.new()
- body.add_theme_constant_override("separation",10)
+ body.add_theme_constant_override("separation",compact.INFORMATION_PANEL_GAP)
  panel.add_child(body)
  header=HBoxContainer.new();body.add_child(header)
  var heading=_label("Update Notes",22);header.add_child(heading)
@@ -59,7 +59,7 @@ func setup(data_path:String=DATA_PATH):
  back_button.custom_minimum_size=Vector2(0,44)
  back_button.accessibility_name="Back to Quick Help"
  body.add_child(back_button)
- compact.hud.theme_panel(panel,true,26)
+ compact.hud.theme_panel(panel,true,compact.INFORMATION_PANEL_PADDING)
  compact.hud.theme_panel_contents(panel)
  compact._wrap_themed_popup(panel,PANEL_WIDTH,header)
  scroll=body.get_parent() as ScrollContainer

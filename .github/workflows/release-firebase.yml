@@ -1,7 +1,8 @@
-name: Qualify Firebase after completed itch release
+name: Qualify Firebase release
+run-name: Firebase common tag ${{ github.event.workflow_run.head_branch || format('legacy-{0}', inputs.release_run_id) }}
 on:
   workflow_run:
-    workflows: [Release Web to itch.io]
+    workflows: [Check and build Web]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -17,7 +18,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   select:
-    if: github.repository == 'yiyousiow000814/little-leaf' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -32,7 +33,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_RUN: ${{ github.event.workflow_run.id || inputs.release_run_id }}
-        run: python3 tools/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/request" --reserve
+        run: python3 tools/release/firebase_release_event.py --release-run "$RELEASE_RUN" --output "$RUNNER_TEMP/request" --reserve
       - name: Persist staging intent before starting any source checks
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -45,3 +46,8 @@ jobs:
     uses: ./.github/workflows/stage-firebase.yml
     with:
       released_run_id: ${{ needs.select.outputs.release_run_id }}
+  common:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v')
+    uses: ./.github/workflows/stage-firebase.yml
+    with:
+      common_tag_run_id: ${{ format('{0}', github.event.workflow_run.id) }}

@@ -37,46 +37,47 @@ func run():
  cafe.model.set_operating_open(false)
  check(cafe.model.customers.all(func(g):return not g.get("withdrawn",false)),"all visits are admitted before closing")
  var before_coins=cafe.model.coins;var before_wages=cafe.model.total_wages_paid;var before_earned=cafe.model.total_earned
- var relocated=false;var done=false;var ticks=0;var payload_seen=""
+ var refusal_seen=false;var done=false;var ticks=0;var payload_seen=""
  for tick in 18000:
   cafe._tick_live_service(1.0/30.0);cafe._animate_staff(1.0/30.0);cafe.animation_time+=1.0/30.0;ticks=tick+1
   for guest in cafe.model.customers:
    if guest.get("meal_abandoned",false):abandoned_visits[int(guest.id)]=true
-  if not relocated:
+  if not refusal_seen:
    for index in cafe.staff_states.size():
     var worker=cafe.staff_states[index];var payload=cafe._staff_payload(worker,index)
     if worker.job_kind=="" or payload=="none":continue
     var before=ledger(cafe)
     var cell=Vector2i(worker.pos.floor());actors=cafe.interaction._staff_positions()
-    # This fixture exercises repathing while service continues. Legacy stove
-    # blockage and recovery have their own pause-service test.
-    if not cafe.model.placement_access_issues("plant",cell.x,cell.y).is_empty():continue
+    # A held payload remains owned by its actual worker. A new furnishing
+    # cannot turn physical collision into a hypothetical relocation.
+    if not cafe.model.is_floor_owned(cell) or cafe.model.items.any(func(item):return Vector2i(item.x,item.z)==cell):continue
     var field=cafe.interaction.edit_plan
     var receipt=field.prepare(cafe.model,"plant",-1,0,cell,actors)
-    if not receipt.ok or not field._plan_result.has("staff_positions") or field._plan_result.staff_positions[index]==worker.pos:continue
-    var old_pos=worker.pos
+    check(not receipt.ok and not receipt.physical_ok,"carrying body refuses overlapping placement")
+    check(not field._plan_result.has("staff_positions"),"body refusal creates no relocation plan")
+    var old_pos=worker.pos;var wallet=cafe.model.coins;var old_items=cafe.model.items.duplicate(true)
     cafe.editing=true
-    var success=field.commit(cafe.model,receipt,actors,cafe._apply_edit_staff_positions)
-    check(success,"placement and carrying worker relocate atomically")
-    if not success:printerr("COMMIT_ERROR ",cafe.model.last_error)
-    check(worker.pos!=old_pos and cafe._staff_payload(worker,index)==payload,"carried payload remains with same worker")
-    check(cafe.model.layout_access_issues().is_empty(),"relocation fixture keeps every service station usable")
+    check(not field.commit(cafe.model,receipt,actors,cafe._apply_edit_staff_positions),"overlap cannot publish a purchase or worker transition")
+    check(worker.pos==old_pos and cafe._staff_payload(worker,index)==payload,"carried payload remains with the same unmoved worker")
+    check(cafe.model.coins==wallet and cafe.model.items==old_items,"body refusal preserves wallet and furniture")
+    check(cafe.model.layout_access_issues().is_empty(),"refusal preserves every service station")
     check(ledger(cafe)==before,"jobs, progress clocks and complete ownership ledger survive")
-    cafe._rebuild_furniture();cafe.editing=false;relocated=true;payload_seen=payload
+    cafe.editing=false;refusal_seen=true;payload_seen=payload
     cafe.model.service_snapshot=cafe._service_save_snapshot()
-    var path="user://staff-relocation-roundtrip.json"
-    check(cafe.model.save(path),"joint edit produces a valid runtime save: "+cafe.model.last_error)
+    var path="user://staff-body-refusal-roundtrip.json"
+    check(cafe.model.save(path),"unchanged active runtime still saves: "+cafe.model.last_error)
     var loaded=Model.new()
-    check(loaded.load_save(path),"saved relocated staff and furniture restore: "+loaded.last_error)
+    check(loaded.load_save(path),"unchanged carrying runtime restores: "+loaded.last_error)
     if not loaded.service_snapshot.is_empty():
-     for staff in loaded.service_snapshot.staff:check(field.StaffRelocation.point_clear(loaded,staff.pos,loaded.items),"restored staff has no furniture overlap")
+     var points=loaded.service_snapshot.staff.map(func(staff):return staff.pos)
+     check(loaded._furniture_body_error(loaded.items,points)=="","restored actual staff bodies remain clear")
     break
   if tick%120==0:await process_frame
   if cafe.model.customers.is_empty() and cafe.floor_tasks.messes.is_empty() and cafe.staff_states.all(func(s):return s.job_kind==""):done=true;break
- check(relocated,"real carrying-worker relocation was exercised")
- check(done and cafe.model.served+abandoned_visits.size()==4 and cafe.model.total_cleaned==4,"all four visits settle or depart unpaid and release clean tables after repath")
+ check(refusal_seen,"real carrying-worker collision refusal was exercised")
+ check(done and cafe.model.served+abandoned_visits.size()==4 and cafe.model.total_cleaned==4,"all four visits settle or depart unpaid and release clean tables after rejected placement")
  check(duplicate_payments.is_empty() and paid_visits.size()==cafe.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and cafe.model.total_earned==paid_visits.size()*cafe.Model.MEAL_PAYMENT,"exactly one payment per served diner and none for abandonment")
- check(cafe.model.coins==before_coins+cafe.model.total_earned-before_earned-(cafe.model.total_wages_paid-before_wages)-cafe.model.price_of("plant"),"wallet changes only for real service, wages and one plant")
+ check(cafe.model.coins==before_coins+cafe.model.total_earned-before_earned-(cafe.model.total_wages_paid-before_wages),"wallet changes only for real service and wages; refused furniture never charges")
  print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}))
  for tween in get_processed_tweens():tween.kill()
  cafe.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

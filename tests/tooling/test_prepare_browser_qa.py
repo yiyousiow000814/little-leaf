@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-import prepare_browser_qa as qa
+from qualification import prepare_browser_qa as qa
 
 
 class PreparationTests(unittest.TestCase):

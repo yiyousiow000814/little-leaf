@@ -6,6 +6,17 @@ class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():saves+=1;return true
+class FloorPreviewRecorder extends RefCounted:
+ var game=null
+ var polygons=[]
+ var seams=[]
+ var overlays=[]
+ func iso(x:float,z:float)->Vector2:return Vector2(x*42-z*17,x*7+z*6)
+ func poly(points:Array,color):polygons.append([points,color]);overlays.append("generic polygon stroke")
+ func _retained_fill(points:PackedVector2Array,color):polygons.append([Array(points),color])
+ func col(color):return color
+ func line(a:Vector2,b:Vector2,color,width):seams.append([a,b,color,width])
+ func art_draw_multiline(points,color,width,antialias):overlays.append([points,color,width,antialias])
 var game
 var ui
 var shop
@@ -16,6 +27,18 @@ func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func _initialize():run.call_deferred()
+func _check_floor_preview_without_overlay():
+ var preview=preload("res://scripts/rendering/cafe_tile_paint_preview.gd")
+ var valid=FloorPreviewRecorder.new();var refused=FloorPreviewRecorder.new()
+ var cells=[Vector2i(4,5),Vector2i(5,5)]
+ preview.draw(valid,cells,"cream_tile",true);preview.draw(refused,cells,"cream_tile",false)
+ check(valid.polygons.size()==2 and refused.polygons.size()==2,"floor preview keeps both material tiles")
+ check(not valid.seams.is_empty() and valid.seams==refused.seams,"natural floor seams survive transaction refusal")
+ check(valid.polygons==refused.polygons,"transaction validity cannot recolor the floor material")
+ check(valid.overlays.is_empty() and refused.overlays.is_empty(),"floor preview emits no valid or refused obstruction outline")
+ check(valid.polygons[0][0]==[valid.iso(4,5),valid.iso(5,5),valid.iso(5,6),valid.iso(4,6)],"preview fill is the exact selected one-cell quad")
+ check(valid.polygons[1][0]==[valid.iso(5,5),valid.iso(6,5),valid.iso(6,6),valid.iso(5,6)],"adjacent preview fill has no inset, scaling or overlap")
+ check(valid.seams.size()==7,"two preview cells retain all seven natural grid edges once")
 func settle():
  game._update_ui()
  for frame in 5:await process_frame
@@ -139,6 +162,7 @@ func shell_point(host_id:String)->Vector2:
    if game.build_tools._available(point) and game.illustration.hit_wall_host(point).get("host_id","")==host_id:return point
  return Vector2(-1000,-1000)
 func run():
+ _check_floor_preview_without_overlay()
  if not "saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED: use the isolated runner");quit(2);return
  root.size=Vector2i(1360,880)
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
@@ -206,6 +230,8 @@ func run():
   match interruption:
    "drag":
     var motion=InputEventMouseMotion.new();motion.position=point+Vector2(25,0);motion.button_mask=MOUSE_BUTTON_MASK_LEFT;game.build_tools.handle_input(motion)
+    same_state(before,"drag preview alone cannot buy or save")
+    game.build_tools.on_focus_lost() # Interrupt the paint stroke before its late release.
    "escape":
     var event=InputEventKey.new();event.keycode=KEY_ESCAPE;event.pressed=true;game.build_tools.handle_input(event)
    "right-click":
@@ -289,7 +315,7 @@ func run():
   check(not stove.is_empty(),label+" existing stove fixture present")
   if not stove.is_empty():
    game.interaction._select_item(stove);await settle();action_layout(label+" existing stove")
-   check(ui.rotate_button.visible and ui.remove_button.visible and ui.upgrade_button.visible and ui.cancel_button.visible,label+" stove has all four actions")
+   check(ui.rotate_button.visible and ui.remove_button.visible and ui.cancel_button.visible,label+" stove retains rotate, sell and cancel actions")
   game._set_catalog_category("Build");await settle()
   check(shop.build_page=="products","returning category resets Build products "+label)
   NoBottom.verify(game,check,label)
