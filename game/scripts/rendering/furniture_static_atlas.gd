@@ -7,13 +7,13 @@ const PARTS := ["counter","stove_base","stove_pan","stove_controls","beverage_ba
 # Integer original-art coordinates retain the native 4x sampling phase. Each
 # crop includes a conservative transparent guard around the widest AA fringe.
 # Source/bounds checks must be rerun whenever the editable geometry changes.
-# Kitchen equipment translates down 9px as a whole; keep the same cell sizes
-# and move those crops with it so the lower machine cannot be clipped.
+# Kitchen equipment translates down 9px as a whole. Full-cell cabinets need
+# wider guarded crops; the reference calibration below remains unchanged.
 const PART_BOUNDS := {
-	"counter":Rect2(-31,-47,62,64), "stove_base":Rect2(-43,-49,86,69),
+	"counter":Rect2(-43,-47,86,69), "stove_base":Rect2(-43,-49,86,69),
 	"stove_pan":Rect2(-29,-46,58,40), "stove_controls":Rect2(-28,-30,56,40),
-	"beverage_base":Rect2(-35,-49,70,69), "beverage_machine":Rect2(-27,-61,54,56),
-	"beverage_accessories":Rect2(-27,-51,54,47), "sink":Rect2(-32,-60,64,78),
+	"beverage_base":Rect2(-43,-49,86,71), "beverage_machine":Rect2(-27,-61,54,56),
+	"beverage_accessories":Rect2(-27,-51,54,47), "sink":Rect2(-43,-60,86,82),
 	"bookshelf":Rect2(-26,-80,52,96), "bench_seat":Rect2(-28,-35,56,50),
 	"bench_back":Rect2(-28,-51,56,51), "divider":Rect2(-23,-69,46,82),
 	"rug":Rect2(-30,-17,60,34), "table_body":Rect2(-33,-51,66,66),
@@ -39,6 +39,7 @@ const REFERENCE_BAKE_BOUNDS := {
 	"plant":Rect2(-24,-75,48,85), "lamp":Rect2(-22,-87,44,98)
 }
 const STOVE_PARTS := ["stove_base","stove_pan","stove_controls"]
+const CABINET_PARTS := ["counter","sink","beverage_base"]
 var size := Vector2i(PACK_WIDTH,0)
 var state := "cold"
 var texture: Texture2D
@@ -133,25 +134,31 @@ func _build(tree: SceneTree):
 		return
 	var protected_parts: Array = []
 	for part in PARTS:
-		if part not in STOVE_PARTS:protected_parts.append(part)
+		if part not in STOVE_PARTS and part not in CABINET_PARTS:protected_parts.append(part)
 	# Read back and repair each pass before moving pixels. Neither destination
-	# packing nor the changed stove geometry can rerasterize protected cells.
+	# packing nor the changed cabinet geometry can rerasterize protected cells.
 	var reference_image: Image=await _readback(tree,painter_script,reference.size,reference.regions,REFERENCE_BAKE_BOUNDS,protected_parts)
 	if reference_image==null:return
-	var stove_image: Image=await _readback(tree,painter_script,size,regions,PART_BOUNDS,STOVE_PARTS)
+	# Keep the accepted stove's raster anchors from before the cabinet repack.
+	var stove_bounds := REFERENCE_BAKE_BOUNDS.duplicate()
+	stove_bounds["stove_base"]=PART_BOUNDS["stove_base"]
+	var stove_layout := _pack_layout(stove_bounds)
+	var stove_image: Image=await _readback(tree,painter_script,stove_layout.size,stove_layout.regions,stove_bounds,STOVE_PARTS)
 	if stove_image==null:return
+	var cabinet_image: Image=await _readback(tree,painter_script,size,regions,PART_BOUNDS,CABINET_PARTS)
+	if cabinet_image==null:return
 	var image := Image.create(size.x,size.y,false,Image.FORMAT_RGBA8)
 	for part in PARTS:
 		for rotation in rotations_for(part):
 			var part_key: String=key(part,rotation)
 			var destination := Rect2i(regions[part_key])
-			var source := destination if part in STOVE_PARTS else Rect2i(reference.regions[part_key])
+			var source := destination if part in CABINET_PARTS else Rect2i(stove_layout.regions[part_key] if part in STOVE_PARTS else reference.regions[part_key])
 			if source.size!=destination.size:
 				_fail("Protected furniture crop size changed: "+part_key)
 				return
 			# Copy straight RGBA8, including transparent RGB, without blending,
 			# resampling or another alpha-edge repair at the destination slot.
-			image.blit_rect(stove_image if part in STOVE_PARTS else reference_image,source,destination.position)
+			image.blit_rect(cabinet_image if part in CABINET_PARTS else (stove_image if part in STOVE_PARTS else reference_image),source,destination.position)
 	if use_mipmaps_for_qa:
 		stats["retained_rgba_bytes_estimate"]=int(size.x*size.y*4*4.0/3.0)
 		stats["conversion"]="GPU straight-alpha; native alpha-edge repair; QA mipmapped RGBA8"
@@ -163,7 +170,7 @@ func _build(tree: SceneTree):
 	texture=ImageTexture.create_from_image(image)
 	stats["retained_image_bytes"]=image.get_data().size()
 	stats["warmup_ms"]=(Time.get_ticks_usec()-_started_us)/1000.0
-	stats["bake_passes"]=2
+	stats["bake_passes"]=3
 	state="ready";stats.state=state
 
 func _readback(tree: SceneTree,painter_script,bake_size: Vector2i,bake_regions: Dictionary,bake_bounds: Dictionary,bake_parts: Array) -> Image:
