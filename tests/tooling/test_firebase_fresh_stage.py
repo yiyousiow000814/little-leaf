@@ -193,7 +193,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn('run-id:',text)
         self.assertNotIn('repository:',text)
         self.assertIn('little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}',text)
-        self.assertIn('little-leaf-historical-project-${{ github.sha }}-${{ github.run_attempt }}',text)
+        self.assertNotIn('little-leaf-historical-project-',text)
         self.assertIn('include-hidden-files: true',text)
         self.assertNotIn('secrets.',text)
         tail=text[first:text.index('      - name: Keep test and export evidence')]
@@ -201,6 +201,34 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('python3 tools/qualification/prepare_browser_qa.py cloud',tail)
         self.assertNotIn('always()',tail)
         self.assertLess(tail.index('--require-fresh-ci'),tail.index('id: firebase_upload'))
+
+    def test_native_layouts_are_produced_once_and_shared_by_both_browser_cases(self):
+        import yaml
+        text=(ROOT/'.github/workflows/build-web.yml').read_text()
+        jobs=yaml.safe_load(text)['jobs']
+        historical=json.dumps(jobs['historical']);build=json.dumps(jobs['build'])
+        compatibility=json.dumps(jobs['compatibility'])
+        self.assertEqual(historical.count('--prepare-side old'),1)
+        self.assertEqual(build.count('--prepare-side new'),1)
+        self.assertNotIn('--prepare-side',compatibility)
+        self.assertEqual(compatibility.count('--merge-only'),1)
+        self.assertEqual(jobs['compatibility']['strategy']['matrix']['case'],
+                         ['old_opened_after_new','already_open_old'])
+        self.assertEqual(jobs['compatibility']['needs'],['build','historical'])
+        self.assertEqual(jobs['browser']['needs'],'build')
+        self.assertNotIn('install_tools.py godot',compatibility)
+        self.assertNotIn('candidate-project-',compatibility)
+        self.assertNotIn('historical-project-',text)
+        self.assertIn('node tests/rendering/wall_compatibility_browser.js --case',compatibility)
+        for step in jobs['compatibility']['steps']:
+            if 'download-artifact@' in step.get('uses',''):
+                self.assertEqual(step['with']['digest-mismatch'],'error')
+        projects=[step for step in jobs['build']['steps']
+                  if 'candidate-project-' in step.get('with',{}).get('name','')]
+        self.assertEqual(len(projects),1)
+        self.assertEqual(projects[0]['if'],'inputs.firebase_preview')
+        self.assertTrue(projects[0]['with']['include-hidden-files'])
+        self.assertIn('candidate-project-',json.dumps(jobs['firebase']))
 
     def test_recovery_browser_gate_is_bounded_and_not_skippable(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text()
