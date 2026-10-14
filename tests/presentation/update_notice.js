@@ -35,5 +35,32 @@ function setup(initial='0.1.10a'){
  let expire,lateGate,timedEntered;const timedStart=new Promise(resolve=>timedEntered=resolve);
  const timed=create({canReloadUpdate:()=>true,fetch:async()=>({ok:true,json:async()=>({schema_version:1,version:'0.1.10a',source_commit:'a'.repeat(40)})}),storage:{getItem:()=>null},setInterval:()=>0,clearInterval(){},setTimeout(fn){expire=fn;return 1;},clearTimeout(){},reload(){reloads++;},checkUpdateReady:async()=>{timedEntered();return new Promise(resolve=>lateGate=resolve);}});
  timed.start('0.1.10');await timed.poll();const waiting=timed.reloadForUpdate('0.1.10a','p',2,'t');await timedStart;expire();assert(!(await waiting).ok);lateGate({ok:true,cloudConfirmed:true,profileId:'p',revision:2,updateToken:'t'});await Promise.resolve();assert.equal(reloads,0);assert(!JSON.parse(timed.snapshot()).busy);
+ // Each real request owns one header/body deadline and releases on timeout/close.
+ for(const phase of ['headers','body']){
+  let expire,clearCount=0,active=0,aborts=0,signal;
+  const lifecycle=create({canReloadUpdate:()=>true,checkUpdateReady:async()=>({}),setInterval:()=>0,clearInterval(){},
+   setTimeout(fn,ms){assert.equal(ms,15000);expire=fn;return 1;},clearTimeout(){clearCount++;},
+   fetch:async(_,options)=>{
+    signal=options.signal;active++;
+    const stalled=new Promise((_,reject)=>signal.addEventListener('abort',()=>{active--;aborts++;reject(Error('aborted'));},{once:true}));
+    return phase==='headers'?stalled:{ok:true,json:()=>stalled};
+   }});
+  lifecycle.start('0.1.10');
+  for(let i=0;i<3;i++){
+   const poll=lifecycle.poll();await new Promise(resolve=>setImmediate(resolve));assert.equal(active,1);expire();await poll;
+   assert.equal(signal.aborted,true);assert.equal(active,0);assert.equal(aborts,i+1);assert.equal(clearCount,i+1);
+  }
+  const closing=lifecycle.poll();await new Promise(resolve=>setImmediate(resolve));lifecycle.close();await closing;
+  assert.equal(active,0);assert.equal(aborts,4);assert.equal(clearCount,4);assert.equal(JSON.parse(lifecycle.snapshot()).available,false);
+ }
+ // Close while the save confirmation is stalled settles immediately; its late result cannot reload.
+ let confirmEntered,confirmLate,closeReloads=0;
+ const confirmStart=new Promise(resolve=>confirmEntered=resolve);
+ const closing=create({fetch:async()=>({ok:true,json:async()=>({schema_version:1,version:'0.1.10a',source_commit:'a'.repeat(40)})}),
+  setInterval:()=>0,clearInterval(){},canReloadUpdate:()=>true,reload(){closeReloads++;},
+  checkUpdateReady:()=>{confirmEntered();return new Promise(resolve=>confirmLate=resolve);}});
+ closing.start('0.1.10');await closing.poll();const closeWait=closing.reloadForUpdate('0.1.10a','p',2,'t');await confirmStart;
+ closing.close();assert(!(await closeWait).ok);assert.equal(JSON.parse(closing.snapshot()).busy,false);
+ confirmLate({ok:true,cloudConfirmed:true,profileId:'p',revision:2,updateToken:'t'});await new Promise(resolve=>setImmediate(resolve));assert.equal(closeReloads,0);
  console.log('Update notice: version ordering, quiet polling, dismissals, manifest binding, confirmed save gate, offline and duplicate reload guards passed.');
 })().catch(e=>{console.error(e);process.exit(1);});

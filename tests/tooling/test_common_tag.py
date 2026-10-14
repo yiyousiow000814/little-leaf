@@ -176,6 +176,11 @@ class PlatformTests(unittest.TestCase):
         self.assertEqual(auth['access_token_scopes'],'https://www.googleapis.com/auth/firebase.hosting')
         self.assertFalse(auth['create_credentials_file']);self.assertFalse(auth['export_environment_variables'])
 
+    def test_updater_request_ownership_and_save_guards(self):
+        root=Path(__file__).resolve().parents[2]
+        subprocess.run(['node','tests/presentation/update_notice.js'],cwd=root,check=True,
+                       capture_output=True,text=True,timeout=30)
+
     def test_updater_keeps_order_authorities_separate_and_hashes_opaque(self):
         root=Path(__file__).resolve().parents[2]
         script=r'''
@@ -184,7 +189,7 @@ const source=fs.readFileSync(process.argv[1],'utf8');
 const order=sequence=>({kind:'main-first-parent',repository:'yiyousiow000814/little-leaf',anchor:'a'.repeat(40),sequence,chain_sha256:'b'.repeat(64)});
 const marker=(commit,release_order)=>({schema_version:1,source_commit:commit.repeat(40),version:'0.1.11-pre.'+commit.repeat(8),release_order});
 async function observe(current,next){
- const window={setTimeout,clearTimeout};vm.runInNewContext(source,{window});
+ const window={setTimeout,clearTimeout,AbortController};vm.runInNewContext(source,{window});
  const updater=window.LittleLeafUpdates.create({currentRelease:current,fetch:async()=>({ok:true,json:async()=>next}),
   checkUpdateReady:async()=>({}),canReloadUpdate:()=>true,setInterval:()=>1,clearInterval:()=>{}});
  updater.start(current.version);await updater.poll();const available=JSON.parse(updater.snapshot()).available;updater.close();return available;
