@@ -181,7 +181,7 @@
       if(!recovery || recovery.local.record.digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
       const local=await journal.read(uid);accountGuard();
       if(!same(local,recovery.local))throw error('REVISION_CONFLICT','This device changed in another tab. Its newer progress is preserved.');
-      const cloudDocument=await remote.read(uid);accountGuard();const record=await validate(cloudDocument);accountGuard();
+      const cloudDocument=await networkWait(remote.read(uid));accountGuard();const record=await validate(cloudDocument);accountGuard();
       if(!record)throw error('RECOVERY_MISSING','The synced save is missing. Neither save has been changed.');
       if(record.digest!==cloudDigest) {await previewRecovery(local,record);throw error('RECOVERY_CHANGED','The synced save changed. Review both current saves again.');}
       return {local,record,cloudDocument};

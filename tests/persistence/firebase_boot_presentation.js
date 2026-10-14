@@ -9,11 +9,51 @@ function fixture(user=null,options={}){
   nodes.set('status-label',element());nodes.set('status-progress',element());
   const auth={currentUser:user,authStateReady:async()=>{if(options.authReady)await options.authReady;}};
   let client={sync(){},close(){clientClosed++;}};
-  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return{};},createSession(value){sessionOptions=value;return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
+  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return options.sessionRemote || {};},createSession(value){sessionOptions=value;if(options.createSession){const session=options.createSession(value),close=session.close;session.close=()=>{if(!ownershipClosed){ownershipClosed++;close();}};return session;}return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(){opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
-  const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
+  const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setTimeout:options.timers?.setTimeout || setTimeout,clearTimeout:options.timers?.clearTimeout || clearTimeout,setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
   return {nodes,auth,win,events,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),get client(){return client;}};
+}
+async function ownershipStartupDeadline(){
+  const root={crypto:webcrypto};root.globalThis=root;
+  vm.runInNewContext(fs.readFileSync('platform/web/little_leaf_firebase_session.js','utf8'),root);
+  const api=root.LittleLeafFirebaseSession;
+  for(const stage of ['transaction','readback','account','pagehide']){
+    const timers=new Map();let timerId=0,release,owner=null,transactions=0,writes=0,watches=0;
+    const held=new Promise(resolve=>{release=resolve;});
+    const sdk={doc(_db,...path){return path.join('/');},serverTimestamp:()=>100,
+      async runTransaction(_db,action){
+        const call=++transactions;
+        if(call===1&&stage!=='readback')await held;
+        return action({async get(ref){if(call===2)await held;const value=ref.endsWith('/owner')?owner:null;return {exists:()=>value!==null,data:()=>value};},set(_ref,next){owner=next;writes++;}});
+      },onSnapshot(){watches++;return()=>{};}};
+    const f=fixture({uid:'synthetic-startup',isAnonymous:false},{
+      timers:{setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);}},
+      sessionRemote:api.createRemote({},sdk,'synthetic-startup'),createSession:api.createSession
+    });
+    const pending=f.start();await flush();
+    assert.equal(timers.size,1,'ownership startup must have a deadline before the journal/client exists');
+    const timer=timers.values().next().value;assert.equal(timer.ms,15000);
+    if(stage==='account')f.setUser({uid:'synthetic-other',isAnonymous:false});
+    else if(stage==='pagehide')f.events.get('pagehide')();
+    else timer.fn();
+    await assert.rejects(pending,{code:['account','pagehide'].includes(stage)?'NOT_READY':'NETWORK_TIMEOUT'});
+    assert.deepEqual(f.counts(),{opened:0,closed:0});assert.equal(f.accountCounts().clientClosed,0);
+    assert.equal(f.runtimeState().ownershipClosed,1);assert.equal(f.runtimeState().runtimeClosed,1);
+    assert.throws(()=>f.runtimeState().sessionOptions.assertRuntime(),{code:'NOT_READY'});
+    assert.equal(timers.size,0);assert.equal(watches,0);
+    const preservedOwner=owner;release();await flush();await flush();
+    assert.equal(writes,stage==='readback'?1:0,'an already committed session write is preserved; a closed callback cannot start one');
+    assert.equal(owner,preservedOwner);assert.equal(transactions,stage==='readback'?2:1,'timeout must not start a replacement takeover or readback');
+    assert.equal(watches,0,'late startup cannot install an ownership listener');
+    assert.deepEqual(f.counts(),{opened:0,closed:0});assert.equal(f.win.LittleLeafUpdate,undefined);
+    assert.equal(f.runtimeState().runtimeClosed,1);assert.equal(f.runtimeState().ownershipClosed,1);
+  }
+  // Successful startup clears the timer and retains the active-page lifecycle.
+  const timers=new Map();let timerId=0;
+  const f=fixture({uid:'synthetic-startup-success',isAnonymous:false},{timers:{setTimeout(fn,ms){const id=++timerId;timers.set(id,{fn,ms});return id;},clearTimeout(id){timers.delete(id);}}});
+  assert.equal(await f.start(),f.client);assert.equal(timers.size,0);assert.equal(f.runtimeState().runtimeClosed,0);
 }
 async function activePagehideSave(){
   // Exercise the real codec/client and an intentionally deferred journal write.
@@ -57,6 +97,7 @@ async function activePagehideSave(){
   assert.deepEqual(local,preserved,'closed/account-changed callbacks cannot replace the last journal');
 }
 (async()=>{
+  await ownershipStartupDeadline();
   const bridgeSource=fs.readFileSync('game/scripts/persistence/cafe_cloud_settings.gd','utf8');
   const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];
   assert(bridgeSource.indexOf('if not JavaScriptBridge.eval')<bridgeSource.indexOf('api=JavaScriptBridge.get_interface'));

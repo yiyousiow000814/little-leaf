@@ -23,6 +23,14 @@ update and unavailable storage/lock cases. The existing boot presentation test
 observes startup cancellation, active-pagehide deferred journal completion and
 account-change closure using the real client with synthetic SDK/DOM/storage.
 These checks neither sign in a player nor access or rewrite player saves.
+Ownership startup has its own 15-second network deadline before the journal or
+cloud client is created. Timeout, account change or startup page exit closes the
+session before releasing the runtime lock and rejects that startup permanently.
+Late transaction callbacks cannot install authority, listeners or a client.
+An already submitted session write may still commit; timeout never means abort
+and starts no replacement takeover. The existing client initial-save-read
+deadline remains separate. Recovery choice revalidation also uses that existing
+network deadline, retaining both saves and all account/digest/CAS guards.
 Actual browser refresh/duplicate-tab/BFCache acceptance and exact release qualification
 remain separate gates; synthetic results do not establish the cause or repair
 of a particular player's live warning.
