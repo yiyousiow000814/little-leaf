@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 ## Current UI permits physical work-side placement and keeps atomic cancellation.
 const NoBottom=preload("res://tests/fixtures/no_bottom_notifications.gd")
 const Guide=preload("res://scripts/rendering/cafe_workface_guidance.gd")
@@ -47,8 +48,14 @@ func run():
   root.size=size;await process_frame;game.illustration.update_projection();var before=state()
   NoBottom.verify(game,check,"physical stove UI "+str(size));check(state()==before,"resize preserves transaction state "+str(size))
  game.editing=false;check(Guide.describe(game).is_empty(),"play has no decorate-only diagnostic draft")
- print("STOVE_RESERVATION_UI_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"save_calls":game.saves}))
+ var report={"checks":checks,"failures":failures,"save_calls":game.saves}
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
+ game.queue_free();await process_frame;await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("STOVE_RESERVATION_UI_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

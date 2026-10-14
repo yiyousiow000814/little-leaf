@@ -454,7 +454,8 @@ func stop():
 func _on_commit(arguments:Array):
 	_release_credit_hold()
 	if game==null or not game.is_inside_tree():return
-	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	var parser=JSON.new()
+	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
 	pending=false
 	if not result is Dictionary or not bool(result.get("ok",false)):
 		game.progress_unsaved=true;queued=false
