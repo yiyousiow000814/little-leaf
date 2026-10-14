@@ -106,10 +106,11 @@ async function requestLeaseChecks(check){
  for(const [label,options] of Object.entries({
   denial:{denied:true},request:{mutation:({value})=>value.request={id:foreign,requester:foreign,device:'Mac',at:100100}},
   ack:{mutation:({value})=>value.ack={requestId:foreign,digest:'b'.repeat(64),revision:2}},
-  account:{renewals:1,mutation:({setUid})=>setUid('other')},runtime:{renewals:1,mutation:({release})=>release()}
+  account:{renewals:1,mutation:({setUid})=>setUid('other')},runtime:{renewals:1,mutation:({release})=>release()},
+  owner:{mutation:({value})=>value.owner=foreign},epoch:{mutation:({value})=>value.epoch++},device:{mutation:({value})=>value.device='Windows PC'}
  })){
   const f=await fixture(options);try{
-   await assert.rejects(f.run(),e=>e.code===(label==='account'||label==='runtime'?'NOT_READY':'permission-denied'));
+   await assert.rejects(f.run(),e=>e.code===(label==='account'||label==='runtime'?'NOT_READY':['owner','epoch','device'].includes(label)?'HANDOFF_CHANGED':'permission-denied'));
    check(f.facts().updates===0&&f.facts().sets===0,label+' refuses the stale request');
    check(f.facts().attempts===1,label+' does not retry a permission denial');
   }finally{f.close();}
