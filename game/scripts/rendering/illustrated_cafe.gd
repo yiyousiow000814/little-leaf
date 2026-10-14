@@ -34,6 +34,7 @@ var use_background_cache=true
 var shell_draw_cache=preload("res://scripts/rendering/cafe_shell_draw_cache.gd").new()
 var background_cache=preload("res://scripts/rendering/cafe_background_cache.gd").new()
 var render_idle=preload("res://scripts/rendering/cafe_render_idle.gd").new()
+var character_pick_geometry=preload("res://scripts/rendering/cafe_character_pick_geometry.gd").new()
 
 const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
@@ -290,6 +291,8 @@ func _ready():
 		furniture_art.prepare_cache(self)
 		return
 	if icon_kind=="" and is_instance_valid(game):
+		RenderingServer.frame_pre_draw.connect(_record_character_pick_submission)
+		RenderingServer.frame_post_draw.connect(_record_character_pick_frame)
 		furniture_art.cache_enabled=not "--legacy-furniture" in OS.get_cmdline_user_args()
 		texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
 		furniture_art.prepare_cache(self)
@@ -297,6 +300,8 @@ func _ready():
 		if use_cached_heads:head_atlas.request(self)
 
 func _exit_tree():
+	if RenderingServer.frame_pre_draw.is_connected(_record_character_pick_submission):RenderingServer.frame_pre_draw.disconnect(_record_character_pick_submission)
+	if RenderingServer.frame_post_draw.is_connected(_record_character_pick_frame):RenderingServer.frame_post_draw.disconnect(_record_character_pick_frame)
 	canvas_stream.release()
 	background_cache.release()
 
@@ -328,6 +333,8 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	if is_instance_valid(game) and game.interaction!=null and game.interaction.get("manual_cleanup")!=null:
+		if game.interaction.manual_cleanup.tick(delta):queue_redraw()
 	_update_street_pedestrians(delta)
 	var motion_delta=delta
 	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
@@ -1022,6 +1029,7 @@ func _draw():
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
 		if not show_service:break
 		_draw_floor_mess(record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
 	if preview and interaction.drag_active:
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
@@ -1267,6 +1275,7 @@ func _draw():
 	art_transform(Vector2.ZERO)
 	_finish_native_objects()
 	canvas_stream.finish()
+	character_pick_geometry.drawing(self)
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
 func _draw_legacy_pavement(ground_view: Rect2):
 	var rows=Neighborhood.visible_pavement_rows(self)
@@ -2139,13 +2148,24 @@ func _banana_peel(at:Vector2,scale=1.0):
 	line(at+Vector2(0,.5)*scale,at+Vector2(5.5,2.6)*scale,"e7c660",1.5*scale)
 	line(at+Vector2(-1,.5)*scale,at+Vector2(-5.3,2.6)*scale,"efd174",1.5*scale)
 
+func _record_character_pick_frame():
+	character_pick_geometry.presented(self)
+	if is_instance_valid(game) and game.get("interaction")!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.presented()
+
+func _record_character_pick_submission():
+	character_pick_geometry.submitting(self)
+
+func character_occludes(screen:Vector2)->bool:
+	return character_pick_geometry.occludes(self,screen)
+
 func _floor_mess_active(record:Dictionary) -> bool:
 	var phase=str(record.get("guest",{}).get("phase",""))
 	return bool(record.get("floor_dirty",phase in ["checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"])) and not bool(record.get("floor_cleaned",false))
 
 func _draw_floor_mess(record:Dictionary):
 	if not _floor_mess_active(record):return
-	FloorMessArt.draw(self,record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw_record(self,record)
+	else:FloorMessArt.draw(self,record)
 
 func hit_wall_host(screen:Vector2)->Dictionary:
 	if objects_hidden():return {}
