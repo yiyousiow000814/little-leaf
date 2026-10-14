@@ -59,6 +59,12 @@ consume identical source/tree/run/attempt-bound coordinate receipts, without
 downloading generated projects or installing Godot again. Optional Firebase
 staging still receives the candidate project and all required browser evidence;
 its freshness validator remains unchanged.
+Every Chrome lane in the reusable build (play, recovery, compatibility and
+optional fresh Firebase) installs the same checksum-pinned official package from
+`ci/chrome.json` and verifies Playwright's actual Chrome-channel binary before
+browser checks. WebKit remains a separate pinned Playwright recovery target.
+This does not change historical diagnostic environments or the released-source
+Firebase staging workflow.
 Artifacts are scoped to this run, attempt and source. Profiles are never uploaded.
 The final `gate` exposes release outputs only after every required job succeeds;
 failed, cancelled or skipped mandatory jobs cannot qualify an export.
