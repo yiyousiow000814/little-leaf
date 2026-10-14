@@ -232,13 +232,17 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 class Transport:
-    def __init__(self, token):
+    def __init__(self, token, deadline=None):
         if not token:
             raise ValueError('Missing short-lived workflow access token')
         self.token = token
+        self.deadline = deadline
         self.opener = build_opener(NoRedirect())
 
     def request(self, method, path, data=None, upload=False):
+        remaining = self.deadline - time.monotonic() if self.deadline is not None else 180
+        if remaining <= 0:
+            raise RuntimeError('Hosting operation budget exhausted; no request sent')
         if upload:
             if not re.fullmatch(re.escape('https://upload-firebasehosting.googleapis.com/upload/' + SITE_PATH) + r'/versions/[A-Za-z0-9_-]+/files/[0-9a-f]{64}', path):
                 raise ValueError('Unexpected upload destination')
@@ -252,7 +256,7 @@ class Transport:
         req = Request(url, data=payload, method=method,
                       headers={'Authorization': 'Bearer ' + self.token, 'Content-Type': content_type})
         try:
-            with self.opener.open(req, timeout=180) as response:
+            with self.opener.open(req, timeout=min(180, remaining)) as response:
                 raw = response.read()
                 return {} if upload or not raw else json.loads(raw)
         except HTTPError as error:
@@ -272,9 +276,64 @@ def release_head(api):
     return {'release': release, 'version': version}
 
 
-def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None):
+def approved_previous(release, version, config_hash):
+    values = [release, version, config_hash]
+    if not any(values):
+        return None
+    if (not all(type(value) is str and value for value in values) or not RELEASE_RE.fullmatch(release)
+            or not VERSION_RE.fullmatch(version) or not re.fullmatch('[0-9a-f]{64}', config_hash)):
+        raise ValueError('Exact same-site previous release, version and configuration required')
+    return {'release': release, 'version': version, 'config_sha256': config_hash}
+
+
+def restore_previous(api, receipt, previous, original, previous_marker, save):
+    """One opt-in restore after confirmed publication; no uncertain-write retry."""
+    candidate = {'release': receipt['hosting_release'], 'version': receipt['hosting_version']}
+    deadline = getattr(api, 'deadline', None)
+    if deadline is not None and deadline - time.monotonic() < 240:
+        raise RuntimeError('Insufficient remaining operation budget for restore; inspect before another action')
+    if (candidate['version'] == previous['version'] or release_head(api) != candidate):
+        raise RuntimeError('Live release is no longer owned by this operation; restore refused')
+    current = api.request('GET', candidate['version'])
+    baseline = api.request('GET', previous['version'])
+    if (current.get('status') != 'FINALIZED' or current.get('name') != candidate['version']
+            or record_digest(current.get('config')) != receipt['candidate_hosting_config_sha256']
+            or record_digest(active_files(api, candidate['version'])) != receipt['candidate_files_sha256']
+            or baseline.get('status') != 'FINALIZED' or baseline.get('name') != previous['version']
+            or record_digest(baseline.get('config')) != receipt['preserved_hosting_config_sha256']
+            or active_files(api, previous['version']) != original):
+        raise RuntimeError('Candidate or previous version changed; restore refused')
+    if release_head(api) != candidate:
+        raise RuntimeError('Concurrent release before restore; no write performed')
+    if deadline is not None and deadline - time.monotonic() < 180:
+        raise RuntimeError('Insufficient remaining budget before restore POST; no write performed')
+    receipt['rollback_status'] = 'restore-outcome-pending'; save()
+    try:
+        restored = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': previous['version']}), {})
+    except Exception:
+        receipt['rollback_status'] = 'restore-response-unconfirmed'
+        receipt['rollback_observed_head'] = release_head(api)
+        save()
+        raise
+    if (not RELEASE_RE.fullmatch(restored.get('name', ''))
+            or restored.get('version', {}).get('name') != previous['version']):
+        raise RuntimeError('Restore outcome uncertain; inspect with GET only')
+    expected = {'release': restored['name'], 'version': previous['version']}
+    receipt['rollback_release'] = restored['name']; save()
+    if (release_head(api) != expected or active_files(api, previous['version']) != original
+            or not live_smoke(previous_marker)):
+        raise RuntimeError('Restored live version could not be verified; no further write')
+    receipt.update(rollback_status='previous-version-restored', status='restored-after-smoke-failure')
+    save()
+
+
+def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_origin=None, expected_previous=None):
     manifest, marker = verify_live_package(folder, source_sha, manifest_sha, staging_origin=staging_origin)
     common=manifest.get('status') == COMMON_LIVE_STATUS
+    if expected_previous is not None:
+        if (not common or approved_previous(expected_previous.get('release'), expected_previous.get('version'),
+                                            expected_previous.get('config_sha256')) != expected_previous):
+            raise ValueError('Bounded recovery requires an authenticated common-qualified live package')
     additions = []
     if common:
         proposed = manifest.get('hosting_header_additions')
@@ -301,11 +360,13 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
     receipt = {'schema_version': 1, 'status': 'validated', 'source_commit': source_sha,
                'source_tree': marker['source_tree'], 'variant_manifest_sha256': manifest_sha,
                'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested',
-               'automatic_rollback_allowed': False}
+               'automatic_rollback_allowed': expected_previous is not None}
     def save():
         output.parent.mkdir(parents=True, exist_ok=True)
         recorded={k:v for k,v in receipt.items() if not (common and k=='preserved_hosting_config')}
-        output.write_text(json.dumps(recorded, indent=2) + '\n')
+        with output.open('w', encoding='utf-8', newline='\n') as stream:
+            stream.write(json.dumps(recorded, indent=2) + '\n')
+            stream.flush(); os.fsync(stream.fileno())
     save()
     previous = release_head(api)
     if not previous:
@@ -337,6 +398,8 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
                                          ensure_ascii=False, allow_nan=False).encode()).hexdigest()
     baseline_config_hash = config_digest(baseline_config)
     config_hash = config_digest(config)
+    if expected_previous is not None and {**previous, 'config_sha256': baseline_config_hash} != expected_previous:
+        raise ValueError('Approved previous release/version/configuration drifted; live unchanged')
     receipt['preserved_hosting_config'] = baseline_config
     receipt['preserved_hosting_config_sha256'] = baseline_config_hash
     receipt['candidate_hosting_config_sha256'] = config_hash
@@ -392,14 +455,29 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
     receipt['status'] = 'release-outcome-pending';save()
     if common and current_marker()!=staging_origin['live_baseline']:
         raise RuntimeError('Live marker changed during staging; release refused')
+    deadline = getattr(api, 'deadline', None)
+    if expected_previous is not None and deadline is not None and deadline-time.monotonic() < 480:
+        raise RuntimeError('Insufficient smoke/restore budget before publication; live unchanged')
     release = api.request('POST', SITE_PATH + '/releases?' + urlencode({'versionName': version}), {})
     if (not RELEASE_RE.fullmatch(release.get('name', ''))
             or release.get('version', {}).get('name') != version or release.get('type') != 'DEPLOY'):
         raise RuntimeError('Hosting release outcome uncertain; inspect before retrying')
-    receipt.update({'status': 'published-pending-smoke', 'hosting_release': release['name']});save()
-    if not smoke(marker):
+    receipt.update({'status': 'published-pending-smoke', 'hosting_release': release['name'],
+                    'hosting_release_time': release.get('releaseTime')});save()
+    try:
+        passed = smoke(marker)
+        failure = RuntimeError('Hosted marker verification failed; review the retained deployment receipt')
+    except Exception as error:
+        passed = False; failure = error
+    if not passed:
         receipt['status'] = 'smoke-failed-inspection-required';save()
-        raise RuntimeError('Hosted marker verification failed; review the retained deployment receipt')
+        if expected_previous is not None:
+            try:
+                restore_previous(api, receipt, previous, original, staging_origin['live_baseline'], save)
+            except Exception as error:
+                receipt.update(rollback_status='inspection-required', rollback_error_type=type(error).__name__)
+                save()
+        raise failure
     receipt['status'] = 'published-pending-hosted-acceptance';save()
     return receipt
 
@@ -936,7 +1014,15 @@ def main():
     parser.add_argument('--itch-preview', action='store_true')
     parser.add_argument('--itch-test-entry', action='store_true')
     parser.add_argument('--staging-origin', type=Path, help='Fresh authenticated run/artifact metadata, required for manual released-live reuse')
+    parser.add_argument('--expected-previous-release')
+    parser.add_argument('--expected-previous-version')
+    parser.add_argument('--expected-previous-config-sha256')
     args = parser.parse_args()
+    previous = approved_previous(getattr(args, 'expected_previous_release', None),
+                                 getattr(args, 'expected_previous_version', None),
+                                 getattr(args, 'expected_previous_config_sha256', None))
+    if previous is not None and (args.itch_test_entry or args.itch_preview):
+        raise ValueError('Previous-version recovery is separate from preview/test-entry modes')
     origin = json.loads(args.staging_origin.read_text()) if args.staging_origin else None
     if args.itch_test_entry:
         if args.itch_preview or origin is None:
@@ -957,7 +1043,9 @@ def main():
         if args.itch_preview:
             verify_preview_package(args.variant, args.sha, args.manifest_sha256)
         else:
-            verify_live_package(args.variant, args.sha, args.manifest_sha256, staging_origin=origin)
+            checked, _ = verify_live_package(args.variant, args.sha, args.manifest_sha256, staging_origin=origin)
+            if previous is not None and checked.get('status') != COMMON_LIVE_STATUS:
+                raise ValueError('Independent recovery requires an unchanged common-qualified packet')
         print('Exact selected package verified locally; no Hosting change or hosted acceptance claimed')
         return
     if args.itch_preview:
@@ -966,7 +1054,9 @@ def main():
         print('Published one-day preview at ' + result['hosting_url'] + '; exact auth hostname approval remains pending')
     else:
         result = deploy(args.variant, args.sha, args.manifest_sha256, args.output,
-                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), live_smoke, staging_origin=origin)
+                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN'),
+                                  deadline=time.monotonic()+840 if previous is not None else None), live_smoke,
+                        staging_origin=origin, expected_previous=previous)
         print('Published selected test build at ' + result['hosting_url'] + '; account/device acceptance remains pending')
 
 

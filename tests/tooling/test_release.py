@@ -313,6 +313,14 @@ class ItchGuardTests(unittest.TestCase):
     def test_processing_failure(self):
         with self.assertRaises(RuntimeError): completed(status("0.1.6", "failed"), 55, "0.1.6")
 
+    def test_queue_acceptance_requires_exact_build_version_and_known_state(self):
+        record = {'id': 56, 'state': 'queued', 'userVersion': '0.1.6'}
+        self.assertEqual(publisher.accepted_processing(status(pending=record), 56, '0.1.6'),
+                         {'build_id': 56, 'state': 'queued', 'version': '0.1.6'})
+        for field, value in [('id', 57), ('id', True), ('userVersion', '0.1.5'), ('state', 'failed'), ('state', 'unknown')]:
+            with self.subTest(field=field, value=value):
+                self.assertIsNone(publisher.accepted_processing(status(pending={**record, field: value}), 56, '0.1.6'))
+
 
 class DistributionNoticeTests(unittest.TestCase):
     def test_notice_is_in_export_and_hash_bound(self):
@@ -373,6 +381,35 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(result["workflow_attempt"], "2")
         self.assertEqual(result["qualification"], self.manifest["release_reuse"])
         self.assertEqual(result["release_manifest_sha256"], hashlib.sha256((self.web / "release-manifest.json").read_bytes()).hexdigest())
+
+    def test_verified_queue_returns_success_without_waiting_or_another_upload(self):
+        receipt = self.web / 'queued.json'
+        args = SimpleNamespace(web=self.web, tag='v0.1.6', sha=SHA, receipt=receipt)
+        responses = [status(), {'buildId': 56, 'channel': 'html5'},
+                     status(pending={'id': 56, 'state': 'queued', 'userVersion': '0.1.6'})]
+        with patch.dict(publisher.os.environ, {'BUTLER_API_KEY': 'synthetic'}, clear=True), \
+                patch.object(publisher.argparse.ArgumentParser, 'parse_args', return_value=args), \
+                patch.object(publisher, 'butler', side_effect=responses) as command, \
+                patch.object(publisher.time, 'sleep') as sleep:
+            publisher.main()
+        result = json.loads(receipt.read_text())
+        self.assertEqual(result['state'], 'accepted-processing')
+        self.assertFalse(result['live_playable_verified'])
+        self.assertNotIn('itch_channel_version', result)
+        self.assertEqual([call.args[0] for call in command.call_args_list], ['status', 'push', 'status'])
+        sleep.assert_not_called()
+
+    def test_genuine_processing_failure_still_fails_without_receipt_or_retry(self):
+        receipt = self.web / 'failed-processing.json'
+        args = SimpleNamespace(web=self.web, tag='v0.1.6', sha=SHA, receipt=receipt)
+        failed = status('0.1.6', 'failed'); failed['channels'][0]['head']['id'] = 56
+        with patch.dict(publisher.os.environ, {'BUTLER_API_KEY': 'synthetic'}, clear=True), \
+                patch.object(publisher.argparse.ArgumentParser, 'parse_args', return_value=args), \
+                patch.object(publisher, 'butler', side_effect=[status(), {'buildId': 56, 'channel': 'html5'}, failed]) as command:
+            with self.assertRaisesRegex(RuntimeError, 'processing failed'):
+                publisher.main()
+        self.assertFalse(receipt.exists())
+        self.assertEqual(sum(call.args[0]=='push' for call in command.call_args_list), 1)
 
     def test_failed_publication_never_writes_receipt(self):
         receipt = self.web / "publication" / "receipt.json"

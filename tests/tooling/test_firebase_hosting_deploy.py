@@ -313,14 +313,76 @@ class HostingTests(unittest.TestCase):
         uploaded = {path.rsplit('/', 1)[1] for _, path, _, upload in api.calls if upload}
         self.assertTrue(uploaded.isdisjoint(api.original_files.values()))
 
-    def common_deploy(self, api, additions=None):
+    def common_deploy(self, api, additions=None, smoke=None, expected_previous=None):
         manifest = {'status': hosting.COMMON_LIVE_STATUS,
                     'hosting_header_additions': copy.deepcopy(PACKET_HEADERS if additions is None else additions)}
         baseline = {'source_commit': 'd' * 40}
         with mock.patch.object(hosting, 'verify_live_package', return_value=(manifest, self.marker)), \
                 mock.patch('release.common_firebase.current_marker', return_value=baseline):
-            return hosting.deploy(self.package, SHA, self.hash, self.output, api, lambda _: True,
-                                  staging_origin={'live_baseline': baseline})
+            return hosting.deploy(self.package, SHA, self.hash, self.output, api, smoke or (lambda _: True),
+                                  staging_origin={'live_baseline': baseline}, expected_previous=expected_previous)
+
+    def recovery_baseline(self, api):
+        return {'release': api.release_name, 'version': OLD, 'config_sha256': hosting.record_digest(api.config)}
+
+    def test_owned_failed_smoke_restores_exact_previous_version_once_and_still_fails(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api)
+        with mock.patch.object(hosting, 'live_smoke', return_value=True) as verify_old:
+            with self.assertRaisesRegex(RuntimeError, 'Hosted marker verification failed'):
+                self.common_deploy(api, smoke=lambda _: False, expected_previous=expected)
+        self.assertEqual(api.head, OLD)
+        self.assertEqual(api.releases, 2)
+        verify_old.assert_called_once_with({'source_commit': 'd'*40})
+        receipt = json.loads(self.output.read_text())
+        self.assertEqual(receipt['rollback_status'], 'previous-version-restored')
+        self.assertEqual(receipt['status'], 'restored-after-smoke-failure')
+        self.assertFalse(any(method=='DELETE' for method,*_ in api.calls))
+
+    def test_recovery_refuses_changed_release_even_if_candidate_version_is_same(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api)
+        def fail_after_concurrent_release(_):
+            api.release_name = hosting.SITE_PATH+'/releases/intervening'
+            return False
+        with self.assertRaisesRegex(RuntimeError, 'Hosted marker verification failed'):
+            self.common_deploy(api, smoke=fail_after_concurrent_release, expected_previous=expected)
+        self.assertEqual(api.head, NEW); self.assertEqual(api.releases, 1)
+        self.assertEqual(json.loads(self.output.read_text())['rollback_status'], 'inspection-required')
+
+    def test_recovery_refuses_mutated_previous_file_inventory(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api)
+        def fail_after_old_map_changed(_):
+            api.original_files['/retained.txt'] = 'f'*64
+            return False
+        with self.assertRaisesRegex(RuntimeError, 'Hosted marker verification failed'):
+            self.common_deploy(api, smoke=fail_after_old_map_changed, expected_previous=expected)
+        self.assertEqual(api.releases, 1)
+
+    def test_uncertain_restore_uses_get_only_and_never_retransmits(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api); request = api.request
+        def uncertain(method, path, data=None, upload=False):
+            value = request(method, path, data, upload)
+            if method=='POST' and '/releases?' in path and parse_qs(urlsplit(path).query)['versionName']==[OLD]:
+                raise RuntimeError('simulated lost restore response')
+            return value
+        api.request = uncertain
+        with self.assertRaisesRegex(RuntimeError, 'Hosted marker verification failed'):
+            self.common_deploy(api, smoke=lambda _: False, expected_previous=expected)
+        receipt = json.loads(self.output.read_text())
+        self.assertEqual(api.head, OLD); self.assertEqual(api.releases, 2)
+        self.assertEqual(receipt['rollback_observed_head']['version'], OLD)
+        self.assertEqual(receipt['rollback_status'], 'inspection-required')
+
+    def test_insufficient_restore_budget_stops_before_any_live_release(self):
+        api = FakeAPI(); api.deadline = hosting.time.monotonic()+30
+        with self.assertRaisesRegex(RuntimeError, 'Insufficient smoke/restore budget'):
+            self.common_deploy(api, expected_previous=self.recovery_baseline(api))
+        self.assertEqual(api.head, OLD); self.assertEqual(api.releases, 0)
+
+    def test_approved_baseline_drift_stops_before_candidate_creation(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api); expected['config_sha256'] = 'e'*64
+        with self.assertRaisesRegex(ValueError, 'Approved previous'):
+            self.common_deploy(api, expected_previous=expected)
+        self.assertFalse(any(method=='POST' for method,*_ in api.calls))
 
     def test_common_root_overlays_qualified_itch_and_exact_reviewed_headers(self):
         api = FakeAPI();api.paginated = True
