@@ -334,6 +334,12 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install exact checksum-pinned Chrome for both compatibility cases
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Verify compensation history in sandboxed Chromium
         if: matrix.lane == 'compatibility' && matrix.case == 'old_opened_after_new'
         env:
