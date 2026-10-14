@@ -11,7 +11,10 @@ export async function start(config,options={}) {
     const prefix='https://'+config.projectId+'--itch-embed-test-';
     const suffix=typeof expected==='string' && expected.startsWith(prefix)?expected.slice(prefix.length):'';
     const ancestors=location.ancestorOrigins;
-    if(!/^[a-z0-9]+\.web\.app$/.test(suffix) || location.origin!==expected || window.top===window.self
+    const stable=expected==='https://'+config.authDomain && options.runtimePath==='/itch/'
+      && location.hostname===config.authDomain && ['/itch/','/itch/index.html'].includes(location.pathname);
+    const preview=/^[a-z0-9]+\.web\.app$/.test(suffix) && options.runtimePath===undefined;
+    if(!(stable || preview) || location.origin!==expected || window.top===window.self
       || !ancestors || ancestors.length!==2 || ancestors[0]!=='https://html-classic.itch.zone'
       || ancestors[1]!=='https://siowyiyou.itch.io')throw Error('Open the approved itch preview page to sign in.');
   }else if(window.top!==window.self || location.hostname!==config.authDomain)throw Error('Open the full game on its Firebase Hosting address to sign in.');
@@ -19,8 +22,8 @@ export async function start(config,options={}) {
   if(options.authVerificationOnly===true)return verifyAuthOnly(auth);
   const db=getFirestore(app);
   const panel=document.createElement('div');panel.id='cloud-account';panel.setAttribute('aria-live','polite');
-  panel.style.cssText='position:fixed;right:8px;top:8px;z-index:40;background:#fffaf0;color:#493d2e;border-radius:8px;padding:7px;font:12px Arial;max-width:80vw';
-  const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;button.style.marginLeft='8px';panel.append(label,button);document.body.append(panel);
+  panel.className='leaf-entry-card leaf-account';
+  const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;panel.append(label,button);document.body.append(panel);
   let client,uid,loginBusy=false;
   function startup(message,waiting=false){
     const caption=document.getElementById('status-label'),progress=document.getElementById('status-progress');
@@ -82,15 +85,41 @@ export async function start(config,options={}) {
   if(!window.LittleLeafFirebaseSession)throw Error('Device switching support is missing. Reload the full game package.');
   const deviceLabel=window.LittleLeafFirebase.genericDevice?.(window.navigator) || 'Unknown device';
   const sessionRemote=window.LittleLeafFirebaseSession.createRemote(db,{doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot},uid);
-  const ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid});
-  let reloadTicket=null;
-  try{reloadTicket=window.LittleLeafFirebaseSession.consumeReload(window.sessionStorage,performance.getEntriesByType('navigation')[0]?.type,uid);}catch(_){}
-  await ownership.start(reloadTicket);
+  let reloadTicket=null,navigationType,storage;
+  try{storage=window.sessionStorage;navigationType=performance.getEntriesByType('navigation')[0]?.type;
+    reloadTicket=window.LittleLeafFirebaseSession.consumeReload(storage,navigationType,uid);}catch(_){}
+  let runtime,ownership,exited=false,startupPending=true,cancelStartup;
+  const closedStartup=()=>Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});
+  // Register before awaiting the lock: page exit/account change may win that wait.
+  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
+  // Once installed, native pagehide saves finish asynchronously under this same
+  // exclusive lock. Do not close their client or release writer identity early.
+  // Unloading-document cleanup releases browser locks on actual termination;
+  // a retained document keeps its lock. Account changes still close immediately.
+  window.addEventListener('pagehide',()=>{if(startupPending)closeRuntime();});
+  onAuthStateChanged(auth,user=>{if(user?.uid!==uid)closeRuntime();});
+  runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
+  if(exited){runtime.close();throw closedStartup();}
+  ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid,sessionId:runtime.sessionId,assertRuntime:()=>runtime.assertHeld()});
+  try{
+  // This precedes the client's initial-read deadline. Closing local authority
+  // fences late SDK callbacks; it does not prove a dispatched session CAS aborted.
+  await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{
+      reject(Object.assign(Error('The connection did not respond. Your progress is protected. Reload Little Leaf to try again.'),{code:'NETWORK_TIMEOUT'}));
+      closeRuntime();
+    },15000);
+    cancelStartup=()=>{clearTimeout(timer);reject(closedStartup());};
+    ownership.start(reloadTicket).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
+  }).finally(()=>{cancelStartup=null;});
+  if(exited || auth.currentUser?.uid!==uid)throw closedStartup();
+  runtime.assertHeld();
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
+  runtime.assertHeld();
   client=window.LittleLeafFirebase.createClient({uid,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
   if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
-  window.LittleLeafUpdate=window.LittleLeafUpdates.create({checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
+  window.LittleLeafUpdate=window.LittleLeafUpdates.create({currentRelease:window.__littleLeafRelease,checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
   window.__littleLeafVault.close();window.__littleLeafVault=client;
   let recoveryBusy=false,recoveryMessage='',preparedChoice=null;
   const failure=code=>({ok:false,code,error:code==='REVISION_CONFLICT'?'Two different saves are available. Choose which progress to continue.':code==='RECOVERY_CHANGED'?'A save changed. Review both saves and choose again.':'Could not finish safely. Your progress is preserved. Keep this page open and try again.'});
@@ -149,14 +178,16 @@ export async function start(config,options={}) {
       return invoke('forceTakeover',[],callback);
     }
   });
-  onAuthStateChanged(auth,user=>{if(user?.uid!==uid){client.close();window.LittleLeafUpdate?.close();state('signed-out');}});
+  onAuthStateChanged(auth,user=>{if(user?.uid!==uid){window.LittleLeafUpdate?.close();state('signed-out');}});
   // A hard minimum interval bounds sustained play to <=120 writes/hour/account.
   // No unload upload: asynchronous unload completion cannot be promised.
   setInterval(()=>client.sync(),30000);
   setInterval(()=>client.renewOwnership?.(),20000);
   window.addEventListener('focus',()=>client.refreshOwnership?.());
   window.addEventListener('online',()=>client.sync());
+  startupPending=false;
   return client;
+  }catch(error){closeRuntime();throw error;}
 }
 
 // Deliberately never resolves: the existing shell promise must not boot the vault/game.

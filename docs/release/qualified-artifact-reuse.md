@@ -5,7 +5,7 @@ before the final main CI run. Review that actual package before creating an
 approved immutable release tag. A PR's synthetic merge artifact is not an
 artifact for its head SHA, even when their trees match.
 
-The tag workflow calls `tools/reuse_main_ci.py --sha SOURCE --tag TAG --output DIR`.
+The tag workflow calls `tools/qualification/reuse_main_ci.py --sha SOURCE --tag TAG --output DIR`.
 It waits up to 20 minutes for an existing exact-source main CI run; it never
 dispatches another engine/browser matrix. The latest trusted run must succeed
 with all 13 mandatory jobs. Missing, failed, expired, duplicate or mismatched

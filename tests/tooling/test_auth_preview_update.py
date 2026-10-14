@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
-import update_auth_preview as update
-import deploy_firebase_hosting as hosting
+from release import update_auth_preview as update
+from release import deploy_firebase_hosting as hosting
 
 NOW = datetime(2026, 10, 10, tzinfo=timezone.utc)
 OLD, NEW = hosting.SITE_PATH + '/versions/old', hosting.SITE_PATH + '/versions/new'

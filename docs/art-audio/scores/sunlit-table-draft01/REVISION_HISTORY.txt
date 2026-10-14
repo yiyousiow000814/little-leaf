@@ -1,0 +1,21 @@
+Draft 01 music, 2026-10-11: original note composition; eight bars; four parts.
+MusicXML unchanged throughout symbolic review:
+2175713d9a995c05aaf0d1caff354204818d8f1df8483fd9e173d7890a418a6e
+
+Initial manually laid-out PDF SHA256 (superseded rendering):
+9a0caf888809ba21fab51eb63372c4c090569d37caf135b51d762c94023b9082
+Current PDF adds small beat labels for clarity; music and event positions unchanged:
+956a35d1d0620b297a4b246250ec552dee92e73f45c2bb6b29fc76ddfde0072a
+The superseded PDF bytes were not retained before regeneration; its verified
+hash is retained here. The original editable musical content is fully retained.
+
+An independent reviewer initially questioned the m8 drawing, then withdrew
+that finding after rerendering and inspecting the ending. No duration bug
+was established. Current symbolic score review passes with no musical blocker.
+All audio, timbre, listening, creative acceptance and notation-app import gates
+remain open. Nothing was rendered or integrated into the game.
+
+Font licence notices accompany the score because the PDF embeds subsets of
+system NotoMusic and DejaVu fonts. No external musical content, instrument
+sample, SoundFont, or audio recording is included. This package makes no
+blanket legal-clearance claim about the wider game or historical music.

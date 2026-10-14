@@ -1,6 +1,6 @@
 extends SceneTree
-const Placement=preload("res://scripts/dining_placement.gd")
-class TestMain extends "res://tests/role_fixture.gd":
+const Placement=preload("res://scripts/gameplay/dining_placement.gd")
+class TestMain extends "res://tests/fixtures/role_fixture.gd":
  var saves=0
  func _save():saves+=1;return true
 var game

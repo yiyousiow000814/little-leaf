@@ -1,5 +1,107 @@
 # GitHub Web builds and releases
 
+## Shared tag qualification and independent platforms
+
+An authenticated same-build `queued` or `processing` response counts as successful
+itch upload acceptance. Its receipt is `accepted-processing`, carries no fabricated
+completed channel order and claims no live/playable acceptance. Rejected uploads,
+uncertain build identity and actual processing failures remain failures; inspect
+the same build instead of uploading again. A later status/selected-entry check owns
+actual provider completion and live smoke. Hosting may authenticate this acceptance
+and consume the unchanged independently qualified Firebase packet; only an actual
+completed itch receipt permits the existing channel-order metadata projection.
+
+Manual `qualified-firebase-live` uses the same exact qualified run/artifact/source/
+manifest inputs, plus the approved previous release/version/configuration digest.
+It uses the existing Hosting-only identity after all package gates. If a confirmed
+candidate publication fails smoke, opt-in recovery restores only that recorded
+previous finalized version while the candidate still owns live and both inventories
+are unchanged. Restore is one POST, uncertain/concurrent outcomes are GET-only,
+and recovery preserves the original failed outcome. Default modes do not gain
+automatic rollback. A Hosting restore changes static content, not cloud save data.
+
+The current source candidate follows the2026-10-12 user requirement: one
+immutable approved tag consumes one successful exact-main CI build and complete
+ordinary qualification; its common tag job runs final packed startup once and
+retains one package. The Firebase qualification workflow derives the frozen
+source's `/itch/` entry and trusted wrapper, then runs all focused gates and the
+complete compiled same-page flow against those exact runtime bytes. Both
+platforms consume that qualified packet. The itch publisher uploads the exact
+`itch-wrapper` inventory from this same-page qualification to the existing
+`html5` channel. Google account play stays in the official `/itch/` frame; the
+local choice retains its separate browser save. No outward itch-specific export
+or second chooser is generated. The direct Firebase ROOT game remains a supported
+standalone entry, with its existing frame rejection and save/account guards.
+
+This embedded-only routing cleanup follows the2026-10-14 user decision. Source
+verification does not switch the currently selected itch upload or publish a new
+prerelease. Confirm the provider's actual selected browser entry separately;
+upload completion alone does not update project embed settings. Retain the prior
+Hosting version and selected upload for rollback. Fresh real Google SSO and
+hosted game/save/reload acceptance remain separate from compiled synthetic gates.
+Earlier after-itch/manual contracts below are historical; their archived evidence
+and failed outcomes are preserved.
+
+The common receipt pins source/tree/version/tag, original main run/attempt and
+archive digest, common run/attempt1 and payload hashes. Both consumers fetch and
+authenticate those exact API objects and runtime bytes; they never pick a
+newest artifact or rerun engine/export/ordinary browser tests. The shared
+same-page qualification runs all ten focused checks and its compiled cloud flow
+once before either publisher receives credentials. Hosting then authenticates
+the completed same-source embedded-wrapper receipt and adds its actual Butler channel
+sequence beside the unchanged main first-parent order in both loaded markers.
+This bounded metadata projection retains the original qualified manifest and
+entry bytes; runtime, source and evidence bytes stay unchanged. It lets legacy
+channel-order clients and current main-order clients compare their own authority,
+without inventing an itch sequence. A currently loaded client with no order
+still cannot receive a same-family prerelease notice from metadata alone.
+Hosting activation
+uses the existing deployment workflow identity and Hosting-only scope after
+fresh common/Firebase/source/artifact checks. Its complete current configuration
+and rollback version are preserved; public receipts contain its configuration
+digest rather than the raw configuration. No Auth/rules/IAM change is included.
+
+Each target serializes its own publication. Both refuse a source that is older
+or unrelated to the current target's known immutable source. The qualified
+source order is an exact main first-parent ordinal, repository/root authority
+and immutable chain digest; it is not a SHA comparison or upload timestamp.
+Firebase's loaded marker and update endpoint bind that order. Local
+itch play has no Firebase updater; its completed publication receipt records the
+same common identity. Legacy Butler order remains a distinct authority and is
+never compared numerically with common order. Already-open legacy SHA clients
+cannot be claimed to receive this new notice format; their transition remains
+separate acceptance work.
+
+A partial outcome stays partial: inspect each platform's receipt separately.
+An inspected platform-only retry reuses the original common run/attempt and
+archive; there is no internal upload/deploy retry or common rebuild. Failed or
+uncertain mutations require reconciliation first. Firebase recognizes an exact
+already-current marker without requesting a Google token; itch retains its
+strict completed-build/duplicate safeguards. Missing, expired or changed
+common/original qualification evidence stops delivery. The common package has
+30-day retention, but the original main evidence's shorter lifetime still
+limits eligibility; retention is not a promise of continuing qualification.
+
+After an inspected pre-upload failure and a reviewed coordinator repair, the
+existing **Release Web to itch.io** manual request can take one exact
+`qualified_run_id`. An empty value still runs status diagnosis only. The named
+`Retry qualified itch <run ID>` job authenticates the completed original
+Firebase attempt and all immutable inputs before credentials, then uses the
+unchanged publisher. Hosting accepts its completed first-attempt publication
+only when its receipt binds that same qualified run; ordinary status requests
+cannot activate Hosting. Use the fresh reviewed main workflow for this scoped
+retry: rerunning an old job retains its old SHA and does not load a repair.
+
+Only a newly created valid version tag from reviewed main history can create a
+common qualification. PRs, main pushes, manual status requests and synthetic
+test packages cannot create qualification or publish via this route. A named
+platform retry consumes existing qualification and never rebuilds it.
+GitHub source Releases/Latest,
+hosted Google acceptance and gameplay acceptance remain separate facts. See
+[GitHub workflow-run semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)
+for default-main execution; upstream data and artifacts are verified before
+platform credentials.
+
 ## One-time setup
 
 In this repository, open **Settings → Secrets and variables → Actions → New repository secret**. Name it **`BUTLER_API_KEY`**, then personally paste the existing authorized itch Butler/wharf credential and save it. Never send its value in chat, commit it, or print it in logs.
@@ -12,15 +114,23 @@ Pull requests, pushes to `main`, and **Actions → Check and build Web → Run w
 
 Downloadable builds and test evidence stay in Actions for **7 days**. Keep any release artifact needed longer. Standard GitHub-hosted runners are free for public repositories; [billing rules](https://docs.github.com/en/billing/concepts/product-billing/github-actions) differ for private repositories or changed runner/storage settings.
 
+## Urgent 0.1.11 prereleases
+
+Approved user policy on 2026-10-11: independently verified urgent fixes may ship before the complete 0.1.11 scope is finished. Use **`0.1.11-pre.<shortSHA>`** (tag **`v0.1.11-pre.<shortSHA>`**) to identify one frozen exact source. A short SHA identifies source; it does not encode release age. Preserve immutable source/tag/package identity, retain prior tags and the frozen 0.1.10d release, and qualify matching Firebase and itch deliveries. A platform upload, a GitHub source release and user gameplay acceptance remain separate facts. Cleanup merge authority does not accept new gameplay or authorize deployment.
+
+Mark each such GitHub Release as a **prerelease** and preserve stable Latest. Update chronology must use independently qualified monotonic publication information; never compare SHA text lexically or interpret an all-digit hash as a release counter. Deriving the display version from the frozen source at build time must preserve exact artifact binding and avoid a commit referring to its own hash. Retain the ordinary save/account, atlas, browser, source/package and platform qualification gates for the actual urgent fix.
+
+Historical support gap: main `d30115b6932af1ab28e30672996eae09becaef16` rejected this format. Merged PR176/181 added source-derived metadata and prerelease publication; exact-e0 delivery and PR186 are recorded in the roadmap. That delivery does not qualify a new source or the independent common-tag candidate above. Frozen0.1.10d ignores this format, and legacy SHA clients do not understand common ordering; do not claim those clients receive its notices.
+
 ## Publish an approved version
 
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
 2. Wait for **Check and build Web** to pass on the intended commit. Review the Web build in a fresh browser profile and a separate copied-save profile. Leave real player data untouched.
 3. Only after publication is approved, create and push one new tag, such as **`v0.1.6`**, at that exact reviewed commit already in `main` history. Later changes on `main` do not block this fixed tag. Never move or reuse a release tag.
-4. Watch **Release Web to itch.io**. It verifies and reuses the successful exact-main CI package, runs final source/atlas/packed-startup checks, then uploads to **`siowyiyou/little-leaf:html5`**. The summary and publication receipt record its source SHA, version, itch build ID and original CI artifact identity. See [qualified artifact reuse](qualified-artifact-reuse.md).
+4. With the reviewed common-tag route enabled, watch **Check and build Web** produce the common tag receipt, then **Qualify Firebase release** produce the complete packet with the trusted embedded itch wrapper and qualified Firebase surfaces. **Release Web to itch.io** publishes that exact `itch-wrapper`; Hosting uses the completed qualification receipt for compatible update metadata and publishes the qualified Root and `/itch/` surfaces. Verify that the intended wrapper is actually selected for browser play on itch.io. Common source/atlas/packed-startup qualification occurs once. Each platform retains its own outcome; one platform success does not establish the other delivery. See [qualified artifact reuse](qualified-artifact-reuse.md).
 5. Verify [the live game](https://siowyiyou.itch.io/little-leaf), including fresh and copied-save startup. Successful upload processing does not replace browser, persistence, rendering or audio checks.
 
-Only a newly created `vX.Y.Z` or single-lowercase-letter hotfix `vX.Y.Z[a-z]` tag can publish (for example, `v0.1.10a`, `v0.1.10b`, `v0.1.10c`). Hotfixes order numerically by base, then by letter: `0.1.10 < 0.1.10a < … < 0.1.10z < 0.1.11`. Uppercase, multiple-letter, prerelease and build-metadata release tags are rejected. Existing valid SemVer prerelease/build-metadata itch baselines remain recognized; duplicates and rollbacks are still refused. Both the project and release notes must contain the exact hotfix version. Ordinary merges, PRs and manual build runs cannot. The workflow itself never creates a tag or changes itch embed settings.
+Only a newly created normal `vX.Y.Z`, single-lowercase hotfix `vX.Y.Z[a-z]`, or exact-source `vX.Y.Z-pre.<8 lowercase hex digits>` tag can qualify. The SHA form requires the committed `X.Y.Z-pre` family, explicit prerelease flag and exact full source; an all-digit hash remains opaque. Normal/hotfix versions retain numeric/base-letter ordering. Uppercase, multiple-letter and build-metadata tags are rejected. Common publication additionally requires a known immutable current baseline tag and forward source ancestry; unknown legacy labels stop for inspection. Ordinary merges, PRs and manual status/build runs cannot publish. No workflow creates a tag or changes itch embed settings.
 
 ## Checks and safety
 
@@ -66,9 +176,14 @@ Reference: https://docs.github.com/en/actions/concepts/workflows-and-actions/con
 
 ## Platform boundaries and historical records
 
+- [Firebase release staging alignment](firebase-release-alignment.md): completed itch receipt selects the exact released runtime; automatic qualification is separate from production cutover.
 - [CrazyGames adapter/export contract](crazygames-variant.md)
 - [Trusted itch preview](itch-trusted-preview-candidate.md): preparation is separate from hosted acceptance and publication
 - Historical [CrazyGames slice](history/crazygames-split-ledger.md), [release-metadata ownership](history/split-draft-ownership.md) and [10a overlay provenance](history/010a-release-overlay-provenance.json)
 - [Asset permissions and required notices](../art-audio/README.md)
 
 Use the [roadmap](../roadmap.md) for current readiness and authorization. Historical ledgers describe their pinned source/date, not the current shipped tree.
+
+### Read-only itch diagnosis
+
+The release workflow's manual dispatch on `main` runs only the fixed-channel status diagnostic; tag publishing remains separate. It first runs checksum-pinned Butler `--version` and `status --help` without credentials, then uses the existing credential solely for `--json status siowyiyou/little-leaf:html5`. The artifact records numeric exit codes, whitelisted error categories and verified channel identity, without raw command output, headers, URLs or credential values. HTTP debug is stripped. A successful diagnostic job does not establish publication or authorize a publisher retry. Preserve its exact workflow run/attempt alongside the original failed release evidence.
