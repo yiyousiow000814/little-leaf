@@ -36,7 +36,7 @@ assert.equal(JSON.stringify(page.__littleLeafRelease),JSON.stringify(vm.runInCon
 assert.equal(page.__littleLeafRelease.version,'0.1.11-pre.aaaaaaaa','mutable endpoint must not redefine loaded page');
 const updateSource=fs.readFileSync(path.join(root,'platform/web/little_leaf_update.js'),'utf8');
 async function observe(marker){
- const window={setTimeout,clearTimeout};vm.runInNewContext(updateSource,{window});let fetches=0;
+ const window={setTimeout,clearTimeout,AbortController};vm.runInNewContext(updateSource,{window});let fetches=0;
  const updater=window.LittleLeafUpdates.create({currentRelease:marker,
   fetch:async()=>{fetches++;return{ok:true,json:async()=>({schema_version:1,version:'9.0.0',source_commit:'b'.repeat(40)})};},
   checkUpdateReady:async()=>({}),canReloadUpdate:()=>true,setInterval:()=>1,clearInterval:()=>{}});
