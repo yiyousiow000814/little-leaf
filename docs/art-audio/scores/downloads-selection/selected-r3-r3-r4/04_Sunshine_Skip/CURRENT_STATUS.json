@@ -1,0 +1,21 @@
+{
+  "music_title": "晴日蹦跳 · Sunshine Skip",
+  "selected_version": "new replacement",
+  "user_selection": "New fourth-track candidate; user has not auditioned this new work.",
+  "current_status": "AWAITING_USER_LISTENING",
+  "audio_mp3": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.mp3",
+  "audio_sha256": "541f42271598bd90295a6157a3b57569d8ea149fedac6b1826ca7cc19010f7e1",
+  "lossless_master": "04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.flac",
+  "master_sha256": "2e0a939686b7ebe0324c949fd92723f2be33429ee5db03b0b9240aacafa98b55",
+  "duration_seconds": 48.53408163265306,
+  "nominal_bpm": 176.0,
+  "meter": [
+    4,
+    4
+  ],
+  "preserved_original_audio": false,
+  "approved_for_automatic_publication": false,
+  "seamless_loop_qualified": false,
+  "game_integration_tested": false,
+  "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+}

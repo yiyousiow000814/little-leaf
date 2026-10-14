@@ -22,8 +22,9 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
-from project_layout import stage_project
+from build.project_layout import stage_project
 SUITES = [
+    ("test_starter_bin", "STARTER_BIN_RESULT"),
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
     ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
     ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
@@ -33,6 +34,8 @@ SUITES = [
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
+    ("test_show_stats", "SHOW_STATS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
@@ -159,6 +162,23 @@ EXCLUDE = shutil.ignore_patterns(
 UNPACED_UI = {"test_toolbar_help", "test_environment_camera_access"}
 
 
+def suite_resources(repository):
+    """Resolve stable CLI suite IDs to project resources without a second suite list."""
+    stems = {name: name for name, _ in SUITES}
+    if len(stems) != len(SUITES):
+        raise ValueError("Duplicate canonical suite ID")
+    stems["test_staff_start"] = "staff-start"
+    resources = {}
+    for path in sorted((Path(repository) / "tests").rglob("test_*.gd")):
+        suite_id = stems.get(path.stem)
+        if suite_id is None:
+            continue
+        if suite_id in resources:
+            raise ValueError("Duplicate suite resource: " + suite_id)
+        resources[suite_id] = "res://" + path.relative_to(repository).as_posix()
+    return resources
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
@@ -168,9 +188,11 @@ def main():
     parser.add_argument("--lock", type=Path, default=Path(os.environ.get(
         "LL_ENGINE_LOCK", str(ROOT.parent / ".little-leaf-engine.lock"))))
     args = parser.parse_args()
-    available = [name for name, _ in SUITES if (ROOT / "tests" / (name + ".gd")).is_file()]
-    if (ROOT / "tests/test_staff_start.gd").is_file():
-        available.append("staff-start")
+    try:
+        resources = suite_resources(ROOT)
+    except ValueError as error:
+        parser.error(str(error))
+    available = list(resources)
     selected = set(args.only or available)
     missing = selected - set(available)
     if missing:
@@ -213,7 +235,7 @@ def main():
             stage_project(ROOT, project, tests=True, ignore=EXCLUDE)
             # The Web staging file is MEMFS in production. Keep its native analogue
             # entirely inside this disposable copy, without changing delivered source.
-            controller = project / "scripts/cafe_web_save.gd"
+            controller = project / "scripts/persistence/cafe_web_save.gd"
             code = controller.read_text()
             old = 'const STAGING_FILE="/tmp/little_leaf_vault_staging.json"'
             assert old in code, "Review native staging adaptation after source changes"
@@ -234,8 +256,21 @@ def main():
                 start = time.monotonic()
                 pacing = ["--fixed-fps", "60"] if args.unpaced_ui and name in UNPACED_UI else []
                 command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *pacing, *arguments]
-                completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT, timeout=300)
+                try:
+                    completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
+                                               stderr=subprocess.STDOUT, timeout=300)
+                except subprocess.TimeoutExpired as error:
+                    captured = error.stdout or b""
+                    text = captured.decode("utf-8", errors="replace") if isinstance(captured, bytes) else str(captured)
+                    (output / (name + ".log")).write_text(text, encoding="utf-8")
+                    record = {"test": name, "exit_code": None, "seconds": round(time.monotonic() - start, 2),
+                              "checks": 0, "failures": ["engine timeout after 300 seconds"],
+                              "diagnostics": [line for line in text.splitlines() if "WARNING" in line or "ERROR" in line],
+                              "log": name + ".log", "timed_out": True}
+                    report["records"].append(record)
+                    save()
+                    print(json.dumps(record), flush=True)
+                    raise
                 text = completed.stdout.decode("utf-8", errors="replace")
                 (output / (name + ".log")).write_text(text)
                 payloads = []
@@ -303,7 +338,7 @@ def main():
                         flags = ["--skip-intro"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
-                    run(script, ["--script", "res://tests/" + script + ".gd", "--", *flags], env, marker)
+                    run(script, ["--script", resources[script], "--", *flags], env, marker)
                     # Retain the autosave/Welcome wrappers' ordinary-save tripwire.
                     if script in {
                         "test_autosave_feedback", "test_autosave_feedback_adversarial", "test_autosave_feedback_ui",
@@ -332,7 +367,7 @@ def main():
                     flags = ["--visual-qa", "--skip-intro", "--skip-tutorial"]
                     if case == "fresh":
                         flags.append("--fresh-review")
-                    run("staff-start-" + case, ["--script", "res://tests/test_staff_start.gd", "--", *flags],
+                    run("staff-start-" + case, ["--script", resources["staff-start"], "--", *flags],
                         env, "STAFF_START_RESULT")
                 report["status"] = "passed"
             except BaseException:

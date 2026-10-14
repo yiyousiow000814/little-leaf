@@ -19,7 +19,7 @@ read failure or uncertain outcome remains a failure; the durable journal is
 retained. This path neither transfers ownership nor writes a save. Server rules,
 the ordinary60-second lease and explicit force-takeover behavior remain unchanged.
 
-`node tests/firebase_session.js` includes the36 bounded-ACK checks and existing
+`node tests/persistence/firebase_session.js` includes the36 bounded-ACK checks and existing
 session/request/update regressions. The actual SDK browser regression is a
 separate focused emulator check. From `platform/firebase`, with the pinned
 dependencies and Playwright available:

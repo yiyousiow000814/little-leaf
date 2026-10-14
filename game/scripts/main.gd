@@ -1,27 +1,27 @@
 extends Node3D
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
-const Illustration = preload("res://scripts/illustrated_cafe.gd")
-const Model = preload("res://scripts/cafe_model.gd")
+const Illustration = preload("res://scripts/rendering/illustrated_cafe.gd")
+const Model = preload("res://scripts/core/cafe_model.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
-const Interaction = preload("res://scripts/cafe_interaction.gd")
-const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
+const Interaction = preload("res://scripts/gameplay/cafe_interaction.gd")
+const CameraGestures = preload("res://scripts/rendering/cafe_camera_gestures.gd")
 var camera_gestures
-const WebLifecycle = preload("res://scripts/cafe_web_lifecycle.gd")
-const WebSave = preload("res://scripts/cafe_web_save.gd")
+const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
+const WebSave = preload("res://scripts/persistence/cafe_web_save.gd")
 var web_lifecycle
 var web_save
-const BuildTools = preload("res://scripts/cafe_build_tools.gd")
-const SettingsControls = preload("res://scripts/cafe_settings.gd")
-const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
-const FloorTasks = preload("res://scripts/cafe_floor_tasks.gd")
-const Dishwashing = preload("res://scripts/cafe_dishwashing.gd")
-const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
+const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
+const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
+const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
+const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
+const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const CompactUI = preload("res://scripts/ui/cafe_compact_ui.gd")
 var compact_ui
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
 const LEGACY_SAVE_FILE = "user://little_leaf_illustrated_r7.json"
@@ -116,7 +116,6 @@ var startup_preparation_report = {}
 var tutorial
 var illustration: Node2D
 var interaction
-var workface_guidance
 var settings_controls
 var responsive_view=Vector2(-1,-1)
 
@@ -134,7 +133,7 @@ func _ready():
 	build_tools=BuildTools.new(self)
 	_build_ui()
 	if OS.has_feature("crazygames"):
-		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
@@ -148,7 +147,6 @@ func _ready():
 	interaction=Interaction.new(self)
 	camera_gestures=CameraGestures.new(self)
 	web_lifecycle=WebLifecycle.new(self)
-	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
 	_update_ui()
@@ -157,12 +155,12 @@ func _ready():
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
-	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
+	cafe_intro=preload("res://scripts/ui/cafe_intro.gd").new()
 	cafe_intro.start(self)
-	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
+	tutorial=preload("res://scripts/ui/cafe_tutorial.gd").new()
 	tutorial.setup(self)
 	if DisplayServer.get_name() != "headless" and cafe_intro.active:
-		startup_readiness = preload("res://scripts/cafe_startup_readiness.gd").new()
+		startup_readiness = preload("res://scripts/core/cafe_startup_readiness.gd").new()
 		startup_readiness.start(self)
 	elif OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
@@ -330,7 +328,6 @@ func _build_ui():
 	expand_button=button("Next plot",_expand); tools.add_child(expand_button)
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
-	tools.add_child(button("Upgrade stove",_upgrade))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
 	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
@@ -438,11 +435,6 @@ func _staff_on_duty()->bool:
 	for staff in staff_states:
 		if staff.job_kind!="":return true
 	return false
-
-func _upgrade():
-	if save_recovery_blocked:return
-	if selected_id<0:return
-	if model.upgrade_stove(selected_id):_update_ui();_save()
 
 func _sell():
 	if save_recovery_blocked:return
@@ -668,7 +660,7 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			var playable=preload("res://scripts/platform/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
 			platform.viewportPlayable=not compact_ui.viewport_too_small
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
@@ -688,7 +680,7 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)
@@ -699,7 +691,7 @@ func _process(delta):
 	if not intro_active:save_timer+=delta
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+	if not intro_active and preload("res://scripts/persistence/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
@@ -891,7 +883,9 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 	if str(item.get("kind",""))=="table":return _table_service_destination(staff,item,from,claimed)
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
-	if str(item.get("kind",""))=="sink" and not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
+	if str(item.get("kind",""))=="sink":
+		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed)
+		if not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
 	return _service_cell(item,from,claimed,str(staff.role))
 
 func _update_floor_state(record:Dictionary):
@@ -1011,7 +1005,7 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 	staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
 	for item in model.items:
 		if item.kind==step.kind:staff.blocked_target_id=int(item.id);break
-	staff.blocked_reason="Add the included trash bin in Decorate" if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
+	staff.blocked_reason=("Add the included trash bin in Decorate" if model.included_bin_pending else "Buy a trash bin in Decorate") if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
 
 func _guest_waiting_for_meal(record:Dictionary)->bool:
 	var guest:Dictionary=record.get("guest",{})
@@ -1651,7 +1645,8 @@ func _animate_staff(delta: float):
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
-		var station_busy=worked_stations.has(int(target_item.id))
+		var station_key=Vector3i(int(target_item.id),destination.x,destination.y) if str(step.kind)=="sink" else int(target_item.id)
+		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():
 				if other_index==index: continue
@@ -1660,7 +1655,7 @@ func _animate_staff(delta: float):
 				if other_target.is_empty() or int(other_target.id)!=int(target_item.id): continue
 				if float(other.job_elapsed)>0.0 or (other_index<index and float(staff.job_elapsed)<=0.0): station_busy=true; break
 		if station_busy: continue
-		if str(step.kind)!="table": worked_stations[int(target_item.id)]=true
+		if str(step.kind)!="table": worked_stations[station_key]=true
 		if staff.job_kind=="take_payment":
 			var paying_guest=service_guests[int(staff.job_guest_id)].guest
 			if not model.begin_checkout_payment(int(paying_guest.id),int(paying_guest.checkout_ticket),int(target_item.id),int(staff.job_token)):continue

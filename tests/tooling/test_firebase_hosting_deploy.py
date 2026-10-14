@@ -1,17 +1,30 @@
 """Offline mocked Hosting protocol and credential-boundary checks; no deployment."""
+import copy
 import gzip
 import hashlib
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 from urllib.parse import parse_qs, urlsplit
-import deploy_firebase_hosting as hosting
+from release import deploy_firebase_hosting as hosting
+from build import build_itch_trusted_preview as producer
 
 SHA = 'a' * 40
 TREE = 'b' * 40
 OLD = hosting.SITE_PATH + '/versions/old'
 NEW = hosting.SITE_PATH + '/versions/new'
+
+PACKET_HEADERS = [
+    {'source': '/itch/', 'headers': [
+        {'key': 'Content-Security-Policy', 'value': hosting.FRAME_POLICY},
+        {'key': 'Cache-Control', 'value': 'no-cache'}]},
+    {'source': '/itch/index.html', 'headers': [
+        {'key': 'Content-Security-Policy', 'value': hosting.FRAME_POLICY}]},
+    {'source': '/itch/hosting-release.json', 'headers': [
+        {'key': 'Cache-Control', 'value': 'no-store'}]},
+]
 
 
 class FakeAPI:
@@ -25,10 +38,40 @@ class FakeAPI:
         self.config = {'headers': [{'glob': '/**', 'headers': {'Content-Security-Policy': "frame-ancestors 'none'"}}],
                        'rewrites': [{'glob': '/game/**', 'path': '/index.html'}], 'futureField': {'retained': True}}
         self.created_config = None
+        self.original_files = {path: hashlib.sha256(('old:' + path).encode()).hexdigest() for path in [
+            '/index.html', '/hosting-release.json', '/index.js', '/index.wasm', '/index.pck',
+            '/itch/index.html', '/itch/hosting-release.json', '/itch/runtime.wasm', '/retained.txt']}
+        self.inventory_reads = {}
+        self.paginated = False
 
     def request(self, method, path, data=None, upload=False):
         self.calls.append((method, path, data, upload))
         if method == 'GET':
+            if '/files?' in path:
+                version = path.split('/files?', 1)[0]
+                query = parse_qs(urlsplit(path).query)
+                assert query['status'] == ['ACTIVE'] and query['pageSize'] == ['1000']
+                page = query.get('pageToken', [''])[0]
+                if not page:
+                    self.inventory_reads[version] = self.inventory_reads.get(version, 0) + 1
+                values = dict(self.files if version == NEW else self.original_files)
+                if self.fail == 'inventory-missing': return {}
+                if self.fail == 'inventory-empty': return {'files': []}
+                if self.fail == 'baseline-files-before-finalize' and version == OLD and self.inventory_reads[OLD] >= 2:
+                    values['/retained.txt'] = 'f' * 64
+                if self.fail == 'baseline-files-before-release' and version == OLD and self.inventory_reads[OLD] >= 3:
+                    values['/retained.txt'] = 'f' * 64
+                if self.fail == 'candidate-files' and version == NEW:
+                    del values['/retained.txt']
+                rows = [{'path': name, 'hash': value, 'status': 'ACTIVE'} for name, value in sorted(values.items())]
+                if self.fail == 'inventory-invalid': rows[0]['hash'] = 'invalid'
+                if self.fail == 'inventory-duplicate': rows.append(dict(rows[0]))
+                if self.fail == 'candidate-mode' and version == NEW: rows[0]['status'] = 'DELETED'
+                if self.paginated:
+                    if not page: return {'files': rows[:2], 'nextPageToken': 'second'}
+                    assert page == 'second'
+                    return {'files': rows[2:]}
+                return {'files': rows}
             if '/versions/' in path:
                 return {'name': path, 'status': 'FINALIZED',
                         'config': self.created_config if path == NEW else self.config}
@@ -40,7 +83,8 @@ class FakeAPI:
         if ':populateFiles' in path:
             self.files = data['files']
             return {'uploadUrl': 'https://evil.invalid/upload' if self.fail == 'upload-url' else 'https://upload-firebasehosting.googleapis.com/upload/' + NEW + '/files',
-                    'uploadRequiredHashes': list(set(self.files.values()))}
+                    'uploadRequiredHashes': list(set(self.files.values()) - set(self.original_files.values())) +
+                    ([self.original_files['/retained.txt']] if self.fail == 'retained-upload' else [])}
         if upload:
             if self.fail == 'upload': raise RuntimeError('simulated upload uncertainty')
             assert hashlib.sha256(data).hexdigest() == path.rsplit('/', 1)[1]
@@ -248,6 +292,198 @@ class HostingTests(unittest.TestCase):
             api.request = request
             with self.subTest(target=target), self.assertRaises(RuntimeError): self.deploy(api)
             self.assertEqual(api.releases, 0)
+
+    def test_root_preserves_complete_paginated_baseline_and_existing_itch(self):
+        api = FakeAPI();api.paginated = True
+        receipt = self.deploy(api)
+        root_paths = {'/' + path.relative_to(self.package / 'public').as_posix()
+                      for path in (self.package / 'public').rglob('*') if path.is_file()}
+        self.assertEqual(set(api.files), set(api.original_files) | root_paths)
+        for path, value in api.original_files.items():
+            if path not in root_paths:
+                self.assertEqual(api.files[path], value)
+        self.assertEqual(receipt['previous_files_sha256'], hosting.record_digest(api.original_files))
+        self.assertEqual(receipt['candidate_files_sha256'], hosting.record_digest(api.files))
+        self.assertEqual(receipt['previous_file_count'], len(api.original_files))
+        self.assertEqual(receipt['candidate_file_count'], len(api.files))
+        self.assertEqual(receipt['preserved_hosting_config_sha256'], hosting.record_digest(api.config))
+        self.assertEqual(receipt['candidate_hosting_config_sha256'], hosting.record_digest(api.created_config))
+        self.assertEqual(api.inventory_reads[OLD], 3)
+        self.assertTrue(any('pageToken=second' in path for _, path, *_ in api.calls))
+        uploaded = {path.rsplit('/', 1)[1] for _, path, _, upload in api.calls if upload}
+        self.assertTrue(uploaded.isdisjoint(api.original_files.values()))
+
+    def common_deploy(self, api, additions=None):
+        manifest = {'status': hosting.COMMON_LIVE_STATUS,
+                    'hosting_header_additions': copy.deepcopy(PACKET_HEADERS if additions is None else additions)}
+        baseline = {'source_commit': 'd' * 40}
+        with mock.patch.object(hosting, 'verify_live_package', return_value=(manifest, self.marker)), \
+                mock.patch('release.common_firebase.current_marker', return_value=baseline):
+            return hosting.deploy(self.package, SHA, self.hash, self.output, api, lambda _: True,
+                                  staging_origin={'live_baseline': baseline})
+
+    def test_common_root_overlays_qualified_itch_and_exact_reviewed_headers(self):
+        api = FakeAPI();api.paginated = True
+        original_config = copy.deepcopy(api.config)
+        (self.package / 'public/itch').mkdir()
+        payload = b'new qualified same-page entry'
+        (self.package / 'public/itch/index.html').write_bytes(payload)
+        receipt = self.common_deploy(api)
+        self.assertEqual(api.files['/itch/index.html'], hashlib.sha256(gzip.compress(payload, mtime=0)).hexdigest())
+        self.assertEqual(api.files['/itch/runtime.wasm'], api.original_files['/itch/runtime.wasm'])
+        self.assertEqual(api.files['/retained.txt'], api.original_files['/retained.txt'])
+        self.assertEqual(api.created_config, {**original_config,
+            'headers': original_config['headers'] + hosting.ITCH_HEADERS})
+        self.assertEqual(api.config, original_config)
+        self.assertEqual(receipt['approved_hosting_header_additions'], hosting.ITCH_HEADERS)
+        self.assertEqual(receipt['preserved_hosting_config_sha256'], hosting.record_digest(original_config))
+        self.assertEqual(receipt['candidate_hosting_config_sha256'], hosting.record_digest(api.created_config))
+        self.assertNotIn('preserved_hosting_config', json.loads(self.output.read_text()))
+        self.assertEqual(api.releases, 1)
+
+    def test_common_header_merge_preserves_unmanaged_fields_without_duplicates(self):
+        api = FakeAPI()
+        retained_row = {'glob': '/itch/', 'headers': {'X-Retained': 'yes', 'Cache-Control': 'old'},
+                        'futureField': {'keep': True}}
+        api.config['headers'].append(copy.deepcopy(retained_row))
+        self.common_deploy(api)
+        rows = [row for row in api.created_config['headers'] if row.get('glob') == '/itch/']
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0], {**retained_row,
+            'headers': {**retained_row['headers'], **hosting.ITCH_HEADERS[0]['headers']}})
+        self.assertEqual(api.created_config['rewrites'], api.config['rewrites'])
+        self.assertEqual(api.created_config['futureField'], api.config['futureField'])
+
+    def test_common_unreviewed_headers_stop_before_hosting_api(self):
+        cases = [[], PACKET_HEADERS + [{'source': '/**', 'headers': [{'key': 'X-Frame-Options', 'value': 'DENY'}]}]]
+        changed = copy.deepcopy(PACKET_HEADERS)
+        changed[0]['headers'][0]['value'] = 'frame-ancestors *'
+        cases.append(changed)
+        for additions in cases:
+            api = FakeAPI()
+            with self.subTest(additions=additions), self.assertRaises(ValueError):
+                self.common_deploy(api, additions)
+            self.assertEqual(api.calls, [])
+            self.assertFalse(self.output.exists())
+
+    def test_common_packet_header_projection_is_strict_before_any_network(self):
+        cases = [None, {}, copy.deepcopy(hosting.ITCH_HEADERS)]
+        duplicate_key = copy.deepcopy(PACKET_HEADERS)
+        duplicate_key[0]['headers'].append(copy.deepcopy(duplicate_key[0]['headers'][0]))
+        duplicate_source = copy.deepcopy(PACKET_HEADERS)
+        duplicate_source[1] = copy.deepcopy(duplicate_source[0])
+        extra_row_field = copy.deepcopy(PACKET_HEADERS)
+        extra_row_field[0]['glob'] = '/itch/'
+        extra_value_field = copy.deepcopy(PACKET_HEADERS)
+        extra_value_field[0]['headers'][0]['extra'] = True
+        non_string = copy.deepcopy(PACKET_HEADERS)
+        non_string[0]['headers'][0]['value'] = ['frame-ancestors *']
+        non_list = copy.deepcopy(PACKET_HEADERS)
+        non_list[0]['headers'] = {'Content-Security-Policy': hosting.FRAME_POLICY}
+        empty = copy.deepcopy(PACKET_HEADERS)
+        empty[0]['headers'] = []
+        cases.extend([duplicate_key, duplicate_source, extra_row_field, extra_value_field,
+                      non_string, non_list, empty])
+        for additions in cases:
+            api = FakeAPI()
+            manifest = {'status': hosting.COMMON_LIVE_STATUS, 'hosting_header_additions': additions}
+            with self.subTest(additions=additions), \
+                    mock.patch.object(hosting, 'verify_live_package', return_value=(manifest, self.marker)), \
+                    self.assertRaises(ValueError):
+                hosting.deploy(self.package, SHA, self.hash, self.output, api, lambda _: True)
+            self.assertEqual(api.calls, [])
+            self.assertFalse(self.output.exists())
+
+    def test_common_accepts_actual_prepare_stable_header_output(self):
+        build = self.root / 'producer-build'
+        web = build / 'web';web.mkdir(parents=True)
+        shell = (producer.ROOT / 'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL', 'index.js')
+        (web / 'index.html').write_text(shell)
+        for name in ['index.js', 'index.wasm', 'index.pck']:
+            (web / name).write_bytes(b'synthetic engine fixture')
+        base = {'source_commit': SHA, 'source_tree': TREE, 'workflow_run': '1', 'version': 'synthetic',
+                'packed_smoke': 'passed', 'engine_checks': 1, 'test_processes': 1,
+                'production_sha256': {'project.godot': hosting.digest(producer.ROOT / 'game/project.godot')},
+                'files': {p.name: {'sha256': hosting.digest(p), 'bytes': p.stat().st_size} for p in web.iterdir()}}
+        (web / 'release-manifest.json').write_text(json.dumps(base))
+        public_config = json.loads((producer.ROOT / 'platform/firebase/public-config.json').read_text())
+        self.package = self.root / 'producer-output'
+        manifest = producer.prepare_stable(build, self.package, public_config, SHA, TREE)
+        proposed = copy.deepcopy(manifest['hosting_header_additions'])
+        self.assertEqual(proposed, PACKET_HEADERS)
+        self.assertFalse(manifest['production_release_eligible'])
+        api = FakeAPI();api.paginated = True
+        receipt = self.common_deploy(api, manifest['hosting_header_additions'])
+        self.assertEqual(api.created_config['headers'], api.config['headers'] + hosting.ITCH_HEADERS)
+        self.assertEqual(receipt['approved_hosting_header_additions'], hosting.ITCH_HEADERS)
+        self.assertEqual(manifest['hosting_header_additions'], proposed)
+        for path, value in api.original_files.items():
+            if not (self.package / 'public' / path.lstrip('/')).is_file():
+                self.assertEqual(api.files[path], value)
+        self.assertEqual(api.releases, 1)
+
+    def test_ambiguous_managed_header_rows_stop_before_version_creation(self):
+        api = FakeAPI()
+        api.config['headers'] += [copy.deepcopy(hosting.ITCH_HEADERS[0]), copy.deepcopy(hosting.ITCH_HEADERS[0])]
+        with self.assertRaises(ValueError):
+            self.common_deploy(api)
+        self.assertFalse(any(method == 'POST' for method, *_ in api.calls))
+
+    def test_missing_invalid_or_duplicate_inventory_stops_before_mutation(self):
+        for failure in ['inventory-missing', 'inventory-empty', 'inventory-invalid', 'inventory-duplicate']:
+            api = FakeAPI(failure)
+            with self.subTest(failure=failure), self.assertRaises(ValueError):
+                self.deploy(api)
+            self.assertFalse(any(method == 'POST' for method, *_ in api.calls))
+
+    def test_baseline_inventory_drift_stops_before_finalize(self):
+        api = FakeAPI('baseline-files-before-finalize')
+        with self.assertRaises(RuntimeError):
+            self.deploy(api)
+        self.assertFalse(any(method == 'PATCH' for method, *_ in api.calls))
+        self.assertEqual(api.releases, 0)
+        self.assertEqual(api.head, OLD)
+
+    def test_baseline_inventory_drift_after_finalize_stops_before_release(self):
+        api = FakeAPI('baseline-files-before-release')
+        with self.assertRaises(RuntimeError):
+            self.deploy(api)
+        self.assertTrue(api.finalized)
+        self.assertEqual(api.releases, 0)
+        self.assertEqual(api.head, OLD)
+
+    def test_candidate_inventory_or_mode_mismatch_stops_before_release(self):
+        for failure in ['candidate-files', 'candidate-mode']:
+            api = FakeAPI(failure)
+            with self.subTest(failure=failure), self.assertRaises((ValueError, RuntimeError)):
+                self.deploy(api)
+            self.assertTrue(api.finalized)
+            self.assertEqual(api.releases, 0)
+
+    def test_configuration_drift_stops_before_finalize(self):
+        api = FakeAPI();original = api.request;reads = 0
+        def request(method, path, data=None, upload=False):
+            nonlocal reads
+            result = original(method, path, data, upload)
+            if method == 'GET' and path == OLD:
+                reads += 1
+                if reads >= 2:
+                    result = copy.deepcopy(result)
+                    result['config']['futureField']['retained'] = 1
+            return result
+        api.request = request
+        with self.assertRaises(RuntimeError):
+            self.deploy(api)
+        self.assertFalse(any(method == 'PATCH' for method, *_ in api.calls))
+        self.assertEqual(api.releases, 0)
+
+    def test_retained_hash_upload_request_stops_without_fetch_or_release(self):
+        api = FakeAPI('retained-upload')
+        with self.assertRaises(ValueError):
+            self.deploy(api)
+        self.assertFalse(any(upload for _, _, _, upload in api.calls))
+        self.assertFalse(any(method == 'PATCH' for method, *_ in api.calls))
+        self.assertEqual(api.releases, 0)
 
     def test_transport_refuses_arbitrary_credential_destinations(self):
         api = hosting.Transport('synthetic-token-not-a-credential')

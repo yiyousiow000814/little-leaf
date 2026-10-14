@@ -7,14 +7,14 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-import install_tools
-from build_web import copy_notices, verify_installer_receipt
-import publish_itch as publisher
+from ci import install_tools
+from build.build_web import copy_notices, verify_installer_receipt
+from release import publish_itch as publisher
 import subprocess
 from types import SimpleNamespace
-from publish_itch import check_previous, completed, parse_result, verify_artifact
-from release_metadata import version, require_main_ancestor, release_key
-from project_layout import game_root
+from release.publish_itch import check_previous, completed, parse_result, verify_artifact
+from release.release_metadata import version, require_main_ancestor, release_key
+from build.project_layout import game_root
 
 SHA = "a" * 40
 
@@ -485,9 +485,58 @@ class ArtifactTests(unittest.TestCase):
         self.assertFalse((self.web / "butler").exists())
 
 
+class NativeToolInstallationTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.folder = Path(self.temp.name)
+        self.env = self.folder / 'github-env'
+        self.path = self.folder / 'github-path'
+    def install(self, *args):
+        def synthetic(name, destination):
+            destination.write_bytes(b'synthetic never-executed tool')
+            return {'url': install_tools.LOCK[name]['url'],
+                    'archive_sha256': install_tools.LOCK[name]['sha256'],
+                    'member': install_tools.LOCK[name]['member'],
+                    'member_sha256': hashlib.sha256(destination.read_bytes()).hexdigest()}
+        with patch.dict(install_tools.os.environ, {'GITHUB_ENV': str(self.env), 'GITHUB_PATH': str(self.path)}, clear=True), \
+             patch('sys.argv', ['install', *args, '--output', str(self.folder)]), \
+             patch.object(install_tools, 'install', side_effect=synthetic) as command:
+            install_tools.main()
+        return [call.args[0] for call in command.call_args_list]
+    def test_export_default_still_installs_and_binds_template(self):
+        self.assertEqual(self.install('godot'), ['godot', 'templates'])
+        receipt = self.folder / 'godot-toolchain-receipt.json'
+        verified = verify_installer_receipt(self.folder / 'godot', self.folder / 'web_nothreads_release.zip', receipt)
+        self.assertEqual(set(verified), {'godot', 'templates'})
+        self.assertIn('GODOT_TEMPLATE=', self.env.read_text())
+        self.assertIn('GODOT_TOOLCHAIN_RECEIPT=', self.env.read_text())
+    def test_native_only_does_not_download_or_claim_export_template(self):
+        self.assertEqual(self.install('godot', '--native-only'), ['godot'])
+        receipt = self.folder / 'godot-toolchain-receipt.json'
+        self.assertEqual(set(json.loads(receipt.read_text())), {'godot'})
+        self.assertNotIn('GODOT_TEMPLATE=', self.env.read_text())
+        self.assertFalse((self.folder / 'web_nothreads_release.zip').exists())
+        self.assertIn(str(self.folder), self.path.read_text())
+        with self.assertRaises((RuntimeError, KeyError, FileNotFoundError)):
+            verify_installer_receipt(self.folder / 'godot', self.folder / 'web_nothreads_release.zip', receipt)
+    def test_native_flag_cannot_change_butler_installation(self):
+        with patch('sys.argv', ['install', 'butler', '--native-only', '--output', str(self.folder)]), \
+             patch.object(install_tools, 'install') as command:
+            with self.assertRaises(SystemExit) as error: install_tools.main()
+        self.assertEqual(error.exception.code, 2)
+        command.assert_not_called()
+    def test_only_native_engine_job_uses_native_only(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/build-web.yml').read_text()
+        engine = workflow.split('  engine:\n', 1)[1].split('  historical:\n', 1)[0]
+        self.assertEqual(engine.count('--native-only'), 1)
+        self.assertEqual(workflow.count('--native-only'), 1)
+        self.assertIn('shard: [0, 1, 2, 3, 4]', engine)
+        self.assertIn('engine_shards.py run', engine)
+
 class ItchDiagnosticTests(unittest.TestCase):
     def setUp(self):
-        import diagnose_itch_status as diagnostic
+        from diagnostics import diagnose_itch_status as diagnostic
         self.d = diagnostic
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

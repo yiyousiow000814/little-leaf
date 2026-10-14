@@ -1,0 +1,4858 @@
+{
+  "title": "Corner Cafe - Reference Rearrangement - Seamless Loop",
+  "status": "APPROVED_PARENT_MIX; LOOP_ENDING_REVISION_AWAITING_USER_REVIEW",
+  "bpm": 112,
+  "meter": "4/4",
+  "bars": 24,
+  "duration_beats": 96,
+  "key": "C major",
+  "base": "Harmony Study B; A and B both remain positive short references",
+  "preserved": "All events/harmony in bars 1-23; BPM; instrumentation; original mix gains",
+  "not_used_as_base": [
+    "Full Corner Cafe V2",
+    "Daybreak Steps 104/112"
+  ],
+  "reference_use": "Uploaded RC Default: broad instrument roles, repeating light groove and leave-space principle only; no transcription or sample",
+  "source_b_json_sha256": "ec1ef479d1de0b21e1dc603d60f283b890c860e200cad1058ccacb2025223d24",
+  "sections": [
+    {
+      "bar": 1,
+      "label": "A - preserved study phrase"
+    },
+    {
+      "bar": 9,
+      "label": "B - lower answer"
+    },
+    {
+      "bar": 17,
+      "label": "A return - open turnaround back to A"
+    }
+  ],
+  "harmony": [
+    [
+      [
+        0,
+        "C6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Cmaj7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "F6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Fmaj7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ]
+    ],
+    [
+      [
+        0,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Em7"
+      ],
+      [
+        2,
+        "Am7"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ],
+    [
+      [
+        0,
+        "C6"
+      ],
+      [
+        2,
+        "F6"
+      ]
+    ],
+    [
+      [
+        0,
+        "Dm7"
+      ],
+      [
+        2,
+        "G7"
+      ]
+    ]
+  ],
+  "notes": [
+    {
+      "part": "bass",
+      "beat": 0,
+      "pitch": 48,
+      "duration": 1.3,
+      "velocity": 78,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 0,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 0.0,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 0.0,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 0.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 0.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 56,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 0.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 1,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 1,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 1.5,
+      "pitch": 52,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 1.5,
+      "pitch": 55,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 1.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 1.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 47,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 1.5,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 11,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 2,
+      "pitch": 43,
+      "duration": 1.0,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 2,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 2.5,
+      "pitch": 52,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 2.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 2.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 2.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 53,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 2.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 3,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 3,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 3.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 57,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 3.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 4,
+      "pitch": 45,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 4,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 4,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 4.5,
+      "pitch": 52,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 4.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 4.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 4.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 4.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 5,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 5,
+      "pitch": 79,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 6,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 66,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 6,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 6,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 6,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 6,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 6,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 6,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 78,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 7,
+      "pitch": 47,
+      "duration": 0.4,
+      "velocity": 54,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 7,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 7.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 58,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "bass",
+      "beat": 8,
+      "pitch": 50,
+      "duration": 1.3,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 8,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 8.0,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 8.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 8.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 8.0,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 56,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 8.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 9,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 9,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 9.5,
+      "pitch": 53,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 9.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 9.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 9.5,
+      "pitch": 62,
+      "duration": 0.48,
+      "velocity": 47,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "bass",
+      "beat": 10,
+      "pitch": 45,
+      "duration": 1.0,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 10,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 10,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 10.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 10.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 10.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 10.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 53,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 10.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 11,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 11,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 11.5,
+      "pitch": 41,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 11.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 12,
+      "pitch": 43,
+      "duration": 1.4,
+      "velocity": 75,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 12,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 12,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 12.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 12.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 12.5,
+      "pitch": 59,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 12.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 13,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 13.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 14,
+      "pitch": 50,
+      "duration": 1.0,
+      "velocity": 66,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 14,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 14,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 14,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 14,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 14,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 14,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "drums",
+      "beat": 15,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 15.5,
+      "pitch": 50,
+      "duration": 0.38,
+      "velocity": 56,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 15.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 16,
+      "pitch": 52,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 16,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 16.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 16.5,
+      "pitch": 59,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 16.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 16.5,
+      "pitch": 64,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 16.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 17,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 17,
+      "pitch": 83,
+      "duration": 1,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 18,
+      "pitch": 45,
+      "duration": 1.05,
+      "velocity": 70,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 18,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 18,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 18,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 18,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 18,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 18,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "rhodes",
+      "beat": 18.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 19,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 19,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 19.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 19.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 20,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 20,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 20,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 20.5,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 20.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 20.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 20.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 20.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 21,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 21,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 22,
+      "pitch": 43,
+      "duration": 1.05,
+      "velocity": 70,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 22,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 22,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 22,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 22,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 22,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 22.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 23,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 23,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 23.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 23.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 24,
+      "pitch": 48,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 24,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 24,
+      "pitch": 79,
+      "duration": 1.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 24.5,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 24.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 24.5,
+      "pitch": 59,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 24.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 25,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 25.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 26,
+      "pitch": 45,
+      "duration": 1.05,
+      "velocity": 70,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 26,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 26,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 26,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 26,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 26,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 26,
+      "pitch": 72,
+      "duration": 1.0,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "drums",
+      "beat": 27,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 27.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "bass",
+      "beat": 28,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 28,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 28.5,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 28.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 28.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 28.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 28.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 29,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 29,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "rhodes",
+      "beat": 29.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 80,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 30,
+      "pitch": 43,
+      "duration": 1.0,
+      "velocity": 69,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 30,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 30,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 30,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 30,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 30,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 30.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 31,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 31,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 31.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 57,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 31.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 32,
+      "pitch": 41,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 32,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 32.0,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 32.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 32.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 32.0,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 32.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 70,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 33,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 33,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "guitar",
+      "beat": 33.5,
+      "pitch": 53,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 33.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 33.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 33.5,
+      "pitch": 62,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 33.5,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 75,
+      "delay_ms": 11,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 34,
+      "pitch": 48,
+      "duration": 1.0,
+      "velocity": 65,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 34,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 34.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 34.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 34.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 34.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 34.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 35,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 35,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 36,
+      "pitch": 52,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 36,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 36,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "guitar",
+      "beat": 36.5,
+      "pitch": 52,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 36.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 36.5,
+      "pitch": 59,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 36.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 37,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 37.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 38,
+      "pitch": 47,
+      "duration": 1.0,
+      "velocity": 65,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 38,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 38,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 38,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 38,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 38,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 38,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "drums",
+      "beat": 39,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 39,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 39.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 39.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 40,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 40,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 40.0,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 40.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 40.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 40.0,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 40.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 70,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 41,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 41,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "guitar",
+      "beat": 41.5,
+      "pitch": 53,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 41.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 41.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 41.5,
+      "pitch": 62,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 41.5,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 75,
+      "delay_ms": 11,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 42,
+      "pitch": 45,
+      "duration": 1.0,
+      "velocity": 65,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 42,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 42.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 42.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 42.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 42.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 42.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 43,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 43,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 43.5,
+      "pitch": 41,
+      "duration": 0.38,
+      "velocity": 54,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 43.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 44,
+      "pitch": 43,
+      "duration": 1.4,
+      "velocity": 73,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 44,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 44,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "guitar",
+      "beat": 44.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 44.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 44.5,
+      "pitch": 59,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 44.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 45,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 45.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 46,
+      "pitch": 50,
+      "duration": 1.1,
+      "velocity": 64,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 46,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 46,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 46,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 46,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 46,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 46,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "rhodes",
+      "beat": 46.5,
+      "pitch": 67,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 47,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 47,
+      "pitch": 59,
+      "duration": 0.5,
+      "velocity": 48,
+      "delay_ms": 12,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 47.5,
+      "pitch": 62,
+      "duration": 0.5,
+      "velocity": 47,
+      "delay_ms": 14,
+      "gate": 0.9
+    },
+    {
+      "part": "bass",
+      "beat": 48,
+      "pitch": 41,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 48,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 48.0,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 48.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 48.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 48.0,
+      "pitch": 64,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 48,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "rhodes",
+      "beat": 48.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 49,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 49,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "guitar",
+      "beat": 49.5,
+      "pitch": 53,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 49.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 49.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 43,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 49.5,
+      "pitch": 64,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "bass",
+      "beat": 50,
+      "pitch": 48,
+      "duration": 1.0,
+      "velocity": 65,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 50,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 50.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 50.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 50.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 50.5,
+      "pitch": 64,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 50.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 51,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 51,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 51.5,
+      "pitch": 50,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 51.5,
+      "pitch": 69,
+      "duration": 0.5,
+      "velocity": 69,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 52,
+      "pitch": 52,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 52,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 52.5,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 52.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 52.5,
+      "pitch": 59,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 52.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 52.5,
+      "pitch": 67,
+      "duration": 0.5,
+      "velocity": 70,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 53,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 53,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "bass",
+      "beat": 54,
+      "pitch": 45,
+      "duration": 1.05,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 54,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 54,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 54,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 54,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 54,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 54,
+      "pitch": 72,
+      "duration": 1,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "drums",
+      "beat": 55,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "bass",
+      "beat": 55.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 55.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 56,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 56,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 56,
+      "pitch": 77,
+      "duration": 1,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "guitar",
+      "beat": 56.5,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 56.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 56.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 56.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 57,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 57,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "rhodes",
+      "beat": 57.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 58,
+      "pitch": 43,
+      "duration": 1.05,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 58,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 58,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 58,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 58,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 58,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 58.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "drums",
+      "beat": 59,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 59,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 59.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "guitar",
+      "beat": 59.5,
+      "pitch": 62,
+      "duration": 0.5,
+      "velocity": 46,
+      "delay_ms": 12,
+      "gate": 0.9
+    },
+    {
+      "part": "bass",
+      "beat": 60,
+      "pitch": 48,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 60,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 60,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "guitar",
+      "beat": 60.5,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 60.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 60.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 60.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 61,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 61,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.85
+    },
+    {
+      "part": "rhodes",
+      "beat": 61.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 62,
+      "pitch": 43,
+      "duration": 1.05,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 62,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 62,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 62,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 62,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 62,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 62,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.94
+    },
+    {
+      "part": "drums",
+      "beat": 63,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "bass",
+      "beat": 63.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 63.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 71,
+      "delay_ms": 11,
+      "gate": 0.85
+    },
+    {
+      "part": "bass",
+      "beat": 64,
+      "pitch": 48,
+      "duration": 1.3,
+      "velocity": 78,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 64,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 64.0,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 64.0,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 64.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 64.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 56,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 64.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 65,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 65,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 65.5,
+      "pitch": 52,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 65.5,
+      "pitch": 55,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 65.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 65.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 47,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 65.5,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 11,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 66,
+      "pitch": 43,
+      "duration": 1.0,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 66,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 66.5,
+      "pitch": 52,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 66.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 66.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 66.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 53,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 66.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 67,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 67,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 67.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 57,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 67.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 68,
+      "pitch": 45,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 68,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 68,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 68.5,
+      "pitch": 52,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 68.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 68.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 68.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 68.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 69,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 69,
+      "pitch": 79,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 70,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 66,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 70,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 70,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 70,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 70,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 70,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 70,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 78,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 71,
+      "pitch": 47,
+      "duration": 0.4,
+      "velocity": 54,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 71,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 71.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 58,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "bass",
+      "beat": 72,
+      "pitch": 50,
+      "duration": 1.3,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 72,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 72.0,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 72.0,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 72.0,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 54,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 72.0,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 56,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 72.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 73,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 73,
+      "pitch": 81,
+      "duration": 1,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 73.5,
+      "pitch": 53,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 73.5,
+      "pitch": 57,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 73.5,
+      "pitch": 60,
+      "duration": 0.48,
+      "velocity": 45,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 73.5,
+      "pitch": 62,
+      "duration": 0.48,
+      "velocity": 47,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "bass",
+      "beat": 74,
+      "pitch": 45,
+      "duration": 1.0,
+      "velocity": 68,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 74,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 74,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 74.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 74.5,
+      "pitch": 57,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 74.5,
+      "pitch": 60,
+      "duration": 0.72,
+      "velocity": 51,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 74.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 53,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 74.5,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 75,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 75,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 75.5,
+      "pitch": 41,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 75.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 76,
+      "pitch": 43,
+      "duration": 1.4,
+      "velocity": 75,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 76,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 76,
+      "pitch": 71,
+      "duration": 1,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 76.5,
+      "pitch": 53,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 76.5,
+      "pitch": 55,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 76.5,
+      "pitch": 59,
+      "duration": 0.72,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 76.5,
+      "pitch": 62,
+      "duration": 0.72,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 77,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 77.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 78,
+      "pitch": 50,
+      "duration": 1.0,
+      "velocity": 66,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 78,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 78,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 78,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 78,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 78,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 78,
+      "pitch": 76,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "drums",
+      "beat": 79,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "bass",
+      "beat": 79.5,
+      "pitch": 50,
+      "duration": 0.38,
+      "velocity": 56,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 79.5,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 80,
+      "pitch": 52,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 80,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 80.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 80.5,
+      "pitch": 59,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 80.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 80.5,
+      "pitch": 64,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 80.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 81,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 81,
+      "pitch": 83,
+      "duration": 1,
+      "velocity": 77,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 82,
+      "pitch": 45,
+      "duration": 1.05,
+      "velocity": 70,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 82,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 82,
+      "pitch": 52,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 82,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 82,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 82,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 82,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "rhodes",
+      "beat": 82.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 83,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 83,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 83.5,
+      "pitch": 48,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 83.5,
+      "pitch": 72,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 84,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 76,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 84,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 30,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 84,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "guitar",
+      "beat": 84.5,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 84.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 84.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 84.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 84.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 77,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 85,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 25,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 85,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 80,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 86,
+      "pitch": 43,
+      "duration": 1.05,
+      "velocity": 70,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 86,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 25,
+      "delay_ms": 0,
+      "gate": 1.0
+    },
+    {
+      "part": "guitar",
+      "beat": 86,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 86,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 86,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 53,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 86,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 55,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 86.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 78,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "drums",
+      "beat": 87,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 28,
+      "delay_ms": 10,
+      "gate": 1.0
+    },
+    {
+      "part": "rhodes",
+      "beat": 87,
+      "pitch": 74,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 87.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 87.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 73,
+      "delay_ms": 11,
+      "gate": 0.83
+    },
+    {
+      "part": "bass",
+      "beat": 88,
+      "pitch": 48,
+      "duration": 1.4,
+      "velocity": 75,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 88,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 88,
+      "pitch": 79,
+      "duration": 1.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.95
+    },
+    {
+      "part": "guitar",
+      "beat": 88.5,
+      "pitch": 52,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 88.5,
+      "pitch": 55,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 88.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 88.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "drums",
+      "beat": 89,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 89.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 74,
+      "delay_ms": 11,
+      "gate": 0.86
+    },
+    {
+      "part": "bass",
+      "beat": 90,
+      "pitch": 41,
+      "duration": 1.0,
+      "velocity": 67,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 90,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 90,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 90,
+      "pitch": 57,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 90,
+      "pitch": 60,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 90,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 90,
+      "pitch": 81,
+      "duration": 0.5,
+      "velocity": 74,
+      "delay_ms": 5,
+      "gate": 0.86
+    },
+    {
+      "part": "rhodes",
+      "beat": 90.5,
+      "pitch": 79,
+      "duration": 0.5,
+      "velocity": 72,
+      "delay_ms": 11,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 91,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 91,
+      "pitch": 77,
+      "duration": 0.75,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.95
+    },
+    {
+      "part": "bass",
+      "beat": 91.5,
+      "pitch": 40,
+      "duration": 0.38,
+      "velocity": 54,
+      "delay_ms": 2,
+      "gate": 0.86
+    },
+    {
+      "part": "bass",
+      "beat": 92,
+      "pitch": 50,
+      "duration": 1.4,
+      "velocity": 74,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 92,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 29,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 92,
+      "pitch": 77,
+      "duration": 0.5,
+      "velocity": 75,
+      "delay_ms": 5,
+      "gate": 0.86
+    },
+    {
+      "part": "guitar",
+      "beat": 92.5,
+      "pitch": 53,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 92.5,
+      "pitch": 57,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 92.5,
+      "pitch": 60,
+      "duration": 0.8,
+      "velocity": 48,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 92.5,
+      "pitch": 62,
+      "duration": 0.8,
+      "velocity": 50,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 92.5,
+      "pitch": 76,
+      "duration": 0.5,
+      "velocity": 74,
+      "delay_ms": 11,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 93,
+      "pitch": 38,
+      "duration": 0.22,
+      "velocity": 23,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 93,
+      "pitch": 74,
+      "duration": 1,
+      "velocity": 73,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 94,
+      "pitch": 43,
+      "duration": 1.05,
+      "velocity": 69,
+      "delay_ms": -4,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 94,
+      "pitch": 36,
+      "duration": 0.12,
+      "velocity": 24,
+      "delay_ms": 0,
+      "gate": 1
+    },
+    {
+      "part": "guitar",
+      "beat": 94,
+      "pitch": 53,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 7.0,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 94,
+      "pitch": 55,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 12.4,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 94,
+      "pitch": 59,
+      "duration": 0.9,
+      "velocity": 50,
+      "delay_ms": 17.8,
+      "gate": 0.9
+    },
+    {
+      "part": "guitar",
+      "beat": 94,
+      "pitch": 62,
+      "duration": 0.9,
+      "velocity": 52,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.9
+    },
+    {
+      "part": "rhodes",
+      "beat": 94.5,
+      "pitch": 71,
+      "duration": 0.5,
+      "velocity": 72,
+      "delay_ms": 11,
+      "gate": 0.86
+    },
+    {
+      "part": "drums",
+      "beat": 95,
+      "pitch": 37,
+      "duration": 0.11,
+      "velocity": 27,
+      "delay_ms": 10,
+      "gate": 1
+    },
+    {
+      "part": "rhodes",
+      "beat": 95,
+      "pitch": 74,
+      "duration": 0.75,
+      "velocity": 70,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 95.5,
+      "pitch": 47,
+      "duration": 0.38,
+      "velocity": 55,
+      "delay_ms": 2,
+      "gate": 0.86
+    }
+  ],
+  "loop_render": {
+    "start_sample": 0,
+    "end_sample_exclusive": 2268000,
+    "sample_rate": 44100,
+    "period_seconds": 51.42857142857143,
+    "baked_fades": false,
+    "method": "Fold release tails; periodic filter state; circular room convolution",
+    "first_note_rule": "Local performance uses original max(0, beat time + delay); identical each cycle."
+  }
+}

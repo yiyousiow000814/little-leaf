@@ -1,0 +1,72 @@
+{
+  "input_links": 9,
+  "unique_references": 8,
+  "duplicate_video_id": "arHKAzYK5s8",
+  "audio_accessed": false,
+  "items": [
+    {
+      "number": 1,
+      "video_id": "2pDTGpsxFoo",
+      "url": "https://www.youtube.com/watch?v=2pDTGpsxFoo",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 2,
+      "video_id": "veaCkVCyYhw",
+      "url": "https://www.youtube.com/watch?v=veaCkVCyYhw",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 3,
+      "video_id": "g9uEBUq1424",
+      "url": "https://www.youtube.com/watch?v=g9uEBUq1424",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 4,
+      "video_id": "V68NPFEMZSI",
+      "url": "https://www.youtube.com/watch?v=V68NPFEMZSI",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 5,
+      "video_id": "arHKAzYK5s8",
+      "url": "https://www.youtube.com/watch?v=arHKAzYK5s8",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 6,
+      "video_id": "IXdtPqZKp34",
+      "url": "https://www.youtube.com/watch?v=IXdtPqZKp34",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 7,
+      "video_id": "uJLAmNS4xO4",
+      "url": "https://www.youtube.com/watch?v=uJLAmNS4xO4",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    },
+    {
+      "number": 8,
+      "video_id": "qWeZUD6fjpI",
+      "url": "https://www.youtube.com/watch?v=qWeZUD6fjpI",
+      "title": null,
+      "music_analysis": "pending actual audio access",
+      "transcription_created": false
+    }
+  ]
+}
