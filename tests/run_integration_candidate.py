@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 SUITES = [
+    ("test_manual_ground_cleanup", "MANUAL_GROUND_CLEANUP_RESULT"),
+    ("test_character_pick_geometry", "CHARACTER_PICK_GEOMETRY_RESULT"),
     ("test_feedback_sfx", "FEEDBACK_SFX_RESULT"),
     ("test_starter_bin", "STARTER_BIN_RESULT"),
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
