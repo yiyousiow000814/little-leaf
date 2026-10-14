@@ -26,8 +26,11 @@ save errors in its long disposable Windows profile. The separate corrected
 qualification passed 19 feedback and 12 ordinary native GL checks with no engine
 diagnostics, observed mixer retirement and eight valid cache files in a short
 isolated profile. It recorded no media and retains the original failed evidence.
-Four other existing CI fixtures now have the same bounded test-only teardown
-repair; their source-bound checks and final current-main/canonical CI are pending.
+The four other shutdown fixtures passed 32 floor, 22 stove, 48 worker and 18 staff
+checks (120 total), with no engine diagnostics on exact current-main composition
+`86f26acf` (base `2290efe`). Their functional assertions remain intact; each
+teardown observed two mixer cycles within one second. Original canonical/source
+qualification and final exact-head CI/Architecture review remain pending.
 
 This focused evidence does not qualify whole-game performance or extended rapid
 feedback overlap. Cooking/eating and their near-zoom behavior are preserved for
