@@ -2,7 +2,7 @@
 const {sourcePath}=require('../tooling/source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, navigateFreshGame, observePageFailures} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, navigateFreshGame, observePageFailures, observeStartup, captureStartupState} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('../rendering/wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
@@ -401,6 +401,61 @@ async function checkStartupNavigation() {
   observed.emit('response', {url: () => url, status: () => 200});
   observed.emit('console', {text: () => 'ordinary startup output'});
   assert.equal(errors.length, 6, 'Successful requests and ordinary output are not errors');
+
+  let now = 1000;
+  const evidence = {}, stop = observeStartup(observed, url, evidence, () => now);
+  const request = {url: () => url + '?private=omitted', resourceType: () => 'document'};
+  observed.emit('request', request);
+  now += 5; observed.emit('response', {request: () => request, status: () => 200});
+  now += 10; observed.emit('requestfinished', request);
+  now += 5; observed.emit('domcontentloaded');
+  const external = {url: () => 'https://private.invalid/secret?token=omitted', resourceType: () => 'script'};
+  observed.emit('request', external);
+  now += 4; observed.emit('requestfailed', {...external, failure: () => ({errorText: 'blocked'})});
+  // Request identity, rather than URL, associates each transfer with its result.
+  observed.emit('requestfailed', Object.assign(external, {failure: () => ({errorText: 'blocked'})}));
+  assert.deepEqual(evidence.requests, [
+    {path: '/index.html', type: 'document', request_ms: 0, status: 200, response_ms: 5, finished_ms: 15},
+    {path: '<external>', type: 'script', request_ms: 20, failed_ms: 24},
+  ]);
+  assert.equal(evidence.dom_content_loaded_ms, 20);
+  now += 1; observed.emit('load'); assert.equal(evidence.load_ms, 25);
+  for (let i = 0; i < 30; i++) observed.emit('request', request);
+  assert.equal(evidence.requests.length, 24, 'Diagnostic memory is bounded');
+  assert.equal(evidence.omitted_requests, 8);
+  const errorListeners = observed.listenerCount('requestfailed');
+  stop(); assert.equal(evidence.observation_stopped_ms, 25);
+  assert.equal(observed.listenerCount('request'), 0);
+  assert.equal(observed.listenerCount('requestfailed'), errorListeners - 1, 'Fatal failure observer remains installed');
+  now++; observed.emit('domcontentloaded'); assert.equal(evidence.dom_content_loaded_ms, 20, 'Startup observer releases all listeners');
+  assert(!JSON.stringify(evidence).includes('private') && !JSON.stringify(evidence).includes('secret'));
+
+  const saved = {document: global.document, window: global.window, performance: global.performance};
+  try {
+    global.document = {readyState: 'loading', getElementById: () => ({dataset: {mode: 'progress'}})};
+    global.window = {Engine() {}, __littleLeafVault: {bootJson: 'private save contents'}};
+    global.performance = {getEntriesByType: kind => {assert.equal(kind, 'navigation');
+      return [{responseStart: 3, responseEnd: 7, domInteractive: 0, domContentLoadedEventStart: 0,
+        domContentLoadedEventEnd: 0, loadEventStart: 0, loadEventEnd: 0, name: url + '?private=omitted'}];}};
+    const state = await captureStartupState({evaluate: async read => read()});
+    assert.deepEqual(state, {ready_state: 'loading', status_present: true, status_mode: 'progress',
+      engine_available: true, vault_booted: true, navigation_ms: {responseStart: 3, responseEnd: 7,
+        domInteractive: 0, domContentLoadedEventStart: 0, domContentLoadedEventEnd: 0, loadEventStart: 0, loadEventEnd: 0}});
+    assert(!JSON.stringify(state).includes('private'), 'State evidence includes no URL, profile, save payload or headers');
+    assert.deepEqual(await captureStartupState({evaluate: async () => {throw Error('private renderer error');}}),
+      {unavailable: 'renderer observation failed'}, 'Diagnostic failure cannot replace the original gate failure');
+  } finally {
+    for (const [name, value] of Object.entries(saved)) global[name] = value;
+  }
+  const savedTimers = {setTimeout: global.setTimeout, clearTimeout: global.clearTimeout};
+  let cleared = false;
+  try {
+    global.setTimeout = (callback, limit) => {assert.equal(limit, 1000); queueMicrotask(callback); return 'diagnostic timer';};
+    global.clearTimeout = timer => {assert.equal(timer, 'diagnostic timer'); cleared = true;};
+    assert.deepEqual(await captureStartupState({evaluate: () => new Promise(() => {})}),
+      {unavailable: 'renderer observation deadline'}, 'Stalled renderer cannot stall failure evidence indefinitely');
+    assert(cleared);
+  } finally {Object.assign(global, savedTimers);}
 }
 checkStartupNavigation().then(() => {
   console.log('Fresh tutorial browser contract, source-binding and startup checks passed (browser runtime not exercised)');
