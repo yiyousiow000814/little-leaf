@@ -104,14 +104,23 @@ def validate_ordinary_itch(folder,manifest,proof):
     return ordinary
 
 
-def publication_matches(publication,manifest):
+def publication_matches(publication,manifest, *, allow_processing=False):
     proof=manifest['common_tag_reuse'];common=proof['common'];context=proof['context']
     linked=publication.get('same_page_staging_origin',{})
+    state=publication.get('state')
+    processing=publication.get('provider_observation',{})
+    completed=(state=='completed' and type(publication.get('itch_channel_version')) is int
+        and 0<publication['itch_channel_version']<=9007199254740991)
+    queued=(allow_processing and state=='accepted-processing'
+        and processing.get('state') in {'queued','processing'}
+        and type(processing.get('build_id')) is int
+        and processing=={'build_id':publication.get('itch_build_id'), 'state':processing.get('state'),
+                        'version':common['version']}
+        and 'itch_channel_version' not in publication)
     require(publication.get('delivery_surface')=='qualified-root-new-tab-entry'
         and publication.get('target')=='siowyiyou/little-leaf:html5'
-        and publication.get('state')=='completed' and type(publication.get('itch_build_id')) is int
-        and publication['itch_build_id']>0 and type(publication.get('itch_channel_version')) is int
-        and 0<publication['itch_channel_version']<=9007199254740991
+        and (completed or queued) and type(publication.get('itch_build_id')) is int
+        and publication['itch_build_id']>0
         and publication.get('source_commit')==common['source_commit']
         and publication.get('version')==common['version'] and publication.get('tag')==common['release_tag']
         and publication.get('common_qualification')==common
@@ -120,7 +129,7 @@ def publication_matches(publication,manifest):
         and publication.get('release_manifest_sha256')==common['web_manifest_sha256']
         and linked.get('run_id')==context['staging_run_id'] and linked.get('attempt')==context['staging_attempt']
         and linked.get('coordinator_source_commit')==context['coordinator_source_commit'],
-        'Completed exact-source ordinary Root/new-tab publication required')
+        'Exact-source authenticated upload acceptance required; completed order remains separate')
     return linked
 
 
@@ -369,7 +378,7 @@ def require_origin(folder,manifest,origin):
 
 
 def consume_publication(api,run_id,output):
-    """Consume a completed ordinary-entry publication, including a named retry."""
+    """Consume authenticated upload acceptance, including a named retry."""
     from release.firebase_release_gate import ITCH_WORKFLOW
     run=api.read(f'actions/runs/{run_id}');trusted_run(run,ITCH_WORKFLOW,('workflow_run','workflow_dispatch'))
     retry=None
@@ -461,13 +470,14 @@ def main():
     folder=original;manifest=json.loads((folder/'firebase-variant-manifest.json').read_text())
     origin=authenticate_packet(api,folder,manifest,{'run':run,'artifact':artifact},ROOT)
     if publication_path:
-        linked=publication_matches(publication,manifest)
+        linked=publication_matches(publication,manifest,allow_processing=True)
         require(linked.get('artifact_id')==artifact['id'] and linked.get('artifact_digest')==artifact['digest']
             and linked.get('attempt')==run['run_attempt']
             and publication.get('firebase_variant_manifest_sha256')==sha256(folder/'firebase-variant-manifest.json'),
             'Publication must bind the freshly authenticated original archive')
         folder=args.output/'variant';shutil.copytree(original,folder)
-        manifest=project_delivery(folder,publication_path,origin)
+        if publication.get('state')=='completed':
+            manifest=project_delivery(folder,publication_path,origin)
         origin['publication_origin']=publication_origin
     marker=json.loads((folder/'public/hosting-release.json').read_text())
     if args.platform=='firebase':
