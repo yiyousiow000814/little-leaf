@@ -181,7 +181,7 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
     def test_firebase_stage_binds_same_version_source_and_completed_order(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);build=root/'build';web=build/'web';web.mkdir(parents=True)
-            (web/'index.html').write_text('<script src="index.js"></script><script>window.__littleLeafVault.boot()</script>')
+            (web/'index.html').write_text('<!doctype html><html><body><script src="index.js"></script><script>window.__littleLeafVault.boot()</script></body></html>')
             for name in ['index.js','index.wasm','index.pck']:(web/name).write_bytes(b'synthetic runtime')
             base={'source_commit':'a'*40,'source_tree':'b'*40,'workflow_run':'10',
                   'version':'0.1.11-pre.aaaaaaaa','packed_smoke':'passed','engine_checks':1,'test_processes':1,

@@ -12,11 +12,11 @@ class AcceptanceBridgeTests(unittest.TestCase):
              'release_tag': 'v0.1.11-pre.aaaaaaaa', 'web_manifest_sha256': 'b'*64}
         self.context = {'staging_run_id': 901, 'staging_attempt': 1, 'coordinator_source_commit': 'c'*40}
         self.manifest = {'common_tag_reuse': {'common': c, 'qualification': {'exact': True},
-            'context': self.context, 'ordinary_itch': {'files_sha256': {'index.html':'d'*64}}}}
-        self.receipt = {'delivery_surface':'qualified-root-new-tab-entry', 'target':'siowyiyou/little-leaf:html5',
+            'context': self.context, 'same_page': {'wrapper_sha256': {'index.html':'d'*64}}}}
+        self.receipt = {'delivery_surface':'qualified-same-page-wrapper', 'target':'siowyiyou/little-leaf:html5',
             'state':'accepted-processing', 'itch_build_id':2120517, 'source_commit':c['source_commit'],
             'version':c['version'], 'tag':c['release_tag'], 'common_qualification':c,
-            'ordinary_itch_sha256':{'index.html':'d'*64}, 'qualification':{'exact':True},
+            'itch_wrapper_sha256':{'index.html':'d'*64}, 'qualification':{'exact':True},
             'release_manifest_sha256':'b'*64, 'same_page_staging_origin':{'run_id':901,'attempt':1,'coordinator_source_commit':'c'*40},
             'provider_observation':{'build_id':2120517,'state':'queued','version':c['version']}}
 
