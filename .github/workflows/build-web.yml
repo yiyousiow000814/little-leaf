@@ -67,27 +67,7 @@ jobs:
       - name: Verify metadata and CI guard tests
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          python3 tools/release/release_metadata.py --tag "$RELEASE_TAG"
-          python3 tools/qualification/verify_prebaked_atlases.py
-          python3 -m unittest discover -s tests/tooling -t . -p 'test_*.py' -v
-          node tests/persistence/crazygames_storage.js
-          node tests/persistence/legacy_byte_storage.js
-          node tests/presentation/boot_presentation.js
-          node tests/presentation/fresh_tutorial_browser_test.js
-          node --check tests/presentation/fresh_tutorial_browser.js
-          node tests/persistence/save_log_observers.js
-          node tests/persistence/save_log_privacy.js
-          node tests/rendering/web_performance_lifecycle.js
-          node tests/persistence/connection_recovery.js
-          node tests/persistence/compensation_inbox_storage.js
-          node tests/rendering/wall_compatibility_parallel_test.js
-          node tests/rendering/wall_compatibility_helpers_test.js
-          node tests/rendering/wall_compatibility_ocr_test.js
-          node --check tests/rendering/wall_compatibility_browser.js
-          node --check tests/persistence/save_log_browser.js
-          node --check tests/persistence/connection_recovery_browser.js
-          node --check platform/firebase/fullflow.test.mjs
+        run: python3 tools/ci/preflight.py
   engine:
     if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
@@ -101,10 +81,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
-      - name: Install checksum-pinned Godot and official Web template
-        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Install checksum-pinned Godot for native tests
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/godot-tools"
       - name: Run balanced complete engine shard
         run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -170,7 +150,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
       - name: Install checksum-pinned Godot and official Web template
         run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
@@ -234,7 +214,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
@@ -546,7 +526,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: always() && needs.build.result == 'success'

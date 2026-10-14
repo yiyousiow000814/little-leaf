@@ -27,6 +27,7 @@ var pavement_edges := [PackedVector2Array(),PackedVector2Array()]
 var floor_edges := [PackedVector2Array(),PackedVector2Array()]
 var floor_cells: Array[Vector2i] = []
 var revision := -2147483647
+var model_ref: WeakRef
 var floor_rebuilds := 0
 # Edge-AA batches keep their two slots; a purchased indoor product has one tint.
 # Alternating colours come only from separately installed products.
@@ -62,7 +63,8 @@ func _quad(vertices: PackedVector2Array,colors: PackedColorArray,indices: Packed
 
 func prepare(model):
 	if pavement_mesh==null:_build_pavement()
-	if revision!=int(model.revision):
+	if model_ref==null or model_ref.get_ref()!=model or revision!=int(model.revision):
+		model_ref=weakref(model)
 		revision=int(model.revision)
 		# A notification is a dirty signal, not terrain content. Buying furniture,
 		# wages and shifts must not allocate another floor/stroke buffer.

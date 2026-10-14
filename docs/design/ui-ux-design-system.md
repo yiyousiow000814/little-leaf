@@ -59,6 +59,30 @@ own explicit scope, even when introduced during visual cleanup.
   Small artwork may sit inside a larger native hit target. Text must fit with
   breathing room, including longer status messages.
 
+## Settings, Help and Updates: bounded layout correction
+
+The 2026-10-13 user review rejected the short Updates body and inconsistent
+text-safe insets between these three information panels. The intended change
+is limited to their existing framed surfaces, readable body area and peer gaps;
+opening, X, Back, unread preferences and save/account behavior stay unchanged.
+No new art, theme framework or global panel-size policy is introduced.
+
+At source `3a5c8553`, the Updates title's setup-time wrapping produced a cached
+416px fixed-header allowance, although its laid-out header was 44px high and
+needed only 55px with the then-current gap. This unnecessarily removed 361px
+from the body. The narrow correction measures the live header at its final
+width whenever the existing popup fitter runs. The three peer panels reuse
+Help's existing 32px framed-padding input and 8px content gap; the HUD's optical
+frame adjustments remain authoritative. Unrelated compact panels retain their
+padding and behavior.
+
+The focused regression covers real shipped notes at desktop, portrait and short
+landscape sizes, a fully visible first bullet, safe content bounds, bottom Back,
+reopen/reset and resize with X/Back preservation. Existing Settings navigation
+and Help checks remain required. Real matched native frames and user acceptance
+are separate gates; these source and test changes alone do not authorize merge
+or release.
+
 ## Responsive layout and accessible interaction
 
 Use `CafeHud._safe_insets()` and the existing layout helpers for the surface's

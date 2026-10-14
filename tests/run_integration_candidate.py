@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 SUITES = [
     ("test_feedback_sfx", "FEEDBACK_SFX_RESULT"),
+    ("test_starter_bin", "STARTER_BIN_RESULT"),
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
     ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
     ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
@@ -256,8 +257,21 @@ def main():
                 start = time.monotonic()
                 pacing = ["--fixed-fps", "60"] if args.unpaced_ui and name in UNPACED_UI else []
                 command = [godot, "--headless", "--audio-driver", "Dummy", "--path", str(project), *pacing, *arguments]
-                completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
-                                           stderr=subprocess.STDOUT, timeout=300)
+                try:
+                    completed = subprocess.run(command, env=env, stdout=subprocess.PIPE,
+                                               stderr=subprocess.STDOUT, timeout=300)
+                except subprocess.TimeoutExpired as error:
+                    captured = error.stdout or b""
+                    text = captured.decode("utf-8", errors="replace") if isinstance(captured, bytes) else str(captured)
+                    (output / (name + ".log")).write_text(text, encoding="utf-8")
+                    record = {"test": name, "exit_code": None, "seconds": round(time.monotonic() - start, 2),
+                              "checks": 0, "failures": ["engine timeout after 300 seconds"],
+                              "diagnostics": [line for line in text.splitlines() if "WARNING" in line or "ERROR" in line],
+                              "log": name + ".log", "timed_out": True}
+                    report["records"].append(record)
+                    save()
+                    print(json.dumps(record), flush=True)
+                    raise
                 text = completed.stdout.decode("utf-8", errors="replace")
                 (output / (name + ".log")).write_text(text)
                 payloads = []

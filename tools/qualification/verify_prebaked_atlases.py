@@ -14,8 +14,28 @@ ROOT = Path(__file__).resolve().parents[2] / 'game'
 MANIFEST = ROOT / 'data/prebaked_atlas_manifest.json'
 SEEDS = ['scripts/rendering/furniture_atlas_painter.gd','scripts/rendering/moving_art_painter.gd','scripts/rendering/character_head_painter.gd']
 NAMES = ['furniture','moving','heads']
+RESOURCE_PATH = re.compile(r'res://([^"\'\s]+)')
+GDSCRIPT_TOKENS = re.compile(r'#[^\n]*|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'')
+IDENTITY_LEFT = re.compile(r'\.\s*resource_path\s*(?:==|!=)\s*&?\s*$')
+IDENTITY_RIGHT = re.compile(r'^\s*(?:==|!=)\s*(?:[A-Za-z_]\w*\s*(?:\([^()\n]*\)\s*)?\.\s*)+resource_path\b')
 
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
+
+def resource_references(path):
+    text = path.read_text(encoding='utf-8')
+    if path.suffix != '.gd':return RESOURCE_PATH.findall(text)
+    # A script's resource_path is its identity, not an instruction to load that
+    # file. Keep other literals conservatively, including dynamic-load constants.
+    # Tokenize strings before comments so a '#' inside a resource name survives.
+    code = GDSCRIPT_TOKENS.sub(lambda m:' '*len(m[0]) if m[0].startswith('#') else m[0],text)
+    found = []
+    for token in GDSCRIPT_TOKENS.finditer(code):
+        if token[0].startswith('#'):continue
+        references = RESOURCE_PATH.findall(token[0])
+        if not references:continue
+        if IDENTITY_LEFT.search(code[:token.start()]) or IDENTITY_RIGHT.match(code[token.end():]):continue
+        found.extend(references)
+    return found
 
 def sources():
     pending = list(SEEDS); found = {}
@@ -27,7 +47,7 @@ def sources():
         # Include every statically named GDScript dependency, including inherited
         # artist primitives. Recompute closure so new dependencies cannot escape.
         if path.suffix in {'.gd','.gdshader','.tscn','.tres','.json'}:
-            pending.extend(n for n in re.findall(r'res://([^"\'\s]+)',path.read_text()) if (ROOT/n).is_file())
+            pending.extend(n for n in resource_references(path) if (ROOT/n).is_file())
     return dict(sorted(found.items()))
 
 def asset(name):
