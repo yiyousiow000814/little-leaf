@@ -1,5 +1,6 @@
 extends Node3D
 const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
+const AutosavePolicy=preload("res://scripts/persistence/cafe_autosave_policy.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
@@ -175,11 +176,13 @@ func _notify_first_web_frame():
 	JavaScriptBridge.eval("if (window.LittleLeafBoot) window.LittleLeafBoot.firstFrameReady();")
 
 func _mark_platform_dirty():
+	# One dirty generation covers every backend; mutation events never write.
 	platform_dirty_generation+=1
 	platform_autosave_dirty=true
+	progress_unsaved=true
 
 func _connect_model_events():
-	if OS.has_feature("crazygames"):model.changed.connect(_mark_platform_dirty)
+	model.changed.connect(_mark_platform_dirty)
 	model.meal_completed.connect(func(_customer_id,payment):
 		settings_controls.play_sfx("coin")
 		compact_ui.show_earnings(payment))
@@ -368,7 +371,7 @@ func _set_catalog_category(category:String):
 func _toggle_business():
 	if save_recovery_blocked:return
 	model.set_operating_open(not model.operating_open)
-	_sync_service_guests();_update_ui();_save()
+	_sync_service_guests();_update_ui()
 
 func _toggle_edit():
 	if save_recovery_blocked:return
@@ -406,17 +409,17 @@ func _buy_parcel(parcel_id: String):
 	if not editing:return
 	if save_recovery_blocked:return
 	if model.buy_parcel(parcel_id):
-		_cancel_selection();_rebuild_room();_update_ui();_save()
+		_cancel_selection();_rebuild_room();_update_ui()
 
 func _hire():_hire_staff("chef")
 func _hire_staff(role:String):
 	if save_recovery_blocked:return
-	if model.hire_staff(role):_update_people();_sync_staff_duty();_update_ui();_save()
+	if model.hire_staff(role):_update_people();_sync_staff_duty();_update_ui()
 func _change_staff_duty(role:String,change:int):
 	if save_recovery_blocked:return
 	if model.request_duty(role,change):
 		_sync_staff_duty()
-		_update_ui();_save()
+		_update_ui()
 func _sync_staff_duty():
 	model.checkout_staff_claims.clear()
 	for worker in staff_states:
@@ -443,7 +446,6 @@ func _sell():
 	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
 		_cancel_selection(); _rebuild_furniture(); _update_ui()
-		_save()
 
 func _update_ui():
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
@@ -552,6 +554,13 @@ func _unsaved_progress_message()->String:
 	var action="Open Settings → Quick help" if save_recovery_blocked else "Keep this page open; saving will retry" if web_save!=null else "Keep the game open; saving will retry"
 	return "Unsaved changes · "+progress_save_error+" · "+action
 
+func _tick_autosave(delta:float):
+	# A missed slot retains dirty work. Long frames never burst catch-up writes.
+	save_timer+=delta
+	if save_timer<AutosavePolicy.INTERVAL_SECONDS:return
+	save_timer=fmod(save_timer,AutosavePolicy.INTERVAL_SECONDS)
+	if AutosavePolicy.due(OS.has_feature("crazygames"),platform_autosave_dirty,AutosavePolicy.INTERVAL_SECONDS,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+
 func _autosave():
 	if OS.has_feature("web") and not OS.has_feature("crazygames") and web_save!=null:
 		return web_save.request_save(true)
@@ -560,18 +569,20 @@ func _autosave():
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
 	SaveLog.record("save_requested",{"layer":"native"})
-	save_timer=0.0
 	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args():
 		SaveLog.record("save_skipped",{"layer":"native","code":"RECOVERY_BLOCKED" if save_recovery_blocked else "WRITES_SUPPRESSED"});return true
 	# Only this version's profile is mutable. Older import sources and the
 	# reconstructed source checkpoint remain byte-for-byte untouched.
 	_update_people()
 	model.service_snapshot=_service_save_snapshot()
+	var dirty_snapshot=platform_dirty_generation
 	if not model.save(SAVE_FILE):
 		SaveLog.record("save_failure",{"layer":"native","code":"NATIVE_SAVE_FAILED"})
+		platform_autosave_dirty=true
 		progress_unsaved=true;progress_save_error=model.last_error;return false
 	SaveLog.record("save_accepted",{"layer":"native"})
-	progress_unsaved=false;progress_save_error=""
+	platform_autosave_dirty=platform_dirty_generation!=dirty_snapshot
+	progress_unsaved=platform_autosave_dirty;progress_save_error=""
 	return true
 
 func _input(event):
@@ -689,13 +700,12 @@ func _process(delta):
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
-		if OS.has_feature("crazygames"):_mark_platform_dirty()
+		if world_delta>0.0:_mark_platform_dirty()
 	visual_timer+=world_delta
 	# First periodic save remains after entry, never during the title/descent.
-	if not intro_active:save_timer+=delta
+	if not intro_active:_tick_autosave(delta)
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	if not intro_active and preload("res://scripts/persistence/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)

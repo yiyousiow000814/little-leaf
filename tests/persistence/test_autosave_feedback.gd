@@ -22,6 +22,8 @@ class FakeGame extends Node:
  var save_recovery_blocked=false
  var save_writes_suppressed=false
  var progress_unsaved=false
+ var platform_autosave_dirty=false
+ var platform_dirty_generation=0
  var progress_save_error=""
  var startup_notice=""
  var paused=false
@@ -46,7 +48,9 @@ func acknowledge(save,extra:Dictionary={}):
 func run():
  var game=FakeGame.new();root.add_child(game)
  var save=controller(game)
+ game.save_timer=4.0
  check(not save.request_save() and save.pending and game.progress_unsaved,"submitted save stays pending, never premature success")
+ check(is_equal_approx(game.save_timer,4.0),"explicit saves do not restart the fixed periodic clock")
  save.request_save()
  check(save.queued and save.api.writes==1,"edits coalesce behind in-flight write")
  acknowledge(save)
@@ -55,8 +59,18 @@ func run():
  check(game.followup_saves==1,"newer generation schedules next save")
  save.request_save();acknowledge(save)
  check(not game.progress_unsaved and game.progress_save_error=="","latest durable save clears state silently")
+ # An ordinary Web receipt covers only the generation actually submitted.
+ save=controller(game);save.request_save()
+ var followups=game.followup_saves
+ game.platform_dirty_generation+=1;game.platform_autosave_dirty=true
+ acknowledge(save)
+ check(game.platform_autosave_dirty and game.progress_unsaved,"older ordinary Web receipt cannot clear a later dirty generation")
+ await process_frame
+ check(game.followup_saves==followups,"ordinary dirty work waits for the fixed scheduler instead of a per-edit write")
+ save.request_save();acknowledge(save)
+ check(not game.platform_autosave_dirty and not game.progress_unsaved,"receipt for the current generation marks progress clean")
  save.request_save();save._on_commit([JSON.stringify({"ok":false,"error":"Browser storage is full","code":"QUOTA"})])
- check(game.progress_unsaved and game.progress_save_error=="Browser storage is full" and save.ready,"transient failure retains edits and permits retries")
+ check(game.platform_autosave_dirty and game.progress_unsaved and game.progress_save_error=="Browser storage is full" and save.ready,"transient failure retains edits and permits retries")
  save.request_save()
  check(game.progress_save_error=="Browser storage is full","retry keeps existing warning while pending")
  save._on_commit([JSON.stringify({"ok":false,"error":"Browser storage is full","code":"QUOTA"})])
