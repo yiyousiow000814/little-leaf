@@ -125,7 +125,7 @@ func run():
 
 	for script in [preload("res://scripts/rendering/furniture_static_atlas.gd"),preload("res://scripts/rendering/moving_art_atlas.gd"),preload("res://scripts/rendering/character_head_atlas.gd")]:
 		var atlas = script.new();atlas.state = "warming"
-		var target = atlas._viewport(self)
+		var target = atlas._viewport(self,atlas.size) if script == preload("res://scripts/rendering/furniture_static_atlas.gd") else atlas._viewport(self)
 		atlas.cancel_prepare("Synthetic timeout")
 		check(atlas.state == "failed_fallback" and atlas._bake_viewports.is_empty() and target.is_queued_for_deletion(),"cancel releases pending render target")
 		atlas._build(self)
