@@ -6,14 +6,38 @@
   "date": "2026-10-14",
   "label": "Latest progress prerelease",
   "new": [
-    "Settings and Help use compact panels, shared text styles and optional live FPS statistics.",
-    "Google-account play stays inside the itch.io game while local and account progress remain separate.",
-    "The Save button shows saving progress and completion inside the button."
+    "Paint multiple floor or wall cells in one transaction, with a cell count, net price and cancellation before any charge.",
+    "Move and sell owned walls while preserving their paid value and refunds; compatible historical doors can use a full-cell opening.",
+    "Place furniture by its actual owned footprint and current occupants; an empty service side or future route does not enlarge its physical footprint.",
+    "Buying land immediately reveals unowned plots along every connected orthogonal edge, allowing expansion in all four directions.",
+    "New parking purchases cost 50,000 coins; previously purchased parking keeps its original ownership and paid-value basis.",
+    "Fresh cafes no longer receive a free starter bin. A bin remains an optional 65-coin purchase, with historical entitlements and owned bins retained.",
+    "Stoves now use the base cooking speed without upgrade purchases or level bonuses. Valid historical stoves keep their identity, ownership and value.",
+    "Waiters can drop dirty dishes at a reachable occupied sink while washing continues, or use another reachable basin when the first is full.",
+    "Settings, Help and Updates share compact themed panels, consistent text and accessible close/back controls; Help offers optional live FPS statistics.",
+    "The Save button shows saving progress and completion inside the button.",
+    "The itch entry offers local play and an embedded Google-account route while keeping local and account progress separate; direct Firebase play remains supported."
   ],
   "fixed": [
-    "Fixed decoration placement drifting after moving the camera.",
-    "Improved protected cloud-save handoff and continuation after uncertain network responses.",
-    "Preserved the ownership lease when acknowledging a confirmed handoff."
+    "Fixed decoration layers drifting when the camera moves during parcel hover.",
+    "Dragged furniture now shows green or red only on its own footprint: valid placement stays green, while overlap or unowned floor is red.",
+    "Removed floor-paint validity outlines while preserving the installed material preview and natural tile seams.",
+    "Customer entrances must connect to the reachable corridor; an isolated doorway no longer counts as a usable entrance.",
+    "Grounded checkout counters and aligned cashier/customer payment contacts with the worktop.",
+    "Corrected exterior oak layering so nearby street actors remain visible in front of it.",
+    "Staff rings draw above rugs and below solid furniture, with a one-tile inner diameter and the existing rotation and pause behavior.",
+    "Restored staff idle-home assignments when recovery replaces the runtime, even when the roster count and model revision are unchanged.",
+    "Improved mobile save-choice explanations and comparison-card layout; dragging from Settings buttons scrolls without activating them.",
+    "Fixed Update Notes header measurement and information-panel insets so the notes retain their available reading and scrolling space.",
+    "The Update Available notice uses the shared theme and a centered desktop layout while retaining mobile safe-area fitting.",
+    "Improved continuation of a frozen cloud-save handoff after late or uncertain network completion, without taking a second native snapshot or repeating a confirmed save.",
+    "Preserved captured handoff authority for delayed saves, coalesced concurrent owner renewals and kept the ownership lease unchanged when acknowledging a confirmed handoff.",
+    "Bounded initial cloud-save, recovery and ownership-start reads; unavailable responses return protected Recovery rather than being treated as an empty save.",
+    "Hardened account/page teardown, writer authority and pending-progress protection around cancellation, reload and account changes.",
+    "Recovery device labels now stay attached to their exact validated save records, avoiding stale labels from unrelated archived copies.",
+    "Timed-out or closed update checks release their owned manifest requests and settle pending confirmation waits.",
+    "Ground rendering refreshes after a model replacement; unchanged shop price fonts and checkout work are reused instead of being rebuilt repeatedly.",
+    "CrazyGames music downloads can recover from transient failures with bounded retries and cleanup, while keeping the existing audio and preferences."
   ],
   "history": [
     {
