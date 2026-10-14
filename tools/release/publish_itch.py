@@ -166,12 +166,22 @@ def completed(status, build_id, version):
     return head.get("id") == build_id and head.get("userVersion") == version and head.get("state") == "completed"
 
 
+def accepted_processing(status, build_id, version):
+    """A verified same-build queue entry is upload success, not live acceptance."""
+    current = channel(status)
+    for record in [current.get('head') or {}, current.get('pending') or {}]:
+        if (type(record.get('id')) is int and record['id'] == build_id
+                and record.get('userVersion') == version and record.get('state') in {'queued', 'processing'}):
+            return {'build_id': build_id, 'state': record['state'], 'version': version}
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--web", required=True, type=Path)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--sha", required=True)
-    parser.add_argument("--receipt", type=Path, help="Write only the confirmed completed publication")
+    parser.add_argument("--receipt", type=Path, help="Write confirmed upload acceptance separately from live completion")
     parser.add_argument("--common-receipt", type=Path, help="Already authenticated immutable common qualification")
     parser.add_argument("--firebase-variant", type=Path, help="Authenticated full qualification packet with separate ordinary entry")
     parser.add_argument("--staging-origin", type=Path, help="Fresh authenticated staging origin")
@@ -205,21 +215,26 @@ def main():
     # One attempt only. A timeout may have uploaded successfully; never retry blindly.
     result = butler("push", str(args.web), TARGET, "--userversion", version, "--no-auto-wrap")
     build_id = result.get("buildId")
-    if (not isinstance(build_id, int) or build_id <= 0 or result.get("channel") != "html5"
+    if (type(build_id) is not int or build_id <= 0 or result.get("channel") != "html5"
             or result.get("dryRun") or result.get("skipped")):
         raise RuntimeError("Upload outcome is unconfirmed; inspect itch before retrying")
-    print(f"Uploaded itch build {build_id}; waiting for processing", flush=True)
+    print(f"Uploaded itch build {build_id}; verifying provider acceptance", flush=True)
     deadline = time.monotonic() + 600
     while time.monotonic() < deadline:
         remaining = max(1, min(60, int(deadline - time.monotonic())))
         observed = butler("status", TARGET, timeout=remaining)
-        if completed(observed, build_id, version):
-            order = channel(observed)['head'].get('version')
-            if '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
+        is_completed = completed(observed, build_id, version)
+        processing = accepted_processing(observed, build_id, version)
+        if is_completed or processing:
+            order = channel(observed)['head'].get('version') if is_completed else None
+            if is_completed and '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
                 raise RuntimeError('Completed upload lacks a confirmed channel sequence; inspect before retrying')
             receipt = {"target": TARGET, "version": version, "source_commit": args.sha,
-                       "itch_build_id": build_id, "state": "completed",
-                       "browser_runtime": "manual post-publish smoke still required"}
+                       "itch_build_id": build_id, "state": "completed" if is_completed else "accepted-processing",
+                       "browser_runtime": "manual post-publish smoke still required",
+                       "live_playable_verified": False}
+            if processing:
+                receipt['provider_observation'] = processing
             if type(order) is int and 0 < order <= 9007199254740991:
                 receipt['itch_channel_version'] = order
             if args.receipt:
@@ -243,10 +258,10 @@ def main():
             print(json.dumps(receipt), flush=True)
             if os.environ.get("GITHUB_STEP_SUMMARY"):
                 with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-                    summary.write(f"Released {args.tag} ({args.sha}) to {TARGET}, itch build {build_id}.\n\nVerify https://siowyiyou.itch.io/little-leaf in a fresh browser profile, then a copied-save profile.\n")
+                    summary.write(f"Upload accepted for {args.tag} ({args.sha}), itch build {build_id}; state {receipt['state']}.\n\nProcessing is provider-owned; do not upload again. Actual live/playable acceptance remains separate. Verify this same build with status and the selected browser entry before claiming live success.\n")
             return
         time.sleep(15)
-    raise RuntimeError(f"Build {build_id} uploaded but processing is still unconfirmed after 10 minutes. Check itch status before rerunning; do not assume the live game changed")
+    raise RuntimeError(f"Build {build_id} upload/queue identity could not be confirmed after 10 minutes. Inspect the same build; never reupload an uncertain outcome")
 
 
 if __name__ == "__main__":

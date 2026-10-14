@@ -181,7 +181,7 @@
       if(!recovery || recovery.local.record.digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
       const local=await journal.read(uid);accountGuard();
       if(!same(local,recovery.local))throw error('REVISION_CONFLICT','This device changed in another tab. Its newer progress is preserved.');
-      const cloudDocument=await remote.read(uid);accountGuard();const record=await validate(cloudDocument);accountGuard();
+      const cloudDocument=await networkWait(remote.read(uid));accountGuard();const record=await validate(cloudDocument);accountGuard();
       if(!record)throw error('RECOVERY_MISSING','The synced save is missing. Neither save has been changed.');
       if(record.digest!==cloudDigest) {await previewRecovery(local,record);throw error('RECOVERY_CHANGED','The synced save changed. Review both current saves again.');}
       return {local,record,cloudDocument};
@@ -340,7 +340,7 @@
           await refreshBackup();guard();
           await refreshChoiceArchive();guard();
           try {
-            const cloud=await remote.read(uid); guard(); const record=await validate(cloud);
+            const cloud=await networkWait(remote.read(uid)); guard(); const record=await validate(cloud);
             if(local && !local.pending && local.base && !cloud) throw error('CORRUPT_AUTHORITY','Previously saved cloud progress is missing. Local progress is preserved.');
             if(local?.pending) {
               if(token(cloud)===local.record.digest) { const next={...local,base:token(cloud),pending:false,uploading:null}; await journal.replace(uid,local,next); local=next; }

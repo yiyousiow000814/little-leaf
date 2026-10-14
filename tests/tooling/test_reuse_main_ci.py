@@ -253,8 +253,15 @@ class WorkflowTests(unittest.TestCase):
             self.assertIn(required,common)
         self.assertIn("github.event_name == 'workflow_run'",publishing)
         self.assertIn("github.event.workflow_run.conclusion == 'success'",publishing)
-        self.assertIn('FIREBASE_RUN: ${{ github.event.workflow_run.id }}',publishing)
+        self.assertIn("FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",publishing)
+        self.assertIn("inputs.qualified_run_id != ''",publishing)
+        # A rerun must be refused by the job before Butler credentials or upload.
+        publish_condition = publishing.split('    runs-on:', 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1", publish_condition)
+        self.assertIn("inputs.qualified_run_id == ''",diagnostic)
         self.assertIn('ref: ${{ steps.common.outputs.source_sha }}',publishing)
+        self.assertLess(publishing.index('git -C coordinator fetch --no-tags origin main'),
+                        publishing.index('coordinator/tools/release/common_firebase.py'))
         self.assertLess(publishing.index('--platform itch'),publishing.index('ref: ${{ steps.common.outputs.source_sha }}'))
         self.assertLess(publishing.index('ref: ${{ steps.common.outputs.source_sha }}'),publishing.index('BUTLER_API_KEY:'))
         self.assertNotIn('common_tag.py consume',publishing)

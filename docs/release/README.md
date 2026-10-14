@@ -2,6 +2,24 @@
 
 ## Shared tag qualification and independent platforms
 
+An authenticated same-build `queued` or `processing` response counts as successful
+itch upload acceptance. Its receipt is `accepted-processing`, carries no fabricated
+completed channel order and claims no live/playable acceptance. Rejected uploads,
+uncertain build identity and actual processing failures remain failures; inspect
+the same build instead of uploading again. A later status/selected-entry check owns
+actual provider completion and live smoke. Hosting may authenticate this acceptance
+and consume the unchanged independently qualified Firebase packet; only an actual
+completed itch receipt permits the existing channel-order metadata projection.
+
+Manual `qualified-firebase-live` uses the same exact qualified run/artifact/source/
+manifest inputs, plus the approved previous release/version/configuration digest.
+It uses the existing Hosting-only identity after all package gates. If a confirmed
+candidate publication fails smoke, opt-in recovery restores only that recorded
+previous finalized version while the candidate still owns live and both inventories
+are unchanged. Restore is one POST, uncertain/concurrent outcomes are GET-only,
+and recovery preserves the original failed outcome. Default modes do not gain
+automatic rollback. A Hosting restore changes static content, not cloud save data.
+
 The current source candidate follows the2026-10-12 user requirement: one
 immutable approved tag consumes one successful exact-main CI build and complete
 ordinary qualification; its common tag job runs final packed startup once and
@@ -58,9 +76,21 @@ common/original qualification evidence stops delivery. The common package has
 30-day retention, but the original main evidence's shorter lifetime still
 limits eligibility; retention is not a promise of continuing qualification.
 
+After an inspected pre-upload failure and a reviewed coordinator repair, the
+existing **Release Web to itch.io** manual request can take one exact
+`qualified_run_id`. An empty value still runs status diagnosis only. The named
+`Retry qualified itch <run ID>` job authenticates the completed original
+Firebase attempt and all immutable inputs before credentials, then uses the
+unchanged publisher. Hosting accepts its completed first-attempt publication
+only when its receipt binds that same qualified run; ordinary status requests
+cannot activate Hosting. Use the fresh reviewed main workflow for this scoped
+retry: rerunning an old job retains its old SHA and does not load a repair.
+
 Only a newly created valid version tag from reviewed main history can create a
 common qualification. PRs, main pushes, manual status requests and synthetic
-test packages cannot publish via this route. GitHub source Releases/Latest,
+test packages cannot create qualification or publish via this route. A named
+platform retry consumes existing qualification and never rebuilds it.
+GitHub source Releases/Latest,
 hosted Google acceptance and gameplay acceptance remain separate facts. See
 [GitHub workflow-run semantics](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run)
 for default-main execution; upstream data and artifacts are verified before

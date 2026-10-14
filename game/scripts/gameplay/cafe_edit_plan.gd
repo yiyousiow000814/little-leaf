@@ -1,7 +1,6 @@
 extends RefCounted
 ## One authoritative plan for the current hovered whole furnishing.
 ## Background floor colors never request hypothetical placement plans.
-const StaffRelocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
 const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 var _state:Array=[]
 var _key:Array=[]
@@ -37,29 +36,25 @@ func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[]
  if next==_key:return _receipt
  invalidate();_state=next_state;_key=next;_kind=kind;_id=id;_rotation=posmod(rotation,4)
  validations+=1
- var problem=_footprint_problem(model,cell)
+ var problem=_physical_problem(model,cell,actors)
  if problem!="":_plan_result={"ok":false,"error":problem}
- else:
-  _plan_result=_plan(model,cell,actors)
-  if not _plan_result.ok and not actors.is_empty() and str(_plan_result.get("error","")).to_lower().contains("staff"):
-   var relocation=StaffRelocation.plan(model,_kind,_id,cell.x,cell.y,_rotation,actors)
-   if relocation.ok:
-    _plan_result=_plan(model,cell,relocation.positions)
-    if _plan_result.ok and not relocation.moves.is_empty():_plan_result["staff_positions"]=relocation.positions
-   else:_plan_result=relocation
- _receipt={"ok":bool(_plan_result.ok),"error":str(_plan_result.get("error","")),"issue":_plan_result.get("issue",{}).duplicate(true),"cell":cell}
+ else:_plan_result=_plan(model,cell,actors)
+ # Physical fit drives the footprint. Funds and runtime custody still govern
+ # the separate atomic transaction, so a fitting preview can remain unbuyable.
+ _receipt={"ok":bool(_plan_result.ok),"physical_ok":problem=="","error":str(_plan_result.get("error","")),"issue":_plan_result.get("issue",{}).duplicate(true),"cell":cell}
  return _receipt
 
-func _footprint_problem(model,cell:Vector2i)->String:
+func _physical_problem(model,cell:Vector2i,actors:Array)->String:
  var current=model.get_item(_id)
  if _id>=0 and not current.is_empty() and Vector2i(current.x,current.z)==cell and model.logical_rotation(_id)==_rotation:return ""
- var omitted=model.logical_members(_id) if _id>=0 else []
- for part in model.placement_parts(_kind,cell.x,cell.y,_rotation,_id):
-  var name=str(part.kind).capitalize()
-  if not model.is_floor_owned(Vector2i(part.x,part.z)):return name+" needs owned floor"
-  var existing=model.item_at(part.x,part.z)
-  if not existing.is_empty() and int(existing.id) not in omitted:return name+" overlaps "+str(existing.kind)
- return ""
+ # The geometry predicate reports its failure through model scratch fields;
+ # preview planning must preserve the caller's current diagnostic objects.
+ var previous_error=model.last_error
+ var previous_issue=model.last_placement_issue
+ var physical_ok=model.can_place(_kind,cell.x,cell.y,_id,_rotation,actors)
+ var problem="" if physical_ok else str(model.last_error)
+ model.last_error=previous_error;model.last_placement_issue=previous_issue
+ return problem
 
 func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
  if _id>=0:return Motion.plan(model,_id,cell.x,cell.y,_rotation,actors)
