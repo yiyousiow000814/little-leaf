@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 const Workfaces=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class GeneratedMain extends "res://scripts/main.gd":
@@ -97,8 +98,14 @@ func run():
  check(not blocked_worker.is_empty() and restored,"active blocking and recovery exercised")
  check(done and game.model.served==4 and game.model.total_cleaned==4,"all four visits resume, pay and clean exactly once")
  check(game.model.total_earned==4*game.Model.MEAL_PAYMENT,"all expected payments occur exactly once")
- print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"other_cooking_progressed":other_progressed,"served":game.model.served,"cleaned":game.model.total_cleaned}))
+ var report={"checks":checks,"failures":failures,"blocked_seconds":blocked_ticks/30.0,"other_meals_continued":other_completed,"other_cooking_progressed":other_progressed,"served":game.model.served,"cleaned":game.model.total_cleaned}
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
+ game.queue_free();await process_frame;await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("STOVE_PAUSE_SERVICE_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

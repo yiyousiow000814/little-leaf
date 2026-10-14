@@ -15,6 +15,7 @@ var web_lifecycle
 var web_save
 const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
 const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
+const FeedbackSfx = preload("res://scripts/audio/cafe_feedback_sfx.gd")
 const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
@@ -137,6 +138,7 @@ func _ready():
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
+	FeedbackSfx.install(settings_controls)
 	_connect_model_events()
 	_rebuild_room()
 	_rebuild_furniture()

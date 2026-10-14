@@ -35,7 +35,9 @@ func _failed(message:String):
 	_release_request()
 	requested=false
 	retry_at_msec=_now_msec()+RETRY_DELAY_MSEC
-	push_warning(message+"; gameplay and saves remain available")
+	_report_warning(message+"; gameplay and saves remain available")
+func _report_warning(message:String):
+	push_warning(message)
 func _loaded(result:int,code:int,_headers:PackedStringArray,body:PackedByteArray):
 	_release_request()
 	if result!=HTTPRequest.RESULT_SUCCESS or code!=200:
