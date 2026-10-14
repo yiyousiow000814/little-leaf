@@ -1,0 +1,142 @@
+{
+  "status": "User selected palette D; actual mapped-source game candidate and final visual acceptance pending",
+  "library_packet": {
+    "id": "libfile_8d071e8a39d08191a8fe7b5dec28c901",
+    "version": 3,
+    "sha256": "fd5cfabf5433f6d4d890385e4dea7a886a627d51ed8ead02b13eeeb9ab6d8299",
+    "bytes": 39383681
+  },
+  "accepted_integration_base": "7368f0bb0c69185d8ec927c2c5f6d1dc2bdad4d5",
+  "mapped_green_control": "68726baef374980a4e7ff99fd97f4d3ed14e6390",
+  "historical_green_head": "1e5ce95a7bbc57f488fdaeaff29dab4b46c19164",
+  "density": "Unchanged 2x; same canvas, pivot, geometry, alpha and filtering",
+  "decoded_rgba_pair_bytes": 3932160,
+  "import": "Existing .import bytes/UID/settings retained; actual D native import pending",
+  "exports": {
+    "C-back.png": "4793fa9e59c13322668311784817c0fd0341c8c3acfe01266bd1b7f92aca6e83",
+    "C-front.png": "b346c9e687cc2e6f66eb1e320075187a3a6c6e0cefd6c93985ac6d004646d73f"
+  },
+  "authoritative_source": "docs/art-audio/sources/bus-stop-c/C-D-Cream-Umber.blend",
+  "authoritative_source_sha256": "41a1085a57fe00d752b8537666f864cde8ba048f4f5ed20636ae57cb68d2fcaa",
+  "material_change": "Nine existing material RGB values only; source geometry/camera/transforms/parts unchanged",
+  "independent_native_audit": "61 object transforms, authored mesh/curve geometry, material slots and camera/light scalars match green v2; evaluated modifiers and all Blender properties not locally rerun",
+  "split_parity": {
+    "passed": false,
+    "premult_rgb_max_255": 21.521568627450957,
+    "alpha_max_255": 28.999999999999982,
+    "pixels_above_3": 116,
+    "whole_reference": "Immutable packet selected-D/exports/2x/C-whole.png; never loaded in production"
+  },
+  "prior_green_split_failure": {
+    "passed": false,
+    "premult_rgb_max_255": 19.50588235294119,
+    "alpha_max_255": 29,
+    "pixels_above_3": 245,
+    "whole_reference": "Packet exports/2x/C-whole.png; never drawn in game"
+  },
+  "ownership": "Two shared immutable script textures; existing retained draw commands, no per-frame loading/cache/timer",
+  "tools": {
+    "Blender": "4.3.2",
+    "Inkscape": "1.4"
+  },
+  "licenses": "Original authored geometry/materials; DejaVu-font-notice.txt retained; no external image dependencies",
+  "source_files": {
+    "docs/art-audio/sources/bus-stop-c/.gitattributes": "d576a4cd223f555f28e91f6d3fe2b4ea39e194f345aa02aface717a36f528f66",
+    "docs/art-audio/sources/bus-stop-c/C-D-Cream-Umber.blend": "41a1085a57fe00d752b8537666f864cde8ba048f4f5ed20636ae57cb68d2fcaa",
+    "docs/art-audio/sources/bus-stop-c/C-Export-Contract.json": "9d843deec45c52e26c5b3611cf8bb5b7255c7e219db54fc155d32e36d4fa5ecc",
+    "docs/art-audio/sources/bus-stop-c/C-Leafline-Game-Theme.blend": "fa4cd785de6d22f2d747bc629631371f6d1cfbafc293b0b513b1a82c14481cca",
+    "docs/art-audio/sources/bus-stop-c/C-Native-Validation.json": "b8fdfe3d0e2d68d987fcc8f0b94fcb0ef22bd29a230f87c59e6444d2a0898dfb",
+    "docs/art-audio/sources/bus-stop-c/C-Recomposition-Measurement-2x.json": "04dc87ebc5cce823e0acb99b725f44fbf5015e77583bcd609c0cbb5374265afb",
+    "docs/art-audio/sources/bus-stop-c/C-Restoration-Validation.json": "826e2ba1f992e02af89d221b7223d2534e8406d13597c919ffb8e1559ea9f01f",
+    "docs/art-audio/sources/bus-stop-c/DejaVu-font-notice.txt": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+    "docs/art-audio/sources/bus-stop-c/export_selected_c.py": "1201b7d8b2981c0322f978df62b952abfc47d9769a16eaa9f696a74decc92bf0",
+    "docs/art-audio/sources/bus-stop-c/fix_armrest_contacts.py": "dfc0cbd58ef4a4ad501ec64bd06ba3e1722aab2823a66307d084dfc8cf34e6e1",
+    "docs/art-audio/sources/bus-stop-c/fix_roof_trim.py": "924e1fab9257230a585433edceb86ea74c36ec07c1361d912dd27315bbecd81a",
+    "docs/art-audio/sources/bus-stop-c/measure_composition.py": "c6d11c8d1ac445d3c569aebb5dea44db24a50f609ffcf2e35f2de458ac6130a6",
+    "docs/art-audio/sources/bus-stop-c/PROVENANCE.md": "6f82052aa996814140c9bd4fe61686f4a27aabc63dcc2f18465a6bf4d5e715a3",
+    "docs/art-audio/sources/bus-stop-c/README.md": "347bf3f98d6209d77c476916614e93a5bb79e2b1b9522bf0449b8e2441283e8b",
+    "docs/art-audio/sources/bus-stop-c/review/C-Whole-Palette-Receipt.json": "c2d520d494700b7a636ef4fb2428f95872ed0173addda01e204dcb5765c8c56c",
+    "docs/art-audio/sources/bus-stop-c/selected-D/exports/2x/C-Export-Contract.json": "788aa2895065a54b0f2350f9ee7ca67a6521d606708c9366060c9508a6373872",
+    "docs/art-audio/sources/bus-stop-c/selected-D/HANDOFF.md": "87fbc488eac4cc81e137153e3c39abc834fa30a1638003433d4ac98a7d867426",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-Actual-Endpoint-Ring-Clearance.json": "fa289ccfbce1fdfdac49e35052b2df7aa2b9c4d43de422bcbbb5448033d643f3",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-D-Export-Validation.json": "e4f9d3f2418b15ce638c4e25e49302d9d6cf6cbac61935ab09af3b4f4e131c86",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-D-Material-Only-Proof.json": "8834a46b98ecc806be76104d5bd699f38890135b032d66a76ade6b239159ac4d",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-D-Restoration-Proof.json": "6f30bd5492402efc8e077564f654be36aca4e22dbb79eaa8bf92bb76eb03b2ad",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-Native-Validation.json": "b8fdfe3d0e2d68d987fcc8f0b94fcb0ef22bd29a230f87c59e6444d2a0898dfb",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-Recomposition-Measurement-2x.json": "0e159e83fc80af9bdfb8c62ebd440620cc65c1e9f6c1236876eba5fb6e467bd0",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/C-Recomposition-Measurement.json": "197ef5035209e1ff9a387d106a31ee329c6bc45232860eb75aeea3de6d9c0abe",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/prior-green-v2/C-Recomposition-Measurement-2x.json": "04dc87ebc5cce823e0acb99b725f44fbf5015e77583bcd609c0cbb5374265afb",
+    "docs/art-audio/sources/bus-stop-c/selected-D/review/prior-green-v2/C-Recomposition-Measurement.json": "807c6f8b9904dabb384d37845ff5800695ec30c46b6b3bccbc54c133a6aec18b",
+    "docs/art-audio/sources/bus-stop-c/selected-D/source/export_selected_d.py": "1727580f6d2889905e707b9bebac055ed499a1c91253815acf54be1052318df9",
+    "docs/art-audio/sources/bus-stop-c/verify_native_source.py": "0623cb2c4a5ade502af54a1046e78c9c603511a27e70a76123309a04a309fee4"
+  },
+  "historical_corrections": {
+    "roof_trim": {
+      "objects": [
+        "Soft cream front lip",
+        "Warm underside reveal"
+      ],
+      "lip_cross_section_before": 0.051,
+      "lip_cross_section_after": 0.038,
+      "lip_color": "#B8C2A3",
+      "underside_color": "#879E76",
+      "lip_centerline_height_length_unchanged": true,
+      "underside_geometry_unchanged": true,
+      "other_objects_unchanged": 59,
+      "both_armrest_curves_unchanged": true,
+      "change_receipt_sha256": "3aa96127bb86acb4ff3fd1c764b12dbff41c11d8fab3d57f9d147859c726abe9",
+      "current_source_endpoint_ring_receipt_sha256": "cf2e0a65adac702f9ce9021f05f45d728b725256dc63074e93763bb4fbdbcbc1",
+      "producer_evaluated_ring_samples": 1440,
+      "limits": "Producer evaluated ring proof is source-bound; not locally rerun and not game acceptance."
+    },
+    "bilateral_armrests": {
+      "objects": [
+        "Rounded end armrest",
+        "Rounded end armrest.001"
+      ],
+      "inward_blender_units_per_side": 0.08,
+      "front_endpoint_authored_height_before": 18,
+      "front_endpoint_authored_height_after": 17,
+      "unchanged_other_objects": 59,
+      "FRONT_decoded_RGBA_unchanged": true,
+      "canvas_pivot_projection_parts_unchanged": true,
+      "source_contact_receipt_sha256": "d84ce21e4e971db46805283826764cc9bbc7736b25d3c9e4a24509551aa5f7ef",
+      "endpoint_ring_clearance_receipt_sha256": "5a557b266e870a6ffba13b4075c4301ccd493e4924c691253bc9631d5831874a",
+      "producer_evaluated_ring_samples": 1440,
+      "producer_minimum_clearance_blender_units": 0.0023645812179893255,
+      "limits": "Source-bound evaluated sample proof supplied by producer; not independently rerun in Blender locally and not actual game acceptance."
+    }
+  },
+  "qualification_limits": [
+    "Intentional palette change; selection does not approve actual game art or a Golden Reference",
+    "Strict split parity FAILED at 2x/4x; lower failure count is color-dependent, not a compositor repair",
+    "Actual matched game pixels and narrow actor/roof observation require separate Queue admission",
+    "No FPS, lifecycle, Web, full bus-cycle, merge or release qualification"
+  ]
+,
+  "current_common_sampling": {
+    "record_scope": "Previous keys retain historical fe415 provenance. This field supersedes its pending appearance status.",
+    "accepted_original_D": {
+      "source": "fe415d0643d97ccabc333bdcd12efb039edf423b",
+      "normal_enlarged_user_acceptance_utc": "2026-10-12T02:11:00Z",
+      "authority": "Current canonical roadmap Bus162 record"
+    },
+    "current_main_base": "2290efe446bff96d6539903b8d01133281e02d9f",
+    "representation": "Original WHOLE/FRONT common UV sampling; BACK residual reconstructed after filtering",
+    "png_exports_and_authoring_source_changed": false,
+    "material_scope": "One retained native BACK texture shape, shared renderer files unchanged",
+    "original_saved_split_failures_above_3_over_255": {
+      "2x": 116,
+      "4x": 198
+    },
+    "verification": "10 CPU algebra cases pass; shader/actual-production-actor runtime and performance are UNRUN",
+    "pending": [
+      "Architecture native cursor/material coupling review",
+      "bounded Queue native admission",
+      "actual shader/PNG/production-body order inspection",
+      "fresh exact qualification/CI",
+      "corresponding user pixel confirmation before merge"
+    ],
+    "fallback": "Existing projection/immediate paths retain original D drawing and are not sampling-qualified"
+  }
+}
