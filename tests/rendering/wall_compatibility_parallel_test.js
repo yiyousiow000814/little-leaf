@@ -14,6 +14,11 @@ function fixture(name) {
 }
 const good = () => [fixture('old_opened_after_new'), fixture('already_open_old')];
 assert.equal(Object.keys(mergeCases(good()).cases).length, 2);
+const pinned = good();
+for (const report of pinned) report.browser.version = '154.0.8037.97';
+assert.equal(Object.keys(mergeCases(pinned).cases).length, 2);
+pinned[1].browser.version = '155.0.8059.39';
+assert.throws(() => mergeCases(pinned)); // Actual PR256 runner-image drift stays rejected.
 assert.throws(() => mergeCases(good().slice(0, 1)));
 assert.throws(() => mergeCases([fixture('old_opened_after_new'), fixture('old_opened_after_new')]));
 for (const mutate of [r => r.status = 'failed', r => r.browser_verified = false,
@@ -47,4 +52,4 @@ try {
   cp.execFileSync = originalExec; console.log = originalLog;
   fs.rmSync(output, {recursive: true, force: true});
 }
-console.log('wall compatibility parallel aggregation: 14 checks passed');
+console.log('wall compatibility parallel aggregation: 16 checks passed');

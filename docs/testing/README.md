@@ -143,3 +143,7 @@ suggest roughly one minute rather than its9m31s full graph for an eligible futur
 PR, subject to queue/test runtime. Actual new lightweight hosted elapsed remains
 unmeasured. This selector-source change itself runs full automatic qualification;
 no extra QA-only remote ref/manual matrix is used to manufacture that timing.
+
+## Compatibility browser identity
+
+Both wall-format compatibility cases install the same official Chrome154.0.8037.97 Debian package from `tools/ci/chrome.json`, verify its SHA256 before activation, then verify the actual `/opt/google/chrome/chrome` version before launching Playwright's sandboxed `chrome` channel. Runner-image Chrome updates therefore cannot split one qualification across versions. The separate Chrome lock preserves the historical Godot/Butler lock byte for byte. Aggregate source/browser equality remains mandatory; a missing download, wrong checksum or wrong version fails rather than selecting an unpinned fallback. Refresh this exact pin through a reviewed change when updating the compatibility toolchain.
