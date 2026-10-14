@@ -28,9 +28,16 @@
     const fetcher=options.fetch || root.fetch?.bind(root);
     const reload=options.reload || (()=>root.location.reload());
     const schedule=options.setTimeout||root.setTimeout, cancel=options.clearTimeout||root.clearTimeout;
-    function bounded(promise){
-      let timeout;const limit=new Promise((_,reject)=>{timeout=schedule(()=>reject(Error('The connection timed out. Your progress stays on this page.')),15000);});
-      return Promise.race([promise,limit]).finally(()=>cancel(timeout));
+    const pending=new Set();
+    function bounded(task,abort){
+      if(closed)return Promise.reject(Error('This update was cancelled.'));
+      let timeout,stop;
+      const limit=new Promise((_,reject)=>{
+        stop=message=>{reject(Error(message));abort?.();};
+        timeout=schedule(()=>stop('The connection timed out. Your progress stays on this page.'),15000);
+      });
+      pending.add(stop);
+      return Promise.race([Promise.resolve().then(()=>{if(closed)throw Error('This update was cancelled.');return task();}),limit]).finally(()=>{cancel(timeout);pending.delete(stop);});
     }
     let storage=options.storage;try{if(!storage)storage=root.sessionStorage;}catch(_){}
     let current=null, latest=null, busy=false, reason='', timer=null, started=false, reloaded=false, closed=false;
@@ -40,9 +47,13 @@
     function snapshot(){return JSON.stringify({available:!!latest&&!readDismissed(latest.version),version:latest?.version||'',busy,reason});}
     async function manifest(){
       if(!fetcher)throw Error('Update checking is unavailable.');
-      const response=await bounded(fetcher('./hosting-release.json',{cache:'no-store',credentials:'same-origin'}));
-      if(!response.ok)throw Error('Could not check the latest version.');
-      const data=await bounded(response.json());
+      const request=new root.AbortController();
+      const data=await bounded(async()=>{
+        if(request.signal.aborted)throw Error('This update was cancelled.');
+        const response=await fetcher('./hosting-release.json',{cache:'no-store',credentials:'same-origin',signal:request.signal});
+        if(!response.ok)throw Error('Could not check the latest version.');
+        return response.json();
+      },()=>request.abort()).finally(()=>request.abort());
       const parsed=identity(data);
       if(data.schema_version!==1||!parsed)throw Error('The update information is not ready.');
       return {version:data.version,...parsed};
@@ -72,7 +83,7 @@
         const fresh=await manifest();
         if(!same(fresh,latest))throw Error('The available update changed. Please try again.');
         if(operation!==generation)throw Error('This update was cancelled.');
-        const checked=await bounded(options.checkUpdateReady(profileId,revision,token));
+        const checked=await bounded(()=>options.checkUpdateReady(profileId,revision,token));
         if(operation!==generation||!checked?.ok||checked.cloudConfirmed!==true||checked.profileId!==profileId||checked.revision!==revision||checked.updateToken!==token)throw Error(checked?.message||'Your save could not be confirmed. Keep this page open.');
         const finalManifest=await manifest();
         if(operation!==generation||!same(finalManifest,fresh))throw Error('The available update changed. Please try again.');
@@ -82,7 +93,7 @@
       }catch(e){reason=e.message||'Could not safely update. Please try again.';return reply({ok:false,code:'UPDATE_NOT_READY',message:reason});}
       finally{busy=false;}
     }
-    function close(){closed=true;latest=null;generation++;if(timer!==null)(options.clearInterval||root.clearInterval)(timer);root.document?.removeEventListener('visibilitychange',onVisible);}
+    function close(){closed=true;latest=null;generation++;for(const stop of pending)stop('This update was cancelled.');if(timer!==null)(options.clearInterval||root.clearInterval)(timer);root.document?.removeEventListener('visibilitychange',onVisible);}
     return Object.freeze({start,snapshot,dismiss,reloadForUpdate,close,poll});
   }
   root.LittleLeafUpdates=Object.freeze({create});
