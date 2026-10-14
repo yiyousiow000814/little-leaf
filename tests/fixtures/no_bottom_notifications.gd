@@ -1,4 +1,5 @@
 extends RefCounted
+const Workfaces=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 ## Structural regression guard. Absence must be real, never hidden/no-op compatibility.
 static func has_property(object:Object,key:String)->bool:
  for property in object.get_property_list():
@@ -18,8 +19,12 @@ static func verify(game,assertion:Callable,label:String):
   assertion.call(not game.has_method(method),label+": no bottom producer "+method)
  assertion.call(not has_property(game.compact_ui,"status_notice"),label+": no bottom component")
  assertion.call(not game.compact_ui.has_method("refresh_status"),label+": no bottom refresh")
- for method in ["show_access_issue","current_access_issue","access_message","_fit_access_camera","draw_access_focus"]:
-  assertion.call(not game.workface_guidance.has_method(method),label+": no bottom navigation "+method)
+ assertion.call(not has_property(game,"workface_guidance"),label+": retired guidance node is absent")
+ var methods=[]
+ var workface_script:Script=Workfaces
+ for method in workface_script.get_script_method_list():methods.append(str(method.name))
+ for name in ["show_access_issue","current_access_issue","access_message","_fit_access_camera","draw_access_focus","draw_ground","_process"]:
+  assertion.call(not methods.has(name),label+": no retired guide function "+name)
  assertion.call(not FileAccess.file_exists("res://scripts/cafe_status_notice.gd"),label+": component source deleted")
  # The guide now has a deliberate Next action; it is not the retired bottom
  # notice navigator. Exempt only that exact button in its actual guide panel.
@@ -28,4 +33,4 @@ static func verify(game,assertion:Callable,label:String):
  assertion.call(unexpected_nodes(game.ui,game.compact_ui.blockage_button,tutorial_next).is_empty(),label+": no bottom notice or legacy navigation nodes")
  assertion.call(game.compact_ui.wallet_notice!=null,label+": wallet notifications remain")
  assertion.call(is_instance_valid(game.compact_ui.hint) and is_instance_valid(game.compact_ui.hint_text),label+": pointer hint remains")
- assertion.call(game.workface_guidance.has_method("describe") and game.workface_guidance.has_method("draw_ground"),label+": ground guidance remains")
+ assertion.call(methods.has("describe") and methods.has("blocked_station"),label+": read-only operational diagnosis remains")

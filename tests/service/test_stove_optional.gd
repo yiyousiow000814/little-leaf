@@ -1,5 +1,6 @@
 extends SceneTree
-## Legacy decorative-stove saves remain intact; new obstructions are rejected.
+## Physical placement and runtime station usability remain separate.
+const Guide=preload("res://scripts/rendering/cafe_workface_guidance.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
@@ -14,47 +15,44 @@ func run():
  var m=Model.new();m.items.clear();m.dining_sets.clear();m.customers.clear();m.coins=100000
  check(m.place("plant",5,4),"decorative blocker places")
  var before=[m.items.duplicate(true),m.coins,m.revision,m._next_item_id]
- check(not m.can_place("stove",5,3,-1,0),"new blocked stove preview is rejected")
+ check(m.can_place("stove",5,3,-1,0),"physically clear blocked stove preview is allowed")
  check(before==[m.items,m.coins,m.revision,m._next_item_id],"rejected preview is pure")
- check(not m.place("stove",5,3,0),"new blocked stove confirmation is rejected")
- m.items.append({"id":m._next_item_id,"kind":"stove","x":5,"z":3,"rot":0,"level":1});m._next_item_id+=1;m._notify()
+ check(m.place("stove",5,3,0),"physically valid blocked stove commits")
  var stove=m.items[-1]
  check(m.layout_access_issues().size()==1 and m.layout_access_issues()[0].item_id==stove.id,"blocked stove remains locatable")
  check(not m._sale_station_usable_in(stove,m.items,m._sale_reachable_in(m.items)),"blocked stove is unavailable to work")
  check(not m.can_place("plant",5,3),"physical overlap remains invalid")
  check(not m.can_place("stove",99,99),"ownership remains enforced")
- check(not m.can_place("plant",m.ENTRY_LANDING.x,m.ENTRY_LANDING.y),"entrance landing remains protected")
+ check(m.can_place("plant",m.ENTRY_LANDING.x,m.ENTRY_LANDING.y),"empty idle entrance remains physically placeable")
  check(m.save("user://decorative-stove.json"),"blocked decorative layout saves")
  var restored=Model.new();check(restored.load_save("user://decorative-stove.json"),"blocked decorative layout reloads")
  check(restored.layout_access_issues().size()==1,"restored blocked stove still has decorate guidance")
  var wall_model=Model.new();wall_model.items.clear();wall_model.dining_sets.clear();wall_model.customers.clear();wall_model.coins=100000
  check(wall_model.place("stove",5,3,0),"wall obstruction fixture places stove")
- check(not wall_model.place_wall("x",5,4),"new wall cannot block stove front")
- var legacy_wall=Model.WallGeometry.make("x",5,4);legacy_wall.id=wall_model._next_wall_id;wall_model._next_wall_id+=1;wall_model.built_walls.append(legacy_wall);wall_model._notify()
+ check(wall_model.place_wall("x",5,4),"body-free wall may block operational access")
  check(wall_model.layout_access_issues().size()==1,"wall obstruction is still described in decorate")
- check(not wall_model.place("stove",11,8,0),"new stove cannot face beyond owned floor")
+ check(wall_model.place("stove",11,8,0),"owned stove footprint may face unusable working space")
  for kind in ["beverage","sink","counter","register"]:
   var test=Model.new();test.items.clear();test.dining_sets.clear();test.customers.clear();test.coins=100000
   test.place("plant",5,4)
-  check(not test.can_place(kind,5,3,-1,0),"required appliance access remains enforced: "+kind)
+  check(test.can_place(kind,5,3,-1,0),"appliance physical fit is independent of service access: "+kind)
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  var live_stove={}
  for item in game.model.items:
   if item.kind=="stove":live_stove=item;break
  var face=game.model.workface_cell(live_stove)
  for staff in game.staff_states:staff.pos=Vector2(1.5,7.5)
- check(not game.model.place("plant",face.x,face.y),"live current café rejects new stove obstruction")
- game.model.items.append({"id":game.model._next_item_id,"kind":"plant","x":face.x,"z":face.y,"rot":0});game.model._next_item_id+=1;game.model._notify()
+ check(game.model.place("plant",face.x,face.y),"clear stove-side footprint commits without an access veto")
  game._rebuild_furniture();game.editing=true;game.selected_id=int(live_stove.id)
- game.workface_guidance._refresh()
+
  check(game.model.layout_access_issues().size()==1 and int(game.model.layout_access_issues()[0].item_id)==int(live_stove.id),"structural validation identifies blocked stove")
- check(game.workface_guidance.markers.size()==1 and not game.workface_guidance.markers[0].clear,"selected blocked stove retains red ground marker")
+ check(Guide.describe(game).size()==1 and not Guide.describe(game)[0].clear,"selected blocked stove retains operational diagnosis")
  var chef=game.staff_states[0]
  chef.blocked_reason="Stove front blocked · make space in Decorate";chef.art_block_reason=chef.blocked_reason;chef.blocked_target_id=live_stove.id
  game.editing=false
- check(game.workface_guidance.blocked_station(game).is_empty(),"play hides stove locate badge")
- game.workface_guidance._refresh()
- check(game.workface_guidance.markers.is_empty(),"play clears Decorate ground markers")
+ check(Guide.blocked_station(game).is_empty(),"play hides stove locate badge")
+
+ check(Guide.describe(game).is_empty(),"play clears decorate-only diagnosis")
  game.idle_home_revision=-1;game._refresh_idle_homes()
  check(chef.idle_home_id==-1,"decorative stove is not an idle working home")
  check(game._service_station("stove",Vector2i(1,7),0).is_empty(),"new cooking job skips blocked stove")

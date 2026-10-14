@@ -10,12 +10,50 @@ class FakeGame extends Node:
  var paused=true
  var save_writes_suppressed=true
  var save_recovery_blocked=true
+class RecoveryMain extends "res://scripts/main.gd":
+ func _load_startup():
+  save_writes_suppressed=true
+  assert(model.load_save("res://tests/fixtures/startup-retry-v15.json"),model.last_error)
+ func _setup_music():pass
+ func _music_tick(_delta):pass
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func _init():call_deferred("run")
+func homes(cafe):
+ return cafe.staff_states.map(func(worker):return {"id":worker.idle_home_id,"cell":worker.idle_home_cell})
+func check_idle_home_recovery():
+ var cafe=RecoveryMain.new();cafe.process_mode=Node.PROCESS_MODE_DISABLED;root.add_child(cafe)
+ cafe._refresh_idle_homes()
+ var expected=homes(cafe)
+ var saved=cafe._service_save_snapshot()
+ var revision=cafe.model.revision;var count=cafe.staff_states.size()
+ check(expected.map(func(home):return home.id)==[1,4,3,15],"synthetic fixture assigns all four role homes before recovery")
+ check(cafe.idle_home_revision==revision and cafe.idle_home_count==count,"idle-home cache is warm before equal-revision replacement")
+ for attempt in 2:
+  var replacement=Model.new()
+  check(replacement.load_save("res://tests/fixtures/startup-retry-v15.json"),"repeated recovery candidate validates")
+  check(replacement.revision==revision and replacement.service_snapshot.staff.size()==count,"replacement matches cached revision and roster count")
+  var old_node=cafe.staff_states[0].node
+  cafe.model=replacement;cafe._resume_loaded_cafe()
+  check(cafe.staff_states[0].node!=old_node,"startup retry recreates staff identities")
+  cafe._staff_idle_cell(0,[])
+  check(homes(cafe)==expected,"first idle placement consumer rebuilds every role home after recovery")
+  var restored=cafe._service_save_snapshot()
+  check(restored.staff==saved.staff,"recovery preserves saved staff positions, routes, jobs and clocks")
+  check(restored.staff.all(func(worker):return not worker.has("idle_home_id") and not worker.has("idle_home_cell")),"derived homes remain outside the saved staff format")
+ # Snapshot restore also replaces the roster without replacing the model.
+ cafe._restore_service_runtime();cafe._staff_idle_cell(0,[])
+ check(homes(cafe)==expected,"same-model snapshot restore rebuilds equal-count roster homes")
+ # Empty-snapshot recovery can consume homes during fresh placement itself.
+ cafe.model.service_snapshot={};cafe.fresh_start=true;cafe._resume_loaded_cafe()
+ check(homes(cafe)==expected,"empty-snapshot recovery invalidates before fresh staff placement")
+ check(cafe.staff_states.all(func(worker):return worker.pos==cafe.model.cell_center(worker.idle_home_cell)),"fresh placement uses rebuilt homes before its first frame")
+ check(cafe.save_writes_suppressed,"recovery regression suppresses ordinary saves")
+ for tween in get_processed_tweens():tween.kill()
+ cafe.queue_free();await process_frame;await process_frame
 func run():
  var game=FakeGame.new();root.add_child(game)
  var controller=WebSave.new(game)
@@ -33,5 +71,6 @@ func run():
  check(controller.startup_error=="" and not game.paused,"successful retry clears startup failure")
  controller.startup_error="";controller.retry_startup()
  check(not controller.retrying,"startup retry cannot discard edits after a loaded save conflict")
+ await check_idle_home_recovery()
  print("STARTUP_RETRY_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

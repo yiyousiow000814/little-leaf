@@ -1,0 +1,70 @@
+{
+  "status": "TECHNICAL_FILES_CHECKED; NEW_ARRANGEMENT_USER_LISTENING_AND_GAME_RUNTIME_PENDING",
+  "variant": "street",
+  "parent_events_sha256": "54c45c8ef079af31f56f81e784f6e5159303a883779c2157ecf1ec1f07bcbe29",
+  "source_sha256": "0de25e603dcbe0e3db13113e3f0e59385727cc77a068185770e1b472b2a4d415",
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "preserved_theme_events": 123,
+  "preserved_harmony": true,
+  "bpm": 112,
+  "bars": 24,
+  "master_gain": 1.6041840439607813,
+  "stems": {
+    "rhodes": {
+      "calibration_gain": 2.434627890254108,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0
+    },
+    "guitar": {
+      "calibration_gain": 2.4249056932373656,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0
+    },
+    "bass": {
+      "calibration_gain": 3.0544455126842402,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0
+    },
+    "drums": {
+      "calibration_gain": 5.18878092088941,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0
+    },
+    "shaker": {
+      "calibration_gain": 27.947801612366803,
+      "raw_release_last_100ms_peak": 0.0,
+      "periodic_filter_error": 0.0
+    }
+  },
+  "master": {
+    "samples": 2268000,
+    "seconds": 51.42857142857143,
+    "integrated_lufs": -18.50000005223725,
+    "peak_dbfs": -4.554624869091431,
+    "estimated_4x_true_peak_dbtp": -4.517399050267466,
+    "boundary_step_peak": 0.0006403217557817698,
+    "ordinary_adjacent_step_p99_9": 0.09425485134124756,
+    "finite": true,
+    "sample_clipping": false
+  },
+  "decoded_ogg": {
+    "samples": 2268000,
+    "seconds": 51.42857142857143,
+    "integrated_lufs": -18.464929811717337,
+    "peak_dbfs": -4.662027199202987,
+    "estimated_4x_true_peak_dbtp": -4.60270153678545,
+    "boundary_step_peak": 0.0011871603783220053,
+    "ordinary_adjacent_step_p99_9": 0.09212224185466766,
+    "finite": true,
+    "sample_clipping": false
+  },
+  "no_reference_recording_sampled": true,
+  "no_paid_service_used": true,
+  "no_repository_write": true,
+  "validation_limits": [
+    "No Godot/browser playback was run",
+    "Same tempo and bar boundaries make musical alignment possible, but do not validate a game-state switching implementation",
+    "MIDI is dry performance data; the FLAC/OGG contains the documented mix and room",
+    "The source SoundFont is not distributed; its package notice is retained, not a blanket rights clearance"
+  ]
+}

@@ -96,6 +96,25 @@ class CommonTagTests(unittest.TestCase):
             self.assertEqual(before['sequence'],2)
             with self.assertRaises(ValueError):common.chronology(root,side,'HEAD')
 
+    def test_explicit_main_fetch_binds_checkout_fetch_head_without_weakening_chronology(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);remote=root/'remote';remote.mkdir();consumer=root/'coordinator'
+            command=lambda cwd,*args:subprocess.check_output(['git','-C',str(cwd),*args],stderr=subprocess.DEVNULL,text=True).strip()
+            command(remote,'init','-qb','main');command(remote,'config','user.name','Synthetic');command(remote,'config','user.email','synthetic@example.invalid')
+            for number in range(2):
+                (remote/'fixture').write_text(str(number));command(remote,'add','fixture');command(remote,'commit','-qm','synthetic')
+            source=command(remote,'rev-parse','HEAD');expected=common.chronology(remote,source,'HEAD')
+            command(remote,'checkout','--orphan','unrelated');command(remote,'rm','-f','--','fixture');command(remote,'commit','--allow-empty','-qm','unrelated')
+            unrelated=command(remote,'rev-parse','HEAD');command(remote,'checkout','-q','main')
+            command(root,'clone','-q','--no-local',str(remote),str(consumer))
+            command(consumer,'fetch','--no-tags','origin','unrelated')
+            with self.assertRaisesRegex(ValueError,'Tagged source must be on main first-parent history'):
+                common.chronology(consumer,source)
+            command(consumer,'fetch','--no-tags','origin','main')
+            self.assertEqual(common.chronology(consumer,source),expected)
+            with self.assertRaisesRegex(ValueError,'Tagged source must be on main first-parent history'):
+                common.chronology(consumer,unrelated)
+
 
 class PlatformTests(unittest.TestCase):
     def marker(self,source='a',version='0.1.11-pre.aaaaaaaa'):
@@ -138,6 +157,9 @@ class PlatformTests(unittest.TestCase):
         self.assertNotIn('secrets',json.dumps(ci));self.assertNotIn('id-token',json.dumps(ci))
         self.assertEqual(trigger(fb)['workflow_run']['workflows'],['Check and build Web'])
         self.assertEqual(trigger(itch)['workflow_run']['workflows'],['Qualify Firebase release'])
+        self.assertEqual(trigger(itch)['workflow_dispatch']['inputs']['qualified_run_id']['default'],'')
+        self.assertIn("inputs.qualified_run_id == ''",itch['jobs']['diagnose_status']['if'])
+        self.assertIn("inputs.qualified_run_id != ''",itch['jobs']['publish']['if'])
         self.assertNotIn('Release Web to itch.io',json.dumps(fb))
         self.assertNotIn('needs',itch['jobs']['publish'])
         self.assertNotIn('needs',fb['jobs']['common'])
@@ -145,6 +167,7 @@ class PlatformTests(unittest.TestCase):
         self.assertIn('--firebase-variant',json.dumps(itch))
         self.assertNotIn('common-release/web',json.dumps(itch))
         self.assertEqual(trigger(deploy)['workflow_run']['workflows'],['Release Web to itch.io'])
+        self.assertIn("startsWith(github.event.workflow_run.display_title, 'Retry qualified itch ')",deploy['jobs']['common-tag']['if'])
         self.assertIn('--itch-run',json.dumps(deploy['jobs']['common-tag']))
         steps=deploy['jobs']['common-tag']['steps'];index=next(i for i,s in enumerate(steps) if 'google-github-actions/auth@' in s.get('uses',''))
         self.assertTrue(any('common_firebase.py' in s.get('run','') for s in steps[:index]))
@@ -152,6 +175,11 @@ class PlatformTests(unittest.TestCase):
         auth=steps[index]['with'];self.assertEqual(auth['access_token_lifetime'],'900s')
         self.assertEqual(auth['access_token_scopes'],'https://www.googleapis.com/auth/firebase.hosting')
         self.assertFalse(auth['create_credentials_file']);self.assertFalse(auth['export_environment_variables'])
+
+    def test_updater_request_ownership_and_save_guards(self):
+        root=Path(__file__).resolve().parents[2]
+        subprocess.run(['node','tests/presentation/update_notice.js'],cwd=root,check=True,
+                       capture_output=True,text=True,timeout=30)
 
     def test_updater_keeps_order_authorities_separate_and_hashes_opaque(self):
         root=Path(__file__).resolve().parents[2]
@@ -161,7 +189,7 @@ const source=fs.readFileSync(process.argv[1],'utf8');
 const order=sequence=>({kind:'main-first-parent',repository:'yiyousiow000814/little-leaf',anchor:'a'.repeat(40),sequence,chain_sha256:'b'.repeat(64)});
 const marker=(commit,release_order)=>({schema_version:1,source_commit:commit.repeat(40),version:'0.1.11-pre.'+commit.repeat(8),release_order});
 async function observe(current,next){
- const window={setTimeout,clearTimeout};vm.runInNewContext(source,{window});
+ const window={setTimeout,clearTimeout,AbortController};vm.runInNewContext(source,{window});
  const updater=window.LittleLeafUpdates.create({currentRelease:current,fetch:async()=>({ok:true,json:async()=>next}),
   checkUpdateReady:async()=>({}),canReloadUpdate:()=>true,setInterval:()=>1,clearInterval:()=>{}});
  updater.start(current.version);await updater.poll();const available=JSON.parse(updater.snapshot()).available;updater.close();return available;
@@ -233,11 +261,25 @@ async function observe(current,next){
         manifest=json.loads((output/'firebase-variant-manifest.json').read_text());marker=json.loads((output/'public/hosting-release.json').read_text())
         return output,manifest,marker
 
+    def test_incompatible_producer_packet_never_emits_upload_handoff(self):
+        import os
+        from release import firebase_release_event as event
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / 'github-output'
+            with patch.dict(os.environ, {'GITHUB_OUTPUT': str(output)}), \
+                    patch.object(event, 'check_firebase_packet_budget', side_effect=ValueError('over budget')):
+                with self.assertRaisesRegex(ValueError, 'over budget'):
+                    self.packet(Path(temporary))
+            self.assertFalse(output.exists())
+
     def test_complete_typed_packet_preserves_runtime_without_butler_receipt(self):
         from release.deploy_firebase_hosting import verify_package,verify_live_package
         from qualification.artifacts import sha256
-        with tempfile.TemporaryDirectory() as temporary:
+        from release import firebase_release_event as event
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.object(event,'check_firebase_packet_budget',wraps=event.check_firebase_packet_budget) as budget:
             folder,manifest,marker=self.packet(Path(temporary))
+            budget.assert_called_once_with(folder)
             firebase.validate_packet(folder,manifest,marker)
             self.assertNotIn('publication',manifest);self.assertNotIn('manual_live_reuse',manifest)
             self.assertEqual(manifest['status'],firebase.STATUS)
@@ -354,13 +396,20 @@ async function observe(current,next){
         artifact={'id':700,'name':'little-leaf-itch-publication-'+'a'*40+'-1','expired':False,
             'digest':'sha256:'+'d'*64,'workflow_run':{'id':990,'head_sha':'c'*40}}
         job={'name':'publish','run_id':990,'run_attempt':1,'status':'completed','conclusion':'success'}
-        receipt={'source_commit':'a'*40,'workflow_run':'990','workflow_attempt':'1'}
+        receipt={'source_commit':'a'*40,'workflow_run':'990','workflow_attempt':'1',
+                 'same_page_staging_origin':{'run_id':901}}
         def extracted(api,value,output):
             output.mkdir();(output/'receipt.json').write_text(json.dumps(receipt))
-        for mode in ['valid','manual','wrong-repository','failed-publish','stale-job-attempt','expired','wrong-receipt-attempt']:
+        for mode in ['valid','named-retry','manual','retry-other-run','retry-malformed-title','retry-second-attempt',
+                     'wrong-repository','failed-publish','stale-job-attempt','expired','wrong-receipt-attempt']:
             selected=copy.deepcopy(published);selected_job=dict(job);selected_artifact=copy.deepcopy(artifact)
             receipt['workflow_attempt']='1'
             if mode=='manual':selected['event']='workflow_dispatch'
+            if mode.startswith('retry-') or mode=='named-retry':
+                selected.update(event='workflow_dispatch',display_title='Retry qualified itch 901')
+                if mode=='retry-other-run':selected['display_title']='Retry qualified itch 902'
+                if mode=='retry-malformed-title':selected['display_title']='Retry qualified itch 0901'
+                if mode=='retry-second-attempt':selected['run_attempt']=2
             if mode=='wrong-repository':selected['repository']={'full_name':'other/repository'}
             if mode=='failed-publish':selected_job['conclusion']='failure'
             if mode=='stale-job-attempt':selected_job['run_attempt']=2
@@ -370,11 +419,111 @@ async function observe(current,next){
                 'state':'active','id':9,'path':'.github/workflows/release-itch.yml'}
             api.pages.side_effect=lambda name,key:[selected_job] if key=='jobs' else [selected_artifact]
             with self.subTest(mode=mode),tempfile.TemporaryDirectory() as temporary,patch.object(firebase,'download',side_effect=extracted):
-                if mode=='valid':
+                if mode in {'valid','named-retry'}:
                     path,origin=firebase.consume_publication(api,990,Path(temporary)/'publication')
                     self.assertEqual(origin['artifact'],artifact);self.assertEqual(json.loads(path.read_bytes()),receipt)
                 else:
                     with self.assertRaises(ValueError):firebase.consume_publication(api,990,Path(temporary)/'publication')
+
+    def test_workflow_cli_authenticates_attempt_and_real_fetched_history_together(self):
+        # Exercise the real CLI -> authenticate_packet -> chronology path. Packet
+        # rendering/transport have their own tests; only those boundaries are
+        # fixtures here. In particular, do not mock authentication or Git.
+        import base64
+        import os
+        import shlex
+        import sys
+        from release.stage_released_firebase import FULLFLOW_SOURCES
+        root = Path(__file__).resolve().parents[2]
+        step = next(step for step in yaml.safe_load((root / '.github/workflows/release-itch.yml').read_text())['jobs']['publish']['steps'] if step.get('id') == 'common')
+        lines = step['run'].splitlines()
+        self.assertIn('coordinator/tools/release/common_firebase.py', lines[-1])
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary); remote = folder / 'remote'; remote.mkdir()
+            git = lambda cwd, *args: subprocess.check_output(['git', '-C', str(cwd), *args], stderr=subprocess.DEVNULL, text=True).strip()
+            git(remote, 'init', '-qb', 'main')
+            git(remote, 'config', 'user.name', 'Synthetic'); git(remote, 'config', 'user.email', 'synthetic@example.invalid')
+            git(remote, 'commit', '--allow-empty', '-qm', 'qualified source')
+            source = git(remote, 'rev-parse', 'HEAD'); tree = git(remote, 'rev-parse', 'HEAD^{tree}')
+            order = common.chronology(remote, source, 'HEAD')
+            git(remote, 'checkout', '--orphan', 'unrelated'); git(remote, 'commit', '--allow-empty', '-qm', 'unrelated')
+            git(remote, 'checkout', '-q', 'main')
+            coordinator = folder / 'coordinator'; git(folder, 'clone', '-q', '--no-local', str(remote), str(coordinator))
+            latest = run(901, source, 'main', 'workflow_run', firebase.WORKFLOW)
+            latest.update(jobs_url='https://api.github.com/runs/901/jobs', logs_url='https://api.github.com/runs/901/logs')
+            attempt = dict(latest, jobs_url='https://api.github.com/runs/901/attempts/1/jobs', logs_url='https://api.github.com/runs/901/attempts/1/logs')
+            artifact = {'id': 701, 'name': f'little-leaf-firebase-{source}-1', 'expired': False,
+                        'digest': 'sha256:' + 'd' * 64, 'workflow_run': {'id': 901, 'head_sha': source}}
+            common_artifact = {'id': 700, 'name': f'little-leaf-common-release-{source}-1',
+                               'expired': False, 'workflow_run': {'id': 30}}
+            content = b'synthetic pinned source bytes'; digest = hashlib.sha256(content).hexdigest()
+            proof = {'context': {'staging_run_id': 901, 'staging_attempt': 1, 'coordinator_source_commit': source,
+                                 'coordinator_source_tree': tree},
+                     'common': {'common_run_id': 30, 'release_order': order},
+                     'common_origin': {'artifact': common_artifact},
+                     'compiled_source_sha256': dict.fromkeys(FULLFLOW_SOURCES, digest),
+                     'public_config_sha256': digest, 'released_transformer_sha256': digest,
+                     'released_same_page_transformer_sha256': digest,
+                     'coordinator_sha256': dict.fromkeys(firebase.COORDINATOR_FILES, digest)}
+            manifest = {'source_commit': source, 'common_tag_reuse': proof}
+            def read(path):
+                if path.startswith('contents/'):
+                    return {'encoding': 'base64', 'content': base64.b64encode(content).decode()}
+                return {'actions/runs/901': latest, 'actions/runs/901/attempts/1': attempt,
+                        'actions/artifacts/701': artifact, 'actions/artifacts/700': common_artifact,
+                        'git/commits/' + source: {'tree': {'sha': tree}}}[path]
+            def pages(path, key):
+                if path == 'actions/runs/901/artifacts': return [artifact]
+                if path == 'actions/runs/901/attempts/1/jobs':
+                    return [{'name': 'common / released', 'status': 'completed', 'conclusion': 'success'}]
+                raise AssertionError('Unexpected endpoint: ' + path)
+            def download(api, selected, output):
+                self.assertEqual(selected, artifact)
+                (output / 'public').mkdir(parents=True); (output / 'evidence').mkdir()
+                (output / 'firebase-variant-manifest.json').write_text(json.dumps(manifest))
+                (output / 'public/hosting-release.json').write_text(json.dumps({'tag': 'v0.1.11-pre.' + source[:8]}))
+                (output / 'evidence/common-tag-reuse.json').write_text(json.dumps(proof))
+            api = Mock(); api.read.side_effect = read; api.pages.side_effect = pages
+            for fetch_main in (False, True):
+                git(coordinator, 'fetch', '--no-tags', 'origin', 'unrelated')
+                output = folder / str(fetch_main); output.mkdir()
+                env = {'FIREBASE_RUN': '901', 'RUNNER_TEMP': str(output), 'GITHUB_OUTPUT': str(output / 'github-output')}
+                with self.subTest(fetch_main=fetch_main), patch.dict(os.environ, env), \
+                        patch.object(firebase, 'ROOT', coordinator), patch.object(firebase, 'GitHub', return_value=api), \
+                        patch.object(firebase, 'download', side_effect=download), \
+                        patch.object(firebase, 'validate_packet', return_value=proof), \
+                        patch.object(common, 'consume', return_value={'common': proof['common'], 'common_origin': proof['common_origin']}):
+                    # Execute the workflow's actual preparation commands, without
+                    # substituting a test-only fetch that could hide a missing one.
+                    if fetch_main:
+                        for line in lines[:-1]:
+                            subprocess.run([os.path.expandvars(part) for part in shlex.split(line)], cwd=folder, check=True, capture_output=True)
+                    argv = [os.path.expandvars(part) for part in shlex.split(lines[-1])[1:]]
+                    with patch.object(sys, 'argv', argv):
+                        if fetch_main:
+                            firebase.main()
+                            origin = json.loads((output / 'common-firebase/origin.json').read_text())
+                            self.assertEqual(origin['run'], attempt)
+                            self.assertTrue(origin['common_authenticated'])
+                        else:
+                            with self.assertRaisesRegex(ValueError, 'main first-parent history'):
+                                firebase.main()
+                            self.assertFalse((output / 'github-output').exists())
+
+    def test_canonical_attempt_drift_is_refused_before_artifact_access(self):
+        import os,sys
+        latest=run(901,'a'*40,'main','workflow_run',firebase.WORKFLOW)
+        for field,value in [('id',902),('run_attempt',2),('head_sha','b'*40),
+                            ('head_branch','other'),('conclusion','failure'),
+                            ('repository',{'full_name':'fork/repository'})]:
+            selected={**latest,field:value};api=Mock()
+            api.read.side_effect=lambda path:latest if path=='actions/runs/901' else selected
+            with self.subTest(field=field),tempfile.TemporaryDirectory() as temporary, \
+                    patch.object(firebase,'GitHub',return_value=api), \
+                    patch.dict(os.environ,{'GH_TOKEN':'synthetic'}), \
+                    patch.object(sys,'argv',['common_firebase','--run','901','--platform','itch','--output',temporary]):
+                with self.assertRaises(ValueError):firebase.main()
+                api.pages.assert_not_called()
 
     def test_itch_run_cli_enumerates_selected_firebase_run_and_projects_real_packet(self):
         import os,sys
@@ -390,7 +539,12 @@ async function observe(current,next){
             api=Mock();enumerated=[]
             def read(name):
                 if name=='actions/runs/990':return publication_run
-                if name=='actions/runs/901':return origin['run']
+                if name=='actions/runs/901':
+                    return {**origin['run'],'jobs_url':'https://api.github.com/repos/'+common.REPOSITORY+'/actions/runs/901/jobs',
+                            'logs_url':'https://api.github.com/repos/'+common.REPOSITORY+'/actions/runs/901/logs'}
+                if name=='actions/runs/901/attempts/1':
+                    return {**origin['run'],'jobs_url':'https://api.github.com/repos/'+common.REPOSITORY+'/actions/runs/901/attempts/1/jobs',
+                            'logs_url':'https://api.github.com/repos/'+common.REPOSITORY+'/actions/runs/901/attempts/1/logs'}
                 if name=='actions/workflows/release-itch.yml':return {'id':9,'state':'active','path':'.github/workflows/release-itch.yml'}
                 if name.startswith('compare/'):return {'status':'ahead'}
                 raise AssertionError('Unexpected CLI endpoint: '+name)
@@ -409,6 +563,7 @@ async function observe(current,next){
             def authenticated(unused,packet,data,selected,unused_root):
                 firebase.validate_packet(packet,data,json.loads((packet/'public/hosting-release.json').read_bytes()))
                 self.assertEqual(selected['run']['id'],901);self.assertEqual(selected['artifact'],selected_artifact)
+                self.assertEqual(selected['run'],read('actions/runs/901/attempts/1'))
                 return {**selected,'common_authenticated':True,'common_proof_sha256':firebase.sha256(packet/'evidence/common-tag-reuse.json')}
             api.read.side_effect=read;api.pages.side_effect=pages;output=root/'result'
             baseline={'schema_version':1,'source_commit':'9'*40,'version':'0.1.11-pre.99999999','tag':'v0.1.11-pre.99999999'}

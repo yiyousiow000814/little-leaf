@@ -1,0 +1,149 @@
+[
+  {
+    "file": "01_Main_Street/Corner_Cafe_Main_Street_112bpm.mp3",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.5882028341293335
+  },
+  {
+    "file": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Loop.ogg",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.5846536159515381
+  },
+  {
+    "file": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Master.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.5919277667999268
+  },
+  {
+    "file": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Seam_Check.mp3",
+    "sample_rate": 44100,
+    "frames": 378000,
+    "channels": 2,
+    "peak": 0.5248899459838867
+  },
+  {
+    "file": "01_Main_Street/Corner_Cafe_Main_Street_112bpm_Two_Cycles.mp3",
+    "sample_rate": 44100,
+    "frames": 4536000,
+    "channels": 2,
+    "peak": 0.5844699144363403
+  },
+  {
+    "file": "01_Main_Street/stems/bass.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.30396878719329834
+  },
+  {
+    "file": "01_Main_Street/stems/drums.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.19762873649597168
+  },
+  {
+    "file": "01_Main_Street/stems/guitar.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.26209497451782227
+  },
+  {
+    "file": "01_Main_Street/stems/rhodes.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.20360267162322998
+  },
+  {
+    "file": "01_Main_Street/stems/shaker.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.17088532447814941
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix.mp3",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.7113373875617981
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop.ogg",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.7136190533638
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Master.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.7108666896820068
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Seam_Check.mp3",
+    "sample_rate": 44100,
+    "frames": 378000,
+    "channels": 2,
+    "peak": 0.7000917196273804
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Two_Cycles.mp3",
+    "sample_rate": 44100,
+    "frames": 4536000,
+    "channels": 2,
+    "peak": 0.7141621112823486
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/stems/bass.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.3263283967971802
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/stems/bell_theme.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.3676224946975708
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/stems/kalimba.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.16021037101745605
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/stems/percussion.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.13357007503509521
+  },
+  {
+    "file": "02_Shop_Rhythm_Fix/stems/wood_theme.flac",
+    "sample_rate": 44100,
+    "frames": 2268000,
+    "channels": 2,
+    "peak": 0.4746910333633423
+  },
+  {
+    "file": "previews/Shop_Rhythm_Before_After_8bars.mp3",
+    "sample_rate": 44100,
+    "frames": 1556100,
+    "channels": 2,
+    "peak": 0.7159824371337891
+  }
+]

@@ -68,7 +68,32 @@ func original(art):
 	art._grass(size);Neighborhood.draw_ground(art,art._parking_owned());art.ground_art.draw_pavement(art);Neighborhood.draw_crossing(art,art._parking_owned())
 func settle(art):
 	for frame in 8:art._process(1.0/60);await process_frame
+# Two independently loaded cafes may share a revision; content belongs to the
+# model instance, while unchanged terrain must still reuse retained geometry.
+func check_ground_model_lifetime():
+	var ground=preload("res://scripts/rendering/illustrated_ground.gd").new()
+	var first=preload("res://scripts/core/cafe_model.gd").new();first.revision=7
+	ground.prepare(first)
+	var before=ground.floor_rebuilds
+	var original_mesh=ground.floor_mesh
+	var second=preload("res://scripts/core/cafe_model.gd").new();second.revision=7
+	second.floor_finishes["0,0"]={"style":"sage_tile","paid_cost":0}
+	ground.prepare(second)
+	check(ground.floor_rebuilds==before+1 and ground.floor_mesh!=original_mesh,"equal-revision new model rebuilds different terrain")
+	check(ground.floor_content_key==ground._floor_content_key(second),"replacement terrain content is current")
+	var current_mesh=ground.floor_mesh
+	before=ground.floor_rebuilds
+	var unchanged=preload("res://scripts/core/cafe_model.gd").new();unchanged.revision=7;unchanged.floor_finishes=second.floor_finishes.duplicate(true)
+	ground.prepare(unchanged)
+	check(ground.floor_rebuilds==before and ground.floor_mesh==current_mesh,"equal-revision new model reuses identical terrain")
+	unchanged.coins+=100;unchanged.revision+=1;ground.prepare(unchanged)
+	check(ground.floor_rebuilds==before and ground.floor_mesh==current_mesh,"non-terrain revision reuses floor mesh")
+	var lifetime=weakref(unchanged)
+	unchanged=null
+	check(lifetime.get_ref()==null,"ground cache does not retain replaced model lifetime")
+
 func run():
+	check_ground_model_lifetime()
 	var game=TestGame.new();root.add_child(game);game.set_process(false);game.cafe_intro.finish();game.paused=true;game.illustration.set_process(false)
 	for tween in get_processed_tweens():tween.kill()
 	var art=recording_script().new();art.game=game;art.use_retained_geometry=false;root.add_child(art);art.ground_art.prepare(game.model)

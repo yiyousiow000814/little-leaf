@@ -1,0 +1,21 @@
+{
+  "music_title": "花巷庆典 · Fiesta en Flor",
+  "selected_version": "R4",
+  "user_selection": "User explicitly selected this existing version as good-sounding.",
+  "current_status": "USER_SELECTED_POSITIVE_VERSION",
+  "audio_mp3": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+  "audio_sha256": "53272b0d9b67d162972b3d27ba7cda75afd3fa3abb1394ba85489cd3f76c5a37",
+  "lossless_master": "03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.flac",
+  "master_sha256": "231bebbee3d4b0675c2e3f628fb1f1aa3f53670ff605114146d5c9b921526de8",
+  "duration_seconds": 29.6802947845805,
+  "nominal_bpm": 142.0,
+  "meter": [
+    4,
+    4
+  ],
+  "preserved_original_audio": true,
+  "approved_for_automatic_publication": false,
+  "seamless_loop_qualified": false,
+  "game_integration_tested": false,
+  "status_authority": "This selection supersedes old pending-listening labels inside frozen historical ledgers/checks; those files are retained unchanged."
+}
