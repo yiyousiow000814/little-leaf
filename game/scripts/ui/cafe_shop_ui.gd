@@ -519,7 +519,9 @@ func sync_action_details():
   action_coin.visible=bool(stroke.ok)
   detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
   if not stroke.ok:detail+=" · "+str(stroke.error)
- price_label.add_theme_font_size_override("font_size",18 if action_coin.visible else 12)
+ var price_font_size=18 if action_coin.visible else 12
+ if not price_label.has_theme_font_size_override("font_size") or price_label.get_theme_font_size("font_size")!=price_font_size:
+  price_label.add_theme_font_size_override("font_size",price_font_size)
  price_label.accessibility_name=price+(" coins" if action_coin.visible else "")
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")
