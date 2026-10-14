@@ -79,6 +79,9 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'platform/web'/name,public/name)
     html=(public/'index.html').read_text(encoding='utf-8')
+    if html.count('<body>') != 1: raise ValueError('Web shell body contract changed')
+    # Account presentation belongs to Firebase, independent of the itch chooser.
+    html=html.replace('<body>', '<body><style>'+entry_styles()+'</style>', 1)
     boot_marker='window.__littleLeafVault.boot()'
     if html.count(boot_marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(boot_marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
