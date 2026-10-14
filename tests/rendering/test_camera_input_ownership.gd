@@ -1,5 +1,37 @@
 extends "res://tests/building/test_existing_wall_actions.gd"
 ## Real visible control geometry, generated model, no original profile.
+class ProjectionProbe extends Node2D:
+ var pan_offset=Vector2.ZERO
+ var calls=0
+ func update_projection():calls+=1
+class ProjectionContext extends RefCounted:
+ var illustration
+ var editing=false
+ var selected_kind=""
+ var selected_id=-1
+ var hover_cell=Vector2i.ZERO
+ var tool_text=null
+ var floor_calls=0
+ var projection_before_pick=false
+ func _floor_cell(_point):
+  floor_calls+=1
+  projection_before_pick=illustration.calls>0
+  return Vector2i(1,2)
+func check_play_projection_refresh():
+ var context=ProjectionContext.new();var probe=ProjectionProbe.new();context.illustration=probe
+ var interaction=preload("res://scripts/gameplay/cafe_interaction.gd").new(context)
+ probe.pan_offset=Vector2(25,31);var point=Vector2(42,66)
+ interaction.preview_active=true;interaction.drag_valid=true;interaction.drag_footprint_valid=true
+ interaction.refresh(point)
+ check(probe.calls==0,"play refresh skips unused projection calculation")
+ check(interaction.pan_offset==probe.pan_offset and interaction.last_pointer==point,"play refresh retains current pan and pointer")
+ check(not interaction.preview_active and not interaction.drag_valid and not interaction.drag_footprint_valid,"play refresh clears all placement feedback")
+ interaction._sync_projection();check(probe.calls==1,"explicit camera synchronization retains default refresh")
+ probe.calls=0;context.editing=true;interaction.refresh(point)
+ check(probe.calls==1 and context.floor_calls==1 and context.projection_before_pick,"editing refresh projects before world picking")
+ context.editing=false;probe.calls=0;interaction._pan_by(Vector2(3,5))
+ check(probe.calls==1 and interaction.pan_offset==Vector2(28,36),"actual pan path still recalculates and synchronizes")
+ probe.free()
 func buttons(node:Node, result:Array):
  if node is Control and not node.is_visible_in_tree():return
  if node is BaseButton and root.get_visible_rect().encloses(node.get_global_rect()):result.append(node)
@@ -12,6 +44,7 @@ func middle_move(point:Vector2):
  root.push_input(event,true)
 func run():
  if not "saveguard" in OS.get_user_data_dir():quit(2);return
+ check_play_projection_refresh()
  game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true
  await settle()
  var art=game.illustration;var states=0;var ui_cases=0

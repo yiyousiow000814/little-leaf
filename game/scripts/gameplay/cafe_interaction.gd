@@ -116,7 +116,7 @@ func handle_unhandled_input(event: InputEvent) -> bool:
 
 func refresh(screen: Vector2):
 	last_pointer = screen
-	_sync_projection()
+	_sync_projection(game.editing)
 	if _left_down and (game.editing != _press_editing or str(game.selected_kind) != _press_kind or int(game.selected_id) != _press_selected_id):
 		_clear_gesture()
 	if not game.editing:
@@ -381,9 +381,9 @@ func _zoom_at(screen:Vector2,amount:float,pan_delta:Vector2=Vector2.ZERO):
 	if drag_active:_grab_offset*=next_zoom/old_zoom
 	refresh(screen+pan_delta)
 
-func _sync_projection():
+func _sync_projection(refresh_geometry:bool=true):
 	if is_instance_valid(game.illustration) and game.illustration.has_method("update_projection"):
-		game.illustration.update_projection()
+		if refresh_geometry:game.illustration.update_projection()
 		pan_offset=game.illustration.pan_offset
 
 func _point_in_view(screen: Vector2) -> bool:
