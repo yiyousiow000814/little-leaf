@@ -101,7 +101,16 @@ activate it or write migrated player saves until the following are reviewed:
 - Introduce a strictly guarded building sub-format only after Release/Auth review
   of the outer v15 save, browser vault, old-reader rejection, session authority and
   Recovery behavior. A marker ignored by older clients is not a compatibility
-  guard. Do not couple migration activation to an unrelated release repair.
+  guard. Auth's read-only review of d8e2aa6d confirms the old Model rejects
+  `wall_format: 3` before assigning live state, but the browser vault's
+  `parsePayload` checks only the outer header. The new building codec must validate
+  its full structure; migration creates a new same-profile revision and digest,
+  preserving local profile/revision/digest/fingerprint CAS and cloud base-digest,
+  writer/epoch/lease fences. The actual old Web `_block_startup` suppresses writes
+  but calls `MinimalStart.apply` for display. Do not claim that a format marker
+  alone prevents that old-client display reset; qualify the actual Recovery screen
+  and original-save protection separately. Do not couple migration activation to
+  an unrelated release repair.
 - Preserve the original import, a recoverable backup and source/hash receipts.
   Reversing a code commit does not make a new-format save readable by old code.
   Rollback must either reopen the preserved old copy or use a separately verified
