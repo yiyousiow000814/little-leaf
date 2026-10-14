@@ -79,6 +79,24 @@ class CrazyGamesExportTests(unittest.TestCase):
         self.assertIn('html/custom_html_shell="res://web/little_leaf_crazygames_shell.html"', config)
 
 
+    def test_deferred_music_exclusion_preserves_boot_sfx(self):
+        import fnmatch
+        import re
+        config = (REPO / "game/export_presets.cfg").read_text(encoding="utf-8")
+        game = config.split("[preset.1]", 1)[1].split("[preset.1.options]", 1)[0]
+        patterns = re.search(r'^exclude_filter="([^"]*)"$', game, re.MULTILINE).group(1).split(",")
+        music = config.split("[preset.2]", 1)[1].split("[preset.2.options]", 1)[0]
+        deferred = re.findall(r'"res://(assets/audio/[^"\n]+\.mp3)"', music)
+        def excluded(path):
+            return any(fnmatch.fnmatchcase(path, pattern) or
+                       fnmatch.fnmatchcase("res://" + path, pattern) for pattern in patterns)
+        self.assertTrue(deferred, "the existing BGM pack retains its selected resources")
+        for path in deferred:
+            self.assertTrue(excluded(path), "BGM remains in the deferred music pack: " + path)
+        for path in ["assets/audio/sfx/SfxCash.mp3", "assets/audio/sfx/placement_volume_v02.wav"]:
+            self.assertFalse(excluded(path), "static feedback dependency must remain in the boot pack: " + path)
+
+
 class CrazyGamesVariantTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
