@@ -1630,6 +1630,17 @@ func _items_without_stove_levels() -> Array[Dictionary]:
 	return normalized
 
 
+func _saved_statistics_error(data: Dictionary) -> String:
+	for field in ["coins", "served", "total_earned", "total_cleaned"]:
+		if not _valid_int(data.get(field), 0, 1000000000):
+			return "Invalid save statistic: %s" % field
+	return ""
+
+func _saved_payroll_error(data: Dictionary) -> String:
+	var money_codec=RuntimeCodec.new()
+	if not money_codec._number(data.get("payroll_elapsed"),0,59.9999999) or not money_codec._number(data.get("payroll_accrued"),0,1000) or not _valid_int(data.get("wages_due"),0,1000000000) or not _valid_int(data.get("total_wages_paid"),0,1000000000):return "Invalid saved payroll"
+	return ""
+
 func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
@@ -1690,6 +1701,10 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	var body_error=_opening_body_error(built_walls,openings_check.attachments,actors)
 	if body_error!="":return _fail("Could not save invalid walls: "+body_error)
+	var scalar_error=_saved_statistics_error(data)
+	if scalar_error!="":return _fail(scalar_error)
+	scalar_error=_saved_payroll_error(data)
+	if scalar_error!="":return _fail(scalar_error)
 	var temp_path := path + ".tmp"
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
@@ -1725,16 +1740,15 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
-	for field in ["coins", "served", "total_earned", "total_cleaned"]:
-		if not _valid_int(data.get(field), 0, 1000000000):
-			return _fail("Invalid save statistic: %s" % field)
+	var scalar_error=_saved_statistics_error(data)
+	if scalar_error!="":return _fail(scalar_error)
 	if not data.get("expanded") is bool or not _valid_int(data.get("cooks"), 1, MAX_COOKS):
 		return _fail("Invalid expansion or staffing in save")
 	var saved_waiters=2;var saved_cleaners=1;var saved_payroll_elapsed=0.0;var saved_payroll_accrued=0.0;var saved_wages_due=0;var saved_total_wages_paid=0
 	if int(data.version)>=9:
 		if not _valid_int(data.get("waiters"),1,STAFF_CAPS.waiter) or not _valid_int(data.get("cleaners"),1,STAFF_CAPS.cleaner):return _fail("Invalid saved staff counts")
-		var money_codec=RuntimeCodec.new()
-		if not money_codec._number(data.get("payroll_elapsed"),0,59.9999999) or not money_codec._number(data.get("payroll_accrued"),0,1000) or not _valid_int(data.get("wages_due"),0,1000000000) or not _valid_int(data.get("total_wages_paid"),0,1000000000):return _fail("Invalid saved payroll")
+		scalar_error=_saved_payroll_error(data)
+		if scalar_error!="":return _fail(scalar_error)
 		saved_waiters=int(data.waiters);saved_cleaners=int(data.cleaners);saved_payroll_elapsed=float(data.payroll_elapsed);saved_payroll_accrued=float(data.payroll_accrued);saved_wages_due=int(data.wages_due);saved_total_wages_paid=int(data.total_wages_paid)
 	var saved_cashiers=0;var saved_checkout_pending=true
 	if SaveContract.has_checkout(int(data.version)):

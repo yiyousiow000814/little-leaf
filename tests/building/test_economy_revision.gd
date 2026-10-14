@@ -24,9 +24,61 @@ func normalized_items(raw:Array)->Array:
  return result
 func write(name:String,data:Dictionary)->String:
  var path="user://"+name+".json";var file=FileAccess.open(path,FileAccess.WRITE);file.store_string(JSON.stringify(data));file.close();return path
+func check_scalar_save_preservation():
+ # Use real refunds/payroll in this suite's disposable saveguard profile.
+ for trigger in ["refund","payroll"]:
+  var model=fresh(1000);model.first_guest_pending=false
+  var id=model._next_item_id
+  if trigger=="refund":
+   check(model.place("plant",4,6),"refund overflow fixture buys a removable plant")
+   model.coins=1000000000
+  else:model.total_wages_paid=1000000000
+  var path="user://scalar-"+trigger+".json"
+  check(model.save(path),"legal scalar boundary saves: "+trigger+" "+model.last_error)
+  var good=JSON.parse_string(FileAccess.get_file_as_string(path))
+  var good_hash=FileAccess.get_sha256(path)
+  var boundary=Model.new()
+  check(boundary.load_save(path),"legal scalar boundary reloads: "+trigger)
+  var temp_path=path+".tmp"
+  check(not FileAccess.file_exists(temp_path),"successful boundary write leaves no temp: "+trigger)
+  if trigger=="refund":
+   var temp=FileAccess.open(temp_path,FileAccess.WRITE);temp.store_string("existing synthetic temp");temp.close()
+   var returned=model.logical_refund(id)
+   check(returned>0 and model.remove(id) and model.coins==1000000000+returned,"real refund exceeds wallet limit without repricing")
+  else:
+   var result=model.advance_payroll(60.0,true)
+   check(result.paid>0 and model.total_wages_paid==1000000000+result.paid,"real payroll exceeds paid ledger limit without changing wages")
+  var before=state(model)
+  var temp_hash=FileAccess.get_sha256(temp_path) if trigger=="refund" else ""
+  check(not model.save(path),"overflow save refuses: "+trigger)
+  check(state(model)==before,"refusal does not mutate live economy: "+trigger)
+  check(FileAccess.get_sha256(path)==good_hash,"refusal preserves previous good bytes: "+trigger)
+  check(FileAccess.get_sha256(temp_path)==temp_hash if trigger=="refund" else not FileAccess.file_exists(temp_path),"refusal never opens or replaces temp: "+trigger)
+  var recovered=Model.new()
+  var restored=recovered.load_save(path)
+  check(restored,"previous good save still reloads: "+trigger+" "+recovered.last_error)
+  if restored:
+   check(recovered.coins==int(good.coins) and recovered.total_wages_paid==int(good.total_wages_paid),"reload retains previous wallet and payroll: "+trigger)
+   if trigger=="refund":check(not recovered.get_item(id).is_empty(),"refused refund save keeps the previously saved plant")
+ var seed_model=fresh(1234);seed_model.first_guest_pending=false
+ var path="user://scalar-fields-good.json"
+ check(seed_model.save(path),"shared scalar fixture saves")
+ var good_hash=FileAccess.get_sha256(path)
+ var good=JSON.parse_string(FileAccess.get_file_as_string(path))
+ for spec in [["coins",-1],["served",1000000001],["total_earned",1000000001],["total_cleaned",1000000001],["wages_due",1000000001],["total_wages_paid",1000000001],["payroll_elapsed",60.0],["payroll_accrued",1000.1]]:
+  var model=fresh(1234);model.first_guest_pending=false;model.set(str(spec[0]),spec[1])
+  check(not model.save(path),"writer rejects existing scalar limit: "+str(spec[0]))
+  var writer_error=model.last_error
+  check(FileAccess.get_sha256(path)==good_hash and not FileAccess.file_exists(path+".tmp"),"bad scalar leaves destination and temp untouched: "+str(spec[0]))
+  var malformed=good.duplicate(true);malformed[str(spec[0])]=spec[1]
+  var receiver=fresh(7777);var before=state(receiver)
+  check(not receiver.load_save(write("scalar-invalid-"+str(spec[0]),malformed)) and state(receiver)==before,"reader rejects scalar atomically: "+str(spec[0]))
+  check(receiver.last_error==writer_error,"reader and writer share the existing diagnostic: "+str(spec[0]))
+
 func _initialize():run.call_deferred()
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
+ check_scalar_save_preservation()
  var model=fresh();var before=state(model)
  check(model.price_of("table_set")==280 and Sets.VARIANTS.oak_single.price==280,"storefront and dining product both quote approved280")
  check(model.wage_rate()==50 and model.WAGE_RATES=={"chef":18,"waiter":11,"cleaner":10,"cashier":11},"included four-role roster costs50 per future game minute")

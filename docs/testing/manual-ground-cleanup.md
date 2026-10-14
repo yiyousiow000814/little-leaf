@@ -40,8 +40,12 @@ by manual cleanup. Successful cleanup still awards exactly one coin once.
   contains all three diminishing landing sounds and one pickup cue; all 480
   video frames remain identical to the preceding rigid-coin recording.
   Focused native checks passed 201/201, and final cleanup/SFX headless checks
-  passed 145/145. Original-three canonical qualification and final exact-source
-  CI remain required before merge. The first-contact-only clip was rejected
+  passed 145/145. Original-three qualification passed on exact source 3604b106
+  in run 38587911724, attempt 1 (QA 61a102c5). Authenticated content verifies
+  all 1257 raw inputs/modes, 73 dependencies and unchanged generated/imported/
+  READY/direct/saved RGBA; nine original/runtime/regenerated PNG decodes match.
+  Current-main composition and final exact-head CI are tracked separately on
+  PR88. The first-contact-only clip was rejected
   for missing later bounce sounds; its source and evidence remain preserved.
   No release or deployment is established by this note.
 
