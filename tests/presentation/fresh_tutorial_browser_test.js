@@ -2,7 +2,7 @@
 const {sourcePath}=require('../tooling/source_paths.js');
 // Fast, browser-free contract checks. Actual rendered gameplay is a separate CI gate.
 const assert = require('node:assert/strict');
-const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue} = require('./fresh_tutorial_browser');
+const {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, navigateFreshGame, observePageFailures} = require('./fresh_tutorial_browser');
 const {hash, canonical} = require('../rendering/wall_compatibility_helpers');
 const stages = Object.fromEntries(Object.entries({open: 0, staff: 1, staff_done: 2, decorate: 3, return: 4, order: 5, payment: 6, complete: 7})
   .map(([name, step]) => [name, {step, text: name, point: [100, 150], guide: [50, 100, 200, 64]}]));
@@ -347,4 +347,61 @@ if (process.argv.includes('--ocr-fixtures')) {
   console.log(JSON.stringify({ocr_fixture_checks: 'passed', images_unmodified: true, browser_runtime_exercised: false,
     tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0], results}, null, 2));
 }
-console.log('Fresh tutorial browser contract and source-binding checks passed (browser runtime not exercised)');
+async function checkStartupNavigation() {
+  const calls = [], url = 'http://127.0.0.1:1234/index.html';
+  const page = {
+    goto: async (target, options) => {calls.push(['navigate', target, options]); return {ok: () => true};},
+    waitForFunction: async (ready, argument, options) => {
+      calls.push(['ready', argument, options]);
+      const saved = {document: global.document, window: global.window};
+      try {
+        global.document = {getElementById: () => ({})};
+        global.window = {__littleLeafVault: {bootJson: 'fresh'}};
+        assert(!ready(), 'Visible loading shell cannot pass actual readiness');
+        global.document = {getElementById: () => null};
+        global.window = {};
+        assert(!ready(), 'Missing production vault cannot pass actual readiness');
+        global.window = {__littleLeafVault: {bootJson: ''}};
+        assert(!ready(), 'Uninitialized production vault cannot pass actual readiness');
+        global.window.__littleLeafVault.bootJson = 'fresh';
+        assert(ready(), 'Only the original native/vault readiness condition passes');
+      } finally {
+        for (const [name, value] of Object.entries(saved)) {
+          if (value === undefined) delete global[name]; else global[name] = value;
+        }
+      }
+    }
+  };
+  await navigateFreshGame(page, url);
+  assert.deepEqual(calls, [
+    ['navigate', url, {waitUntil: 'domcontentloaded', timeout: 15000}],
+    ['ready', null, {timeout: 60000}]
+  ], 'DOM navigation and actual startup keep their original separate caps');
+  let readinessCalls = 0;
+  for (const response of [null, {ok: () => false}]) {
+    await assert.rejects(navigateFreshGame({goto: async () => response,
+      waitForFunction: async () => {readinessCalls++;}}, url), /entry.*successfully/);
+  }
+  assert.equal(readinessCalls, 0, 'Failed entry response never enters startup checks');
+  await assert.rejects(navigateFreshGame({...page, goto: async () => {throw Error('navigation deadline');}}, url), /navigation deadline/);
+  await assert.rejects(navigateFreshGame({...page, waitForFunction: async () => {throw Error('startup deadline');}}, url), /startup deadline/);
+  const observed = new (require('node:events').EventEmitter)(), errors = [];
+  observePageFailures(observed, errors);
+  observed.emit('pageerror', Error('unhandled rejection'));
+  observed.emit('crash');
+  observed.emit('requestfailed', {url: () => url + '?private=omitted', failure: () => ({errorText: 'net::ERR_FAILED'})});
+  observed.emit('response', {url: () => url + '?private=omitted', status: () => 404});
+  observed.emit('console', {text: () => 'SCRIPT ERROR: fixture'});
+  assert.equal(errors.length, 5, 'Unhandled, crash, transport, HTTP and engine errors remain fatal evidence');
+  assert(errors.some(error => error.includes('net::ERR_FAILED')));
+  assert(errors.some(error => error.includes('HTTP 404')));
+  assert(errors.every(error => !error.includes('private=')), 'Request diagnostics omit query data');
+  observed.emit('requestfailed', {url: () => 'https://unexpected.invalid/asset', failure: () => ({errorText: 'net::ERR_ABORTED'})});
+  assert.equal(errors.length, 6, 'The ordinary loopback-only page has no permitted optional external fetch');
+  observed.emit('response', {url: () => url, status: () => 200});
+  observed.emit('console', {text: () => 'ordinary startup output'});
+  assert.equal(errors.length, 6, 'Successful requests and ordinary output are not errors');
+}
+checkStartupNavigation().then(() => {
+  console.log('Fresh tutorial browser contract, source-binding and startup checks passed (browser runtime not exercised)');
+}).catch(error => {console.error(error); process.exitCode = 1;});
