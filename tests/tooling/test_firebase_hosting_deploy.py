@@ -332,7 +332,7 @@ class HostingTests(unittest.TestCase):
                 self.common_deploy(api, smoke=lambda _: False, expected_previous=expected)
         self.assertEqual(api.head, OLD)
         self.assertEqual(api.releases, 2)
-        verify_old.assert_called_once_with({'source_commit': 'd'*40})
+        verify_old.assert_called_once_with({'source_commit': 'd'*40}, deadline=None)
         receipt = json.loads(self.output.read_text())
         self.assertEqual(receipt['rollback_status'], 'previous-version-restored')
         self.assertEqual(receipt['status'], 'restored-after-smoke-failure')
@@ -377,6 +377,97 @@ class HostingTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'Insufficient smoke/restore budget'):
             self.common_deploy(api, expected_previous=self.recovery_baseline(api))
         self.assertEqual(api.head, OLD); self.assertEqual(api.releases, 0)
+
+    def test_restore_reserves_post_and_smoke_budget_before_its_one_write(self):
+        api = FakeAPI(); expected = self.recovery_baseline(api)
+        api.deadline = hosting.time.monotonic()+600
+        def failed_smoke(_):
+            api.deadline = hosting.time.monotonic()+299
+            return False
+        with self.assertRaisesRegex(RuntimeError, 'Hosted marker verification failed'):
+            self.common_deploy(api, smoke=failed_smoke, expected_previous=expected)
+        self.assertEqual(api.releases, 1)
+        self.assertEqual(api.head, NEW)
+
+    def test_receipt_write_errors_preserve_primary_and_never_retry_write_or_restore(self):
+        for failed_phase in ['smoke', 'intent', 'restored', 'inspection']:
+            self.output = self.root/failed_phase/'deployment.json'
+            api = FakeAPI(); expected = self.recovery_baseline(api)
+            primary = ValueError('primary smoke failure')
+            write_failures = []
+            def smoke(_):
+                if failed_phase == 'inspection':
+                    api.release_name = hosting.SITE_PATH+'/releases/intervening'
+                raise primary
+            def fsync(_):
+                receipt = json.loads(self.output.read_text())
+                fail = ((failed_phase == 'smoke' and receipt['status'] == 'smoke-failed-inspection-required')
+                        or (failed_phase == 'intent' and receipt.get('rollback_status') == 'restore-outcome-pending')
+                        or (failed_phase == 'restored' and 'rollback_release' in receipt)
+                        or (failed_phase == 'inspection' and receipt.get('rollback_status') == 'inspection-required'))
+                if fail:
+                    write_failures.append(receipt)
+                    raise OSError('simulated fsync failure')
+            with self.subTest(failed_phase=failed_phase), mock.patch.object(hosting.os, 'fsync', side_effect=fsync):
+                with self.assertRaises(ValueError) as caught:
+                    self.common_deploy(api, smoke=smoke, expected_previous=expected)
+                self.assertIs(caught.exception, primary)
+                self.assertEqual(len(write_failures), 1)
+                self.assertEqual(api.releases, 2 if failed_phase == 'restored' else 1)
+                self.assertTrue(primary.__notes__)
+
+    def test_smoke_stops_at_shared_cutoff_without_request_or_sleep(self):
+        with mock.patch.object(hosting.time, 'monotonic', return_value=100), \
+                mock.patch.object(hosting, 'build_opener') as opener, mock.patch.object(hosting.time, 'sleep') as sleep:
+            self.assertFalse(hosting.live_smoke(self.marker, deadline=100))
+        opener.return_value.open.assert_not_called(); sleep.assert_not_called()
+
+    def test_smoke_caps_request_and_sleep_to_shared_remaining_budget(self):
+        clock = [100.0]
+        opener = mock.Mock()
+        def request(*args, **kwargs):
+            self.assertEqual(kwargs['timeout'], 3)
+            clock[0] += 1
+            raise hosting.URLError('synthetic unavailable marker')
+        def sleep(seconds):
+            self.assertEqual(seconds, 2)
+            clock[0] += seconds
+        opener.open.side_effect = request
+        with mock.patch.object(hosting.time, 'monotonic', side_effect=lambda: clock[0]), \
+                mock.patch.object(hosting, 'build_opener', return_value=opener), \
+                mock.patch.object(hosting.time, 'sleep', side_effect=sleep):
+            self.assertFalse(hosting.live_smoke(self.marker, deadline=103))
+        self.assertEqual(opener.open.call_count, 1)
+
+    def test_matching_marker_returned_after_shared_cutoff_is_not_success(self):
+        clock = [100.0]
+        opener = mock.MagicMock()
+        def marker(_):
+            clock[0] = 104
+            return self.marker
+        with mock.patch.object(hosting.time, 'monotonic', side_effect=lambda: clock[0]), \
+                mock.patch.object(hosting, 'build_opener', return_value=opener), \
+                mock.patch.object(hosting.json, 'load', side_effect=marker), \
+                mock.patch.object(hosting.time, 'sleep') as sleep:
+            self.assertFalse(hosting.live_smoke(self.marker, deadline=103))
+        self.assertEqual(opener.open.call_count, 1); sleep.assert_not_called()
+
+    def test_transport_refuses_get_after_restore_consumes_shared_deadline(self):
+        clock = [100.0]
+        api = hosting.Transport('synthetic-token', deadline=400)
+        response = mock.MagicMock()
+        def read():
+            clock[0] = 400
+            return json.dumps({'name': hosting.SITE_PATH+'/releases/restored'}).encode()
+        response.__enter__.return_value.read.side_effect = read
+        api.opener.open = mock.Mock(return_value=response)
+        with mock.patch.object(hosting.time, 'monotonic', side_effect=lambda: clock[0]):
+            api.request('POST', hosting.SITE_PATH+'/releases?versionName='+OLD, {})
+            with self.assertRaisesRegex(RuntimeError, 'budget exhausted'):
+                hosting.release_head(api)
+            self.assertFalse(hosting.live_smoke(self.marker, deadline=api.deadline))
+        self.assertEqual(api.opener.open.call_count, 1)
+        self.assertEqual(api.opener.open.call_args.kwargs['timeout'], 180)
 
     def test_approved_baseline_drift_stops_before_candidate_creation(self):
         api = FakeAPI(); expected = self.recovery_baseline(api); expected['config_sha256'] = 'e'*64

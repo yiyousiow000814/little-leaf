@@ -290,7 +290,7 @@ def restore_previous(api, receipt, previous, original, previous_marker, save):
     """One opt-in restore after confirmed publication; no uncertain-write retry."""
     candidate = {'release': receipt['hosting_release'], 'version': receipt['hosting_version']}
     deadline = getattr(api, 'deadline', None)
-    if deadline is not None and deadline - time.monotonic() < 240:
+    if deadline is not None and deadline - time.monotonic() < 300:
         raise RuntimeError('Insufficient remaining operation budget for restore; inspect before another action')
     if (candidate['version'] == previous['version'] or release_head(api) != candidate):
         raise RuntimeError('Live release is no longer owned by this operation; restore refused')
@@ -305,7 +305,7 @@ def restore_previous(api, receipt, previous, original, previous_marker, save):
         raise RuntimeError('Candidate or previous version changed; restore refused')
     if release_head(api) != candidate:
         raise RuntimeError('Concurrent release before restore; no write performed')
-    if deadline is not None and deadline - time.monotonic() < 180:
+    if deadline is not None and deadline - time.monotonic() < 300:
         raise RuntimeError('Insufficient remaining budget before restore POST; no write performed')
     receipt['rollback_status'] = 'restore-outcome-pending'; save()
     try:
@@ -321,7 +321,7 @@ def restore_previous(api, receipt, previous, original, previous_marker, save):
     expected = {'release': restored['name'], 'version': previous['version']}
     receipt['rollback_release'] = restored['name']; save()
     if (release_head(api) != expected or active_files(api, previous['version']) != original
-            or not live_smoke(previous_marker)):
+            or not live_smoke(previous_marker, deadline=deadline)):
         raise RuntimeError('Restored live version could not be verified; no further write')
     receipt.update(rollback_status='previous-version-restored', status='restored-after-smoke-failure')
     save()
@@ -361,12 +361,18 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
                'source_tree': marker['source_tree'], 'variant_manifest_sha256': manifest_sha,
                'hosting_url': ORIGIN, 'live_marker': marker, 'hosted_acceptance': 'not-yet-tested',
                'automatic_rollback_allowed': expected_previous is not None}
+    receipt_write_failed = False
     def save():
-        output.parent.mkdir(parents=True, exist_ok=True)
-        recorded={k:v for k,v in receipt.items() if not (common and k=='preserved_hosting_config')}
-        with output.open('w', encoding='utf-8', newline='\n') as stream:
-            stream.write(json.dumps(recorded, indent=2) + '\n')
-            stream.flush(); os.fsync(stream.fileno())
+        nonlocal receipt_write_failed
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            recorded={k:v for k,v in receipt.items() if not (common and k=='preserved_hosting_config')}
+            with output.open('w', encoding='utf-8', newline='\n') as stream:
+                stream.write(json.dumps(recorded, indent=2) + '\n')
+                stream.flush(); os.fsync(stream.fileno())
+        except Exception:
+            receipt_write_failed = True
+            raise
     save()
     previous = release_head(api)
     if not previous:
@@ -470,30 +476,47 @@ def deploy(folder, source_sha, manifest_sha, output, api, smoke, *, staging_orig
     except Exception as error:
         passed = False; failure = error
     if not passed:
-        receipt['status'] = 'smoke-failed-inspection-required';save()
+        receipt['status'] = 'smoke-failed-inspection-required'
+        try:
+            save()
+        except Exception as error:
+            failure.add_note('Receipt persistence failed (' + type(error).__name__ + '); recovery not attempted')
+            raise failure
         if expected_previous is not None:
             try:
                 restore_previous(api, receipt, previous, original, staging_origin['live_baseline'], save)
             except Exception as error:
                 receipt.update(rollback_status='inspection-required', rollback_error_type=type(error).__name__)
-                save()
+                failure.add_note('Previous-version recovery requires inspection (' + type(error).__name__ + ')')
+                if not receipt_write_failed:
+                    try:
+                        save()
+                    except Exception as write_error:
+                        failure.add_note('Recovery receipt persistence failed (' + type(write_error).__name__ + ')')
+                else:
+                    failure.add_note('Recovery receipt persistence failed; no further receipt write attempted')
         raise failure
     receipt['status'] = 'published-pending-hosted-acceptance';save()
     return receipt
 
 
-def live_smoke(expected):
-    deadline = time.monotonic() + 120
+def live_smoke(expected, *, deadline=None):
+    deadline = min(time.monotonic() + 120, deadline) if deadline is not None else time.monotonic() + 120
     opener = build_opener(NoRedirect())
-    while time.monotonic() < deadline:
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
         try:
-            with opener.open(Request(ORIGIN + 'hosting-release.json', headers={'Cache-Control': 'no-cache'}), timeout=15) as response:
-                if json.load(response) == expected:
+            with opener.open(Request(ORIGIN + 'hosting-release.json', headers={'Cache-Control': 'no-cache'}), timeout=min(15, remaining)) as response:
+                if json.load(response) == expected and time.monotonic() < deadline:
                     return True
         except (HTTPError, URLError, ValueError, RuntimeError, TimeoutError):
             pass
-        time.sleep(5)
-    return False
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        time.sleep(min(5, remaining))
 
 
 PREVIEW_CHANNEL = 'itch-embed-test'
@@ -1053,9 +1076,10 @@ def main():
                                 Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN')), preview_smoke)
         print('Published one-day preview at ' + result['hosting_url'] + '; exact auth hostname approval remains pending')
     else:
-        result = deploy(args.variant, args.sha, args.manifest_sha256, args.output,
-                        Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN'),
-                                  deadline=time.monotonic()+840 if previous is not None else None), live_smoke,
+        api = Transport(os.environ.get('FIREBASE_HOSTING_ACCESS_TOKEN'),
+                        deadline=time.monotonic()+840 if previous is not None else None)
+        result = deploy(args.variant, args.sha, args.manifest_sha256, args.output, api,
+                        lambda marker: live_smoke(marker, deadline=api.deadline),
                         staging_origin=origin, expected_previous=previous)
         print('Published selected test build at ' + result['hosting_url'] + '; account/device acceptance remains pending')
 
