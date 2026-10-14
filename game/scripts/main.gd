@@ -474,6 +474,8 @@ func _service_save_snapshot()->Dictionary:
 	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
 
 func _restore_service_runtime():
+	# Homes belong to the runtime roster, even when revision and count match.
+	idle_home_revision=-1;idle_home_count=-1
 	ground_mess_generation+=1
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
