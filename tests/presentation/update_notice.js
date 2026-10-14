@@ -53,6 +53,11 @@ function setup(initial='0.1.10a'){
   const closing=lifecycle.poll();await new Promise(resolve=>setImmediate(resolve));lifecycle.close();await closing;
   assert.equal(active,0);assert.equal(aborts,4);assert.equal(clearCount,4);assert.equal(JSON.parse(lifecycle.snapshot()).available,false);
  }
+ // A rejected HTTP status still owns its unconsumed body until aborted.
+ let rejectedActive=0;
+ const rejected=create({canReloadUpdate:()=>true,checkUpdateReady:async()=>({}),setInterval:()=>0,clearInterval(){},
+  fetch:async(_,options)=>{rejectedActive++;options.signal.addEventListener('abort',()=>rejectedActive--,{once:true});return {ok:false,json(){throw Error('must not consume rejected body');}};}});
+ rejected.start('0.1.10');await rejected.poll();assert.equal(rejectedActive,0);rejected.close();
  // Close while the save confirmation is stalled settles immediately; its late result cannot reload.
  let confirmEntered,confirmLate,closeReloads=0;
  const confirmStart=new Promise(resolve=>confirmEntered=resolve);
