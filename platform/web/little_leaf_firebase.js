@@ -62,7 +62,7 @@
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
     let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0;
-    const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
+    const savedDevice=displayDevice(deviceLabel),recordDevices=new WeakMap();
     let localQueue=Promise.resolve();
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
@@ -79,7 +79,7 @@
       catch (_) { throw error('CORRUPT_AUTHORITY','Cloud save is damaged. Pending progress is preserved.'); }
       if(!record.revision || !/^[a-f0-9]{64}$/.test(record.digest)) throw error('CORRUPT_AUTHORITY','Cloud save has no committed progress.');
       if(doc.digest!==record.digest || doc.revision!==record.revision || doc.profileId!==record.profileId) throw error('CORRUPT_AUTHORITY','Cloud save identity is damaged.');
-      recordDevices.set(record.digest,displayDevice(doc.device));
+      recordDevices.set(record,displayDevice(doc.device));
       return record;
     }
     async function validateLocal(local) {
@@ -378,7 +378,7 @@
           choicesAvailable:!!(allowed && recovery?.record && !choiceProblem),
           needsRuntimeSnapshot:!!(allowed && bootReady && stopped && entry),
           choiceReason:allowed ? choiceProblem || (recovery?'Two different saves are available. Choose which progress to continue. Neither will be replaced before confirmation.':'') : 'Account changed. Your current café is paused.',
-          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record.digest))] : []
+          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record))] : []
         };
       },
       async saveForUpdate(payload,revision,profileId){

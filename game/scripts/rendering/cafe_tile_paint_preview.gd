@@ -1,6 +1,6 @@
 extends RefCounted
-## Real floor palette/seams plus only the outer edge of the previewed region.
-## Adjacent selected tiles never receive individual validity boxes or badges.
+## Show the installed floor palette and seams without placement-status overlays.
+## Ownership and payment refusal stay with the model and the existing UI text.
 const Ground=preload("res://scripts/rendering/illustrated_ground.gd")
 static func unique_cells(targets:Array)->Array:
  var seen={};var result=[]
@@ -8,27 +8,26 @@ static func unique_cells(targets:Array)->Array:
   var cell=Vector2i(int(target.x),int(target.z)) if target is Dictionary else Vector2i(target)
   if not seen.has(cell):seen[cell]=true;result.append(cell)
  return result
-static func perimeter(cells:Array)->Array:
- var selected={};var edges=[]
- for cell in cells:selected[cell]=true
- for cell in cells:
-  var p=Vector2(cell)
-  for side in [[Vector2i.UP,p,p+Vector2.RIGHT],[Vector2i.RIGHT,p+Vector2.RIGHT,p+Vector2.ONE],[Vector2i.DOWN,p+Vector2.ONE,p+Vector2.DOWN],[Vector2i.LEFT,p+Vector2.DOWN,p]]:
-   if not selected.has(cell+side[0]):edges.append([side[1],side[2]])
- return edges
-static func draw(view,targets:Array,material:String,valid:bool):
+static func _neighbor_seam(view,cell:Vector2i,material:String)->Color:
+ var style=material
+ if "game" in view and is_instance_valid(view.game):
+  var installed=view.game.model.floor_style_at(cell)
+  if installed!="":style=installed
+ return Ground.floor_line(style)
+static func draw(view,targets:Array,material:String,_valid:bool):
  var cells=unique_cells(targets)
  var palette=Ground.floor_palette(material)
  for cell in cells:
   var x=float(cell.x);var z=float(cell.y)
-  view.poly([view.iso(x,z),view.iso(x+1,z),view.iso(x+1,z+1),view.iso(x,z+1)],palette[posmod(cell.x+cell.y,2)])
+  # poly() adds a same-color exterior AA stroke; a floor finish is a fill only.
+  view._retained_fill(PackedVector2Array([view.iso(x,z),view.iso(x+1,z),view.iso(x+1,z+1),view.iso(x,z+1)]),view.col(palette[posmod(cell.x+cell.y,2)]))
  # Reuse the installed material's natural seams and occasional oak grain.
  for cell in cells:
   var x=float(cell.x);var z=float(cell.y)
   view.line(view.iso(x,z),view.iso(x+1,z),Ground.floor_line(material),.65)
   view.line(view.iso(x,z),view.iso(x,z+1),Ground.floor_line(material),.65)
+  # The fill covers the inward half of these neighboring seams. Restore them
+  # with the installed neighbor's color, once per shared edge in a paint row.
+  if not cells.has(cell+Vector2i.RIGHT):view.line(view.iso(x+1,z),view.iso(x+1,z+1),_neighbor_seam(view,cell+Vector2i.RIGHT,material),.65)
+  if not cells.has(cell+Vector2i.DOWN):view.line(view.iso(x,z+1),view.iso(x+1,z+1),_neighbor_seam(view,cell+Vector2i.DOWN,material),.65)
   if material=="warm_oak" and (cell.x*7+cell.y*13)%11==0:view.line(view.iso(x+.3,z+.4),view.iso(x+.56,z+.4),Color(.69,.56,.35,.13),.6)
- var outline=PackedVector2Array()
- for edge in perimeter(cells):
-  outline.append(view.iso(edge[0].x,edge[0].y));outline.append(view.iso(edge[1].x,edge[1].y))
- if not outline.is_empty():view.art_draw_multiline(outline,Color("6d8e7b") if valid else Color("a54e44"),1.15 if valid else 1.5,true)
