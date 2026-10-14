@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 ## Physical whole-footprint plans replace the retired all-floor color cache.
 const Plan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
 class TestMain extends "res://scripts/main.gd":
@@ -62,8 +63,14 @@ func run():
  check(m.items.size()==old_count+1 and m.coins==coins-m.price_of("plant"),"live clear-footprint purchase publishes and charges once")
  check(game.saves==1,"successful live purchase saves once")
  check(game.staff_states[0].pos==actors[0],"purchase never silently relocates a body")
- print("FLOOR_AVAILABILITY_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"target_validations":plan.validations,"retired_cache_allocated":false}))
+ var report={"checks":checks,"failures":failures,"target_validations":plan.validations,"retired_cache_allocated":false}
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
+ game.queue_free();await process_frame;await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("FLOOR_AVAILABILITY_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

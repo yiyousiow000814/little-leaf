@@ -4,6 +4,8 @@ class ControlledMusic extends Music:
 	var clock=1000
 	var start_error=OK
 	var last_request:HTTPRequest
+	var reported_warnings=[]
+	func _report_warning(message:String):reported_warnings.append(message)
 	func _now_msec()->int:return clock
 	func _start_request()->Error:
 		last_request=request
@@ -59,6 +61,7 @@ func run():
 	music.clock=1000000
 	for i in range(100):music.begin()
 	check(music.attempts==3 and music.request==null and owner.get_child_count()==0,"three-attempt cap prevents unbounded failure retries")
+	check(music.reported_warnings==["Background music could not load; gameplay and saves remain available","Background music could not load; gameplay and saves remain available","Background music could not load; gameplay and saves remain available"],"network/HTTP/timeout preserve all three exact warning diagnostics")
 	owner.free();music=null
 
 	# A controlled start rejection has no completion signal to clean up.
@@ -70,6 +73,7 @@ func run():
 	check(not is_instance_valid(start_rejected),"start-rejected request is physically freed")
 	music.clock+=5000;music.start_error=OK;music.begin()
 	check(music.request!=null and music.attempts==2,"start error permits delayed foreground retry")
+	check(music.reported_warnings==["Background music could not start loading; gameplay and saves remain available"],"immediate start rejection preserves exact warning diagnostic")
 	var interrupted=music.request
 	owner.free();music=null
 	check(not is_instance_valid(interrupted),"scene teardown frees in-flight request")
@@ -98,6 +102,7 @@ func run():
 	music.clock=1000000
 	for i in range(100):music.begin()
 	check(music.requested and music.attempts==2 and owner.setups==1 and owner.get_child_count()==3,"success never retries or duplicates players")
+	check(music.reported_warnings==["Background music package could not be opened; gameplay and saves remain available"],"unreadable pack preserves exact warning diagnostic")
 	var players=owner.audio_players.values();owner.free();music=null
 	for player in players:check(not is_instance_valid(player),"scene teardown frees owned music player")
 	print("CRAZYGAMES_MUSIC_RESULT "+JSON.stringify({"checks":checks,"failures":failures,"fixture":"synthetic pack and HTTPRequest completion signals","listening_acceptance":false}))
