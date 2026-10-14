@@ -355,16 +355,18 @@ async function checkStartupNavigation() {
       calls.push(['ready', argument, options]);
       const saved = {document: global.document, window: global.window};
       try {
-        global.document = {getElementById: () => ({})};
+        global.document = {readyState: 'interactive', getElementById: () => ({})};
         global.window = {__littleLeafVault: {bootJson: 'fresh'}};
         assert(!ready(), 'Visible loading shell cannot pass actual readiness');
-        global.document = {getElementById: () => null};
+        global.document = {readyState: 'interactive', getElementById: () => null};
         global.window = {};
         assert(!ready(), 'Missing production vault cannot pass actual readiness');
         global.window = {__littleLeafVault: {bootJson: ''}};
         assert(!ready(), 'Uninitialized production vault cannot pass actual readiness');
         global.window.__littleLeafVault.bootJson = 'fresh';
-        assert(ready(), 'Only the original native/vault readiness condition passes');
+        assert(ready(), 'Parsed document and original native/vault readiness condition pass');
+        global.document.readyState = 'loading';
+        assert(!ready(), 'HTTP commit alone cannot pass before the document is parsed');
       } finally {
         for (const [name, value] of Object.entries(saved)) {
           if (value === undefined) delete global[name]; else global[name] = value;
@@ -374,9 +376,34 @@ async function checkStartupNavigation() {
   };
   await navigateFreshGame(page, url);
   assert.deepEqual(calls, [
-    ['navigate', url, {waitUntil: 'domcontentloaded', timeout: 15000}],
+    ['navigate', url, {waitUntil: 'commit', timeout: 15000}],
     ['ready', null, {timeout: 60000}]
-  ], 'DOM navigation and actual startup keep their original separate caps');
+  ], 'HTTP navigation and actual startup keep their original separate caps');
+  // The ordinary shell synchronously checks WebGL inside its final inline
+  // script, before DOMContentLoaded and before the first WASM/PCK request.
+  // Model that ordering, not a network delay: engine work owns the startup cap.
+  const shell = fs.readFileSync(sourcePath(root, 'web/little_leaf_shell.html'), 'utf8');
+  const featureCheck = shell.indexOf('Engine.getMissingFeatures');
+  assert(featureCheck >= 0 && featureCheck < shell.indexOf('window.__littleLeafVault.boot()'));
+  const delayedStartup = async (transportMs, engineMs) => {
+    let committed = false, checked = false;
+    await navigateFreshGame({
+      goto: async (_url, options) => {
+        const elapsed = transportMs + (options.waitUntil === 'commit' ? 0 : engineMs);
+        assert(elapsed < options.timeout, 'HTTP navigation deadline');
+        committed = true; return {ok: () => true};
+      },
+      waitForFunction: async (_ready, _argument, options) => {
+        assert(committed, 'Engine readiness follows the successful HTTP response');
+        assert(engineMs < options.timeout, 'Engine startup deadline');
+        checked = true;
+      },
+    }, url);
+    assert(checked, 'A slow parser-blocking capability probe cannot skip actual readiness');
+  };
+  await delayedStartup(13, 16000);
+  await assert.rejects(delayedStartup(15001, 1), /HTTP navigation deadline/);
+  await assert.rejects(delayedStartup(13, 60001), /Engine startup deadline/);
   let readinessCalls = 0;
   for (const response of [null, {ok: () => false}]) {
     await assert.rejects(navigateFreshGame({goto: async () => response,
