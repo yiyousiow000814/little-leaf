@@ -10,7 +10,7 @@ if __name__ == "__main__":
 from build.build_firebase import stage, validate_export_inventory, entry_styles, update_hosting_marker
 from build.build_web import ROOT, sha256
 from build.project_layout import source_path
-from build.build_itch_entry import ENTRY, remove_ordinary_entry
+from build.build_itch_entry import ENTRY
 
 
 STABLE_ORIGIN = 'https://little-leaf-41e5d.firebaseapp.com'
@@ -21,16 +21,9 @@ def wrapper_html(html, origin, *, stable=False):
     valid = origin == STABLE_ORIGIN + STABLE_PATH.rstrip('/') if stable else bool(re.fullmatch(r'https://little-leaf-41e5d--itch-embed-test-[a-z0-9]+\.web\.app', origin))
     if not valid:
         raise ValueError('Exact controlled preview origin required')
-    html = remove_ordinary_entry(html)
-    # Reuse the reviewed presentation while preserving the existing frame controller IDs.
-    # Only this explicit preview replaces the outbound link; ordinary release stays unchanged.
-    outbound = '<a id="itch-release-account" aria-describedby="itch-account-detail itch-progress-separation" class="leaf-entry-link" href="https://little-leaf-41e5d.firebaseapp.com/" target="_blank" rel="noopener noreferrer">Play with Google · opens a new tab</a>'
-    if ENTRY.count(outbound) != 1:
-        raise ValueError('Reviewed ordinary account entry contract changed')
-    entry = ENTRY.replace(outbound, '<button id="itch-account" aria-describedby="itch-account-detail itch-progress-separation" type="button">Play with Google</button>')
-    entry = entry.replace('id="itch-release-entry"', 'id="itch-entry"').replace('id="itch-release-local"', 'id="itch-local"')
-    entry = entry.replace('>Continue local play on itch</button>', '>Continue local play</button>')
-    entry = entry.replace('Open the official account game, then sign in with Google.', 'Sign in through a secure Google popup, then continue playing on this itch page.')
+    if 'LittleLeafItchEntryReady' in html or 'id="itch-entry"' in html:
+        raise ValueError('Embedded chooser was already packaged')
+    entry = ENTRY
     # Gate only the derived wrapper before its original vault or engine starts.
     marker = 'window.__littleLeafVault.boot()'
     if html.count(marker) != 1:raise ValueError('Original local boot contract changed')
@@ -61,7 +54,7 @@ def wrapper_html(html, origin, *, stable=False):
     });
 })(window);
 '''.replace('PREVIEW_ORIGIN', json.dumps(origin))
-    if '<body>' not in html:raise ValueError('Original body contract changed')
+    if html.count('<body>') != 1:raise ValueError('Original body contract changed')
     engine = '<script src="index.js"></script>'
     if html.count(engine) != 1:raise ValueError('Original engine script contract changed')
     html = html.replace('<body>', '<body><style>'+entry_styles()+'</style>'+entry, 1)
@@ -81,9 +74,6 @@ def prepare(build, output, config, origin, source, tree):
             raise ValueError('Reviewed engine or local-shell input changed: '+name)
     # Validates the exact origin and complete base before writing an output directory.
     stage(build, output, config, trusted_itch_origin=origin)
-    # The old outbound launcher is not the uploaded test wrapper.
-    (output / 'itch-entry/index.html').unlink()
-    (output / 'itch-entry').rmdir()
     marker_path = output / 'public/hosting-release.json'
     marker = json.loads(marker_path.read_text())
     marker.update(source_commit=source, source_tree=tree,

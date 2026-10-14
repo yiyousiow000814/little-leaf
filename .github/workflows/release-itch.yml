@@ -81,7 +81,7 @@ jobs:
           RELEASE_SHA: ${{ steps.common.outputs.source_sha }}
         run: |
           test -n "$BUTLER_API_KEY" || { echo '::error::Missing BUTLER_API_KEY. The owner must personally verify the existing authorized repository secret.'; exit 1; }
-          python3 ../coordinator/tools/release/publish_itch.py --web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json" --firebase-variant "$RUNNER_TEMP/common-firebase/variant" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json"
+          python3 ../coordinator/tools/release/publish_itch.py --web "$RUNNER_TEMP/common-firebase/variant/itch-wrapper" --tag "$RELEASE_TAG" --sha "$RELEASE_SHA" --receipt "$RUNNER_TEMP/itch-publication/receipt.json" --firebase-variant "$RUNNER_TEMP/common-firebase/variant" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json"
       - name: Preserve confirmed publication; failures never become success receipts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

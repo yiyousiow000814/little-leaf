@@ -2,7 +2,7 @@
 import sys, tempfile, json
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'tools'))
-from build.build_firebase import stage, ROOT
+from build.build_firebase import stage, ROOT, entry_styles
 from build.build_web import sha256
 with tempfile.TemporaryDirectory() as d:
     d=Path(d);build=d/'build';(build/'web').mkdir(parents=True)
@@ -14,7 +14,10 @@ with tempfile.TemporaryDirectory() as d:
     assert '__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())' in result
     assert result.index('window.__littleLeafFirebaseReady =') < result.index('<script src="index.js">')
     assert (build/'web/index.html').read_text()==shell
-    assert 'target="_blank"' in (d/'out/itch-entry/index.html').read_text()
+    assert not (d/'out/itch-entry').exists()
+    assert result.count('<style>'+entry_styles()+'</style>') == 1
+    assert '.leaf-account' in result and 'SIL OPEN FONT LICENSE' in result
+    assert 'id="itch-release-entry"' not in result
     marker=json.loads((d/'out/public/hosting-release.json').read_text());assert marker['source_commit']=='synthetic-commit';assert marker['ci_run_id']=='local'
     assert not (d/'out/public/release-manifest.json').exists()
     assert 'firebase-firestore' in (d/'out/public/little_leaf_firebase.js').read_text()

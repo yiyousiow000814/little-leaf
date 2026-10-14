@@ -176,6 +176,11 @@ class PlatformTests(unittest.TestCase):
         self.assertEqual(auth['access_token_scopes'],'https://www.googleapis.com/auth/firebase.hosting')
         self.assertFalse(auth['create_credentials_file']);self.assertFalse(auth['export_environment_variables'])
 
+    def test_updater_request_ownership_and_save_guards(self):
+        root=Path(__file__).resolve().parents[2]
+        subprocess.run(['node','tests/presentation/update_notice.js'],cwd=root,check=True,
+                       capture_output=True,text=True,timeout=30)
+
     def test_updater_keeps_order_authorities_separate_and_hashes_opaque(self):
         root=Path(__file__).resolve().parents[2]
         script=r'''
@@ -184,7 +189,7 @@ const source=fs.readFileSync(process.argv[1],'utf8');
 const order=sequence=>({kind:'main-first-parent',repository:'yiyousiow000814/little-leaf',anchor:'a'.repeat(40),sequence,chain_sha256:'b'.repeat(64)});
 const marker=(commit,release_order)=>({schema_version:1,source_commit:commit.repeat(40),version:'0.1.11-pre.'+commit.repeat(8),release_order});
 async function observe(current,next){
- const window={setTimeout,clearTimeout};vm.runInNewContext(source,{window});
+ const window={setTimeout,clearTimeout,AbortController};vm.runInNewContext(source,{window});
  const updater=window.LittleLeafUpdates.create({currentRelease:current,fetch:async()=>({ok:true,json:async()=>next}),
   checkUpdateReady:async()=>({}),canReloadUpdate:()=>true,setInterval:()=>1,clearInterval:()=>{}});
  updater.start(current.version);await updater.poll();const available=JSON.parse(updater.snapshot()).available;updater.close();return available;
@@ -205,9 +210,8 @@ async function observe(current,next){
         from release import stage_released_firebase as stage
         from qualification.artifacts import sha256
         root=Path(__file__).resolve().parents[2];reuse=folder/'reuse';web=reuse/'web';web.mkdir(parents=True)
-        from build.build_itch_entry import ordinary_entry_html
         shell=(root/'platform/web/little_leaf_shell.html').read_text().replace('$GODOT_URL','index.js')
-        (web/'index.html').write_text(ordinary_entry_html(shell),encoding='utf-8')
+        (web/'index.html').write_text(shell,encoding='utf-8')
         for name,value in [('index.js',b'fixture'),('index.wasm',b'\0asmfixture'),('index.pck',b'GDPCfixture')]: (web/name).write_bytes(value)
         evidence=folder/'evidence';(evidence/'engine-evidence').mkdir(parents=True);native=evidence/'engine-evidence/summary.json'
         native.write_text(json.dumps({'source_commit':'a'*40,'status':'passed','player_save_used':False,'total_checks':1,'test_processes':1}))
@@ -302,24 +306,54 @@ async function observe(current,next){
                     path.write_text(json.dumps(flow))
                 with self.assertRaises((ValueError,FileNotFoundError)):firebase.validate_packet(folder,manifest,marker)
 
-    def test_publisher_requires_separate_ordinary_entry_and_authenticated_origin(self):
+    def test_publisher_requires_qualified_wrapper_and_authenticated_origin(self):
         from release import publish_itch
         with tempfile.TemporaryDirectory() as temporary:
             folder,manifest,marker=self.packet(Path(temporary))
             origin={'fixture':'authenticated by caller'}
             with patch.object(firebase,'require_origin') as fence:
-                base,common_receipt,digest=publish_itch.verify_qualified_ordinary_entry(
-                    folder/'itch-ordinary',folder,origin,marker['tag'],marker['source_commit'])
+                base,common_receipt,digest=publish_itch.verify_qualified_wrapper(
+                    folder/'itch-wrapper',folder,origin,marker['tag'],marker['source_commit'])
                 fence.assert_called_once_with(folder,manifest,origin)
                 self.assertEqual(base,manifest['base_web_manifest'])
                 self.assertEqual(common_receipt,manifest['common_tag_reuse']['common'])
                 self.assertEqual(len(digest),64)
-                with self.assertRaises(ValueError):publish_itch.verify_qualified_ordinary_entry(
+                with self.assertRaises(ValueError):publish_itch.verify_qualified_wrapper(
                     folder/'public',folder,origin,marker['tag'],marker['source_commit'])
-                with self.assertRaises(ValueError):publish_itch.verify_qualified_ordinary_entry(
-                    folder/'itch-wrapper',folder,origin,marker['tag'],marker['source_commit'])
-            with self.assertRaises(ValueError):publish_itch.verify_qualified_ordinary_entry(
-                folder/'itch-ordinary',folder,{},marker['tag'],marker['source_commit'])
+                with self.assertRaises(ValueError):publish_itch.verify_qualified_wrapper(
+                    Path(temporary)/'reuse/web',folder,origin,marker['tag'],marker['source_commit'])
+            with self.assertRaises(ValueError):publish_itch.verify_qualified_wrapper(
+                folder/'itch-wrapper',folder,{},marker['tag'],marker['source_commit'])
+
+    def test_publisher_receipt_binds_the_uploaded_wrapper_before_provider_action(self):
+        from types import SimpleNamespace
+        from release import publish_itch
+        with tempfile.TemporaryDirectory() as temporary:
+            folder,manifest,marker=self.packet(Path(temporary));proof=manifest['common_tag_reuse']
+            _,_,origin=self.publication(folder,manifest)
+            origin_path=Path(temporary)/'origin.json';origin_path.write_text(json.dumps(origin))
+            receipt_path=Path(temporary)/'publication.json'
+            args=SimpleNamespace(web=folder/'itch-wrapper',tag=marker['tag'],sha=marker['source_commit'],
+                receipt=receipt_path,firebase_variant=folder,staging_origin=origin_path,common_receipt=None)
+            completed={'target':'siowyiyou/little-leaf','channels':[{'name':'html5','uploadId':123,'head':{'id':44,'state':'completed',
+                'userVersion':marker['version'],'version':17}}]}
+            with patch.object(publish_itch.argparse.ArgumentParser,'parse_args',return_value=args), \
+                    patch.dict(publish_itch.os.environ,{'BUTLER_API_KEY':'synthetic'},clear=True), \
+                    patch.object(firebase,'require_origin'), \
+                    patch.object(publish_itch,'check_common_previous'), \
+                    patch.object(publish_itch,'butler',side_effect=[{}, {'buildId':44,'channel':'html5'},completed]) as provider:
+                publish_itch.main()
+            publication=json.loads(receipt_path.read_text())
+            self.assertEqual(publication['delivery_surface'],'qualified-same-page-wrapper')
+            self.assertEqual(publication['itch_wrapper_sha256'],proof['same_page']['wrapper_sha256'])
+            self.assertNotIn('ordinary_itch_sha256',publication)
+            self.assertEqual(provider.call_args_list[1].args[1],str(folder/'itch-wrapper'))
+            firebase.publication_matches(publication,manifest)
+            with patch.object(publish_itch.argparse.ArgumentParser,'parse_args',return_value=args), \
+                    patch.object(publish_itch,'butler') as provider, \
+                    patch.object(firebase,'require_origin',side_effect=ValueError('untrusted origin')):
+                with self.assertRaisesRegex(ValueError,'untrusted origin'):publish_itch.main()
+                provider.assert_not_called()
 
     def test_staging_refuses_candidate_changed_since_compiled_flow(self):
         from release import stage_released_firebase as stage
@@ -336,11 +370,11 @@ async function observe(current,next){
     def publication(self,folder,manifest):
         proof=manifest['common_tag_reuse'];common_receipt=proof['common'];context=proof['context']
         publication={'target':'siowyiyou/little-leaf:html5','state':'completed','itch_build_id':44,'itch_channel_version':17,
-            'delivery_surface':'qualified-root-new-tab-entry','source_commit':common_receipt['source_commit'],
+            'delivery_surface':'qualified-same-page-wrapper','source_commit':common_receipt['source_commit'],
             'version':common_receipt['version'],'tag':common_receipt['release_tag'],
             'common_qualification':common_receipt,'qualification':proof['qualification'],
             'release_manifest_sha256':common_receipt['web_manifest_sha256'],
-            'ordinary_itch_sha256':proof['ordinary_itch']['files_sha256'],
+            'itch_wrapper_sha256':proof['same_page']['wrapper_sha256'],
             'firebase_variant_manifest_sha256':firebase.sha256(folder/'firebase-variant-manifest.json'),
             'same_page_staging_origin':{'run_id':context['staging_run_id'],'attempt':context['staging_attempt'],
                 'coordinator_source_commit':context['coordinator_source_commit'],'artifact_id':701,'artifact_digest':'sha256:'+'f'*64}}
@@ -575,28 +609,29 @@ async function observe(current,next){
             self.assertEqual(firebase.validate_delivery_projection(output/'variant',projected),manifest)
             self.assertEqual((output/'variant-original/firebase-variant-manifest.json').read_bytes(),(folder/'firebase-variant-manifest.json').read_bytes())
 
-    def test_selected_ordinary_entry_keeps_source_bytes_root_new_tab_and_separate_same_page_proof(self):
+    def test_selected_entry_is_only_the_qualified_embedded_wrapper(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder,manifest,marker=self.packet(Path(temporary));proof=manifest['common_tag_reuse']
-            ordinary=firebase.validate_ordinary_itch(folder,manifest,proof)
-            for name in ordinary['files_sha256']:
-                self.assertEqual((folder/'itch-ordinary'/name).read_bytes(),(Path(temporary)/'reuse/web'/name).read_bytes())
-            html=(folder/'itch-ordinary/index.html').read_text(encoding='utf-8')
-            self.assertIn('href="https://little-leaf-41e5d.firebaseapp.com/" target="_blank"',html)
-            self.assertNotIn('id="itch-account"',html)
-            self.assertIn('id="itch-account"',(folder/'itch-wrapper/index.html').read_text(encoding='utf-8'))
-            self.assertNotEqual(ordinary['files_sha256']['index.html'],proof['same_page']['wrapper_sha256']['index.html'])
+            self.assertFalse((folder/'itch-ordinary').exists())
+            self.assertNotIn('ordinary_itch',proof)
+            self.assertEqual(firebase.surface_inventory(folder,'itch-wrapper'),proof['same_page']['wrapper_sha256'])
+            for name in ['index.js','index.wasm','index.pck']:
+                self.assertEqual((folder/'itch-wrapper'/name).read_bytes(),(Path(temporary)/'reuse/web'/name).read_bytes())
+            html=(folder/'itch-wrapper/index.html').read_text(encoding='utf-8')
+            self.assertIn('id="itch-account"',html)
+            self.assertNotIn('opens a new tab',html)
             self.assertTrue(json.loads((folder/'evidence/firebase-fullflow.json').read_bytes())['itch_test_entry'])
             workflow=(Path(__file__).resolve().parents[2]/'.github/workflows/release-itch.yml').read_text()
-            self.assertIn('--web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary"',workflow)
-            self.assertNotIn('--web "$RUNNER_TEMP/common-firebase/variant/itch-wrapper"',workflow)
+            self.assertIn('--web "$RUNNER_TEMP/common-firebase/variant/itch-wrapper"',workflow)
+            self.assertNotIn('itch-ordinary',workflow)
 
-    def test_ordinary_member_or_same_page_receipt_alias_is_refused(self):
+
+    def test_outward_receipt_and_modified_wrapper_are_refused(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder,manifest,marker=self.packet(Path(temporary));path,receipt,origin=self.publication(folder,manifest)
-            receipt['delivery_surface']='qualified-same-page-wrapper'
+            receipt['delivery_surface']='qualified-root-new-tab-entry'
             with self.assertRaises(ValueError):firebase.publication_matches(receipt,manifest)
-            (folder/'itch-ordinary/index.html').write_bytes((folder/'itch-wrapper/index.html').read_bytes())
+            (folder/'itch-wrapper/index.html').write_text('unqualified outward entry')
             with self.assertRaises(ValueError):firebase.validate_packet(folder,manifest,marker)
 
 

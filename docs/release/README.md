@@ -2,21 +2,45 @@
 
 ## Shared tag qualification and independent platforms
 
+An authenticated same-build `queued` or `processing` response counts as successful
+itch upload acceptance. Its receipt is `accepted-processing`, carries no fabricated
+completed channel order and claims no live/playable acceptance. Rejected uploads,
+uncertain build identity and actual processing failures remain failures; inspect
+the same build instead of uploading again. A later status/selected-entry check owns
+actual provider completion and live smoke. Hosting may authenticate this acceptance
+and consume the unchanged independently qualified Firebase packet; only an actual
+completed itch receipt permits the existing channel-order metadata projection.
+
+Manual `qualified-firebase-live` uses the same exact qualified run/artifact/source/
+manifest inputs, plus the approved previous release/version/configuration digest.
+It uses the existing Hosting-only identity after all package gates. If a confirmed
+candidate publication fails smoke, opt-in recovery restores only that recorded
+previous finalized version while the candidate still owns live and both inventories
+are unchanged. Restore is one POST, uncertain/concurrent outcomes are GET-only,
+and recovery preserves the original failed outcome. Default modes do not gain
+automatic rollback. A Hosting restore changes static content, not cloud save data.
+
 The current source candidate follows the2026-10-12 user requirement: one
 immutable approved tag consumes one successful exact-main CI build and complete
 ordinary qualification; its common tag job runs final packed startup once and
 retains one package. The Firebase qualification workflow derives the frozen
 source's `/itch/` entry and trusted wrapper, then runs all focused gates and the
 complete compiled same-page flow against those exact runtime bytes. Both
-platforms consume that qualified packet. The itch publisher uploads a separately
-bound, byte-identical copy of the original ordinary export to the existing
-`html5` channel. Its account link keeps the existing Firebase Root URL and opens
-a new tab. The `/itch/` runtime, trusted wrapper and complete same-page evidence
-remain separately retained and qualified; they are not substituted for the
-played ordinary entry. This is
-source implementation pending final review/CI and activation; no new tag or
-delivery has occurred. Earlier after-itch/manual contracts below remain
-historical and are not widened to admit this new receipt type.
+platforms consume that qualified packet. The itch publisher uploads the exact
+`itch-wrapper` inventory from this same-page qualification to the existing
+`html5` channel. Google account play stays in the official `/itch/` frame; the
+local choice retains its separate browser save. No outward itch-specific export
+or second chooser is generated. The direct Firebase ROOT game remains a supported
+standalone entry, with its existing frame rejection and save/account guards.
+
+This embedded-only routing cleanup follows the2026-10-14 user decision. Source
+verification does not switch the currently selected itch upload or publish a new
+prerelease. Confirm the provider's actual selected browser entry separately;
+upload completion alone does not update project embed settings. Retain the prior
+Hosting version and selected upload for rollback. Fresh real Google SSO and
+hosted game/save/reload acceptance remain separate from compiled synthetic gates.
+Earlier after-itch/manual contracts below are historical; their archived evidence
+and failed outcomes are preserved.
 
 The common receipt pins source/tree/version/tag, original main run/attempt and
 archive digest, common run/attempt1 and payload hashes. Both consumers fetch and
@@ -24,7 +48,7 @@ authenticate those exact API objects and runtime bytes; they never pick a
 newest artifact or rerun engine/export/ordinary browser tests. The shared
 same-page qualification runs all ten focused checks and its compiled cloud flow
 once before either publisher receives credentials. Hosting then authenticates
-the completed same-source ordinary-entry receipt and adds its actual Butler channel
+the completed same-source embedded-wrapper receipt and adds its actual Butler channel
 sequence beside the unchanged main first-parent order in both loaded markers.
 This bounded metadata projection retains the original qualified manifest and
 entry bytes; runtime, source and evidence bytes stay unchanged. It lets legacy
@@ -41,8 +65,8 @@ Each target serializes its own publication. Both refuse a source that is older
 or unrelated to the current target's known immutable source. The qualified
 source order is an exact main first-parent ordinal, repository/root authority
 and immutable chain digest; it is not a SHA comparison or upload timestamp.
-Firebase's loaded marker and update endpoint bind that order. Ordinary local
-itch has no Firebase updater; its completed publication receipt records the
+Firebase's loaded marker and update endpoint bind that order. Local
+itch play has no Firebase updater; its completed publication receipt records the
 same common identity. Legacy Butler order remains a distinct authority and is
 never compared numerically with common order. Already-open legacy SHA clients
 cannot be claimed to receive this new notice format; their transition remains

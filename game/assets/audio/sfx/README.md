@@ -21,11 +21,14 @@ game PCM at BGM70/SFX55 without additional gain or processing; no samples clip.
 The accepted placement runtime SHA256 is
 `c4efec5d7489b902e81e26669834fdec0de4f4f35101041699390dced2ef2098`.
 
-The capture remains technically failed because its disposable Windows profile
-reported 13 GL shader-cache save errors. Cache-path qualification and the five
-CI shutdown-resource diagnostics remain open. Hearing acceptance does not waive
-those checks or authorize a release.
+The original comparison capture remains technically failed on 13 GL shader-cache
+save errors in its long disposable Windows profile. The separate corrected
+qualification passed 19 feedback and 12 ordinary native GL checks with no engine
+diagnostics, observed mixer retirement and eight valid cache files in a short
+isolated profile. It recorded no media and retains the original failed evidence.
+Four other existing CI fixtures now have the same bounded test-only teardown
+repair; their source-bound checks and final current-main/canonical CI are pending.
 
-Imported playback, rapid feedback overlap and listening comfort remain separate
-qualification gates. Cooking/eating and their near-zoom behavior
-are preserved for later work; level-up and watering await their future mechanics.
+This focused evidence does not qualify whole-game performance or extended rapid
+feedback overlap. Cooking/eating and their near-zoom behavior are preserved for
+later work; level-up and watering await their future mechanics.
