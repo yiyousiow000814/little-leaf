@@ -1,0 +1,116 @@
+{
+  "status": "LOOP_FILE_TECHNICAL_CHECKS; NEW_TURNAROUND_AND_GAMEPLAY_LISTENING_NOT_YET_USER_APPROVED",
+  "parent_audio_approval": "User explicitly approved Reference Rearrangement; requested loop revision",
+  "source_events_sha256": "c2b0433d68da40a5503b6404b0385650ab882ece081cfd31dd73601620232954",
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "bpm": 112,
+  "meter": "4/4",
+  "bars": 24,
+  "loop_start_sample": 0,
+  "loop_end_sample_exclusive": 2268000,
+  "loop_offset_seconds": 0,
+  "period_seconds": 51.42857142857143,
+  "seam_in_preview_seconds": 51.42857142857143,
+  "preserved_first_23_bar_events": 494,
+  "original_first_23_bar_events_exactly_preserved": true,
+  "changed_score_bars": [
+    24
+  ],
+  "old_final_harmony": "Dm7 / G7 / C6",
+  "new_final_harmony": "Dm7 / G7 -> C6 at restart",
+  "original_patch_pan_filter_wet_and_gains_preserved": true,
+  "render_tail_seconds": 4,
+  "stem_processing": {
+    "rhodes": {
+      "filter_cycle_max_error": 0.0,
+      "render_tail_last_100ms_peak": 0.0
+    },
+    "guitar": {
+      "filter_cycle_max_error": 0.0,
+      "render_tail_last_100ms_peak": 0.0
+    },
+    "bass": {
+      "filter_cycle_max_error": 0.0,
+      "render_tail_last_100ms_peak": 0.0
+    },
+    "drums": {
+      "filter_cycle_max_error": 0.0,
+      "render_tail_last_100ms_peak": 0.0
+    }
+  },
+  "lossless": {
+    "samples": 2268000,
+    "duration_seconds": 51.42857142857143,
+    "integrated_lufs": -18.00764384191247,
+    "sample_peak_dbfs": -2.780383240833416,
+    "estimated_4x_true_peak_dbtp": -2.77485609168954,
+    "boundary_step_peak": 0.00042557515553198755,
+    "ordinary_adjacent_step_p99_9": 0.04236644506454468,
+    "start_100ms_rms": 0.15507972240447998,
+    "end_100ms_rms": 0.017491333186626434,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "decoded_ogg": {
+    "samples": 2268000,
+    "duration_seconds": 51.42857142857143,
+    "integrated_lufs": -17.971303377881366,
+    "sample_peak_dbfs": -2.725501785891502,
+    "estimated_4x_true_peak_dbtp": -2.7199740337702156,
+    "boundary_step_peak": 0.0014715150464326143,
+    "ordinary_adjacent_step_p99_9": 0.04246173053979874,
+    "start_100ms_rms": 0.15515221655368805,
+    "end_100ms_rms": 0.017515406012535095,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "preview_source": "actual OGG decode tiled twice; only outermost last second fades",
+  "loop_file_has_fade_in_or_out": false,
+  "boundary_crossfade_seconds": 0,
+  "no_reference_recording_sampled": true,
+  "no_network_paid_api_or_repository_edit": true,
+  "game_engine_runtime_validation": "not executed; import and BGM mixing remain with Dots",
+  "subjective_seam_acceptance": "awaiting user listening; numeric checks are not human listening",
+  "unchanged_audio_body_check": {
+    "range_seconds": [
+      2,
+      49.285714285714285
+    ],
+    "per_stem": {
+      "rhodes": {
+        "untouched_body_2sec_to_bar24_max_abs_difference": 1.1920928955078125e-07,
+        "rms_difference": 1.2257462600473445e-08,
+        "sample_rate_equal": true
+      },
+      "guitar": {
+        "untouched_body_2sec_to_bar24_max_abs_difference": 1.1920928955078125e-07,
+        "rms_difference": 5.69726088528455e-09,
+        "sample_rate_equal": true
+      },
+      "bass": {
+        "untouched_body_2sec_to_bar24_max_abs_difference": 0.0006624460220336914,
+        "rms_difference": 2.5447279767831787e-06,
+        "sample_rate_equal": true
+      },
+      "drums": {
+        "untouched_body_2sec_to_bar24_max_abs_difference": 1.1920928955078125e-07,
+        "rms_difference": 3.689976324494637e-09,
+        "sample_rate_equal": true
+      }
+    },
+    "mix_max_abs_difference": 0.0006624460220336914,
+    "mix_rms_difference": 2.544805511206505e-06,
+    "reason_first_two_seconds_excluded": "Incoming previous-cycle release/reverb tail is newly present by design.",
+    "range_excluding_next_bar_bass_early_attack_seconds": [
+      2,
+      49.27571428571429
+    ],
+    "max_error_before_new_early_bass_onset": 1.1920928955078125e-07,
+    "note": "New bar-24 bass starts 4 ms ahead of its downbeat, preserving the existing playing style. First 23 bars of score are unchanged."
+  },
+  "ffmpeg_repeat_decode": {
+    "sample_count": 4536000,
+    "expected_sample_count": 4536000,
+    "max_cycle_difference": 0.0
+  }
+}

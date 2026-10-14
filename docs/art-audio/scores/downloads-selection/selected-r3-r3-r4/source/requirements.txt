@@ -1,0 +1,6 @@
+numpy==2.3.5
+scipy==1.17.0
+soundfile==0.13.1
+mido==1.3.3
+pyloudnorm==0.2.0
+# System dependencies: libfluidsynth, FFmpeg; separately obtained matching TimGM6mb.sf2.

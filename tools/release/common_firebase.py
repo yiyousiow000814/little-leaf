@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 import shutil
 import sys
-from html.parser import HTMLParser
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -76,51 +75,32 @@ def validate_same_page(folder,manifest,proof,flow,projection=None):
     return same
 
 
-class _OrdinaryAccountEntry(HTMLParser):
-    def __init__(self):
-        super().__init__();self.links=[]
-
-    def handle_starttag(self,tag,attrs):
-        attributes=dict(attrs)
-        if attributes.get('id')=='itch-release-account':
-            self.links.append((tag,attributes))
-
-
-def validate_ordinary_itch(folder,manifest,proof):
-    ordinary=proof.get('ordinary_itch',{});common=proof['common'];base=manifest['base_web_manifest']
-    require(ordinary.get('surface')=='ordinary-root-new-tab'
-        and ordinary.get('files_sha256')==surface_inventory(folder,'itch-ordinary')
-        and set(ordinary['files_sha256'])==set(base['files'])|{'release-manifest.json'}
-        and ordinary['files_sha256']['release-manifest.json']==common['web_manifest_sha256']
-        and json.loads((folder/'itch-ordinary/release-manifest.json').read_bytes())==base
-        and all(ordinary['files_sha256'][name]==record['sha256'] for name,record in base['files'].items()),
-        'Exact separately bound ordinary source/tag export required')
-    entry=_OrdinaryAccountEntry();entry.feed((folder/'itch-ordinary/index.html').read_text(encoding='utf-8'))
-    require(len(entry.links)==1 and entry.links[0][0]=='a'
-        and entry.links[0][1].get('href')=='https://little-leaf-41e5d.firebaseapp.com/'
-        and entry.links[0][1].get('target')=='_blank'
-        and set(entry.links[0][1].get('rel','').split())=={'noopener','noreferrer'},
-        'Preserved ordinary Root account entry must open a new tab')
-    return ordinary
-
-
-def publication_matches(publication,manifest):
+def publication_matches(publication,manifest, *, allow_processing=False):
     proof=manifest['common_tag_reuse'];common=proof['common'];context=proof['context']
     linked=publication.get('same_page_staging_origin',{})
-    require(publication.get('delivery_surface')=='qualified-root-new-tab-entry'
+    state=publication.get('state')
+    processing=publication.get('provider_observation',{})
+    completed=(state=='completed' and type(publication.get('itch_channel_version')) is int
+        and 0<publication['itch_channel_version']<=9007199254740991)
+    queued=(allow_processing and state=='accepted-processing'
+        and processing.get('state') in {'queued','processing'}
+        and type(processing.get('build_id')) is int
+        and processing=={'build_id':publication.get('itch_build_id'), 'state':processing.get('state'),
+                        'version':common['version']}
+        and 'itch_channel_version' not in publication)
+    require(publication.get('delivery_surface')=='qualified-same-page-wrapper'
         and publication.get('target')=='siowyiyou/little-leaf:html5'
-        and publication.get('state')=='completed' and type(publication.get('itch_build_id')) is int
-        and publication['itch_build_id']>0 and type(publication.get('itch_channel_version')) is int
-        and 0<publication['itch_channel_version']<=9007199254740991
+        and (completed or queued) and type(publication.get('itch_build_id')) is int
+        and publication['itch_build_id']>0
         and publication.get('source_commit')==common['source_commit']
         and publication.get('version')==common['version'] and publication.get('tag')==common['release_tag']
         and publication.get('common_qualification')==common
-        and publication.get('ordinary_itch_sha256')==proof['ordinary_itch']['files_sha256']
+        and publication.get('itch_wrapper_sha256')==proof['same_page']['wrapper_sha256']
         and publication.get('qualification')==proof['qualification']
         and publication.get('release_manifest_sha256')==common['web_manifest_sha256']
         and linked.get('run_id')==context['staging_run_id'] and linked.get('attempt')==context['staging_attempt']
         and linked.get('coordinator_source_commit')==context['coordinator_source_commit'],
-        'Completed exact-source ordinary Root/new-tab publication required')
+        'Exact-source authenticated upload acceptance required; completed order remains separate')
     return linked
 
 
@@ -233,9 +213,7 @@ def seal(root,coordinator,output,manifest,selection,context,inputs,records,flow,
         'production_security_changes':False,'hosted_acceptance':False,
         'same_page':{'compiled_entry_sha256':flow['itch_entry_sha256'],
             'embedded_sha256':surface_inventory(output,'public/itch'),
-            'wrapper_sha256':surface_inventory(output,'itch-wrapper')},
-        'ordinary_itch':{'surface':'ordinary-root-new-tab',
-            'files_sha256':surface_inventory(output,'itch-ordinary')}}
+            'wrapper_sha256':surface_inventory(output,'itch-wrapper')}}
     manifest['common_tag_reuse']=proof
     (target/'common-tag-reuse.json').write_text(json.dumps(proof,indent=2)+'\n')
 
@@ -289,7 +267,6 @@ def validate_packet(folder,manifest,marker):
         and all(type(flow.get(k)) is type(v) and flow[k] == v for k,v in expected.items())
         and flow.get('source_sha256') == proof['compiled_source_sha256'], 'Fresh exact Firebase gates required')
     validate_same_page(folder,manifest,proof,flow,projection)
-    validate_ordinary_itch(folder,manifest,proof)
     config_path=folder/'evidence/public-config.json';config=json.loads(config_path.read_text())
     require(sha256(config_path) == proof['public_config_sha256'] and config.get('projectId')=='little-leaf-41e5d'
         and config.get('authDomain')=='little-leaf-41e5d.firebaseapp.com', 'Exact public project required')
@@ -369,9 +346,13 @@ def require_origin(folder,manifest,origin):
 
 
 def consume_publication(api,run_id,output):
-    """Consume only this completed automatic ordinary-entry publisher's receipt."""
+    """Consume authenticated upload acceptance, including a named retry."""
     from release.firebase_release_gate import ITCH_WORKFLOW
-    run=api.read(f'actions/runs/{run_id}');trusted_run(run,ITCH_WORKFLOW,('workflow_run',))
+    run=api.read(f'actions/runs/{run_id}');trusted_run(run,ITCH_WORKFLOW,('workflow_run','workflow_dispatch'))
+    retry=None
+    if run['event']=='workflow_dispatch':
+        retry=re.fullmatch(r'Retry qualified itch ([1-9][0-9]*)',run.get('display_title',''))
+        require(retry is not None and run['run_attempt']==1,'Only a named first-attempt qualified platform retry is allowed')
     require(run.get('head_branch')=='main','Default-main automatic wrapper publisher required')
     workflow=api.read('actions/workflows/release-itch.yml')
     require(workflow.get('state')=='active' and workflow.get('path')==ITCH_WORKFLOW
@@ -392,6 +373,10 @@ def consume_publication(api,run_id,output):
         and str(receipt.get('workflow_attempt'))==str(run['run_attempt'])
         and artifact['name']==f"little-leaf-itch-publication-{receipt.get('source_commit')}-{run['run_attempt']}",
         'Exact immutable wrapper receipt identity required')
+    if retry:
+        qualified_run=receipt.get('same_page_staging_origin',{}).get('run_id')
+        require(type(qualified_run) is int and qualified_run==int(retry[1]),
+                'Platform retry must retain its named qualified run')
     return receipt_path,{'run':run,'artifact':artifact}
 
 
@@ -436,8 +421,16 @@ def main():
         selected_run=publication.get('same_page_staging_origin',{}).get('run_id')
         require(type(selected_run) is int and selected_run>0,'Exact qualified Firebase origin required')
     else:selected_run=args.run
-    run=api.read(f'actions/runs/{selected_run}')
+    latest=api.read(f'actions/runs/{selected_run}')
+    trusted_run(latest,WORKFLOW,('workflow_run',))
+    # The latest-run and attempt endpoints use different jobs/logs URLs.
+    # Construct origin from the same canonical view used by authentication;
+    # never rewrite API objects or relax its strict equality comparison.
+    run=api.read(f"actions/runs/{selected_run}/attempts/{latest['run_attempt']}")
     trusted_run(run,WORKFLOW,('workflow_run',))
+    require(run['id']==selected_run and run['run_attempt']==latest['run_attempt']
+            and run['head_sha']==latest['head_sha'] and run['head_branch']==latest['head_branch'],
+            'Pinned qualification attempt differs from latest run')
     artifacts=[a for a in api.pages(f'actions/runs/{selected_run}/artifacts','artifacts') if re.fullmatch('little-leaf-firebase-[0-9a-f]{40}-'+str(run['run_attempt']),a.get('name',''))]
     require(len(artifacts)==1,'Exact current-attempt Firebase artifact required')
     artifact=artifact_for(api,run,artifacts[0]['name'])
@@ -445,13 +438,14 @@ def main():
     folder=original;manifest=json.loads((folder/'firebase-variant-manifest.json').read_text())
     origin=authenticate_packet(api,folder,manifest,{'run':run,'artifact':artifact},ROOT)
     if publication_path:
-        linked=publication_matches(publication,manifest)
+        linked=publication_matches(publication,manifest,allow_processing=True)
         require(linked.get('artifact_id')==artifact['id'] and linked.get('artifact_digest')==artifact['digest']
             and linked.get('attempt')==run['run_attempt']
             and publication.get('firebase_variant_manifest_sha256')==sha256(folder/'firebase-variant-manifest.json'),
             'Publication must bind the freshly authenticated original archive')
         folder=args.output/'variant';shutil.copytree(original,folder)
-        manifest=project_delivery(folder,publication_path,origin)
+        if publication.get('state')=='completed':
+            manifest=project_delivery(folder,publication_path,origin)
         origin['publication_origin']=publication_origin
     marker=json.loads((folder/'public/hosting-release.json').read_text())
     if args.platform=='firebase':

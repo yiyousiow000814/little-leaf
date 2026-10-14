@@ -10,6 +10,8 @@ const PAN_REAR_HANDLE_DROP=2.0
 const PAN_REAR_HANDLE_OUTSET=.02*PAN_WIDTH
 const KitchenGeometry=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
 var kitchen_height := false
+var checkout_height := false
+const CABINET_TILE_SPAN=39.0/34.0
 const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 # Original rotatable isometric furniture. Geometry and use-side details share
 # the floor's 2:1 ground basis; height is never screen-rotated.
@@ -157,7 +159,7 @@ func _beverage_base():
 
 func point(x: float,z: float,h: float=0.0) -> Vector2:
 	var q=Vector2(x,z).rotated(turn*PI/2.0)
-	var height=KitchenGeometry.height(h) if kitchen_height else h
+	var height=KitchenGeometry.height(h) if kitchen_height else (CheckoutArt.height(h) if checkout_height else h)
 	return origin+Vector2((q.x-q.y)*34,(q.x+q.y)*17-height)
 func front_visible() -> bool:
 	return Vector2(0,1).rotated(turn*PI/2.0).dot(Vector2.ONE)>0

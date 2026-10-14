@@ -1,0 +1,4170 @@
+{
+  "result": "PASS",
+  "checks_passed": 1034,
+  "checks": [
+    {
+      "check": "P1 has eight measures",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "Tie continues immediately with identical pitch",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "No overlapping same-number slurs",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P1 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "Tie continues immediately with identical pitch",
+      "pass": true
+    },
+    {
+      "check": "Slur stop has start",
+      "pass": true
+    },
+    {
+      "check": "P1 no dangling tie",
+      "pass": true
+    },
+    {
+      "check": "P1 no dangling phrase slur",
+      "pass": true
+    },
+    {
+      "check": "P1 ends with an explicit rest",
+      "pass": true
+    },
+    {
+      "check": "P2 has eight measures",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "XML chord durations match",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P2 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P2 no dangling tie",
+      "pass": true
+    },
+    {
+      "check": "P2 no dangling phrase slur",
+      "pass": true
+    },
+    {
+      "check": "P2 ends with an explicit rest",
+      "pass": true
+    },
+    {
+      "check": "P3 has eight measures",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P3 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P3 no dangling tie",
+      "pass": true
+    },
+    {
+      "check": "P3 no dangling phrase slur",
+      "pass": true
+    },
+    {
+      "check": "P3 ends with an explicit rest",
+      "pass": true
+    },
+    {
+      "check": "P4 has eight measures",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 m8 exact 4/4 sum",
+      "pass": true
+    },
+    {
+      "check": "P4 m8 XML rhythmic type matches duration",
+      "pass": true
+    },
+    {
+      "check": "P4 only declared voice 1",
+      "pass": true
+    },
+    {
+      "check": "MusicXML sounding and displayed ties agree",
+      "pass": true
+    },
+    {
+      "check": "P4 m8 XML measure duration",
+      "pass": true
+    },
+    {
+      "check": "P4 m8 XML matches source pitches and rhythms",
+      "pass": true
+    },
+    {
+      "check": "P4 no dangling tie",
+      "pass": true
+    },
+    {
+      "check": "P4 no dangling phrase slur",
+      "pass": true
+    },
+    {
+      "check": "P4 ends with an explicit rest",
+      "pass": true
+    },
+    {
+      "check": "8 bars at quarter 84 last 22.857143 seconds",
+      "pass": true
+    },
+    {
+      "check": "All written sounding events end by 22.142857 seconds",
+      "pass": true
+    },
+    {
+      "check": "Melody bounded B4-C6",
+      "pass": true
+    },
+    {
+      "check": "PDF anchor count equals source event count",
+      "pass": true
+    },
+    {
+      "check": "P1 m1 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m2 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m3 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m4 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m5 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m6 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m7 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P1 m8 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m1 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m2 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m3 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m4 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m5 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m6 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m7 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P2 m8 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m1 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m2 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m3 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m4 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m5 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m6 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m7 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P3 m8 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m1 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m2 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m3 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m4 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m5 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m6 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m7 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    },
+    {
+      "check": "P4 m8 PDF event count",
+      "pass": true
+    },
+    {
+      "check": "PDF event agrees with XML-validated source",
+      "pass": true
+    },
+    {
+      "check": "PDF x position agrees with metrical onset",
+      "pass": true
+    }
+  ],
+  "ranges": {
+    "P1": {
+      "lowest": "B4",
+      "highest": "C6",
+      "lowest_midi": 71,
+      "highest_midi": 84
+    },
+    "P2": {
+      "lowest": "B3",
+      "highest": "A4",
+      "lowest_midi": 59,
+      "highest_midi": 69
+    },
+    "P3": {
+      "lowest": "F2",
+      "highest": "E3",
+      "lowest_midi": 41,
+      "highest_midi": 52
+    }
+  },
+  "last_written_note_off_seconds": 22.142857142857142,
+  "notated_duration_seconds": 22.857142857142858,
+  "limitations": [
+    "No external MusicXML XSD or notation-app import validation performed; XML was structurally parsed and cross-checked against event data.",
+    "PDF is hand-laid-out reference staff notation, not output from a notation engraver.",
+    "No MIDI or audio rendered. Mechanical checks do not establish aesthetic quality or instrument realism.",
+    "Independent musical review remains pending; excerpt is not a seamless-loop claim."
+  ]
+}

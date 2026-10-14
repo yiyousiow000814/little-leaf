@@ -3,11 +3,11 @@
   "status": "released",
   "version": "0.1.11-pre",
   "prerelease": true,
-  "date": "2026-10-13",
+  "date": "2026-10-14",
   "label": "Latest progress prerelease",
   "new": [
     "Settings and Help use compact panels, shared text styles and optional live FPS statistics.",
-    "Google-account play opens the official Firebase game in a new tab while local and account progress remain separate.",
+    "Google-account play stays inside the itch.io game while local and account progress remain separate.",
     "The Save button shows saving progress and completion inside the button."
   ],
   "fixed": [
