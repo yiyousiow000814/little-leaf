@@ -506,8 +506,9 @@ async function observe(current,next){
                 if path == 'actions/runs/901/attempts/1/jobs':
                     return [{'name': 'common / released', 'status': 'completed', 'conclusion': 'success'}]
                 raise AssertionError('Unexpected endpoint: ' + path)
-            def download(api, selected, output):
+            def download(api, selected, output, *, qualified_run):
                 self.assertEqual(selected, artifact)
+                self.assertIs(qualified_run, attempt)
                 (output / 'public').mkdir(parents=True); (output / 'evidence').mkdir()
                 (output / 'firebase-variant-manifest.json').write_text(json.dumps(manifest))
                 (output / 'public/hosting-release.json').write_text(json.dumps({'tag': 'v0.1.11-pre.' + source[:8]}))
@@ -584,10 +585,13 @@ async function observe(current,next){
                     if name=='actions/runs/990/artifacts':return [publication_artifact]
                     if name=='actions/runs/901/artifacts':return [selected_artifact]
                 raise AssertionError('Wrong selected artifact endpoint: '+name)
-            def downloaded(unused,artifact,output):
+            def downloaded(unused,artifact,output,*,qualified_run=None):
                 if artifact['id']==700:
+                    self.assertIsNone(qualified_run)
                     output.mkdir(parents=True);(output/'receipt.json').write_bytes(receipt_path.read_bytes())
-                elif artifact['id']==701:shutil.copytree(folder,output)
+                elif artifact['id']==701:
+                    self.assertEqual(qualified_run,read('actions/runs/901/attempts/1'))
+                    shutil.copytree(folder,output)
                 else:raise AssertionError('Wrong artifact downloaded')
             def authenticated(unused,packet,data,selected,unused_root):
                 firebase.validate_packet(packet,data,json.loads((packet/'public/hosting-release.json').read_bytes()))
