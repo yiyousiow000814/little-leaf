@@ -1,4 +1,4 @@
-"""Stage an unpublished Firebase/itch-entry variant from the exact complete Web gate."""
+"""Stage an unpublished Firebase variant from the exact complete Web gate."""
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 if __name__ == "__main__":
@@ -90,9 +90,6 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     if injection not in html: raise ValueError('Exported engine script marker changed')
     if auth_verification_only:html=auth_verification_html(html,config,trusted_itch_origin)
     (public/'index.html').write_text(html,encoding='utf-8')
-    entry=output/'itch-entry';entry.mkdir()
-    url='https://'+config['authDomain']+'/'
-    (entry/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Little Leaf</title><h1>Little Leaf</h1><p>Your café follows your Google account.</p><a target="_blank" rel="noopener" href="'+url+'">Open the full game and sign in</a><p>Opens a new tab for secure sign-in and account saves.</p>')
     if trusted_itch_origin:
         preview_config=json.loads((output/'firebase.json').read_text())['hosting']
         preview_config['site']=config['projectId']

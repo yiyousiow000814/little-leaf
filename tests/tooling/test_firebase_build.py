@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory() as d:
     assert '__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())' in result
     assert result.index('window.__littleLeafFirebaseReady =') < result.index('<script src="index.js">')
     assert (build/'web/index.html').read_text()==shell
-    assert 'target="_blank"' in (d/'out/itch-entry/index.html').read_text()
+    assert not (d/'out/itch-entry').exists()
     marker=json.loads((d/'out/public/hosting-release.json').read_text());assert marker['source_commit']=='synthetic-commit';assert marker['ci_run_id']=='local'
     assert not (d/'out/public/release-manifest.json').exists()
     assert 'firebase-firestore' in (d/'out/public/little_leaf_firebase.js').read_text()

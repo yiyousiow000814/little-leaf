@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 import shutil
 import sys
-from html.parser import HTMLParser
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
@@ -76,34 +75,6 @@ def validate_same_page(folder,manifest,proof,flow,projection=None):
     return same
 
 
-class _OrdinaryAccountEntry(HTMLParser):
-    def __init__(self):
-        super().__init__();self.links=[]
-
-    def handle_starttag(self,tag,attrs):
-        attributes=dict(attrs)
-        if attributes.get('id')=='itch-release-account':
-            self.links.append((tag,attributes))
-
-
-def validate_ordinary_itch(folder,manifest,proof):
-    ordinary=proof.get('ordinary_itch',{});common=proof['common'];base=manifest['base_web_manifest']
-    require(ordinary.get('surface')=='ordinary-root-new-tab'
-        and ordinary.get('files_sha256')==surface_inventory(folder,'itch-ordinary')
-        and set(ordinary['files_sha256'])==set(base['files'])|{'release-manifest.json'}
-        and ordinary['files_sha256']['release-manifest.json']==common['web_manifest_sha256']
-        and json.loads((folder/'itch-ordinary/release-manifest.json').read_bytes())==base
-        and all(ordinary['files_sha256'][name]==record['sha256'] for name,record in base['files'].items()),
-        'Exact separately bound ordinary source/tag export required')
-    entry=_OrdinaryAccountEntry();entry.feed((folder/'itch-ordinary/index.html').read_text(encoding='utf-8'))
-    require(len(entry.links)==1 and entry.links[0][0]=='a'
-        and entry.links[0][1].get('href')=='https://little-leaf-41e5d.firebaseapp.com/'
-        and entry.links[0][1].get('target')=='_blank'
-        and set(entry.links[0][1].get('rel','').split())=={'noopener','noreferrer'},
-        'Preserved ordinary Root account entry must open a new tab')
-    return ordinary
-
-
 def publication_matches(publication,manifest, *, allow_processing=False):
     proof=manifest['common_tag_reuse'];common=proof['common'];context=proof['context']
     linked=publication.get('same_page_staging_origin',{})
@@ -117,14 +88,14 @@ def publication_matches(publication,manifest, *, allow_processing=False):
         and processing=={'build_id':publication.get('itch_build_id'), 'state':processing.get('state'),
                         'version':common['version']}
         and 'itch_channel_version' not in publication)
-    require(publication.get('delivery_surface')=='qualified-root-new-tab-entry'
+    require(publication.get('delivery_surface')=='qualified-same-page-wrapper'
         and publication.get('target')=='siowyiyou/little-leaf:html5'
         and (completed or queued) and type(publication.get('itch_build_id')) is int
         and publication['itch_build_id']>0
         and publication.get('source_commit')==common['source_commit']
         and publication.get('version')==common['version'] and publication.get('tag')==common['release_tag']
         and publication.get('common_qualification')==common
-        and publication.get('ordinary_itch_sha256')==proof['ordinary_itch']['files_sha256']
+        and publication.get('itch_wrapper_sha256')==proof['same_page']['wrapper_sha256']
         and publication.get('qualification')==proof['qualification']
         and publication.get('release_manifest_sha256')==common['web_manifest_sha256']
         and linked.get('run_id')==context['staging_run_id'] and linked.get('attempt')==context['staging_attempt']
@@ -242,9 +213,7 @@ def seal(root,coordinator,output,manifest,selection,context,inputs,records,flow,
         'production_security_changes':False,'hosted_acceptance':False,
         'same_page':{'compiled_entry_sha256':flow['itch_entry_sha256'],
             'embedded_sha256':surface_inventory(output,'public/itch'),
-            'wrapper_sha256':surface_inventory(output,'itch-wrapper')},
-        'ordinary_itch':{'surface':'ordinary-root-new-tab',
-            'files_sha256':surface_inventory(output,'itch-ordinary')}}
+            'wrapper_sha256':surface_inventory(output,'itch-wrapper')}}
     manifest['common_tag_reuse']=proof
     (target/'common-tag-reuse.json').write_text(json.dumps(proof,indent=2)+'\n')
 
@@ -298,7 +267,6 @@ def validate_packet(folder,manifest,marker):
         and all(type(flow.get(k)) is type(v) and flow[k] == v for k,v in expected.items())
         and flow.get('source_sha256') == proof['compiled_source_sha256'], 'Fresh exact Firebase gates required')
     validate_same_page(folder,manifest,proof,flow,projection)
-    validate_ordinary_itch(folder,manifest,proof)
     config_path=folder/'evidence/public-config.json';config=json.loads(config_path.read_text())
     require(sha256(config_path) == proof['public_config_sha256'] and config.get('projectId')=='little-leaf-41e5d'
         and config.get('authDomain')=='little-leaf-41e5d.firebaseapp.com', 'Exact public project required')

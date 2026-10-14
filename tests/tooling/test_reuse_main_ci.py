@@ -234,7 +234,7 @@ class WorkflowTests(unittest.TestCase):
         for required in ['workflows: [Qualify Firebase release]',
             'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
             'tools/release/publish_itch.py',
-            '--web "$RUNNER_TEMP/common-firebase/variant/itch-ordinary"',
+            '--web "$RUNNER_TEMP/common-firebase/variant/itch-wrapper"',
             '--firebase-variant "$RUNNER_TEMP/common-firebase/variant"',
             '--staging-origin "$RUNNER_TEMP/common-firebase/origin.json"',
             'little-leaf-itch-publication-', 'actions: read']:
