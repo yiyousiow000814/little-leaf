@@ -5,7 +5,7 @@ const MAX_RINGS = 64
 # A floor cell has world side1. The circle's INTERNAL diameter is that side;
 # its stroke grows outward before the usual ground-plane isometric projection.
 const TILE_WORLD_SIDE = 1.0
-const INNER_FRACTION = .84
+const INNER_FRACTION = .82
 const INNER_RADIUS_WORLD = TILE_WORLD_SIDE * .5
 const OUTER_RADIUS_WORLD = INNER_RADIUS_WORLD / INNER_FRACTION
 const WORLD_X = Vector2(39.0, 19.5)
