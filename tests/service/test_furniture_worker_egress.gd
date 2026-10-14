@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 ## Physical bodies, not hypothetical staff relocation, govern editor geometry.
 ## Ordinary active-service reader/custody rules remain separate.
 const Model=preload("res://scripts/core/cafe_model.gd")
@@ -102,6 +103,9 @@ func ui_cases():
   check(cafe.interaction._staff_positions()==actors,"rotation does not teleport workers")
  for tween in get_processed_tweens():tween.kill()
  cafe.settings_controls.sfx_player.stop();cafe.queue_free();await frames()
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
 func run():
  if not "--fresh-review" in OS.get_cmdline_user_args():quit(2);return
  model_cases();await ui_cases()

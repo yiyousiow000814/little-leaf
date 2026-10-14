@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 ## Isolated synthetic progress/preferences only. No existing profile is loaded.
 const Settings=preload("res://scripts/ui/cafe_settings.gd")
 const WebPreferences=preload("res://scripts/persistence/cafe_web_preferences.gd")
@@ -102,5 +103,11 @@ func run():
   check(is_equal_approx(multiplier,1.0) and is_equal_approx(Model.cooking_seconds(multiplier),45.0),"legacy stove levels cannot accelerate cooking")
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- print("PAUSE_ONLY_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
- game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
+ var report={"checks":checks,"failures":failures}
+ game.queue_free();await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("PAUSE_ONLY_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

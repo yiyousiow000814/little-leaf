@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 class LoadedMain extends "res://scripts/main.gd":
@@ -78,6 +79,12 @@ func run():
  check(done and cafe.model.served+abandoned_visits.size()==4 and cafe.model.total_cleaned==4,"all four visits settle or depart unpaid and release clean tables after rejected placement")
  check(duplicate_payments.is_empty() and paid_visits.size()==cafe.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and cafe.model.total_earned==paid_visits.size()*cafe.Model.MEAL_PAYMENT,"exactly one payment per served diner and none for abandonment")
  check(cafe.model.coins==before_coins+cafe.model.total_earned-before_earned-(cafe.model.total_wages_paid-before_wages),"wallet changes only for real service and wages; refused furniture never charges")
- print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}))
+ var report={"checks":checks,"failures":failures,"payload":payload_seen,"seconds":ticks/30.0,"served":cafe.model.served,"cleaned":cafe.model.total_cleaned}
  for tween in get_processed_tweens():tween.kill()
- cafe.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
+ cafe.queue_free();await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("STAFF_RELOCATION_SERVICE_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

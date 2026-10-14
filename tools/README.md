@@ -33,7 +33,7 @@ CLI commands remain callable from the repository root or another directory.
 | `build/build_web.py` | Export the source already checked by the complete native gate. |
 | `build/build_crazygames.py` | Build the separate platform variant after the Web gate. |
 | `qualification/run_firebase_focused.py` | Run one named Firebase gate and bind its log to this source/run. |
-| `qualification/prepare_browser_qa.py wall` | Derive old/new save compatibility coordinates from exact validated exports. |
+| `qualification/prepare_browser_qa.py wall` | Prepare each source's native layout once, then authenticate the shared old/new coordinates for both browser cases. |
 | `qualification/prepare_browser_qa.py cloud` | Derive six synthetic cloud recovery layouts for compiled browser checks. |
 
 The cloud scenario also serves the historical retained-artifact diagnostic. The
@@ -52,10 +52,19 @@ export validator permits one ordinary export and one CrazyGames variant.
 
 Four browser runners cover tutorial, two old/new compatibility cases, and
 recovery (IndexedDB, save log and WebKit). The shorter compatibility case also
-runs the original Inbox check. Compatibility receives both
-generated projects, including imported resources, and installs the same pinned
-Godot toolchain. Optional Firebase staging receives the candidate project and
-all required browser evidence; its freshness validator remains unchanged.
+runs the original Inbox check. Each existing export producer prepares its native
+compatibility layout once
+with the same pinned Godot toolchain. Both compatibility runners validate and
+consume identical source/tree/run/attempt-bound coordinate receipts, without
+downloading generated projects or installing Godot again. Optional Firebase
+staging still receives the candidate project and all required browser evidence;
+its freshness validator remains unchanged.
+Every Chrome lane in the reusable build (play, recovery, compatibility and
+optional fresh Firebase) installs the same checksum-pinned official package from
+`ci/chrome.json` and verifies Playwright's actual Chrome-channel binary before
+browser checks. WebKit remains a separate pinned Playwright recovery target.
+This does not change historical diagnostic environments or the released-source
+Firebase staging workflow.
 Artifacts are scoped to this run, attempt and source. Profiles are never uploaded.
 The final `gate` exposes release outputs only after every required job succeeds;
 failed, cancelled or skipped mandatory jobs cannot qualify an export.
@@ -64,6 +73,8 @@ The tutorial runs alone, preserving its original first-autosave deadline. Each
 old/new compatibility case has its own runner, Chromium process, X display and
 loopback origin. Its causal save/retry/reload steps stay sequential. The merged
 receipt requires both cases and identical input, tool and export bindings.
+Missing, changed or stale native layout receipts fail before browser execution;
+producer work is reused only inside its original CI run and attempt.
 Play/recovery do not wait for the historical build; compatibility still does.
 
 Only the paused toolbar-help and environment-camera-access native suites opt

@@ -571,6 +571,67 @@ class NativeToolInstallationTests(unittest.TestCase):
         self.assertIn('shard: [0, 1, 2, 3, 4]', engine)
         self.assertIn('engine_shards.py run', engine)
 
+    def test_chrome_cli_exports_verified_package_without_executing_it(self):
+        self.assertEqual(self.install('chrome'), ['chrome'])
+        self.assertTrue((self.folder / 'google-chrome-stable.deb').is_file())
+        self.assertIn('CHROME_DEB=' + str(self.folder / 'google-chrome-stable.deb'), self.env.read_text())
+
+    def test_chrome_package_hash_is_verified_before_activation(self):
+        import io
+        payload = b'synthetic Debian package; never installed'
+        spec = {**install_tools.LOCK['chrome'], 'sha256': hashlib.sha256(payload).hexdigest()}
+        destination = self.folder / 'google-chrome-stable.deb'
+        with patch.dict(install_tools.LOCK, {'chrome': spec}), \
+             patch.object(install_tools.urllib.request, 'urlopen', return_value=io.BytesIO(payload)):
+            receipt = install_tools.install('chrome', destination)
+        self.assertEqual(destination.read_bytes(), payload)
+        self.assertEqual(receipt['member_sha256'], spec['sha256'])
+        refused = self.folder / 'refused.deb'
+        with patch.object(install_tools.urllib.request, 'urlopen', return_value=io.BytesIO(b'corrupt')), \
+             self.assertRaisesRegex(RuntimeError, 'checksum mismatch'):
+            install_tools.install('chrome', refused)
+        self.assertFalse(refused.exists())
+
+    def test_actual_chrome_channel_version_must_match_exact_pin(self):
+        with patch.object(install_tools.subprocess, 'check_output', return_value='Google Chrome 154.0.8037.97\n') as command:
+            install_tools.verify_chrome_version()
+        command.assert_called_once_with(['/opt/google/chrome/chrome', '--version'], text=True)
+        with patch.object(install_tools.subprocess, 'check_output', return_value='Google Chrome 155.0.8059.39\n'), \
+             self.assertRaisesRegex(RuntimeError, 'exact compatibility pin'):
+            install_tools.verify_chrome_version()
+
+    def test_both_compatibility_cases_install_and_verify_same_chrome_before_browser(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/build-web.yml').read_text()
+        compatibility = workflow.split('  compatibility:\n', 1)[1].split('  firebase:\n', 1)[0]
+        self.assertIn('case: [old_opened_after_new, already_open_old]', compatibility)
+        self.assertEqual(compatibility.count('install_tools.py chrome'), 1)
+        self.assertEqual(compatibility.count('sudo dpkg -i "$CHROME_DEB"'), 1)
+        self.assertLess(compatibility.index('verify_chrome_version()'), compatibility.index('Verify compensation history'))
+        self.assertLess(compatibility.index('verify_chrome_version()'), compatibility.index('Verify actual old and new Web save compatibility'))
+        self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', compatibility)
+
+    def test_ordinary_and_fresh_firebase_verify_same_chrome_before_browser(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/build-web.yml').read_text()
+        for job, following, gates in [
+            ('browser', 'compatibility', ['Verify cloud recovery in real IndexedDB',
+                'Verify fresh tutorial', 'Verify exported save diagnostic']),
+            ('firebase', 'gate', ['Check Firebase adapter', 'Verify compiled two-device cloud recovery']),
+        ]:
+            section = workflow.split('  ' + job + ':\n', 1)[1].split('  ' + following + ':\n', 1)[0]
+            with self.subTest(job=job):
+                self.assertEqual(section.count('install_tools.py chrome'), 1)
+                self.assertEqual(section.count('sudo dpkg -i "$CHROME_DEB"'), 1)
+                self.assertEqual(section.count('verify_chrome_version()'), 1)
+                self.assertLess(section.index('install_tools.py chrome'), section.index('sudo dpkg -i'))
+                self.assertLess(section.index('sudo dpkg -i'), section.index('verify_chrome_version()'))
+                for gate in gates:
+                    self.assertLess(section.index('verify_chrome_version()'), section.index(gate))
+                self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', section)
+        browser = workflow.split('  browser:\n', 1)[1].split('  compatibility:\n', 1)[0]
+        self.assertIn('lane: [play, recovery]', browser)
+        self.assertIn('install --with-deps webkit', browser)
+        self.assertIn('RUNTIME_BROWSER: webkit', browser)
+
 class ItchDiagnosticTests(unittest.TestCase):
     def setUp(self):
         from diagnostics import diagnose_itch_status as diagnostic

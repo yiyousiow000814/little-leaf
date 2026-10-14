@@ -216,9 +216,7 @@ def stage(root, reuse, selection, evidence, focused, fullflow, output, run, atte
         require(itch_variant is not None, 'Common release requires its qualified same-page candidate')
         validate_common_surface(itch_variant, selection, base, flow)
         shutil.copytree(itch_variant, output)
-        # The played itch export keeps the frozen ordinary producer's Root/new-tab
-        # account entry. The separately qualified same-page packet remains intact.
-        shutil.copytree(reuse / 'web', output / 'itch-ordinary')
+        # Publish the same embedded wrapper whose runtime passed the compiled gates.
         # The frozen transformer supplied the tested bytes. Only the coordinator's
         # authenticated common chronology is added after those gates pass.
         from build.build_firebase import update_hosting_marker

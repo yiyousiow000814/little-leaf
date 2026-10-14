@@ -120,6 +120,8 @@ jobs:
           cmp tools/ci/toolchain.json .compatibility-old/ci/toolchain.json
           python3 .compatibility-old/tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
           python3 .compatibility-old/ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
+      - name: Prepare the exact historical native layout once
+        run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side old --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --output "$RUNNER_TEMP/old-web-build/evidence/wall-layout"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
@@ -130,14 +132,6 @@ jobs:
             ${{ runner.temp }}/old-web-build/web/
             ${{ runner.temp }}/old-web-build/evidence/
           if-no-files-found: warn
-          retention-days: 7
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: little-leaf-historical-project-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/old-web-build/project/
-          include-hidden-files: true
-          if-no-files-found: error
           retention-days: 7
   build:
     if: needs.guard.outputs.scope != 'lightweight'
@@ -166,6 +160,8 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 tools/build/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
+      - name: Prepare the exact candidate native layout once
+        run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side new --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-layout"
       - name: Export separate CrazyGames variant after the unchanged complete Web gate
         run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
       - name: Retain separate CrazyGames export for review
@@ -195,6 +191,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: inputs.firebase_preview
         with:
           name: little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}
           path: |
@@ -229,6 +226,12 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Install WebKit only for recovery lane
         if: matrix.lane == 'recovery'
         run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
@@ -310,23 +313,6 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        if: matrix.lane == 'compatibility'
-        with:
-          name: little-leaf-candidate-project-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/web-build/project
-          merge-multiple: true
-          digest-mismatch: error
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        if: matrix.lane == 'compatibility'
-        with:
-          name: little-leaf-historical-project-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/old-web-build/project
-          merge-multiple: true
-          digest-mismatch: error
-      - name: Install checksum-pinned Godot and official Web template
-        if: matrix.lane == 'compatibility'
-        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
@@ -334,6 +320,12 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install exact checksum-pinned Chrome for both compatibility cases
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Verify compensation history in sandboxed Chromium
         if: matrix.lane == 'compatibility' && matrix.case == 'old_opened_after_new'
         env:
@@ -349,9 +341,9 @@ jobs:
           ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
           path: .compatibility-old
           persist-credentials: false
-      - name: Bind compatibility inputs and derive UI coordinates
+      - name: Bind identical producer layouts without native work
         if: matrix.lane == 'compatibility'
-        run: python3 tools/qualification/prepare_browser_qa.py wall --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+        run: python3 tools/qualification/prepare_browser_qa.py wall --merge-only --old-source .compatibility-old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
       - name: Verify actual old and new Web save compatibility
         if: matrix.lane == 'compatibility'
         env:
@@ -414,6 +406,12 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install exact checksum-pinned Chrome for fresh Firebase qualification
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Check Firebase adapter and fresh staging contracts
         if: inputs.firebase_preview
         timeout-minutes: 4

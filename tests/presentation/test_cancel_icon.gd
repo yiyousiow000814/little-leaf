@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 var game
 var checks=0
 var failures=[]
@@ -27,5 +28,14 @@ func run():
      var click=InputEventMouseButton.new();click.position=button_center;click.global_position=button_center;click.button_index=MOUSE_BUTTON_LEFT;click.pressed=pressed;root.push_input(click,true)
     await process_frame
     check(game.selected_kind=="",str(view)+" centered click cancels current selection")
- print("CANCEL_ICON_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
- game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)
+ var report={"checks":checks,"failures":failures}
+ for player in game.audio_players.values():player.stop();player.stream=null
+ game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
+ for tween in get_processed_tweens():tween.kill()
+ game.queue_free();await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("CANCEL_ICON_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

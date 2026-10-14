@@ -26,15 +26,21 @@ ordinary qualification; its common tag job runs final packed startup once and
 retains one package. The Firebase qualification workflow derives the frozen
 source's `/itch/` entry and trusted wrapper, then runs all focused gates and the
 complete compiled same-page flow against those exact runtime bytes. Both
-platforms consume that qualified packet. The itch publisher uploads a separately
-bound, byte-identical copy of the original ordinary export to the existing
-`html5` channel. Its account link keeps the existing Firebase Root URL and opens
-a new tab. The `/itch/` runtime, trusted wrapper and complete same-page evidence
-remain separately retained and qualified; they are not substituted for the
-played ordinary entry. This is
-source implementation pending final review/CI and activation; no new tag or
-delivery has occurred. Earlier after-itch/manual contracts below remain
-historical and are not widened to admit this new receipt type.
+platforms consume that qualified packet. The itch publisher uploads the exact
+`itch-wrapper` inventory from this same-page qualification to the existing
+`html5` channel. Google account play stays in the official `/itch/` frame; the
+local choice retains its separate browser save. No outward itch-specific export
+or second chooser is generated. The direct Firebase ROOT game remains a supported
+standalone entry, with its existing frame rejection and save/account guards.
+
+This embedded-only routing cleanup follows the2026-10-14 user decision. Source
+verification does not switch the currently selected itch upload or publish a new
+prerelease. Confirm the provider's actual selected browser entry separately;
+upload completion alone does not update project embed settings. Retain the prior
+Hosting version and selected upload for rollback. Fresh real Google SSO and
+hosted game/save/reload acceptance remain separate from compiled synthetic gates.
+Earlier after-itch/manual contracts below are historical; their archived evidence
+and failed outcomes are preserved.
 
 The common receipt pins source/tree/version/tag, original main run/attempt and
 archive digest, common run/attempt1 and payload hashes. Both consumers fetch and
@@ -42,7 +48,7 @@ authenticate those exact API objects and runtime bytes; they never pick a
 newest artifact or rerun engine/export/ordinary browser tests. The shared
 same-page qualification runs all ten focused checks and its compiled cloud flow
 once before either publisher receives credentials. Hosting then authenticates
-the completed same-source ordinary-entry receipt and adds its actual Butler channel
+the completed same-source embedded-wrapper receipt and adds its actual Butler channel
 sequence beside the unchanged main first-parent order in both loaded markers.
 This bounded metadata projection retains the original qualified manifest and
 entry bytes; runtime, source and evidence bytes stay unchanged. It lets legacy
@@ -59,8 +65,8 @@ Each target serializes its own publication. Both refuse a source that is older
 or unrelated to the current target's known immutable source. The qualified
 source order is an exact main first-parent ordinal, repository/root authority
 and immutable chain digest; it is not a SHA comparison or upload timestamp.
-Firebase's loaded marker and update endpoint bind that order. Ordinary local
-itch has no Firebase updater; its completed publication receipt records the
+Firebase's loaded marker and update endpoint bind that order. Local
+itch play has no Firebase updater; its completed publication receipt records the
 same common identity. Legacy Butler order remains a distinct authority and is
 never compared numerically with common order. Already-open legacy SHA clients
 cannot be claimed to receive this new notice format; their transition remains
@@ -121,7 +127,7 @@ Historical support gap: main `d30115b6932af1ab28e30672996eae09becaef16` rejected
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
 2. Wait for **Check and build Web** to pass on the intended commit. Review the Web build in a fresh browser profile and a separate copied-save profile. Leave real player data untouched.
 3. Only after publication is approved, create and push one new tag, such as **`v0.1.6`**, at that exact reviewed commit already in `main` history. Later changes on `main` do not block this fixed tag. Never move or reuse a release tag.
-4. With the reviewed common-tag route enabled, watch **Check and build Web** produce the common tag receipt, then **Qualify Firebase release** produce the complete packet with separate ordinary itch and same-page surfaces. **Release Web to itch.io** publishes the unchanged ordinary Root/new-tab entry; Hosting then uses that completed receipt for compatible update metadata and publishes the qualified Root and `/itch/` surfaces. Common source/atlas/packed-startup qualification occurs once. Each platform retains its own outcome; one platform success does not establish the other delivery. See [qualified artifact reuse](qualified-artifact-reuse.md).
+4. With the reviewed common-tag route enabled, watch **Check and build Web** produce the common tag receipt, then **Qualify Firebase release** produce the complete packet with the trusted embedded itch wrapper and qualified Firebase surfaces. **Release Web to itch.io** publishes that exact `itch-wrapper`; Hosting uses the completed qualification receipt for compatible update metadata and publishes the qualified Root and `/itch/` surfaces. Verify that the intended wrapper is actually selected for browser play on itch.io. Common source/atlas/packed-startup qualification occurs once. Each platform retains its own outcome; one platform success does not establish the other delivery. See [qualified artifact reuse](qualified-artifact-reuse.md).
 5. Verify [the live game](https://siowyiyou.itch.io/little-leaf), including fresh and copied-save startup. Successful upload processing does not replace browser, persistence, rendering or audio checks.
 
 Only a newly created normal `vX.Y.Z`, single-lowercase hotfix `vX.Y.Z[a-z]`, or exact-source `vX.Y.Z-pre.<8 lowercase hex digits>` tag can qualify. The SHA form requires the committed `X.Y.Z-pre` family, explicit prerelease flag and exact full source; an all-digit hash remains opaque. Normal/hotfix versions retain numeric/base-letter ordering. Uppercase, multiple-letter and build-metadata tags are rejected. Common publication additionally requires a known immutable current baseline tag and forward source ancestry; unknown legacy labels stop for inspection. Ordinary merges, PRs and manual status/build runs cannot publish. No workflow creates a tag or changes itch embed settings.
