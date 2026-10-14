@@ -83,7 +83,8 @@ class FrozenObserverTests(unittest.TestCase):
         self.assertNotIn('--no-sandbox', source)
         self.assertNotIn('disable-web-security', source)
         self.assertNotIn("child_env = os.environ", source)
-        self.assertNotIn('GODOT_BIN', source)
+        self.assertIn("offline_prefix = driver == 'current2290_offline_prefix_driver.mjs'", source)
+        self.assertIn("if offline_prefix:\n        child_env.update(GODOT_BIN=", source)
         driver = (ROOT/'platform/firebase/diagnostics/retained_handoff_driver.mjs').read_text()
         self.assertIn("scope:'retained-first-two-cases'", driver)
         self.assertIn('release_qualification:false,deployable:false', driver)
@@ -355,6 +356,72 @@ class Current11FixedInputTests(unittest.TestCase):
             with self.subTest(field=field, value=value), self.assertRaises(ValueError):
                 route.validate_metadata('web', artifact, changed, artifacts=actual.ARTIFACTS,
                                         source=actual.SOURCE, run_id=actual.RUN)
+
+
+class Current2290OfflinePrefixTests(unittest.TestCase):
+    def setUp(self):
+        import current2290_offline_route
+        self.offline = current2290_offline_route
+
+    def values(self, kind):
+        r = self.offline
+        identifier, name, size, digest, run = r.ARTIFACTS[kind]
+        main = run == r.MAIN_RUN
+        metadata = {'id':run, 'run_attempt':1, 'head_sha':r.SOURCE, 'head_branch':'main',
+                    'status':'completed', 'conclusion':'success' if main else 'failure',
+                    'event':'push' if main else 'workflow_run',
+                    'path':'.github/workflows/ci.yml' if main else '.github/workflows/release-firebase.yml',
+                    'repository':{'id':r.REPOSITORY}}
+        artifact = {'id':identifier,'name':name,'size_in_bytes':size,'digest':'sha256:'+digest,
+                    'expired':False,'expires_at':'2099-01-01T00:00:00Z',
+                    'workflow_run':{'id':run,'head_sha':r.SOURCE,'repository_id':r.REPOSITORY,
+                                    'head_repository_id':r.REPOSITORY}}
+        return artifact, metadata
+
+    def test_distinct_fixed_main_and_failure_origins(self):
+        for kind in self.offline.ARTIFACTS:
+            with self.subTest(kind=kind):self.offline.validate_artifact(kind,*self.values(kind))
+
+    def test_wrong_origin_attempt_and_expiry_refuse(self):
+        for kind in self.offline.ARTIFACTS:
+            for field,value in [('id',True),('name','ordinary'),('size_in_bytes',1),
+                                ('digest','sha256:'+'0'*64),('expired',True),
+                                ('expires_at','2000-01-01T00:00:00Z')]:
+                artifact,run = self.values(kind);artifact[field]=value
+                with self.subTest(kind=kind,field=field),self.assertRaises(ValueError):
+                    self.offline.validate_artifact(kind,artifact,run)
+            for field,value in [('run_attempt',True),('event','workflow_dispatch'),
+                                ('head_sha','0'*40),('status','in_progress'),('path','other')]:
+                artifact,run = self.values(kind);run[field]=value
+                with self.subTest(kind=kind,field=field),self.assertRaises(ValueError):
+                    self.offline.validate_artifact(kind,artifact,run)
+            artifact,run = self.values(kind);artifact['workflow_run']['id']=1
+            with self.assertRaises(ValueError):self.offline.validate_artifact(kind,artifact,run)
+
+    def test_frozen_prefix_preserves_original_program_and_observer(self):
+        driver = ROOT/'platform/firebase/diagnostics'/self.offline.DRIVER_NAME
+        self.assertEqual(route.sha(driver),self.offline.DRIVER)
+        self.assertEqual(route.sha(ROOT/'tests/diagnostics/firebase_offline_phase_trace.mjs'),self.offline.TRACE)
+        text=driver.read_text()
+        self.assertIn("if(!offlineDiagnostic || process.argv.includes('--offline-reconnect-with-prefix')){",text)
+        self.assertIn("if(!offlineDiagnostic){\n // Actual notice buttons",text)
+        self.assertIn("const end=Date.now()+timeout",text)
+        self.assertIn("timeout=45000",text)
+        self.assertIn("await new Promise(r=>setTimeout(r,150))",text)
+        self.assertIn("openBrowserContexts:browser.contexts().length",text)
+        self.assertIn("driver_sha256:sha(fs.readFileSync(import.meta.filename))",text)
+
+    def test_one_qa_ref_cannot_enter_publishing_or_old_modes(self):
+        text=(ROOT/'.github/workflows/cloud-save-flow-diagnostic.yml').read_text()
+        job=text.split('  current-2290:\n',1)[1].split('  diagnostic:\n',1)[0]
+        self.assertIn("github.ref == 'refs/heads/test/retained-2290-offline-prefix'",job)
+        self.assertIn("inputs.diagnostic_mode == 'retained-2290-offline-prefix'",job)
+        self.assertIn('web:11879080515 native:11879246791 failure:11881876241',job)
+        self.assertIn('timeout-minutes: 8',job)
+        self.assertIn("ImageVersion']=='20261004.327.1'",job)
+        self.assertNotIn('contents: write',text)
+        self.assertNotIn('deploy_firebase',job)
+        self.assertNotIn('build_web.py',job)
 
 
 if __name__ == '__main__':

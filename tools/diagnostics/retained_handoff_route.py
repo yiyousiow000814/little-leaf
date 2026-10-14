@@ -205,7 +205,7 @@ def completion_flags(physical, durable, hard, observed):
         'queue_release': physical and durable and within}
 
 def run(root, env, *, driver='fullflow.test.mjs'):
-    if driver not in {'fullflow.test.mjs', 'current_handoff_driver.mjs'}:
+    if driver not in {'fullflow.test.mjs', 'current_handoff_driver.mjs', 'current2290_offline_prefix_driver.mjs'}:
         raise ValueError('Finite reviewed diagnostic driver required')
     image_gate(env)
     start = float(env['LL_RETAINED_START_MONOTONIC'])
@@ -241,6 +241,9 @@ def run(root, env, *, driver='fullflow.test.mjs'):
         'DEBUG': 'pw:browser', 'LANG': 'C.UTF-8'}
     for name in ['HOME', 'XDG_DATA_HOME', 'XDG_CONFIG_HOME', 'XDG_CACHE_HOME', 'TMPDIR']:
         folder = root/'tmp' if name == 'TMPDIR' else output/'disposable'/name; folder.mkdir(parents=True); child_env[name] = str(folder)
+    offline_prefix = driver == 'current2290_offline_prefix_driver.mjs'
+    if offline_prefix:
+        child_env.update(GODOT_BIN=str(root/'godot-tools/godot'), CLOUD_GEOMETRY_PROJECT=str(root/'geometry/project'))
     def launch(name, command):
         remaining(work)
         fact = {'name': name, 'pid': None, 'start': None, 'exit_code': None, 'log_closed': False}
@@ -277,6 +280,14 @@ def run(root, env, *, driver='fullflow.test.mjs'):
         jar = root/'cloud-firestore-emulator-v1.20.4.jar'
         if sha(jar) != JAR:
             raise ValueError('Pinned emulator required')
+        if offline_prefix:
+            godot = root/'godot-tools/godot'
+            if godot.is_symlink() or sha(godot) != 'f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3':
+                raise ValueError('Original official native geometry tool required')
+            version('godot-version', [str(godot), '--version'], '4.6.3.stable.official.7d41c59c4')
+            importer = launch('geometry-import', [str(godot), '--headless', '--path', str(root/'geometry/project'), '--editor', '--import'])
+            if importer.wait(timeout=remaining(work)) != 0:
+                raise ValueError('Disposable geometry import failed')
         if Path('/tmp/.X11-unix/X199').exists() or Path('/tmp/.X199-lock').exists():
             raise RuntimeError('Display already occupied')
         with socket.socket() as probe:
@@ -297,12 +308,16 @@ def run(root, env, *, driver='fullflow.test.mjs'):
             if java.poll() is not None:
                 raise RuntimeError('Owned emulator exited')
             time.sleep(min(.1, remaining(ready_end)))
-        node = launch('scenario', ['node', str(root/'source/platform/firebase'/driver),
+        command = ['node', str(root/'source/platform/firebase'/driver),
             '--web-build', str(root/'build/web'), '--output', str(output/'scenario'),
             '--engine-report', str(root/'evidence/engine-evidence/summary.json'),
-            '--itch-test-variant', str(root/'variant'), '--diagnostic-only',
-            '--retained-geometry-input', str(root/'evidence/web-build/evidence/firebase-fullflow/geometry-1-input.json'),
-            '--retained-geometry-result', str(root/'evidence/web-build/evidence/firebase-fullflow/geometry-1-result.json')])
+            '--itch-test-variant', str(root/'variant'), '--diagnostic-only']
+        if offline_prefix:
+            command.extend(['--offline-reconnect-diagnostic', '--offline-reconnect-with-prefix'])
+        else:
+            command.extend(['--retained-geometry-input', str(root/'evidence/web-build/evidence/firebase-fullflow/geometry-1-input.json'),
+                '--retained-geometry-result', str(root/'evidence/web-build/evidence/firebase-fullflow/geometry-1-result.json')])
+        node = launch('scenario', command)
         while node.poll() is None:
             if java.poll() is not None or xvfb.poll() is not None or not listener_owned(java.pid):
                 raise RuntimeError('Owned fixture service lost')

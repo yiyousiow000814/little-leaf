@@ -40,6 +40,9 @@ def verify(web,native):
  return manifest
 if __name__=='__main__':
  import sys
+ if '--retained-2290-offline-prefix' in sys.argv:
+  from current2290_offline_route import main
+  sys.argv.remove('--retained-2290-offline-prefix');main();raise SystemExit(0)
  if '--retained-11b3-poll' in sys.argv:
   from current_handoff_route import main_current11
   sys.argv.remove('--retained-11b3-poll');main_current11();raise SystemExit(0)
