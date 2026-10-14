@@ -39,6 +39,9 @@ const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
 const FloorCleaningApproach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 const FloorMessArt=preload("res://scripts/rendering/floor_mess_art.gd")
+const StaffGroundRing=preload("res://scripts/rendering/staff_ground_ring.gd")
+# Comparison fixture switch; normal gameplay enables the separate ground layer.
+var use_staff_ground_rings=true
 # Original procedural illustrated assets. Every item is independently drawn from
 # its live model identity/position; this is not a baked scene or imported sprite.
 const MovingAtlas=preload("res://scripts/rendering/moving_art_atlas.gd")
@@ -879,6 +882,35 @@ var playtest_draw_ms=0.0
 func objects_hidden()->bool:
 	return is_instance_valid(game) and "compact_ui" in game and game.compact_ui!=null and "shop_ui" in game.compact_ui and game.compact_ui.shop_ui!=null and game.compact_ui.shop_ui.objects_hidden()
 
+func _draw_ground_rugs(render_items:Array):
+	var rugs=render_items.filter(func(entry):return entry.kind=="rug")
+	# Preserve the old rug-prefix tie order without changing entity sorting.
+	rugs.sort_custom(func(a,b):return str(a.get("id",0))<str(b.get("id",0)))
+	for entry in rugs:
+		var offset=_meal_chair_offset(entry)
+		var anchor=iso(entry.x+.5+offset.x,entry.z+.5+offset.y)
+		if not _render_anchor_visible(anchor):continue
+		opacity=.63 if bool(entry.get("preview",false)) else 1.0
+		art_transform(anchor,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
+		var callback=_paint_furniture_body.bind("item",entry,int(entry.rot))
+		var appearance=["furniture","item",entry,int(entry.rot),_dining_style(int(entry.id),str(entry.get("dining_variant",""))),Vector2.ZERO]
+		if not retain_native_local_object(callback,appearance,_art_transform):callback.call()
+		art_transform(Vector2.ZERO)
+		opacity=1.0
+
+func _draw_staff_ground_rings(show_service:bool):
+	if not show_service or not use_staff_ground_rings:return
+	var scale_factor=ui_scale*zoom*(1.55 if game.wall_detail else 1.0)
+	for index in range(mini(game.staff_states.size(),StaffGroundRing.MAX_RINGS)):
+		var staff=game.staff_states[index]
+		var position=_render_position("staff_%s"%index,staff.pos)
+		var anchor=iso(position.x,position.y)
+		if not _render_anchor_visible(anchor):continue
+		_set_art_matrix(StaffGroundRing.placement(anchor+_presentation_offset,game.animation_time,scale_factor))
+		var callback=StaffGroundRing.paint.bind(self)
+		if not retain_native_local_object(callback,["staff-ground-ring",index],_art_transform):callback.call()
+	art_transform(Vector2.ZERO)
+
 func _draw():
 	var playtest_started=Time.get_ticks_usec()
 	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
@@ -948,6 +980,18 @@ func _draw():
 	if use_batched_ground:ground_art.draw_floor(self)
 	else:_draw_legacy_floor(ground_view)
 	_parcel_ground(hovered_parcel)
+	var interaction=game.interaction if "interaction" in game else null
+	var preview=show_objects and interaction!=null and interaction.preview_active
+	var render_items=[]
+	var moving_members=game.model.logical_members(int(interaction.drag_item_id)) if preview and interaction.drag_active and int(interaction.drag_item_id)>=0 else []
+	for actual in game.model.items if show_objects else []:
+		if int(actual.id) not in moving_members:render_items.append(actual)
+	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
+		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
+			var entry=part.duplicate();entry["preview"]=true
+			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
+	_draw_ground_rugs(render_items)
+	_draw_staff_ground_rings(show_service)
 	if game.build_tools!=null:game.build_tools.draw_floor_preview(self)
 	if show_objects and game.editing and game.selected_id>=0 and not ("interaction" in game and game.interaction!=null and game.interaction.drag_active):
 		var selected=game.model.get_item(game.selected_id)
@@ -961,8 +1005,6 @@ func _draw():
 		if not show_service:break
 		_draw_floor_mess(record)
 	for opening in openings:OpeningArt.threshold(self,opening)
-	var interaction=game.interaction if "interaction" in game else null
-	var preview=show_objects and interaction!=null and interaction.preview_active
 	# The furnishing preview keeps its material without a placement-status tint.
 	# Exterior rear foliage sits behind the cafe shell and its furnishings.
 	_scenery_tree(Vector2(13.5,-.5),1.10)
@@ -994,15 +1036,8 @@ func _draw():
 	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.paint_stroke.active and not game.build_tools.preview.is_empty():
 		for piece in WallArt.depth_entries(game.build_tools.preview):
 			piece["wall_preview"]=true;piece.depth+=.001;entities.append(piece)
-	var render_items=[]
-	var moving_members=game.model.logical_members(int(interaction.drag_item_id)) if preview and interaction.drag_active and int(interaction.drag_item_id)>=0 else []
-	for actual in game.model.items if show_objects else []:
-		if int(actual.id) not in moving_members:render_items.append(actual)
-	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
-		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
-			var entry=part.duplicate();entry["preview"]=true
-			if int(entry.x)>=0 and int(entry.x)<game.model.MAX_WIDTH and int(entry.z)>=0 and int(entry.z)<game.model.MAX_DEPTH:render_items.append(entry)
 	for entry in render_items:
+		if entry.kind=="rug":continue
 		var meal_offset=_meal_chair_offset(entry)
 		if not _render_anchor_visible(iso(entry.x+.5+meal_offset.x,entry.z+.5+meal_offset.y)):continue
 		var item_depth=float(entry.x+entry.z)+1+meal_offset.x+meal_offset.y
