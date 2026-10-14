@@ -13,6 +13,7 @@ from unittest.mock import patch
 import zipfile
 
 from release import firebase_release_event as event
+from release import common_firebase
 from tests.tooling import test_firebase_release_gate as gate_fixture
 from qualification.reuse_main_ci import REQUIRED_JOBS
 from unittest.mock import Mock
@@ -109,6 +110,59 @@ class ReleaseEventTests(unittest.TestCase):
             'expired': False, 'size_in_bytes': len(data),
             'digest': 'sha256:' + hashlib.sha256(data).hexdigest(),
             'workflow_run': {'id': 3, 'head_sha': 'a' * 40}}
+
+    def coordinator_fixture(self):
+        data = archive({'firebase-variant-manifest.json': json.dumps({'source_commit': 'a' * 40}),
+                        'public/hosting-release.json': json.dumps({'tag': 'v0.1.11-pre.aaaaaaaa'})})
+        artifact = self.firebase_artifact(data)
+        artifact['workflow_run']['head_sha'] = 'c' * 40
+        run = {'id': 3, 'run_attempt': 1, 'head_sha': 'c' * 40, 'head_branch': 'main',
+               'repository': {'full_name': event.REPOSITORY},
+               'head_repository': {'full_name': event.REPOSITORY},
+               'path': common_firebase.WORKFLOW, 'event': 'workflow_run',
+               'status': 'completed', 'conclusion': 'success'}
+        return data, artifact, run
+
+    def test_common_consumer_keeps_candidate_separate_from_qualified_coordinator(self):
+        data, artifact, run = self.coordinator_fixture()
+        before = copy.deepcopy((artifact, run))
+        api = Mock()
+        api.pages.return_value = [artifact]
+        api.read.side_effect = lambda path, **kwargs: {
+            'actions/runs/3': run, 'actions/runs/3/attempts/1': run,
+            'actions/artifacts/7/zip': data}[path]
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / 'selected'
+            with patch('sys.argv', ['common_firebase.py', '--run', '3', '--platform', 'itch',
+                                   '--output', str(output)]), \
+                    patch.dict(event.os.environ, {'GH_TOKEN': '', 'GITHUB_OUTPUT': str(Path(d) / 'outputs')}), \
+                    patch.object(common_firebase, 'GitHub', return_value=api), \
+                    patch.object(common_firebase, 'authenticate_packet', return_value={'run': run, 'artifact': artifact}):
+                common_firebase.main()
+            self.assertEqual(json.loads((output / 'status.json').read_text())['source_commit'], 'a' * 40)
+            self.assertEqual(json.loads((output / 'origin.json').read_text())['run']['head_sha'], 'c' * 40)
+            self.assertEqual((artifact, run), before)
+            api.read.assert_any_call('actions/artifacts/7/zip', binary=True, artifact_bytes=len(data))
+
+    def test_qualified_coordinator_context_refuses_wrong_run_attempt_workflow_and_repository(self):
+        data, artifact, run = self.coordinator_fixture()
+        changes = [('id', 4), ('head_sha', 'd' * 40), ('head_branch', 'another'), ('run_attempt', 2),
+                   ('status', 'in_progress'), ('conclusion', 'failure'), ('event', 'push'),
+                   ('path', '.github/workflows/another.yml'),
+                   ('repository', {'full_name': 'another/repository'}),
+                   ('head_repository', {'full_name': 'another/repository'})]
+        for field, value in changes:
+            api = Mock()
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    event.download(api, artifact, Path(d) / 'out', qualified_run={**run, field: value})
+                api.read.assert_not_called()
+                self.assertFalse((Path(d) / 'out').exists())
+        api = Mock()
+        with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
+            event.download(api, {**artifact, 'name': 'little-leaf-web-' + 'a' * 40 + '-1'},
+                           Path(d) / 'out', qualified_run=run)
+        api.read.assert_not_called()
 
     def test_firebase_profile_uses_exact_metadata_size_ordinary_profile_unchanged(self):
         data = archive({'firebase-variant-manifest.json': '{}'})
