@@ -40,7 +40,7 @@ func run():
   check(mount.distance_to(projected*(.16*Furniture.PAN_WIDTH+outset))<.00001 and tip.distance_to(projected*(.26*Furniture.PAN_WIDTH+outset))<.00001,"Handle uses a different attachment height or side")
   var old_mount=Furniture.KitchenGeometry.surface(Vector2(0,.16*Furniture.PAN_WIDTH),39.0,rot)
   var old_tip=Furniture.KitchenGeometry.surface(Vector2(0,.26*Furniture.PAN_WIDTH),39.0,rot)
-  var expected_shift=Vector2.ZERO if Furniture.stove_handle_in_front(rot) else projected*.027+Vector2(0,2)
+  var expected_shift=Vector2.ZERO if Furniture.stove_handle_in_front(rot) else projected*Furniture.PAN_REAR_HANDLE_OUTSET+Vector2(0,2)
   check((handle[0]-old_mount).is_equal_approx(expected_shift) and (handle[1]-old_tip).is_equal_approx(expected_shift),"Annotated rear offset differs or unmarked front handle moved")
   var rim_distance=pow(mount.x/(8.5*Furniture.PAN_WIDTH),2)+pow(mount.y/(4.2*Furniture.PAN_DEPTH),2)
   if Furniture.stove_handle_in_front(rot):
@@ -89,7 +89,7 @@ func run():
   check(knobs.size()==(1 if visible_controls else 0),"Single-burner stove must have one knob on its visible control face")
   check(indicators.size()==knobs.size(),"Each stove knob must have exactly one indicator")
   if visible_controls and knobs.size()==1 and indicators.size()==1:
-   var knob_at=furniture.point(0,.404,26)
+   var knob_at=furniture.point(0,Furniture.STOVE_TILE_SPAN*.5,26)
    check(knobs[0].at.is_equal_approx(knob_at),"Stove knob must stay centered on its rotated control face")
    check(knobs[0].size==Vector2(1.8,1.8) and knobs[0].color=="f0e5c7","Centered knob must retain its size and material")
    check(indicators[0].start.is_equal_approx(knob_at) and indicators[0].finish.is_equal_approx(knob_at+Vector2(0,-1)),"Centered knob indicator must retain its orientation")
@@ -99,7 +99,8 @@ func run():
  # Head bounds include the .7px outline plus a .25px real separation.
  for rot in [1,2]:
   var mirror=1.0 if rot==1 else -1.0
-  var pan=Vector2(23.4*mirror,-20.3)
+  var distance=1.0-Pose.WORK_INSET
+  var pan=Vector2(39.0*distance*mirror,19.5*distance-Furniture.KitchenGeometry.height(41))
   var handle=Furniture.stove_handle_points(rot)
   var center=Furniture.stove_food_surface(rot)
   var start=pan+handle[0]-center
