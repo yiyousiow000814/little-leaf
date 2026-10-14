@@ -3,6 +3,7 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 const Segments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const Transactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
+const BuildingEdges=preload("res://scripts/gameplay/cafe_building_edges.gd")
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -12,10 +13,73 @@ func same(v)->String:return JSON.stringify(v)
 func snapshot(m)->String:return same([m.coins,m.revision,m.shell_products,m.shell_segment_products,m.built_walls,m.wall_attachments,m._next_wall_id,m._next_attachment_id,m.items])
 func write(name:String,data:Dictionary)->String:
  var path="user://"+name+".json";var f=FileAccess.open(path,FileAccess.WRITE);f.store_string(JSON.stringify(data));f.close();return path
+func check_projection(model,label:String):
+ var before=same([model.shell_products,model.shell_segment_products,model.built_walls,model.wall_attachments])
+ var result=BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,model.built_walls,model.wall_attachments)
+ check(result.ok,label+" projects validated legacy building")
+ if not result.ok:return
+ var hosts=model.selectable_wall_hosts()
+ check(result.edges.size()==hosts.size(),label+" one installed record per visible grid edge")
+ for host in hosts:
+  var key=Model.WallGeometry.key(host.axis,int(host.a.x),int(host.a.y))
+  var id=str(host.get("segment_key",host.host_id))
+  check(result.edges.has(key),label+" preserves grid edge "+key)
+  if not result.edges.has(key):continue
+  var edge:Dictionary=result.edges[key]
+  check(edge.id==id and edge.a==host.a and edge.b==host.b,label+" preserves stable identity and extent "+key)
+  check(edge.height==host.height and edge.material==host.material,label+" preserves appearance "+key)
+  check(edge.physical_rect==Geometry.segment_rect({"host":host,"a":host.a,"b":host.b}),label+" preserves exact physical rectangle "+key)
+  check(edge.refund_credit==model.wall_refund(id if host.shell else key),label+" preserves retained refund "+key)
+  check(not edge.has("shell") and not edge.has("segment_key"),label+" installed record has no default-only type "+key)
+ for index in model.wall_attachments.size():
+  var old:Dictionary=model.wall_attachments[index]
+  var aperture=Geometry.aperture(old,model.built_walls,model.shell_products)
+  var opening:Dictionary=result.openings[index]
+  check(opening.id==old.id and opening.paid_cost==old.paid_cost and opening.width==old.width,label+" preserves opening identity/payment/width")
+  check(opening.a==aperture.a and opening.b==aperture.b and opening.bottom==aperture.bottom and opening.top==aperture.top,label+" preserves complete aperture")
+  check(result.migration_report.opening_aliases[int(old.id)]=={"host_id":old.host_id,"offset":float(old.offset)},label+" retains original host alias outside active edges")
+  check(not opening.wall_ids.is_empty(),label+" resolves opening supports to installed identities")
+ check(before==same([model.shell_products,model.shell_segment_products,model.built_walls,model.wall_attachments]),label+" projection never mutates source state")
+
+func projection_edge_cases(model):
+ check_projection(model,"fresh")
+ var before=snapshot(model)
+ var projected=BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,model.built_walls,model.wall_attachments)
+ projected.edges["x:0:0"].material="leaf_print";projected.migration_report.opening_aliases[1].offset=2.5
+ projected.openings[0].wall_ids.clear()
+ check(snapshot(model)==before,"projected records and metadata are independently mutable")
+ var walls=[{"id":42,"axis":"x","x":1,"z":1,"height":"full","material":"sage_panels","paid_cost":55,"refund_credit":27},
+  {"id":43,"axis":"x","x":2,"z":1,"height":"full","material":"sage_panels","paid_cost":55,"refund_credit":27}]
+ var opening=[{"id":88,"kind":"door","host_id":"span:42,43","offset":1.0,"width":1.5,"paid_cost":40}]
+ var result=BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,walls,opening)
+ check(result.ok and result.openings[0].wall_ids==["wall:42","wall:43"],"ordinary spanning opening resolves complete ordered support")
+ var duplicates=walls.duplicate(true);duplicates[1].x=1
+ check(not BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,duplicates,[]).ok,"duplicate edge is rejected instead of overwritten")
+ duplicates=walls.duplicate(true);duplicates[1].id=42
+ check(not BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,duplicates,[]).ok,"duplicate installed identity is rejected")
+ var removed=model.shell_segment_products.duplicate(true);removed["shell:west#5"]["removed"]=true
+ check(not BuildingEdges.project_validated_legacy(model.shell_products,removed,model.built_walls,model.wall_attachments).ok,"missing supporting edge is rejected instead of filled")
+ var lowered=model.shell_segment_products.duplicate(true);lowered["shell:west#5"]={"height":"half","material":"original","paid_cost":35,"refund_credit":17}
+ check(not BuildingEdges.project_validated_legacy(model.shell_products,lowered,model.built_walls,model.wall_attachments).ok,"half-height supporting edge is rejected")
+ check(snapshot(model)==before,"failed projections preserve model and wallet")
+ var moved=Model.new();moved.set_operating_open(false)
+ check(moved.move_wall("shell:west#5","x",2,9),"generate real moved starter wall and hosted door")
+ check_projection(moved,"moved starter door wall")
+ result=BuildingEdges.project_validated_legacy(moved.shell_products,moved.shell_segment_products,moved.built_walls,moved.wall_attachments)
+ check(result.migration_report.moved_origins.get("wall:1")=="shell:west#5" and result.migration_report.removed_ids.has("shell:west#5"),"moved starter lineage and removed source receipt survive without a duplicate edge")
+ check(result.openings[0].wall_ids==["wall:1"],"moved door resolves to the same ordinary installed identity")
+ var empty=Model.new();empty.set_operating_open(false)
+ check(empty.remove_wall_attachment(1),"remove included door through production command")
+ for key in empty.shell_segment_products.keys():check(empty.remove_wall(key),"remove real starter edge "+key)
+ result=BuildingEdges.project_validated_legacy(empty.shell_products,empty.shell_segment_products,empty.built_walls,empty.wall_attachments)
+ check(result.ok and result.edges.is_empty() and result.openings.is_empty(),"empty building projection never regenerates the preset")
+ check(result.migration_report.removed_ids.size()==21 and result.migration_report.discarded_covered_free_ids.is_empty(),"removed source IDs are audit data, never installed geometry")
+
 func _initialize():run.call_deferred()
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use isolated model runner");quit(2);return
  var initial=Model.new();initial.coins=10000
+ projection_edge_cases(initial)
  check(initial.save("user://initial.json"),"new model saves: "+initial.last_error)
  var base=JSON.parse_string(FileAccess.get_file_as_string("user://initial.json"))
  check(base.version==15 and base.wall_format==2 and base.shell_segment_format==Segments.FORMAT,"outer v15 retained and wall format guarded")
@@ -30,6 +94,12 @@ func run():
     for root_id in expected_roots:expected_roots[root_id].paid_cost=int(expected_roots[root_id].paid_cost)
     var path=write("legacy",raw);var hash_before=FileAccess.get_sha256(path);var model=Model.new();var label=str([extension,material,paid])
     check(model.load_save(path),label+" legacy load: "+model.last_error)
+    check_projection(model,label)
+    var projection=BuildingEdges.project_validated_legacy(model.shell_products,model.shell_segment_products,model.built_walls,model.wall_attachments)
+    check(projection.openings[0].wall_ids==["shell:west#4","shell:west#5","shell:west#6"],label+" wide opening remains one object supported by three unit edges")
+    check(projection.migration_report.discarded_covered_free_ids.size()==(1 if extension else 0),label+" only the hidden covered free default is discarded")
+    if extension:
+     check(projection.edges["z:0:8"].id=="wall:41" and projection.migration_report.discarded_covered_free_ids==["shell:west#8"],label+" paid visible extension retained without hidden inventory or coin compensation")
     check(FileAccess.get_sha256(path)==hash_before,label+" import bytes unchanged")
     check(model.shell_products==expected_roots,label+" inherited root snapshots retained")
     check(same(model.wall_attachments)==same(raw.wall_attachments),label+" paid wide opening ID/host/offset/width/value unchanged")
@@ -112,6 +182,7 @@ func run():
     var restored=Model.new();check(restored.load_save("user://extension-transition-result.json"),label+" reload after extent change: "+restored.last_error)
     check(restored.shell_segment_products==ledger and restored.coins==transition.coins,label+" extent-change roundtrip preserves exact ledger/wallet")
     check(restored._next_wall_id==42 and restored._next_attachment_id==78,label+" counters unchanged")
+    check_projection(restored,label+" after extension action and reload")
     check(restored.replace_wall("shell:west#8",height,"leaf_print"),label+" newly exposed ninth tile can be purchased")
     check(restored.save("user://extension-transition-purchased.json"),label+" subsequent ninth purchase saves")
     var last=Model.new();check(last.load_save("user://extension-transition-purchased.json"),label+" subsequent ninth purchase reloads")

@@ -94,10 +94,13 @@ activate it or write migrated player saves until the following are reviewed:
   hosted aperture geometry. Do not silently resize an old wall or narrow/move an
   old door. Compatibility data belongs to the imported placement, never to a new
   default-only construction path.
-- A retained west extension and the dormant included segment need an explicit
-  compatibility policy that preserves both existing value and the old remove/move
-  result. Do not flatten the visible edge and silently discard the dormant
-  entitlement. Nor may the new format regenerate an already sold wall.
+- User decision on 2026-10-14: discard only the hidden covered free default
+  ninth-wall entry when importing a retained west extension. It has zero paid and
+  zero refund value. Do not give an inventory object or coin compensation, and do
+  not recreate it after the visible wall is sold or moved. Preserve the actually
+  placed/purchased wall and all visible free starter walls. Preserve the original
+  payload backup for recovery; do not delete player files. The unified save/reload
+  test must show the emptied edge remains empty after selling the retained wall.
 - Introduce a strictly guarded building sub-format only after Release/Auth review
   of the outer v15 save, browser vault, old-reader rejection, session authority and
   Recovery behavior. A marker ignored by older clients is not a compatibility
@@ -115,6 +118,33 @@ activate it or write migrated player saves until the following are reviewed:
   Reversing a code commit does not make a new-format save readable by old code.
   Rollback must either reopen the preserved old copy or use a separately verified
   lossless downgrade; never strip the marker or overwrite the sole good save.
+
+### Pure installed-edge projection
+
+`CafeBuildingEdges.project_validated_legacy` is the read-only adapter boundary.
+It consumes a snapshot already accepted by the existing legacy decoder, not raw
+untrusted save input. It is not a codec, live state owner or migration activator.
+
+- One installed record is keyed by the grid edge. Stable IDs are retained as
+  `shell:west#5` or `wall:41`; those names do not select different runtime types.
+  Material, height, exact paid/refund values, endpoints, physical rectangle and
+  pattern origin are explicit fields. Duplicate identities or edges are rejected.
+- One opening keeps its ID, full aperture, width and paid value, with the complete
+  ordered list of supporting edge IDs. Removed support, gaps and half-height
+  support are rejected. A wide historical aperture is not split or narrowed.
+- The separate result report lists source aliases and removed/discarded source
+  IDs for review. It contains no dormant wall product or compensating inventory.
+  Old full ledgers remain only in the preserved source backup. This report is not
+  a new persisted schema and cannot generate construction.
+- The adapter allocates a temporary snapshot on explicit use, with no retained
+  cache, signal, per-frame caller or file writes. Future runtime adoption must
+  cache against owned model identity/revision and release the previous snapshot;
+  do not run a full projection on every draw or pointer frame.
+
+The existing shell-model suite exercises real legacy decoding, exact physical
+rectangles/refunds, three-edge and ordinary spanning openings, moved origins,
+removed buildings and the covered-free decision. Runtime transaction/render/save
+integration and the full sell-to-grass/rebuild/reload sequence remain separate.
 
 After compatibility approval, route selection, placement, replacement, removal,
 opening support, collision and rendering through the unified installed state;
