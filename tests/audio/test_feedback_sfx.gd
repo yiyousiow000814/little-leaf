@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 const Feedback = preload("res://scripts/audio/cafe_feedback_sfx.gd")
 const Main = preload("res://scripts/main.gd")
 
@@ -46,8 +47,9 @@ func run():
 	check(music.bus == "BGM" and owner.audio_players.service == music, "music player and routing unchanged")
 	Feedback.install(settings)
 	check(owner.get_child_count() == children, "catalog installation idempotent")
-	check(Feedback.CASH.loop_mode == AudioStreamWAV.LOOP_DISABLED and Feedback.PLACE.loop_mode == AudioStreamWAV.LOOP_DISABLED, "finite imported one-shots")
-	check(is_equal_approx(Feedback.CASH.get_length(), 1.5), "cash duration retained")
+	check(Feedback.CASH is AudioStreamMP3 and not Feedback.CASH.loop and Feedback.PLACE.loop_mode == AudioStreamWAV.LOOP_DISABLED, "finite selected MP3 cash and WAV placement")
+	var cash_hash = HashingContext.new();cash_hash.start(HashingContext.HASH_SHA256);cash_hash.update(Feedback.CASH.data)
+	check(cash_hash.finish().hex_encode() == "95c0a024f0b1b82cd20f64a89e176943c1152074c45f0df47edd3c3b6370d862" and Feedback.CASH.get_length() > 0.0, "selected SfxCash compressed source bytes retained")
 	check(absf(Feedback.PLACE.get_length() - 4608.0 / 11025.0) < 0.0001, "placement duration retained")
 	for kind in ["coin", "place"]:
 		settings.play_sfx(kind)
@@ -68,6 +70,9 @@ func run():
 	owner.queue_free()
 	await process_frame
 	await process_frame
+	var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+	check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+	print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
 	check(not is_instance_valid(voice), "scene exit releases existing voice")
 	print("FEEDBACK_SFX_RESULT ", JSON.stringify({"checks": checks, "failures": failures}))
 	quit(0 if failures.is_empty() else 1)
