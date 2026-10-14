@@ -47,7 +47,11 @@ func run():
     var staff=painted_rect(hud.action_art.staff)
     var gear=painted_rect(hud.action_art.settings)
     var expected_gap=18.0 if view.x>=850 else 8.0
-    check(absf(gear.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/settings gap")
+    var pause=hud.pause_face.get_global_rect()
+    var play_gap=16.0 if view.x>=850 else 8.0
+    check(absf(pause.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/Pause gap")
+    check(absf(gear.position.x-pause.end.x-play_gap)<.1,label+" Pause immediately before settings")
+    check(absf(pause.get_center().y-gear.get_center().y)<.1,label+" Pause/settings optical centerline")
     check(absf(staff.get_center().y-gear.get_center().y)<.1,label+" staff/settings optical centerline")
     check(wood_right-gear.end.x>=9,label+" visible gear outer inset")
     if not editing:
