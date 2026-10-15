@@ -1091,13 +1091,16 @@ func _tick_live_service(delta: float):
 	# Advance before model movement: a guest reaching its seat this tick starts
 	# at zero, and none of the arrival tick is mistaken for seated waiting.
 	_advance_meal_wait(delta)
-	# Preserve the model's phase lengths and save API. Only postpone a phase's
-	# completion while its real service trip is unfinished; other guests keep
-	# walking/eating. This prevents a plate teleport or a table cleaning itself.
+	# A completed real meal settles cooking; the remaining phase lengths and
+	# physical-service holds stay timed. Contact alone cannot finish delivery.
 	var held=[]
 	for guest in model.customers:
 		if not guest.get("mobility",{}).is_empty():continue
 		var record=service_guests[int(guest.id)]
+		if str(guest.phase)=="cooking" and delta>0.0 and is_finite(delta):
+			var delivered=bool(record.meal_ready) and bool(record.meal_done) and not bool(record.dishes_collected)
+			if delivered and str(record.plate_owner)=="table" and int(record.plate_target_id)==int(guest.table_id):
+				model.complete_meal_delivery(guest)
 		var key={"ordering":"order_done","cooking":"meal_done","drinking":"drink_done","cleaning":"cleanup_done"}.get(str(guest.phase),"")
 		if key=="" or bool(record[key]): continue
 		held.append({"guest":guest,"phase":str(guest.phase),"duration":float(guest.duration)})

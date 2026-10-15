@@ -12,7 +12,7 @@ const CANVAS = Vector2(384, 320)
 const PIVOT = Vector2(192, 200)
 const ANCHOR = Vector2(-12.55, 7.95)
 
-static func draw(artist, front: bool) -> bool:
+static func draw(artist, front: bool, world_offset: Vector2 = Vector2.ZERO) -> bool:
 	# Projection-only test artists keep the original procedural painter fallback.
 	if not artist.has_method("art_draw_texture_rect_region") and not artist.has_method("draw_texture_rect_region"):
 		return false
@@ -20,7 +20,8 @@ static func draw(artist, front: bool) -> bool:
 	if scale <= 0.0:
 		return false
 	var texture: Texture2D = FRONT if front else BACK
-	var rect = Rect2(artist.iso(ANCHOR.x, ANCHOR.y) - PIVOT * scale, CANVAS * scale)
+	var anchor = ANCHOR + world_offset
+	var rect = Rect2(artist.iso(anchor.x, anchor.y) - PIVOT * scale, CANVAS * scale)
 	var draw_target = artist.get("native_draw_target") if artist is Node2D else null
 	var cursor: int = draw_target.shape_cursor if draw_target != null else -1
 	CanvasDraw.draw_texture_rect_region(artist, texture, rect, Rect2(Vector2.ZERO, texture.get_size()), artist.col(Color.WHITE))
