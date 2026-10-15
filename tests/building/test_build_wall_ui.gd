@@ -7,9 +7,9 @@ func run():
  var shop=game.compact_ui.shop_ui;var ui=game.compact_ui;var tool=game.build_tools
  # Cancel closes only the current unified-grid popovers; it never charges or saves.
  var popup_wallet=game.model.coins;var popup_saves=game.saves
- ui.finishes.show();ui.wall_review.show();ui.pending_wall={"key":"x:2:0","height":"half","material":"sage_panels"}
+ ui.wall_review.show();ui.pending_wall={"key":"x:2:0","height":"half","material":"sage_panels"}
  ui.hud._close_pending_edit_popovers()
- check(not ui.finishes.visible and not ui.wall_review.visible and ui.pending_wall.is_empty(),"HUD cancellation closes current popovers and clears the pending wall")
+ check(not ui.wall_review.visible and ui.pending_wall.is_empty(),"HUD cancellation closes current popovers and clears the pending wall")
  check(game.model.coins==popup_wallet and game.saves==popup_saves,"closing current wall popovers never charges or saves")
  for view in [Vector2i(1164,624),Vector2i(1360,880),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390)]:
   root.size=view;shop.show_build_products();await settle()

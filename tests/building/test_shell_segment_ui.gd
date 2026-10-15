@@ -70,7 +70,7 @@ func run():
  check(ui.selected_wall=="x:2:0" and ui.selected_shell=="","selection stores unified one-grid key")
  ui.show_finishes();check(ui.product_target=="x:2:0" and ui.shop_ui.wall_target=="x:2:0","finish menu retains selected segment")
  check(ui.shop_ui.wall_cards["wall:full:original"].visible and ui.shop_ui.wall_cards["wall:half:original"].visible,"installed starter wall retains Original room cards")
- ui.finishes.hide();tool.material="cream_stripe"
+ tool.material="cream_stripe"
  var before=snapshot();var neighbors=game.model.built_walls.duplicate(true);var openings=game.model.wall_openings().duplicate(true)
  for height in ["full","half"]:
   tool.choose(height);tool.refresh(point)
