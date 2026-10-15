@@ -434,7 +434,7 @@ def main():
     artifacts=[a for a in api.pages(f'actions/runs/{selected_run}/artifacts','artifacts') if re.fullmatch('little-leaf-firebase-[0-9a-f]{40}-'+str(run['run_attempt']),a.get('name',''))]
     require(len(artifacts)==1,'Exact current-attempt Firebase artifact required')
     artifact=artifact_for(api,run,artifacts[0]['name'])
-    original=args.output/('variant-original' if publication_path else 'variant');download(api,artifact,original)
+    original=args.output/('variant-original' if publication_path else 'variant');download(api,artifact,original,qualified_run=run)
     folder=original;manifest=json.loads((folder/'firebase-variant-manifest.json').read_text())
     origin=authenticate_packet(api,folder,manifest,{'run':run,'artifact':artifact},ROOT)
     if publication_path:

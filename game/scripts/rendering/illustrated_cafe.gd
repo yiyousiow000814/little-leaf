@@ -34,6 +34,7 @@ var use_background_cache=true
 var shell_draw_cache=preload("res://scripts/rendering/cafe_shell_draw_cache.gd").new()
 var background_cache=preload("res://scripts/rendering/cafe_background_cache.gd").new()
 var render_idle=preload("res://scripts/rendering/cafe_render_idle.gd").new()
+var character_pick_geometry=preload("res://scripts/rendering/cafe_character_pick_geometry.gd").new()
 
 const CheckoutArt=preload("res://scripts/rendering/cafe_checkout_art.gd")
 const SinkWashArt=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
@@ -290,6 +291,8 @@ func _ready():
 		furniture_art.prepare_cache(self)
 		return
 	if icon_kind=="" and is_instance_valid(game):
+		RenderingServer.frame_pre_draw.connect(_record_character_pick_submission)
+		RenderingServer.frame_post_draw.connect(_record_character_pick_frame)
 		furniture_art.cache_enabled=not "--legacy-furniture" in OS.get_cmdline_user_args()
 		texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
 		furniture_art.prepare_cache(self)
@@ -297,10 +300,28 @@ func _ready():
 		if use_cached_heads:head_atlas.request(self)
 
 func _exit_tree():
+	if RenderingServer.frame_pre_draw.is_connected(_record_character_pick_submission):RenderingServer.frame_pre_draw.disconnect(_record_character_pick_submission)
+	if RenderingServer.frame_post_draw.is_connected(_record_character_pick_frame):RenderingServer.frame_post_draw.disconnect(_record_character_pick_frame)
 	canvas_stream.release()
 	background_cache.release()
 
+var cooking_motion_strength=1.0
+var cooking_reduce_motion=false
+func _cooking_reduced_motion()->bool:
+	if is_instance_valid(game) and game.has_meta("hud_reduce_motion"):return bool(game.get_meta("hud_reduce_motion"))
+	return cooking_reduce_motion
+
+func _update_cooking_motion(delta:float):
+	if not is_instance_valid(game):return
+	# Read accessibility once per frame, never once per stove/actor/layer.
+	if game.compact_ui!=null and game.compact_ui.hud!=null:cooking_reduce_motion=game.compact_ui.hud._reduced_motion_requested()
+	var previous=cooking_motion_strength
+	var active=not game.paused and not game.editing and not game.save_recovery_blocked
+	cooking_motion_strength=0.0 if _cooking_reduced_motion() else move_toward(cooking_motion_strength,1.0 if active else 0.0,maxf(delta,0.0)*4.0)
+	if not is_equal_approx(previous,cooking_motion_strength):queue_redraw()
+
 func _process(delta):
+	_update_cooking_motion(delta)
 	if is_instance_valid(game) and game.has_method("effective_frame_delta"):delta=game.effective_frame_delta(delta)
 	# Shop artwork is static. CanvasItem already schedules its initial draw;
 	# the retained commands stay valid when the tray is hidden/shown again.
@@ -312,6 +333,8 @@ func _process(delta):
 			furniture_art.prepare_cache(self);return
 		set_process(false)
 		return
+	if is_instance_valid(game) and game.interaction!=null and game.interaction.get("manual_cleanup")!=null:
+		if game.interaction.manual_cleanup.tick(delta):queue_redraw()
 	_update_street_pedestrians(delta)
 	var motion_delta=delta
 	if is_instance_valid(game) and game.cafe_intro!=null and game.cafe_intro.active:
@@ -454,6 +477,8 @@ func update_motion(delta: float):
 			# A table has no tall cabinet: keep the worker on its aisle side so
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
+			# Keep the whole owned stove job planted through prep and cooking.
+			if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
 			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
 			if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.DROP_INSET
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
@@ -1004,6 +1029,7 @@ func _draw():
 	for record in game.service_guests.values()+game.floor_tasks.messes.values():
 		if not show_service:break
 		_draw_floor_mess(record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
 	if preview and interaction.drag_active:
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
@@ -1151,6 +1177,7 @@ func _draw():
 				pose["carry_hand"]=Vector2(held.x*face,held.y)
 				# Presentation reads the existing work clock; it never changes the
 				# recipe duration, normalized completion progress, or saved state.
+				pose["cooking_strength"]=0.0 if _cooking_reduced_motion() or _stove_heat_state(int(d.get("station_id",-1))).is_empty() else cooking_motion_strength
 				pose["cooking_elapsed"]=float(d.get("job_elapsed",0.0))
 				var cooking_progress=float(d.get("art_phase",0.0))
 				pose["cooking_remaining"]=float(pose.cooking_elapsed)*(1.0-cooking_progress)/cooking_progress if cooking_progress>.000001 else -1.0
@@ -1201,7 +1228,11 @@ func _draw():
 				elif kind=="register":surface=CheckoutArt.contact_surface(int(target_item.get("rot",0)),e.type=="staff")
 				elif kind=="bin":surface=Vector2(0,-25)
 				elif kind=="beverage":surface=_drink_surface_point(int(target_item.get("rot",0)))
-				elif kind=="stove":surface=_stove_pan_point(int(target_item.get("rot",0))) if action=="cooking" else _stove_plate_point(int(target_item.get("rot",0)))
+				elif kind=="stove":
+					surface=_stove_plate_point(int(target_item.get("rot",0)))
+					if action=="cooking":
+						surface=FurnitureArt.stove_handle_points(int(target_item.get("rot",0)))[1]+_stove_vessel_motion(int(target_item.get("id",-1))).pot
+						pose["cooking_grip"]=true
 				var anchor=Vector2(2,-2) if drink_job else Vector2(4,0 if payload=="dishes" or action in ["collecting","washing"] else -2)
 				if action=="cooking":anchor=Vector2.ZERO
 				elif action=="preparing_food":anchor=Vector2(4,6)
@@ -1244,6 +1275,7 @@ func _draw():
 	art_transform(Vector2.ZERO)
 	_finish_native_objects()
 	canvas_stream.finish()
+	character_pick_geometry.drawing(self)
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
 func _draw_legacy_pavement(ground_view: Rect2):
 	var rows=Neighborhood.visible_pavement_rows(self)
@@ -2018,16 +2050,24 @@ func _stove_food_remaining(item_id:int) -> float:
 func _stove_heat_state(item_id:int)->Dictionary:
 	if not is_instance_valid(game) or game.editing:return {}
 	for staff in game.staff_states:
-		if str(staff.get("art_action",""))!="cooking" or str(staff.get("job_kind",""))!="cook" or int(staff.get("job_step",-1))!=1:continue
-		if int(staff.get("art_target_id",-1))!=item_id or int(staff.get("station_id",-1))!=item_id:continue
+		if str(staff.get("job_kind",""))!="cook" or int(staff.get("job_step",-1))!=1:continue
+		if int(staff.get("station_id",-1))!=item_id or str(staff.get("blocked_reason",""))!="":continue
 		var record=game.service_guests.get(int(staff.get("job_guest_id",-1)),{})
 		if int(record.get("meal_station_id",-1))!=item_id or str(record.get("plate_owner",""))!="kitchen":continue
-		return {"elapsed":float(staff.get("job_elapsed",0.0))}
+		var elapsed=float(staff.get("job_elapsed",0.0))
+		var station=game.model.get_item(item_id)
+		var remaining=game.Model.cooking_seconds(game.Model.stove_speed_multiplier(station))-elapsed
+		return {"elapsed":elapsed,"remaining":remaining,"strength":0.0 if _cooking_reduced_motion() else cooking_motion_strength}
 	return {}
+
+func _stove_vessel_motion(item_id:int)->Dictionary:
+	var state=_stove_heat_state(item_id)
+	if state.is_empty():return {"pot":Vector2.ZERO,"lid":Vector2.ZERO}
+	return FurnitureArt.CookingFood.vessel(state.elapsed,state.remaining,state.strength)
 
 func _stove_heat(item_id:int,rotation:int):
 	var heat=_stove_heat_state(item_id)
-	if not heat.is_empty():furniture_art.draw_stove_heat(self,Vector2.ZERO,rotation,heat.elapsed)
+	if not heat.is_empty():furniture_art.draw_stove_heat(self,Vector2.ZERO,rotation,0.0 if _cooking_reduced_motion() else heat.elapsed)
 
 func _cooking_food_owned_by_pose(item_id:int)->bool:
 	if not is_instance_valid(game) or game.editing:return false
@@ -2037,12 +2077,9 @@ func _cooking_food_owned_by_pose(item_id:int)->bool:
 		if int(record.get("meal_station_id",-1))==item_id and str(record.get("plate_owner",""))=="kitchen":return true
 	return false
 
-func _stove_food(item_id:int,rotation:int):
-	var remaining=_stove_food_remaining(item_id)
-	# The working chef owns the ingredient and blade layer order together.
-	# Never leave a second stationary copy underneath the moving portion.
-	if remaining>.001 and not _cooking_food_owned_by_pose(item_id):
-		furniture_art.draw_stove_food(self,Vector2.ZERO,rotation,remaining)
+func _stove_food(_item_id:int,_rotation:int):
+	# Cooking stays covered. Only authoritative finished plates show food.
+	pass
 
 func _drink_surface_point(rotation:int) -> Vector2:
 	# Cup bottom is a local point on the worktop, shared with the reaching hand.
@@ -2111,13 +2148,24 @@ func _banana_peel(at:Vector2,scale=1.0):
 	line(at+Vector2(0,.5)*scale,at+Vector2(5.5,2.6)*scale,"e7c660",1.5*scale)
 	line(at+Vector2(-1,.5)*scale,at+Vector2(-5.3,2.6)*scale,"efd174",1.5*scale)
 
+func _record_character_pick_frame():
+	character_pick_geometry.presented(self)
+	if is_instance_valid(game) and game.get("interaction")!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.presented()
+
+func _record_character_pick_submission():
+	character_pick_geometry.submitting(self)
+
+func character_occludes(screen:Vector2)->bool:
+	return character_pick_geometry.occludes(self,screen)
+
 func _floor_mess_active(record:Dictionary) -> bool:
 	var phase=str(record.get("guest",{}).get("phase",""))
 	return bool(record.get("floor_dirty",phase in ["checkout_wait","checkout_walk","paying","leaving","dirty","cleaning"])) and not bool(record.get("floor_cleaned",false))
 
 func _draw_floor_mess(record:Dictionary):
 	if not _floor_mess_active(record):return
-	FloorMessArt.draw(self,record)
+	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw_record(self,record)
+	else:FloorMessArt.draw(self,record)
 
 func hit_wall_host(screen:Vector2)->Dictionary:
 	if objects_hidden():return {}

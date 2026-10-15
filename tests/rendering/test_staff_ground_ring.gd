@@ -59,6 +59,9 @@ func run():
 	if directory.is_empty(): directory = OS.get_user_data_dir().path_join("staff-ring-synthetic")
 	DirAccess.make_dir_recursive_absolute(directory)
 	if DisplayServer.get_name() == "headless":
+		check(is_equal_approx(GroundRing.OUTER_RADIUS_WORLD * 2.0, GroundRing.TILE_WORLD_SIDE), "outer world diameter equals one tile side")
+		var ground = GroundRing.placement(Vector2.ZERO, 0.0, 1.0)
+		check((ground * Vector2(2, 0)).is_equal_approx(GroundRing.WORLD_X) and (ground * Vector2(0, 2)).is_equal_approx(GroundRing.WORLD_Z), "outer diameter follows each tile edge basis, not its diagonal")
 		var layer = GroundRing.new()
 		root.add_child(layer)
 		layer.sync_staff({"staff": Vector2.ZERO}, 0)

@@ -136,7 +136,9 @@ func run():
 	var ring_ground = game.illustration.StaffGroundRing.placement(Vector2.ZERO, 0.0, unit)
 	var inner_x = ring_ground * Vector2(game.illustration.StaffGroundRing.INNER_FRACTION, 0.0) * 2.0
 	var inner_z = ring_ground * Vector2(0.0, game.illustration.StaffGroundRing.INNER_FRACTION) * 2.0
-	check(inner_x.is_equal_approx(ground_x) and inner_z.is_equal_approx(ground_z) and game.illustration.StaffGroundRing.OUTER_RADIUS_WORLD > game.illustration.StaffGroundRing.INNER_RADIUS_WORLD and game.illustration.StaffGroundRing._geometry.size() == 4, "ring internal world diameter equals one square tile side; stroke extends outward through actual isometric ground basis")
+	var outer_x = ring_ground * Vector2(2.0, 0.0)
+	var outer_z = ring_ground * Vector2(0.0, 2.0)
+	check(outer_x.is_equal_approx(ground_x) and outer_z.is_equal_approx(ground_z) and inner_x.is_equal_approx(ground_x * game.illustration.StaffGroundRing.INNER_FRACTION) and inner_z.is_equal_approx(ground_z * game.illustration.StaffGroundRing.INNER_FRACTION) and game.illustration.StaffGroundRing._geometry.size() == 4, "ring outer world diameter equals one square tile side; stroke remains inside through actual isometric ground basis")
 	game.illustration.use_staff_ground_rings = false
 	var baseline: Image = await capture("game-baseline.png")
 	game.illustration.use_staff_ground_rings = true

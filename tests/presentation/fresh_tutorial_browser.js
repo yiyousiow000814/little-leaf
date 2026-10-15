@@ -169,6 +169,75 @@ function validateNaturalPayment(state, order, layout, initial) {
     'Natural payment earns exactly the real meal value');
 }
 
+async function navigateFreshGame(page, url) {
+  // The shell's synchronous WebGL capability probe blocks DOMContentLoaded.
+  // Keep transport separate from that engine work, with both original caps.
+  const response = await page.goto(url, {waitUntil: 'commit', timeout: 15000});
+  assert(response && response.ok(), 'Ordinary Web entry must load successfully');
+  await page.waitForFunction(() => document.readyState !== 'loading'
+    && !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
+}
+
+function observePageFailures(page, errors) {
+  page.on('pageerror', error => errors.push(String(error)));
+  page.on('crash', () => errors.push('Exported game page crashed'));
+  // Ordinary Web has no optional remote assets; rejected non-loopback requests are failures.
+  page.on('requestfailed', request => errors.push('Request failed ' + new URL(request.url()).pathname + ': ' + (request.failure()?.errorText || 'unknown')));
+  page.on('response', response => {
+    if (response.status() >= 400) errors.push('HTTP ' + response.status() + ' ' + new URL(response.url()).pathname);
+  });
+  page.on('console', message => {if (/SCRIPT ERROR|ERROR:/.test(message.text())) errors.push(message.text());});
+}
+
+function observeStartup(page, url, evidence, now = Date.now) {
+  const started = now(), requests = new WeakMap(), origin = new URL(url).origin;
+  const elapsed = () => now() - started;
+  evidence.requests = []; evidence.omitted_requests = 0;
+  const listeners = {
+    request(request) {
+      if (evidence.requests.length === 24) {evidence.omitted_requests++; return;}
+      const target = new URL(request.url());
+      const row = {path: target.origin === origin ? target.pathname : '<external>',
+        type: request.resourceType(), request_ms: elapsed()};
+      requests.set(request, row); evidence.requests.push(row);
+    },
+    response(response) {
+      const row = requests.get(response.request());
+      if (row) Object.assign(row, {status: response.status(), response_ms: elapsed()});
+    },
+    requestfinished(request) {const row = requests.get(request); if (row) row.finished_ms = elapsed();},
+    requestfailed(request) {const row = requests.get(request); if (row) row.failed_ms = elapsed();},
+    domcontentloaded() {evidence.dom_content_loaded_ms = elapsed();},
+    load() {evidence.load_ms = elapsed();},
+  };
+  for (const [event, listener] of Object.entries(listeners)) page.on(event, listener);
+  return () => {
+    evidence.observation_stopped_ms = elapsed();
+    for (const [event, listener] of Object.entries(listeners)) page.off(event, listener);
+  };
+}
+
+async function captureStartupState(page) {
+  // Failure evidence only: never extend or satisfy navigation/readiness gates.
+  // A stalled renderer must not hold up the existing screenshot/cleanup path.
+  let timer;
+  try {
+    return await Promise.race([
+      page.evaluate(() => {
+        const navigation = performance.getEntriesByType('navigation')[0];
+        return {ready_state: document.readyState, status_present: !!document.getElementById('status'),
+          status_mode: document.getElementById('status')?.dataset.mode || null,
+          engine_available: typeof window.Engine === 'function', vault_booted: !!window.__littleLeafVault?.bootJson,
+          navigation_ms: navigation ? Object.fromEntries(['responseStart', 'responseEnd', 'domInteractive',
+            'domContentLoadedEventStart', 'domContentLoadedEventEnd', 'loadEventStart', 'loadEventEnd']
+            .map(name => [name, navigation[name]])) : null};
+      }),
+      new Promise(resolve => {timer = setTimeout(() => resolve({unavailable: 'renderer observation deadline'}), 1000);}),
+    ]);
+  } catch (_) {return {unavailable: 'renderer observation failed'};}
+  finally {clearTimeout(timer);}
+}
+
 async function main() {
   const arg = name => {
     const index = process.argv.indexOf('--' + name);
@@ -195,6 +264,7 @@ async function main() {
     server = http.createServer((req, res) => {
       const pathname = new URL(req.url, 'http://localhost').pathname;
       if (pathname === '/empty') {res.setHeader('Content-Type', 'text/html'); return res.end('<title>Fresh origin check</title>');}
+      if (pathname === '/favicon.ico') {res.writeHead(204); return res.end();}
       const file = path.resolve(web, '.' + pathname);
       if (!file.startsWith(web + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {res.writeHead(404); return res.end();}
       res.setHeader('Content-Type', ({'.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.png': 'image/png'})[path.extname(file)] || 'application/octet-stream');
@@ -209,15 +279,15 @@ async function main() {
     await context.route('**/*', route => new URL(route.request().url()).origin === url ? route.continue() : route.abort());
     page = await context.newPage();
     page.setDefaultTimeout(15000);
-    page.on('pageerror', error => report.errors.push(String(error)));
-    page.on('console', message => {if (/SCRIPT ERROR|ERROR:/.test(message.text())) report.errors.push(message.text());});
+    observePageFailures(page, report.errors);
     await page.goto(url + '/empty');
     const empty = await page.evaluate(async () => ({databases: await indexedDB.databases(), local: localStorage.length, session: sessionStorage.length}));
     check(empty.databases.length === 0 && empty.local === 0 && empty.session === 0, 'Browser profile and origin contain no existing saves or seeded fixtures');
     started = Date.now(); budget = flowBudget(started);
     report.budget_ms = {service: SERVICE_MS, completion: COMPLETION_MS, overall: SERVICE_MS + COMPLETION_MS};
-    await page.goto(url + '/index.html');
-    await page.waitForFunction(() => !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
+    const stopStartup = observeStartup(page, url, report.startup = {});
+    try {await navigateFreshGame(page, url + '/index.html'); report.startup.native_ready = true;}
+    finally {stopStartup();}
     const boot = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
     check(boot.ok && boot.source === 'fresh' && boot.revision === 0 && boot.payload === null, 'Unmodified exported shell boots a genuinely fresh ordinary-Web profile');
     check(await page.evaluate(() => window.LittleLeafCloudSettings === undefined) && report.errors.length === 0, 'Ordinary Web starts without a Firebase bridge or missing-interface engine errors');
@@ -367,6 +437,7 @@ async function main() {
     await context.close();
   } catch (error) {
     report.status = 'failed'; report.error = error.stack; process.exitCode = 1;
+    if (page && report.startup && !report.startup.native_ready) report.startup.failure_state = await captureStartupState(page);
     if (page && !page.isClosed()) try {await page.screenshot({path: path.join(output, 'failure-state.png'), timeout: 10000});} catch (captureError) {report.failure_capture_error = String(captureError);}
   } finally {
     if (browser) await browser.close();
@@ -376,4 +447,4 @@ async function main() {
   }
 }
 if (require.main === module) main();
-module.exports = {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue};
+module.exports = {validateLayout, validateBinding, summarize, validateProgress, validateNaturalPayment, recognizeCue, completionButtonRegion, cuePixelScale, flowBudget, matchesCue, navigateFreshGame, observePageFailures, observeStartup, captureStartupState};
