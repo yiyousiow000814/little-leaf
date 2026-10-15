@@ -91,6 +91,44 @@ class QualificationTests(unittest.TestCase):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_main_download_uses_exact_authenticated_size_above_legacy_default(self):
+        # Reproduce the failed release size without allocating another 100-MiB fixture.
+        class Payload:
+            def __init__(self, size): self.size = size
+            def __len__(self): return self.size
+        class API:
+            def read(self, path, binary=False, *, artifact_bytes=None):
+                self.request = (path, binary, artifact_bytes)
+                return Payload(artifact_bytes)
+        self.assertEqual(reuse.MAX_RELEASE_ARTIFACT_BYTES, 512 * 1024 * 1024)
+        for size in [106071069, reuse.MAX_RELEASE_ARTIFACT_BYTES]:
+            api = API()
+            result = reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
+            self.assertEqual(len(result), size)
+            self.assertEqual(api.request, ('actions/artifacts/11/zip', True, size))
+        self.assertEqual(reuse.DEFAULT_RESPONSE_BYTES, 100 * 1024 * 1024)
+
+    def test_main_download_rejects_unbounded_metadata_and_length_mismatch(self):
+        api = reuse.GitHub('synthetic')
+        for size in [None, True, 0, -1, 3.0, '3', reuse.MAX_RELEASE_ARTIFACT_BYTES + 1]:
+            with self.subTest(size=size), patch.object(api.opener, 'open') as opened:
+                with self.assertRaisesRegex(ValueError, 'finite ZIP budget'):
+                    reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
+                opened.assert_not_called()
+        for payload in [b'xx', b'xxxx']:
+            with patch.object(api, 'read', return_value=payload), self.assertRaisesRegex(ValueError, 'authenticated size'):
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
+
+    def test_main_download_keeps_response_overrun_guard(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size): return b'x' * size
+        api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=Response()):
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
+
     def test_future_packet_headroom_remains_exact_and_finite(self):
         class Response:
             def __enter__(self): return self
@@ -151,6 +189,25 @@ class ArchiveTests(unittest.TestCase):
             self.assertFalse(out.exists())
             reuse.extract(data, hashlib.sha256(data).hexdigest(), out)
             self.assertEqual((out / 'index.html').read_bytes(), b'synthetic')
+
+    def test_main_extraction_budget_is_finite_and_crc_still_checked(self):
+        data = self.archive(['index.html'])
+        digest = hashlib.sha256(data).hexdigest()
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(reuse, 'MAX_MAIN_EXTRACTED_BYTES', 8), self.assertRaisesRegex(ValueError, 'extraction bounds'):
+                reuse.extract(data, digest, Path(folder) / 'over')
+            with patch.object(reuse, 'MAX_MAIN_EXTRACTED_BYTES', 9):
+                reuse.extract(data, digest, Path(folder) / 'at-bound')
+            corrupted = bytearray(data)
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                member = archive.infolist()[0]
+                start = member.header_offset + 30 + len(member.filename.encode()) + len(member.extra)
+            corrupted[start] ^= 1
+            with self.assertRaises(zipfile.BadZipFile):
+                reuse.extract(corrupted, hashlib.sha256(corrupted).hexdigest(), Path(folder) / 'bad-crc')
+        many = self.archive([str(i) for i in range(501)])
+        with tempfile.TemporaryDirectory() as folder, self.assertRaisesRegex(ValueError, 'extraction bounds'):
+            reuse.extract(many, hashlib.sha256(many).hexdigest(), Path(folder) / 'many')
 
     def test_rejects_unsafe_case_collisions_and_symlink(self):
         for names in [['../escape'], ['/absolute'], ['a/b'], ['C:bad'], ['a\\b'],

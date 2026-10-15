@@ -1,12 +1,14 @@
 """Independent platform qualification fences; synthetic Git/API, no runtime."""
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
 import subprocess
 import shutil
 import tempfile
 import unittest
+import zipfile
 from unittest.mock import Mock,patch
 
 import yaml
@@ -49,6 +51,46 @@ class CommonTagTests(unittest.TestCase):
         common.authenticate(api,receipt,30)
         self.assertTrue(all('release-itch' not in call.args[0] for call in api.read.call_args_list))
         self.assertTrue(all('/attempts/1' in call.args[0] for call in api.read.call_args_list if call.args[0].startswith('actions/runs/')))
+
+    def test_common_consumer_uses_authenticated_size_and_keeps_original_authentication(self):
+        api,receipt,rows,jobs=self.api_fixture()
+        payload=b'synthetic runtime';log=b'synthetic packed startup'
+        manifest={'files':{'index.pck':{}},'release_reuse':receipt['qualification']}
+        files={'qualification.json':json.dumps(receipt['qualification']).encode(),
+            'packed-startup.log':log,'web/index.pck':payload,
+            'web/release-manifest.json':json.dumps(manifest).encode()}
+        receipt.update(web_manifest_sha256=hashlib.sha256(files['web/release-manifest.json']).hexdigest(),
+            packed_startup_log_sha256=hashlib.sha256(log).hexdigest())
+        files['common.json']=json.dumps(receipt).encode()
+        buffer=io.BytesIO()
+        with zipfile.ZipFile(buffer,'w') as archive:
+            for name,data in files.items():archive.writestr(name,data)
+        data=buffer.getvalue();size=len(data);source=receipt['source_commit']
+        artifact={'id':700,'name':f'little-leaf-common-release-{source}-1','expired':False,
+            'workflow_run':{'id':30,'head_sha':source},'size_in_bytes':size,
+            'digest':'sha256:'+hashlib.sha256(data).hexdigest()}
+        jobs['actions/runs/30/artifacts']=[artifact]
+        original_read=api.read.side_effect
+        def read(path,binary=False,*,artifact_bytes=None):
+            if path=='actions/artifacts/700/zip':
+                self.assertTrue(binary);self.assertEqual(artifact_bytes,size)
+                return data
+            return original_read(path)
+        api.read.side_effect=read
+        # Only the tiny export inventory is a fixture; ZIP/CRC and the real
+        # original-attempt/source/job authentication above execute together.
+        with tempfile.TemporaryDirectory() as folder,patch.object(common,'validate_export_inventory',return_value=manifest):
+            selected=common.consume(api,30,Path(folder)/'valid')
+            self.assertEqual(selected['source_commit'],source)
+            artifact['size_in_bytes']=size+1
+            # Update the expected request size, then return the truncated body.
+            def truncated(path,binary=False,*,artifact_bytes=None):
+                if path=='actions/artifacts/700/zip':return data
+                return original_read(path)
+            api.read.side_effect=truncated
+            with self.assertRaisesRegex(ValueError,'authenticated size'):
+                common.consume(api,30,Path(folder)/'truncated')
+            self.assertFalse((Path(folder)/'truncated').exists())
 
     def test_untrusted_or_changed_common_origin_refused(self):
         mutations=[('event','pull_request'),('path','.github/workflows/release-itch.yml'),('head_branch','main'),

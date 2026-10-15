@@ -12,10 +12,10 @@ import subprocess
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from release.firebase_release_event import artifact_for, download, peel
+from release.firebase_release_event import artifact_for, extract_tree, peel
 from release.firebase_release_gate import require, trusted_run, REPOSITORY
 from qualification.artifacts import sha256, validate_export_inventory
-from qualification.reuse_main_ci import GitHub, bind_package, require_jobs
+from qualification.reuse_main_ci import GitHub, bind_package, require_jobs, download_release_artifact
 from release.release_metadata import RELEASE, version
 
 WORKFLOW = '.github/workflows/ci.yml'
@@ -141,7 +141,7 @@ def consume(api, run_id, output):
     run=api.read(f'actions/runs/{run_id}/attempts/1')
     trusted_run(run,WORKFLOW,('push',))
     artifact=artifact_for(api,run,'little-leaf-common-release-'+run['head_sha']+'-1')
-    download(api,artifact,output)
+    extract_tree(download_release_artifact(api,artifact),artifact['digest'],output)
     receipt=json.loads((output/'common.json').read_text())
     _, original=authenticate(api,receipt,run_id)
     manifest=validate_export_inventory(output/'web')
