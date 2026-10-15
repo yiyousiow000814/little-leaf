@@ -1799,6 +1799,8 @@ func _ensure_music_player(id:String)->bool:
 	elif stream is AudioStreamOggVorbis:stream.loop=true;stream.loop_offset=0.0
 	else:return false
 	var player=AudioStreamPlayer.new();player.stream=stream;player.bus="BGM";player.volume_db=-60
+	# Web Sample registrations retain full decoded tracks after player retirement.
+	if OS.has_feature("web"):player.playback_type=AudioServer.PLAYBACK_TYPE_STREAM
 	add_child(player);audio_players[id]=player
 	return true
 

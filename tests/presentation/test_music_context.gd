@@ -27,6 +27,8 @@ func run():
 	controls.config_path="user://synthetic_music_context.cfg";controls.persist_enabled=true
 	check(game.music_catalog_ready and game.music_available.size()==23,"All23 retained tracks are imported and available without23 retained streams")
 	check(game.audio_players.size()<=2,"Only incoming/outgoing streams are retained")
+	for player in game.audio_players.values():
+		check(player.playback_type==AudioServer.PLAYBACK_TYPE_DEFAULT,"Native BGM keeps its original default playback backend")
 	check(Catalog.selection_ids().size()==24 and Catalog.selection_ids().has("corner-cafe-reference-rearrangement-112"),"Automatic plus23 gameplay choices include Corner Café")
 	check(Catalog.selectable_tracks(Catalog.PREMIUM).size()==13,"All13 marked versions belong to free Premium")
 	var music_panel=game.compact_ui.music_panel
