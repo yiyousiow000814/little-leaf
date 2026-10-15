@@ -81,9 +81,9 @@ func run():
  game.editing=true;await settle();await reveal_parking()
  game._choose("plant");await settle()
  check(game.selected_kind=="plant","purchase begins with a selected furnishing to cancel")
- var coins=game.model.coins;var saves=game.saves;var items=game.model.items.duplicate(true);var price=game.model.parking_price()
+ var coins=game.model.coins;var saves=game.saves;var dirty_generation=game.platform_dirty_generation;var items=game.model.items.duplicate(true);var price=game.model.parking_price()
  await click(shop.parking_card)
- check(price==50000 and coins==price and game.model.parking_owned and game.model.coins==0 and game.model.parking_paid_cost==price and game.saves==saves+1,"real card click buys once at exact approved model price and requests one save")
+ check(price==50000 and coins==price and game.model.parking_owned and game.model.coins==0 and game.model.parking_paid_cost==price and game.saves==saves and game.platform_dirty_generation>dirty_generation,"real card click buys once at exact approved model price and marks progress dirty")
  check(game.selected_kind=="" and game.selected_id<0 and game.model.items==items,"fixed parking clears placement selection without creating movable furniture")
  check(shop.parking_price.text=="Owned" and shop.parking_status.text=="0/4 in use","owned card shows bay occupancy")
  before=state();await open_sale();same(before,"repeated buy click only opens review without mutation")
@@ -104,8 +104,9 @@ func run():
  outside=outside.duplicate();outside.pressed=false;root.push_input(outside,true);await settle()
  same(before,"outside pointer dismissal and release do not sell")
  check(not ui.has_open_popup() and shop.root.visible,"outside dismissal restores shop and consumes release")
+ dirty_generation=game.platform_dirty_generation
  await open_sale();await click(shop.parking_sell)
- check(not game.model.parking_owned and game.model.coins==coins and game.saves==saves+2,"explicit sale returns full price once in same Decorate session")
+ check(not game.model.parking_owned and game.model.coins==coins and game.saves==saves and game.platform_dirty_generation>dirty_generation,"explicit sale returns full price once and marks dirty in the same Decorate session")
  before=state();shop._sell_parking();same(before,"duplicate sale callback cannot refund again")
  await reveal_parking();await click(shop.parking_card);game._toggle_edit();await settle()
  check(not game.editing and not shop.parking_review.visible,"Done closes parking interaction")
@@ -128,8 +129,8 @@ func run():
  shop._sell_parking();same(before,"occupied sale callback cannot mutate wallet or ownership")
  game.model.parking_visits.clear();await settle()
  check(not shop.parking_sell.disabled,"sale unlocks after final visit leaves")
- coins=game.model.coins;saves=game.saves;await click(shop.parking_sell)
- check(not game.model.parking_owned and game.model.coins==coins+half and game.saves==saves+1,"later-session sale credits exactly the advertised half refund")
+ coins=game.model.coins;saves=game.saves;dirty_generation=game.platform_dirty_generation;await click(shop.parking_sell)
+ check(not game.model.parking_owned and game.model.coins==coins+half and game.saves==saves and game.platform_dirty_generation>dirty_generation,"later-session sale credits exactly the advertised half refund and marks dirty")
  # Responsive headless layout checks only; no rendered or graphical benchmark.
  for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]:
   root.size=view;game.model.coins=game.model.parking_price();game._set_catalog_category("Decor");await settle();await reveal_parking()

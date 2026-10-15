@@ -1,4 +1,16 @@
-# Decoration session refunds (0.1.10 candidate)
+# Decoration session transactions and refunds
+
+The current candidate follows the user's whole-session requirement: the top X cancels every change since entering Decorate and exits; the checkmark applies every change, including furniture sales. Selection cancellation, Escape and right click remain tool/gesture cancellation. The top X stays enabled throughout the session, including after selling the last selected furnishing.
+
+One memory-only baseline owns the model state, wallet, layout identities, Build products, parking, staffing and paused service snapshot. Entry is idempotent. X restores that baseline and reconstructs the existing runtime so moved staff and guest custody agree with the restored layout; stale planner receipts are invalidated. No undo money is calculated: restoring the baseline avoids duplicate sale credits and rounding errors.
+
+During Decorate, the existing native and Web save paths serialize the baseline through the unchanged save validator and writer. Autosave, tab hide, recovery protection and update therefore cannot make an unaccepted draft durable. A reload before Apply restores the baseline. Apply clears the baseline and temporary refund receipts before requesting the ordinary save. A persistence failure after Apply leaves applied changes in memory under the existing unsaved/retry behavior; it does not claim durable success. Repeated Apply/Cancel callbacks cannot apply a second refund. Successful load or fresh profile replacement clears the session; failed load retains it. No save-format or account/profile/revision/lease guard changes are included.
+
+This is a pending implementation, with generated regression cases and actual native/browser interaction acceptance still required. No live player recovery is performed.
+
+## Historical 0.1.10 refund contract
+
+The following dated refund rules retain their price/entitlement scope. Their interrupted-session persistence behavior is superseded by the whole-session transaction above.
 
 Entering Decorate begins a memory-only purchase receipt ledger. Successful furnishing purchases in that session refund their actual charge in full through Sell selected, until Done decorating. Selecting either dining-set member sells the whole group and consumes its receipt once. Included zero-cost furniture has no session refund. Old furnishings keep normal resale; a historical 140-coin oak set retains its 70-coin resale, while a new 280-coin oak set retains its 280 paid basis and has 140 resale after Done.
 

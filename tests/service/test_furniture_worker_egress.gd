@@ -6,7 +6,14 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":
  var save_calls=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
- func _save():save_calls+=1;return true
+ func _save():
+  save_calls+=1
+  # This geometry fixture has no live service. Persist only its generated layout.
+  var service=model.service_snapshot;model.service_snapshot={}
+  var saved=model.save("user://worker-egress-interval.json")
+  model.service_snapshot=service
+  if saved:platform_autosave_dirty=false;progress_unsaved=false
+  return saved
  func _interaction_over_ui(_screen:Vector2)->bool:return false
 var checks=0;var failures=[];var ui_events=0
 func _init():call_deferred("run")
@@ -16,6 +23,7 @@ func check(ok:bool,label:String):
 func blank(model=null):
  var m=Model.new() if model==null else model
  m.items.clear();m.dining_sets.clear();m.customers.clear();m.built_walls.clear();m.wall_actor_positions.clear()
+ m.cashiers=0;m.included_checkout_pending=true;m.duty_targets.cashier=0;m.duty_counts.cashier=0
  m.coins=100000;m._notify();return m
 func state(m):
  return {"items":m.items.duplicate(true),"sets":m.dining_sets.duplicate(true),"guests":m.customers.duplicate(true),"walls":m.built_walls.duplicate(true),"coins":m.coins,"revision":m.revision,"next_id":m._next_item_id,"event":m.last_event,"service":m.service_snapshot.duplicate(true),"served":m.served,"earned":m.total_earned}
@@ -76,6 +84,8 @@ func ui_cases():
  for i in cafe.staff_states.size():cafe.staff_states[i].pos=Vector2(2.5+i,.5)
  cafe._rebuild_furniture();cafe._update_ui();cafe.ui.hide();cafe.illustration.update_projection();await frames()
  var field=cafe.interaction.edit_plan;var actors=cafe.interaction._staff_positions();var before=state(cafe.model);var saves=cafe.save_calls
+ cafe.platform_autosave_dirty=false;cafe.progress_unsaved=false;cafe.save_timer=0.0
+ var dirty_generation=cafe.platform_dirty_generation
  var point=cafe.illustration.iso(2.5,.5);cafe.selected_kind="plant";cafe.rotation_step=0
  cafe.interaction.refresh(point)
  check(not cafe.interaction.drag_footprint_valid and not cafe.interaction.drag_valid,"actual UI refuses hidden worker body")
@@ -93,13 +103,24 @@ func ui_cases():
  cafe.staff_states[0].pos=actors[0];cafe.selected_kind="table_set";cafe.rotation_step=0;point=cafe.illustration.iso(6.5,6.5);cafe.interaction.refresh(point)
  await mouse(point,true);await mouse(point,false)
  check(cafe.model.items.size()==before.items.size()+2 and cafe.model.coins==before.coins-cafe.model.price_of("table_set"),"real pointer purchase publishes group and charges once")
- check(cafe.save_calls==saves+1 and cafe.interaction._staff_positions()==actors,"purchase saves once without hypothetical relocation")
+ check(cafe.save_calls==saves and cafe.platform_dirty_generation>dirty_generation and cafe.platform_autosave_dirty and cafe.interaction._staff_positions()==actors,"purchase marks dirty without an operation save or hypothetical relocation")
+ cafe.save_writes_suppressed=false;cafe._tick_autosave(4.9)
+ check(cafe.save_calls==saves and cafe.platform_autosave_dirty,"purchased furniture remains dirty until the five-second slot")
+ cafe._tick_autosave(.1);cafe.save_writes_suppressed=true
+ var durable=Model.new()
+ check(cafe.save_calls==saves+1 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"five-second slot writes one reloadable purchased layout")
+ check(durable.items==cafe.model.items and durable.coins==cafe.model.coins and durable.dining_sets==cafe.model.dining_sets,"durable purchase retains exact bodies, dining group and charged wallet")
+ dirty_generation=cafe.platform_dirty_generation
  check(not cafe.model.dining_sets.is_empty(),"real pointer purchase retains dining-group metadata for selected R")
  if not cafe.model.dining_sets.is_empty():
   var id=int(cafe.model.dining_sets[-1].table_id);cafe.interaction._select_item(cafe.model.get_item(id));var money=cafe.model.coins
   var key=InputEventKey.new();key.keycode=KEY_R;key.pressed=true;Input.parse_input_event(key);ui_events+=1;await frames()
   check(cafe.model.logical_rotation(id)==1,"selected R uses clear physical footprint")
-  check(cafe.model.coins==money and cafe.save_calls==saves+2,"rotation keeps wallet and saves once")
+  check(cafe.model.coins==money and cafe.save_calls==saves+1 and cafe.platform_dirty_generation>dirty_generation and cafe.platform_autosave_dirty,"rotation keeps wallet and marks dirty without an operation save")
+  cafe.save_writes_suppressed=false;cafe._tick_autosave(5.0);cafe.save_writes_suppressed=true
+  durable=Model.new()
+  check(cafe.save_calls==saves+2 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"next five-second slot writes one reloadable rotated layout")
+  check(durable.logical_rotation(id)==1 and durable.coins==money and durable.items==cafe.model.items,"durable rotation retains its exact body positions and unchanged wallet")
   check(cafe.interaction._staff_positions()==actors,"rotation does not teleport workers")
  for tween in get_processed_tweens():tween.kill()
  cafe.settings_controls.sfx_player.stop();cafe.queue_free();await frames()

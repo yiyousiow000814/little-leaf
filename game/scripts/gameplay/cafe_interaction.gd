@@ -12,6 +12,7 @@ const DRAG_THRESHOLD = 7.0
 const NO_CELL = Vector2i(-100, -100)
 
 var game
+var manual_cleanup
 var drag_active = false
 var drag_item_id = -1
 var drag_kind = ""
@@ -41,6 +42,7 @@ var _last_valid_cell = NO_CELL
 
 func _init(owner_game = null):
 	game = owner_game
+	manual_cleanup=preload("res://scripts/gameplay/cafe_manual_cleanup.gd").new(game)
 	if game != null and is_instance_valid(game.illustration):
 		pan_offset = game.illustration.pan_offset
 
@@ -123,7 +125,9 @@ func refresh(screen: Vector2):
 		preview_active = false
 		drag_valid = false
 		drag_footprint_valid = false
+		manual_cleanup.hover(screen)
 		return
+	manual_cleanup.clear_hover()
 	if drag_active:
 		drag_rotation = posmod(int(game.rotation_step), 4)
 		drag_cell = game._floor_cell(screen + _grab_offset)
@@ -180,11 +184,10 @@ func rotate_selection():
 		# behavior, but R while dragging is purely a preview until release.
 		var actors=_staff_positions()
 		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors)
-		if edit_plan.commit(game.model,receipt,actors,game._apply_edit_staff_positions):
+		if edit_plan.commit(game.model,receipt,actors):
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
-			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
 	else:
@@ -204,6 +207,7 @@ func _begin_left(screen: Vector2, device: int = 0):
 	_press_parcel_id = ""
 	_grab_offset = Vector2.ZERO
 	_gesture = "pending"
+	if not game.editing:manual_cleanup.begin(screen)
 	if game.editing and _press_kind == "":
 		_press_item_id = game.illustration.hit_item(screen)
 		if _press_item_id < 0:
@@ -239,6 +243,7 @@ func _move_left(screen: Vector2):
 			_start_drag()
 		else:
 			_gesture = "pan"
+			manual_cleanup.cancel()
 			# Include movement accumulated inside the tap threshold.
 			_pan_by(screen - _press_pointer)
 			_previous_pointer = screen
@@ -267,9 +272,12 @@ func _start_drag():
 		_press_selected_id = drag_item_id
 
 func _release_left(screen: Vector2):
+	var cleanup_queued=false
 	refresh(screen)
 	if not _left_down: return
-	if _gesture == "drag":
+	if _gesture == "pending" and not game.editing and not _press_editing:
+		cleanup_queued=manual_cleanup.release(screen)
+	elif _gesture == "drag":
 		if drag_valid: _commit_preview()
 	elif _gesture == "pending" and game.editing and _press_editing and _press_parcel_id != "" and _point_in_view(screen) and not _over_ui(screen):
 		if _hit_parcel(screen) == _press_parcel_id and game.has_method("_buy_parcel"):
@@ -279,7 +287,7 @@ func _release_left(screen: Vector2):
 			if drag_valid: _commit_preview()
 		elif _press_item_id >= 0:
 			_select_item(game.model.get_item(_press_item_id))
-	_clear_gesture()
+	_clear_gesture(not cleanup_queued)
 	refresh(screen)
 
 func _select_item(item: Dictionary):
@@ -330,14 +338,16 @@ func _commit_preview():
 		var current: Dictionary = game.model.get_item(drag_item_id)
 		if int(current.x) == drag_cell.x and int(current.z) == drag_cell.y and game.model.logical_rotation(drag_item_id) == drag_rotation:
 			return
-	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions(),game._apply_edit_staff_positions)
+	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions())
 	if not success:return
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	if game._save():game.settings_controls.play_sfx("place")
+	# Accepted layout feedback does not wait for the periodic save slot.
+	game.settings_controls.play_sfx("place")
 
-func _clear_gesture():
+func _clear_gesture(cancel_cleanup=true):
+	if cancel_cleanup and manual_cleanup!=null:manual_cleanup.cancel()
 	if drag_active and drag_item_id >= 0 and game != null:
 		var original: Dictionary = game.model.get_item(drag_item_id)
 		if not original.is_empty(): game.rotation_step = game.model.logical_rotation(int(original.id))
@@ -366,6 +376,7 @@ func _zoom_factor_at(screen:Vector2,factor:float,pan_delta:Vector2=Vector2.ZERO)
 	_zoom_at(screen,game.illustration.zoom*(factor-1.0),pan_delta)
 
 func _zoom_at(screen:Vector2,amount:float,pan_delta:Vector2=Vector2.ZERO):
+	manual_cleanup.cancel()
 	if not screen.is_finite() or not is_finite(amount) or not pan_delta.is_finite():return
 	_sync_projection()
 	var old_zoom:float=game.illustration.zoom

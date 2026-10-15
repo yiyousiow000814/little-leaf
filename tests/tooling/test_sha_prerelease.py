@@ -100,11 +100,12 @@ const bound=await observe(page.__littleLeafRelease);assert.equal(bound.fetches,1
             projection=projected_metadata(root,commit)
             hashes={name:hashlib.sha256((root/name).read_bytes()).hexdigest() for name in projection}
             for name,content in projection.items():(build/'project'/name).write_bytes(content)
-            manifest={'version':'0.1.11-pre.01234567','source_commit':commit,
+            tree='b'*40
+            manifest={'version':'0.1.11-pre.01234567','source_commit':commit,'source_tree':tree,
                 'toolchain_verification':'checksum-pinned-official-archives','production_sha256':hashes,
                 'projected_metadata_sha256':{n:hashlib.sha256(b).hexdigest() for n,b in projection.items()},'files':{}}
             path=build/'web/release-manifest.json';path.write_text(json.dumps(manifest))
-            with patch.object(qa.subprocess,'check_output',side_effect=lambda command,**kwargs: '' if 'status' in command else commit), patch.dict(qa.CONTRACT,{'candidate_required_sources':list(projection)}):
+            with patch.object(qa.subprocess,'check_output',side_effect=lambda command,**kwargs: '' if 'status' in command else tree if 'HEAD^{tree}' in command else commit), patch.dict(qa.CONTRACT,{'candidate_required_sources':list(projection)}):
                 qa.validate_export(build,root)
                 manifest['projected_metadata_sha256']['scripts/main.gd']='a'*64
                 path.write_text(json.dumps(manifest))

@@ -1,0 +1,39 @@
+{
+  "revision": "manual-cleanup-per-impact-and-pickup",
+  "assets": [
+    {
+      "runtime_file": "SfxCoinDrop.mp3",
+      "event": "coin_drop",
+      "source": "Supplied original MP3 selected for manual cleanup feedback",
+      "sha256": "38a3c91cb0180a892a8e37f15b6b4cf95232558c70dc49a4396c0e0288f0172a",
+      "bytes": 7522,
+      "processing": "None; exact compressed source bytes",
+      "contacts": [
+        {
+          "coin_age_seconds": 0.7,
+          "gain_db": 0
+        },
+        {
+          "coin_age_seconds": 1.14,
+          "gain_db": -4
+        },
+        {
+          "coin_age_seconds": 1.46,
+          "gain_db": -8
+        }
+      ],
+      "once_per_distinct_ground_contact": true
+    },
+    {
+      "runtime_file": "SfxCoinPickUp.mp3",
+      "event": "coin_pickup",
+      "source": "Supplied original MP3 selected for manual cleanup feedback",
+      "sha256": "d269638b92f9852eb32239667262ea31143142e90a3bfe72ff793860bc232991",
+      "bytes": 1456,
+      "processing": "None; exact compressed source bytes",
+      "event_coin_age_seconds": 1.6,
+      "once_per_successful_cleanup": true
+    }
+  ],
+  "acceptance": "Revised per-impact audio/video acceptance pending; prior first-contact-only clip rejected"
+}

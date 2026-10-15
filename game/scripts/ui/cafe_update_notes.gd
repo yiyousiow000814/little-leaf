@@ -47,10 +47,11 @@ func setup(data_path:String=DATA_PATH):
  close_button=game.button("X",_back_to_help);close_button.name="CloseUpdates";close_button.accessibility_name="Close Updates";close_button.tooltip_text="Close Updates"
  close_button.custom_minimum_size=Vector2(44,44);header.add_child(close_button)
  if current_version()!="":
-  _add_release(release)
-  for previous in release.get("history",[]):
-   body.add_child(HSeparator.new())
-   _add_release(previous)
+  var current=cumulative_family(release)
+  body.add_child(_label(current_version(),18))
+  body.add_child(_label("Latest changes · "+release.date,13,MUTED))
+  if not current.new.is_empty():_add_section("New",current.new)
+  if not current.fixed.is_empty():_add_section("Fixed",current.fixed)
  else:
   var message="Release details are being prepared."
   if data_error!="":message="Update notes are unavailable in this build."
@@ -68,12 +69,6 @@ func setup(data_path:String=DATA_PATH):
  # Setup must never open a dialog or consume the unread state.
  panel.hide()
  sync()
-
-func _add_release(entry:Dictionary):
- if str(entry.get("label",""))!="":body.add_child(_label(entry.label,14,MUTED))
- body.add_child(_label("Version %s · %s"%[entry.version,entry.date],13,MUTED))
- if not entry.new.is_empty():_add_section("New",entry.new)
- if not entry.fixed.is_empty():_add_section("Fixed",entry.fixed)
 
 func make_menu_entry()->Button:
  var button=game.button("Update Notes",show)
@@ -180,6 +175,24 @@ func _add_section(heading:String,items:Array):
   row.add_child(bullet)
   row.add_child(_label(str(item),14))
   body.add_child(row)
+
+static func _version_family(version:String)->String:
+ var family=RegEx.create_from_string("^([0-9]+\\.[0-9]+\\.[0-9]+)(?:[a-z]|-pre(?:\\.[0-9a-f]{8})?)?$").search(version)
+ return family.get_string(1) if family!=null else version
+
+static func cumulative_family(current:Dictionary)->Dictionary:
+ var combined={"new":[],"fixed":[]}
+ var family=_version_family(str(current.get("version","")))
+ var entries=[current]
+ for previous in current.get("history",[]):
+  if _version_family(previous.version)==family:entries.append(previous)
+ var seen={}
+ for section in ["new","fixed"]:
+  for entry in entries:
+   for item in entry[section]:
+    if seen.has(item):continue
+    seen[item]=true;combined[section].append(item)
+ return combined
 
 static func review_mode(args:PackedStringArray)->bool:
  for flag in REVIEW_FLAGS:
