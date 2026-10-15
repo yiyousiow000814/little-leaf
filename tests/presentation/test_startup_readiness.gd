@@ -34,12 +34,13 @@ func fresh_intro():
 	game.cafe_intro = Intro.new();game.cafe_intro.start(game)
 	return game.cafe_intro
 func rims_match(music_panel,premium):
-	for rim in music_panel.button_rims.values():
-		if rim.visible!=premium:return false
+	# Family rows intentionally use their own selection faces, not gilded rims.
+	for button in [music_panel.automatic_button,music_panel.play_button,music_panel.mute_button]:
+		if music_panel.button_rims[button.get_instance_id()].visible!=premium:return false
 	return music_panel.premium_palette==premium
 func ripple_state(ripple):
 	var wave = ripple._waves[0]
-	return [wave.visible,wave.position,wave.material.get_shader_parameter("age"),ripple._ages.duplicate(),ripple._cursor,ripple._music_energy,ripple.reduced,ripple.is_processing(),ripple.is_processing_input()]
+	return {"visible":wave.visible,"position":wave.position,"age":wave.material.get_shader_parameter("age"),"ages":ripple._ages.duplicate(),"cursor":ripple._cursor,"energy":ripple._music_energy,"reduced":ripple.reduced,"process":ripple.is_processing(),"input":ripple.is_processing_input()}
 func run():
 	Intro.shown_this_session = false
 	game = TestMain.new();game.process_mode = Node.PROCESS_MODE_DISABLED;root.add_child(game)
@@ -77,6 +78,7 @@ func run():
 	check(music_panel.record_mark.reveal==1.0 and music_panel.board_material.reveal==1.0,"Next covered frame draws existing Premium materials before first user selection")
 	gate._after_draw()
 	check(not music_panel.preparing_render and not music_panel.panel.visible and music_panel.poll_timer.is_stopped(),"Completed material preparation restores the hidden, idle Music panel")
+	if ripple_state(ripple)!=ripple_before:print("MUSIC_PREPARATION_RIPPLE_STATE ",JSON.stringify({"before":ripple_before,"after":ripple_state(ripple)}))
 	check(ripple_state(ripple)==ripple_before and ripple.active_count()==0 and touches[0]==0,"Preparation restores ripple pool, shader, visibility and processing without synthesizing a touch")
 	check(controls.music_track==selected and controls.preferences_dirty and (FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray())==settings_before,"Render preparation preserves the selected recording and does not flush pending preferences")
 	controls.preferences_dirty = old_dirty
