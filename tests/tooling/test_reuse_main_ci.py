@@ -100,24 +100,24 @@ class ArchiveTests(unittest.TestCase):
             def read(self, path, binary=False, *, artifact_bytes=None):
                 self.request = (path, binary, artifact_bytes)
                 return Payload(artifact_bytes)
-        self.assertEqual(reuse.MAX_MAIN_ARTIFACT_BYTES, 512 * 1024 * 1024)
-        for size in [106071069, reuse.MAX_MAIN_ARTIFACT_BYTES]:
+        self.assertEqual(reuse.MAX_RELEASE_ARTIFACT_BYTES, 512 * 1024 * 1024)
+        for size in [106071069, reuse.MAX_RELEASE_ARTIFACT_BYTES]:
             api = API()
-            result = reuse.download_main_artifact(api, dict(id=11, size_in_bytes=size))
+            result = reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
             self.assertEqual(len(result), size)
             self.assertEqual(api.request, ('actions/artifacts/11/zip', True, size))
         self.assertEqual(reuse.DEFAULT_RESPONSE_BYTES, 100 * 1024 * 1024)
 
     def test_main_download_rejects_unbounded_metadata_and_length_mismatch(self):
         api = reuse.GitHub('synthetic')
-        for size in [None, True, 0, -1, 3.0, '3', reuse.MAX_MAIN_ARTIFACT_BYTES + 1]:
+        for size in [None, True, 0, -1, 3.0, '3', reuse.MAX_RELEASE_ARTIFACT_BYTES + 1]:
             with self.subTest(size=size), patch.object(api.opener, 'open') as opened:
                 with self.assertRaisesRegex(ValueError, 'finite ZIP budget'):
-                    reuse.download_main_artifact(api, dict(id=11, size_in_bytes=size))
+                    reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
                 opened.assert_not_called()
         for payload in [b'xx', b'xxxx']:
             with patch.object(api, 'read', return_value=payload), self.assertRaisesRegex(ValueError, 'authenticated size'):
-                reuse.download_main_artifact(api, dict(id=11, size_in_bytes=3))
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
 
     def test_main_download_keeps_response_overrun_guard(self):
         class Response:
@@ -127,7 +127,7 @@ class ArchiveTests(unittest.TestCase):
         api = reuse.GitHub('synthetic')
         with patch.object(api.opener, 'open', return_value=Response()):
             with self.assertRaisesRegex(ValueError, 'Response exceeds'):
-                reuse.download_main_artifact(api, dict(id=11, size_in_bytes=3))
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
 
     def test_future_packet_headroom_remains_exact_and_finite(self):
         class Response:

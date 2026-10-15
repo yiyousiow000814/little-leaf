@@ -26,8 +26,8 @@ ROOT = Path(__file__).resolve().parents[2]
 REPOSITORY = 'yiyousiow000814/little-leaf'
 WORKFLOW = '.github/workflows/ci.yml'
 DEFAULT_RESPONSE_BYTES = 100 * 1024 * 1024
-# The authenticated main Web ZIP is 106,071,069 bytes (136,261,406 unpacked).
-MAX_MAIN_ARTIFACT_BYTES = 512 * 1024 * 1024
+# Qualified main/common ZIPs use authenticated sizes under the user-approved cap.
+MAX_RELEASE_ARTIFACT_BYTES = 512 * 1024 * 1024
 MAX_MAIN_EXTRACTED_BYTES = 192 * 1024 * 1024
 # Four authenticated runtime surfaces plus room for future audio/assets.
 MAX_FIREBASE_ARTIFACT_BYTES = 512 * 1024 * 1024
@@ -137,13 +137,14 @@ def resolve(api, sha, wait_seconds=1200, *, clock=time.monotonic, sleep=time.sle
         sleep(15)
 
 
-def download_main_artifact(api, artifact):
+def download_release_artifact(api, artifact):
     size = artifact.get('size_in_bytes')
-    if type(size) is not int or not 0 < size <= MAX_MAIN_ARTIFACT_BYTES:
-        raise ValueError('Authenticated main artifact size exceeds the finite ZIP budget')
+    if (type(artifact.get('id')) is not int or artifact['id'] <= 0
+            or type(size) is not int or not 0 < size <= MAX_RELEASE_ARTIFACT_BYTES):
+        raise ValueError('Authenticated release artifact metadata exceeds the finite ZIP budget')
     data = api.read(f"actions/artifacts/{artifact['id']}/zip", binary=True, artifact_bytes=size)
     if len(data) != size:
-        raise ValueError('Main artifact download differs from its authenticated size')
+        raise ValueError('Release artifact download differs from its authenticated size')
     return data
 
 
@@ -239,7 +240,7 @@ def main():
     api = GitHub(os.environ.get('GH_TOKEN', ''))
     run, artifact = resolve(api, args.sha, args.wait_seconds)
     digest = artifact['digest'].removeprefix('sha256:')
-    data = download_main_artifact(api, artifact)
+    data = download_release_artifact(api, artifact)
     web = output / 'web'
     extract(data, digest, web)
     manifest = bind_package(web, ROOT, args.sha, git('rev-parse', 'HEAD^{tree}'), run, args.tag)
