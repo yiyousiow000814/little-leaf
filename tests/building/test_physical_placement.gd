@@ -97,7 +97,7 @@ func _init():
  check(not plan.commit(model,receipt) and state(model)==changed,"changed wallet invalidates receipt before commit")
  # Moving the default door releases its original two placement cells.
  var moved=fixture();var original_door=moved.get_wall_attachment(1).duplicate(true)
- check(moved.move_wall_attachment(1,"shell:west",3.5),"default door moves to another valid shell tile")
+ check(moved.move_wall_attachment(1,"wall:16",.5),"default door moves to another valid shell tile")
  var moved_door=moved.get_wall_attachment(1)
  check(moved_door.id==original_door.id and moved_door.width==original_door.width and moved_door.paid_cost==original_door.paid_cost,"door move retains identity, width and payment")
  for former_cell in [Model.ENTRANCE,Model.ENTRY_LANDING]:

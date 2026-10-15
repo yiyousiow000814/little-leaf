@@ -8,7 +8,7 @@ static func copy_model(model):
  var shadow=model.get_script().new()
  # Geometry planning never needs payroll, renderer caches or service ledgers.
  # Their original objects remain untouched by the transaction.
- for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","dining_sets","built_walls","wall_attachments","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
+ for key in ["decoration_session_active","decoration_purchases","catalog","items","customers","dining_sets","built_walls","wall_attachments","owned_parcels","expanded","width","depth","coins","cooks","waiters","cleaners","cashiers","included_checkout_pending","register_unplaced","included_bin_pending","revision","_next_item_id","_next_customer_id","next_checkout_ticket","operating_open"]:
   var value=model.get(key)
   shadow.set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
  return shadow
@@ -179,7 +179,7 @@ static func geometry_error(model,guests:Array,layout:Array,walls:Array,ownership
     if solids.has(here) and not final_seat:return "Relocation route is blocked by furniture"
     if here!=prior_cell:
      if absi(here.x-prior_cell.x)+absi(here.y-prior_cell.y)!=1:return "Relocation route skips a walking tile"
-     if model._fixed_edge_blocked(prior_cell,here,openings,walls) or model._built_edge_blocked(prior_cell,here,walls,openings):return "Relocation route crosses a wall"
+     if model._built_edge_blocked(prior_cell,here,walls,openings):return "Relocation route crosses a wall"
     prior_cell=here
    previous=next
  return ""

@@ -23,9 +23,11 @@ from qualification import artifacts
 
 
 PRODUCTION_KEYS = {"profile": "little-leaf.cg.profile.v1",
-                   "preferences": "little-leaf.cg.preferences.v1"}
+                   "preferences": "little-leaf.cg.preferences.v1",
+                   "pre_grid": "little-leaf.cg.profile.v1.pre-grid.v1"}
 PREVIEW_KEYS = {"profile": "little-leaf.cg.developer-preview.profile.v1",
-                "preferences": "little-leaf.cg.developer-preview.preferences.v1"}
+                "preferences": "little-leaf.cg.developer-preview.preferences.v1",
+                "pre_grid": "little-leaf.cg.developer-preview.profile.v1.pre-grid.v1"}
 TITLE_MARKER = "<title>$GODOT_PROJECT_NAME</title>"
 PREVIEW_TITLE_SUFFIX = " · Developer preview</title>"
 LOADING_MARKER = '\t\t\t\t<progress id="status-progress"'
@@ -36,6 +38,7 @@ PREVIEW_README = """Little Leaf: CrazyGames developer preview
 Separate test progress only. This export uses these SDK Data keys:
 - little-leaf.cg.developer-preview.profile.v1
 - little-leaf.cg.developer-preview.preferences.v1
+- little-leaf.cg.developer-preview.profile.v1.pre-grid.v1
 
 Production progress is not read, imported, reset, or written by this adapter.
 Test progress is reused on reload. SDK account scope and quota are shared;

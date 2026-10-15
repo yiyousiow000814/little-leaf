@@ -18,11 +18,11 @@ var mode=""
 var material=""
 var axis=""
 func _init(tools):_owner_ref=weakref(tools)
-func eligible()->bool:return owner.mode in ["floor","half","full"]
+func eligible()->bool:return owner.mode in ["floor","remove_floor","half","full"]
 func reset():
  active=false;receipt={};targets.clear();keys.clear();mode="";material="";axis="";plan.invalidate()
 func begin(point:Vector2):
- reset();mode=owner.mode;material=owner.floor_material if mode=="floor" else owner.material
+ reset();mode=owner.mode;material=owner.floor_material if mode in ["floor","remove_floor"] else owner.material
  last_point=point;axis=owner.preferred_axis
  if axis=="" and not owner.preview.is_empty():axis=str(owner.preview.get("axis",""))
  _sample(point)
@@ -41,7 +41,7 @@ func _sample(point:Vector2):
  if not owner._available(point):return
  var target
  var key=""
- if mode=="floor":
+ if mode in ["floor","remove_floor"]:
   var world=owner._world(point);target=Vector2i(floori(world.x),floori(world.y));key=str(target)
  else:
   var host=owner.game.illustration.hit_wall_host(point)
@@ -57,7 +57,7 @@ func _sample(point:Vector2):
  keys[key]=true;targets.append(target)
 func message()->String:
  if receipt.is_empty():return "Drag to preview a row"
- var text="%d %s · %s coins"%[int(receipt.count),"tiles" if mode=="floor" else "walls",Money.amount(int(receipt.net))]
+ var text="%d %s · %s coins"%[int(receipt.count),"tiles" if mode in ["floor","remove_floor"] else "walls",Money.amount(int(receipt.net))]
  return text+" · release to apply" if receipt.ok else text+" · "+str(receipt.error)
 func finish(point:Vector2)->bool:
  if not active:return false
@@ -71,13 +71,13 @@ func finish(point:Vector2)->bool:
  reset()
  return changed
 func draw_floor(view):
- if not active or mode!="floor":return
+ if not active or mode not in ["floor","remove_floor"]:return
  var visible=[]
  for target in receipt.get("targets",[]):
   if int(target.x)>=0 and int(target.z)>=0 and int(target.x)<owner.game.model.MAX_WIDTH and int(target.z)<owner.game.model.MAX_DEPTH:visible.append(target)
- preload("res://scripts/rendering/cafe_tile_paint_preview.gd").draw(view,visible,material,bool(receipt.ok))
+ preload("res://scripts/rendering/cafe_tile_paint_preview.gd").draw(view,visible,"" if mode=="remove_floor" else material,bool(receipt.ok))
 func draw_walls(view):
- if not active or mode=="floor":return
+ if not active or mode in ["floor","remove_floor"]:return
  for target in receipt.get("targets",[]):
   var host=owner.game.model.get_wall_host(str(target.key)) if str(target.key).begins_with("shell:") else {}
   if host.is_empty():

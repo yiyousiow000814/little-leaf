@@ -35,14 +35,14 @@ func run():
  await process_frame;game.model.coins=1600;game._toggle_edit();game._set_catalog_category("Build");game.compact_ui._set_tray_reveal(1);await settle()
  var ui=game.compact_ui;var model=game.model;var tool=game.build_tools
  game._cancel_selection();await settle();await click(aim(2.5))
- check(ui.selected_shell=="shell:back#2","click existing wall selects exact one-tile host")
+ check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")
  await click(ui.finish_button.get_global_rect().get_center())
  check(ui.shop_ui.build_page=="walls" and not ui.has_open_popup(),"Replace opens existing wall style cards in bottom tray")
  await click(ui.shop_ui.wall_cards["wall:full:cream_stripe"].get_global_rect().get_center());await click(aim(2.5))
- check(ui.wall_review.visible and ui.pending_wall.key=="shell:back#2","wall click opens review for same existing host")
+ check(ui.wall_review.visible and ui.pending_wall.key=="x:2:0","wall click opens review for same existing host")
  var wallet=model.coins;var saves=game.saves
  await click(ui.wall_confirm_button.get_global_rect().get_center())
- var style_ok=model.shell_segment_products["shell:back#2"].material=="cream_stripe"
+ var style_ok=model.get_wall("x:2:0").material=="cream_stripe"
  check(style_ok,"existing wall changes to chosen Cream stripes")
  check(model.coins==wallet-55 and game.saves==saves+1,"existing wall style pays stated price and saves once")
  operations.append({"operation":"existing wall style","passed":style_ok,"coins_before":wallet,"coins_after":model.coins})
@@ -54,7 +54,7 @@ func run():
   check(tool.mode==kind,"catalog click selects "+kind)
   wallet=model.coins;saves=game.saves;var count=model.wall_attachments.size()
   await click(aim(float(spec[1])))
-  var installed=model.wall_attachments.size()==count+1 and model.wall_attachments[-1].kind==kind and model.wall_attachments[-1].host_id=="shell:back" and is_equal_approx(float(model.wall_attachments[-1].offset),float(spec[1]))
+  var installed=model.wall_attachments.size()==count+1 and model.wall_attachments[-1].kind==kind and model.wall_attachments[-1].wall_ids==[model.get_wall("x:%d:0"%int(spec[1])).id] and is_equal_approx(float(model.wall_attachments[-1].offset),.5)
   check(installed,"click existing wall installs "+kind+" at requested host")
   check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves+1,kind+" pays listed price and saves once")
   operations.append({"operation":"existing wall add "+kind,"passed":installed,"coins_before":wallet,"coins_after":model.coins})

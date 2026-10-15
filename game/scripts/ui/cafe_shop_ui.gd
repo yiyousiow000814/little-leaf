@@ -81,8 +81,8 @@ class TileIcon extends Control:
    var center=Vector2(42,26)+shift
    var span=Vector2(19,9.5) if collection else Vector2(31,15.5)
    var corners=PackedVector2Array([center-Vector2(0,span.y),center+Vector2(span.x,0),center+Vector2(0,span.y),center-Vector2(span.x,0)])
-   draw_colored_polygon(corners,GroundArt.floor_palette(styles[index])[0])
-   var outline=corners.duplicate();outline.append(corners[0]);draw_polyline(outline,GroundArt.floor_line(styles[index]),1.2,true)
+   draw_colored_polygon(corners,Color("c6d5ad") if styles[index]=="" else GroundArt.floor_palette(styles[index])[0])
+   var outline=corners.duplicate();outline.append(corners[0]);draw_polyline(outline,Color("91aa78") if styles[index]=="" else GroundArt.floor_line(styles[index]),1.2,true)
    if styles[index]=="warm_oak":
     draw_line(center+Vector2(-span.x*.5,0),center+Vector2(0,span.y*.5),GroundArt.floor_line(styles[index]),1,true)
 
@@ -220,7 +220,6 @@ func setup():
  ui.context_label.reparent(action_copy);ui.context_label.clip_text=false;ui.context_label.autowrap_mode=TextServer.AUTOWRAP_OFF;ui.context_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  action_coin=ui.hud._picture(action_copy,ui.hud._texture("coin"));action_coin.custom_minimum_size=Vector2(21,21);action_coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER;action_coin.hide()
  price_label=ui.hud._label(action_copy,"",12);price_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT;price_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;price_label.clip_text=false;price_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
- ui.floor_repair_button.reparent(root);_style(ui.floor_repair_button)
 
  root.resized.connect(func():background.size=root.size)
  game.get_window().focus_exited.connect(_cancel_product_contacts)
@@ -298,6 +297,10 @@ func _setup_tiles():
  for index in game.build_tools.FLOOR_STYLES.size():
   var style=game.build_tools.FLOOR_STYLES[index]
   tile_cards[style]=_make_tile_card(style,game.build_tools.FLOOR_NAMES[index],ui.Money.amount(game.model.floor_price(style)),style,choose_floor_style.bind(style))
+ tile_cards["remove_floor"]=_make_tile_card("remove_floor","Remove tiles","Refund","",choose_floor_removal)
+ tile_cards["remove_floor"].accessibility_name="Remove flooring and keep owned grass"
+ tile_cards["remove_floor"].tooltip_text="Remove installed tiles; refund half the amount paid. Owned land stays."
+ tile_cards["remove_floor"].get_child(0).get_child(3).text="Keep owned grass"
  tiles_back=_nav("Build",show_build_products);tiles_back.accessibility_name="Back to Build from Tiles";tiles_back.add_theme_font_size_override("font_size",14);tiles_back.draw.connect(_draw_tiles_back);tiles_back.hide()
  tiles_heading=Control.new();tiles_heading.mouse_filter=Control.MOUSE_FILTER_IGNORE;root.add_child(tiles_heading);tiles_heading.hide()
  var face=Panel.new();face.mouse_filter=Control.MOUSE_FILTER_IGNORE;face.add_theme_stylebox_override("panel",ui.hud.texture_style("green_face",14));face.material=ui.hud._art_material(2);tiles_heading.add_child(face);face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -332,13 +335,13 @@ func _setup_walls():
  # Walls browse in the same bottom rail as Tiles. Every card is a complete
  # height/finish product; picking it starts placement without a modal form.
  for height in ["full","half"]:
-  for index in range(game.build_tools.MATERIAL_NAMES.size()+1):
+  for index in range(game.build_tools.MATERIAL_NAMES.size()):
    var material=game.build_tools.Geometry.MATERIALS[index] if index<game.build_tools.MATERIAL_NAMES.size() else "original"
    var title=game.build_tools.MATERIAL_NAMES[index] if material!="original" else "Original room"
    var key="wall:"+height+":"+material
    var card=_make_tile_card(key,title,ui.Money.amount(game.model.wall_price(height)),"cream_tile",choose_wall_style.bind(height,material))
    var holder=build_previews[key].holder;var old=build_previews[key].image;holder.remove_child(old);old.queue_free()
-   var preview=game.build_tools.WallIcon.new();preview.height=height;preview.wall_material=material if material!="original" else "sage_panels";preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;holder.add_child(preview)
+   var preview=game.build_tools.WallIcon.new();preview.height=height;preview.wall_material=material;preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;holder.add_child(preview)
    build_previews[key].image=preview;wall_cards[key]=card;wall_styles[key]={"height":height,"material":material}
    var height_name="Full wall" if height=="full" else "Half wall"
    card.get_child(0).get_child(3).text=height_name
@@ -348,7 +351,7 @@ func _setup_walls():
 func _sync_build_page():
  for key in build_cards:
   if build_page=="tiles":build_cards[key].visible=key in tile_cards
-  elif build_page=="walls":build_cards[key].visible=key in wall_cards and (wall_styles[key].material!="original" or not game.model.ShellSegments.parse_key(wall_target).is_empty())
+  elif build_page=="walls":build_cards[key].visible=key in wall_cards
   else:build_cards[key].visible=key not in tile_cards and key not in wall_cards
  if is_instance_valid(tiles_title):tiles_title.text="Wall" if build_page=="walls" else "Tiles"
  if is_instance_valid(tiles_heading_icon):tiles_heading_icon.visible=build_page!="walls"
@@ -375,7 +378,7 @@ func toggle_objects():
  var next=not hide_objects
  # Clear any selected furnishing/wall or in-flight click, but retain the chosen
  # floor tool so the player can compare and place flooring with objects hidden.
- if game.build_tools.mode!="floor":game._cancel_selection()
+ if game.build_tools.mode not in ["floor","remove_floor"]:game._cancel_selection()
  else:
   game.build_tools.on_focus_lost()
   game.interaction.cancel(false)
@@ -389,6 +392,10 @@ func choose_floor_style(style:String):
  if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small or style not in tile_cards:return
  var keep_hidden=objects_hidden()
  game.build_tools.floor_material=style;game.build_tools.choose("floor");hide_objects=keep_hidden;ui.sync();ui.update_pointer()
+func choose_floor_removal():
+ if not game.editing or game.catalog_category!="Build" or build_page!="tiles" or game.save_recovery_blocked or ui.viewport_too_small:return
+ var keep_hidden=objects_hidden()
+ game.build_tools.choose("remove_floor");hide_objects=keep_hidden;ui.sync();ui.update_pointer()
 func _visible_build_keys()->Array:
  var keys=[]
  for key in build_cards:
@@ -493,10 +500,10 @@ func sync_action_details():
  # Both periodic UI sync and pointer refresh consume this same presentation.
  # Price never replaces the product title, and label visibility is not state.
  if b.active():
-  if b.mode in ["half","full","floor"]:
-   ui.context_label.text=b.floor_name() if b.mode=="floor" else ("Half wall" if b.mode=="half" else "Full wall")
-   var quote=b.floor_quote if b.mode=="floor" else (b.replacement_quote if b.replacing else {})
-   var unit_cost=game.model.floor_price(b.floor_material) if b.mode=="floor" else game.model.wall_price(b.mode)
+  if b.mode in ["half","full","floor","remove_floor"]:
+   ui.context_label.text=b.floor_name() if b.mode in ["floor","remove_floor"] else ("Half wall" if b.mode=="half" else "Full wall")
+   var quote=b.floor_quote if b.mode in ["floor","remove_floor"] else (b.replacement_quote if b.replacing else {})
+   var unit_cost=0 if b.mode=="remove_floor" else (game.model.floor_price(b.floor_material) if b.mode=="floor" else game.model.wall_price(b.mode))
    price=ui.Money.amount(unit_cost)+" / tile"
    if not quote.is_empty():
     if int(quote.get("new_cost",-1))==0 and int(quote.get("net",-1))==0:price="No charge"
@@ -504,6 +511,7 @@ func sync_action_details():
     elif str(quote.get("reason","")).begins_with("Not enough coins"):price="Need "+ui.Money.amount(maxi(0,int(quote.net)-game.model.coins))
     detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(quote.new_cost)),ui.Money.amount(int(quote.refund)),ui.Money.amount(int(quote.net))]
     if quote.has("units"):detail+=" · %d tiles"%int(quote.units)
+   if b.mode=="remove_floor":price="Refund "+ui.Money.amount(int(quote.get("refund",0)));detail="Owned grass stays"
    if b.preview_reason!="":detail+=("\n" if detail!="" else "")+b.preview_reason
   elif b.mode in ["door","window"]:
    ui.context_label.text=b.mode.capitalize();price=ui.Money.amount(game.model.attachment_price(b.mode))+" coins"
@@ -514,7 +522,7 @@ func sync_action_details():
    ui.context_label.text="Moving "+str(opening.get("kind","opening"))+" · choose a wall"
  if b.paint_stroke!=null and b.paint_stroke.active and not b.paint_stroke.receipt.is_empty():
   var stroke=b.paint_stroke.receipt
-  ui.context_label.text="%d %s"%[int(stroke.count),"tiles" if b.mode=="floor" else "walls"]
+  ui.context_label.text="%d %s"%[int(stroke.count),"tiles" if b.mode in ["floor","remove_floor"] else "walls"]
   price=ui.Money.amount(int(stroke.net)) if stroke.ok else "Cannot apply"
   action_coin.visible=bool(stroke.ok)
   detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
@@ -700,7 +708,7 @@ func _short_landscape_card_width()->float:
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
    var shortfall=maxi(0,int(game.model.price_of(kind))-int(game.model.coins))
    var status="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
-   if kind=="register":status="Counter + cashier" if game.model.included_checkout_pending else "Move it in the café"
+   if kind=="register":status="Counter + cashier" if (game.model.included_checkout_pending or game.model.register_unplaced) else "Move it in the café"
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(status,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+66.0)
   if parking_card.visible:
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size("Parking · 4 bays",HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
@@ -711,7 +719,6 @@ func sync(width:float):
  if not tiles_active():reset_inspection()
  if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
  _sync_parking_card()
- ui._sync_starter_floor_repair()
  var insets=ui.hud._safe_insets();var available_width=width-insets.x-insets.z;var narrow=available_width<650
  var tray_style=game.tray.get_theme_stylebox("panel");tray_style.content_margin_left=0;tray_style.content_margin_right=0;tray_style.content_margin_top=0;tray_style.content_margin_bottom=0
  var w=minf(940,available_width-20)
@@ -737,7 +744,7 @@ func sync(width:float):
  ui.context_label.visible=true
  var nested=game.catalog_category=="Build" and build_page in ["tiles","walls"]
  var tiny=w<440
- var repair_width=(100.0 if tiny else 110.0) if ui.floor_repair_button.visible else 0.0
+ var repair_width=0.0
  var tail=repair_width+8 if repair_width>0 else 0.0
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
@@ -778,7 +785,6 @@ func sync(width:float):
   _put(tiles_back,Rect2(category_margin,(h-88)*.5,back_width,44))
   _put(hide_objects_button,Rect2(category_margin,h*.5,back_width,44))
  if tiles_active():tiles_heading.hide()
- _put(ui.floor_repair_button,Rect2(w-category_margin-repair_width,header_y,repair_width,44))
  if last_category!=game.catalog_category or not is_equal_approx(last_layout_width,category_width):
   last_category=game.catalog_category;last_layout_width=category_width;_reveal_category.call_deferred()
  var count=0
@@ -815,7 +821,7 @@ func sync(width:float):
  var name_h=18;var price_h=24
  for key in _visible_build_keys():
   var card=build_cards[key];card.custom_minimum_size=Vector2(card_w,card_h)
-  if key in tile_cards:card.set_pressed_no_signal(game.build_tools.mode=="floor" and game.build_tools.floor_material==key)
+  if key in tile_cards:card.set_pressed_no_signal(game.build_tools.mode=="remove_floor" if key=="remove_floor" else (game.build_tools.mode=="floor" and game.build_tools.floor_material==key))
   elif key in wall_cards:card.set_pressed_no_signal(game.build_tools.mode==wall_styles[key].height and game.build_tools.material==wall_styles[key].material)
   var column=card.get_child(0);var selected_color=ui.hud.CREAM if card.button_pressed else ui.hud.INK
   column.get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(2).get_child(1).add_theme_color_override("font_color",selected_color);column.get_child(3).add_theme_color_override("font_color",selected_color)
@@ -847,7 +853,7 @@ func sync(width:float):
   card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
   card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
   if kind=="register":
-   var pending=bool(game.model.included_checkout_pending)
+   var pending=bool(game.model.included_checkout_pending or game.model.register_unplaced)
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"
    price_label.add_theme_font_size_override("font_size",17)
    card.disabled=not pending or game.save_recovery_blocked

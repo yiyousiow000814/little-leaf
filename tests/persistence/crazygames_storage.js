@@ -21,16 +21,17 @@ assert.equal(embeddedAdapters.length,1,'one embedded SDK adapter');
 assert.equal(embeddedStorage.length,1,'one embedded codec/Inbox/diagnostic block');
 assert.equal(embeddedAdapters[0].trim(),adapter.trim(),'embedded SDK adapter exactly matches standalone');
 const payload = fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
-const productionKeys=['little-leaf.cg.profile.v1','little-leaf.cg.preferences.v1'];
-const previewKeys=['little-leaf.cg.developer-preview.profile.v1','little-leaf.cg.developer-preview.preferences.v1'];
+const productionKeys=['little-leaf.cg.profile.v1','little-leaf.cg.preferences.v1','little-leaf.cg.profile.v1.pre-grid.v1'];
+const previewKeys=['little-leaf.cg.developer-preview.profile.v1','little-leaf.cg.developer-preview.preferences.v1','little-leaf.cg.developer-preview.profile.v1.pre-grid.v1'];
 const [KEY,PREFS]=preview?previewKeys:productionKeys, protectedKeys=preview?productionKeys:previewKeys;
-const protectedValues=['protected profile bytes: never parse or reset','protected preference bytes: never parse or reset'];
+const ARCHIVE=KEY+'.pre-grid.v1';
+const protectedValues=['protected profile bytes: never parse or reset','protected preference bytes: never parse or reset','protected archive bytes: never parse or reset'];
 const sessions=[];
 let checks=0;const check=(condition,label)=>{assert(condition,label);checks++;};
 function harness(map=new Map()) {
   for(let i=0;i<protectedKeys.length;i++)map.set(protectedKeys[i],protectedValues[i]);
   const control={user:null,writes:0,operations:[],events:[],getError:false,setError:false,initError:false,scopeHook:null,accountCalls:0,listenerCalls:0};
-  const access=(method,key)=>{control.operations.push({method,key});assert([KEY,PREFS].includes(key),'SDK must never access another save namespace');};
+  const access=(method,key)=>{control.operations.push({method,key});assert([KEY,PREFS,ARCHIVE].includes(key),'SDK must never access another save namespace');};
   const sdk={environment:'local',init:async()=>{if(control.initError)throw Error('Synthetic init failure');},
     user:{isUserAccountAvailable:true,getUser:async()=>{control.accountCalls++;if(!sdk.user.isUserAccountAvailable)throw Error("Account API unavailable");control.scopeHook?.();return control.user;},addAuthListener:f=>{control.listenerCalls++;if(!sdk.user.isUserAccountAvailable)throw Error("Auth listener unavailable");control.auth=f;}},
     game:{settings:{muteAudio:false},loadingStart:()=>control.events.push('loadingStart'),loadingStop:()=>control.events.push('loadingStop'),gameplayStart:()=>control.events.push('gameplayStart'),gameplayStop:()=>control.events.push('gameplayStop')},
@@ -132,7 +133,7 @@ function harness(map=new Map()) {
   check(shell.includes(adapter.trim()),'platform shell exact adapter');
   check(!shell.includes('async function readLegacy(factory){')&&!shell.includes('const KEY=\'little-leaf.preferences.v1\''),'legacy preferences probe absent');
   for(const session of sessions){
-    check(session.control.operations.every(op=>['get','set'].includes(op.method)&&[KEY,PREFS].includes(op.key)),'all successful and failed operations use only the selected SDK keys; no resets');
+    check(session.control.operations.every(op=>['get','set'].includes(op.method)&&[KEY,PREFS,ARCHIVE].includes(op.key)),'all successful and failed operations use only the selected SDK keys; no resets');
     check(protectedKeys.every((key,i)=>session.map.get(key)===protectedValues[i]),'other namespace retains exact profile and preference bytes');
   }
   check(protectedKeys.every(key=>!adapter.includes(key)),'adapter contains no opposite-namespace fallback');

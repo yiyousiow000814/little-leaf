@@ -439,6 +439,7 @@ func _staff_on_duty()->bool:
 	return false
 
 func _sell():
+	model.service_snapshot=_service_save_snapshot()
 	if save_recovery_blocked:return
 	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
@@ -941,10 +942,14 @@ func complete_ground_mess(identity:Dictionary,source="manual")->bool:
 	if source!="manual":return false
 	var record=resolve_ground_mess(identity)
 	if record.is_empty():return false
-	record.trash_owner="none" if str(record.floor_debris)=="none" else "disposed"
-	record.trash_staff_index=-1;record.trash_target_id=-1
+	# A remaining spill can share its record with already carried/bin trash.
+	# Only visible floor debris belongs to this click; retain physical custody.
+	if str(record.trash_owner)=="floor":
+		record.trash_owner="disposed"
+		record.trash_staff_index=-1;record.trash_target_id=-1
 	record.spill_cleaned=true;record.spill_remaining=0.0
-	return complete_ground_mess_if_ready(identity)
+	complete_ground_mess_if_ready(identity)
+	return true
 
 func complete_ground_mess_if_ready(identity:Dictionary)->bool:
 	var record=resolve_ground_mess(identity,false)
@@ -1329,7 +1334,7 @@ func _is_door_landing(cell:Vector2i)->bool:
 	var point=Vector2(cell.x+.5,cell.y+.5)
 	for attachment in model.wall_attachments:
 		if attachment.kind!="door":continue
-		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls,model.shell_material)
+		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls)
 		if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(point,opening.a,opening.b).distance_to(point)<.76:return true
 	return false
 

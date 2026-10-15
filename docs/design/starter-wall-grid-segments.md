@@ -153,6 +153,144 @@ Expose all default appearances in the ordinary catalog. Add floor removal and
 closed-shop empty-layout editing with unchanged confirmed refund rules. Make the
 starter itself use those same catalog commands with included purchase provenance.
 
+### Isolated playable integration candidate (2026-10-14)
+
+The successor to Draft PR294 and Draft PR297 now exercises the complete installed
+state in a disposable cloud profile. It is not a production migration switch.
+The runtime checkpoint is `ee421034`; the archive checkpoint is `c75b3368`.
+Later integration edits must receive their own exact-source receipt.
+
+- `built_walls` is the sole active wall collection. Every record has a canonical
+  string ID, one unit edge, material/height and its original paid/refund receipt.
+  Imported `shell:*#n` IDs are ordinary object identities, not a type discriminator.
+  There is no active starter root, removal tombstone or dormant fallback wall.
+- Fresh preset walls and catalog purchases use the same installed constructor,
+  material list, placement shape, opening support, transaction and renderer. New
+  walls use centered physical offsets `[-0.08,+0.08]`. The user's later wall-datum
+  correction also centers the visible `0.26`-tile profile at `[-0.13,+0.13]` for
+  default, purchased and imported walls on both axes. Imported edge anchors,
+  texture phase, IDs and paid/refund receipts remain exact; the former outward
+  normal profile is retained only in the untouched original source archive.
+  `visual_front` and `visual_back` are offsets from the unchanged edge anchor,
+  never absolute coordinates. This supersedes the earlier candidate's asymmetric
+  `[-0.18,+0.08]` visible profile and imported `[-0.26,0]` strip, not its evidence.
+  The pavement ends at `x=0`, and the rear pedestrian link reaches `z=0`; neither
+  reserves the former `0.26`-tile strip. Floor and furnishing coordinates do not
+  move. Corner appearance still requires matched actual full-scene inspection.
+- One opening has one ID plus its complete ordered supporting `wall_ids`; old
+  0.76/1.5-width apertures remain exact rather than being automatically widened or
+  narrowed. Legacy roots/ledgers are read-only import inputs and recovery bytes.
+- The original isolated checkpoint used `building_format: little_leaf.grid_building.v1`
+  and `wall_format: 3`. The unreviewed local geometry successor proposes v2/wall4
+  with a v1 reader and unchanged attachment format 2 inside outer save v15.
+  It is not approved for activation or publication: the current Firebase archive
+  guard explicitly accepts only v1/wall3 and rejects v2/wall4. Auth must review
+  and reconcile that exact schema/archive boundary before either is activated.
+  Mixed markers and new saves containing legacy shell authorities fail validation. The completed
+  starter-floor migration marker remains required, so intentionally empty cells
+  never receive the old missing-row repair.
+- Floor removal clears only a finish, returns the existing half-paid credit and
+  keeps owned land. Closed, idle shops can remove essential furniture; outstanding
+  guests, service records, cleanup and staff jobs still prevent unsafe removal.
+  Reopening checks usable required equipment, a public entrance and dining.
+- `register_unplaced` separates the existing one-register entitlement from its
+  installation. Selling while safely Closed preserves staff, duties and payroll;
+  startup retries cannot redeploy a deliberately sold register. Reinstalling it
+  does not create a second cashier or entitlement. Existing furniture resale
+  amounts and current-decoration receipts are retained.
+- Native migration writes first verify an exact content-addressed `.pre-grid`
+  source copy. A damaged existing archive blocks the save before active or `.tmp`
+  files are touched. Never overwrite a sole original file or infer that reverting
+  code makes a new-format save readable by old code.
+- Browser migration uses the existing authority codec and stores, with at most
+  eight immutable original entries per profile/account/SDK namespace. Each entry
+  contains the exact original payload string, serialized source record, original
+  profile/revision/digest, payload SHA256 and archive SHA256. Legacy-v13 input is
+  separately bound to its revision-zero identity and original digest. An
+  archive-only source-CAS transaction must finish, followed by an independent
+  readback, before a final source-CAS/proof check can publish active or pending
+  progress. No archive eviction, automatic repair or uncertain-write replay.
+- Firebase local commit, paused-device runtime snapshot and choice/recovery paths
+  retain their original account/base-digest and upload writer/epoch/lease fences.
+  A choice archives its actual original sources before metadata is reassigned.
+  The source-only Firebase follow-up persists a versioned, bounded archive-digest
+  requirement in both the local journal and the exact frozen upload. Reopen,
+  post-renewal upload and each Firestore transaction attempt revalidate the
+  required original bytes. Append-only archive growth is allowed; missing,
+  damaged or unsupported requirements block upload without repairing storage.
+  Ordinary legacy pending records remain compatible. Genuinely fresh and
+  cloud-adopted grid records carry an explicit empty requirement; older isolated
+  grid-candidate journals without that marker fail closed, never guessing fresh
+  provenance. A checksummed pending journal remains exportable with an explicit
+  warning that its missing/damaged original archive is not restored by export.
+  The focused generated suite passes 135 checks; exact Auth review and real
+  IndexedDB qualification remain separate, pending gates.
+  CrazyGames stays SDK-only; combined archive/active/preferences bytes count
+  toward its existing capacity and results remain `platformAccepted`, never a
+  remote-durability or cloud-confirmation claim. Embedded shell copies remain
+  byte-identical to their standalone authority adapters.
+
+Evidence currently includes eight frozen old-client synthetic payloads, 688 model
+checks, exact original backups, old-reader rejection on three generated new saves,
+16,604 focused engine checks and 2,369 real UI/input checks at their recorded
+source checkpoints. An actual native six-frame sequence shows preset, complete
+sale to grass, byte-identical grass after reload, and a catalog rebuild/reload.
+Two visible catalog/preview defects found in those frames were corrected after
+capture and still need fresh images. The archive adds 74 deterministic
+Node/production-journal checks and 17 focused tooling checks. Existing compensation,
+connection recovery, Firebase recovery/choice lifecycle and SDK contracts pass.
+These numbers describe separate bounded runs, not a full current-source CI pass.
+
+Current centered-geometry verification includes 688 passing existing-suite
+checks after twelve stale geometry/schema expectations were reconciled to the
+explicitly requested centering and the codec's declared format. A separate
+50-check geometry probe verifies both axes and the common corner datum.
+Original-source bytes, wallpaper phase, identity, receipts, wide-opening support,
+archive failure, owned land, floor/furniture fields and sell/rebuild assertions
+are retained, not waived. Five matched native Before/After pairs were captured
+on Godot 4.6.3, X11 and GL Compatibility at 1360×880: full scene, left wall,
+right wall, corner, and default plus placed walls. The Before production inputs
+reconstruct the exact c75b3368 staged game source; the After binds the current
+candidate's hashes. Fixed projection/scale, identical furniture records and
+108 floor cells were verified. Both synthetic capture harnesses suppress normal
+saves, never invoke model save, and quit after writing the actual viewport PNGs.
+All ten originals were inspected and retained in Library. The user subsequently
+rejected the candidate: door casing was covered by later wall slices, the
+centered corner cap had a notch, and internal quarter-cell face outlines made
+unwanted fine vertical lines. The earlier inspection did not catch these defects.
+A local renderer-only successor removes those internal outlines, miters
+unambiguous equal-height L joints and splits/reorders casing to match wall slices.
+It retains the existing doorway design and all saved coordinates. Its 688 model,
+156 focused renderer and 5991 existing jamb-clipping checks pass. Eight actual native repair views confirmed the major defects removed, but
+closer inspection found small rail/casing slice notches. The final source-bound native successor uses a filled continuous rail, one
+front plane and a separate reveal-before-casing entry. Eight actual PNGs were
+captured, including three zoomed details. Inspection confirms the reported
+door, corner and wall-line defects removed without changing the original
+artwork palette or opening design. Five matched views preserve identical
+camera, furniture, wall records and 108 floor cells. The user accepted these exact
+r3 images on 2026-10-15 ("看起来没什么问题"). The renderer SHA-256 remains
+12d1d647f4964f7bae18956b1edc7f015a0887456b5f677e6a607b1214a92090.
+Earlier unsuccessful candidates remain preserved. This closes only the scoped
+wall visual gate, not save-migration qualification or merge readiness. The later
+window-edge zero-area guard is a separate frozen successor and is not included. These fresh-preset views do not qualify all historical-import visuals,
+unchanged catalog/preview checks, browser migration, full CI or release. The
+older six native images retain their earlier source scope.
+
+Remaining acceptance work is explicit: update old tests which require active
+shell roots to the unified contract without discarding their payment, geometry,
+selection or compatibility assertions; run the prepared real disposable browser
+IndexedDB archive suite; qualify the exact version-pair/archive bridge with Auth; obtain matched
+legacy/current native images and routing checks for uncovered historical cases.
+The bridge admits only v1/wall3 and v2/wall4, preserves the original v1 payload
+and record before an upgrade, and blocks upload when preservation is missing.
+Its 166 synthetic Firebase, 74 authority and three tooling checks plus actual
+native payload fixtures are not real IndexedDB transaction/reopen proof. The
+original Chromium launch failed during sandbox socket setup before any browser
+checks; the supported existing-browser route is being evaluated separately.
+No browser-migration safety claim, production activation or release follows
+from the deterministic fixtures. The disappeared-floor
+runtime cause remains the separate tile investigation.
+
 ### Proportionate design and acceptance gates
 
 Purpose/authority and state ownership are specified above. Gameplay, UI/UX and

@@ -87,10 +87,6 @@ var wall_heights:OptionButton
 var wall_preview:Control
 var wall_price_label:Label
 var wall_use_button:Button
-var floor_repair_button:Button
-var floor_repair_review:PanelContainer
-var floor_repair_text:Label
-var floor_repair_confirm:Button
 var product_target=""
 var wall_review:PanelContainer
 var wall_review_text:Label
@@ -155,7 +151,7 @@ func _hide_popups():
  for p in _popup_panels():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
- var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
+ var panels=[finishes,wall_review,management,help_panel,play_panel]
  if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if shop_ui!=null and is_instance_valid(shop_ui.parking_review):panels.append(shop_ui.parking_review)
@@ -209,13 +205,6 @@ func setup():
  var actions=BoxContainer.new();finish_box.add_child(actions);popup_action_rows.append(actions)
  wall_use_button=_small_button("Use wall",_use_wall_product,144);actions.add_child(wall_use_button)
  actions.add_child(_small_button("Cancel",func():finishes.hide(),78))
- floor_repair_button=_small_button("Finish floor",_review_starter_floor_repair,100);categories.add_child(floor_repair_button)
- floor_repair_review=_panel();var repair_box=VBoxContainer.new();repair_box.add_theme_constant_override("separation",12);floor_repair_review.add_child(repair_box)
- repair_box.add_child(game.label("Finish starter floor",18))
- floor_repair_text=game.label("",15);floor_repair_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;floor_repair_text.custom_minimum_size=Vector2(250,0);repair_box.add_child(floor_repair_text)
- var repair_actions=BoxContainer.new();repair_box.add_child(repair_actions);popup_action_rows.append(repair_actions)
- floor_repair_confirm=_small_button("Finish floor",_confirm_starter_floor_repair,140);repair_actions.add_child(floor_repair_confirm)
- repair_actions.add_child(_small_button("Cancel",func():floor_repair_review.hide(),80))
  wall_review=_panel();var review_box=VBoxContainer.new();review_box.add_theme_constant_override("separation",12);wall_review.add_child(review_box)
  review_box.add_child(game.label("Replace wall",20))
  wall_review_text=game.label("",15);wall_review_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;wall_review_text.custom_minimum_size=Vector2(250,0);review_box.add_child(wall_review_text)
@@ -292,7 +281,7 @@ func setup():
    if c.text=="Changes are saved automatically":c.hide()
  hud=Hud.new(self);hud.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
- for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
+ for popup in [finishes,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
   hud.theme_panel(popup,true,INFORMATION_PANEL_PADDING if popup in [help_panel,game.settings] else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
@@ -366,7 +355,7 @@ func sync():
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
  var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=_selected_editable_wall()
- var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode=="floor"
+ var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode in ["floor","remove_floor"]
  var selected=not item.is_empty() or not opening.is_empty() or not wall.is_empty() or selected_shell!="" or placing or edge or flooring
  context.visible=game.editing and (selected or game.catalog_category=="Build")
  var selected_kind=game.model.logical_kind(int(item.id)) if not item.is_empty() else game.selected_kind
@@ -462,7 +451,6 @@ func sync():
  if hud!=null:hud.sync(width)
  _fit_themed_popups()
  _sync_viewport_guard()
- _sync_starter_floor_repair()
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
 func _wrap_themed_popup(panel:PanelContainer,width:float,fixed_header:Control=null):
  if panel==help_panel:
@@ -647,26 +635,6 @@ func _camera_action(amount:float):
   game.interaction._zoom_step_at(Vector2(size.x*.5,(hud.layout_host.get_global_rect().end.y+shop_ui.browse_rect().position.y)*.5),signf(amount))
  sync()
 
-func _sync_starter_floor_repair():
- if not is_instance_valid(floor_repair_button):return
- var gaps=game.model.starter_floor_gap_cells()
- floor_repair_button.visible=not gaps.is_empty() and game.editing and game.catalog_category=="Build" and shop_ui!=null and shop_ui.build_page=="tiles"
- var blocked=game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build"
- floor_repair_button.disabled=blocked
- floor_repair_confirm.disabled=blocked or gaps.is_empty()
- if gaps.is_empty():floor_repair_review.hide()
-func _review_starter_floor_repair():
- if not floor_repair_button.is_visible_in_tree() or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
- var gaps=game.model.starter_floor_gap_cells()
- if gaps.is_empty():_sync_starter_floor_repair();return
- floor_repair_text.text="Complete %d missing starter-row tiles with warm oak for free.\n\nExisting flooring stays as it is."%gaps.size()
- _popup_at(floor_repair_review,320);_sync_starter_floor_repair()
-func _confirm_starter_floor_repair():
- # A dismissed or blocked review cannot become a late repair/save.
- if not floor_repair_review.visible or game.save_recovery_blocked or viewport_too_small or not game.editing or game.catalog_category!="Build":return
- floor_repair_review.hide()
- if game.model.repair_starter_floor_gap()>0:game.build_tools._changed()
- _sync_starter_floor_repair();sync()
 func _paper_selected(_index:int):
  _sync_wall_product()
 func show_finishes():
@@ -678,8 +646,7 @@ func show_wall_product():
  game.settings.hide()
  wall_papers.clear()
  for name in game.build_tools.MATERIAL_NAMES:wall_papers.add_item(name)
- if not game.model.ShellSegments.parse_key(product_target).is_empty():wall_papers.add_item("Original room")
- var product=game.model.get_wall_host(product_target) if not game.model.ShellSegments.parse_key(product_target).is_empty() else game.model.get_wall(product_target)
+ var product=game.model.get_wall(product_target)
  var height=str(product.get("height",game.build_tools.mode if game.build_tools.mode in ["half","full"] else "full"))
  var paper=str(product.get("material",game.build_tools.material))
  wall_heights.select(0 if height=="half" else 1)
@@ -689,7 +656,7 @@ func _sync_wall_product():
  if not is_instance_valid(wall_heights):return
  var height="half" if wall_heights.selected==0 else "full"
  var paper="original" if wall_papers.selected==3 else game.model.WallGeometry.MATERIALS[maxi(0,wall_papers.selected)]
- wall_preview.height=height;wall_preview.wall_material="sage_panels" if paper=="original" else paper;wall_preview.queue_redraw()
+ wall_preview.height=height;wall_preview.wall_material=paper;wall_preview.queue_redraw()
  var price=Money.amount(game.model.wall_price(height))
  wall_price_label.text="New wall · "+price+" coins per tile\nClick an empty edge to build, or an existing wall to replace it."
  if product_target!="":
@@ -716,8 +683,8 @@ func _confirm_wall_replacement():
  if not game.model.replace_wall(chosen.key,chosen.height,chosen.material,game.build_tools.actor_positions()):
   review_wall_replacement(chosen.key,chosen.height,chosen.material);return
  pending_wall={};wall_review.hide();game.build_tools.cancel()
- selected_shell=chosen.key if not game.model.ShellSegments.parse_key(chosen.key).is_empty() else ""
- selected_wall=chosen.key if selected_shell=="" else ""
+ selected_shell=""
+ selected_wall=chosen.key
  game.build_tools._changed();sync()
 func _rotate_selected():
  if not game.editing or game.save_recovery_blocked:return

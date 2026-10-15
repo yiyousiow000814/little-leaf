@@ -1,5 +1,6 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
+const ShelterArt=preload("res://scripts/rendering/bus_stop_shelter_art.gd")
 const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
@@ -7,11 +8,11 @@ const CameraLandmarks=preload("res://scripts/rendering/cafe_camera_landmarks.gd"
 const Greenery=preload("res://scripts/rendering/environment_greenery.gd")
 static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
-const ROAD_RIGHT=-3.26
+const ROAD_RIGHT=-3.0
 const OPPOSITE_LEFT=-11.76
-const LOT=Rect2(-.26,-8.7,12.26,4.9)
-const MOUTH=Rect2(-3.26,-5.7,3.0,1.8)
-const PEDESTRIAN_LINK=Rect2(-.26,-3.8,1.2,3.54)
+const LOT=Rect2(0,-8.7,12.0,4.9)
+const MOUTH=Rect2(-3.0,-5.7,3.0,1.8)
+const PEDESTRIAN_LINK=Rect2(0,-3.8,.94,3.8)
 const BUFFER_PLANTING=[Vector2(2.5,-3.35),Vector2(7.8,-3.35),Vector2(11.9,-2.4)]
 # Normal projection: a rear-wall point rises128px while each negative-z tile
 # separates ground from its silhouette by39px. z=-3.8 leaves20.2px clearance
@@ -50,7 +51,7 @@ static func parking_hooks()->Dictionary:
 	# in the model. These anchors never become owned cafe floor tiles.
 	var bays:Array[Vector2]=[]
 	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
-	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
+	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2.ZERO,"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 	var points=[a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)]
@@ -265,13 +266,14 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 		return
 	# Keep the original back/people/front painter order. Static shelter art
 	# uses the same native object retention as the bus and parked vehicles.
-	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_back.bind(a),Vector2.ZERO,["shelter-back"]):
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_back.bind(a),Vector2.ZERO,["shelter-back",ShelterArt.BACK_ID,ShelterArt.SAMPLING_ID]):
 		_draw_shelter_back(a)
 	if under_roof.is_valid():under_roof.call()
-	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_front.bind(a),Vector2.ZERO,["shelter-front"]):
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_front.bind(a),Vector2.ZERO,["shelter-front",ShelterArt.FRONT_ID]):
 		_draw_shelter_front(a)
 
 static func _draw_shelter_back(a):
+	if ShelterArt.draw(a,false):return
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -290,6 +292,7 @@ static func _draw_shelter_back(a):
 	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
 
 static func _draw_shelter_front(a):
+	if ShelterArt.draw(a,true):return
 	var scale=a.ui_scale*a.zoom
 	for z in [5.75,10.15]:
 		a.ellipse(a.iso(-11.8,z),Vector2(4,2)*scale,"a8b59b")

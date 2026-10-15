@@ -10,7 +10,7 @@ func run():
   var wallet=game.model.coins;var saves=game.saves
   await click(tool.tool_buttons["full"].get_global_rect().get_center())
   check(shop.build_page=="walls" and not ui.has_open_popup(),str(view)+" Wall opens bottom shelf without old modal")
-  check(shop._visible_build_keys().size()==6,"Wall collection shows all six height/style products")
+  check(shop._visible_build_keys().size()==8,"Wall collection offers every purchasable height and material")
   check(shop.tiles_back.is_visible_in_tree() and shop.tiles_title.text=="Wall","Wall uses matching Build back navigation and header")
   for key in shop._visible_build_keys():
    var card=shop.wall_cards[key]
@@ -30,9 +30,9 @@ func run():
   check(shop.build_page=="products" and shop._visible_build_keys().size()==4,"Back returns to four Build collections")
   ui.build_scroll.ensure_control_visible(shop.tiles_card);await settle()
   await click(shop.tiles_card.get_global_rect().get_center())
-  check(shop.build_page=="tiles" and shop._visible_build_keys().size()==3,"Tiles interaction remains unchanged")
-  shop.show_walls("shell:back#2");await settle()
-  check(shop._visible_build_keys().size()==8,"selected starter wall also offers Original room finish")
+  check(shop.build_page=="tiles" and shop._visible_build_keys().size()==4,"Tiles offers three finishes and removal")
+  shop.show_walls("x:2:0");await settle()
+  check(shop._visible_build_keys().size()==8,"selected wall offers the same complete product catalog")
   game._set_catalog_category("Kitchen");await settle()
   check(shop.build_page=="products","changing category exits Wall shelf cleanly")
   game._set_catalog_category("Build");await settle()
