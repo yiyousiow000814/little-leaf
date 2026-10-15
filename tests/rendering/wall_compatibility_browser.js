@@ -325,10 +325,13 @@ async function main() {
       await page.bringToFront();
       await boot(page, 'new', active(baseline).revision);
       const starts = (await observation(page)).saveStarts;
-      await click(page, 'new', 'business'); await idle(page);
+      await click(page, 'new', 'business');
+      await click(page, 'new', 'decorate');
+      check((await observation(page)).saveStarts === starts, name + ': operating toggle and Decorate entry stay dirty without an operation save');
+      await click(page, 'new', 'apply'); await idle(page);
       const observed = await observation(page);
       check(observed.saveStarts === starts + 1 && observed.saves.at(-1).ok && observed.saves.at(-1).durable,
-        name + ': actual reloaded new controller accepts model and completes a normal UI save');
+        name + ': actual reloaded new controller accepts model and completes an immediate Apply save');
       const after = await readSnapshot(page);
       assertPreserved(active(baseline), active(after));
       check(canonical(after.legacy) === canonical(baseline.legacy), name + ': legacy bytes retained');
@@ -365,7 +368,7 @@ async function main() {
     }
     // Case B: the old engine stays genuinely loaded throughout the real new UI
     // edit. Its scale 0 prevents unrelated old autosaves. New scale .1 keeps UI
-    // tweens working and gives a 150-second autosave interval for this short edit.
+    // tweens working and gives a50-second dirty-save interval for this short edit.
     if (selectedCase === 'all' || selectedCase === 'already_open_old') {
       const context = await createContext();
       try {
@@ -394,11 +397,14 @@ async function main() {
           (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget));
         check((await observation(newPage)).saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
         await click(newPage, 'new', 'confirm'); await idle(newPage);
+        check((await observation(newPage)).saveStarts === 0, 'Wall Confirm changes only the Decorate draft before Apply');
+        check(canonical(await readSnapshot(fixture)) === canonical(baseline), 'Unapplied wall edit preserves every durable authority, wallet and ownership byte');
+        await click(newPage, 'new', 'apply'); await idle(newPage);
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
           wall_format: payload.wall_format, target: 'shell:back#2', expected_segment: layouts.new.expected_segment,
           actual_segment: payload.shell_segment_products?.['shell:back#2'] || null};
-        check(active(committed).revision === revision + 1, 'Normal new UI edit commits exactly R+1');
+        check(active(committed).revision === revision + 1, 'Normal new UI Apply commits exactly R+1');
         check(payload.wall_format === 2 && canonical(payload.shell_segment_products['shell:back#2']) === canonical(layouts.new.expected_segment), 'Real new UI commits the expected one-tile wall format 2 edit');
         check(payload.coins === JSON.parse(active(baseline).payload).coins - layouts.new.expected_cost, 'Real new UI charges the expected wall price once');
         check(canonical(payload.wall_attachments) === canonical(JSON.parse(active(baseline).payload).wall_attachments), 'Real new UI retains paid wide door geometry and ownership');
