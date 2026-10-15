@@ -58,8 +58,8 @@ func run():
  check(ui.wall_review_text.text.begins_with("Selected one-tile wall") and not ui.wall_review_text.text.contains("Entire"),"confirmation describes one tile")
  check(snapshot()==before,"opening confirmation is nonmutating")
  ui.pending_wall={};ui.wall_review.hide();check(snapshot()==before,"cancelling review is nonmutating")
- tool.refresh(point);tool._commit();var neighbors=game.model.shell_segment_products.duplicate(true);ui._confirm_wall_replacement();await settle()
- check(game.model.coins==9965 and game.saves==1,"one confirmation charges35 once and saves once")
+ tool.refresh(point);tool._commit();var neighbors=game.model.shell_segment_products.duplicate(true);var dirty_generation=game.platform_dirty_generation;ui._confirm_wall_replacement();await settle()
+ check(game.model.coins==9965 and game.saves==0 and game.platform_dirty_generation>dirty_generation,"one confirmation charges35 once and marks progress dirty")
  check(ui.selected_shell=="shell:back#2" and ui.selected_wall=="","confirmed selection remains a shell segment")
  for key in neighbors:
   if key!="shell:back#2":check(neighbors[key]==game.model.shell_segment_products[key],"unchanged neighbor "+key)

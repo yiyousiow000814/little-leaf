@@ -316,7 +316,7 @@ func _commit():
 	_cache_key="";refresh(pointer)
 
 func _changed():
-	game._update_ui();game._save();game.illustration.queue_redraw()
+	game._update_ui();game.illustration.queue_redraw()
 
 func get_render_attachments()->Array:
 	return _render_attachments if active() and mode in OPENING_MODES and _render_preview_active else game.model.wall_attachments

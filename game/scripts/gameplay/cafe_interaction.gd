@@ -184,11 +184,10 @@ func rotate_selection():
 		# behavior, but R while dragging is purely a preview until release.
 		var actors=_staff_positions()
 		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors)
-		if edit_plan.commit(game.model,receipt,actors,game._apply_edit_staff_positions):
+		if edit_plan.commit(game.model,receipt,actors):
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
-			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
 	else:
@@ -339,13 +338,12 @@ func _commit_preview():
 		var current: Dictionary = game.model.get_item(drag_item_id)
 		if int(current.x) == drag_cell.x and int(current.z) == drag_cell.y and game.model.logical_rotation(drag_item_id) == drag_rotation:
 			return
-	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions(),game._apply_edit_staff_positions)
+	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions())
 	if not success:return
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	game._save()
-	# Accepted layout feedback does not wait for asynchronous save completion.
+	# Accepted layout feedback does not wait for the periodic save slot.
 	game.settings_controls.play_sfx("place")
 
 func _clear_gesture(cancel_cleanup=true):
