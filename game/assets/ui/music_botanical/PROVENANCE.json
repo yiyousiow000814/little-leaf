@@ -1,0 +1,23 @@
+{
+  "status": "Reference-directed WIP, no aesthetic approval",
+  "generation": "Built-in imagegen from user-supplied2026-10-13 reference; cream board background extraction from existing project board.png; original output RGBA bytes unchanged",
+  "layers": "Separate board and botanical stem raster sources, independently placed retained Godot controls; no screenshot text or functional controls embedded",
+  "source_files": {
+    "gold_flowering_stem.png": "c055c196156f7a65e7c268f7e9e995e4b8ff9cb560038a873a49faad3a6b634d",
+    "cream_gold_board.png": "7a6310da26193cf247296ea9af73203714b7610bf3bfb07fa4a57db6985fc285",
+    "continuous_gold_botanical.png": "ad9e7a5eed60e778084b020ac1dd48857d21faae70e0dbd3c0533ec6c90a706c"
+  },
+  "continuous_ornament": "User reference-based original generation; four independently placed quadrant layers use untouched source; alpha>8 pixel cells retained for visible-ink checks; no embedded controls/text",
+  "r12_local_corners": {
+    "source": "continuous_gold_botanical.png",
+    "method": "Retained AtlasTexture regions independently anchored to song-list and transport corner geometry; original source bytes unchanged.",
+    "depth_shader": "folio_depth.gdshader",
+    "depth_shader_sha256": "bb2359f1e68f7bab4162bb689e387f178d4417d20d2dc78707e659fd6946e3ca",
+    "shader_authoring": "Original static code-native material; no clock/noise, external service or paid generation."
+  },
+  "r13_local_join_blend": {
+    "shader": "local_botanical_blend.gdshader",
+    "sha256": "fa28c70b76439bb100c2c71cf155cc1e4cc093e2442f814e7084fd321f55b22f",
+    "method": "Original retained static alpha taper at cropped source-region edges; actual rendered alpha changes, controls and conservative visible-ink tests unchanged. Original PNG bytes preserved."
+  }
+}

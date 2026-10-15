@@ -10,6 +10,9 @@ const Inbox=preload("res://scripts/ui/cafe_inbox.gd")
 const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
 const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
+const MusicPanel=preload("res://scripts/ui/cafe_music_panel.gd")
+var music_panel
+var music_access:Button
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
 const INFORMATION_PANEL_PADDING=32.0
 const INFORMATION_PANEL_GAP=8
@@ -162,6 +165,7 @@ func _popup_panels()->Array:
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
+ if music_panel!=null and is_instance_valid(music_panel.panel):panels.append(music_panel.panel)
  return panels
 
 func has_open_popup()->bool:
@@ -290,7 +294,9 @@ func setup():
  for c in settings_box.get_children():
   if c is Label:
    if c.text=="Changes are saved automatically":c.hide()
+ music_access=_small_button("Music",func():music_panel.show(),64);music_access.name="OpenMusic";music_access.accessibility_name="Open Music";music_access.tooltip_text="Music · choose your café soundtrack";top_row.add_child(music_access)
  hud=Hud.new(self);hud.setup()
+ music_panel=MusicPanel.new(self);music_panel.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
  for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
   hud.theme_panel(popup,true,INFORMATION_PANEL_PADDING if popup in [help_panel,game.settings] else 26);hud.theme_panel_contents(popup)
@@ -460,6 +466,7 @@ func sync():
  if shop_ui!=null and (game.editing or game.tray.visible or shop_view!=shop_layout_view or shop_insets!=shop_layout_insets):
   shop_ui.sync(width);shop_layout_view=shop_view;shop_layout_insets=shop_insets
  if hud!=null:hud.sync(width)
+ if music_panel!=null and music_panel.panel.visible:music_panel.sync();music_panel.layout()
  _fit_themed_popups()
  _sync_viewport_guard()
  _sync_starter_floor_repair()
@@ -814,6 +821,7 @@ func _remove_selected():
  sync()
 func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
+ if music_panel!=null and music_panel.handle_input(event):return true
  if inbox!=null and inbox.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
@@ -823,6 +831,7 @@ func handle_input(event:InputEvent)->bool:
  if not any_open:return false
  if event is InputEventKey and event.pressed and _help_tab(event):return true
  if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
+  if music_panel!=null and music_panel.panel.visible:music_panel.dismiss()
   game.settings_controls.dismiss();pending_wall={};_hide_popups();sync();return true
  var pointer_press=(event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed)
  if pointer_press:
