@@ -22,9 +22,10 @@ const TREES=[Vector3(-13.1,1.5,.86),Vector3(-.0,18.8,.95),Vector3(7.7,14.0,1.0),
 const TREE_VARIANTS=["oak","airy","oak","columnar","airy","sapling"]
 const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
-const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)
-const STOP_CURB=-10.55
-const STOP_APPROACH=Vector2(1.9,15.3)
+const SHELTER_OFFSET=Vector2(-.5,0) # Keep original artwork; open the curb-side aisle.
+const STOP_PAD=Rect2(-14.70,3.4,3.10,9.8)
+const STOP_CURB=-11.60
+const STOP_APPROACH=Vector2(-2.1,19.2)
 const STOP_CURVE_STEPS=8
 const KERB_WIDTH=.10
 const KERB_DROP=3.5
@@ -36,12 +37,13 @@ static var stop_grid=build_stop_grid()
 static var stop_edges=build_stop_edges()
 static var stop_kerb=build_stop_kerb()
 const SHELTER_BOARDING=Rect2(-11.55,4.9,1.0,6.4)
-const BUS_POSITION=Vector2(-9.55,8.1)
-const BUS_DOOR=Vector2(-10.345,10.1)
+const BUS_POSITION=Vector2(-10.20,8.1)
+const BUS_DIRECTION=-1
+const BUS_DOOR=BUS_POSITION+Vector2(-.795,2.0)
 const WAITING_POINTS=[Vector2(-12,6.95),Vector2(-12,8.3),Vector2(-12,9.5)]
-const STOP_BENCH=Rect2(-13.05,6.3,.55,3.2)
-const STOP_POSTS=[Vector2(-13.3,5.75),Vector2(-13.3,10.15),Vector2(-11.8,5.75),Vector2(-11.8,10.15)]
-const POCKETS=[Vector2(-13.75,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
+const STOP_BENCH=Rect2(Vector2(-13.05,6.3)+SHELTER_OFFSET,Vector2(.55,3.2))
+const STOP_POSTS=[Vector2(-13.3,5.75)+SHELTER_OFFSET,Vector2(-13.3,10.15)+SHELTER_OFFSET,Vector2(-11.8,5.75)+SHELTER_OFFSET,Vector2(-11.8,10.15)+SHELTER_OFFSET]
+const POCKETS=[Vector2(-15.2,4),Vector2(-12,-5),Vector2(.7,17),Vector2(8.9,14.2),Vector2(16,-5.2),Vector2(21.4,15.3),Vector2(15.8,19.7)]
 
 static func inspection_bounds(tile:Vector2)->Rect2:
 	return CameraLandmarks.inspection_bounds(tile)
@@ -250,14 +252,16 @@ static func draw_crossing(a,parking_owned:bool=false):
 	# A clear continuous pedestrian strip passes over the flush driveway.
 	for z in [-5.49,-5.13,-4.77,-4.41,-4.05]:quad(a,-2.55,z,-1.0,z+.12,"d3d9c1")
 
-static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable()):
+static func draw_props(a,under_roof:Callable=Callable(),front_people:Callable=Callable(),show_vehicles:bool=true,vehicle_draw:Callable=Callable()):
 	# All low ground plants precede elevated structures. Never paint a ground
 	# pocket over the roof just because its projected anchor overlaps the canopy.
 	for i in range(POCKETS.size()):draw_pocket(a,POCKETS[i],i%3)
 	for i in range(BUFFER_PLANTING.size()):draw_pocket(a,BUFFER_PLANTING[i],i)
-	draw_shelter(a,under_roof)
+	draw_shelter(ShelterProjection.new(a),under_roof)
 	if front_people.is_valid():front_people.call()
-	draw_bus(a,BUS_POSITION)
+	if show_vehicles:
+		if vehicle_draw.is_valid():vehicle_draw.call()
+		else:draw_bus(a,BUS_POSITION,BUS_DIRECTION)
 
 static func draw_shelter(a,under_roof:Callable=Callable()):
 	if not screen_visible(a,world_bounds(a,Rect2(-14,5,4,7),88)):
@@ -273,7 +277,7 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 		_draw_shelter_front(a)
 
 static func _draw_shelter_back(a):
-	if ShelterArt.draw(a,false):return
+	if ShelterArt.draw(a.source if a is ShelterProjection else a,false,SHELTER_OFFSET if a is ShelterProjection else Vector2.ZERO):return
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -292,7 +296,7 @@ static func _draw_shelter_back(a):
 	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
 
 static func _draw_shelter_front(a):
-	if ShelterArt.draw(a,true):return
+	if ShelterArt.draw(a.source if a is ShelterProjection else a,true,SHELTER_OFFSET if a is ShelterProjection else Vector2.ZERO):return
 	var scale=a.ui_scale*a.zoom
 	for z in [5.75,10.15]:
 		a.ellipse(a.iso(-11.8,z),Vector2(4,2)*scale,"a8b59b")
@@ -326,10 +330,13 @@ class CarProjection extends RefCounted:
 	var zoom:float
 	func _init(artist,at:Vector2,heading:Vector2):
 		source=artist;position=at;ui_scale=artist.ui_scale;zoom=artist.zoom
-		if absf(heading.x)>absf(heading.y):
-			transverse=Vector2.DOWN;longitudinal=Vector2.RIGHT
-			direction=-1 if heading.x<0 else 1
-		else:direction=-1 if heading.y<0 else 1
+		# Rotate world anchors and axles together; vertical artwork heights stay up.
+		longitudinal=heading.normalized();transverse=Vector2(longitudinal.y,-longitudinal.x)
+		direction=1
+
+	func depth(point:Vector2)->float:
+		var world=transverse*point.x+longitudinal*point.y
+		return world.x+world.y
 	func iso(x:float,z:float,h:float=0.0)->Vector2:
 		var point=position+transverse*x+longitudinal*z
 		return source.iso(point.x,point.y,h)
@@ -364,11 +371,15 @@ static func draw_car(a,p:Vector2,direction:int,color):
 	if a.has_method("retain_native_car") and a.retain_native_car(p,Vector2(0,direction),color,false):return
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(.75,1.25),Vector2(1.5,2.5)),42)):return
 	var half=.60;var length=1.1
+	var near_half=half
+	if a is CarProjection and a.transverse.x+a.transverse.y<0:near_half=-half
 	quad(a,p.x-half,p.y-length,p.x+half,p.y+length,Color(.35,.42,.33,.14))
 	for z in [-length*.67,length*.67]:
-		a.ellipse(a.iso(p.x-half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
+		a.ellipse(a.iso(p.x-near_half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
 	var corners=[Vector2(p.x-half,p.y-length),Vector2(p.x+half,p.y-length),Vector2(p.x+half,p.y+length),Vector2(p.x-half,p.y+length)]
-	for side in [[0,1],[1,2],[2,3],[3,0]]:
+	var sides=[[0,1],[1,2],[2,3],[3,0]]
+	if a is CarProjection:sides.sort_custom(func(u,v):return a.depth(corners[u[0]]+corners[u[1]])<a.depth(corners[v[0]]+corners[v[1]]))
+	for side in sides:
 		var u=corners[side[0]];var v=corners[side[1]]
 		a.poly([a.iso(u.x,u.y,5),a.iso(v.x,v.y,5),a.iso(v.x,v.y,22),a.iso(u.x,u.y,22)],color)
 	a.rounded_poly([a.iso(p.x-half,p.y-length,22),a.iso(p.x+half,p.y-length,22),a.iso(p.x+half,p.y+length,22),a.iso(p.x-half,p.y+length,22)],5*a.ui_scale*a.zoom,color)
@@ -379,35 +390,59 @@ static func draw_car(a,p:Vector2,direction:int,color):
 	a.poly([a.iso(p.x-half*.85,p.y+cabin,22),a.iso(p.x+half*.85,p.y+cabin,22),a.iso(p.x+half*.72,p.y+cabin*.65,34),a.iso(p.x-half*.72,p.y+cabin*.65,34)],"a6b8b6")
 	a.rounded_poly([a.iso(p.x-half*.72,p.y-cabin*.65,34),a.iso(p.x+half*.72,p.y-cabin*.65,34),a.iso(p.x+half*.72,p.y+cabin*.65,34),a.iso(p.x-half*.72,p.y+cabin*.65,34)],3*a.ui_scale*a.zoom,color)
 	for z in [-length*.67,length*.67]:
-		a.ellipse(a.iso(p.x+half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
+		a.ellipse(a.iso(p.x+near_half,p.y+z,5),Vector2(4.6,5.8)*a.ui_scale*a.zoom,"657569")
 	var front=p.y+length*direction
+	if a is CarProjection and a.longitudinal.x+a.longitudinal.y<0:return
 	for x in [-half*.6,half*.6]:a.ellipse(a.iso(p.x+x,front,14),Vector2(2.5,2)*a.ui_scale*a.zoom,"eee4c8")
+class BusProjection extends CarProjection:
+	func _init(artist,at:Vector2,heading:Vector2):
+		source=artist;position=at;ui_scale=artist.ui_scale;zoom=artist.zoom
+		longitudinal=-heading.normalized()
+		transverse=Vector2(longitudinal.y,-longitudinal.x)
+	func line(a:Vector2,b:Vector2,color,width=1.0):source.line(a,b,color,width)
+	func get_viewport_rect():return source.get_viewport_rect()
+class ShelterProjection extends BusProjection:
+	func _init(artist):
+		source=artist;position=SHELTER_OFFSET;ui_scale=artist.ui_scale;zoom=artist.zoom
+		longitudinal=Vector2.DOWN;transverse=Vector2.RIGHT
+	func art_draw_rect(rect:Rect2,color:Color,filled:bool=true,width:float=-1.0,antialiased:bool=false):
+		preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_rect(source,rect,color,filled,width,antialiased)
+	func retain_native_world_object(callback:Callable,at:Vector2,key:Array)->bool:
+		# The existing owner retains/reclaims both painter slots. Offset geometry
+		# is built only when the appearance changes; people stay in world space.
+		return source.has_method("retain_native_world_object") and source.retain_native_world_object(callback,at,[key,SHELTER_OFFSET])
+static func draw_oriented_bus(a,p:Vector2,heading:Vector2,people_draw:Callable=Callable()):
+	# Passengers retain their own callbacks/order; never part of the bus-body key.
+	if people_draw.is_valid():people_draw.call()
+	var projection=BusProjection.new(a,p,heading)
+	if not screen_visible(a,world_bounds(projection,Rect2(-1,-2.85,2,5.7),60)):return
+	if a.has_method("retain_native_world_object") and a.retain_native_world_object(draw_oriented_bus.bind(a,Vector2.ZERO,heading),p,["bus",heading,BUS_DIRECTION]):return
+	draw_bus(projection,Vector2.ZERO,BUS_DIRECTION)
 static func bus_point(a,p:Vector2,x:float,z:float,h:float)->Vector2:
 	return a.iso(p.x+x,p.y+z,h)
 
 static func bus_face(a,p:Vector2,x:float,z0:float,z1:float,h0:float,h1:float,color,radius:float=2.0):
 	a.rounded_poly([bus_point(a,p,x,z0,h0),bus_point(a,p,x,z1,h0),bus_point(a,p,x,z1,h1),bus_point(a,p,x,z0,h1)],radius*a.ui_scale*a.zoom,color)
 
-static func draw_bus(a,p:Vector2):
-	# Test the world-space bounds before entering the local retained painter.
-	# That painter deliberately disables culling while recording a full object.
+static func draw_bus(a,p:Vector2,direction:int=1):
+	# Cull before the retained callback; translation stays outside its shape key.
 	if not screen_visible(a,world_bounds(a,Rect2(p-Vector2(1,2.85),Vector2(2,5.7)),60)):return
-	if a.has_method("retain_native_world_object") and a.retain_native_world_object(draw_bus.bind(a,Vector2.ZERO),p,["bus"]):return
+	if a.has_method("retain_native_world_object") and a.retain_native_world_object(draw_bus.bind(a,Vector2.ZERO,direction),p,["bus",direction]):return
 	# A dedicated original 2D illustration, not an elongated passenger car.
 	var scale=a.ui_scale*a.zoom;var half=.77;var length=2.60
 	quad(a,p.x-.85,p.y-2.7,p.x+.85,p.y+2.7,Color(.35,.42,.33,.16))
 	for z in [-1.72,1.66]:
 		a.ellipse(bus_point(a,p,-half,z,8),Vector2(6.8,9.0)*scale,"627064")
-	# The curb-side door is drawn behind the visible body, never on the
-	# through-road side. Boarding people pass behind the bus at this same edge.
+	# Keep the existing curb-side rear boarding door and its live pedestrian
+	# anchor; only the visible end's front/rear markings depend on direction.
 	bus_face(a,p,-half,-length,length,7,53,"d7d2b4",4)
 	bus_face(a,p,-half-.025,1.65,2.37,14,47,"6f857b",2)
 	for z in [1.72,2.05]:bus_face(a,p,-half-.03,z,z+.25,18,45,"bbc8b8",1)
 	# Cream body, sage lower skirt, rounded front and shallow cream roof.
 	bus_face(a,p,half,-length,length,7,53,"e1d9bb",4)
 	bus_face(a,p,half,-length,length,8,26,"8ca17d",3)
-	var front=[bus_point(a,p,-half,length,8),bus_point(a,p,half,length,8),bus_point(a,p,half,length,51),bus_point(a,p,-half,length,51)]
-	a.rounded_poly(front,5*scale,"e9dfbd")
+	var visible_end=[bus_point(a,p,-half,length,8),bus_point(a,p,half,length,8),bus_point(a,p,half,length,51),bus_point(a,p,-half,length,51)]
+	a.rounded_poly(visible_end,5*scale,"e9dfbd")
 	a.rounded_poly([bus_point(a,p,-half,length,8),bus_point(a,p,half,length,8),bus_point(a,p,half,length,26),bus_point(a,p,-half,length,26)],3*scale,"90a47d")
 	a.rounded_poly([bus_point(a,p,-half,-length,53),bus_point(a,p,half,-length,53),bus_point(a,p,half,length,53),bus_point(a,p,-half,length,53)],6*scale,"eee4c8")
 	# Four distinct passenger windows, with quiet reflection and cream mullions.
@@ -415,16 +450,22 @@ static func draw_bus(a,p:Vector2):
 		bus_face(a,p,half+.012,z,z+.77,30,47,"748d88",2)
 		bus_face(a,p,half+.018,z+.07,z+.70,33,45,"b1c0b5",1.5)
 		a.line(bus_point(a,p,half+.025,z+.13,43),bus_point(a,p,half+.025,z+.55,43),"cdd6c1",.8*scale)
-	# Wide upright windscreen, destination board and small paired front lights.
-	a.rounded_poly([bus_point(a,p,-.61,length+.01,29),bus_point(a,p,.61,length+.01,29),bus_point(a,p,.61,length+.01,45),bus_point(a,p,-.61,length+.01,45)],3*scale,"748d88")
-	a.rounded_poly([bus_point(a,p,-.55,length+.02,31),bus_point(a,p,.55,length+.02,31),bus_point(a,p,.55,length+.02,43),bus_point(a,p,-.55,length+.02,43)],2*scale,"afc0b4")
-	a.line(bus_point(a,p,0,length+.03,30),bus_point(a,p,0,length+.03,44),"879a8b",1*scale)
-	a.line(bus_point(a,p,-.37,length+.04,30),bus_point(a,p,-.1,length+.04,33),"657b72",.8*scale)
-	a.line(bus_point(a,p,.18,length+.04,30),bus_point(a,p,.44,length+.04,33),"657b72",.8*scale)
-	a.line(bus_point(a,p,-.48,length+.03,48),bus_point(a,p,.48,length+.03,48),"74866d",3*scale)
-	for x in [-.54,.54]:
-		a.ellipse(bus_point(a,p,x,length+.035,21),Vector2(3,2.7)*scale,"f0e7c8")
-		a.ellipse(bus_point(a,p,x,length+.04,17),Vector2(1.5,1.4)*scale,"c3a26f")
+	# The fixed isometric view sees the positive-z end. In the negative-z
+	# curb-side lane that end is the rear, not a windscreen facing oncoming cars.
+	if direction>=0:
+		a.rounded_poly([bus_point(a,p,-.61,length+.01,29),bus_point(a,p,.61,length+.01,29),bus_point(a,p,.61,length+.01,45),bus_point(a,p,-.61,length+.01,45)],3*scale,"748d88")
+		a.rounded_poly([bus_point(a,p,-.55,length+.02,31),bus_point(a,p,.55,length+.02,31),bus_point(a,p,.55,length+.02,43),bus_point(a,p,-.55,length+.02,43)],2*scale,"afc0b4")
+		a.line(bus_point(a,p,0,length+.03,30),bus_point(a,p,0,length+.03,44),"879a8b",1*scale)
+		a.line(bus_point(a,p,-.37,length+.04,30),bus_point(a,p,-.1,length+.04,33),"657b72",.8*scale)
+		a.line(bus_point(a,p,.18,length+.04,30),bus_point(a,p,.44,length+.04,33),"657b72",.8*scale)
+		a.line(bus_point(a,p,-.48,length+.03,48),bus_point(a,p,.48,length+.03,48),"74866d",3*scale)
+		for x in [-.54,.54]:
+			a.ellipse(bus_point(a,p,x,length+.035,21),Vector2(3,2.7)*scale,"f0e7c8")
+			a.ellipse(bus_point(a,p,x,length+.04,17),Vector2(1.5,1.4)*scale,"c3a26f")
+	else:
+		a.rounded_poly([bus_point(a,p,-.53,length+.01,33),bus_point(a,p,.53,length+.01,33),bus_point(a,p,.53,length+.01,45),bus_point(a,p,-.53,length+.01,45)],3*scale,"748d88")
+		a.rounded_poly([bus_point(a,p,-.47,length+.02,35),bus_point(a,p,.47,length+.02,35),bus_point(a,p,.47,length+.02,43),bus_point(a,p,-.47,length+.02,43)],2*scale,"afc0b4")
+		for x in [-.54,.54]:a.ellipse(bus_point(a,p,x,length+.035,21),Vector2(3,2.7)*scale,"b8816f")
 	a.line(bus_point(a,p,-.61,length+.04,11),bus_point(a,p,.61,length+.04,11),"aeb99a",2*scale)
 	# Grounded wheels and muted hubs overlap the body, never the roof.
 	for z in [-1.72,1.66]:

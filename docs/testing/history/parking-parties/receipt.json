@@ -1,0 +1,148 @@
+{
+  "base": "a5dd2b2b3a0cfee9c79fcd75eb870a9892afbf27",
+  "candidate_status": "Draft; independent visual acceptance pending",
+  "engine": "Godot 4.6.3 GL Compatibility",
+  "capture_clock": [
+    0,
+    200
+  ],
+  "continuous_real_time_playback": false,
+  "new_video_created": false,
+  "synthetic_profile": true,
+  "source_hashes": {
+    "scripts/cafe_parking.gd": "c0194d9b660cf0aa8227ae942e2b8f2985227fa2f0cc2efa89c8056b2e02a65b",
+    "scripts/cafe_model.gd": "eabe3e9dcd9142770ec690de5d2a1eca8b462f5e04e47bb26ee18fec320f45fa",
+    "scripts/illustrated_cafe.gd": "ea3ba345cdaf3688c5f0c72f7811e312eb32603398431e9d54159b63463957f9",
+    "scripts/exterior_environment.gd": "aeb518100309650191d1f69a76e6064f9eb5a6a8dd6e4b5d722cc3bf0fb99822",
+    "scripts/cafe_road_traffic.gd": "21aaf5287d2ee4829d300440bd836f53ed72f277263d5557c393098b0618615d",
+    "scripts/main.gd": "2a45efa63c7275464ac03800130c02526470d3e8b38099751c7abc7c66738d8f",
+    "tests/capture_parking_parties.gd": "92c25d2ede289332b7b57563bf57ffefadbad95bcf193bf03c8af5257ce0a06b"
+  },
+  "baseline_source_hashes": {
+    "scripts/cafe_parking.gd": "286f3cc467e7f35e2140f0fa076e5e6d7f47e4c18d3700b9680676cbc76231f0",
+    "scripts/cafe_model.gd": "7f7c076e2bdca65db28b79b652c63424398e86239cf306ee1c4bb75fa6164fc3",
+    "scripts/illustrated_cafe.gd": "039daa717a94b75ff5a6d0791f6f9e9275e4bf18b7256c892db8e618aa941384",
+    "scripts/exterior_environment.gd": "3d9486681d10ab20933ed337de750c16a172e7d69b8495871f8c8f3eb6a9b63a",
+    "scripts/cafe_road_traffic.gd": "98b0c4bf9db39a8733b42b6051f8f54ff4fd56784f24502d221950dace497d6a",
+    "scripts/main.gd": "2a45efa63c7275464ac03800130c02526470d3e8b38099751c7abc7c66738d8f",
+    "tests/capture_parking_parties.gd": "9b5f76a962fa6daab6cd4f0944dc9bb356658d991852eca1715fe31122f23b0a"
+  },
+  "baseline_fixture_difference": "Original single-member/5.5 speed reference; different funded/tutorial setup; no pixel-delta parity claim.",
+  "functional_checks": {
+    "status": "passed",
+    "total_checks": 2187,
+    "test_processes": 5,
+    "records": [
+      {
+        "test": "import",
+        "exit_code": 0,
+        "seconds": 14.12,
+        "checks": 0,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "import.log"
+      },
+      {
+        "test": "test_parking",
+        "exit_code": 0,
+        "seconds": 1.09,
+        "checks": 58,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking.log"
+      },
+      {
+        "test": "test_parking_parties",
+        "exit_code": 0,
+        "seconds": 1.11,
+        "checks": 77,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking_parties.log"
+      },
+      {
+        "test": "test_parking_traffic",
+        "exit_code": 0,
+        "seconds": 0.91,
+        "checks": 14,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking_traffic.log"
+      },
+      {
+        "test": "test_parking_service",
+        "exit_code": 0,
+        "seconds": 41.72,
+        "checks": 2014,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking_service.log"
+      },
+      {
+        "test": "test_parking_validation",
+        "exit_code": 0,
+        "seconds": 0.66,
+        "checks": 24,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking_validation.log"
+      }
+    ]
+  },
+  "render_checks": {
+    "status": "passed",
+    "total_checks": 485,
+    "test_processes": 1,
+    "records": [
+      {
+        "test": "import",
+        "exit_code": 0,
+        "seconds": 7.76,
+        "checks": 0,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "import.log"
+      },
+      {
+        "test": "test_parking_render",
+        "exit_code": 0,
+        "seconds": 1.15,
+        "checks": 485,
+        "failures": [],
+        "diagnostics": [
+          "ERROR: Failed to read the root certificate store."
+        ],
+        "log": "test_parking_render.log"
+      }
+    ]
+  },
+  "render_source_relevance": "Renderer files match current source; subsequent parking changes cover strict restore validation and reverse path, captured by final native fixture.",
+  "screenshots": {
+    "approach-27.5.png": "22fe70a0fa155e9053c534d6604182fdf047cf1c5c01c81fdef742c8347e6325",
+    "disembark-32.png": "7b743522a05efe4ee4a96c9c50692b923f022ca5290f2b830d65f1c87c884357",
+    "merge-159.png": "bd640a483bbbe06be522da172047b87b0bee57f07a132f7d35e119769b7e7431",
+    "original-single-driver-reference.png": "9e56e2927a8eb29c1ab013de4e3d231e4693253e3dbc9dbeea82ebd303cd447e",
+    "partial-return-150.png": "354c842402336bedcfd6d302f1df5560bdc41c96e3ab335fab0c3960e28ffe47",
+    "restaurant-queue-40.png": "d07d3e86625b98e3eb5c8dc070030acb51c9fdecc924b1f4796ab889937e3f30",
+    "reverse-156.png": "b8c427f64e37ea0b57e7a52c49880105a6bbcf4a92cef26fb1775c3235d4261b"
+  },
+  "limitations": [
+    "Fixed map For Sale purchase sign pending editor boundary; existing Decorate purchase UI retained.",
+    "No full suite/FPS128/ordinary-speed playback qualification.",
+    "Windows engine root-certificate warning; native fixture sometimes reports ObjectDB leak at exit."
+  ]
+}
