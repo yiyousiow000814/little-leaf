@@ -5,7 +5,12 @@ const SOURCE_WORKTOP_HEIGHT := 29.0
 const WORKTOP_HEIGHT := 20.0
 const DROP := SOURCE_WORKTOP_HEIGHT-WORKTOP_HEIGHT
 # Presentation-only single-basin sink. A 28px plate fits inside this rim.
-const SINK_BASIN_CENTER := Vector2(0.0,.025)
+# Retained full-cell candidate: translate basin, tap and active dish together
+# toward the outward washing stance without changing their relative contacts.
+const SINK_WORK_SHIFT := (.55-.43)*39.0/34.0
+const SINK_BASIN_CENTER := Vector2(0.0,.025+SINK_WORK_SHIFT)
+const SINK_TAP_BACK := -.35+SINK_WORK_SHIFT
+const SINK_TAP_OUTLET_Z := .10+SINK_WORK_SHIFT
 const SINK_BASIN_OUTER := Vector2(.36,.32)
 const SINK_BASIN_INNER := Vector2(.325,.295)
 const SINK_RIM_HEIGHT := 30.0
@@ -27,7 +32,7 @@ static func sink_outline(radius:Vector2,source_height:float,rotation:int)->Packe
  return result
 
 static func sink_tap_in_front(rotation:int)->bool:
- return Vector2(0,-.35).rotated(posmod(rotation,4)*PI/2).dot(Vector2.ONE)>0.0
+ return Vector2(0,SINK_TAP_BACK).rotated(posmod(rotation,4)*PI/2).dot(Vector2.ONE)>0.0
 
 static func height(source_height:float)->float:
  if source_height<=1.0:return source_height

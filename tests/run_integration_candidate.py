@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 SUITES = [
     ("test_unified_building", "UNIFIED_BUILDING_RESULT"),
+    ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
     ("test_manual_ground_cleanup", "MANUAL_GROUND_CLEANUP_RESULT"),
     ("test_character_pick_geometry", "CHARACTER_PICK_GEOMETRY_RESULT"),
     ("test_feedback_sfx", "FEEDBACK_SFX_RESULT"),

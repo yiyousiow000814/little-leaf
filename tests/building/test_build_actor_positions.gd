@@ -35,7 +35,8 @@ func run():
    check(tool.mode==kind,"real card click selects "+kind+" at "+str(view))
    check(model.coins==wallet and game.saves==saves,"selection never charges or saves")
  # Force the existing, unmodified renderer to produce authentic service poses.
- # Washing and rear table wiping cross .5 tile; cashier contact is also visual.
+ # Washing stays outside the full-cell sink; rear table wiping crosses .5 tile.
+ # Both stances and cashier contact are presentation only.
  var initial_staff=[]
  for worker in game.staff_states:initial_staff.append(worker.pos)
  for spec in [["washing","sink",Vector2i.DOWN],["wiping","table",Vector2i.RIGHT],["taking_payment","register",Vector2i.UP]]:
@@ -52,7 +53,12 @@ func run():
   var rendered=art._render_position("staff_0",raw);var actors=tool.actor_positions()
   check(actors[0]==raw,"build uses authoritative "+str(spec[0])+" position")
   check(not rendered.is_equal_approx(raw),"fixture exercises real "+str(spec[0])+" stance")
-  if spec[0] in ["washing","wiping"]:check(Vector2i(rendered.floor())==Vector2i(station.x,station.z),"visual lean reaches occupied furniture cell")
+  if spec[0]=="washing":
+   var inset=art.SinkWashArt.work_inset(int(station.rot))
+   var expected=raw+(worker.art_target-raw).normalized()*inset
+   check(rendered.is_equal_approx(expected),"washing uses declared full-cell work inset")
+   check(Vector2i(rendered.floor())==cell,"washing stays outside occupied sink cell")
+  elif spec[0]=="wiping":check(Vector2i(rendered.floor())==Vector2i(station.x,station.z),"visual lean reaches occupied furniture cell")
   for kind in ["door","window"]:
    var before=model.coins
    check(model.can_place_wall_attachment(kind,"wall:3",.5,actors),str(spec[0])+" allows unrelated "+kind+": "+model.last_error)
