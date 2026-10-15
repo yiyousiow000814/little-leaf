@@ -83,10 +83,11 @@ func _update_status():
 func _after_draw():
 	if completed or finishing:return
 	draws += 1
-	# Complete one real Default and Premium draw while the cover owns input.
+	# Include the fading corner material, culled at both settled endpoints.
 	if music_preparation and is_instance_valid(music_panel):
-		if draws == 1:music_panel.prepare_render(true)
-		elif draws == 2:music_panel.finish_render_preparation()
+		if draws == 1:music_panel.prepare_render(true,0.12)
+		elif draws == 2:music_panel.prepare_render(true)
+		elif draws == 3:music_panel.finish_render_preparation()
 	# Status was sampled before this draw. Frames while any atlas was still
 	# warming do not count toward drawing the final uploaded texture set.
 	if terminal_count == atlases.size():terminal_draws += 1
@@ -103,7 +104,7 @@ func _finish():
 	_update_status()
 	if is_instance_valid(music_panel):music_panel.finish_render_preparation()
 	completed = true
-	game.startup_preparation_report = {"duration_ms":Time.get_ticks_msec()-started_ms,"ready":ready_count,"terminal":terminal_count,"fallback":terminal_count-ready_count,"timed_out":timed_out,"draws":draws,"terminal_draws":terminal_draws,"music_preparation_draws":mini(draws,2) if music_preparation else 0}
+	game.startup_preparation_report = {"duration_ms":Time.get_ticks_msec()-started_ms,"ready":ready_count,"terminal":terminal_count,"fallback":terminal_count-ready_count,"timed_out":timed_out,"draws":draws,"terminal_draws":terminal_draws,"music_preparation_draws":mini(draws,3) if music_preparation else 0}
 	var intro = game.cafe_intro
 	intro.preparing = false
 	if intro.finish_after_preparation:intro.finish()

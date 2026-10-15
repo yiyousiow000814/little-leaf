@@ -717,7 +717,7 @@ func _sync_cards(shown:String,effective:String):
   target.grab_focus()
   if scroll.is_ancestor_of(target):scroll.ensure_control_visible(target)
  _queue_layout()
-func prepare_render(premium:bool)->bool:
+func prepare_render(premium:bool,amount:float=1.0)->bool:
  # Draw the existing materials only under the startup gate's opaque cover.
  # This presentation pass never selects a recording or changes playback.
  if not preparing_render:
@@ -725,6 +725,7 @@ func prepare_render(premium:bool)->bool:
   preparing_render=true;panel.show();last_state.clear();sync(true);layout()
  record_mark.set_state(false,premium,true)
  board_material.set_state(premium,true,false)
+ if premium:record_mark.set_reveal(amount);board_material.set_reveal(amount)
  return true
 
 func finish_render_preparation():

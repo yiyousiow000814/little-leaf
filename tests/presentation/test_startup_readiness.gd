@@ -58,6 +58,8 @@ func run():
 	var key = InputEventKey.new();key.keycode = KEY_ENTER;key.pressed = true
 	check(intro.handle_input(key) and intro.active,"loading key is consumed without entry or skip")
 	gate._after_draw()
+	check(is_equal_approx(music_panel.board_material.reveal,0.12) and music_panel.board_material._corner_canvas.visible and music_panel.board_material._corner_canvas.modulate.a>0,"Intermediate covered frame includes the fading corner material hidden at settled endpoints")
+	gate._after_draw()
 	check(music_panel.record_mark.reveal==1.0 and music_panel.board_material.reveal==1.0,"Next covered frame draws existing Premium materials before first user selection")
 	gate._after_draw()
 	check(not music_panel.preparing_render and not music_panel.panel.visible and music_panel.poll_timer.is_stopped(),"Completed material preparation restores the hidden, idle Music panel")
@@ -71,7 +73,7 @@ func run():
 	check(not gate.finishing and intro.preparing,"resource admission and upload stay behind the opaque cover")
 	gate._after_draw();await process_frame
 	check(game.startup_preparation_report.terminal_draws == 4,"release records four draws after final atlas became terminal")
-	check(game.startup_preparation_report.music_preparation_draws==2,"Readiness records both covered music material draws")
+	check(game.startup_preparation_report.music_preparation_draws==3,"Readiness records Default, intermediate corner and full Premium draws")
 	check(not intro.preparing and intro.active and intro.elapsed == 0.0 and intro.hud_alpha == 0.0,"ready warm-up restores original welcome start and hidden HUD")
 	check(intro.handle_input(key) and intro.active,"held loading key cannot skip newly visible welcome")
 	key.pressed = false;check(intro.handle_input(key),"loading key release remains owned")
