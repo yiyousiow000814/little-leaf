@@ -2260,7 +2260,18 @@ func _finish_native_objects() -> void:
 func paint_native_object(target: Node2D, callback: Callable) -> void:
 	# Helpers keep the original geometry and raster stroke rules. Only the
 	# draw recipient changes, during this Node2D's native _draw callback.
-	var saved = [origin, _presentation_offset, _art_transform, use_retained_geometry, use_screen_culling, canvas_stream.active, _stroke_to_raster, _stroke_from_raster, _stroke_raster_scale, retained_geometry.use_dynamic_fills, native_command_transform, opacity]
+	var saved_origin = origin
+	var saved_presentation_offset = _presentation_offset
+	var saved_art_transform = _art_transform
+	var saved_use_retained_geometry = use_retained_geometry
+	var saved_use_screen_culling = use_screen_culling
+	var saved_canvas_stream_active = canvas_stream.active
+	var saved_stroke_to_raster = _stroke_to_raster
+	var saved_stroke_from_raster = _stroke_from_raster
+	var saved_stroke_raster_scale = _stroke_raster_scale
+	var saved_dynamic_fills = retained_geometry.use_dynamic_fills
+	var saved_native_command_transform = native_command_transform
+	var saved_opacity = opacity
 	native_draw_target = target
 	opacity = target.paint_opacity
 	origin = Vector2.ZERO
@@ -2279,18 +2290,18 @@ func paint_native_object(target: Node2D, callback: Callable) -> void:
 			if render_contacts[index].get("native_owner", -1) == owner_id:
 				render_contacts.remove_at(index)
 		render_contacts.append(result)
-	origin = saved[0]
-	_presentation_offset = saved[1]
-	_art_transform = saved[2]
-	use_retained_geometry = saved[3]
-	use_screen_culling = saved[4]
-	canvas_stream.active = saved[5]
-	_stroke_to_raster = saved[6]
-	_stroke_from_raster = saved[7]
-	_stroke_raster_scale = saved[8]
-	retained_geometry.use_dynamic_fills = saved[9]
-	native_command_transform = saved[10]
-	opacity = saved[11]
+	origin = saved_origin
+	_presentation_offset = saved_presentation_offset
+	_art_transform = saved_art_transform
+	use_retained_geometry = saved_use_retained_geometry
+	use_screen_culling = saved_use_screen_culling
+	canvas_stream.active = saved_canvas_stream_active
+	_stroke_to_raster = saved_stroke_to_raster
+	_stroke_from_raster = saved_stroke_from_raster
+	_stroke_raster_scale = saved_stroke_raster_scale
+	retained_geometry.use_dynamic_fills = saved_dynamic_fills
+	native_command_transform = saved_native_command_transform
+	opacity = saved_opacity
 	native_draw_target = null
 
 func _paint_furniture_body(part: String, d: Dictionary, rotation: int) -> void:

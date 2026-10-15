@@ -18,9 +18,12 @@ class SyntheticMain extends Main:
   save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _setup_music():pass
  func _save():return true
-class Music extends RefCounted:
+class Music extends Node:
+ # Match the bounded AudioStreamPlayer retirement contract, without real audio.
  var playing=true
  var stops=0
+ var stream=RefCounted.new()
+ func has_stream_playback():return playing
  func get_playback_position():return 12.5
  func stop():playing=false;stops+=1
 class Model extends RefCounted:
@@ -102,12 +105,18 @@ func run():
  check(game.effective_frame_delta(300)==0,"resume delta discarded")
  await process_frame;await process_frame;await process_frame
  check(game.effective_frame_delta(.125)==.125,"ordinary delta retained after resume")
- game.music_state="busy";game.audio_players={"service":Music.new(),"busy":Music.new()}
+ var outgoing=Music.new();var incoming=Music.new()
+ game.add_child(outgoing);game.add_child(incoming)
+ game.music_state="busy";game.audio_players={"service":outgoing,"busy":incoming}
  game._finish_music_crossfade("service")
  check(game.audio_players.busy.stops==0 and game.audio_players.service.stops==0,"stale fade cannot stop new music")
  game._finish_music_crossfade("busy")
- check(game.audio_players.service.stops==1 and game.audio_players.busy.stops==0,"completed fade stops only inaudible outgoing track")
+ check(outgoing.stops==1 and incoming.stops==0,"completed fade stops only inaudible outgoing track")
+ check(not game.audio_players.has("service") and game.audio_players.busy==incoming,"completed fade removes only outgoing player from active ownership")
+ check(outgoing.stream==null and outgoing.is_queued_for_deletion(),"outgoing stream is released and player is queued for deletion")
  check(game.music_positions.service==12.5,"outgoing playback position retained")
+ await process_frame
+ check(not is_instance_valid(outgoing) and is_instance_valid(incoming),"retired outgoing player is actually freed while incoming survives")
  game.audio_players.clear();game.free()
  var fake=Game.new();root.add_child(fake)
  var save=WebSave.new(fake);save.api=Api.new();save.ready=true;save.profile_id="test"

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="440" height="84" viewBox="0 0 440 84">
+ <defs>
+  <linearGradient id="ivory" x1=".2" y1="0" x2=".65" y2="1"><stop stop-color="#fffcef"/><stop offset=".36" stop-color="#f7edd8"/><stop offset=".72" stop-color="#e7d8ba"/><stop offset="1" stop-color="#fff3d9"/></linearGradient>
+  <linearGradient id="fold-lit" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#fffef3"/><stop offset=".34" stop-color="#fff7e5"/><stop offset=".68" stop-color="#eee0c4"/><stop offset="1" stop-color="#c3ac7f"/></linearGradient>
+  <linearGradient id="fold-shadow" x1="0" y1="0" x2=".15" y2="1"><stop stop-color="#a98a56"/><stop offset=".22" stop-color="#c4aa7e"/><stop offset=".7" stop-color="#e4d1aa"/><stop offset="1" stop-color="#f8e9c9"/></linearGradient>
+  <linearGradient id="right-face" x1=".2" y1="0" x2=".6" y2="1"><stop stop-color="#fffcef"/><stop offset=".5" stop-color="#efe2c6"/><stop offset=".84" stop-color="#d6bf94"/><stop offset="1" stop-color="#fbefd5"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a87b35"/><stop offset=".25" stop-color="#eed099"/><stop offset=".48" stop-color="#fff1be"/><stop offset=".7" stop-color="#b37d31"/><stop offset="1" stop-color="#e0b65f"/></linearGradient>
+  <linearGradient id="rim-underface" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#bf9955"/><stop offset=".48" stop-color="#ead4a5"/><stop offset="1" stop-color="#b48844"/></linearGradient>
+  <radialGradient id="ground"><stop stop-color="#84633b" stop-opacity=".26"/><stop offset=".65" stop-color="#ad936b" stop-opacity=".13"/><stop offset="1" stop-color="#b89b68" stop-opacity="0"/></radialGradient>
+  <radialGradient id="contact"><stop stop-color="#6f4b2b" stop-opacity=".5"/><stop offset=".5" stop-color="#947548" stop-opacity=".27"/><stop offset=".8" stop-color="#a88c60" stop-opacity=".1"/><stop offset="1" stop-color="#b2986b" stop-opacity="0"/></radialGradient>
+  <radialGradient id="foot-contact"><stop stop-color="#70502b" stop-opacity=".48"/><stop offset=".45" stop-color="#967448" stop-opacity=".26"/><stop offset="1" stop-color="#b2986b" stop-opacity="0"/></radialGradient>
+  <radialGradient id="petal"><stop stop-color="#fffdf1"/><stop offset=".58" stop-color="#fff5df"/><stop offset="1" stop-color="#dcc499"/></radialGradient>
+  <radialGradient id="pollen"><stop stop-color="#fff0ac"/><stop offset=".4" stop-color="#edc769"/><stop offset="1" stop-color="#b48539"/></radialGradient>
+  <clipPath id="support-interior"><path d="M10 53C21 38 52 35 79 24C106 12 126 13 151 23C176 34 199 27 224 24C251 19 272 9 302 17C326 22 345 27 374 28C406 29 430 42 432 55C434 69 407 73 382 74C348 78 328 68 302 66C271 65 253 72 224 68C201 64 184 69 161 71C130 78 104 68 80 70C48 73 4 70 10 53Z"/></clipPath>
+ </defs>
+ <g id="single-sculpted-support">
+  <ellipse id="soft-ground-contact" cx="221" cy="67" rx="207" ry="15" fill="url(#ground)"/>
+  <path id="rolled-rim-underface" d="M10 54C16 69 44 68 80 68C110 67 133 75 162 69C184 65 203 62 224 66C253 70 271 62 302 64C333 66 346 76 382 72C409 71 430 65 432 54L431 61C426 75 406 77 382 78C347 81 331 71 302 69C274 68 253 76 224 72C202 68 184 73 161 75C131 82 104 73 80 74C45 77 9 75 9 62Z" fill="url(#rim-underface)" stroke="#b28a49" stroke-width=".8"/>
+  <path id="ivory-support-body" d="M10 53C21 38 52 35 79 24C106 12 126 13 151 23C176 34 199 27 224 24C251 19 272 9 302 17C326 22 345 27 374 28C406 29 430 42 432 55C434 69 407 73 382 74C348 78 328 68 302 66C271 65 253 72 224 68C201 64 184 69 161 71C130 78 104 68 80 70C48 73 4 70 10 53Z" fill="url(#ivory)" stroke="url(#gold)" stroke-width="1.8"/>
+  <g id="separate-folded-faces" clip-path="url(#support-interior)">
+   <path id="left-return-shadow" d="M10 53C38 58 65 45 88 29C104 19 126 17 151 23C122 25 108 36 93 51C73 71 42 72 13 62Z" fill="url(#fold-shadow)"/>
+   <path id="left-raised-face" d="M11 50C34 39 57 36 80 26C104 15 126 16 149 24C120 23 102 31 85 43C61 61 30 65 12 57C22 56 31 54 41 51C30 53 18 52 11 50Z" fill="url(#fold-lit)"/>
+   <path id="left-fold-lip" d="M12 57C34 65 64 57 85 43C102 31 120 23 149 24" fill="none" stroke="#bb9557" stroke-width="1.3"/>
+   <path id="left-fold-lit-edge" d="M14 55C34 62 64 54 84 41C103 29 120 21 145 23" fill="none" stroke="#fffcef" stroke-width="1.3"/>
+   <path id="front-left-pleat" d="M83 67C103 56 120 47 142 39C128 53 128 65 162 69C138 76 112 69 83 67Z" fill="url(#fold-lit)" opacity=".85"/>
+   <path id="front-central-return" d="M161 71C183 65 201 61 224 65C248 70 266 64 285 64C269 70 251 74 225 70C202 66 183 73 161 71Z" fill="url(#fold-shadow)" opacity=".58"/>
+   <path id="right-rear-lobe" d="M272 17C302 13 324 24 350 29C375 33 405 34 421 45C397 41 376 46 358 53C339 48 333 31 307 26C293 23 281 24 272 17Z" fill="url(#fold-lit)"/>
+   <path id="right-underfold" d="M304 24C327 39 324 53 311 61C334 61 351 74 377 70C399 67 419 58 431 57C414 50 391 54 373 58C350 63 333 43 304 24Z" fill="url(#fold-shadow)"/>
+   <path id="right-curled-face" d="M307 24C332 32 347 43 365 50C383 57 408 45 428 54C419 58 411 62 404 65C415 63 424 60 430 58C424 69 403 73 382 74C352 77 331 65 313 61C332 48 322 35 307 24Z" fill="url(#right-face)"/>
+   <path id="right-curl-dark-lip" d="M365 50C383 57 408 45 428 54C417 57 410 62 404 65" fill="none" stroke="#ae8951" stroke-width="1.15"/>
+   <path id="right-curl-ridge" d="M361 48C382 55 407 43 425 51" fill="none" stroke="#fffbee" stroke-width="1.5"/>
+   <g id="subtle-fold-veins" fill="none" stroke-linecap="round">
+    <path d="M21 46C48 42 72 34 94 26M32 51C56 47 77 35 99 27M94 65C110 56 123 48 139 43M332 62C349 61 364 66 382 68M339 65C353 66 368 71 382 70M351 34C368 40 392 38 410 45" stroke="#c8b48c" stroke-width=".6" opacity=".44"/>
+    <path d="M24 45C49 40 73 32 94 25M98 64C114 55 127 48 140 44M337 60C351 59 367 64 382 66" stroke="#fffdf0" stroke-width=".75" opacity=".8"/>
+   </g>
+   <ellipse id="cabinet-contact-shadow" cx="221" cy="47" rx="155" ry="25" fill="url(#contact)"/>
+   <ellipse id="left-foot-contact" cx="91" cy="58" rx="23" ry="6" fill="url(#foot-contact)"/>
+   <ellipse id="right-foot-contact" cx="348" cy="58" rx="24" ry="6" fill="url(#foot-contact)"/>
+  </g>
+  <path id="separated-upper-rim-highlights" d="M17 47C35 39 55 36 80 25C104 15 125 16 144 22M244 20C265 14 283 12 302 18M332 68C351 76 369 76 382 74C404 74 423 68 428 61M90 71C116 72 133 77 158 72" fill="none" stroke="#fff9e7" stroke-width="1.2" stroke-linecap="round"/>
+ </g>
+ <g id="loose-blossom-left" transform="translate(67 58) rotate(-18)">
+  <ellipse id="blossom-contact" cx="2" cy="6" rx="12" ry="4.2" fill="#a0834f" opacity=".2"/>
+  <path id="petal-left-back" d="M0 1C-4 1-12-4-10-10C-9-15-3-11-1-8C2-5 2-1 0 1Z" fill="url(#petal)" stroke="#c9a76d" stroke-width=".55"/>
+  <path id="petal-right-back" d="M1 0C-2-5 1-13 6-14C12-13 9-6 6-3C5-1 3 0 1 0Z" fill="url(#petal)" stroke="#c9a76d" stroke-width=".55"/>
+  <path id="petal-right-front" d="M2 1C4-3 11-5 14-1C17 4 10 7 6 5C3 4 2 3 2 1Z" fill="url(#petal)" stroke="#d8b879" stroke-width=".55"/>
+  <path id="petal-left-front" d="M-1 1C-5-2-13 0-13 5C-11 11-5 8-1 5C1 4 1 2-1 1Z" fill="url(#petal)" stroke="#d8b879" stroke-width=".55"/>
+  <path id="petal-bottom-front" d="M1 2C-3 4-3 12 1 14C6 15 9 9 6 5C4 3 3 2 1 2Z" fill="url(#petal)" stroke="#d8b879" stroke-width=".55"/>
+  <circle r="3.1" fill="url(#pollen)"/><circle cx="-.8" cy="-1.1" r=".9" fill="#fff2b9"/>
+ </g>
+ <g id="loose-petal-right" transform="translate(392 51) rotate(26)">
+  <ellipse id="loose-petal-contact" cx="4" cy="7" rx="11" ry="3.5" fill="#9c7d46" opacity=".18"/>
+  <path id="loose-petal-back" d="M0 5C-14 4-11-8-4-6C-3-16 11-13 8-4C17-8 19 4 9 7C5 9 3 8 0 5Z" fill="url(#petal)" stroke="#c6a367" stroke-width=".7"/>
+  <path id="loose-petal-curl" d="M-9-2C-4 0-2 5 2 7C-4 7-10 4-9-2Z" fill="url(#fold-shadow)"/>
+  <path d="M-9-2C-4 0-2 5 2 7" fill="none" stroke="#fffcec" stroke-width=".8"/>
+  <circle cx="4" cy="1" r="2.5" fill="url(#pollen)"/>
+ </g>
+</svg>

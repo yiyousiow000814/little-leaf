@@ -16,9 +16,11 @@ class Settings extends RefCounted:
 class Owner extends Node:
 	var setups=0
 	var audio_players={}
+	var music_catalog_ready=false
 	var settings_controls=Settings.new()
 	func _setup_music():
 		setups+=1
+		music_catalog_ready=true
 		for state in ["service","busy","decorate"]:
 			var player=AudioStreamPlayer.new();add_child(player)
 			audio_players[state]=player
