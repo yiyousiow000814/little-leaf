@@ -174,7 +174,7 @@ export async function start(config,options={}) {
     forceTakeover(callback){
       const owner=recoverySnapshot();
       if(!owner.serverOwnership || !owner.canForceTakeover)return callback(JSON.stringify(failure('HANDOFF_WAITING')));
-      if(!confirm('The other device has not confirmed its latest save. Continue with the last cloud save? Unsynced progress stays on the other device and may need your choice when it reconnects.'))return callback(JSON.stringify({ok:false,code:'RECOVERY_CANCELLED'}));
+      if(!confirm('The other device has not confirmed its latest save. Continue with the last cloud save? Google re-entry uses the last cloud save. Unsynced progress from the other device will not load.'))return callback(JSON.stringify({ok:false,code:'RECOVERY_CANCELLED'}));
       return invoke('forceTakeover',[],callback);
     }
   });
