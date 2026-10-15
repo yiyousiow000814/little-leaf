@@ -28,7 +28,7 @@ IDENTITY = ['qualification_run_id', 'qualification_attempt', 'artifact_id', 'art
 FULLFLOW_SOURCES = ['firebase/fullflow.test.mjs', 'firebase/fullflow_fixtures.mjs',
     'firebase/fullflow_network.mjs', 'tests/diagnostics/probe_cloud_recovery_geometry.gd',
     'tools/qualification/prepare_browser_qa.py', 'web/little_leaf_firebase.js', 'web/little_leaf_firebase_session.js',
-    'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules']
+    'web/little_leaf_firebase_boot.mjs', 'web/little_leaf_update.js', 'firebase/firestore.rules', 'tests/fixtures/startup-retry-v15.json', 'tests/fixtures/unified_building_candidate.json']
 
 
 def source_identity(root, selection):

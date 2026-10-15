@@ -147,7 +147,7 @@ def validate_fresh_ci(build, engine_report, focused_logs, source, tree, run_id, 
                     or report.get('itch_ancestor_origins') != ['https://html-classic.itch.zone', 'https://siowyiyou.itch.io']
                     or not re.fullmatch(r'[0-9a-f]{64}', report.get('itch_entry_sha256', ''))):
                 raise ValueError('Compiled exact stable iframe flow is required')
-            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules']
+            required=['firebase/fullflow.test.mjs','firebase/fullflow_fixtures.mjs','firebase/fullflow_network.mjs','tests/diagnostics/probe_cloud_recovery_geometry.gd','tools/qualification/prepare_browser_qa.py','web/little_leaf_firebase.js','web/little_leaf_firebase_session.js','web/little_leaf_firebase_boot.mjs','web/little_leaf_update.js','firebase/firestore.rules', 'tests/fixtures/startup-retry-v15.json', 'tests/fixtures/unified_building_candidate.json']
             if report.get('source_sha256')!={name:sha256(source_path(ROOT,name)) for name in required}:
                 raise ValueError('Compiled Firebase source modules changed')
         if name in {'tutorial','compatibility'} and report.get('browser_verified') is not True:

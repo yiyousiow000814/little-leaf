@@ -115,9 +115,9 @@ export async function start(config,options={}) {
   if(exited || auth.currentUser?.uid!==uid)throw closedStartup();
   runtime.assertHeld();
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
-  const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
+  const journal=await window.LittleLeafFirebase.openJournal(indexedDB,{cloudOnly:true});
   runtime.assertHeld();
-  client=window.LittleLeafFirebase.createClient({uid,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
+  client=window.LittleLeafFirebase.createClient({uid,cloudStartup:true,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
   if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
   window.LittleLeafUpdate=window.LittleLeafUpdates.create({currentRelease:window.__littleLeafRelease,checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
   window.__littleLeafVault.close();window.__littleLeafVault=client;
@@ -174,7 +174,7 @@ export async function start(config,options={}) {
     forceTakeover(callback){
       const owner=recoverySnapshot();
       if(!owner.serverOwnership || !owner.canForceTakeover)return callback(JSON.stringify(failure('HANDOFF_WAITING')));
-      if(!confirm('The other device has not confirmed its latest save. Continue with the last cloud save? Unsynced progress stays on the other device and may need your choice when it reconnects.'))return callback(JSON.stringify({ok:false,code:'RECOVERY_CANCELLED'}));
+      if(!confirm('The other device has not confirmed its latest save. Continue with the last cloud save? Google re-entry uses the last cloud save. Unsynced progress from the other device will not load.'))return callback(JSON.stringify({ok:false,code:'RECOVERY_CANCELLED'}));
       return invoke('forceTakeover',[],callback);
     }
   });
