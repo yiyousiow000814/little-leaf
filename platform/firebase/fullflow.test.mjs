@@ -94,7 +94,45 @@ const httpsEmulator=itchVariant?`
  const after=db._getSettings();
  if(db._authCredentials!==credentials||db._getEmulatorOptions()!==emulatorOptions||after.host!=='firestore.fullflow.test:443'||after.ssl!==true||Object.keys(before).some(key=>!['host','ssl'].includes(key)&&JSON.stringify(before[key])!==JSON.stringify(after[key])))throw Error('Only emulator transport may change');
 ` : '';
-const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';export function getFirestore(app){const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});${httpsEmulator}globalThis.__qaFirestore={db,sdk:real};return db;}`;
+const firestore=`import * as real from '/sdk/firebase-firestore.js';export * from '/sdk/firebase-firestore.js';
+// Observe the original SDK promises without replacing transaction callbacks.
+function sdkClock(receiver,method,args){
+ const rows=globalThis.__qaSdkOperations ||= [];
+ const row={method,started:Date.now()};
+ if(rows.length===64){rows.shift();globalThis.__qaSdkOperationsOmitted=(globalThis.__qaSdkOperationsOmitted||0)+1;}
+ rows.push(row);
+ try{
+  const promise=real[method].apply(receiver,args);
+  promise.then(()=>{row.fulfilled=Date.now();},error=>{row.rejected=Date.now();row.code=['unavailable','deadline-exceeded','permission-denied','aborted','cancelled','failed-precondition'].includes(error?.code)?error.code:'other';});
+  return promise;
+ }catch(error){row.threw=Date.now();throw error;}
+}
+export function runTransaction(...args){return sdkClock(this,'runTransaction',args);}
+export function getDocFromServer(...args){return sdkClock(this,'getDocFromServer',args);}
+function installHandoffObservers(){
+ const api=globalThis.LittleLeafFirebase;if(!api)return;
+ globalThis.LittleLeafFirebase=Object.freeze({...api,createClient(options){
+  for(const [object,names,prefix] of [[options.remote,['compareAndSet','read'],'remote'],[options.journal,['replace'],'journal'],[options.ownership,['renew','acknowledge','confirmHandoff'],'owner']]){
+   if(!object)continue;
+   for(const name of names){
+    const original=object[name];
+    object[name]=function(...args){
+     const rows=globalThis.__qaHandoffOperations ||= [];
+     const row={method:prefix+'.'+name,started:Date.now()};
+     if(rows.length===64){rows.shift();globalThis.__qaHandoffOperationsOmitted=(globalThis.__qaHandoffOperationsOmitted||0)+1;}
+     rows.push(row);
+     try{
+      const promise=original.apply(this,args);
+      promise.then(()=>{row.fulfilled=Date.now();},error=>{row.rejected=Date.now();row.code=['NETWORK_TIMEOUT','OWNERSHIP_LOST','HANDOFF_CHANGED','permission-denied','STORAGE_ERROR','REVISION_CONFLICT'].includes(error?.code)?error.code:'other';});
+      return promise;
+     }catch(error){row.threw=Date.now();throw error;}
+    };
+   }
+  }
+  return api.createClient(options);
+ }});
+}
+export function getFirestore(app){installHandoffObservers();const db=real.initializeFirestore(app,{experimentalForceLongPolling:true});real.connectFirestoreEmulator(db,'127.0.0.1',8080,{mockUserToken:{sub:globalThis.__qaUid,firebase:{sign_in_provider:'google.com'}}});${httpsEmulator}globalThis.__qaFirestore={db,sdk:real};return db;}`;
 const server=http.createServer((req,res)=>{
  try{const p=new URL(req.url,'http://127.0.0.1').pathname;
  res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Cross-Origin-Embedder-Policy','require-corp');res.setHeader('Cache-Control','no-store');
@@ -119,12 +157,29 @@ let browser,caseFailure;const contexts=[],errors=[],routeLifetimes=new WeakMap()
 const packagedPck=itchVariant?fs.readFileSync(path.join(web,'index.pck')):null;
 const closeContext=context=>routeLifetimes.get(context).close();
 report.networkObservations=[];
+// Bounded Node-clock evidence only. No request bodies, URLs, tokens or saves.
+report.rpcOperations=[];report.rpcOperationsOmitted=0;
+function rpcClock(rpc,method){
+ const row={rpc,method,started:Date.now(),phase:'fetch'};
+ if(report.rpcOperations.length===64){report.rpcOperations.shift();report.rpcOperationsOmitted++;}
+ report.rpcOperations.push(row);return row;
+}
 function networkObservation(kind,family,result){
  const rows=report.networkObservations,existing=rows.find(row=>row.kind===kind&&row.family===family&&row.result===result);
  if(existing)existing.count=Math.min(100,existing.count+1);
  else if(rows.length<64)rows.push({kind,family,result,count:1});
 }
-async function until(fn,label,timeout=45000){const end=Date.now()+timeout;while(Date.now()<end){const value=await fn();if(value)return value;await new Promise(r=>setTimeout(r,150));}throw Error('Timed out: '+label);}
+async function until(fn,label,timeout=45000,clock=null){
+ const end=Date.now()+timeout;
+ if(clock){clock.entered=end-timeout;clock.deadline=end;}
+ while(Date.now()<end){
+  let value;try{value=await fn();}catch(error){if(clock)clock.outcome={kind:'predicate-error',at:Date.now()};throw error;}
+  if(value){if(clock)clock.outcome={kind:'success',at:Date.now()};return value;}
+  await new Promise(r=>setTimeout(r,150));
+ }
+ if(clock)clock.outcome={kind:'timeout',at:Date.now()};
+ throw Error('Timed out: '+label);
+}
 async function journal(page,uid,key=null){return page.evaluate(async({uid,key})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open(key===null?'little-leaf.firebase-cloud-journal.v2':'little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});try{return await new Promise((yes,no)=>{const tx=db.transaction('accounts'),q=tx.objectStore('accounts').get(key || uid);q.onsuccess=()=>yes(q.result||null);q.onerror=()=>no(q.error);});}finally{db.close();}},{uid,key});}
 async function setup(uid,entry=null){
  const seedPhase={active:!!itchVariant};
@@ -161,11 +216,18 @@ async function setup(uid,entry=null){
   // APIRequestContext traffic is outside browser offline emulation; honor the
   // real context's navigator state before forwarding any SDK read/write.
   if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+  const rpc=/\/(Listen|Write)\/channel$/.exec(u.pathname)?.[1] || /:(batchGet|commit)$/.exec(u.pathname)?.[1];
+  const clock=rpcClock(rpc,route.request().method());
   try{
    const response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
+   clock.fetchCompleted=Date.now();clock.status=response.status();clock.phase='online-check';
    if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+   clock.phase='fulfill-submitted';
    return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'}});
-  }catch(error){networkObservation('proxy','synthetic-emulator',failureCategory(error.message));return route.abort('failed');}
+  }catch(error){
+   clock.error=/timeout|timed out/i.test(error.message)?'timeout':/ECONNRESET/.test(error.message)?'connection-reset':/Target.*closed/.test(error.message)?'target-closed':failureCategory(error.message);
+   networkObservation('proxy','synthetic-emulator',failureCategory(error.message));return route.abort('failed');
+  }finally{clock.callbackFinallyAt=Date.now();}
  }
  if(itchVariant && u.href===itchPage)return route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><style>html,body,iframe{margin:0;width:100%;height:100%;border:0;overflow:hidden}</style><iframe src="'+classicPage+'" allow="autoplay; fullscreen"></iframe>'});
  if(itchVariant && u.href===classicPage)return route.fulfill({status:200,contentType:'text/html',body:fs.readFileSync(path.join(itchVariant,'itch-wrapper/index.html'))});
@@ -257,8 +319,9 @@ try{
  {const uid='fullflow-graceful',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const owner=await read(uid,'owner');const b=await launch(await setup(uid));
  check((await snapshot(b.page)).status==='other-device','second compiled game waits for explicit switch');
  const transitions=[];const db=env.authenticatedContext(uid,{firebase:{sign_in_provider:'google.com'}}).firestore();const stop=onSnapshot(doc(db,'players',uid,'session','owner'),s=>{if(s.exists())transitions.push(s.data());});
- await shot(b.page,'second-device-paused');await click(b.page,'other-device','switch');
- await until(async()=>{const x=await read(uid,'owner');return x.epoch===owner.epoch+1;},'graceful ownership transfer');
+ await shot(b.page,'second-device-paused');report.handoffClock={beforeClick:Date.now()};await click(b.page,'other-device','switch');
+ report.handoffClock.afterClick=Date.now();report.handoffClock.predicate={initialEpoch:owner.epoch,expectedEpoch:owner.epoch+1};
+ await until(async()=>{const x=await read(uid,'owner');report.handoffClock.lastOwnerRead={at:Date.now(),epoch:x.epoch,ackPresent:!!x.ack};return x.epoch===owner.epoch+1;},'graceful ownership transfer',45000,report.handoffClock.predicate);
  const pending=await journal(a.page,uid),cloud=await read(uid);const ack=transitions.find(x=>x.ack && x.owner===owner.owner);stop();
  check(!!ack && ack.ack.digest===cloud.digest && ack.ack.revision===cloud.revision,'old owner acknowledged exact final cloud save before ownership transfer');
  check(pending.record.digest===cloud.digest && !pending.pending,'old native snapshot durably saved and cloud-confirmed');check((await snapshot(a.page)).ownershipPaused,'old compiled game paused after handoff');
@@ -301,15 +364,15 @@ try{
  check(errors.length===0,'compiled runtime reports no script or page errors: '+errors.join('; '));report.passed=true;
 }catch(error){
  caseFailure=error;
- report.failure=String(error.stack||error);report.failureStates=[];
+ report.failure=String(error.stack||error);report.failureObservedAt=Date.now();report.failureStates=[];
  for(const context of contexts)for(const originalPage of context.pages()){
   const frame=itchVariant?originalPage.frames().find(frame=>frame.url().startsWith(officialOrigin+'/itch/')):null;
   const page=frame?gameFramePage(originalPage,frame):originalPage;
   try{const uid=await page.evaluate(()=>globalThis.__qaUid);if(!/^fullflow-[a-z-]+$/.test(uid))continue;
    // Observe bootstrap first. The original local vault deliberately has no recoverySnapshot.
    // Each optional observation is independent so one unavailable API cannot hide the cause.
-   const state={uid};report.failureStates.push(state);
-   const observe=async(name,fn)=>{let timer;try{state[name]=await Promise.race([fn(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('observation unavailable')),3000);})]);}catch(_){state[name]={unavailable:true};}finally{clearTimeout(timer);checkpoint();}};
+   const state={uid,observationClock:{}};report.failureStates.push(state);
+   const observe=async(name,fn)=>{let timer;const clock={started:Date.now()};state.observationClock[name]=clock;try{state[name]=await Promise.race([fn(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('observation unavailable')),3000);})]);}catch(_){state[name]={unavailable:true};}finally{clock.completed=Date.now();clearTimeout(timer);checkpoint();}};
    await observe('startup',()=>page.evaluate(async()=>{
     const status=document.getElementById('status-label'),message=status?.textContent||'';
     const statusDigest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(message)))).map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -325,6 +388,7 @@ try{
    await observe('snapshot',()=>page.evaluate(()=>typeof globalThis.LittleLeafVault?.recoverySnapshot==='function'?JSON.parse(LittleLeafVault.recoverySnapshot()):null));
    await observe('journal',()=>journal(page,uid));await observe('owner',()=>read(uid,'owner'));await observe('cloud',()=>read(uid));
    await observe('nativeLog',()=>page.evaluate(()=>globalThis.LittleLeafSaveLog?.snapshot()));await observe('adapterResults',()=>page.evaluate(()=>globalThis.__qaAdapterResults));
+   await observe('sdkOperations',()=>page.evaluate(()=>({clock:Date.now(),rows:globalThis.__qaSdkOperations||[],omitted:globalThis.__qaSdkOperationsOmitted||0,handoffRows:globalThis.__qaHandoffOperations||[],handoffOmitted:globalThis.__qaHandoffOperationsOmitted||0})));
    await observe('bootReceipt',()=>page.evaluate(()=>globalThis.__littleLeafVault?.bootJson));
    await observe('screenshot',async()=>{await shot(page,'failure-'+report.failureStates.length);return true;});
   }catch(observationError){report.failureStates.push({observationError:String(observationError)});}
