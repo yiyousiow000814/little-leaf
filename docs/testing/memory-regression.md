@@ -98,3 +98,24 @@ CI, merge and release separate. Preserve raw evidence/hashes and editable probes
 outside tracked source. A failed experiment remains visible; refreshing a guard,
 atlas reference or baseline to make a failing run pass requires its existing
 qualification and review. Fix or withdraw a regression before acceptance.
+
+## Music stream retirement on Web
+
+Exact source `fc8cf4a3517bc53b4f1d97380c6582437c4bbfa9`, CI `38683178443`
+attempt 1, reproduced a separate audio-retention mechanism in a disposable Chrome
+154.0.8037.99 profile. After resource warmup and a five-minute matched idle
+control, four identical Music open / Default / Premium A / close cycles grew
+registered audio samples from 7 to 15. Post-GC backing storage rose from
+420,818,107 to 930,462,561 bytes, with roughly 107.8 MB added by each later cycle.
+Playing sample nodes remained one; Wasm and ordinary JS heap stayed bounded.
+The failed observation was stopped after 645.5 seconds; it is not a completed
+30-minute pass. Ownership teardown and lock release were verified.
+
+The scoped correction forces only Web BGM players to Stream playback before
+starting them, avoiding the separate full-track Sample registration path.
+Native players retain their default backend, and SFX and global audio settings
+remain unchanged. Existing context/transport ownership tests remain applicable;
+they do not replace actual browser switching, seek/pause, audio-quality and
+post-GC backing-store measurements. Stream latency, crackling and runtime cost
+must be checked on the actual candidate. Preserve failed control evidence and
+complete the required observation on the final integrated release source.
