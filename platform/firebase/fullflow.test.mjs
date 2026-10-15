@@ -354,10 +354,16 @@ try{
  const renewed=await until(async()=>{const value=await read(uid,'owner');assert.equal(value.owner,originalOwner.owner);assert.equal(value.epoch,1);assert.equal(value.request,null);assert.equal(value.ack,null);return value.updatedAt.toMillis()>beforeRenewal.updatedAt.toMillis() && value;},'confirmed offline owner renewal');
  report.offlinePrecondition={beforeRenewal,renewed};checkpoint();
  const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.connectivity.setOffline(a.page,true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');await click(b.page,'other-device','switch');
- const asked=await read(uid,'owner');assert.equal(asked.owner,originalOwner.owner);assert.equal(asked.epoch,1);assert(asked.request?.id && asked.request.requester!==asked.owner);assert.equal(asked.ack,null);
- const leaseAge=asked.request.at.toMillis()-asked.updatedAt.toMillis();assert(leaseAge>=0 && leaseAge<60000,'offline ASK must use a live server lease');
- report.offlinePrecondition.asked=asked;report.offlinePrecondition.leaseAgeAtAskMs=leaseAge;checkpoint();
- await until(async()=>(await snapshot(b.page)).canForceTakeover,'explicit timeout available',30000);await shot(b.page,'takeover-timeout');
+ // The native Switch dispatches asynchronously. Observe its committed ASK within
+ // the original timeout budget rather than asserting an immediate post-click read.
+ await until(async()=>{
+  const asked=await read(uid,'owner');assert.equal(asked.owner,originalOwner.owner);assert.equal(asked.epoch,1);assert.equal(asked.ack,null);
+  if(!asked.request)return false;
+  assert(asked.request.id && asked.request.requester!==asked.owner);
+  const leaseAge=asked.request.at.toMillis()-asked.updatedAt.toMillis();assert(leaseAge>=0 && leaseAge<60000,'offline ASK must use a live server lease');
+  if(!report.offlinePrecondition.asked){report.offlinePrecondition.asked=asked;report.offlinePrecondition.leaseAgeAtAskMs=leaseAge;checkpoint();}
+  return (await snapshot(b.page)).canForceTakeover;
+ },'explicit timeout available',30000);await shot(b.page,'takeover-timeout');
  await confirmedClick(b.page,'timeout','switch',false);check((await read(uid,'owner')).epoch===1,'cancel force does not transfer owner');
  await confirmedClick(b.page,'timeout','switch',true);await until(async()=>(await read(uid,'owner')).epoch===2,'force transfer');await resumeProof(b,42000);await b.page.evaluate(()=>__littleLeafVault.sync());
  await until(async()=>!(await journal(b.page,uid)).pending,'new owner cloud save');await a.connectivity.setOffline(a.page,false);await a.page.evaluate(()=>window.dispatchEvent(new Event('focus')));await until(async()=>(await snapshot(a.page)).ownershipPaused,'old device notices fenced owner');
