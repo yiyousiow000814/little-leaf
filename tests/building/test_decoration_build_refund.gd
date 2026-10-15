@@ -53,7 +53,7 @@ func run():
  var wallet=m.coins;check(m.save("user://build-refund-interrupted.json"),"mid-session build save")
  check(m.wall_refund(new_key)==55 and m.wall_attachment_refund(new_open)==40,"autosave retains build eligibility")
  var loaded=Model.new();check(loaded.load_save("user://build-refund-interrupted.json"),"interrupted build reload")
- check(loaded.coins==wallet and loaded.decoration_build_purchases.is_empty() and loaded.wall_refund(new_key)==27 and loaded.wall_attachment_refund(new_open)==20,"reload keeps wallet and paid bases; normal resale")
+ check(loaded.coins==m._decoration_baseline.coins and loaded.decoration_build_purchases.is_empty() and loaded.get_wall(new_key).is_empty() and loaded.get_wall_attachment(new_open).is_empty(),"reload preserves baseline before interrupted Build purchases")
  m.finish_decoration_session();m.begin_decoration_session()
  check(m.wall_refund(new_key)==27 and m.wall_attachment_refund(new_open)==20,"Done/reentry cannot renew build receipts")
  # Host removal must fail before touching either receipt while opening remains.

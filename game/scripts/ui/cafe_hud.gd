@@ -277,7 +277,7 @@ func setup():
  done_face=_picture(game.edit_button,_texture("cream_face"));game.edit_button.move_child(done_face,0);done_face.hide()
  edit_cancel=ui._small_button("",cancel_edit_action,44);_cream_button(edit_cancel,12);cancel_face=_picture(edit_cancel,_texture("cream_face"));cancel_art=_picture(edit_cancel,_icon("plus"));cancel_art.rotation=PI/4.0
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:edit_cancel.add_theme_stylebox_override(state,StyleBoxEmpty.new())
- edit_cancel.accessibility_name="Cancel current action";edit_cancel.tooltip_text="Cancel current preview or move. Completed changes stay saved.";edit_cancel.accessibility_description=edit_cancel.tooltip_text
+ edit_cancel.accessibility_name="Cancel decorating";edit_cancel.tooltip_text="Cancel all changes from this Decorate session.";edit_cancel.accessibility_description=edit_cancel.tooltip_text
  game.edit_button.tooltip_text="Decorate the café";ui.staff_access.tooltip_text="Staff · shifts, hiring and wages";ui.settings_button.tooltip_text="Settings · music and sound"
  for state in ["normal","disabled"]:game.pause_button.add_theme_stylebox_override(state,StyleBoxEmpty.new())
  game.pause_button.add_theme_font_size_override("font_size",1) # The visible icon owns this44px target; hidden Pause/Resume text must not grow the HBox.
@@ -345,8 +345,8 @@ func sync(width:float):
  for name in ["decorate","staff","settings"]:
   var button=game.edit_button if name=="decorate" else (ui.staff_access if name=="staff" else ui.settings_button)
   action_art[name].modulate=Color(1,1,1,.48) if button.disabled else Color.WHITE
- game.edit_button.accessibility_name="Finish decorating" if game.editing else "Decorate café"
- game.edit_button.tooltip_text="Finish decorating. Completed changes stay saved." if game.editing else game.edit_button.accessibility_name
+ game.edit_button.accessibility_name="Apply decorating" if game.editing else "Decorate café"
+ game.edit_button.tooltip_text="Apply all changes, including furniture sales." if game.editing else game.edit_button.accessibility_name
  game.edit_button.accessibility_description=game.edit_button.tooltip_text
  game.pause_button.accessibility_name="Resume service" if game.paused else "Pause service";game.pause_button.tooltip_text=game.pause_button.accessibility_name
  game.edit_button.toggle_mode=true;game.edit_button.set_pressed_no_signal(game.editing);ui.staff_access.toggle_mode=true;ui.staff_access.set_pressed_no_signal(ui.staff_panel.panel.visible);ui.settings_button.toggle_mode=true;ui.settings_button.set_pressed_no_signal(game.settings.visible)
@@ -382,8 +382,7 @@ func _reduced_motion_requested()->bool:
  return false
 
 func has_edit_action()->bool:
- if not game.editing:return false
- return game.selected_kind!="" or game.selected_id>=0 or game.build_tools.active() or ui.selected_wall!="" or ui.selected_shell!="" or not ui.pending_wall.is_empty() or game.interaction.drag_active or game.interaction.preview_active
+ return game.editing
 func _close_pending_edit_popovers():
  ui.pending_wall={}
  for popup in [ui.finishes,ui.floor_repair_review,ui.wall_review]:
@@ -393,8 +392,7 @@ func _after_edit_toggle():
  _close_pending_edit_popovers();ui.sync()
 func cancel_edit_action():
  if not has_edit_action():return
- # Existing atomic actions are already committed; only the live selection/preview is discarded.
- _close_pending_edit_popovers();game._cancel_selection();ui.sync();game.illustration.queue_redraw()
+ _close_pending_edit_popovers();game._cancel_edit();ui.sync()
 func popup_right()->float:
  if layout_host.get_meta("mobile_layout",false):return game.get_viewport().get_visible_rect().size.x-_safe_insets().z-8
  var view=game.get_viewport().get_visible_rect().size;var insets=_safe_insets()
