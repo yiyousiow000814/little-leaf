@@ -106,6 +106,36 @@ func completion_clock():
  check(standalone.customers[0].phase=="cooking" and is_equal_approx(standalone.customers[0].elapsed,.1) and is_zero_approx(standalone.customers[1].elapsed),"standalone model keeps its timed recipe and capacity contract")
  check(game.Model.cooking_seconds()==45.0 and game.MEAL_DEPARTURE_SECONDS==120.0,"recipe and abandonment durations stay unchanged")
  await release_game(game)
+func eating_clock(game):
+ var guest=game.model.customers[0]
+ var identity=guest_identity(guest)
+ var wallet=[game.model.coins+game.model.total_wages_paid,game.model.served,game.model.total_earned]
+ check(guest.phase=="eating" and is_zero_approx(guest.elapsed) and guest.duration==25.0,"actual beverage completion starts the approved 25-second eating phase")
+ check(game.Model.cooking_seconds()==45.0 and game.Model.PHASE_SECONDS.drinking==3.0,"eating adjustment preserves cooking and drinking durations")
+ for step in range(60):
+  game.model._arrival_elapsed=0.0;game._tick_live_service(.1)
+ check(guest.phase=="eating" and is_equal_approx(guest.elapsed,6.0),"six real service seconds no longer finish eating")
+ for step in range(189):
+  game.model._arrival_elapsed=0.0;game._tick_live_service(.1)
+ check(guest.phase=="eating" and is_equal_approx(guest.elapsed,24.9),"eating remains active immediately before the 25-second boundary")
+ var was_paused=game.paused
+ game.paused=true;game._process(1.0)
+ check(guest.phase=="eating" and is_equal_approx(guest.elapsed,24.9),"actual pause preserves the eating boundary")
+ game.model.service_snapshot=game._service_save_snapshot()
+ var saved=game.model.save("user://eating-boundary.json")
+ check(saved,"generated eating-boundary save succeeds: "+game.model.last_error)
+ if not saved:
+  game.paused=was_paused;return
+ var checksum=FileAccess.get_sha256("user://eating-boundary.json")
+ check(game.model.load_save("user://eating-boundary.json"),"generated eating-boundary save reloads: "+game.model.last_error)
+ game._restore_service_runtime();guest=game.model.customers[0]
+ check(guest_identity(guest)==identity and guest.phase=="eating" and guest.duration==25.0 and is_equal_approx(guest.elapsed,24.9),"reload retains identity and the exact unfinished eating clock")
+ game._process(1.0)
+ check(guest.phase=="eating" and is_equal_approx(guest.elapsed,24.9),"reload remains paused at the boundary")
+ check(wallet==[game.model.coins+game.model.total_wages_paid,game.model.served,game.model.total_earned] and not guest.paid,"eating and reload do not settle payment early")
+ game.paused=was_paused;game._tick_live_service(.1)
+ check(guest.phase!="eating","exactly 25 active service seconds finish eating through the existing settlement path")
+ check(FileAccess.get_sha256("user://eating-boundary.json")==checksum,"boundary verification preserves the generated source save")
 func run():
  root.size=Vector2i(1360,880)
  check(OS.get_environment("XDG_DATA_HOME")!="" and OS.get_user_data_dir().begins_with(OS.get_environment("XDG_DATA_HOME")),"isolated generated profile")
@@ -118,9 +148,13 @@ func run():
  game.model._spawn_customer()
  check(game.model.customers.size()==1,"fresh table admits one real customer")
  var seconds=0.0
+ var checked_eating=false
  for frame in range(4000):
   game.model._arrival_elapsed=0.0;game._tick_live_service(.1);game._animate_staff(.1);game.animation_time+=.1;seconds+=.1
+  if not checked_eating and not game.model.customers.is_empty() and game.model.customers[0].phase=="eating":
+   eating_clock(game);checked_eating=true;seconds+=25.0
   if game.model.served==1:break
+ check(checked_eating,"fresh production flow reaches the eating boundary checks")
  check(game.model.served==1 and game.model.total_earned==game.model.MEAL_PAYMENT,"untouched public fresh layout serves and settles first meal")
  check(not game.model.customers.is_empty() and not game.model.customers[0].meal_abandoned,"fresh diner finishes without meal abandonment")
  await release_game(game)
