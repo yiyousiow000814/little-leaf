@@ -59,11 +59,11 @@ assert.throws(() => validateNaturalPayment({...paid, tutorial: explained.tutoria
 assert.throws(() => validateNaturalPayment({...paid, tutorial: explained.tutorial}, {...actualOrder, guests: [{id: 2, seated: true}]}, layout, initial), /actual seated order/);
 assert.throws(() => validateProgress({...initial, tutorial: {...initial.tutorial, status: 'completed'}}, layout, initial));
 const orderAck = structuredClone(ack), orderPayload = structuredClone(payload);
-orderPayload.runtime.customers = [{id: 1, phase: 'cooking', seated: true}];
+orderPayload.runtime.customers = [{id: 1, phase: 'cooking', seated: true, elapsed: 12.5, duration: 45}];
 orderPayload.runtime.service.records = [{guest_id: 1, order_done: true}, {guest_id: 2, order_done: false}];
 orderAck.payload = JSON.stringify(orderPayload);
 assert.deepEqual(summarize(orderAck).orders, [1]);
-assert.deepEqual(summarize(orderAck).guests, [{id: 1, phase: 'cooking', seated: true}]);
+assert.deepEqual(summarize(orderAck).guests, [{id: 1, phase: 'cooking', seated: true, elapsed: 12.5, duration: 45}]);
 // Exercise the exact production binding function against disposable fake
 // export/report receipts. Only git's readonly answers are stubbed; source files
 // are genuinely hashed and are never changed by this test.
