@@ -122,6 +122,20 @@ Mark each such GitHub Release as a **prerelease** and preserve stable Latest. Up
 
 Historical support gap: main `d30115b6932af1ab28e30672996eae09becaef16` rejected this format. Merged PR176/181 added source-derived metadata and prerelease publication; exact-e0 delivery and PR186 are recorded in the roadmap. That delivery does not qualify a new source or the independent common-tag candidate above. Frozen0.1.10d ignores this format, and legacy SHA clients do not understand common ordering; do not claim those clients receive its notices.
 
+## Update-note style
+
+- Write short English sentences. Describe one change per sentence.
+- Prefer Added, Improved and Fixed. Use Changed or Removed for actual changes or removals, not a misleading Fixed.
+- Reuse the same names and words for the same features. Repetition is clearer than synonyms.
+- Describe what players notice. Keep internal implementation details out unless they explain an important limit.
+- Put important limits and preserved behavior in separate short sentences. Do not lose facts to shorten the text.
+- Keep game Updates and GitHub Release copy in the shared `game/data/release_notes.json`. Preserve historical notes and release metadata during wording-only changes.
+
+Examples:
+- Added multi-cell floor and wall painting.
+- Improved saving feedback in the Save button.
+- Fixed decorations shifting when moving the camera while hovering over a parcel.
+
 ## Publish an approved version
 
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.

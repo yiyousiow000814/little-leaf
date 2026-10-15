@@ -102,6 +102,24 @@ func run():
  var committed_revision=save.revision
  save._on_commit([JSON.stringify({"ok":true,"profileId":"synthetic","revision":committed_revision,"durable":true,"creditedCoins":100})])
  check(game.model.coins==1400 and game.save_recovery_blocked and not save.ready,"replayed receipt cannot duplicate compensation")
+ # Real Model serialization must retain external durable grants across X.
+ game.model=preload("res://scripts/core/cafe_model.gd").new()
+ preload("res://scripts/minimal_start.gd").apply(game.model)
+ game.model.coins=10000;game.model.begin_decoration_session()
+ var id=game.model._next_item_id
+ check(game.model.place("plant",3,6),"draft purchase for confirmed grant")
+ game.save_recovery_blocked=false;game.save_writes_suppressed=false
+ save=controller(game);save.api.credit=100;save.request_save()
+ var staged=JSON.parse_string(FileAccess.get_file_as_string(WebSave.STAGING_FILE))
+ check(staged.coins==10000 and not staged.items.any(func(i):return int(i.id)==id),"Web draft save serializes original wallet and layout")
+ acknowledge(save,{"creditedCoins":100})
+ check(game.model.coins==10055 and game.model._decoration_baseline.coins==10100,"confirmed grant credits live and cancel baseline exactly once")
+ check(game.model.cancel_decoration_session() and game.model.coins==10100 and game.model.get_item(id).is_empty(),"X discards purchase and preserves confirmed external grant")
+ game.model.begin_decoration_session();check(game.model.place("plant",3,6),"draft purchase for async failure")
+ save=controller(game);save.api.credit=100;save.request_save()
+ save._on_commit([JSON.stringify({"ok":false,"error":"Storage full","code":"QUOTA"})])
+ check(game.model._decoration_baseline.coins==10100 and game.model.coins==10055,"failed grant never enters either wallet")
+ check(game.model.cancel_decoration_session() and game.model.coins==10100,"X after asynchronous failure remains exact")
  var scene=Main.new()
  scene.progress_unsaved=true
  check(scene._unsaved_progress_message()=="","routine in-flight save has no error detail")

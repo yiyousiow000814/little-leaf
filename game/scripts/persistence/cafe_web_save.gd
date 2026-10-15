@@ -489,6 +489,7 @@ func _on_commit(arguments:Array):
 			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
 			game.startup_notice=game.progress_save_error;return
 		game.model.coins+=int(credit)
+		if game.model.has_method("record_decoration_credit"):game.model.record_decoration_credit(int(credit))
 		game._update_ui()
 	_credit_expected=0
 	revision=int(result.revision)

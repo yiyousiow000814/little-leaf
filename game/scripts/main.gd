@@ -63,6 +63,7 @@ var paused = false
 var platform_music
 var platform_autosave_dirty=false
 var platform_dirty_generation=0
+var _event_model=null
 var hover_cell = Vector2i(-100,-100)
 var save_timer = 0.0
 var progress_unsaved = false
@@ -182,13 +183,22 @@ func _mark_platform_dirty():
 	progress_unsaved=true
 
 func _connect_model_events():
-	model.changed.connect(_mark_platform_dirty)
-	model.meal_completed.connect(func(_customer_id,payment):
-		settings_controls.play_sfx("coin")
-		compact_ui.show_earnings(payment))
+	# Startup retry may retain the same model or replace it. Only the live model
+	# owns these callbacks, and repeated setup must not multiply dirty events.
+	if _event_model!=null and _event_model!=model:
+		if _event_model.changed.is_connected(_mark_platform_dirty):_event_model.changed.disconnect(_mark_platform_dirty)
+		if _event_model.meal_completed.is_connected(_on_meal_completed):_event_model.meal_completed.disconnect(_on_meal_completed)
+	_event_model=model
+	if not model.changed.is_connected(_mark_platform_dirty):model.changed.connect(_mark_platform_dirty)
+	if not model.meal_completed.is_connected(_on_meal_completed):model.meal_completed.connect(_on_meal_completed)
+
+func _on_meal_completed(_customer_id,payment):
+	settings_controls.play_sfx("coin")
+	compact_ui.show_earnings(payment)
 
 func _resume_loaded_cafe():
 	# Only called after startup retry has validated a complete saved model.
+	editing=false
 	_connect_model_events()
 	_cancel_selection()
 	for staff in staff_states:staff.node.queue_free()
@@ -376,12 +386,24 @@ func _toggle_business():
 func _toggle_edit():
 	if save_recovery_blocked:return
 	editing=not editing
-	if editing:model.begin_decoration_session()
+	if editing:
+		model.service_snapshot=_service_save_snapshot()
+		model.begin_decoration_session()
 	else:model.finish_decoration_session()
 	_cancel_selection()
 	if not editing:_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
+
+func _cancel_edit():
+	if not editing:return
+	_cancel_selection()
+	if not model.cancel_decoration_session():return
+	editing=false
+	_rebuild_room();_rebuild_furniture();_restore_service_runtime()
+	static_service_revision=-1;idle_home_revision=-1
+	_update_ui();compact_ui.set_tray_open(false)
+	illustration.queue_redraw()
 
 func _choose(kind: String):
 	_cancel_selection()
