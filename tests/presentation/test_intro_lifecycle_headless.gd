@@ -30,6 +30,10 @@ func check(ok, label):
 		failures.append(label)
 		printerr("FAIL ", label)
 
+func audio_preferences()->Dictionary:
+	var settings=game.settings_controls
+	return {"paused":game.paused,"music_enabled":game.music_enabled,"transport_paused":game.music_transport_paused,"selection":settings.music_track,"bgm_enabled":settings.bgm_enabled,"sfx_enabled":settings.sfx_enabled,"bgm_volume":settings.bgm_volume,"sfx_volume":settings.sfx_volume}
+
 func fresh_intro():
 	game.cafe_intro.finish()
 	Intro.shown_this_session = false
@@ -156,6 +160,7 @@ func run():
 	var audio = game.audio_players.duplicate()
 	var paused = game.paused
 	var music_enabled = game.music_enabled
+	var preferences = audio_preferences()
 	var street_start=game.illustration.street_pedestrians.walkers[0].position
 	var save_timer = game.save_timer
 	var animation_time = game.animation_time
@@ -184,6 +189,10 @@ func run():
 	repeat.start(game)
 	check(not repeat.active and repeat.cover == null, "same-session recreation does not replay")
 	check_live_motion_guards()
+	check(audio_preferences()==preferences, "motion guard exercise preserves user audio preferences")
+	# The helper deliberately enters/exits Shop. Bounded players may retire there.
+	# Take the identity baseline after that operation, before pure intro gestures.
+	audio=game.audio_players.duplicate()
 
 	# Sample the entire reveal at 60 fps. Compare effective inherited opacity,
 	# so a sibling hint with a delayed fade or a doubled child fade fails here.
@@ -264,15 +273,25 @@ func run():
 	check(game.audio_players == audio and game.music_enabled == music_enabled and game.paused == paused, "entrance gestures preserve audio identity and user settings")
 
 	for kind in ["focus", "stall", "settings", "decorate"]:
+		audio=game.audio_players.duplicate()
+		var music_before=game.music_state
 		intro = fresh_intro()
 		if kind == "focus": game._notification(Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT)
 		elif kind == "stall": intro._process(1.01)
 		elif kind == "settings":
 			game.settings.show(); intro._process(.01); game.settings.hide()
 		else:
-			game._toggle_edit(); intro._process(.01); game._toggle_edit()
+			game._toggle_edit()
+			check(game.music_state==Main.MusicCatalog.DECORATE, "explicit Decorate transition selects Shop music")
+			var shop_audio=game.audio_players.duplicate()
+			intro._process(.01)
+			check(game.audio_players==shop_audio, "decorate intro interruption alone preserves audio identity")
+			game._toggle_edit()
+			check(game.music_state==music_before, "closing Decorate restores prior effective music")
+			check(game.audio_players.size()<=2, "intentional mode transitions retain at most incoming and outgoing players")
 		check_restored(intro, kind + " interruption")
-		check(game.paused == paused and game.music_enabled == music_enabled and game.audio_players == audio, kind + " preserves user state/audio")
+		check(game.paused == paused and game.music_enabled == music_enabled and audio_preferences()==preferences, kind + " preserves user state/audio preferences")
+		if kind!="decorate":check(game.audio_players == audio, kind + " intro interruption preserves audio identity")
 		check(game.illustration.zoom == zoom and game.illustration.pan_offset.is_equal_approx(pan), kind + " preserves camera")
 	check(not game.cafe_intro.active and Intro.shown_this_session, "decorate close does not restart intro")
 
@@ -333,11 +352,18 @@ func run():
 		check(not blocked.active and blocked.cover == null and blocked.hud_colors.is_empty(), reason + " keeps startup unobscured")
 		check(not Intro.shown_this_session, reason + " bypass does not consume once flag")
 	game.save_recovery_blocked = false; game.startup_notice = ""
-	game.paused = true; game.music_enabled = false
+	game.settings_controls.persist_enabled=false
+	game.settings_controls.set_audio_volume("BGM",37.0)
+	game.settings_controls.set_audio_volume("SFX",23.0)
+	game.settings_controls.set_audio_enabled("BGM",false)
+	game.set_music_transport_paused(true)
+	game.paused=true
+	preferences=audio_preferences();audio=game.audio_players.duplicate()
 	intro = fresh_intro()
 	for i in range(13): intro._process(.5)
 	check_restored(intro, "paused muted completion")
 	check(game.paused and not game.music_enabled and game.audio_players == audio, "paused/muted preference retained")
+	check(audio_preferences()==preferences, "intro preserves explicit mute, both volumes, selection and transport pause")
 	var result = {"checks": checks, "failures": failures, "mode": "headless logic only", "base": "0dd4db11caf54e2166dd70b499664788d5d89de2", "save_dir": OS.get_user_data_dir(), "native_render_verified": false, "minimum_landscape_viewport": [minimum_landscape_size.x, minimum_landscape_size.y]}
 	print("INTRO_LIFECYCLE_RESULT ", JSON.stringify(result))
 	if not result_path.is_empty():
