@@ -9,9 +9,10 @@ to this file rather than duplicating its rules.
 
 The source map was inspected at main
 `824a1aaee50e4e0a783054e400a8c46855cd3e9d` and checked against documentation base
-`5cfa2f8632592d022b25c9f99c4191f1ce1cefb4`. The unmerged oak candidate in
-[PR189](https://github.com/yiyousiow000814/little-leaf/pull/189) is evidence for
-one repair, not the default implementation on main. This document introduces
+`5cfa2f8632592d022b25c9f99c4191f1ce1cefb4`. The accepted oak repair in
+[PR189](https://github.com/yiyousiow000814/little-leaf/pull/189) subsequently merged
+as `6db1c726053f9e2071ca5b6e40629f2a371d2cb3`; current main includes it.
+The dated observations below retain their original source scope. This document introduces
 no renderer, model, collision, save or artwork change.
 
 ## Ground anchors, footprints and parts
@@ -51,8 +52,10 @@ can expose existing layers; they do not authorize redesigned artwork.
 ## Ordering boundaries and retained ownership
 
 `IllustratedCafe._draw` uses explicit painter passes. Street actors, exterior
-guests and parking cars sort among themselves before the cafe shell.
-Neighborhood scenery trees, openings, sliced player walls, furniture and
+guests, parking cars and the representative oak at `(-13.1, 1.5)` share the
+exterior ground-depth order before the cafe shell. The oak is enrolled once;
+the existing actor/car tie order is retained. Other neighborhood scenery trees,
+openings, sliced player walls, furniture and
 interior actors enter a later entity queue. Rear foliage and bus shelter
 occupants have separate boundaries. A depth value orders entries only inside
 its queue: overlapping entities in different passes do not share a comparator
@@ -123,12 +126,13 @@ dependencies and original atlas RGBA. The manifest-only successor
 `3bc92ea7640cf3dd25d9e9bdf2372d9f426be7b9`, passed all 13 mandatory gates in
 [CI38123104864](https://github.com/yiyousiow000814/little-leaf/actions/runs/38123104864);
 optional Firebase skipped. No new runtime or qualification was run for this
-documentation. User visual approval of PR189 remains pending; CI and atlas
-parity do not approve the new oak placement or authorize its merge.
+documentation. These are historical qualification results. The later scoped
+user visual approval and actual PR189 merge are recorded in that PR; they do
+not broaden the original representative-route evidence to other objects.
 
 | Case | Evidence boundary | Remaining requirement |
 | --- | --- | --- |
-| Actor versus authored oak | r4 defect and r5 representative front/back, return and diagonal route inspected | User approval; camera/expansion and crown/shell crossings |
+| Actor versus authored oak | r4 defect and r5 representative front/back, return and diagonal route inspected; scoped repair accepted and merged in PR189 | Camera/expansion and crown/shell crossings |
 | Decorate table/chair | Four rotations with selected/preview/confirm/cancel frames in separated placements; no disappearing back or duplicate body observed | Overlapping furniture, seated actors and drag across another occluder |
 | Shelter edge | 15 local visible edge/occupant regions unchanged | Full roof-entry/exit transition and other viewpoints |
 | Other trees and wall/opening intersections | Existing source relationships identified | Continuous crossing evidence; no generalized failure proven |
@@ -167,8 +171,10 @@ log row alone does not prove the game completed that frame.
 Fail closed on script errors, zero frames, missing required cases, dropped or
 non-increasing observations, or unmatched source identity, even if the process
 returns 0. Preserve failed receipts with additive corrections. The existing
-manual pilot's diagnostic files are present in PR189; they are not an installed
-main CI suite or permission to rerun captures. Integrate a small deterministic
+manual pilot's diagnostic files originated in PR189 and are retained by
+[PR197](https://github.com/yiyousiow000814/little-leaf/pull/197); the production
+PR189 merge did not install them. They are not a main CI suite or permission
+to rerun captures. Integrate a small deterministic
 regression with an actual affected change; do not rerun unchanged implementation
 solely to publish this contract. Required release gates remain intact.
 
