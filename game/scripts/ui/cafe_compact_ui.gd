@@ -47,7 +47,6 @@ var remove_button:Button
 var finish_button:Button
 var cancel_button:Button
 var build_scroll:ScrollContainer
-var finishes:PanelContainer
 var management:PanelContainer
 var help_panel:PanelContainer
 var help_text:Label
@@ -85,11 +84,6 @@ var title
 var business_state:Label
 var business_action:Label
 var settings_button
-var wall_papers:OptionButton
-var wall_heights:OptionButton
-var wall_preview:Control
-var wall_price_label:Label
-var wall_use_button:Button
 var floor_repair_button:Button
 var floor_repair_review:PanelContainer
 var floor_repair_text:Label
@@ -158,7 +152,7 @@ func _hide_popups():
  for p in _popup_panels():
   if is_instance_valid(p):p.hide()
 func _popup_panels()->Array:
- var panels=[finishes,floor_repair_review,wall_review,management,help_panel,play_panel]
+ var panels=[floor_repair_review,wall_review,management,help_panel,play_panel]
  if save_log_panel!=null and is_instance_valid(save_log_panel.panel):panels.append(save_log_panel.panel)
  if shop_ui!=null and is_instance_valid(shop_ui.category_panel):panels.append(shop_ui.category_panel)
  if shop_ui!=null and is_instance_valid(shop_ui.parking_review):panels.append(shop_ui.parking_review)
@@ -189,7 +183,6 @@ func setup():
  cancel_button=_small_button("×",func():game._cancel_selection();sync(),42);context.add_child(cancel_button)
  context.hide()
  # A wall is one product: height and wallpaper are chosen together.
- for key in ["half","paint","remove","move_opening","remove_opening"]:game.build_tools.tool_buttons[key].hide()
  for key in ["full","door","window"]:
   var card=game.build_tools.tool_buttons[key];card.custom_minimum_size=Vector2(98,98)
   var labels=card.get_child(0).get_children()
@@ -199,20 +192,6 @@ func setup():
  var wall_card=game.build_tools.tool_buttons["full"]
  for signal_link in wall_card.pressed.get_connections():wall_card.pressed.disconnect(signal_link.callable)
  wall_card.pressed.connect(func():product_target="";show_wall_product())
- finishes=_panel();var finish_box=VBoxContainer.new();finish_box.add_theme_constant_override("separation",9);finishes.add_child(finish_box)
- finish_box.add_child(game.label("Wall",20))
- wall_preview=game.build_tools.WallIcon.new();wall_preview.custom_minimum_size=Vector2(84,62);wall_preview.mouse_filter=Control.MOUSE_FILTER_IGNORE;finish_box.add_child(wall_preview)
- wall_heights=game.build_tools._option(["Half wall","Full wall"]);finish_box.add_child(wall_heights)
- finish_box.add_child(game.label("Wall style · included",12))
- wall_papers=game.build_tools.paper_option;wall_papers.reparent(finish_box)
- for signal_link in wall_papers.item_selected.get_connections():wall_papers.item_selected.disconnect(signal_link.callable)
- game.build_tools.wall_options.hide();game.build_tools.surface_options.hide()
- wall_heights.item_selected.connect(func(_index):_sync_wall_product())
- wall_papers.item_selected.connect(_paper_selected)
- wall_price_label=game.label("",13);wall_price_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;wall_price_label.custom_minimum_size=Vector2(250,0);finish_box.add_child(wall_price_label)
- var actions=BoxContainer.new();finish_box.add_child(actions);popup_action_rows.append(actions)
- wall_use_button=_small_button("Use wall",_use_wall_product,144);actions.add_child(wall_use_button)
- actions.add_child(_small_button("Cancel",func():finishes.hide(),78))
  floor_repair_button=_small_button("Finish floor",_review_starter_floor_repair,100);categories.add_child(floor_repair_button)
  floor_repair_review=_panel();var repair_box=VBoxContainer.new();repair_box.add_theme_constant_override("separation",12);floor_repair_review.add_child(repair_box)
  repair_box.add_child(game.label("Finish starter floor",18))
@@ -298,7 +277,7 @@ func setup():
  hud=Hud.new(self);hud.setup()
  music_panel=MusicPanel.new(self);music_panel.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
- for popup in [finishes,floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
+ for popup in [floor_repair_review,wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
   hud.theme_panel(popup,true,INFORMATION_PANEL_PADDING if popup in [help_panel,game.settings] else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
  save_log_panel=SaveLogPanel.new(self);save_log_panel.setup()
@@ -415,7 +394,6 @@ func sync():
  var next_plot=game.model.next_parcel()
  plot_button.text="Next plot · %s"%Money.amount(int(next_plot.cost)) if not next_plot.is_empty() else "All plots owned";plot_button.disabled=next_plot.is_empty() or game.save_recovery_blocked
  var width=game.get_viewport().get_visible_rect().size.x
- for picker in [wall_heights,wall_papers]:picker.custom_minimum_size.y=42 if width<650 else 29
  compact_play=false # Pause stays visible; Open has one action at every width.
  var controls_parent=play_panel_box if compact_play else (hud.layout_host if hud!=null else top_row)
  if play_controls.get_parent()!=controls_parent:
@@ -674,40 +652,11 @@ func _confirm_starter_floor_repair():
  floor_repair_review.hide()
  if game.model.repair_starter_floor_gap()>0:game.build_tools._changed()
  _sync_starter_floor_repair();sync()
-func _paper_selected(_index:int):
- _sync_wall_product()
 func show_finishes():
  product_target=selected_shell if selected_shell!="" else selected_wall
  show_wall_product()
 func show_wall_product():
- if shop_ui!=null:
-  shop_ui.show_walls(product_target);return
- game.settings.hide()
- wall_papers.clear()
- for name in game.build_tools.MATERIAL_NAMES:wall_papers.add_item(name)
- if not game.model.ShellSegments.parse_key(product_target).is_empty():wall_papers.add_item("Original room")
- var product=game.model.get_wall_host(product_target) if not game.model.ShellSegments.parse_key(product_target).is_empty() else game.model.get_wall(product_target)
- var height=str(product.get("height",game.build_tools.mode if game.build_tools.mode in ["half","full"] else "full"))
- var paper=str(product.get("material",game.build_tools.material))
- wall_heights.select(0 if height=="half" else 1)
- wall_papers.select(3 if paper=="original" and wall_papers.item_count==4 else maxi(0,game.model.WallGeometry.MATERIALS.find(paper)))
- _sync_wall_product();_popup_at(finishes,320)
-func _sync_wall_product():
- if not is_instance_valid(wall_heights):return
- var height="half" if wall_heights.selected==0 else "full"
- var paper="original" if wall_papers.selected==3 else game.model.WallGeometry.MATERIALS[maxi(0,wall_papers.selected)]
- wall_preview.height=height;wall_preview.wall_material="sage_panels" if paper=="original" else paper;wall_preview.queue_redraw()
- var price=Money.amount(game.model.wall_price(height))
- wall_price_label.text="New wall · "+price+" coins per tile\nClick an empty edge to build, or an existing wall to replace it."
- if product_target!="":
-  var quote=game.model.wall_replacement_quote(product_target,height,paper,game.build_tools.actor_positions())
-  wall_price_label.text="New %s · refund %s · pay %s"%[Money.amount(int(quote.new_cost)),Money.amount(int(quote.refund)),Money.amount(int(quote.net))]
-  if not quote.valid:wall_price_label.text+="\n"+str(quote.reason)
- wall_use_button.text="Choose target"
-func _use_wall_product():
- var height="half" if wall_heights.selected==0 else "full"
- game.build_tools.material="original" if wall_papers.selected==3 else game.model.WallGeometry.MATERIALS[maxi(0,wall_papers.selected)]
- finishes.hide();game.build_tools.choose(height);sync()
+ shop_ui.show_walls(product_target)
 func review_wall_replacement(key:String,height:String,paper:String):
  pending_wall={"key":key,"height":height,"material":paper}
  var quote=game.model.wall_replacement_quote(key,height,paper,game.build_tools.actor_positions())
