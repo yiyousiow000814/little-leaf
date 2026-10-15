@@ -278,7 +278,7 @@ func setup():
  edit_cancel=ui._small_button("",cancel_edit_action,44);_cream_button(edit_cancel,12);cancel_face=_picture(edit_cancel,_texture("cream_face"));cancel_art=_picture(edit_cancel,_icon("plus"));cancel_art.rotation=PI/4.0
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:edit_cancel.add_theme_stylebox_override(state,StyleBoxEmpty.new())
  edit_cancel.accessibility_name="Cancel decorating";edit_cancel.tooltip_text="Cancel all changes from this Decorate session.";edit_cancel.accessibility_description=edit_cancel.tooltip_text
- game.edit_button.tooltip_text="Decorate the café";ui.staff_access.tooltip_text="Staff · shifts, hiring and wages";ui.settings_button.tooltip_text="Settings · music and sound"
+ game.edit_button.tooltip_text="Decorate the café";ui.staff_access.tooltip_text="Staff · shifts, hiring and wages";ui.settings_button.tooltip_text="Settings · sound and display"
  for state in ["normal","disabled"]:game.pause_button.add_theme_stylebox_override(state,StyleBoxEmpty.new())
  game.pause_button.add_theme_font_size_override("font_size",1) # The visible icon owns this44px target; hidden Pause/Resume text must not grow the HBox.
  for state in ["font_color","font_hover_color","font_pressed_color","font_hover_pressed_color","font_focus_color","font_disabled_color"]:game.pause_button.add_theme_color_override(state,Color.TRANSPARENT)
@@ -289,15 +289,16 @@ func setup():
  pause_face=Panel.new();pause_face.material=_art_material(1);pause_face.mouse_filter=Control.MOUSE_FILTER_IGNORE;pause_face.add_theme_stylebox_override("panel",texture_style("cream_face",14));game.pause_button.add_child(pause_face)
  pause_art=_picture(game.pause_button,_icon("player-pause"));pause_caption=_label(game.pause_button,"Pause",13);_bind_motion(game.pause_button)
  game.business_button.accessibility_name="Café service controls";game.edit_button.accessibility_name="Decorate café";ui.staff_access.accessibility_name="Staff";ui.settings_button.accessibility_name="Settings"
+ theme_button(ui.music_access);ui.music_access.toggle_mode=true;ui.music_access.add_theme_font_size_override("font_size",13)
  layout_host=Control.new();layout_host.mouse_filter=Control.MOUSE_FILTER_IGNORE;game.ui.add_child(layout_host)
- for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:control.reparent(layout_host)
+ for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.music_access,ui.settings_button]:control.reparent(layout_host)
  layout_host.add_child(edit_cancel);layout_host.move_child(edit_cancel,game.edit_button.get_index()+1);edit_cancel.hide()
  for button in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:
   var surface=Panel.new();surface.mouse_filter=Control.MOUSE_FILTER_IGNORE;surface.show_behind_parent=true;surface.material=_art_material(2 if button==game.business_button else 1)
   surface.add_theme_stylebox_override("panel",texture_style("green_face" if button==game.business_button else "cream_face",14));button.add_child(surface);button.move_child(surface,0);surface.hide();mobile_surfaces[button]=surface
  rail.hide()
  game.edit_button.pressed.connect(_after_edit_toggle)
- action_help=ActionHelp.new(self);action_help.setup([game.business_button,game.edit_button,edit_cancel,ui.staff_access,ui.settings_button,game.pause_button])
+ action_help=ActionHelp.new(self);action_help.setup([game.business_button,game.edit_button,edit_cancel,ui.staff_access,ui.music_access,ui.settings_button,game.pause_button])
  stats_label=game.label("",15,INK);stats_label.name="LiveFPS";stats_label.mouse_filter=Control.MOUSE_FILTER_IGNORE
  stats_label.add_theme_stylebox_override("normal",game._style(CREAM,Color("d9dcc4"),8))
  stats_label.custom_minimum_size=Vector2(82,28);game.ui.add_child(stats_label);game.ui.move_child(stats_label,0);stats_label.hide()
@@ -350,6 +351,7 @@ func sync(width:float):
  game.edit_button.accessibility_description=game.edit_button.tooltip_text
  game.pause_button.accessibility_name="Resume service" if game.paused else "Pause service";game.pause_button.tooltip_text=game.pause_button.accessibility_name
  game.edit_button.toggle_mode=true;game.edit_button.set_pressed_no_signal(game.editing);ui.staff_access.toggle_mode=true;ui.staff_access.set_pressed_no_signal(ui.staff_panel.panel.visible);ui.settings_button.toggle_mode=true;ui.settings_button.set_pressed_no_signal(game.settings.visible)
+ ui.music_access.set_pressed_no_signal(ui.music_panel!=null and ui.music_panel.panel.visible)
  pause_art.texture=_icon("player-play" if game.paused else "player-pause")
  _layout_unified_toolbar(width)
  _refresh_soft_buttons()
@@ -428,7 +430,9 @@ func _settle_layout():
  sync(game.get_viewport().get_visible_rect().size.x)
 
 func _layout_unified_toolbar(width:float):
- # Keep keyboard traversal in the same order as the action group.
+ # Keep Music before the unchanged Decorate/Staff/Pause/Settings group.
+ if ui.music_access.get_index()!=game.edit_button.get_index()-1:
+  layout_host.move_child(ui.music_access,game.edit_button.get_index())
  if ui.play_controls.get_index()!=ui.settings_button.get_index()-1:
   layout_host.move_child(ui.play_controls,ui.settings_button.get_index()-1)
  var safe=_safe_insets();var view=game.get_viewport().get_visible_rect().size
@@ -440,6 +444,7 @@ func _layout_unified_toolbar(width:float):
   _layout_mobile_toolbar(width)
   return
  sign_art.show()
+ ui.music_access.text="Music";ui.music_access.add_theme_font_size_override("font_size",14)
  # The mobile path above handles usable widths below700; this rail stays one row.
  var inset=safe;var usable=width-inset.x-inset.z;var scale=1.0
  # Lay out the right-hand actions by painted bounds, not transparent targets.
@@ -455,8 +460,8 @@ func _layout_unified_toolbar(width:float):
  var staff_size=Vector2(float(_texture("staff").get_width())/_texture("staff").get_height(),1)*(48.0 if roomy else 44.0)
  var settings_size=Vector2(1,float(_texture("settings").get_height())/_texture("settings").get_width())*(56.0 if roomy else 40.0)
  var edit_width=88.0+pair_gap if game.editing else decorate_size.x
- var action_width=edit_width+action_gap*2+staff_size.x+settings_size.x
- var max_action_width=88.0+pair_gap+action_gap*2+staff_size.x+settings_size.x
+ var action_width=edit_width+action_gap*3+staff_size.x+64.0+settings_size.x
+ var max_action_width=88.0+pair_gap+action_gap*3+staff_size.x+64.0+settings_size.x
  var gap=8.0 if usable>=750 else 4.0
  # The end cap and the clear gap after the gear are separate from its hit box.
  var end_padding=44.0 if roomy else 40.0
@@ -508,6 +513,7 @@ func _layout_unified_toolbar(width:float):
  _layout_unified_play_controls(scale)
  var center_y=controls_y+28
  var action_x=controls_x
+ _place(ui.music_access,Rect2(action_x,center_y-22,64,44));action_x+=64+action_gap
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -517,8 +523,7 @@ func _layout_unified_toolbar(width:float):
  action_x+=edit_width+action_gap
  _place_action_art(ui.staff_access,"staff",Vector2(action_x,center_y),staff_size)
  action_x+=staff_size.x+action_gap
- _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56))
- action_x+=PLAY_CONTROL_WIDTH+group_gap
+ _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56));action_x+=PLAY_CONTROL_WIDTH+group_gap
  _place_action_art(ui.settings_button,"settings",Vector2(action_x,center_y),settings_size)
  for name in ["decorate","staff","settings"]:action_captions[name].hide()
  if game.editing:
@@ -529,8 +534,10 @@ func _layout_unified_toolbar(width:float):
 func _layout_mobile_toolbar(width:float):
  # Phone UI is composed from small painted controls, not a squeezed shop sign.
  # Status and tools have distinct groups; every live action retains a 44px target.
- var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<550
- var w=usable-16;var h=92.0 if wrapped else 44.0
+ var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<600
+ var w=usable-16;var compact_music=wrapped and usable<378.0
+ var h=92.0 if wrapped else 44.0
+ ui.music_access.text="♪" if compact_music else "Music";ui.music_access.add_theme_font_size_override("font_size",22 if compact_music else 14)
  layout_host.position=Vector2(inset.x+8,inset.y+6);layout_host.size=Vector2(w,h)
  layout_host.set_meta("unified_wrapped",wrapped)
  wallet_art.hide();wallet_mobile_art.hide();wallet_title.hide();sign_art.hide()
@@ -553,11 +560,14 @@ func _layout_mobile_toolbar(width:float):
  game.business_button.tooltip_text=game.business_button.accessibility_name
  var tool_y=48.0 if wrapped else 0.0
  _layout_unified_play_controls(1.0,true)
- # Pause belongs beside Settings; cash notices retain the space below the wallet.
+ # Accepted Pause/Settings pair and under-wallet notice clearance stay intact.
  _place(ui.play_controls,Rect2(w-94,0,PLAY_CONTROL_WIDTH,44))
  var action_width=44.0;var gap=6.0
  var action_count=(2 if wrapped else 4)+(1 if game.editing else 0)
  var action_x=w-action_count*action_width-(action_count-1)*gap
+ # Music uses the free slot before the tools, never the recovery badge width.
+ var music_width=44.0 if compact_music else 64.0
+ _place(ui.music_access,Rect2(action_x-music_width-gap,tool_y,music_width,44))
  _place(game.edit_button,Rect2(action_x,tool_y,44,44))
  _mobile_action_art(game.edit_button,"decorate")
  var staff_x=action_x+action_width+gap

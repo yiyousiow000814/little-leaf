@@ -1,0 +1,18 @@
+{
+  "kind": "Two new built-in generated transparent painted source ornaments",
+  "user_direction": "Continue player UI floral distribution and sculpted frame detail after r23; no final acceptance",
+  "tool": "Built-in image_gen; no external API/account or paid service used",
+  "generated_sources": {
+    "sculpted-curl-r24.png": "exec-d4578a72-c6fb-4e43-9778-e05e5abd8415.png",
+    "corner-leaf-fan-r24.png": "exec-769e8a9b-752b-475a-b24d-efb3308dd8d1.png"
+  },
+  "source_images_sha256": {
+    "sculpted-curl-r24.png": "edf902fc5099ade03462c0a16776a2e468cba85e851196936cc08b3d56cdbdbf",
+    "corner-leaf-fan-r24.png": "c334b0cd82780a9871c2c847956aa09552f0ada21d8bb9ddb82beb9c3eb8bb3a"
+  },
+  "editable_layers": "Source PNG with alpha plus independent retained Godot nodes, source-region calibration, source prompts and generated ink inventory; not a native brush-layer document",
+  "original_assets_untouched": true,
+  "screenshot_editing": false,
+  "technical_intent": "mipmapped transparent source textures, fixed meshes/control geometry, no new frame callbacks; two existing corner paints replaced and two stationary finial nodes added",
+  "alpha_inventory": "Conservative 24px source cells with alpha >8; no pixel editing or alpha regeneration"
+}

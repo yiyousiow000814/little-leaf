@@ -1,0 +1,157 @@
+{
+  "status": "Selected concept 2 bounded layered 2.5D prototype; not final aesthetic approval",
+  "base_source": "9088e552d1497899737d73dadcd18542cf74b018",
+  "generation": "Built-in image generation from the user-selected Concept 2; separate transparent layers, original output pixels preserved",
+  "editable_layers": "Named retained Godot 2D meshes in scripts/ui/pearlwood_music_art.gd; source PNGs remain individually replaceable. Paint is raster, not vector or a true 3D mesh.",
+  "alpha_handling": "Three crop/leaf/record shaders discard alpha <= 2/255 to suppress isolated near-transparent generation noise. No source PNG pixels changed. Board uses an AtlasTexture crop and retained half-scale nine-patch.",
+  "projection": "440x360 logical art canvas; fixed record projected ellipse .74 aspect at Premium; root anchors specified by renderer constants; no world-space footprint/camera/collision change.",
+  "motion": "Premium petal unfolding and fixed-stem shader leaf-tip deformation; playback-linked, not measured beat synchronization. Reduced motion/hidden/paused stop continuous motion.",
+  "files": {
+    "base.png": {
+      "sha256": "9c011f942f4d3700ed8ecd399a98abb4449f419aaacc5de739f5e73bb17a1678",
+      "bytes": 1079720
+    },
+    "board.png": {
+      "sha256": "42ac72d03a215a26f44bc40f61b5678efc66201767cc378ead1ce82ba7321fba",
+      "bytes": 1477885
+    },
+    "leaf.png": {
+      "sha256": "52023eeb53c21aabb5f197899ae13601ede1550de8ee29b0de110f7066c69535",
+      "bytes": 1542459
+    },
+    "petal.png": {
+      "sha256": "e57c0a9f7c1365ac9ffd31da8c0eebec47744d1aff2d1ea3e14e08f90b58793f",
+      "bytes": 1581732
+    },
+    "record.png": {
+      "sha256": "e57e4aa3a521049847109a4859593a6d15ba3ff9b9081749d1a4ce124576053f",
+      "bytes": 1764124
+    }
+  },
+  "r12_editable_support": {
+    "source": "petal_support.svg",
+    "authoring": "Original code-native vector paths and gradients; independently named support, folds, contact shadow and loose blossoms. Godot SVG import uses the already demonstrated SVG workflow; no source bitmap or reference pixels rewritten.",
+    "logical_size": [
+      440,
+      84
+    ],
+    "sha256": "c29a8880105ffde2279c793b4f7e29ef802c2465bafd8811483a8683bdb40cd3",
+    "license": "Original project artwork; retained with this editable source; not a third-party image extraction."
+  },
+  "r16_cabinet_rim": {
+    "shader": "cabinet_rim_mask.gdshader",
+    "sha256": "cb694947b064bbbb4481e6ae933c475919ed8906379fdcc5aac6df6067b422c2",
+    "method": "Original static complementary shader masks follow the original painted front lip; no PNG pixels repainted. Back and front own disjoint source pixels, with unchanged cabinet dimensions. Support keeps width and gains 10 logical units of height within the original art allocation.",
+    "status": "WIP native review pending"
+  },
+  "r20_hero_sprigs": {
+    "source": "../music_botanical/gold_flowering_stem.png",
+    "source_sha256": "c055c196156f7a65e7c268f7e9e995e4b8ff9cb560038a873a49faad3a6b634d",
+    "bud_region": [
+      1767,
+      188,
+      101,
+      94
+    ],
+    "method": "Three retained native curved stems terminate at fixed bud anchors; six additional instances reuse the original painted leaf texture and shared mesh. No source bitmap pixels changed. This is a new rooted composition, not the rejected r17 floating branch crop.",
+    "petal_refinement": "Two upper rear petals become more upright; static per-petal light tint separates rear/front planes. Independent painted backfaces remain open.",
+    "ownership": "One retained draw-list node, one shared bud mesh and three owned bud materials; all child resources release with the art subtree. No per-frame path or mesh rebuilding.",
+    "status": "WIP; source checks and actual native artistic comparison pending"
+  },
+  "r21_support_relief": {
+    "source": "petal_support.svg",
+    "sha256": "c5d0933e1f9a053c8333cb26160ccbb885f8d7996442e1e868f5424dd5777dfc",
+    "logical_size": [
+      440,
+      84
+    ],
+    "authoring": "Original editable code-native SVG with independently named folded faces, curled rim, contact shadows and loose-petal parts. Uses existing qualified Inkscape/SVG route; original raster and reference pixels untouched.",
+    "scope": "Material and folded-face detail within existing support allocation; no panel, record, tonearm or playback code changed.",
+    "ownership": "Same one retained SVG texture and mesh. No new per-frame work or resources.",
+    "status": "WIP; actual native review pending"
+  },
+  "r22_painted_petal_variants": {
+    "status": "Unaccepted isolated art candidate; native comparison pending",
+    "generation": "Built-in image_gen edit mode, transparent output. No CLI/API key, paid external service or external account. Original source asset and original reference used only as style/shape input; no UI screenshot repainted.",
+    "original_asset_preserved": "petal.png",
+    "original_asset_sha256": "e57c0a9f7c1365ac9ffd31da8c0eebec47744d1aff2d1ea3e14e08f90b58793f",
+    "calibrations": [
+      {
+        "name": "front",
+        "file": "petal-cupped-front-r22.png",
+        "size": [
+          1024,
+          1536
+        ],
+        "alpha_extrema": [
+          0,
+          254
+        ],
+        "alpha_gt_2_bbox": [
+          54,
+          82,
+          991,
+          1429
+        ],
+        "painted_root_pixel": [
+          530.5,
+          1422.0
+        ],
+        "source_region_preserving_original_mesh_uv_anchor": [
+          46.85250000000002,
+          61.90000000000009,
+          991.3627665876777,
+          1376.9157818181816
+        ],
+        "root_alignment_uv": [
+          0.48786127167630056,
+          0.9877873563218391
+        ],
+        "edge_alpha_max": 1,
+        "sha256": "a6215a99e64251839a27241ef925ea52dd80eb0aa79927a2a3d1fc0df8ec8017",
+        "bytes": 1734461,
+        "runtime_asset": "petal-cupped-front-r22.png"
+      },
+      {
+        "name": "back",
+        "file": "petal-curled-back-r22.png",
+        "size": [
+          1024,
+          1536
+        ],
+        "alpha_extrema": [
+          0,
+          254
+        ],
+        "alpha_gt_2_bbox": [
+          54,
+          107,
+          1006,
+          1413
+        ],
+        "painted_root_pixel": [
+          574.5,
+          1406.0
+        ],
+        "source_region_preserving_original_mesh_uv_anchor": [
+          46.19250000000011,
+          87.51500000000033,
+          1082.905183649289,
+          1334.7862690909087
+        ],
+        "root_alignment_uv": [
+          0.48786127167630056,
+          0.9877873563218391
+        ],
+        "edge_alpha_max": 1,
+        "sha256": "f8ea2fdbe40d3292898e44244236555d8087f7d0cdbe777e49ff49b35f8cd1af",
+        "bytes": 1726954,
+        "runtime_asset": "petal-curled-back-r22.png"
+      }
+    ],
+    "invariants": "All six existing mesh vertex/index arrays, root node positions, angles, heights, light tints and reveal transforms are unchanged. New crop regions map painted roots to original PETAL_ROOT UV. Original source remains on petals 0/3, new curved backs on 1/2, new front faces on 4/5.",
+    "ownership": "Two additional immutable preloaded textures; existing six mesh/material/node owners unchanged. No new per-frame allocation or shader behavior.",
+    "source_limits": "Generated raster layers remain replaceable and separately retained, not a multilayer hand-painted native document. Actual art acceptance is separate.",
+    "sampling": "Both new lossless PNG imports retain fix_alpha_border=true and mipmaps/generate=true, matching the existing owner LINEAR_WITH_MIPMAPS. First native draft without mipmaps was rejected internally and retained outside source."
+  }
+}

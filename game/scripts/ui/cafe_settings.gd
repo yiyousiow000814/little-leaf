@@ -1,4 +1,5 @@
 extends RefCounted
+const MusicCatalog=preload("res://scripts/ui/cafe_music_catalog.gd")
 const SaveProfiles=preload("res://scripts/persistence/cafe_save_profiles.gd")
 const CloudSettings=preload("res://scripts/persistence/cafe_cloud_settings.gd")
 var cloud_settings
@@ -10,6 +11,7 @@ var game
 var panel:PanelContainer
 var header:HBoxContainer
 var close_button:Button
+var music_track=MusicCatalog.AUTOMATIC
 var bgm_enabled=true
 var sfx_enabled=true
 var bgm_volume=70.0
@@ -55,6 +57,7 @@ func load_preferences():
 			if existing!="":source=existing
 		loaded=cfg.load(source)==OK
 	loaded_preferences_source=source
+	music_track=MusicCatalog.normalize_selection(cfg.get_value("audio","music_track",MusicCatalog.AUTOMATIC))
 	if loaded:
 		bgm_enabled=bool(cfg.get_value("audio","bgm_enabled",true))
 		sfx_enabled=bool(cfg.get_value("audio","sfx_enabled",true))
@@ -75,6 +78,7 @@ func _preferences_writes_allowed()->bool:
 func save_preferences()->bool:
 	if not _preferences_writes_allowed():return false
 	var cfg=ConfigFile.new()
+	cfg.set_value("audio","music_track",music_track)
 	cfg.set_value("audio","bgm_enabled",bgm_enabled);cfg.set_value("audio","sfx_enabled",sfx_enabled)
 	cfg.set_value("audio","bgm_volume",bgm_volume);cfg.set_value("audio","sfx_volume",sfx_volume)
 	# Legacy preferences may contain 2x. Playback is always normal speed;
@@ -132,17 +136,17 @@ func set_frame_rate(value:int):
 	frame_rate=30 if value==30 else 60
 	Engine.max_fps=frame_rate
 	sync();save_preferences()
+func set_music_track(value:Variant):
+	music_track=MusicCatalog.normalize_selection(value)
+	if game!=null:game._apply_music_selection()
+	sync();save_preferences()
 func set_show_stats(value:bool):
 	show_stats=value;sync()
 	if game!=null:game._update_ui()
 	save_preferences()
 func set_audio_enabled(kind:String,value:bool):
 	if kind=="BGM":
-		bgm_enabled=value;game.music_enabled=value
-		if value:game._switch_music(game.music_state if game.music_state!="" else "service")
-		else:
-			if is_instance_valid(game.music_tween):game.music_tween.kill()
-			for player in game.audio_players.values():player.stop()
+		bgm_enabled=value;game.set_music_enabled(value)
 	else:sfx_enabled=value
 	_apply_buses();sync();save_preferences()
 func set_audio_volume(kind:String,value:float):
