@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..');
 const fixtureDir = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -187,6 +187,9 @@ async function main() {
     for (const [name, digest] of Object.entries(contract.fixture_sha256)) {
       const bytes = fs.readFileSync(path.join(fixtureDir, name)); assert.equal(hash(bytes), digest); fixtures[name] = bytes.toString('utf8');
     }
+    assert.equal(preflight.layout_fixture_sha256, hash(fs.readFileSync(path.join(root, 'tests/fixtures/wall_compatibility_layout.gd'))), 'Native layout producer is the exact candidate test source');
+    for (const [name, fixture] of Object.entries(fixtures)) verifyCodecProjection(layouts.new.codec_fixtures?.[name], fixture);
+    verifyCodecProjection(layouts.new.expected_edit, fixtures['old-format1.json']);
     const oldSource = fs.readFileSync(path.join(oldSourceRoot, 'web/little_leaf_vault.js'), 'utf8');
     const newSource = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
     assert.equal(hash(oldSource), contract.old_vault_sha256);
@@ -320,7 +323,7 @@ async function main() {
       check(observed.writes.length === 0, name + ': zero old-client authority or legacy mutation calls');
       return {before_sha256: hash(canonical(baseline)), after_sha256: hash(canonical(after)), observation: observed};
     };
-    const verifyNewReload = async (context, baseline, name) => {
+    const verifyNewReload = async (context, baseline, name, importedFixture = null) => {
       const page = await createPage(context, 0);
       await page.bringToFront();
       await boot(page, 'new', active(baseline).revision);
@@ -333,7 +336,13 @@ async function main() {
       check(observed.saveStarts === starts + 1 && observed.saves.at(-1).ok && observed.saves.at(-1).durable,
         name + ': actual reloaded new controller accepts model and completes an immediate Apply save');
       const after = await readSnapshot(page);
-      assertPreserved(active(baseline), active(after));
+      if (importedFixture) {
+        assertImported(active(baseline), active(after), fixtures[importedFixture], layouts.new.codec_fixtures[importedFixture]);
+        assertOriginalArchived(baseline, after);
+      } else {
+        assertPreserved(active(baseline), active(after));
+        check(canonical(archiveRows(after)) === canonical(archiveRows(baseline)), name + ': original archive bytes retained across reload');
+      }
       check(canonical(after.legacy) === canonical(baseline.legacy), name + ': legacy bytes retained');
       await page.screenshot({path: path.join(output, name + '.png')});
       // A normal operating-open toggle is deliberately not part of the preserved
@@ -363,7 +372,7 @@ async function main() {
         await page.keyboard.press('F1');
         await screenText(page, 'old', 'case-a-after-autosave', ['Invalid saved wall or finish data', 'original progress is unchanged']);
         report.cases.old_opened_after_new = await assertUnchanged(page, baseline, 'Case A');
-        report.cases.old_opened_after_new.reload = await verifyNewReload(context, baseline, 'case-a-new-restored');
+        report.cases.old_opened_after_new.reload = await verifyNewReload(context, baseline, 'case-a-new-restored', 'new-format2.json');
       } finally {await context.close();}
     }
     // Case B: the old engine stays genuinely loaded throughout the real new UI
@@ -402,14 +411,17 @@ async function main() {
         await click(newPage, 'new', 'apply'); await idle(newPage);
         const committed = await readSnapshot(fixture), payload = JSON.parse(active(committed).payload);
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
-          wall_format: payload.wall_format, target: 'shell:back#2', expected_segment: layouts.new.expected_segment,
-          actual_segment: payload.shell_segment_products?.['shell:back#2'] || null};
+          building_format: payload.building_format, wall_format: payload.wall_format, target: layouts.new.expected_target, expected_segment: layouts.new.expected_segment,
+          actual_segment: payload.built_walls?.find(wall => wall.axis === 'x' && wall.x === 2 && wall.z === 0) || null};
         check(active(committed).revision === revision + 1, 'Normal new UI edit commits exactly R+1');
-        check(payload.wall_format === 2 && canonical(payload.shell_segment_products['shell:back#2']) === canonical(layouts.new.expected_segment), 'Real new UI commits the expected one-tile wall format 2 edit');
+        check(payload.building_format === 'little_leaf.grid_building.v2' && payload.wall_format === 4 && canonical(report.new_ui_edit.actual_segment) === canonical(layouts.new.expected_segment), 'Real new UI commits the expected one-tile centered grid wall edit');
+        assertImported(active(baseline), active(committed), fixtures['old-format1.json'], layouts.new.expected_edit, layouts.new.expected_cost);
+        assertOriginalArchived(baseline, committed);
         check(payload.coins === JSON.parse(active(baseline).payload).coins - layouts.new.expected_cost, 'Real new UI charges the expected wall price once');
-        check(canonical(payload.wall_attachments) === canonical(JSON.parse(active(baseline).payload).wall_attachments), 'Real new UI retains paid wide door geometry and ownership');
+        check(canonical(payload.wall_attachments) === canonical(JSON.parse(layouts.new.codec_fixtures['old-format1.json'].converted_payload).wall_attachments), 'Real new UI retains paid wide door geometry and ownership');
         check(canonical(active(committed).campaigns) === canonical(active(baseline).campaigns), 'New commit retains compensation receipt without a second grant');
-        check((await observation(newPage)).saves.some(result => result.ok && result.durable && result.revision === revision + 1 && result.creditedCoins === 0), 'Actual new controller receives durable R+1 acknowledgement');
+        const newObserved = await observation(newPage);
+        check(newObserved.saveStarts === 1 && newObserved.saves.length === 1 && newObserved.saves[0].ok && newObserved.saves[0].durable && newObserved.saves[0].revision === revision + 1 && newObserved.saves[0].creditedCoins === 0, 'Actual new controller receives durable R+1 acknowledgement');
         await newPage.screenshot({path: path.join(output, 'case-b-new-committed.png')});
         await oldPage.bringToFront(); await idle(newPage);
         // Settle and close the successful new writer before testing forbidden
@@ -418,6 +430,7 @@ async function main() {
         await newPage.close();
         const protectedSnapshot = await stableSnapshot(fixture);
         assertPreserved(active(committed), active(protectedSnapshot));
+        check(canonical(archiveRows(protectedSnapshot)) === canonical(archiveRows(committed)), 'Page-hide lifecycle retains exact original archive bytes');
         await click(oldPage, 'old', 'business'); await idle(oldPage);
         let observed = await observation(oldPage);
         check(observed.saves.length === 1 && observed.saves[0].ok === false && observed.saves[0].code === 'REVISION_CONFLICT', 'Actual stale old UI save receives REVISION_CONFLICT from real IndexedDB CAS');

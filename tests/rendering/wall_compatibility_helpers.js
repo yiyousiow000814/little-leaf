@@ -83,6 +83,11 @@ function verifyLayout(layout, label) {
     assert.equal(layout.expected_cost, 35, 'Unchanged half-wall purchase price');
     assert.equal(layout.expected_segment?.height, 'half', 'Exact requested height');
     assert.equal(layout.expected_segment?.material, 'sage_panels', 'Exact requested finish');
+    assert.equal(layout.expected_target, 'x:2:0', 'Exact grid-edge target');
+    assert.equal(layout.expected_segment?.id, 'shell:back#2', 'Imported wall identity survives replacement');
+    assert.deepEqual([layout.expected_segment?.axis, layout.expected_segment?.x, layout.expected_segment?.z], ['x', 2, 0], 'Exact one-tile grid geometry');
+    assert.equal(layout.expected_segment?.paid_cost, 35, 'Exact wall payment');
+    assert.equal(layout.expected_segment?.refund_credit, 17, 'Exact wall refund ownership');
   }
 }
 
@@ -101,15 +106,72 @@ async function selectWallReplacement(click, screenUiText) {
   await screenUiText('case-b-new-confirmation', ['review_heading', 'review_text'],
     ['Replace wall', 'Selected one-tile wall', 'Half wall', 'Sage panels', 'You pay 35 coins']);
 }
+// Preserve both representations exactly. Conversion is permitted only against a
+// projection emitted by the candidate's real native codec and bound to the
+// fixed fixture, source, export and layout hashes before any browser is opened.
+const buildingFields = ['building_format', 'wall_format', 'built_walls', 'shell_material',
+  'shell_products', 'shell_segment_format', 'shell_segment_products', 'wall_attachment_format',
+  'wall_attachments', 'next_wall_id', 'next_attachment_id', 'starter_geometry_version',
+  'floor_style', 'floor_finishes', 'owned_parcels'];
+function building(payload) {
+  return Object.fromEntries(buildingFields.filter(key => Object.hasOwn(payload, key)).map(key => [key, payload[key]]));
+}
+function ownership(record) {
+  return {profileId: record.profileId, origin: record.origin, campaigns: record.campaigns};
+}
 function progress(record) {
   const payload = JSON.parse(record.payload);
-  return {profileId: record.profileId, origin: record.origin, campaigns: record.campaigns,
-    coins: payload.coins, built_walls: payload.built_walls, wall_format: payload.wall_format,
-    shell_products: payload.shell_products, shell_segment_format: payload.shell_segment_format,
-    shell_segment_products: payload.shell_segment_products, wall_attachment_format: payload.wall_attachment_format,
-    wall_attachments: payload.wall_attachments, next_attachment_id: payload.next_attachment_id};
+  return {...ownership(record), coins: payload.coins, ...building(payload)};
 }
 function assertPreserved(before, after) {
   assert.equal(canonical(progress(after)), canonical(progress(before)), 'Wall products, openings, wallet, identity, provenance and receipts must survive');
 }
-module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved};
+function verifyCodecProjection(projection, fixture) {
+  assert(projection && typeof projection.converted_payload === 'string', 'Native converted bytes are mandatory');
+  assert.equal(projection.source_sha256, hash(fixture), 'Native projection binds the exact preserved fixture');
+  assert.equal(projection.original_backup_sha256, hash(fixture), 'Native recovery copy retains the exact input');
+  assert.equal(projection.converted_sha256, hash(projection.converted_payload), 'Native converted bytes match their receipt');
+  const payload = JSON.parse(projection.converted_payload);
+  assert.equal(payload.building_format, 'little_leaf.grid_building.v2', 'Native codec must emit centered grid building');
+  assert.equal(payload.wall_format, 4, 'Native codec must emit wall format 4');
+  assert.equal(payload.wall_attachment_format, 2, 'Native codec must emit grid attachment ownership');
+  for (const obsolete of ['shell_products', 'shell_segment_products', 'shell_segment_format', 'shell_material']) {
+    assert(!Object.hasOwn(payload, obsolete), 'Converted projection has no obsolete ' + obsolete);
+  }
+  assert(Array.isArray(payload.built_walls) && payload.built_walls.length > 0, 'Native grid walls are mandatory');
+  assert(Array.isArray(payload.wall_attachments) && payload.wall_attachments.length > 0, 'Native paid opening is mandatory');
+  return payload;
+}
+function assertImported(before, after, fixture, projection, cost = 0) {
+  const original = JSON.parse(fixture), baseline = JSON.parse(before.payload), actual = JSON.parse(after.payload);
+  const converted = verifyCodecProjection(projection, fixture);
+  assert.equal(canonical(building(baseline)), canonical(building(original)), 'Import baseline must match the fixed historical geometry and payment identity');
+  assert.equal(canonical(building(actual)), canonical(building(converted)), 'Imported grid geometry, paid openings, IDs, receipts and floor ownership match the exact native codec');
+  assert.equal(canonical(ownership(after)), canonical(ownership(before)), 'Import preserves profile identity, provenance and compensation receipts');
+  assert.equal(actual.coins, baseline.coins - cost, 'Import preserves wallet except the single authorized wall charge');
+  assert.equal(converted.coins, original.coins - cost, 'Native projection charges only the expected wall cost');
+}
+const archiveRows = snapshot => snapshot.authority.filter(([key]) => typeof key === 'string' && key.startsWith('pre-grid-v1/'));
+function assertOriginalArchived(before, after) {
+  const original = before.authority.find(([key]) => key === 'active')[1];
+  const key = 'pre-grid-v1/' + original.profileId;
+  const previous = before.authority.find(([name]) => name === key);
+  const row = after.authority.find(([name]) => name === key);
+  assert(row && typeof row[1] === 'string', 'Migration must durably retain its original authority archive');
+  const archives = JSON.parse(row[1]), prior = previous ? JSON.parse(previous[1]) : [];
+  assert.equal(archives.length, prior.length + 1, 'Exactly one original authority is archived for this transition');
+  assert.equal(canonical(archives.slice(0, -1)), canonical(prior), 'Previous recovery entries remain unchanged');
+  const entry = archives.at(-1), {archiveDigest, ...body} = entry;
+  assert.equal(archiveDigest, hash(JSON.stringify(body)), 'Archive checksum');
+  assert.equal(entry.format, 'little-leaf.pre-grid.v1', 'Exact recovery archive format');
+  assert.equal(entry.profileId, original.profileId, 'Archived profile identity');
+  assert.equal(entry.revision, original.revision, 'Archived revision');
+  assert.equal(entry.digest, original.digest, 'Archived authority digest');
+  assert.equal(entry.legacyDigest, null, 'Archive is the acknowledged authority, not a substituted legacy file');
+  assert.equal(entry.payload, original.payload, 'Original authority payload bytes retained exactly');
+  assert.equal(entry.payloadDigest, hash(original.payload), 'Original payload checksum');
+  assert.equal(canonical(JSON.parse(entry.recordText)), canonical(original), 'Original authority, identity, receipts and previous record retained exactly');
+  assert.equal(canonical(after.legacy), canonical(before.legacy), 'Migration leaves original legacy bytes unchanged');
+  assert.equal(canonical(archiveRows(after).filter(([name]) => name !== key)), canonical(archiveRows(before).filter(([name]) => name !== key)), 'Unrelated archives remain unchanged');
+}
+module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived};
