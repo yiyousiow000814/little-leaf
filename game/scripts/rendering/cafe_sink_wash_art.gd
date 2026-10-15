@@ -3,23 +3,34 @@ extends RefCounted
 const Geometry=preload("res://scripts/rendering/kitchen_worktop_geometry.gd")
 const ARM=10.5
 const HALF_ARM=ARM*.5
-const INSET=.55
+const INSET=.27
 const DROP_INSET=.55
+static func work_inset(rotation:int)->float:
+ # Keep the settled shoe silhouette outside the full-cell solid body.
+ return .362 if posmod(rotation,4) in [1,2] else INSET
 static func front_drop_stance(rotation:int)->Vector2:
  # Stay outside the cabinet's front plane, within the same logical work tile.
  # Choose the corner with horizontal screen separation from the central washer.
  var front=Vector2.DOWN.rotated(posmod(rotation,4)*PI/2)
  var side=Vector2(-front.y,front.x)
  if (side.x-side.y)*(front.x-front.y)<0:side=-side
- return -front*.35+side*.45
-static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int)->Dictionary:
+ return -front*work_inset(rotation)+side*.45
+static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int,front_drop=false)->Dictionary:
  # Ownership changes at .65. The plate clears the opening and stack at that beat,
  # then lowers into its queue slot while the empty hands withdraw.
  var opening=Geometry.height(Geometry.SINK_OPENING_HEIGHT)
  slot=maxi(0,slot)
  var final_height=Geometry.height(Geometry.SINK_STACK_HEIGHT)+slot*2.2
  var release_height=maxf(opening+1.8,final_height+1.8)
- var release=actual_surface(Geometry.SINK_BASIN_CENTER,release_height,rotation)
+ var contact=Geometry.SINK_BASIN_CENTER
+ if front_drop:
+  # The small front gesture releases above the reachable inside corner,
+  # then follows the existing settling path into its owned queue slot.
+  var front=Vector2.DOWN.rotated(posmod(rotation,4)*PI/2)
+  var side=front_drop_stance(rotation)+front*work_inset(rotation)
+  var local_side=side.rotated(-posmod(rotation,4)*PI/2).normalized()
+  contact+=local_side*.18+Vector2(0,.24)
+ var release=actual_surface(contact,release_height,rotation)
  var stack=Geometry.sink_plate_anchor(rotation)+Vector2(0,-slot*2.2)
  var center=start.lerp(release,smoothstep(0,.65,phase)) if phase<.65 else release.lerp(stack,smoothstep(.65,1,phase))
  return {"center":center,"release":release,"release_height":release_height,"height":release_height if phase<.65 else lerpf(release_height,final_height,smoothstep(.65,1,phase)),"held":phase<.65}
@@ -54,7 +65,7 @@ static func basis(rotation:int,tilt:float)->Transform2D:
 static func geometry(rotation:int,seconds:float,count:int)->Dictionary:
  var lift=smoothstep(0,.8,seconds);var lower=smoothstep(19.35,20.0,seconds)
  var initial_height=Geometry.height(Geometry.SINK_STACK_HEIGHT)+maxi(0,count-1)*2.2
- var z=lerpf(Geometry.SINK_BASIN_CENTER.y,.30,lift);z=lerpf(z,.08,lower)
+ var z=lerpf(Geometry.SINK_BASIN_CENTER.y,.30+Geometry.SINK_WORK_SHIFT,lift);z=lerpf(z,.08+Geometry.SINK_WORK_SHIFT,lower)
  var height=lerpf(initial_height,22.5,lift);height=lerpf(height,Geometry.height(Geometry.SINK_STACK_HEIGHT),lower)
  var tilt=deg_to_rad(28)*lift*(1.0-lower)
  var center=actual_surface(Vector2(0,z),height,rotation)
@@ -63,9 +74,9 @@ static func geometry(rotation:int,seconds:float,count:int)->Dictionary:
  var scrub=Vector2(sin(cycle*TAU)*2.0,cos(cycle*TAU)*.85)
  var rinsing=smoothstep(17.3,18.7,seconds)
  scrub*=1.0-rinsing
- var water_height=height-(.10-z)/maxf(.1,cos(tilt))*sin(tilt)*30.0
- var outlet=Geometry.surface(Vector2(0,.10),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
- var contact=actual_surface(Vector2(0,.10),water_height,rotation)
+ var water_height=height-(Geometry.SINK_TAP_OUTLET_Z-z)/maxf(.1,cos(tilt))*sin(tilt)*30.0
+ var outlet=Geometry.surface(Vector2(0,Geometry.SINK_TAP_OUTLET_Z),Geometry.SINK_TAP_OUTLET_HEIGHT,rotation)
+ var contact=actual_surface(Vector2(0,Geometry.SINK_TAP_OUTLET_Z),water_height,rotation)
  return {"center":center,"basis":plate_basis,"transform":Transform2D(plate_basis.x,plate_basis.y,center),"scrub_local":scrub,"scrub":center+plate_basis*scrub,"outlet":outlet,"water_contact":contact,"height":height,"foam":smoothstep(.8,1.8,seconds)*(1.0-smoothstep(17.3,19.1,seconds)),"dirt":1.0-smoothstep(3,17,seconds),"seconds":seconds,"lower":lower,"lift":lift,"stage":"lift" if seconds<.8 else ("scrub" if seconds<17.3 else ("rinse" if seconds<19.35 else "lower"))}
 static func nearest_rim(shoulder:Vector2,center:Vector2,plate_basis:Transform2D)->Vector2:
  var best=center;var distance=INF

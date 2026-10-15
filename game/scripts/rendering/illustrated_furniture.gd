@@ -154,7 +154,7 @@ func _stove_controls():
 			a._face_ellipse(tip,Vector2.ONE*.35,"73806a")
 
 func _beverage_base():
-	cabinet(.90,.78,29,"b7bd9d","9fab8f","e9dfc0")
+	cabinet(CABINET_TILE_SPAN,CABINET_TILE_SPAN,29,"b7bd9d","9fab8f","e9dfc0")
 	# Drip tray has the same rotated front as the cup's actual preparation slot.
 	box(.17,.26,.27,.22,29,30,"aebba6","8c9f8d","91a18e")
 	for x in [.09,.15,.21,.27]:edge(point(x,.17,30.4),point(x,.34,30.4),"7e9380",.7)
@@ -182,8 +182,8 @@ func box(x: float,z: float,w: float,d: float,lo: float,hi: float,top,front,side,
 	var pts=[]
 	for q in corners:pts.append(point(q.x,q.y,hi))
 	face(pts,top,2.0)
-func cabinet(w=.85,d=.75,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
-	box(0,0,w,d,1,h,top,paint,side,paint)
+func cabinet(w=CABINET_TILE_SPAN,d=CABINET_TILE_SPAN,h=29.0,paint="c3a168",side="b49461",top="e6cca0"):
+	box(0,0,w,d,0,h,top,paint,side,paint)
 	if not front_visible():return
 	var z=d/2+.006
 	for part in [-1,1]:
@@ -345,10 +345,10 @@ func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
 func _sink_faucet():
 	# One centered tap serves the full basin; there is no decorative rack.
 	var x=KitchenGeometry.SINK_BASIN_CENTER.x
-	var back=-.35
+	var back=KitchenGeometry.SINK_TAP_BACK
 	top_ellipse(x,back,30.2,.045,.050,"819b88")
 	top_ellipse(x,back,30.4,.033,.038,"c2d3bc")
-	var pipe=[point(x,back,30),point(x,back,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,.10,KitchenGeometry.SINK_TAP_OUTLET_HEIGHT)]
+	var pipe=[point(x,back,30),point(x,back,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,KitchenGeometry.SINK_TAP_OUTLET_Z,KitchenGeometry.SINK_TAP_CREST_HEIGHT),point(x,KitchenGeometry.SINK_TAP_OUTLET_Z,KitchenGeometry.SINK_TAP_OUTLET_HEIGHT)]
 	for i in range(pipe.size()-1):a._face_line(pipe[i],pipe[i+1],"93ac9c",2.5)
 	for joint in pipe:a._face_ellipse(joint,Vector2.ONE*1.25,"93ac9c")
 
@@ -391,6 +391,10 @@ func _sink_cavity():
 	_sink_clip(drain,opening,"547c70")
 
 func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
+	draw_sink_front_rim(artist,p,rotation)
+	draw_sink_front_tap(artist,p,rotation)
+
+func draw_sink_front_rim(artist:Node2D,p:Vector2,rotation:int):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	var center=KitchenGeometry.SINK_BASIN_CENTER
 	var outer=KitchenGeometry.SINK_BASIN_OUTER
@@ -408,6 +412,8 @@ func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
 		inner_points.append(point(inner_q.x,inner_q.y,KitchenGeometry.SINK_OPENING_HEIGHT))
 	inner_points.reverse()
 	a.poly(rim_points+inner_points,"f4f1da")
+func draw_sink_front_tap(artist:Node2D,p:Vector2,rotation:int):
+	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	# The rear-mounted stem changes depth with rotation. Its spout now clears
 	# the entire six-dish stack in projection, without an always-front trick.
 	if KitchenGeometry.sink_tap_in_front(turn):_sink_faucet()
@@ -434,7 +440,7 @@ func _draw_item_legacy(artist: Node2D,kind: String,p: Vector2,rotation: int,_id=
 			if front_visible() and a.has_method("_station_payloads"):a._station_payloads(_id,"beverage",turn)
 			if beverage_accessories_in_front(turn):beverage_accessories()
 		"sink":
-			cabinet(.94,.82,29,"bac4aa","99ad98","cbd7be")
+			cabinet(CABINET_TILE_SPAN,CABINET_TILE_SPAN,29,"bac4aa","99ad98","cbd7be")
 			# Recessed floor, side walls and front lip, all on the same sink.
 			_sink_cavity()
 			_sink_faucet()

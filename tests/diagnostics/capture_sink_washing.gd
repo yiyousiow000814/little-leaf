@@ -30,7 +30,7 @@ class Sheet extends "res://scripts/rendering/illustrated_cafe.gd":
   var worker=sample(rotation,time,count)
   var front=Vector2.DOWN.rotated(rotation*PI/2);var heading=-front
   var mirror=-1.0 if heading.x-heading.y<0 else 1.0;var back=heading.x+heading.y<0
-  var offset=Vector2((front.x-front.y)*39,(front.x+front.y)*19.5)*(1.0-Wash.INSET)
+  var offset=Vector2((front.x-front.y)*39,(front.x+front.y)*19.5)*(1.0-Wash.work_inset(rotation))
   var finished=worker.job_kind==""
   var g=Wash.geometry(rotation,minf(time,19.99),count)
   var basis:Transform2D=g.basis

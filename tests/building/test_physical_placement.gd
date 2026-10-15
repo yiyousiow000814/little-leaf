@@ -24,6 +24,39 @@ func synthetic_file(path:String,text:String)->bool:
  var file=FileAccess.open(path,FileAccess.WRITE)
  if file==null:return false
  file.store_string(text);file.close();return true
+func check_active_access_save_boundary(directory:String):
+ # Physical-only placement is legal while idle, but active saves must match
+ # the existing strict reader before replacing either destination file.
+ for center in ["bin","plant"]:
+  var model=fixture();model.begin_decoration_session()
+  var unblock_id=-1
+  for spec in [[center,8,6],["plant",7,6],["plant",9,6],["plant",8,5],["plant",8,7]]:
+   check(model.place(spec[0],spec[1],spec[2]),center+" boundary fixture uses ordinary physical placement")
+   if spec[1]==7:unblock_id=model._next_item_id-1
+  model.finish_decoration_session()
+  var path=directory+"/active-access-"+center+".json"
+  check(model.save(path),center+" idle layout saves before normal arrival")
+  var loaded=Model.new()
+  check(loaded.load_save(path),center+" idle layout reloads before normal arrival")
+  var previous_hash=FileAccess.get_sha256(path)
+  var temp_path=path+".tmp"
+  check(synthetic_file(temp_path,"{\"synthetic\":\"previous temporary file\"}"),"existing temporary bytes seeded")
+  var temp_hash=FileAccess.get_sha256(temp_path)
+  loaded.tick(4.1)
+  check(loaded.customers.size()==1,"ordinary tick admits one guest without changing the optional furnishing")
+  var saved=loaded.save(path)
+  check(saved==(center=="plant"),center+" active save agrees with the unchanged reader access policy")
+  var restored=Model.new()
+  if center=="bin":
+   check(loaded.last_error=="Saved layout blocks access to service stations","blocked optional bin reports the existing reader access error")
+   check(FileAccess.get_sha256(path)==previous_hash,"active access refusal preserves last-good primary bytes")
+   check(FileAccess.get_sha256(temp_path)==temp_hash,"active access refusal preserves preexisting temporary bytes")
+   check(restored.load_save(path) and restored.customers.is_empty(),"previous idle save remains readable after active refusal")
+   check(loaded.remove(unblock_id),"ordinary plant removal restores access without clearing the live guest")
+   check(loaded.save(path),"unblocked active cafe saves")
+   check(restored.load_save(path) and restored.customers.size()==1,"unblocked active cafe reloads its live guest")
+  else:
+   check(restored.load_save(path) and restored.customers.size()==1,"non-service center control preserves ordinary active save and reload")
 func _init():
  if not "placement-saveguard" in OS.get_user_data_dir():printerr("Use isolated placement-saveguard profile");quit(2);return
  var model=fixture();var plan=EditPlan.new();var target=Model.ENTRY_LANDING
@@ -112,5 +145,6 @@ func _init():
  if moved_load_ok:
   check(moved_loaded.items==moved.items and moved_loaded.coins==moved.coins,"former-cell furniture and payment survive roundtrip")
   check(moved_loaded.wall_attachments==moved.wall_attachments and is_equal_approx(float(moved_loaded.get_wall_attachment(1).offset),3.5),"reload keeps the moved door at its new host offset")
+ check_active_access_save_boundary(directory)
  print("PHYSICAL_PLACEMENT_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"original_player_save_used":false,"generated_fixture":path}))
  quit(0 if failures.is_empty() else 1)

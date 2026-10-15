@@ -170,11 +170,12 @@ function validateNaturalPayment(state, order, layout, initial) {
 }
 
 async function navigateFreshGame(page, url) {
-  // Document navigation is not engine readiness. Keep both original caps;
-  // the real native/vault condition below remains mandatory before gameplay.
-  const response = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 15000});
+  // The shell's synchronous WebGL capability probe blocks DOMContentLoaded.
+  // Keep transport separate from that engine work, with both original caps.
+  const response = await page.goto(url, {waitUntil: 'commit', timeout: 15000});
   assert(response && response.ok(), 'Ordinary Web entry must load successfully');
-  await page.waitForFunction(() => !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
+  await page.waitForFunction(() => document.readyState !== 'loading'
+    && !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
 }
 
 function observePageFailures(page, errors) {
@@ -385,10 +386,12 @@ async function main() {
     await waitState('staff-open', s => s.tutorial.step === 2);
     await click('staff_done');
     await visible('try-decorate', [stage('decorate').text], stage('decorate').guide);
-    await waitState('staff-closed', s => s.tutorial.step === 3);
+    const beforeDecorate = await waitState('staff-closed', s => s.tutorial.step === 3);
     await click('decorate');
     await visible('return-to-cafe', [stage('return').text], stage('return').guide);
-    await waitState('decorating', s => s.tutorial.step === 4);
+    const duringDecorate = await snapshot();
+    check(duringDecorate && canonical(duringDecorate.tutorial) === canonical(beforeDecorate.tutorial) && duringDecorate.items_sha256 === beforeDecorate.items_sha256,
+      'Visible live tutorial step4 keeps the durable entry-step3 and layout baseline until Apply');
     await click('return');
     await visible('service-explanation', [stage('order').text], stage('order').guide);
     await visible('service-next-button', ['Next'], completionButtonRegion(stage('order')), CUE_MS,

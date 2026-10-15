@@ -44,6 +44,78 @@ Inspect melody and harmony, bass movement, exact note/rest durations, ties and l
 
 Native composition data is authoritative. For audio-only generation, explicitly record absent score, MIDI and stems; a stereo clip project is not a multitrack composition. Any automatic transcription must be labelled **automatically transcribed, unverified**, with source audio hash, excerpt offset, method/model version, settings, confidence/uncertainty and manual corrections. Keep uncertain notes, missing voices and instrument attribution explicit; transcription mistakes are not established composition defects. Compare corrected notation and its playback with the original before relying on it. For example, [Basic Pitch's official guidance](https://github.com/spotify/basic-pitch) says it works best on one instrument at a time; mixed stereo output needs additional review. Missing tools or an unverified transcription must remain a capability gap rather than a fabricated score.
 
+## Music loop production and QA
+
+Apply this source-aware workflow to any permitted music source or tool. First
+decide whether the asset should loop; a one-shot jingle need not loop. These
+production rules do not approve new audio, revoke an accepted recording or reopen
+creative approval for already authorized source, loop adaptation or integration.
+
+1. Source review: identify exact original and approved revisions, hashes, intended
+   use, available editable events/MIDI/MusicXML/DAW/stems or mixed audio, tool
+   parameters and provenance/licences. Record missing source and listening access.
+2. Musical structure: map phrases/bars, harmony, melodic ending or pickup, accents,
+   transitions and sounding releases. An inferred transcription is not original
+   session evidence.
+3. Loop arrangement: justify a track-specific end/start relationship. Preserve
+   approved melody, tempo, instrumentation and major arrangement unless the scoped
+   change is authorized.
+4. Boundary processing: implement exact sample/region boundaries and inspect
+   attacks, decay, silence, truncation, level/phase continuity and rhythmic integrity.
+5. Loop master: retain an identified lossless result, parameters, dependency/tool
+   versions and audible original/before/after comparison. No universal mastering
+   target or mandatory new derivative is implied.
+6. Runtime export: reuse the supported codec/import path, preserve the master and
+   compare the actual decoded export, including padding and resampling effects.
+7. Listening QA: compare the exact original, master and decoded candidate across
+   repeated complete loops, seams, phrases and tails; keep perception and objective
+   measurements distinct.
+8. In-game QA: use the existing Godot runtime, default BGM level and actual SFX in
+   disposable profiles; verify affected controls, switching and background recovery
+   on the relevant target platform without changing playback policy.
+
+Prefer deliberate structural edits and rerendering when editable events exist.
+With stems, change the affected part while retaining alignment and mix identity.
+For mixed WAV/FLAC/MP3, identify musical boundaries and state what cannot be
+isolated or reconstructed. Separation/transcription does not recover an original
+session by itself.
+
+Choose whole bars, ending rearrangement, transition bars, an authored loop region,
+structure-aware crossfade, tail wrap or stem remix according to the actual track.
+Methods may be combined when justified. There is no universal BPM, bar count,
+crossfade duration, fade length or sample rate. Distinguish a surviving release
+tail from a new closing-note attack: wrapping an outro attack into the intro is
+not merely preserving reverb. A click-free splice is not musical acceptance.
+An already suitable authored loop may be reused. Scripts reproduce a chosen
+process and its provenance; they do not replace musical judgement.
+
+### Loop acceptance and evidence
+
+Record Musical Loop and Technical Loop separately as pass, revise or unassessed.
+Musical review covers harmony, melodic ending/pickup, phrase/rhythm, transitions
+and repeated naturalness. Technical review covers actual decoded boundaries,
+silence/clicks, truncation, level/phase/tails, crossfade rhythm and codec/import
+behavior. Neither waveform statistics nor CI establish that anyone heard a loop.
+
+For a loop-listening acceptance claim, actually hear at least three consecutive
+complete loops and every intervening seam, with a longer repeat-comfort check
+appropriate to intended use. Record reviewer/capability, date, exact files and
+hashes, seam timestamps, output device or audio-model scope, playback levels,
+findings and limits. An audition file proves its contents, not that it was heard;
+do not hide the seam behind an unrelated presentation fade.
+
+Keep default-volume/SFX balance and affected runtime controls, switching in both
+directions, rapid changes and focus/background recovery distinct from offline
+listening. Mark missing listening or target-platform coverage unassessed, retain
+the user's existing exact-recording approval, and continue authorized technical
+work. A new derivative still needs its relevant listening and runtime checks.
+
+Retain originals, loop master, runtime export, editable sources/stems where
+available, method/parameters, licences and source-bound evidence. Start any
+newly authorized pilot with one existing approved source rather than batch
+remaking a catalog. No new audio framework, all-project test suite, paid tool,
+runtime redesign, gameplay/save change or publication is authorized here.
+
 ## Tools and export
 
 The 2026-10-11 Windows audit verified existing Godot 4.6.3 for offline decoding and Python 3.14 for hashes/PCM calculations. Scoped PATH, installation and registry checks did not find usable REAPER, MuseScore, Audacity, FluidSynth, FFmpeg/ffprobe or SoX. OBS libraries were present, but no mastering CLI or editable music workflow was verified. Recheck the actual workstation before selecting tools; this is not a claim of universal absence. No purchase, installation or account change is authorized here.

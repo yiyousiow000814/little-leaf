@@ -477,9 +477,10 @@ func update_motion(delta: float):
 			# A table has no tall cabinet: keep the worker on its aisle side so
 			# the tabletop does not swallow its shoulders during the small gesture.
 			var inset=.12 if str(station.get("kind",""))=="table" else .40
+			if str(station.get("kind","")) in ["counter","beverage"]:inset=.27
 			# Keep the whole owned stove job planted through prep and cooking.
 			if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
-			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.INSET
+			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.work_inset(int(station.get("rot",0)))
 			if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.DROP_INSET
 			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
 			# Wiping needs actual tabletop contact with the same short arms. Only
@@ -847,7 +848,10 @@ func line(a: Vector2,b: Vector2,c,width=1.0): art_line(a,b,col(c),width)
 func _plate_clipped_shape(points:PackedVector2Array,fill:Color,border:Color,width:float):
 	for polygon in Geometry2D.intersect_polygons(points,_plate_clip):
 		_retained_fill(polygon,fill)
-		polygon.append(polygon[0]);art_polyline(polygon,border,width)
+	# Clip original ceramic contours, never stroke a newly cut basin boundary.
+	var outline=points.duplicate();outline.append(points[0])
+	for segment in Geometry2D.intersect_polyline_with_polygon(outline,_plate_clip):
+		art_polyline(segment,border,width)
 
 func ellipse(p: Vector2,size: Vector2,c):
 	if (canvas_stream.active or native_draw_target!=null) and _plate_transform==Transform2D.IDENTITY and _plate_clip.is_empty():
@@ -1862,9 +1866,9 @@ func hit_item(screen: Vector2) -> int:
 		if Rect2(Vector2(-width,-height),Vector2(width*2,height+9)).has_point(local): return int(d.id)
 	return -1
 
-func _cup(bottom:Vector2,filled=true):
+func _cup(bottom:Vector2,filled=true,surface_shadow=true):
 	# One small clear tumbler, amber juice, planted base and quiet highlight.
-	ellipse(bottom+Vector2(.5,.5),Vector2(4.2,1.6),Color(.34,.39,.25,.14))
+	if surface_shadow:ellipse(bottom+Vector2(.5,.5),Vector2(4.2,1.6),Color(.34,.39,.25,.14))
 	rounded_poly([bottom+Vector2(-3.7,-9),bottom+Vector2(3.7,-9),bottom+Vector2(2.8,0),bottom+Vector2(-2.8,0)],1,"e1e9d1")
 	var level=clampf(float(filled),0,1)
 	if level>.01:
@@ -1878,7 +1882,10 @@ func _cup(bottom:Vector2,filled=true):
 func _action_prop(p: Vector2,hand_offset: Vector2,action: String,t: float,payload: String,tool: String,work_hand=Vector2.ZERO,gesture_hand=Vector2.ZERO,tool_floor=Vector2(22,2)):
 	var hand=p+hand_offset
 	if payload=="plate":_plate(hand+Vector2(4,-2),1.0,false)
-	elif payload=="drink":_cup(hand+Vector2(2,-2))
+	elif payload=="drink":
+		# Grip the lower glass wall, with the complete rim below the chin.
+		# Keep the original head depth; never repaint the cup across the face.
+		_cup(hand+Vector2(4,3),true,false)
 	elif payload=="dishes":
 		_plate(hand+Vector2(4,0),0.0,true)
 		rounded_poly([hand+Vector2(0,-7),hand+Vector2(5,-7),hand+Vector2(4,-1),hand+Vector2(1,-1)],1,"eee2bf")
@@ -1959,7 +1966,8 @@ func _sink_drop_geometry(staff:Dictionary,index:int)->Dictionary:
 	var slot=ids.find(int(record.get("dish_id",-1)))
 	if slot<0:slot=0 if int(record.get("dish_id",-1))==active_id else ids.size()
 	var phase=float(staff.art_phase)
-	var result=SinkWashArt.drop_geometry(int(sink.rot),phase,start,slot)
+	var front_drop=staff.destination==game.model.workface_cell(sink)
+	var result=SinkWashArt.drop_geometry(int(sink.rot),phase,start,slot,front_drop)
 	# A queue can advance during the .25-second withdrawal. Rebase the
 	# remaining lowering path from its previous sample rather than jump slots.
 	var identity=[int(staff.job_guest_id),int(staff.job_token),int(sink.id),int(sink.rot)]
@@ -1993,6 +2001,9 @@ func _sink_dishes(sink_id: int):
 	var at=geometry.sink_plate_anchor(rotation)
 	var wash=SinkWashArt.state(game,sink_id)
 	var active_id=-1 if wash.is_empty() else int(wash.worker.job_dish_id)
+	# The static basin already owns the original rim color and silhouette.
+	# Mask submerged dishes to its opening below instead of repainting the
+	# rim with a second outline. Raised dishes stay above it; keep the tap last.
 	var ids=_sink_queue_ids(sink_id,active_id);var in_flight=[]
 	for drop in dropping:
 		var record=game.service_guests.get(int(drop.staff.job_guest_id),{})
@@ -2022,7 +2033,7 @@ func _sink_dishes(sink_id: int):
 		_plate_transform=Transform2D.IDENTITY;_plate_clip=PackedVector2Array()
 		SinkWashArt.draw_water(self,wash,action_geometry)
 		SinkWashArt.draw_foam(self,action_geometry)
-	furniture_art.draw_sink_foreground(self,Vector2.ZERO,rotation)
+	furniture_art.draw_sink_front_tap(self,Vector2.ZERO,rotation)
 
 func _drink_in_hand(_guest,_record) -> bool:
 	# Dining uses a tiny nod/gesture. The cup stays on its tabletop anchor.

@@ -1,5 +1,6 @@
 extends RefCounted
 ## Render-only neighbourhood. No land, inventory, wallet or save mutations.
+const ShelterArt=preload("res://scripts/rendering/bus_stop_shelter_art.gd")
 const Visibility=preload("res://scripts/rendering/cafe_render_visibility.gd")
 const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
@@ -265,13 +266,14 @@ static func draw_shelter(a,under_roof:Callable=Callable()):
 		return
 	# Keep the original back/people/front painter order. Static shelter art
 	# uses the same native object retention as the bus and parked vehicles.
-	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_back.bind(a),Vector2.ZERO,["shelter-back"]):
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_back.bind(a),Vector2.ZERO,["shelter-back",ShelterArt.BACK_ID,ShelterArt.SAMPLING_ID]):
 		_draw_shelter_back(a)
 	if under_roof.is_valid():under_roof.call()
-	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_front.bind(a),Vector2.ZERO,["shelter-front"]):
+	if not a.has_method("retain_native_world_object") or not a.retain_native_world_object(_draw_shelter_front.bind(a),Vector2.ZERO,["shelter-front",ShelterArt.FRONT_ID]):
 		_draw_shelter_front(a)
 
 static func _draw_shelter_back(a):
+	if ShelterArt.draw(a,false):return
 	var scale=a.ui_scale*a.zoom
 	# Ground was drawn with the continuous public sidewalk. Back structure,
 	# waiting people, front posts and roof have separate occlusion passes.
@@ -290,6 +292,7 @@ static func _draw_shelter_back(a):
 	a.line(a.iso(-12.5,6.3,18),a.iso(-12.5,9.5,18),"948968",2*scale)
 
 static func _draw_shelter_front(a):
+	if ShelterArt.draw(a,true):return
 	var scale=a.ui_scale*a.zoom
 	for z in [5.75,10.15]:
 		a.ellipse(a.iso(-11.8,z),Vector2(4,2)*scale,"a8b59b")

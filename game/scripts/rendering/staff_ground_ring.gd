@@ -2,12 +2,12 @@ extends Node2D
 ## Opt-in ground layer. Caller supplies presentation foot anchors, never actor state.
 ## Add this layer after rugs and before solids; no gameplay renderer hook is installed.
 const MAX_RINGS = 64
-# A floor cell has world side1. The circle's INTERNAL diameter is that side;
-# its stroke grows outward before the usual ground-plane isometric projection.
+# A floor cell has world side1. The circle's OUTER diameter is that side,
+# before the usual ground-plane isometric projection (not the tile diagonal).
 const TILE_WORLD_SIDE = 1.0
 const INNER_FRACTION = .82
-const INNER_RADIUS_WORLD = TILE_WORLD_SIDE * .5
-const OUTER_RADIUS_WORLD = INNER_RADIUS_WORLD / INNER_FRACTION
+const OUTER_RADIUS_WORLD = TILE_WORLD_SIDE * .5
+const INNER_RADIUS_WORLD = OUTER_RADIUS_WORLD * INNER_FRACTION
 const WORLD_X = Vector2(39.0, 19.5)
 const WORLD_Z = Vector2(-39.0, 19.5)
 # Projected ellipse half axes are diagnostics only, not the sizing definition.

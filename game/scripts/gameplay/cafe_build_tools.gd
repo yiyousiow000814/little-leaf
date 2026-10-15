@@ -17,8 +17,7 @@ var _render_attachments:Array=[]
 var _render_preview_active=false
 const MATERIAL_NAMES=["Sage panels","Cream stripes","Little leaves"]
 const FLOOR_NAMES=["Warm oak","Cream tiles","Sage tiles"]
-const FLOOR_STYLES=["warm_oak","cream_tile","sage_tile"]
-const FLOOR_COLORS=[Color("edd5ab"),Color("ece8d4"),Color("cbd7ba")]
+const FLOOR_STYLES=CafeModel.FLOOR_STYLES
 var floor_material="warm_oak"
 var floor_preview={}
 var floor_quote={}
@@ -76,7 +75,7 @@ class OpeningIcon extends Control:
 		var attachment={"id":1,"kind":kind,"host_id":"wall:0","offset":.5,"width":.76 if kind=="door" else .70}
 		var host=OpeningGeometry.wall_host(walls[0]);var opening=OpeningGeometry.aperture(attachment,walls)
 		for panel in OpeningGeometry.solid_panels(host,walls,[attachment]):OpeningArt.face(self,host,panel.from,panel.to,panel.bottom,panel.top)
-		OpeningArt.cap(self,host,0,1);OpeningArt.end_face(self,host,1,0,128)
+		OpeningArt.cap(self,host,0,1);OpeningArt.end_face(self,host,1,0,Geometry.HEIGHT_PIXELS.full)
 		OpeningArt.threshold(self,opening)
 		for part in ["start","middle","end"]:OpeningArt.casing(self,opening,part)
 
@@ -317,7 +316,7 @@ func _commit():
 	_cache_key="";refresh(pointer)
 
 func _changed():
-	game._update_ui();game._save();game.illustration.queue_redraw()
+	game._update_ui();game.illustration.queue_redraw()
 
 func get_render_attachments()->Array:
 	return _render_attachments if active() and mode in OPENING_MODES and _render_preview_active else game.model.wall_attachments
