@@ -1,4 +1,5 @@
 extends Node3D
+const MusicCatalog=preload("res://scripts/ui/cafe_music_catalog.gd")
 const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
 const AutosavePolicy=preload("res://scripts/persistence/cafe_autosave_policy.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
@@ -110,6 +111,16 @@ var music_toggle: Button
 var detail_stats: Label
 var music_tween: Tween
 var music_positions={}
+var music_available={}
+var music_catalog_ready=false
+var music_fade_generation=0
+var music_resume_pending=false
+# Session-only transport state; never part of saved audio preferences.
+var music_transport_paused=false
+var decorating_music_active=false
+var music_before_decoration=""
+var music_selection_before_decoration=""
+var music_age_before_decoration=0.0
 var browser_suspended=false
 var _browser_process_mode=Node.PROCESS_MODE_INHERIT
 var _resume_frame=-1
@@ -372,6 +383,7 @@ func _toggle_edit():
 		model.service_snapshot=_service_save_snapshot()
 		model.begin_decoration_session()
 	else:model.finish_decoration_session()
+	_apply_music_selection()
 	_cancel_selection()
 	if not editing:_save()
 	_update_ui()
@@ -670,6 +682,10 @@ func set_browser_suspended(value:bool):
 	else:
 		_resume_frame=Engine.get_process_frames()+1
 		process_mode=_browser_process_mode
+		if music_resume_pending:
+			var resumed_age=music_age
+			_switch_music(music_state)
+			music_age=resumed_age
 
 func _process(delta):
 	delta=effective_frame_delta(delta)
@@ -1763,68 +1779,179 @@ func _staff_blocks_guest() -> bool:
 	return not _blocked_guest_ids().is_empty()
 
 func _setup_music():
-	var files={
-		"service":"res://assets/audio/小叶食堂_门口的阳光_日常营业.mp3",
-		"busy":"res://assets/audio/小叶食堂_午市轻快步_忙碌营业.mp3",
-		"decorate":"res://assets/audio/小叶食堂_桌边的叶影_安静布置.mp3"
+	# Availability is checked once after imports/delayed-pack arrival, not per frame.
+	music_available.clear()
+	for entry in MusicCatalog.TRACKS:music_available[entry.id]=ResourceLoader.exists(entry.path,"AudioStream")
+	music_catalog_ready=not music_available.values().has(false)
+	if settings_controls!=null:music_enabled=settings_controls.bgm_enabled
+	_apply_music_selection()
+
+func _retire_music_player(id:String):
+	if not audio_players.has(id):return
+	var player=audio_players[id]
+	if player.has_stream_playback():music_positions[id]=player.get_playback_position()
+	player.stop();player.stream=null;audio_players.erase(id);player.queue_free()
+
+func _ensure_music_player(id:String)->bool:
+	if audio_players.has(id):return true
+	var entry=MusicCatalog.track(id)
+	if entry.is_empty() or not music_available.get(id,false):return false
+	# Ignore the resource cache: only incoming/outgoing streams retain audio data.
+	var stream=ResourceLoader.load(entry.path,"AudioStream",ResourceLoader.CACHE_MODE_IGNORE) as AudioStream
+	if stream is AudioStreamMP3:stream.loop=true
+	elif stream is AudioStreamOggVorbis:stream.loop=true;stream.loop_offset=0.0
+	else:return false
+	var player=AudioStreamPlayer.new();player.stream=stream;player.bus="BGM";player.volume_db=-60
+	add_child(player);audio_players[id]=player
+	return true
+
+func _apply_music_selection():
+	var selected=settings_controls.music_track if settings_controls!=null else MusicCatalog.AUTOMATIC
+	var wanted=("busy" if model.customers.size()>=3 else "service") if selected==MusicCatalog.AUTOMATIC else selected
+	if editing:
+		if not decorating_music_active:
+			music_before_decoration=music_state if not MusicCatalog.track(music_state).is_empty() and music_state!=MusicCatalog.DECORATE else wanted
+			var previous_player=audio_players.get(music_before_decoration)
+			if is_instance_valid(previous_player) and previous_player.playing:
+				music_positions[music_before_decoration]=previous_player.get_playback_position()
+			music_selection_before_decoration=selected
+			music_age_before_decoration=music_age
+			decorating_music_active=true
+		# A saved theme change must not interrupt the effective Shop transition.
+		if music_state!=MusicCatalog.DECORATE:_switch_music(MusicCatalog.DECORATE)
+		return
+	var restored_age=-1.0
+	if decorating_music_active:
+		if selected==music_selection_before_decoration and not MusicCatalog.track(music_before_decoration).is_empty():
+			wanted=music_before_decoration
+			restored_age=music_age_before_decoration
+		decorating_music_active=false
+	_switch_music(wanted)
+	if restored_age>=0.0:music_age=restored_age
+
+func _music_playback_supported()->bool:
+	return DisplayServer.get_name()!="headless"
+
+func music_transport_snapshot()->Dictionary:
+	# Read only the effective, already loaded stream. Never load the catalog for
+	# durations or invent a clock when playback is stopped, hidden or paused.
+	var player=audio_players.get(music_state)
+	var available=is_instance_valid(player) and player.stream!=null
+	var duration=float(player.stream.get_length()) if available else 0.0
+	if not is_finite(duration) or duration<0.0:duration=0.0
+	var position=float(music_positions.get(music_state,0.0))
+	if available and player.has_stream_playback():position=player.get_playback_position()
+	position=clampf(position,0.0,duration) if duration>0.0 else 0.0
+	var volume=settings_controls.bgm_volume if settings_controls!=null else 70.0
+	var platform_muted=AudioServer.is_bus_mute(AudioServer.get_bus_index("Master"))
+	var reason=""
+	if not available:reason="Music is not available yet."
+	elif browser_suspended:reason="Playback is suspended while the game is hidden."
+	elif not music_enabled:reason="Music is muted. Turn it on to listen."
+	elif volume<=0.0:reason="Music volume is at zero."
+	elif platform_muted:reason="Audio is muted by the platform."
+	elif not _music_playback_supported():reason="Playback is unavailable in this headless session."
+	var supported=available and (player.stream is AudioStreamMP3 or player.stream is AudioStreamOggVorbis)
+	return {
+		"effective_id":music_state,"title":MusicCatalog.display_title(music_state),
+		"duration":duration,"position":position,"paused":music_transport_paused,
+		"playing":available and player.playing and not player.stream_paused and not browser_suspended and not music_transport_paused,
+		"available":available,"can_play":available and music_enabled and not browser_suspended and _music_playback_supported(),
+		"seekable":supported and duration>0.0 and not browser_suspended and _music_playback_supported(),
+		"can_step":available and settings_controls!=null and not editing and not browser_suspended,
+		"context_reason":"Decorate plays "+MusicCatalog.display_title(MusicCatalog.DECORATE)+". Your selected song resumes when you leave." if editing else "",
+		"unavailable_reason":reason,"muted":not music_enabled or volume<=0.0 or platform_muted,"volume":volume
 	}
-	for state in files:
-		# Imported MP3s are remapped inside exported packs; load the resource.
-		var source=load(files[state]) as AudioStreamMP3
-		if source==null:
-			push_error("Could not load cafe music: "+str(files[state]));continue
-		var stream=source.duplicate() as AudioStreamMP3
-		stream.loop=true
-		var player=AudioStreamPlayer.new()
-		player.stream=stream
-		player.bus="BGM"
-		player.volume_db=-60
-		add_child(player)
-		audio_players[state]=player
-	_switch_music("service")
+
+func _stop_music_at_current_position():
+	if is_instance_valid(music_tween):music_tween.kill()
+	music_fade_generation+=1
+	for id in audio_players:
+		var player=audio_players[id]
+		if player.has_stream_playback():music_positions[id]=player.get_playback_position()
+		player.stop()
+	_finish_music_crossfade(music_state,music_fade_generation)
+
+func set_music_enabled(value:bool):
+	music_enabled=value
+	if value:_switch_music(music_state if music_state!="" else "service")
+	else:
+		music_resume_pending=false
+		_stop_music_at_current_position()
+
+func set_music_transport_paused(value:bool):
+	if music_transport_paused==value:return
+	music_transport_paused=value
+	if value:
+		music_resume_pending=false
+		_stop_music_at_current_position()
+	else:
+		var resumed_age=music_age
+		_switch_music(music_state)
+		music_age=resumed_age
+
+func seek_music_transport(seconds:float)->bool:
+	var state=music_transport_snapshot()
+	if not is_finite(seconds) or not state.seekable:return false
+	# Seeking exactly to the end of a looping recording starts its next repeat.
+	var position=clampf(seconds,0.0,state.duration)
+	if position>=state.duration:position=0.0
+	music_positions[music_state]=position
+	var player=audio_players[music_state]
+	if player.playing:player.seek(position)
+	# When paused or muted this is the explicit resume offset, not a running clock.
+	return true
+
+func step_music_transport(direction:int)->bool:
+	if direction==0 or not music_transport_snapshot().can_step:return false
+	var next=MusicCatalog.sibling_family_track(music_state,direction)
+	if next=="" or not music_available.get(next,false):return false
+	settings_controls.set_music_track(next)
+	return true
 
 func _toggle_music():
 	if settings_controls!=null:
 		settings_controls.set_audio_enabled("BGM",not music_enabled);return
-	music_enabled=not music_enabled
-	music_toggle.text="Music: on" if music_enabled else "Music: off"
-	if is_instance_valid(music_tween): music_tween.kill()
-	for state in audio_players:
-		var p=audio_players[state]
-		if not music_enabled: p.stop()
-		elif state==music_state: p.volume_db=-17; p.play()
+	set_music_enabled(not music_enabled)
+	if is_instance_valid(music_toggle):music_toggle.text="Music: on" if music_enabled else "Music: off"
 
-func _switch_music(state: String):
-	if not audio_players.has(state): return
-	music_state=state
-	music_age=0
-	if not music_enabled or DisplayServer.get_name()=="headless": return
-	if is_instance_valid(music_tween): music_tween.kill()
+func _switch_music(state:String):
+	if not music_available.get(state,false):return
+	if state==music_state and music_enabled and not music_transport_paused and not browser_suspended and is_instance_valid(music_tween) and music_tween.is_running():
+		var current_player=audio_players.get(state)
+		if is_instance_valid(current_player) and current_player.playing:return
+	var outgoing=music_state
+	if is_instance_valid(music_tween):music_tween.kill()
+	music_fade_generation+=1
+	# Retire an interrupted fade before loading another compressed stream.
+	for id in audio_players.keys():
+		if id!=state and id!=outgoing:_retire_music_player(id)
+	if not _ensure_music_player(state):return
+	music_state=state;music_age=0.0
+	music_resume_pending=browser_suspended and music_enabled and not music_transport_paused
+	if not music_enabled or music_transport_paused or browser_suspended or not _music_playback_supported():
+		_finish_music_crossfade(state,music_fade_generation);return
 	music_tween=create_tween().set_parallel(true)
-	for key in audio_players:
-		var p=audio_players[key]
-		if key==state:
-			if not p.playing: p.play(float(music_positions.get(key,0.0)))
-			music_tween.tween_property(p,"volume_db",-17.0,1.2)
-		else:
-			music_tween.tween_property(p,"volume_db",-60.0,1.2)
-	music_tween.finished.connect(_finish_music_crossfade.bind(state),CONNECT_ONE_SHOT)
+	for id in audio_players:
+		var player=audio_players[id]
+		if id==state:
+			if not player.playing:player.play(float(music_positions.get(id,0.0)))
+			music_tween.tween_property(player,"volume_db",-17.0,1.2)
+		else:music_tween.tween_property(player,"volume_db",-60.0,1.2)
+	music_tween.finished.connect(_finish_music_crossfade.bind(state,music_fade_generation),CONNECT_ONE_SHOT)
 
-func _finish_music_crossfade(state:String):
-	# Killed/replaced fades must never stop the newly selected soundtrack.
-	if state!=music_state:return
-	for key in audio_players:
-		if key==state:continue
-		var player=audio_players[key]
-		if player.playing:
-			music_positions[key]=player.get_playback_position()
-			player.stop()
+func _finish_music_crossfade(state:String,generation:int=-1):
+	# Include a generation so an old A->B->A completion cannot retire a new fade.
+	if state!=music_state or (generation>=0 and generation!=music_fade_generation):return
+	for id in audio_players.keys():
+		if id!=state:_retire_music_player(id)
 
 func _music_tick(delta: float):
-	# Decorating pauses service, not its soundtrack. Leave the active player,
-	# playback position and any in-flight crossfade alone across mode changes.
-	# Do not count decorating time toward the service-intensity switch delay.
-	if editing:return
+	# Handle an actual mode edge once, including restored or synthetic controllers.
+	if decorating_music_active!=editing:_apply_music_selection()
+	if editing or music_transport_paused:return
+	if settings_controls!=null and settings_controls.music_track!=MusicCatalog.AUTOMATIC:return
+	# Decorating time does not advance Automatic's service-intensity switch age.
 	music_age+=delta
 	var wanted="busy" if model.customers.size()>=3 else "service"
 	if wanted!=music_state and music_age>15: _switch_music(wanted)

@@ -57,4 +57,4 @@ func _loaded(result:int,code:int,_headers:PackedStringArray,body:PackedByteArray
 	# Preserve current preferences; do not create a second SFX player.
 	game.settings_controls._apply_buses()
 
-	JavaScriptBridge.eval("globalThis.LittleLeafPlatform.musicReady="+str(game.audio_players.size()==3))
+	JavaScriptBridge.eval("globalThis.LittleLeafPlatform.musicReady="+str(game.music_catalog_ready))

@@ -3,6 +3,8 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const Ground=preload("res://scripts/rendering/illustrated_ground.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
+const Preset=preload("res://scripts/gameplay/cafe_starter_preset.gd")
+const Minimal=preload("res://scripts/minimal_start.gd")
 const OUT="user://geometry-fixtures"
 var checks=0
 var failures=[]
@@ -40,9 +42,41 @@ func reject(live,data:Dictionary,label:String):
 	check(signature(live)==before,label+" preserves live state")
 	check(FileAccess.get_sha256(path)==hash,label+" preserves source bytes")
 
+func preset_checks():
+	var model=Model.new()
+	check(model.items==Preset.furniture(),"historical reset uses the exact declared furnishing records")
+	check(model._next_item_id==14 and model.coins==1200,"historical preset preserves next ID and starting coins")
+	check(model.floor_finishes==Preset.floors(),"preset declares every included finish without a fallback")
+	for item in Preset.furniture():check(model.price_of(item.kind)>=0,"preset furnishing retains catalog kind "+item.kind)
+	var first=Preset.structure();var second=Preset.structure()
+	first.floors["0,0"].style="cream_tile";first.products["shell:west"].material="leaf_print"
+	first.segments["shell:west#0"]["removed"]=true;first.attachments[0].offset=2.5
+	check(second.floors["0,0"].style=="warm_oak","preset floors do not share mutable entries")
+	check(second.products["shell:west"].material=="original" and not second.segments["shell:west#0"].has("removed"),"preset wall ledgers do not share mutable entries")
+	check(second.attachments[0].offset==5.5,"preset openings do not share mutable entries")
+	var items=Preset.furniture(true);items[0].x=0
+	check(Preset.furniture(true)[0].x==8,"preset furniture does not share mutable entries")
+	var signals=[0]
+	model.changed.connect(func():signals[0]+=1)
+	Minimal.apply(model)
+	var expected=Preset.furniture(true)
+	expected.append({"id":14,"kind":"register","x":6,"z":4,"rot":1})
+	check(model.items==expected and model._next_item_id==15,"public layout and included register retain exact IDs, positions and sequence")
+	check(signals[0]==3 and model.revision==3,"public startup preserves reset, register and final notifications")
+	check(model.coins==1200 and model.first_guest_pending and not model.included_bin_pending and not model.included_checkout_pending,"public preset preserves wallet and startup entitlements")
+	check(model.save(OUT+"/public-preset.json"),"public preset saves through the existing writer")
+	var before=FileAccess.get_sha256(OUT+"/public-preset.json")
+	var loaded=Model.new()
+	check(loaded.load_save(OUT+"/public-preset.json") and loaded.items==expected,"public preset round trip retains exact furniture")
+	check(FileAccess.get_sha256(OUT+"/public-preset.json")==before,"public preset load never rewrites the import")
+	Minimal.apply(model)
+	check(model.items==expected and model._next_item_id==15 and model.coins==1200,"repeated fresh reset remains deterministic")
+	check(signals[0]==6 and model.revision==5,"repeated preset preserves notification and revision increments")
+
 func _init():
 	if not "geometry-saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED");quit(2);return
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
+	preset_checks()
 	var model=Model.new();model.coins=4567
 	check(model.width==12 and model.depth==9 and model.owned_floor_count()==108,"fresh footprint is exactly 12x9")
 	check(model.floor_finishes.size()==108,"fresh floor has 108 installed tiles")
