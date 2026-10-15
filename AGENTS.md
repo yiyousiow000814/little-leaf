@@ -32,6 +32,8 @@ The second command is an example for janitor cleanup changes, not a default suit
 
 For build and publication procedures, read [release guidance](docs/release/README.md); for reuse and distribution, read [licenses](docs/art-audio/README.md).
 
+Write player-facing update notes using the short, consistent [update-note style](docs/release/README.md#update-note-style).
+
 For releases and prereleases, follow the approved [release guidance](docs/release/README.md) and current roadmap scope. Verify actual pipeline support, immutable source/package identity and matching platform qualification before publication. Technical verification, gameplay acceptance, merge authority and deployment approval remain separate.
 
 ## Performance and unchanged presentation
