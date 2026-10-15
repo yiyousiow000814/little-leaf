@@ -344,7 +344,19 @@ try{
  assert.deepEqual(await journal(d.page,uid,uid),original);check(true,'Google '+kind+' startup preserves original local journal bytes');
  await resumeProof(d,43000);await shot(d.page,'cloud-startup-'+kind);await closeContext(d.context);}
  // Offline native progress remains staged while fenced; explicit re-entry selects cloud.
- {const uid='fullflow-offline',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.connectivity.setOffline(a.page,true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');const b=await launch(await setup(uid));await click(b.page,'other-device','switch');
+ {const uid='fullflow-offline',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));
+ // Compile/start both devices before consuming the offline owner's live lease.
+ const originalOwner=await read(uid,'owner');const b=await launch(await setup(uid));
+ assert.equal((await snapshot(b.page)).status,'other-device');
+ const beforeRenewal=await read(uid,'owner');assert.equal(beforeRenewal.owner,originalOwner.owner);assert.equal(beforeRenewal.epoch,1);assert.equal(beforeRenewal.request,null);assert.equal(beforeRenewal.ack,null);
+ await a.page.evaluate(()=>__littleLeafVault.renewOwnership());
+ // renewOwnership catches errors: only an advanced server timestamp proves a fresh lease.
+ const renewed=await until(async()=>{const value=await read(uid,'owner');assert.equal(value.owner,originalOwner.owner);assert.equal(value.epoch,1);assert.equal(value.request,null);assert.equal(value.ack,null);return value.updatedAt.toMillis()>beforeRenewal.updatedAt.toMillis() && value;},'confirmed offline owner renewal');
+ report.offlinePrecondition={beforeRenewal,renewed};checkpoint();
+ const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.connectivity.setOffline(a.page,true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');await click(b.page,'other-device','switch');
+ const asked=await read(uid,'owner');assert.equal(asked.owner,originalOwner.owner);assert.equal(asked.epoch,1);assert(asked.request?.id && asked.request.requester!==asked.owner);assert.equal(asked.ack,null);
+ const leaseAge=asked.request.at.toMillis()-asked.updatedAt.toMillis();assert(leaseAge>=0 && leaseAge<60000,'offline ASK must use a live server lease');
+ report.offlinePrecondition.asked=asked;report.offlinePrecondition.leaseAgeAtAskMs=leaseAge;checkpoint();
  await until(async()=>(await snapshot(b.page)).canForceTakeover,'explicit timeout available',30000);await shot(b.page,'takeover-timeout');
  await confirmedClick(b.page,'timeout','switch',false);check((await read(uid,'owner')).epoch===1,'cancel force does not transfer owner');
  await confirmedClick(b.page,'timeout','switch',true);await until(async()=>(await read(uid,'owner')).epoch===2,'force transfer');await resumeProof(b,42000);await b.page.evaluate(()=>__littleLeafVault.sync());
