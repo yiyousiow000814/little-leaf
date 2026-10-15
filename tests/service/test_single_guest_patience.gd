@@ -4,7 +4,7 @@ const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 class MealDrawProbe extends "res://scripts/rendering/illustrated_cafe.gd":
  var plates=0;var cups=0
  func _plate(_at:Vector2,_remaining=1.0,_dirty=false):plates+=1
- func _cup(_bottom:Vector2,_filled=true):cups+=1
+ func _cup(_bottom:Vector2,_filled=true,_surface_shadow=true):cups+=1
 class GeneratedMain extends "res://scripts/main.gd":
  var observed_saves=[]
  func _load_startup():

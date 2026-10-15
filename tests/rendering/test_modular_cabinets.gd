@@ -58,6 +58,14 @@ func run():
    for point in [Vector2(-3.9,-1.25),Vector2(-2.8,-2),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:
     inward=maxf(inward,ground(center+axis*point.x+across*point.y).dot(heading))
   check(1.-Wash.work_inset(rotation)-inward>.51,"settled washing shoes clear solid body "+str(rotation))
+  var front=-heading;var drop_stance=Wash.front_drop_stance(rotation)
+  check(1.+drop_stance.dot(front)-inward>.51,"front deposit shoes clear full-cell body "+str(rotation))
+  check((drop_stance+front*Wash.work_inset(rotation)).length()>.35,"front deposit retains distinct worker ground contact "+str(rotation))
+  var release=Wash.drop_geometry(rotation,.65,Vector2.ZERO,0,true)
+  var opening=Wash.Geometry.sink_outline(Wash.Geometry.SINK_BASIN_INNER,Wash.Geometry.SINK_OPENING_HEIGHT,rotation)
+  var projected=release.release+Vector2(0,release.release_height-Wash.Geometry.height(Wash.Geometry.SINK_OPENING_HEIGHT))
+  check(Geometry2D.is_point_in_polygon(projected,opening),"front release center is inside the physical opening "+str(rotation))
+
  probe.free()
  print("MODULAR_CABINETS_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  quit(0 if failures.is_empty() else 1)

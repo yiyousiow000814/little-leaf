@@ -391,6 +391,10 @@ func _sink_cavity():
 	_sink_clip(drain,opening,"547c70")
 
 func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
+	draw_sink_front_rim(artist,p,rotation)
+	draw_sink_front_tap(artist,p,rotation)
+
+func draw_sink_front_rim(artist:Node2D,p:Vector2,rotation:int):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	var center=KitchenGeometry.SINK_BASIN_CENTER
 	var outer=KitchenGeometry.SINK_BASIN_OUTER
@@ -408,6 +412,8 @@ func draw_sink_foreground(artist:Node2D,p:Vector2,rotation:int):
 		inner_points.append(point(inner_q.x,inner_q.y,KitchenGeometry.SINK_OPENING_HEIGHT))
 	inner_points.reverse()
 	a.poly(rim_points+inner_points,"f4f1da")
+func draw_sink_front_tap(artist:Node2D,p:Vector2,rotation:int):
+	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	# The rear-mounted stem changes depth with rotation. Its spout now clears
 	# the entire six-dish stack in projection, without an always-front trick.
 	if KitchenGeometry.sink_tap_in_front(turn):_sink_faucet()

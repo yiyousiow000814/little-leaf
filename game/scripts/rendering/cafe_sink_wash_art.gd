@@ -8,14 +8,29 @@ const DROP_INSET=.55
 static func work_inset(rotation:int)->float:
  # Keep the settled shoe silhouette outside the full-cell solid body.
  return .362 if posmod(rotation,4) in [1,2] else INSET
-static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int)->Dictionary:
+static func front_drop_stance(rotation:int)->Vector2:
+ # Stay outside the cabinet's front plane, within the same logical work tile.
+ # Choose the corner with horizontal screen separation from the central washer.
+ var front=Vector2.DOWN.rotated(posmod(rotation,4)*PI/2)
+ var side=Vector2(-front.y,front.x)
+ if (side.x-side.y)*(front.x-front.y)<0:side=-side
+ return -front*work_inset(rotation)+side*.45
+static func drop_geometry(rotation:int,phase:float,start:Vector2,slot:int,front_drop=false)->Dictionary:
  # Ownership changes at .65. The plate clears the opening and stack at that beat,
  # then lowers into its queue slot while the empty hands withdraw.
  var opening=Geometry.height(Geometry.SINK_OPENING_HEIGHT)
  slot=maxi(0,slot)
  var final_height=Geometry.height(Geometry.SINK_STACK_HEIGHT)+slot*2.2
  var release_height=maxf(opening+1.8,final_height+1.8)
- var release=actual_surface(Geometry.SINK_BASIN_CENTER,release_height,rotation)
+ var contact=Geometry.SINK_BASIN_CENTER
+ if front_drop:
+  # The small front gesture releases above the reachable inside corner,
+  # then follows the existing settling path into its owned queue slot.
+  var front=Vector2.DOWN.rotated(posmod(rotation,4)*PI/2)
+  var side=front_drop_stance(rotation)+front*work_inset(rotation)
+  var local_side=side.rotated(-posmod(rotation,4)*PI/2).normalized()
+  contact+=local_side*.18+Vector2(0,.24)
+ var release=actual_surface(contact,release_height,rotation)
  var stack=Geometry.sink_plate_anchor(rotation)+Vector2(0,-slot*2.2)
  var center=start.lerp(release,smoothstep(0,.65,phase)) if phase<.65 else release.lerp(stack,smoothstep(.65,1,phase))
  return {"center":center,"release":release,"release_height":release_height,"height":release_height if phase<.65 else lerpf(release_height,final_height,smoothstep(.65,1,phase)),"held":phase<.65}
