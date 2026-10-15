@@ -386,10 +386,12 @@ async function main() {
     await waitState('staff-open', s => s.tutorial.step === 2);
     await click('staff_done');
     await visible('try-decorate', [stage('decorate').text], stage('decorate').guide);
-    await waitState('staff-closed', s => s.tutorial.step === 3);
+    const beforeDecorate = await waitState('staff-closed', s => s.tutorial.step === 3);
     await click('decorate');
     await visible('return-to-cafe', [stage('return').text], stage('return').guide);
-    await waitState('decorating', s => s.tutorial.step === 4);
+    const duringDecorate = await snapshot();
+    check(duringDecorate && canonical(duringDecorate.tutorial) === canonical(beforeDecorate.tutorial) && duringDecorate.items_sha256 === beforeDecorate.items_sha256,
+      'Visible live tutorial step4 keeps the durable entry-step3 and layout baseline until Apply');
     await click('return');
     await visible('service-explanation', [stage('order').text], stage('order').guide);
     await visible('service-next-button', ['Next'], completionButtonRegion(stage('order')), CUE_MS,

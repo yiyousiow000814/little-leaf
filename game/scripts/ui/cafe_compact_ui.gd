@@ -810,7 +810,7 @@ func _remove_selected():
  if not opening.is_empty():ok=game.model.remove_wall_attachment(int(opening.id),game.build_tools.actor_positions())
  elif _selected_wall_key()!="":ok=game.model.remove_wall(_selected_wall_key())
  else:game._sell();sync();return
- if ok:game._cancel_selection();game._save();game._update_ui();game.illustration.queue_redraw()
+ if ok:game._cancel_selection();game._update_ui();game.illustration.queue_redraw()
  sync()
 func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
