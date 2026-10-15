@@ -404,7 +404,7 @@ async function main() {
         report.new_ui_edit = {revision_before: revision, revision_after: active(committed).revision,
           wall_format: payload.wall_format, target: 'shell:back#2', expected_segment: layouts.new.expected_segment,
           actual_segment: payload.shell_segment_products?.['shell:back#2'] || null};
-        check(active(committed).revision === revision + 1, 'Normal new UI Apply commits exactly R+1');
+        check(active(committed).revision === revision + 1, 'Normal new UI edit commits exactly R+1');
         check(payload.wall_format === 2 && canonical(payload.shell_segment_products['shell:back#2']) === canonical(layouts.new.expected_segment), 'Real new UI commits the expected one-tile wall format 2 edit');
         check(payload.coins === JSON.parse(active(baseline).payload).coins - layouts.new.expected_cost, 'Real new UI charges the expected wall price once');
         check(canonical(payload.wall_attachments) === canonical(JSON.parse(active(baseline).payload).wall_attachments), 'Real new UI retains paid wide door geometry and ownership');
