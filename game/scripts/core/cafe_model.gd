@@ -9,6 +9,7 @@ signal changed
 signal meal_completed(customer_id: int, payment: int)
 
 const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
+const StarterPreset=preload("res://scripts/gameplay/cafe_starter_preset.gd")
 const DiningSets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const WallTransactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
 const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
@@ -218,12 +219,11 @@ func reset_new() -> void:
 	outside_queue.clear()
 	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
 	built_walls.clear()
-	wall_attachments=OpeningGeometry.initial_attachments();_next_wall_id=1;_next_attachment_id=2
-	floor_style="warm_oak";shell_material="original";shell_products=OpeningGeometry.initial_shell_products()
-	shell_segment_products=ShellSegments.migrate(shell_products,built_walls).segments
-	floor_finishes.clear()
-	for z in range(BASE_DEPTH):
-		for x in range(BASE_WIDTH):floor_finishes[_floor_key(Vector2i(x,z))]={"style":floor_style,"paid_cost":0}
+	var structure=StarterPreset.structure()
+	wall_attachments=structure.attachments;_next_wall_id=1;_next_attachment_id=2
+	floor_style=StarterPreset.FLOOR_STYLE;shell_material=StarterPreset.WALL_MATERIAL
+	shell_products=structure.products;shell_segment_products=structure.segments
+	floor_finishes.clear();floor_finishes.merge(structure.floors)
 	wall_actor_positions.clear()
 	guest_obstacle_positions.clear();checkout_staff_claims.clear()
 	operating_open=true
@@ -244,17 +244,8 @@ func reset_new() -> void:
 	_next_customer_id = 1
 	_arrival_elapsed = 0.0
 	_walking_customer_id = -1
-	for spec in [
-		["stove", 8, 1, 0], ["beverage", 9, 1, 0], ["sink", 10, 1, 0],
-		["counter", 8, 2, 0], ["counter", 9, 2, 0],
-		["table", 3, 3, 0], ["chair", 3, 4, 0],
-		["table", 6, 5, 0], ["chair", 6, 6, 0],
-		["plant", 1, 1, 0], ["plant", 10, 6, 0],
-		["bookshelf", 5, 0, 0], ["lamp", 1, 7, 0],
-	]:
-		var item: Dictionary = {"id": _next_item_id, "kind": spec[0], "x": spec[1], "z": spec[2], "rot": spec[3]}
-		items.append(item)
-		_next_item_id += 1
+	items.assign(StarterPreset.furniture())
+	_next_item_id=items.size()+1
 	rebuild_dining_sets()
 	last_error = ""
 	last_event = "New reconstructed cafe · 1,200 starter coins"
