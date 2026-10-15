@@ -386,10 +386,10 @@ func _block_startup(reason:String,code:String="VALIDATION_FAILED"):
 
 func request_save(skip_unchanged:bool=false)->bool:
 	_log("save_requested")
-	game.save_timer=0.0
 	if not ready or game.save_recovery_blocked or game.save_writes_suppressed:
 		_log("save_skipped","NOT_READY" if not ready else "RECOVERY_BLOCKED" if game.save_recovery_blocked else "WRITES_SUPPRESSED");return false
 	generation+=1
+	if game.get("platform_dirty_generation")!=null:game.platform_autosave_dirty=true
 	game.progress_unsaved=true
 	if pending:
 		_log("save_queued")
@@ -415,7 +415,8 @@ func request_save(skip_unchanged:bool=false)->bool:
 	# Only periodic saves may deduplicate, after the complete native validation.
 	# Explicit saves/hide saves, errors, edits and compensation still commit.
 	if skip_unchanged and not platform_managed and _credit_expected==0 and payload==_confirmed_payload and game.progress_save_error=="":
-		game.progress_unsaved=false
+		if dirty_generation!=null:game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
+		game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if dirty_generation!=null else false
 		_log("save_skipped")
 		return true
 	pending=true;queued=false;inflight_generation=generation
@@ -457,6 +458,7 @@ func _on_commit(arguments:Array):
 	var parser=JSON.new()
 	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
 	pending=false
+	if game.get("platform_dirty_generation")!=null:game.platform_autosave_dirty=true
 	if not result is Dictionary or not bool(result.get("ok",false)):
 		game.progress_unsaved=true;queued=false
 		var reason=str(result.get("error","Browser save failed")) if result is Dictionary else "Invalid browser save acknowledgement"
@@ -487,6 +489,7 @@ func _on_commit(arguments:Array):
 			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
 			game.startup_notice=game.progress_save_error;return
 		game.model.coins+=int(credit)
+		if game.model.has_method("record_decoration_credit"):game.model.record_decoration_credit(int(credit))
 		game._update_ui()
 	_credit_expected=0
 	revision=int(result.revision)
@@ -494,14 +497,15 @@ func _on_commit(arguments:Array):
 	platform_managed=platform_ack
 	_confirmed_payload=_inflight_payload
 	_inflight_payload=""
-	if platform_ack and game.get("platform_dirty_generation")!=null:
+	if game.get("platform_dirty_generation")!=null:
+		# An older receipt must not mark newer ordinary Web changes clean.
 		game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
 	_log("platform_controller_accepted" if platform_ack else "save_accepted")
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
 		game.call_deferred("_save");return
-	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if platform_ack else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
+	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if game.get("platform_dirty_generation")!=null else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
 	game._update_ui()
 
 func _refresh_inbox(result:Dictionary):

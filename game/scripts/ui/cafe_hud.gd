@@ -277,7 +277,7 @@ func setup():
  done_face=_picture(game.edit_button,_texture("cream_face"));game.edit_button.move_child(done_face,0);done_face.hide()
  edit_cancel=ui._small_button("",cancel_edit_action,44);_cream_button(edit_cancel,12);cancel_face=_picture(edit_cancel,_texture("cream_face"));cancel_art=_picture(edit_cancel,_icon("plus"));cancel_art.rotation=PI/4.0
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:edit_cancel.add_theme_stylebox_override(state,StyleBoxEmpty.new())
- edit_cancel.accessibility_name="Cancel current action";edit_cancel.tooltip_text="Cancel current preview or move. Completed changes stay saved.";edit_cancel.accessibility_description=edit_cancel.tooltip_text
+ edit_cancel.accessibility_name="Cancel decorating";edit_cancel.tooltip_text="Cancel all changes from this Decorate session.";edit_cancel.accessibility_description=edit_cancel.tooltip_text
  game.edit_button.tooltip_text="Decorate the café";ui.staff_access.tooltip_text="Staff · shifts, hiring and wages";ui.settings_button.tooltip_text="Settings · sound and display"
  for state in ["normal","disabled"]:game.pause_button.add_theme_stylebox_override(state,StyleBoxEmpty.new())
  game.pause_button.add_theme_font_size_override("font_size",1) # The visible icon owns this44px target; hidden Pause/Resume text must not grow the HBox.
@@ -346,8 +346,8 @@ func sync(width:float):
  for name in ["decorate","staff","settings"]:
   var button=game.edit_button if name=="decorate" else (ui.staff_access if name=="staff" else ui.settings_button)
   action_art[name].modulate=Color(1,1,1,.48) if button.disabled else Color.WHITE
- game.edit_button.accessibility_name="Finish decorating" if game.editing else "Decorate café"
- game.edit_button.tooltip_text="Finish decorating. Completed changes stay saved." if game.editing else game.edit_button.accessibility_name
+ game.edit_button.accessibility_name="Apply decorating" if game.editing else "Decorate café"
+ game.edit_button.tooltip_text="Apply all changes, including furniture sales." if game.editing else game.edit_button.accessibility_name
  game.edit_button.accessibility_description=game.edit_button.tooltip_text
  game.pause_button.accessibility_name="Resume service" if game.paused else "Pause service";game.pause_button.tooltip_text=game.pause_button.accessibility_name
  game.edit_button.toggle_mode=true;game.edit_button.set_pressed_no_signal(game.editing);ui.staff_access.toggle_mode=true;ui.staff_access.set_pressed_no_signal(ui.staff_panel.panel.visible);ui.settings_button.toggle_mode=true;ui.settings_button.set_pressed_no_signal(game.settings.visible)
@@ -384,8 +384,7 @@ func _reduced_motion_requested()->bool:
  return false
 
 func has_edit_action()->bool:
- if not game.editing:return false
- return game.selected_kind!="" or game.selected_id>=0 or game.build_tools.active() or ui.selected_wall!="" or ui.selected_shell!="" or not ui.pending_wall.is_empty() or game.interaction.drag_active or game.interaction.preview_active
+ return game.editing
 func _close_pending_edit_popovers():
  ui.pending_wall={}
  for popup in [ui.finishes,ui.floor_repair_review,ui.wall_review]:
@@ -395,8 +394,7 @@ func _after_edit_toggle():
  _close_pending_edit_popovers();ui.sync()
 func cancel_edit_action():
  if not has_edit_action():return
- # Existing atomic actions are already committed; only the live selection/preview is discarded.
- _close_pending_edit_popovers();game._cancel_selection();ui.sync();game.illustration.queue_redraw()
+ _close_pending_edit_popovers();game._cancel_edit();ui.sync()
 func popup_right()->float:
  if layout_host.get_meta("mobile_layout",false):return game.get_viewport().get_visible_rect().size.x-_safe_insets().z-8
  var view=game.get_viewport().get_visible_rect().size;var insets=_safe_insets()
@@ -432,7 +430,9 @@ func _settle_layout():
  sync(game.get_viewport().get_visible_rect().size.x)
 
 func _layout_unified_toolbar(width:float):
- # Preserve the accepted action/focus order: Music precedes Pause and Settings.
+ # Keep Music before the unchanged Decorate/Staff/Pause/Settings group.
+ if ui.music_access.get_index()!=game.edit_button.get_index()-1:
+  layout_host.move_child(ui.music_access,game.edit_button.get_index())
  if ui.play_controls.get_index()!=ui.settings_button.get_index()-1:
   layout_host.move_child(ui.play_controls,ui.settings_button.get_index()-1)
  var safe=_safe_insets();var view=game.get_viewport().get_visible_rect().size
@@ -513,6 +513,7 @@ func _layout_unified_toolbar(width:float):
  _layout_unified_play_controls(scale)
  var center_y=controls_y+28
  var action_x=controls_x
+ _place(ui.music_access,Rect2(action_x,center_y-22,64,44));action_x+=64+action_gap
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -522,7 +523,6 @@ func _layout_unified_toolbar(width:float):
  action_x+=edit_width+action_gap
  _place_action_art(ui.staff_access,"staff",Vector2(action_x,center_y),staff_size)
  action_x+=staff_size.x+action_gap
- _place(ui.music_access,Rect2(action_x,center_y-22,64,44));action_x+=64+action_gap
  _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56));action_x+=PLAY_CONTROL_WIDTH+group_gap
  _place_action_art(ui.settings_button,"settings",Vector2(action_x,center_y),settings_size)
  for name in ["decorate","staff","settings"]:action_captions[name].hide()
@@ -552,8 +552,8 @@ func _layout_mobile_toolbar(width:float):
  wallet.accessibility_description="Tap or click to show the full balance" if compact else ""
  wallet.focus_mode=Control.FOCUS_ALL if compact else Control.FOCUS_NONE
  wallet.mouse_default_cursor_shape=Control.CURSOR_POINTING_HAND if compact else Control.CURSOR_ARROW
- _place(game.business_button,Rect2(112,0,66 if compact_music else 80,44))
- ui.business_state.position=Vector2(3,0);ui.business_state.size=Vector2(60 if compact_music else 74,44);_font(ui.business_state,12 if compact_music or game.save_recovery_blocked else 14)
+ _place(game.business_button,Rect2(112,0,80,44))
+ ui.business_state.position=Vector2(3,0);ui.business_state.size=Vector2(74,44);_font(ui.business_state,12 if game.save_recovery_blocked else 14)
  ui.business_state.text="RECOVERY" if game.save_recovery_blocked else game.model.operating_status().to_upper()
  game.business_button.accessibility_name="Close café admissions" if game.model.operating_open else "Reopen café admissions"
  game.business_button.accessibility_description="Current guests can finish" if game.model.operating_open else "Welcome new guests"
@@ -564,7 +564,10 @@ func _layout_mobile_toolbar(width:float):
  _place(ui.play_controls,Rect2(w-94,0,PLAY_CONTROL_WIDTH,44))
  var action_width=44.0;var gap=6.0
  var action_count=(2 if wrapped else 4)+(1 if game.editing else 0)
- var action_x=w-action_count*action_width-(action_count-1)*gap-(0 if wrapped else 70)
+ var action_x=w-action_count*action_width-(action_count-1)*gap
+ # Music uses the free slot before the tools, never the recovery badge width.
+ var music_width=44.0 if compact_music else 64.0
+ _place(ui.music_access,Rect2(action_x-music_width-gap,tool_y,music_width,44))
  _place(game.edit_button,Rect2(action_x,tool_y,44,44))
  _mobile_action_art(game.edit_button,"decorate")
  var staff_x=action_x+action_width+gap
@@ -574,11 +577,6 @@ func _layout_mobile_toolbar(width:float):
   action_art.decorate.position=Vector2(11,11);action_art.decorate.size=Vector2(22,22)
   cancel_face.position=Vector2.ZERO;cancel_face.size=edit_cancel.size;cancel_art.position=Vector2(11,11);cancel_art.size=Vector2(22,22);cancel_art.pivot_offset=cancel_art.size/2
  _place(ui.staff_access,Rect2(staff_x,tool_y,44,44));_mobile_action_art(ui.staff_access,"staff")
- if wrapped:
-  # A44px note fits the narrow status row with six-pixel gaps. Keeping
-  # two rows preserves previously supported short phones and wage clearance.
-  _place(ui.music_access,Rect2(w-144 if compact_music else w-164,0,44 if compact_music else 64,44))
- else:_place(ui.music_access,Rect2(staff_x+50,tool_y,64,44))
  _place(ui.settings_button,Rect2(w-44,0,44,44));_mobile_action_art(ui.settings_button,"settings")
  for button in mobile_surfaces:
   var surface:Panel=mobile_surfaces[button];surface.position=Vector2.ZERO;surface.size=button.size

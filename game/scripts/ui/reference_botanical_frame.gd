@@ -22,6 +22,7 @@ var emboss:Array[TextureRect]=[]
 var _local_enabled:=false
 var _library:=Rect2()
 var _tray:=Rect2()
+var _phone_side_inset:=22.0
 var _ink:Array=[]
 var _scale:=1.0
 var _origin:=Vector2.ZERO
@@ -64,9 +65,9 @@ func _init():
   add_child(curl);finials.append(curl);curl.hide()
  resized.connect(_arrange);hide()
 func set_premium(value:bool):visible=value
-func set_surfaces(folio:Rect2,tray:Rect2,enabled:bool):
- if _library==folio and _tray==tray and _local_enabled==enabled:return
- _library=folio;_tray=tray;_local_enabled=enabled;_arrange_local()
+func set_surfaces(folio:Rect2,tray:Rect2,enabled:bool,phone_side_inset:float=22.0):
+ if _library==folio and _tray==tray and _local_enabled==enabled and _phone_side_inset==phone_side_inset:return
+ _library=folio;_tray=tray;_local_enabled=enabled;_phone_side_inset=phone_side_inset;_arrange_local()
 func _arrange_local():
  if not _large:
   _arrange_phone_ornament()
@@ -100,7 +101,10 @@ func _arrange_phone_ornament():
  for part in emboss:part.hide()
  for part in finials:part.show()
  var sprig_width=clampf(size.x-310,32,60)
- local_targets.assign([Rect2(Vector2((size.x-sprig_width)*.5,3),Vector2(sprig_width,sprig_width*.7)),Rect2(),Rect2(),Rect2(Vector2(1,size.y-21),Vector2(20,20)),Rect2(Vector2(size.x-21,size.y-21),Vector2(20,20))])
+ # The tight landscape bank has 20px side margins. Keep its corner leaves
+ # intact in 16px edge slots, leaving 3px clear of the 44px native controls.
+ var corner_size=16.0 if _phone_side_inset<22.0 else 20.0
+ local_targets.assign([Rect2(Vector2((size.x-sprig_width)*.5,3),Vector2(sprig_width,sprig_width*.7)),Rect2(),Rect2(),Rect2(Vector2(1,size.y-corner_size-1),Vector2.ONE*corner_size),Rect2(Vector2(size.x-corner_size-1,size.y-corner_size-1),Vector2.ONE*corner_size)])
  for index in [0,3,4]:
   var part=local_pieces[index];var area=local_targets[index]
   part.position=area.position;part.size=area.size;part.show()

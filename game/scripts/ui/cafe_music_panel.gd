@@ -325,7 +325,7 @@ func _fit_air_ripple():
     if card.versions.visible:
      var area=card.versions.get_global_rect().grow(3);area.position-=panel.global_position;quiet.append(area)
   botanical_frame.set_quiet_rects(quiet)
-  botanical_frame.set_surfaces(Rect2(library.get_global_rect().position-panel.global_position,library.size),Rect2(transport_skin.get_global_rect().position-panel.global_position,transport_skin.size),not short_layout and not stacked_layout)
+  botanical_frame.set_surfaces(Rect2(library.get_global_rect().position-panel.global_position,library.size),Rect2(transport_skin.get_global_rect().position-panel.global_position,transport_skin.size),not short_layout and not stacked_layout,content_insets.x)
  if is_instance_valid(air_ripple):
   air_ripple.position=Vector2(24-content_insets.x,24-content_insets.y)
   air_ripple.size=(board_material.size+Vector2(content_insets.x+content_insets.z-48,content_insets.y+content_insets.w-48)).max(Vector2.ZERO)

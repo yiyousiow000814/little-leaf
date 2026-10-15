@@ -187,7 +187,6 @@ func _complete(identity:Dictionary)->bool:
  clear_hover()
  game._update_ui()
  game._mark_platform_dirty()
- game._save()
  game.illustration.queue_redraw()
  return true
 func tick(delta:float)->bool:

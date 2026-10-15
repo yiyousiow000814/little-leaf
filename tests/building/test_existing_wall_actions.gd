@@ -40,11 +40,11 @@ func run():
  check(ui.shop_ui.build_page=="walls" and not ui.has_open_popup(),"Replace opens existing wall style cards in bottom tray")
  await click(ui.shop_ui.wall_cards["wall:full:cream_stripe"].get_global_rect().get_center());await click(aim(2.5))
  check(ui.wall_review.visible and ui.pending_wall.key=="shell:back#2","wall click opens review for same existing host")
- var wallet=model.coins;var saves=game.saves
+ var wallet=model.coins;var saves=game.saves;var dirty_generation=game.platform_dirty_generation
  await click(ui.wall_confirm_button.get_global_rect().get_center())
  var style_ok=model.shell_segment_products["shell:back#2"].material=="cream_stripe"
  check(style_ok,"existing wall changes to chosen Cream stripes")
- check(model.coins==wallet-55 and game.saves==saves+1,"existing wall style pays stated price and saves once")
+ check(model.coins==wallet-55 and game.saves==saves and game.platform_dirty_generation>dirty_generation,"existing wall style pays stated price and marks progress dirty")
  operations.append({"operation":"existing wall style","passed":style_ok,"coins_before":wallet,"coins_after":model.coins})
  await capture("01-existing-wall-style")
  for spec in [["door",3.5],["window",4.5]]:
@@ -52,11 +52,11 @@ func run():
   if ui.shop_ui.build_page!="products":await click(ui.shop_ui.tiles_back.get_global_rect().get_center())
   await click(tool.tool_buttons[kind].get_global_rect().get_center())
   check(tool.mode==kind,"catalog click selects "+kind)
-  wallet=model.coins;saves=game.saves;var count=model.wall_attachments.size()
+  wallet=model.coins;saves=game.saves;dirty_generation=game.platform_dirty_generation;var count=model.wall_attachments.size()
   await click(aim(float(spec[1])))
   var installed=model.wall_attachments.size()==count+1 and model.wall_attachments[-1].kind==kind and model.wall_attachments[-1].host_id=="shell:back" and is_equal_approx(float(model.wall_attachments[-1].offset),float(spec[1]))
   check(installed,"click existing wall installs "+kind+" at requested host")
-  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves+1,kind+" pays listed price and saves once")
+  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves and game.platform_dirty_generation>dirty_generation,kind+" pays listed price and marks progress dirty")
   operations.append({"operation":"existing wall add "+kind,"passed":installed,"coins_before":wallet,"coins_after":model.coins})
   await capture("02-existing-wall-door" if kind=="door" else "03-existing-wall-window")
  print("EXISTING_WALL_ACTIONS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"operations":operations,"player_save_used":false,"native_render_verified":DisplayServer.get_name()!="headless"}))

@@ -30,6 +30,22 @@ tray cannot grant the exception. The waiter's existing serving contact at 65%
 transfers plate ownership to the table and immediately stops waiting and anger,
 before the delivery job itself finishes.
 
+### Confirmed meal completion
+
+In live service, the final matching delivery job's `meal_done` flag and the
+same table's plate custody complete that diner's cooking phase on the next
+positive simulation update. Model publishes `cooking` to `drinking` once; an
+unrelated diner's logical stove slot cannot add another cooking wait after the
+real meal has arrived. The 65% contact alone does not advance the phase.
+
+Real recipe/preparation/serving clocks, the 120-second departure rule, guest and
+service-token identity, plate custody, beverage consumption, eating and payment
+retain their existing rules. Pause, Decorate and active furniture movement hold
+the reconciliation. Standalone model simulation retains its timed capacity path.
+Existing delivered-but-still-cooking saves remain valid and reconcile after
+resuming live simulation; loading itself changes no phase or input file. No new
+save version, service marker or completion field is introduced.
+
 ## Atomic cancellation and physical exit
 
 Only the abandoned visit's unfinished service jobs are canceled. Their old token,

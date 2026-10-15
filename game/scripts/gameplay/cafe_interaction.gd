@@ -188,7 +188,6 @@ func rotate_selection():
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
-			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
 	else:
@@ -344,8 +343,7 @@ func _commit_preview():
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	game._save()
-	# Accepted layout feedback does not wait for asynchronous save completion.
+	# Accepted layout feedback does not wait for the periodic save slot.
 	game.settings_controls.play_sfx("place")
 
 func _clear_gesture(cancel_cleanup=true):
