@@ -40,7 +40,7 @@ static func is_door_landing(m,cell:Vector2i)->bool:
  if cell in [m.ENTRANCE,m.ENTRY_LANDING]:return true
  for attachment in m.wall_attachments:
   if attachment.kind!="door":continue
-  var opening=m.OpeningGeometry.aperture(attachment,m.built_walls,m.shell_material)
+  var opening=m.OpeningGeometry.aperture(attachment,m.built_walls)
   if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(m.cell_center(cell),opening.a,opening.b).distance_to(m.cell_center(cell))<.76:return true
  return false
 static func path(m,start:Vector2i,finish:Vector2i,blocked:Dictionary={},layout:Array=[])->Array[Vector2i]:
@@ -139,7 +139,7 @@ static func ensure(m,actors:Array=[])->bool:
  m.last_error=PENDING_NOTICE
  return false
 static func adopt(m,item:Dictionary):
- m.items.append(item);m._next_item_id+=1;m.included_checkout_pending=false;m.cashiers=1
+ m.items.append(item);m._next_item_id+=1;m.included_checkout_pending=false;m.register_unplaced=false;m.cashiers=1
  m.duty_targets["cashier"]=1;m.duty_counts["cashier"]=1
  m.last_error="";m.last_event="Included cashier and register ready · existing progress preserved";m._notify()
 static func init_guest(m,guest:Dictionary):
@@ -282,15 +282,16 @@ static func layout_error(m,layout:Array,walls:Array,ownership:Array,guests:Array
   for face in [cell,front,back]:
    if not m._floor_owned_in(face,ownership) or not reachable.has(face):return "Keep active register and queue cells clear and reachable"
   for face in [front,back]:
-   if m._fixed_edge_blocked(center,face,openings,walls) or m._built_edge_blocked(center,face,walls,openings):return "A guest is checking out · keep both register faces clear"
-  if cell!=front and (m._fixed_edge_blocked(cell,front,openings,walls) or m._built_edge_blocked(cell,front,walls,openings)):return "A guest is queued · keep the path to the register clear"
+   if m._built_edge_blocked(center,face,walls,openings):return "A guest is checking out · keep both register faces clear"
+  if cell!=front and (m._built_edge_blocked(cell,front,walls,openings)):return "A guest is queued · keep the path to the register clear"
  return ""
-static func state_error(pending:bool,cashiers:int,layout:Array,guests:Array,targets:Dictionary,duties:Dictionary)->String:
+static func state_error(pending:bool,cashiers:int,layout:Array,guests:Array,targets:Dictionary,duties:Dictionary,unplaced:bool=false,open:bool=false)->String:
  var registers=0
  for item in layout:
   if item.kind=="register":registers+=1
- if cashiers not in [0,1] or pending!=(cashiers==0) or registers!=cashiers:return "Cashier/register deployment disagrees with entitlement"
+ if cashiers not in [0,1] or pending!=(cashiers==0) or registers!=(0 if unplaced else cashiers):return "Cashier/register deployment disagrees with entitlement"
  if int(targets.get("cashier",-1))!=cashiers or int(duties.get("cashier",-1))!=cashiers:return "Cashier duty disagrees with deployment"
+ if unplaced and (pending or cashiers!=1 or open or not guests.is_empty()):return "An unplaced register requires a closed idle cafe and the existing cashier entitlement"
  if pending:
   for guest in guests:
    if str(guest.get("settlement_mode","legacy"))=="register":return "Register-mode guest exists before cashier deployment"

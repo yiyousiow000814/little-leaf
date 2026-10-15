@@ -35,7 +35,7 @@ func parking_step(m,seconds:float):
   for visit in m.parking_visits:phases[visit.phase]=true
 func snapshot(m):
  var state={}
- for key in ["parking_visits","parking_owned","parking_paid_cost","customers","outside_queue","coins","items","dining_sets","built_walls","wall_attachments","shell_products","shell_segment_products","floor_finishes","floor_style","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers","included_bin_pending","included_checkout_pending","operating_open","duty_targets","duty_counts","served","total_earned","total_cleaned","payroll_elapsed","payroll_accrued","wages_due","total_wages_paid","_next_customer_id","_next_item_id","_next_wall_id","_next_attachment_id","next_checkout_ticket","_arrival_elapsed","_walking_customer_id","service_snapshot"]:state[key]=m.get(key)
+ for key in ["parking_visits","parking_owned","parking_paid_cost","customers","outside_queue","coins","items","dining_sets","built_walls","wall_attachments","register_unplaced","floor_finishes","floor_style","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers","included_bin_pending","included_checkout_pending","operating_open","duty_targets","duty_counts","served","total_earned","total_cleaned","payroll_elapsed","payroll_accrued","wages_due","total_wages_paid","_next_customer_id","_next_item_id","_next_wall_id","_next_attachment_id","next_checkout_ticket","_arrival_elapsed","_walking_customer_id","service_snapshot"]:state[key]=m.get(key)
  return encoded(state)
 func roundtrip(m,label:String,expected=null):
  var path="user://parking-"+label+".json"

@@ -56,13 +56,13 @@ func ownership_routes():
  verify_public_routes(m,"expanded")
  check(m.buy_parcel("right_0"),"buy land elsewhere without authorizing a new public approach")
  verify_public_routes(m,"right-owned")
- check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:west",3.5),"move door within real corridor edge")
+ check(m.move_wall_attachment(int(m.wall_attachments[0].id),"wall:16",.5),"move door within real corridor edge")
  verify_public_routes(m,"moved-corridor-door")
  for z in range(Model.BASE_DEPTH,Model.BASE_DEPTH+Model.PARCEL_DEPTH):check(m.place_wall("z",0,z),"wall purchased corridor-side plot")
  check(not m.boundary_entries().any(func(entry):return entry.cell.y>=Model.BASE_DEPTH),"walled side land creates no side entrance")
  verify_public_routes(m,"side-owned-walled")
  var snapshot=state(m);var openings=m.wall_attachments.duplicate(true)
- check(m.move_wall_attachment(int(m.wall_attachments[0].id),"shell:back",3.5),"valid rear-only door remains editable without admitting customers")
+ check(m.move_wall_attachment(int(m.wall_attachments[0].id),"wall:4",.5),"valid rear-only door remains editable without admitting customers")
  check(m.wall_attachments[0].id==openings[0].id and m.coins==snapshot[2] and m.items==snapshot[0],"door edit preserves identity, inventory and money")
  check(m.boundary_entries().is_empty() and m.guest_access_for(7).is_empty(),"walled side plot plus rear-only door has no corridor admission")
  var path="user://corridor-rear-only.json"
@@ -72,7 +72,7 @@ func ownership_routes():
  check(loaded.wall_attachments==m.wall_attachments and loaded.coins==m.coins and loaded.items==m.items,"rear-only load preserves door, wallet and inventory")
  var sealed=Model.new();Minimal.apply(sealed);sealed.coins=10000000
  check(sealed.buy_parcel("right_0"),"synthetic disconnected-side fixture buys land elsewhere")
- sealed.wall_attachments[0].host_id="shell:back";sealed.wall_attachments[0].offset=3.5
+ sealed.wall_attachments[0].wall_ids=["wall:4"];sealed.wall_attachments[0].offset=.5
  snapshot=state(sealed)
  check(sealed.boundary_entries().is_empty() and sealed.guest_access_for(7).is_empty(),"purchased elsewhere plus sole back opening has no corridor access")
  check(state(sealed)==snapshot,"inaccessible synthetic route queries are read-only")

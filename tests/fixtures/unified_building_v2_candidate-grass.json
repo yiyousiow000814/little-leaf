@@ -1,0 +1,77 @@
+{
+	"building_format": "little_leaf.grid_building.v2",
+	"built_walls": [],
+	"cashiers": 1,
+	"checkout_format": "little_leaf.checkout.v1",
+	"cleaners": 1,
+	"coins": 190375,
+	"cooks": 1,
+	"dining_sets": [],
+	"duty_counts": {
+		"cashier": 1,
+		"chef": 1,
+		"cleaner": 1,
+		"waiter": 1
+	},
+	"duty_targets": {
+		"cashier": 1,
+		"chef": 1,
+		"cleaner": 1,
+		"waiter": 1
+	},
+	"expanded": false,
+	"first_guest_pending": true,
+	"floor_finishes": {
+
+	},
+	"floor_style": "warm_oak",
+	"included_bin_pending": false,
+	"included_checkout_pending": false,
+	"items": [],
+	"layout_motion_format": "little_leaf.layout_motion.v1",
+	"new_reconstruction": true,
+	"next_attachment_id": 2,
+	"next_item_id": 15,
+	"next_wall_id": 22,
+	"operating_open": false,
+	"outside_queue": {
+		"format": "little_leaf.outside_queue.v1",
+		"visitors": []
+	},
+	"owned_parcels": [
+		"front_0"
+	],
+	"parking": {
+		"format": "little_leaf.parking.v1",
+		"owned": false,
+		"paid_cost": 0,
+		"visits": []
+	},
+	"payroll_accrued": 0.0,
+	"payroll_elapsed": 0.0,
+	"register_unplaced": true,
+	"runtime": {
+		"arrival_elapsed": 0.0,
+		"checkout_format": "little_leaf.checkout.v1",
+		"customers": [],
+		"layout_motion_format": "little_leaf.layout_motion.v1",
+		"next_checkout_ticket": 1,
+		"next_customer_id": 1,
+		"service": {
+
+		},
+		"walking_customer_id": -1
+	},
+	"schema": "little_leaf_reconstructed_cafe",
+	"served": 0,
+	"starter_geometry_version": 1,
+	"total_cleaned": 0,
+	"total_earned": 0,
+	"total_wages_paid": 0,
+	"version": 15,
+	"wages_due": 0,
+	"waiters": 1,
+	"wall_attachment_format": 2,
+	"wall_attachments": [],
+	"wall_format": 4
+}

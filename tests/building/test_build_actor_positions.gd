@@ -55,10 +55,10 @@ func run():
   if spec[0] in ["washing","wiping"]:check(Vector2i(rendered.floor())==Vector2i(station.x,station.z),"visual lean reaches occupied furniture cell")
   for kind in ["door","window"]:
    var before=model.coins
-   check(model.can_place_wall_attachment(kind,"shell:back",2.5,actors),str(spec[0])+" allows unrelated "+kind+": "+model.last_error)
+   check(model.can_place_wall_attachment(kind,"wall:3",.5,actors),str(spec[0])+" allows unrelated "+kind+": "+model.last_error)
    check(model.coins==before,"preview leaves wallet unchanged")
   check(model.can_place_wall("x",7,6,"full","sage_panels",actors),str(spec[0])+" allows unrelated new wall: "+model.last_error)
-  check(model.wall_replacement_quote("shell:back#2","full","cream_stripe",actors).valid,str(spec[0])+" allows unrelated wall replacement")
+  check(model.wall_replacement_quote("wall:3","full","cream_stripe",actors).valid,str(spec[0])+" allows unrelated wall replacement")
   evidence.append({"action":spec[0],"raw":str(raw),"rendered":str(rendered),"uses_authority":actors[0]==raw})
   for index in game.staff_states.size():game.staff_states[index].pos=initial_staff[index];game.staff_states[index].art_action="idle"
  # A guest's lean and seated pose likewise cannot rewrite their logical cell.
@@ -108,24 +108,24 @@ func nonworsening_cases():
  var wallet=m.coins
  check(m.replace_wall("x:8:6","full","cream_stripe",trapped),"existing wall finish commits while distant legacy trap remains")
  check(m.coins==wallet-int(quote.net),"cosmetic replacement keeps exact quote/payment")
- check(m.wall_replacement_quote("shell:back#2","full","cream_stripe",trapped).valid,"existing shell style ignores unrelated trapped worker")
+ check(m.wall_replacement_quote("wall:3","full","cream_stripe",trapped).valid,"existing shell style ignores unrelated trapped worker")
  var first=m.get_wall("x:8:6");var second=m.get_wall("x:9:6")
- check(m.place_wall_attachment("window","wall:"+str(first.id),.5,trapped),"window on existing solid wall ignores unrelated trapped worker")
+ check(m.place_wall_attachment("window",str(first.id),.5,trapped),"window on existing solid wall ignores unrelated trapped worker")
  var window_id=m.wall_attachments[-1].id
- check(m.move_wall_attachment(window_id,"shell:back",2.5,trapped),"window move cannot close a ground path")
+ check(m.move_wall_attachment(window_id,"wall:3",.5,trapped),"window move cannot close a ground path")
  check(m.remove_wall_attachment(window_id,trapped),"window removal cannot close a ground path")
- check(m.place_wall_attachment("door","wall:"+str(second.id),.5,trapped),"new door only opens paths despite unrelated trapped worker")
- check(not m.can_place_wall_attachment("window","wall:"+str(second.id),.5,trapped),"overlapping aperture remains rejected")
+ check(m.place_wall_attachment("door",str(second.id),.5,trapped),"new door only opens paths despite unrelated trapped worker")
+ check(not m.can_place_wall_attachment("window",str(second.id),.5,trapped),"overlapping aperture remains rejected")
  check(not m.wall_replacement_quote("x:9:6","half","sage_panels",trapped).valid,"opening still requires full-height support")
  check(not m.can_place_wall_attachment("window","wall:99999",.5,trapped),"missing host remains rejected")
- check(not m.can_place_wall_attachment("door","shell:back",-.5,trapped),"out-of-host opening remains rejected")
+ check(not m.can_place_wall_attachment("door","wall:3",-.5,trapped),"out-of-host opening remains rejected")
  # Physical doorway crossing remains authoritative. A future exit route
  # alone is not a body and cannot veto an idle geometry-valid closure.
- var host="wall:"+str(m.get_wall("z:4:3").id)
+ var host=str(m.get_wall("z:4:3").id)
  check(m.place_wall_attachment("door",host,.5,trapped),"adding door repairs pre-existing trapped room")
  var exit_id=m.wall_attachments[-1].id;wallet=m.coins
  var crossing=[Vector2(4.0,3.5)]
  check(not m.remove_wall_attachment(exit_id,crossing),"closing on a crossing body remains rejected")
- check(not m.move_wall_attachment(exit_id,"shell:back",2.5,crossing),"moving doorway onto its crossing body remains rejected")
- check(m.coins==wallet and m.get_wall_attachment(exit_id).host_id==host,"rejected body collisions preserve wallet and old door")
+ check(not m.move_wall_attachment(exit_id,"wall:3",.5,crossing),"moving doorway onto its crossing body remains rejected")
+ check(m.coins==wallet and m.get_wall_attachment(exit_id).wall_ids==[host],"rejected body collisions preserve wallet and old door")
  check(m.remove_wall_attachment(exit_id,trapped),"body-clear idle doorway closure is legal")

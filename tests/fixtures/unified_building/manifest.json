@@ -1,0 +1,63 @@
+{
+  "fixtures": {
+    "historical": {
+      "bytes": 11807,
+      "coins": 1200,
+      "next_wall_id": 1,
+      "owned_parcels": [],
+      "sha256": "28e44539834a07dd7e4066bc0dfce41b682e121d0b31f2e39a2c56cb8bdb62eb"
+    },
+    "inherited_extension_full": {
+      "bytes": 12099,
+      "coins": 1000,
+      "next_wall_id": 42,
+      "owned_parcels": [],
+      "sha256": "db4969eebe8898472fbcc8c59c63fef3c24426927241a464830857c09b425926"
+    },
+    "inherited_extension_half": {
+      "bytes": 12099,
+      "coins": 1000,
+      "next_wall_id": 42,
+      "owned_parcels": [],
+      "sha256": "2cfffbd8b558b693f074abf6cb107de11d8999a83d2c7e52236fc91ea16c875e"
+    },
+    "intentionally_bare_grass": {
+      "bytes": 4987,
+      "coins": 1200,
+      "next_wall_id": 1,
+      "owned_parcels": [],
+      "sha256": "987ab8411d2d21f475d3a1bdd8f60b13b5137341528809b0f0a946b4e2ba7f3c"
+    },
+    "owned_custom": {
+      "bytes": 11619,
+      "coins": 189893,
+      "next_wall_id": 2,
+      "owned_parcels": [
+        "front_0"
+      ],
+      "sha256": "121368dc197ae3ffd8921b505b9d81333057a5bf5ab1adcfb85cccea2b1a91bb"
+    },
+    "progress_and_payroll": {
+      "bytes": 11245,
+      "coins": 12345,
+      "next_wall_id": 1,
+      "owned_parcels": [],
+      "sha256": "79084f2577c29c0f42e8850d0275f9fd1968eb5e85d03f371ce0a085e1965ca9"
+    },
+    "public_closed": {
+      "bytes": 11267,
+      "coins": 1200,
+      "next_wall_id": 1,
+      "owned_parcels": [],
+      "sha256": "da531a4c85d3f1a80f685c0a8ee9398d2fa31a47ec64503a1fe10b634ba69005"
+    },
+    "removed_structure": {
+      "bytes": 11565,
+      "coins": 1200,
+      "next_wall_id": 1,
+      "owned_parcels": [],
+      "sha256": "4c358b68547346ae0b34b3c9f725cb12a1181e4c12104ca61ea4d2bd9ab2aa6c"
+    }
+  },
+  "player_save_used": false
+}

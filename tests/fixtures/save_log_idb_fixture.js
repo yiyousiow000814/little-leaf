@@ -2,6 +2,8 @@
 // Deterministic, serial, atomic transaction model for observer parity tests.
 // Deliberately not a substitute for a browser's IndexedDB implementation.
 const clone = value => structuredClone(value);
+// IndexedDB compares compound keys by value, not JavaScript array identity.
+const keyOf = value => Array.isArray(value) ? JSON.stringify(value) : value;
 class FixtureStore {
   constructor(tx, name) { this.transaction = tx; this.name = name; }
   request(kind, args, action) {
@@ -24,17 +26,17 @@ class FixtureStore {
     });
     return request;
   }
-  get(key) { return this.request('get', [key], () => clone(this.transaction.data.get(this.name).get(key))); }
+  get(key) { return this.request('get', [key], () => clone(this.transaction.data.get(this.name).get(keyOf(key)))); }
   put(value, key) {
     if (this.transaction.db.factory.throwPut) throw new DOMException('PRIVATE_QUOTA_ERROR', 'QuotaExceededError');
     return this.request('put', [value, key], () => {
     if (this.transaction.mode === 'readonly') throw new Error('Readonly write');
-    this.transaction.data.get(this.name).set(key, clone(value)); return key;
+    this.transaction.data.get(this.name).set(keyOf(key), clone(value)); return key;
   }); }
   add(value, key) { return this.request('add', [value, key], () => {
     if (this.transaction.mode === 'readonly') throw new Error('Readonly write');
-    if (this.transaction.data.get(this.name).has(key)) throw new Error('Duplicate key');
-    this.transaction.data.get(this.name).set(key, clone(value)); return key;
+    if (this.transaction.data.get(this.name).has(keyOf(key))) throw new Error('Duplicate key');
+    this.transaction.data.get(this.name).set(keyOf(key), clone(value)); return key;
   }); }
   openCursor() {
     const tx = this.transaction, request = {};

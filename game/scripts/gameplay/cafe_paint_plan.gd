@@ -17,8 +17,7 @@ var _targets:Array=[]
 
 func stamp(model,actors:Array)->Array:
  return [model.get_instance_id(),model.revision,model.coins,
-  hash(model.floor_finishes),hash(model.built_walls),hash(model.shell_segment_products),
-  hash(model.shell_products),model.shell_material,hash(model.wall_attachments),
+  hash(model.floor_finishes),hash(model.built_walls),hash(model.wall_attachments),
   hash(model.items),hash(model.dining_sets),hash(model.customers),
   hash(model.owned_parcels),model.width,model.depth,model.expanded,
   hash(model.wall_actor_positions),hash(model.checkout_staff_claims),hash(actors),
@@ -48,7 +47,7 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
  if int(_receipt_copy.changed_count)==0:
   invalidate();model.last_error="";return true
  var shadow=planned.shadow
- if _mode=="floor":model.floor_finishes=shadow.floor_finishes.duplicate(true)
+ if _mode in ["floor","remove_floor"]:model.floor_finishes=shadow.floor_finishes.duplicate(true)
  else:
   # Existing wall dictionaries can be held by rendering/service callers.
   # Keep their identity and append only newly purchased walls.
@@ -59,12 +58,11 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
     var original:Dictionary=model.built_walls[index]
     original.clear();original.merge(proposed.duplicate(true))
    else:model.built_walls.append(proposed.duplicate(true))
-  model.shell_segment_products=shadow.shell_segment_products.duplicate(true)
   model.decoration_build_purchases=shadow.decoration_build_purchases.duplicate(true)
   model._next_wall_id=shadow._next_wall_id
  model.coins-=int(_receipt_copy.net)
  model.last_error=""
- model.last_event="%s placed · %d · new %s · refund %s · pay %s"%["Tiles" if _mode=="floor" else "Walls",int(_receipt_copy.changed_count),Money.amount(int(_receipt_copy.paid)),Money.amount(int(_receipt_copy.refund)),Money.amount(int(_receipt_copy.net))]
+ model.last_event="%s placed · %d · new %s · refund %s · pay %s"%["Tiles removed" if _mode=="remove_floor" else ("Tiles" if _mode=="floor" else "Walls"),int(_receipt_copy.changed_count),Money.amount(int(_receipt_copy.paid)),Money.amount(int(_receipt_copy.refund)),Money.amount(int(_receipt_copy.net))]
  # Invalidate before emitting, so a synchronous listener cannot reuse receipt.
  invalidate();model._notify();return true
 
@@ -83,21 +81,22 @@ static func _shadow(model):
 
 static func _plan(model,mode:String,material:String,targets:Array,actors:Array)->Dictionary:
  var receipt={"ok":false,"error":"","paid":0,"refund":0,"net":0,"count":0,"changed_count":0,"targets":[]}
- if mode not in ["floor","half","full"]:
+ if mode not in ["floor","remove_floor","half","full"]:
   receipt.error="Choose Tiles or Walls";return {"receipt":receipt}
- if (mode=="floor" and material not in model.FLOOR_STYLES) or (mode!="floor" and material not in Walls.MATERIALS):
+ if (mode=="floor" and material not in model.FLOOR_STYLES) or (mode not in ["floor","remove_floor"] and material not in Walls.MATERIALS):
   receipt.error="Choose a listed finish";return {"receipt":receipt}
  if targets.is_empty():receipt.error="Drag across an owned tile or wall edge";return {"receipt":receipt}
  var shadow=_shadow(model)
  var seen={}
  for raw in targets:
-  var target=_floor_target(raw,material) if mode=="floor" else _wall_target(shadow,raw,mode,material)
+  var target=_floor_target(raw,material) if mode in ["floor","remove_floor"] else _wall_target(shadow,raw,mode,material)
   var key=str(target.get("edge_key",target.get("key","")))
   if key!="" and seen.has(key):continue
   if key!="":seen[key]=true
   receipt.count+=1
   if str(target.error)=="":
-   if mode=="floor":_apply_floor(shadow,target)
+   if mode=="remove_floor":_remove_floor(shadow,target)
+   elif mode=="floor":_apply_floor(shadow,target)
    else:_apply_wall(shadow,target,actors)
   target.valid=str(target.error)==""
   if not target.valid and receipt.error=="":receipt.error=target.error
@@ -136,8 +135,6 @@ static func _wall_target(model,raw,height:String,material:String)->Dictionary:
   result.error="Choose a valid wall edge";return result
  result.merge({"axis":str(wall.axis),"x":int(wall.x),"z":int(wall.z),"height":height,"material":material})
  result.key=Walls.key_of(result);result.edge_key=result.key
- var shell=Segments.edge_key(result)
- if model.get_wall(result.key).is_empty() and shell!="" and not model.get_editable_wall(shell).is_empty():result.key=shell
  return result
 
 static func _apply_floor(model,target:Dictionary):
@@ -150,6 +147,14 @@ static func _apply_floor(model,target:Dictionary):
  _quote(target,quote)
  if not quote.valid:target.error=str(quote.reason);return
  if not model.place_floor(target.cell,target.style):target.error=model.last_error
+
+static func _remove_floor(model,target:Dictionary):
+ if not model.is_floor_owned(target.cell):target.error="Buy this plot before editing flooring";return
+ if not model.floor_finishes.has(target.key):target.action="noop";return
+ target.action="remove"
+ var quote=model.floor_removal_quote(target.cell);_quote(target,quote)
+ if not quote.valid:target.error=str(quote.reason);return
+ if not model.remove_floor(target.cell):target.error=model.last_error
 
 static func _apply_wall(model,target:Dictionary,actors:Array):
  if not Walls.valid_shape(target,model.MAX_WIDTH,model.MAX_DEPTH):target.error="Choose a valid wall edge";return

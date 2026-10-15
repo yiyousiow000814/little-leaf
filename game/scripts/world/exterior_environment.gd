@@ -8,11 +8,11 @@ const CameraLandmarks=preload("res://scripts/rendering/cafe_camera_landmarks.gd"
 const Greenery=preload("res://scripts/rendering/environment_greenery.gd")
 static var greenery=Greenery.new()
 const ROAD_LEFT=-8.76
-const ROAD_RIGHT=-3.26
+const ROAD_RIGHT=-3.0
 const OPPOSITE_LEFT=-11.76
-const LOT=Rect2(-.26,-8.7,12.26,4.9)
-const MOUTH=Rect2(-3.26,-5.7,3.0,1.8)
-const PEDESTRIAN_LINK=Rect2(-.26,-3.8,1.2,3.54)
+const LOT=Rect2(0,-8.7,12.0,4.9)
+const MOUTH=Rect2(-3.0,-5.7,3.0,1.8)
+const PEDESTRIAN_LINK=Rect2(0,-3.8,.94,3.8)
 const BUFFER_PLANTING=[Vector2(2.5,-3.35),Vector2(7.8,-3.35),Vector2(11.9,-2.4)]
 # Normal projection: a rear-wall point rises128px while each negative-z tile
 # separates ground from its silhouette by39px. z=-3.8 leaves20.2px clearance
@@ -51,7 +51,7 @@ static func parking_hooks()->Dictionary:
 	# in the model. These anchors never become owned cafe floor tiles.
 	var bays:Array[Vector2]=[]
 	for x in BAY_CENTERS:bays.append(Vector2(x,-7.15))
-	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2(-.26,-.26),"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
+	return {"id":"rear_roadside_parking","bounds":LOT,"mouth_bounds":MOUTH,"entrance":MOUTH.get_center(),"road_join":Vector2(ROAD_RIGHT,MOUTH.get_center().y),"aisle_join":Vector2(LOT.position.x,MOUTH.get_center().y),"pedestrian_link_bounds":PEDESTRIAN_LINK,"pedestrian_exit":Vector2.ZERO,"bay_centers":bays,"purchase_enabled":true,"customer_parking_enabled":true,"price":Parking.PRICE,"parcel_policy":"fixed_exterior_upgrade"}
 
 static func quad(a,x0:float,z0:float,x1:float,z1:float,color):
 	var points=[a.iso(x0,z0),a.iso(x1,z0),a.iso(x1,z1),a.iso(x0,z1)]

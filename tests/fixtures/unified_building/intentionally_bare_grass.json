@@ -1,0 +1,283 @@
+{
+	"built_walls": [],
+	"cashiers": 1,
+	"checkout_format": "little_leaf.checkout.v1",
+	"cleaners": 1,
+	"coins": 1200,
+	"cooks": 1,
+	"dining_sets": [
+		{
+			"id": 6,
+			"paid_cost": 140,
+			"rot": 0,
+			"seat_id": 7,
+			"table_id": 6,
+			"variant": "oak_single"
+		}
+	],
+	"duty_counts": {
+		"cashier": 1,
+		"chef": 1,
+		"cleaner": 1,
+		"waiter": 1
+	},
+	"duty_targets": {
+		"cashier": 1,
+		"chef": 1,
+		"cleaner": 1,
+		"waiter": 1
+	},
+	"expanded": false,
+	"first_guest_pending": true,
+	"floor_finishes": {
+
+	},
+	"floor_style": "warm_oak",
+	"included_bin_pending": false,
+	"included_checkout_pending": false,
+	"items": [
+		{
+			"id": 1,
+			"kind": "stove",
+			"rot": 0,
+			"x": 8,
+			"z": 1
+		},
+		{
+			"id": 2,
+			"kind": "beverage",
+			"rot": 0,
+			"x": 9,
+			"z": 1
+		},
+		{
+			"id": 3,
+			"kind": "sink",
+			"rot": 0,
+			"x": 10,
+			"z": 1
+		},
+		{
+			"id": 4,
+			"kind": "counter",
+			"rot": 0,
+			"x": 6,
+			"z": 2
+		},
+		{
+			"id": 6,
+			"kind": "table",
+			"rot": 0,
+			"x": 3,
+			"z": 3
+		},
+		{
+			"id": 7,
+			"kind": "chair",
+			"rot": 0,
+			"x": 3,
+			"z": 4
+		},
+		{
+			"id": 14,
+			"kind": "register",
+			"rot": 1,
+			"x": 6,
+			"z": 4
+		}
+	],
+	"layout_motion_format": "little_leaf.layout_motion.v1",
+	"new_reconstruction": true,
+	"next_attachment_id": 2,
+	"next_item_id": 15,
+	"next_wall_id": 1,
+	"operating_open": false,
+	"outside_queue": {
+		"format": "little_leaf.outside_queue.v1",
+		"visitors": []
+	},
+	"owned_parcels": [],
+	"parking": {
+		"format": "little_leaf.parking.v1",
+		"owned": false,
+		"paid_cost": 0,
+		"visits": []
+	},
+	"payroll_accrued": 0.0,
+	"payroll_elapsed": 0.0,
+	"runtime": {
+		"arrival_elapsed": 0.0,
+		"checkout_format": "little_leaf.checkout.v1",
+		"customers": [],
+		"layout_motion_format": "little_leaf.layout_motion.v1",
+		"next_checkout_ticket": 1,
+		"next_customer_id": 1,
+		"service": {
+
+		},
+		"walking_customer_id": -1
+	},
+	"schema": "little_leaf_reconstructed_cafe",
+	"served": 0,
+	"shell_material": "original",
+	"shell_products": {
+		"shell:back": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0
+		},
+		"shell:west": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0
+		}
+	},
+	"shell_segment_format": "little_leaf.shell_segments.v1",
+	"shell_segment_products": {
+		"shell:back#0": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#1": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#10": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#11": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#2": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#3": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#4": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#5": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#6": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#7": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#8": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:back#9": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#0": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#1": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#2": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#3": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#4": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#5": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#6": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#7": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		},
+		"shell:west#8": {
+			"height": "full",
+			"material": "original",
+			"paid_cost": 0,
+			"refund_credit": 0
+		}
+	},
+	"starter_geometry_version": 1,
+	"total_cleaned": 0,
+	"total_earned": 0,
+	"total_wages_paid": 0,
+	"version": 15,
+	"wages_due": 0,
+	"waiters": 1,
+	"wall_attachment_format": 1,
+	"wall_attachments": [
+		{
+			"host_id": "shell:west",
+			"id": 1,
+			"kind": "door",
+			"offset": 5.5,
+			"paid_cost": 0,
+			"width": 1.0
+		}
+	],
+	"wall_format": 2
+}

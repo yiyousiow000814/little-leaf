@@ -124,10 +124,10 @@ var _cached_stroke_x := Vector2.INF
 var _cached_stroke_y := Vector2.INF
 var _cached_stroke_scale := 1.0
 var ui_scale = 1.0
-const PAVEMENT_EDGE = -3.26
+const PAVEMENT_EDGE = -3.0
 const PAVEMENT_ROW_WIDTH = 1.0
 const WALL_HEIGHT = 128.0
-const PAVEMENT_INNER = -0.26
+const PAVEMENT_INNER = 0.0
 # Shared immutable circle samples keep the original 32-sided silhouette, but
 # transform vertices in native code instead of allocating 32 scripted trig calls
 # for every leaf, plate, face, eye, and furniture detail on every live frame.
@@ -964,7 +964,7 @@ func _draw():
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
 	var openings=[]
 	for attachment in render_wall_attachments if show_objects else []:
-		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls,game.model.shell_products)
+		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls)
 		if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));openings.append(opening)
 	update_projection()
 	# Resolve input picking before switching to draw-local coordinates. A
@@ -1052,13 +1052,7 @@ func _draw():
 		if world==Vector2(-13.1,1.5) and is_equal_approx(tree.z,.86) and descriptor.variant=="oak":street_tree=descriptor
 		else:scenery_trees.append(descriptor)
 	_draw_street_people(show_service,street_tree)
-	# Existing shell and player walls share the same aperture geometry.
-	if show_objects:
-		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back"),render_wall_attachments,"e0e7d0","91a27d")
-		shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west"),render_wall_attachments,"cfdbc2","819874")
-		var corner_height=minf(game.build_tools.render_shell_corner_height("shell:back"),game.build_tools.render_shell_corner_height("shell:west"))
-		poly([iso(0,0,corner_height),iso(-.26,0,corner_height),iso(-.26,-.26,corner_height),iso(0,-.26,corner_height)],"fff1d0")
-		game.build_tools.draw_shell_selection(self)
+	# All installed edges share the same local depth-sorted renderer.
 	var entities=[]
 	# Corner foliage shares the ground-depth order of props and people.
 	entities.append({"depth":26.0,"type":"scenery_tree","entry":{"id":-1},"position":Vector2(14.5,11.5),"scale":.78,"variant":"oak"})
@@ -1258,6 +1252,7 @@ func _draw():
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
 	if game.editing and game.build_tools!=null:
+		game.build_tools.draw_wall_selection(self)
 		for opening in openings:
 			if int(opening.id)==game.build_tools.opening_source_id:OpeningArt.selection_outline(self,opening)
 	if show_objects and game.build_tools!=null:game.build_tools.paint_stroke.draw_walls(self)
@@ -1351,23 +1346,6 @@ func prepare_grass(_size: Vector2):
 		grass_mesh=ExteriorGrassArt.make_mesh(_grass_left,_grass_right,opacity)
 		_grass_opacity=opacity
 		grass_mesh_rebuilds+=1
-func _wall(a: Vector2,b: Vector2,n: Vector2,c1,c2):
-	var finish=str(game.model.shell_material)
-	var end_color=Color("b8c7a8");var cap_color=Color("fff1d0")
-	if finish=="original":
-		poly([iso(a.x,a.y),iso(b.x,b.y),iso(b.x,b.y,WALL_HEIGHT),iso(a.x,a.y,WALL_HEIGHT)],c1)
-		poly([iso(a.x,a.y),iso(b.x,b.y),iso(b.x,b.y,36),iso(a.x,a.y,36)],c2)
-		line(iso(a.x,a.y,36),iso(b.x,b.y,36),"a9b797",2*ui_scale)
-	else:
-		var length=a.distance_to(b);var direction=(b-a).normalized()
-		var texture=WallArt.texture_for(finish,"full")
-		end_color=Color(WallArt.PALETTES[finish].end);cap_color=Color(WallArt.PALETTES[finish].cap)
-		for index in range(ceili(length)):
-			var p0=a+direction*index;var p1=a+direction*minf(index+1,length)
-			art_draw_polygon(PackedVector2Array([iso(p0.x,p0.y),iso(p1.x,p1.y),iso(p1.x,p1.y,WALL_HEIGHT),iso(p0.x,p0.y,WALL_HEIGHT)]),PackedColorArray([Color.WHITE,Color.WHITE,Color.WHITE,Color.WHITE]),PackedVector2Array([Vector2(0,1),Vector2(p0.distance_to(p1),1),Vector2(p0.distance_to(p1),0),Vector2.ZERO]),texture)
-	poly([iso(b.x,b.y),iso(b.x+n.x,b.y+n.y),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT)],end_color)
-	poly([iso(a.x,a.y,WALL_HEIGHT),iso(b.x,b.y,WALL_HEIGHT),iso(b.x+n.x,b.y+n.y,WALL_HEIGHT),iso(a.x+n.x,a.y+n.y,WALL_HEIGHT)],cap_color)
-
 func hit_wall(screen:Vector2)->Dictionary:
 	if objects_hidden():return {}
 	update_projection()
@@ -1375,7 +1353,7 @@ func hit_wall(screen:Vector2)->Dictionary:
 	walls.sort_custom(func(a,b):return int(a.x+a.z)>int(b.x+b.z))
 	for wall in walls:
 		var ends=WallGeometry.endpoints(wall)
-		var normal=(Vector2.DOWN if wall.axis=="x" else Vector2.RIGHT)*WallGeometry.THICKNESS*.5
+		var normal=WallGeometry.visual_front(wall)
 		var a:Vector2=ends[0]+normal;var b:Vector2=ends[1]+normal
 		var height=float(WallGeometry.HEIGHT_PIXELS[wall.height])
 		var polygon=PackedVector2Array([iso(a.x,a.y),iso(b.x,b.y),iso(b.x,b.y,height),iso(a.x,a.y,height)])

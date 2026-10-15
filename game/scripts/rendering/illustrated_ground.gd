@@ -36,7 +36,7 @@ const FLOOR_PALETTES := {"bare":[Color("cbbfa8"),Color("cbbfa8")],"warm_oak":[Co
 var floor_colors=FLOOR_COLORS
 var floor_line_color=Color("d4bf95")
 const PAVEMENT_COLORS := [Color("dfe0c8"),Color("d7dcc2")]
-const PAVEMENT_LEFT := -3.26
+const PAVEMENT_LEFT := -3.0
 
 static func point(x: float,z: float) -> Vector2:
 	return Vector2((x-z)*39,(x+z)*19.5)

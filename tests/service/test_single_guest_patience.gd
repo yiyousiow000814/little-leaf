@@ -49,7 +49,7 @@ func reset()->Dictionary:
 func roundtrip(label:String):
  var before=json_state(game._service_save_snapshot());var guests=json_state(game.model.customers)
  var wallet=[game.model.coins,game.model.served,game.model.total_earned,game.model.total_wages_paid,game.model.wages_due]
- var fixtures=json_state([game.model.items,game.model.dining_sets,game.model.shell_segment_products])
+ var fixtures=json_state([game.model.items,game.model.dining_sets,game.model.built_walls])
  var receipt=game.web_save.inbox_snapshot.duplicate(true)
  var payload=save_payload("user://policy-current.json")
  if payload.is_empty():return
@@ -59,7 +59,7 @@ func roundtrip(label:String):
  game._restore_service_runtime()
  check(json_state(game._service_save_snapshot())==before,label+" retains jobs, reservations, payloads and clock exactly")
  check(json_state(game.model.customers)==guests,label+" retains physical route and departure state")
- check(wallet==[game.model.coins,game.model.served,game.model.total_earned,game.model.total_wages_paid,game.model.wages_due] and json_state([game.model.items,game.model.dining_sets,game.model.shell_segment_products])==fixtures,label+" retains wallet and purchase data")
+ check(wallet==[game.model.coins,game.model.served,game.model.total_earned,game.model.total_wages_paid,game.model.wages_due] and json_state([game.model.items,game.model.dining_sets,game.model.built_walls])==fixtures,label+" retains wallet and purchase data")
  check(receipt==game.web_save.inbox_snapshot and FileAccess.get_sha256("user://policy-current.json")==checksum,label+" leaves receipt cache and source save unchanged")
 func place_worker_at_target(staff:Dictionary,target:Dictionary):
  var cell=game._service_destination(staff,target,Vector2i(staff.pos.floor()))
