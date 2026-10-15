@@ -170,11 +170,12 @@ function validateNaturalPayment(state, order, layout, initial) {
 }
 
 async function navigateFreshGame(page, url) {
-  // Document navigation is not engine readiness. Keep both original caps;
-  // the real native/vault condition below remains mandatory before gameplay.
-  const response = await page.goto(url, {waitUntil: 'domcontentloaded', timeout: 15000});
+  // The shell's synchronous WebGL capability probe blocks DOMContentLoaded.
+  // Keep transport separate from that engine work, with both original caps.
+  const response = await page.goto(url, {waitUntil: 'commit', timeout: 15000});
   assert(response && response.ok(), 'Ordinary Web entry must load successfully');
-  await page.waitForFunction(() => !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
+  await page.waitForFunction(() => document.readyState !== 'loading'
+    && !document.getElementById('status') && window.__littleLeafVault?.bootJson, null, {timeout: 60000});
 }
 
 function observePageFailures(page, errors) {

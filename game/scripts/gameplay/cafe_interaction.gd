@@ -344,7 +344,9 @@ func _commit_preview():
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	if game._save():game.settings_controls.play_sfx("place")
+	game._save()
+	# Accepted layout feedback does not wait for asynchronous save completion.
+	game.settings_controls.play_sfx("place")
 
 func _clear_gesture(cancel_cleanup=true):
 	if cancel_cleanup and manual_cleanup!=null:manual_cleanup.cancel()
