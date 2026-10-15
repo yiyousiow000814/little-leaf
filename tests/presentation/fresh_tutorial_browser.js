@@ -142,7 +142,7 @@ function summarize(ack) {
   return {revision: ack.revision, coins: saved.coins, served: saved.served, earned: saved.total_earned,
     wages: saved.total_wages_paid, open: saved.operating_open, tutorial: saved.tutorial,
     first_guest_pending: saved.first_guest_pending === true, items_sha256: hash(canonical(saved.items)),
-    guests: saved.runtime.customers.map(g => ({id: g.id, phase: g.phase, seated: g.seated})),
+    guests: saved.runtime.customers.map(g => ({id: g.id, phase: g.phase, seated: g.seated, elapsed: g.elapsed, duration: g.duration})),
     orders: saved.runtime.service.records.filter(r => r.order_done).map(r => r.guest_id),
     paid_campaigns: ack.inbox.paid};
 }
@@ -249,7 +249,7 @@ async function main() {
   const report = {status: 'running', browser_verified: false, fresh_context: true, player_save_used: false,
     launch_arguments: [], manual_ticks: false, forced_guests: false, gameplay_state_mutated_by_harness: false,
     state_observation: 'Readonly copies of production vault bootJson, updated only by genuine acknowledged saves',
-    checks: [], snapshots: [], rendered_stages: {}, errors: []};
+    checks: [], snapshots: [], browser_state_changes: [], omitted_browser_state_changes: 0, rendered_stages: {}, errors: []};
   let browser, server, page, started, budget;
   const check = (ok, label) => {assert(ok, label); report.checks.push(label);};
   const elapsed = () => ((Date.now() - started) / 1000);
@@ -291,14 +291,21 @@ async function main() {
     const boot = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
     check(boot.ok && boot.source === 'fresh' && boot.revision === 0 && boot.payload === null, 'Unmodified exported shell boots a genuinely fresh ordinary-Web profile');
     check(await page.evaluate(() => window.LittleLeafCloudSettings === undefined) && report.errors.length === 0, 'Ordinary Web starts without a Firebase bridge or missing-interface engine errors');
-    let initial, lastRevision = -1;
+    let initial, lastRevision = -1, lastBrowserState = null;
     const snapshot = async signal => {
-      const ack = await page.evaluate(() => JSON.parse(window.__littleLeafVault.bootJson));
+      const observed = await page.evaluate(() => ({ack: JSON.parse(window.__littleLeafVault.bootJson),
+        browser: {visibility: document.visibilityState, focused: document.hasFocus(), monotonic_ms: performance.now()}}));
+      const ack = observed.ack, browserState = JSON.stringify([observed.browser.visibility, observed.browser.focused]);
+      if (browserState !== lastBrowserState) {
+        lastBrowserState = browserState;
+        if (report.browser_state_changes.length < 64) report.browser_state_changes.push({wall_seconds: elapsed(), ...observed.browser});
+        else report.omitted_browser_state_changes++;
+      }
       signal?.throwIfAborted();
       const state = summarize(ack);
       if (state) {
         validateProgress(state, layout, initial);
-        if (state.revision !== lastRevision) {lastRevision = state.revision; report.snapshots.push({wall_seconds: elapsed(), ...state});}
+        if (state.revision !== lastRevision) {lastRevision = state.revision; report.snapshots.push({wall_seconds: elapsed(), browser: observed.browser, ...state});}
       }
       assert(report.errors.length === 0, 'Exported game raised a script/browser error');
       return state;
