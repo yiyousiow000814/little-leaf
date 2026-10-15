@@ -2,6 +2,7 @@
 (function (root) {
   'use strict';
   const KEY = 'little-leaf.cg.profile.v1', PREFS = 'little-leaf.cg.preferences.v1';
+  const ARCHIVE = KEY + '.pre-grid.v1';
   const LIMIT = 1048576, reserve = 1024;
   const codec = root.LittleLeafAuthorityCodec;
   let sdk, opening, record, revisionText, scope, epoch = 0, faulted = false, busy = false;
@@ -13,8 +14,8 @@
     let timer;
     return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(error('PLATFORM_STORAGE_ERROR', 'Platform loading timed out. Reload to try again.')), ms); })]).finally(() => clearTimeout(timer));
   }
-  function capacity(value, preferences) {
-    if (new TextEncoder().encode(JSON.stringify({ [KEY]: value, [PREFS]: preferences || '' })).length > LIMIT - reserve)
+  function capacity(value, preferences, archive = sdk.data.getItem(ARCHIVE)) {
+    if (new TextEncoder().encode(JSON.stringify({ [KEY]: value, [PREFS]: preferences || '', [ARCHIVE]: archive || '' })).length > LIMIT - reserve)
       throw error('PLATFORM_DATA_LIMIT', 'This café exceeds the platform save limit. The previous save is unchanged.');
   }
   async function currentScope() {
@@ -96,7 +97,17 @@
         const next = { ...record, revision: expectedRevision + 1, payload, updatedAt: Date.now(), previous: null, origin: record.origin || { source: 'fresh', legacyDigest: null, importedAt: Date.now() } };
         next.digest = await codec.hash(codec.fingerprint(next));
         const text = JSON.stringify(next);
+        const proof = await codec.ensurePreGridArchive({
+          read: async () => { await guard(generation); return sdk.data.getItem(ARCHIVE); },
+          install: async (before, archive) => {
+            await guard(generation);
+            if (sdk.data.getItem(KEY) !== revisionText || sdk.data.getItem(ARCHIVE) !== before) throw error('REVISION_CONFLICT', 'Platform progress changed before archive.');
+            capacity(text, sdk.data.getItem(PREFS), archive);
+            if (archive !== before) sdk.data.setItem(ARCHIVE, archive);
+          }
+        }, record, payload, () => guard(generation), null, revisionText);
         await guard(generation);
+        if (proof && sdk.data.getItem(ARCHIVE) !== proof.text) throw error('PRE_GRID_ARCHIVE_UNVERIFIED', 'Original building archive changed before save.');
         // Synchronous comparison detects a changed SDK cache, not server CAS.
         if (sdk.data.getItem(KEY) !== revisionText) throw error('REVISION_CONFLICT', 'Platform progress changed. Reload before continuing.');
         capacity(text, sdk.data.getItem(PREFS));

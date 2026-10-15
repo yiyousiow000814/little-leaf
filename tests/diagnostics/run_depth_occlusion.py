@@ -17,7 +17,7 @@ def run(output, engine, shared_lock):
     identity = json.loads((output / 'identity.json').read_text(encoding='utf-8'))
     debug_view = identity.get('capture_mode') == 'debug_view'
     project = output / 'project'
-    assert sha(project / 'scripts/illustrated_cafe.gd') == identity['staged_artist_sha256']
+    assert sha(project / 'scripts/rendering/illustrated_cafe.gd') == identity['staged_artist_sha256']
     for name in ['capture_depth_occlusion.gd', 'depth_occlusion_probe_hooks.gd.txt']:
         key = 'tests/diagnostics/' + name
         assert sha(project / key) == identity['files'][key]

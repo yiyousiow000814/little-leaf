@@ -69,10 +69,10 @@ checks bounded arrivals, FIFO cleanup admission, reachability, cancellation,
 fields, service isolation, pause/Decorate/2x, and seated patience.
 
 The actual historical-reader harness is
-`python tests/run_queue_backward_compat.py --output <new-directory>`. It archives
+`python tests/world/run_queue_backward_compat.py --output <new-directory>`. It archives
 the exact baseline and compares the complete wallet/dining runtime before and
 after that reader resaves the new synthetic queue file.
 
 This split retains the latest bubble-free queue rendering and Decorate/Done
 exterior visibility regression. Historical captures are not proof of this
-independent split; regenerate them with `run_outside_queue_capture.py`.
+independent split; regenerate them with `tests/diagnostics/run_outside_queue_capture.py`.

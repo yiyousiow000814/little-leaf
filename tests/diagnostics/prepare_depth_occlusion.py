@@ -13,13 +13,13 @@ def sha(data):
 
 
 def prepare(repo, output):
-    sys.path.insert(0, str(repo / 'tools'))
-    from project_layout import stage_project
+    sys.path.insert(0, str(repo))
+    from tools.build.project_layout import stage_project
     output.mkdir(parents=True, exist_ok=False)
     project = output / 'project'
     stage_project(repo, project, tests=True,
                   ignore=shutil.ignore_patterns('.godot', '__pycache__'))
-    artist = project / 'scripts/illustrated_cafe.gd'
+    artist = project / 'scripts/rendering/illustrated_cafe.gd'
     original = artist.read_bytes()
     eol = '\r\n' if b'\r\n' in original else '\n'
     text = original.decode('utf-8').replace('\r\n', '\n')
@@ -61,9 +61,9 @@ def prepare(repo, output):
              'tests/diagnostics/depth_occlusion_probe_hooks.gd.txt',
              'tests/diagnostics/prepare_depth_occlusion.py',
              'tests/diagnostics/run_depth_occlusion.py',
-             'tests/role_fixture.gd', 'game/scripts/illustrated_cafe.gd',
-             'game/scripts/cafe_native_draw_node.gd', 'game/scripts/cafe_interaction.gd',
-             'game/scripts/exterior_tree_art.gd', 'game/scripts/street_pedestrians.gd']
+             'tests/fixtures/role_fixture.gd', 'game/scripts/rendering/illustrated_cafe.gd',
+             'game/scripts/rendering/cafe_native_draw_node.gd', 'game/scripts/gameplay/cafe_interaction.gd',
+             'game/scripts/rendering/exterior_tree_art.gd', 'game/scripts/world/street_pedestrians.gd']
     record = {'head': identity[0], 'tree': identity[1],
               'player_profiles_accessed': False, 'engine_launched': False,
               'release_eligible': False, 'instrumentation_diff_sha256': sha(diff.encode()),

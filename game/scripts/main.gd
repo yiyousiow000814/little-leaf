@@ -1,27 +1,30 @@
 extends Node3D
-const SaveLog=preload("res://scripts/cafe_save_log.gd")
-const Money=preload("res://scripts/cafe_money.gd")
+const MusicCatalog=preload("res://scripts/ui/cafe_music_catalog.gd")
+const SaveLog=preload("res://scripts/persistence/cafe_save_log.gd")
+const AutosavePolicy=preload("res://scripts/persistence/cafe_autosave_policy.gd")
+const Money=preload("res://scripts/gameplay/cafe_money.gd")
 
 const ArtFont = preload("res://assets/fonts/NotoSans-Regular.ttf")
-const Illustration = preload("res://scripts/illustrated_cafe.gd")
-const Model = preload("res://scripts/cafe_model.gd")
+const Illustration = preload("res://scripts/rendering/illustrated_cafe.gd")
+const Model = preload("res://scripts/core/cafe_model.gd")
 const MinimalStart = preload("res://scripts/minimal_start.gd")
-const Interaction = preload("res://scripts/cafe_interaction.gd")
-const CameraGestures = preload("res://scripts/cafe_camera_gestures.gd")
+const Interaction = preload("res://scripts/gameplay/cafe_interaction.gd")
+const CameraGestures = preload("res://scripts/rendering/cafe_camera_gestures.gd")
 var camera_gestures
-const WebLifecycle = preload("res://scripts/cafe_web_lifecycle.gd")
-const WebSave = preload("res://scripts/cafe_web_save.gd")
+const WebLifecycle = preload("res://scripts/platform/cafe_web_lifecycle.gd")
+const WebSave = preload("res://scripts/persistence/cafe_web_save.gd")
 var web_lifecycle
 var web_save
-const BuildTools = preload("res://scripts/cafe_build_tools.gd")
-const SettingsControls = preload("res://scripts/cafe_settings.gd")
-const SaveProfiles = preload("res://scripts/cafe_save_profiles.gd")
-const FloorTasks = preload("res://scripts/cafe_floor_tasks.gd")
-const Dishwashing = preload("res://scripts/cafe_dishwashing.gd")
-const CompactUI = preload("res://scripts/cafe_compact_ui.gd")
+const BuildTools = preload("res://scripts/gameplay/cafe_build_tools.gd")
+const SettingsControls = preload("res://scripts/ui/cafe_settings.gd")
+const FeedbackSfx = preload("res://scripts/audio/cafe_feedback_sfx.gd")
+const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
+const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
+const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const CompactUI = preload("res://scripts/ui/cafe_compact_ui.gd")
 var compact_ui
-const SaveContract=preload("res://scripts/cafe_save_contract.gd")
-const Checkout=preload("res://scripts/cafe_checkout.gd")
+const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
+const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
 const SAVE_FILE = SaveContract.PRIMARY_FILE
 const RECENT_SAVE_FILE = "user://little_leaf_illustrated_r9.json"
 const LEGACY_SAVE_FILE = "user://little_leaf_illustrated_r7.json"
@@ -61,6 +64,7 @@ var paused = false
 var platform_music
 var platform_autosave_dirty=false
 var platform_dirty_generation=0
+var _event_model=null
 var hover_cell = Vector2i(-100,-100)
 var save_timer = 0.0
 var progress_unsaved = false
@@ -107,6 +111,16 @@ var music_toggle: Button
 var detail_stats: Label
 var music_tween: Tween
 var music_positions={}
+var music_available={}
+var music_catalog_ready=false
+var music_fade_generation=0
+var music_resume_pending=false
+# Session-only transport state; never part of saved audio preferences.
+var music_transport_paused=false
+var decorating_music_active=false
+var music_before_decoration=""
+var music_selection_before_decoration=""
+var music_age_before_decoration=0.0
 var browser_suspended=false
 var _browser_process_mode=Node.PROCESS_MODE_INHERIT
 var _resume_frame=-1
@@ -116,7 +130,6 @@ var startup_preparation_report = {}
 var tutorial
 var illustration: Node2D
 var interaction
-var workface_guidance
 var settings_controls
 var responsive_view=Vector2(-1,-1)
 
@@ -134,10 +147,11 @@ func _ready():
 	build_tools=BuildTools.new(self)
 	_build_ui()
 	if OS.has_feature("crazygames"):
-		platform_music=preload("res://scripts/crazygames_music.gd").new(self)
+		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
+	FeedbackSfx.install(settings_controls)
 	_connect_model_events()
 	_rebuild_room()
 	_rebuild_furniture()
@@ -148,7 +162,6 @@ func _ready():
 	interaction=Interaction.new(self)
 	camera_gestures=CameraGestures.new(self)
 	web_lifecycle=WebLifecycle.new(self)
-	workface_guidance=load("res://scripts/cafe_workface_guidance.gd").new();workface_guidance.game=self;workface_guidance.z_index=5;add_child(workface_guidance)
 	_restore_service_runtime()
 	_ensure_checkout_deployment()
 	_update_ui()
@@ -157,12 +170,12 @@ func _ready():
 		get_tree().create_timer(3).timeout.connect(_capture)
 	if save_recovery_blocked:compact_ui.show_help()
 	web_lifecycle.start()
-	cafe_intro=preload("res://scripts/cafe_intro.gd").new()
+	cafe_intro=preload("res://scripts/ui/cafe_intro.gd").new()
 	cafe_intro.start(self)
-	tutorial=preload("res://scripts/cafe_tutorial.gd").new()
+	tutorial=preload("res://scripts/ui/cafe_tutorial.gd").new()
 	tutorial.setup(self)
 	if DisplayServer.get_name() != "headless" and cafe_intro.active:
-		startup_readiness = preload("res://scripts/cafe_startup_readiness.gd").new()
+		startup_readiness = preload("res://scripts/core/cafe_startup_readiness.gd").new()
 		startup_readiness.start(self)
 	elif OS.has_feature("web"):
 		RenderingServer.frame_post_draw.connect(_notify_first_web_frame, CONNECT_ONE_SHOT)
@@ -175,17 +188,28 @@ func _notify_first_web_frame():
 	JavaScriptBridge.eval("if (window.LittleLeafBoot) window.LittleLeafBoot.firstFrameReady();")
 
 func _mark_platform_dirty():
+	# One dirty generation covers every backend; mutation events never write.
 	platform_dirty_generation+=1
 	platform_autosave_dirty=true
+	progress_unsaved=true
 
 func _connect_model_events():
-	if OS.has_feature("crazygames"):model.changed.connect(_mark_platform_dirty)
-	model.meal_completed.connect(func(_customer_id,payment):
-		settings_controls.play_sfx("coin")
-		compact_ui.show_earnings(payment))
+	# Startup retry may retain the same model or replace it. Only the live model
+	# owns these callbacks, and repeated setup must not multiply dirty events.
+	if _event_model!=null and _event_model!=model:
+		if _event_model.changed.is_connected(_mark_platform_dirty):_event_model.changed.disconnect(_mark_platform_dirty)
+		if _event_model.meal_completed.is_connected(_on_meal_completed):_event_model.meal_completed.disconnect(_on_meal_completed)
+	_event_model=model
+	if not model.changed.is_connected(_mark_platform_dirty):model.changed.connect(_mark_platform_dirty)
+	if not model.meal_completed.is_connected(_on_meal_completed):model.meal_completed.connect(_on_meal_completed)
+
+func _on_meal_completed(_customer_id,payment):
+	settings_controls.play_sfx("coin")
+	compact_ui.show_earnings(payment)
 
 func _resume_loaded_cafe():
 	# Only called after startup retry has validated a complete saved model.
+	editing=false
 	_connect_model_events()
 	_cancel_selection()
 	for staff in staff_states:staff.node.queue_free()
@@ -234,24 +258,6 @@ func _load_startup():
 func _rebuild_room():
 	if is_instance_valid(illustration):
 		illustration.update_projection();illustration.queue_redraw()
-
-func _apply_edit_staff_positions(previous:Array,positions:Array)->bool:
-	# Validate every live identity/position before writing either half of the edit.
-	if not editing or previous.size()!=staff_states.size() or positions.size()!=staff_states.size():return false
-	for index in staff_states.size():
-		if staff_states[index].pos!=previous[index]:return false
-	for index in staff_states.size():
-		var staff=staff_states[index]
-		if staff.pos==positions[index]:continue
-		staff.pos=positions[index];staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
-		staff.destination=Vector2i(-100,-100);staff.path=[];staff.index=0
-		staff.blocked_time=0.0;staff.stalled_time=0.0
-		# Jobs, payload ownership and progress survive; only the walking pose resets.
-		if illustration!=null:
-			var key="staff_%s"%index
-			illustration.motion.remove(key);illustration.stance_offsets.erase(key)
-	idle_home_revision=-1
-	return true
 
 func _rebuild_furniture():
 	static_service_paths.clear();static_service_revision=model.revision
@@ -330,7 +336,6 @@ func _build_ui():
 	expand_button=button("Next plot",_expand); tools.add_child(expand_button)
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
-	tools.add_child(button("Upgrade stove",_upgrade))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
 	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
@@ -369,17 +374,30 @@ func _set_catalog_category(category:String):
 func _toggle_business():
 	if save_recovery_blocked:return
 	model.set_operating_open(not model.operating_open)
-	_sync_service_guests();_update_ui();_save()
+	_sync_service_guests();_update_ui()
 
 func _toggle_edit():
 	if save_recovery_blocked:return
 	editing=not editing
-	if editing:model.begin_decoration_session()
+	if editing:
+		model.service_snapshot=_service_save_snapshot()
+		model.begin_decoration_session()
 	else:model.finish_decoration_session()
+	_apply_music_selection()
 	_cancel_selection()
 	if not editing:_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
+
+func _cancel_edit():
+	if not editing:return
+	_cancel_selection()
+	if not model.cancel_decoration_session():return
+	editing=false
+	_rebuild_room();_rebuild_furniture();_restore_service_runtime()
+	static_service_revision=-1;idle_home_revision=-1
+	_update_ui();compact_ui.set_tray_open(false)
+	illustration.queue_redraw()
 
 func _choose(kind: String):
 	_cancel_selection()
@@ -407,17 +425,17 @@ func _buy_parcel(parcel_id: String):
 	if not editing:return
 	if save_recovery_blocked:return
 	if model.buy_parcel(parcel_id):
-		_cancel_selection();_rebuild_room();_update_ui();_save()
+		_cancel_selection();_rebuild_room();_update_ui()
 
 func _hire():_hire_staff("chef")
 func _hire_staff(role:String):
 	if save_recovery_blocked:return
-	if model.hire_staff(role):_update_people();_sync_staff_duty();_update_ui();_save()
+	if model.hire_staff(role):_update_people();_sync_staff_duty();_update_ui()
 func _change_staff_duty(role:String,change:int):
 	if save_recovery_blocked:return
 	if model.request_duty(role,change):
 		_sync_staff_duty()
-		_update_ui();_save()
+		_update_ui()
 func _sync_staff_duty():
 	model.checkout_staff_claims.clear()
 	for worker in staff_states:
@@ -439,17 +457,12 @@ func _staff_on_duty()->bool:
 		if staff.job_kind!="":return true
 	return false
 
-func _upgrade():
-	if save_recovery_blocked:return
-	if selected_id<0:return
-	if model.upgrade_stove(selected_id):_update_ui();_save()
-
 func _sell():
+	model.service_snapshot=_service_save_snapshot()
 	if save_recovery_blocked:return
 	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
 		_cancel_selection(); _rebuild_furniture(); _update_ui()
-		_save()
 
 func _update_ui():
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
@@ -482,6 +495,8 @@ func _service_save_snapshot()->Dictionary:
 	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
 
 func _restore_service_runtime():
+	# Homes belong to the runtime roster, even when revision and count match.
+	idle_home_revision=-1;idle_home_count=-1
 	ground_mess_generation+=1
 	var snapshot=model.service_snapshot
 	if snapshot.is_empty():
@@ -556,6 +571,13 @@ func _unsaved_progress_message()->String:
 	var action="Open Settings → Quick help" if save_recovery_blocked else "Keep this page open; saving will retry" if web_save!=null else "Keep the game open; saving will retry"
 	return "Unsaved changes · "+progress_save_error+" · "+action
 
+func _tick_autosave(delta:float):
+	# A missed slot retains dirty work. Long frames never burst catch-up writes.
+	save_timer+=delta
+	if save_timer<AutosavePolicy.INTERVAL_SECONDS:return
+	save_timer=fmod(save_timer,AutosavePolicy.INTERVAL_SECONDS)
+	if AutosavePolicy.due(OS.has_feature("crazygames"),platform_autosave_dirty,AutosavePolicy.INTERVAL_SECONDS,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
+
 func _autosave():
 	if OS.has_feature("web") and not OS.has_feature("crazygames") and web_save!=null:
 		return web_save.request_save(true)
@@ -564,18 +586,20 @@ func _autosave():
 func _save():
 	if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false
 	SaveLog.record("save_requested",{"layer":"native"})
-	save_timer=0.0
 	if save_recovery_blocked or save_writes_suppressed or "--visual-qa" in OS.get_cmdline_user_args() or "--fresh-review" in OS.get_cmdline_user_args() or "--review-checkpoint" in OS.get_cmdline_user_args():
 		SaveLog.record("save_skipped",{"layer":"native","code":"RECOVERY_BLOCKED" if save_recovery_blocked else "WRITES_SUPPRESSED"});return true
 	# Only this version's profile is mutable. Older import sources and the
 	# reconstructed source checkpoint remain byte-for-byte untouched.
 	_update_people()
 	model.service_snapshot=_service_save_snapshot()
+	var dirty_snapshot=platform_dirty_generation
 	if not model.save(SAVE_FILE):
 		SaveLog.record("save_failure",{"layer":"native","code":"NATIVE_SAVE_FAILED"})
+		platform_autosave_dirty=true
 		progress_unsaved=true;progress_save_error=model.last_error;return false
 	SaveLog.record("save_accepted",{"layer":"native"})
-	progress_unsaved=false;progress_save_error=""
+	platform_autosave_dirty=platform_dirty_generation!=dirty_snapshot
+	progress_unsaved=platform_autosave_dirty;progress_save_error=""
 	return true
 
 func _input(event):
@@ -659,6 +683,10 @@ func set_browser_suspended(value:bool):
 	else:
 		_resume_frame=Engine.get_process_frames()+1
 		process_mode=_browser_process_mode
+		if music_resume_pending:
+			var resumed_age=music_age
+			_switch_music(music_state)
+			music_age=resumed_age
 
 func _process(delta):
 	delta=effective_frame_delta(delta)
@@ -668,7 +696,7 @@ func _process(delta):
 			if not bool(platform.ready):
 				paused=true;save_recovery_blocked=true;save_writes_suppressed=true
 				startup_notice="Platform account changed or storage failed. Reload to load progress."
-			var playable=preload("res://scripts/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
+			var playable=preload("res://scripts/platform/cafe_platform_state.gd").playable(paused,editing,save_recovery_blocked,cafe_intro!=null and cafe_intro.active,compact_ui.viewport_too_small,compact_ui.has_open_popup())
 			platform.viewportPlayable=not compact_ui.viewport_too_small
 			platform.update(playable)
 			if platform_music!=null and playable and bool(platform.playing):platform_music.begin()
@@ -688,18 +716,17 @@ func _process(delta):
 		if compact_ui!=null:compact_ui.update_pointer()
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
-		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/cafe_first_guest.gd").offscreen_start(self)
+		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
-		if OS.has_feature("crazygames"):_mark_platform_dirty()
+		if world_delta>0.0:_mark_platform_dirty()
 	visual_timer+=world_delta
 	# First periodic save remains after entry, never during the title/descent.
-	if not intro_active:save_timer+=delta
+	if not intro_active:_tick_autosave(delta)
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	if not intro_active and preload("res://scripts/cafe_autosave_policy.gd").due(OS.has_feature("crazygames"),platform_autosave_dirty,save_timer,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 	_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
@@ -879,7 +906,7 @@ func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,cla
 		if route.size()<shortest:best=cell;shortest=route.size()
 	return best
 
-func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[])->Vector2i:
+func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[],front_claims:Dictionary={})->Vector2i:
 	if str(item.get("kind",""))=="floor_disposal":
 		if _staff_walkable(from) and not claimed.has(from):return from
 		return _staff_idle_cell(staff_states.find(staff),claimed)
@@ -891,7 +918,10 @@ func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed
 	if str(item.get("kind",""))=="table":return _table_service_destination(staff,item,from,claimed)
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
 	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
-	if str(item.get("kind",""))=="sink" and not dishwashing.workface_available(staff,int(item.id)):return Vector2i(-1,-1)
+	if str(item.get("kind",""))=="sink":
+		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed,false,front_claims)
+		if not dishwashing.front_available(staff,item,claimed,front_claims):return Vector2i(-1,-1)
+		return _service_cell(item,from,[],str(staff.role))
 	return _service_cell(item,from,claimed,str(staff.role))
 
 func _update_floor_state(record:Dictionary):
@@ -943,10 +973,14 @@ func complete_ground_mess(identity:Dictionary,source="manual")->bool:
 	if source!="manual":return false
 	var record=resolve_ground_mess(identity)
 	if record.is_empty():return false
-	record.trash_owner="none" if str(record.floor_debris)=="none" else "disposed"
-	record.trash_staff_index=-1;record.trash_target_id=-1
+	# A remaining spill can share its record with already carried/bin trash.
+	# Only visible floor debris belongs to this click; retain physical custody.
+	if str(record.trash_owner)=="floor":
+		record.trash_owner="disposed"
+		record.trash_staff_index=-1;record.trash_target_id=-1
 	record.spill_cleaned=true;record.spill_remaining=0.0
-	return complete_ground_mess_if_ready(identity)
+	complete_ground_mess_if_ready(identity)
+	return true
 
 func complete_ground_mess_if_ready(identity:Dictionary)->bool:
 	var record=resolve_ground_mess(identity,false)
@@ -1011,7 +1045,7 @@ func _prepare_cleanup_step(staff:Dictionary,index:int):
 	staff.station_id=-1;staff.blocked_guest_id=int(staff.job_guest_id);staff.blocked_target_id=-1
 	for item in model.items:
 		if item.kind==step.kind:staff.blocked_target_id=int(item.id);break
-	staff.blocked_reason="Add the included trash bin in Decorate" if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
+	staff.blocked_reason=("Add the included trash bin in Decorate" if model.included_bin_pending else "Buy a trash bin in Decorate") if step.kind=="bin" and staff.blocked_target_id<0 else ("Bin sides blocked · clear any adjacent side in Decorate" if step.kind=="bin" else "%s front blocked · make space in Decorate"%str(step.kind).capitalize())
 
 func _guest_waiting_for_meal(record:Dictionary)->bool:
 	var guest:Dictionary=record.get("guest",{})
@@ -1089,13 +1123,16 @@ func _tick_live_service(delta: float):
 	# Advance before model movement: a guest reaching its seat this tick starts
 	# at zero, and none of the arrival tick is mistaken for seated waiting.
 	_advance_meal_wait(delta)
-	# Preserve the model's phase lengths and save API. Only postpone a phase's
-	# completion while its real service trip is unfinished; other guests keep
-	# walking/eating. This prevents a plate teleport or a table cleaning itself.
+	# A completed real meal settles cooking; the remaining phase lengths and
+	# physical-service holds stay timed. Contact alone cannot finish delivery.
 	var held=[]
 	for guest in model.customers:
 		if not guest.get("mobility",{}).is_empty():continue
 		var record=service_guests[int(guest.id)]
+		if str(guest.phase)=="cooking" and delta>0.0 and is_finite(delta):
+			var delivered=bool(record.meal_ready) and bool(record.meal_done) and not bool(record.dishes_collected)
+			if delivered and str(record.plate_owner)=="table" and int(record.plate_target_id)==int(guest.table_id):
+				model.complete_meal_delivery(guest)
 		var key={"ordering":"order_done","cooking":"meal_done","drinking":"drink_done","cleaning":"cleanup_done"}.get(str(guest.phase),"")
 		if key=="" or bool(record[key]): continue
 		held.append({"guest":guest,"phase":str(guest.phase),"duration":float(guest.duration)})
@@ -1331,7 +1368,7 @@ func _is_door_landing(cell:Vector2i)->bool:
 	var point=Vector2(cell.x+.5,cell.y+.5)
 	for attachment in model.wall_attachments:
 		if attachment.kind!="door":continue
-		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls,model.shell_material)
+		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls)
 		if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(point,opening.a,opening.b).distance_to(point)<.76:return true
 	return false
 
@@ -1586,21 +1623,23 @@ func _animate_staff(delta: float):
 	active_staff_passages.clear() # Retained runtime field; no physical transit claims.
 	var claimed=[]
 	var worked_stations={}
+	var front_claims={} # Value snapshots survive a peer completing its job this frame.
 	model.navigation_cells()
 	var route_geometry=model.navigation_signature()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
 		var target_item=_service_target(staff)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-		var destination=_service_destination(staff,target_item,from,claimed) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
+		var destination=_service_destination(staff,target_item,from,claimed,front_claims) if not target_item.is_empty() else _staff_idle_cell(index,claimed)
 		var interaction_available=destination!=Vector2i(-1,-1)
-		if not target_item.is_empty() and _service_destination(staff,target_item,from)==Vector2i(-1,-1):
+		if not target_item.is_empty() and _service_destination(staff,target_item,from,[],front_claims)==Vector2i(-1,-1):
 			staff.blocked_reason="Waiting for the sink" if str(target_item.kind)=="sink" and not dishwashing.workface_available(staff,int(target_item.id)) else ("Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate"));staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
 		elif not target_item.is_empty(): staff.blocked_reason=""
 		if not interaction_available: destination=_staff_idle_cell(index,claimed,str(target_item.get("kind",""))!="stove")
 		# v13 may restore an old avoidance timer; it has no effect on work now.
 		staff.yield_time=0.0
 		claimed.append(destination)
+		front_claims[index]=dishwashing.front_claim(staff,target_item,destination) if interaction_available else {}
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
 		var route_invalid=_staff_route_invalid(staff,route_geometry)
 		if route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size()))):
@@ -1646,12 +1685,14 @@ func _animate_staff(delta: float):
 		if staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))>=.03: continue
 		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and absi(destination.x-int(target_item.x))+absi(destination.y-int(target_item.z))!=1: continue
 		if str(target_item.kind)!="floor_disposal" and not _is_floor_cleanup(staff) and model.edge_blocked(destination,Vector2i(int(target_item.x),int(target_item.z))):continue
-		if destination!=_service_destination(staff,target_item,from):continue
+		if destination!=_service_destination(staff,target_item,from,[],front_claims):continue
 		var step=SERVICE_STEPS[staff.job_kind][int(staff.job_step)]
 		if service_guests.has(int(staff.job_guest_id)) and not service_guests[int(staff.job_guest_id)].guest.get("mobility",{}).is_empty() and str(step.kind) in ["table","register"]:continue
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
-		var station_busy=worked_stations.has(int(target_item.id))
+		var station_key=Vector3i(int(target_item.id),destination.x,destination.y) if str(step.kind)=="sink" else int(target_item.id)
+		if not front_claims[index].is_empty():station_key=Vector4i(int(target_item.id),destination.x,destination.y,int(front_claims[index].lane))
+		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():
 				if other_index==index: continue
@@ -1660,7 +1701,7 @@ func _animate_staff(delta: float):
 				if other_target.is_empty() or int(other_target.id)!=int(target_item.id): continue
 				if float(other.job_elapsed)>0.0 or (other_index<index and float(staff.job_elapsed)<=0.0): station_busy=true; break
 		if station_busy: continue
-		if str(step.kind)!="table": worked_stations[int(target_item.id)]=true
+		if str(step.kind)!="table": worked_stations[station_key]=true
 		if staff.job_kind=="take_payment":
 			var paying_guest=service_guests[int(staff.job_guest_id)].guest
 			if not model.begin_checkout_payment(int(paying_guest.id),int(paying_guest.checkout_ticket),int(target_item.id),int(staff.job_token)):continue
@@ -1739,68 +1780,181 @@ func _staff_blocks_guest() -> bool:
 	return not _blocked_guest_ids().is_empty()
 
 func _setup_music():
-	var files={
-		"service":"res://assets/audio/小叶食堂_门口的阳光_日常营业.mp3",
-		"busy":"res://assets/audio/小叶食堂_午市轻快步_忙碌营业.mp3",
-		"decorate":"res://assets/audio/小叶食堂_桌边的叶影_安静布置.mp3"
+	# Availability is checked once after imports/delayed-pack arrival, not per frame.
+	music_available.clear()
+	for entry in MusicCatalog.TRACKS:music_available[entry.id]=ResourceLoader.exists(entry.path,"AudioStream")
+	music_catalog_ready=not music_available.values().has(false)
+	if settings_controls!=null:music_enabled=settings_controls.bgm_enabled
+	_apply_music_selection()
+
+func _retire_music_player(id:String):
+	if not audio_players.has(id):return
+	var player=audio_players[id]
+	if player.has_stream_playback():music_positions[id]=player.get_playback_position()
+	player.stop();player.stream=null;audio_players.erase(id);player.queue_free()
+
+func _ensure_music_player(id:String)->bool:
+	if audio_players.has(id):return true
+	var entry=MusicCatalog.track(id)
+	if entry.is_empty() or not music_available.get(id,false):return false
+	# Ignore the resource cache: only incoming/outgoing streams retain audio data.
+	var stream=ResourceLoader.load(entry.path,"AudioStream",ResourceLoader.CACHE_MODE_IGNORE) as AudioStream
+	if stream is AudioStreamMP3:stream.loop=true
+	elif stream is AudioStreamOggVorbis:stream.loop=true;stream.loop_offset=0.0
+	else:return false
+	var player=AudioStreamPlayer.new();player.stream=stream;player.bus="BGM";player.volume_db=-60
+	# Web Sample registrations retain full decoded tracks after player retirement.
+	if OS.has_feature("web"):player.playback_type=AudioServer.PLAYBACK_TYPE_STREAM
+	add_child(player);audio_players[id]=player
+	return true
+
+func _apply_music_selection():
+	var selected=settings_controls.music_track if settings_controls!=null else MusicCatalog.AUTOMATIC
+	var wanted=("busy" if model.customers.size()>=3 else "service") if selected==MusicCatalog.AUTOMATIC else selected
+	if editing:
+		if not decorating_music_active:
+			music_before_decoration=music_state if not MusicCatalog.track(music_state).is_empty() and music_state!=MusicCatalog.DECORATE else wanted
+			var previous_player=audio_players.get(music_before_decoration)
+			if is_instance_valid(previous_player) and previous_player.playing:
+				music_positions[music_before_decoration]=previous_player.get_playback_position()
+			music_selection_before_decoration=selected
+			music_age_before_decoration=music_age
+			decorating_music_active=true
+		# A saved theme change must not interrupt the effective Shop transition.
+		if music_state!=MusicCatalog.DECORATE:_switch_music(MusicCatalog.DECORATE)
+		return
+	var restored_age=-1.0
+	if decorating_music_active:
+		if selected==music_selection_before_decoration and not MusicCatalog.track(music_before_decoration).is_empty():
+			wanted=music_before_decoration
+			restored_age=music_age_before_decoration
+		decorating_music_active=false
+	_switch_music(wanted)
+	if restored_age>=0.0:music_age=restored_age
+
+func _music_playback_supported()->bool:
+	return DisplayServer.get_name()!="headless"
+
+func music_transport_snapshot()->Dictionary:
+	# Read only the effective, already loaded stream. Never load the catalog for
+	# durations or invent a clock when playback is stopped, hidden or paused.
+	var player=audio_players.get(music_state)
+	var available=is_instance_valid(player) and player.stream!=null
+	var duration=float(player.stream.get_length()) if available else 0.0
+	if not is_finite(duration) or duration<0.0:duration=0.0
+	var position=float(music_positions.get(music_state,0.0))
+	if available and player.has_stream_playback():position=player.get_playback_position()
+	position=clampf(position,0.0,duration) if duration>0.0 else 0.0
+	var volume=settings_controls.bgm_volume if settings_controls!=null else 70.0
+	var platform_muted=AudioServer.is_bus_mute(AudioServer.get_bus_index("Master"))
+	var reason=""
+	if not available:reason="Music is not available yet."
+	elif browser_suspended:reason="Playback is suspended while the game is hidden."
+	elif not music_enabled:reason="Music is muted. Turn it on to listen."
+	elif volume<=0.0:reason="Music volume is at zero."
+	elif platform_muted:reason="Audio is muted by the platform."
+	elif not _music_playback_supported():reason="Playback is unavailable in this headless session."
+	var supported=available and (player.stream is AudioStreamMP3 or player.stream is AudioStreamOggVorbis)
+	return {
+		"effective_id":music_state,"title":MusicCatalog.display_title(music_state),
+		"duration":duration,"position":position,"paused":music_transport_paused,
+		"playing":available and player.playing and not player.stream_paused and not browser_suspended and not music_transport_paused,
+		"available":available,"can_play":available and music_enabled and not browser_suspended and _music_playback_supported(),
+		"seekable":supported and duration>0.0 and not browser_suspended and _music_playback_supported(),
+		"can_step":available and settings_controls!=null and not editing and not browser_suspended,
+		"context_reason":"Decorate plays "+MusicCatalog.display_title(MusicCatalog.DECORATE)+". Your selected song resumes when you leave." if editing else "",
+		"unavailable_reason":reason,"muted":not music_enabled or volume<=0.0 or platform_muted,"volume":volume
 	}
-	for state in files:
-		# Imported MP3s are remapped inside exported packs; load the resource.
-		var source=load(files[state]) as AudioStreamMP3
-		if source==null:
-			push_error("Could not load cafe music: "+str(files[state]));continue
-		var stream=source.duplicate() as AudioStreamMP3
-		stream.loop=true
-		var player=AudioStreamPlayer.new()
-		player.stream=stream
-		player.bus="BGM"
-		player.volume_db=-60
-		add_child(player)
-		audio_players[state]=player
-	_switch_music("service")
+
+func _stop_music_at_current_position():
+	if is_instance_valid(music_tween):music_tween.kill()
+	music_fade_generation+=1
+	for id in audio_players:
+		var player=audio_players[id]
+		if player.has_stream_playback():music_positions[id]=player.get_playback_position()
+		player.stop()
+	_finish_music_crossfade(music_state,music_fade_generation)
+
+func set_music_enabled(value:bool):
+	music_enabled=value
+	if value:_switch_music(music_state if music_state!="" else "service")
+	else:
+		music_resume_pending=false
+		_stop_music_at_current_position()
+
+func set_music_transport_paused(value:bool):
+	if music_transport_paused==value:return
+	music_transport_paused=value
+	if value:
+		music_resume_pending=false
+		_stop_music_at_current_position()
+	else:
+		var resumed_age=music_age
+		_switch_music(music_state)
+		music_age=resumed_age
+
+func seek_music_transport(seconds:float)->bool:
+	var state=music_transport_snapshot()
+	if not is_finite(seconds) or not state.seekable:return false
+	# Seeking exactly to the end of a looping recording starts its next repeat.
+	var position=clampf(seconds,0.0,state.duration)
+	if position>=state.duration:position=0.0
+	music_positions[music_state]=position
+	var player=audio_players[music_state]
+	if player.playing:player.seek(position)
+	# When paused or muted this is the explicit resume offset, not a running clock.
+	return true
+
+func step_music_transport(direction:int)->bool:
+	if direction==0 or not music_transport_snapshot().can_step:return false
+	var next=MusicCatalog.sibling_family_track(music_state,direction)
+	if next=="" or not music_available.get(next,false):return false
+	settings_controls.set_music_track(next)
+	return true
 
 func _toggle_music():
 	if settings_controls!=null:
 		settings_controls.set_audio_enabled("BGM",not music_enabled);return
-	music_enabled=not music_enabled
-	music_toggle.text="Music: on" if music_enabled else "Music: off"
-	if is_instance_valid(music_tween): music_tween.kill()
-	for state in audio_players:
-		var p=audio_players[state]
-		if not music_enabled: p.stop()
-		elif state==music_state: p.volume_db=-17; p.play()
+	set_music_enabled(not music_enabled)
+	if is_instance_valid(music_toggle):music_toggle.text="Music: on" if music_enabled else "Music: off"
 
-func _switch_music(state: String):
-	if not audio_players.has(state): return
-	music_state=state
-	music_age=0
-	if not music_enabled or DisplayServer.get_name()=="headless": return
-	if is_instance_valid(music_tween): music_tween.kill()
+func _switch_music(state:String):
+	if not music_available.get(state,false):return
+	if state==music_state and music_enabled and not music_transport_paused and not browser_suspended and is_instance_valid(music_tween) and music_tween.is_running():
+		var current_player=audio_players.get(state)
+		if is_instance_valid(current_player) and current_player.playing:return
+	var outgoing=music_state
+	if is_instance_valid(music_tween):music_tween.kill()
+	music_fade_generation+=1
+	# Retire an interrupted fade before loading another compressed stream.
+	for id in audio_players.keys():
+		if id!=state and id!=outgoing:_retire_music_player(id)
+	if not _ensure_music_player(state):return
+	music_state=state;music_age=0.0
+	music_resume_pending=browser_suspended and music_enabled and not music_transport_paused
+	if not music_enabled or music_transport_paused or browser_suspended or not _music_playback_supported():
+		_finish_music_crossfade(state,music_fade_generation);return
 	music_tween=create_tween().set_parallel(true)
-	for key in audio_players:
-		var p=audio_players[key]
-		if key==state:
-			if not p.playing: p.play(float(music_positions.get(key,0.0)))
-			music_tween.tween_property(p,"volume_db",-17.0,1.2)
-		else:
-			music_tween.tween_property(p,"volume_db",-60.0,1.2)
-	music_tween.finished.connect(_finish_music_crossfade.bind(state),CONNECT_ONE_SHOT)
+	for id in audio_players:
+		var player=audio_players[id]
+		if id==state:
+			if not player.playing:player.play(float(music_positions.get(id,0.0)))
+			music_tween.tween_property(player,"volume_db",-17.0,1.2)
+		else:music_tween.tween_property(player,"volume_db",-60.0,1.2)
+	music_tween.finished.connect(_finish_music_crossfade.bind(state,music_fade_generation),CONNECT_ONE_SHOT)
 
-func _finish_music_crossfade(state:String):
-	# Killed/replaced fades must never stop the newly selected soundtrack.
-	if state!=music_state:return
-	for key in audio_players:
-		if key==state:continue
-		var player=audio_players[key]
-		if player.playing:
-			music_positions[key]=player.get_playback_position()
-			player.stop()
+func _finish_music_crossfade(state:String,generation:int=-1):
+	# Include a generation so an old A->B->A completion cannot retire a new fade.
+	if state!=music_state or (generation>=0 and generation!=music_fade_generation):return
+	for id in audio_players.keys():
+		if id!=state:_retire_music_player(id)
 
 func _music_tick(delta: float):
-	# Decorating pauses service, not its soundtrack. Leave the active player,
-	# playback position and any in-flight crossfade alone across mode changes.
-	# Do not count decorating time toward the service-intensity switch delay.
-	if editing:return
+	# Handle an actual mode edge once, including restored or synthetic controllers.
+	if decorating_music_active!=editing:_apply_music_selection()
+	if editing or music_transport_paused:return
+	if settings_controls!=null and settings_controls.music_track!=MusicCatalog.AUTOMATIC:return
+	# Decorating time does not advance Automatic's service-intensity switch age.
 	music_age+=delta
 	var wanted="busy" if model.customers.size()>=3 else "service"
 	if wanted!=music_state and music_age>15: _switch_music(wanted)

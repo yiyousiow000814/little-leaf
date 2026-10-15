@@ -1,9 +1,9 @@
 extends RefCounted
 ## DESIGN PROTOTYPE ONLY. Not loaded by the game, save codec, or browser vault.
 ## Pure functions return candidate values; migration never mutates its inputs.
-const Geometry=preload("res://scripts/cafe_wall_openings.gd")
-const Walls=preload("res://scripts/cafe_walls.gd")
-const Footprint=preload("res://scripts/cafe_footprint.gd")
+const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
+const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
 const FORMAT="little_leaf.shell_segments.v1"
 const EPS=.00001
 

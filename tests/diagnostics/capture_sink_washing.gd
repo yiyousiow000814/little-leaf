@@ -1,7 +1,7 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
-const Dishes=preload("res://scripts/cafe_dishwashing.gd")
-const Wash=preload("res://scripts/cafe_sink_wash_art.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
+const Dishes=preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const Wash=preload("res://scripts/rendering/cafe_sink_wash_art.gd")
 class FixtureGame extends Node:
  var model=Model.new()
  var dishwashing=Dishes.new()
@@ -11,7 +11,7 @@ class FixtureGame extends Node:
  var paused=false
  var wall_detail=false
  var animation_time=0.0
-class Sheet extends "res://scripts/illustrated_cafe.gd":
+class Sheet extends "res://scripts/rendering/illustrated_cafe.gd":
  var font=preload("res://assets/fonts/NotoSans-Regular.ttf")
  var mode="sheet"
  var seconds=4.3
@@ -30,7 +30,7 @@ class Sheet extends "res://scripts/illustrated_cafe.gd":
   var worker=sample(rotation,time,count)
   var front=Vector2.DOWN.rotated(rotation*PI/2);var heading=-front
   var mirror=-1.0 if heading.x-heading.y<0 else 1.0;var back=heading.x+heading.y<0
-  var offset=Vector2((front.x-front.y)*39,(front.x+front.y)*19.5)*(1.0-Wash.INSET)
+  var offset=Vector2((front.x-front.y)*39,(front.x+front.y)*19.5)*(1.0-Wash.work_inset(rotation))
   var finished=worker.job_kind==""
   var g=Wash.geometry(rotation,minf(time,19.99),count)
   var basis:Transform2D=g.basis

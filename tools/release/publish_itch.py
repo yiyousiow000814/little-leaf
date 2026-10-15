@@ -1,0 +1,268 @@
+"""Publish an already-tested artifact to the one approved itch channel; fail closed."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import time
+if __name__ == "__main__":
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from release.release_metadata import STABLE, RELEASE, release_key
+from qualification.artifacts import verify_files, sha256
+
+TARGET = "siowyiyou/little-leaf:html5"
+# Numeric prerelease identifiers cannot have leading zeroes; other identifiers
+# must contain a letter or hyphen. Empty identifiers and trailing dots are invalid.
+PRERELEASE_ID = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+PRERELEASE = PRERELEASE_ID + r"(?:\." + PRERELEASE_ID + r")*"
+BUILD_METADATA = r"[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*"
+
+
+def parse_result(text):
+    results = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        message = json.loads(line)
+        if message.get("type") == "error":
+            raise ValueError("Butler reported an error; no automatic retry is safe")
+        if message.get("type") == "result":
+            results.append(message.get("value"))
+    if len(results) != 1 or not isinstance(results[0], dict):
+        raise ValueError("Expected exactly one structured Butler result")
+    return results[0]
+
+
+def butler(*arguments, timeout=None):
+    # Never print raw output: auth errors and temporary upload URLs need not enter logs.
+    if timeout is None:
+        timeout = 600 if arguments[0] == "push" else 60
+    result = subprocess.run(["butler", "--json", *arguments], stdin=subprocess.DEVNULL,
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
+    if result.returncode:
+        raise RuntimeError("Butler command failed. Check key permissions/itch service; inspect the channel before retrying. Raw output suppressed to protect credentials.")
+    return parse_result(result.stdout)
+
+
+def channel(status):
+    if status.get("target") != TARGET.split(":")[0]:
+        raise ValueError("Unexpected itch project in status")
+    matches = [c for c in status.get("channels", []) if c.get("name") == "html5"]
+    if len(matches) != 1 or not matches[0].get("uploadId"):
+        raise ValueError("Existing html5 upload was not found; refusing to create or replace another channel")
+    return matches[0]
+
+
+def check_previous(status, new_version, new_sha=None):
+    current = channel(status)
+    if current.get("pending"):
+        raise ValueError("itch already has a pending build. Wait/review it before another release")
+    head = current.get("head") or {}
+    if head.get("state") != "completed":
+        raise ValueError("itch channel has no completed baseline; review it before publishing")
+    previous = head.get("userVersion", "")
+    # Recognize legacy SemVer baselines (including 0.1.5-dev.1) and
+    # project-specific hotfixes. Hotfix prerelease combinations stay invalid.
+    sha_previous = re.fullmatch(f"v?({STABLE})-pre\\.([0-9a-f]{{8}})", previous)
+    sha_new = re.fullmatch(f"({STABLE})-pre\\.([0-9a-f]{{8}})", new_version)
+    match = re.fullmatch(f"v?({STABLE})(?:-({PRERELEASE}))?(?:\\+{BUILD_METADATA})?", previous)
+    hotfix = re.fullmatch(f"v?({STABLE}[a-z])(?:\\+{BUILD_METADATA})?", previous)
+    if not match and not hotfix and not sha_previous:
+        raise ValueError("itch baseline has an empty/unrecognized userVersion. Confirm the live build and give it a normal version before enabling this release; no upload attempted")
+    old = release_key((hotfix or sha_previous or match)[1])
+    new = release_key(sha_new[1] if sha_new else new_version)
+    is_prerelease = bool(sha_previous or (match is not None and match[2] is not None))
+    if old > new or (old == new and not is_prerelease):
+        raise ValueError("This version or a newer version is already on itch; refusing a duplicate or rollback")
+    if sha_new:
+        if not re.fullmatch(r'[0-9a-f]{40}', new_sha or '') or sha_new[2] != new_sha[:8]:
+            raise ValueError('Prerelease must bind the exact qualified source')
+        if sha_previous and old == new:
+            # SHA is an opaque identity. Source ancestry prevents delayed older
+            # tags from publishing after a newer prerelease in the same family.
+            old_tag = 'refs/tags/v' + previous.removeprefix('v') + '^{commit}'
+            old_sha = subprocess.check_output(['git', 'rev-parse', '--verify', old_tag], text=True).strip()
+            if (not re.fullmatch(r'[0-9a-f]{40}', old_sha) or old_sha[:8] != sha_previous[2]
+                    or old_sha == new_sha or subprocess.run(['git', 'merge-base', '--is-ancestor', old_sha, new_sha], capture_output=True).returncode):
+                raise ValueError('Refusing duplicate, unrelated or older prerelease source')
+    return head["id"]
+
+
+def check_common_previous(status,new_version,new_sha):
+    """New common route: all versions must move forward in immutable source."""
+    baseline=check_previous(status,new_version,new_sha)
+    previous=channel(status)['head']['userVersion'].removeprefix('v')
+    # Unknown legacy labels cannot assert their compiled source. Inspect them;
+    # do not interpret version text as an ancestry proof.
+    if not re.fullmatch(RELEASE,previous):
+        raise ValueError('Common publication needs an immutable known baseline tag')
+    old_sha=subprocess.check_output(['git','rev-parse','--verify','refs/tags/v'+previous+'^{commit}'],text=True).strip()
+    if (not re.fullmatch('[0-9a-f]{40}',old_sha) or old_sha==new_sha
+            or subprocess.run(['git','merge-base','--is-ancestor',old_sha,new_sha],capture_output=True).returncode):
+        raise ValueError('Refusing unrelated, duplicate or older common release source')
+    return baseline
+
+
+def verify_artifact(web, tag, sha):
+    if not re.fullmatch("v" + RELEASE, tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise ValueError("Expected a release version tag and exact commit SHA")
+    manifest = json.loads((web / "release-manifest.json").read_text())
+    if '-pre.' in tag and tag.rsplit('.', 1)[1] != sha[:8]:
+        raise ValueError('Prerelease tag differs from exact source')
+    if (manifest.get("source_commit") != sha or manifest.get("tag") != tag
+            or manifest.get("version") != tag[1:] or manifest.get("packed_smoke") != "passed"
+            or manifest.get("engine_checks", 0) <= 0
+            or manifest.get("toolchain_verification") != "checksum-pinned-official-archives"):
+
+        raise ValueError("Artifact provenance does not match this tested release")
+    paths = {p.relative_to(web).as_posix() for p in web.rglob("*") if p.is_file()}
+    if any(p.is_symlink() for p in web.rglob("*")):
+        raise ValueError("Symlinks are not permitted in a release artifact")
+    if paths != set(manifest["files"]) | {"release-manifest.json"}:
+        raise ValueError("Artifact includes unexpected or missing files")
+    for name, expected in manifest["files"].items():
+        if Path(name).name != name or name.startswith("."):
+            raise ValueError("Unexpected artifact path")
+    verify_files(web, manifest['files'])
+    for required in ["index.html", "index.js", "index.wasm", "index.pck"]:
+        if required not in manifest["files"]:
+            raise ValueError("Incomplete HTML5 export")
+    return manifest
+
+
+def verify_qualified_wrapper(web, variant, origin, tag, sha):
+    """Publish only the exact wrapper from authenticated same-page qualification."""
+    from release.common_firebase import validate_packet, require_origin
+    if not re.fullmatch('v'+RELEASE,tag) or not re.fullmatch('[0-9a-f]{40}',sha):
+        raise ValueError('Exact release tag and source required')
+    packet=json.loads((variant/'firebase-variant-manifest.json').read_text())
+    marker=json.loads((variant/'public/hosting-release.json').read_text())
+    proof=validate_packet(variant,packet,marker)
+    require_origin(variant,packet,origin)
+    common=proof['common']
+    if web.resolve() != (variant/'itch-wrapper').resolve() or common['source_commit']!=sha or common['release_tag']!=tag:
+        raise ValueError('Exact authenticated embedded wrapper required')
+    base=packet['base_web_manifest']
+    if base.get('source_commit')!=sha or base.get('tag')!=tag or base.get('version')!=tag[1:]:
+        raise ValueError('Wrapper source/tag differs from the qualified packet')
+    return base,common,sha256(variant/'firebase-variant-manifest.json')
+
+
+def packet_wrapper_inventory(variant):
+    from release.common_firebase import surface_inventory
+    return surface_inventory(variant,'itch-wrapper')
+
+
+def completed(status, build_id, version):
+    current = channel(status)
+    for record in [current.get("head") or {}, current.get("pending") or {}]:
+        if record.get("id") == build_id:
+            if record.get("state") in {"failed", "cancelled", "canceled"}:
+                raise RuntimeError("itch processing failed; inspect this build before retrying")
+    head = current.get("head") or {}
+    return head.get("id") == build_id and head.get("userVersion") == version and head.get("state") == "completed"
+
+
+def accepted_processing(status, build_id, version):
+    """A verified same-build queue entry is upload success, not live acceptance."""
+    current = channel(status)
+    for record in [current.get('head') or {}, current.get('pending') or {}]:
+        if (type(record.get('id')) is int and record['id'] == build_id
+                and record.get('userVersion') == version and record.get('state') in {'queued', 'processing'}):
+            return {'build_id': build_id, 'state': record['state'], 'version': version}
+    return None
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--web", required=True, type=Path)
+    parser.add_argument("--tag", required=True)
+    parser.add_argument("--sha", required=True)
+    parser.add_argument("--receipt", type=Path, help="Write confirmed upload acceptance separately from live completion")
+    parser.add_argument("--common-receipt", type=Path, help="Already authenticated immutable common qualification")
+    parser.add_argument("--firebase-variant", type=Path, help="Authenticated full qualification packet with its embedded wrapper")
+    parser.add_argument("--staging-origin", type=Path, help="Fresh authenticated staging origin")
+    args = parser.parse_args()
+    variant=getattr(args,'firebase_variant',None)
+    origin_path=getattr(args,'staging_origin',None)
+    if variant:
+        if not origin_path or getattr(args,'common_receipt',None):
+            raise ValueError('Separate full qualification origin required; unqualified common alias refused')
+        manifest,common,variant_digest=verify_qualified_wrapper(args.web,variant,json.loads(origin_path.read_text()),args.tag,args.sha)
+    else:
+        if origin_path:raise ValueError('Full qualification origin requires its exact packet')
+        manifest = verify_artifact(args.web, args.tag, args.sha)
+        common=None;variant_digest=None
+    common_path = getattr(args,'common_receipt',None)
+    if common_path:common=json.loads(common_path.read_text())
+    if common is not None:
+        from release.common_tag import STATUS, valid_order
+        if (common.get('status') != STATUS or common.get('source_commit') != args.sha
+                or common.get('release_tag') != args.tag or common.get('version') != manifest['version']
+                or common.get('web_manifest_sha256') != (sha256(variant/'evidence/base-web-manifest.json') if variant else sha256(args.web/'release-manifest.json'))
+                or common.get('qualification') != manifest.get('release_reuse')
+                or not valid_order(common.get('release_order'))):
+            raise ValueError('Exact authenticated common qualification required')
+    if not os.environ.get("BUTLER_API_KEY", "").strip():
+        raise RuntimeError("Missing BUTLER_API_KEY. The owner must personally set GitHub Actions Secrets; never paste a key into chat or a commit")
+    version = args.tag[1:]
+    previous_status=butler("status", TARGET)
+    if common is not None:check_common_previous(previous_status,version,args.sha)
+    else:check_previous(previous_status,version,args.sha)
+    # One attempt only. A timeout may have uploaded successfully; never retry blindly.
+    result = butler("push", str(args.web), TARGET, "--userversion", version, "--no-auto-wrap")
+    build_id = result.get("buildId")
+    if (type(build_id) is not int or build_id <= 0 or result.get("channel") != "html5"
+            or result.get("dryRun") or result.get("skipped")):
+        raise RuntimeError("Upload outcome is unconfirmed; inspect itch before retrying")
+    print(f"Uploaded itch build {build_id}; verifying provider acceptance", flush=True)
+    deadline = time.monotonic() + 600
+    while time.monotonic() < deadline:
+        remaining = max(1, min(60, int(deadline - time.monotonic())))
+        observed = butler("status", TARGET, timeout=remaining)
+        is_completed = completed(observed, build_id, version)
+        processing = accepted_processing(observed, build_id, version)
+        if is_completed or processing:
+            order = channel(observed)['head'].get('version') if is_completed else None
+            if is_completed and '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
+                raise RuntimeError('Completed upload lacks a confirmed channel sequence; inspect before retrying')
+            receipt = {"target": TARGET, "version": version, "source_commit": args.sha,
+                       "itch_build_id": build_id, "state": "completed" if is_completed else "accepted-processing",
+                       "browser_runtime": "manual post-publish smoke still required",
+                       "live_playable_verified": False}
+            if processing:
+                receipt['provider_observation'] = processing
+            if type(order) is int and 0 < order <= 9007199254740991:
+                receipt['itch_channel_version'] = order
+            if args.receipt:
+                receipt.update(tag=args.tag, workflow_run=os.environ.get("GITHUB_RUN_ID"),
+                    workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
+                    release_manifest_sha256=common['web_manifest_sha256'] if variant else sha256(args.web / "release-manifest.json"),
+                    qualification=manifest.get("release_reuse"))
+                if common is not None:
+                    receipt['common_qualification'] = common
+                if variant:
+                    staging_origin=json.loads(origin_path.read_text())
+                    staging_run=staging_origin['run'];staging_artifact=staging_origin['artifact']
+                    receipt.update(delivery_surface='qualified-same-page-wrapper',
+                        firebase_variant_manifest_sha256=variant_digest,
+                        itch_wrapper_sha256=packet_wrapper_inventory(variant),
+                        same_page_staging_origin={'run_id':staging_run['id'],'attempt':staging_run['run_attempt'],
+                            'coordinator_source_commit':staging_run['head_sha'],
+                            'artifact_id':staging_artifact['id'],'artifact_digest':staging_artifact['digest']})
+                args.receipt.parent.mkdir(parents=True, exist_ok=True)
+                args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
+            print(json.dumps(receipt), flush=True)
+            if os.environ.get("GITHUB_STEP_SUMMARY"):
+                with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+                    summary.write(f"Upload accepted for {args.tag} ({args.sha}), itch build {build_id}; state {receipt['state']}.\n\nProcessing is provider-owned; do not upload again. Actual live/playable acceptance remains separate. Verify this same build with status and the selected browser entry before claiming live success.\n")
+            return
+        time.sleep(15)
+    raise RuntimeError(f"Build {build_id} upload/queue identity could not be confirmed after 10 minutes. Inspect the same build; never reupload an uncertain outcome")
+
+
+if __name__ == "__main__":
+    main()

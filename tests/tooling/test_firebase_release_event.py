@@ -4,15 +4,19 @@ import base64
 import hashlib
 import io
 import json
+import stat
+import struct
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 import zipfile
 
-import firebase_release_event as event
+from release import firebase_release_event as event
+from release import common_firebase
 from tests.tooling import test_firebase_release_gate as gate_fixture
-from reuse_main_ci import REQUIRED_JOBS
+from qualification.reuse_main_ci import REQUIRED_JOBS
+from unittest.mock import Mock
 
 
 def archive(files):
@@ -72,6 +76,138 @@ class API:
 
 
 class ReleaseEventTests(unittest.TestCase):
+    def test_producer_budget_preserves_payload_and_checks_both_boundaries(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d); (folder / 'runtime').write_bytes(b'audio-fixture' * 4096)
+            before = (folder / 'runtime').read_bytes()
+            measured = event.check_firebase_packet_budget(folder)
+            self.assertEqual(measured['expanded_bytes'], len(before))
+            self.assertEqual(measured['member_count'], 1)
+            self.assertEqual((folder / 'runtime').read_bytes(), before)
+            for expanded, compressed, accepted in [
+                    (len(before), measured['compressed_bytes_with_reserve'], True),
+                    (len(before) - 1, measured['compressed_bytes_with_reserve'], False),
+                    (len(before), measured['compressed_bytes_with_reserve'] - 1, False)]:
+                with self.subTest(expanded=expanded, compressed=compressed), \
+                        patch.object(event, 'FIREBASE_PACKET_EXPANDED_BYTES', expanded), \
+                        patch.object(event, 'MAX_FIREBASE_ARTIFACT_BYTES', compressed):
+                    if accepted: event.check_firebase_packet_budget(folder)
+                    else:
+                        with self.assertRaises(ValueError): event.check_firebase_packet_budget(folder)
+
+    def test_producer_budget_refuses_member_count_and_symlinks_before_compression(self):
+        folder = Mock(); item = Mock(); item.is_symlink.return_value = False
+        item.is_file.return_value = True; item.stat.return_value.st_size = 1
+        folder.rglob.return_value = [item] * 5001
+        with patch.object(event.zipfile, 'ZipFile') as compressed, self.assertRaises(ValueError):
+            event.check_firebase_packet_budget(folder)
+        compressed.assert_not_called()
+        item.is_symlink.return_value = True; folder.rglob.return_value = [item]
+        with self.assertRaises(ValueError): event.check_firebase_packet_budget(folder)
+
+    def firebase_artifact(self, data):
+        return {'id': 7, 'name': 'little-leaf-firebase-' + 'a' * 40 + '-1',
+            'expired': False, 'size_in_bytes': len(data),
+            'digest': 'sha256:' + hashlib.sha256(data).hexdigest(),
+            'workflow_run': {'id': 3, 'head_sha': 'a' * 40}}
+
+    def coordinator_fixture(self):
+        data = archive({'firebase-variant-manifest.json': json.dumps({'source_commit': 'a' * 40}),
+                        'public/hosting-release.json': json.dumps({'tag': 'v0.1.11-pre.aaaaaaaa'})})
+        artifact = self.firebase_artifact(data)
+        artifact['workflow_run']['head_sha'] = 'c' * 40
+        run = {'id': 3, 'run_attempt': 1, 'head_sha': 'c' * 40, 'head_branch': 'main',
+               'repository': {'full_name': event.REPOSITORY},
+               'head_repository': {'full_name': event.REPOSITORY},
+               'path': common_firebase.WORKFLOW, 'event': 'workflow_run',
+               'status': 'completed', 'conclusion': 'success'}
+        return data, artifact, run
+
+    def test_common_consumer_keeps_candidate_separate_from_qualified_coordinator(self):
+        data, artifact, run = self.coordinator_fixture()
+        before = copy.deepcopy((artifact, run))
+        api = Mock()
+        api.pages.return_value = [artifact]
+        api.read.side_effect = lambda path, **kwargs: {
+            'actions/runs/3': run, 'actions/runs/3/attempts/1': run,
+            'actions/artifacts/7/zip': data}[path]
+        with tempfile.TemporaryDirectory() as d:
+            output = Path(d) / 'selected'
+            with patch('sys.argv', ['common_firebase.py', '--run', '3', '--platform', 'itch',
+                                   '--output', str(output)]), \
+                    patch.dict(event.os.environ, {'GH_TOKEN': '', 'GITHUB_OUTPUT': str(Path(d) / 'outputs')}), \
+                    patch.object(common_firebase, 'GitHub', return_value=api), \
+                    patch.object(common_firebase, 'authenticate_packet', return_value={'run': run, 'artifact': artifact}):
+                common_firebase.main()
+            self.assertEqual(json.loads((output / 'status.json').read_text())['source_commit'], 'a' * 40)
+            self.assertEqual(json.loads((output / 'origin.json').read_text())['run']['head_sha'], 'c' * 40)
+            self.assertEqual((artifact, run), before)
+            api.read.assert_any_call('actions/artifacts/7/zip', binary=True, artifact_bytes=len(data))
+
+    def test_qualified_coordinator_context_refuses_wrong_run_attempt_workflow_and_repository(self):
+        data, artifact, run = self.coordinator_fixture()
+        changes = [('id', 4), ('head_sha', 'd' * 40), ('head_branch', 'another'), ('run_attempt', 2),
+                   ('status', 'in_progress'), ('conclusion', 'failure'), ('event', 'push'),
+                   ('path', '.github/workflows/another.yml'),
+                   ('repository', {'full_name': 'another/repository'}),
+                   ('head_repository', {'full_name': 'another/repository'})]
+        for field, value in changes:
+            api = Mock()
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    event.download(api, artifact, Path(d) / 'out', qualified_run={**run, field: value})
+                api.read.assert_not_called()
+                self.assertFalse((Path(d) / 'out').exists())
+        api = Mock()
+        with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
+            event.download(api, {**artifact, 'name': 'little-leaf-web-' + 'a' * 40 + '-1'},
+                           Path(d) / 'out', qualified_run=run)
+        api.read.assert_not_called()
+
+    def test_firebase_profile_uses_exact_metadata_size_ordinary_profile_unchanged(self):
+        data = archive({'firebase-variant-manifest.json': '{}'})
+        api = Mock(); api.read.return_value = data
+        with tempfile.TemporaryDirectory() as d:
+            event.download(api, self.firebase_artifact(data), Path(d) / 'firebase')
+            api.read.assert_called_once_with('actions/artifacts/7/zip', binary=True, artifact_bytes=len(data))
+            api.read.reset_mock()
+            ordinary = {**self.firebase_artifact(data), 'name': 'little-leaf-web-' + 'a' * 40 + '-1'}
+            event.download(api, ordinary, Path(d) / 'ordinary')
+            api.read.assert_called_once_with('actions/artifacts/7/zip', binary=True)
+
+    def test_firebase_profile_refuses_bad_origin_digest_size_and_truncated_body(self):
+        data = archive({'firebase-variant-manifest.json': '{}'})
+        for field, value in [('id', True), ('expired', True), ('digest', 'unknown'),
+                ('size_in_bytes', True), ('size_in_bytes', 0),
+                ('size_in_bytes', event.MAX_FIREBASE_ARTIFACT_BYTES + 1),
+                ('workflow_run', {'id': 3, 'head_sha': 'b' * 40})]:
+            api = Mock(); api.read.return_value = data
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    event.download(api, {**self.firebase_artifact(data), field: value}, Path(d) / 'out')
+                api.read.assert_not_called()
+        for body in [data[:-1], data + b'x', data[:-1] + bytes([data[-1] ^ 1])]:
+            api = Mock(); api.read.return_value = body
+            with self.subTest(size=len(body)), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError): event.download(api, self.firebase_artifact(data), Path(d) / 'out')
+                self.assertFalse((Path(d) / 'out').exists())
+
+    def test_firebase_profile_retains_decompression_count_path_and_symlink_bounds(self):
+        data = archive({'small': 'x'})
+        central = data.index(b'PK\x01\x02')
+        # Hostile ZIP directory declares a bomb; refusal occurs before writes.
+        bomb = bytearray(data)
+        struct.pack_into('<I', bomb, central + 24, event.FIREBASE_PACKET_EXPANDED_BYTES + 1)
+        for hostile in [bytes(bomb), archive({'../outside': 'x'}), archive({'A': 'x', 'a': 'x'})]:
+            with self.subTest(size=len(hostile)), tempfile.TemporaryDirectory() as d:
+                with self.assertRaises(ValueError):
+                    event.extract_tree(hostile, 'sha256:' + hashlib.sha256(hostile).hexdigest(), Path(d) / 'out', firebase_packet=True)
+                self.assertFalse((Path(d) / 'out').exists())
+        symlink = zipfile.ZipInfo('link'); symlink.external_attr = (stat.S_IFLNK | 0o777) << 16
+        for hostile in [archive({symlink: 'target'}), archive({str(i): 'x' for i in range(5001)})]:
+            with tempfile.TemporaryDirectory() as d, self.assertRaises(ValueError):
+                event.extract_tree(hostile, 'sha256:' + hashlib.sha256(hostile).hexdigest(), Path(d) / 'out', firebase_packet=True)
+
     def test_reservation_queries_only_exact_name_and_rejects_expired_intent(self):
         api = API()
         name = 'little-leaf-firebase-request-10'

@@ -5,8 +5,8 @@ depth contract. No tracked game/platform source is changed. The preparation
 helper creates a new disposable project, adds explicit painter-order observation
 hooks to its copied IllustratedCafe and freezes their diff/hash before any run.
 
-It reuses the existing `role_fixture.gd` no-save startup, the authored exterior
-oak/visibility rules observed by `test_expansion_tree_visibility.gd`, and actual
+It reuses the existing `tests/fixtures/role_fixture.gd` no-save startup, the authored exterior
+oak/visibility rules observed by `tests/building/test_expansion_tree_visibility.gd`, and actual
 Decorate input handlers used by the current draw-boundary tests. The two cases
 are actor front-to-back-to-front/diagonal tree edge and table/chair rotations
 0..3 with drag, preview, confirm and cancel. Synthetic placement resets between
@@ -41,5 +41,8 @@ fail closed even if the process exits0.
 
 Existing wall slicing, chair-back/torso/reach layers, atlas inputs and native
 ordering are under observation. No YSort, depth offsets, geometry, collision,
-economy, gameplay or renderer fix is introduced by this pilot. An eventual
-`docs/development/depth-occlusion.md` contract requires verified actual evidence.
+economy, gameplay or renderer fix is introduced by this pilot. The existing
+`docs/development/depth-occlusion.md` contract records the historical evidence.
+PR189's representative oak repair is now accepted and merged as `6db1c726`;
+this retained diagnostic is separate from that production change. Its old
+captures retain their recorded source and do not qualify current main.

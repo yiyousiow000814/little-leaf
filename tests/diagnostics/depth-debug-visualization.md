@@ -19,7 +19,23 @@ annotations. It freezes copies of those observations and never modifies the
 artist, its caches, model, movement or saved state. Overlay-off and overlay-on
 files are separate evidence. An overlay can hide pixels; only the off frames
 can support an occlusion judgment. This static display check does not replace
-continuous-frame regressions or approve PR189, artwork or a Golden reference.
+continuous-frame regressions or approve artwork or a Golden reference. PR189's
+representative oak repair was separately accepted and merged as `6db1c726`.
+This overlay observes that current ordering without changing it.
+
+The five shared probe/preparation/capture/launcher/pilot-guide files originated
+in PR189's diagnostic packet but were excluded from its production-only merge.
+PR197 retains those helpers once, with current nested fixture/rendering/world
+paths, and adds only the opt-in display/static capture preparation. Normal
+`stage_project(tests=False)` excludes all diagnostics.
+
+Historical PR197 evidence remains unchanged: r2 stopped on its Windows receipt
+newline mismatch, r3 had incomplete screenshots, and corrected r4 inspected six
+original frames (three off/on pairs). The qualified r4 capture SHA256 is
+`01e350a8a1da86ba339257e84c26ca0a8c646dab82958a0311e8bca425bad6a2`.
+Those frames establish the historical static developer display only. They do
+not qualify current-main pixels, startup, continuous occlusion or FPS. This
+source integration does not repeat or relabel those runtime results.
 
 After exact packet review and a serialized runtime grant:
 

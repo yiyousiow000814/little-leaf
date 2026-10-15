@@ -11,9 +11,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-import build_crazygames as cg
-import bound_web_gl_handles as handles
-from project_layout import source_path
+from build import build_crazygames as cg
+from build import bound_web_gl_handles as handles
+from build.project_layout import source_path
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -77,6 +77,24 @@ class CrazyGamesExportTests(unittest.TestCase):
         self.assertIn('name="CrazyGames"', config)
         self.assertIn('name="CrazyGamesMusic"', config)
         self.assertIn('html/custom_html_shell="res://web/little_leaf_crazygames_shell.html"', config)
+
+
+    def test_deferred_music_exclusion_preserves_boot_sfx(self):
+        import fnmatch
+        import re
+        config = (REPO / "game/export_presets.cfg").read_text(encoding="utf-8")
+        game = config.split("[preset.1]", 1)[1].split("[preset.1.options]", 1)[0]
+        patterns = re.search(r'^exclude_filter="([^"]*)"$', game, re.MULTILINE).group(1).split(",")
+        music = config.split("[preset.2]", 1)[1].split("[preset.2.options]", 1)[0]
+        deferred = re.findall(r'"res://(assets/audio/[^"\n]+\.mp3)"', music)
+        def excluded(path):
+            return any(fnmatch.fnmatchcase(path, pattern) or
+                       fnmatch.fnmatchcase("res://" + path, pattern) for pattern in patterns)
+        self.assertTrue(deferred, "the existing BGM pack retains its selected resources")
+        for path in deferred:
+            self.assertTrue(excluded(path), "BGM remains in the deferred music pack: " + path)
+        for path in ["assets/audio/sfx/SfxCash.mp3", "assets/audio/sfx/placement_volume_v02.wav"]:
+            self.assertFalse(excluded(path), "static feedback dependency must remain in the boot pack: " + path)
 
 
 class CrazyGamesVariantTests(unittest.TestCase):
@@ -178,7 +196,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn("pointer-events:none", cg.PREVIEW_NOTICE)
 
     def test_platform_help_explains_submission_without_claiming_cloud_confirmation(self):
-        ui = (REPO / "game/scripts/cafe_compact_ui.gd").read_text()
+        ui = (REPO / "game/scripts/ui/cafe_compact_ui.gd").read_text()
         body = ui.split("func _sync_help_content():", 1)[1].split("\nfunc ", 1)[0]
         expected = "Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here."
         self.assertIn(expected, body)
@@ -194,7 +212,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertIn('if OS.has_feature("web"):\n\t\tweb_save=WebSave.new(self)\n\t\tweb_save.load_startup()\n\t\treturn', startup)
         save = main.split("func _save():", 1)[1].split("\nfunc ", 1)[0]
         self.assertTrue(save.lstrip().startswith('if OS.has_feature("web"):return web_save.request_save() if web_save!=null else false'))
-        controller = (REPO / "game/scripts/cafe_web_save.gd").read_text()
+        controller = (REPO / "game/scripts/persistence/cafe_web_save.gd").read_text()
         self.assertIn('const STAGING_FILE="/tmp/little_leaf_vault_staging.json"', controller)
         for initial in ['var pending=false', 'var queued=false', 'var _confirmed_payload=""', 'var _inflight_payload=""']:
             self.assertIn(initial, controller)
@@ -204,7 +222,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         self.assertNotIn('FileAccess.READ', controller)
         self.assertIn('if not game.model.save(STAGING_FILE):', controller)
         self.assertLess(controller.index('if not game.model.save(STAGING_FILE):'), controller.index('FileAccess.get_file_as_string(STAGING_FILE)'))
-        settings = (REPO / "game/scripts/cafe_settings.gd").read_text()
+        settings = (REPO / "game/scripts/ui/cafe_settings.gd").read_text()
         self.assertIn('web_preferences=WebPreferences.new()\n\t\tloaded=web_preferences.load_into(cfg)\n\t\tsource="browser-preferences:"+web_preferences.source\n\telse:', settings)
         self.assertIn('return saved\n\treturn cfg.save(config_path)==OK', settings)
         shell = (self.project / "web/little_leaf_crazygames_shell.html").read_text()
@@ -219,7 +237,7 @@ class CrazyGamesVariantTests(unittest.TestCase):
         for preview in [False, True]:
             cg.prepare_variant(self.project, preview)
             for embedded in [False, True]:
-                command = ["node", "tests/crazygames_storage.js", "--web-dir", str(self.project / "web")]
+                command = ["node", "tests/persistence/crazygames_storage.js", "--web-dir", str(self.project / "web")]
                 if preview: command.append("--developer-preview")
                 if embedded: command.append("--embedded")
                 with self.subTest(preview=preview, embedded=embedded):

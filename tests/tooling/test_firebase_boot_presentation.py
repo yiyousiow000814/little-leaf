@@ -7,12 +7,20 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class FirebaseBootPresentation(unittest.TestCase):
+    def test_recovery_metadata_lifecycle_with_synthetic_owners(self):
+        subprocess.run(['node', '--expose-gc', 'tests/persistence/firebase_choice.js'],
+                       cwd=ROOT, check=True, timeout=30)
+
     def test_real_module_with_disposable_sdk_and_dom(self):
-        subprocess.run(['node', 'tests/firebase_boot_presentation.js'],
+        subprocess.run(['node', 'tests/persistence/firebase_boot_presentation.js'],
+                       cwd=ROOT, check=True, timeout=30)
+
+    def test_ordinary_refresh_with_synthetic_sessions_and_locks(self):
+        subprocess.run(['node', 'tests/persistence/firebase_session_refresh.js'],
                        cwd=ROOT, check=True, timeout=30)
 
     def test_recovery_bridge_with_disposable_account_and_dom(self):
-        subprocess.run(['node', 'tests/firebase_recovery_presentation.js'],
+        subprocess.run(['node', 'tests/persistence/firebase_recovery_presentation.js'],
                        cwd=ROOT, check=True, timeout=30)
 
 

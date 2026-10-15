@@ -5,12 +5,14 @@ import io
 import json
 from pathlib import Path
 import tempfile
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 import urllib.request
 import zipfile
 
-import reuse_main_ci as reuse
+from qualification import reuse_main_ci as reuse
 
 SHA, TREE = 'a' * 40, 'b' * 40
 
@@ -89,6 +91,90 @@ class QualificationTests(unittest.TestCase):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_main_download_uses_exact_authenticated_size_above_legacy_default(self):
+        # Reproduce the failed release size without allocating another 100-MiB fixture.
+        class Payload:
+            def __init__(self, size): self.size = size
+            def __len__(self): return self.size
+        class API:
+            def read(self, path, binary=False, *, artifact_bytes=None):
+                self.request = (path, binary, artifact_bytes)
+                return Payload(artifact_bytes)
+        self.assertEqual(reuse.MAX_RELEASE_ARTIFACT_BYTES, 512 * 1024 * 1024)
+        for size in [106071069, reuse.MAX_RELEASE_ARTIFACT_BYTES]:
+            api = API()
+            result = reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
+            self.assertEqual(len(result), size)
+            self.assertEqual(api.request, ('actions/artifacts/11/zip', True, size))
+        self.assertEqual(reuse.DEFAULT_RESPONSE_BYTES, 100 * 1024 * 1024)
+
+    def test_main_download_rejects_unbounded_metadata_and_length_mismatch(self):
+        api = reuse.GitHub('synthetic')
+        for size in [None, True, 0, -1, 3.0, '3', reuse.MAX_RELEASE_ARTIFACT_BYTES + 1]:
+            with self.subTest(size=size), patch.object(api.opener, 'open') as opened:
+                with self.assertRaisesRegex(ValueError, 'finite ZIP budget'):
+                    reuse.download_release_artifact(api, dict(id=11, size_in_bytes=size))
+                opened.assert_not_called()
+        for payload in [b'xx', b'xxxx']:
+            with patch.object(api, 'read', return_value=payload), self.assertRaisesRegex(ValueError, 'authenticated size'):
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
+
+    def test_main_download_keeps_response_overrun_guard(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size): return b'x' * size
+        api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=Response()):
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                reuse.download_release_artifact(api, dict(id=11, size_in_bytes=3))
+
+    def test_future_packet_headroom_remains_exact_and_finite(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size):
+                self.requested = size
+                return b'synthetic'
+        response = Response(); api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=response):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024)
+        self.assertEqual(response.requested, 512 * 1024 * 1024 + 1)
+        # Exercise metadata headroom without allocating a half-GiB fixture.
+        with patch.object(api.opener, 'open') as opened, self.assertRaises(ValueError):
+            api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=512 * 1024 * 1024 + 1)
+        opened.assert_not_called()
+
+    def test_real_firebase_response_size_has_explicit_finite_zip_budget(self):
+        # Actual PR263 qualified archive: 119110054 bytes, larger than the
+        # unchanged ordinary reader. Generate only the requested response chunk.
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *unused): pass
+            def read(self, size): return b'0' * min(size, 119110054)
+        api = reuse.GitHub('synthetic')
+        with patch.object(api.opener, 'open', return_value=Response()):
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True)
+            data = api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110054)
+            self.assertEqual(len(data), 119110054)
+            del data
+            with self.assertRaisesRegex(ValueError, 'Response exceeds'):
+                api.read('actions/artifacts/1/zip', binary=True, artifact_bytes=119110053)
+
+    def test_zip_budget_cannot_expand_json_wrong_paths_or_unbounded_responses(self):
+        api = reuse.GitHub('synthetic')
+        for path, binary, size in [('actions/runs/1', True, 119110054),
+                ('actions/artifacts/1/zip', False, 119110054),
+                ('actions/artifacts/01/zip', True, 119110054),
+                ('actions/artifacts/1/zip?other=1', True, 119110054),
+                ('actions/artifacts/1/zip', True, True),
+                ('actions/artifacts/1/zip', True, 0),
+                ('actions/artifacts/1/zip', True, reuse.MAX_FIREBASE_ARTIFACT_BYTES + 1)]:
+            with self.subTest(path=path, size=size), patch.object(api.opener, 'open') as opened:
+                with self.assertRaises(ValueError): api.read(path, binary=binary, artifact_bytes=size)
+                opened.assert_not_called()
+
     def archive(self, names):
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, 'w') as z:
@@ -103,6 +189,25 @@ class ArchiveTests(unittest.TestCase):
             self.assertFalse(out.exists())
             reuse.extract(data, hashlib.sha256(data).hexdigest(), out)
             self.assertEqual((out / 'index.html').read_bytes(), b'synthetic')
+
+    def test_main_extraction_budget_is_finite_and_crc_still_checked(self):
+        data = self.archive(['index.html'])
+        digest = hashlib.sha256(data).hexdigest()
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(reuse, 'MAX_MAIN_EXTRACTED_BYTES', 8), self.assertRaisesRegex(ValueError, 'extraction bounds'):
+                reuse.extract(data, digest, Path(folder) / 'over')
+            with patch.object(reuse, 'MAX_MAIN_EXTRACTED_BYTES', 9):
+                reuse.extract(data, digest, Path(folder) / 'at-bound')
+            corrupted = bytearray(data)
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                member = archive.infolist()[0]
+                start = member.header_offset + 30 + len(member.filename.encode()) + len(member.extra)
+            corrupted[start] ^= 1
+            with self.assertRaises(zipfile.BadZipFile):
+                reuse.extract(corrupted, hashlib.sha256(corrupted).hexdigest(), Path(folder) / 'bad-crc')
+        many = self.archive([str(i) for i in range(501)])
+        with tempfile.TemporaryDirectory() as folder, self.assertRaisesRegex(ValueError, 'extraction bounds'):
+            reuse.extract(many, hashlib.sha256(many).hexdigest(), Path(folder) / 'many')
 
     def test_rejects_unsafe_case_collisions_and_symlink(self):
         for names in [['../escape'], ['/absolute'], ['a/b'], ['C:bad'], ['a\\b'],
@@ -162,23 +267,62 @@ class PackageTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_direct_entrypoints_resolve_tools_outside_repository_cwd(self):
+        root = Path(__file__).resolve().parents[2]
+        commands = {
+            'reuse_main_ci.py': ['--sha', '--tag', '--output', '--wait-seconds'],
+            'reuse_released_web.py': ['--source-root', '--selection', '--output'],
+            'reuse_welcome_web.py': ['--phase', '--repository', '--run-id', '--artifact-id'],
+        }
+        with tempfile.TemporaryDirectory() as folder:
+            for name, flags in commands.items():
+                with self.subTest(command=name):
+                    result = subprocess.run([sys.executable,
+                        str(root / 'tools/qualification' / name), '--help'],
+                        cwd=folder, capture_output=True, text=True, timeout=10)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    for flag in flags:
+                        self.assertIn(flag, result.stdout)
+
     def test_release_removes_duplicate_matrix_retains_final_checks_and_publishing(self):
         root = Path(__file__).resolve().parents[2]
         text = (root / '.github/workflows/release-itch.yml').read_text()
         self.assertNotIn('uses: ./.github/workflows/build-web.yml', text)
-        for required in ['tools/reuse_main_ci.py', 'tools/verify_prebaked_atlases.py',
-            '--require-main-ancestor', 'digest-mismatch: error', 'tools/publish_itch.py',
+        for required in ['workflows: [Qualify Firebase release]',
+            'coordinator/tools/release/common_firebase.py --run "$FIREBASE_RUN" --platform itch',
+            'tools/release/publish_itch.py',
+            '--web "$RUNNER_TEMP/common-firebase/variant/itch-wrapper"',
+            '--firebase-variant "$RUNNER_TEMP/common-firebase/variant"',
+            '--staging-origin "$RUNNER_TEMP/common-firebase/origin.json"',
             'little-leaf-itch-publication-', 'actions: read']:
             self.assertIn(required, text)
         self.assertNotIn('actions: write', text)
         self.assertNotIn('id-token:', text)
-        diagnostic, publishing = text.split('  gate:', 1)
-        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 2)
+        diagnostic, publishing = text.split('  publish:', 1)
+        self.assertEqual(publishing.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
         self.assertEqual(diagnostic.count('BUTLER_API_KEY: ${{ secrets.BUTLER_API_KEY }}'), 1)
         self.assertIn("github.event_name == 'workflow_dispatch'", diagnostic)
         self.assertIn("github.ref == 'refs/heads/main'", diagnostic)
         self.assertNotIn('publish_itch.py', diagnostic)
-        self.assertIn('github.event.created && !github.event.deleted', publishing)
+        common = (root / '.github/workflows/ci.yml').read_text().split('  common_tag:',1)[1]
+        for required in ['tools/qualification/reuse_main_ci.py', 'tools/qualification/verify_prebaked_atlases.py',
+                         '--require-main-ancestor','github.event.created && !github.event.deleted']:
+            self.assertIn(required,common)
+        self.assertIn("github.event_name == 'workflow_run'",publishing)
+        self.assertIn("github.event.workflow_run.conclusion == 'success'",publishing)
+        self.assertIn("FIREBASE_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.qualified_run_id || github.event.workflow_run.id }}",publishing)
+        self.assertIn("inputs.qualified_run_id != ''",publishing)
+        # A rerun must be refused by the job before Butler credentials or upload.
+        publish_condition = publishing.split('    runs-on:', 1)[0]
+        self.assertIn("github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.qualified_run_id != '' && github.run_attempt == 1", publish_condition)
+        self.assertIn("inputs.qualified_run_id == ''",diagnostic)
+        self.assertIn('ref: ${{ steps.common.outputs.source_sha }}',publishing)
+        self.assertLess(publishing.index('git -C coordinator fetch --no-tags origin main'),
+                        publishing.index('coordinator/tools/release/common_firebase.py'))
+        self.assertLess(publishing.index('--platform itch'),publishing.index('ref: ${{ steps.common.outputs.source_sha }}'))
+        self.assertLess(publishing.index('ref: ${{ steps.common.outputs.source_sha }}'),publishing.index('BUTLER_API_KEY:'))
+        self.assertNotIn('common_tag.py consume',publishing)
+        self.assertNotIn('reuse_main_ci.py',publishing)
 
 
 if __name__ == '__main__':

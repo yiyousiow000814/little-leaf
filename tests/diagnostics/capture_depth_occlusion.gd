@@ -1,8 +1,8 @@
 extends SceneTree
 ## Manual dev-only pilot. Uses the existing role fixture/startup and live artist,
 ## expansion-tree predicate and Decorate interaction handlers. No player profile.
-const Fixture=preload("res://tests/role_fixture.gd")
-class ProbeStreet extends "res://scripts/street_pedestrians.gd":
+const Fixture=preload("res://tests/fixtures/role_fixture.gd")
+class ProbeStreet extends "res://scripts/world/street_pedestrians.gd":
 	func advance(_delta:float,_queue_positions:Array=[]):pass
 	func observe_customers(_customers:Array,_delta:float,_walk_speed:float,_parking_visits:Array=[]):pass
 var game

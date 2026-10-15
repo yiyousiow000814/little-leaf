@@ -93,7 +93,7 @@ jobs:
                   lines.append('')
           if not lines:
               raise ValueError('Release notes must describe changes')
-          # Keep in sync with release_metadata.release_key; do not execute
+          # Keep in sync with release.release_metadata.release_key; do not execute
           # scripts from the tagged game source to render historical releases.
           def release_key(m):
               return (*map(int, m.groups()[:3]), ord(m[4]) - ord('a') + 1 if m[4] else 0)
@@ -173,4 +173,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: python3 tools/github_latest.py
+        run: python3 tools/release/github_latest.py

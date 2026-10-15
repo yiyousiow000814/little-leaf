@@ -1,6 +1,6 @@
 extends SceneTree
 ## Same generated conflict fixture renders pinned baseline and proposed recovery UI.
-const WebSave=preload("res://scripts/cafe_web_save.gd")
+const WebSave=preload("res://scripts/persistence/cafe_web_save.gd")
 class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)

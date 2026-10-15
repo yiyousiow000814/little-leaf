@@ -7,7 +7,7 @@ from prepare_depth_occlusion import prepare
 
 def prepare_debug(repo, output):
     identity = prepare(repo, output)
-    artist = output / 'project/scripts/illustrated_cafe.gd'
+    artist = output / 'project/scripts/rendering/illustrated_cafe.gd'
     raw = artist.read_bytes()
     eol = '\r\n' if b'\r\n' in raw else '\n'
     text = raw.decode().replace('\r\n', '\n')
@@ -28,7 +28,7 @@ func _depth_probe_tree_contours(p:Vector2,s:float,horizontal_scale:float):
 '''
     artist.write_bytes(text.replace('\n', eol).encode())
     import difflib
-    original = (repo / 'game/scripts/illustrated_cafe.gd').read_text(encoding='utf-8')
+    original = (repo / 'game/scripts/rendering/illustrated_cafe.gd').read_text(encoding='utf-8')
     diff = ''.join(difflib.unified_diff(original.splitlines(True), text.splitlines(True), fromfile='tracked/illustrated_cafe.gd', tofile='staged/illustrated_cafe.gd'))
     (output / 'instrumentation.diff').write_text(diff, encoding='utf-8', newline='\n')
     identity['capture_mode'] = 'debug_view'

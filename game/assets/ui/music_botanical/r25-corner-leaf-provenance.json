@@ -1,0 +1,13 @@
+{
+  "source": "Built-in image generation edit, new sibling source, original r24 retained.",
+  "edit_target": "corner-leaf-fan-r24.png",
+  "style_reference": "continuous_gold_botanical.png",
+  "dimensions": [
+    1254,
+    1254
+  ],
+  "sha256": "b22256a7721249890fd66a0527f3b86d2dae0c091c9aa929a3a53647699d9b76",
+  "changes": "Broader curled dark-green leaf fan, raised gold midribs, fine veins and shaded undersides; real transparent alpha. No UI screenshot repaint.",
+  "placement": "Two retained original corner TextureRects, 70x70 at lower board corners; no added nodes or per-frame work.",
+  "approval": "User requested richer leaf detail. Generated source and runtime outcome remain visually unaccepted."
+}
