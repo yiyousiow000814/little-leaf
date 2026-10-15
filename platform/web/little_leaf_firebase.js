@@ -62,7 +62,7 @@
       }
     };
   }
-  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null}) {
+  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null,cloudStartup=false}) {
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
@@ -389,6 +389,21 @@
       async boot() {
         if(opened) return opened;
         opened=(async()=>{ try {
+          if(cloudStartup) {
+            // Google startup reads the server before touching any local record.
+            // Pending/offline journals are never an authority or an upload here.
+            guard();const cloud=await networkWait(remote.read(uid));guard();
+            const record=await validate(cloud);guard();
+            const time=now(),next={base:token(cloud),pending:false,
+              ...(cloud && Object.hasOwn(cloud,'device')?{device:displayDevice(cloud.device)}:{}),
+              record:record || {format:2,profileId:root.crypto.randomUUID(),revision:0,createdAt:time,updatedAt:time,payload:null,digest:null,origin:null,previous:null,campaigns:{}}};
+            // A modern cloud save is already authoritative. Do not fabricate an
+            // original migration archive from an unrelated local pending save.
+            if(gridRecord(next.record))next.preGrid=emptyPreGridRequirement();
+            const local=await journal.read(uid);guard();
+            await journal.replace(uid,local,next,{guard});guard();entry=next;
+            state(record?'saved':'ready');return acceptedBoot();
+          }
           guard(); let local=await journal.read(uid); guard();
           // A missing original must block upload, not read-only export of the
           // independently checksummed pending record. Export validates it again.
@@ -685,11 +700,14 @@
     };return client;
   }
   // Each read/compare/write is a single IDB transaction; concurrent tabs fail closed.
-  async function openJournal(indexedDB) {
+  async function openJournal(indexedDB,{cloudOnly=false}={}) {
+    // Keep every earlier account, recovery and original-archive row untouched.
+    // A distinct database also avoids interpreting old journal schema at boot.
+    const name=cloudOnly?'little-leaf.firebase-cloud-journal.v2':'little-leaf.firebase-journal.v1';
     let db=null,opening=null;
     function connect(create) {
       return new Promise((resolve,reject)=>{
-        const q=indexedDB.open('little-leaf.firebase-journal.v1',1);let absent=false,settled=false;
+        const q=indexedDB.open(name,1);let absent=false,settled=false;
         const done=(problem,connection)=>{if(settled){connection?.close();return;}settled=true;problem?reject(problem):resolve(connection);};
         q.onupgradeneeded=()=>{if(create)q.result.createObjectStore('accounts');else{absent=true;q.transaction.abort();}};
         q.onerror=()=>done(absent?error('CORRUPT_AUTHORITY','Saved account journal is missing; it will not be recreated.'):q.error);

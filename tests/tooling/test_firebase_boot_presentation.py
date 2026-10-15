@@ -7,6 +7,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class FirebaseBootPresentation(unittest.TestCase):
+    def test_google_cloud_authoritative_startup(self):
+        subprocess.run(['node', 'tests/persistence/firebase_cloud_startup.js'],
+                       cwd=ROOT, check=True, timeout=30)
+
     def test_recovery_metadata_lifecycle_with_synthetic_owners(self):
         subprocess.run(['node', '--expose-gc', 'tests/persistence/firebase_choice.js'],
                        cwd=ROOT, check=True, timeout=30)

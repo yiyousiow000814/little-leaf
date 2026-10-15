@@ -1,5 +1,24 @@
 # Save diagnostics and connection recovery
 
+## Google cloud startup policy (2026-10-15)
+
+The user-approved Google startup policy always loads the validated server save.
+An old pending or damaged device journal must not block the cloud read, upload
+itself, open a local/cloud chooser, or become an offline fallback. A failed cloud
+read is an explicit error; a confirmed absent document is the separate fresh
+account case. Guest/local play retains its existing independent save policy.
+
+Google uses UID-scoped working rows in `little-leaf.firebase-cloud-journal.v2`,
+with its own archive, recovery and choice keys. Earlier account rows
+and their original archive bytes remain untouched. Each new Google startup,
+including takeover, replaces its working baseline only after server validation,
+account/ownership checks and local CAS. Pending working progress is not restored
+on a later startup. Ordinary saves after startup still use revision/digest CAS,
+writer epoch fencing and exact archive checks. A modern validated cloud origin
+needs no invented migration archive; an actual later legacy-to-grid migration
+protects the exact loaded cloud record through the existing archive writer.
+
+
 Open **Settings → Log**. **Copy log** copies this session's bounded diagnostic
 history. Copy it **before refreshing or closing**, then copy the new session's
 log after reopening. Logs are kept only in memory and are never sent anywhere.

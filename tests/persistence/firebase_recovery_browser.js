@@ -6,6 +6,7 @@ const {sourcePath}=require('../tooling/source_paths');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const source=['little_leaf_vault','little_leaf_firebase'].map(name=>fs.readFileSync(`platform/web/${name}.js`,'utf8'));
 const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
+const modernFixture=fs.readFileSync('tests/fixtures/unified_building_candidate.json','utf8');
 (async()=>{
   const server=http.createServer((_,res)=>{res.setHeader('content-type','text/html');res.end('<!doctype html><title>Disposable recovery tests</title>');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -17,7 +18,7 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
     browser=await chromium.launch(options);
     const page=await browser.newPage();await page.goto(`http://127.0.0.1:${server.address().port}`);
     for(const content of source) await page.addScriptTag({content});
-    const results=await page.evaluate(async fixture=>{
+    const results=await page.evaluate(async ({fixture,modernFixture})=>{
       const codec=LittleLeafAuthorityCodec,api=LittleLeafFirebase,clone=x=>x==null?null:JSON.parse(JSON.stringify(x));
       const fail=code=>Object.assign(Error(code),{code}),equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
       const checks=[];
@@ -220,10 +221,38 @@ const fixture=fs.readFileSync('tests/fixtures/startup-retry-v15.json','utf8');
       try{await journal.replace('synthetic-journal-lifecycle',other,{...other,pending:false});}catch(_){aborted=true;}finally{IDBObjectStore.prototype.put=lifecyclePut;}
       ok(aborted&&openCount===opensBeforeAbort&&equal(await journal.read('synthetic-journal-lifecycle'),other),'created transaction abort is never reopened or replayed');
       }
+      // Production Google policy, using this browser's real IndexedDB. Old
+      // local recovery/provenance never becomes cloud-startup authority.
+      {
+        const active=await api.openJournal(factory,{cloudOnly:true}),id='cloud-'+crypto.randomUUID();
+        const oldRecord=await record(90,110),cloudRecord=await record(7,900);
+        oldRecord.payload=modernFixture;oldRecord.digest=await codec.hash(codec.fingerprint(oldRecord));
+        cloudRecord.payload=modernFixture;cloudRecord.digest=await codec.hash(codec.fingerprint(cloudRecord));
+        const pending={base:null,pending:true,record:oldRecord,uploading:{record:oldRecord}};
+        await journal.replace(id,null,pending);await rawPut(['pre-grid-v1',id],'unverified old original');
+        let cloud=doc(cloudRecord),writes=0,readFailure=false;
+        const remote={async read(){if(readFailure)throw fail('OFFLINE');return clone(cloud);},async compareAndSet(uid,base,next,guard,verifyArchive){guard();if(verifyArchive)await verifyArchive();guard();if(base!==(cloud?.digest||null))throw fail('REVISION_CONFLICT');cloud=clone(next);writes++;}};
+        const make=()=>api.createClient({uid:id,cloudStartup:true,codec,journal:active,remote,currentUid:()=>id,status(){}});
+        const client=make(),boot=await client.boot();
+        ok(boot.ok&&boot.profileId===cloudRecord.profileId&&boot.revision===7,'Google cloud starts despite missing old preGrid in real IDB');
+        ok(equal(await journal.read(id),pending)&&await journal.readPreGrid(id)==='unverified old original','Google keeps old journal and archive bytes untouched');
+        ok(!client.recoverySnapshot().choicesAvailable,'Google cloud startup has no local/cloud cards');
+        await client.sync();ok(writes===0,'Google never uploads old pending/uploading during boot');
+        const staged=await client.commit(modernFixture,boot.revision,boot.profileId);ok(staged.ok,'Google stages a new write against verified cloud revision');
+        await client.sync();ok(writes===1&&cloud.revision===8,'Google uploads only the post-startup cloud-based write');
+        ok(await active.readPreGrid(id)===null,'modern cloud baseline does not fabricate original archives');client.close();
+        // A later unavailable read must not fall back to the staged local row.
+        const before=await active.read(id);readFailure=true;const offline=make();
+        ok((await offline.boot()).code==='OFFLINE','Google unavailable read is an explicit startup error');
+        ok(equal(await active.read(id),before)&&writes===1,'failed Google read performs no adoption/upload');offline.close();
+        readFailure=false;cloud=null;const fresh=make(),empty=await fresh.boot();
+        ok(empty.ok&&empty.source==='fresh'&&empty.revision===0,'confirmed absent Google cloud is separate fresh-account case');
+        ok(equal(await journal.read(id),pending),'absent cloud still preserves original journal bytes');fresh.close();
+      }
       return checks;
-    },fixture);
+    },{fixture,modernFixture});
     const {createHash}=require('node:crypto');
-    console.log('Recovery source SHA-256: '+JSON.stringify(Object.fromEntries(['web/little_leaf_vault.js','web/little_leaf_firebase.js','tests/persistence/firebase_recovery_browser.js','tests/fixtures/startup-retry-v15.json'].map(name=>[name,createHash('sha256').update(fs.readFileSync(sourcePath(process.cwd(),name))).digest('hex')]))));
+    console.log('Recovery source SHA-256: '+JSON.stringify(Object.fromEntries(['web/little_leaf_vault.js','web/little_leaf_firebase.js','tests/persistence/firebase_recovery_browser.js','tests/fixtures/startup-retry-v15.json','tests/fixtures/unified_building_candidate.json'].map(name=>[name,createHash('sha256').update(fs.readFileSync(sourcePath(process.cwd(),name))).digest('hex')]))));
     assert(results.length>=45);console.log(`Firebase recovery: ${results.length} real-IndexedDB/synthetic-cloud assertions passed (${browser.version()}).`);
     for(const result of results)console.log(`PASS ${result}`);
   } finally {if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}

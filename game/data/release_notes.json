@@ -23,6 +23,7 @@
     "Changed newly started meals to 25 seconds of eating. Saved meals keep their stored durations."
   ],
   "fixed": [
+    "Fixed Google startup being blocked by old local progress. Google play loads the cloud save. Unsynced local progress is not restored after startup.",
     "Fixed decorations shifting when moving the camera while hovering over a parcel.",
     "Fixed dragged furniture highlighting outside its footprint. Valid placement is green. Overlaps and unowned floor are red.",
     "Removed floor-paint validity outlines. The installed material preview and natural tile seams are preserved.",
