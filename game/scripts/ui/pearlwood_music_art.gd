@@ -21,7 +21,7 @@ const CROP_SHADER: Shader = preload("res://assets/ui/music_pearlwood/pearlwood_c
 const LEAF_SHADER: Shader = preload("res://assets/ui/music_pearlwood/pearlwood_leaf.gdshader")
 const RECORD_SHADER: Shader = preload("res://assets/ui/music_pearlwood/pearlwood_record.gdshader")
 const DESIGN_SIZE := Vector2(440.0, 360.0)
-const TRANSITION_SECONDS := 0.5
+const TRANSITION_SECONDS := 1.0
 const LEAF_BEND_LIMIT := 0.035
 const ARM_MUSIC_DEGREES := 0.85
 const ARM_LANDING_DEGREES := 0.9
@@ -440,7 +440,7 @@ func set_state(playing: bool, premium: bool, reduced: bool = false, identity: St
 		_kill_transition()
 		if not playing:_reset_audio()
 		_transition=create_tween()
-		_transition.tween_property(self,"reveal",target,TRANSITION_SECONDS*maxf(0.2,absf(target-reveal))).set_trans(Tween.TRANS_LINEAR)
+		_transition.tween_property(self,"reveal",target,TRANSITION_SECONDS*maxf(0.2,absf(target-reveal))).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		_transition.finished.connect(_transition_finished)
 	elif was_playing and not playing:
 		# Stop audio-driven movement without snapping an active edition reveal.

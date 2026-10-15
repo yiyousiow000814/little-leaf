@@ -58,8 +58,11 @@ The narrow candidate reuses the existing startup readiness cover to draw the
 already-owned Default and Premium Music materials once before Welcome. It
 restores the hidden panel and actual presentation state without selecting a
 recording, adding an audio cache, flushing preferences or starting its poll
-timer. Gate teardown also restores the panel. Existing artwork and transition
-timing remain unchanged. Source-bound candidate tests, pixels and performance
+timer. Gate teardown also restores the panel. Separately, the user reported
+the visual reveal felt too fast: the board and hero now share a one-second
+sine ease-in/out, replacing the half-second linear reveal. Artwork, bounded
+interruption/reversal, reduced-motion behavior and audio timing remain intact.
+Source-bound candidate tests, pixels and performance
 evidence are required before claiming the reported stall is resolved.
 
 Downloads contains eight of the nine live catalog song families. Harmony's
