@@ -58,7 +58,7 @@ func run():
     check(not field._plan_result.has("staff_positions"),"body refusal creates no relocation plan")
     var old_pos=worker.pos;var wallet=cafe.model.coins;var old_items=cafe.model.items.duplicate(true)
     cafe.editing=true
-    check(not field.commit(cafe.model,receipt,actors,cafe._apply_edit_staff_positions),"overlap cannot publish a purchase or worker transition")
+    check(not field.commit(cafe.model,receipt,actors),"overlap cannot publish a purchase or worker transition")
     check(worker.pos==old_pos and cafe._staff_payload(worker,index)==payload,"carried payload remains with the same unmoved worker")
     check(cafe.model.coins==wallet and cafe.model.items==old_items,"body refusal preserves wallet and furniture")
     check(cafe.model.layout_access_issues().is_empty(),"refusal preserves every service station")
