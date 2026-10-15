@@ -5,6 +5,8 @@ const Ground=preload("res://scripts/rendering/illustrated_ground.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const Preset=preload("res://scripts/gameplay/cafe_starter_preset.gd")
 const Minimal=preload("res://scripts/minimal_start.gd")
+const Building=preload("res://scripts/persistence/cafe_building_codec.gd")
+const LEGACY_SHA="28e44539834a07dd7e4066bc0dfce41b682e121d0b31f2e39a2c56cb8bdb62eb"
 const OUT="user://geometry-fixtures"
 var checks=0
 var failures=[]
@@ -15,6 +17,19 @@ func check(ok:bool,label:String):
 func read(path:String)->Dictionary:return JSON.parse_string(FileAccess.get_file_as_string(path))
 func write(path:String,data:Dictionary):
 	var file=FileAccess.open(path,FileAccess.WRITE);file.store_string(JSON.stringify(data,"\t",true,true));file.close()
+func fixture_path()->String:
+	var directory=OS.get_environment("UNIFIED_LEGACY_FIXTURE_DIR")
+	return ("res://tests/fixtures/unified_building" if directory=="" else directory).path_join("historical.json")
+func legacy()->Dictionary:
+	# The immutable pre-unification writer output is the authority for the old
+	# shell schema. Never turn a current save into legacy by changing markers.
+	var data=read(fixture_path());data.coins=4567
+	return data
+func finish():
+	check(FileAccess.get_sha256(fixture_path())==LEGACY_SHA,"immutable pre-unification fixture remains byte exact")
+	var report={"checks":checks,"failures":failures,"save_root":OS.get_user_data_dir()}
+	write(OUT+"/REPORT.json",report);print("STARTER_GEOMETRY_RESULT ",JSON.stringify(report))
+	quit(0 if failures.is_empty() else 1)
 func same(a,b)->bool:
 	# JSON reads all numbers as floats. Compare numeric values exactly without
 	# confusing representation changes with saved-data changes.
@@ -49,11 +64,11 @@ func preset_checks():
 	check(model.floor_finishes==Preset.floors(),"preset declares every included finish without a fallback")
 	for item in Preset.furniture():check(model.price_of(item.kind)>=0,"preset furnishing retains catalog kind "+item.kind)
 	var first=Preset.structure();var second=Preset.structure()
-	first.floors["0,0"].style="cream_tile";first.products["shell:west"].material="leaf_print"
-	first.segments["shell:west#0"]["removed"]=true;first.attachments[0].offset=2.5
+	first.floors["0,0"].style="cream_tile";first.walls[12].material="leaf_print"
+	first.walls[12].paid_cost=55;first.attachments[0].offset=.6;first.attachments[0].wall_ids[0]="changed"
 	check(second.floors["0,0"].style=="warm_oak","preset floors do not share mutable entries")
-	check(second.products["shell:west"].material=="original" and not second.segments["shell:west#0"].has("removed"),"preset wall ledgers do not share mutable entries")
-	check(second.attachments[0].offset==5.5,"preset openings do not share mutable entries")
+	check(second.walls[12].material=="original" and second.walls[12].paid_cost==0,"preset installed walls do not share mutable entries")
+	check(second.attachments[0].offset==.5 and second.attachments[0].wall_ids==["wall:18"],"preset openings and support arrays do not share mutable entries")
 	var items=Preset.furniture(true);items[0].x=0
 	check(Preset.furniture(true)[0].x==8,"preset furniture does not share mutable entries")
 	var signals=[0]
@@ -76,6 +91,8 @@ func preset_checks():
 func _init():
 	if not "geometry-saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED");quit(2);return
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
+	check(FileAccess.get_sha256(fixture_path())==LEGACY_SHA,"pinned pre-unification fixture bytes")
+	if not failures.is_empty():finish();return
 	preset_checks()
 	var model=Model.new();model.coins=4567
 	check(model.width==12 and model.depth==9 and model.owned_floor_count()==108,"fresh footprint is exactly 12x9")
@@ -83,8 +100,12 @@ func _init():
 	var ground=Ground.new();ground.prepare(model)
 	check(ground.floor_cells.size()==108,"retained renderer draws every starter tile")
 	for x in range(12):check(ground.floor_cells.has(Vector2i(x,8)),"ninth-row rendered tile "+str(x))
-	var shell=Openings.shell_hosts(model.shell_products)
-	check(shell[0].b==Vector2(12,0) and shell[1].b==Vector2(0,9),"rendered shell ends match footprint")
+	var back_ids=[];var west_ids=[]
+	for x in range(12):back_ids.append("wall:%d"%(x+1))
+	for z in range(9):west_ids.append("wall:%d"%(z+13))
+	var back=Openings.resolve_ids(back_ids,model.built_walls);var west=Openings.resolve_ids(west_ids,model.built_walls)
+	check(not back.is_empty() and not west.is_empty() and back.a==Vector2.ZERO and back.b==Vector2(12,0) and west.a==Vector2.ZERO and west.b==Vector2(0,9),"installed wall runs match the complete footprint")
+	check(model.built_walls.size()==21 and model.collision_wall_hosts().size()==21,"fresh footprint has one installed wall authority")
 	check(model.edge_blocked(Vector2i(0,8),Vector2i(-1,8)),"new west edge blocks grid travel")
 	check(model.edge_blocked(Vector2i(-1,8),Vector2i(0,8)),"new west edge blocks reverse travel")
 	check(model.segment_blocked(Vector2(-.5,8.5),Vector2(.5,8.5)),"new west edge blocks continuous travel")
@@ -98,13 +119,15 @@ func _init():
 	check(fresh.starter_geometry_version==1,"save records completed geometry revision")
 	var reload=Model.new();check(reload.load_save(OUT+"/fresh.json"),"fresh reload")
 	check(reload.floor_finishes==model.floor_finishes,"fresh floors round trip exactly")
-	check(model.replace_wall("shell:west#2","full","sage_panels"),"replacement targets one starter grid segment")
-	check(model.shell_segment_products["shell:west#2"].paid_cost==model.wall_price("full"),"replacement charges one wall tile")
+	check(model.replace_wall("z:0:2","full","sage_panels"),"replacement targets one starter grid segment")
+	check(model.get_wall("z:0:2").paid_cost==model.wall_price("full"),"replacement charges one wall tile")
 	check(model.save(OUT+"/one-tile-shell.json") and reload.load_save(OUT+"/one-tile-shell.json"),"one-tile shell paid value saves and reloads")
-	# Pre-v12 fixtures exercise real save loading, including the older parcel
-	# coordinates. They do not read or write any player file.
+	# The exact reader retains one historical migration: when the revision
+	# marker is absent, only missing row-8 tiles are filled with free warm oak.
+	# Older headers derive their old 12x8 floor from the saved floor style;
+	# v12+ use the explicit map. Both paths keep existing item/tile coordinates.
 	for version in [1,5,6,11,12,13,15]:
-		var old=fresh.duplicate(true);old.erase("starter_geometry_version");old.version=version
+		var old=legacy();old.erase("starter_geometry_version");old.version=version
 		old.wall_format=1;old.erase("shell_segment_format");old.erase("shell_segment_products")
 		for x in range(12):old.floor_finishes.erase("%d,8"%x)
 		if version<15:old.erase("layout_motion_format");old.runtime.erase("layout_motion_format")
@@ -112,14 +135,21 @@ func _init():
 			old.duty_counts.erase("cashier");old.duty_targets.erase("cashier");old.runtime.erase("checkout_format");old.runtime.erase("next_checkout_ticket")
 		var path=OUT+"/old-%d.json"%version;write(path,old);var before=FileAccess.get_sha256(path)
 		var migrated=Model.new()
-		check(migrated.load_save(path),"legacy %d loads: "%version+migrated.last_error)
-		check(migrated.floor_finishes.size()==108 and migrated.starter_floor_gap_cells().is_empty(),"legacy %d gains only missing starter row"%version)
+		var loaded=migrated.load_save(path);check(loaded,"legacy %d loads: "%version+migrated.last_error)
+		if not loaded:continue
+		check(migrated.floor_finishes.size()==108 and same(migrated.floor_finishes,Preset.floors()),"legacy %d gains only missing unmarked starter row"%version)
+		check(same(migrated.items,old.items),"legacy %d keeps every item at its original coordinate"%version)
+		for key in old.floor_finishes:check(same(migrated.floor_finishes[key],old.floor_finishes[key]),"legacy %d preserves existing tile "%version+key)
 		check(migrated.coins==4567 and migrated.owned_parcels.is_empty(),"legacy %d preserves wallet and ownership"%version)
 		check(FileAccess.get_sha256(path)==before,"legacy %d source file unchanged"%version)
-		check(migrated.save(OUT+"/migrated.json"),"legacy %d migrated save"%version)
+		var saved=migrated.save(OUT+"/migrated.json");check(saved,"legacy %d migrated save: "%version+migrated.last_error)
+		if not saved:continue
+		check(FileAccess.get_sha256(OUT+"/migrated.json.pre-grid-"+before+".json")==before,"legacy %d exact original recovery bytes"%version)
+		var migrated_data=read(OUT+"/migrated.json")
+		check(migrated_data.wall_format==Building.WALL_FORMAT and migrated_data.building_format==Building.FORMAT,"legacy %d writes only the unified building schema"%version)
 		var again=Model.new();check(again.load_save(OUT+"/migrated.json"),"legacy %d second load"%version)
-		check(again.floor_finishes==migrated.floor_finishes,"legacy %d repair is idempotent"%version)
-	var custom=fresh.duplicate(true);custom.erase("starter_geometry_version")
+		check(again.floor_finishes==migrated.floor_finishes and again.built_walls==migrated.built_walls and again.wall_attachments==migrated.wall_attachments,"legacy %d floor repair and building import are idempotent"%version)
+	var custom=legacy();custom.erase("starter_geometry_version")
 	custom.wall_format=1;custom.erase("shell_segment_format");custom.erase("shell_segment_products")
 	custom.owned_parcels=["front_0","right_0"]
 	for x in range(12):custom.floor_finishes.erase("%d,8"%x)
@@ -129,34 +159,64 @@ func _init():
 	custom.wall_attachments.append({"id":2,"kind":"window","host_id":"wall:1","offset":.5,"width":.70,"paid_cost":30});custom.next_attachment_id=3
 	custom.shell_products["shell:west"]={"height":"full","material":"cream_stripe","paid_cost":8*model.wall_price("full")}
 	write(OUT+"/custom.json",custom);var custom_hash=FileAccess.get_sha256(OUT+"/custom.json")
-	var preserved=Model.new();check(preserved.load_save(OUT+"/custom.json"),"custom legacy load: "+preserved.last_error)
+	var preserved=Model.new();var custom_loaded=preserved.load_save(OUT+"/custom.json");check(custom_loaded,"custom legacy load: "+preserved.last_error)
+	if not custom_loaded:finish();return
 	check(preserved.floor_finishes["3,8"]==custom.floor_finishes["3,8"],"custom ninth-row tile and paid cost preserved")
 	check(preserved.floor_finishes["2,9"]==custom.floor_finishes["2,9"],"expansion flooring stays at exact saved coordinate")
+	var expected_floors=custom.floor_finishes.duplicate(true)
+	for x in range(12):
+		var key="%d,8"%x
+		if not expected_floors.has(key):expected_floors[key]={"style":"warm_oak","paid_cost":0}
+	check(same(preserved.floor_finishes,expected_floors) and same(preserved.items,custom.items),"unmarked custom import only fills missing free row tiles; no existing item/tile moves or changes")
 	check(preserved.owned_parcels==custom.owned_parcels and preserved.coins==custom.coins,"expanded ownership and wallet unchanged")
-	check(same(preserved.built_walls,custom.built_walls) and same(preserved.wall_attachments,custom.wall_attachments),"custom wall identity finish and window unchanged")
-	check(same(preserved.shell_products,custom.shell_products),"old paid shell value unchanged")
-	check(preserved.get_wall_host("shell:west").b==Vector2(0,8),"default shell does not overlap preserved custom extension")
+	var extension=preserved.get_wall("z:0:8")
+	check(extension.id=="wall:1" and extension.axis=="z" and extension.x==0 and extension.z==8 and extension.height=="full" and extension.material=="leaf_print" and extension.paid_cost==55 and extension.refund_credit==27,"custom wall identity/edge/finish and existing paid receipt preserved")
+	check(preserved.wall_attachments.size()==2 and same(preserved.wall_attachments[0],{"id":1,"kind":"door","wall_ids":["shell:west#5"],"offset":.5,"width":1.0,"paid_cost":0}) and same(preserved.wall_attachments[1],{"id":2,"kind":"window","wall_ids":["wall:1"],"offset":.5,"width":.70,"paid_cost":30}),"custom door/window identity, aperture, supports and value unchanged")
+	var paid_sum=0;var refund_sum=0;var old_west_ids=[]
+	for z in range(8):
+		var id="shell:west#"+str(z);old_west_ids.append(id)
+		var wall=preserved.get_wall("z:0:"+str(z))
+		check(wall.id==id and wall.height=="full" and wall.material=="cream_stripe", "old paid west row retains its identity and finish "+str(z))
+		check(wall.paid_cost==55 and wall.refund_credit==(27 if z%2==0 else 28),"old paid west row retains its allocated receipt "+str(z))
+		paid_sum+=int(wall.paid_cost);refund_sum+=int(wall.refund_credit)
+	check(paid_sum==int(custom.shell_products["shell:west"].paid_cost) and refund_sum==paid_sum/2,"old paid shell value and aggregate refund unchanged")
+	var old_west=Openings.resolve_ids(old_west_ids,preserved.built_walls)
+	check(not old_west.is_empty() and old_west.b==Vector2(0,8) and preserved.get_wall_host("shell:west#8").is_empty() and preserved.built_walls.size()==21,"installed former shell does not overlap or hide beneath the preserved extension")
 	check(preserved.get_wall_host("wall:1").b==Vector2(0,9),"preserved custom wall completes west edge")
 	check(preserved.segment_blocked(Vector2(-.5,8.5),Vector2(.5,8.5)),"custom window still blocks travel")
 	check(preserved.wall_replacement_quote("z:0:8","full","sage_panels").valid,"preserved wall remains editable")
 	check(preserved.save(OUT+"/custom-roundtrip.json"),"custom legacy save: "+preserved.last_error)
 	check(reload.load_save(OUT+"/custom-roundtrip.json"),"custom legacy reload: "+reload.last_error)
-	check(reload.built_walls==preserved.built_walls and reload.floor_finishes==preserved.floor_finishes and reload.shell_products==preserved.shell_products,"custom geometry round trip exact")
+	check(reload.built_walls==preserved.built_walls and reload.floor_finishes==preserved.floor_finishes and reload.wall_attachments==preserved.wall_attachments,"custom geometry round trip exact")
 	check(FileAccess.get_sha256(OUT+"/custom.json")==custom_hash,"custom import source bytes unchanged")
+	check(FileAccess.get_sha256(OUT+"/custom-roundtrip.json.pre-grid-"+custom_hash+".json")==custom_hash,"custom exact original recovery bytes")
 	# A hosted door in a retained extension must not be sealed by default shell.
 	custom.wall_attachments[1]={"id":2,"kind":"door","host_id":"wall:1","offset":.5,"width":.76,"paid_cost":40}
-	write(OUT+"/custom-door.json",custom)
-	check(preserved.load_save(OUT+"/custom-door.json"),"custom extension door loads")
+	write(OUT+"/custom-door.json",custom);var door_hash=FileAccess.get_sha256(OUT+"/custom-door.json")
+	var door_loaded=preserved.load_save(OUT+"/custom-door.json");check(door_loaded,"custom extension door loads: "+preserved.last_error)
+	if not door_loaded:finish();return
+	check(same(preserved.wall_attachments[1],{"id":2,"kind":"door","wall_ids":["wall:1"],"offset":.5,"width":.76,"paid_cost":40}),"custom extension door never widens or changes value during import")
 	check(not preserved.edge_blocked(Vector2i(-1,8),Vector2i(0,8)),"custom extension door grid passage preserved")
 	check(not preserved.segment_blocked(Vector2(-.5,8.5),Vector2(.5,8.5)),"custom extension door continuous passage preserved")
+	check(preserved.save(OUT+"/custom-door-current.json") and reload.load_save(OUT+"/custom-door-current.json") and same(reload.wall_attachments,preserved.wall_attachments),"custom extension narrow door has an exact current-format round trip")
+	check(FileAccess.get_sha256(OUT+"/custom-door.json")==door_hash and FileAccess.get_sha256(OUT+"/custom-door-current.json.pre-grid-"+door_hash+".json")==door_hash,"custom door source and original recovery bytes preserved")
+	# A real legacy-schema save with its completed revision must keep an
+	# intentional gap just as strictly as the current-format case below.
+	var marked_legacy=legacy();marked_legacy.floor_finishes.erase("4,8")
+	write(OUT+"/marked-legacy.json",marked_legacy);var marked_hash=FileAccess.get_sha256(OUT+"/marked-legacy.json")
+	var marked_loaded=reload.load_save(OUT+"/marked-legacy.json");check(marked_loaded,"marked legacy gap loads: "+reload.last_error)
+	if marked_loaded:
+		check(same(reload.floor_finishes,marked_legacy.floor_finishes) and same(reload.items,marked_legacy.items),"marked legacy import preserves the entire floor/item map including its gap")
+		check(reload.save(OUT+"/marked-legacy-current.json"),"marked legacy map saves in current format")
+		check(FileAccess.get_sha256(OUT+"/marked-legacy.json")==marked_hash and FileAccess.get_sha256(OUT+"/marked-legacy-current.json.pre-grid-"+marked_hash+".json")==marked_hash,"marked legacy source and recovery bytes remain exact")
+		var marked_again=Model.new()
+		check(marked_again.load_save(OUT+"/marked-legacy-current.json") and same(marked_again.floor_finishes,marked_legacy.floor_finishes) and same(marked_again.items,marked_legacy.items),"marked legacy map remains exact after current-format reload")
 	# New revision must not silently refill an intentionally absent tile later.
 	var marked=fresh.duplicate(true);marked.floor_finishes.erase("4,8");write(OUT+"/marked.json",marked)
-	check(reload.load_save(OUT+"/marked.json") and not reload.floor_finishes.has("4,8"),"completed revision skips future migration")
+	check(reload.load_save(OUT+"/marked.json") and same(reload.floor_finishes,marked.floor_finishes) and same(reload.items,marked.items),"completed current revision preserves exact floor/item maps including the gap")
 	for value in [0,2,"1",true]:
 		var bad=fresh.duplicate(true);bad.starter_geometry_version=value;reject(reload,bad,"invalid geometry marker "+str(value))
 	var bad=fresh.duplicate(true);bad.floor_finishes["2,8"]={"style":"unknown","paid_cost":0};reject(reload,bad,"invalid finish")
 	bad=custom.duplicate(true);bad.built_walls.append(custom.built_walls[0].duplicate());reject(reload,bad,"duplicate saved extension wall")
 	bad=custom.duplicate(true);bad.shell_products["shell:west"].paid_cost=449;reject(reload,bad,"invalid paid shell value")
-	var report={"checks":checks,"failures":failures,"save_root":OS.get_user_data_dir()}
-	write(OUT+"/REPORT.json",report);print("STARTER_GEOMETRY_RESULT ",JSON.stringify(report))
-	quit(0 if failures.is_empty() else 1)
+	finish()

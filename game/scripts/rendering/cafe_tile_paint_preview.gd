@@ -16,11 +16,13 @@ static func _neighbor_seam(view,cell:Vector2i,material:String)->Color:
  return Ground.floor_line(style)
 static func draw(view,targets:Array,material:String,_valid:bool):
  var cells=unique_cells(targets)
- var palette=Ground.floor_palette(material)
+ var palette=[Color("c6d5ad"),Color("c6d5ad")] if material=="" else Ground.floor_palette(material)
  for cell in cells:
   var x=float(cell.x);var z=float(cell.y)
   # poly() adds a same-color exterior AA stroke; a floor finish is a fill only.
   view._retained_fill(PackedVector2Array([view.iso(x,z),view.iso(x+1,z),view.iso(x+1,z+1),view.iso(x,z+1)]),view.col(palette[posmod(cell.x+cell.y,2)]))
+ # An empty finish previews the owned grass underlay, without floor seams.
+ if material=="":return
  # Reuse the installed material's natural seams and occasional oak grain.
  for cell in cells:
   var x=float(cell.x);var z=float(cell.y)

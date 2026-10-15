@@ -15,6 +15,7 @@ const WallTransactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd
 const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/gameplay/cafe_layout_access.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const BuildingCodec=preload("res://scripts/persistence/cafe_building_codec.gd")
 const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/gameplay/cafe_walls.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
@@ -135,6 +136,7 @@ func visual_customers()->Array:
 	var visible=customers.filter(func(guest):return not (guest.get("parking_visit",false) and guest.phase in ["dirty","cleaning"]))
 	return visible+outside_queue+Parking.visual_walkers(self)
 var dining_sets:Array[Dictionary]=[]
+var _legacy_building_original:String=""
 var built_walls: Array[Dictionary] = []
 var wall_attachments:Array[Dictionary]=[]
 var _next_wall_id:int=1
@@ -144,9 +146,6 @@ const FLOOR_COSTS := {"warm_oak":8,"cream_tile":10,"sage_tile":12}
 # Land controls access; installed finishes are a separate, paid surface layer.
 var floor_style: String = "warm_oak" # Selected flooring brush.
 var floor_finishes: Dictionary = {} # Canonical "x,z" keys, never inferred from land.
-var shell_material: String = "original" # Legacy migration field; products own current host styles.
-var shell_products:Dictionary = {}
-var shell_segment_products:Dictionary = {}
 # View supplies current staff centers before preview/commit. Never serialized.
 var wall_actor_positions: Array[Vector2] = []
 var _wall_index: Dictionary = {}
@@ -154,8 +153,6 @@ var _wall_index_revision: int = -1
 var _collision_revision:int=-1
 var _solid_wall_segments:Array=[]
 var _admission_signature:Array=[]
-var _fixed_edge_revision:int=-1
-var _fixed_edges:Dictionary={}
 var coins: int = INITIAL_COINS
 # Ownership, not the bounding rectangle, controls every walkable/placeable tile.
 # `expanded` is retained for callers: true only when ALL finite parcels are owned.
@@ -185,6 +182,7 @@ var _next_item_id: int = 1
 var _next_customer_id: int = 1
 var operating_open: bool = true
 var included_bin_pending: bool = true
+var register_unplaced:bool=false
 var included_checkout_pending: bool = true
 var cashiers: int = 0
 var next_checkout_ticket: int = 1
@@ -218,17 +216,18 @@ func reset_new() -> void:
 	customers.clear()
 	outside_queue.clear()
 	parking_owned=false;parking_paid_cost=0;parking_visits.clear();_parking_session_purchase=false
+	_legacy_building_original=""
 	built_walls.clear()
 	var structure=StarterPreset.structure()
-	wall_attachments=structure.attachments;_next_wall_id=1;_next_attachment_id=2
-	floor_style=StarterPreset.FLOOR_STYLE;shell_material=StarterPreset.WALL_MATERIAL
-	shell_products=structure.products;shell_segment_products=structure.segments
+	built_walls.assign(structure.walls)
+	wall_attachments.assign(structure.attachments);_next_wall_id=structure.next_wall_id;_next_attachment_id=2
+	floor_style=StarterPreset.FLOOR_STYLE
 	floor_finishes.clear();floor_finishes.merge(structure.floors)
 	wall_actor_positions.clear()
 	guest_obstacle_positions.clear();checkout_staff_claims.clear()
 	operating_open=true
 	included_bin_pending=true
-	included_checkout_pending=true;cashiers=0;next_checkout_ticket=1
+	included_checkout_pending=true;register_unplaced=false;cashiers=0;next_checkout_ticket=1
 	service_snapshot.clear()
 	loaded_save_version=SAVE_VERSION
 	coins = INITIAL_COINS
@@ -265,6 +264,9 @@ func _customer_admitted(guest:Dictionary) -> bool:
 
 func set_operating_open(value:bool) -> bool:
 	if operating_open==value:return true
+	if value:
+		var reason=opening_readiness_error()
+		if reason!="":return _fail(reason)
 	operating_open=value;_arrival_elapsed=0.0
 	if not value:
 		Parking.close(self)
@@ -347,7 +349,7 @@ func dining_variant_for(id:int)->String:
 var _navigation_signature:Array=[]
 var _navigation_cells:Dictionary={}
 func navigation_signature()->Array:
-	return [revision,hash(items),hash(owned_parcels),hash(built_walls),hash(wall_attachments),hash(shell_products),hash(shell_segment_products),width,depth]
+	return [revision,hash(items),hash(owned_parcels),hash(built_walls),hash(wall_attachments),width,depth]
 
 func navigation_cells()->Dictionary:
 	var signature=navigation_signature()
@@ -358,7 +360,7 @@ func navigation_cells()->Dictionary:
 			var cell=Vector2i(int(item.x),int(item.z))
 			if not _navigation_cells.has(cell):_navigation_cells[cell]=str(item.kind)!="rug"
 		# Live geometry caches must also notice direct replacement/mutation.
-		_fixed_edge_revision=-1;_wall_index_revision=-1;_collision_revision=-1
+		_wall_index_revision=-1;_collision_revision=-1
 	return _navigation_cells
 
 func get_item(id: int) -> Dictionary:
@@ -395,20 +397,20 @@ var _decoration_baseline:Dictionary={}
 const DECORATION_STATE=[
 	"items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
 	"dining_sets","built_walls","wall_attachments","_next_wall_id","_next_attachment_id",
-	"floor_style","floor_finishes","shell_material","shell_products","shell_segment_products",
+	"floor_style","floor_finishes",
 	"coins","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers",
 	"duty_targets","duty_counts","payroll_elapsed","payroll_accrued","wages_due","total_wages_paid",
 	"served","total_earned","total_cleaned","_next_item_id","_next_customer_id","operating_open",
-	"included_bin_pending","included_checkout_pending","next_checkout_ticket","service_snapshot",
+	"included_bin_pending","included_checkout_pending","register_unplaced","next_checkout_ticket","service_snapshot",
 	"tutorial_state","loaded_save_version","first_guest_pending","first_guest_start","_arrival_elapsed",
 	"_walking_customer_id","wall_actor_positions","guest_obstacle_positions","checkout_staff_claims",
-	"last_error","last_event"
+	"last_error","last_event","_legacy_building_original"
 ]
 func _copy_decoration_state(source:Dictionary):
 	for key in source:
 		var value=source[key]
 		set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
-	_wall_index_revision=-1;_collision_revision=-1;_fixed_edge_revision=-1
+	_wall_index_revision=-1;_collision_revision=-1
 	_navigation_signature.clear();_admission_signature.clear()
 	_motion_preview_cache.clear();_mobility_validated.clear();_visible_land_bounds_dirty=true
 func cancel_decoration_session()->bool:
@@ -444,15 +446,12 @@ func decoration_refund_bonus(id:int)->int:
 func record_decoration_build_purchase(category:String,id:int,paid:int):
 	if decoration_session_active:decoration_build_purchases[category+":"+str(id)]=paid
 func wall_refund(key:String)->int:
-	var shell=ShellSegments.parse_key(key)
-	if not shell.is_empty():
-		if get_wall_host(key).is_empty():return 0
-		return int(decoration_build_purchases[key]) if decoration_session_active and decoration_build_purchases.has(key) else int(shell_segment_products[key].refund_credit)
 	var wall=get_wall(key)
 	if wall.is_empty():return 0
-	var receipt="wall:"+str(int(wall.id))
+	var receipt=WallGeometry.identity(wall)
 	if decoration_session_active and decoration_build_purchases.has(receipt):return int(decoration_build_purchases[receipt])
-	return int(wall.get("refund_credit",int(wall.get("paid_cost",wall_price(str(wall.height))))/2))
+	return int(wall.refund_credit)
+
 func wall_attachment_refund(id:int)->int:
 	var attachment=get_wall_attachment(id)
 	if attachment.is_empty():return 0
@@ -471,7 +470,7 @@ func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionar
 func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, actor_positions: Array = []) -> bool:
 	last_error = "";last_placement_issue={}
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():return DiningSets.can_place(self,x,z,rot,ignore_id,actor_positions)
-	if kind=="register" and ignore_id<0 and not included_checkout_pending:return _fail("The included register is already placed")
+	if kind=="register" and ignore_id<0 and not (included_checkout_pending or register_unplaced):return _fail("The included register is already placed")
 	if price_of(kind) < 0:return _fail("Unknown furnishing")
 	if not is_floor_owned(Vector2i(x,z)):
 		return _fail("Buy this plot first" if not parcel_at(Vector2i(x,z)).is_empty() else "That tile is outside the cafe")
@@ -568,6 +567,7 @@ func remove(id: int, refund: bool = true) -> bool:
 	var returned: int = logical_refund(id) if refund else 0
 	consume_decoration_purchase([id])
 	items.erase(item)
+	if item.kind=="register":register_unplaced=true
 	coins += returned
 	last_error = ""
 	rebuild_dining_sets()
@@ -591,6 +591,8 @@ func _essential_removal_error(removed_ids: Array) -> String:
 			required.append(str(item.kind))
 	if required.is_empty() and not removes_dining:
 		return ""
+	if not operating_open:
+		return "" if closed_build_ready() else "Let guests and active cleanup finish before removing essential equipment"
 	var reachable := _sale_reachable_in(proposed)
 	for kind in required:
 		var replacement := false
@@ -623,6 +625,31 @@ func _essential_removal_error(removed_ids: Array) -> String:
 		return "Keep a usable table set before selling this one"
 	return ""
 
+
+func closed_build_ready()->bool:
+	if operating_open or not customers.is_empty():return false
+	if not service_snapshot.get("records",[]).is_empty():return false
+	if not service_snapshot.get("dishwashing",{}).get("dishes",[]).is_empty():return false
+	for staff in service_snapshot.get("staff",[]):
+		if str(staff.get("job_kind",""))!="" or int(staff.get("station_id",-1))!=-1:return false
+	return true
+
+func opening_readiness_error()->String:
+	var reachable=_sale_reachable_in(items)
+	for kind in ["stove","beverage","sink","counter","register"]:
+		var usable=false
+		for item in items:
+			if item.kind==kind and _sale_station_usable_in(item,items,reachable):usable=true;break
+		if not usable:return "Place a usable %s before opening"%name_of(kind).to_lower()
+	if register_unplaced or included_checkout_pending:return "Place the included register before opening"
+	if boundary_entries().is_empty():return "Keep an entrance before opening"
+	for group in dining_sets:
+		var table=get_item(int(group.table_id));var seat=get_item(int(group.seat_id))
+		var tc=Vector2i(int(table.x),int(table.z));var sc=Vector2i(int(seat.x),int(seat.z))
+		if edge_blocked(tc,sc) or _chair_egress_cells_in(sc,tc-sc,built_walls,_wall_reachable(built_walls,items,owned_parcels)).is_empty():continue
+		for cell in table_service_cells(table,items):
+			if reachable.has(cell):return ""
+	return "Place a usable table set before opening"
 
 func _sale_reachable_in(layout: Array[Dictionary]) -> Dictionary:
 	# Match the runtime's staff grid (x >= 1) and model wall-edge rules from
@@ -980,7 +1007,7 @@ func _chair_egress_cells_in(chair_cell:Vector2i,forward:Vector2i,walls:Array,rea
 	var result:Array[Vector2i]=[]
 	for direction in [Vector2i(-forward.y,forward.x),Vector2i(forward.y,-forward.x),-forward]:
 		var cell:Vector2i=chair_cell+direction
-		if reachable.has(cell) and not _fixed_edge_blocked(chair_cell,cell,openings,walls) and not _built_edge_blocked(chair_cell,cell,walls,openings):result.append(cell)
+		if reachable.has(cell) and not _built_edge_blocked(chair_cell,cell,walls,openings):result.append(cell)
 	return result
 
 func _chair_egress_error(walls:Array,layout:Array,ownership:Array,guests:Array,openings=null) -> String:
@@ -1688,7 +1715,7 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		if not saved:last_error=baseline.last_error
 		return saved
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
-	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts)
+	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts,register_unplaced,operating_open)
 	if checkout_error!="":return _fail(checkout_error)
 	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
 	if checkout_error!="":return _fail(checkout_error)
@@ -1713,15 +1740,15 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if checkout_error!="":return _fail(checkout_error)
 	var data: Dictionary = {
 		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
-		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,
+		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,"register_unplaced":register_unplaced,
 		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
 		"total_earned": total_earned, "total_cleaned": total_cleaned,
 		"items": _items_without_stove_levels(), "next_item_id": _next_item_id,"dining_sets":dining_sets,
 		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,"parking":parking,
 		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
 		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
-		"wall_format":2,"shell_segment_format":ShellSegments.FORMAT,"shell_segment_products":shell_segment_products,"built_walls":built_walls,"floor_style":floor_style,"shell_material":shell_material,"shell_products":shell_products,
-		"wall_attachment_format":1,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
+		"building_format":BuildingCodec.FORMAT,"wall_format":BuildingCodec.WALL_FORMAT,"built_walls":built_walls,"floor_style":floor_style,
+		"wall_attachment_format":BuildingCodec.ATTACHMENT_FORMAT,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
@@ -1753,6 +1780,8 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	# Match the active-service reader before touching either saved destination.
 	if not checked.state.customers.is_empty() and not _layout_has_access(items,depth,owned_parcels):
 		return _fail("Saved layout blocks access to service stations")
+	var backup_error=BuildingCodec.preserve_original(_legacy_building_original,path)
+	if backup_error!="":return _fail(backup_error)
 	var temp_path := path + ".tmp"
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
@@ -1780,7 +1809,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if file == null or file.get_length() > 1048576:
 		return _fail("Save is unreadable or too large")
 	var json := JSON.new()
-	var parse_result := json.parse(file.get_as_text())
+	var original_payload=file.get_as_text()
+	var parse_result := json.parse(original_payload)
 	file.close()
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
@@ -1798,7 +1828,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		scalar_error=_saved_payroll_error(data)
 		if scalar_error!="":return _fail(scalar_error)
 		saved_waiters=int(data.waiters);saved_cleaners=int(data.cleaners);saved_payroll_elapsed=float(data.payroll_elapsed);saved_payroll_accrued=float(data.payroll_accrued);saved_wages_due=int(data.wages_due);saved_total_wages_paid=int(data.total_wages_paid)
-	var saved_cashiers=0;var saved_checkout_pending=true
+	var saved_cashiers=0;var saved_checkout_pending=true;var saved_register_unplaced=false
+	if BuildingCodec.is_grid_format(int(data.get("wall_format",0))):
+		if not data.get("register_unplaced") is bool:return _fail("Missing register deployment state")
+		saved_register_unplaced=bool(data.register_unplaced)
 	if SaveContract.has_checkout(int(data.version)):
 		if not _valid_int(data.get("cashiers"),0,1) or not data.get("included_checkout_pending") is bool:return _fail("Invalid included cashier state")
 		saved_cashiers=int(data.cashiers);saved_checkout_pending=bool(data.included_checkout_pending)
@@ -1861,7 +1894,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		ids[int(item.id)] = true
 		highest_id = maxi(highest_id, int(item.id))
 	var register_count=validated.filter(func(item):return item.kind=="register").size()
-	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=saved_cashiers):return _fail("Register count disagrees with deployment")
+	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=(0 if saved_register_unplaced else saved_cashiers)):return _fail("Register count disagrees with deployment")
 	if not _valid_int(data.get("next_item_id"), highest_id + 1, 1000000001):
 		return _fail("Invalid saved furniture sequence")
 	var checked_walls=_validate_saved_walls(data,saved_parcels)
@@ -1870,6 +1903,10 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if not checked_floors.ok:return _fail(str(checked_floors.error))
 	var checked_attachments=_validate_saved_attachments(data,checked_walls.walls)
 	if not checked_attachments.ok:return _fail(str(checked_attachments.error))
+	if not BuildingCodec.is_grid_format(int(data.get("wall_format",0))):
+		var imported=BuildingCodec.import_validated(checked_walls.shell_products,checked_walls.shell_segment_products,checked_walls.walls,checked_attachments.attachments)
+		if not imported.ok:return _fail("Could not import existing building: "+str(imported.error))
+		checked_walls.walls=imported.walls;checked_attachments.attachments=imported.attachments
 	var saved_open=true
 	var saved_bin_pending=not validated.any(func(item):return item.kind=="bin")
 	var runtime_state={"customers":[],"service":{},"next_customer_id":1,"arrival_elapsed":0.0,"walking_customer_id":-1,"next_checkout_ticket":1}
@@ -1897,12 +1934,11 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if int(data.version)>=7:saved_sets=DiningSets.validate(data.get("dining_sets"),validated,runtime_state.customers)
 	else:saved_sets={"ok":true,"groups":DiningSets.migrate(validated,runtime_state.customers)}
 	if not saved_sets.ok:return _fail(str(saved_sets.error))
-	var checkout_state_error=Checkout.state_error(saved_checkout_pending,saved_cashiers,validated,runtime_state.customers,saved_targets,saved_duty)
+	var checkout_state_error=Checkout.state_error(saved_checkout_pending,saved_cashiers,validated,runtime_state.customers,saved_targets,saved_duty,saved_register_unplaced,saved_open)
 	if checkout_state_error!="":return _fail(checkout_state_error)
 	checkout_state_error=Checkout.staff_floor_error(self,runtime_state.service,saved_parcels,validated)
 	if checkout_state_error!="":return _fail(checkout_state_error)
 	var geometry=FurnitureMotion.copy_model(self)
-	geometry.shell_products=checked_walls.shell_products;geometry.shell_segment_products=checked_walls.shell_segment_products
 	var motion_error=geometry._layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
@@ -1921,25 +1957,22 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	var body_error=geometry._opening_body_error(checked_walls.walls,checked_attachments.attachments,actors)
 	if body_error!="":return _fail("Invalid saved walls: "+body_error)
-	# Validate the saved layout as written first. Narrow only a matching free
-	# starter when its new jambs leave every saved body and remaining route clear.
-	checked_attachments.attachments=geometry._align_saved_starter_door(checked_attachments.attachments,checked_walls.walls,runtime_state,validated,saved_parcels)
-	checked_attachments.attachments=geometry._widen_saved_legacy_doors(checked_attachments.attachments,checked_walls.walls)
+	# Imported openings keep their exact saved aperture and complete support.
 	finish_decoration_session()
+	_legacy_building_original=original_payload if int(data.get("wall_format",0))!=BuildingCodec.WALL_FORMAT else ""
 	items = validated
 	dining_sets.assign(saved_sets.groups)
 	built_walls.assign(checked_walls.walls)
 	wall_attachments.assign(checked_attachments.attachments);_next_wall_id=int(checked_walls.next_wall_id);_next_attachment_id=int(checked_attachments.next_attachment_id)
 	floor_finishes=checked_floors.finishes
-	floor_style=checked_walls.floor_style;shell_material=checked_walls.shell_material;shell_products=checked_walls.shell_products
-	shell_segment_products=checked_walls.shell_segment_products
+	floor_style=checked_walls.floor_style
 	wall_actor_positions.clear()
 	guest_obstacle_positions.clear();checkout_staff_claims.clear()
 	coins = int(data.coins)
 	owned_parcels = saved_parcels
 	_sync_floor_bounds()
 	cooks = int(data.cooks);waiters=saved_waiters;cleaners=saved_cleaners;cashiers=saved_cashiers
-	included_checkout_pending=saved_checkout_pending;next_checkout_ticket=int(runtime_state.get("next_checkout_ticket",1))
+	included_checkout_pending=saved_checkout_pending;register_unplaced=saved_register_unplaced;next_checkout_ticket=int(runtime_state.get("next_checkout_ticket",1))
 	duty_targets=saved_targets;duty_counts=saved_duty
 	payroll_elapsed=saved_payroll_elapsed;payroll_accrued=saved_payroll_accrued;wages_due=saved_wages_due;total_wages_paid=saved_total_wages_paid
 	served = int(data.served)
@@ -1987,34 +2020,11 @@ func wall_price(height: String) -> int:
 
 func get_wall(key: String) -> Dictionary:
 	for wall in built_walls:
-		if WallGeometry.key_of(wall)==key:return wall
+		if WallGeometry.key_of(wall)==key or WallGeometry.identity(wall)==key:return wall
 	return {}
 
 func built_wall_segments() -> Array[Dictionary]:
 	return built_walls.duplicate(true)
-
-func _fixed_edge_blocked(a:Vector2i,b:Vector2i,openings=null,walls=null)->bool:
-	if absi(a.x-b.x)+absi(a.y-b.y)!=1:return false
-	var on_back=a.y!=b.y and mini(a.y,b.y)==-1 and maxi(a.y,b.y)==0 and a.x>=0 and a.x<BASE_WIDTH
-	var on_west=a.x!=b.x and mini(a.x,b.x)==-1 and maxi(a.x,b.x)==0 and a.y>=0 and a.y<BASE_DEPTH
-	if not on_back and not on_west:return false
-	# Live navigation repeats the same shell edges across many BFS expansions.
-	# Revision is the same conservative invalidation used by the wall indexes.
-	# Proposed edit/save-validation geometry must always resolve its own inputs.
-	var live=openings==null and walls==null
-	var key=Vector2i(a.x,0) if on_back else Vector2i(-1,a.y)
-	if live:
-		if _fixed_edge_revision!=revision:
-			_fixed_edges.clear();_fixed_edge_revision=revision
-		if _fixed_edges.has(key):return _fixed_edges[key]
-	var segment_key=ShellSegments.key("shell:back" if on_back else "shell:west",a.x if on_back else a.y)
-	if shell_segment_products.get(segment_key,{}).get("removed",false):return false
-	var effective_walls:Array=built_walls if walls==null else walls
-	var shell=OpeningGeometry.shell_hosts(shell_products,effective_walls)
-	var host=shell[0] if on_back else shell[1]
-	var blocked=not (on_west and a.y>=int(host.b.y)) and not OpeningGeometry.point_in_door((cell_center(a)+cell_center(b))*.5,host,effective_walls,wall_attachments if openings==null else openings,.23)
-	if live:_fixed_edges[key]=blocked
-	return blocked
 
 func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
 	var key=WallGeometry.edge_between(a,b)
@@ -2025,7 +2035,6 @@ func _built_edge_blocked(a:Vector2i,b:Vector2i,walls:Array,openings=null)->bool:
 	return false
 
 func edge_blocked(a:Vector2i,b:Vector2i)->bool:
-	if _fixed_edge_blocked(a,b):return true
 	if _wall_index_revision!=revision:
 		_wall_index.clear()
 		for wall in built_walls:
@@ -2055,8 +2064,6 @@ func _wall_edge_error(wall:Dictionary,ownership:Array) -> String:
 	if not WallGeometry.valid_shape(wall,MAX_WIDTH,MAX_DEPTH):return "Choose a valid one-tile edge, height and wallpaper"
 	var sides:=WallGeometry.adjacent_cells(wall)
 	if not _floor_owned_in(sides[0],ownership) and not _floor_owned_in(sides[1],ownership):return "Buy the adjacent plot before building a wall"
-	var shell_key=ShellSegments.edge_key(wall)
-	if shell_key!="" and not shell_segment_products.get(shell_key,{}).get("removed",false):return "A wall already occupies this edge"
 	return ""
 
 func _furniture_actor_positions(extra:Array) -> Array[Vector2]:
@@ -2112,7 +2119,7 @@ func _furniture_actor_component(start:Vector2i,layout:Array,walls=null,openings=
 		for direction in DIRECTIONS:
 			var next:Vector2i=cell+direction
 			if next.x<1 or reached.has(next) or blocked.has(next) or not is_floor_owned(next):continue
-			var blocked_edge=edge_blocked(cell,next) if walls==null else (_fixed_edge_blocked(cell,next,openings,walls) or wall_edges.has(WallGeometry.edge_between(cell,next)))
+			var blocked_edge=edge_blocked(cell,next) if walls==null else wall_edges.has(WallGeometry.edge_between(cell,next))
 			if blocked_edge:continue
 			reached[next]=true;queue.append(next)
 	return reached
@@ -2143,7 +2150,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 			if not _floor_owned_in(cell,ownership) or blocked.has(cell):continue
 			for direction in DIRECTIONS:
 				var outside:Vector2i=cell+direction
-				if not _floor_owned_in(outside,ownership) and not _fixed_edge_blocked(cell,outside,openings,walls) and not keys.has(WallGeometry.edge_between(cell,outside)):
+				if not _floor_owned_in(outside,ownership) and not keys.has(WallGeometry.edge_between(cell,outside)):
 					reachable[cell]=true;queue.append(cell);break
 	var cursor:=0
 	while cursor<queue.size():
@@ -2195,7 +2202,7 @@ func _wall_egress_error(walls:Array,actors:Array,layout:Array,ownership:Array,gu
 	return ""
 
 func _wall_candidate_error(wall:Dictionary,actors:Array,ignore_key:String="") -> String:
-	if not wall.has("id"):wall["id"]=_next_wall_id
+	if not wall.has("id"):wall["id"]="wall:%d"%_next_wall_id
 	var reason:=_wall_edge_error(wall,owned_parcels)
 	if reason!="":return reason
 	var key:=WallGeometry.key_of(wall)
@@ -2223,17 +2230,13 @@ func place_wall(axis:String,x:int,z:int,height:String="full",material:String="sa
 	if not can_place_wall(axis,x,z,height,material,actor_positions):return false
 	var price:=wall_price(height)
 	if coins<price:return _fail("Not enough coins · this wall needs %s"%Money.amount(price))
-	var wall=WallGeometry.make(axis,x,z,height,material);wall["id"]=_next_wall_id;_next_wall_id+=1
-	wall["paid_cost"]=price;wall["refund_credit"]=price/2
+	var wall=WallGeometry.installed("wall:%d"%_next_wall_id,WallGeometry.make(axis,x,z,height,material),price,price/2);_next_wall_id+=1
 	built_walls.append(wall);coins-=price
-	record_decoration_build_purchase("wall",int(wall.id),price)
+	if decoration_session_active:decoration_build_purchases[WallGeometry.identity(wall)]=price
 	last_error="";last_event="Built %s wall · −%s coins"%[height,Money.amount(price)]
 	_notify();return true
 
 func wall_replacement_quote(key:String,height:String,material:String,actor_positions:Array=[]) -> Dictionary:
-	if key in OpeningGeometry.SHELL_HOSTS:return _shell_replacement_quote(key,height,material)
-	var segment=ShellSegments.parse_key(key)
-	if not segment.is_empty():return ShellSegments.quote(ShellSegments.state(shell_products,shell_segment_products),built_walls,wall_attachments,segment.root_id,int(segment.index),height,material,coins)
 	# Quoting never changes the wall, attachments, wallet, IDs or revision.
 	var wall:=get_wall(key)
 	var quote={"valid":false,"new_cost":wall_price(height),"refund":0,"net":0,"reason":""}
@@ -2245,10 +2248,10 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	if wall.height==height and wall.material==material:quote.reason="This wall already has this style";return quote
 	var proposed_wall=wall.duplicate(true);proposed_wall.height=height;proposed_wall.material=material
 	var proposed:Array=[]
-	for current in built_walls:proposed.append(proposed_wall if WallGeometry.key_of(current)==key else current)
+	for current in built_walls:proposed.append(proposed_wall if WallGeometry.identity(current)==WallGeometry.identity(wall) else current)
 	# Keep the same host identity, but validate every host (including a wide
 	# opening spanning two segments) before touching either model or wallet.
-	var reason="" if Footprint.is_extension_wall(wall) else _wall_edge_error(proposed_wall,owned_parcels)
+	var reason=_wall_edge_error(proposed_wall,owned_parcels)
 	if reason=="":reason=_attachment_layout_error(proposed,wall_attachments)
 	# A replacement retains this solid edge and every hosted aperture. Height
 	# and finish never change walkability (both half/full walls block the edge).
@@ -2259,9 +2262,6 @@ func wall_replacement_quote(key:String,height:String,material:String,actor_posit
 	quote.valid=true
 	return quote
 
-func _shell_replacement_quote(_key:String,_height:String,_material:String)->Dictionary:
-	return {"valid":false,"new_cost":0,"refund":0,"net":0,"units":0,"reason":"Select one wall tile"}
-
 func can_replace_wall(key:String,height:String,material:String,actor_positions:Array=[]) -> bool:
 	var quote=wall_replacement_quote(key,height,material,actor_positions)
 	last_error="" if quote.valid else str(quote.reason)
@@ -2270,16 +2270,9 @@ func can_replace_wall(key:String,height:String,material:String,actor_positions:A
 func replace_wall(key:String,height:String,material:String,actor_positions:Array=[]) -> bool:
 	var quote=wall_replacement_quote(key,height,material,actor_positions)
 	if not quote.valid:return _fail(str(quote.reason))
-	var segment=ShellSegments.parse_key(key)
-	if not segment.is_empty():
-		var cost=int(quote.new_cost)
-		shell_segment_products[key]={"height":height,"material":material,"paid_cost":cost,"refund_credit":cost/2}
-		if decoration_session_active:decoration_build_purchases[key]=cost
-	else:
-		var wall=get_wall(key);wall.height=height;wall.material=material
-		wall["paid_cost"]=int(quote.new_cost);wall["refund_credit"]=int(quote.new_cost)/2;wall.erase("origin_shell")
-		# Replacement keeps its existing half credit; only the new product receipt remains.
-		record_decoration_build_purchase("wall",int(wall.id),int(quote.new_cost))
+	var wall=get_wall(key);wall.height=height;wall.material=material
+	wall.paid_cost=int(quote.new_cost);wall.refund_credit=int(quote.new_cost)/2
+	if decoration_session_active:decoration_build_purchases[WallGeometry.identity(wall)]=int(quote.new_cost)
 	# One commit and one notification. There is no intermediate sale, missing
 	# host, temporary refund or ID change for a failed/cancelled replacement.
 	coins-=int(quote.net)
@@ -2292,21 +2285,12 @@ func can_remove_wall(key:String) -> bool:
 	last_error=reason
 	return reason==""
 
-func remove_wall(key:String,refund:bool=true) -> bool:
+func remove_wall(key:String,refund:bool=true)->bool:
 	if not can_remove_wall(key):return false
-	var returned:=wall_refund(key) if refund else 0
-	var segment=ShellSegments.parse_key(key)
-	if not segment.is_empty():
-		shell_segment_products[key]["removed"]=true
-		decoration_build_purchases.erase(key)
-	else:
-		var wall:=get_wall(key)
-		var shell_key=ShellSegments.edge_key(wall)
-		if shell_key!="" and not WallTransactions.preserves_inherited_extension(self,wall) and WallTransactions.hosted(self,shell_key).is_empty():shell_segment_products[shell_key]["removed"]=true
-		decoration_build_purchases.erase("wall:"+str(int(wall.id)))
-		built_walls.erase(wall)
-	coins+=returned
-	last_error="";last_event="Sold wall · +%s coins"%Money.amount(returned)
+	var returned=wall_refund(key) if refund else 0
+	var wall=get_wall(key)
+	decoration_build_purchases.erase(WallGeometry.identity(wall));built_walls.erase(wall)
+	coins+=returned;last_error="";last_event="Sold wall · +%s coins"%Money.amount(returned)
 	_notify();return true
 
 func can_move_wall(key:String,axis:String,x:int,z:int,actor_positions:Array=[])->bool:
@@ -2331,15 +2315,15 @@ func set_wall_height(key:String,height:String,actor_positions:Array=[]) -> bool:
 	if wall.is_empty():return _fail("Select a player-built wall first")
 	if height not in WallGeometry.HEIGHTS:return _fail("Choose half or full wall height")
 	if wall.height==height:last_error="";return true
-	if wall.has("origin_shell"):return replace_wall(key,height,str(wall.material),actor_positions)
-	if height=="half" and not attachments_for_wall(int(wall.id)).is_empty():return _fail("Remove or move the attached door/window before lowering its wall")
+	if int(wall.paid_cost)!=wall_price(str(wall.height)) or int(wall.refund_credit)!=wall_price(str(wall.height))/2:return replace_wall(key,height,str(wall.material),actor_positions)
+	if height=="half" and not attachments_for_wall(WallGeometry.identity(wall)).is_empty():return _fail("Remove or move the attached door/window before lowering its wall")
 	var difference:=wall_price(height)-wall_price(str(wall.height))
 	if difference>coins:return _fail("Not enough coins · taller wall needs %s"%Money.amount(difference))
 	# Height changes never move a solid edge or alter routes; no unsafe new
 	# footprint. Downgrading refunds the exact difference, so cycling is neutral.
 	wall.height=height;coins-=difference
 	wall["paid_cost"]=wall_price(height);wall["refund_credit"]=wall_price(height)/2
-	var receipt="wall:"+str(int(wall.id))
+	var receipt=WallGeometry.identity(wall)
 	if decoration_session_active and decoration_build_purchases.has(receipt):decoration_build_purchases[receipt]=int(decoration_build_purchases[receipt])+difference
 	last_error="";last_event="Wall height changed · %s coins"%Money.amount(-difference)
 	_notify();return true
@@ -2348,24 +2332,6 @@ static func _floor_key(cell:Vector2i)->String:return "%d,%d"%[cell.x,cell.y]
 
 func floor_style_at(cell:Vector2i)->String:
 	return str(floor_finishes.get(_floor_key(cell),{}).get("style","")) if is_floor_owned(cell) else ""
-
-func starter_floor_gap_cells() -> Array[Vector2i]:
-	# Explicit repair only: old starters owned row 8 but installed just rows 0..7.
-	# Existing finishes, including deliberately chosen custom tiles, win.
-	var cells:Array[Vector2i]=[]
-	for x in range(BASE_WIDTH):
-		var cell=Vector2i(x,ORIGINAL_BASE_DEPTH)
-		if is_floor_owned(cell) and not floor_finishes.has(_floor_key(cell)):cells.append(cell)
-	return cells
-
-func repair_starter_floor_gap() -> int:
-	# No load-time call. The user-facing action must opt in and save normally.
-	var cells=starter_floor_gap_cells()
-	if cells.is_empty():return 0
-	for cell in cells:floor_finishes[_floor_key(cell)]={"style":"warm_oak","paid_cost":0}
-	last_error="";last_event="Starter floor completed · %d included tiles"%cells.size()
-	_notify()
-	return cells.size()
 
 func floor_price(style:String)->int:return int(FLOOR_COSTS.get(style,-1))
 
@@ -2392,6 +2358,19 @@ func place_floor(cell:Vector2i,style:String)->bool:
 	if not quote.valid:return _fail(str(quote.reason))
 	coins-=int(quote.net);floor_finishes[_floor_key(cell)]={"style":style,"paid_cost":int(quote.new_cost)}
 	last_error="";last_event="Flooring placed · −%s"%Money.amount(int(quote.net));_notify();return true
+
+func floor_removal_quote(cell:Vector2i)->Dictionary:
+	var previous=floor_finishes.get(_floor_key(cell),{})
+	var valid=is_floor_owned(cell) and not previous.is_empty()
+	var refund=int(int(previous.get("paid_cost",0))/2)
+	return {"valid":valid,"new_cost":0,"refund":refund,"net":-refund,"reason":"" if valid else "Select an installed floor finish"}
+
+func remove_floor(cell:Vector2i,refund:bool=true)->bool:
+	var quote=floor_removal_quote(cell)
+	if not quote.valid:return _fail(str(quote.reason))
+	var returned=int(quote.refund) if refund else 0
+	floor_finishes.erase(_floor_key(cell));coins+=returned
+	last_error="";last_event="Removed flooring · +%s coins"%Money.amount(returned);_notify();return true
 
 func set_floor_style(style:String) -> bool:
 	if style not in FLOOR_STYLES:return _fail("Choose a listed floor finish")
@@ -2447,9 +2426,6 @@ func _complete_legacy_starter_floor(finishes:Dictionary,data:Dictionary)->void:
 			var key=_floor_key(Vector2i(x,z))
 			if not finishes.has(key):finishes[key]={"style":"warm_oak","paid_cost":0}
 
-func set_shell_material(_material:String) -> bool:
-	return _fail("Select one wall tile")
-
 func _wall_operational_warnings(walls:Array) -> Dictionary:
 	var warnings:Dictionary={}
 	var reachable:=_wall_reachable(walls,items,owned_parcels)
@@ -2466,7 +2442,7 @@ func _wall_operational_warnings(walls:Array) -> Dictionary:
 			var usable=false
 			for direction in DIRECTIONS:
 				var side:Vector2i=cell+direction
-				if _table_side_open_in(side,items) and not _fixed_edge_blocked(cell,side,null,walls) and not _built_edge_blocked(cell,side,walls) and reachable.has(side):usable=true;break
+				if _table_side_open_in(side,items) and not _built_edge_blocked(cell,side,walls) and reachable.has(side):usable=true;break
 			if not usable:warnings[str(item.id)+":sides"]="Bin sides blocked: staff will wait until you clear an adjacent side"
 		elif str(item.kind) in ["stove","beverage","sink","counter"]:
 			var front:=workface_cell(item)
@@ -2487,6 +2463,10 @@ func wall_placement_warning(axis:String,x:int,z:int,height:String="full",materia
 	return ""
 
 func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
+	if data.has("building_format") and (not _valid_int(data.get("wall_format"),BuildingCodec.PREVIOUS_WALL_FORMAT,BuildingCodec.WALL_FORMAT)):
+		return {"ok":false,"error":"Invalid unified building format marker"}
+	if BuildingCodec.is_grid_format(int(data.get("wall_format",0))):
+		return BuildingCodec.read_walls(data,MAX_WIDTH,MAX_DEPTH,func(cell):return _floor_owned_in(cell,ownership),FLOOR_STYLES)
 	var walls:Array[Dictionary]=[]
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
@@ -2652,38 +2632,34 @@ func reroute_guest(guest:Dictionary) -> bool:
 
 # Hosted doors/windows. Stable wall IDs survive moving a wall; apertures are
 # derived from the host, never saved as independent floating floor furniture.
-func wall_hosts()->Array[Dictionary]:return OpeningGeometry.hosts(built_walls,shell_products)
-func collision_wall_hosts()->Array[Dictionary]:return ShellSegments.collision_hosts(shell_products,shell_segment_products,built_walls)
+func wall_hosts()->Array[Dictionary]:return OpeningGeometry.installed_hosts(built_walls)
+func collision_wall_hosts()->Array[Dictionary]:return wall_hosts()
 func get_wall_host(host_id:String)->Dictionary:
-	var segment=ShellSegments.parse_key(host_id)
-	if not segment.is_empty():return ShellSegments.segment_host(ShellSegments.state(shell_products,shell_segment_products),built_walls,segment.root_id,int(segment.index))
-	return OpeningGeometry.resolve_host(host_id,built_walls,shell_products)
-func selectable_wall_hosts()->Array[Dictionary]:return ShellSegments.selectable_hosts(shell_products,shell_segment_products,built_walls)
-func shell_render_host(root_id:String,preview:Dictionary={})->Dictionary:return ShellSegments.render_host(shell_products,shell_segment_products,built_walls,root_id,preview)
+	return OpeningGeometry.resolve_installed(host_id,built_walls)
+
+func selectable_wall_hosts()->Array[Dictionary]:return wall_hosts()
 func get_wall_attachment(id:int)->Dictionary:
 	for attachment in wall_attachments:
 		if int(attachment.id)==id:return attachment
 	return {}
-func attachments_for_wall(wall_id:int)->Array[Dictionary]:
+func attachments_for_wall(wall_id:String)->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	for attachment in wall_attachments:
-		var host=OpeningGeometry.resolve_host(attachment.host_id,built_walls)
-		if not host.is_empty() and host.wall_ids.has(wall_id):result.append(attachment)
+		if attachment.wall_ids.has(wall_id):result.append(attachment)
 	return result
+
 func wall_openings()->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	for attachment in wall_attachments:
-		var opening=OpeningGeometry.aperture(attachment,built_walls,shell_products)
+		var opening=OpeningGeometry.aperture(attachment,built_walls)
 		if not opening.is_empty():result.append(opening)
 	return result
 func attachment_price(kind:String)->int:return int(OpeningGeometry.PRICES.get(kind,-1))
-func _attachment_layout_error(walls:Array,attachments:Array,products=null,segments=null)->String:
-	var roots=shell_products if products==null else products
-	var ledger=shell_segment_products if segments==null and products==null else (ShellSegments.migrate(roots,walls).segments if segments==null else segments)
-	return ShellSegments.support_error(ShellSegments.state(roots,ledger),walls,attachments)
+func _attachment_layout_error(walls:Array,attachments:Array,_products=null,_segments=null)->String:
+	return OpeningGeometry.installed_support_error(walls,attachments)
 
 func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
-	for host in ShellSegments.collision_hosts(shell_products,shell_segment_products,walls):
+	for host in OpeningGeometry.installed_hosts(walls):
 		for segment in OpeningGeometry.solid_segments(host,walls,attachments):
 			for point in actors:
 				if OpeningGeometry.body_touches(segment,point):return "An actor is crossing this opening · wait until the doorway is clear"
@@ -2707,14 +2683,14 @@ func _preserves_existing_doorways(proposed:Array)->bool:
 		if existing.kind!="door":continue
 		var retained=false
 		for candidate in proposed:
-			if candidate.kind=="door" and candidate.host_id==existing.host_id and float(candidate.offset)==float(existing.offset) and float(candidate.width)>=float(existing.width):
+			if candidate.kind=="door" and candidate.wall_ids==existing.wall_ids and float(candidate.offset)==float(existing.offset) and float(candidate.width)>=float(existing.width):
 				retained=true;break
 		if not retained:return false
 	return true
 func can_place_wall_attachment(kind:String,host_id:String,offset:float,actor_positions:Array=[])->bool:
 	last_error=""
 	if attachment_price(kind)<0:return _fail("Choose a door or window")
-	var attachment={"id":_next_attachment_id,"kind":kind,"host_id":host_id,"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":attachment_price(kind)}
+	var attachment={"id":_next_attachment_id,"kind":kind,"wall_ids":get_wall_host(host_id).get("wall_ids",[]),"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":attachment_price(kind)}
 	var proposed=wall_attachments.duplicate(true);proposed.append(attachment)
 	var reason=_attachment_change_error(proposed,actor_positions)
 	return true if reason=="" else _fail(reason)
@@ -2722,7 +2698,7 @@ func place_wall_attachment(kind:String,host_id:String,offset:float,actor_positio
 	if not can_place_wall_attachment(kind,host_id,offset,actor_positions):return false
 	var cost=attachment_price(kind)
 	if coins<cost:return _fail("Not enough coins · %s needs %s"%[kind,Money.amount(cost)])
-	wall_attachments.append({"id":_next_attachment_id,"kind":kind,"host_id":host_id,"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":cost})
+	wall_attachments.append({"id":_next_attachment_id,"kind":kind,"wall_ids":get_wall_host(host_id).get("wall_ids",[]),"offset":offset,"width":float(OpeningGeometry.WIDTHS[kind]),"paid_cost":cost})
 	record_decoration_build_purchase("opening",_next_attachment_id,cost)
 	_next_attachment_id+=1;coins-=cost;last_error="";last_event="Attached %s · −%s coins"%[kind,Money.amount(cost)];_notify();return true
 func can_move_wall_attachment(id:int,host_id:String,offset:float,actor_positions:Array=[])->bool:
@@ -2730,12 +2706,12 @@ func can_move_wall_attachment(id:int,host_id:String,offset:float,actor_positions
 	if get_wall_attachment(id).is_empty():return _fail("Select an attached door or window first")
 	var proposed=wall_attachments.duplicate(true)
 	for attachment in proposed:
-		if int(attachment.id)==id:attachment.host_id=host_id;attachment.offset=offset
+		if int(attachment.id)==id:attachment.wall_ids=get_wall_host(host_id).get("wall_ids",[]);attachment.offset=offset
 	var reason=_attachment_change_error(proposed,actor_positions)
 	return true if reason=="" else _fail(reason)
 func move_wall_attachment(id:int,host_id:String,offset:float,actor_positions:Array=[])->bool:
 	if not can_move_wall_attachment(id,host_id,offset,actor_positions):return false
-	var attachment=get_wall_attachment(id);attachment.host_id=host_id;attachment.offset=offset
+	var attachment=get_wall_attachment(id);attachment.wall_ids=get_wall_host(host_id).get("wall_ids",[]);attachment.offset=offset
 	last_error="";last_event="Moved %s · old wall restored"%attachment.kind;_notify();return true
 func can_remove_wall_attachment(id:int,actor_positions:Array=[])->bool:
 	last_error=""
@@ -2754,15 +2730,22 @@ func remove_wall_attachment(id:int,actor_positions:Array=[],refund=true)->bool:
 func host_for_attachment_width(host_id:String,width:float)->Dictionary:
 	var host=get_wall_host(host_id)
 	if host.is_empty() or host.a.distance_to(host.b)+.00001>=width:return host
-	if host.wall_ids.size()!=1:return {}
-	var first_id=int(host.wall_ids[0])
+	var candidates=[]
 	for wall in built_walls:
-		if int(wall.id)==first_id:continue
-		var ref="span:%d,%d"%[first_id,int(wall.id)]
-		var span=get_wall_host(ref)
-		if not span.is_empty() and span.a.distance_to(span.b)>=width:return span
+		var unit=OpeningGeometry.wall_host(wall)
+		if OpeningGeometry.collinear(host,unit):candidates.append(unit)
+	candidates.sort_custom(func(a,b):return OpeningGeometry.axis_value(a.a,a.axis)<OpeningGeometry.axis_value(b.a,b.axis))
+	for first in candidates.size():
+		var ids=[]
+		for last in range(first,candidates.size()):
+			ids.append(candidates[last].host_id)
+			var span=OpeningGeometry.resolve_ids(ids,built_walls)
+			if span.is_empty():break
+			if ids.has(host_id) and span.a.distance_to(span.b)+.00001>=width:return span
 	return {}
+
 func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
+	if BuildingCodec.is_grid_format(int(data.get("wall_format",0))):return BuildingCodec.read_openings(data,walls)
 	if int(data.version)<5:
 		var legacy=OpeningGeometry.initial_attachments();legacy[0].width=Footprint.LEGACY_DOOR_WIDTH
 		return {"ok":true,"attachments":legacy,"next_attachment_id":2}
@@ -2783,64 +2766,6 @@ func _validate_saved_attachments(data:Dictionary,walls:Array)->Dictionary:
 	if products.is_empty():return bad
 	var segments=ShellSegments.from_save(data,walls,products)
 	if not segments.ok:return {"ok":false,"error":str(segments.error)}
-	var reason=_attachment_layout_error(walls,attachments,products,segments.state.segments)
+	var reason=ShellSegments.support_error(segments.state,walls,attachments)
 	if reason!="":return {"ok":false,"error":reason}
 	return {"ok":true,"attachments":attachments,"next_attachment_id":int(data.next_attachment_id)}
-
-func _widen_saved_legacy_doors(attachments:Array,walls:Array)->Array:
-	# Widening removes collision, so saved bodies and routes remain legal. Keep
-	# identity, ownership and center; defer when the larger aperture cannot fit.
-	var result=attachments.duplicate(true)
-	for attachment in result:
-		if attachment.kind!="door" or not is_equal_approx(float(attachment.width),.76):continue
-		var proposed=attachment.duplicate(true);proposed.width=Footprint.DOOR_WIDTH
-		if OpeningGeometry.compatible_error(proposed,walls,result,int(attachment.id),shell_products)!="":continue
-		var candidate=result.duplicate(true)
-		for opening in candidate:
-			if int(opening.id)==int(attachment.id):opening.width=Footprint.DOOR_WIDTH
-		if _attachment_layout_error(walls,candidate)!="":continue
-		attachment.width=Footprint.DOOR_WIDTH
-	return result
-
-func _align_saved_starter_door(attachments:Array,walls:Array,runtime:Dictionary,layout:Array,ownership:Array)->Array:
-	var proposed=attachments.duplicate(true)
-	var changed=false
-	for attachment in proposed:
-		if OpeningGeometry.is_legacy_starter_door(attachment):attachment.width=Footprint.DOOR_WIDTH;changed=true
-	if not changed:return attachments
-	var staff:Array=[];var actors:Array=[]
-	for actor in runtime.service.get("staff",[]):staff.append(actor.pos);actors.append(actor.pos)
-	for guest in runtime.customers:
-		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
-	if _opening_body_error(walls,proposed,actors)!="":return attachments
-	if _wall_egress_error(walls,staff,layout,ownership,runtime.customers,proposed)!="":return attachments
-	# This deliberately defers, rather than moving a person or replacing a saved
-	# route. The same signature can be aligned on a later load after it is clear.
-	var host=OpeningGeometry.resolve_host("shell:west",walls)
-	var old_start=Footprint.DOOR_CENTER-Footprint.LEGACY_DOOR_WIDTH*.5
-	var old_end=Footprint.DOOR_CENTER+Footprint.LEGACY_DOOR_WIDTH*.5
-	var added=[]
-	for span in [Vector2(old_start,Footprint.DOOR_START),Vector2(Footprint.DOOR_END,old_end)]:
-		added.append(OpeningGeometry.segment_rect({"a":Vector2(0,span.x),"b":Vector2(0,span.y),"host":host}).grow(.23))
-	for actor in runtime.service.get("staff",[]):
-		var route=[]
-		for cell in actor.path:route.append(cell_center(cell))
-		if not _starter_door_route_clear(actor.pos,route,int(actor.index),added):return attachments
-	for guest in runtime.customers:
-		if str(guest.phase) in ["dirty","cleaning"]:continue
-		var position=Vector2(float(guest.x),float(guest.z))
-		if not _starter_door_route_clear(position,guest.route,int(guest.route_index),added):return attachments
-		var motion:Dictionary=guest.get("mobility",{})
-		if not motion.is_empty() and not _starter_door_route_clear(position,motion.route,int(motion.route_index),added):return attachments
-	return proposed
-
-func _starter_door_route_clear(start:Vector2,route:Array,index:int,added:Array)->bool:
-	for i in range(index,route.size()):
-		var finish:Vector2=route[i]
-		for rect in added:
-			if rect.has_point(start) or rect.has_point(finish):return false
-			var corners=[rect.position,Vector2(rect.end.x,rect.position.y),rect.end,Vector2(rect.position.x,rect.end.y)]
-			for edge in range(4):
-				if Geometry2D.segment_intersects_segment(start,finish,corners[edge],corners[(edge+1)%4])!=null:return false
-		start=finish
-	return true

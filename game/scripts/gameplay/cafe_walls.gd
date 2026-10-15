@@ -1,11 +1,14 @@
 extends RefCounted
 ## Pure grid-edge geometry shared by placement, routing, save validation and art.
 ## A segment starts at (x,z), extends one tile along axis x or z, and has a
-## centered .16-tile physical thickness. Half walls block bodies just like full.
+## centered .16-tile physical thickness and centered .26-tile visible thickness.
+## The grid edge is the common datum; imported wallpaper phase is data, never
+## permission to reserve a separate strip outside the floor/terrain grid.
 const THICKNESS := 0.16
+const PLACEMENT := {"physical_back":-.08,"physical_front":.08,"visual_back":-.13,"visual_front":.13,"pattern_offset":0.0}
 const BODY_RADIUS := 0.23
 const HEIGHTS := ["half", "full"]
-const MATERIALS := ["sage_panels", "cream_stripe", "leaf_print"]
+const MATERIALS := ["sage_panels", "cream_stripe", "leaf_print", "original"]
 const PRICES := {"half": 35, "full": 55}
 const HEIGHT_PIXELS := {"half": 58.0, "full": 128.0}
 
@@ -14,6 +17,44 @@ static func key(axis: String, x: int, z: int) -> String:
 
 static func make(axis: String, x: int, z: int, height: String = "full", material: String = "sage_panels") -> Dictionary:
 	return {"axis": axis, "x": x, "z": z, "height": height, "material": material}
+
+static func installed(identity:String,shape:Dictionary,paid:int,refund:int,placement:Dictionary={})->Dictionary:
+	# Presets and purchases share this constructor. The caller validates physical
+	# placement against the complete proposed scene before publishing the record.
+	var result=make(str(shape.axis),int(shape.x),int(shape.z),str(shape.height),str(shape.material))
+	result.id=identity;result.paid_cost=paid;result.refund_credit=refund
+	if not placement.is_empty():
+		result.placement=PLACEMENT.duplicate()
+		result.placement.pattern_offset=float(placement.get("pattern_offset",0.0))
+	return result
+
+static func normal(wall:Dictionary)->Vector2:
+	return Vector2.DOWN if wall.axis=="x" else Vector2.RIGHT
+
+static func identity(wall:Dictionary)->String:
+	var value=wall.get("id","")
+	return value if value is String else "wall:%d"%int(value)
+
+static func placement_value(wall:Dictionary,field:String)->float:
+	var placement:Dictionary=wall.get("placement",PLACEMENT)
+	return float(placement.get(field,PLACEMENT[field]))
+
+static func visual_front(wall:Dictionary)->Vector2:
+	return normal(wall)*placement_value(wall,"visual_front")
+
+static func visual_back(wall:Dictionary)->Vector2:
+	return normal(wall)*placement_value(wall,"visual_back")
+
+static func pattern_origin(wall:Dictionary)->Vector2:
+	var direction=Vector2.RIGHT if wall.axis=="x" else Vector2.DOWN
+	return Vector2(float(wall.x),float(wall.z))-direction*placement_value(wall,"pattern_offset")
+
+static func physical_rect(wall:Dictionary,from:float=0.0,to:float=1.0)->Rect2:
+	var direction=Vector2.RIGHT if wall.axis=="x" else Vector2.DOWN
+	var anchor=Vector2(float(wall.x),float(wall.z))+direction*from
+	var back=placement_value(wall,"physical_back")
+	var front=placement_value(wall,"physical_front")
+	return Rect2(anchor+normal(wall)*back,direction*(to-from)+normal(wall)*(front-back)).abs()
 
 static func key_of(wall: Dictionary) -> String:
 	return key(str(wall.axis), int(wall.x), int(wall.z))
@@ -39,27 +80,26 @@ static func nearest_edge(point: Vector2, preferred_axis: String = "") -> Diction
 	return make(axis, floori(point.x) if axis == "x" else roundi(point.x), roundi(point.y) if axis == "x" else floori(point.y))
 
 static func body_touches(wall: Dictionary, point: Vector2, radius: float = BODY_RADIUS) -> bool:
-	var ends := endpoints(wall)
-	return Geometry2D.get_closest_point_to_segment(point, ends[0], ends[1]).distance_to(point) < radius + THICKNESS*.5 - .00001
+	var rect=physical_rect(wall)
+	return point.clamp(rect.position,rect.end).distance_to(point)<radius-.000001
 
 static func crosses(wall: Dictionary, a: Vector2, b: Vector2) -> bool:
 	# Exact segment/barrier crossing, including its solid thickness. Both
 	# ordinary grid moves and short working/retreat moves share this test.
-	var low_x:=float(wall.x)-(THICKNESS*.5 if wall.axis=="z" else 0.0)
-	var high_x:=float(wall.x)+(THICKNESS*.5 if wall.axis=="z" else 1.0)
-	var low_z:=float(wall.z)-(THICKNESS*.5 if wall.axis=="x" else 0.0)
-	var high_z:=float(wall.z)+(THICKNESS*.5 if wall.axis=="x" else 1.0)
+	var rect=physical_rect(wall)
+	var low_x=rect.position.x;var high_x=rect.end.x
+	var low_z=rect.position.y;var high_z=rect.end.y
 	if maxf(a.x,b.x)<=low_x+.000001 or minf(a.x,b.x)>=high_x-.000001 or maxf(a.y,b.y)<=low_z+.000001 or minf(a.y,b.y)>=high_z-.000001:return false
 	var delta:=b-a
 	var t_min:=0.0
 	var t_max:=1.0
 	if absf(delta.x)>.000001:
-		var t0:=(low_x-a.x)/delta.x
-		var t1:=(high_x-a.x)/delta.x
+		var t0=(low_x-a.x)/delta.x
+		var t1=(high_x-a.x)/delta.x
 		t_min=maxf(t_min,minf(t0,t1));t_max=minf(t_max,maxf(t0,t1))
 	if absf(delta.y)>.000001:
-		var t0:=(low_z-a.y)/delta.y
-		var t1:=(high_z-a.y)/delta.y
+		var t0=(low_z-a.y)/delta.y
+		var t1=(high_z-a.y)/delta.y
 		t_min=maxf(t_min,minf(t0,t1));t_max=minf(t_max,maxf(t0,t1))
 	return t_min<t_max-.000001 and t_max>.000001 and t_min<1.0-.000001
 

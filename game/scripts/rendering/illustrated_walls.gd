@@ -4,24 +4,32 @@ extends RefCounted
 ## Each slice costs one textured face and one solid cap; only the last slice
 ## adds an end face. No per-frame decorative primitive or texture generation.
 const Geometry=preload("res://scripts/gameplay/cafe_walls.gd")
+const THICKNESS:=.26 # Accepted visible profile; physical clearance remains separate.
 const SLICES:=4
 const PALETTES:={
+	"original":{"base":"e0e7d0","panel":"91a27d","ink":"a9b797","cap":"fff1d0","end":"b8c7a8"},
 	"sage_panels":{"base":"dce4cb","panel":"8fa57d","ink":"a5b48d","cap":"fff0d1","end":"aebd98"},
 	"cream_stripe":{"base":"f4ead1","panel":"c4ba99","ink":"ded2ac","cap":"fff4dd","end":"cfc4a4"},
 	"leaf_print":{"base":"e7ecd8","panel":"a6b28b","ink":"98ac83","cap":"fff0d1","end":"bec9a6"},
 }
 static var _textures:Dictionary={}
 
+static func back_offset(normal:Vector2)->Vector2:
+	return normal*(.5-THICKNESS/Geometry.THICKNESS)
+
 static func depth_entries(wall:Dictionary) -> Array[Dictionary]:
 	var result:Array[Dictionary]=[]
 	for index in range(SLICES):
 		var t0:=float(index)/SLICES
 		var t1:=float(index+1)/SLICES
-		result.append({"depth":float(wall.x+wall.z)+(t0+t1)*.5+Geometry.THICKNESS*.5,"type":"built_wall","entry":wall,"wall_t0":t0,"wall_t1":t1,"wall_end":index==SLICES-1})
+		result.append({"depth":float(wall.x+wall.z)+(t0+t1)*.5+Geometry.visual_front(wall).x+Geometry.visual_front(wall).y,"type":"built_wall","entry":wall,"wall_t0":t0,"wall_t1":t1,"wall_end":index==SLICES-1})
 	return result
 
 static func face_svg(material:String,height:String) -> String:
 	var palette:Dictionary=PALETTES.get(material,PALETTES.sage_panels)
+	if material=="original":
+		var split:=256.0*(1.0-36.0/(128.0 if height=="full" else 58.0))
+		return "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='256'><rect width='96' height='256' fill='#%s'/><rect y='%s' width='96' height='%s' fill='#%s'/><path d='M0 %sH96' stroke='#%s' stroke-width='4'/></svg>"%[palette.base,split,256.0-split,palette.panel,split,palette.ink]
 	var panel_y:=184 if height=="full" else 168
 	var content:="<rect width='96' height='256' fill='#%s'/>"%palette.base
 	if material=="cream_stripe":
@@ -52,20 +60,21 @@ static func draw_piece(view:Node2D,piece:Dictionary,alpha:float=1.0,tint:Color=C
 	var ends:=Geometry.endpoints(wall)
 	var start:Vector2=ends[0].lerp(ends[1],float(piece.get("wall_t0",0.0)))
 	var finish:Vector2=ends[0].lerp(ends[1],float(piece.get("wall_t1",1.0)))
-	var normal:Vector2=(Vector2.DOWN if wall.axis=="x" else Vector2.RIGHT)*Geometry.THICKNESS*.5
+	var normal:Vector2=Geometry.visual_front(wall)
+	var back:Vector2=Geometry.visual_back(wall)
 	var height:=float(Geometry.HEIGHT_PIXELS.get(str(wall.height),128.0))
 	var p0:Vector2=view.iso(start.x+normal.x,start.y+normal.y)
 	var p1:Vector2=view.iso(finish.x+normal.x,finish.y+normal.y)
 	var p2:Vector2=view.iso(finish.x+normal.x,finish.y+normal.y,height)
 	var p3:Vector2=view.iso(start.x+normal.x,start.y+normal.y,height)
-	var back_end:Vector2=view.iso(finish.x-normal.x,finish.y-normal.y,height)
-	var back_start:Vector2=view.iso(start.x-normal.x,start.y-normal.y,height)
+	var back_end:Vector2=view.iso(finish.x+back.x,finish.y+back.y,height)
+	var back_start:Vector2=view.iso(start.x+back.x,start.y+back.y,height)
 	var color:=Color(tint.r,tint.g,tint.b,alpha*tint.a)
 	var palette:Dictionary=PALETTES.get(str(wall.material),PALETTES.sage_panels)
 	_polygon(view,[p0,p1,p2,p3],color,[Vector2(piece.wall_t0,1),Vector2(piece.wall_t1,1),Vector2(piece.wall_t1,0),Vector2(piece.wall_t0,0)],texture_for(str(wall.material),str(wall.height)))
 	_polygon(view,[p3,p2,back_end,back_start],Color(palette.cap)*color)
 	if bool(piece.get("wall_end",true)):
-		_polygon(view,[p1,view.iso(finish.x-normal.x,finish.y-normal.y),back_end,p2],Color(palette.end)*color)
+		_polygon(view,[p1,view.iso(finish.x+back.x,finish.y+back.y),back_end,p2],Color(palette.end)*color)
 
 static func draw_wall(view:Node2D,wall:Dictionary,alpha:float=1.0,tint:Color=Color.WHITE):
 	for piece in depth_entries(wall):draw_piece(view,piece,alpha,tint)

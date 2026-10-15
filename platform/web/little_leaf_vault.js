@@ -91,6 +91,75 @@
     }
     return record;
   }
+  // A bounded, immutable pre-grid archive in the same authority's own store.
+  // Payload strings are retained verbatim; hashes never use parsed/re-encoded saves.
+  const GRID = 'little_leaf.grid_building.v1', CENTERED_GRID = 'little_leaf.grid_building.v2', ARCHIVE = 'little-leaf.pre-grid.v1';
+  const MAX_PRE_GRID_ARCHIVES = 8;
+  function buildingPayload(text, version = 15) {
+    const data = parsePayload(text, version);
+    const generation = data.wall_format === 3 && data.building_format === GRID ? 1
+      : data.wall_format === 4 && data.building_format === CENTERED_GRID ? 2 : 0;
+    const modern = data.wall_format === 3 || data.wall_format === 4 || Object.hasOwn(data, 'building_format');
+    if (Object.hasOwn(data, 'wall_format') && ![1, 2, 3, 4].includes(data.wall_format))
+      throw fail('INVALID_SAVE', 'Unsupported building save format');
+    if (modern && (version !== 15 || !generation || data.wall_attachment_format !== 2 || data.starter_geometry_version !== 1 || typeof data.register_unplaced !== 'boolean' || !Array.isArray(data.built_walls) || !Array.isArray(data.wall_attachments) || (!data.floor_finishes || typeof data.floor_finishes !== 'object' || Array.isArray(data.floor_finishes))))
+      throw fail('INVALID_SAVE', 'Unified building save contract is incomplete');
+    return { data, modern, generation };
+  }
+  async function preGridArchive(source, nextPayload, legacy = null, recordText = JSON.stringify(source)) {
+    const target = buildingPayload(nextPayload);
+    await verifyRecord(source);
+    if (!target.modern || (!source.revision && !legacy)) return null;
+    const payload = source.revision ? source.payload : legacy.payload;
+    const version = source.revision ? 15 : 13;
+    // Every forward building-format transition retains its exact source, including v1 to centered v2.
+    if (buildingPayload(payload, version).generation >= target.generation) return null;
+    if (JSON.stringify(JSON.parse(recordText)) !== JSON.stringify(source)) throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original save identity changed');
+    const payloadDigest = await hash(payload);
+    if (legacy && (!source.revision && legacy.digest !== payloadDigest)) throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Legacy save checksum changed');
+    const body = { format: ARCHIVE, profileId: source.profileId, revision: source.revision, digest: source.digest,
+      legacyDigest: source.revision ? null : payloadDigest, recordText, payload, payloadDigest };
+    return { ...body, archiveDigest: await hash(JSON.stringify(body)) };
+  }
+  async function verifyPreGridArchives(text) {
+    if (text === null) return [];
+    let list;
+    try { list = JSON.parse(text); } catch (_) { throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original building archive is unreadable'); }
+    if (!Array.isArray(list) || !list.length || list.length > MAX_PRE_GRID_ARCHIVES) throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original building archive is damaged');
+    const ids = new Set();
+    for (const archive of list) {
+      const { archiveDigest, ...body } = archive || {};
+      if (body.format !== ARCHIVE || Object.keys(body).join(',') !== 'format,profileId,revision,digest,legacyDigest,recordText,payload,payloadDigest'
+        || typeof body.payload !== 'string' || body.payloadDigest !== await hash(body.payload) || archiveDigest !== await hash(JSON.stringify(body)))
+        throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original building archive checksum failed');
+      const source = JSON.parse(body.recordText); await verifyRecord(source);
+      if (source.profileId !== body.profileId || source.revision !== body.revision || source.digest !== body.digest
+        || (source.revision ? source.payload !== body.payload || body.legacyDigest !== null : body.legacyDigest !== body.payloadDigest))
+        throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original building archive identity failed');
+      buildingPayload(body.payload, source.revision ? 15 : 13);
+      const id = JSON.stringify([body.profileId, body.revision, body.digest, body.legacyDigest]);
+      if (ids.has(id)) throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'Original building archive has duplicate identities');
+      ids.add(id);
+    }
+    return list;
+  }
+  async function ensurePreGridArchive(storage, source, nextPayload, guard, legacy = null, recordText = JSON.stringify(source)) {
+    const archive = await preGridArchive(source, nextPayload, legacy, recordText);
+    await guard(); if (!archive) return null;
+    const before = await storage.read(); await guard();
+    const list = await verifyPreGridArchives(before); await guard();
+    const found = list.find(a => a.profileId === archive.profileId && a.revision === archive.revision && a.digest === archive.digest && a.legacyDigest === archive.legacyDigest);
+    if (found && JSON.stringify(found) !== JSON.stringify(archive)) throw fail('PRE_GRID_ARCHIVE_DAMAGED', 'A different original archive already exists');
+    if (!found && list.length >= MAX_PRE_GRID_ARCHIVES) throw fail('PRE_GRID_ARCHIVE_FULL', 'Original save archive is full; earlier copies will not be replaced');
+    const text = found ? before : JSON.stringify([...list, archive]);
+    // install checks the original authority and archive CAS in one transaction.
+    await storage.install(before, text); await guard();
+    // A separate read after transaction completion is the required proof.
+    const readback = await storage.read(); await guard();
+    if (readback !== text) throw fail('PRE_GRID_ARCHIVE_UNVERIFIED', 'Original save archive could not be verified; progress was not replaced');
+    await verifyPreGridArchives(readback); await guard();
+    return Object.freeze({ text });
+  }
   function openDB(factory, name, create) {
     return new Promise((resolve, reject) => {
       let request, settled = false, absent = false;
@@ -271,11 +340,31 @@
           const candidate = { ...record, format: 2, revision: nextRevision, updatedAt: now, payload: plan.payload, origin: provenance, previous, campaigns: plan.receipts };
           candidate.digest = await hash(fingerprint(candidate));
           observe('save_validated', { profileId: expectedProfileId, revision: expectedRevision });
+          const archiveKey = 'pre-grid-v1/' + record.profileId;
+          const archiveGuard = () => { if (faulted || !db) throw fail('NOT_READY', 'Save storage closed during migration'); };
+          const proof = await ensurePreGridArchive({
+            read: () => transaction(db, 'readonly', (store, resolve) => { const request = store.get(archiveKey); request.onsuccess = () => resolve(request.result ?? null); }),
+            install: (before, text) => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
+              readCurrent(store, current => {
+                try { archiveGuard(); compareCurrent(current, expectedRevision, expectedProfileId); } catch (error) { abort(error); return; }
+                const request = store.get(archiveKey);
+                request.onsuccess = () => { try {
+                  archiveGuard(); if ((request.result ?? null) !== before) throw fail('REVISION_CONFLICT', 'Original archive changed in another tab');
+                  if (before !== text) store.put(text, archiveKey); resolve(text);
+                } catch (error) { abort(error); } };
+              }, abort, mark);
+            })
+          }, record, candidate.payload, archiveGuard, legacy);
           const write = () => transaction(db, 'readwrite', (store, resolve, abort, mark) => {
             readCurrent(store, current => {
-              mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
-              mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
-              observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
+              const publish = () => { try {
+                archiveGuard(); mark('compare_authority'); compareCurrent(current, expectedRevision, expectedProfileId);
+                mark('put'); store.put(candidate, ACTIVE); resolve(candidate);
+                observe('save_submitted', { profileId: expectedProfileId, revision: nextRevision, stage: 'put', connectionGeneration });
+              } catch (error) { abort(error); } };
+              if (!proof) { publish(); return; }
+              const request = store.get(archiveKey);
+              request.onsuccess = () => { if (request.result !== proof.text) abort(fail('PRE_GRID_ARCHIVE_UNVERIFIED', 'Original archive changed before save')); else publish(); };
             }, abort, mark);
           });
           let next;
@@ -312,7 +401,7 @@
     };
     return client;
   }
-  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, verifyRecord, fingerprint, hash });
+  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, buildingPayload, verifyRecord, fingerprint, hash, ensurePreGridArchive, verifyPreGridArchives });
   let retrying = null;
   function retry(callback) {
     // A fresh client reopens storage after a transient boot failure. No saved

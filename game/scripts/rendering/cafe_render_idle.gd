@@ -49,7 +49,7 @@ static func snapshot(art)->Array:
 	var g=art.game;var m=g.model
 	return [
 		values(g,["paused","editing","save_recovery_blocked","selected_id","speed","wall_detail","animation_time"]),
-		values(m,["revision","items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits","dining_sets","built_walls","wall_attachments","floor_finishes","shell_material","shell_products","shell_segment_products","owned_parcels","expanded","width","depth","coins","operating_open"]),
+		values(m,["revision","items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits","dining_sets","built_walls","wall_attachments","floor_finishes","owned_parcels","expanded","width","depth","coins","operating_open"]),
 		g.staff_states,g.service_guests,g.floor_tasks.messes,g.dishwashing.dishes,
 		values(g.interaction,["drag_active","drag_item_id","drag_kind","drag_rotation","drag_cell","drag_valid","drag_footprint_valid","preview_active"]),
 		[g.build_tools.paint_stroke.active,g.build_tools.paint_stroke.receipt.get("targets",[]),g.build_tools.paint_stroke.receipt.get("ok",false)],
