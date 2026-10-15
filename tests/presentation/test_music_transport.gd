@@ -43,10 +43,13 @@ func run():
 	check(Catalog.edition_label("harmony-study-A")=="Version 1" and Catalog.edition_label("harmony-study-B")=="Version 2","Harmony edition selectors use requested Version 1/Version 2 labels")
 	for entry in Catalog.TRACKS:
 		check(not "1nd" in Catalog.display_title(entry.id) and not "2nd" in Catalog.display_title(entry.id),"Visible title excludes source suffix "+entry.id)
-		if entry.group==Catalog.PREMIUM:check(Catalog.edition_label(entry.id)==("Premium A" if entry.id.ends_with("-1nd") else "Premium B"),"Premium A/B retains exact source mapping "+entry.id)
+		if entry.group==Catalog.PREMIUM:
+			var expected="Premium A" if entry.id.ends_with("-1nd") or entry.id=="sunshine-skip-150-r6-2nd" else "Premium B"
+			check(Catalog.edition_label(entry.id)==expected,"Premium labels follow the requested catalog display "+entry.id)
 	var sunshine=Catalog.family_for_track("sunshine-skip-150-r6-2nd")
 	check(sunshine.id==Catalog.family_for_track("sunshine-skip-176-new-theme").id and sunshine.title=="Sunshine Skip" and sunshine.variants.size()==2,"Requested same-name Sunshine versions share one song row")
-	check(sunshine.default_id=="sunshine-skip-176-new-theme" and sunshine.premium_ids==["sunshine-skip-150-r6-2nd"] and sunshine.variants[0].id==sunshine.default_id,"Sunshine retains exact Default/Premium B mapping and order")
+	check(sunshine.default_id=="sunshine-skip-176-new-theme" and sunshine.premium_ids==["sunshine-skip-150-r6-2nd"] and sunshine.variants[0].id==sunshine.default_id,"Sunshine retains its exact recording IDs and order")
+	check(Catalog.edition_label(sunshine.premium_ids[0])=="Premium A" and Catalog.variant_key(sunshine.premium_ids[0])=="2nd" and Catalog.normalize_selection(sunshine.premium_ids[0])==sunshine.premium_ids[0] and Catalog.track(sunshine.premium_ids[0]).path=="res://assets/audio/Sunshine_Skip_150bpm_R6_2nd.mp3","Sunshine changes only its visible edition label, preserving audio and stored selection")
 	for id in ["service","corner-cafe-reference-rearrangement-112"]:
 		controls.set_music_track(id)
 		var player=game.audio_players[id]

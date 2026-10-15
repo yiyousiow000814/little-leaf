@@ -14,6 +14,8 @@ var cover: ColorRect
 var label: Label
 var ready_count = 0
 var terminal_count = 0
+var music_panel
+var music_preparation = false
 
 func start(owner):
 	game = owner
@@ -32,6 +34,8 @@ func start(owner):
 	label = Label.new();label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.add_theme_font_override("font",game.compact_ui.hud.font_bold)
 	label.add_theme_color_override("font_color",Color("735f43"));cover.add_child(label)
+	music_panel = game.compact_ui.music_panel
+	music_preparation = music_panel.prepare_render(false)
 	_connect_draw()
 	_update_status()
 
@@ -40,6 +44,7 @@ func _connect_draw():
 
 func _exit_tree():
 	if RenderingServer.frame_post_draw.is_connected(_after_draw):RenderingServer.frame_post_draw.disconnect(_after_draw)
+	if is_instance_valid(music_panel):music_panel.finish_render_preparation()
 
 func _check_recovery():
 	# Preparation must not hide an ownership/account change from native recovery.
@@ -78,6 +83,10 @@ func _update_status():
 func _after_draw():
 	if completed or finishing:return
 	draws += 1
+	# Complete one real Default and Premium draw while the cover owns input.
+	if music_preparation and is_instance_valid(music_panel):
+		if draws == 1:music_panel.prepare_render(true)
+		elif draws == 2:music_panel.finish_render_preparation()
 	# Status was sampled before this draw. Frames while any atlas was still
 	# warming do not count toward drawing the final uploaded texture set.
 	if terminal_count == atlases.size():terminal_draws += 1
@@ -92,8 +101,9 @@ func _finish():
 	# Authority may change after terminal draw scheduling but before this callback.
 	_check_recovery()
 	_update_status()
+	if is_instance_valid(music_panel):music_panel.finish_render_preparation()
 	completed = true
-	game.startup_preparation_report = {"duration_ms":Time.get_ticks_msec()-started_ms,"ready":ready_count,"terminal":terminal_count,"fallback":terminal_count-ready_count,"timed_out":timed_out,"draws":draws,"terminal_draws":terminal_draws}
+	game.startup_preparation_report = {"duration_ms":Time.get_ticks_msec()-started_ms,"ready":ready_count,"terminal":terminal_count,"fallback":terminal_count-ready_count,"timed_out":timed_out,"draws":draws,"terminal_draws":terminal_draws,"music_preparation_draws":mini(draws,2) if music_preparation else 0}
 	var intro = game.cafe_intro
 	intro.preparing = false
 	if intro.finish_after_preparation:intro.finish()

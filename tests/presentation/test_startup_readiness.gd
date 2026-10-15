@@ -39,18 +39,30 @@ func run():
 	var music = game.audio_players.duplicate()
 	var elapsed = game.animation_time
 	var intro = game.cafe_intro
+	var music_panel = game.compact_ui.music_panel
+	var controls = game.settings_controls
+	var selected = controls.music_track
+	var old_dirty = controls.preferences_dirty
+	controls.preferences_dirty = true
+	var settings_before = FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray()
 	var gate = TestWarmup.new();gate.start(game)
 	var first = FakeAtlas.new();first.state = "ready"
 	var second = FakeAtlas.new();var third = FakeAtlas.new()
 	gate.atlases = [first,second,third];gate._update_status()
 	check(intro.preparing and intro.active and intro.hud_alpha == 1.0,"opaque preparation owns active intro and warms real HUD")
 	check(gate.cover.color.a == 1.0 and gate.layer > intro.layer,"warm HUD stays behind fully opaque cover")
+	check(music_panel.preparing_render and music_panel.panel.visible and music_panel.poll_timer.is_stopped() and is_zero_approx(music_panel.record_mark.reveal),"Default music materials draw under the cover without starting playback polling")
 	check(gate.ready_count == 1 and gate.terminal_count == 1 and "1/3" in gate.label.text,"readiness count reflects actual ready atlases")
 	intro._process(5.0)
 	check(intro.elapsed == 0.0 and intro.motion_delta(.5) == 0.0 and intro.motion_delta(5.0) == 0.0,"preparation never advances intro or simulation clocks")
 	var key = InputEventKey.new();key.keycode = KEY_ENTER;key.pressed = true
 	check(intro.handle_input(key) and intro.active,"loading key is consumed without entry or skip")
-	gate._after_draw();gate._after_draw()
+	gate._after_draw()
+	check(music_panel.record_mark.reveal==1.0 and music_panel.board_material.reveal==1.0,"Next covered frame draws existing Premium materials before first user selection")
+	gate._after_draw()
+	check(not music_panel.preparing_render and not music_panel.panel.visible and music_panel.poll_timer.is_stopped(),"Completed material preparation restores the hidden, idle Music panel")
+	check(controls.music_track==selected and controls.preferences_dirty and (FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray())==settings_before,"Render preparation preserves the selected recording and does not flush pending preferences")
+	controls.preferences_dirty = old_dirty
 	check(not gate.finishing,"draws alone cannot release incomplete preparation")
 	for early_frame in range(8):gate._after_draw()
 	second.state = "ready";third.state = "ready";gate._update_status();gate._after_draw()
@@ -59,6 +71,7 @@ func run():
 	check(not gate.finishing and intro.preparing,"resource admission and upload stay behind the opaque cover")
 	gate._after_draw();await process_frame
 	check(game.startup_preparation_report.terminal_draws == 4,"release records four draws after final atlas became terminal")
+	check(game.startup_preparation_report.music_preparation_draws==2,"Readiness records both covered music material draws")
 	check(not intro.preparing and intro.active and intro.elapsed == 0.0 and intro.hud_alpha == 0.0,"ready warm-up restores original welcome start and hidden HUD")
 	check(intro.handle_input(key) and intro.active,"held loading key cannot skip newly visible welcome")
 	key.pressed = false;check(intro.handle_input(key),"loading key release remains owned")

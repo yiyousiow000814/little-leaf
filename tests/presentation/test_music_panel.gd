@@ -532,7 +532,7 @@ func run():
  check(music.library_heading.text=="SONGS  /  "+str(Catalog.families().size()),"Shelf heading count derives from configured song families")
  var sunshine_default="sunshine-skip-176-new-theme";var sunshine_premium="sunshine-skip-150-r6-2nd"
  var sunshine_card=music.family_cards[Catalog.family_id(sunshine_default)]
- check(Catalog.family_id(sunshine_default)==Catalog.family_id(sunshine_premium) and sunshine_card.tracks.size()==2 and music.track_buttons[sunshine_default].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_premium].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_default].text=="Default" and music.track_buttons[sunshine_premium].text=="Premium B","Both original Sunshine Skip IDs share one card with Default and Premium B controls")
+ check(Catalog.family_id(sunshine_default)==Catalog.family_id(sunshine_premium) and sunshine_card.tracks.size()==2 and music.track_buttons[sunshine_default].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_premium].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_default].text=="Default" and music.track_buttons[sunshine_premium].text=="Premium A","Both original Sunshine Skip IDs share one card with Default and the requested Premium A label")
  check(music.group_note.visible and music.group_note.accessibility_description==Catalog.PREMIUM_TOOLTIP,"Premium terms visible without hover")
  var counts={Catalog.DEFAULT:0,Catalog.PREMIUM:0}
  for entry in Catalog.TRACKS:
@@ -557,6 +557,13 @@ func run():
   check(music.panel.visible and not game.settings.visible,"HUD opens independent Music "+str(view))
   check(ui.has_open_popup() and not ui.shop_ui.root.visible,"Music uses existing popup world-input policy "+str(view))
   check(not music.poll_timer.is_stopped(),"Live position updates only while open "+str(view))
+  music.volume_slider.value=100;await settle()
+  check(controls.bgm_volume==100 and music.volume_value.text=="100%","Maximum volume keeps its percentage label "+str(view))
+  if view.x>=1000:
+   var label=music.volume_value
+   var ink_width=label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size")).x
+   check(label.is_visible_in_tree() and label.get_line_count()==1 and label.size.x>=ink_width,"Visible 100% fits on one line at "+str(view))
+   check(music.footer.get_global_rect().encloses(label.get_global_rect()),"Maximum percentage stays inside the volume controls "+str(view))
   var bounds=music.panel.get_global_rect();var close=music.close_button.get_global_rect();var footer=music.footer.get_global_rect()
   print("MUSIC_PANEL_GEOMETRY ",JSON.stringify({"viewport":str(view),"panel":str(bounds),"minimum":str(music.panel.get_combined_minimum_size()),"library":str(music.scroll.get_global_rect()),"player":str(music.player.get_global_rect())}))
   check(Rect2(Vector2.ZERO,Vector2(view)).encloses(bounds),"Panel bounded to viewport "+str(view))

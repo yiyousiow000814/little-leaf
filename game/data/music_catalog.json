@@ -320,7 +320,7 @@
         {
           "id": "sunshine-skip-150-r6-2nd",
           "edition_key": "2nd",
-          "edition_label": "Premium B",
+      "edition_label": "Premium A",
           "tier": "Premium",
           "audio_path": "res://assets/audio/Sunshine_Skip_150bpm_R6_2nd.mp3",
           "selectable": true,

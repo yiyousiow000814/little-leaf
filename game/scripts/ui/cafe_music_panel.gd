@@ -220,6 +220,7 @@ var fit_queued=false
 var stacked_layout=false
 var short_layout=false
 var seeking=false
+var preparing_render=false
 var last_state:Array=[]
 var last_playback:Array=[]
 var last_layout:Array=[]
@@ -566,7 +567,7 @@ func _build_transport():
  mute_button.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN;footer.add_child(mute_button)
  speaker_mark=SpeakerMark.new();speaker_mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);speaker_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE;mute_button.add_child(speaker_mark)
  volume_slider=_slider("Background music volume");volume_slider.name="MusicVolume";volume_slider.custom_minimum_size.x=64;footer.add_child(volume_slider)
- volume_value=_label("",11,MUTED);volume_value.custom_minimum_size.x=28;volume_value.size_flags_horizontal=Control.SIZE_SHRINK_END;volume_value.size_flags_vertical=Control.SIZE_SHRINK_CENTER;footer.add_child(volume_value)
+ volume_value=_label("",11,MUTED);volume_value.autowrap_mode=TextServer.AUTOWRAP_OFF;volume_value.custom_minimum_size.x=28;volume_value.size_flags_horizontal=Control.SIZE_SHRINK_END;volume_value.size_flags_vertical=Control.SIZE_SHRINK_CENTER;footer.add_child(volume_value)
  volume_slider.value_changed.connect(_set_volume);volume_slider.drag_ended.connect(func(_changed):game.settings_controls.flush_preferences())
 
 func _slider(purpose:String)->HSlider:
@@ -615,7 +616,8 @@ func _time(seconds:float)->String:
  return "%d:%02d"%[whole/60,whole%60]
 
 
-func sync():
+func sync(force:bool=false):
+ if preparing_render and not force:return
  if not is_instance_valid(panel) or not panel.is_visible_in_tree():return
  var settings=game.settings_controls
  var state=[settings.music_track,settings.bgm_enabled,settings.bgm_volume,game.music_state,game.editing,game.browser_suspended,game.music_catalog_ready]
@@ -628,9 +630,10 @@ func sync():
  mute_button.accessibility_name="Background music "+("on; mute" if settings.bgm_enabled else "off; unmute");mute_button.tooltip_text=mute_button.accessibility_name
  volume_slider.set_value_no_signal(settings.bgm_volume);volume_value.text="%d%%"%int(settings.bgm_volume)
  volume_slider.tooltip_text="Background music volume: "+volume_value.text
- last_playback.clear();_poll_playback()
+ last_playback.clear();_poll_playback(force)
 
-func _poll_playback():
+func _poll_playback(force:bool=false):
+ if preparing_render and not force:return
  if compact==null or not is_instance_valid(panel) or not panel.is_visible_in_tree():return
  snapshot=game.music_transport_snapshot()
  if seeking and not snapshot.get("seekable",false):seeking=false
@@ -714,6 +717,21 @@ func _sync_cards(shown:String,effective:String):
   target.grab_focus()
   if scroll.is_ancestor_of(target):scroll.ensure_control_visible(target)
  _queue_layout()
+func prepare_render(premium:bool)->bool:
+ # Draw the existing materials only under the startup gate's opaque cover.
+ # This presentation pass never selects a recording or changes playback.
+ if not preparing_render:
+  if panel.visible:return false
+  preparing_render=true;panel.show();last_state.clear();sync(true);layout()
+ record_mark.set_state(false,premium,true)
+ board_material.set_state(premium,true,false)
+ return true
+
+func finish_render_preparation():
+ if not preparing_render:return
+ last_state.clear();sync(true);panel.hide()
+ preparing_render=false;last_state.clear()
+
 func show(origin:Control=null):
  if panel.visible:return
  if origin==null:origin=compact.music_access
@@ -726,7 +744,7 @@ func dismiss():
  panel.hide();compact.sync()
 
 func _visibility_changed():
- if compact==null:return
+ if compact==null or preparing_render:return
  if panel.is_visible_in_tree():
   if is_instance_valid(poll_timer):poll_timer.start()
  else:

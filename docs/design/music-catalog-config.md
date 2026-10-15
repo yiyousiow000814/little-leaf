@@ -33,12 +33,39 @@ The user requested one row per named song with its recordings/versions together.
   Decorate ownership still belong to the runtime.
 
 Harmony contains both original recordings with Version 1/Version 2 labels.
-Sunshine Skip now contains the original176 Default and150 Premium B recordings,
-as explicitly requested. The subsequent requested removals are recorded below.
+Sunshine Skip contains the original176 Default and150 premium recordings. The
+user requested that its sole premium choice display **Premium A**. Only the
+`edition_label` changes: the `sunshine-skip-150-r6-2nd` ID, `2nd` navigation key,
+audio path, source metadata and stored preference remain intact. This label
+does not imply that a second premium recording was found or generated.
+The subsequent requested removals are recorded below.
 Premium remains currently free with the existing future-charging disclosure.
 The retained23-recording metadata is pinned by the catalog fixture's projection
 hash; deliberate future catalog changes must update that regression evidence
 without silently replacing an existing recording or source asset.
+
+## First-use rendering and volume follow-up (2026-10-16)
+
+The release2752 native baseline reproduced the visible `100%` label on two
+lines (37.63px allocation versus44px ink). The value now uses a single line,
+allowing the existing container to reserve its actual text width.
+
+That same bounded synthetic baseline measured audio loads of3.123–11.281ms,
+while the first visible Default-to-Premium switch included a371.527ms frame.
+The following process was substantially lighter; caches were not purged, so
+these observations do not prove a cold-driver or Web performance result.
+The narrow candidate reuses the existing startup readiness cover to draw the
+already-owned Default and Premium Music materials once before Welcome. It
+restores the hidden panel and actual presentation state without selecting a
+recording, adding an audio cache, flushing preferences or starting its poll
+timer. Gate teardown also restores the panel. Existing artwork and transition
+timing remain unchanged. Source-bound candidate tests, pixels and performance
+evidence are required before claiming the reported stall is resolved.
+
+Downloads contains eight of the nine live catalog song families. Harmony's
+Version1/Version2 OGG files remain present in the repository and catalog; their
+absence from Downloads does not remove them from the game. No new candidate
+song or source file is imported by this follow-up.
 
 ## Verify a config change
 
