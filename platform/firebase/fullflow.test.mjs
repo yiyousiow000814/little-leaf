@@ -217,13 +217,13 @@ async function setup(uid,entry=null){
   // APIRequestContext traffic is outside browser offline emulation; honor the
   // confirmed context transition before forwarding any SDK read/write.
   const connectivityEpoch=await connectivity.capture();
-  if(connectivityEpoch===null)return route.abort('internetdisconnected');
+  if(connectivityEpoch===null||!connectivity.isOnlineNow(connectivityEpoch))return route.abort('internetdisconnected');
   const rpc=/\/(Listen|Write)\/channel$/.exec(u.pathname)?.[1] || /:(batchGet|commit)$/.exec(u.pathname)?.[1];
   const clock=rpcClock(rpc,route.request().method());
   try{
    const response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
    clock.fetchCompleted=Date.now();clock.status=response.status();clock.phase='online-check';
-   if(!await connectivity.isOnline(connectivityEpoch))return route.abort('internetdisconnected');
+   if(!await connectivity.isOnline(connectivityEpoch)||!connectivity.isOnlineNow(connectivityEpoch))return route.abort('internetdisconnected');
    clock.phase='fulfill-submitted';
    return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'}});
   }catch(error){

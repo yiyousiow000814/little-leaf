@@ -228,7 +228,7 @@ class CurrentRetainedTests(unittest.TestCase):
         self.assertEqual(route.sha(folder/'current_handoff_observer.mjs'),current.OBSERVER)
         # Current fixture pin; retained runs still validate their own exact source checkout/report.
         self.assertEqual(route.sha(ROOT/'platform/firebase/fullflow.test.mjs'),
-                         'f1c647bc97c93e2f0f3b4792f00890945872a8db77dc79bc7b361f743b324e5e')
+                         '6b89ba8a90a372a7b16744cbe7a6799984d3784e034e96a6c2b5906d4469dadc')
 
     def test_expired_preparation_and_arbitrary_driver_stop_before_runtime(self):
         with patch.dict(current.os.environ,{'LL_RETAINED_START_MONOTONIC':'0'}), \

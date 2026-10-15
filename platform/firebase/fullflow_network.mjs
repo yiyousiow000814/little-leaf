@@ -191,5 +191,6 @@ export function createContextConnectivity(context){
     },
     async capture(){if(closed)return null;if(transition)await transition;return online&&!closed?epoch:null;},
     async isOnline(captured){if(closed)return false;if(transition)await transition;return online&&!closed&&captured===epoch;},
+    isOnlineNow(captured){return !closed&&!transition&&online&&captured===epoch;},
   };
 }

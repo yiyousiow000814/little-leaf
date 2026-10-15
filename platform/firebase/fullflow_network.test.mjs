@@ -271,3 +271,32 @@ console.log('In-flight proxy responses cannot cross a confirmed offline/online e
  assert.throws(()=>control.setOffline(frame,false),/Invalid fixture/);
 }
 console.log('Context closure invalidates proxy epochs and late confirmations cannot reopen forwarding.');
+
+// Reproduce both await-to-route-operation interleavings using the exact driver.
+const proxyStart=driver.indexOf('  const connectivityEpoch=');
+const proxyEndText='  }finally{clock.callbackFinallyAt=Date.now();}';
+const proxyEnd=driver.indexOf(proxyEndText,proxyStart)+proxyEndText.length;
+assert(proxyStart>=0&&proxyEnd>=proxyStart);
+const proxyBody=driver.slice(proxyStart,proxyEnd);
+for(const guarded of [false,true])for(const interleave of ['none','before-forward','before-fulfill']){
+ let actualOnline=true,forwarded=0,fulfilled=0,transition;const aborted=[];
+ const frame={evaluate:async()=>actualOnline};
+ const context=Object.assign(new EventEmitter(),{setOffline:async value=>{actualOnline=!value;}});
+ const connectivity=createContextConnectivity(context);await connectivity.initialize(frame);
+ const method=interleave==='before-forward'?'capture':interleave==='before-fulfill'?'isOnline':null;
+ if(method){const original=connectivity[method];connectivity[method]=function(...args){const result=original.apply(this,args);queueMicrotask(()=>{transition=connectivity.setOffline(frame,true);});return result;};}
+ const route={request:()=>({method:()=> 'POST'}),fetch:async()=>{forwarded++;return {headers:()=>({}),status:()=>200};},fulfill:async()=>{fulfilled++;},abort:async reason=>{aborted.push(reason);}};
+ const body=guarded?proxyBody:proxyBody.replaceAll('||!connectivity.isOnlineNow(connectivityEpoch)','');
+ const execute=vm.runInNewContext('(async function(route){'+body+'})',{
+  connectivity,rpcClock:()=>({}),u:new URL(syntheticRPCOrigin+'/v1/projects/demo-little-leaf/databases/(default)/documents:commit'),
+  target:emulatorProxyTarget(syntheticRPCOrigin+'/v1/projects/demo-little-leaf/databases/(default)/documents:commit','POST'),
+  officialOrigin:'https://little-leaf-41e5d.firebaseapp.com',networkObservation:()=>{},failureCategory,
+ });
+ await execute(route);if(transition)await transition;
+ assert.equal(forwarded,guarded&&interleave==='before-forward'?0:1);
+ const delivered=interleave==='none'||(!guarded&&interleave==='before-fulfill');
+ assert.equal(fulfilled,delivered?1:0);
+ assert.deepEqual(aborted,delivered?[]:['internetdisconnected']);
+ if(interleave!=='none')assert.equal(actualOnline,false);
+}
+console.log('Exact proxy driver: offline fences close in both await-to-forward and await-to-fulfill gaps; synchronous guards prevent forwarding/delivery, while confirmed online traffic still passes.');
