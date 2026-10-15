@@ -1,0 +1,38 @@
+{
+  "phase": "CURRENT_APPROVED_THREE_ATLAS_PARITY",
+  "source": {
+    "commit": "53befa34fd42e8561a220cdf2d680ffc86565019",
+    "tree": "94be9130947b9f7cc0ef019e13b765589a483231"
+  },
+  "proposal": {
+    "commit": "53befa34fd42e8561a220cdf2d680ffc86565019",
+    "tree": "94be9130947b9f7cc0ef019e13b765589a483231"
+  },
+  "expected_rgba": [
+    "ba615c7535d6e3806d1b6b27abf2c50575e59486c8b9ab8c08d4eadff401b5ac",
+    "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
+    "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7"
+  ],
+  "original_control_expected_rgba": [
+    "31cee6b9d6bac22c11b23e6f6e5f89a8aa09b1569cb3e6e6fd37ef8efc14c732",
+    "6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc",
+    "d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7"
+  ],
+  "asset_overlay": null,
+  "source_git_intake": {
+    "commit": "53befa34fd42e8561a220cdf2d680ffc86565019",
+    "tree": "94be9130947b9f7cc0ef019e13b765589a483231",
+    "parents": [
+      "16a42d9fec434b13b6dea21a0737239ee3cf894b",
+      "63739a1bb8f687e6f1d085a2a7a17798a8c0f822"
+    ],
+    "reference": "16a42d9fec434b13b6dea21a0737239ee3cf894b",
+    "reference_tree": "fce8084666d1a0e40073f48dbddd033fd04f850a",
+    "complete_QA_graph_required": true,
+    "network_fetch": false,
+    "bundle": false
+  },
+  "protected_asset_policy": "No PNG overlay or source PNG/import write; verify actual accepted-main atlas resources unchanged.",
+  "authorization": "Existing scoped Car158 source integration and corresponding canonical verification; preserve the existing Draft and source history. No merge, current prerelease inclusion, deployment, original player data or new art changes.",
+  "closure_packet_sha256": "337080ff59716095004507b14b56612642452335ae939e0e019e3aea803bff87"
+}
