@@ -34,7 +34,7 @@ func roundtrip(label:String):
  if not saved:return
  var saved_bytes=FileAccess.get_sha256("user://dishwashing-fixture.json")
  var payload=JSON.parse_string(FileAccess.get_file_as_string("user://dishwashing-fixture.json"))
- check(payload.wall_format==3 and payload.runtime.service.version==game.SaveContract.SERVICE_VERSION,label+" saves both new wall and dish service formats together")
+ check(payload.building_format=="little_leaf.grid_building.v2" and payload.wall_format==4 and payload.wall_attachment_format==2 and payload.runtime.service.version==game.SaveContract.SERVICE_VERSION,label+" saves both new wall and dish service formats together")
  check(game.model.load_save("user://dishwashing-fixture.json"),label+" loads: "+game.model.last_error)
  game._restore_service_runtime()
  check(FileAccess.get_sha256("user://dishwashing-fixture.json")==saved_bytes,label+" load leaves original synthetic bytes unchanged")
