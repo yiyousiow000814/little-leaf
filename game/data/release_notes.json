@@ -25,7 +25,7 @@
     "Fixed isolated doorways counting as usable entrances. Customer entrances must connect to a reachable corridor.",
     "Fixed checkout counters floating above the floor. Cashier and customer payment contacts now align with the worktop.",
     "Fixed the outside oak hiding nearby street characters that should appear in front.",
-    "Fixed staff rings drawing over solid furniture or under rugs. Rings keep their rotation and pause behavior. Their inner diameter is one tile.",
+    "Fixed staff rings drawing over solid furniture or under rugs. Rings keep their rotation and pause behavior. Their outer diameter matches one tile side.",
     "Fixed staff idle-home assignments after recovery replaces the game state. This also applies when the roster count and model revision stay unchanged.",
     "Improved mobile save-choice explanations and comparison cards. Fixed dragging in Settings activating buttons instead of scrolling.",
     "Fixed the Update Notes header and panel margins leaving too little space for reading and scrolling.",
