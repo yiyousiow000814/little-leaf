@@ -235,24 +235,6 @@ func _rebuild_room():
 	if is_instance_valid(illustration):
 		illustration.update_projection();illustration.queue_redraw()
 
-func _apply_edit_staff_positions(previous:Array,positions:Array)->bool:
-	# Validate every live identity/position before writing either half of the edit.
-	if not editing or previous.size()!=staff_states.size() or positions.size()!=staff_states.size():return false
-	for index in staff_states.size():
-		if staff_states[index].pos!=previous[index]:return false
-	for index in staff_states.size():
-		var staff=staff_states[index]
-		if staff.pos==positions[index]:continue
-		staff.pos=positions[index];staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
-		staff.destination=Vector2i(-100,-100);staff.path=[];staff.index=0
-		staff.blocked_time=0.0;staff.stalled_time=0.0
-		# Jobs, payload ownership and progress survive; only the walking pose resets.
-		if illustration!=null:
-			var key="staff_%s"%index
-			illustration.motion.remove(key);illustration.stance_offsets.erase(key)
-	idle_home_revision=-1
-	return true
-
 func _rebuild_furniture():
 	static_service_paths.clear();static_service_revision=model.revision
 	for staff in staff_states:
