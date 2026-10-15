@@ -1,0 +1,193 @@
+extends SceneTree
+## Offline notes, real Settings controls and disposable synthetic preferences only.
+const Notes=preload("res://scripts/ui/cafe_update_notes.gd")
+const FIXTURE="user://synthetic_update_notes.json"
+class TestMain extends "res://scripts/main.gd":
+ var saves=0
+ func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
+ func _save():saves+=1;return true
+var game
+var checks=0
+var failures=[]
+func check(ok:bool,label:String):
+ checks+=1
+ if not ok:failures.append(label);printerr("FAIL ",label)
+func _initialize():run.call_deferred()
+func settle():
+ game._update_ui()
+ for frame in 6:await process_frame
+func words(node:Node)->Array:
+ var result=[]
+ if node is Label:result.append(node.text)
+ for child in node.get_children():result.append_array(words(child))
+ return result
+func fixture(status:String)->Dictionary:
+ return {"schema_version":1,"status":status,"version":"9.8.7","date":"2026-01-01","label":"Synthetic release label","new":["Synthetic shipped change"],"fixed":[],"review_pending":["Internal review gap"]}
+func load_fixture(document:Variant):
+ var file=FileAccess.open(FIXTURE,FileAccess.WRITE)
+ file.store_string(JSON.stringify(document));file.close()
+ var ui=game.compact_ui;var notes=ui.update_notes
+ # Rebuild only the test panel; existing Settings callbacks keep their controller.
+ for record in ui.themed_popups.duplicate():
+  if record.panel==notes.panel:ui.themed_popups.erase(record)
+ notes.panel.free();notes.panel=null;notes.session_seen_version=""
+ notes.setup(FIXTURE)
+ await settle()
+func run():
+ var document=JSON.parse_string(FileAccess.get_file_as_string(Notes.DATA_PATH))
+ var checked=Notes.validate_document(document)
+ check(checked.valid,"checked-in release notes are accepted by runtime")
+ check(checked.status=="released" and checked.version==ProjectSettings.get_setting("application/config/version"),"published preview notes expose the current version")
+ check(checked.label==document.label and checked.date==document.date,"published preview keeps its label and publication date")
+ for status in ["pending","draft"]:
+  var input=fixture(status);var original=input.duplicate(true)
+  var normalized=Notes.validate_document(input)
+  check(normalized.valid and normalized.status==status,status+" is a valid unpublished state")
+  for field in ["version","date","label"]:check(normalized[field]=="",status+" suppresses "+field)
+  check(normalized.new.is_empty() and normalized.fixed.is_empty(),status+" suppresses candidate bullets")
+  check(not normalized.has("review_pending"),status+" suppresses internal review gaps")
+  check(input==original,status+" validation does not mutate the source")
+ var released=fixture("released");released.erase("review_pending")
+ check(Notes.validate_document(released).valid,"released fixture still validates")
+ for change in [{"status":"unknown"},{"schema_version":2},{"version":"tbd"},{"date":"2026-02-30"},{"new":[" "]},{"new":[],"fixed":[]}]:
+  var input=released.duplicate(true);input.merge(change,true)
+  check(not Notes.validate_document(input).valid,"malformed release remains invalid "+str(change))
+ check(not Notes.validate_document(null).valid,"missing document remains invalid")
+ game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
+ await process_frame
+ var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
+ # Real shipped history exercises the long-body case; the former setup-time
+ # header measurement wrongly consumed 361px before width/wrapping settled.
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show_from_settings();await settle()
+  var style=notes.panel.get_theme_stylebox("panel")
+  var padding=style.get_minimum_size()
+  var expected=minf(notes.body.get_combined_minimum_size().y,ui.hud.popup_height_budget()-padding.y-notes.header.size.y-ui.INFORMATION_PANEL_GAP)
+  check(absf(notes.scroll.size.y-expected)<2,"Updates uses available readable height after final header layout "+str(view))
+  var bounds=notes.panel.get_global_rect()
+  var inside=Rect2(bounds.position+Vector2(style.get_margin(SIDE_LEFT),style.get_margin(SIDE_TOP)),bounds.size-padding)
+  check(inside.grow(1).encloses(notes.header.get_global_rect()) and inside.grow(1).encloses(notes.scroll.get_global_rect()),"Updates header and text viewport keep safe panel padding "+str(view))
+  var first_bullet:Control=notes.body.get_child(3)
+  check(notes.scroll.get_global_rect().grow(1).encloses(first_bullet.get_global_rect()),"Updates first shipped paragraph is fully readable "+str(view))
+  notes.scroll.scroll_vertical=100000;await settle()
+  check(notes.scroll.get_global_rect().grow(1).encloses(notes.back_button.get_global_rect()),"Updates scroll bottom exposes Back "+str(view))
+  notes._back_to_help();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates Back preserves Settings route "+str(view))
+  notes.show_from_settings();await settle()
+  check(notes.scroll.scroll_vertical==0,"Updates reopening restores first paragraph "+str(view))
+  root.size=Vector2i(390,844) if view.x>view.y else Vector2i(844,390);await settle()
+  check(Rect2(Vector2.ZERO,Vector2(root.size)).encloses(notes.panel.get_global_rect()),"Updates open resize remains bounded "+str(view))
+  notes.close_button.pressed.emit();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates X preserves Settings route after resize "+str(view))
+ for peer in [ui.help_panel,game.settings]:
+  var style=peer.get_theme_stylebox("panel")
+  var notes_style=notes.panel.get_theme_stylebox("panel")
+  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:
+   check(style.get_content_margin(side)==notes_style.get_content_margin(side),"Information panels share text-safe margin "+str(side))
+ check(notes.body.get_theme_constant("separation")==ui.help_box.get_theme_constant("separation") and notes.body.get_theme_constant("separation")==game.settings_controls.preference_storage_note.get_parent().get_theme_constant("separation"),"Information panels share peer content gaps")
+ notes.hide()
+ var shipped_text=words(notes.body)
+ check(checked.version in shipped_text and "Latest changes · "+checked.date in shipped_text,"actual preview uses the full latest version and date")
+ check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
+ for section in ["new","fixed"]:
+  for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
+ var major={}
+ for previous in checked.history:
+  check(not "Version %s · %s"%[previous.version,previous.date] in shipped_text,"per-release historical headings are not displayed "+previous.version)
+  if previous.version=="0.1.10":major=previous
+ check(not major.is_empty() and major.new.size()==6 and major.fixed.size()==7,"historical source data retains the complete previous preview")
+ check(not "A shorter, skippable tutorial with quick service explanations." in shipped_text,"old-family changes are not mixed into the latest family")
+ check(not notes.panel.find_child("EarlierVersions",true,false),"no Earlier versions control exists")
+ preferences.last_seen_update_version="8.0.0"
+ var original_config_exists=FileAccess.file_exists(preferences.config_path)
+ for status in ["pending","draft"]:
+  await load_fixture(fixture(status))
+  check(notes.data_error=="",status+" does not become unavailable")
+  check(not notes.panel.visible,status+" setup never opens a panel")
+  check(notes.current_version()=="" and not notes.has_unread(),status+" has no released version or unread state")
+  var text=words(notes.panel)
+  check("Release details are being prepared." in text,status+" shows preparation copy")
+  check(text.size()==2,status+" shows only title and preparation copy")
+  for entry in notes.menu_entries:
+   check(not entry.badge.visible and entry.button.accessibility_name=="Update Notes",status+" menu has no unread badge or announcement")
+  for entry in ui.update_badges:
+   if entry.button!=ui.settings_button and entry.button!=ui.settings_inbox:
+    check(not entry.badge.visible,status+" Settings Updates has no update badge")
+  for view in [Vector2i(960,540),Vector2i(390,844),Vector2i(566,360)]:
+   root.size=view;game.settings.show();await settle()
+   ui.settings_updates.pressed.emit();await settle()
+   check(notes.panel.visible and not game.settings.visible and not ui.help_panel.visible,status+" opens through Settings at "+str(view))
+   check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),status+" preparation panel fits "+str(view))
+   notes.show_from_settings();await settle()
+   check(notes.panel.visible and notes.session_seen_version=="",status+" repeated open never marks draft seen")
+   notes.back_button.pressed.emit();await settle()
+   check(game.settings.visible and not notes.panel.visible,status+" Back returns to Settings")
+  check(preferences.last_seen_update_version=="8.0.0",status+" preserves previously seen version")
+ await load_fixture(released)
+ check(notes.current_version()=="9.8.7" and notes.has_unread(),"released notes retain version and unread behavior")
+ check("9.8.7" in words(notes.body) and "Latest changes · 2026-01-01" in words(notes.body),"released panel retains version and date")
+ check("Synthetic shipped change" in words(notes.body),"released panel retains shipped changes")
+ check(not notes.panel.visible and notes.session_seen_version=="","released setup does not mark seen")
+ for entry in ui.update_badges:
+  if entry.button==ui.settings_updates:check(entry.badge.visible,"released notes show unread badge on Settings Updates")
+ ui.settings_updates.pressed.emit();await settle()
+ check(notes.session_seen_version=="9.8.7" and not notes.has_unread(),"reading released notes clears session unread state")
+ check(preferences.last_seen_update_version=="8.0.0","review session never persists seen release")
+ notes._back_to_help();await settle();ui.settings_updates.pressed.emit();await settle()
+ check(not notes.has_unread(),"reopening released notes does not restore unread badge")
+ var historical=released.duplicate(true)
+ historical.version="9.8.6";historical.new=["Historical major feature"]
+ var hotfix=released.duplicate(true)
+ hotfix.new=[];hotfix.fixed=["Synthetic small fix"];hotfix.history=[historical]
+ var unchanged=hotfix.duplicate(true)
+ check(Notes.validate_document(hotfix).valid,"hotfix supports complete prior release notes")
+ check(hotfix==unchanged,"history validation never mutates input")
+ for bad_history in ["bad",[null],[fixture("draft")],[released],[historical,historical]]:
+  var bad=hotfix.duplicate(true);bad.history=bad_history
+  check(not Notes.validate_document(bad).valid,"invalid or duplicate history rejected")
+ var nested=historical.duplicate(true);nested.history=[]
+ var bad_nested=hotfix.duplicate(true);bad_nested.history=[nested]
+ check(not Notes.validate_document(bad_nested).valid,"nested histories rejected")
+ await load_fixture(hotfix)
+ var history_words=words(notes.body)
+ check("9.8.7" in history_words and not "Historical major feature" in history_words,"default panel contains current family only")
+ check(not "Version 9.8.6 · 2026-01-01" in history_words,"older version heading is absent")
+ check(notes.release.history.size()==1 and notes.release.history[0].new==["Historical major feature"],"hidden historical notes remain intact internally")
+ var content_count=notes.body.get_child_count()
+ check(notes.current_version()=="9.8.7","unread version remains latest hotfix")
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show();await settle()
+  check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),"history panel fits "+str(view))
+  check(notes.body.get_child_count()==content_count and not notes.panel.find_child("EarlierVersions",true,false),"repeated open does not add history controls "+str(view))
+ var family=released.duplicate(true)
+ family.version="0.1.11-pre.e0a347da";family.new=["Current change","Shared change"]
+ var prior=released.duplicate(true)
+ prior.version="0.1.11-pre.12345678";prior.new=["Shared change","Earlier family change"];prior.fixed=["Shared change","Family fix"]
+ var old=released.duplicate(true)
+ old.version="0.1.10d";old.new=["Older version change"]
+ family.history=[prior,old]
+ var original_family=family.duplicate(true)
+ var cumulative=Notes.cumulative_family(Notes.validate_document(family))
+ check(cumulative.new==["Current change","Shared change","Earlier family change"],"same-family changes accumulate once in source order")
+ check(cumulative.fixed==["Family fix"],"duplicate change text appears once across New and Fixed")
+ check(not "Older version change" in cumulative.new and not "Older version change" in cumulative.fixed,"other-family changes are excluded")
+ check(family==original_family,"family presentation never mutates exact metadata")
+ await load_fixture(family)
+ check(notes.current_version()==family.version and notes.has_unread(),"exact SHA build identity remains the unread key")
+ check(family.version in words(notes.body) and not "0.1.11-pre" in words(notes.body),"heading retains the actual full latest prerelease identity")
+ check(words(notes.body).count("Shared change")==1 and "Earlier family change" in words(notes.body),"cumulative family bullets render once")
+ check(not "Older version change" in words(notes.body),"no old-family content is rendered")
+ notes.show_from_settings();await settle()
+ check(notes.session_seen_version==family.version and not notes.has_unread(),"reading family view marks only the exact build seen in memory")
+ await load_fixture({"schema_version":1,"status":"broken"})
+ check(notes.data_error!="" and notes.current_version()=="" and not notes.has_unread(),"malformed notes remain unavailable without badge")
+ check("Update notes are unavailable in this build." in words(notes.body),"malformed notes retain unavailable copy")
+ check(preferences.last_seen_update_version=="8.0.0","all notes flows preserve saved seen version")
+ check(FileAccess.file_exists(preferences.config_path)==original_config_exists,"notes flows do not create preferences")
+ check(game.saves==0,"notes flows never write gameplay saves")
+ DirAccess.remove_absolute(FIXTURE)
+ print("UPDATE_NOTES_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
+ for player in game.audio_players.values():player.stop();player.stream=null
+ preferences.sfx_player.stop();preferences.sfx_player.stream=null
+ for tween in get_processed_tweens():tween.kill()
+ game.queue_free();await process_frame;quit(0 if failures.is_empty() else 1)

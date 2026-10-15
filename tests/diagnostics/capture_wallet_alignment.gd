@@ -13,7 +13,6 @@ func run():
  # Isolate the real HUD from unrelated world draw buffers. The size guard may
  # show the illustration again after resize, so remove it from this QA fixture.
  game.illustration.free();game.illustration=null
- game.workface_guidance.hide();game.workface_guidance.set_process(false)
  await process_frame
  var hud=game.compact_ui.hud
  for view in [Vector2i(344,568),Vector2i(566,360),Vector2i(895,540),Vector2i(1360,880),Vector2i(2560,1440)]:

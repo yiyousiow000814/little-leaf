@@ -1,7 +1,7 @@
 extends SceneTree
 # Read-only visual diagnosis using the unchanged live renderer and synthetic poses.
 # No Main, player profile, saved state, service controller, or storage access.
-class Board extends "res://scripts/illustrated_cafe.gd":
+class Board extends "res://scripts/rendering/illustrated_cafe.gd":
  var test_species=0
  var test_phase=.5
  var markers=false

@@ -7,6 +7,16 @@
   const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
   const recoveryBackupKey = uid => ['recovery-v1',uid];
   const choiceBackupKey = uid => ['choice-v1',uid];
+  const MAX_CHOICE_ARCHIVES = 8;
+  function choiceBundles(saved) {
+    if(saved==null)return [];
+    const bundles=saved.format==='little-leaf.choice.v1'?[saved]:saved.format==='little-leaf.choices.v1'?saved.archives:null;
+    if(!Array.isArray(bundles)||!bundles.length||bundles.length>MAX_CHOICE_ARCHIVES
+      ||bundles.some(b=>b?.format!=='little-leaf.choice.v1'||typeof b.selectionToken!=='string')
+      ||new Set(bundles.map(b=>b.selectionToken)).size!==bundles.length)
+      throw error('RECOVERY_ARCHIVE_DAMAGED','Protected save choices are damaged and will not be replaced.');
+    return bundles;
+  }
   const DEVICE_LABELS = ['Unknown device','iPhone','iPad','Android device','Mac','Windows PC','ChromeOS device','Linux device'];
   const displayDevice=value=>DEVICE_LABELS.includes(value)?value:'Unknown device';
   // Coarse platform description only: never store a full UA, ID or location.
@@ -50,13 +60,14 @@
   function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null}) {
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
-    let choiceArchive=null,choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
-    const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
+    let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
+    let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0;
+    const savedDevice=displayDevice(deviceLabel),recordDevices=new WeakMap();
     let localQueue=Promise.resolve();
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
     const accountGuard = () => { if(closed || currentUid() !== uid) throw error('NOT_READY','Account changed. Reload to load its progress.'); };
-    const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
+    const guard = () => { accountGuard(); if(ownership)ownership.assertActive(handoffMode); if(handoffMode&&ownerHandoff){ownership.assertHandoff(ownerHandoff.fence);if(!same(entry.record,ownerHandoff.record))throw error('HANDOFF_CHANGED','The frozen progress changed.');} if(stopped) throw error('NOT_READY','Progress is blocked. Reload or review recovery before continuing.'); };
     const token = doc => doc ? doc.digest : null;
     const permissionReason='Cloud saving was refused. Your pending progress is kept on this device. Use Export pending progress on this page, then reload the updated game on this same address. Do not clear browser storage.';
     function state(value) { status(permissionDenied && value!=='signed-out' ? 'permission-denied' : value); }
@@ -68,7 +79,7 @@
       catch (_) { throw error('CORRUPT_AUTHORITY','Cloud save is damaged. Pending progress is preserved.'); }
       if(!record.revision || !/^[a-f0-9]{64}$/.test(record.digest)) throw error('CORRUPT_AUTHORITY','Cloud save has no committed progress.');
       if(doc.digest!==record.digest || doc.revision!==record.revision || doc.profileId!==record.profileId) throw error('CORRUPT_AUTHORITY','Cloud save identity is damaged.');
-      recordDevices.set(record.digest,displayDevice(doc.device));
+      recordDevices.set(record,displayDevice(doc.device));
       return record;
     }
     async function validateLocal(local) {
@@ -115,19 +126,23 @@
       }
     }
 
-    // One protected choice bundle per account. Never evict a different bundle.
+    // Append protected pairs up to a fixed bound. Never evict an earlier pair.
     // Legacy recovery backup remains untouched in its original, separate slot.
     async function refreshChoiceArchive() {
-      choiceArchive=null;choiceProblem='';
+      choiceArchive=null;choiceArchives=[];choiceProblem='';
       if(!journal.readChoiceBackup || !journal.choose) {choiceProblem='Protected choice storage is unavailable. Your progress is unchanged.';return;}
       try {
         const saved=await journal.readChoiceBackup(uid);accountGuard();if(saved===null)return;
-        if(saved?.format!=='little-leaf.choice.v1' || !['local','cloud'].includes(saved.choice) || typeof saved.selectionToken!=='string')throw Error('invalid archive');
-        await validateLocal(saved.local);await codec.verifyRecord(saved.cloud);await codec.verifyRecord(saved.selected);
-        if(saved.cloudDocument && (await validate(saved.cloudDocument))?.digest!==saved.cloud.digest)throw Error('archive cloud document mismatch');
-        if(!saved.local.pending)throw Error('not a pending branch');
+        const bundles=choiceBundles(saved);
+        for(const bundle of bundles) {
+          if(!['local','cloud'].includes(bundle.choice))throw Error('invalid archive');
+          await validateLocal(bundle.local);await codec.verifyRecord(bundle.cloud);await codec.verifyRecord(bundle.selected);
+          if(bundle.cloudDocument && (await validate(bundle.cloudDocument))?.digest!==bundle.cloud.digest)throw Error('archive cloud document mismatch');
+          if(!bundle.local.pending)throw Error('not a pending branch');
+        }
         accountGuard();choiceArchive=saved;
-        choiceProblem='A previous pair of different saves is already protected. Both current saves are unchanged. More protected storage is needed before another choice.';
+        choiceArchives=bundles;
+        if(bundles.length>=MAX_CHOICE_ARCHIVES)choiceProblem='Protected save-choice storage is full. Export all copies for review; earlier saves will not be replaced.';
       } catch(e) {accountGuard();choiceProblem='The protected save copies could not be verified. They will not be replaced.';}
     }
     function summary(id,record,device) {
@@ -166,7 +181,7 @@
       if(!recovery || recovery.local.record.digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
       const local=await journal.read(uid);accountGuard();
       if(!same(local,recovery.local))throw error('REVISION_CONFLICT','This device changed in another tab. Its newer progress is preserved.');
-      const cloudDocument=await remote.read(uid);accountGuard();const record=await validate(cloudDocument);accountGuard();
+      const cloudDocument=await networkWait(remote.read(uid));accountGuard();const record=await validate(cloudDocument);accountGuard();
       if(!record)throw error('RECOVERY_MISSING','The synced save is missing. Neither save has been changed.');
       if(record.digest!==cloudDigest) {await previewRecovery(local,record);throw error('RECOVERY_CHANGED','The synced save changed. Review both current saves again.');}
       return {local,record,cloudDocument};
@@ -175,13 +190,25 @@
       if(uploadTask)return uploadTask;
       uploadTask=performUpload().finally(()=>{uploadTask=null;});return uploadTask;
     }
+    function assertHandoffIntent(intent){
+      accountGuard();
+      if(ownerHandoff!==intent||intent.generation!==handoffGeneration||!same(entry.record,intent.record))throw error('HANDOFF_CHANGED','The frozen progress changed.');
+    }
     async function performUpload() {
-      guard();
+      const handoff=handoffMode?ownerHandoff:null;
+      const uploadGuard=()=>{
+        if(!handoff){guard();return;}
+        // A local wait timeout pauses native/UI work, not this already-started
+        // frozen transaction. Its captured intent remains the only authority.
+        assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);
+        if(permissionDenied)throw error('permission-denied',permissionReason);
+      };
+      uploadGuard();
       if(!entry?.pending) return;
       lastAttempt=now();
       let snapshot;
       await serial(async()=>{
-        guard();
+        uploadGuard();
         // Persist the exact upload before touching the network. If acknowledgment
         // is lost, replay this same snapshot; never mistake it for another device.
         if(!entry.uploading) {
@@ -191,16 +218,23 @@
         snapshot=entry.uploading;
       });
       const candidate={schema:1, profileId:snapshot.record.profileId, revision:snapshot.record.revision, digest:snapshot.record.digest, record:capacity(snapshot.record),device:displayDevice(snapshot.device)};
+      // Timer/focus ordering cannot prove a live server lease after suspension.
+      // Renew the same confirmed owner/epoch before any save upload. A competing
+      // owner or real permission refusal stays paused; never clear that latch.
       state('pending');
-      try { await remote.compareAndSet(uid,snapshot.base,candidate,guard); }
+      try {
+        if(ownership){await networkWait(ownership.renew());uploadGuard();}
+        await remote.compareAndSet(uid,snapshot.base,candidate,uploadGuard);
+      }
       catch(e) {
         if(['permission-denied','firestore/permission-denied'].includes(e.code)) {
+          if(ownership?.snapshot().status==='other-device')throw error('OWNERSHIP_LOST','Another device owns this café. Pending progress is preserved.');
           permissionDenied=true;stopped=true;pendingExport=entry?.pending ? entry : null;state('permission-denied');
         }
         throw e;
       }
       await serial(async()=>{
-        guard();
+        uploadGuard();
         if(entry.base!==snapshot.base || entry.record.profileId!==snapshot.record.profileId || entry.record.revision<snapshot.record.revision)
           throw error('REVISION_CONFLICT','Account progress changed during upload. Reload.');
         // A hide-save or later edit may have committed during the network wait.
@@ -208,6 +242,94 @@
         const next={...entry,base:candidate.digest,pending:entry.record.digest!==candidate.digest,uploading:null};
         await journal.replace(uid,entry,next);entry=next;state(next.pending?'pending':'saved');
       });
+      if(handoff)handoff.uploadConfirmed=true;
+    }
+    // A timeout does not cancel Firestore or a journal transaction. Native keeps
+    // its durable snapshot latched; continue that exact record, never resnapshot.
+    function wakeSettledHandoff(intent){
+      for(const task of [uploadTask,intent.ackTask]){
+        if(!task||intent.wakeTasks.has(task))continue;
+        intent.wakeTasks.add(task);
+        task.then(()=>null,problem=>problem).then(async()=>{
+          // A settlement during an existing retry joins it first. Wake only
+          // this still-current timed-out intent, once per uncertain operation.
+          if(handoffRetryTask)await handoffRetryTask;
+          if(ownerHandoff===intent&&intent.generation===handoffGeneration&&intent.retryable&&!closed&&!permissionDenied)
+            await retryOwnerHandoff();
+        });
+      }
+    }
+    function retryOwnerHandoff(){
+      if(handoffRetryTask)return handoffRetryTask;
+      const intent=ownerHandoff;if(!intent?.retryable)return Promise.resolve();
+      handoffRetryTask=(async()=>{
+        let drainedError=null;
+        try{
+          assertHandoffIntent(intent);if(permissionDenied)throw error('permission-denied',permissionReason);
+          // Reuse uncertain work. Never issue a second CAS/ACK while it is live.
+          for(const task of [uploadTask,intent.ackTask])if(task){
+            const problem=await networkWait(task.then(()=>null,problem=>problem));assertHandoffIntent(intent);
+            if(problem)drainedError=problem;
+          }
+          if(permissionDenied||['permission-denied','firestore/permission-denied'].includes(drainedError?.code))throw drainedError||error('permission-denied',permissionReason);
+          await serial(async()=>{
+            assertHandoffIntent(intent);const local=await journal.read(uid);await validateLocal(local);assertHandoffIntent(intent);
+            if(ownerHandoff!==intent||!same(local,entry)||!same(entry.record,intent.record))throw error('HANDOFF_CHANGED','The frozen progress changed.');
+          });
+          // A fulfilled captured upload includes its exact durable receipt.
+          // Its first atomic ACK rechecks the server save and request itself;
+          // uncertain uploads or ACKs still need the readback path below.
+          let receiptReady=false;
+          if(intent.uploadConfirmed&&!intent.ackTask&&!drainedError&&!entry.pending&&!entry.uploading&&entry.base===intent.record.digest){
+            try{ownership.assertHandoff(intent.fence);receiptReady=true;}catch(_){/* Unconfirmed cached ownership needs fresh readback. */}
+          }
+          if(receiptReady){
+            handoffMode=true;stopped=false;guard();
+            intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
+            await networkWait(intent.ackTask);assertHandoffIntent(intent);
+            state('saved');if(ownerHandoff===intent)ownerHandoff=null;return;
+          }
+          let cloud=await networkWait(remote.read(uid));await validate(cloud);assertHandoffIntent(intent);
+          const confirmed=await networkWait(ownership.confirmHandoff(intent.fence,intent.record.digest,intent.record.revision));assertHandoffIntent(intent);
+          const exact=document=>document?.digest===intent.record.digest&&document.profileId===intent.record.profileId&&document.revision===intent.record.revision&&document.writerId===intent.fence.writerId&&document.writerEpoch===intent.fence.writerEpoch;
+          if(confirmed!=='pending'&&!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
+          if(confirmed==='pending'&&drainedError&&drainedError.code!=='NOT_READY'){
+            // The late upload's paused local guard can report OWNERSHIP_LOST.
+            // Reconcile it only after independently confirming this exact
+            // server owner/request and its already-saved frozen record.
+            if(drainedError.code!=='OWNERSHIP_LOST'||!exact(cloud))throw drainedError;
+            ownership.assertHandoff(intent.fence);
+          }
+          await serial(async()=>{
+            assertHandoffIntent(intent);
+            let next=entry;
+            if(exact(cloud))next={...entry,base:cloud.digest,pending:false,uploading:null};
+            else if(entry.uploading&&cloud?.digest===entry.uploading.record.digest&&cloud.profileId===intent.record.profileId&&cloud.writerId===intent.fence.writerId&&cloud.writerEpoch===intent.fence.writerEpoch)next={...entry,base:cloud.digest,uploading:null};
+            else if(token(cloud)!==entry.base)throw error('REVISION_CONFLICT','Cloud progress changed. The frozen copy is preserved.');
+            if(!same(next,entry)){await journal.replace(uid,entry,next);assertHandoffIntent(intent);entry=next;}
+          });
+          if(confirmed==='pending'){
+            handoffMode=true;stopped=false;guard();
+            if(entry.pending){
+              while(entry.pending)await networkWait(upload());
+              cloud=await networkWait(remote.read(uid));await validate(cloud);
+            }
+            // Reuse the exact cloud result when reconciliation needed no new
+            // upload. Acknowledge atomically rechecks that save and owner fence.
+            guard();
+            if(!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
+            intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
+            await networkWait(intent.ackTask);assertHandoffIntent(intent);
+          }
+          assertHandoffIntent(intent);
+          state('saved');
+          if(ownerHandoff===intent)ownerHandoff=null;
+        }catch(problem){
+          intent.retryable=ownerHandoff===intent&&intent.generation===handoffGeneration&&problem.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+        }
+        finally{if(intent.generation===handoffGeneration){handoffMode=false;stopped=true;}}
+      })().finally(()=>{handoffRetryTask=null;});return handoffRetryTask;
     }
     const client={storageKind:'firebase-firestore',bootJson:'',creditForSave(){return 0;},
       async boot() {
@@ -216,8 +338,9 @@
           guard(); let local=await journal.read(uid); guard();
           await validateLocal(local); guard();pendingExport=local?.pending ? local : null;
           await refreshBackup();guard();
+          await refreshChoiceArchive();guard();
           try {
-            const cloud=await remote.read(uid); guard(); const record=await validate(cloud);
+            const cloud=await networkWait(remote.read(uid)); guard(); const record=await validate(cloud);
             if(local && !local.pending && local.base && !cloud) throw error('CORRUPT_AUTHORITY','Previously saved cloud progress is missing. Local progress is preserved.');
             if(local?.pending) {
               if(token(cloud)===local.record.digest) { const next={...local,base:token(cloud),pending:false,uploading:null}; await journal.replace(uid,local,next); local=next; }
@@ -246,7 +369,7 @@
         const allowed=!closed && currentUid()===uid;
         return {
           available:!!(allowed && recovery?.record && !recovery.blocked),busy:recoveryBusy,
-           canExport:!!(allowed && (pendingExport || recoveryBackup || permissionDenied && entry?.pending)),
+           canExport:!!(allowed && (pendingExport || recoveryBackup || choiceArchives.length || permissionDenied && entry?.pending)),
           cloudRevision:allowed ? recovery?.record?.revision ?? recoveredRevision : null,
            pendingRevision:allowed ? (permissionDenied && entry?.pending ? entry : pendingExport || recoveryBackup)?.record?.revision ?? null : null,
            reason:allowed ? (permissionDenied ? permissionReason : recovery?.blocked || backupProblem || recovery?.reason || (recoveryBackup ? 'The pending copy is protected on this device and can be exported.' : '')) : 'Account changed. Reload to load its progress.',
@@ -255,7 +378,7 @@
           choicesAvailable:!!(allowed && recovery?.record && !choiceProblem),
           needsRuntimeSnapshot:!!(allowed && bootReady && stopped && entry),
           choiceReason:allowed ? choiceProblem || (recovery?'Two different saves are available. Choose which progress to continue. Neither will be replaced before confirmation.':'') : 'Account changed. Your current café is paused.',
-          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record.digest))] : []
+          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record))] : []
         };
       },
       async saveForUpdate(payload,revision,profileId){
@@ -316,26 +439,38 @@
       },
       async refreshOwnership(){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
-        try {accountGuard();await ownership.refresh();return {ok:true,...ownership.snapshot()};}catch(e){return failure(e);}
+        try {accountGuard();await ownership.refresh();await retryOwnerHandoff();return {ok:true,...ownership.snapshot()};}catch(e){return failure(e);}
       },
-      async renewOwnership(){if(!ownership)return;try {accountGuard();await ownership.renew();}catch(_){/* Native observes the paused ownership snapshot. */}},
+      async renewOwnership(){if(!ownership)return;try {accountGuard();await ownership.renew();await retryOwnerHandoff();}catch(_){/* Native observes the paused ownership snapshot. */}},
       async requestTakeover(){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
         try {accountGuard();const state=await ownership.requestTakeover();if(state.status==='active')return client.finishTakeover();return {ok:true,...state};}catch(e){return failure(e);}
       },
       async finishTakeover(force=false){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
-        try {accountGuard();await ownership.takeOver(force);accountGuard();stopped=false;bootReady=false;opened=null;recovery=null;choiceOperation=null;return client.boot();}catch(e){return failure(e);}
+        try {
+          accountGuard();const previous=ownerHandoff;ownerHandoff=null;handoffGeneration++;handoffMode=false;stopped=true;
+          // Explicit recovery invalidates old work before any new boot/write.
+          for(const task of [handoffRetryTask,uploadTask,previous?.ackTask])if(task)await networkWait(task.catch(()=>{}));
+          await localQueue;accountGuard();await ownership.takeOver(force);accountGuard();stopped=false;bootReady=false;opened=null;recovery=null;choiceOperation=null;return client.boot();
+        }catch(e){return failure(e);}
       },
       async forceTakeover(){return client.finishTakeover(true);},
       async preserveOwnerRuntime(payload,revision,profileId){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
+        const generation=++handoffGeneration;
+        let fence=null;if(ownership.snapshot().status==='handoff-requested'){try{fence=ownership.handoffReceipt();}catch(_){/* Still preserve the native snapshot locally. */}}
         // Always keep the native snapshot. Only the still-current owner flushes.
         const saved=await client.preserveRuntime(payload,revision,profileId);if(!saved.ok)return saved;
-        if(ownership.snapshot().status!=='handoff-requested')return {...saved,cloudConfirmed:false};
-        try {handoffMode=true;stopped=false;while(entry.pending)await networkWait(upload());await networkWait(ownership.acknowledge(entry.record.digest,entry.record.revision));accountGuard();const {reconciliationError,...durableSaved}=saved;return {...durableSaved,cloudConfirmed:true};}
-        catch(e){return {...saved,cloudConfirmed:false,handoffError:failure(e)};}
-        finally{handoffMode=false;stopped=true;}
+        if(generation!==handoffGeneration||!fence||ownership.snapshot().status!=='handoff-requested')return {...saved,cloudConfirmed:false};
+        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null,wakeTasks:new WeakSet()};ownerHandoff=intent;
+        try {handoffMode=true;stopped=false;while(entry.pending)await networkWait(upload());assertHandoffIntent(intent);intent.ackTask=ownership.acknowledge(entry.record.digest,entry.record.revision,fence);await networkWait(intent.ackTask);assertHandoffIntent(intent);ownerHandoff=null;const {reconciliationError,...durableSaved}=saved;return {...durableSaved,cloudConfirmed:true};}
+        catch(e){
+          intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+          return {...saved,cloudConfirmed:false,handoffError:failure(e)};
+        }
+        finally{if(generation===handoffGeneration){handoffMode=false;stopped=true;}}
       },
       // Read-only phase. Native validates the full candidate in isolation,
       // then asks the player to confirm before any active-save replacement.
@@ -354,7 +489,7 @@
           let selected=record;
           if(choice==='local')selected=await nextRecord({...local.record,profileId:record.profileId,createdAt:record.createdAt},local.record.payload,Math.max(local.record.revision,record.revision)+1);
           accountGuard();const selectionToken=await codec.hash(JSON.stringify({choice,localDigest,cloudDigest,selected:selected.digest}));accountGuard();
-          choiceOperation={choice,localDigest,cloudDigest,selectionToken,local,cloud:record,cloudDocument,selected,device:choice==='local'?savedDevice:displayDevice(cloudDocument.device),staged:false,complete:false};
+          choiceOperation={choice,localDigest,cloudDigest,selectionToken,local,cloud:record,cloudDocument,selected,archive:choiceArchive,device:choice==='local'?savedDevice:displayDevice(cloudDocument.device),staged:false,complete:false};
           return {...receipt(selected),selectionToken};
         } catch(e) {return failure(e);} finally {recoveryBusy=false;}
       },
@@ -372,7 +507,7 @@
             await verifyChoiceInputs(operation.localDigest,operation.cloudDigest);accountGuard();
             const next={base:operation.cloudDigest,pending:operation.choice==='local',record:operation.selected,device:operation.device};
             const backup={format:'little-leaf.choice.v1',selectionToken,choice:operation.choice,local:operation.local,cloud:operation.cloud,cloudDocument:operation.cloudDocument,selected:operation.selected};
-            await serial(async()=>{const selectionGuard=()=>{accountGuard();if(ownership)ownership.assertActive();};selectionGuard();await journal.choose(uid,operation.local,next,backup,selectionGuard);selectionGuard();entry=next;operation.staged=true;});
+            await serial(async()=>{const selectionGuard=()=>{accountGuard();if(ownership)ownership.assertActive();};selectionGuard();await journal.choose(uid,operation.local,next,backup,selectionGuard,operation.archive);selectionGuard();entry=next;operation.staged=true;});
           }
           // Durable intent permits exact replay after a lost network response.
           stopped=false;if(operation.choice==='local')await upload();
@@ -398,14 +533,16 @@
           // Always read protected storage again. Never export another account or
           // silently substitute a stale in-memory copy after another tab writes.
           await refreshBackup();accountGuard();const backup=recoveryBackup;
+          await refreshChoiceArchive();accountGuard();
           const expected=permissionDenied && entry?.pending ? entry : pendingExport;
           const pending=expected ? await journal.read(uid) : null;accountGuard();
           if(expected && !same(pending,expected)) throw error('REVISION_CONFLICT','Pending progress changed in another tab. Reload before exporting.');
-          const saved=pending || backup;
+          const saved=pending || backup || choiceArchives.at(-1)?.local;
           if(!saved) throw error(backupProblem?'RECOVERY_ARCHIVE_DAMAGED':'RECOVERY_UNAVAILABLE',backupProblem || 'There is no preserved pending copy to export.');
           await validateLocal(saved);accountGuard();
           const bundle={format:'little-leaf.firebase-recovery.v1',pendingEntry:saved};
           if(pending && backup && !same(pending,backup)) bundle.protectedBackup=backup;
+          if(choiceArchives.length)bundle.protectedChoices=choiceArchives;
           if(backupProblem) bundle.note='The protected backup could not be verified and remains untouched on this device.';
           const text=JSON.stringify(bundle,null,2);accountGuard();
           return {ok:true,fileName:`little-leaf-pending-recovery-r${saved.record?.revision || 0}.json`,text};
@@ -461,6 +598,7 @@
         } finally { recoveryBusy=false; }
       },
       async commit(payload,revision,profileId) {
+        if(ownerHandoff){try{accountGuard();ownership.assertActive();}catch(problem){return failure(problem);}return failure(error('HANDOFF_SAVING','The frozen progress is being preserved for the device switch.'));}
         if(updateInProgress)return failure(error('SAVE_BUSY','The café is being saved for an update.'));
         if(busy) return failure(error('SAVE_BUSY','A save is pending.')); busy=true;
         try {
@@ -480,17 +618,66 @@
       },
       async sync() { if(syncing || !bootReady || stopped || !entry?.pending || now()-lastAttempt<30000)return;syncing=true;try {await upload();}catch(e){if(offline(e))state('offline');else {stopped=true;state('conflict');if(e.code==='REVISION_CONFLICT'){try{const record=await validate(await remote.read(uid));accountGuard();if(record)await previewRecovery(entry,record);}catch(_){/* Keep current model and journal; never reload an unavailable preview. */}}}}finally{syncing=false;} },
       save(payload,revision,profileId,callback){client.commit(payload,revision,profileId).then(r=>callback(JSON.stringify(r)));},
-      close(){closed=true;stopped=true;ownership?.close();state('signed-out');}
+      close(){closed=true;stopped=true;ownerHandoff=null;handoffGeneration++;ownership?.close();state('signed-out');}
     };return client;
   }
   // Each read/compare/write is a single IDB transaction; concurrent tabs fail closed.
   async function openJournal(indexedDB) {
-    const db=await new Promise((resolve,reject)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);q.onblocked=()=>reject(error('STORAGE_BLOCKED','Close other game tabs and reload.'));});
-    function transaction(uid,expected,next,write) {return new Promise((resolve,reject)=>{let result,problem;const tx=db.transaction('accounts',write?'readwrite':'readonly'),s=tx.objectStore('accounts'),q=s.get(uid);q.onsuccess=()=>{if(Array.isArray(uid) && q.result!==undefined && (!q.result || typeof q.result!=='object')){problem=error('CORRUPT_AUTHORITY','Protected recovery backup is damaged.');tx.abort();return;}result=q.result || null;if(write){if(!same(result,expected)){problem=error('REVISION_CONFLICT','Another tab changed this account’s progress. Reload.');tx.abort();}else{s.put(next,uid);result=next;}}};tx.oncomplete=()=>resolve(result);tx.onabort=()=>reject(problem || tx.error);tx.onerror=()=>{};});}
-    function recover(uid,expected,next,guard) {
+    let db=null,opening=null;
+    function connect(create) {
+      return new Promise((resolve,reject)=>{
+        const q=indexedDB.open('little-leaf.firebase-journal.v1',1);let absent=false,settled=false;
+        const done=(problem,connection)=>{if(settled){connection?.close();return;}settled=true;problem?reject(problem):resolve(connection);};
+        q.onupgradeneeded=()=>{if(create)q.result.createObjectStore('accounts');else{absent=true;q.transaction.abort();}};
+        q.onerror=()=>done(absent?error('CORRUPT_AUTHORITY','Saved account journal is missing; it will not be recreated.'):q.error);
+        q.onblocked=()=>done(error('STORAGE_BLOCKED','Close other game tabs and reload.'));
+        q.onsuccess=()=>{
+          const connection=q.result;
+          if(connection.version!==1||!connection.objectStoreNames.contains('accounts')){connection.close();done(error('CORRUPT_AUTHORITY','Account journal schema changed.'));return;}
+          connection.onversionchange=()=>{connection.close();if(db===connection)db=null;};
+          connection.onclose=()=>{if(db===connection)db=null;};
+          done(null,connection);
+        };
+      });
+    }
+    async function reopen() {
+      if(!opening)opening=connect(false).then(connection=>{db=connection;return connection;}).finally(()=>{opening=null;});
+      return opening;
+    }
+    async function begin(mode) {
+      const connection=db || await reopen();
+      try{return connection.transaction('accounts',mode);}
+      catch(problem){
+        // Replay only synchronous transaction-creation failure. Created/aborted
+        // transactions and uncertain receipts are never automatically retried.
+        if(problem.name!=='InvalidStateError')throw problem;
+        connection.close();if(db===connection)db=null;
+        return (await reopen()).transaction('accounts',mode);
+      }
+    }
+    db=await connect(true);
+    async function transaction(uid,expected,next,write) {
+      const tx=await begin(write?'readwrite':'readonly');
+      return new Promise((resolve,reject)=>{let result,problem;
+        tx.oncomplete=()=>resolve(result);tx.onabort=()=>reject(problem || tx.error);tx.onerror=()=>{};
+        try {
+          const store=tx.objectStore('accounts'),request=store.get(uid);
+          request.onsuccess=()=>{
+            if(Array.isArray(uid) && request.result!==undefined && (!request.result || typeof request.result!=='object')){problem=error('CORRUPT_AUTHORITY','Protected recovery backup is damaged.');tx.abort();return;}
+            result=request.result || null;
+            if(write){
+              if(!same(result,expected)){problem=error('REVISION_CONFLICT','Another tab changed account progress. Reload.');tx.abort();}
+              else{store.put(next,uid);result=next;}
+            }
+          };
+        }catch(e){problem=e;tx.abort();}
+      });
+    }
+    async function recover(uid,expected,next,guard) {
+      const tx=await begin('readwrite');
       return new Promise((resolve,reject)=>{
         let problem;
-        const tx=db.transaction('accounts','readwrite'),store=tx.objectStore('accounts');
+        const store=tx.objectStore('accounts');
         const abort=e=>{problem=e;tx.abort();};
         const check=action=>{try {guard();action();} catch(e) {abort(e);} };
         const active=store.get(uid);
@@ -509,19 +696,25 @@
         tx.oncomplete=()=>resolve(next);tx.onabort=()=>reject(problem || tx.error || error('STORAGE_ERROR','Recovery could not be stored. Pending progress is unchanged.'));tx.onerror=()=>{};
       });
     }
-    function choose(uid,expected,next,bundle,guard) {
+    async function choose(uid,expected,next,bundle,guard,expectedArchive=null) {
+      const tx=await begin('readwrite');
       return new Promise((resolve,reject)=>{
-        let problem;const tx=db.transaction('accounts','readwrite'),store=tx.objectStore('accounts');
+        let problem;const store=tx.objectStore('accounts');
         const check=action=>{try {guard();action();}catch(e){problem=e;tx.abort();}};
         const active=store.get(uid);
         active.onsuccess=()=>check(()=>{
           const backup=store.get(choiceBackupKey(uid));
           backup.onsuccess=()=>check(()=>{
             const archived=backup.result,current=active.result || null;
-            if(archived!==undefined && !same(archived,bundle))throw error('RECOVERY_ARCHIVE_FULL','Previous protected saves will not be replaced.');
-            if(same(current,next) && same(archived,bundle))return;
-            if(!same(current,expected))throw error('REVISION_CONFLICT','Another tab changed this device’s progress.');
-            if(archived===undefined)store.put(bundle,choiceBackupKey(uid)).onsuccess=()=>check(()=>{});
+            const bundles=choiceBundles(archived);
+            const existing=bundles.find(b=>b.selectionToken===bundle.selectionToken);
+            if(existing && same(current,next) && same(existing,bundle))return;
+            if(existing)throw error('RECOVERY_CHANGED','Protected choice changed; no save was replaced.');
+            if(!same(archived ?? null,expectedArchive))throw error('RECOVERY_CHANGED','Protected save choices changed in another tab. Review again.');
+            if(bundles.length>=MAX_CHOICE_ARCHIVES)throw error('RECOVERY_ARCHIVE_FULL','Protected save choices are full; earlier copies will not be replaced.');
+            if(!same(current,expected))throw error('REVISION_CONFLICT','Another tab changed this device progress.');
+            const preserved=bundles.length?{format:'little-leaf.choices.v1',archives:[...bundles,bundle]}:bundle;
+            store.put(preserved,choiceBackupKey(uid)).onsuccess=()=>check(()=>{});
             store.put(next,uid).onsuccess=()=>check(()=>{});
           });
         });

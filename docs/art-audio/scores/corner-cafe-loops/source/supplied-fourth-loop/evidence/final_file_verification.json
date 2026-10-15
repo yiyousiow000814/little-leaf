@@ -1,0 +1,9 @@
+{
+  "status": "PASS technical only",
+  "sample_rate": 44100,
+  "samples": 2268000,
+  "period_seconds": 51.42857142857143,
+  "two_ogg_cycles_identical": true,
+  "stems_sum_within_24bit_quantization": true,
+  "notation_bars": 24
+}

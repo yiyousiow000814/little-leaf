@@ -10,7 +10,7 @@ audio counts and engine listeners remained stable in this workload. This is a
 concrete retention mechanism; it does not identify every contributor to the
 original long-lived page's OOM.
 
-`tools/bound_web_gl_handles.py` adds separate freed-name pools to those three
+`tools/build/bound_web_gl_handles.py` adds separate freed-name pools to those three
 tables. Existing live names stay intact. Names enter a pool only after native
 deletion, object/table clearing and buffer-binding cleanup. Duplicate/nonexistent
 deletion cannot append a name twice; zero stays reserved. Other tables retain

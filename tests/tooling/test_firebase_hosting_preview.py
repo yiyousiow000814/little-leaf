@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 from urllib.parse import parse_qs, urlsplit
-import deploy_firebase_hosting as hosting
+from release import deploy_firebase_hosting as hosting
 from tests.tooling import test_firebase_hosting_deploy as fixtures
 
 SHA, NEW = fixtures.SHA, fixtures.NEW

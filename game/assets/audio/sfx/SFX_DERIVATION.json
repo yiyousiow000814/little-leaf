@@ -1,0 +1,51 @@
+{
+  "revision": "cash-selected-placement-gain-v02",
+  "processing": "Cash: exact selected MP3 unchanged. Placementv02: +4dB PCM24 gain only from preserved v01, cumulative\u22129dB from decoded supplied source; no trim/EQ/compression/rate/channel/timbre change.",
+  "assets": [
+    {
+      "id": "cash",
+      "runtime_file": "SfxCash.mp3",
+      "gain_db": 0.0,
+      "source_file": "SfxCash.mp3",
+      "source_sha256": "95c0a024f0b1b82cd20f64a89e176943c1152074c45f0df47edd3c3b6370d862",
+      "bytes": 3224,
+      "sha256": "95c0a024f0b1b82cd20f64a89e176943c1152074c45f0df47edd3c3b6370d862",
+      "rate": 11025,
+      "channels": 1,
+      "measured_decoded_frames": 17856,
+      "measured_decoded_seconds": 1.619591836734694,
+      "subtype": "MP3 original compressed bytes",
+      "selection": "Explicit user source choice,2026-10-14; exact MP3 imported and cash event observed in the 11-check actual-game fixture. Capture shader-cache and final CI qualification remain separate.",
+      "prior_candidate": {
+        "runtime_file": "cash_volume_v01.wav",
+        "sha256": "fadc92f8dca1aec142b5cb409a82b12b11d0c58a88c0e3b9ecae755420d2cd8d",
+        "status": "Superseded; source and prior candidate evidence retained"
+      }
+    },
+    {
+      "id": "placement",
+      "runtime_file": "placement_volume_v02.wav",
+      "gain_db": -9.0,
+      "source_file": "SfxPlaceItem.mp3",
+      "source_sha256": "449357a4b08493c1ab970eda568416f76d10fc2ed462159b218ca0a8dbe42d60",
+      "bytes": 13868,
+      "sha256": "c4efec5d7489b902e81e26669834fdec0de4f4f35101041699390dced2ef2098",
+      "rate": 11025,
+      "channels": 1,
+      "frames": 4608,
+      "seconds": 0.4179591836734694,
+      "subtype": "PCM_24",
+      "prior_candidate": {
+        "runtime_file": "placement_volume_v01.wav",
+        "sha256": "cf4a4a2f426855532f2499050de7a74aa66a28769c91e8d6a1bc2b6e634c01b1",
+        "gain_db": -13.0,
+        "status": "Retained before evidence"
+      },
+      "gain_change_db": 4.0,
+      "gain_input_sha256": "cf4a4a2f426855532f2499050de7a74aa66a28769c91e8d6a1bc2b6e634c01b1",
+      "selection": "User accepted the exact +4dB actual-game comparison on2026-10-14; timbre/duration and BGM70/SFX55 preserved. Technical cache and CI qualification remain separate.",
+      "hearing_accepted": true,
+      "accepted_audition_sha256": "bcf178194e0a4deb464f25b1c49f059b85923a39a33fbc56421613df5249a8c1"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 extends SceneTree
-const Model=preload("res://scripts/cafe_model.gd")
+const Model=preload("res://scripts/core/cafe_model.gd")
 func _init():
 	var path=OS.get_environment("LL_STREET_OLD_LOADER_INPUT")
 	assert(path!="" and FileAccess.file_exists(path))
