@@ -76,10 +76,16 @@ func run():
 	check(rims_match(music_panel,true) and music_panel.button_rims[music_panel.play_button.get_instance_id()].is_visible_in_tree(),"Intermediate covered Premium pose draws the real gilded control shader")
 	gate._after_draw()
 	check(music_panel.record_mark.reveal==1.0 and music_panel.board_material.reveal==1.0,"Next covered frame draws existing Premium materials before first user selection")
+	ripple.finish_render_preparation()
+	check(ripple_state(ripple)==ripple_before,"Static preparation restores every ripple field before ordinary panel dismissal")
+	ripple.prepare_render()
 	gate._after_draw()
 	check(not music_panel.preparing_render and not music_panel.panel.visible and music_panel.poll_timer.is_stopped(),"Completed material preparation restores the hidden, idle Music panel")
-	if ripple_state(ripple)!=ripple_before:print("MUSIC_PREPARATION_RIPPLE_STATE ",JSON.stringify({"before":ripple_before,"after":ripple_state(ripple)}))
-	check(ripple_state(ripple)==ripple_before and ripple.active_count()==0 and touches[0]==0,"Preparation restores ripple pool, shader, visibility and processing without synthesizing a touch")
+	# The existing hide handler clears waves and stops idle processing. Test its
+	# hidden-state result separately from the exact restoration above.
+	var hidden_ripple = ripple_before.duplicate(true);hidden_ripple.process = false
+	if ripple_state(ripple)!=hidden_ripple:print("MUSIC_PREPARATION_RIPPLE_STATE ",JSON.stringify({"expected_hidden":hidden_ripple,"after":ripple_state(ripple)}))
+	check(ripple_state(ripple)==hidden_ripple and ripple.active_count()==0 and touches[0]==0,"Ordinary dismissal leaves the restored ripple pool hidden and idle without synthesizing a touch")
 	check(controls.music_track==selected and controls.preferences_dirty and (FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray())==settings_before,"Render preparation preserves the selected recording and does not flush pending preferences")
 	controls.preferences_dirty = old_dirty
 	check(not gate.finishing,"draws alone cannot release incomplete preparation")
