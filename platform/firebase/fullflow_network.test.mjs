@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {EventEmitter} from 'node:events';
 import {readFileSync} from 'node:fs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream} from './fullflow_network.mjs';
 // Exercise the actual driver facade without importing its browser/emulator setup.
 const driver=readFileSync(new URL('./fullflow.test.mjs',import.meta.url),'utf8');
 const frameFacadeSource=driver.slice(driver.indexOf('function gameFramePage('),driver.indexOf('\nasync function launch('));
@@ -175,3 +175,39 @@ for(const location of [{origin:workletOrigin,pathname:'/',href:workletOrigin+'/'
 }
 assert.throws(()=>workletHarness().install({origin:workletOrigin,pathname:'/itch/',modules:{...modules,unknown:'AA=='}}),/Exact packaged worklets required/);
 console.log('Packaged worklet fixture: exact binary bytes/options execute, failures propagate, Blob URLs revoke, unknown URLs refuse, other frames unchanged.');
+
+// This fixture test verifies bounded transfer, not compiled-game acceptance.
+const pckBytes=Buffer.from(Array.from({length:600001},(_,i)=>i%251));
+for(const offset of [-1,.5,pckBytes.length,NaN,Infinity])assert.throws(()=>packagedPckChunk(pckBytes,offset),/offset/);
+assert.throws(()=>packagedPckChunk(new Uint8Array(1),0),/offset/);
+function pckHarness(location={origin:workletOrigin,pathname:'/itch/',href:workletOrigin+'/itch/'},reader=offset=>packagedPckChunk(pckBytes,offset)){
+ const calls=[],forwarded=[];
+ const original=async(...args)=>{forwarded.push(args);return 'original-fetch';};
+ const context={location,URL,Headers,Response,ReadableStream,Uint8Array,atob,DOMException,fetch:original,
+  __littleLeafPackagedPckChunk:async offset=>{calls.push(offset);return reader(offset);}};
+ const install=vm.runInNewContext('('+installPackagedPckStream.toString()+')',context);
+ return {context,calls,forwarded,original,install};
+}
+const ph=pckHarness();ph.install({origin:workletOrigin,pathname:'/itch/',bytes:pckBytes.length});
+const response=await ph.context.fetch('index.pck');
+assert.equal(response.url,workletOrigin+'/itch/index.pck');assert.equal(response.headers.get('content-length'),String(pckBytes.length));
+assert.deepEqual(Buffer.from(await response.arrayBuffer()),pckBytes,'exact complete binary bytes reach the real Response');
+assert.deepEqual(ph.calls,[0,262144,524288],'no large CDP payload');
+assert.equal(await ph.context.fetch('index.wasm'),'original-fetch');
+assert.equal(await ph.context.fetch('https://evil.test/index.pck'),'original-fetch');assert.equal(ph.forwarded.length,2);
+await assert.rejects(ph.context.fetch('index.pck',{method:'POST'}),/complete packaged/);
+await assert.rejects(ph.context.fetch('index.pck',{headers:{Range:'bytes=1-2'}}),/complete packaged/);
+const abort=new AbortController();abort.abort();await assert.rejects(ph.context.fetch('index.pck',{signal:abort.signal}),/abort/i);
+const truncated=pckHarness(undefined,()=> 'AA==');truncated.install({origin:workletOrigin,pathname:'/itch/',bytes:pckBytes.length});
+await assert.rejects((await truncated.context.fetch('index.pck')).arrayBuffer(),/chunk differs/);
+const failed=pckHarness(undefined,()=>{throw Error('reader failed');});failed.install({origin:workletOrigin,pathname:'/itch/',bytes:pckBytes.length});
+await assert.rejects((await failed.context.fetch('index.pck')).arrayBuffer(),/reader failed/);
+let release;const cancelled=pckHarness(undefined,()=>new Promise(resolve=>release=resolve));
+cancelled.install({origin:workletOrigin,pathname:'/itch/',bytes:pckBytes.length});
+const cancelResponse=await cancelled.context.fetch('index.pck');await cancelResponse.body.cancel();release(packagedPckChunk(pckBytes,0));
+await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(cancelled.calls,[0],'cancelled consumer never asks for more bytes');
+for(const location of [{origin:workletOrigin,pathname:'/',href:workletOrigin+'/'},{origin:'https://html-classic.itch.zone',pathname:'/itch/',href:'https://html-classic.itch.zone/itch/'}]){
+ const other=pckHarness(location);other.install({origin:workletOrigin,pathname:'/itch/',bytes:pckBytes.length});assert.equal(other.context.fetch,other.original);
+}
+for(const bytes of [0,-1,192*1024*1024+1,NaN])assert.throws(()=>pckHarness().install({origin:workletOrigin,pathname:'/itch/',bytes}),/Finite packaged/);
+console.log('Packaged PCK fixture: exact binary Response,256KiB messages, offset/size bounds, abort/cancel/failure propagation and exact-frame scope passed.');

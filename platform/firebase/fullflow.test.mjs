@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -115,6 +115,8 @@ const server=http.createServer((req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin='http://127.0.0.1:'+server.address().port;
 let browser,caseFailure;const contexts=[],errors=[],routeLifetimes=new WeakMap();
+// One shared authenticated PCK buffer; closing contexts cannot accumulate copies.
+const packagedPck=itchVariant?fs.readFileSync(path.join(web,'index.pck')):null;
 const closeContext=context=>routeLifetimes.get(context).close();
 report.networkObservations=[];
 function networkObservation(kind,family,result){
@@ -137,6 +139,13 @@ async function setup(uid,entry=null){
    modules[name]=bytes.toString('base64');
   }
   await context.addInitScript(installPackagedWorklets,{origin:officialOrigin,pathname:'/itch/',modules});
+  assert.equal(sha(packagedPck),manifest.files['index.pck'].sha256,'exact streamed runtime PCK');
+  assert.equal(sha(packagedPck),packet.files['public/itch/index.pck'],'same-page PCK inventory');
+  await context.exposeBinding('__littleLeafPackagedPckChunk',(source,offset)=>{
+   assert.equal(source.frame.url(),officialOrigin+'/itch/','only the exact synthetic game frame');
+   return packagedPckChunk(packagedPck,offset);
+  });
+  await context.addInitScript(installPackagedPckStream,{origin:officialOrigin,pathname:'/itch/',bytes:packagedPck.length});
  }
  context.on('requestfailed',request=>networkObservation('failed',requestFamily(request.url(),origin),failureCategory(request.failure()?.errorText)));
  context.on('response',response=>{const family=requestFamily(response.url(),origin);if(['loopback-sdk','loopback-emulator','sdk-module','frame-sdk','synthetic-emulator'].includes(family))networkObservation('response',family,response.status());});
