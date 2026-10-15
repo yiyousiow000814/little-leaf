@@ -15,7 +15,7 @@ var wall_source_key=""
 var opening_hit_id=-1
 var _render_attachments:Array=[]
 var _render_preview_active=false
-const MATERIAL_NAMES=["Sage panels","Cream stripes","Little leaves"]
+const MATERIAL_NAMES=["Sage panels","Cream stripes","Little leaves","Original room"]
 const FLOOR_NAMES=["Warm oak","Cream tiles","Sage tiles"]
 const FLOOR_STYLES=CafeModel.FLOOR_STYLES
 var floor_material="warm_oak"
@@ -142,7 +142,7 @@ func refresh(screen:Vector2):
 	if screen.distance_to(successful_point)>6:successful_key=""
 	pointer=screen
 	if not active() or not _available(screen):preview_valid=false;preview_reason="";preview={};floor_preview={};floor_quote={};preview_shell={};opening_preview={};_render_attachments=[];_render_preview_active=false;_cache_key="";return
-	if mode=="floor":
+	if mode in ["floor","remove_floor"]:
 		_refresh_floor(screen);return
 	if mode=="move_wall":
 		_refresh_moving_wall(screen);return
@@ -152,16 +152,6 @@ func refresh(screen:Vector2):
 		if selected_key==successful_key and successful_key!="":preview_reason=""
 		return
 	replacing=false;replacement_quote={};preview_shell={}
-	if mode in ["half","full"]:
-		var host=game.illustration.hit_wall_host(screen)
-		if not host.is_empty() and host.shell:
-			replacing=true;selected_key=str(host.segment_key);preview={};preview_shell=host.duplicate(true)
-			preview_shell.height=mode;preview_shell.material=material
-			replacement_quote=game.model.wall_replacement_quote(selected_key,mode,material,actor_positions())
-			preview_valid=bool(replacement_quote.valid);preview_warning=""
-			preview_reason=replacement_price_text() if preview_valid else str(replacement_quote.reason)
-			game.tool_text.text=preview_reason
-			return
 	var hit=game.illustration.hit_wall(screen)
 	var proposed=hit.duplicate(true) if mode in ["half","full"] and not hit.is_empty() else (Geometry.nearest_edge(_world(screen),preferred_axis) if mode in ["half","full"] else hit)
 	if proposed.is_empty():preview={};selected_key="";_cache_key="";preview_reason="Select a built wall";game.tool_text.text=preview_reason;return
@@ -191,24 +181,14 @@ func refresh(screen:Vector2):
 	game.tool_text.text=preview_reason
 	if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
 
-func render_shell_host(key:String)->Dictionary:
-	return game.model.shell_render_host(key,preview_shell if active() and preview_valid and not paint_stroke.active else {})
-
-func render_shell_corner_height(key:String)->float:
-	var host=game.model.get_wall_host(key+"#0")
-	if active() and preview_valid and not paint_stroke.active and not preview_shell.is_empty() and selected_key==key+"#0":host=preview_shell
-	return 0.0 if host.is_empty() else float(Geometry.HEIGHT_PIXELS[host.height])
-
-func draw_shell_selection(view):
+func draw_wall_selection(view):
 	if not game.editing or paint_stroke.active:return
-	var host={}
-	if active() and not preview_shell.is_empty():
-		host=preview_shell
-	elif not active() and game.compact_ui.selected_shell!="":host=game.model.get_wall_host(game.compact_ui.selected_shell)
-	if host.is_empty():return
-	var shape=OpeningArt.segment_selection_geometry(view,host)
-	# Points are already projected to display coordinates. Subpixel coverage
-	# keeps this soft-gray outline light at every zoom, without a highlight fill.
+	var wall={}
+	if active() and mode in ["half","full","paint","remove","move_wall"] and not preview.is_empty():wall=preview
+	elif not active() and game.compact_ui.selected_wall!="":wall=game.model.get_wall(game.compact_ui.selected_wall)
+	if wall.is_empty():return
+	var shape=OpeningArt.segment_selection_geometry(view,OpeningGeometry.wall_host(wall))
+	# Keep the accepted fine gray volume edges for every installed wall.
 	preload("res://scripts/rendering/cafe_canvas_draw.gd").draw_multiline(view,shape.edges,Color("8a8d88"),.35,true)
 
 func replacement_price_text()->String:
@@ -235,8 +215,8 @@ func handle_input(event:InputEvent)->bool:
 				refresh(event.position);return true
 			paint_stroke.reset()
 			refresh(event.position)
-			if not _dragging and _available(event.position) and selected_key==_press_key and (not preview.is_empty() or not preview_shell.is_empty() or mode in OPENING_MODES or mode=="floor"):
-				var same_price=mode!="floor" or _press_floor_quote==_floor_quote_signature()
+			if not _dragging and _available(event.position) and selected_key==_press_key and (not preview.is_empty() or not preview_shell.is_empty() or mode in OPENING_MODES or mode in ["floor","remove_floor"]):
+				var same_price=mode not in ["floor","remove_floor"] or _press_floor_quote==_floor_quote_signature()
 				if same_price and (replacing or preview_valid):_commit()
 			_pressed=false;_dragging=false;return true
 	if event is InputEventMouseMotion:
@@ -255,17 +235,17 @@ func handle_unhandled_input(event:InputEvent)->bool:
 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
 		if _pressed:return true
 		_press_device=event.device
-		if mode=="floor" and not _available(event.position):on_focus_lost();return true
+		if mode in ["floor","remove_floor"] and not _available(event.position):on_focus_lost();return true
 		successful_key="";_cache_key=""
 		refresh(event.position);_pressed=true;_dragging=false;_press_point=event.position;_last_point=event.position;_press_key=selected_key
-		_press_floor_quote=_floor_quote_signature() if mode=="floor" else ""
+		_press_floor_quote=_floor_quote_signature() if mode in ["floor","remove_floor"] else ""
 		if paint_stroke.eligible():paint_stroke.begin(event.position)
 		return true
 	return false
 
 func _commit():
 	if mode=="move_wall":_commit_moving_wall();return
-	if mode=="floor":_commit_floor();return
+	if mode in ["floor","remove_floor"]:_commit_floor();return
 	if mode in OPENING_MODES:_commit_opening();return
 	var ok=false
 	if replacing:
@@ -308,7 +288,7 @@ func _refresh_opening(screen:Vector2):
 				var origin=float(host.a.x if host.axis=="x" else host.a.y)
 				offset=roundf(origin+offset-.5)+.5-origin
 				if host.wall_ids.size()>1:offset=length*.5
-				attachment={"id":int(source.id) if not source.is_empty() else -100,"kind":str(source.kind) if not source.is_empty() else mode,"host_id":host.host_id,"offset":offset,"width":width,"paid_cost":int(source.paid_cost) if not source.is_empty() else game.model.attachment_price(mode)}
+				attachment={"id":int(source.id) if not source.is_empty() else -100,"kind":str(source.kind) if not source.is_empty() else mode,"host_id":host.host_id,"wall_ids":host.wall_ids.duplicate(),"offset":offset,"width":width,"paid_cost":int(source.paid_cost) if not source.is_empty() else game.model.attachment_price(mode)}
 				selected_key=str(host.host_id)+":"+str(offset)
 	var actors=actor_positions()
 	var signature=str([mode,opening_source_id,selected_key,game.model.revision,game.model.coins,actors])
@@ -360,10 +340,11 @@ func _commit_opening():
 # Flooring is a decorative layer: picking never selects/moves furniture and the
 # model owns all payment and ownership checks. One matching release buys one tile.
 func floor_name()->String:
-	return FLOOR_NAMES[maxi(0,FLOOR_STYLES.find(floor_material))]
+	return "Remove tiles" if mode=="remove_floor" else FLOOR_NAMES[maxi(0,FLOOR_STYLES.find(floor_material))]
 
 func floor_price_text()->String:
 	var prefix=floor_name()+" · 1 tile"
+	if mode=="remove_floor":return prefix+" · refund "+Money.amount(int(floor_quote.get("refund",0)))+" · owned grass stays"
 	if floor_quote.is_empty():return prefix+" · "+Money.amount(game.model.floor_price(floor_material))+" coins · click or drag owned land"
 	if not floor_preview.is_empty() and game.model.floor_style_at(Vector2i(int(floor_preview.x),int(floor_preview.z)))==floor_material:return prefix+" · Already installed · no charge"
 	var price="New %s · refund %s · pay %s"%[Money.amount(int(floor_quote.new_cost)),Money.amount(int(floor_quote.refund)),Money.amount(int(floor_quote.net))]
@@ -376,23 +357,23 @@ func _refresh_floor(screen:Vector2):
 	preview={};preview_shell={};opening_preview={};replacing=false;replacement_quote={};preview_warning=""
 	var world=_world(screen);var cell=Vector2i(floori(world.x),floori(world.y))
 	selected_key="floor:%d:%d"%[cell.x,cell.y]
-	floor_quote=game.model.floor_quote(cell,floor_material)
+	floor_quote=game.model.floor_removal_quote(cell) if mode=="remove_floor" else game.model.floor_quote(cell,floor_material)
 	preview_valid=bool(floor_quote.valid)
-	floor_preview={"x":cell.x,"z":cell.y,"style":floor_material} if cell.x>=0 and cell.y>=0 and cell.x<game.model.MAX_WIDTH and cell.y<game.model.MAX_DEPTH else {}
+	floor_preview={"x":cell.x,"z":cell.y,"style":"" if mode=="remove_floor" else floor_material} if cell.x>=0 and cell.y>=0 and cell.x<game.model.MAX_WIDTH and cell.y<game.model.MAX_DEPTH else {}
 	preview_reason="" if preview_valid else str(floor_quote.reason)
 	game.tool_text.text=floor_price_text()
 
 func _commit_floor():
 	if floor_preview.is_empty():return
 	var cell=Vector2i(int(floor_preview.x),int(floor_preview.z))
-	if game.model.place_floor(cell,floor_material):
+	if (game.model.remove_floor(cell) if mode=="remove_floor" else game.model.place_floor(cell,floor_material)):
 		successful_key=selected_key;successful_point=pointer;_changed()
 	refresh(pointer)
 
 func draw_floor_preview(artist):
 	if paint_stroke.active:paint_stroke.draw_floor(artist);return
-	if not active() or mode!="floor" or floor_preview.is_empty():return
-	preload("res://scripts/rendering/cafe_tile_paint_preview.gd").draw(artist,[Vector2i(floor_preview.x,floor_preview.z)],floor_material,preview_valid)
+	if not active() or mode not in ["floor","remove_floor"] or floor_preview.is_empty():return
+	preload("res://scripts/rendering/cafe_tile_paint_preview.gd").draw(artist,[Vector2i(floor_preview.x,floor_preview.z)],"" if mode=="remove_floor" else floor_material,preview_valid)
 
 func begin_wall_move(key:String):
 	if not game.editing or game.save_recovery_blocked:return
@@ -400,8 +381,7 @@ func begin_wall_move(key:String):
 	if source.is_empty():return
 	game._cancel_selection();wall_source_key=key;mode="move_wall"
 	preferred_axis=str(source.axis);_cache_key=""
-	if key.begins_with("shell:"):game.compact_ui.selected_shell=key
-	else:game.compact_ui.selected_wall=key
+	game.compact_ui.selected_wall=Geometry.key_of(source)
 	sync();refresh(game.get_viewport().get_mouse_position());game.compact_ui.sync()
 
 func _refresh_moving_wall(screen:Vector2):
@@ -409,7 +389,8 @@ func _refresh_moving_wall(screen:Vector2):
 	var source=game.model.get_editable_wall(wall_source_key)
 	if source.is_empty():preview={};preview_valid=false;preview_reason="This wall is no longer available";return
 	preview=Geometry.nearest_edge(_world(screen),preferred_axis)
-	preview.height=source.height;preview.material=source.material;preview["id"]=int(source.id)
+	preview.height=source.height;preview.material=source.material;preview["id"]=source.id
+	if source.has("placement"):preview.placement=source.placement.duplicate(true)
 	selected_key=Geometry.key_of(preview)
 	preview_valid=game.model.can_move_wall(wall_source_key,str(preview.axis),int(preview.x),int(preview.z),actor_positions())
 	preview_reason="Move wall here · no charge · R turns" if preview_valid else str(game.model.last_error)

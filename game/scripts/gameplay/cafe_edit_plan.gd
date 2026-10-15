@@ -15,7 +15,7 @@ func stamp(model,actors:Array)->Array:
   # Owner and layout, including direct changes that have no notification.
   model.get_instance_id(),model.revision,
   hash(model.items),hash(model.dining_sets),hash(model.built_walls),
-  hash(model.wall_attachments),hash(model.shell_products),hash(model.shell_segment_products),model.shell_material,
+  hash(model.wall_attachments),
   hash(model.owned_parcels),model.width,model.depth,
   # Runtime routes, physical reservations, and directional safety policy.
   hash(model.customers),hash(model.wall_actor_positions),
@@ -23,7 +23,7 @@ func stamp(model,actors:Array)->Array:
   # Purchase entitlement and staffing used by the existing planners.
   model.coins,model._next_item_id,hash(model.catalog),
   model.decoration_session_active,hash(model.decoration_purchases),
-  model.included_checkout_pending,model.included_bin_pending,
+  model.included_checkout_pending,model.register_unplaced,model.included_bin_pending,
   model.cashiers,model.cooks,model.waiters,model.cleaners,model.operating_open,
   hash(model.duty_counts),hash(model.duty_targets),
  ]
@@ -69,7 +69,7 @@ func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
    "items":shadow.items,"groups":shadow.dining_sets,
    "coins":shadow.coins,"next_id":shadow._next_item_id,
    "decoration_purchases":shadow.decoration_purchases,
-   "checkout_pending":shadow.included_checkout_pending,
+   "checkout_pending":shadow.included_checkout_pending,"register_unplaced":shadow.register_unplaced,
    "bin_pending":shadow.included_bin_pending,"event":shadow.last_event,
    "cashiers":shadow.cashiers,
    "cashier_count":shadow.duty_counts.get("cashier",0),
@@ -96,6 +96,7 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
   model.coins=int(plan.coins)
   model._next_item_id=int(plan.next_id)
   model.included_checkout_pending=bool(plan.checkout_pending)
+  model.register_unplaced=bool(plan.register_unplaced)
   model.included_bin_pending=bool(plan.bin_pending)
   model.last_error=""
   model.last_event=str(plan.event)

@@ -3,7 +3,7 @@ extends RefCounted
 ## preset or fill a deliberately empty cell. Lifecycle and economy stay in Model.
 const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
-const Segments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
+const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const FLOOR_STYLE="warm_oak"
 const WALL_MATERIAL="original"
 # Order preserves the original furniture IDs and next-ID sequence.
@@ -43,8 +43,10 @@ static func floors()->Dictionary:
 	return result
 
 static func structure()->Dictionary:
-	# Compatibility representation until the reviewed unified-building migration.
-	# This is initialization, never an absent-wall/render fallback.
-	var products=Openings.initial_shell_products(WALL_MATERIAL)
-	return {"products":products,"segments":Segments.migrate(products,[]).segments,
-		"attachments":Openings.initial_attachments(),"floors":floors()}
+	var walls:Array[Dictionary]=[]
+	for x in Footprint.WIDTH:
+		walls.append(Walls.installed("wall:%d"%(walls.size()+1),Walls.make("x",x,0,"full",WALL_MATERIAL),0,0))
+	for z in Footprint.DEPTH:
+		walls.append(Walls.installed("wall:%d"%(walls.size()+1),Walls.make("z",0,z,"full",WALL_MATERIAL),0,0))
+	var door_id="wall:%d"%(Footprint.WIDTH+int(Footprint.DOOR_START)+1)
+	return {"walls":walls,"next_wall_id":walls.size()+1,"attachments":[{"id":1,"kind":"door","wall_ids":[door_id],"offset":.5,"width":Footprint.DOOR_WIDTH,"paid_cost":0}],"floors":floors()}

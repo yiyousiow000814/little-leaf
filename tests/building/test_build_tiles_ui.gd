@@ -156,7 +156,7 @@ func dispose():
 func shell_point(host_id:String)->Vector2:
  var host=game.model.get_wall_host(host_id)
  for fraction in [.25,.5,.75]:
-  var world=host.a.lerp(host.b,fraction)
+  var world=host.a.lerp(host.b,fraction)+host.visual_front
   for height in [40,70,100]:
    var point=game.illustration.iso(world.x,world.y,height)
    if game.build_tools._available(point) and game.illustration.hit_wall_host(point).get("host_id","")==host_id:return point
@@ -176,7 +176,7 @@ func run():
  var initial=snapshot()
  await click(named_button(game.build_panel,"Tiles"))
  check(shop.build_page=="tiles","Tiles product click opens nested shelf")
- check(shop._visible_build_keys().size()==3,"Tiles shows exactly three style cards")
+ check(shop._visible_build_keys().size()==4,"Tiles shows three finishes and a removal tool")
  check(not ui.has_open_popup(),"Tiles browsing is a product shelf, not a popup")
  for style in game.build_tools.FLOOR_STYLES:
   check(shop.tile_cards.has(style),"nested shelf lists "+style)
@@ -190,12 +190,12 @@ func run():
  if back!=null:await click(back)
  check(shop.build_page=="products" and game.build_tools.mode=="","Back restores Build and cancels preview")
  same_state(initial,"browsing/back never changes money floors or saves")
- check(not ui.floor_repair_button.visible,"starter repair absent without missing starter tiles")
+ check(not NoBottom.has_property(ui,"floor_repair_button"),"default-only repair control is absent")
  game.model.floor_finishes.erase("11,8");game.model._notify();shop.show_tiles();await settle()
- check(ui.floor_repair_button.visible,"starter repair available on Tiles shelf when needed")
+ check(game.model.floor_style_at(Vector2i(11,8))=="","deliberate empty starter cell stays grass")
  var before_repair_navigation=snapshot()
  shop.show_build_products();await settle()
- check(not ui.floor_repair_button.visible,"starter repair absent from Build products")
+ check(not NoBottom.has_property(ui,"floor_repair_button"),"Build has no default-only reconstruction route")
  same_state(before_repair_navigation,"repair entry visibility never mutates flooring")
  game.model.floor_finishes["11,8"]={"style":"warm_oak","paid_cost":0};game.model._notify()
  # One matching press/release buys exactly one tile; hovering and pressing do not.
@@ -279,12 +279,21 @@ func run():
  # The stable title remains separate from the new one-grid inherited-wall
  # quote after pointer updates and repeated UI synchronization.
  game.build_tools.material="sage_panels";game.build_tools.choose("full")
- var wall_point=shell_point("shell:west");game.build_tools.refresh(wall_point);await settle()
- check(game.build_tools.replacing and game.build_tools.selected_key.begins_with("shell:west#"),"real pointer picks one inherited west-wall grid segment")
+ var wall_point=shell_point("wall:15");game.build_tools.refresh(wall_point);await settle()
+ check(game.build_tools.replacing and game.build_tools.selected_key=="z:0:2","real pointer picks one inherited west-wall grid segment")
  check(game.build_tools.replacement_quote.get("net",-1)==55,"inherited shell replacement quotes one55-coin wall segment")
  before=snapshot();stable_action("Full wall","inherited wall Pay55 replacement")
  check(shop.price_label.text=="Pay 55","one-segment payment is separate from Full wall title")
  same_state(before,"wall quote sync never buys or saves")
+ # One removal tool applies to preset and bought finishes without selling land.
+ shop.show_tiles();shop.choose_floor_removal();await settle()
+ var removed_cell=Vector2i(6,5);var paid_before=game.model.coins;var land_before=game.model.owned_parcels.duplicate()
+ point=point_for(removed_cell);before=snapshot();floor_event(point,true);same_state(before,"remove press is reversible")
+ floor_event(point,false)
+ check(game.model.floor_style_at(removed_cell)=="" and game.model.coins==paid_before+6,"remove release refunds half the installed paid finish")
+ check(game.model.owned_parcels==land_before,"floor removal leaves owned land")
+ var floor_count=game.model.floor_finishes.size();install(removed_cell)
+ check(game.model.floor_finishes.size()==floor_count and game.model.coins==paid_before+6,"removing bare grass cannot duplicate refunds")
  # Layout includes repeated viewport/category transitions and both nested shelves.
  for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]:
   root.size=view;shop.show_build_products();await settle()
@@ -298,10 +307,8 @@ func run():
   for style in game.build_tools.FLOOR_STYLES:check_card(shop.tile_cards[style],label+" "+style)
   await full_shelf_pages(label+" Tiles shelf")
   game.model.floor_finishes.erase("11,8");game.model._notify();shop.show_tiles();await settle()
-  target(ui.floor_repair_button,label+" repair entry",viewport)
+  check(not NoBottom.has_property(ui,"floor_repair_button"),label+" no special default-floor entry")
   for style in game.build_tools.FLOOR_STYLES:check_card(shop.tile_cards[style],label+" repair shelf "+style)
-  for header in [shop.tiles_back,shop.tiles_title]:
-   if header.is_visible_in_tree():check(not ui.floor_repair_button.get_global_rect().intersects(header.get_global_rect()),label+" repair entry does not overlap "+header.name)
   game.model.floor_finishes["11,8"]={"style":"warm_oak","paid_cost":0};game.model._notify();await settle()
   for arrow in [shop.product_back,shop.product_next]:
    if arrow.visible:target(arrow,label+" product arrow",viewport)

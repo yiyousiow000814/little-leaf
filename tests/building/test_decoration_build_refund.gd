@@ -21,8 +21,8 @@ func run():
  for height in ["half","full"]:
   var m=fresh();m.begin_decoration_session();var wallet=m.coins;var paid=m.wall_price(height)
   check(m.place_wall("x",8,6,height),"buy "+height+" wall: "+m.last_error)
-  var id=int(m.built_walls[-1].id)
-  check(m.move_wall(key(m),"x",9,6) and int(m.built_walls[-1].id)==id,"wall move preserves identity")
+  var id=str(m.built_walls[-1].id)
+  check(m.move_wall(key(m),"x",9,6) and str(m.built_walls[-1].id)==id,"wall move preserves identity")
   check(m.paint_wall(key(m),"leaf_print"),"free paint preserves receipt")
   if not baseline:check(m.wall_refund(key(m))==paid,"wall quote full paid cost")
   check(m.remove_wall(key(m)),"sell wall")
@@ -32,9 +32,9 @@ func run():
   wallet=m.coins;check(not m.remove_wall("x:9:6") and m.coins==wallet,"wall duplicate cannot credit")
  for kind in ["door","window"]:
   var m=fresh();m.begin_decoration_session();var wallet=m.coins;var paid=m.attachment_price(kind)
-  check(m.place_wall_attachment(kind,"shell:back",2.5),"buy "+kind+": "+m.last_error)
+  check(m.place_wall_attachment(kind,"wall:3",.5),"buy "+kind+": "+m.last_error)
   var id=int(m.wall_attachments[-1].id)
-  check(m.move_wall_attachment(id,"shell:back",3.5),"move opening preserves receipt")
+  check(m.move_wall_attachment(id,"wall:4",.5),"move opening preserves receipt")
   if not baseline:check(m.wall_attachment_refund(id)==paid,"opening quote full paid")
   check(m.remove_wall_attachment(id),"sell opening")
   var expected=int(paid/2) if baseline else paid
@@ -45,10 +45,10 @@ func run():
   print("DECORATION_BUILD_REFUND_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"observations":observations,"baseline":true}));quit(0 if failures.is_empty() else 1);return
  # Older paid objects and free starter opening are never promoted by entry.
  var m=fresh();check(m.place_wall("x",8,6,"half"),"old half wall");var old_key=key(m)
- check(m.place_wall_attachment("window","shell:back",2.5),"old paid window");var old_open=int(m.wall_attachments[-1].id)
+ check(m.place_wall_attachment("window","wall:3",.5),"old paid window");var old_open=int(m.wall_attachments[-1].id)
  m.begin_decoration_session();check(m.wall_refund(old_key)==17 and m.wall_attachment_refund(old_open)==15 and m.wall_attachment_refund(1)==0,"old wall/window/free door remain normal")
  check(m.place_wall("x",9,6),"new full wall");var new_key=key(m)
- check(m.place_wall_attachment("door","shell:back",3.5),"new paid door");var new_open=int(m.wall_attachments[-1].id)
+ check(m.place_wall_attachment("door","wall:4",.5),"new paid door");var new_open=int(m.wall_attachments[-1].id)
  check(m.wall_refund(new_key)==55 and m.wall_attachment_refund(new_open)==40,"new saleable build objects full")
  var wallet=m.coins;check(m.save("user://build-refund-interrupted.json"),"mid-session build save")
  check(m.wall_refund(new_key)==55 and m.wall_attachment_refund(new_open)==40,"autosave retains build eligibility")
@@ -58,7 +58,7 @@ func run():
  check(m.wall_refund(new_key)==27 and m.wall_attachment_refund(new_open)==20,"Done/reentry cannot renew build receipts")
  # Host removal must fail before touching either receipt while opening remains.
  m=fresh();m.begin_decoration_session();check(m.place_wall("x",5,4),"new host wall")
- var wall_key=key(m);var host="wall:"+str(int(m.built_walls[-1].id))
+ var wall_key=key(m);var host=str(m.built_walls[-1].id)
  check(m.place_wall_attachment("door",host,.5),"new hosted door")
  var door_id=int(m.wall_attachments[-1].id);wallet=m.coins
  check(not m.remove_wall(wall_key) and m.coins==wallet and m.wall_refund(wall_key)==55 and m.wall_attachment_refund(door_id)==40,"failed host removal keeps both receipts")
@@ -84,8 +84,8 @@ func run():
  m=fresh();m.begin_decoration_session();m.coins=34;var next_id=m._next_wall_id
  check(not m.place_wall("x",8,6,"half") and m.coins==34 and m._next_wall_id==next_id and m.decoration_build_purchases.is_empty(),"poor wall atomic")
  m.coins=29;next_id=m._next_attachment_id
- check(not m.place_wall_attachment("window","shell:back",2.5) and m.coins==29 and m._next_attachment_id==next_id and m.decoration_build_purchases.is_empty(),"poor window atomic")
- m.coins=10000;check(m.place_wall("x",8,6) and m.place_wall_attachment("window","shell:back",2.5),"non-refunding fixtures")
+ check(not m.place_wall_attachment("window","wall:3",.5) and m.coins==29 and m._next_attachment_id==next_id and m.decoration_build_purchases.is_empty(),"poor window atomic")
+ m.coins=10000;check(m.place_wall("x",8,6) and m.place_wall_attachment("window","wall:3",.5),"non-refunding fixtures")
  var opening_id=int(m.wall_attachments[-1].id);wallet=m.coins
  check(m.remove_wall(key(m),false) and m.remove_wall_attachment(opening_id,[],false) and m.coins==wallet and m.decoration_build_purchases.is_empty(),"no-refund removal consumes receipts")
  check(m.place_wall("x",8,6) and not m.decoration_build_purchases.is_empty(),"nonempty build receipt before reset")
@@ -95,7 +95,7 @@ func run():
  game._toggle_edit();game.model.coins=10000;check(game.model.place_wall("x",8,6),"context wall purchase")
  game.compact_ui.selected_wall=key(game.model);game.compact_ui.sync()
  check(game.compact_ui.remove_button.text=="Sell +55","context wall shows full55")
- game._cancel_selection();check(game.model.place_wall_attachment("window","shell:back",2.5),"context window purchase")
+ game._cancel_selection();check(game.model.place_wall_attachment("window","wall:3",.5),"context window purchase")
  opening_id=int(game.model.wall_attachments[-1].id);game.build_tools.opening_source_id=opening_id;game.compact_ui.sync()
  check(game.compact_ui.remove_button.text=="Sell +30","context opening shows full30")
  game._toggle_edit();game._toggle_edit();game.build_tools.opening_source_id=opening_id;game.compact_ui.sync()

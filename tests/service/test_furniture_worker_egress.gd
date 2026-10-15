@@ -22,7 +22,7 @@ func check(ok:bool,label:String):
  if not ok:failures.append(label);printerr("FAIL ",label)
 func blank(model=null):
  var m=Model.new() if model==null else model
- m.items.clear();m.dining_sets.clear();m.customers.clear();m.built_walls.clear();m.wall_actor_positions.clear()
+ m.items.clear();m.dining_sets.clear();m.customers.clear();m.built_walls.clear();m.wall_attachments.clear();m.wall_actor_positions.clear()
  m.cashiers=0;m.included_checkout_pending=true;m.duty_targets.cashier=0;m.duty_counts.cashier=0
  m.coins=100000;m._notify();return m
 func state(m):

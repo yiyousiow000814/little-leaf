@@ -79,9 +79,7 @@ func _initialize():
 	cache.draw(view,unknown,attachments,"e0e7d0","91a27d")
 	check(view.commands==expected and cache.entries.size()==2,"unknown host direct fallback stays bounded")
 	var source=FileAccess.get_file_as_string("res://scripts/rendering/illustrated_cafe.gd")
-	var shell_start=source.find('shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:back")')
-	var finish=source.find('shell_draw_cache.draw(self,game.build_tools.render_shell_host("shell:west")')
-	check(shell_start>source.find("_draw_street_people(show_service)") and finish>shell_start and finish<source.find("var corner_height="),"shells keep exact live drawing positions")
+	check(not source.contains("shell_draw_cache.draw(") and source.contains("for wall in game.model.built_wall_segments()"),"runtime renders all installed walls through the common ordered path")
 	# With no apertures, global walls never enter solid_panels/cuts geometry.
 	view.game.model.built_walls=[]
 	for index in 200:view.game.model.built_walls.append({"id":index,"x":index%12,"z":index/12,"axis":"x","height":"full","material":"original"})

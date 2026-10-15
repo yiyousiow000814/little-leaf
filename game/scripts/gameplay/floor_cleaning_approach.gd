@@ -47,7 +47,7 @@ static func blocked_by(model,start:Vector2,finish:Vector2)->String:
 		if str(item.kind)=="rug":continue
 		if _segment_near_rect(start,finish,Rect2(Vector2(item.x,item.z),Vector2.ONE),model.STAFF_PLACEMENT_RADIUS):return "furniture "+str(item.id)
 	if not Relocation.point_clear(model,start,model.items) or not Relocation.point_clear(model,finish,model.items):return "unowned floor"
-	for host in Openings.hosts(model.built_walls,model.shell_products):
+	for host in model.collision_wall_hosts():
 		for segment in Openings.solid_segments(host,model.built_walls,model.wall_attachments):
 			if Openings.body_touches(segment,start) or Openings.body_touches(segment,finish) or _segment_near_rect(start,finish,Openings.segment_rect(segment),Walls.BODY_RADIUS):return "wall "+str(host.get("id","edge"))
 	return ""

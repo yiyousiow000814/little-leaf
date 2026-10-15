@@ -3,11 +3,11 @@ extends RefCounted
 ## The camera envelope grants no land, purchases, or simulation-route changes.
 const Extent=preload("res://scripts/world/exterior_world_extent.gd")
 const ROAD_LEFT=-8.76
-const ROAD_RIGHT=-3.26
+const ROAD_RIGHT=-3.0
 const OPPOSITE_LEFT=-11.76
-const LOT=Rect2(-.26,-8.7,12.26,4.9)
-const MOUTH=Rect2(-3.26,-5.7,3.0,1.8)
-const PEDESTRIAN_LINK=Rect2(-.26,-3.8,1.2,3.54)
+const LOT=Rect2(0,-8.7,12.0,4.9)
+const MOUTH=Rect2(-3.0,-5.7,3.0,1.8)
+const PEDESTRIAN_LINK=Rect2(0,-3.8,.94,3.8)
 const SHELTER_ROOF=Rect2(-13.55,5.45,2.0,5.0)
 const SHELTER_HEIGHT=78.0
 const STOP_PAD=Rect2(-13.65,4.9,3.10,6.4)

@@ -458,6 +458,7 @@ func _staff_on_duty()->bool:
 	return false
 
 func _sell():
+	model.service_snapshot=_service_save_snapshot()
 	if save_recovery_blocked:return
 	if selected_id<0 or _item_service_locked(selected_id):return
 	if model.remove(selected_id):
@@ -1366,7 +1367,7 @@ func _is_door_landing(cell:Vector2i)->bool:
 	var point=Vector2(cell.x+.5,cell.y+.5)
 	for attachment in model.wall_attachments:
 		if attachment.kind!="door":continue
-		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls,model.shell_material)
+		var opening=model.OpeningGeometry.aperture(attachment,model.built_walls)
 		if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(point,opening.a,opening.b).distance_to(point)<.76:return true
 	return false
 
