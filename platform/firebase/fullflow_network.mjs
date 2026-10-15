@@ -116,3 +116,47 @@ export function installPackagedWorklets({origin,pathname,modules}){
     finally{URL.revokeObjectURL(blob);}
   };
 }
+
+// Only immutable compiled PCK bytes cross this fixture bridge. A full PCK
+// base64 CDP fulfill exceeds Chrome's100MiB pipe limit; each message stays256KiB.
+export function packagedPckChunk(bytes,offset){
+  if(!Buffer.isBuffer(bytes) || !Number.isSafeInteger(offset) || offset<0 || offset>=bytes.length)
+    throw Error('Exact packaged PCK offset required');
+  return bytes.subarray(offset,Math.min(offset+256*1024,bytes.length)).toString('base64');
+}
+
+export function installPackagedPckStream({origin,pathname,bytes}){
+  if(location.origin!==origin || location.pathname!==pathname)return;
+  if(!Number.isSafeInteger(bytes) || bytes<=0 || bytes>192*1024*1024)
+    throw Error('Finite packaged PCK inventory required');
+  const original=globalThis.fetch;
+  globalThis.fetch=async function(input,init){
+    const url=new URL(typeof input==='string'||input instanceof URL?input:input.url,location.href);
+    if(url.href!==origin+pathname+'index.pck')return Reflect.apply(original,this,[input,init]);
+    const method=init?.method || input?.method || 'GET';
+    if(method!=='GET' || new Headers(init?.headers || input?.headers).has('range'))
+      throw Error('Only the complete packaged PCK GET is supported');
+    const signal=init?.signal || input?.signal;
+    const aborted=()=>signal?.reason || new DOMException('Aborted','AbortError');
+    if(signal?.aborted)throw aborted();
+    let offset=0,cancelled=false;
+    const body=new ReadableStream({
+      async pull(controller){
+        try{
+          if(signal?.aborted)throw aborted();
+          const encoded=await globalThis.__littleLeafPackagedPckChunk(offset);
+          if(cancelled)return;
+          if(signal?.aborted)throw aborted();
+          const chunk=Uint8Array.from(atob(encoded),character=>character.charCodeAt(0));
+          if(chunk.length!==Math.min(256*1024,bytes-offset))throw Error('Packaged PCK chunk differs');
+          offset+=chunk.length;controller.enqueue(chunk);
+          if(offset===bytes)controller.close();
+        }catch(error){controller.error(error);}
+      },
+      cancel(){cancelled=true;},
+    });
+    const response=new Response(body,{status:200,headers:{'Content-Type':'application/octet-stream','Content-Length':String(bytes)}});
+    Object.defineProperty(response,'url',{value:url.href});
+    return response;
+  };
+}
