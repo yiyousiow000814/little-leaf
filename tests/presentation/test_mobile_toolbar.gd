@@ -82,12 +82,16 @@ func run():
    ui.show_wage_payment(50);await settle()
    var paused=game.paused;await click(game.pause_button);check(paused!=game.paused,label+" pause works")
    ui.wallet_notice.tick(ui.wallet_notice.HOLD)
-   await click(game.edit_button);check(game.editing,label+" decorate opens")
-   game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="",label+" cancel works")
-   await click(game.edit_button);expected_save_callbacks+=1;check(not game.editing,label+" done works")
+   var wallet=game.model.coins;var layout=game.model.items.duplicate(true);var saves_before=game.saves
+   await click(game.edit_button);check(game.editing and game.model.decoration_session_active,label+" decorate opens")
+   game.selected_kind="plant";await settle();await click(hud.edit_cancel)
+   check(game.selected_kind=="" and not game.editing and not game.model.decoration_session_active,label+" Cancel exits the whole session and clears selection")
+   check(game.model.coins==wallet and game.model.items==layout and game.saves==saves_before,label+" Cancel restores baseline without an immediate save")
+   await click(game.edit_button);check(game.editing and game.model.decoration_session_active and game.saves==saves_before,label+" Decorate reopens without an immediate save")
+   await click(game.edit_button);expected_save_callbacks+=1;check(not game.editing and not game.model.decoration_session_active,label+" Apply finishes the whole session")
    await click(ui.staff_access);check(ui.staff_panel.panel.visible,label+" staff opens");ui._hide_popups();await settle()
    await click(ui.settings_button);check(game.settings.visible,label+" settings opens");game.settings.hide();await settle()
-   var open=game.model.operating_open;await click(game.business_button);expected_save_callbacks+=1;check(game.model.operating_open!=open,label+" open status keeps its action")
+   var open=game.model.operating_open;var dirty_generation=game.platform_dirty_generation;await click(game.business_button);check(game.model.operating_open!=open and game.platform_dirty_generation>dirty_generation,label+" open status keeps its action and marks progress dirty")
    if view==Vector2i(844,390) and inset==Vector4.ZERO:
     var was_paused=game.paused;var point=game.pause_button.get_global_rect().get_center()
     var press=InputEventMouseButton.new();press.position=point;press.global_position=point;press.button_index=MOUSE_BUTTON_LEFT;press.pressed=true;root.push_input(press,true)
@@ -130,7 +134,7 @@ func run():
  check(notice.text.autowrap_mode==TextServer.AUTOWRAP_OFF and notice.panel.size.x<160,"short coalesced amount restores compact notice")
  notice.tick(notice.HOLD);game.editing=false
  game.settings_controls.show_stats=false;hud._sync_stats()
- check(game.saves==expected_save_callbacks,"only Done and service toggle invoke zero-I/O save callbacks")
+ check(game.saves==expected_save_callbacks,"only Apply invokes an immediate zero-I/O save callback")
  check(game.save_writes_suppressed,"player persistence remains disabled in synthetic harness")
  print("MOBILE_TOOLBAR_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"save_callbacks":game.saves,"expected_save_callbacks":expected_save_callbacks}))
  for player in game.audio_players.values():player.stop();player.stream=null

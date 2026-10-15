@@ -39,6 +39,9 @@ SUITES = [
     ("test_update_notice", "UPDATE_NOTICE_RESULT"),
     ("test_direct_janitor_cleanup", "DIRECT_JANITOR_RESULT"),
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
+    ("test_music_context", "MUSIC_CONTEXT_RESULT"),
+    ("test_music_panel", "MUSIC_PANEL_RESULT"),
+    ("test_music_transport", "MUSIC_TRANSPORT_RESULT"),
     ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_show_stats", "SHOW_STATS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
@@ -342,6 +345,9 @@ def main():
                     # exercise _save rather than suppress it via --visual-qa.
                     if script in {"test_autosave_feedback", "test_autosave_feedback_adversarial"}:
                         flags = ["--skip-intro"]
+                    # Music fixture owns only generated preference/saveguard paths.
+                    if script == "test_music_context":
+                        flags = ["--skip-intro", "--skip-tutorial"]
                     if script == "test_intro_lifecycle_headless":
                         env["LL_INTRO_RESULT"] = str(output / "intro-lifecycle.json")
                     run(script, ["--script", resources[script], "--", *flags], env, marker)
@@ -349,7 +355,7 @@ def main():
                     if script in {
                         "test_autosave_feedback", "test_autosave_feedback_adversarial", "test_autosave_feedback_ui",
                         "test_no_bottom_notifications", "test_hud_layout", "test_startup_retry",
-                        "test_starter_geometry", "test_intro_lifecycle_headless", "test_intro_cli_bypass",
+                        "test_starter_geometry", "test_intro_lifecycle_headless", "test_intro_cli_bypass", "test_music_context",
                     } and any(Path(env["HOME"]).parent.rglob("little_leaf_cafe_layout_motion_v15.json")):
                         raise RuntimeError("Unexpected regular save filename: " + script)
 

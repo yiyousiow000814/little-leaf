@@ -10,8 +10,11 @@ class GeneratedMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=true;paused=true;MinimalStart.apply(model)
  func _save():
-  if not model.customers.is_empty():observed_saves.append({"guest":model.customers[0].duplicate(true),"service":_service_save_snapshot()})
-  return true
+  model.service_snapshot=_service_save_snapshot()
+  var saved=model.save("user://policy-interval.json")
+  if saved and not model.customers.is_empty():observed_saves.append({"guest":model.customers[0].duplicate(true),"service":model.service_snapshot.duplicate(true)})
+  if saved:platform_autosave_dirty=false;progress_unsaved=false
+  return saved
 var game
 var checks=0
 var failures=[]
@@ -119,10 +122,14 @@ func run():
  check(game.model.customers.is_empty() and game.model.served==0 and game.model.total_earned==0 and payments==0,"unserved guest exits physically and releases dining pair without payment")
  # Same-frame actual cooking completion wins over120; unfinished cooking loses.
  r=reset();var chef=cooking(r,.01);r.meal_wait_seconds=119.99
- game.paused=false;game.save_timer=16.0;game._process(.01);game.paused=true
+ game.save_writes_suppressed=false;game.paused=false;game.save_timer=4.99;game._process(.01);game.paused=true;game.save_writes_suppressed=true
  check(not r.guest.meal_abandoned and chef.job_step==2 and game._meal_prepared(r),"cooking completion in the deadline frame wins")
  check(game._guest_bubble_symbol(r.guest)=="angry","finished cooking does not clear anger before handoff")
- check(not game.observed_saves.is_empty() and not game.observed_saves[-1].guest.meal_abandoned and game.observed_saves[-1].service.staff[game.staff_states.find(chef)].job_step==2,"autosave observes completed cooking before deadline resolution")
+ check(game.observed_saves.size()==1 and not game.observed_saves[-1].guest.meal_abandoned and game.observed_saves[-1].service.staff[game.staff_states.find(chef)].job_step==2,"five-second autosave observes completed cooking before deadline resolution")
+ var durable=Model.new()
+ check(durable.load_save("user://policy-interval.json"),"five-second cooking save is durably reloadable: "+durable.last_error)
+ check(not durable.customers.is_empty() and not durable.customers[0].meal_abandoned and durable.service_snapshot.staff[game.staff_states.find(chef)].job_step==2,"reloaded five-second save retains cooking completion and the live diner")
+ check(not game.platform_autosave_dirty and not game.progress_unsaved,"durable five-second cooking save clears its dirty generation")
  roundtrip("finished cooking at deadline")
  r=record();game._advance_meal_wait(60.0);game._resolve_meal_deadlines()
  check(not r.guest.meal_abandoned and game._guest_bubble_symbol(r.guest)=="angry","prepared food keeps diner angrily waiting beyond180")

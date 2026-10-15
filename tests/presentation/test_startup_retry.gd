@@ -37,7 +37,16 @@ func check_idle_home_recovery():
   check(replacement.load_save("res://tests/fixtures/startup-retry-v15.json"),"repeated recovery candidate validates")
   check(replacement.revision==revision and replacement.service_snapshot.staff.size()==count,"replacement matches cached revision and roster count")
   var old_node=cafe.staff_states[0].node
+  var old_model=cafe.model
   cafe.model=replacement;cafe._resume_loaded_cafe()
+  var dirty_generation=cafe.platform_dirty_generation
+  old_model.changed.emit()
+  check(cafe.platform_dirty_generation==dirty_generation,"obsolete model cannot dirty the recovered cafe")
+  check(not old_model.meal_completed.is_connected(cafe._on_meal_completed),"obsolete model releases the earnings callback")
+  cafe._connect_model_events();cafe._connect_model_events()
+  cafe.model.changed.emit()
+  check(cafe.platform_dirty_generation==dirty_generation+1,"repeated setup marks one dirty generation per live model change")
+  check(cafe.model.meal_completed.get_connections().filter(func(connection):return connection.callable==cafe._on_meal_completed).size()==1,"repeated setup retains exactly one live earnings callback")
   check(cafe.staff_states[0].node!=old_node,"startup retry recreates staff identities")
   cafe._staff_idle_cell(0,[])
   check(homes(cafe)==expected,"first idle placement consumer rebuilds every role home after recovery")
@@ -49,6 +58,9 @@ func check_idle_home_recovery():
  check(homes(cafe)==expected,"same-model snapshot restore rebuilds equal-count roster homes")
  # Empty-snapshot recovery can consume homes during fresh placement itself.
  cafe.model.service_snapshot={};cafe.fresh_start=true;cafe._resume_loaded_cafe()
+ var dirty_generation=cafe.platform_dirty_generation
+ cafe.model.changed.emit()
+ check(cafe.platform_dirty_generation==dirty_generation+1,"same-model recovery retains exactly one dirty callback")
  check(homes(cafe)==expected,"empty-snapshot recovery invalidates before fresh staff placement")
  check(cafe.staff_states.all(func(worker):return worker.pos==cafe.model.cell_center(worker.idle_home_cell)),"fresh placement uses rebuilt homes before its first frame")
  check(cafe.save_writes_suppressed,"recovery regression suppresses ordinary saves")

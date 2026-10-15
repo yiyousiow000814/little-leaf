@@ -92,6 +92,16 @@ Use a concise record, not an automatically computed "music quality" score:
 - Exact user feedback and scope: positive direction / preferred comparison / final mix /
   in-game acceptance. Do not invent a winner, infer approval from silence or overwrite history.
 
+## Musical and technical loop review
+
+Use the [canonical loop acceptance record](../../../docs/art-audio/AUDIO_BIBLE.md#loop-acceptance-and-evidence)
+for looping candidates. Record musical and technical results separately, compare
+the exact original/master/decoded export, and inspect repeated complete loops and
+every seam actually heard. A generated audition, playing flag or waveform metric
+does not prove listening. Preserve the user's accepted recording and label missing
+perception or platform coverage unassessed while authorized technical work continues.
+The source-specific accepted/rejected reference decisions above remain unchanged.
+
 ## Gates
 
 Check decode, finite samples, obvious clipping/clicks, tails/joins, sample rate and source

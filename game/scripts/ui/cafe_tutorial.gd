@@ -66,7 +66,6 @@ func _process(delta):
  _tick=0.0;sync()
 func _commit():
  game.model.changed.emit()
- if game.cafe_intro==null or not game.cafe_intro.active:game._save()
 func _advance(next:int):
  game.model.tutorial_state.step=next;_commit()
 func resume():

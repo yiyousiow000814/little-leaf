@@ -251,6 +251,16 @@ jobs:
           python3 tools/qualification/run_firebase_focused.py --gate update-notice.log --output "$RUNNER_TEMP/firebase-focused"
           python3 tools/qualification/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/qualification/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
+      - name: Verify grid upgrade archive transaction and reopen
+        if: matrix.lane == 'recovery'
+        timeout-minutes: 3
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/firebase-focused"
+          node tests/persistence/pre_grid_archive_browser.js > "$RUNNER_TEMP/firebase-focused/pre-grid-archive-browser.json"
       - name: Verify fresh tutorial and natural first payment in ordinary Web
         if: matrix.lane == 'play'
         timeout-minutes: 6

@@ -118,7 +118,7 @@ func handle_unhandled_input(event: InputEvent) -> bool:
 
 func refresh(screen: Vector2):
 	last_pointer = screen
-	_sync_projection()
+	_sync_projection(game.editing)
 	if _left_down and (game.editing != _press_editing or str(game.selected_kind) != _press_kind or int(game.selected_id) != _press_selected_id):
 		_clear_gesture()
 	if not game.editing:
@@ -184,11 +184,10 @@ func rotate_selection():
 		# behavior, but R while dragging is purely a preview until release.
 		var actors=_staff_positions()
 		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors)
-		if edit_plan.commit(game.model,receipt,actors,game._apply_edit_staff_positions):
+		if edit_plan.commit(game.model,receipt,actors):
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
-			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
 	else:
@@ -339,13 +338,12 @@ func _commit_preview():
 		var current: Dictionary = game.model.get_item(drag_item_id)
 		if int(current.x) == drag_cell.x and int(current.z) == drag_cell.y and game.model.logical_rotation(drag_item_id) == drag_rotation:
 			return
-	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions(),game._apply_edit_staff_positions)
+	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions())
 	if not success:return
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	game._save()
-	# Accepted layout feedback does not wait for asynchronous save completion.
+	# Accepted layout feedback does not wait for the periodic save slot.
 	game.settings_controls.play_sfx("place")
 
 func _clear_gesture(cancel_cleanup=true):
@@ -394,9 +392,9 @@ func _zoom_at(screen:Vector2,amount:float,pan_delta:Vector2=Vector2.ZERO):
 	if drag_active:_grab_offset*=next_zoom/old_zoom
 	refresh(screen+pan_delta)
 
-func _sync_projection():
+func _sync_projection(refresh_geometry:bool=true):
 	if is_instance_valid(game.illustration) and game.illustration.has_method("update_projection"):
-		game.illustration.update_projection()
+		if refresh_geometry:game.illustration.update_projection()
 		pan_offset=game.illustration.pan_offset
 
 func _point_in_view(screen: Vector2) -> bool:

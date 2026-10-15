@@ -252,12 +252,12 @@ func _choose_parking():
  game._cancel_selection()
  if game.model.parking_owned:
   ui._popup_at(parking_review,320);_sync_parking_review();ui.sync();return
- if game.model.buy_parking():game._update_ui();game._save()
+ if game.model.buy_parking():game._update_ui()
  else:ui.sync()
 func _sell_parking():
  if not parking_review.visible or not _parking_action_allowed() or not game.model.parking_owned or not game.model.parking_visits.is_empty():return
  if game.model.sell_parking():
-  parking_review.hide();game._cancel_selection();game._update_ui();game._save()
+  parking_review.hide();game._cancel_selection();game._update_ui()
  else:_sync_parking_review();ui.sync()
 func _sync_parking_review():
  if not parking_review.visible:return

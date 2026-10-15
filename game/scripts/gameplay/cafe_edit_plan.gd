@@ -77,16 +77,13 @@ func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
   })
  return plan
 
-func commit(model,receipt:Dictionary,actors:Array=[],apply_staff:Callable=Callable())->bool:
+func commit(model,receipt:Dictionary,actors:Array=[])->bool:
  if _state.is_empty() or stamp(model,actors)!=_state:return model._fail("Placement changed · review the floor again")
  if not is_same(receipt,_receipt):return model._fail("Placement belongs to another preview")
  var plan:Dictionary=_plan_result
  if not bool(plan.get("ok",false)):
   model.last_placement_issue=plan.get("issue",{}).duplicate(true)
   return model._fail(str(plan.get("error","Invalid placement")))
- # A model-only caller cannot accept a plan without its live staff half.
- if plan.has("staff_positions"):
-  if not apply_staff.is_valid() or not apply_staff.call(actors,plan.staff_positions):return model._fail("Staff changed · review the floor again")
  if _id>=0:
   if not Motion.commit(model,plan):return false
  else:

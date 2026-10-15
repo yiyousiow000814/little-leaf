@@ -77,7 +77,7 @@ const SERVICE_KINDS := ["table", "chair", "bench", "stove", "beverage", "sink", 
 const PHASES := ["arriving", "ordering", "cooking", "drinking", "eating", "checkout_wait", "checkout_walk", "paying", "leaving", "dirty", "cleaning"]
 const BASE_COOK_SECONDS := 45.0
 const ORDER_TAKING_SECONDS := 3.0
-const PHASE_SECONDS := {"ordering": ORDER_TAKING_SECONDS, "cooking": BASE_COOK_SECONDS, "drinking": 3.0, "eating": 6.0, "dirty": 1.5, "cleaning": 4.0}
+const PHASE_SECONDS := {"ordering": ORDER_TAKING_SECONDS, "cooking": BASE_COOK_SECONDS, "drinking": 3.0, "eating": 25.0, "dirty": 1.5, "cleaning": 4.0}
 const WALK_SPEED := 1.5
 const ARRIVAL_INTERVAL := 4.0
 const MAX_ARRIVING := 2
@@ -209,7 +209,7 @@ func _init() -> void:
 func reset_new() -> void:
 	tutorial_state.clear()
 	first_guest_pending=false;first_guest_start=Vector2.INF
-	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_decoration_baseline.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
@@ -387,16 +387,51 @@ func logical_rotation(id:int)->int:
 	var group=dining_set_for(id);return int(group.rot) if not group.is_empty() else int(get_item(id).get("rot",0))
 func logical_members(id:int)->Array:
 	var group=dining_set_for(id);return [int(group.table_id),int(group.seat_id)] if not group.is_empty() else [id]
-# Session receipts are deliberately memory-only: a reload finalizes interrupted edits.
+# The complete draft stays memory-only until Apply. Persistence during an
+# interrupted session uses its baseline, including the original wallet/custody.
 # IDs are stable through moves; only successful purchases/sales change this ledger.
 var decoration_session_active=false
 var decoration_purchases:Dictionary={}
 var decoration_build_purchases:Dictionary={}
+var _decoration_baseline:Dictionary={}
+const DECORATION_STATE=[
+	"items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
+	"dining_sets","built_walls","wall_attachments","_next_wall_id","_next_attachment_id",
+	"floor_style","floor_finishes",
+	"coins","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers",
+	"duty_targets","duty_counts","payroll_elapsed","payroll_accrued","wages_due","total_wages_paid",
+	"served","total_earned","total_cleaned","_next_item_id","_next_customer_id","operating_open",
+	"included_bin_pending","included_checkout_pending","register_unplaced","next_checkout_ticket","service_snapshot",
+	"tutorial_state","loaded_save_version","first_guest_pending","first_guest_start","_arrival_elapsed",
+	"_walking_customer_id","wall_actor_positions","guest_obstacle_positions","checkout_staff_claims",
+	"last_error","last_event","_legacy_building_original"
+]
+func _copy_decoration_state(source:Dictionary):
+	for key in source:
+		var value=source[key]
+		set(key,value.duplicate(true) if value is Array or value is Dictionary else value)
+	_wall_index_revision=-1;_collision_revision=-1
+	_navigation_signature.clear();_admission_signature.clear()
+	_motion_preview_cache.clear();_mobility_validated.clear();_visible_land_bounds_dirty=true
+func cancel_decoration_session()->bool:
+	if not decoration_session_active:return false
+	_copy_decoration_state(_decoration_baseline)
+	finish_decoration_session()
+	return true
+func record_decoration_credit(amount:int):
+	# A confirmed external grant belongs to both the live wallet and the
+	# baseline. The controller already credited the live wallet exactly once.
+	if decoration_session_active:_decoration_baseline.coins+=amount
 func begin_decoration_session():
 	if decoration_session_active:return
+	_decoration_baseline.clear()
+	for key in DECORATION_STATE:
+		var value=get(key)
+		_decoration_baseline[key]=value.duplicate(true) if value is Array or value is Dictionary else value
 	decoration_session_active=true;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func finish_decoration_session():
 	_parking_session_purchase=false
+	_decoration_baseline.clear()
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
 func record_decoration_purchase(id:int,paid:int):
 	if decoration_session_active:decoration_purchases[id]=paid
@@ -1673,6 +1708,12 @@ func _saved_payroll_error(data: Dictionary) -> String:
 	return ""
 
 func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
+	if decoration_session_active:
+		var baseline=get_script().new()
+		baseline._copy_decoration_state(_decoration_baseline)
+		var saved:bool=baseline.save(path)
+		if not saved:last_error=baseline.last_error
+		return saved
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
 	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts,register_unplaced,operating_open)
 	if checkout_error!="":return _fail(checkout_error)
@@ -1736,6 +1777,9 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	if scalar_error!="":return _fail(scalar_error)
 	scalar_error=_saved_payroll_error(data)
 	if scalar_error!="":return _fail(scalar_error)
+	# Match the active-service reader before touching either saved destination.
+	if not checked.state.customers.is_empty() and not _layout_has_access(items,depth,owned_parcels):
+		return _fail("Saved layout blocks access to service stations")
 	var backup_error=BuildingCodec.preserve_original(_legacy_building_original,path)
 	if backup_error!="":return _fail(backup_error)
 	var temp_path := path + ".tmp"

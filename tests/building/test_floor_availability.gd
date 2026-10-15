@@ -59,9 +59,9 @@ func run():
  check(not plan.commit(m,receipt,interaction._staff_positions()),"a newly moved body invalidates an earlier receipt")
  game.staff_states[0].pos=actors[0]
  game.selected_kind="plant";game.selected_id=-1;game.rotation_step=0
- var old_count=m.items.size();interaction.refresh(game.illustration.iso(5.5,6.5));interaction._commit_preview()
+ var old_count=m.items.size();var dirty_generation=game.platform_dirty_generation;interaction.refresh(game.illustration.iso(5.5,6.5));interaction._commit_preview()
  check(m.items.size()==old_count+1 and m.coins==coins-m.price_of("plant"),"live clear-footprint purchase publishes and charges once")
- check(game.saves==1,"successful live purchase saves once")
+ check(game.saves==0 and game.platform_dirty_generation>dirty_generation,"successful live purchase marks dirty without an operation save")
  check(game.staff_states[0].pos==actors[0],"purchase never silently relocates a body")
  var report={"checks":checks,"failures":failures,"target_validations":plan.validations,"retired_cache_allocated":false}
  for player in game.audio_players.values():player.stop();player.stream=null

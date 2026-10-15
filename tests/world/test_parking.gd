@@ -37,12 +37,12 @@ func snapshot(m):
  var state={}
  for key in ["parking_visits","parking_owned","parking_paid_cost","customers","outside_queue","coins","items","dining_sets","built_walls","wall_attachments","register_unplaced","floor_finishes","floor_style","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers","included_bin_pending","included_checkout_pending","operating_open","duty_targets","duty_counts","served","total_earned","total_cleaned","payroll_elapsed","payroll_accrued","wages_due","total_wages_paid","_next_customer_id","_next_item_id","_next_wall_id","_next_attachment_id","next_checkout_ticket","_arrival_elapsed","_walking_customer_id","service_snapshot"]:state[key]=m.get(key)
  return encoded(state)
-func roundtrip(m,label:String):
+func roundtrip(m,label:String,expected=null):
  var path="user://parking-"+label+".json"
  check(m.save(path),label+" save: "+m.last_error)
  if not FileAccess.file_exists(path):return null
  var hash=FileAccess.get_sha256(path);var copy=Model.new();check(copy.load_save(path),label+" load: "+copy.last_error)
- check(same(snapshot(m),snapshot(copy)),label+" exact snapshot preserved")
+ check(same(snapshot(m) if expected==null else expected,snapshot(copy)),label+" exact committed snapshot preserved")
  check(FileAccess.get_sha256(path)==hash,label+" source bytes unchanged")
  return copy
 func invalid(m,raw:Dictionary,label:String):
@@ -56,19 +56,23 @@ func run():
  var m=Model.new();var wallet=m.coins
  check(not m.parking_owned and m.parking_visits.is_empty(),"new parking unowned/empty")
  check(not m.buy_parking() and m.coins==wallet,"purchase requires Decorate")
+ var session_baseline=snapshot(m)
  m.begin_decoration_session();check(not m.buy_parking() and m.coins==wallet,"insufficient funds atomic")
  var price=m.parking_price();check(price==50000,"approved new parking price")
  m.coins=price-1;check(not m.buy_parking() and m.coins==price-1 and not m.parking_owned and m.parking_paid_cost==0,"below purchase price rejects without charge or ownership")
  m.coins=price;check(m.buy_parking() and m.coins==0 and m.parking_paid_cost==price,"exact purchase price charges once")
  check(not m.buy_parking() and m.coins==0,"repeat purchase cannot charge")
- roundtrip(m,"session-owned")
+ var interrupted=roundtrip(m,"session-owned",session_baseline)
+ check(not interrupted.parking_owned and interrupted.coins==wallet,"interrupted parking purchase reloads baseline ownership and wallet")
  check(m.parking_refund()==price,"saving retains same-session receipt")
  check(m.sell_parking() and m.coins==price,"same-session sale full refund")
  check(not m.sell_parking() and m.coins==price,"repeat sale cannot mint money")
  m.coins=price*2
- check(m.buy_parking(),"repurchase after cancellation");m.finish_decoration_session();m.begin_decoration_session()
+ check(m.buy_parking(),"repurchase after cancellation");m.finish_decoration_session();var owned_baseline=snapshot(m);m.begin_decoration_session()
  check(m.parking_refund()==int(price/2) and m.sell_parking() and m.coins==price+int(price/2),"Done ends full refund")
- check(m.buy_parking(),"buy before load");var loaded=roundtrip(m,"owned")
+ check(m.buy_parking(),"buy before load");roundtrip(m,"owned",owned_baseline)
+ m.finish_decoration_session();var loaded=roundtrip(m,"owned-applied")
+ check(loaded.parking_owned and loaded.coins==m.coins,"Apply persists purchased parking and exact wallet")
  loaded.begin_decoration_session();check(loaded.parking_refund()==int(price/2),"load ends full refund entitlement")
  # A purchased historical lot keeps its paid basis and is never charged again.
  var historical=Model.new();historical.coins=777;historical.parking_owned=true;historical.parking_paid_cost=2000

@@ -32,6 +32,8 @@ class Owner extends Node:
 	var asynchronous_save = true
 	var pending_save = false
 	var native_save_success = true
+	var platform_autosave_dirty = false
+	var platform_dirty_generation = 0
 	func _save():
 		saves += 1
 		if asynchronous_save:
@@ -79,6 +81,9 @@ func arm(pointer, kind: String, id: int, cell: Vector2i):
 func placement_callers(owner, settings, voice):
 	owner.model = Model.new()
 	Start.apply(owner.model)
+	owner.model.changed.connect(func():
+		owner.platform_autosave_dirty = true
+		owner.platform_dirty_generation += 1)
 	owner.model.begin_decoration_session()
 	owner.settings_controls = settings
 	var pointer = PlacementPointer.new(owner)
@@ -89,11 +94,11 @@ func placement_callers(owner, settings, voice):
 	arm(pointer, "plant", -1, Vector2i(8, 6))
 	pointer._release_left(Vector2.ZERO)
 	check(not owner.model.get_item(id).is_empty() and owner.model.coins == coins - owner.model.price_of("plant"), "real release commits a purchase once")
-	check(owner.pending_save and owner.saves == 1, "submitted Web-style save stays pending and returns false")
+	check(owner.platform_autosave_dirty and owner.saves == 0, "accepted purchase marks progress dirty without an operation save")
 	check(settings.cues == ["place"] and voice.playing and voice.stream == Feedback.PLACE, "accepted purchase starts supplied placement feedback before save completes")
 	var revision = owner.model.revision
 	pointer._release_left(Vector2.ZERO)
-	check(owner.model.revision == revision and owner.saves == 1 and settings.cues == ["place"], "duplicate release cannot purchase, save or cue again")
+	check(owner.model.revision == revision and owner.saves == 0 and settings.cues == ["place"], "duplicate release cannot purchase, save or cue again")
 	owner.complete_save()
 	check(not owner.pending_save and settings.cues == ["place"], "late save completion does not replay placement feedback")
 	voice.stop()
@@ -101,34 +106,34 @@ func placement_callers(owner, settings, voice):
 	pointer._release_left(Vector2.ZERO)
 	var moved = owner.model.get_item(id)
 	check(Vector2i(moved.x, moved.z) == Vector2i(8, 7) and owner.model.coins == coins - owner.model.price_of("plant"), "real move commits without another purchase")
-	check(owner.pending_save and owner.saves == 2 and settings.cues == ["place", "place"] and voice.playing, "accepted move cues once with an asynchronous save")
+	check(owner.platform_autosave_dirty and owner.saves == 0 and settings.cues == ["place", "place"] and voice.playing, "accepted move cues once while persistence waits for its slot")
 	voice.stop()
 	var before = JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision])
 	arm(pointer, "plant", id, Vector2i(8, 7))
 	pointer._release_left(Vector2.ZERO)
-	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 2 and settings.cues.size() == 2 and not voice.playing, "same-cell same-rotation move is silent and unsaved")
+	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 0 and settings.cues.size() == 2 and not voice.playing, "same-cell same-rotation move is silent and unsaved")
 	arm(pointer, "plant", -1, Vector2i(8, 7))
 	pointer._release_left(Vector2.ZERO)
-	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 2 and settings.cues.size() == 2 and not voice.playing, "invalid overlapping purchase is silent and unsaved")
+	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 0 and settings.cues.size() == 2 and not voice.playing, "invalid overlapping purchase is silent and unsaved")
 	arm(pointer, "plant", -1, Vector2i(8, 6))
 	pointer.cancel(false)
 	pointer._release_left(Vector2.ZERO)
-	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 2 and settings.cues.size() == 2 and not voice.playing, "cancelled preview cannot commit or cue on release")
+	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 0 and settings.cues.size() == 2 and not voice.playing, "cancelled preview cannot commit or cue on release")
 	owner.save_recovery_blocked = true
 	arm(pointer, "plant", -1, Vector2i(8, 6))
 	pointer._release_left(Vector2.ZERO)
-	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 2 and settings.cues.size() == 2 and not voice.playing, "recovery-blocked release stays silent and unsaved")
+	check(JSON.stringify([owner.model.items, owner.model.coins, owner.model.revision]) == before and owner.saves == 0 and settings.cues.size() == 2 and not voice.playing, "recovery-blocked release stays silent and unsaved")
 	owner.save_recovery_blocked = false
 	owner.complete_save()
 	owner.asynchronous_save = false
 	arm(pointer, "plant", -1, Vector2i(8, 6))
 	pointer._release_left(Vector2.ZERO)
-	check(owner.saves == 3 and settings.cues.size() == 3 and voice.playing, "native successful save retains one placement cue")
+	check(owner.saves == 0 and settings.cues.size() == 3 and voice.playing, "accepted placement cues without requesting an immediate native save")
 	voice.stop()
 	owner.native_save_success = false
 	arm(pointer, "plant", -1, Vector2i(9, 6))
 	pointer._release_left(Vector2.ZERO)
-	check(owner.saves == 4 and settings.cues.size() == 4 and voice.playing and not owner.model.get_item(owner.model._next_item_id - 1).is_empty(), "accepted layout feedback does not misreport failed persistence as a rejected placement")
+	check(owner.saves == 0 and settings.cues.size() == 4 and voice.playing and not owner.model.get_item(owner.model._next_item_id - 1).is_empty(), "accepted layout feedback does not depend on persistence readiness")
 	voice.stop()
 	pointer.cancel(false)
 	owner.interaction = null

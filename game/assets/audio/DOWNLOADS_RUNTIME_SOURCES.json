@@ -1,0 +1,193 @@
+{
+  "source_head": "e2436be1868a44d3eebeac2c284489b0332d4d1e",
+  "source_files": [
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+      "source": "game/assets/audio/corner_cafe_harmony_a_loop.ogg",
+      "bytes": 208268,
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae",
+      "kind": "existing OGG alias"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+      "source": "game/assets/audio/corner_cafe_harmony_b_loop.ogg",
+      "bytes": 174876,
+      "sha256": "43a994b06e08db3796236f17c91dd19ad958b9b3c25e6043ad14365eb07309da",
+      "kind": "existing OGG alias"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+      "source": "game/assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
+      "bytes": 827145,
+      "sha256": "216864cdc3b3bc095b9abfdaa0c81eda30da379ef47b9ecb8a485a032bc1f603",
+      "kind": "existing OGG alias"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+      "source": "game/assets/audio/corner_cafe_main_street_loop.ogg",
+      "bytes": 980781,
+      "sha256": "6c295a21f115920865c3d68cfb96b06a02a1ab7241277d70a191a57654f34493",
+      "kind": "existing OGG alias"
+    },
+    {
+      "path": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+      "source": "game/assets/audio/corner_cafe_shop_rhythm_fix_loop.ogg",
+      "bytes": 899254,
+      "sha256": "38856e3cca0f65798af4f3459092be17a9c5baff18b89b7de849558d6ded47c4",
+      "kind": "existing OGG alias"
+    },
+    {
+      "path": "game/assets/audio/Cloverlight_PhraseFix_R3_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_1nd.mp3",
+      "bytes": 3247990,
+      "sha256": "0c6e401a3a68a234fb4b01a0d760ccb90b52a204f5edfbef0397d558fccb0ff5",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Cloverlight_PhraseFix_R3_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Cloverlight_PhraseFix_R3_2nd.mp3",
+      "bytes": 3620478,
+      "sha256": "989efb8466e844ae2b1fd9a5f537c0fc101aeff58878b53f10d1ba7415066f89",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Corner_Cafe_Main_Street_112bpm_Loop_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_1nd.mp3",
+      "bytes": 3345341,
+      "sha256": "7f61f4945557b96672d18d3d3d9afad4d5766d1a48c2c54d9744077dc9573c11",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Corner_Cafe_Main_Street_112bpm_Loop_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Main_Street_112bpm_Loop_2nd.mp3",
+      "bytes": 3477616,
+      "sha256": "b860d6d3d4ddcb5d55d8d5ac1ddd6dde96595ec8255c0325945e4e6c6c36321a",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_1nd.mp3",
+      "bytes": 3040413,
+      "sha256": "ba0b745319de0632b1e19056938eb14aee36c650df3f2a13944d9221d4b1cbc4",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Corner_Cafe_Shop_112bpm_Rhythm_Fix_Loop_2nd.mp3",
+      "bytes": 2858683,
+      "sha256": "f85b6d82fb299daa018dc08e5a9b28258569c884e47f37650e1727eaa12e6e6f",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_1nd.mp3",
+      "bytes": 3821345,
+      "sha256": "4485807829fe19dde9b89b92540ea64387b514c6b6a749262eab2c42634d3b96",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Fiesta_en_Flor_Trumpet_Throughout_R4_2nd.mp3",
+      "bytes": 3593306,
+      "sha256": "03937950d2557d72665827f1a4904e086c4309c4e6e3f79608c3477418457d87",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Petal_Promenade_Clarinet_Main_R3_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_1nd.mp3",
+      "bytes": 4216285,
+      "sha256": "4d54a6072abb0b5a2f07f216fc8a6855fc30ead53fd253f3ad83b5092f3fd67f",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Petal_Promenade_Clarinet_Main_R3_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Petal_Promenade_Clarinet_Main_R3_2nd.mp3",
+      "bytes": 3588792,
+      "sha256": "e377af33820133a34c050a6df5cfca0a43ac38b95a14a70a45f0a4ab431609c2",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Sunshine_Skip_150bpm_R6_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/Sunshine_Skip_150bpm_R6_2nd.mp3",
+      "bytes": 3550287,
+      "sha256": "07da0e58522476b7651e2e64210ac60f0d40204ec3475499c1ecf9f1e641ae98",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_午市轻快步_忙碌营业_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_1nd.mp3",
+      "bytes": 4519073,
+      "sha256": "a0fcaf801270d3863d9eafbcea64cf094a5a854b4fd204f0c28eea7b057aeae3",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_午市轻快步_忙碌营业_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_午市轻快步_忙碌营业_2nd.mp3",
+      "bytes": 4577215,
+      "sha256": "c76861b12ed625009908454d718000fc959fdc32e17b7cda3389ca6ec346091f",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_桌边的叶影_安静布置_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_1nd.mp3",
+      "bytes": 4482441,
+      "sha256": "581d60b1a9154d9e9797eeeaa510eee59fb520291c71d9b52741c94443f0fb92",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_桌边的叶影_安静布置_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_桌边的叶影_安静布置_2nd.mp3",
+      "bytes": 4573188,
+      "sha256": "e90804376f6b81a0e345393a20bd828185bd69312d81b757267126f397cd7392",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_门口的阳光_日常营业_1nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_1nd.mp3",
+      "bytes": 4913829,
+      "sha256": "f19a380172e13eec6a66e45771d0938ec1d1ed72c9a7ea39d2d3d916abe9ba95",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/小叶食堂_门口的阳光_日常营业_2nd.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/marked-originals/小叶食堂_门口的阳光_日常营业_2nd.mp3",
+      "bytes": 4035250,
+      "sha256": "866f984c27abf90ac4ab79db8c7ad94389ebfb260a685dd443844d11c3fd7c19",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Cloverlight_PhraseFix_R3.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/01_Cloverlight_R3/Cloverlight_PhraseFix_R3.mp3",
+      "bytes": 1172477,
+      "sha256": "78948695efa00a67723ee427e78c2c62170d1cf67172b83434110717161fb2cc",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Petal_Promenade_Clarinet_Main_R3.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/02_Petal_Promenade_R3/Petal_Promenade_Clarinet_Main_R3.mp3",
+      "bytes": 1690755,
+      "sha256": "35472bfcb7110c16db942e10b7dc2a518124d5964196d6c332711159d125e965",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/03_Fiesta_en_Flor_R4/Fiesta_en_Flor_Trumpet_Throughout_R4.mp3",
+      "bytes": 1190252,
+      "sha256": "53272b0d9b67d162972b3d27ba7cda75afd3fa3abb1394ba85489cd3f76c5a37",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    },
+    {
+      "path": "game/assets/audio/Sunshine_Skip_176bpm_New_Theme.mp3",
+      "source": "docs/art-audio/scores/downloads-selection/selected-r3-r3-r4/04_Sunshine_Skip/Sunshine_Skip_176bpm_New_Theme.mp3",
+      "bytes": 1943618,
+      "sha256": "541f42271598bd90295a6157a3b57569d8ea149fedac6b1826ca7cc19010f7e1",
+      "kind": "unchanged original recording for private playback comparison; seamless-loop unqualified"
+    }
+  ],
+  "original_inputs_changed": false,
+  "new_derivatives": 0,
+  "original_recording_repetition_is_not_qualified_seamless_loop": true,
+  "actual_hearing": "UNASSESSED",
+  "marked_pilot_and_other_loop_derivatives": "PENDING",
+  "release_presets_helpers_and_guards_changed": false
+}

@@ -101,6 +101,16 @@ Apply [game-music-review](../game-music-review/SKILL.md) before user handoff. Pr
 actual audio, source revision, changed dimensions, technical caveats and one focused
 choice. Do not claim that an internal textual review or successful export proves taste.
 
+## Loop production for the actual source
+
+For loop adaptation, follow the [canonical source-aware loop pipeline](../../../docs/art-audio/AUDIO_BIBLE.md#music-loop-production-and-qa).
+First decide whether the asset should loop at all. Choose musical boundaries and
+a track-specific arrangement before sample-boundary processing; a click-free join
+does not establish a natural musical return. Preserve immutable originals,
+approved identity, editable material and source-bound before/after evidence.
+Reuse an already suitable authored loop rather than manufacturing a new version.
+These general rules supplement, not replace, the exact reference decisions above.
+
 ## Retain learning and finish
 
 Record both positive and negative feedback with exact candidate and scope. If the user

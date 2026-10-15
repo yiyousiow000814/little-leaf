@@ -90,7 +90,7 @@ const oldLayout = {viewport: [1360, 880], checks: 9, failures: [], ui_route: 'hi
   points: Object.fromEntries(['business', 'decorate', 'settings', 'retry'].map(name => [name, [100, 100]])), help_rect: region};
 const newLayout = structuredClone(oldLayout);
 newLayout.ui_route = 'wall-bottom-tray'; newLayout.checks = 53;
-for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm']) newLayout.points[name] = [100, 100];
+for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm', 'apply']) newLayout.points[name] = [100, 100];
 newLayout.regions = Object.fromEntries(['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text'].map(name => [name, {...region}]));
 newLayout.expected_cost = 35; newLayout.expected_segment = {height: 'half', material: 'sage_panels', paid_cost: 35, refund_credit: 17};
 check('historical recovery layout needs no current Wall tray controls', () => verifyLayout(oldLayout, 'old'));
@@ -99,6 +99,7 @@ for (const [label, mutate] of [
   ['old floating-picker route', layout => {layout.ui_route = 'floating-wall-picker';}],
   ['absent product paging target', layout => {delete layout.points.wall_next;}],
   ['absent real wall card target', layout => {delete layout.points.wall_style;}],
+  ['absent session Apply target', layout => {delete layout.points.apply;}],
   ['non-finite pointer', layout => {layout.points.wall_style[0] = NaN;}],
   ['offscreen pointer', layout => {layout.points.wall_style[0] = 1360;}],
   ['offscreen card OCR', layout => {layout.regions.style_name.x = 1300;}],

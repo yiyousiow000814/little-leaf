@@ -74,10 +74,10 @@ func run():
   var point=art.iso(2.5 if kind=="door" else 3.5,0,70)
   # Keep the exact host comfortably clear of HUD and tray without changing zoom.
   game.interaction._pan_by(art.camera_safe_rect().get_center()-point);point=art.iso(2.5 if kind=="door" else 3.5,0,70)
-  var wallet=model.coins;var count=model.wall_attachments.size();var saves=game.saves
+  var wallet=model.coins;var count=model.wall_attachments.size();var saves=game.saves;var dirty_generation=game.platform_dirty_generation
   await click(point)
   check(model.wall_attachments.size()==count+1,"real click attaches "+kind+" while washing")
-  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves+1,"attachment charges and saves once")
+  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves and game.platform_dirty_generation>dirty_generation,"attachment charges once and marks progress dirty without an operation save")
   await click(point)
   check(model.wall_attachments.size()==count+1 and model.coins==wallet-model.attachment_price(kind),"repeated same opening click cannot charge twice")
  # Actual people and route conflicts remain protected.

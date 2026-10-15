@@ -78,7 +78,7 @@ function verifyLayout(layout, label) {
   for (const name of ['business', 'decorate', 'settings', 'retry']) point(name);
   region(layout.help_rect, 'Help');
   if (label === 'new') {
-    for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm']) point(name);
+    for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm', 'apply']) point(name);
     for (const name of ['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text']) region(layout.regions?.[name], name);
     assert.equal(layout.expected_cost, 35, 'Unchanged half-wall purchase price');
     assert.equal(layout.expected_segment?.height, 'half', 'Exact requested height');
