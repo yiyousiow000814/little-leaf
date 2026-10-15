@@ -160,3 +160,36 @@ export function installPackagedPckStream({origin,pathname,bytes}){
     return response;
   };
 }
+
+// This fixture owns both explicit context offline transitions. Confirm the actual
+// browser once at setup and after each awaited transition; proxy RPCs then share
+// that confirmation instead of scheduling two foreground evaluations per RPC.
+// Unknown/failed transitions stay closed, and in-flight responses wait for the
+// current transition before delivery. This controls only the synthetic proxy.
+export function createContextConnectivity(context){
+  let online=false,initialized=false,transition=null,epoch=0,closed=false;
+  context.on('close',()=>{closed=true;online=false;epoch++;});
+  return {
+    async initialize(frame){
+      if(closed||initialized||transition)throw Error('Fixture connectivity already initialized or closed');
+      if(await frame.evaluate(()=>navigator.onLine)!==true)throw Error('Fixture browser did not start online');
+      if(closed)throw Error('Fixture context closed during confirmation');
+      initialized=true;online=true;
+    },
+    setOffline(frame,offline){
+      if(typeof offline!=='boolean'||closed||!initialized||transition)throw Error('Invalid fixture offline transition');
+      online=false;epoch++;
+      const work=(async()=>{
+        await context.setOffline(offline);
+        const confirmed=await frame.evaluate(()=>navigator.onLine);
+        if(confirmed!==!offline)throw Error('Fixture browser offline confirmation differs');
+        if(closed)throw Error('Fixture context closed during confirmation');
+        online=confirmed;
+      })();
+      transition=work;
+      return work.finally(()=>{if(transition===work)transition=null;});
+    },
+    async capture(){if(closed)return null;if(transition)await transition;return online&&!closed?epoch:null;},
+    async isOnline(captured){if(closed)return false;if(transition)await transition;return online&&!closed&&captured===epoch;},
+  };
+}

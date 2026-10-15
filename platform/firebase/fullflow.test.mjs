@@ -12,7 +12,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createRequire} from 'node:module';
 import {createFixtureStore} from './fullflow_fixtures.mjs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream,createContextConnectivity} from './fullflow_network.mjs';
 import {initializeTestEnvironment,assertFails} from '@firebase/rules-unit-testing';
 import {doc,getDocFromServer,setDoc,onSnapshot} from 'firebase/firestore';
 const require=createRequire(import.meta.url);
@@ -185,6 +185,7 @@ async function setup(uid,entry=null){
  const seedPhase={active:!!itchVariant};
  const context=await browser.newContext({viewport:{width:1360,height:880}});contexts.push(context);
  const routes=createRouteLifetime(context,errors);routeLifetimes.set(context,routes);
+ const connectivity=createContextConnectivity(context);
  if(itchVariant){
   const packet=JSON.parse(fs.readFileSync(path.join(itchVariant,'firebase-variant-manifest.json')));
   const modules={};
@@ -214,14 +215,15 @@ async function setup(uid,entry=null){
   let target;try{target=emulatorProxyTarget(u.href,route.request().method());}
   catch(_){errors.push('Nonfixture emulator RPC blocked');return route.abort('blockedbyclient');}
   // APIRequestContext traffic is outside browser offline emulation; honor the
-  // real context's navigator state before forwarding any SDK read/write.
-  if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+  // confirmed context transition before forwarding any SDK read/write.
+  const connectivityEpoch=await connectivity.capture();
+  if(connectivityEpoch===null)return route.abort('internetdisconnected');
   const rpc=/\/(Listen|Write)\/channel$/.exec(u.pathname)?.[1] || /:(batchGet|commit)$/.exec(u.pathname)?.[1];
   const clock=rpcClock(rpc,route.request().method());
   try{
    const response=await route.fetch({url:target,maxRedirects:0,timeout:45000});
    clock.fetchCompleted=Date.now();clock.status=response.status();clock.phase='online-check';
-   if(!await route.request().frame().evaluate(()=>navigator.onLine))return route.abort('internetdisconnected');
+   if(!await connectivity.isOnline(connectivityEpoch))return route.abort('internetdisconnected');
    clock.phase='fulfill-submitted';
    return route.fulfill({response,headers:{...response.headers(),'access-control-allow-origin':officialOrigin,'access-control-allow-credentials':'true','cross-origin-resource-policy':'cross-origin'}});
   }catch(error){
@@ -255,8 +257,9 @@ async function setup(uid,entry=null){
   report.synthetic_seed_document=true;
  }else await page.goto(origin+'/seed.html');
  if(entry){await seedFrame.evaluate(async({uid,entry})=>{const db=await new Promise((yes,no)=>{const q=indexedDB.open('little-leaf.firebase-journal.v1',1);q.onupgradeneeded=()=>q.result.createObjectStore('accounts');q.onsuccess=()=>yes(q.result);q.onerror=()=>no(q.error);});await new Promise((yes,no)=>{const tx=db.transaction('accounts','readwrite');tx.objectStore('accounts').put(entry,uid);tx.oncomplete=yes;tx.onabort=()=>no(tx.error);});db.close();},{uid,entry});assert.deepEqual(await journal(seedFrame,uid,uid),entry,'exact seed readback in game partition');}
+ await connectivity.initialize(seedFrame);
  await page.addInitScript(installEngineLaunchHook,{args:['--','--skip-intro'],reportKey:'__fullflowEngine'});
- return {context,page,uid,seedFrame,seedPhase};
+ return {context,page,uid,seedFrame,seedPhase,connectivity};
 }
 function gameFramePage(page,frame){return new Proxy(frame,{get(target,key){
  if(key==='mainFrame')return()=>frame;
@@ -341,11 +344,11 @@ try{
  assert.deepEqual(await journal(d.page,uid,uid),original);check(true,'Google '+kind+' startup preserves original local journal bytes');
  await resumeProof(d,43000);await shot(d.page,'cloud-startup-'+kind);await closeContext(d.context);}
  // Offline native progress remains staged while fenced; explicit re-entry selects cloud.
- {const uid='fullflow-offline',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.context.setOffline(true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');const b=await launch(await setup(uid));await click(b.page,'other-device','switch');
+ {const uid='fullflow-offline',r=await record(1,42000);await seed(uid,r);const a=await launch(await setup(uid));const beforeOffline=await journal(a.page,uid);assert(beforeOffline?.record);await a.connectivity.setOffline(a.page,true);const pending=await nativeSave(a,beforeOffline);check(pending.pending,'offline native save is durably pending');const b=await launch(await setup(uid));await click(b.page,'other-device','switch');
  await until(async()=>(await snapshot(b.page)).canForceTakeover,'explicit timeout available',30000);await shot(b.page,'takeover-timeout');
  await confirmedClick(b.page,'timeout','switch',false);check((await read(uid,'owner')).epoch===1,'cancel force does not transfer owner');
  await confirmedClick(b.page,'timeout','switch',true);await until(async()=>(await read(uid,'owner')).epoch===2,'force transfer');await resumeProof(b,42000);await b.page.evaluate(()=>__littleLeafVault.sync());
- await until(async()=>!(await journal(b.page,uid)).pending,'new owner cloud save');await a.context.setOffline(false);await a.page.evaluate(()=>window.dispatchEvent(new Event('focus')));await until(async()=>(await snapshot(a.page)).ownershipPaused,'old device notices fenced owner');
+ await until(async()=>!(await journal(b.page,uid)).pending,'new owner cloud save');await a.connectivity.setOffline(a.page,false);await a.page.evaluate(()=>window.dispatchEvent(new Event('focus')));await until(async()=>(await snapshot(a.page)).ownershipPaused,'old device notices fenced owner');
  const retained=await journal(a.page,uid);check(retained.pending && retained.record.revision>=pending.record.revision,'offline pending progress remains local after fencing');await shot(a.page,'offline-pending-preserved');await until(async()=>!(await snapshot(a.page)).busy,'old native snapshot finished');await click(a.page,'other-device','switch');await until(async()=>(await snapshot(a.page)).status==='active','reconnected device resumes validated cloud after ownership transfer');check(!(await snapshot(a.page)).choicesAvailable,'reconnected Google startup has no stale local choice');await resumeProof(a,42000);await shot(a.page,'offline-return-cloud');await closeContext(a.context);await closeContext(b.context);}
  // Actual notice buttons. Later never refreshes. Save timeout retains durable progress.
  {const uid='fullflow-update',r=await record(1,42000);await seed(uid,r);const d=await launch(await setup(uid));let navigations=0;d.page.on('framenavigated',frame=>{if(frame===d.page.mainFrame())navigations++;});

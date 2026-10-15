@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {EventEmitter} from 'node:events';
 import {readFileSync} from 'node:fs';
-import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream} from './fullflow_network.mjs';
+import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime,packagedPckChunk,installPackagedPckStream,createContextConnectivity} from './fullflow_network.mjs';
 // Exercise the actual driver facade without importing its browser/emulator setup.
 const driver=readFileSync(new URL('./fullflow.test.mjs',import.meta.url),'utf8');
 const frameFacadeSource=driver.slice(driver.indexOf('function gameFramePage('),driver.indexOf('\nasync function launch('));
@@ -211,3 +211,63 @@ for(const location of [{origin:workletOrigin,pathname:'/',href:workletOrigin+'/'
 }
 for(const bytes of [0,-1,192*1024*1024+1,NaN])assert.throws(()=>pckHarness().install({origin:workletOrigin,pathname:'/itch/',bytes}),/Finite packaged/);
 console.log('Packaged PCK fixture: exact binary Response,256KiB messages, offset/size bounds, abort/cancel/failure propagation and exact-frame scope passed.');
+
+// Exact synthetic proxy state is confirmed at the fixture-owned transitions.
+{
+ const applied=[],toggle=deferred();let browserOnline=true,evaluations=0;
+ const frame={evaluate:async()=>{evaluations++;return browserOnline;}};
+ const context=Object.assign(new EventEmitter(),{setOffline:async value=>{applied.push(value);await toggle.promise;browserOnline=!value;}});
+ const control=createContextConnectivity(context);
+ assert.equal(await control.isOnline(await control.capture()),false,'unconfirmed setup cannot forward proxy RPCs');
+ assert.throws(()=>control.setOffline(frame,true),/Invalid fixture/);
+ await control.initialize(frame);assert.equal(evaluations,1);
+ for(let i=0;i<1000;i++)assert.equal(await control.isOnline(await control.capture()),true);
+ assert.equal(evaluations,1,'RPC checks add no browser evaluations');
+ const offline=control.setOffline(frame,true);let settled=false;
+ const pendingCheck=control.capture().then(value=>{settled=true;return value;});
+ await Promise.resolve();assert.equal(settled,false,'requests wait for actual transition confirmation');
+ assert.throws(()=>control.setOffline(frame,false),/Invalid fixture/);
+ toggle.resolve();await offline;assert.equal(await pendingCheck,null);assert.equal(evaluations,2);
+ await control.setOffline(frame,false);assert.equal(await control.isOnline(await control.capture()),true);assert.equal(evaluations,3);
+ assert.deepEqual(applied,[true,false],'each original browser transition executes exactly once');
+ assert.throws(()=>control.setOffline(frame,1),/Invalid fixture/);
+}
+for(const failure of ['setOffline','confirmation','mismatch']){
+ let browserOnline=true,fail=false;const sentinel=Error('exact synthetic failure');
+ const frame={evaluate:async()=>{if(fail&&failure==='confirmation')throw sentinel;return fail&&failure==='mismatch'?true:browserOnline;}};
+ const context=Object.assign(new EventEmitter(),{setOffline:async value=>{if(fail&&failure==='setOffline')throw sentinel;browserOnline=!value;}});
+ const control=createContextConnectivity(context);await control.initialize(frame);fail=true;
+ await assert.rejects(control.setOffline(frame,true),error=>failure==='mismatch'?/confirmation differs/.test(error.message):error===sentinel);
+ assert.equal(await control.isOnline(await control.capture()),false,'failed or unknown transitions remain closed');
+}
+{
+ const control=createContextConnectivity(Object.assign(new EventEmitter(),{setOffline:async()=>{throw Error('must not run');}}));
+ await assert.rejects(control.initialize({evaluate:async()=>false}),/did not start online/);
+ assert.equal(await control.isOnline(await control.capture()),false);
+ assert.equal(driver.includes('.context.setOffline('),false,'every fullflow toggle uses confirmed fixture custody');
+ assert.equal((driver.match(/connectivity\.capture\(\)/g)||[]).length,1,'pre-forward confirmation remains');
+ assert.equal((driver.match(/connectivity\.isOnline\(connectivityEpoch\)/g)||[]).length,1,'post-response confirmation retains exact pre-forward epoch');
+}
+console.log('Confirmed context connectivity: exact actual browser toggles, fail-closed unknown/error/mismatch, transition races, pre/post proxy checks and no per-RPC renderer queries. This is fixture verification, not release qualification.');
+
+{
+ let actualOnline=true;const frame={evaluate:async()=>actualOnline};
+ const control=createContextConnectivity(Object.assign(new EventEmitter(),{setOffline:async value=>{actualOnline=!value;}}));
+ await control.initialize(frame);const captured=await control.capture();assert.equal(await control.isOnline(captured),true);
+ await control.setOffline(frame,true);assert.equal(await control.isOnline(captured),false);
+ await control.setOffline(frame,false);assert.equal(await control.isOnline(captured),false,'late response crossing offline/online cannot be delivered');
+ assert.equal(await control.isOnline(await control.capture()),true,'new requests use the freshly confirmed online epoch');
+}
+console.log('In-flight proxy responses cannot cross a confirmed offline/online epoch; already forwarded server writes remain uncertain.');
+
+{
+ let first=true;const confirmation=deferred(),context=Object.assign(new EventEmitter(),{setOffline:async()=>{}});
+ const frame={evaluate:async()=>{if(first){first=false;return true;}return confirmation.promise;}};
+ const control=createContextConnectivity(context);await control.initialize(frame);const captured=await control.capture();
+ const transition=control.setOffline(frame,false);await Promise.resolve();context.emit('close');
+ assert.equal(await control.capture(),null);assert.equal(await control.isOnline(captured),false);
+ confirmation.resolve(true);await assert.rejects(transition,/context closed/);
+ assert.equal(await control.capture(),null,'late actual-frame confirmation cannot reopen a closed context');
+ assert.throws(()=>control.setOffline(frame,false),/Invalid fixture/);
+}
+console.log('Context closure invalidates proxy epochs and late confirmations cannot reopen forwarding.');
