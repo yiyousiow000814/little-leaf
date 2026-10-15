@@ -1,8 +1,6 @@
 extends RefCounted
 const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
-const FloorAvailability=preload("res://scripts/gameplay/cafe_floor_availability.gd")
 var edit_plan=EditPlan.new()
-var floor_availability=FloorAvailability.new()
 var placement_receipt:Dictionary={}
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 ## Transactional world input. Furniture positions and coins change only on a
@@ -14,6 +12,7 @@ const DRAG_THRESHOLD = 7.0
 const NO_CELL = Vector2i(-100, -100)
 
 var game
+var manual_cleanup
 var drag_active = false
 var drag_item_id = -1
 var drag_kind = ""
@@ -21,6 +20,7 @@ var drag_rotation = 0
 var drag_cell = NO_CELL
 var drag_position = Vector2.ZERO
 var drag_valid = false
+var drag_footprint_valid = false
 var drag_reason = ""
 var drag_warning = ""
 var preview_active = false
@@ -42,6 +42,7 @@ var _last_valid_cell = NO_CELL
 
 func _init(owner_game = null):
 	game = owner_game
+	manual_cleanup=preload("res://scripts/gameplay/cafe_manual_cleanup.gd").new(game)
 	if game != null and is_instance_valid(game.illustration):
 		pan_offset = game.illustration.pan_offset
 
@@ -123,7 +124,10 @@ func refresh(screen: Vector2):
 	if not game.editing:
 		preview_active = false
 		drag_valid = false
+		drag_footprint_valid = false
+		manual_cleanup.hover(screen)
 		return
+	manual_cleanup.clear_hover()
 	if drag_active:
 		drag_rotation = posmod(int(game.rotation_step), 4)
 		drag_cell = game._floor_cell(screen + _grab_offset)
@@ -138,6 +142,7 @@ func refresh(screen: Vector2):
 	else:
 		preview_active = false
 		drag_valid = false
+		drag_footprint_valid = false
 	game.hover_cell = drag_cell if preview_active else game._floor_cell(screen)
 	if preview_active and is_instance_valid(game.tool_text):game.tool_text.text=drag_reason
 
@@ -150,6 +155,7 @@ func cancel(clear_selection = true):
 	drag_kind = ""
 	drag_cell = NO_CELL
 	drag_valid = false
+	drag_footprint_valid = false
 	drag_reason = ""
 	drag_warning = ""
 	if clear_selection: game._cancel_selection()
@@ -160,6 +166,7 @@ func on_focus_lost():
 	_middle_down = false
 	preview_active = false
 	drag_valid = false
+	drag_footprint_valid = false
 
 func rotate_selection():
 	if game.save_recovery_blocked:return
@@ -181,7 +188,6 @@ func rotate_selection():
 			game.rotation_step = next
 			game._rebuild_furniture()
 			game._update_ui()
-			game._save()
 		else:
 			game.rotation_step = game.model.logical_rotation(int(selected.id))
 	else:
@@ -201,6 +207,7 @@ func _begin_left(screen: Vector2, device: int = 0):
 	_press_parcel_id = ""
 	_grab_offset = Vector2.ZERO
 	_gesture = "pending"
+	if not game.editing:manual_cleanup.begin(screen)
 	if game.editing and _press_kind == "":
 		_press_item_id = game.illustration.hit_item(screen)
 		if _press_item_id < 0:
@@ -236,6 +243,7 @@ func _move_left(screen: Vector2):
 			_start_drag()
 		else:
 			_gesture = "pan"
+			manual_cleanup.cancel()
 			# Include movement accumulated inside the tap threshold.
 			_pan_by(screen - _press_pointer)
 			_previous_pointer = screen
@@ -264,9 +272,12 @@ func _start_drag():
 		_press_selected_id = drag_item_id
 
 func _release_left(screen: Vector2):
+	var cleanup_queued=false
 	refresh(screen)
 	if not _left_down: return
-	if _gesture == "drag":
+	if _gesture == "pending" and not game.editing and not _press_editing:
+		cleanup_queued=manual_cleanup.release(screen)
+	elif _gesture == "drag":
 		if drag_valid: _commit_preview()
 	elif _gesture == "pending" and game.editing and _press_editing and _press_parcel_id != "" and _point_in_view(screen) and not _over_ui(screen):
 		if _hit_parcel(screen) == _press_parcel_id and game.has_method("_buy_parcel"):
@@ -276,7 +287,7 @@ func _release_left(screen: Vector2):
 			if drag_valid: _commit_preview()
 		elif _press_item_id >= 0:
 			_select_item(game.model.get_item(_press_item_id))
-	_clear_gesture()
+	_clear_gesture(not cleanup_queued)
 	refresh(screen)
 
 func _select_item(item: Dictionary):
@@ -295,6 +306,7 @@ func _select_item(item: Dictionary):
 func _update_validity(screen: Vector2):
 	drag_position = Vector2(drag_cell.x + 0.5, drag_cell.y + 0.5)
 	drag_valid = false
+	drag_footprint_valid = false
 	drag_warning = ""
 	drag_reason = "Move onto an open cafe tile"
 	if not _point_in_view(screen) or _over_ui(screen):
@@ -305,6 +317,7 @@ func _update_validity(screen: Vector2):
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
 	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
+	drag_footprint_valid = bool(placement_receipt.physical_ok)
 	if not placement_receipt.ok:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return
 	drag_valid = true
@@ -330,9 +343,11 @@ func _commit_preview():
 	if was_move: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
-	if game._save():game.settings_controls.play_sfx("place")
+	# Accepted layout feedback does not wait for the periodic save slot.
+	game.settings_controls.play_sfx("place")
 
-func _clear_gesture():
+func _clear_gesture(cancel_cleanup=true):
+	if cancel_cleanup and manual_cleanup!=null:manual_cleanup.cancel()
 	if drag_active and drag_item_id >= 0 and game != null:
 		var original: Dictionary = game.model.get_item(drag_item_id)
 		if not original.is_empty(): game.rotation_step = game.model.logical_rotation(int(original.id))
@@ -344,6 +359,7 @@ func _clear_gesture():
 	drag_active = false
 	preview_active = false
 	drag_valid = false
+	drag_footprint_valid = false
 
 func _pan_by(delta: Vector2):
 	if not delta.is_finite():return
@@ -360,6 +376,7 @@ func _zoom_factor_at(screen:Vector2,factor:float,pan_delta:Vector2=Vector2.ZERO)
 	_zoom_at(screen,game.illustration.zoom*(factor-1.0),pan_delta)
 
 func _zoom_at(screen:Vector2,amount:float,pan_delta:Vector2=Vector2.ZERO):
+	manual_cleanup.cancel()
 	if not screen.is_finite() or not is_finite(amount) or not pan_delta.is_finite():return
 	_sync_projection()
 	var old_zoom:float=game.illustration.zoom
@@ -412,13 +429,3 @@ func _staff_positions() -> Array[Vector2]:
 
 func _service_locked(id: int) -> bool:
 	return game.has_method("_item_service_locked") and bool(game._item_service_locked(id))
-
-func draw_floor_feedback(artist):
-	if not game.editing:return
-	for cell in floor_availability.refresh(game.model):
-		var blocked=bool(floor_availability.cells[cell].blocked)
-		var fill=Color(.66,.38,.29,.22) if blocked else Color(.32,.52,.30,.22)
-		var outline=Color(.62,.37,.29,.32) if blocked else Color(.34,.50,.28,.42)
-		var corners=[artist.iso(cell.x+.04,cell.y+.04),artist.iso(cell.x+.96,cell.y+.04),artist.iso(cell.x+.96,cell.y+.96),artist.iso(cell.x+.04,cell.y+.96)]
-		artist.poly(corners,fill)
-		for edge in 4:artist.line(corners[edge],corners[(edge+1)%4],outline,.8)

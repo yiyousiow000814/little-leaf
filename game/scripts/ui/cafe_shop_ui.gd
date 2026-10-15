@@ -206,11 +206,11 @@ func setup():
   var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   price.reparent(price_row);price.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   var availability=ui.hud._label(column,"",11);availability.custom_minimum_size.y=16
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:_style(button)
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:_style(button)
  footer_hint=ui.hud._label(root,"",13);footer_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.clip_text=true;ui.context_label.custom_minimum_size.x=0;ui.context_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;ui.context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;ui.context_label.add_theme_font_override("font",ui.hud.font_bold);ui.context_label.add_theme_color_override("font_color",ui.hud.INK)
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.upgrade_button,ui.cancel_button]:button.custom_minimum_size.y=44
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:button.custom_minimum_size.y=44
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
  _setup_tiles()
@@ -253,12 +253,12 @@ func _choose_parking():
  game._cancel_selection()
  if game.model.parking_owned:
   ui._popup_at(parking_review,320);_sync_parking_review();ui.sync();return
- if game.model.buy_parking():game._update_ui();game._save()
+ if game.model.buy_parking():game._update_ui()
  else:ui.sync()
 func _sell_parking():
  if not parking_review.visible or not _parking_action_allowed() or not game.model.parking_owned or not game.model.parking_visits.is_empty():return
  if game.model.sell_parking():
-  parking_review.hide();game._cancel_selection();game._update_ui();game._save()
+  parking_review.hide();game._cancel_selection();game._update_ui()
  else:_sync_parking_review();ui.sync()
 func _sync_parking_review():
  if not parking_review.visible:return
@@ -519,7 +519,9 @@ func sync_action_details():
   action_coin.visible=bool(stroke.ok)
   detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
   if not stroke.ok:detail+=" · "+str(stroke.error)
- price_label.add_theme_font_size_override("font_size",18 if action_coin.visible else 12)
+ var price_font_size=18 if action_coin.visible else 12
+ if not price_label.has_theme_font_size_override("font_size") or price_label.get_theme_font_size("font_size")!=price_font_size:
+  price_label.add_theme_font_size_override("font_size",price_font_size)
  price_label.accessibility_name=price+(" coins" if action_coin.visible else "")
  price_label.text=price;price_label.visible=price!="";price_label.tooltip_text=detail
  ui.context_label.tooltip_text=ui.context_label.text+(" · "+price if price!="" else "")+("\n"+detail if detail!="" else "")

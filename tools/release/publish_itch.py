@@ -133,6 +133,29 @@ def verify_artifact(web, tag, sha):
     return manifest
 
 
+def verify_qualified_wrapper(web, variant, origin, tag, sha):
+    """Publish only the exact wrapper from authenticated same-page qualification."""
+    from release.common_firebase import validate_packet, require_origin
+    if not re.fullmatch('v'+RELEASE,tag) or not re.fullmatch('[0-9a-f]{40}',sha):
+        raise ValueError('Exact release tag and source required')
+    packet=json.loads((variant/'firebase-variant-manifest.json').read_text())
+    marker=json.loads((variant/'public/hosting-release.json').read_text())
+    proof=validate_packet(variant,packet,marker)
+    require_origin(variant,packet,origin)
+    common=proof['common']
+    if web.resolve() != (variant/'itch-wrapper').resolve() or common['source_commit']!=sha or common['release_tag']!=tag:
+        raise ValueError('Exact authenticated embedded wrapper required')
+    base=packet['base_web_manifest']
+    if base.get('source_commit')!=sha or base.get('tag')!=tag or base.get('version')!=tag[1:]:
+        raise ValueError('Wrapper source/tag differs from the qualified packet')
+    return base,common,sha256(variant/'firebase-variant-manifest.json')
+
+
+def packet_wrapper_inventory(variant):
+    from release.common_firebase import surface_inventory
+    return surface_inventory(variant,'itch-wrapper')
+
+
 def completed(status, build_id, version):
     current = channel(status)
     for record in [current.get("head") or {}, current.get("pending") or {}]:
@@ -143,22 +166,43 @@ def completed(status, build_id, version):
     return head.get("id") == build_id and head.get("userVersion") == version and head.get("state") == "completed"
 
 
+def accepted_processing(status, build_id, version):
+    """A verified same-build queue entry is upload success, not live acceptance."""
+    current = channel(status)
+    for record in [current.get('head') or {}, current.get('pending') or {}]:
+        if (type(record.get('id')) is int and record['id'] == build_id
+                and record.get('userVersion') == version and record.get('state') in {'queued', 'processing'}):
+            return {'build_id': build_id, 'state': record['state'], 'version': version}
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--web", required=True, type=Path)
     parser.add_argument("--tag", required=True)
     parser.add_argument("--sha", required=True)
-    parser.add_argument("--receipt", type=Path, help="Write only the confirmed completed publication")
+    parser.add_argument("--receipt", type=Path, help="Write confirmed upload acceptance separately from live completion")
     parser.add_argument("--common-receipt", type=Path, help="Already authenticated immutable common qualification")
+    parser.add_argument("--firebase-variant", type=Path, help="Authenticated full qualification packet with its embedded wrapper")
+    parser.add_argument("--staging-origin", type=Path, help="Fresh authenticated staging origin")
     args = parser.parse_args()
-    manifest = verify_artifact(args.web, args.tag, args.sha)
+    variant=getattr(args,'firebase_variant',None)
+    origin_path=getattr(args,'staging_origin',None)
+    if variant:
+        if not origin_path or getattr(args,'common_receipt',None):
+            raise ValueError('Separate full qualification origin required; unqualified common alias refused')
+        manifest,common,variant_digest=verify_qualified_wrapper(args.web,variant,json.loads(origin_path.read_text()),args.tag,args.sha)
+    else:
+        if origin_path:raise ValueError('Full qualification origin requires its exact packet')
+        manifest = verify_artifact(args.web, args.tag, args.sha)
+        common=None;variant_digest=None
     common_path = getattr(args,'common_receipt',None)
-    common = json.loads(common_path.read_text()) if common_path else None
+    if common_path:common=json.loads(common_path.read_text())
     if common is not None:
         from release.common_tag import STATUS, valid_order
         if (common.get('status') != STATUS or common.get('source_commit') != args.sha
                 or common.get('release_tag') != args.tag or common.get('version') != manifest['version']
-                or common.get('web_manifest_sha256') != sha256(args.web/'release-manifest.json')
+                or common.get('web_manifest_sha256') != (sha256(variant/'evidence/base-web-manifest.json') if variant else sha256(args.web/'release-manifest.json'))
                 or common.get('qualification') != manifest.get('release_reuse')
                 or not valid_order(common.get('release_order'))):
             raise ValueError('Exact authenticated common qualification required')
@@ -171,39 +215,53 @@ def main():
     # One attempt only. A timeout may have uploaded successfully; never retry blindly.
     result = butler("push", str(args.web), TARGET, "--userversion", version, "--no-auto-wrap")
     build_id = result.get("buildId")
-    if (not isinstance(build_id, int) or build_id <= 0 or result.get("channel") != "html5"
+    if (type(build_id) is not int or build_id <= 0 or result.get("channel") != "html5"
             or result.get("dryRun") or result.get("skipped")):
         raise RuntimeError("Upload outcome is unconfirmed; inspect itch before retrying")
-    print(f"Uploaded itch build {build_id}; waiting for processing", flush=True)
+    print(f"Uploaded itch build {build_id}; verifying provider acceptance", flush=True)
     deadline = time.monotonic() + 600
     while time.monotonic() < deadline:
         remaining = max(1, min(60, int(deadline - time.monotonic())))
         observed = butler("status", TARGET, timeout=remaining)
-        if completed(observed, build_id, version):
-            order = channel(observed)['head'].get('version')
-            if '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
+        is_completed = completed(observed, build_id, version)
+        processing = accepted_processing(observed, build_id, version)
+        if is_completed or processing:
+            order = channel(observed)['head'].get('version') if is_completed else None
+            if is_completed and '-pre.' in version and (type(order) is not int or not 0 < order <= 9007199254740991):
                 raise RuntimeError('Completed upload lacks a confirmed channel sequence; inspect before retrying')
             receipt = {"target": TARGET, "version": version, "source_commit": args.sha,
-                       "itch_build_id": build_id, "state": "completed",
-                       "browser_runtime": "manual post-publish smoke still required"}
+                       "itch_build_id": build_id, "state": "completed" if is_completed else "accepted-processing",
+                       "browser_runtime": "manual post-publish smoke still required",
+                       "live_playable_verified": False}
+            if processing:
+                receipt['provider_observation'] = processing
             if type(order) is int and 0 < order <= 9007199254740991:
                 receipt['itch_channel_version'] = order
             if args.receipt:
                 receipt.update(tag=args.tag, workflow_run=os.environ.get("GITHUB_RUN_ID"),
                     workflow_attempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
-                    release_manifest_sha256=sha256(args.web / "release-manifest.json"),
+                    release_manifest_sha256=common['web_manifest_sha256'] if variant else sha256(args.web / "release-manifest.json"),
                     qualification=manifest.get("release_reuse"))
                 if common is not None:
                     receipt['common_qualification'] = common
+                if variant:
+                    staging_origin=json.loads(origin_path.read_text())
+                    staging_run=staging_origin['run'];staging_artifact=staging_origin['artifact']
+                    receipt.update(delivery_surface='qualified-same-page-wrapper',
+                        firebase_variant_manifest_sha256=variant_digest,
+                        itch_wrapper_sha256=packet_wrapper_inventory(variant),
+                        same_page_staging_origin={'run_id':staging_run['id'],'attempt':staging_run['run_attempt'],
+                            'coordinator_source_commit':staging_run['head_sha'],
+                            'artifact_id':staging_artifact['id'],'artifact_digest':staging_artifact['digest']})
                 args.receipt.parent.mkdir(parents=True, exist_ok=True)
                 args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
             print(json.dumps(receipt), flush=True)
             if os.environ.get("GITHUB_STEP_SUMMARY"):
                 with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
-                    summary.write(f"Released {args.tag} ({args.sha}) to {TARGET}, itch build {build_id}.\n\nVerify https://siowyiyou.itch.io/little-leaf in a fresh browser profile, then a copied-save profile.\n")
+                    summary.write(f"Upload accepted for {args.tag} ({args.sha}), itch build {build_id}; state {receipt['state']}.\n\nProcessing is provider-owned; do not upload again. Actual live/playable acceptance remains separate. Verify this same build with status and the selected browser entry before claiming live success.\n")
             return
         time.sleep(15)
-    raise RuntimeError(f"Build {build_id} uploaded but processing is still unconfirmed after 10 minutes. Check itch status before rerunning; do not assume the live game changed")
+    raise RuntimeError(f"Build {build_id} upload/queue identity could not be confirmed after 10 minutes. Inspect the same build; never reupload an uncertain outcome")
 
 
 if __name__ == "__main__":

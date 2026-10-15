@@ -56,20 +56,48 @@ func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  await process_frame
  var ui=game.compact_ui;var notes=ui.update_notes;var preferences=game.settings_controls
+ # Real shipped history exercises the long-body case; the former setup-time
+ # header measurement wrongly consumed 361px before width/wrapping settled.
+ for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=view;notes.show_from_settings();await settle()
+  var style=notes.panel.get_theme_stylebox("panel")
+  var padding=style.get_minimum_size()
+  var expected=minf(notes.body.get_combined_minimum_size().y,ui.hud.popup_height_budget()-padding.y-notes.header.size.y-ui.INFORMATION_PANEL_GAP)
+  check(absf(notes.scroll.size.y-expected)<2,"Updates uses available readable height after final header layout "+str(view))
+  var bounds=notes.panel.get_global_rect()
+  var inside=Rect2(bounds.position+Vector2(style.get_margin(SIDE_LEFT),style.get_margin(SIDE_TOP)),bounds.size-padding)
+  check(inside.grow(1).encloses(notes.header.get_global_rect()) and inside.grow(1).encloses(notes.scroll.get_global_rect()),"Updates header and text viewport keep safe panel padding "+str(view))
+  var first_bullet:Control=notes.body.get_child(3)
+  check(notes.scroll.get_global_rect().grow(1).encloses(first_bullet.get_global_rect()),"Updates first shipped paragraph is fully readable "+str(view))
+  notes.scroll.scroll_vertical=100000;await settle()
+  check(notes.scroll.get_global_rect().grow(1).encloses(notes.back_button.get_global_rect()),"Updates scroll bottom exposes Back "+str(view))
+  notes._back_to_help();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates Back preserves Settings route "+str(view))
+  notes.show_from_settings();await settle()
+  check(notes.scroll.scroll_vertical==0,"Updates reopening restores first paragraph "+str(view))
+  root.size=Vector2i(390,844) if view.x>view.y else Vector2i(844,390);await settle()
+  check(Rect2(Vector2.ZERO,Vector2(root.size)).encloses(notes.panel.get_global_rect()),"Updates open resize remains bounded "+str(view))
+  notes.close_button.pressed.emit();await settle()
+  check(game.settings.visible and not notes.panel.visible,"Updates X preserves Settings route after resize "+str(view))
+ for peer in [ui.help_panel,game.settings]:
+  var style=peer.get_theme_stylebox("panel")
+  var notes_style=notes.panel.get_theme_stylebox("panel")
+  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:
+   check(style.get_content_margin(side)==notes_style.get_content_margin(side),"Information panels share text-safe margin "+str(side))
+ check(notes.body.get_theme_constant("separation")==ui.help_box.get_theme_constant("separation") and notes.body.get_theme_constant("separation")==game.settings_controls.preference_storage_note.get_parent().get_theme_constant("separation"),"Information panels share peer content gaps")
+ notes.hide()
  var shipped_text=words(notes.body)
- check(checked.label in shipped_text and "Version %s · %s"%[checked.version,checked.date] in shipped_text,"actual checked-in preview header is rendered")
+ check(checked.version in shipped_text and "Latest changes · "+checked.date in shipped_text,"actual preview uses the full latest version and date")
  check(not "Release details are being prepared." in shipped_text,"published preview does not fall back to preparation copy")
  for section in ["new","fixed"]:
   for item in checked[section]:check(item in shipped_text,"every published "+section+" bullet is rendered")
  var major={}
  for previous in checked.history:
-  check("Version %s · %s"%[previous.version,previous.date] in shipped_text,"historical release header is rendered "+previous.version)
-  for section in ["new","fixed"]:
-   for item in previous[section]:check(item in shipped_text,"every historical bullet is rendered "+previous.version)
+  check(not "Version %s · %s"%[previous.version,previous.date] in shipped_text,"per-release historical headings are not displayed "+previous.version)
   if previous.version=="0.1.10":major=previous
- check(not major.is_empty() and major.new.size()==6 and major.fixed.size()==7,"hotfix notes retain the complete previous major preview")
- var visible="\n".join(shipped_text)
- check("This is a developer preview. Cross-device cloud saves and device compatibility are still being verified." in visible and "coordinated server rollout" in visible,"acceptance limits are visible rather than ignored review metadata")
+ check(not major.is_empty() and major.new.size()==6 and major.fixed.size()==7,"historical source data retains the complete previous preview")
+ check(not "A shorter, skippable tutorial with quick service explanations." in shipped_text,"old-family changes are not mixed into the latest family")
+ check(not notes.panel.find_child("EarlierVersions",true,false),"no Earlier versions control exists")
  preferences.last_seen_update_version="8.0.0"
  var original_config_exists=FileAccess.file_exists(preferences.config_path)
  for status in ["pending","draft"]:
@@ -97,7 +125,7 @@ func run():
   check(preferences.last_seen_update_version=="8.0.0",status+" preserves previously seen version")
  await load_fixture(released)
  check(notes.current_version()=="9.8.7" and notes.has_unread(),"released notes retain version and unread behavior")
- check("Version 9.8.7 · 2026-01-01" in words(notes.body),"released panel retains version and date")
+ check("9.8.7" in words(notes.body) and "Latest changes · 2026-01-01" in words(notes.body),"released panel retains version and date")
  check("Synthetic shipped change" in words(notes.body),"released panel retains shipped changes")
  check(not notes.panel.visible and notes.session_seen_version=="","released setup does not mark seen")
  for entry in ui.update_badges:
@@ -122,12 +150,35 @@ func run():
  check(not Notes.validate_document(bad_nested).valid,"nested histories rejected")
  await load_fixture(hotfix)
  var history_words=words(notes.body)
- check("Version 9.8.7 · 2026-01-01" in history_words and "Version 9.8.6 · 2026-01-01" in history_words,"both release headings render")
- check(history_words.find("Synthetic small fix")<history_words.find("Historical major feature"),"new hotfix precedes preserved major notes")
+ check("9.8.7" in history_words and not "Historical major feature" in history_words,"default panel contains current family only")
+ check(not "Version 9.8.6 · 2026-01-01" in history_words,"older version heading is absent")
+ check(notes.release.history.size()==1 and notes.release.history[0].new==["Historical major feature"],"hidden historical notes remain intact internally")
+ var content_count=notes.body.get_child_count()
  check(notes.current_version()=="9.8.7","unread version remains latest hotfix")
  for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=view;notes.show();await settle()
   check(Rect2(Vector2.ZERO,Vector2(view)).encloses(notes.panel.get_global_rect()),"history panel fits "+str(view))
+  check(notes.body.get_child_count()==content_count and not notes.panel.find_child("EarlierVersions",true,false),"repeated open does not add history controls "+str(view))
+ var family=released.duplicate(true)
+ family.version="0.1.11-pre.e0a347da";family.new=["Current change","Shared change"]
+ var prior=released.duplicate(true)
+ prior.version="0.1.11-pre.12345678";prior.new=["Shared change","Earlier family change"];prior.fixed=["Shared change","Family fix"]
+ var old=released.duplicate(true)
+ old.version="0.1.10d";old.new=["Older version change"]
+ family.history=[prior,old]
+ var original_family=family.duplicate(true)
+ var cumulative=Notes.cumulative_family(Notes.validate_document(family))
+ check(cumulative.new==["Current change","Shared change","Earlier family change"],"same-family changes accumulate once in source order")
+ check(cumulative.fixed==["Family fix"],"duplicate change text appears once across New and Fixed")
+ check(not "Older version change" in cumulative.new and not "Older version change" in cumulative.fixed,"other-family changes are excluded")
+ check(family==original_family,"family presentation never mutates exact metadata")
+ await load_fixture(family)
+ check(notes.current_version()==family.version and notes.has_unread(),"exact SHA build identity remains the unread key")
+ check(family.version in words(notes.body) and not "0.1.11-pre" in words(notes.body),"heading retains the actual full latest prerelease identity")
+ check(words(notes.body).count("Shared change")==1 and "Earlier family change" in words(notes.body),"cumulative family bullets render once")
+ check(not "Older version change" in words(notes.body),"no old-family content is rendered")
+ notes.show_from_settings();await settle()
+ check(notes.session_seen_version==family.version and not notes.has_unread(),"reading family view marks only the exact build seen in memory")
  await load_fixture({"schema_version":1,"status":"broken"})
  check(notes.data_error!="" and notes.current_version()=="" and not notes.has_unread(),"malformed notes remain unavailable without badge")
  check("Update notes are unavailable in this build." in words(notes.body),"malformed notes retain unavailable copy")

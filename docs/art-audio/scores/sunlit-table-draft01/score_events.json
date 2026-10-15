@@ -1,0 +1,1071 @@
+{
+  "title": "Sunlit Table - original score draft 01",
+  "status": "Original compositional draft; independent musical review pending; no audio rendered",
+  "tempo_quarter_bpm": 84,
+  "meter": "4/4",
+  "key": "C major",
+  "bars": 8,
+  "notated_duration_seconds": 22.857142857142858,
+  "parts": [
+    {
+      "id": "P1",
+      "name": "Melody - warm reed",
+      "clef": "G",
+      "line": 2,
+      "dynamic": "mp",
+      "program": 72,
+      "channel": 1,
+      "bars": [
+        [
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 1,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "A5"
+            ],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 2,
+            "slur": "stop"
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "F5"
+            ],
+            "duration_eighths": 2,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "B4"
+            ],
+            "duration_eighths": 2,
+            "slur": "stop"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 1,
+            "slur": "start"
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C6"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [
+              "A5"
+            ],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "F5"
+            ],
+            "duration_eighths": 1,
+            "slur": "stop"
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 1,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "F5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "B4"
+            ],
+            "duration_eighths": 2,
+            "slur": "stop"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 3,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "A5"
+            ],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C6"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "B5"
+            ],
+            "duration_eighths": 1,
+            "slur": "stop"
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "A5"
+            ],
+            "duration_eighths": 2,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "F5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "E5"
+            ],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 2,
+            "tie": "start"
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "D5"
+            ],
+            "duration_eighths": 1,
+            "tie": "stop"
+          },
+          {
+            "pitches": [
+              "F5"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "A5"
+            ],
+            "duration_eighths": 2,
+            "slur": "stop"
+          },
+          {
+            "pitches": [
+              "G5"
+            ],
+            "duration_eighths": 3,
+            "slur": "start"
+          },
+          {
+            "pitches": [
+              "B4"
+            ],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "C5"
+            ],
+            "duration_eighths": 4,
+            "articulation": "tenuto",
+            "tie": "start"
+          },
+          {
+            "pitches": [
+              "C5"
+            ],
+            "duration_eighths": 2,
+            "tie": "stop",
+            "slur": "stop"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Chords - soft pluck",
+      "clef": "G",
+      "line": 2,
+      "dynamic": "p",
+      "program": 25,
+      "channel": 2,
+      "bars": [
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "F4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "B3",
+              "D4",
+              "F4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "G4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "D4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "F4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "B3",
+              "D4",
+              "F4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [
+              "D4"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "F4"
+            ],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "G4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "G4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "C4",
+              "F4",
+              "A4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [
+              "B3",
+              "D4",
+              "F4"
+            ],
+            "duration_eighths": 1,
+            "articulation": "staccato"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "C4",
+              "E4",
+              "A4"
+            ],
+            "duration_eighths": 6,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Bass - rounded pluck",
+      "clef": "F",
+      "line": 4,
+      "dynamic": "p",
+      "program": 33,
+      "channel": 3,
+      "bars": [
+        [
+          {
+            "pitches": [
+              "C3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "D3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "E3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "F2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "D3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "A2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "E3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "F2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "D3"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "G2"
+            ],
+            "duration_eighths": 2,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ],
+        [
+          {
+            "pitches": [
+              "C3"
+            ],
+            "duration_eighths": 6,
+            "articulation": "tenuto"
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Rhythm - soft wood click",
+      "clef": "percussion",
+      "line": 2,
+      "dynamic": "pp",
+      "program": null,
+      "channel": 10,
+      "bars": [
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 1
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [
+              "C2"
+            ],
+            "duration_eighths": 1
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 2
+          },
+          {
+            "pitches": [],
+            "duration_eighths": 3
+          }
+        ],
+        [
+          {
+            "pitches": [],
+            "duration_eighths": 8
+          }
+        ]
+      ]
+    }
+  ],
+  "harmony": [
+    [
+      [
+        0,
+        "C",
+        "major-sixth",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "D",
+        "minor-seventh",
+        null
+      ],
+      [
+        4,
+        "G",
+        "dominant",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "C",
+        "major",
+        "E"
+      ],
+      [
+        4,
+        "F",
+        "major-sixth",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "D",
+        "minor-seventh",
+        null
+      ],
+      [
+        4,
+        "G",
+        "dominant",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "A",
+        "minor-seventh",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "F",
+        "major-seventh",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "D",
+        "minor-seventh",
+        null
+      ],
+      [
+        4,
+        "G",
+        "dominant",
+        null
+      ]
+    ],
+    [
+      [
+        0,
+        "C",
+        "major-sixth",
+        null
+      ]
+    ]
+  ],
+  "bar_intent": [
+    "The E-G-A cell opens upward; the stepwise fall leaves a question on D. Offbeat chords leave the tune uncluttered.",
+    "F-E-D contracts the cell; B over G7 creates the dominant question. An eighth rest makes space before the D pickup.",
+    "The pickup rises to C6, the first crest. C/E turns into F6 under a gentle A-G-F descent.",
+    "The ii-V answer ends on B, with a whole beat of melody rest. Two quiet accompaniment eighths hand the phrase onward.",
+    "The opening cell returns with a dotted-quarter start over Am7. C-B is a small upper-neighbour response, not a new tune.",
+    "Fmaj7 supports the long A-G-F-E-D descent. D is a gentle added-sixth colour, tied across the barline into Dm7.",
+    "The tie avoids a rigid barline reset. D-F-A outlines ii, then G and leading-tone B explicitly prepare the tonic.",
+    "C resolves the leading tone. All pitched parts sustain through beat 3 and release at beat 4; percussion stays silent."
+  ],
+  "performance": {
+    "melody": "mp; gentle tenuto on m3 C6 and m8 C5; slurs are phrase groupings, not extra ties. Slight breath only at written rests. No tempo changes.",
+    "chords": "p; short staccato eighth-note replies; final chord tenuto. No pedal across rests.",
+    "bass": "p; tenuto quarter notes, with full written rests; no octave sub-bass.",
+    "rhythm": "pp; dry unpitched wood click, no hi-hat bed or continuous shaker. C2 in data maps to GM side stick 37, not a pitched C.",
+    "ending": "Final sounding notes end at t=22.142857 s, leaving a written 0.714286 s rest. Future audio must preserve the natural release tail; do not hard-truncate at 22.857143 s. This is a closed excerpt, not a verified seamless loop.",
+    "timbres": "Names and GM mappings communicate roles only. Instrument selection and performance remain untested; no sound-quality claim."
+  }
+}

@@ -1,4 +1,4 @@
-"""Stage an unpublished Firebase/itch-entry variant from the exact complete Web gate."""
+"""Stage an unpublished Firebase variant from the exact complete Web gate."""
 import argparse, json, shutil, subprocess, re, hashlib, os, base64
 from pathlib import Path
 if __name__ == "__main__":
@@ -79,6 +79,9 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     for name in ['little_leaf_firebase.js','little_leaf_firebase_session.js','little_leaf_update.js','little_leaf_firebase_boot.mjs']:
         shutil.copy2(ROOT/'platform/web'/name,public/name)
     html=(public/'index.html').read_text(encoding='utf-8')
+    if html.count('<body>') != 1: raise ValueError('Web shell body contract changed')
+    # Account presentation belongs to Firebase, independent of the itch chooser.
+    html=html.replace('<body>', '<body><style>'+entry_styles()+'</style>', 1)
     boot_marker='window.__littleLeafVault.boot()'
     if html.count(boot_marker)!=1: raise ValueError('Web shell boot contract changed')
     html=html.replace(boot_marker,'window.__littleLeafFirebaseReady.then(() => window.__littleLeafVault.boot())')
@@ -90,9 +93,6 @@ def stage(build, output, config, trusted_itch_origin=None, auth_verification_onl
     if injection not in html: raise ValueError('Exported engine script marker changed')
     if auth_verification_only:html=auth_verification_html(html,config,trusted_itch_origin)
     (public/'index.html').write_text(html,encoding='utf-8')
-    entry=output/'itch-entry';entry.mkdir()
-    url='https://'+config['authDomain']+'/'
-    (entry/'index.html').write_text('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Little Leaf</title><h1>Little Leaf</h1><p>Your café follows your Google account.</p><a target="_blank" rel="noopener" href="'+url+'">Open the full game and sign in</a><p>Opens a new tab for secure sign-in and account saves.</p>')
     if trusted_itch_origin:
         preview_config=json.loads((output/'firebase.json').read_text())['hosting']
         preview_config['site']=config['projectId']

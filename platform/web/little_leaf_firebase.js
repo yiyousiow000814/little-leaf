@@ -62,7 +62,7 @@
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
     let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0;
-    const savedDevice=displayDevice(deviceLabel),recordDevices=new Map();
+    const savedDevice=displayDevice(deviceLabel),recordDevices=new WeakMap();
     let localQueue=Promise.resolve();
     // Network waits never hold this queue. Only local journal transitions serialize.
     function serial(action) { const result=localQueue.then(action);localQueue=result.catch(()=>{});return result; }
@@ -79,7 +79,7 @@
       catch (_) { throw error('CORRUPT_AUTHORITY','Cloud save is damaged. Pending progress is preserved.'); }
       if(!record.revision || !/^[a-f0-9]{64}$/.test(record.digest)) throw error('CORRUPT_AUTHORITY','Cloud save has no committed progress.');
       if(doc.digest!==record.digest || doc.revision!==record.revision || doc.profileId!==record.profileId) throw error('CORRUPT_AUTHORITY','Cloud save identity is damaged.');
-      recordDevices.set(record.digest,displayDevice(doc.device));
+      recordDevices.set(record,displayDevice(doc.device));
       return record;
     }
     async function validateLocal(local) {
@@ -181,7 +181,7 @@
       if(!recovery || recovery.local.record.digest!==localDigest || recovery.record?.digest!==cloudDigest)throw error('RECOVERY_CHANGED','The saves changed. Review both current saves again.');
       const local=await journal.read(uid);accountGuard();
       if(!same(local,recovery.local))throw error('REVISION_CONFLICT','This device changed in another tab. Its newer progress is preserved.');
-      const cloudDocument=await remote.read(uid);accountGuard();const record=await validate(cloudDocument);accountGuard();
+      const cloudDocument=await networkWait(remote.read(uid));accountGuard();const record=await validate(cloudDocument);accountGuard();
       if(!record)throw error('RECOVERY_MISSING','The synced save is missing. Neither save has been changed.');
       if(record.digest!==cloudDigest) {await previewRecovery(local,record);throw error('RECOVERY_CHANGED','The synced save changed. Review both current saves again.');}
       return {local,record,cloudDocument};
@@ -196,7 +196,13 @@
     }
     async function performUpload() {
       const handoff=handoffMode?ownerHandoff:null;
-      const uploadGuard=()=>{guard();if(handoff){assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);}};
+      const uploadGuard=()=>{
+        if(!handoff){guard();return;}
+        // A local wait timeout pauses native/UI work, not this already-started
+        // frozen transaction. Its captured intent remains the only authority.
+        assertHandoffIntent(handoff);ownership.assertHandoff(handoff.fence);
+        if(permissionDenied)throw error('permission-denied',permissionReason);
+      };
       uploadGuard();
       if(!entry?.pending) return;
       lastAttempt=now();
@@ -236,9 +242,23 @@
         const next={...entry,base:candidate.digest,pending:entry.record.digest!==candidate.digest,uploading:null};
         await journal.replace(uid,entry,next);entry=next;state(next.pending?'pending':'saved');
       });
+      if(handoff)handoff.uploadConfirmed=true;
     }
     // A timeout does not cancel Firestore or a journal transaction. Native keeps
     // its durable snapshot latched; continue that exact record, never resnapshot.
+    function wakeSettledHandoff(intent){
+      for(const task of [uploadTask,intent.ackTask]){
+        if(!task||intent.wakeTasks.has(task))continue;
+        intent.wakeTasks.add(task);
+        task.then(()=>null,problem=>problem).then(async()=>{
+          // A settlement during an existing retry joins it first. Wake only
+          // this still-current timed-out intent, once per uncertain operation.
+          if(handoffRetryTask)await handoffRetryTask;
+          if(ownerHandoff===intent&&intent.generation===handoffGeneration&&intent.retryable&&!closed&&!permissionDenied)
+            await retryOwnerHandoff();
+        });
+      }
+    }
     function retryOwnerHandoff(){
       if(handoffRetryTask)return handoffRetryTask;
       const intent=ownerHandoff;if(!intent?.retryable)return Promise.resolve();
@@ -256,11 +276,30 @@
             assertHandoffIntent(intent);const local=await journal.read(uid);await validateLocal(local);assertHandoffIntent(intent);
             if(ownerHandoff!==intent||!same(local,entry)||!same(entry.record,intent.record))throw error('HANDOFF_CHANGED','The frozen progress changed.');
           });
+          // A fulfilled captured upload includes its exact durable receipt.
+          // Its first atomic ACK rechecks the server save and request itself;
+          // uncertain uploads or ACKs still need the readback path below.
+          let receiptReady=false;
+          if(intent.uploadConfirmed&&!intent.ackTask&&!drainedError&&!entry.pending&&!entry.uploading&&entry.base===intent.record.digest){
+            try{ownership.assertHandoff(intent.fence);receiptReady=true;}catch(_){/* Unconfirmed cached ownership needs fresh readback. */}
+          }
+          if(receiptReady){
+            handoffMode=true;stopped=false;guard();
+            intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
+            await networkWait(intent.ackTask);assertHandoffIntent(intent);
+            state('saved');if(ownerHandoff===intent)ownerHandoff=null;return;
+          }
           let cloud=await networkWait(remote.read(uid));await validate(cloud);assertHandoffIntent(intent);
           const confirmed=await networkWait(ownership.confirmHandoff(intent.fence,intent.record.digest,intent.record.revision));assertHandoffIntent(intent);
           const exact=document=>document?.digest===intent.record.digest&&document.profileId===intent.record.profileId&&document.revision===intent.record.revision&&document.writerId===intent.fence.writerId&&document.writerEpoch===intent.fence.writerEpoch;
           if(confirmed!=='pending'&&!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
-          if(confirmed==='pending'&&drainedError&&drainedError.code!=='NOT_READY')throw drainedError;
+          if(confirmed==='pending'&&drainedError&&drainedError.code!=='NOT_READY'){
+            // The late upload's paused local guard can report OWNERSHIP_LOST.
+            // Reconcile it only after independently confirming this exact
+            // server owner/request and its already-saved frozen record.
+            if(drainedError.code!=='OWNERSHIP_LOST'||!exact(cloud))throw drainedError;
+            ownership.assertHandoff(intent.fence);
+          }
           await serial(async()=>{
             assertHandoffIntent(intent);
             let next=entry;
@@ -271,8 +310,13 @@
           });
           if(confirmed==='pending'){
             handoffMode=true;stopped=false;guard();
-            while(entry.pending)await networkWait(upload());
-            cloud=await networkWait(remote.read(uid));await validate(cloud);guard();
+            if(entry.pending){
+              while(entry.pending)await networkWait(upload());
+              cloud=await networkWait(remote.read(uid));await validate(cloud);
+            }
+            // Reuse the exact cloud result when reconciliation needed no new
+            // upload. Acknowledge atomically rechecks that save and owner fence.
+            guard();
             if(!exact(cloud))throw error('HANDOFF_NOT_SAVED','The final cloud save has not been confirmed.');
             intent.ackTask=ownership.acknowledge(intent.record.digest,intent.record.revision,intent.fence);
             await networkWait(intent.ackTask);assertHandoffIntent(intent);
@@ -280,7 +324,10 @@
           assertHandoffIntent(intent);
           state('saved');
           if(ownerHandoff===intent)ownerHandoff=null;
-        }catch(problem){intent.retryable=ownerHandoff===intent&&intent.generation===handoffGeneration&&problem.code==='NETWORK_TIMEOUT'&&!permissionDenied;}
+        }catch(problem){
+          intent.retryable=ownerHandoff===intent&&intent.generation===handoffGeneration&&problem.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+        }
         finally{if(intent.generation===handoffGeneration){handoffMode=false;stopped=true;}}
       })().finally(()=>{handoffRetryTask=null;});return handoffRetryTask;
     }
@@ -293,7 +340,7 @@
           await refreshBackup();guard();
           await refreshChoiceArchive();guard();
           try {
-            const cloud=await remote.read(uid); guard(); const record=await validate(cloud);
+            const cloud=await networkWait(remote.read(uid)); guard(); const record=await validate(cloud);
             if(local && !local.pending && local.base && !cloud) throw error('CORRUPT_AUTHORITY','Previously saved cloud progress is missing. Local progress is preserved.');
             if(local?.pending) {
               if(token(cloud)===local.record.digest) { const next={...local,base:token(cloud),pending:false,uploading:null}; await journal.replace(uid,local,next); local=next; }
@@ -331,7 +378,7 @@
           choicesAvailable:!!(allowed && recovery?.record && !choiceProblem),
           needsRuntimeSnapshot:!!(allowed && bootReady && stopped && entry),
           choiceReason:allowed ? choiceProblem || (recovery?'Two different saves are available. Choose which progress to continue. Neither will be replaced before confirmation.':'') : 'Account changed. Your current café is paused.',
-          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record.digest))] : []
+          choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record))] : []
         };
       },
       async saveForUpdate(payload,revision,profileId){
@@ -416,9 +463,13 @@
         // Always keep the native snapshot. Only the still-current owner flushes.
         const saved=await client.preserveRuntime(payload,revision,profileId);if(!saved.ok)return saved;
         if(generation!==handoffGeneration||!fence||ownership.snapshot().status!=='handoff-requested')return {...saved,cloudConfirmed:false};
-        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null};ownerHandoff=intent;
+        const intent={generation,fence,record:entry.record,retryable:false,ackTask:null,wakeTasks:new WeakSet()};ownerHandoff=intent;
         try {handoffMode=true;stopped=false;while(entry.pending)await networkWait(upload());assertHandoffIntent(intent);intent.ackTask=ownership.acknowledge(entry.record.digest,entry.record.revision,fence);await networkWait(intent.ackTask);assertHandoffIntent(intent);ownerHandoff=null;const {reconciliationError,...durableSaved}=saved;return {...durableSaved,cloudConfirmed:true};}
-        catch(e){intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;return {...saved,cloudConfirmed:false,handoffError:failure(e)};}
+        catch(e){
+          intent.retryable=ownerHandoff===intent&&generation===handoffGeneration&&e.code==='NETWORK_TIMEOUT'&&!permissionDenied;
+          if(intent.retryable)wakeSettledHandoff(intent);
+          return {...saved,cloudConfirmed:false,handoffError:failure(e)};
+        }
         finally{if(generation===handoffGeneration){handoffMode=false;stopped=true;}}
       },
       // Read-only phase. Native validates the full candidate in isolation,

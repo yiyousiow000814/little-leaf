@@ -1,7 +1,49 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {EventEmitter} from 'node:events';
+import {readFileSync} from 'node:fs';
 import {isConnectivityProbe,failureCategory,requestFamily,syntheticRPCOrigin,emulatorProxyTarget,emulatorPreflightHeaders,installPackagedWorklets,createRouteLifetime} from './fullflow_network.mjs';
+// Exercise the actual driver facade without importing its browser/emulator setup.
+const driver=readFileSync(new URL('./fullflow.test.mjs',import.meta.url),'utf8');
+const frameFacadeSource=driver.slice(driver.indexOf('function gameFramePage('),driver.indexOf('\nasync function launch('));
+assert(frameFacadeSource.startsWith('function gameFramePage('));
+const frameFacade=vm.runInNewContext('('+frameFacadeSource+')');
+{
+  const page=new EventEmitter(),frame=new EventEmitter(),facade=frameFacade(page,frame);let delivered=0;
+  const listener=dialog=>{assert.equal(dialog.type(),'confirm');delivered++;};
+  facade.once('dialog',listener);
+  assert.equal(page.listenerCount('dialog'),1,'frame facade once must register the Page dialog listener');
+  assert.equal(frame.listenerCount('dialog'),0,'Frame must not retain Page dialog listeners');
+  frame.emit('dialog',{type:()=>{throw Error('Frame event must not satisfy Page confirmation');}});
+  const dialog={type:()=> 'confirm'};page.emit('dialog',dialog);page.emit('dialog',dialog);
+  assert.equal(delivered,1,'Page once is consumed exactly once');
+  facade.once('dialog',listener);facade.removeListener('dialog',listener);assert.equal(page.listenerCount('dialog'),0);
+  facade.on('dialog',listener);facade.off('dialog',listener);assert.equal(page.listenerCount('dialog'),0);
+  assert.equal(facade.mainFrame(),frame);
+}
+const confirmedClickSource=driver.slice(driver.indexOf('async function confirmedClick('),driver.indexOf('\nasync function resumeProof('));
+assert(confirmedClickSource.startsWith('async function confirmedClick('));
+for(const accept of [true,false]){
+  const page=new EventEmitter(),frame=new EventEmitter(),facade=frameFacade(page,frame),calls=[],timers=[],cleared=[],messages=new WeakMap();
+  frame.waitForTimeout=async ms=>assert.equal(ms,100);
+  const dialog={type:()=>{calls.push('type');return 'confirm';},accept:async()=>{calls.push('accept');},dismiss:async()=>{calls.push('dismiss');}};
+  const confirmedClick=vm.runInNewContext('('+confirmedClickSource+')',{assert,nativeMessages:messages,
+    click:async(p,mode,button)=>{assert.equal(p,facade);assert.equal(mode,'choice');assert.equal(button,'local');page.emit('dialog',dialog);},
+    setTimeout:(callback,ms)=>{const timer={callback,ms};timers.push(timer);return timer;},clearTimeout:timer=>cleared.push(timer)});
+  await confirmedClick(facade,'choice','local',accept);
+  assert.deepEqual(calls,['type',accept?'accept':'dismiss'],'original confirmation type and decision checks execute');
+  assert.equal(timers[0].ms,10000,'original confirmation timeout remains unchanged');assert.equal(cleared[0],timers[0]);
+  assert.equal(page.listenerCount('dialog'),0);
+  assert.equal(messages.get(facade),accept?undefined:'Choose either save when you are ready.');
+}
+{
+  const page=new EventEmitter(),frame=new EventEmitter(),facade=frameFacade(page,frame);let cleared=false;
+  const confirmedClick=vm.runInNewContext('('+confirmedClickSource+')',{assert,nativeMessages:new WeakMap(),click:async()=>{},
+    setTimeout:(callback,ms)=>{assert.equal(ms,10000);queueMicrotask(callback);return 1;},clearTimeout:()=>{cleared=true;}});
+  await assert.rejects(confirmedClick(facade,'choice','local',true),/Expected native confirmation dialog/);
+  assert(cleared,'missing dialogs still fail and clear the original timer');page.removeAllListeners();
+}
+console.log('Frame facade: Page once dispatch/removal is exact; actual confirmation accepts/dismisses, retains its10s timeout and fails when no dialog arrives.');
 assert(isConnectivityProbe('https://www.google.com/images/cleardot.gif?zx=synthetic','image'));
 assert(isConnectivityProbe('http://www.google.com/images/cleardot.gif','image'));
 for(const [url,type] of [['https://www.google.com/images/cleardot.gif','script'],['https://www.google.com/accounts','image'],['https://www.google.com.evil.test/images/cleardot.gif','image'],['https://accounts.google.com/images/cleardot.gif','image']])assert(!isConnectivityProbe(url,type));

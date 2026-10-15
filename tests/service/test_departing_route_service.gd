@@ -1,4 +1,5 @@
 extends SceneTree
+const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
 const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 class TestMain extends "res://scripts/main.gd":
  func _load_startup():
@@ -47,8 +48,14 @@ func run():
  check(done and game.model.served+abandoned_visits.size()==4 and game.model.total_cleaned==4,"all four served or abandoned visits depart and clean once after the edit")
  check(duplicate_payments.is_empty() and paid_visits.size()==game.model.served and abandoned_visits.keys().all(func(id):return not paid_visits.has(id)) and game.model.total_earned==paid_visits.size()*game.Model.MEAL_PAYMENT,"served diners pay exactly once and abandoned diners never pay")
  check(game.model.coins==initial_coins+game.model.total_earned-(game.model.total_wages_paid-initial_wages),"only genuine payments and wages change wallet")
- print("DEPARTING_ROUTE_SERVICE_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"boundary_position":str(repro_position),"served":game.model.served,"cleaned":game.model.total_cleaned}))
+ var report={"checks":checks,"failures":failures,"boundary_position":str(repro_position),"served":game.model.served,"cleaned":game.model.total_cleaned}
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  for tween in get_processed_tweens():tween.kill()
- game.queue_free();await process_frame;await process_frame;quit(0 if failures.is_empty() else 1)
+ game.queue_free();await process_frame;await process_frame
+ var audio_drain = await AudioDrain.wait_for_mixer_cycles(self)
+ check(audio_drain.ok, "audio teardown observes two mixer cycles within 1s")
+ print("AUDIO_TEARDOWN_RESULT ", JSON.stringify(audio_drain))
+ report.checks=checks;report.failures=failures
+ print("DEPARTING_ROUTE_SERVICE_RESULT ",JSON.stringify(report))
+ quit(0 if failures.is_empty() else 1)

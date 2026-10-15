@@ -1,36 +1,40 @@
 ---
 name: game-music-production
-description: Produce or adapt Little Leaf music and loops from editable source, stems or mixed audio, using musical structure, source review and actual listening. Preserve approved identity and separate musical, technical and runtime acceptance; not a generic SFX or runtime redesign workflow.
+description: Compose or revise Little Leaf original background music using real reference audio, editable musical sources and controlled listening comparisons. Use for melody, harmony, arrangement, groove, tempo, timbre or musicality feedback; not for generic SFX, playback-only bugs or release work.
 ---
 
 # Little Leaf music production
 
 ## Reference identity and latest feedback come first
 
-Use the exact owner-approved source/control and the applicable reference register
-or dated case record where available. Match actual file hashes and excerpt boundaries.
+Read `docs/art-audio/reference-studies/music-reference-register.json` and the
+companion corrected case note. Match actual file hashes and excerpt boundaries.
 A liked excerpt does not approve its parent composition, other renders, or a ZIP
 with a similar name. Preserve the exact approved-control bytes. Never mark a new
 candidate accepted merely because it was rendered after reference analysis.
 
-Keep dated track choices, positive/rejected references and excerpt boundaries in
-the applicable owner record. Do not turn one track, source service, sound library,
-BPM, crossfade or accepted comparison into a permanent rule for other music.
+For Little Leaf's current task, both Harmony Study A and B are positive **short
+working references**. There is no chosen winner. The full Corner Cafe V2 package
+is NOT an approved positive reference; Daybreak Steps 104/112 are rejected.
+`A_V2_control.mp3` inside the Harmony Study ZIP is specifically the liked A clip;
+its name must not cause it to be replaced with the full V2 recording.
+The exact file register, not filename resemblance, governs these distinctions.
 
 A revision must state what was deliberately preserved: the recognizable phrase,
 working instrumentation, groove and/or register. Do not discard those features
 merely to make the reference influence stronger. If changing several dimensions,
 retain an audible control and call the experiment bundled. Missing original
 control audio blocks claims of successful matched-reference review, not useful
-source analysis. Private external reference recordings remain study inputs outside game assets.
+source analysis. The private RC recording is a style-study input, not a game asset.
 
 ## Read and establish the task
 
 Read the repository's `AGENTS.md`, current roadmap and
 [Audio Bible](../../../docs/art-audio/AUDIO_BIBLE.md). Follow the current Audio owner;
-do not create a competing document or revive paused work. Read the applicable owner-approved source/reference record and retrieve its actual
-audio/source assets before relying on it. Keep durable principles here and dated
-examples, measurements and user decisions in their existing source records.
+do not create a competing document or revive paused work. Read the applicable
+[reference study](../../../docs/art-audio/reference-studies/corner-cafe-and-rc-default.md)
+and retrieve its actual audio/source assets before relying on it. Keep durable
+principles here and dated examples, measurements and user decisions in that study.
 
 Record the actual input file/revision/hash, listening capability, approved scope,
 retained musical idea and one question this iteration should answer. A title, link,
@@ -99,42 +103,13 @@ choice. Do not claim that an internal textual review or successful export proves
 
 ## Loop production for the actual source
 
-Apply the [canonical loop pipeline](../../../docs/art-audio/AUDIO_BIBLE.md#music-loop-production-and-qa):
-Source Review → Musical Structure Analysis → Loop Arrangement → Audio Boundary
-Processing → Loop Master → Runtime Export → Listening QA → In-game QA.
-
-Before processing, determine whether the asset should loop at all; one-shot
-jingles can remain one-shots. Review the actual source and identify phrase/bar,
-harmony, melody ending, rhythmic pickup/downbeat, transitions and release tails.
-For MIDI/MusicXML/DAW sources, prefer deliberate structural edits and rerendering;
-with stems, work on the affected part while retaining alignment/mix identity.
-For mixed WAV/FLAC/MP3, identify musical boundaries and state what cannot be
-separated or reconstructed. Transcription/separation is estimated evidence.
-
-Choose and justify a method per track: whole bars, ending rearrangement,
-transition bars, an authored loop region, structure-aware crossfade, tail wrap
-or stem remix. Do not apply a fixed crossfade length, BPM, fade or bar count to
-all music. Inspect closing note attacks separately from surviving phrase decay:
-wrapping an outro attack into the intro is not merely retaining a reverb tail.
-Crossfades must retain rhythm, accents, phrase clarity and phase/level coherence.
-A click-free sample join does not make an ending musically compatible.
-
-Preserve immutable originals and approved versions. Do not change approved
-melody, tempo, instrumentation or major arrangement without scoped authority.
-Necessary structural edits need a separately identified derivative, exact source
-and parameters, a recorded change map and an audible original/before/after
-comparison. If the existing authored loop needs no edit, reuse it and say so;
-creating another version is not mandatory. Scripts may reproduce/batch a chosen
-process, but cannot replace per-track musical judgement.
-
-Retain original, lossless loop master, runtime export, editable sources/stems,
-method/parameters, dependency/tool versions, provenance/licences and evidence.
-Validate actual decoded/exported boundaries rather than assuming container tags
-or a DAW marker control the game. Apply both musical and technical acceptance,
-then obtain the [required listening/runtime evidence](../../../docs/art-audio/AUDIO_BIBLE.md#loop-acceptance-and-evidence).
-Start with one existing owner-approved pilot; do not batch remake or roll out
-other tracks before that pilot is verified. Reuse existing permitted tools and
-Godot audio runtime; this workflow does not authorize a runtime redesign.
+For loop adaptation, follow the [canonical source-aware loop pipeline](../../../docs/art-audio/AUDIO_BIBLE.md#music-loop-production-and-qa).
+First decide whether the asset should loop at all. Choose musical boundaries and
+a track-specific arrangement before sample-boundary processing; a click-free join
+does not establish a natural musical return. Preserve immutable originals,
+approved identity, editable material and source-bound before/after evidence.
+Reuse an already suitable authored loop rather than manufacturing a new version.
+These general rules supplement, not replace, the exact reference decisions above.
 
 ## Retain learning and finish
 

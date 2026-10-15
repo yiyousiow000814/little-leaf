@@ -1,5 +1,6 @@
 """Selected preparation behavior with synthetic coordinates; never start Godot."""
 import json
+import shutil
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -72,7 +73,7 @@ class PreparationTests(unittest.TestCase):
     def test_bad_coordinates_cannot_produce_success_receipt(self):
         self.cloud(invalid=True)
 
-    def wall(self, missing_historical_resource=False):
+    def wall(self, missing_historical_resource=False, split=False, mutation=None):
         fixture_bytes = (qa.ROOT / 'tests/fixtures/wall_compatibility_layout.gd').read_bytes()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -103,11 +104,13 @@ class PreparationTests(unittest.TestCase):
                 result = Path(next(x.removeprefix('--layout-output=') for x in command if x.startswith('--layout-output=')))
                 result.write_text(json.dumps({'checks': 1, 'failures': []}), encoding='utf-8')
                 return SimpleNamespace(returncode=0, stdout=b'synthetic layout pass\n')
-            manifest = {'source_commit': 'synthetic-source', 'toolchain_receipt': {}, 'production_sha256': {}}
+            manifest = {'source_commit': 'synthetic-source', 'source_tree': 'synthetic-tree',
+                        'toolchain_receipt': {'godot': 'synthetic-pinned-engine', 'templates': 'synthetic-pinned-template'},
+                        'production_sha256': {}}
             with patch.object(qa, 'ROOT', root), patch.object(qa, 'FIXTURES', fixtures), \
                     patch.object(qa, 'CONTRACT', {'fixture_sha256': {}}), \
                     patch.object(qa, 'validate_export', return_value=manifest), \
-                    patch.object(qa, 'verify_installer_receipt', return_value={}), \
+                    patch.object(qa, 'verify_installer_receipt', return_value=manifest['toolchain_receipt']) as install, \
                     patch.dict(qa.os.environ, {'GODOT_TEMPLATE': 'synthetic-template', 'GODOT_TOOLCHAIN_RECEIPT': 'synthetic-receipt'}), \
                     patch.object(qa.subprocess, 'run', side_effect=run) as engine:
                 args = ['--old-source', str(root), '--old-build', str(builds['old']),
@@ -116,19 +119,88 @@ class PreparationTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'exact WebSave resource'):
                         qa.wall_main(args)
                     engine.assert_not_called()
-                else:
+                elif not split:
                     qa.wall_main(args)
                     self.assertEqual(engine.call_count, 2)
                     self.assertEqual(set(json.loads((root / 'output/preflight.json').read_text())['layouts']), {'old', 'new'})
+                else:
+                    # The existing direct path and split producer path must emit
+                    # byte-identical coordinates and final browser input binding.
+                    qa.wall_main(args)
+                    direct = {p.name: p.read_bytes() for p in (root / 'output').iterdir()}
+                    engine.reset_mock(); install.reset_mock()
+                    for label in ('old', 'new'):
+                        output = builds[label] / 'evidence/wall-layout'
+                        selected = ['--prepare-side', label, '--output', str(output)]
+                        selected += (['--old-source', str(root), '--old-build', str(builds['old'])]
+                                     if label == 'old' else ['--new-build', str(builds['new'])])
+                        qa.wall_main(selected)
+                    self.assertEqual(engine.call_count, 2)
+                    self.assertEqual(install.call_count, 2)
+                    for file, content in production.items():
+                        self.assertEqual(file.read_bytes(), content)
+                    # Browser workers must not need these large producer projects.
+                    for build in builds.values():
+                        shutil.rmtree(build / 'project')
+                    folder = builds['old'] / 'evidence/wall-layout'
+                    if mutation:
+                        mutation(folder)
+                    engine.reset_mock(); install.reset_mock()
+                    for case in ('old_opened_after_new', 'already_open_old'):
+                        output = root / case
+                        command = [*args[:-1], str(output), '--merge-only']
+                        if mutation:
+                            with self.assertRaises((ValueError, RuntimeError, FileNotFoundError)):
+                                qa.wall_main(command)
+                            self.assertFalse((output / 'preflight.json').exists())
+                        else:
+                            qa.wall_main(command)
+                            self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, direct)
+                    engine.assert_not_called(); install.assert_not_called()
             self.assertEqual(source_fixture.read_bytes(), fixture_bytes)
-            for path, content in production.items():
-                self.assertEqual(path.read_bytes(), content)
+            if not split:
+                for path, content in production.items():
+                    self.assertEqual(path.read_bytes(), content)
 
     def test_wall_preflight_uses_each_source_namespace_without_mutating_inputs(self):
         self.wall()
 
     def test_missing_historical_web_save_refused_before_engine(self):
         self.wall(missing_historical_resource=True)
+
+    def test_split_producers_preserve_identical_browser_inputs_without_projects_or_engine(self):
+        self.wall(split=True)
+
+    def test_missing_changed_failed_or_foreign_producer_evidence_is_refused(self):
+        def change_receipt(key, value):
+            def mutate(folder):
+                path = folder / 'preflight.json'
+                receipt = json.loads(path.read_text())
+                receipt[key] = value
+                path.write_text(json.dumps(receipt))
+            return mutate
+        mutations = {
+            'missing': lambda folder: (folder / 'old-layout.json').unlink(),
+            'layout': lambda folder: (folder / 'old-layout.json').write_text('{"checks":2,"failures":[],"point":[99,99]}'),
+            'log': lambda folder: (folder / 'old-layout.log').write_text('changed log'),
+            'failed-log': lambda folder: (folder / 'old-layout.log').write_text('ERROR: native failure'),
+            'extra': lambda folder: (folder / 'extra.json').write_text('{}'),
+            'symlink': lambda folder: (folder / 'alias').symlink_to(folder / 'old-layout.json'),
+            'source': change_receipt('old_commit', 'wrong-source'),
+            'tree': change_receipt('old_tree', 'wrong-tree'),
+            'run': change_receipt('workflow_run', 'wrong-run'),
+            'attempt': change_receipt('workflow_attempt', 'wrong-attempt'),
+            'coordinator': change_receipt('coordinator_source', 'wrong-source'),
+            'fixture': change_receipt('layout_fixture_sha256', 'wrong-fixture'),
+            'helper': change_receipt('preparer_sha256', 'wrong-preparer'),
+            'toolchain': change_receipt('toolchain_receipt', {}),
+            'manifest': change_receipt('export_manifest_sha256', {'old': 'wrong-manifest'}),
+            'failed': change_receipt('status', 'failed'),
+            'false-is-not-zero': change_receipt('browser_verified', 0),
+        }
+        for name, mutation in mutations.items():
+            with self.subTest(name=name):
+                self.wall(split=True, mutation=mutation)
 
 
 if __name__ == '__main__':

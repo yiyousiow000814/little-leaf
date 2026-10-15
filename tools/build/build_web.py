@@ -15,7 +15,6 @@ from build.optimize_web_present import optimize_presentation
 from build.bound_web_gl_handles import bound_web_gl_handles
 from qualification.artifacts import sha256
 from build.project_layout import resource_name, source_path
-from build.build_itch_entry import ordinary_entry_html
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCK = json.loads((Path(__file__).resolve().parents[1] / "ci/toolchain.json").read_text())
@@ -171,7 +170,6 @@ def main():
         raise RuntimeError("Invalid Web binary headers")
     presentation_optimization = optimize_presentation(web / "index.js")
     webgl_handle_retention = bound_web_gl_handles(web / "index.js")
-    (web / "index.html").write_text(ordinary_entry_html(html), encoding="utf-8")
     manifest = {
         "schema_version": 1, "version": release_version, "tag": args.tag,
         "source_commit": source_sha, "source_tree": source_tree, "godot": engine_version,

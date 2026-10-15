@@ -109,15 +109,15 @@ func run():
  game._toggle_edit();await settle()
  check(game.editing and not game.compact_ui.has_open_popup(),"entering Decorate opens no notification")
  verify("enter Decorate")
- game._choose("plant");game._rotate();game._cancel_selection();game._sell();game._upgrade();refresh()
+ game._choose("plant");game._rotate();game._cancel_selection();game._sell();refresh()
  check(game.selected_id==-1 and game.selected_kind=="","selection, rotation, cancel and rejected actions remain callable")
  verify("action callbacks")
  m.coins=100000
  check(m.place("plant",5,6),"synthetic sale item places")
  var sale_id=int(m.items[-1].id);game._rebuild_furniture();game.selected_id=sale_id
- var sale_coins=m.coins;var sale_saves=game.save_calls
+ var sale_coins=m.coins;var sale_saves=game.save_calls;var dirty_generation=game.platform_dirty_generation
  game._sell();refresh()
- check(m.get_item(sale_id).is_empty() and m.coins>sale_coins and game.save_calls==sale_saves+1,"sell removes item, refunds and saves exactly once")
+ check(m.get_item(sale_id).is_empty() and m.coins>sale_coins and game.save_calls==sale_saves and game.platform_dirty_generation>dirty_generation,"sell removes item, refunds once and marks progress dirty")
  verify("successful sale")
  await capture("03-decorate-actions")
  game._toggle_edit();await settle()

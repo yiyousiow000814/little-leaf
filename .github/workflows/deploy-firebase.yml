@@ -1,7 +1,7 @@
 name: Deploy reviewed Firebase test build
 on:
   workflow_run:
-    workflows: [Qualify Firebase release]
+    workflows: [Release Web to itch.io]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -10,7 +10,7 @@ on:
         required: true
         default: live
         type: choice
-        options: [live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read, itch-test-entry]
+        options: [live, qualified-firebase-live, itch-preview, auth-pause-update, auth-pause-rollback, hosting-config-read, itch-test-entry]
       source_sha:
         description: Exact reviewed Firebase candidate commit; may be an approved unmerged preview
         required: true
@@ -27,6 +27,18 @@ on:
         description: Reviewed SHA-256 of firebase-variant-manifest.json
         required: false
         type: string
+      expected_previous_release:
+        description: Exact reviewed current Hosting release; required for independent Firebase publication
+        required: false
+        type: string
+      expected_previous_version:
+        description: Exact finalized previous Hosting version, restored only after owned-candidate smoke failure
+        required: false
+        type: string
+      expected_previous_config_sha256:
+        description: Exact previous configuration digest; drift stops publication before a live change
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -34,7 +46,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   common-tag:
-    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'workflow_run' && startsWith(github.event.workflow_run.display_title, 'Firebase common tag v')
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && (github.event.workflow_run.event == 'workflow_run' || (github.event.workflow_run.event == 'workflow_dispatch' && startsWith(github.event.workflow_run.display_title, 'Retry qualified itch ')))) || (github.event_name == 'workflow_dispatch' && inputs.deployment_mode == 'qualified-firebase-live' && github.run_attempt == 1))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -50,10 +62,45 @@ jobs:
         id: select
         env:
           GH_TOKEN: ${{ github.token }}
-          FIREBASE_RUN: ${{ github.event.workflow_run.id }}
+          ITCH_RUN: ${{ github.event.workflow_run.id }}
+          INDEPENDENT: ${{ github.event_name == 'workflow_dispatch' }}
+          SELECTED_SOURCE: ${{ inputs.source_sha }}
+          SELECTED_RUN: ${{ inputs.variant_run_id }}
+          SELECTED_ARTIFACT: ${{ inputs.variant_artifact_id }}
+          SELECTED_MANIFEST: ${{ inputs.variant_manifest_sha256 }}
+          PREVIOUS_RELEASE: ${{ inputs.expected_previous_release }}
+          PREVIOUS_VERSION: ${{ inputs.expected_previous_version }}
+          PREVIOUS_CONFIG: ${{ inputs.expected_previous_config_sha256 }}
         run: |
           git fetch --no-tags origin main
-          python3 tools/release/common_firebase.py --run "$FIREBASE_RUN" --output "$RUNNER_TEMP/common-firebase"
+          if [[ "$INDEPENDENT" == true ]]; then
+            test "$GITHUB_RUN_ATTEMPT" = 1
+            [[ "$SELECTED_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$SELECTED_RUN" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SELECTED_ARTIFACT" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SELECTED_MANIFEST" =~ ^[0-9a-f]{64}$ ]]
+            python3 - <<'PY'
+          import os,sys
+          sys.path.insert(0,'tools')
+          from release.deploy_firebase_hosting import approved_previous
+          assert approved_previous(os.environ['PREVIOUS_RELEASE'],os.environ['PREVIOUS_VERSION'],os.environ['PREVIOUS_CONFIG']) is not None
+          PY
+            python3 tools/release/common_firebase.py --run "$SELECTED_RUN" --output "$RUNNER_TEMP/common-firebase"
+            python3 - <<'PY'
+          import json,os,pathlib,sys
+          sys.path.insert(0,'tools')
+          from qualification.artifacts import sha256
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])/'common-firebase'
+          origin=json.loads((root/'origin.json').read_text())
+          manifest=json.loads((root/'variant/firebase-variant-manifest.json').read_text())
+          assert origin['run']['id']==int(os.environ['SELECTED_RUN'])
+          assert origin['artifact']['id']==int(os.environ['SELECTED_ARTIFACT'])
+          assert manifest['source_commit']==os.environ['SELECTED_SOURCE']
+          assert sha256(root/'variant/firebase-variant-manifest.json')==os.environ['SELECTED_MANIFEST']
+          PY
+          else
+            python3 tools/release/common_firebase.py --itch-run "$ITCH_RUN" --output "$RUNNER_TEMP/common-firebase"
+          fi
       - name: Recheck full package independently before credentials
         env:
           SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
@@ -78,7 +125,16 @@ jobs:
           FIREBASE_HOSTING_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
           SOURCE_SHA: ${{ steps.select.outputs.source_sha }}
           MANIFEST_SHA: ${{ steps.select.outputs.manifest_sha256 }}
-        run: python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json"
+          INDEPENDENT: ${{ github.event_name == 'workflow_dispatch' }}
+          PREVIOUS_RELEASE: ${{ inputs.expected_previous_release }}
+          PREVIOUS_VERSION: ${{ inputs.expected_previous_version }}
+          PREVIOUS_CONFIG: ${{ inputs.expected_previous_config_sha256 }}
+        run: |
+          recovery=()
+          if [[ "$INDEPENDENT" == true ]]; then
+            recovery=(--expected-previous-release "$PREVIOUS_RELEASE" --expected-previous-version "$PREVIOUS_VERSION" --expected-previous-config-sha256 "$PREVIOUS_CONFIG")
+          fi
+          python3 tools/release/deploy_firebase_hosting.py --variant "$RUNNER_TEMP/common-firebase/variant" --sha "$SOURCE_SHA" --manifest-sha256 "$MANIFEST_SHA" --output "$RUNNER_TEMP/firebase-receipt/deployment.json" --staging-origin "$RUNNER_TEMP/common-firebase/origin.json" "${recovery[@]}"
       - name: Preserve this platform's partial, failed or completed outcome
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

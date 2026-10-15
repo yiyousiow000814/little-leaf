@@ -1,0 +1,10 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+
+[ext_resource type="Shader" path="res://shaders/bus_shelter_common_sample.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/exterior/bus_stop_c/C-whole.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/exterior/bus_stop_c/C-front.png" id="3"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/whole_texture = ExtResource("2")
+shader_parameter/front_texture = ExtResource("3")

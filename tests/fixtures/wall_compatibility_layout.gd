@@ -129,13 +129,16 @@ func run():
   result.regions.review_heading=label_region(ui.wall_review,"Replace wall")
   result.regions.review_text=text_region(ui.wall_review_text)
   check(game.save_calls==0 and game.model.coins==before_selection,"target and replacement review never save or charge before confirmation")
-  var before=game.model.coins
+  var before=game.model.coins;var dirty_before=game.platform_dirty_generation
   await click("confirm",ui.wall_confirm_button)
-  check(game.save_calls==1 and game.model.coins==before-35,"normal confirm invokes one save and one 35 coin charge")
+  check(game.save_calls==0 and game.platform_dirty_generation>dirty_before and game.model.coins==before-35,"normal Confirm charges35 once and marks the draft dirty without saving")
   check(game.model.shell_segment_products["shell:back#2"].height=="half" and game.model.shell_segment_products["shell:back#2"].material=="sage_panels","new model has requested half Sage panels segment")
   check(game.model.wall_attachments==attachments,"wall replacement preserves paid opening geometry and ownership")
   result.expected_segment=game.model.shell_segment_products["shell:back#2"].duplicate(true)
   result.expected_cost=35
+  await click("apply",game.edit_button)
+  check(not game.editing and not game.model.decoration_session_active and game.save_calls==1,"real Apply finishes the session and invokes exactly one immediate save")
+  check(game.model.coins==before-35 and game.model.wall_attachments==attachments,"Apply retains the single wall charge and paid opening ownership")
   game.compact_ui._hide_popups()
  # Only derive recovery Help bounds and retry button; this is not browser proof.
  game.web_save=preload("res://scripts/persistence/cafe_web_save.gd").new(game)

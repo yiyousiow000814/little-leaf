@@ -47,7 +47,11 @@ func run():
     var staff=painted_rect(hud.action_art.staff)
     var gear=painted_rect(hud.action_art.settings)
     var expected_gap=18.0 if view.x>=850 else 8.0
-    check(absf(gear.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/settings gap")
+    var pause=hud.pause_face.get_global_rect()
+    var play_gap=16.0 if view.x>=850 else 8.0
+    check(absf(pause.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/Pause gap")
+    check(absf(gear.position.x-pause.end.x-play_gap)<.1,label+" Pause immediately before settings")
+    check(absf(pause.get_center().y-gear.get_center().y)<.1,label+" Pause/settings optical centerline")
     check(absf(staff.get_center().y-gear.get_center().y)<.1,label+" staff/settings optical centerline")
     check(wood_right-gear.end.x>=9,label+" visible gear outer inset")
     if not editing:
@@ -67,8 +71,9 @@ func run():
   game.editing=false;game.settings.hide();await settle()
   var old_pause=game.paused;await click(game.pause_button);check(game.paused!=old_pause,str(view)+" pointer toggles pause")
   await click(game.edit_button);check(game.editing,str(view)+" pointer enters decorate")
-  game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="",str(view)+" pointer cancels selection")
-  await click(game.edit_button);check(not game.editing,str(view)+" pointer finishes decorate")
+  game.selected_kind="plant";await settle();await click(hud.edit_cancel);check(game.selected_kind=="" and not game.editing and not game.model.decoration_session_active,str(view)+" pointer cancels the whole Decorate session and selection")
+  await click(game.edit_button);check(game.editing and game.model.decoration_session_active,str(view)+" pointer reenters a separate Decorate session")
+  await click(game.edit_button);check(not game.editing and not game.model.decoration_session_active,str(view)+" pointer applies and finishes decorate")
   await click(ui.staff_access);check(ui.staff_panel.panel.visible,str(view)+" pointer opens staff")
   ui._hide_popups();await settle()
   await click(ui.settings_button);check(game.settings.visible,str(view)+" pointer opens settings")

@@ -17,20 +17,73 @@ func normalized_items(raw:Array)->Array:
  var result=[]
  for entry in raw:
   var item=entry.duplicate(true)
+  if item.get("kind","")=="stove":item.erase("level")
   for key in ["id","x","z","rot","level"]:
    if item.has(key):item[key]=int(item[key])
   result.append(item)
  return result
 func write(name:String,data:Dictionary)->String:
  var path="user://"+name+".json";var file=FileAccess.open(path,FileAccess.WRITE);file.store_string(JSON.stringify(data));file.close();return path
+func check_scalar_save_preservation():
+ # Use real refunds/payroll in this suite's disposable saveguard profile.
+ for trigger in ["refund","payroll"]:
+  var model=fresh(1000);model.first_guest_pending=false
+  var id=model._next_item_id
+  if trigger=="refund":
+   check(model.place("plant",4,6),"refund overflow fixture buys a removable plant")
+   model.coins=1000000000
+  else:model.total_wages_paid=1000000000
+  var path="user://scalar-"+trigger+".json"
+  check(model.save(path),"legal scalar boundary saves: "+trigger+" "+model.last_error)
+  var good=JSON.parse_string(FileAccess.get_file_as_string(path))
+  var good_hash=FileAccess.get_sha256(path)
+  var boundary=Model.new()
+  check(boundary.load_save(path),"legal scalar boundary reloads: "+trigger)
+  var temp_path=path+".tmp"
+  check(not FileAccess.file_exists(temp_path),"successful boundary write leaves no temp: "+trigger)
+  if trigger=="refund":
+   var temp=FileAccess.open(temp_path,FileAccess.WRITE);temp.store_string("existing synthetic temp");temp.close()
+   var returned=model.logical_refund(id)
+   check(returned>0 and model.remove(id) and model.coins==1000000000+returned,"real refund exceeds wallet limit without repricing")
+  else:
+   var result=model.advance_payroll(60.0,true)
+   check(result.paid>0 and model.total_wages_paid==1000000000+result.paid,"real payroll exceeds paid ledger limit without changing wages")
+  var before=state(model)
+  var temp_hash=FileAccess.get_sha256(temp_path) if trigger=="refund" else ""
+  check(not model.save(path),"overflow save refuses: "+trigger)
+  check(state(model)==before,"refusal does not mutate live economy: "+trigger)
+  check(FileAccess.get_sha256(path)==good_hash,"refusal preserves previous good bytes: "+trigger)
+  check(FileAccess.get_sha256(temp_path)==temp_hash if trigger=="refund" else not FileAccess.file_exists(temp_path),"refusal never opens or replaces temp: "+trigger)
+  var recovered=Model.new()
+  var restored=recovered.load_save(path)
+  check(restored,"previous good save still reloads: "+trigger+" "+recovered.last_error)
+  if restored:
+   check(recovered.coins==int(good.coins) and recovered.total_wages_paid==int(good.total_wages_paid),"reload retains previous wallet and payroll: "+trigger)
+   if trigger=="refund":check(not recovered.get_item(id).is_empty(),"refused refund save keeps the previously saved plant")
+ var seed_model=fresh(1234);seed_model.first_guest_pending=false
+ var path="user://scalar-fields-good.json"
+ check(seed_model.save(path),"shared scalar fixture saves")
+ var good_hash=FileAccess.get_sha256(path)
+ var good=JSON.parse_string(FileAccess.get_file_as_string(path))
+ for spec in [["coins",-1],["served",1000000001],["total_earned",1000000001],["total_cleaned",1000000001],["wages_due",1000000001],["total_wages_paid",1000000001],["payroll_elapsed",60.0],["payroll_accrued",1000.1]]:
+  var model=fresh(1234);model.first_guest_pending=false;model.set(str(spec[0]),spec[1])
+  check(not model.save(path),"writer rejects existing scalar limit: "+str(spec[0]))
+  var writer_error=model.last_error
+  check(FileAccess.get_sha256(path)==good_hash and not FileAccess.file_exists(path+".tmp"),"bad scalar leaves destination and temp untouched: "+str(spec[0]))
+  var malformed=good.duplicate(true);malformed[str(spec[0])]=spec[1]
+  var receiver=fresh(7777);var before=state(receiver)
+  check(not receiver.load_save(write("scalar-invalid-"+str(spec[0]),malformed)) and state(receiver)==before,"reader rejects scalar atomically: "+str(spec[0]))
+  check(receiver.last_error==writer_error,"reader and writer share the existing diagnostic: "+str(spec[0]))
+
 func _initialize():run.call_deferred()
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
+ check_scalar_save_preservation()
  var model=fresh();var before=state(model)
  check(model.price_of("table_set")==280 and Sets.VARIANTS.oak_single.price==280,"storefront and dining product both quote approved280")
  check(model.wage_rate()==50 and model.WAGE_RATES=={"chef":18,"waiter":11,"cleaner":10,"cashier":11},"included four-role roster costs50 per future game minute")
  check(model.MEAL_PAYMENT==200,"new settlement rate is200")
- check(model.HIRE_FEES=={"chef":2800,"waiter":2200,"cleaner":1800} and model.stove_upgrade_cost(1)==180,"hire fees and level2 upgrade retain their existing prices")
+ check(model.HIRE_FEES=={"chef":2800,"waiter":2200,"cleaner":1800},"hire fees retain their existing prices")
  check(model.dining_sets[0].paid_cost==140 and model.logical_refund(6)==70,"included starter retains its existing140 basis and70 refund")
  check(model.price_of("table")==100 and model.price_of("chair")==40 and model.price_of("bench")==75,"legacy individual furniture prices are unchanged")
  check(state(model)==before,"price and refund quotes never mutate progress")
@@ -114,7 +167,37 @@ func run():
  check(model.place("stove",7,1) and model.hire_staff("chef"),"existing stove and chef hiring path remains available")
  check(model.coins==wallet-220-2800 and model.wage_rate()==68,"unchanged hire charge adds only18 per future minute")
  model=fresh();wallet=model.coins
- check(model.upgrade_stove(1) and model.coins==wallet-180 and model.get_item(1).level==2,"level2 upgrade still charges180 once")
+ check(not model.has_method("upgrade_stove") and not model.has_method("stove_upgrade_cost") and model.coins==wallet and not model.get_item(1).has("level"),"no new stove upgrade purchase; starter has no upgrade level")
+ # User rejected retained upgrade effects: load old copies at base speed without
+ # touching their file, wallet, furniture identity or unrelated progress.
+ for level in [1,2,3]:
+  var historical=fresh(777);var path="user://stove-base-fixture.json"
+  check(historical.save(path),"base fixture saves: "+str(level))
+  var raw=JSON.parse_string(FileAccess.get_file_as_string(path))
+  for entry in raw.items:
+   if entry.kind=="stove":entry.level=level
+  path=write("historical-stove-level-%d"%level,raw)
+  var identity=historical.get_item(1).duplicate(true)
+  var saved_hash=FileAccess.get_sha256(path);var restored=Model.new()
+  check(restored.load_save(path) and restored.coins==777 and restored.get_item(1)==identity,"legacy level normalizes without balance/identity change: "+str(level))
+  check(is_equal_approx(Model.stove_speed_multiplier(restored.get_item(1)),1.0) and is_equal_approx(Model.cooking_seconds(Model.stove_speed_multiplier({"level":level})),45.0),"legacy level has base cooking behavior: "+str(level))
+  check(FileAccess.get_sha256(path)==saved_hash,"loading never rewrites historical input: "+str(level))
+  check(restored.save("user://normalized-stove-%d.json"%level),"normalized stove saves: "+str(level))
+  var normalized=JSON.parse_string(FileAccess.get_file_as_string("user://normalized-stove-%d.json"%level))
+  check(normalized.items.all(func(entry):return entry.kind!="stove" or not entry.has("level")),"new save omits every stove level: "+str(level))
+  var roundtrip=Model.new()
+  check(roundtrip.load_save("user://normalized-stove-%d.json"%level) and roundtrip.coins==777 and roundtrip.get_item(1)==identity,"normalized identity/balance survives second reload: "+str(level))
+ # A stale live object cannot serialize a bonus or mutate itself through save.
+ model=fresh(777);model.get_item(1).level=3;before=state(model)
+ check(model.save("user://stale-live-stove.json") and state(model)==before,"save normalizes a copy without mutating live state")
+ var cleaned=Model.new()
+ check(cleaned.load_save("user://stale-live-stove.json") and not cleaned.get_item(1).has("level") and cleaned.coins==777,"stale live upgrade never survives save/reload")
+ for invalid in [0,4,-1,1.5,"2"]:
+  var raw=JSON.parse_string(FileAccess.get_file_as_string("user://stove-base-fixture.json"))
+  for entry in raw.items:
+   if entry.kind=="stove":entry.level=invalid
+  var live=fresh(777);before=state(live)
+  check(not live.load_save(write("invalid-stove-level",raw)) and state(live)==before,"invalid historical level rejects atomically: "+str(invalid))
  # Exercise the actual atomic register settlement, including historical earnings.
  model=fresh();model.total_earned=2500;model.served=10;model._spawn_customer()
  var guest=model.customers[0];var register=model.checkout_register();var front=model.workface_cell(register)

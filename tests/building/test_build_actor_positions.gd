@@ -74,10 +74,10 @@ func run():
   var point=art.iso(2.5 if kind=="door" else 3.5,0,70)
   # Keep the exact host comfortably clear of HUD and tray without changing zoom.
   game.interaction._pan_by(art.camera_safe_rect().get_center()-point);point=art.iso(2.5 if kind=="door" else 3.5,0,70)
-  var wallet=model.coins;var count=model.wall_attachments.size();var saves=game.saves
+  var wallet=model.coins;var count=model.wall_attachments.size();var saves=game.saves;var dirty_generation=game.platform_dirty_generation
   await click(point)
   check(model.wall_attachments.size()==count+1,"real click attaches "+kind+" while washing")
-  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves+1,"attachment charges and saves once")
+  check(model.coins==wallet-model.attachment_price(kind) and game.saves==saves and game.platform_dirty_generation>dirty_generation,"attachment charges once and marks progress dirty without an operation save")
   await click(point)
   check(model.wall_attachments.size()==count+1 and model.coins==wallet-model.attachment_price(kind),"repeated same opening click cannot charge twice")
  # Actual people and route conflicts remain protected.
@@ -87,8 +87,9 @@ func run():
  worker.pos=Vector2(7.5,6.5);art.stance_offsets.clear();var actors=tool.actor_positions()
  for spec in [["x",7,6],["z",7,6],["x",7,7]]:check(model.place_wall(spec[0],spec[1],spec[2],"full","sage_panels",actors),"three-sided enclosure fixture")
  var wallet=model.coins
- check(not model.place_wall("z",8,6,"full","sage_panels",actors),"actual fourth wall cannot trap worker")
- check(model.coins==wallet,"blocked enclosure never charges")
+ check(model.place_wall("z",8,6,"full","sage_panels",actors),"body-clear fourth wall uses physical fit")
+ check(model.coins==wallet-55,"physical enclosure charges exactly one wall")
+ check(not model._wall_reachable(model.built_walls,model.items,model.owned_parcels).has(Vector2i(7,6)),"operational graph still reports the enclosed room")
  nonworsening_cases()
  print("BUILD_ACTOR_POSITIONS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"poses":evidence,"player_save_used":false,"native_render_verified":false}))
  for player in game.audio_players.values():player.stop();player.stream=null
@@ -118,11 +119,13 @@ func nonworsening_cases():
  check(not m.wall_replacement_quote("x:9:6","half","sage_panels",trapped).valid,"opening still requires full-height support")
  check(not m.can_place_wall_attachment("window","wall:99999",.5,trapped),"missing host remains rejected")
  check(not m.can_place_wall_attachment("door","shell:back",-.5,trapped),"out-of-host opening remains rejected")
- # Repairing the trapped room by adding a door is always permitted. Closing
- # or moving that sole doorway must still use the full egress/body guards.
+ # Physical doorway crossing remains authoritative. A future exit route
+ # alone is not a body and cannot veto an idle geometry-valid closure.
  var host="wall:"+str(m.get_wall("z:4:3").id)
  check(m.place_wall_attachment("door",host,.5,trapped),"adding door repairs pre-existing trapped room")
  var exit_id=m.wall_attachments[-1].id;wallet=m.coins
- check(not m.remove_wall_attachment(exit_id,trapped),"removing only room exit still rejected")
- check(not m.move_wall_attachment(exit_id,"shell:back",2.5,trapped),"moving only room exit still rejected")
- check(m.coins==wallet and m.get_wall_attachment(exit_id).host_id==host,"rejected closures preserve wallet and old door")
+ var crossing=[Vector2(4.0,3.5)]
+ check(not m.remove_wall_attachment(exit_id,crossing),"closing on a crossing body remains rejected")
+ check(not m.move_wall_attachment(exit_id,"shell:back",2.5,crossing),"moving doorway onto its crossing body remains rejected")
+ check(m.coins==wallet and m.get_wall_attachment(exit_id).host_id==host,"rejected body collisions preserve wallet and old door")
+ check(m.remove_wall_attachment(exit_id,trapped),"body-clear idle doorway closure is legal")

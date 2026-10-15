@@ -88,9 +88,10 @@ export async function start(config,options={}) {
   let reloadTicket=null,navigationType,storage;
   try{storage=window.sessionStorage;navigationType=performance.getEntriesByType('navigation')[0]?.type;
     reloadTicket=window.LittleLeafFirebaseSession.consumeReload(storage,navigationType,uid);}catch(_){}
-  let runtime,ownership,exited=false,startupPending=true;
+  let runtime,ownership,exited=false,startupPending=true,cancelStartup;
+  const closedStartup=()=>Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});
   // Register before awaiting the lock: page exit/account change may win that wait.
-  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();};
+  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
   // Once installed, native pagehide saves finish asynchronously under this same
   // exclusive lock. Do not close their client or release writer identity early.
   // Unloading-document cleanup releases browser locks on actual termination;
@@ -98,10 +99,21 @@ export async function start(config,options={}) {
   window.addEventListener('pagehide',()=>{if(startupPending)closeRuntime();});
   onAuthStateChanged(auth,user=>{if(user?.uid!==uid)closeRuntime();});
   runtime=await window.LittleLeafFirebaseSession.acquireRuntime({uid,storage,locks:window.navigator?.locks,navigationType,fresh:!!reloadTicket});
-  if(exited){runtime.close();throw Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});}
+  if(exited){runtime.close();throw closedStartup();}
   ownership=window.LittleLeafFirebaseSession.createSession({remote:sessionRemote,uid,deviceLabel,currentUid:()=>auth.currentUser?.uid,sessionId:runtime.sessionId,assertRuntime:()=>runtime.assertHeld()});
   try{
-  await ownership.start(reloadTicket);
+  // This precedes the client's initial-read deadline. Closing local authority
+  // fences late SDK callbacks; it does not prove a dispatched session CAS aborted.
+  await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{
+      reject(Object.assign(Error('The connection did not respond. Your progress is protected. Reload Little Leaf to try again.'),{code:'NETWORK_TIMEOUT'}));
+      closeRuntime();
+    },15000);
+    cancelStartup=()=>{clearTimeout(timer);reject(closedStartup());};
+    ownership.start(reloadTicket).then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});
+  }).finally(()=>{cancelStartup=null;});
+  if(exited || auth.currentUser?.uid!==uid)throw closedStartup();
+  runtime.assertHeld();
   const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB);
   runtime.assertHeld();

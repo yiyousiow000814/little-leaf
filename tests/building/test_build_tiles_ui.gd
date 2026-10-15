@@ -6,6 +6,17 @@ class TestMain extends "res://scripts/main.gd":
  var saves=0
  func _load_startup():save_writes_suppressed=true;fresh_start=true;MinimalStart.apply(model)
  func _save():saves+=1;return true
+class FloorPreviewRecorder extends RefCounted:
+ var game=null
+ var polygons=[]
+ var seams=[]
+ var overlays=[]
+ func iso(x:float,z:float)->Vector2:return Vector2(x*42-z*17,x*7+z*6)
+ func poly(points:Array,color):polygons.append([points,color]);overlays.append("generic polygon stroke")
+ func _retained_fill(points:PackedVector2Array,color):polygons.append([Array(points),color])
+ func col(color):return color
+ func line(a:Vector2,b:Vector2,color,width):seams.append([a,b,color,width])
+ func art_draw_multiline(points,color,width,antialias):overlays.append([points,color,width,antialias])
 var game
 var ui
 var shop
@@ -16,6 +27,18 @@ func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 func _initialize():run.call_deferred()
+func _check_floor_preview_without_overlay():
+ var preview=preload("res://scripts/rendering/cafe_tile_paint_preview.gd")
+ var valid=FloorPreviewRecorder.new();var refused=FloorPreviewRecorder.new()
+ var cells=[Vector2i(4,5),Vector2i(5,5)]
+ preview.draw(valid,cells,"cream_tile",true);preview.draw(refused,cells,"cream_tile",false)
+ check(valid.polygons.size()==2 and refused.polygons.size()==2,"floor preview keeps both material tiles")
+ check(not valid.seams.is_empty() and valid.seams==refused.seams,"natural floor seams survive transaction refusal")
+ check(valid.polygons==refused.polygons,"transaction validity cannot recolor the floor material")
+ check(valid.overlays.is_empty() and refused.overlays.is_empty(),"floor preview emits no valid or refused obstruction outline")
+ check(valid.polygons[0][0]==[valid.iso(4,5),valid.iso(5,5),valid.iso(5,6),valid.iso(4,6)],"preview fill is the exact selected one-cell quad")
+ check(valid.polygons[1][0]==[valid.iso(5,5),valid.iso(6,5),valid.iso(6,6),valid.iso(5,6)],"adjacent preview fill has no inset, scaling or overlap")
+ check(valid.seams.size()==7,"two preview cells retain all seven natural grid edges once")
 func settle():
  game._update_ui()
  for frame in 5:await process_frame
@@ -139,6 +162,7 @@ func shell_point(host_id:String)->Vector2:
    if game.build_tools._available(point) and game.illustration.hit_wall_host(point).get("host_id","")==host_id:return point
  return Vector2(-1000,-1000)
 func run():
+ _check_floor_preview_without_overlay()
  if not "saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED: use the isolated runner");quit(2);return
  root.size=Vector2i(1360,880)
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
@@ -182,16 +206,16 @@ func run():
  stable_action("Warm oak","bare warm oak preview")
  check(game.build_tools.preview_valid,"bare owned tile has valid preview")
  floor_event(point,true);same_state(before,"press alone does not buy")
- var coins=game.model.coins;var saves=game.saves;var installed=game.model.floor_finishes.size()
+ var coins=game.model.coins;var saves=game.saves;var dirty_generation=game.platform_dirty_generation;var installed=game.model.floor_finishes.size()
  floor_event(point,false)
- check(game.model.coins==coins-8 and game.saves==saves+1,"matching release charges 8 and saves exactly once")
+ check(game.model.coins==coins-8 and game.saves==saves and game.platform_dirty_generation>dirty_generation,"matching release charges 8 once and marks progress dirty")
  check(game.model.floor_finishes.size()==installed+1 and game.model.floor_style_at(cell)=="warm_oak","release installs exactly one owned tile")
  before=snapshot();floor_event(point,false);same_state(before,"extra release cannot duplicate purchase")
  await select_floor("cream_tile");game.build_tools.refresh(point_for(cell))
  check(game.build_tools.floor_quote.new_cost==10 and game.build_tools.floor_quote.refund==4 and game.build_tools.floor_quote.net==6,"replacement quote preserves half paid-cost refund")
  stable_action("Cream tiles","replacement preview")
- coins=game.model.coins;saves=game.saves;install(cell)
- check(game.model.coins==coins-6 and game.saves==saves+1,"replacement charges net 6 once")
+ coins=game.model.coins;saves=game.saves;dirty_generation=game.platform_dirty_generation;install(cell)
+ check(game.model.coins==coins-6 and game.saves==saves and game.platform_dirty_generation>dirty_generation,"replacement charges net 6 once and marks progress dirty")
  check(game.model.floor_finishes[game.model._floor_key(cell)]=={"style":"cream_tile","paid_cost":10},"replacement records full new paid cost")
  before=snapshot();install(cell);same_state(before,"same-style tile is free and causes no save")
  stable_action("Cream tiles","already installed preview")
@@ -223,8 +247,8 @@ func run():
  for index in game.build_tools.FLOOR_STYLES.size():
   var style=game.build_tools.FLOOR_STYLES[index];var bare=Vector2i(5+index,6)
   game.model.floor_finishes.erase(game.model._floor_key(bare));game.model._notify();await select_floor(style)
-  coins=game.model.coins;saves=game.saves;installed=game.model.floor_finishes.size();install(bare)
-  check(game.model.coins==coins-game.model.floor_price(style) and game.saves==saves+1,style+" buys at exact listed price")
+  coins=game.model.coins;saves=game.saves;dirty_generation=game.platform_dirty_generation;installed=game.model.floor_finishes.size();install(bare)
+  check(game.model.coins==coins-game.model.floor_price(style) and game.saves==saves and game.platform_dirty_generation>dirty_generation,style+" buys at exact listed price and marks progress dirty")
   check(game.model.floor_finishes.size()==installed+1,style+" purchase changes only one tile")
  # A style change after pointer-down invalidates the pending price receipt.
  await select_floor("warm_oak");point=point_for(cell);before=snapshot();floor_event(point,true)
@@ -291,7 +315,7 @@ func run():
   check(not stove.is_empty(),label+" existing stove fixture present")
   if not stove.is_empty():
    game.interaction._select_item(stove);await settle();action_layout(label+" existing stove")
-   check(ui.rotate_button.visible and ui.remove_button.visible and ui.upgrade_button.visible and ui.cancel_button.visible,label+" stove has all four actions")
+   check(ui.rotate_button.visible and ui.remove_button.visible and ui.cancel_button.visible,label+" stove retains rotate, sell and cancel actions")
   game._set_catalog_category("Build");await settle()
   check(shop.build_page=="products","returning category resets Build products "+label)
   NoBottom.verify(game,check,label)

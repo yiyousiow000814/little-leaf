@@ -12,6 +12,17 @@
   function storeReload(storage,ticket){try{storage.setItem(RELOAD_KEY,JSON.stringify(ticket));return storage.getItem(RELOAD_KEY)===JSON.stringify(ticket);}catch(_){return false;}}
   const fail=(code,message)=>Object.assign(Error(message),{code});
   const millis=value=>typeof value?.toMillis==='function'?value.toMillis():Number(value);
+  function timestamp(value){
+    if(typeof value==='number')return Number.isFinite(value)?[value]:null;
+    if(!value||typeof value!=='object')return null;
+    const seconds=value.seconds,nanoseconds=value.nanoseconds;
+    return Number.isSafeInteger(seconds)&&Number.isInteger(nanoseconds)&&nanoseconds>=0&&nanoseconds<1000000000?[seconds,nanoseconds]:null;
+  }
+  function compareTimestamp(a,b){
+    if(!a||!b||a.length!==b.length)return null;
+    for(let i=0;i<a.length;i++)if(a[i]!==b[i])return a[i]>b[i]?1:-1;
+    return 0;
+  }
   // A reload may retain this tab's writer ID only while its exclusive browser
   // lock is held. Copied sessionStorage alone never grants writer authority.
   async function acquireRuntime({uid,storage,locks,navigationType,fresh=false}){
@@ -45,12 +56,22 @@
     return {
       ref:sessionRef,
       async read(){const s=await sdk.getDocFromServer(sessionRef);return s.exists()?s.data():null;},
-      async change(transition,guard){
+      async change(transition,guard,ackOnly=false){
         await sdk.runTransaction(db,async tx=>{
           guard();const snapshot=await tx.get(sessionRef),saved=await tx.get(saveRef);guard();
           const current=snapshot.exists()?snapshot.data():null;
           const next=transition(current,saved.exists()?saved.data():null,sdk.serverTimestamp);guard();
-          if(next!==current)tx.set(sessionRef,next);
+          if(next!==current){
+            // ACK does not renew the lease. Preserve a concurrent renewal's
+            // timestamp; the transaction still fences both owner and save reads.
+            if(ackOnly)tx.update(sessionRef,{ack:next.ack});
+            // A new ASK changes only the request. Preserve a concurrent lease
+            // renewal, while keeping the original transaction read precondition.
+            else if(current?.request===null&&current.ack===null&&next.request
+              &&Object.keys(next).length===Object.keys(current).length
+              &&Object.keys(current).every(key=>Object.hasOwn(next,key)&&(key==='request'||next[key]===current[key])))tx.update(sessionRef,{request:next.request});
+            else tx.set(sessionRef,next);
+          }
         });
         // Confirm through a server transaction read, independent of queued
         // document-listener/cache observations. This second transaction has
@@ -66,7 +87,7 @@
     };
   }
   function createSession({remote,uid,currentUid,deviceLabel='Unknown device',sessionId=root.crypto.randomUUID(),now=Date.now,onChange=()=>{},assertRuntime=()=>{}}){
-    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0;
+    let current=null,status='offline',closed=false,initialized=false,requestId=null,waitingSince=null,unsubscribe=null,requestGeneration=0,pendingRenewal=null,renewalGeneration=0;
     const guard=()=>{assertRuntime();if(closed||currentUid()!==uid)throw fail('NOT_READY','Account changed. Current progress remains paused.');};
     function receive(value){
       if(closed||currentUid()!==uid)return;
@@ -74,6 +95,8 @@
       // the transaction's explicit server readback. Epochs only increase under
       // the rules: never regress a confirmed fence to an older epoch.
       if(current && value && value.epoch<current.epoch)return;
+      // Restoring an earlier key (A -> B -> A) does not revive its old work.
+      if(renewalKey(current)!==renewalKey(value))renewalGeneration++;
       current=value;initialized=true;
       if(!current)status='offline';
       else if(current.owner===sessionId)status=current.request?'handoff-requested':'active';
@@ -87,7 +110,7 @@
         canRequestTakeover:initialized&&['other-device','handoff-requested'].includes(status),canForceTakeover:timedOut,
         reason:status==='handoff-requested'?'Saving and pausing for another device.':status==='other-device'?'Your game was opened on another device.':status==='offline'?'Connection to save ownership is unavailable. Progress is paused.':status==='waiting'?'Waiting for the other device to save and pause.':''};
     }
-    async function change(action){guard();const result=await remote.change(action,guard);guard();receive(result);return result;}
+    async function change(action,ackOnly=false){guard();const result=await remote.change(action,guard,ackOnly);guard();receive(result);return result;}
     function reloadContinuation(digest,revision){
       const fence=assertActive();
       if(!/^[a-f0-9]{64}$/.test(digest)||!Number.isSafeInteger(revision)||revision<1)throw fail('UPDATE_CHANGED','No confirmed save for reload.');
@@ -157,34 +180,73 @@
       if(value.ack.requestId===receipt.requestId&&value.ack.digest===digest&&value.ack.revision===revision)return 'acknowledged';
       throw fail('HANDOFF_CHANGED','The device switch acknowledgment changed.');
     }
+    function renewalKey(value){
+      const at=value?.request?.at;
+      const stamp=Number.isInteger(at?.seconds)&&Number.isInteger(at?.nanoseconds)?[at.seconds,at.nanoseconds]:at;
+      return JSON.stringify([value?.schema,value?.owner,value?.epoch,value?.device,
+        value?.request?[value.request.id,value.request.requester,value.request.device,stamp]:null,
+        value?.ack?[value.ack.requestId,value.ack.digest,value.ack.revision]:null]);
+    }
     async function renew(){
-      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch;
-      try{await change((value,save,stamp)=>{if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');return {...value,updatedAt:stamp()};});}
-      catch(e){
-        // A renewal can race the acknowledged takeover. Read back a confirmed
-        // competing owner rather than relabeling a valid fence as an outage.
-        let fenced=false;
-        if(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied'){
-          try{const observed=await remote.read();guard();if(observed && observed.owner!==sessionId){receive(observed);fenced=true;}}catch(_){/* Unconfirmed ownership remains paused offline. */}
-        }
-        if(!fenced){status='offline';onChange(snapshot());}throw e;
-      }return snapshot();
+      guard();if(!current||current.owner!==sessionId)return snapshot();const epoch=current.epoch,key=renewalKey(current),generation=renewalGeneration;
+      const renewalGuard=()=>{
+        guard();if(current?.owner!==sessionId||current.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
+        if(renewalGeneration!==generation||renewalKey(current)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
+      };
+      renewalGuard();
+      let work=pendingRenewal;
+      if(!work||work.key!==key||work.generation!==generation){
+        work={key,generation};pendingRenewal=work;
+        const operationGuard=()=>{renewalGuard();if(pendingRenewal!==work)throw fail('HANDOFF_CHANGED','This renewal was superseded.');};
+        const stillCurrent=()=>{try{operationGuard();return true;}catch(_){return false;}};
+        work.promise=(async()=>{
+          try{
+            const result=await remote.change((value,save,stamp)=>{
+              operationGuard();if(value?.owner!==sessionId||value.epoch!==epoch)throw fail('OWNERSHIP_LOST','Another device owns this café.');
+              if(renewalKey(value)!==key)throw fail('HANDOFF_CHANGED','The device switch changed during renewal.');
+              return {...value,updatedAt:stamp()};
+            },operationGuard);
+            operationGuard();
+            // A held confirmation response cannot publish an older same-epoch
+            // request/ACK over a newer server-confirmed local observation.
+            if(renewalKey(result)!==key)throw fail('HANDOFF_CHANGED','The confirmed renewal intent changed.');
+            receive(result);
+          }catch(e){
+            let fenced=false;
+            if(stillCurrent()&&(e.code==='OWNERSHIP_LOST'||e.code==='permission-denied')){
+              try{const observed=await remote.read();guard();if(stillCurrent()&&observed&&renewalKey(observed)!==key){receive(observed);fenced=true;}}
+              catch(_){/* Unconfirmed ownership remains paused offline. */}
+            }
+            if(!fenced&&stillCurrent()){status='offline';onChange(snapshot());}throw e;
+          }finally{if(pendingRenewal===work)pendingRenewal=null;}
+        })();
+      }
+      try{await work.promise;}catch(e){
+        // Rejected shared work grants no authority. Check this caller again,
+        // retaining the original permission/network failure rather than masking it.
+        try{renewalGuard();}catch(_){/* The caller still rejects the shared failure. */}throw e;
+      }
+      renewalGuard();return snapshot();
     }
     async function requestTakeover(){
       guard();const generation=++requestGeneration,id=root.crypto.randomUUID();requestId=id;
       const requestGuard=()=>{guard();if(generation!==requestGeneration)throw fail('REQUEST_CANCELLED','The device switch request was canceled. Progress remains paused.');};
-      let attempted=null;
+      let attempted=null,target=null;
       const requestChange=async action=>{requestGuard();const result=await remote.change(action,requestGuard);requestGuard();receive(result);return result;};
       try {await requestChange((value,save,stamp)=>{
         attempted=null;
         if(!value)throw fail('OWNERSHIP_UNAVAILABLE','Save ownership is unavailable.');
+        if(target&&(value.owner!==target.owner||value.epoch!==target.epoch||value.device!==target.device))throw fail('HANDOFF_CHANGED','The requested device changed. Review it and try again.');
         if(value.owner===sessionId)return {...value,updatedAt:stamp(),request:null,ack:null};
         // Explicit retry can recover an abandoned request after the server
         // lease expires. Rules, not the device clock, decide if it is expired.
-        if(now()-millis(value.updatedAt)>=LEASE_MS)return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
+        if(!target&&now()-millis(value.updatedAt)>=LEASE_MS)return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
         if(value.request && value.request.requester!==sessionId)throw fail('HANDOFF_BUSY','Another device is already waiting. No progress was replaced.');
         if(value.request)return value;
-        attempted={owner:value.owner,epoch:value.epoch,device:value.device,updatedAt:millis(value.updatedAt)};
+        // SDK contention retries retain the first ASK's target and operation;
+        // a renewal may advance its lease, but cannot turn it into a takeover.
+        if(!target)target={owner:value.owner,epoch:value.epoch,device:value.device};
+        attempted={owner:value.owner,epoch:value.epoch,device:value.device,updatedAt:timestamp(value.updatedAt)};
         return {...value,request:{id,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
       });}catch(error){
         requestGuard();
@@ -193,14 +255,14 @@
         if(error.code!=='permission-denied'||!attempted)throw error;
         const latest=await remote.read();requestGuard();
         const renewed=value=>value&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
-          &&Number.isFinite(attempted.updatedAt)&&Number.isFinite(millis(value.updatedAt))&&millis(value.updatedAt)>attempted.updatedAt&&value.request===null&&value.ack===null;
+          &&compareTimestamp(timestamp(value.updatedAt),attempted.updatedAt)===1&&value.request===null&&value.ack===null;
         if(!renewed(latest))throw error;
-        const confirmedAt=millis(latest.updatedAt);
+        const confirmedAt=timestamp(latest.updatedAt);
         // At most one fresh request transaction for the same explicit intent.
         // Never reuse the stale timestamp, acquire an expired lease or force
         // transfer here. A second race/denial stays paused for player retry.
         await requestChange((value,save,stamp)=>{
-          requestGuard();if(!renewed(value)||millis(value.updatedAt)!==confirmedAt)throw fail('HANDOFF_CHANGED','The device switch changed. Review it and try again.');
+          requestGuard();if(!renewed(value)||compareTimestamp(timestamp(value.updatedAt),confirmedAt)!==0)throw fail('HANDOFF_CHANGED','The device switch changed. Review it and try again.');
           return {...value,request:{id,requester:sessionId,device:deviceLabel,at:stamp()},ack:null};
         });
       }return snapshot();
@@ -229,7 +291,7 @@
       try {await change((value,save)=>{
         attempted=null;const next=nextAck(value,save);
         attempted={...value,request:{...value.request}};return next;
-      });}catch(error){
+      },true);}catch(error){
         guard();if(error.code!=='permission-denied'||!attempted)throw error;
         const latest=await remote.read();guard();
         const renewed=value=>value&&value.schema===attempted.schema&&value.owner===attempted.owner&&value.epoch===attempted.epoch&&value.device===attempted.device
@@ -241,7 +303,7 @@
         await change((value,save)=>{
           if(!renewed(value)||compareStamp(value.updatedAt,confirmedAt)!==0)throw fail('HANDOFF_CHANGED','The device switch changed. Progress remains paused.');
           return nextAck(value,save);
-        });
+        },true);
       }return snapshot();
     }
     async function takeOver(force=false){

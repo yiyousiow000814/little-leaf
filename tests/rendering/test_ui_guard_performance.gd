@@ -86,6 +86,26 @@ func run():
   game.selected_kind="plant";game._update_ui()
   for i in 4:await process_frame
   shop.sync_action_details();compare(shop,legacy,"initial layout %s"%width)
+  var theme_changes=[0]
+  var on_theme=func():theme_changes[0]+=1
+  shop.price_label.theme_changed.connect(on_theme)
+  for frame in 60:shop.sync_action_details()
+  check(theme_changes[0]==0,"unchanged price presentation emits no theme changes %s"%width)
+  var stroke=game.build_tools.paint_stroke
+  stroke.active=true;stroke.receipt={"count":2,"ok":true,"net":12,"paid":12,"refund":0}
+  shop.sync_action_details()
+  check(theme_changes[0]==1 and shop.price_label.get_theme_font_size("font_size")==18 and shop.price_label.text=="12","paid stroke changes font and price in the same call %s"%width)
+  for frame in 60:shop.sync_action_details()
+  check(theme_changes[0]==1,"unchanged paid stroke retains font %s"%width)
+  stroke.active=false;stroke.receipt={};shop.sync_action_details()
+  check(theme_changes[0]==2 and shop.price_label.get_theme_font_size("font_size")==12,"leaving stroke restores ordinary font in the same call %s"%width)
+  game.editing=false;shop.sync_action_details();theme_changes[0]=0
+  for frame in 60:shop.sync_action_details()
+  check(theme_changes[0]==0 and not shop.price_label.is_visible_in_tree(),"hidden play-mode price emits no theme changes %s"%width)
+  game.editing=true
+  shop.price_label.remove_theme_font_size_override("font_size");shop.sync_action_details()
+  check(shop.price_label.has_theme_font_size_override("font_size") and shop.price_label.get_theme_font_size("font_size")==12,"missing local override is restored %s"%width)
+  shop.price_label.theme_changed.disconnect(on_theme)
   shop.action_layout_key=[]
   shop._layout_action_board(shop.root.size.x);legacy._layout_action_board(shop.root.size.x)
   var before=[];var after=[]

@@ -39,7 +39,9 @@ func run():
    var d=hud.action_art.decorate.get_global_rect();var s=hud.action_art.staff.get_global_rect();var g=hud.action_art.settings.get_global_rect()
    var gap=18.0 if roomy else 8.0
    check(absf(s.position.x-d.end.x-gap)<.1,str(view)+" decorate/staff gap")
-   check(absf(g.position.x-s.end.x-gap)<.1,str(view)+" staff/settings gap")
+   var pause=hud.pause_face.get_global_rect();var play_gap=16.0 if roomy else 8.0
+   check(absf(pause.position.x-s.end.x-gap)<.1,str(view)+" staff/Pause gap")
+   check(absf(g.position.x-pause.end.x-play_gap)<.1,str(view)+" Pause/settings gap")
    check(absf(d.get_center().y-s.get_center().y)<.1 and absf(g.get_center().y-s.get_center().y)<.1,str(view)+" shared centerline")
   else:
    for name in ["decorate","staff","settings"]:

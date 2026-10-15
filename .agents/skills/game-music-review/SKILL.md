@@ -1,31 +1,34 @@
 ---
 name: game-music-review
-description: Review Little Leaf music and loops through actual listening, source analysis and controlled original/candidate comparisons. Record musical-loop and technical-loop acceptance separately, including repeated seams and game/SFX context; never certify hearing or taste from CI alone.
+description: Review Little Leaf music by actual listening, symbolic checks and matched-level A/B comparisons. Use for mechanical, forced, odd-note, too-fast, harsh, repetitive or soundtrack-fit complaints; separate taste, audio evidence and measurements, and never certify music from CI alone.
 ---
 
 # Little Leaf music review
 
 ## Reference identity and latest feedback come first
 
-Use the exact owner-approved source/control and the applicable reference register
-or dated case record where available. Match actual file hashes and excerpt boundaries.
+Read `docs/art-audio/reference-studies/music-reference-register.json` and the
+companion corrected case note. Match actual file hashes and excerpt boundaries.
 A liked excerpt does not approve its parent composition, other renders, or a ZIP
 with a similar name. Preserve the exact approved-control bytes. Never mark a new
 candidate accepted merely because it was rendered after reference analysis.
 
-Keep dated track choices, positive/rejected references and excerpt boundaries in
-the applicable owner record. Do not turn one track, source service, sound library,
-BPM, crossfade or accepted comparison into a permanent rule for other music.
+For Little Leaf's current task, both Harmony Study A and B are positive **short
+working references**. There is no chosen winner. The full Corner Cafe V2 package
+is NOT an approved positive reference; Daybreak Steps 104/112 are rejected.
+`A_V2_control.mp3` inside the Harmony Study ZIP is specifically the liked A clip;
+its name must not cause it to be replaced with the full V2 recording.
+The exact file register, not filename resemblance, governs these distinctions.
 
 A revision must state what was deliberately preserved: the recognizable phrase,
 working instrumentation, groove and/or register. Do not discard those features
 merely to make the reference influence stronger. If changing several dimensions,
 retain an audible control and call the experiment bundled. Missing original
 control audio blocks claims of successful matched-reference review, not useful
-source analysis. Private external reference recordings remain study inputs outside game assets.
+source analysis. The private RC recording is a style-study input, not a game asset.
 
 Read the [Audio Bible](../../../docs/art-audio/AUDIO_BIBLE.md), current task authority
-and the applicable owner-approved source/reference record.
+and applicable [reference study](../../../docs/art-audio/reference-studies/corner-cafe-and-rc-default.md).
 Use the exact supplied control/candidate audio and composition source, not a similarly
 named render or a recreated file presented as the same recording.
 
@@ -35,7 +38,7 @@ Record which reviewer actually perceived which audio segment. An audio-capable m
 supply listening observations; a text-only peer, notation engine, waveform graph or meter
 may not claim it listened. Do not invent a listening device or physical-speaker test.
 Without genuine audio perception, mark musical judgement unassessed, preserve useful
-technical work, and identify the actual listening capability/reviewer needed.
+technical work, and have Dots resolve the review capability rather than pretending.
 
 The producer remains responsible for internal defect finding. The user chooses creative
 direction; do not ask the user to locate every broken note before doing any review.
@@ -89,33 +92,15 @@ Use a concise record, not an automatically computed "music quality" score:
 - Exact user feedback and scope: positive direction / preferred comparison / final mix /
   in-game acceptance. Do not invent a winner, infer approval from silence or overwrite history.
 
-## Musical and technical loop acceptance
+## Musical and technical loop review
 
-Use the [canonical loop pipeline and acceptance](../../../docs/art-audio/AUDIO_BIBLE.md#music-loop-production-and-qa).
-Record two separate conclusions, each pass/revise/unassessed with its evidence:
-
-- Musical Loop: end/start harmony, melodic ending/pickup, phrase and rhythm,
-  transitions, intended tension/resolution and repeated naturalness. A source
-  chart helps diagnosis; actual repeated listening establishes the audible result.
-- Technical Loop: exact decoded sample/loop regions, unwanted silence, clicks,
-  truncation, level/phase continuity, attack/release/reverb tails, rhythmic integrity
-  of any crossfade, and runtime codec/import decode behavior. Metrics and listening
-  findings remain distinct; a finite waveform or low seam step is not a full pass.
-
-Compare the exact original and candidate, then actually listen to at least three
-consecutive full loops and every end/start seam encountered. Inspect phrases,
-accents and tails; include a longer repeat-comfort check appropriate to intended
-use. Record listener/capability, dates, exact files, seam timestamps, output device
-or audio-model scope, playback levels, findings and limitations. A rendered
-three-cycle audition file proves its contents, not that anyone heard it.
-
-Review default game BGM volume with real SFX and target-platform playback,
-including looping, volume/enable/zero, switching in both directions, rapid
-changes, focus/background recovery and applicable platform mute. Reuse the
-existing Godot runtime and focused QA with disposable profiles. Do not infer
-in-game or cross-platform acceptance from offline decode or silent headless flags.
-Keep unresolved actual listening separate from useful completed source/signal work.
-Do not claim a longer comfort result from a short audition or a one-shot jingle.
+Use the [canonical loop acceptance record](../../../docs/art-audio/AUDIO_BIBLE.md#loop-acceptance-and-evidence)
+for looping candidates. Record musical and technical results separately, compare
+the exact original/master/decoded export, and inspect repeated complete loops and
+every seam actually heard. A generated audition, playing flag or waveform metric
+does not prove listening. Preserve the user's accepted recording and label missing
+perception or platform coverage unassessed while authorized technical work continues.
+The source-specific accepted/rejected reference decisions above remain unchanged.
 
 ## Gates
 

@@ -1,0 +1,199 @@
+{
+  "id": "harmony-study-A",
+  "original_audio_sha256": "61c546fe04d10e295cd69eaea98a101734c01e817985517b3f588f56c9b00a7c",
+  "original_events_sha256": "be78d7754b777862e3d9df4635bff617dfaaf602203110d4f89fa1b00fc259ad",
+  "removed_closing_events": [
+    {
+      "part": "rhodes",
+      "beat": 32,
+      "pitch": 72,
+      "duration": 1.5,
+      "velocity": 71,
+      "delay_ms": 5,
+      "gate": 0.92
+    },
+    {
+      "part": "bass",
+      "beat": 32,
+      "pitch": 48,
+      "duration": 1.5,
+      "velocity": 71,
+      "delay_ms": -4,
+      "gate": 0.88
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 52,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 7.0,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 55,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 12.4,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 57,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 17.8,
+      "gate": 0.92
+    },
+    {
+      "part": "guitar",
+      "beat": 32,
+      "pitch": 60,
+      "duration": 1.5,
+      "velocity": 49,
+      "delay_ms": 23.200000000000003,
+      "gate": 0.92
+    }
+  ],
+  "preserved_phrase_events": 316,
+  "phrase_events_exactly_unchanged": true,
+  "bpm": 112,
+  "loop_beats": 32,
+  "sample_rate": 44100,
+  "frames": 756000,
+  "period_seconds": 17.142857142857142,
+  "first_note_rule": "Original max(0, beat time + delay); initial bass -4ms is clamped to zero as in the accepted source, identically each cycle",
+  "processing": "Only surviving phrase release folded; periodic original HP/LP, saturation and pan; seeded circular room convolution; no phrase crossfade/fade",
+  "calibration": "Original full A shared per-part gains retained for both; not independently normalized short loops",
+  "stem_gains": {
+    "rhodes": 2.368053537292822,
+    "guitar": 2.015373993192718,
+    "bass": 3.024315104521585,
+    "vibes": 1.7712450420215806,
+    "flute": 2.202638588057142,
+    "drums": 6.677415769309474
+  },
+  "original_master_gain_db_preserved": 3.9392362729698682,
+  "soundfont_sha256": "c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854",
+  "fluidsynth_dll_sha256": "d5a8382dabf8f3d9e43eb733afc31ea8477ecb86b2b6ff2a6d1e11f60f982126",
+  "fluidsynth_version": "2.3.1",
+  "helpers": {
+    "source_sha256": "b75b9ecda7ef67a68e23685a7193891f48f4d1257dc44a805353b6603f004d90",
+    "selected_helpers": [
+      "Note",
+      "Synth",
+      "apply_performance",
+      "make_shaker",
+      "room_ir"
+    ],
+    "portable_adapter": "Synth library lookup only changed to the pinned absolute DLL",
+    "selected_adapted_ast_sha256": "5ac5c7a3806792be0a1422ef0d9ed0c040b06364853372567b2388e115bb020d"
+  },
+  "lossless_signal": {
+    "sample_peak": 0.5903961658477783,
+    "rms": 0.09901762186725946,
+    "seam_adjacent_sample_step": 0.0019625425338745117,
+    "ordinary_adjacent_step_p99_9": 0.045110106468200684,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "ogg_signal": {
+    "sample_peak": 0.5766620635986328,
+    "rms": 0.09912048434648953,
+    "seam_adjacent_sample_step": 0.005816282704472542,
+    "ordinary_adjacent_step_p99_9": 0.04350864887237549,
+    "finite": true,
+    "full_scale_clipping": false
+  },
+  "ogg_encoder": "libsndfile 1.2.2 default Vorbis encoder through soundfile 0.13.1",
+  "preview": {
+    "resample": "scipy resample_poly 160/147; no tempo or pitch change",
+    "encoder": "retained OBS FFmpeg n8.1.2 libmp3lame; 320k stereo 48000; gapless metadata",
+    "encoder_source_sha256": "aa011b85f311406509d2fe35175779454563c75fcb1511e9b5d2d29955c56365",
+    "decoded_frames": 1645715,
+    "sample_rate": 48000,
+    "signal": {
+      "sample_peak": 0.5782129764556885,
+      "rms": 0.09837248408841366,
+      "seam_adjacent_sample_step": 0.03365941345691681,
+      "ordinary_adjacent_step_p99_9": 0.0401611328125,
+      "finite": true,
+      "full_scale_clipping": false
+    }
+  },
+  "preview_join_seconds": 17.142857142857142,
+  "auditory_review": "UNASSESSED",
+  "actual_godot_web_loop": "PENDING",
+  "files": [
+    {
+      "path": "A_harmony_loop.flac",
+      "bytes": 2287075,
+      "sha256": "f43d033e7b1b87a2e9eca49e1a49537e549b651ade3a90f592a3200484702d75"
+    },
+    {
+      "path": "A_harmony_loop.ogg",
+      "bytes": 208268,
+      "sha256": "b3c2266c0ee1b21d9a02ccd3dc53611ae904b1f625b79ab94f3ab0a2263575ae"
+    },
+    {
+      "path": "A_harmony_loop.wav",
+      "bytes": 4536044,
+      "sha256": "efd7ffdf216f5281c3c2547a0d65fe360c07785123a392cb5906177428d889dd"
+    },
+    {
+      "path": "A_Harmony_Study_Loop_Two_Cycles_Preview.mp3",
+      "bytes": 1373805,
+      "sha256": "783f0ed2732267ddbc72fdb7944b74fa9c059c3c4ac7a95a3f6b424db9def841"
+    },
+    {
+      "path": "A_loop.mid",
+      "bytes": 2978,
+      "sha256": "c669bc1bc4726dbf2e25583e51e7cb932d2da6aba8c8037bb96456a70d172d21"
+    },
+    {
+      "path": "A_loop_events.json",
+      "bytes": 51221,
+      "sha256": "f21d6c1fd8d4bf22ef75d8443f872c0e308ba78ef26ee6faf39024ca23f41efe"
+    },
+    {
+      "path": "A_stems/bass.flac",
+      "bytes": 826633,
+      "sha256": "5f7b5f8a4ce825d2eb760b71312272ee69b9ef881a65d0e5d4fe8059c8a843b3"
+    },
+    {
+      "path": "A_stems/drums.flac",
+      "bytes": 1738033,
+      "sha256": "cd53f439a6eb2e8711bb667dcd2026d47732b629574288aed7d81efc8b952651"
+    },
+    {
+      "path": "A_stems/flute.flac",
+      "bytes": 121077,
+      "sha256": "c8bdc69d8b68d7b8cd6310735a2c4b9c78d95fe64d3c5af1521e009c11ea9576"
+    },
+    {
+      "path": "A_stems/guitar.flac",
+      "bytes": 1294112,
+      "sha256": "716c1a764f6eff74e0d3c0e4afc0533a03e360f09faf8091f8cd4ca78faebe04"
+    },
+    {
+      "path": "A_stems/rhodes.flac",
+      "bytes": 1591773,
+      "sha256": "0ca054cbb74cc9ec9542a7678dff9279be74abe8ae1052acbe2d6ceecc50db72"
+    },
+    {
+      "path": "A_stems/shaker.flac",
+      "bytes": 761305,
+      "sha256": "eb78ff27baab26b67ce0876fe965f79efa104e3ec71c6b2404939e7a02a3d6b7"
+    },
+    {
+      "path": "A_stems/vibes.flac",
+      "bytes": 581193,
+      "sha256": "32f05e00212fd3a958ebbe907ee92b502b93bb98082f19901f775aa878fe8994"
+    }
+  ],
+  "private_render_event_bytes_sha256": "9f24029dd59c2a394b4c48aedd0c40f2080bbf30f60626287656de86f41e8a47",
+  "public_event_format": "LF formatting only; semantic events unchanged, private rendering receipt retained"
+}
