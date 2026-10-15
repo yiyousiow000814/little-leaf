@@ -723,13 +723,17 @@ func prepare_render(premium:bool,amount:float=1.0)->bool:
  if not preparing_render:
   if panel.visible:return false
   preparing_render=true;panel.show();last_state.clear();sync(true);layout()
+ if not palette_ready or premium_palette!=premium:
+  premium_palette=premium;palette_ready=true;_apply_palette();_queue_layout()
  record_mark.set_state(false,premium,true)
  board_material.set_state(premium,true,false)
  if premium:record_mark.set_reveal(amount);board_material.set_reveal(amount)
+ air_ripple.prepare_render()
  return true
 
 func finish_render_preparation():
  if not preparing_render:return
+ air_ripple.finish_render_preparation()
  last_state.clear();sync(true);panel.hide()
  preparing_render=false;last_state.clear()
 

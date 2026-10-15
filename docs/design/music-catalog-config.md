@@ -65,6 +65,20 @@ interruption/reversal, reduced-motion behavior and audio timing remain intact.
 Source-bound candidate tests, pixels and performance
 evidence are required before claiming the reported stall is resolved.
 
+Independent review of the bd12 candidate found two omitted cold draw paths:
+the gilded control palette/rims and the click ripple's shader. The correction
+uses the real palette during each covered pose and temporarily displays one
+existing wave at a nonzero age. It emits no touch, advances no wave cursor or
+audio envelope, and restores the wave's shader value, position, visibility and
+input/processing flags before restoring the actual saved Default/Premium UI.
+No new wave, shader, callback or audio resource is created. Existing readiness
+regressions now check both saved editions and exact ripple-state restoration.
+This follows Godot's [Compatibility loading guidance](https://docs.godotengine.org/en/4.6/tutorials/performance/pipeline_compilations.html):
+materials must actually draw in view during loading. These are confirmed
+coverage omissions, not proof that they caused the measured stall. The prior
+bd12 CI/native results remain bound to bd12; corrected-source CI, rendered
+coverage, performance and user acceptance must be reported separately.
+
 Downloads contains eight of the nine live catalog song families. Harmony's
 Version1/Version2 OGG files remain present in the repository and catalog; their
 absence from Downloads does not remove them from the game. No new candidate
