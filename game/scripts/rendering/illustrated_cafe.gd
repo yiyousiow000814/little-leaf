@@ -1119,8 +1119,9 @@ func _draw():
 				# The worktop sits below the reaching hand; the tall rear-facing
 				# espresso unit stays in front until the cup is withdrawn clear.
 				entities.append({"depth":target_depth+.04,"type":"beverage_foreground","entry":target})
-		if staff_action in ["preparing_food","plating"] and str(target.get("kind",""))=="stove" and posmod(int(target.get("rot",0)),4) in [0,1]:
-			# Preserve the pan/plate occlusion while the rear plate is lifted.
+		if split and staff_action=="preparing_food" and str(target.get("kind",""))=="stove" and posmod(int(target.get("rot",0)),4) in [0,1]:
+			# Only a rear worker needs the complete vessel over its lifted plate.
+			# A foreground actor occludes both pan and handle in their original pass.
 			entities.append({"depth":maxf(body_depth,target_depth)+.04,"type":"stove_foreground","entry":target})
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:
