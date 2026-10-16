@@ -290,10 +290,27 @@ The user requests a designed Music image alongside the existing brush, chef,
 pause and gear. An original transparent sage/wood musical-note raster reuses
 those assets as style references; prompt and exact source hash are preserved
 with the existing HUD provenance. The existing HUD texture owner bounds the
-retained texture to320px and crops alpha bounds; the44px native action, tooltip,
+retained texture to 320px and crops alpha bounds; the44px native action, tooltip,
 accessibility name, focus, popup ownership and existing press motion remain.
 Responsive arrangements keep the same Music hit rectangles and render the
 picture inside them. No player-state/save/audio path changes. The generated
 raster and prompt are recoverable; layered GUI/vector authoring is unavailable
 for this generated source and no new Golden approval is claimed. Actual native
 normal-scale toolbar inspection and focused responsive checks remain pending.
+# Gramophone toolbar candidate (2026-10-16)
+
+The user rejected the paired musical-note Music entry and explicitly requested a
+gramophone. This scoped candidate replaces only the toolbar raster and its alpha
+crop, using an original brass-horn, vinyl-record and wooden-cabinet illustration.
+The inspected existing Decorate/Settings art informed the style. The successful
+built-in generation used a text prompt, retained beside the unchanged generated
+RGBA source; it is not a layered editable illustration or a new Golden Reference.
+
+The existing native Music button, tooltip, accessible name, target sizes, input,
+focus/press feedback, retained texture loading and panel behavior remain. Source
+resolution stays 1254x1254, and the same loader limits the cached texture to 320px;
+there is no added per-frame work, animation, resource owner or invalidation path.
+This is an intentional appearance change awaiting the user's actual game-pixel
+acceptance. Desktop/mobile-size paired fixture captures and narrow toolbar checks
+are recorded in the candidate PR; native emulated touch does not qualify a phone
+browser, performance or release. Hat/steam reference work remains separate.

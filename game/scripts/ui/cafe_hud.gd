@@ -50,7 +50,7 @@ const INK=Color("554631")
 const CREAM=Color("fcf6e7")
 const GREEN=Color("426b49")
 const ASSETS="res://assets/ui/wood_hud/"
-const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022),"music":Rect2(123,102,1030,1047)}
+const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022),"music":Rect2(156,34,934,1200)}
 
 class RailArtwork extends Control:
  var art:Texture2D

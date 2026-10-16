@@ -36,19 +36,21 @@
   "export_contract": "HUD PNGs, Tabler SVGs and Nunito have importer=\"keep\" .import metadata. Their original bytes must be preserved in exports for runtime alpha bounds, memory-sized texture creation and font loading. Do not discard these .import files.",
   "export_reference": "https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/import_process.html",
   "music_toolbar_20261016": {
-    "source": "original built-in image generation; existing decorate/settings images used as style references",
-    "source_sha256": "9b457b96e1a700ef2d8af4d19df9bc31bdf83ec0f2da717eda2b2619bc43d46c",
+    "source": "original built-in image generation; existing decorate/settings images visually inspected for style",
+    "source_sha256": "4049e9b8a7d0b85a17b90d18f93be7ee0250767bf1f9dfcad9ca5124b318ae23",
     "source_size": [
       1254,
       1254
     ],
     "alpha_bounds16": [
-      123,
-      102,
-      1153,
-      1149
+      156,
+      34,
+      1090,
+      1234
     ],
     "authoring_limit": "unchanged generated raster+prompt; no layered editable vector source or new Golden approval",
-    "runtime": "existing HUD retained texture loader,320px maximum before alpha crop, native44pxminimum button and existing tooltip/focus/motion"
+    "runtime": "existing HUD retained texture loader,320px maximum before alpha crop, native44pxminimum button and existing tooltip/focus/motion",
+    "previous_note_source_sha256": "9b457b96e1a700ef2d8af4d19df9bc31bdf83ec0f2da717eda2b2619bc43d46c",
+    "subject": "gramophone with brass horn, vinyl record and wooden cabinet; replaces user-rejected note icon"
   }
 }
