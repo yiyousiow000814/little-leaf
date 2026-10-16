@@ -65,19 +65,25 @@ const next=await service.commitProtectedSave(auth(player),{...request,revision:2
 assert.equal(next.record.digest,candidate.digest);
 const replay=await service.commitProtectedSave(auth(player),{...request,revision:2,digest:granted.digest,candidate});
 assert.equal(replay.record.digest,candidate.digest);
+const coalesced={...candidate,revision:6,updatedAt:clock-500,
+  payload:JSON.stringify({...JSON.parse(candidate.payload),coins:91})};
+coalesced.digest=hash(fingerprint(coalesced));
+assert.equal((await service.commitProtectedSave(auth(player),{...request,revision:3,digest:candidate.digest,candidate:coalesced})).record.revision,6);
+// Resume the placement fixture from the coalesced authoritative head.
+const placedBase=coalesced;
 const lowered={...candidate,revision:4,updatedAt:clock+2,mailState:{...candidate.mailState,claimSequence:0}};
 lowered.digest=hash(fingerprint(lowered));
-await assert.rejects(service.commitProtectedSave(auth(player),{...request,revision:3,digest:candidate.digest,candidate:lowered}),{code:'CORRUPT_AUTHORITY'});
+await assert.rejects(service.commitProtectedSave(auth(player),{...request,revision:6,digest:coalesced.digest,candidate:lowered}),{code:'CORRUPT_AUTHORITY'});
 await roleRef.set({enabled:false,capabilities:['lookup','issue']});
 await assert.rejects(service.lookup(auth(owner),player),{code:'PERMISSION_DENIED'});
 const stopped=createSupportMailService({db,enabled:false,now:()=>clock});
 await assert.rejects(stopped.claimMail(auth(player),request),{code:'FEATURE_DISABLED'});
-assert.equal((await stopped.commitProtectedSave(auth(player),{...request,revision:2,digest:granted.digest,candidate})).record.digest,candidate.digest,
+assert.equal((await stopped.commitProtectedSave(auth(player),{...request,revision:3,digest:candidate.digest,candidate:coalesced})).record.digest,coalesced.digest,
   'kill switch preserves protected-save recovery');
-const placed={...candidate,revision:4,updatedAt:clock+2,mailState:{...candidate.mailState,stockRevision:2},
-  payload:JSON.stringify({...JSON.parse(candidate.payload),items:[{id:1,kind:'plant',x:0,z:0,rot:0}],next_item_id:2})};
+const placed={...placedBase,revision:7,updatedAt:clock+2,mailState:{...placedBase.mailState,stockRevision:2},
+  payload:JSON.stringify({...JSON.parse(placedBase.payload),items:[{id:1,kind:'plant',x:0,z:0,rot:0}],next_item_id:2})};
 placed.digest=hash(fingerprint(placed));
-const placeRequest={...request,revision:3,digest:candidate.digest,candidate:placed,
+const placeRequest={...request,revision:6,digest:placedBase.digest,candidate:placed,
   operationId:'55555555-5555-4555-8555-555555555555',consumed:[{itemId:1,catalogId:'plant'}]};
 await assert.rejects(service.commitGiftPlacement(auth(player),{...placeRequest,consumed:[{itemId:1,catalogId:'register'}]}),
   {code:'INVALID_PLACEMENT'});

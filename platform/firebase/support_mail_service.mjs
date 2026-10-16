@@ -211,7 +211,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       expected(current,request);
       if(current.format!==3||protocol.version!==1||protocol.claimSequence!==current.mailState.claimSequence
         ||protocol.stockRevision!==current.mailState.stockRevision
-        ||candidate.revision!==current.revision+1||candidate.profileId!==current.profileId
+        ||candidate.revision<=current.revision||candidate.profileId!==current.profileId
         ||candidate.createdAt!==current.createdAt||JSON.stringify(candidate.origin)!==JSON.stringify(current.origin)
         ||JSON.stringify(candidate.campaigns)!==JSON.stringify(current.campaigns)
         ||JSON.stringify(candidate.mailState)!==JSON.stringify(current.mailState)

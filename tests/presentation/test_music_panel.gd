@@ -51,6 +51,35 @@ func click(button:Control):
   var event=InputEventMouseButton.new();event.position=point;event.global_position=point;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed;root.push_input(event,true)
   await process_frame
  await settle()
+func shelf_touch(point:Vector2,pressed:bool):
+ var event=InputEventScreenTouch.new();event.position=point;event.index=0;event.pressed=pressed
+ Input.parse_input_event(event);Input.flush_buffered_events();await process_frame
+func shelf_drag(point:Vector2,offset:Vector2):
+ var event=InputEventScreenDrag.new();event.position=point+offset;event.relative=offset;event.index=0
+ Input.parse_input_event(event);Input.flush_buffered_events();await process_frame
+func check_shelf_touch(music):
+ var old_emulation=Input.emulate_touch_from_mouse;Input.emulate_touch_from_mouse=true
+ for view in [Vector2i(390,844),Vector2i(844,390),Vector2i(566,360),Vector2i(360,600)]:
+  root.size=view;game.set_meta("hud_safe_insets",Vector4.ZERO if view==Vector2i(566,360) else Vector4(8,20,8,16));await settle()
+  music._select("service");music.scroll.grab_focus();music.scroll.scroll_vertical=0;await settle()
+  var button=music.track_body.get_child(1);var point=button.get_global_rect().get_center()
+  var pressed=[0];var spy=func():pressed[0]+=1
+  button.pressed.connect(spy)
+  print("MUSIC_TOUCH_GEOMETRY ",JSON.stringify({"view":str(view),"button":str(button.get_global_rect()),"scroll":str(music.scroll.get_global_rect()),"point":str(point)}))
+  var selected=game.settings_controls.music_track
+  await shelf_touch(point,true)
+  for step in 4:
+   await shelf_drag(point,Vector2(0,-16));point+=Vector2(0,-16)
+  for frame in 16:await process_frame
+  await shelf_touch(point,false);await settle()
+  check(music.scroll.scroll_vertical>12,"Finger drag from song row scrolls native shelf "+str(view))
+  check(pressed[0]==0 and game.settings_controls.music_track==selected,"Song drag never activates or changes the track "+str(view))
+  music.scroll.scroll_vertical=0;await settle();point=button.get_global_rect().get_center()
+  await shelf_touch(point,true);await shelf_drag(point,Vector2(0,-3));await shelf_touch(point+Vector2(0,-3),false);await settle()
+  check(pressed[0]==1 and game.settings_controls.music_track!=selected,"Sub-deadzone song touch still selects on release "+str(view))
+  button.pressed.disconnect(spy)
+ Input.emulate_touch_from_mouse=old_emulation
+ game.set_meta("hud_safe_insets",Vector4.ZERO)
 func key(code:Key,shift=false):
  for pressed in [true,false]:
   var event=InputEventKey.new();event.keycode=code;event.shift_pressed=shift;event.pressed=pressed;root.push_input(event,true)
@@ -136,8 +165,7 @@ func expected_content_insets()->Vector4:
  if not portrait and usable.y>=650:return Vector4(84,60,84,54)
  # r25 intentional phone redesign: fixed phone-safe margins, independently
  # specified here. Desktop reference contract and all ink/input gates remain.
- if portrait:return Vector4(22,20,22,22)
- return Vector4(20,16,20,16) if usable.x<700 else Vector4(24,18,24,18)
+ return Vector4(40,36,40,32)
 
 func expected_inner_board(music)->Rect2:
  var insets=expected_content_insets()
@@ -246,7 +274,7 @@ func check_motion_lifecycle(music,ui,controls,premium_id:String):
  controls.set_audio_enabled("BGM",true);game.set_music_transport_paused(false)
  music._select("service");await settle();music._poll_playback()
  var mark=music.record_mark
- check(is_equal_approx(mark.TRANSITION_SECONDS,.5) and is_equal_approx(music.board_material.TRANSITION_SECONDS,.5),"Hero and board share the approved half-second timeline")
+ check(is_equal_approx(mark.TRANSITION_SECONDS,1.0) and is_equal_approx(music.board_material.TRANSITION_SECONDS,1.0),"Hero and board share the requested slower one-second timeline")
  step_artwork(music,2.0)
  check(not mark._premium and is_zero_approx(mark.reveal) and not mark._support.visible and not mark._base.visible and not mark._sprigs.visible and mark._bud_blades.all(func(bud):return not bud.visible) and mark._petals.all(func(petal):return not petal.visible) and mark._leaves.all(func(leaf):return not leaf.visible),"Default edition keeps the simple record without a cabinet or floral layers")
  check(is_zero_approx(music.board_material.reveal),"Default keeps its original board")
@@ -483,7 +511,9 @@ func check_board_motion(music):
  board.set_state(false,true,true)
  board.set_state(true,false,true)
  check(board.active_tweens()==1,"An audible edition change creates exactly one finite wood/corner transition")
- if tween_running(board._transition):board._transition.custom_step(.48)
+ if tween_running(board._transition):board._transition.custom_step(.25)
+ check(board.reveal>0 and board.reveal<.25,"Edition reveal eases into its slower timeline instead of advancing linearly")
+ if tween_running(board._transition):board._transition.custom_step(.23)
  var interrupted_reveal=board.reveal
  check(interrupted_reveal>0 and interrupted_reveal<1,"Board interruption fixture observes actual intermediate geometry")
  board.set_state(false,false,true)
@@ -494,8 +524,8 @@ func check_board_motion(music):
  check(board.reveal==interrupted_reveal and board.active_tweens()==1,"Repeated reversal replaces one tween without an endpoint jump")
  board.set_state(true,false,false)
  check(board.reveal==interrupted_reveal and board.active_tweens()==1,"Pausing playback preserves the current pose of the bounded material transition")
- if tween_running(board._transition):board._transition.custom_step(.5)
- check(board.reveal==1 and board.active_tweens()==0,"Paused material transition finishes within the half-second envelope")
+ if tween_running(board._transition):board._transition.custom_step(board.TRANSITION_SECONDS)
+ check(board.reveal==1 and board.active_tweens()==0,"Paused material transition finishes within its bounded one-second envelope")
  board.set_state(false,true,true)
  check(board.reveal==0 and board.active_tweens()==0 and board.ordinary.material==music.compact.hud._art_material(0),"Reduced motion restores Default through the exact original draw path")
  check(artwork_resource_ids(music)==original_resources,"Interrupted board transitions never replace retained artwork resources")
@@ -527,12 +557,12 @@ func run():
  check(not music.panel.visible and not game.settings.visible,"Music setup never opens a popup")
  check(music.poll_timer.is_stopped() and is_equal_approx(music.poll_timer.wait_time,.25),"Progress timer is bounded to 4Hz and starts stopped")
  check_board_geometry(music)
- check(music.track_buttons.size()==23 and music.family_cards.size()==9,"All 23 recordings occur in 9 configured song families")
- check(Catalog.selectable_tracks().size()==23,"All 23 retained recordings remain available")
+ check(music.track_buttons.size()==20 and music.family_cards.size()==7,"All 20 recordings occur in 7 configured song families")
+ check(Catalog.selectable_tracks().size()==20,"All 20 retained recordings remain available")
  check(music.library_heading.text=="SONGS  /  "+str(Catalog.families().size()),"Shelf heading count derives from configured song families")
  var sunshine_default="sunshine-skip-176-new-theme";var sunshine_premium="sunshine-skip-150-r6-2nd"
  var sunshine_card=music.family_cards[Catalog.family_id(sunshine_default)]
- check(Catalog.family_id(sunshine_default)==Catalog.family_id(sunshine_premium) and sunshine_card.tracks.size()==2 and music.track_buttons[sunshine_default].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_premium].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_default].text=="Default" and music.track_buttons[sunshine_premium].text=="Premium B","Both original Sunshine Skip IDs share one card with Default and Premium B controls")
+ check(Catalog.family_id(sunshine_default)==Catalog.family_id(sunshine_premium) and sunshine_card.tracks.size()==2 and music.track_buttons[sunshine_default].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_premium].get_parent()==sunshine_card.versions and music.track_buttons[sunshine_default].text=="Default" and music.track_buttons[sunshine_premium].text=="Premium A","Both original Sunshine Skip IDs share one card with Default and the requested Premium A label")
  check(music.group_note.visible and music.group_note.accessibility_description==Catalog.PREMIUM_TOOLTIP,"Premium terms visible without hover")
  var counts={Catalog.DEFAULT:0,Catalog.PREMIUM:0}
  for entry in Catalog.TRACKS:
@@ -547,8 +577,8 @@ func run():
   check(draft_markers.search(Catalog.song_title(entry.id)+Catalog.display_title(entry.id)+button.text+button.tooltip_text+button.accessibility_name)==null,"Player-facing recording labels contain only clean names and edition metadata "+entry.id)
  for family in Catalog.families():
   check(draft_markers.search(family.title)==null,"Song shelf omits draft production markers "+family.id)
- check(counts[Catalog.DEFAULT]==10 and counts[Catalog.PREMIUM]==13,"All Default and Premium recordings retained")
- check(music.family_cards["harmony-study"].tracks.size()==2 and music.track_buttons["harmony-study-A"].text=="Version 1" and music.track_buttons["harmony-study-B"].text=="Version 2","Harmony studies share one family with two visible choices")
+ check(counts[Catalog.DEFAULT]==7 and counts[Catalog.PREMIUM]==13,"All Default and Premium recordings retained")
+ check(music.family_cards["service"].tracks.size()==3 and music.track_buttons["service"].text=="Default" and music.track_buttons["service-1nd"].text=="Premium A" and music.track_buttons["service-2nd"].text=="Premium B","Doorway Sunshine retains its three recording choices")
  for id in music.track_buttons:
   var button=music.track_buttons[id]
   check(not "1nd" in button.text+button.tooltip_text+button.accessibility_name and not "2nd" in button.text+button.tooltip_text+button.accessibility_name,"Legacy recording suffixes never leak into visible edition UI "+id)
@@ -557,6 +587,13 @@ func run():
   check(music.panel.visible and not game.settings.visible,"HUD opens independent Music "+str(view))
   check(ui.has_open_popup() and not ui.shop_ui.root.visible,"Music uses existing popup world-input policy "+str(view))
   check(not music.poll_timer.is_stopped(),"Live position updates only while open "+str(view))
+  music.volume_slider.value=100;await settle()
+  check(controls.bgm_volume==100 and music.volume_value.text=="100%","Maximum volume keeps its percentage label "+str(view))
+  if view.x>=1000:
+   var label=music.volume_value
+   var ink_width=label.get_theme_font("font").get_string_size(label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,label.get_theme_font_size("font_size")).x
+   check(label.is_visible_in_tree() and label.get_line_count()==1 and label.size.x>=ink_width,"Visible 100% fits on one line at "+str(view))
+   check(music.footer.get_global_rect().encloses(label.get_global_rect()),"Maximum percentage stays inside the volume controls "+str(view))
   var bounds=music.panel.get_global_rect();var close=music.close_button.get_global_rect();var footer=music.footer.get_global_rect()
   print("MUSIC_PANEL_GEOMETRY ",JSON.stringify({"viewport":str(view),"panel":str(bounds),"minimum":str(music.panel.get_combined_minimum_size()),"library":str(music.scroll.get_global_rect()),"player":str(music.player.get_global_rect())}))
   check(Rect2(Vector2.ZERO,Vector2(view)).encloses(bounds),"Panel bounded to viewport "+str(view))
@@ -626,7 +663,7 @@ func run():
  await click(selected_family)
  check(controls.music_track==premium_id,"Returning to a family remembers its selected edition")
  check(music.now_playing.text=="Cloverlight" and music.selection_label.text=="Premium A","Now Playing identifies song and edition separately")
- check(music.group_note.visible and "planned" in music.group_note.text,"Free Premium and future charging stay visible")
+ check(music.group_note.visible and "fees planned" in music.group_note.text and not "charging planned" in music.group_note.text,"Free Premium and planned fees use one disclosure")
  for entry in Catalog.TRACKS:
   if not entry.get("selectable",true):continue
   await click(music.family_cards[Catalog.family_id(entry.id)].button)
@@ -702,7 +739,7 @@ func run():
  check(music.panel.is_visible_in_tree() and not music.poll_timer.is_stopped(),"Ancestor reveal resumes the same progress timer")
  for cycle in 4:
   music.dismiss();await settle();music.show(ui.music_access);await settle()
- check(music.track_buttons.size()==23 and music.rows.size()==23 and music.family_cards.size()==9,"Repeated opening retains bounded cards")
+ check(music.track_buttons.size()==20 and music.rows.size()==20 and music.family_cards.size()==7,"Repeated opening retains bounded cards")
  check(music.panel.find_children("VisibleMusicProgress","Timer",false,false).size()==1,"Repeated opening retains one panel-owned timer")
  check(game.saves==saves and game.save_writes_suppressed,"Player changes never save restaurant progress")
  game.set_meta("hud_safe_insets",Vector4(18,16,18,20));root.size=Vector2i(390,844);await settle()
@@ -742,6 +779,7 @@ func run():
   root.size=view;await settle()
   check(Rect2(Vector2.ZERO,Vector2(view)).encloses(music.panel.get_global_rect()),"Resize breakpoint keeps the full board visible "+str(view))
   check_inner_board(music,"resize "+str(view))
+ await check_shelf_touch(music)
  check_touch_waves(music)
  await check_motion_lifecycle(music,ui,controls,premium_id)
  music.dismiss();game.settings.show();ui.settings_inbox.grab_focus();await settle()

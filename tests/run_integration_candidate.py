@@ -42,6 +42,7 @@ SUITES = [
     ("test_cloud_settings", "CLOUD_SETTINGS_RESULT"),
     ("test_music_context", "MUSIC_CONTEXT_RESULT"),
     ("test_music_panel", "MUSIC_PANEL_RESULT"),
+    ("test_botanical_frame_edges", "BOTANICAL_FRAME_EDGES_RESULT"),
     ("test_music_transport", "MUSIC_TRANSPORT_RESULT"),
     ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_show_stats", "SHOW_STATS_RESULT"),

@@ -6,11 +6,13 @@ vm.runInThisContext(readFileSync(new URL('../web/little_leaf_firebase.js',import
 const factory=globalThis.LittleLeafFirebase;
 const uid='syntheticRecipient20',fence={writerId:'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',writerEpoch:1};
 const ownership={assertActive:()=>fence,sessionRef:'session'};
-const candidate={schema:1,profileId:'22222222-2222-4222-8222-222222222222',revision:3,
-  digest:'b'.repeat(64),record:JSON.stringify({format:3,revision:3,digest:'b'.repeat(64)})};
+const candidate={schema:1,profileId:'22222222-2222-4222-8222-222222222222',revision:5,
+  digest:'b'.repeat(64),record:JSON.stringify({format:3,revision:5,digest:'b'.repeat(64)})};
 let direct=0,calls=0,archive=0;
 const sdk={doc:(_db,...path)=>path.join('/'),async getDocFromServer(ref){
-  assert.equal(ref,`players/${uid}/saveControl/protocol`);return {exists:()=>true};},
+  if(ref===`players/${uid}/saveControl/protocol`)return {exists:()=>true};
+  assert.equal(ref,`players/${uid}/saves/cafe`);
+  return {exists:()=>true,data:()=>({digest:'a'.repeat(64),revision:2,profileId:candidate.profileId})};},
   async runTransaction(){direct++;throw Error('direct transaction must not run');}};
 const remote=factory.createRemote({},sdk,ownership,async request=>{
   calls++;assert.equal(request.digest,'a'.repeat(64));assert.equal(request.revision,2);
@@ -24,4 +26,4 @@ await assert.rejects(factory.createRemote({},sdk,ownership).compareAndSet(uid,'a
 await assert.rejects(factory.createRemote({},sdk,ownership,async()=>({status:'saved',record:{digest:'c'.repeat(64)}}))
   .compareAndSet(uid,'a'.repeat(64),candidate,()=>{}),{code:'PROTOCOL_CHANGED'});
 assert.equal(direct,0);
-console.log('Protected save adapter: server route, exact fence, missing runtime and mismatched confirmation passed.');
+console.log('Protected save adapter: coalesced revision, exact cloud head/fence, missing runtime and mismatched confirmation passed.');

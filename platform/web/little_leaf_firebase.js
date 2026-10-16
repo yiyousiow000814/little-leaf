@@ -52,8 +52,13 @@
           if(!protectedCommit||!ownership)throw error('UPDATE_REQUIRED','Reload the updated game to save this café.');
           const fence=ownership.assertActive(true);
           if(verifyArchive){await verifyArchive();guard();}
+          const headSnapshot=await sdk.getDocFromServer(ref(uid));guard();
+          const head=headSnapshot.exists()?headSnapshot.data():null;
+          if(head?.digest===next.digest)return;
+          if(head?.digest!==base||head.profileId!==next.profileId||!Number.isSafeInteger(head.revision)||head.revision<1)
+            throw error('REVISION_CONFLICT','Cloud progress changed. Pending progress is preserved.');
           const result=await protectedCommit({candidate:JSON.parse(next.record),profileId:next.profileId,
-            revision:next.revision-1,digest:base,...fence});
+            revision:head.revision,digest:base,...fence});
           guard();
           if(result?.status!=='saved'||result.record?.digest!==next.digest)
             throw error('PROTOCOL_CHANGED','Protected save confirmation differed. Pending progress is preserved.');

@@ -118,7 +118,6 @@ func _accept_boot(result:Dictionary)->bool:
 	_refresh_inbox(result)
 	_log("read_accepted","",source)
 	_callback=JavaScriptBridge.create_callback(_on_commit)
-	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.refresh()
 	return true
 
 func _recovery_bridge():
@@ -588,17 +587,26 @@ func _on_support_claim(arguments:Array):
 	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(true,"")
 	game._update_ui()
 
-func accept_gift_stock(result:Dictionary,target=null)->bool:
+func accept_gift_stock(result:Dictionary,target=null,expected_revision:int=-1)->bool:
 	if str(result.get("profileId",""))!=profile_id or not result.get("stock") is Dictionary:return false
-	if result.has("revision") and int(result.revision)!=revision:return false
+	var wanted=revision if expected_revision<0 else expected_revision
+	if result.has("revision"):
+		var reported=result.revision
+		if not (reported is int or reported is float) or not is_finite(float(reported)) or float(reported)!=float(wanted):return false
 	var stock:Dictionary=result.stock
-	if int(stock.get("schema",-1))!=1 or not stock.get("counts") is Dictionary:return false
+	if not stock.get("schema") is int and not stock.get("schema") is float:return false
+	if float(stock.schema)!=1.0 or not stock.get("counts") is Dictionary:return false
 	var counts:Dictionary=stock.counts
+	var normalized:Dictionary={}
 	for kind in counts:
-		if not kind in ["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"] or not counts[kind] is int or int(counts[kind])<0 or int(counts[kind])>100:return false
+		var value=counts[kind]
+		if not kind in ["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"] or not (value is int or value is float) or not is_finite(float(value)) or floor(float(value))!=float(value) or float(value)<0 or float(value)>100:return false
+		normalized[kind]=int(value)
 	var model=target if target!=null else game.model
-	if model.decoration_session_active:return false
-	model.gift_stock=counts.duplicate(true)
+	if model.decoration_session_active and not model.decoration_gifts.is_empty():return false
+	model.gift_stock=normalized
+	if model.decoration_session_active and model._decoration_baseline.has("gift_stock"):
+		model._decoration_baseline.gift_stock=normalized.duplicate(true)
 	return true
 
 func commit_gift_decoration()->bool:
@@ -628,7 +636,7 @@ func _on_gift_commit(arguments:Array):
 	if not _gift_commit_pending or game==null or not game.is_inside_tree():return
 	var result:Variant=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
 	_gift_commit_pending=false;_gift_commit_callback=null;pending=false
-	if not result is Dictionary or not bool(result.get("ok",false)) or str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or str(result.get("payload",""))!=_inflight_payload or not accept_gift_stock(result):
+	if not result is Dictionary or not bool(result.get("ok",false)) or str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or str(result.get("payload",""))!=_inflight_payload or not accept_gift_stock(result,null,revision+1):
 		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
 		game.progress_save_error=str(result.get("error","Gift placement needs a cloud reload.")) if result is Dictionary else "Gift placement needs a cloud reload."
 		game.startup_notice="Gift placement outcome needs recovery · "+game.progress_save_error

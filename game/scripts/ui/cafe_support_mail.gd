@@ -90,6 +90,10 @@ func refresh():
  if not OS.has_feature("web") or game.web_save==null or not game.web_save.ready:return
  refresh_capabilities()
  refresh_mail()
+ refresh_stock()
+
+func refresh_stock():
+ if game.web_save==null or not game.web_save.ready:return
  _call("stock",[],func(result):
   if bool(result.get("ok",false)) and game.web_save.accept_gift_stock(result):game._update_ui()
  )
@@ -121,9 +125,7 @@ func load_more_mail():
 
 func claim_result(ok:bool,reason:String):
  mail_error="" if ok else reason
- if ok:refresh_mail();_call("stock",[],func(result):
-  if bool(result.get("ok",false)):game.web_save.accept_gift_stock(result)
- )
+ if ok:refresh_mail();refresh_stock()
 
 func reset():
  request_generation+=1;entry.visible=false;mail_snapshot={"ok":false,"profileId":"","mail":[]}

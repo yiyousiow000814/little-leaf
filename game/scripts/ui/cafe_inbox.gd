@@ -101,7 +101,7 @@ func _refresh_snapshot(force=false)->bool:
  else:next=_native_projection(source,now)
  # Support mail is a separate authenticated mailbox snapshot. It never goes
  # through the paid-receipt retention/verification API.
- next["supportMail"]=support.get("mail",[]) if bool(support.get("ok",false)) and str(support.get("profileId",""))==str(source.get("profileId","")) else []
+ next["supportMail"]=support.get("mail",[]) if bool(support.get("ok",false)) and game.web_save!=null and game.web_save.ready and str(support.get("profileId",""))==str(game.web_save.profile_id) else []
  # Clock polling must not rebuild controls or steal focus every second.
  next.erase("displayNow")
  var serialized=JSON.stringify(next)

@@ -116,12 +116,15 @@ func sync():
  var state=game.model.tutorial_state
  help_entry.text="Resume tutorial" if state.get("status","") in ["active","skipped"] else ("Replay tutorial" if state.get("status","")=="completed" else "Play tutorial")
  var help_restricted=game.save_recovery_blocked
+ var help_busy=false
  if not help_restricted and game.compact_ui.help_panel.visible and game.web_save!=null and game.web_save.has_method("recovery_snapshot"):
   var recovery=game.web_save.recovery_snapshot()
-  help_restricted=bool(recovery.get("available",false)) or bool(recovery.get("busy",false)) or bool(recovery.get("ownershipPaused",false))
+  help_restricted=bool(recovery.get("available",false)) or bool(recovery.get("ownershipPaused",false))
+  help_busy=bool(recovery.get("busy",false))
  help_entry.visible=not help_restricted
  restart_entry.visible=not help_restricted and state.get("status","") in ["active","skipped"]
- help_entry.disabled=help_restricted;restart_entry.disabled=help_restricted
+ help_entry.disabled=help_restricted or help_busy;restart_entry.disabled=help_restricted or help_busy
+ for entry in [help_entry,restart_entry]:entry.tooltip_text="Available after saving finishes" if help_busy else ""
  var intro=game.cafe_intro!=null and game.cafe_intro.active
  var visible=active() and not intro and not game.save_recovery_blocked and not game.compact_ui.viewport_too_small
  if visible:_advance_from_reality()

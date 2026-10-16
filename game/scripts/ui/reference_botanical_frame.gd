@@ -1,5 +1,5 @@
 extends Control
-## Four editable painted quadrants form one continuous botanical composition.
+## Retained edge/corner slices anchor the original continuous painted frame.
 ## Actual controls remain native siblings; opaque list/transport surfaces cover
 ## ornament behind them. No generated text, controls or screenshot backgrounds.
 const BORDER=preload("res://assets/ui/music_botanical/continuous_gold_botanical.png")
@@ -9,6 +9,9 @@ const CORNER_CURL=preload("res://assets/ui/music_botanical/sculpted-curl-r24.png
 const LOCAL_BLEND=preload("res://assets/ui/music_botanical/local_botanical_blend.gdshader")
 const LOCAL_FADES=[Vector4(12,7,4,8),Vector4(6,7,4,10),Vector4(10,4,14,4),Vector4.ZERO,Vector4.ZERO]
 const QUIET_MASK=preload("res://assets/ui/music_botanical/reference_botanical_mask.gdshader")
+# Corners keep uniform leaf proportions; only the intervening edge strips stretch.
+# Index4 remains the compact-header slot used by the existing phone layout.
+const FRAME_REGIONS=[Rect2(0,0,256,256),Rect2(1280,0,256,256),Rect2(0,768,256,256),Rect2(1280,768,256,256),Rect2(24,178,2120,380),Rect2(256,0,1024,256),Rect2(256,768,1024,256),Rect2(0,256,256,512),Rect2(1280,256,256,512)]
 var pieces:Array[TextureRect]=[]
 # Corner islands are anchored to the functional folio and tray, not to the
 # stretched board perimeter. Untouched source paint remains independently editable.
@@ -24,8 +27,6 @@ var _library:=Rect2()
 var _tray:=Rect2()
 var _phone_side_inset:=22.0
 var _ink:Array=[]
-var _scale:=1.0
-var _origin:=Vector2.ZERO
 var _large:=false
 var _compact_rect:=Rect2()
 var occluders:Array[Rect2]=[]
@@ -36,13 +37,14 @@ func _init():
  _ink=JSON.parse_string(FileAccess.get_file_as_string("res://assets/ui/music_botanical/continuous_gold_ink.json"))
  _fan_ink=JSON.parse_string(FileAccess.get_file_as_string("res://assets/ui/music_botanical/corner-leaf-fan-r25-ink.json"))
  _curl_ink=JSON.parse_string(FileAccess.get_file_as_string("res://assets/ui/music_botanical/sculpted-curl-r24-ink.json"))
- for index in 5:
-  var part=TextureRect.new();part.name=["UpperLeftBotanical","UpperRightBotanical","LowerLeftBotanical","LowerRightBotanical","CompactHeaderBotanical"][index]
+ for index in FRAME_REGIONS.size():
+  var part=TextureRect.new();part.name=["UpperLeftBotanical","UpperRightBotanical","LowerLeftBotanical","LowerRightBotanical","CompactHeaderBotanical","UpperEdgeBotanical","LowerEdgeBotanical","LeftEdgeBotanical","RightEdgeBotanical"][index]
   var atlas=AtlasTexture.new();atlas.atlas=BORDER
-  atlas.region=Rect2((index%2)*768,(index/2)*512,768,512) if index<4 else Rect2(24,178,2120,380)
+  atlas.region=FRAME_REGIONS[index]
   if index==4:atlas.atlas=COMPACT_STEM
   part.texture=atlas;part.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;part.stretch_mode=TextureRect.STRETCH_SCALE
-  part.mouse_filter=Control.MOUSE_FILTER_IGNORE;part.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+  # Adjacent slices sample one source texel grid; independent mip LODs leave seams.
+  part.mouse_filter=Control.MOUSE_FILTER_IGNORE;part.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR
   var mask=ShaderMaterial.new();mask.shader=QUIET_MASK;part.material=mask
   add_child(part);pieces.append(part)
  for index in local_regions.size():
@@ -56,10 +58,12 @@ func _init():
  for index in 2:
   var leaf=TextureRect.new();leaf.name="TrayEmboss%d"%index;leaf.texture=preload("res://assets/ui/music_pearlwood/selected_song_leaves_r25.svg")
   leaf.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;leaf.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+  var mask=ShaderMaterial.new();mask.shader=QUIET_MASK;leaf.material=mask
   leaf.mouse_filter=Control.MOUSE_FILTER_IGNORE;leaf.modulate=Color(.94,1.0,.84,.40);leaf.z_index=29
   add_child(leaf);emboss.append(leaf);leaf.hide()
  for index in 2:
   var curl=TextureRect.new();curl.name="SculptedUpperCorner%d"%index;curl.texture=CORNER_CURL
+  var mask=ShaderMaterial.new();mask.shader=QUIET_MASK;curl.material=mask
   curl.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;curl.stretch_mode=TextureRect.STRETCH_SCALE;curl.flip_h=index==1
   curl.mouse_filter=Control.MOUSE_FILTER_IGNORE;curl.texture_filter=CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS;curl.z_index=31
   add_child(curl);finials.append(curl);curl.hide()
@@ -95,6 +99,7 @@ func _arrange_local():
   emboss[index].size=Vector2(39,56)*s
   finials[index].position=Vector2(11*s if index==0 else size.x-141*s,1*s)
   finials[index].size=Vector2(130,32)*s
+ _update_masks()
 func _arrange_phone_ornament():
  # Reuse retained pieces in independent control-free phone edge slots.
  for part in local_pieces:part.hide()
@@ -112,11 +117,12 @@ func _arrange_phone_ornament():
  for index in 2:
   finials[index].position=Vector2(3 if index==0 else size.x-48,1)
   finials[index].size=Vector2(45,15)
+ _update_masks()
 func set_quiet_rects(rects:Array[Rect2]):
  if quiet_rects==rects:return
  quiet_rects.assign(rects);_update_masks()
 func _update_masks():
- for part in pieces:
+ for part in pieces+local_pieces+finials+emboss:
   var regions=PackedVector4Array()
   for area in quiet_rects:
    var relative=area.position-part.position
@@ -131,11 +137,11 @@ func _arrange():
 
  _large=size.y>=550 and size.x>=850
  if _large:
-  _scale=minf((size.x-24)/1536.0,(size.y-16)/1024.0)
-  _origin=(size-Vector2(1536,1024)*_scale)*.5
-  for index in 4:
-   pieces[index].position=_origin+Vector2((index%2)*768,(index/2)*512)*_scale
-   pieces[index].size=Vector2(768,512)*_scale;pieces[index].show()
+  var bounds=Rect2(Vector2(12,8),size-Vector2(24,16))
+  var corner=256.0*minf(bounds.size.x/1536.0,bounds.size.y/1024.0)
+  var targets=[Rect2(bounds.position,Vector2.ONE*corner),Rect2(Vector2(bounds.end.x-corner,bounds.position.y),Vector2.ONE*corner),Rect2(Vector2(bounds.position.x,bounds.end.y-corner),Vector2.ONE*corner),Rect2(bounds.end-Vector2.ONE*corner,Vector2.ONE*corner),Rect2(),Rect2(bounds.position+Vector2(corner,0),Vector2(bounds.size.x-corner*2,corner)),Rect2(Vector2(bounds.position.x+corner,bounds.end.y-corner),Vector2(bounds.size.x-corner*2,corner)),Rect2(bounds.position+Vector2(0,corner),Vector2(corner,bounds.size.y-corner*2)),Rect2(Vector2(bounds.end.x-corner,bounds.position.y+corner),Vector2(corner,bounds.size.y-corner*2))]
+  for index in [0,1,2,3,5,6,7,8]:
+   pieces[index].position=targets[index].position;pieces[index].size=targets[index].size;pieces[index].show()
  else:
   var width=minf(maxf(size.x-270,48),100)
   _compact_rect=Rect2(Vector2((size.x-width)*.5,1),Vector2(width,width*380.0/2120.0))
@@ -152,14 +158,13 @@ func ink_rects()->Array[Rect2]:
  var result:Array[Rect2]=[]
  if not is_visible_in_tree():return result
  if not _large and pieces[4].is_visible_in_tree():result.append(get_global_transform()*_compact_rect)
- for cell in (_ink if _large else []):
-  var local=Rect2(Vector2(cell[0],cell[1])*_scale+_origin,Vector2(cell[2],cell[3])*_scale)
-  var surviving:Array[Rect2]=[local]
-  for cover in occluders+quiet_rects:
-   var next:Array[Rect2]=[]
-   for item in surviving:next.append_array(_without_cover(item,cover))
-   surviving=next
-  for item in surviving:result.append(get_global_transform()*item)
+ for index in ([0,1,2,3,5,6,7,8] if _large else []):
+  var part=pieces[index];var source=FRAME_REGIONS[index];var ratio=part.size/source.size
+  for cell in _ink:
+   var clipped=Rect2(cell[0],cell[1],cell[2],cell[3]).intersection(source)
+   if not clipped.has_area():continue
+   var local=Rect2(part.position+(clipped.position-source.position)*ratio,clipped.size*ratio)
+   _append_ink(result,local,occluders+quiet_rects)
  for index in local_targets.size():
   if not local_pieces[index].is_visible_in_tree():continue
   var source=local_regions[index];var target=local_targets[index];var ratio=target.size/source.size
@@ -168,14 +173,22 @@ func ink_rects()->Array[Rect2]:
    if clipped.has_area():
     var offset=clipped.position-source.position
     if local_pieces[index].flip_h:offset.x=source.size.x-offset.x-clipped.size.x
-    result.append(get_global_transform()*Rect2(target.position+offset*ratio,clipped.size*ratio))
+    _append_ink(result,Rect2(target.position+offset*ratio,clipped.size*ratio),quiet_rects)
  for part in finials:
   if not part.is_visible_in_tree():continue
   var ratio=part.size/Vector2(2172,724)
   for cell in _curl_ink:
    var position=Vector2(cell[0],cell[1])
    if part.flip_h:position.x=2172-position.x-cell[2]
-   result.append(get_global_transform()*Rect2(part.position+position*ratio,Vector2(cell[2],cell[3])*ratio))
+   _append_ink(result,Rect2(part.position+position*ratio,Vector2(cell[2],cell[3])*ratio),quiet_rects)
  for part in emboss:
-  if part.is_visible_in_tree():result.append(part.get_global_rect())
+  if part.is_visible_in_tree():_append_ink(result,Rect2(part.position,part.size),quiet_rects)
  return result
+
+func _append_ink(result:Array[Rect2],local:Rect2,covers:Array):
+ var surviving:Array[Rect2]=[local]
+ for cover in covers:
+  var next:Array[Rect2]=[]
+  for item in surviving:next.append_array(_without_cover(item,cover))
+  surviving=next
+ for item in surviving:result.append(get_global_transform()*item)

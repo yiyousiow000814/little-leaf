@@ -32,16 +32,25 @@ func run():
  check(m.cancel_decoration_session() and m.decoration_gifts.is_empty() and int(m.gift_stock.plant)==2,"Cancel restores the stock baseline")
  check(not m.place_gift("plant",5,4),"gift cannot place outside Decorate")
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
- game.web_save.profile_id=PROFILE
+ game.web_save.profile_id=PROFILE;game.web_save.revision=2;game.web_save.ready=true
+ var stock_json=JSON.parse_string('{"profileId":"%s","revision":2.0,"stock":{"schema":1.0,"counts":{"plant":1.0,"stove":0.0}}}'%PROFILE)
+ check(game.web_save.accept_gift_stock(stock_json) and game.model.gift_stock.plant is int and game.model.gift_stock.plant==1,"real JSON numeric boundary accepts integral gift counts")
+ var future_json=JSON.parse_string('{"profileId":"%s","revision":3.0,"stock":{"schema":1.0,"counts":{"plant":2.0}}}'%PROFILE)
+ check(not game.web_save.accept_gift_stock(future_json) and game.web_save.accept_gift_stock(future_json,null,3),"placement ACK accepts its next revision only")
+ var fractional_json=JSON.parse_string('{"profileId":"%s","revision":2.0,"stock":{"schema":1.0,"counts":{"plant":1.5}}}'%PROFILE)
+ check(not game.web_save.accept_gift_stock(fractional_json),"fractional gift stock is rejected")
  var ui=game.compact_ui;game.model.gift_stock={"plant":2};game.editing=true
  check(not ui.support_mail.entry.visible and not ui.support_mail.panel.visible,"owner compose entry defaults hidden")
  game.model.begin_decoration_session();game._set_catalog_category("Gifts");game._update_ui()
+ var edit_stock=JSON.parse_string('{"profileId":"%s","revision":2.0,"stock":{"schema":1.0,"counts":{"plant":2.0}}}'%PROFILE)
+ check(game.web_save.accept_gift_stock(edit_stock) and int(game.model._decoration_baseline.gift_stock.plant)==2,"stock arriving during Decorate updates the cancellation baseline")
  check(ui.shop_ui!=null and game.gift_cards.plant.visible and game.gift_counts.plant.text=="Gift ×2","Gifts shelf shows verified stock")
  game.gift_cards.plant.pressed.emit()
  check(game.selected_gift and game.selected_kind=="plant","Gifts shelf selects gift placement")
  ui.support_mail.mail_snapshot={"ok":true,"profileId":PROFILE,"mail":[{"schema":1,"mailId":MAIL,"title":"A small gift","body":"Thank you for your report.","coins":50,"items":[{"catalogId":"plant","quantity":1}],"issuedAt":1770000000000.0,"status":"unclaimed"}]}
+ game.web_save.inbox_snapshot={"ok":false}
  ui.inbox.show();await process_frame;await process_frame
- check(ui.inbox.rows.size()==1 and ui.inbox.has_unread(),"support letter appears and is unread")
+ check(ui.inbox.rows.size()==1 and ui.inbox.has_unread(),"support letter appears without a legacy paid-receipt projection")
  ui.inbox.rows[0].pressed.emit();await process_frame
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
  check("Claim gifts" in _text(ui.inbox.letter_body),"unclaimed gifts have a real claim action")

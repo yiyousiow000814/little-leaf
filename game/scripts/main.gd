@@ -149,6 +149,7 @@ func _ready():
 	add_child(people)
 	build_tools=BuildTools.new(self)
 	_build_ui()
+	if web_save!=null and web_save.ready:compact_ui.support_mail.refresh()
 	if OS.has_feature("crazygames"):
 		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
 		_mark_platform_dirty()
@@ -223,6 +224,7 @@ func _resume_loaded_cafe():
 	_ensure_checkout_deployment()
 	compact_ui.help_panel.hide()
 	_update_ui();illustration.queue_redraw()
+	if web_save!=null and web_save.ready:compact_ui.support_mail.refresh()
 
 func _exit_tree():
 	if web_lifecycle!=null:web_lifecycle.stop()
@@ -382,6 +384,7 @@ func _set_catalog_category(category:String):
 	if is_instance_valid(build_panel):build_panel.visible=category=="Build"
 	if is_instance_valid(catalog_scroll):catalog_scroll.visible=category!="Build"
 	if compact_ui!=null:compact_ui.sync()
+	if category=="Gifts" and compact_ui!=null and compact_ui.support_mail!=null:compact_ui.support_mail.refresh_stock()
 
 func _toggle_business():
 	if save_recovery_blocked:return
