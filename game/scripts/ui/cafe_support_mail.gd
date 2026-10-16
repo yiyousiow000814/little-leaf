@@ -19,6 +19,8 @@ var lookup_summary:Label
 var preview_summary:Label
 var send_button:Button
 var mail_snapshot:Dictionary={"ok":false,"profileId":"","mail":[]}
+var mail_page=0
+var mail_fetch_generation=0
 var mail_error=""
 var found:Dictionary={}
 var preview_payload:Dictionary={}
@@ -123,9 +125,13 @@ func refresh_stock():
 
 func refresh_mail():
  if game.web_save==null or not game.web_save.ready:return
+ mail_fetch_generation+=1
+ var fetch=mail_fetch_generation
  _call("list",[""],func(result):
+  if fetch!=mail_fetch_generation:return
   if bool(result.get("ok",false)) and str(result.get("profileId",""))==game.web_save.profile_id and result.get("mail") is Array:
    mail_snapshot={"ok":true,"profileId":result.profileId,"mail":result.mail.slice(0,20),"nextCursor":result.get("nextCursor")}
+   mail_page=0
    mail_error=""
   else:mail_error=str(result.get("error","Mail is unavailable."))
   if compact.inbox!=null:compact.inbox.sync()
@@ -133,16 +139,17 @@ func refresh_mail():
 
 func load_more_mail():
  var cursor=mail_snapshot.get("nextCursor")
- if not bool(mail_snapshot.get("ok",false)) or cursor==null or mail_snapshot.mail.size()>=60:return
+ if not bool(mail_snapshot.get("ok",false)) or cursor==null:return
+ mail_fetch_generation+=1
+ var fetch=mail_fetch_generation
  _call("list",[str(cursor)],func(result):
+  if fetch!=mail_fetch_generation:return
   if not bool(result.get("ok",false)) or str(result.get("profileId",""))!=str(mail_snapshot.get("profileId","")) or not result.get("mail") is Array:
    mail_error=str(result.get("error","Older letters are unavailable."));return
-  var known={}
-  for mail in mail_snapshot.mail:known[str(mail.get("mailId",""))]=true
-  for mail in result.mail:
-   if not known.has(str(mail.get("mailId",""))) and mail_snapshot.mail.size()<60:
-    mail_snapshot.mail.append(mail);known[str(mail.get("mailId",""))]=true
-  mail_snapshot.nextCursor=result.get("nextCursor") if mail_snapshot.mail.size()<60 else null
+  # One bounded page at a time; older unclaimed letters remain reachable.
+  mail_snapshot.mail=result.mail.slice(0,20)
+  mail_snapshot.nextCursor=result.get("nextCursor")
+  mail_page+=1;mail_error=""
   if compact.inbox!=null:compact.inbox.sync()
  )
 
@@ -151,7 +158,7 @@ func claim_result(ok:bool,reason:String):
  if ok:refresh_mail();refresh_stock()
 
 func reset():
- request_generation+=1;entry.visible=false;mail_snapshot={"ok":false,"profileId":"","mail":[]}
+ request_generation+=1;mail_fetch_generation+=1;mail_page=0;entry.visible=false;mail_snapshot={"ok":false,"profileId":"","mail":[]}
  found={};preview_payload={};issue_id="";_callbacks.clear();panel.hide()
 
 func refresh_capabilities():

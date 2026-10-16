@@ -64,7 +64,6 @@ export function createSupportMailService({db,enabled=false,publicUidEnabled=fals
   // Only the trusted service can allocate/resolve this player-facing identifier.
   // The private auth UID remains the owner of save, mail and session documents.
   async function myPublicUid(context) {
-    if(!publicUidEnabled)throw error('FEATURE_DISABLED','Player UID is unavailable.');
     const player=actor(context);
     for(let attempt=0;attempt<8;attempt++){
       const result=await db.runTransaction(async tx=>{
@@ -77,6 +76,7 @@ export function createSupportMailService({db,enabled=false,publicUidEnabled=fals
             throw error('CORRUPT_IDENTITY','Player UID is unavailable.');
           return {publicUid:value.publicUid};
         }
+        if(!publicUidEnabled)throw error('FEATURE_DISABLED','Player UID allocation is unavailable.');
         const candidate=randomPublicUid();
         if(!publicUid(candidate))throw error('INVALID_UID','Public UID allocator returned an invalid value.');
         const taken=await tx.get(publicIndex(candidate));

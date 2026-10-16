@@ -29,6 +29,10 @@ func run():
  check(m.logical_refund(id)==0 and m.remove(id),"staged gift removal grants no coins")
  check(m.coins==before and int(m.gift_stock.plant)==2 and m.decoration_gifts.is_empty(),"staged gift returns to stock")
  check(m.place_gift("plant",5,4),"gift can stage again")
+ var gift_baseline=m._decoration_baseline.duplicate(true)
+ var staged_count=m.decoration_gifts.size()
+ var candidate_saved=m.save_finished_decoration("user://synthetic-gift-finish.json")
+ check(candidate_saved and m.decoration_session_active and m._decoration_baseline==gift_baseline and m.decoration_gifts.size()==staged_count,"validated candidate save keeps the live gift draft and Cancel baseline")
  check(m.cancel_decoration_session() and m.decoration_gifts.is_empty() and int(m.gift_stock.plant)==2,"Cancel restores the stock baseline")
  check(not m.place_gift("plant",5,4),"gift cannot place outside Decorate")
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
@@ -55,6 +59,15 @@ func run():
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
  check("Claim gifts" in _text(ui.inbox.letter_body),"unclaimed gifts have a real claim action")
  check(ui.inbox.has_unread()==false,"reading does not claim or retain unread dot")
+ var older=[]
+ for i in range(20):older.append({"schema":1,"mailId":"%08d-aaaa-4aaa-aaaa-aaaaaaaaaaaa"%i,"title":"Older letter %d"%i,"issuedAt":1770000000000.0,"status":"unclaimed"})
+ ui.support_mail.mail_snapshot={"ok":true,"profileId":PROFILE,"mail":older,"nextCursor":"another-page"};ui.support_mail.mail_page=4
+ ui.inbox.sync()
+ check(ui.inbox.rows.size()==20 and "Latest support letters" in _text(ui.inbox.content) and "Load older support letters" in _text(ui.inbox.content),"page beyond 60 letters retains forward and latest navigation with 20-row memory")
+ game.save_writes_suppressed=false;game.web_save.pending=true;game.web_save._support_claim_mail_id=MAIL
+ game.web_save.request_save()
+ check(game.web_save.pending and game.web_save.queued and game.web_save._support_claim_mail_id==MAIL,"pagehide or autosave queues behind an active claim without clearing its identity")
+ game.web_save.pending=false;game.web_save.queued=false;game.web_save._support_claim_mail_id="";game.save_writes_suppressed=true
  ui._hide_popups();ui.support_mail.entry.visible=true;ui.support_mail.show()
  check(ui.support_mail.panel.visible and ui.support_mail.quantities.size()==10 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
  print("SUPPORT_GIFTS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"synthetic_only":true}))

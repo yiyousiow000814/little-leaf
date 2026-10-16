@@ -148,6 +148,7 @@ export async function start(config,options={}) {
     list:(cursor,callback)=>invokeSupport('listMyMail',cursor||null,callback),
     stock:callback=>invokeSupport('getMyGiftStock',null,callback),
     claim:(mailId,profileId,revision,callback)=>client.claimSupportMail(mailId,profileId,revision).then(result=>callback(JSON.stringify(result)),e=>callback(JSON.stringify(supportFailure(e)))),
+    preparePlace:(revision,profileId,callback)=>client.prepareGiftDecoration(revision,profileId).then(result=>callback(JSON.stringify(result)),e=>callback(JSON.stringify(supportFailure(e)))),
     place:(payload,revision,profileId,raw,callback)=>{try{client.commitGiftDecoration(payload,revision,profileId,JSON.parse(raw)).then(result=>callback(JSON.stringify(result)),e=>callback(JSON.stringify(supportFailure(e))));}catch(e){callback(JSON.stringify(supportFailure(e)));}}
   });
   let recoveryBusy=false,recoveryMessage='',preparedChoice=null;
@@ -192,7 +193,27 @@ export async function start(config,options={}) {
     preparedChoice=null;return invoke('confirmChoice',[token],callback);
   }
   window.LittleLeafVault=Object.freeze({
-    retry(){if(!recoveryBusy && saveState!=='conflict')location.reload();},
+    retry(callback){
+      if(recoverySnapshot().giftPlacementPending){
+        if(!confirm('This device has one unfinished gift placement. Retry that same placement against your current cloud café? Your saved draft stays on this device if confirmation fails.'))
+          return callback(JSON.stringify({ok:false,code:'RECOVERY_CANCELLED',error:'The pending gift placement is preserved.'}));
+        return invoke('resumeGiftPlacement',[],callback);
+      }
+      if(!recoveryBusy && saveState!=='conflict')location.reload();
+    },
+    async exportPending(callback){
+      if(recoveryBusy||!sameAccount())return callback(JSON.stringify(failure('RECOVERY_UNAVAILABLE')));
+      recoveryBusy=true;
+      try{
+        const exported=await client.exportRecovery();
+        if(!exported.ok||!sameAccount())throw Error('Pending progress could not be exported.');
+        const url=URL.createObjectURL(new Blob([exported.text],{type:'application/json'}));
+        try{const link=document.createElement('a');link.href=url;link.download=exported.fileName;document.body.append(link);link.click();link.remove();}
+        finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+        callback(JSON.stringify({ok:true}));
+      }catch(e){callback(JSON.stringify({ok:false,error:e.message||'Could not export pending progress.'}));}
+      finally{recoveryBusy=false;}
+    },
     recoverySnapshot(){return JSON.stringify(recoverySnapshot());},prepareChoice,confirmChoice,
     preserveRuntime(payload,revision,profileId,callback){return invoke('preserveRuntime',[payload,revision,profileId],callback);},
     preserveOwnerRuntime(payload,revision,profileId,callback){return invoke('preserveOwnerRuntime',[payload,revision,profileId],callback);},

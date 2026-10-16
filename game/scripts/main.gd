@@ -396,8 +396,6 @@ func _toggle_edit():
 	if editing and not model.decoration_gifts.is_empty():
 		_cancel_selection()
 		if web_save==null or not web_save.commit_gift_decoration():return
-		editing=false
-		_apply_music_selection();_update_ui();compact_ui.set_tray_open(false)
 		return
 	editing=not editing
 	if editing:

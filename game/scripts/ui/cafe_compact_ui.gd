@@ -64,6 +64,7 @@ var help_scrim:ColorRect
 var help_modal=false
 var help_done:Button
 var help_retry:Button
+var help_export_pending:Button
 var help_choose_local:Button
 var help_choose_cloud:Button
 var help_choices:GridContainer
@@ -231,6 +232,7 @@ func setup():
  help_choose_cloud=_small_button("Keep cloud save",func():game.web_save.choose_save("cloud"));help_footer.add_child(help_choose_cloud);help_choose_cloud.hide()
  help_switch_device=_small_button("Switch to this device",func():game.web_save.switch_to_this_device());help_footer.add_child(help_switch_device);help_switch_device.hide()
  help_footer.add_child(help_retry)
+ help_export_pending=_small_button("Export pending progress",func():game.web_save.export_pending());help_footer.add_child(help_export_pending);help_export_pending.hide()
  help_overview=_small_button("Show whole café",func():_camera_action(0));help_footer.add_child(help_overview)
  help_done=_small_button("Done",_close_help);help_footer.add_child(help_done)
  help_scrim=ColorRect.new();help_scrim.name="QuickHelpModalBackdrop";help_scrim.color=Color(0.12,0.16,0.10,0.28);help_scrim.z_index=49;game.ui.add_child(help_scrim);help_scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);help_scrim.hide()
@@ -566,7 +568,7 @@ func _help_tab(event:InputEventKey)->bool:
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
- for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry]:
+ for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry,help_export_pending]:
   if button.visible and not button.disabled:controls.append(button)
  for button in [help_overview,help_log,help_done]:
   if button.visible and not button.disabled:controls.append(button)
@@ -700,7 +702,9 @@ func _sync_help_content():
   help_choice_labels[choice.id].text=name+"\nCoins: "+coins+"\nLast saved: "+saved+"\nDevice: "+device
  help_retry.visible=game.web_save!=null and (game.web_save.runtime_snapshot_failed or (game.web_save.startup_error!="" and not choices_available and not ownership_paused))
  help_retry.disabled=help_retry.visible and (game.web_save.retrying or recovery_busy)
- help_retry.text="Try protecting again" if game.web_save!=null and game.web_save.runtime_snapshot_failed else "Loading saved café…" if help_retry.disabled else "Try loading again"
+ help_retry.text="Try protecting again" if game.web_save!=null and game.web_save.runtime_snapshot_failed else "Loading saved café…" if help_retry.disabled else "Confirm pending gift placement" if bool(recovery.get("giftPlacementPending",false)) else "Try loading again"
+ help_export_pending.visible=bool(recovery.get("canExport",false))
+ help_export_pending.disabled=recovery_busy
  var save_detail=""
  if game.web_save!=null and game.web_save.platform_managed:save_detail="Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here.\n\n"
  if ownership_paused and recovery.get("status","")=="resume-needed":
@@ -711,6 +715,8 @@ func _sync_help_content():
   save_detail="Your game is running on another device. Switch here to continue. Current progress will be protected before switching.\n\n"
  elif game.save_recovery_blocked and choices_available:
   save_detail="Choose which café to keep. The other save stays protected on this device.\nLast saved uses each device’s clock.\n"
+ elif game.save_recovery_blocked and bool(recovery.get("giftPlacementPending",false)):
+  save_detail="A gift placement was saved on this device but its cloud outcome is unknown. Confirm to retry the same placement, or keep this page open and ask support before changing browser data. No gift is added to your café until cloud confirmation.\n\n"
  elif game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:

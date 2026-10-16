@@ -61,5 +61,13 @@ const invoke=(f,name,...args)=>new Promise(resolve=>f.win.LittleLeafVault[name](
  denied.auth.currentUser={uid:'other'};await panel.children[1].onclick();check(denied.downloads.length===1,'changed account blocks visible export button');
  const switchedExport=fixture();await switchedExport.start();switchedExport.client.exportRecovery=async()=>{switchedExport.auth.currentUser={uid:'other'};return {ok:true,text:'must not download',fileName:'wrong.json'};};switchedExport.setStatus('permission-denied');await switchedExport.nodes.get('cloud-save-refused').children[1].onclick();check(switchedExport.downloads.length===0,'account change during export also prevents download');
  const cancelledReload=fixture({confirm:false});await cancelledReload.start();cancelledReload.setStatus('permission-denied');cancelledReload.nodes.get('cloud-save-refused').children[2].onclick();check(cancelledReload.calls.length===0,'cancelled updated-game reload leaves page open');
+ const pendingGift=fixture();pendingGift.setSnapshot({...pendingGift.getSnapshot(),giftPlacementPending:true,canExport:true,choicesAvailable:false});
+ pendingGift.client.resumeGiftPlacement=async()=>{pendingGift.calls.push(['gift-resume']);return {ok:true,source:'authority',profileId:'synthetic-profile',revision:6,payload:'confirmed gift layout'};};
+ pendingGift.client.exportRecovery=async()=>({ok:true,text:'exact pending gift intent',fileName:'gift-intent.json'});
+ await pendingGift.start();
+ check((await invoke(pendingGift,'retry')).payload==='confirmed gift layout' && pendingGift.confirms[0].includes('same placement') && pendingGift.calls.length===1,'pending gift placement resumes only after explicit confirmation');
+ check((await invoke(pendingGift,'exportPending')).ok && pendingGift.downloads[0].name==='gift-intent.json' && pendingGift.blobs[0].parts[0]==='exact pending gift intent','explicit Help export preserves the pending gift intent');
+ const declinedGift=fixture({confirm:false});declinedGift.setSnapshot({...declinedGift.getSnapshot(),giftPlacementPending:true,choicesAvailable:false});await declinedGift.start();
+ check((await invoke(declinedGift,'retry')).code==='RECOVERY_CANCELLED' && declinedGift.calls.length===0,'declined gift recovery performs no upload');
  console.log(JSON.stringify({passed:true,checks,player_save_used:false,real_browser:false}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

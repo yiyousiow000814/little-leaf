@@ -16,7 +16,7 @@ const owned={assertActive:()=>fence,async renew(){},close(){}};
 const document=record=>({schema:1,profileId:record.profileId,revision:record.revision,digest:record.digest,record:JSON.stringify(record)});
 const initial={format:2,profileId,revision:2,createdAt:1,updatedAt:2,payload,origin:{source:'fresh',legacyDigest:null,importedAt:1},previous:null,campaigns:{}};
 initial.digest=await codec.hash(codec.fingerprint(initial));
-let cloud=document(initial),claims=0,placements=0,losePlaceResponse=true;
+let cloud=document(initial),claims=0,placements=0,losePlaceResponse=true,failBeforePlace=false;
 const journal=await api.openJournal(new FixtureIDB(),{cloudOnly:true});
 const remote={async read(){return structuredClone(cloud);},async compareAndSet(_uid,base,next,check){
   check();assert.equal(base,cloud.digest);cloud=document(next);
@@ -33,9 +33,10 @@ const supportClaim=async request=>{
 const supportPlace=async request=>{
   placements++;assert.equal(request.digest,cloud.digest);
   assert.equal(request.consumed.length,1);
+  if(failBeforePlace)throw Object.assign(Error('Network unavailable before server commit'),{code:'OFFLINE'});
   const before=cloud.digest;cloud=document(request.candidate);
   if(losePlaceResponse){losePlaceResponse=false;throw Object.assign(Error('Response lost'),{code:'OFFLINE'});}
-  return {status:'placed',record:request.candidate,stock:{schema:1,revision:2,counts:{plant:0}},
+  return {status:'placed',record:request.candidate,stock:{schema:1,revision:request.candidate.mailState.stockRevision,counts:{plant:0}},
     receipt:{fromDigest:before,toDigest:request.candidate.digest}};
 };
 const create=()=>api.createClient({uid,codec,remote,journal,ownership:owned,cloudStartup:true,
@@ -47,12 +48,37 @@ assert.equal(JSON.parse(claimed.payload).coins,JSON.parse(payload).coins+25);
 assert.equal((await journal.read(uid)).record.digest,cloud.digest);
 const nextPayload=JSON.parse(claimed.payload),itemId=900001;
 nextPayload.items.push({id:itemId,kind:'plant',x:5,z:4,rot:0});
-const placed=await client.commitGiftDecoration(JSON.stringify(nextPayload),3,profileId,[{itemId,catalogId:'plant'}]);
+const ordinary=await client.commit(claimed.payload,3,profileId);
+assert.equal(ordinary.ok,true);
+assert.equal((await journal.read(uid)).pending,true);
+assert.equal((await client.prepareGiftDecoration(4,profileId)).ok,true,'preflight confirms pending ordinary progress before draft commit');
+assert.equal((await journal.read(uid)).pending,false);
+const placed=await client.commitGiftDecoration(JSON.stringify(nextPayload),4,profileId,[{itemId,catalogId:'plant'}]);
 assert.equal(placed.ok,false);assert.equal(placed.uncertain,true);
 assert.equal(placements,1);assert.equal((await journal.read(uid)).pending,true);
 client.close();
 const reopened=create(),recovered=await reopened.boot();
-assert.equal(recovered.ok,true);assert.equal(recovered.revision,4);
+assert.equal(recovered.ok,true);assert.equal(recovered.revision,5);
 assert.equal((await journal.read(uid)).pending,false);
 assert.equal(placements,1);assert.equal(claims,1);
-console.log('Support client: authoritative claim and exact gift placement response-loss recovery passed.');
+const second=JSON.parse(recovered.payload),secondItem=900002;
+second.items.push({id:secondItem,kind:'plant',x:6,z:4,rot:0});
+failBeforePlace=true;
+const attempted=await reopened.commitGiftDecoration(JSON.stringify(second),5,profileId,[{itemId:secondItem,catalogId:'plant'}]);
+assert.equal(attempted.ok,false);assert.equal(attempted.uncertain,true);
+const pending=(await journal.read(uid)).record.digest,unchangedCloud=cloud.digest;
+reopened.close();
+const blocked=create(),blockedBoot=await blocked.boot();
+assert.equal(blockedBoot.code,'GIFT_RECOVERY_REQUIRED','startup must not auto-upload an unconfirmed placement');
+assert.equal(cloud.digest,unchangedCloud);assert.equal((await journal.read(uid)).record.digest,pending);
+assert.equal(blocked.recoverySnapshot().canExport,true);
+assert.equal(blocked.recoverySnapshot().giftPlacementPending,true);
+const exported=await blocked.exportRecovery();
+assert.equal(exported.ok,true,'the pending exact intent remains exportable before confirmation');
+assert.equal(JSON.parse(exported.text).pendingEntry.record.digest,pending);
+failBeforePlace=false;
+const explicitlyResumed=await blocked.resumeGiftPlacement();
+assert.equal(explicitlyResumed.ok,true,'an explicit recovery action retries the same pending placement');
+assert.equal(explicitlyResumed.revision,6);assert.equal((await journal.read(uid)).pending,false);
+blocked.close();
+console.log('Support client: claim, ordinary-save preflight, no silent upload and explicit gift recovery passed.');

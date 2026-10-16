@@ -26,7 +26,9 @@ assert.deepEqual(documents.get('players/syntheticRecipient20/identity/public'),{
 assert.deepEqual(documents.get('playerUidIndex/987654321098'),{schema:1,authUid:'syntheticRecipient20'});
 assert.deepEqual(documents.get('playerUidIndex/123456789012'),{schema:1,authUid:'someone-else'});
 await assert.rejects(service.myPublicUid({auth:{uid:'syntheticRecipient20',token:{firebase:{sign_in_provider:'password'}}}}),{code:'UNAUTHENTICATED'});
-await assert.rejects(createSupportMailService({db}).myPublicUid(auth),{code:'FEATURE_DISABLED'});
+const paused=createSupportMailService({db});
+assert.equal((await paused.myPublicUid(auth)).publicUid,'987654321098','allocation pause leaves existing UID readable');
+await assert.rejects(paused.myPublicUid({auth:{...auth.auth,uid:'newGoogleAccount20'}}),{code:'FEATURE_DISABLED'});
 documents.delete('playerUidIndex/987654321098');
-await assert.rejects(service.myPublicUid(auth),{code:'CORRUPT_IDENTITY'},'a broken pair fails closed');
+await assert.rejects(paused.myPublicUid(auth),{code:'CORRUPT_IDENTITY'},'a broken pair fails closed while paused');
 console.log('Public UID allocator: 12-digit collision retry, stable pair, provider check and fail-closed corruption passed.');

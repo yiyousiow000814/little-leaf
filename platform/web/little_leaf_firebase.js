@@ -450,6 +450,7 @@
             if(gridRecord(next.record))next.preGrid=emptyPreGridRequirement();
             const local=await journal.read(uid);guard();
             if(local?.giftPlacement){
+              pendingExport=local;
               await validateLocal(local);guard();
               if(token(cloud)===local.record.digest){
                 const recovered={...next,...(Object.hasOwn(local,'preGrid')?{preGrid:local.preGrid}:{})};
@@ -457,7 +458,7 @@
                 state('saved');return acceptedBoot();
               }
               if(token(cloud)!==local.base)throw error('REVISION_CONFLICT','Gift placement outcome changed. Pending intent is preserved for recovery.');
-              entry=local;await upload();guard();return acceptedBoot();
+              throw error('GIFT_RECOVERY_REQUIRED','Gift placement has an unconfirmed cloud outcome. The pending copy is preserved for explicit recovery.');
             }
             await journal.replace(uid,local,next,{guard});guard();entry=next;
             state(record?'saved':'ready');return acceptedBoot();
@@ -501,6 +502,7 @@
       recoverySnapshot() {
         const allowed=!closed && currentUid()===uid;
         return {
+          giftPlacementPending:!!(allowed && stopped && pendingExport?.giftPlacement),
           available:!!(allowed && recovery?.record && !recovery.blocked),busy:recoveryBusy,
            canExport:!!(allowed && (pendingExport || recoveryBackup || choiceArchives.length || stopped && entry?.pending)),
           cloudRevision:allowed ? recovery?.record?.revision ?? recoveredRevision : null,
@@ -513,6 +515,29 @@
           choiceReason:allowed ? choiceProblem || (recovery?'Two different saves are available. Choose which progress to continue. Neither will be replaced before confirmation.':'') : 'Account changed. Your current café is paused.',
           choices:allowed && recovery?.record ? [summary('local',recovery.local.record,recovery.local.device),summary('cloud',recovery.record,recordDevices.get(recovery.record)?.device)] : []
         };
+      },
+      async resumeGiftPlacement() {
+        if(!cloudStartup || bootReady || !stopped || !pendingExport?.giftPlacement)
+          return failure(error('RECOVERY_UNAVAILABLE','No pending gift placement is ready for review.'));
+        try {
+          accountGuard();ownership?.assertActive();
+          const local=pendingExport,current=await journal.read(uid);accountGuard();
+          if(!same(current,local))throw error('REVISION_CONFLICT','The pending gift placement changed on this device. Reload to review it.');
+          await validateLocal(local);accountGuard();
+          const cloud=await validate(await networkWait(remote.read(uid)));accountGuard();
+          if(!cloud || cloud.profileId!==local.record.profileId)
+            throw error('REVISION_CONFLICT','The cloud café changed. The pending gift placement remains available for export.');
+          if(cloud.digest===local.record.digest){
+            const next={...local,base:cloud.digest,pending:false,giftPlacement:null};
+            await journal.replace(uid,local,next,{guard:accountGuard});entry=next;
+          }else{
+            if(cloud.digest!==local.base)throw error('REVISION_CONFLICT','The cloud café changed. The pending gift placement remains available for export.');
+            entry=local;stopped=false;
+            await networkWait(upload());accountGuard();
+            if(entry.pending)throw error('CLAIM_RECOVERY_REQUIRED','Gift placement still needs cloud confirmation.');
+          }
+          stopped=false;state('saved');const result=acceptedBoot();opened=Promise.resolve(result);return result;
+        }catch(e){stopped=true;state('blocked');return failure(e);}
       },
       async saveForUpdate(payload,revision,profileId){
         if(updateInProgress)return failure(error('SAVE_BUSY','An update save is already in progress.'));
@@ -781,6 +806,18 @@
           if(staged){stopped=true;state('blocked');return {...failure(e),uncertain:true};}
           return failure(e);
         }finally{claimBusy=false;}
+      },
+      async prepareGiftDecoration(revision,profileId) {
+        if(claimBusy||busy||!supportPlace||!ownership)return failure(error('SAVE_BUSY','Gift placement is unavailable.'));
+        claimBusy=true;
+        try{
+          guard();if(!bootReady||!entry||entry.giftPlacement||entry.record.format!==3||entry.record.profileId!==profileId||entry.record.revision!==revision)
+            throw error('REVISION_CONFLICT','Confirm the current protected café before placing gifts.');
+          while(entry.pending)await networkWait(upload());
+          guard();if(entry.pending||entry.record.profileId!==profileId||entry.record.revision!==revision)
+            throw error('REVISION_CONFLICT','Progress changed before gift placement.');
+          return {ok:true,profileId,revision};
+        }catch(e){return failure(e);}finally{claimBusy=false;}
       },
       async claimSupportMail(mailId,profileId,revision) {
         if(claimBusy)return failure(error('SAVE_BUSY','A gift claim is already in progress.'));

@@ -368,6 +368,23 @@ func retry_startup():
 	vault.retry(_retry_callback)
 	game.compact_ui.show_help()
 
+func export_pending():
+	var snapshot=recovery_snapshot()
+	if not bool(snapshot.get("canExport",false)) or bool(snapshot.get("busy",false)):return
+	var bridge=_recovery_bridge()
+	if bridge==null:return
+	recovery_busy=true;recovery_action="export";_recovery_generation+=1
+	_recovery_callback=_make_recovery_callback(_on_export_pending.bind(_recovery_generation))
+	bridge.exportPending(_recovery_callback)
+	game.compact_ui._sync_help_content()
+
+func _on_export_pending(arguments:Array,request_generation:int):
+	if request_generation!=_recovery_generation or not recovery_busy:return
+	recovery_busy=false;recovery_action=""
+	var result=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	recovery_message="Recovery download requested. Keep the file and this browser data." if result is Dictionary and bool(result.get("ok",false)) else str(result.get("error","Could not export pending progress.")) if result is Dictionary else "Could not export pending progress."
+	if game!=null and game.is_inside_tree():game.compact_ui._sync_help_content()
+
 func _on_retry(arguments:Array):
 	retrying=false
 	if game==null or not game.is_inside_tree():return
@@ -520,6 +537,9 @@ func _on_commit(arguments:Array):
 		var support=JavaScriptBridge.get_interface("LittleLeafSupportMail")
 		if support==null:
 			_support_claim_fail("Support mail is unavailable. Your café save is preserved.");return
+		# The native save has a durable ACK, but the claim is still in flight.
+		# Keep the same serialization gate through its authoritative outcome.
+		pending=true
 		_support_claim_callback=JavaScriptBridge.create_callback(_on_support_claim)
 		support.claim(_support_claim_mail_id,profile_id,revision,_support_claim_callback)
 		return
@@ -552,6 +572,7 @@ func claim_support_mail(mail_id:String)->bool:
 	return true
 
 func _support_claim_fail(reason:String,uncertain:bool=false):
+	pending=false
 	_support_claim_mail_id="";_support_claim_callback=null
 	_release_credit_hold()
 	if uncertain or not ready or game.save_recovery_blocked:
@@ -581,11 +602,15 @@ func _on_support_claim(arguments:Array):
 	revision=int(result.revision);_confirmed_payload=str(result.payload);_inflight_payload=""
 	_refresh_inbox(result)
 	_support_claim_mail_id="";_support_claim_callback=null
-	game.progress_unsaved=false;game.progress_save_error=""
+	pending=false
+	var save_queued=queued or generation!=inflight_generation
+	queued=false
+	game.progress_unsaved=save_queued;game.progress_save_error=""
 	game._rebuild_room();game._rebuild_furniture();game._restore_service_runtime()
 	_release_credit_hold()
 	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(true,"")
 	game._update_ui()
+	if save_queued:game.call_deferred("_save")
 
 func accept_gift_stock(result:Dictionary,target=null,expected_revision:int=-1)->bool:
 	if str(result.get("profileId",""))!=profile_id or not result.get("stock") is Dictionary:return false
@@ -617,31 +642,57 @@ func commit_gift_decoration()->bool:
 	for item_id in game.model.decoration_gifts:
 		consumed.append({"itemId":int(item_id),"catalogId":str(game.model.decoration_gifts[item_id])})
 	if consumed.is_empty() or consumed.size()>10:return false
+	_hold_for_credit();pending=true;_gift_commit_pending=true
+	_gift_commit_callback=JavaScriptBridge.create_callback(func(arguments):_on_gift_prepare(arguments,consumed))
+	support.preparePlace(revision,profile_id,_gift_commit_callback)
+	return true
+
+func _gift_prepare_fail(reason:String,code:String=""):
+	_gift_commit_pending=false;_gift_commit_callback=null;pending=false
+	_inflight_payload=""
+	game.progress_save_error=reason;game.progress_unsaved=true
+	_release_credit_hold()
+	if code in ["REVISION_CONFLICT","CORRUPT_AUTHORITY","NOT_READY","OWNERSHIP_LOST"]:
+		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+		game.startup_notice="Gift placement draft needs recovery · "+reason
+	game._update_ui()
+	if queued and ready:
+		queued=false;game.call_deferred("_save")
+
+func _on_gift_prepare(arguments:Array,consumed:Array):
+	if not _gift_commit_pending or game==null or not game.is_inside_tree():return
+	var result:Variant=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		_gift_prepare_fail(str(result.get("error","Could not confirm the current cloud save.")) if result is Dictionary else "Could not confirm the current cloud save.",str(result.get("code","")) if result is Dictionary else "");return
 	game._update_people();game.model.service_snapshot=game._service_save_snapshot()
-	game.model.finish_decoration_session()
-	if not game.model.save(STAGING_FILE):
-		game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
-		game.progress_save_error=game.model.last_error;return false
+	if not game.model.save_finished_decoration(STAGING_FILE):
+		_gift_prepare_fail(game.model.last_error);return
 	var payload=FileAccess.get_file_as_string(STAGING_FILE)
 	if payload=="":
-		game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
-		game.progress_save_error="Could not read the validated gift placement";return false
-	_hold_for_credit();pending=true;_gift_commit_pending=true
+		_gift_prepare_fail("Could not read the validated gift placement");return
 	_inflight_payload=payload;game.progress_unsaved=true
 	_gift_commit_callback=JavaScriptBridge.create_callback(_on_gift_commit)
+	var support=JavaScriptBridge.get_interface("LittleLeafSupportMail")
+	if support==null:
+		_gift_prepare_fail("Support mail is unavailable. Your decoration draft is preserved.");return
 	support.place(payload,revision,profile_id,JSON.stringify(consumed),_gift_commit_callback)
-	return true
 
 func _on_gift_commit(arguments:Array):
 	if not _gift_commit_pending or game==null or not game.is_inside_tree():return
 	var result:Variant=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
 	_gift_commit_pending=false;_gift_commit_callback=null;pending=false
-	if not result is Dictionary or not bool(result.get("ok",false)) or str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or str(result.get("payload",""))!=_inflight_payload or not accept_gift_stock(result,null,revision+1):
-		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+	if result is Dictionary and not bool(result.get("ok",false)) and not bool(result.get("uncertain",false)):
+		_gift_prepare_fail(str(result.get("error","Gift placement was not saved. The draft is preserved.")),str(result.get("code","")));return
+	var stock_candidate=game.Model.new()
+	if not result is Dictionary or not bool(result.get("ok",false)) or str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or str(result.get("payload",""))!=_inflight_payload or not accept_gift_stock(result,stock_candidate,revision+1):
+		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true
 		game.progress_save_error=str(result.get("error","Gift placement needs a cloud reload.")) if result is Dictionary else "Gift placement needs a cloud reload."
 		game.startup_notice="Gift placement outcome needs recovery · "+game.progress_save_error
-		_release_credit_hold();game._update_ui();return
+		_release_credit_hold();game.paused=true;game._update_ui();return
 	revision=int(result.revision);_confirmed_payload=_inflight_payload;_inflight_payload=""
-	queued=false
-	game.progress_unsaved=false;game.progress_save_error=""
+	game.model.finish_decoration_session();game.model.gift_stock=stock_candidate.gift_stock;game.editing=false
+	game._apply_music_selection();game.compact_ui.set_tray_open(false)
+	var save_queued=queued;queued=false
+	game.progress_unsaved=save_queued;game.progress_save_error=""
 	_release_credit_hold();game._update_ui()
+	if save_queued:game.call_deferred("_save")

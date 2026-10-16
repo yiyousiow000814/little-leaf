@@ -160,13 +160,17 @@ func show():
 func _show_detail(id:String):
  _refresh_snapshot(true);detail_id=id
  for mail in snapshot.get("supportMail",[]):
-  if "support-mail/"+str(mail.get("mailId",""))==id:session_read[_key(mail)]=true
+  if "support-mail/"+str(mail.get("mailId",""))==id:_remember_read(_key(mail))
  for receipt in snapshot.get("paid",[]):
   if str(receipt.id)!=id:continue
-  session_read[_key(receipt)]=true
+  _remember_read(_key(receipt))
   if api!=null:api.markRead(str(snapshot.get("profileId","")),str(receipt.id),int(receipt.revision),_persist())
   break
  _rebuild();scroll.scroll_vertical=0;scroll.grab_focus.call_deferred();compact._queue_popup_fit();sync()
+
+func _remember_read(key:String):
+ if not session_read.has(key) and session_read.size()>=128:session_read.erase(session_read.keys()[0])
+ session_read[key]=true
 
 func _back():
  if detail_id!="":show();return
@@ -206,6 +210,9 @@ func _list():
   var words=VBoxContainer.new();words.add_theme_constant_override("separation",8);empty.add_child(words)
   words.add_child(_label("No letters for now",18));words.add_child(_label("New letters will arrive here.",15,MUTED))
  for mail in support:_entry(mail)
+ if compact.support_mail!=null and compact.support_mail.mail_page>0:
+  var latest=game.button("Latest support letters",compact.support_mail.refresh_mail)
+  latest.custom_minimum_size.y=44;content.add_child(latest)
  if compact.support_mail!=null and compact.support_mail.mail_snapshot.get("nextCursor")!=null:
   var more=game.button("Load older support letters",compact.support_mail.load_more_mail)
   more.custom_minimum_size.y=44;content.add_child(more)

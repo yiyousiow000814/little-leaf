@@ -435,6 +435,18 @@ func finish_decoration_session():
 	_parking_session_purchase=false
 	_decoration_baseline.clear()
 	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();decoration_gifts.clear();_notify()
+func save_finished_decoration(path:String)->bool:
+	# Validate the proposed finished layout without consuming the live Cancel baseline.
+	if not decoration_session_active:return _fail("Open Decorate before finishing gifts")
+	var candidate=get_script().new()
+	var current:Dictionary={}
+	for key in DECORATION_STATE:
+		var value=get(key)
+		current[key]=value.duplicate(true) if value is Array or value is Dictionary else value
+	candidate._copy_decoration_state(current)
+	var saved:bool=candidate.save(path)
+	if not saved:last_error=candidate.last_error
+	return saved
 func record_decoration_purchase(id:int,paid:int):
 	if decoration_session_active:decoration_purchases[id]=paid
 func consume_decoration_purchase(ids:Array):

@@ -17,7 +17,7 @@ const call=method=>onCall({maxInstances:4},async request=>{
   catch(e){throw new HttpsError(codes[e.code]||'internal',e.message||'Support mail failed.',{code:e.code||'INTERNAL'});}
 });
 export const supportCapabilities=call('capabilities');
-export const getMyPublicUid=call('myPublicUid');
+export const ensureMyPublicUid=call('myPublicUid');
 export const lookupPlayerForSupport=call('lookup');
 export const previewSupportMail=call('previewMail');
 export const issueSupportMail=call('issueMail');
