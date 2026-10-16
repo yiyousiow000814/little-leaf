@@ -10,6 +10,9 @@ class CloudApi extends RefCounted:
  func snapshot():return JSON.stringify({"status":"Not saved","canSave":true,"reload":true,"reason":"Synthetic account controls only.\nNo account is connected.\nNo network is used.\nNo player progress is loaded.\nActions are counted stubs."})
  func reload():reloads+=1
  func signOut():sign_outs+=1
+ func watchUid(_callback):pass
+ func unwatchUid():pass
+ func copyUid():pass
 var game
 var checks=0
 var failures=[]
