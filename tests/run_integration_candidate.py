@@ -47,6 +47,7 @@ SUITES = [
     ("test_settings_navigation", "SETTINGS_NAVIGATION_RESULT"),
     ("test_show_stats", "SHOW_STATS_RESULT"),
     ("test_fresh_service", "FRESH_SERVICE_RESULT"),
+    ("test_order_reach", "ORDER_REACH_RESULT"),
     ("test_interactive_tutorial", "INTERACTIVE_TUTORIAL_RESULT"),
     ("test_first_guest", "FIRST_GUEST_RESULT"),
     ("test_parking", "PARKING_RESULT"),
