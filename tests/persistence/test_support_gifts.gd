@@ -46,6 +46,9 @@ func run():
  var ui=game.compact_ui;game.model.gift_stock={"plant":2};game.editing=true
  check(not ui.support_mail.entry.visible and not ui.support_mail.panel.visible,"owner compose entry defaults hidden")
  game.model.begin_decoration_session();game._set_catalog_category("Gifts");game._update_ui()
+ await process_frame;await process_frame
+ var categories=ui.shop_ui.category_scroll.get_global_rect()
+ check(categories.encloses(game.category_buttons.Gifts.get_global_rect()) and categories.encloses(game.category_buttons.Build.get_global_rect()),"desktop category rail keeps Gifts and Build inside its clickable viewport")
  var edit_stock=JSON.parse_string('{"profileId":"%s","revision":2.0,"stock":{"schema":1.0,"counts":{"plant":2.0}}}'%PROFILE)
  check(game.web_save.accept_gift_stock(edit_stock) and int(game.model._decoration_baseline.gift_stock.plant)==2,"stock arriving during Decorate updates the cancellation baseline")
  check(ui.shop_ui!=null and game.gift_cards.plant.visible and game.gift_counts.plant.text=="Gift ×2","Gifts shelf shows verified stock")

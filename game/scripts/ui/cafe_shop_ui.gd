@@ -100,7 +100,7 @@ var rail_fit_queued=false
 var footer_hint:Label
 var last_category=""
 var last_layout_width=-1.0
-var category_page_items=6
+var category_page_items=7
 var header_active=false
 var browse_offset=0
 func _init(owner):owner_ref=weakref(owner);game=owner.game
@@ -748,13 +748,14 @@ func sync(width:float):
  var tail=repair_width+8 if repair_width>0 else 0.0
  var category_margin=16 if picker_landscape else (24 if tiny or short_landscape else 32)
  var minimum_chip=100.0 if narrow else 112.0
- var categories_overflow=short_landscape or 6*minimum_chip+30>w-category_margin*2-tail
+ var category_count=game.category_buttons.size()
+ var categories_overflow=short_landscape or category_count*minimum_chip+6*(category_count-1)>w-category_margin*2-tail
  category_more.visible=categories_overflow and not picker_landscape;category_back.visible=categories_overflow and not picker_landscape;category_scroll.visible=not picker_landscape
  category_picker.visible=picker_landscape;category_picker.text=game.catalog_category+"   "
  if not picker_landscape or not game.editing:category_panel.hide()
  for category in category_panel_buttons:category_panel_buttons[category].set_pressed_no_signal(category==game.catalog_category)
  var category_width=112.0 if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_margin*2-tail-(104 if categories_overflow else 0))
- category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else 6)
+ category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else category_count)
  var chip_width=(category_width-6*(category_page_items-1))/category_page_items
  for category in game.category_buttons:
   var button:Button=game.category_buttons[category];button.custom_minimum_size=Vector2(chip_width,44);button.add_theme_font_size_override("font_size",13 if short_landscape else (12 if narrow else 14))
