@@ -61,7 +61,8 @@ func run():
   ui.update_pointer();ui._sync_help_content()
   check(not ui.hint.visible and not ui.help_text.text.contains(warning),"furniture warning is not presented: "+warning)
  # Build transaction details are read from the current tool, not a cached furniture error.
- game.build_tools.mode="wall";game.build_tools.preview_valid=false;game.build_tools.preview_reason="Not enough coins · need 100"
+ game._set_catalog_category("Build")
+ game.build_tools.mode="full";game.build_tools.preview_valid=false;game.build_tools.preview_reason="Not enough coins · need 100"
  ui.update_pointer();ui._sync_help_content()
  check(ui.hint.visible and ui.hint_text.text=="Not enough coins" and ui.help_text.text.contains(game.build_tools.preview_reason),"current Build transaction detail is preserved")
  game.build_tools.cancel();ui.update_pointer();ui._sync_help_content()
