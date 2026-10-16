@@ -102,7 +102,17 @@ func inspect_slice_preparation(axis):
    check(painter.filled==expected,"Shared preparation preserves every emitted point, color, UV and texture after immediate edits/camera changes")
    check(preparation.size()==2 and preparation.host==Geometry.wall_host(member) and preparation.panels==Geometry.solid_panels(preparation.host,walls,attachments),"Preparation retains only this wall descriptor and its current panels")
   check(before==[walls,attachments],"Preparing slices never stores scratch data in model inputs")
+func slice_group_lifetime()->WeakRef:
+ var pieces=Art.built_depth_entries(wall("lifetime","x",2,3))
+ var sentinel=RefCounted.new();var observed=weakref(sentinel)
+ pieces[0].wall_preparation["lifetime_probe"]=sentinel;sentinel=null
+ var final_slice=pieces[-1]
+ pieces.clear()
+ check(observed.get_ref()!=null,"Remaining slice keeps only its own preparation alive")
+ final_slice={}
+ return observed
 func _initialize():
+ for cycle in range(12):check(slice_group_lifetime().get_ref()==null,"Dropping the final slice releases preparation on every cycle")
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))
  for index in 4:Art.face(painter,host,index*.25,(index+1)*.25,0,128)
  check(Art.casing_front(host)==Art.front(host),"Casing and wall slices share one projected front plane")
