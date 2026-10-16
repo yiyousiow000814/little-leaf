@@ -4,7 +4,7 @@ const AUTOMATIC="automatic"
 const DECORATE="decorate"
 const DEFAULT="Default"
 const PREMIUM="Premium"
-const PREMIUM_TOOLTIP="Premium music is currently free. Charging is planned for the future."
+const PREMIUM_TOOLTIP="Premium music is currently free. Fees are planned for the future."
 const DATA_PATH="res://data/music_catalog.json"
 
 # Read and validate once on script load. No audio streams or per-frame file work.

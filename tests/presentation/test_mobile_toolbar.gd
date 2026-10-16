@@ -58,8 +58,10 @@ func run():
     check(not hud.mobile_coin.visible,label+" desktop coin restored")
    for editing in [false,true]:
     game.editing=editing;await settle()
-    var controls=[hud.wallet,game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
+    var controls=[hud.wallet,game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.music_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
+    check(ui.music_access.get_global_rect().encloses(hud.action_art.music.get_global_rect()),label+" Music picture stays within its native target")
+    check(not hud.action_captions.music.visible and ui.music_access.accessibility_name=="Music",label+" Music uses artwork with retained accessible name")
     check(ui.staff_access.find_next_valid_focus()==game.pause_button,label+" Tab moves from Staff to Pause")
     check(game.pause_button.find_next_valid_focus()==ui.settings_button,label+" Tab moves from Pause to Settings")
     check(ui.settings_button.find_prev_valid_focus()==game.pause_button,label+" Shift-Tab returns to Pause")

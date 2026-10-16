@@ -50,7 +50,7 @@ const INK=Color("554631")
 const CREAM=Color("fcf6e7")
 const GREEN=Color("426b49")
 const ASSETS="res://assets/ui/wood_hud/"
-const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022)}
+const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022),"music":Rect2(123,102,1030,1047)}
 
 class RailArtwork extends Control:
  var art:Texture2D
@@ -289,11 +289,11 @@ func setup():
  pause_face=Panel.new();pause_face.material=_art_material(1);pause_face.mouse_filter=Control.MOUSE_FILTER_IGNORE;pause_face.add_theme_stylebox_override("panel",texture_style("cream_face",14));game.pause_button.add_child(pause_face)
  pause_art=_picture(game.pause_button,_icon("player-pause"));pause_caption=_label(game.pause_button,"Pause",13);_bind_motion(game.pause_button)
  game.business_button.accessibility_name="Café service controls";game.edit_button.accessibility_name="Decorate café";ui.staff_access.accessibility_name="Staff";ui.settings_button.accessibility_name="Settings"
- theme_button(ui.music_access);ui.music_access.toggle_mode=true;ui.music_access.add_theme_font_size_override("font_size",13)
+ _art_button(ui.music_access,"music");ui.music_access.toggle_mode=true;ui.music_access.accessibility_name="Music"
  layout_host=Control.new();layout_host.mouse_filter=Control.MOUSE_FILTER_IGNORE;game.ui.add_child(layout_host)
  for control in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.music_access,ui.settings_button]:control.reparent(layout_host)
  layout_host.add_child(edit_cancel);layout_host.move_child(edit_cancel,game.edit_button.get_index()+1);edit_cancel.hide()
- for button in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.settings_button]:
+ for button in [wallet,game.business_button,game.edit_button,ui.staff_access,ui.music_access,ui.settings_button]:
   var surface=Panel.new();surface.mouse_filter=Control.MOUSE_FILTER_IGNORE;surface.show_behind_parent=true;surface.material=_art_material(2 if button==game.business_button else 1)
   surface.add_theme_stylebox_override("panel",texture_style("green_face" if button==game.business_button else "cream_face",14));button.add_child(surface);button.move_child(surface,0);surface.hide();mobile_surfaces[button]=surface
  rail.hide()
@@ -444,7 +444,7 @@ func _layout_unified_toolbar(width:float):
   _layout_mobile_toolbar(width)
   return
  sign_art.show()
- ui.music_access.text="Music";ui.music_access.add_theme_font_size_override("font_size",14)
+ ui.music_access.text="Music"
  # The mobile path above handles usable widths below700; this rail stays one row.
  var inset=safe;var usable=width-inset.x-inset.z;var scale=1.0
  # Lay out the right-hand actions by painted bounds, not transparent targets.
@@ -513,7 +513,7 @@ func _layout_unified_toolbar(width:float):
  _layout_unified_play_controls(scale)
  var center_y=controls_y+28
  var action_x=controls_x
- _place(ui.music_access,Rect2(action_x,center_y-22,64,44));action_x+=64+action_gap
+ _place(ui.music_access,Rect2(action_x,center_y-22,64,44));_mobile_action_art(ui.music_access,"music");action_x+=64+action_gap
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -537,7 +537,7 @@ func _layout_mobile_toolbar(width:float):
  var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<600
  var w=usable-16;var compact_music=wrapped and usable<378.0
  var h=92.0 if wrapped else 44.0
- ui.music_access.text="♪" if compact_music else "Music";ui.music_access.add_theme_font_size_override("font_size",22 if compact_music else 14)
+ ui.music_access.text="Music"
  layout_host.position=Vector2(inset.x+8,inset.y+6);layout_host.size=Vector2(w,h)
  layout_host.set_meta("unified_wrapped",wrapped)
  wallet_art.hide();wallet_mobile_art.hide();wallet_title.hide();sign_art.hide()
@@ -567,7 +567,7 @@ func _layout_mobile_toolbar(width:float):
  var action_x=w-action_count*action_width-(action_count-1)*gap
  # Music uses the free slot before the tools, never the recovery badge width.
  var music_width=44.0 if compact_music else 64.0
- _place(ui.music_access,Rect2(action_x-music_width-gap,tool_y,music_width,44))
+ _place(ui.music_access,Rect2(action_x-music_width-gap,tool_y,music_width,44));_mobile_action_art(ui.music_access,"music")
  _place(game.edit_button,Rect2(action_x,tool_y,44,44))
  _mobile_action_art(game.edit_button,"decorate")
  var staff_x=action_x+action_width+gap

@@ -282,3 +282,18 @@ and mip-seam attempts remain retained outside source and are not the final
 candidate. Actual browser/device performance, integrated Music regression,
 user acceptance, merge and publication remain open; PR321 stays the sole
 principal Music review. No remote branch or PR write accompanies this candidate.
+
+
+### Music toolbar image candidate (2026-10-16)
+
+The user requests a designed Music image alongside the existing brush, chef,
+pause and gear. An original transparent sage/wood musical-note raster reuses
+those assets as style references; prompt and exact source hash are preserved
+with the existing HUD provenance. The existing HUD texture owner bounds the
+retained texture to320px and crops alpha bounds; the44px native action, tooltip,
+accessibility name, focus, popup ownership and existing press motion remain.
+Responsive arrangements keep the same Music hit rectangles and render the
+picture inside them. No player-state/save/audio path changes. The generated
+raster and prompt are recoverable; layered GUI/vector authoring is unavailable
+for this generated source and no new Golden approval is claimed. Actual native
+normal-scale toolbar inspection and focused responsive checks remain pending.
