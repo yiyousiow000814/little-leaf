@@ -249,6 +249,34 @@ const modernFixture=fs.readFileSync('tests/fixtures/unified_building_candidate.j
         ok(empty.ok&&empty.source==='fresh'&&empty.revision===0,'confirmed absent Google cloud is separate fresh-account case');
         ok(equal(await journal.read(id),pending),'absent cloud still preserves original journal bytes');fresh.close();
       }
+      // Controlled clocks isolate scheduler wait from network latency. Both
+      // schedules exercise the real adapter and real disposable IndexedDB.
+      for(const phase of [1,999,15000,29999]) {
+        const elapsed=[];
+        for(const interval of [30000,1000]) {
+          const id=crypto.randomUUID(),states=[],attempts=[];let clock=phase,cloud=null;
+          const remote={async read(){return clone(cloud);},async compareAndSet(_uid,base,next,guard){
+            guard();ok((cloud?.digest||null)===base,'timed upload retains exact CAS base');
+            attempts.push(clock);cloud=clone(next);
+          }};
+          const client=api.createClient({uid:id,codec,journal,remote,currentUid:()=>id,now:()=>clock,status:state=>states.push(state)});
+          const boot=await client.boot();
+          let committed=await client.commit(fixture,boot.revision,boot.profileId);
+          ok(committed.durable&&!committed.cloudConfirmed,'timed local commit never claims cloud acknowledgment');
+          await client.sync();
+          clock=phase+5000;const began=clock;
+          committed=await client.commit(fixture,committed.revision,boot.profileId);
+          ok(states.at(-1)==='pending'&&cloud.revision===1,'second durable commit remains pending before upload');
+          for(clock=Math.ceil((began+1)/interval)*interval;clock<=phase+60000;clock+=interval){
+            await client.sync();if(!(await journal.read(id)).pending)break;
+          }
+          elapsed.push(clock-began);
+          ok(attempts.length===2&&attempts[1]-attempts[0]>=30000,'faster checks retain minimum30s and single upload');
+          ok(states.at(-1)==='saved'&&cloud.revision===2&&(await journal.read(id)).base===cloud.digest,'saved follows cloud CAS and durable journal acknowledgment');
+          client.close();
+        }
+        ok(elapsed[1]<=elapsed[0]&&elapsed[1]<26000,'scheduler phase '+phase+'ms: old/candidate pending elapsed '+elapsed.join('/')+'ms (synthetic network)');
+      }
       return checks;
     },{fixture,modernFixture});
     const {createHash}=require('node:crypto');
