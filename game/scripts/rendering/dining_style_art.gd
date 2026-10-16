@@ -46,12 +46,12 @@ func chair(artist:Node2D,at:Vector2,rotation:int,back_only:bool,style:String)->b
  return true
 func _cottage_table():
  # Wide square painted farmhouse top and turned cream legs.
- for q in [Vector2(-.32,-.32),Vector2(.32,-.32),Vector2(-.32,.32),Vector2(.32,.32)]:
+ for q in Placement.COTTAGE_LEGS:
   edge(point(q.x,q.y,1),point(q.x,q.y,29),"b8baa0",3.8)
   edge(point(q.x-.018,q.y,2),point(q.x-.018,q.y,29),"f0e8c9",1.7)
   a.ellipse(point(q.x,q.y,9),Vector2(2.4,1.5),"d6d4b6")
   a.ellipse(point(q.x,q.y,23),Vector2(2.3,1.4),"e8dfbe")
- var square=[Vector2(-.45,-.45),Vector2(.45,-.45),Vector2(.45,.45),Vector2(-.45,.45)]
+ var square=Placement.COTTAGE_TOP
  slab(square,29,5,"e2dcc0","c6c3a4","b0b899")
  slab(square,33,3,"f3eace","d9ccaa","c9c3a3")
  # Inset sage border and subtle plank seams are actual tabletop detail.
@@ -72,12 +72,12 @@ func _retro_table():
  edge(point(-.30,-.04,34),point(-.05,.20,34),"c0dac1",.8)
 func _refined_table():
  # Faceted walnut silhouette, tapered legs, a fine brass rim and ivory inset.
- for q in [Vector2(-.30,-.30),Vector2(.30,-.30),Vector2(-.30,.30),Vector2(.30,.30)]:
+ for q in Placement.REFINED_LEGS:
   var foot=point(q.x*1.16,q.y*1.16,1);var top=point(q.x,q.y,29)
   edge(foot,top,"6e5846",4.0)
   edge(foot+Vector2(-.7,0),top+Vector2(-.7,0),"a47f56",1.2)
   edge(foot,foot+Vector2(0,-4),"c3a66b",3.1)
- var octagon=[Vector2(-.45,-.27),Vector2(-.27,-.45),Vector2(.27,-.45),Vector2(.45,-.27),Vector2(.45,.27),Vector2(.27,.45),Vector2(-.27,.45),Vector2(-.45,.27)]
+ var octagon=Placement.REFINED_TOP
  slab(octagon,30.5,5,"967148","776047","67553f")
  slab(octagon,32,1.5,"cab17d","b3925a","9e8354")
  slab(octagon,33,1,"99784f","846443","705638")

@@ -380,7 +380,14 @@ func front_dropoff_cases():
  peer.pos=game.model.cell_center(front)
  check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"unrelated body blocks front drop")
  peer.pos=Vector2(2.5,2.5);peer.job_kind="cook";peer.destination=front
- check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"unrelated work claim blocks front drop")
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==front,"targetless job label is not a productive front claim")
+ # A real reachable equipment workspace still excludes unrelated sink contact.
+ var stove=game.model.get_item(1);var stove_before=stove.duplicate(true)
+ stove.x=6;stove.z=6;stove.rot=2;game.model.revision+=1
+ peer.job_guest_id=int(c.record.guest.id);peer.job_token=int(c.record.token);peer.station_id=int(stove.id);peer.job_step=0
+ check(not game._staff_work_claim(peer,front).is_empty(),"unrelated equipment negative has a real authored reachable endpoint")
+ check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"genuine unrelated equipment workspace blocks front drop")
+ stove.clear();stove.merge(stove_before);game.model.revision+=1
  peer.role="waiter";peer.job_kind="cleanup";peer.job_step=1;peer.station_id=int(c.basin.id);peer.job_elapsed=.2
  check(game._service_destination(c.waiter,c.basin,Vector2i(6,6))==Vector2i(-1,-1),"second front dropper cannot share the waiter contact")
  peer.clear();peer.merge(before)

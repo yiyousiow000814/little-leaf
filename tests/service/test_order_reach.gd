@@ -107,9 +107,9 @@ func run():
  check(destination(g)==INVALID,"closed real route invalidates rear pin without waiting for a stall")
  g.model.items.erase(g.model.get_item(303));check(destination(g)==REAR,"reopening real route permits retry")
  var saved=g._service_save_snapshot()
- check(not saved.staff[0].has("order_route_key") and not saved.staff[0].has("order_route_lengths"),"bounded route verdicts are absent from save projection")
+ check(not saved.staff[0].has("work_route_key") and not saved.staff[0].has("work_route_lengths"),"bounded route verdicts are absent from save projection")
  g._clear_service_job(s)
- check(not s.has("order_route_key") and not s.has("order_route_lengths"),"clearing job releases route verdicts")
+ check(not s.has("work_route_key") and not s.has("work_route_lengths"),"clearing job releases route verdicts")
  cleanup(g)
  # Invalidate contact in place after the real waiter has begun its gesture.
  g=fixture();record=g.service_guests[201];s=g.staff_states[0]
@@ -185,7 +185,7 @@ func negative_routes():
  evidence.negative_route_calls={"initial":first,"after_200_retries":g.rear_route_calls}
  check(first==2 and s.job_kind=="","both actual rear candidates are unreachable")
  check(g.rear_route_calls==first,"negative results memoize both diners across idle assignment retries")
- check(s.get("order_route_lengths",{}).size()==2,"cache retains only two endpoint verdicts for this start/topology")
+ check(s.get("work_route_lengths",{}).size()==2,"cache retains only two endpoint verdicts for this start/topology")
  s.pos=Vector2(3.5,7.5);g._assign_service_job(s,0)
  check(g.rear_route_calls==first+2,"changed start cell rechecks both unreachable rear endpoints")
  first=g.rear_route_calls

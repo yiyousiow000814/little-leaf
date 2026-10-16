@@ -358,8 +358,8 @@ async function main() {
       JSON.stringify(stored.identity) === JSON.stringify(baseline.identity), label + ': independent native read matches the accepted exact payload and permanent identity');
     const stablePayload = JSON.parse(stored.active.payload);
     check(stablePayload.building_format === 'little_leaf.grid_building.v2' && stablePayload.wall_format === 4 &&
-      stablePayload.wall_attachment_format === 2 && stablePayload.runtime?.service?.version === 5,
-      label + ': recovered actual controller save retains current building v2, wall format 4, attachment format 2 and service version 5');
+      stablePayload.wall_attachment_format === 2 && stablePayload.runtime?.service?.version === 6,
+      label + ': recovered actual controller save retains current building v2, wall format 4, attachment format 2 and service version 6');
     if (read.revision > 0) check(stored.active.previous?.digest === baseline.active.digest &&
       stored.active.previous?.payload === baseline.active.payload, label + ': saved-authority retry retains the previous committed snapshot');
     record.accepted = {revision: next, profile: read.profile, digest: stored.active.digest, payload_sha256: sha(stored.active.payload)};
@@ -420,8 +420,8 @@ async function main() {
         record.name + ' ' + roundName + ': real reload validates the exact durable identity, revision, wallet and payload');
         const restoredPayload = JSON.parse(restored.boot.payload);
         check(restoredPayload.building_format === 'little_leaf.grid_building.v2' && restoredPayload.wall_format === 4 &&
-          restoredPayload.wall_attachment_format === 2 && restoredPayload.runtime?.service?.version === 5,
-          record.name + ' ' + roundName + ': real reload accepts current building v2, wall format 4, attachment format 2 and service version 5');
+          restoredPayload.wall_attachment_format === 2 && restoredPayload.runtime?.service?.version === 6,
+          record.name + ' ' + roundName + ': real reload accepts current building v2, wall format 4, attachment format 2 and service version 6');
         check(!(await events(frame)).some(event => ['read_failure', 'save_failure'].includes(event.event)), record.name + ': reload has no storage or validation failure');
       }
       check(record.external_origins.length === 0, record.name + ': no external network requests');

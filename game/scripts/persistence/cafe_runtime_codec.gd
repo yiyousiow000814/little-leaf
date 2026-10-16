@@ -9,6 +9,7 @@ const NONE=Vector2i(-100,-100)
 const PAYMENT_SECONDS=1.6
 const FloorTasks=preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing=preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const WorkClaims=preload("res://scripts/gameplay/cafe_work_claims.gd")
 const JOB_LENGTHS={"wash":1,"floor":4,"":1,"order":1,"cook":4,"brew":3,"deliver_meal":2,"deliver_drink":2,"cleanup":7,"take_payment":1}
 const PLATE_OWNERS=["kitchen","station","staff","counter","table","sink","dish_queue","clean"]
 const DRINK_OWNERS=["beverage","station","staff","table","cleared"]
@@ -444,7 +445,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	var dish_checked=Dishwashing.validate_snapshot(service.get("dishwashing",{"format":Dishwashing.FORMAT,"next_id":1,"completed":0,"dishes":[]}),service.staff,records,item_map,self)
 	if not dish_checked.ok:return _fail(dish_checked.error)
 	var duty_actual={"chef":0,"waiter":0,"cleaner":0,"cashier":0}
-	var payment_claims={};var register_jobs={}
+	var payment_claims={};var register_jobs={};var table_cleanup_claims={}
 	var floor_job_claims={}
 	for staff in service.staff:
 		if not staff is Dictionary or staff.get("role") not in (["chef","waiter","cleaner","cashier"] if SaveContract.has_checkout(source_version) else ["chef","waiter","cleaner"]):return _fail("Invalid staff role")
@@ -472,6 +473,9 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 			floor_job_claims[int(staff.job_mess_id)]=true
 		elif staff.job_kind not in ["","wash"] and (not records.has(int(staff.job_guest_id)) or int(staff.job_token)!=int(records[int(staff.job_guest_id)].token)):return _fail("Job token does not match guest")
 		if guests.has(int(staff.job_guest_id)) and bool(guests[int(staff.job_guest_id)].meal_abandoned) and staff.job_kind not in ["","cleanup"]:return _fail("Abandoned meal retains an active service job")
+		if int(service.version)>=SaveContract.EARLY_TABLE_CLEANUP_SERVICE_VERSION and staff.job_kind=="cleanup" and int(staff.job_step)<3:
+			if table_cleanup_claims.has(int(staff.job_guest_id)):return _fail("Duplicate table cleanup job")
+			table_cleanup_claims[int(staff.job_guest_id)]=true
 		if staff.job_kind=="take_payment":
 			var id=int(staff.job_guest_id);var guest=guests[id];var record=records[id];var register_id=int(staff.station_id)
 			if not _number(staff.job_elapsed,0,PAYMENT_SECONDS) or not item_map.has(register_id) or item_map[register_id].kind!="register" or register_id!=int(guest.checkout_register_id):return _fail("Invalid cashier station or payment progress")
@@ -486,10 +490,27 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		if guest.phase=="paying" and not payment_claims.has(int(guest.id)):return _fail("Paying guest has no cashier job")
 		if guest.phase in CHECKOUT_STAGES:
 			var record=records[int(guest.id)]
-			if not record.meal_done or not record.drink_done or record.plate_owner!="table" or record.drink_owner!="table" or record.dishes_collected or record.cleanup_done:return _fail("Checkout visit lost its unfinished table cleanup")
+			var early_table=int(service.version)>=SaveContract.EARLY_TABLE_CLEANUP_SERVICE_VERSION
+			var departed_chair=not guest.seated and not guest.dismounting and _mobility_kind(guest)!="to_assigned_seat"
+			if not record.meal_done or not record.drink_done:return _fail("Checkout visit has an unfinished meal")
+			if not early_table:
+				# Validate the original older format before upgrading it below.
+				if record.plate_owner!="table" or record.drink_owner!="table" or record.dishes_collected or record.cleanup_done:return _fail("Checkout visit lost its unfinished table cleanup")
+			elif not record.dishes_collected:
+				if record.plate_owner!="table" or record.drink_owner!="table" or record.table_wiped or record.cleanup_done:return _fail("Uncollected checkout dishes lost table custody")
+			else:
+				if not departed_chair or record.plate_owner not in ["staff","dish_queue","clean"] or record.drink_owner!="cleared":return _fail("Early checkout cleanup lost dish custody or chair departure")
+				if record.table_wiped and record.plate_owner not in ["dish_queue","clean"]:return _fail("Checkout table wiped before dish drop-off")
+				if record.plate_owner=="staff":
+					var holder=service.staff[int(record.plate_staff_index)]
+					if holder.role!="waiter" or holder.job_kind!="cleanup" or int(holder.job_step) not in [0,1]:return _fail("Checkout dishes are not held by their waiter")
 			if int(guest.checkout_token)!=-1 and not payment_claims.has(int(guest.id)):return _fail("Checkout token has no cashier job")
-		for staff in service.staff:
-			if staff.job_kind=="cleanup" and int(staff.job_guest_id)==int(guest.id) and guest.phase in CHECKOUT_STAGES:return _fail("Checkout visit has premature cleanup")
+			for staff in service.staff:
+				if staff.job_kind!="cleanup" or int(staff.job_guest_id)!=int(guest.id):continue
+				if not early_table or not departed_chair or staff.role!="waiter" or int(staff.job_step)>=3:return _fail("Checkout visit has premature cleanup")
+				if int(staff.job_step)==0 and record.dishes_collected and record.plate_owner!="staff":return _fail("Checkout collection lost its held dishes")
+				if int(staff.job_step)>0 and not record.dishes_collected:return _fail("Checkout cleanup stage precedes dish pickup")
+				if int(staff.job_step)==2 and record.plate_owner not in ["dish_queue","clean"]:return _fail("Checkout wiping precedes dish drop-off")
 	if source_version>=8:
 		for record in records.values():
 			if record.plate_owner=="staff":
@@ -511,5 +532,12 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 		for role in duty_actual:
 			if int(duty_actual[role])!=int(duty.get(role,0 if role=="cashier" and source_version<=SaveContract.LEGACY_MAX_VERSION else -1)):return _fail("Payroll disagrees with active shifts")
 	if int(service.version)<4:Dishwashing.migrate_snapshot(service)
+	var task_owners=[]
+	for staff in service.staff:
+		var identity=WorkClaims.task(staff)
+		if identity.is_empty():continue
+		for other in task_owners:
+			if WorkClaims.task_conflicts(identity,other):return _fail("Duplicate saved service task ownership")
+		task_owners.append(identity)
 	service.version=SaveContract.SERVICE_VERSION;service.checkout_format=SaveContract.CHECKOUT_FORMAT
 	return _validated_state(state,source_version)

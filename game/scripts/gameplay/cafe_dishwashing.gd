@@ -80,7 +80,7 @@ func assign(staff:Dictionary,index:int)->bool:
  if staff.role!="cleaner" or staff.job_kind!="":return false
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var shortest=1000000
  for dish in dishes.values():
-  if game.model.layout_held("dishes",int(dish.id)):continue
+  if game.model.layout_held("dishes",int(dish.id)) or game._task_owned(["dish",int(dish.id),int(dish.id),"wash"],index):continue
   var sink=game.model.get_item(int(dish.sink_id))
   if sink.is_empty():continue
   var assigned=false
@@ -108,7 +108,7 @@ func workface_available(staff:Dictionary,sink_id:int)->bool:
   var dropping=other.job_kind=="cleanup" and int(other.job_step)==1
   if not dropping and other.job_kind!="wash":continue
   if int(other.station_id)!=sink_id:continue
-  if _front_lane(staff)+_front_lane(other)==3:continue
+  if game.WorkClaims.sink_lane(staff)+game.WorkClaims.sink_lane(other)==3:continue
   # A lateral drop-off does not own the cleaner's front workface.
   var sink=game.model.get_item(sink_id)
   if dropping and not sink.is_empty():
@@ -118,38 +118,24 @@ func workface_available(staff:Dictionary,sink_id:int)->bool:
   var rank=3 if float(other.job_elapsed)>0.0 else (2 if dropping else 1)
   if rank>best:best=rank;winner=i
  return winner<0 or winner==own_index
-func _front_lane(staff:Dictionary)->int:
- if staff.role=="cleaner" and staff.job_kind=="wash":return 1
- if staff.role=="waiter" and staff.job_kind=="cleanup" and int(staff.job_step)==1:return 2
- return 0
-func front_claim(staff:Dictionary,sink:Dictionary,cell:Vector2i)->Dictionary:
- if sink.get("kind","")!="sink" or int(staff.station_id)!=int(sink.id) or cell!=game.model.workface_cell(sink):return {}
- var lane=_front_lane(staff)
- return {} if lane==0 else {"cell":cell,"sink_id":int(sink.id),"lane":lane}
 func front_available(staff:Dictionary,sink:Dictionary,claimed:Array=[],front_claims:Dictionary={})->bool:
- var face=game.model.workface_cell(sink);var lane=_front_lane(staff)
- if not workface_available(staff,int(sink.id)) or game.model.checkout_claims().has(face):return false
- var shared_claims=0;var partners=0
+ var face=game.model.workface_cell(sink);var lane=game.WorkClaims.sink_lane(staff)
+ if not workface_available(staff,int(sink.id)):return false
+ var intent=game._work_intent(staff,sink,face)
+ if not game._work_cell_available(face,staff,intent,claimed,front_claims):return false
+ var partners=0
  for i in game.staff_states.size():
   var other=game.staff_states[i]
   if is_same(other,staff):continue
-  # A preceding worker may already have completed/cleared its job this frame.
-  # Its value snapshot still owns that frame's destination and contact lane.
-  var claim=front_claims.get(i,front_claim(other,sink,other.destination))
-  var shared=claim.get("cell",Vector2i(-1,-1))==face and int(claim.get("sink_id",-1))==int(sink.id) and int(claim.get("lane",0))+lane==3
-  if shared:
+  var claim=front_claims.get(i,game._staff_work_claim(other,face))
+  if game.WorkClaims.complementary(intent,claim) and claim.get("cell",Vector2i(-1,-1))==face:
    partners+=1
    if partners>1:return false
-   if front_claims.has(i):shared_claims+=1
    continue
-  # Washing already permits transit bodies; retain that behavior when the
-  # dropper finishes or leaves. Only the drop contact needs body exclusion.
-  if lane==1:continue
-  if Vector2i(floori(other.pos.x),floori(other.pos.y))==face:return false
-  if other.job_kind!="" and (other.destination==face or other.get("table_face_cell",Vector2i(-1,-1))==face):return false
- # An anonymous caller claim, unrelated worker or a second front dropper is
- # never exempted merely because a compatible janitor is also present.
- return claimed.count(face)<=shared_claims
+  # Authored sink contact clearance is not transit collision. A depositor
+  # waits for unrelated bodies to leave; the washer preserves its old rule.
+  if lane!=1 and Vector2i(other.pos.floor())==face:return false
+ return true
 func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],reserving=false,front_claims:Dictionary={})->Vector2i:
  # Drop through a clear basin edge; washing keeps its authored front pose.
  # Destination claims and current bodies are checked separately from routes.
@@ -167,7 +153,7 @@ func drop_destination(staff:Dictionary,sink:Dictionary,from:Vector2i,claimed=[],
    if cell==front:
     if not front_available(staff,sink,claimed,front_claims):continue
    else:
-    if claimed.has(cell) or game._staff_cell_claimed(cell,own_index):continue
+    if not game._work_cell_available(cell,staff,game._work_intent(staff,sink,cell),claimed,front_claims):continue
     var occupied=false
     for other in game.staff_states:
      if is_same(other,staff):continue

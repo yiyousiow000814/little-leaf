@@ -40,13 +40,14 @@ static func solve(position:Vector2,contact:Vector2,model,current:Vector2=Vector2
 	if obstruction=="":obstruction=blocked_by(model,position+current,position+candidate)
 	return {"offset":candidate if obstruction=="" else Vector2.ZERO,"obstruction":obstruction}
 
-static func blocked_by(model,start:Vector2,finish:Vector2)->String:
+static func blocked_by(model,start:Vector2,finish:Vector2,items=null)->String:
 	# Reuse the placement body's radius and the same solid wall rectangles as
 	# routing. Test the swept body, including corners, not only its endpoint.
-	for item in model.items:
+	var furnishings=model.items if items==null else items
+	for item in furnishings:
 		if str(item.kind)=="rug":continue
 		if _segment_near_rect(start,finish,Rect2(Vector2(item.x,item.z),Vector2.ONE),model.STAFF_PLACEMENT_RADIUS):return "furniture "+str(item.id)
-	if not Relocation.point_clear(model,start,model.items) or not Relocation.point_clear(model,finish,model.items):return "unowned floor"
+	if not Relocation.point_clear(model,start,furnishings) or not Relocation.point_clear(model,finish,furnishings):return "unowned floor"
 	for host in model.collision_wall_hosts():
 		for segment in Openings.solid_segments(host,model.built_walls,model.wall_attachments):
 			if Openings.body_touches(segment,start) or Openings.body_touches(segment,finish) or _segment_near_rect(start,finish,Openings.segment_rect(segment),Walls.BODY_RADIUS):return "wall "+str(host.get("id","edge"))

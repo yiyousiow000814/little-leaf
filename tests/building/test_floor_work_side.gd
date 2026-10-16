@@ -5,9 +5,9 @@ const Approach=preload("res://scripts/gameplay/floor_cleaning_approach.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 class StageProbe extends "res://scripts/rendering/cafe_floor_geometry.gd":
 	var actions=[]
-	func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:
+	func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="",frame_claims:Dictionary={})->Vector2i:
 		actions.append(action)
-		return super.destination(entry,staff,from,claimed,action)
+		return super.destination(entry,staff,from,claimed,action,frame_claims)
 var checks=0
 var failures=[]
 func check(ok,label):

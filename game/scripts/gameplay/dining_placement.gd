@@ -3,6 +3,12 @@ extends RefCounted
 const CHAIR_PULL=.37
 const DOCK_SPEED=1.4
 const TABLE_HEIGHT=27.0
+# Authored table geometry, shared by drawing and display-only contact checks.
+const BASIC_LEGS=[Vector2(-17,-5),Vector2(18,-5),Vector2(-16,6),Vector2(17,6)]
+const COTTAGE_LEGS=[Vector2(-.32,-.32),Vector2(.32,-.32),Vector2(-.32,.32),Vector2(.32,.32)]
+const REFINED_LEGS=[Vector2(-.30,-.30),Vector2(.30,-.30),Vector2(-.30,.30),Vector2(.30,.30)]
+const COTTAGE_TOP=[Vector2(-.45,-.45),Vector2(.45,-.45),Vector2(.45,.45),Vector2(-.45,.45)]
+const REFINED_TOP=[Vector2(-.45,-.27),Vector2(-.27,-.45),Vector2(.27,-.45),Vector2(.45,-.27),Vector2(.45,.27),Vector2(.27,.45),Vector2(-.27,.45),Vector2(-.45,.27)]
 const ROUND_TOP=Vector2(25,12)
 const PLATE_OFFSET=.14
 const CUP_SIDE=.24

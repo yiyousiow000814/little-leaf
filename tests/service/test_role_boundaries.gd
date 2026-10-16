@@ -96,6 +96,7 @@ func run():
  # Each legacy input is created by real movement in the unchanged old Main.
  var old=BeforeFixture.new();root.add_child(old);await process_frame
  old.set_process(false);old.illustration.set_process(false)
+ legacy_independent_litter(old)
  for stage in ["idle_collect","pre_contact_collect","held_collect","carrying","washing_sink","partial_wipe","idle_wipe","held_trash"]:
   record=old.setup_dirty(true)
   cleaner=old.worker("cleaner")
@@ -144,3 +145,47 @@ func run():
  FileAccess.open("res://docs/testing/role-boundaries/test-results.json",FileAccess.WRITE).store_string(JSON.stringify(report,"  "))
  print("ROLE_BOUNDARIES_RESULT ",JSON.stringify(report))
  quit(0 if failures.is_empty() else 1)
+
+func legacy_independent_litter(old):
+ # Exercise the historical controller's shared FloorTasks callback surface,
+ # not just diner-owned floor records. The old all-work exclusion is retained.
+ old.setup_dirty(false)
+ var cleaner=old.worker("cleaner")
+ var id=-1
+ for z in range(old.model.depth):
+  for x in range(1,old.model.width):
+   id=old.floor_tasks.spawn(Vector2i(x,z),"banana",91,3)
+   if id>0:break
+  if id>0:break
+ check(id>0,"legacy runtime creates actual independent litter")
+ if id<0:return
+ old.floor_tasks.assign(cleaner,old.staff_states.find(cleaner))
+ check(cleaner.job_kind=="floor" and cleaner.job_mess_id==id,"legacy runtime assigns independent litter through its identity adapter")
+ if cleaner.job_kind!="floor":return
+ var cell=old.floor_tasks.record(cleaner).floor_work_cell
+ var peer=old.worker("waiter");var prior_peer=peer.duplicate(true)
+ peer.job_kind="order";peer.destination=cell
+ check(not old._work_cell_available(cell,cleaner,{},[]),"before runtime retains original all-work endpoint exclusion")
+ peer.clear();peer.merge(prior_peer)
+ var unassigned={"role":"cleaner","job_kind":"","pos":cleaner.pos}
+ old.floor_tasks.assign(unassigned,-1)
+ check(unassigned.job_kind=="","legacy runtime never grants the same independent mess twice")
+ # Preserve the actual assigned old-runtime state. Legacy travel/contact
+ # behavior is exercised by the eight existing migration cases above.
+ var prior=cleaner.duplicate(true)
+ old.model.service_snapshot=old._service_save_snapshot()
+ var path="user://legacy-independent-litter.json"
+ check(old.model.save(path),"legacy assigned independent litter saves: "+old.model.last_error)
+ var bytes=FileAccess.get_sha256(path)
+ check(game.model.load_save(path),"current runtime loads legacy independent litter: "+game.model.last_error)
+ game._restore_service_runtime();cleaner=game.worker("cleaner")
+ check(cleaner.job_kind=="floor" and cleaner.job_mess_id==id and cleaner.job_token==prior.job_token and cleaner.pos==prior.pos and is_equal_approx(cleaner.job_elapsed,prior.job_elapsed),"legacy litter identity, owner, position and clock survive migration")
+ check(FileAccess.get_sha256(path)==bytes,"legacy litter migration preserves its original generated save bytes")
+ var completed=game.floor_tasks.completed
+ for tick in range(600):
+  game.advance()
+  if not game.floor_tasks.messes.has(id):break
+ check(not game.floor_tasks.messes.has(id) and game.floor_tasks.completed==completed+1,"migrated independent litter completes exactly once")
+ for tick in range(30):game.advance()
+ check(game.floor_tasks.completed==completed+1,"later frames never duplicate legacy litter completion")
+ results.append({"case":"legacy independent litter","done":not game.floor_tasks.messes.has(id),"fixture":path})

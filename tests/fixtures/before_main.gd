@@ -80,3 +80,28 @@ func _assign_service_job(staff: Dictionary, index: int):
 
 	floor_tasks.assign(staff,index)
 
+# The historical controller intentionally shares today's floor task/shape code.
+# Adapt its new callback surface without applying today's stance policy to the
+# before side: these are the original mess-owner and all-work-cell exclusions.
+# Only the identity callback is shared; historical ownership and stance
+# arbitration below remain frozen. Reject accidental non-floor use explicitly.
+class WorkClaims:
+	static func task(staff:Dictionary)->Array:
+		assert(staff.get("job_kind")=="floor")
+		return ["mess",int(staff.job_mess_id),int(staff.job_token),"floor"]
+func _task_owned(identity:Array,except_index:int=-1)->bool:
+	assert(identity[0]=="mess")
+	for i in staff_states.size():
+		var other=staff_states[i]
+		if i!=except_index and other.job_kind=="floor" and int(other.job_mess_id)==int(identity[1]):return true
+	return false
+func _work_intent(_staff:Dictionary,_target:Dictionary,_cell:Vector2i,_prospective:Dictionary={})->Dictionary:
+	return {"legacy_floor_contact":true}
+func _floor_work_intent(_staff:Dictionary,_entry:Dictionary,_cell:Vector2i)->Dictionary:
+	return {"legacy_floor_contact":true}
+func _work_cell_available(cell:Vector2i,staff:Dictionary,_intent:Dictionary,claimed:Array,_frame_claims:Dictionary={})->bool:
+	if claimed.has(cell) or model.checkout_claims().has(cell):return false
+	for other in staff_states:
+		if is_same(other,staff):continue
+		if other.job_kind!="" and (other.destination==cell or other.get("table_face_cell",Vector2i(-1,-1))==cell):return false
+	return true

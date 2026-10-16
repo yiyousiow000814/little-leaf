@@ -21,6 +21,7 @@ const FeedbackSfx = preload("res://scripts/audio/cafe_feedback_sfx.gd")
 const SaveProfiles = preload("res://scripts/persistence/cafe_save_profiles.gd")
 const FloorTasks = preload("res://scripts/gameplay/cafe_floor_tasks.gd")
 const Dishwashing = preload("res://scripts/gameplay/cafe_dishwashing.gd")
+const WorkClaims=preload("res://scripts/gameplay/cafe_work_claims.gd")
 const CompactUI = preload("res://scripts/ui/cafe_compact_ui.gd")
 var compact_ui
 const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
@@ -413,7 +414,7 @@ func _publish_layout_plan(proposal:Dictionary):
 			if staff.get(key)!=saved.get(key):changed=true
 		staff.merge(saved,true)
 		if changed:
-			for key in ["work_endpoint","validated_route_signature","order_route_key","order_route_lengths","pass_validation","pass_search"]:staff.erase(key)
+			for key in ["work_endpoint","validated_route_signature","work_route_key","work_route_lengths","pass_validation","pass_search"]:staff.erase(key)
 		if model.layout_held("staff",index):
 			staff.erase("work_endpoint");_set_staff_art(staff,"idle",{},0.0,_staff_payload(staff,index))
 		staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
@@ -930,44 +931,108 @@ func _is_floor_cleanup(staff:Dictionary)->bool:
 	var index=int(staff.get("job_step",-1))
 	return index>=0 and index<SERVICE_STEPS.cleanup.size() and str(SERVICE_STEPS.cleanup[index].action) in ["sweeping","mopping"]
 
+func _task_owned(identity:Array,except_index:int=-1)->bool:
+	for index in staff_states.size():
+		if index!=except_index and WorkClaims.task_conflicts(identity,WorkClaims.task(staff_states[index])):return true
+	return false
+
+func _work_intent(staff:Dictionary,target:Dictionary,cell:Vector2i,prospective:Dictionary={})->Dictionary:
+	return WorkClaims.contact(staff if prospective.is_empty() else prospective,target,cell,staff_states.find(staff))
+
+func _floor_work_intent(staff:Dictionary,entry:Dictionary,cell:Vector2i)->Dictionary:
+	var guest=entry.get("guest",{})
+	var state={"role":staff.role,"job_kind":"floor" if guest.is_empty() else "cleanup","job_step":0 if guest.is_empty() else 3,"job_token":int(entry.token),"job_guest_id":int(guest.get("id",-1)),"job_mess_id":int(entry.get("id",-1))}
+	return _work_intent(staff,{"kind":"floor","id":-1000000-int(entry.get("id",-1))},cell,state)
+
+func _work_contact_valid(staff:Dictionary,target:Dictionary,cell:Vector2i)->bool:
+	# Pure geometry/current-target check: never call destination selection here.
+	if _layout_staff_held(staff) or staff.job_kind=="" or target.is_empty() or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
+	var kind=str(target.kind);var valid=false
+	if kind=="floor_disposal":valid=cell==Vector2i(staff.pos.floor())
+	elif _is_floor_cleanup(staff):
+		var record=floor_tasks.record(staff) if staff.job_kind=="floor" else service_guests.get(int(staff.job_guest_id),{})
+		var action=str(SERVICE_STEPS[staff.job_kind][int(staff.job_step)].action)
+		valid=not record.is_empty() and floor_tasks.geometry.work_cells(record,action).has(cell) and floor_tasks.geometry.space_available(cell)
+	elif kind=="table":
+		valid=model.table_service_cells(target).has(cell)
+		if staff.job_kind=="order" and service_guests.has(int(staff.job_guest_id)):valid=valid or model.order_rear_cell(target,service_guests[int(staff.job_guest_id)].guest)==cell
+	elif kind=="bin":valid=model.bin_service_cells(target).has(cell)
+	elif kind in ["stove","beverage","sink","counter","register"]:
+		var center=Vector2i(int(target.x),int(target.z));var face=model.workface_cell(target)
+		if (kind=="counter" and staff.role=="chef") or (kind=="register" and staff.role=="cashier"):face=2*center-face
+		valid=cell==face
+		if kind=="sink" and staff.job_kind=="cleanup" and int(staff.job_step)==1:
+			var direction=face-center;var side=Vector2i(-direction.y,direction.x)
+			valid=cell in [face,center+side,center-side]
+		valid=valid and not model.edge_blocked(center,cell)
+	if not valid:return false
+	return _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)>=0
+
+func _staff_work_claim(staff:Dictionary,cell:Vector2i)->Dictionary:
+	if staff.get("table_face_cell",Vector2i(-1,-1))!=cell and staff.destination!=cell:return {}
+	var target=_service_target(staff)
+	return _work_intent(staff,target,cell) if _work_contact_valid(staff,target,cell) else {}
+
 func _staff_owns_work_endpoint(staff:Dictionary,cell:Vector2i)->bool:
-	if _layout_staff_held(staff) or staff.job_kind=="":return false
-	if staff.get("table_face_cell",Vector2i(-1,-1))!=cell and staff.destination!=cell:return false
-	# A retained job can be waiting for a missing target while its destination
-	# is only idle fallback. Looking up the current target does not select a
-	# destination or alter the job, its token or held food.
-	return not _service_target(staff).is_empty()
+	return not _staff_work_claim(staff,cell).is_empty()
 
-func _table_face_available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
-	# Work destinations stay exclusive; passing bodies never reserve the floor.
-	if claimed.has(cell) or model.checkout_claims().has(cell):return false
-	for other in staff_states:
-		if is_same(other,staff):continue
-		if _staff_owns_work_endpoint(other,cell):return false
-	return true
+func _work_cell_available(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->bool:
+	if intent.is_empty() or _layout_staff_held(staff) or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
+	if _work_route_length(staff,staff_states.find(staff),Vector2i(staff.pos.floor()),cell)<0:return false
+	# Plan one real geometry-valid endpoint per task so idle standing gives way
+	# to all work. Resource/task acquisition remains in the assignment owners.
+	if bool(frame_claims.get("planning",false)):return true
+	var remaining=claimed.count(cell);var own=staff_states.find(staff)
+	for index in staff_states.size():
+		if index==own:continue
+		if frame_claims.has(index):
+			var snapshot:Dictionary=frame_claims[index]
+			if snapshot.get("cell",Vector2i(-1,-1))!=cell:continue
+			if bool(snapshot.get("claimed",true)):remaining-=1
+			if WorkClaims.conflicts(intent,snapshot):return false
+		else:
+			var peer=_staff_work_claim(staff_states[index],cell)
+			if not WorkClaims.conflicts(intent,peer):continue
+			# Duplicate task ownership is never arbitration. Other exclusive
+			# work follows the existing order, including chef incumbency/fairness.
+			if WorkClaims.task_conflicts(intent.task,peer.task):return false
+			# Independent shared-stance work cannot steal a real selected
+			# equipment workspace, including an in-flight later roster owner.
+			if not intent.exclusive and peer.exclusive:return false
+			var order=_chef_work_order()
+			if own<0 or order.find(index)<order.find(own):return false
+	# Only identifiable frame claims can be waived, never anonymous extras.
+	return remaining<=0
 
-func _order_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i)->int:
+func _table_face_available(cell:Vector2i,staff:Dictionary,claimed:Array,intent:Dictionary={},frame_claims:Dictionary={})->bool:
+	if intent.is_empty():intent=_work_intent(staff,_service_target(staff),cell)
+	return _work_cell_available(cell,staff,intent,claimed,frame_claims)
+
+func _work_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i)->int:
 	# Cache positive and negative route lengths, never claims or diner eligibility.
 	# Only owned floor candidates enter: at most MAX_WIDTH*MAX_DEPTH (324) small
 	# verdicts per staff. A changed start/topology drops the entire prior set.
 	var key=[model.navigation_signature(),from]
-	if staff.get("order_route_key",[])!=key:
-		staff.order_route_key=key;staff.order_route_lengths={}
-	if not staff.order_route_lengths.has(cell):
+	if staff.get("work_route_key",[])!=key:
+		staff.work_route_key=key;staff.work_route_lengths={}
+	if not staff.work_route_lengths.has(cell):
 		var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
-		staff.order_route_lengths[cell]=route.size() if not route.is_empty() or from==cell else -1
-	return int(staff.order_route_lengths[cell])
+		staff.work_route_lengths[cell]=route.size() if not route.is_empty() or from==cell else -1
+	return int(staff.work_route_lengths[cell])
 
-func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={})->Vector2i:
+func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,order_guest:Dictionary={},frame_claims:Dictionary={})->Vector2i:
+	var prospective={}
+	if not order_guest.is_empty() and staff.job_kind=="":prospective={"role":staff.role,"job_kind":"order","job_step":0,"job_guest_id":int(order_guest.id),"job_token":int(service_guests[int(order_guest.id)].token)}
+	var intent=_work_intent(staff,item,Vector2i(-1,-1),prospective)
 	var cells=model.table_service_cells(item)
 	var rear=model.order_rear_cell(item,order_guest) if not order_guest.is_empty() else Vector2i(-1,-1)
 	if rear!=Vector2i(-1,-1):cells.append(rear)
 	var pinned:Vector2i=staff.get("table_face_cell",Vector2i(-1,-1))
 	var staff_index=staff_states.find(staff)
 	var force_replan=float(staff.get("stalled_time",0.0))>.65
-	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned) and _table_face_available(pinned,staff,claimed):
+	if int(staff.get("table_face_id",-1))==int(item.id) and cells.has(pinned) and _table_face_available(pinned,staff,claimed,intent,frame_claims):
 		if not order_guest.is_empty():
-			if _order_route_length(staff,staff_index,from,pinned)>=0:return pinned
+			if _work_route_length(staff,staff_index,from,pinned)>=0:return pinned
 		elif not _static_service_path(from,pinned).is_empty():
 			if not force_replan or staff_index<0 or from==pinned or not _staff_route(staff_index,pinned).is_empty():return pinned
 	var best=Vector2i(-1,-1);var shortest=1000000
@@ -975,9 +1040,9 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 		# The rear is a fallback only. A still-valid pinned rear above remains
 		# stable even if an ordinary table face becomes available during travel.
 		if cell==rear and best!=Vector2i(-1,-1):break
-		if not _table_face_available(cell,staff,claimed):continue
+		if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 		var length=-1
-		if not order_guest.is_empty():length=_order_route_length(staff,staff_index,from,cell)
+		if not order_guest.is_empty():length=_work_route_length(staff,staff_index,from,cell)
 		else:
 			var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
 			if not route.is_empty() or from==cell:length=route.size()
@@ -986,44 +1051,43 @@ func _table_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,c
 	staff.table_face_cell=best
 	return best
 
-func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
+func _bin_service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed:Array,frame_claims:Dictionary={})->Vector2i:
+	var intent=_work_intent(staff,item,Vector2i(-1,-1))
 	var cells=model.bin_service_cells(item)
 	var staff_index=staff_states.find(staff)
 	var pinned:Vector2i=staff.get("destination",Vector2i(-1,-1))
 	# Keep an in-flight approach stable. Replan when a peer, wall or changed
 	# layout makes that route unavailable; no new persistent save fields.
-	if cells.has(pinned) and _table_face_available(pinned,staff,claimed):
+	if cells.has(pinned) and _table_face_available(pinned,staff,claimed,intent,frame_claims):
 		if staff_index>=0:
-			if not _staff_cell_claimed(pinned,staff_index) and (from==pinned or not _staff_route(staff_index,pinned).is_empty()):return pinned
+			if (from==pinned or not _staff_route(staff_index,pinned).is_empty()):return pinned
 		elif not _static_service_path(from,pinned).is_empty():return pinned
 	var best=Vector2i(-1,-1);var shortest=1000000
 	for cell in cells:
-		if not _table_face_available(cell,staff,claimed):continue
-		if staff_index>=0 and _staff_cell_claimed(cell,staff_index):continue
+		if not _table_face_available(cell,staff,claimed,intent,frame_claims):continue
 		var route=_staff_route(staff_index,cell) if staff_index>=0 else _static_service_path(from,cell)
 		if route.is_empty() and from!=cell:continue
 		if route.size()<shortest:best=cell;shortest=route.size()
 	return best
 
 func _service_destination(staff:Dictionary,item:Dictionary,from:Vector2i,claimed=[],front_claims:Dictionary={})->Vector2i:
+	var intent=_work_intent(staff,item,from)
 	if str(item.get("kind",""))=="floor_disposal":
-		if _staff_walkable(from) and not claimed.has(from):return from
-		return _staff_idle_cell(staff_states.find(staff),claimed)
-	if staff.job_kind=="floor" and _is_floor_cleanup(staff):return floor_tasks.destination(staff,from,claimed)
+		return from if _staff_walkable(from) and _work_cell_available(from,staff,intent,claimed,front_claims) else Vector2i(-1,-1)
+	if staff.job_kind=="floor" and _is_floor_cleanup(staff):return floor_tasks.destination(staff,from,claimed,front_claims)
 	if _is_floor_cleanup(staff) and service_guests.has(int(staff.job_guest_id)):
 		staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
-		var record=service_guests[int(staff.job_guest_id)]
-		return floor_tasks.destination_for_record(record,staff,from,claimed)
+		return floor_tasks.destination_for_record(service_guests[int(staff.job_guest_id)],staff,from,claimed,front_claims)
 	if str(item.get("kind",""))=="table":
 		var guest:Dictionary=service_guests.get(int(staff.job_guest_id),{}).get("guest",{}) if staff.job_kind=="order" else {}
-		return _table_service_destination(staff,item,from,claimed,guest)
+		return _table_service_destination(staff,item,from,claimed,guest,front_claims)
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
-	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed)
+	if str(item.get("kind",""))=="bin":return _bin_service_destination(staff,item,from,claimed,front_claims)
 	if str(item.get("kind",""))=="sink":
-		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed,false,front_claims)
-		if not dishwashing.front_available(staff,item,claimed,front_claims):return Vector2i(-1,-1)
-		return _service_cell(item,from,[],str(staff.role))
-	return _service_cell(item,from,claimed,str(staff.role))
+		if staff.job_kind=="cleanup" and int(staff.job_step)==1:return dishwashing.drop_destination(staff,item,from,claimed,bool(front_claims.get("planning",false)),front_claims)
+		if not bool(front_claims.get("planning",false)) and not dishwashing.front_available(staff,item,claimed,front_claims):return Vector2i(-1,-1)
+	var cell=_service_cell(item,from,[],str(staff.role))
+	return cell if cell!=Vector2i(-1,-1) and _work_cell_available(cell,staff,intent,claimed,front_claims) else Vector2i(-1,-1)
 
 func _update_floor_state(record:Dictionary):
 	var guest=record.guest
@@ -1343,7 +1407,7 @@ func _clear_service_job(staff: Dictionary):
 		if record.plate_owner!="staff":record.dish_sink_id=-1
 	staff.job_guest_id=-1; staff.job_mess_id=-1;staff.job_dish_id=-1;staff.job_token=-1; staff.job_kind=""; staff.job_step=0; staff.job_elapsed=0.0; staff.station_id=-1
 	staff.table_face_id=-1;staff.table_face_cell=Vector2i(-1,-1)
-	staff.erase("order_route_key");staff.erase("order_route_lengths")
+	staff.erase("work_route_key");staff.erase("work_route_lengths")
 	_retire_service_station_references()
 
 func _retire_service_station_references():
@@ -1452,10 +1516,14 @@ func _mark_blocked_job(staff: Dictionary, guest: Dictionary, kind: String):
 		if _service_cell(item,from,[],str(staff.role))!=Vector2i(-1,-1): has_usable=true;break
 	staff.blocked_reason="Waiting for a free %s"%station_kind if has_usable else ("Table service side blocked · make space beside the diner in Decorate" if station_kind=="table" else ("%s front blocked · make space in Decorate"%station_kind.capitalize() if staff.blocked_target_id>=0 else "Add a %s in Decorate"%station_kind))
 
-func _cleanup_ready(guest: Dictionary) -> bool:
+func _cleanup_ready(guest: Dictionary, allow_checkout:bool=false) -> bool:
 	if bool(guest.get("withdrawn",false)):return false
 	if str(guest.phase) in ["dirty","cleaning"]: return true
-	if str(guest.phase)!="leaving" or bool(guest.get("seated",false)): return false
+	# Table clearing follows the actual chair departure, not payment or exit.
+	# Floor jobs retain their existing lifecycle and never borrow this gate.
+	var early_table=allow_checkout and str(guest.phase) in ["checkout_walk","checkout_wait","paying"]
+	if str(guest.phase)!="leaving" and not early_table:return false
+	if bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)) or str(guest.get("mobility",{}).get("kind",""))=="to_assigned_seat":return false
 	var chair=model.get_item(int(guest.chair_id))
 	var table=model.get_item(int(guest.table_id))
 	if chair.is_empty() or table.is_empty(): return false
@@ -1480,11 +1548,9 @@ func _assign_service_job(staff: Dictionary, index: int):
 			if kind=="brew" and (phase!="drinking" or record.drink_ready): continue
 			if kind=="deliver_meal" and (phase!="cooking" or not record.meal_ready or record.meal_done): continue
 			if kind=="deliver_drink" and (phase!="drinking" or not record.drink_ready or record.drink_done): continue
-			if kind=="cleanup" and (not _cleanup_ready(guest) or record.cleanup_done or _cleanup_role_step(record,str(staff.role))>=SERVICE_STEPS.cleanup.size()): continue
-			var assigned=false
-			for other in staff_states:
-				if int(other.job_guest_id)==int(guest.id) and int(other.job_token)==int(record.token): assigned=true;break
-			if assigned: continue
+			if kind=="cleanup" and (not _cleanup_ready(guest,staff.role=="waiter") or record.cleanup_done or _cleanup_role_step(record,str(staff.role))>=SERVICE_STEPS.cleanup.size()): continue
+			var task_state={"job_kind":kind,"job_guest_id":int(guest.id),"job_token":int(record.token),"job_step":_cleanup_role_step(record,str(staff.role)) if kind=="cleanup" else 0}
+			if _task_owned(WorkClaims.task(task_state),index):continue
 			if kind=="cleanup":
 				var cleanup_step=_cleanup_role_step(record,str(staff.role))
 				if str(SERVICE_STEPS.cleanup[cleanup_step].action) in ["sweeping","mopping"] and floor_tasks.destination_for_record(record,staff,from,[])==Vector2i(-1,-1):
@@ -1805,21 +1871,24 @@ func _animate_staff(delta: float):
 	for index in range(staff_states.size()):
 		if model.layout_held("staff",index):continue
 		_prepare_cleanup_step(staff_states[index],index);floor_tasks.prepare(staff_states[index],index)
-	# One union protects actual chef and selected order endpoints from standing.
-	# Other possible table faces and actor transit remain unreserved.
+	# One selected geometry-valid endpoint per live task protects work from idle.
+	# Unselected alternatives and actor transit remain unreserved.
 	model.navigation_cells()
 	var route_geometry=model.navigation_signature()
 	var workfaces=[]
+	var geometry_work={} # Frame-local presentation evidence; never a reservation.
 	for index in staff_states.size():
 		var staff=staff_states[index]
 		if model.layout_held("staff",index):continue
 		var chef_work=staff.role=="chef" and staff.job_kind=="cook"
 		if not chef_work:staff.erase("work_endpoint")
-		if not chef_work and staff.job_kind!="order":continue
+		if staff.job_kind=="":continue
 		var target=_service_target(staff)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-		var face=_service_destination(staff,target,from) if not target.is_empty() else Vector2i(-1,-1)
-		if face!=Vector2i(-1,-1) and not workfaces.has(face):workfaces.append(face)
+		var face=_service_destination(staff,target,from,[],{"planning":true}) if not target.is_empty() else Vector2i(-1,-1)
+		if face!=Vector2i(-1,-1):
+			geometry_work[index]=[WorkClaims.task(staff),int(staff.job_step),int(target.id),face,_work_intent(staff,target,face)]
+			if not workfaces.has(face):workfaces.append(face)
 		if chef_work and staff.has("work_endpoint"):
 			var signature=[int(staff.job_guest_id),int(staff.job_token),int(staff.job_step),int(target.get("id",-1)),face]
 			if staff.work_endpoint[0]!=signature or face==Vector2i(-1,-1):staff.erase("work_endpoint")
@@ -1829,7 +1898,7 @@ func _animate_staff(delta: float):
 	active_staff_passages.clear() # Retained runtime field; no physical transit claims.
 	var claimed=[]
 	var worked_stations={}
-	var front_claims={} # Value snapshots survive a peer completing its job this frame.
+	var front_claims={} # Full value claims survive completion; no saved reservation ledger.
 	for index in _chef_work_order():
 		var staff=staff_states[index]
 		if model.layout_held("staff",index):continue
@@ -1837,6 +1906,7 @@ func _animate_staff(delta: float):
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 		var destination=_service_destination(staff,target_item,from,claimed,front_claims) if not target_item.is_empty() else _staff_idle_cell(index,claimed+workfaces)
 		var interaction_available=destination!=Vector2i(-1,-1)
+		var waiting_for_workspace=false
 		if staff.role=="chef" and staff.job_kind=="cook":
 			if interaction_available and not target_item.is_empty():
 				# Acquire once a real staff route exists. Keep ownership during travel;
@@ -1845,13 +1915,26 @@ func _animate_staff(delta: float):
 					staff.work_endpoint=[[int(staff.job_guest_id),int(staff.job_token),int(staff.job_step),int(target_item.id),destination],route_geometry]
 			else:staff.work_wait_seconds=float(staff.get("work_wait_seconds",0.0))+delta
 		if not target_item.is_empty() and _service_destination(staff,target_item,from,[],front_claims)==Vector2i(-1,-1):
-			staff.blocked_reason="Waiting for the sink" if str(target_item.kind)=="sink" and not dishwashing.workface_available(staff,int(target_item.id)) else ("Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate"));staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
+			var planned=geometry_work.get(index,[])
+			if not planned.is_empty() and planned[0]==WorkClaims.task(staff) and int(planned[1])==int(staff.job_step) and int(planned[2])==int(target_item.id):
+				# Explain only a proven exclusive resource hold. Duplicate ownership,
+				# missing routes and malformed anonymous claims remain real faults.
+				for peer_index in geometry_work:
+					if peer_index==index:continue
+					var peer=staff_states[peer_index]
+					var claim=front_claims.get(peer_index,{})
+					if claim.is_empty() and (peer.destination==planned[3] or peer.get("table_face_cell",Vector2i(-1,-1))==planned[3]):claim=geometry_work[peer_index][4]
+					if claim.get("cell",Vector2i(-1,-1))==planned[3] and bool(claim.get("productive",false)) and bool(claim.get("exclusive",false)) and not WorkClaims.task_conflicts(planned[0],claim.get("task",[])) and WorkClaims.conflicts(planned[4],claim):waiting_for_workspace=true;break
+			staff.blocked_reason="Waiting for the work space" if waiting_for_workspace else ("Waiting for the sink" if str(target_item.kind)=="sink" and not dishwashing.workface_available(staff,int(target_item.id)) else ("Floor cleanup side blocked · make space beside the mess in Decorate" if _is_floor_cleanup(staff) else ("Table service side blocked · make space beside the diner in Decorate" if str(target_item.kind)=="table" else "Work side blocked · make space in Decorate")));staff.blocked_target_id=int(target_item.id);staff.blocked_guest_id=int(staff.job_guest_id)
 		elif not target_item.is_empty(): staff.blocked_reason=""
 		if not interaction_available: destination=_staff_idle_cell(index,claimed+workfaces,str(target_item.get("kind",""))!="stove")
 		# v13 may restore an old avoidance timer; it has no effect on work now.
 		staff.yield_time=0.0
-		if (interaction_available and not target_item.is_empty()) or not workfaces.has(destination):claimed.append(destination)
-		front_claims[index]=dishwashing.front_claim(staff,target_item,destination) if interaction_available else {}
+		var claims_cell=(interaction_available and not target_item.is_empty()) or not workfaces.has(destination)
+		if claims_cell:claimed.append(destination)
+		front_claims[index]=_work_intent(staff,target_item,destination) if interaction_available and not target_item.is_empty() else {"cell":destination,"productive":false}
+		front_claims[index]["claimed"]=claims_cell
+		if str(target_item.get("kind",""))=="sink" and destination!=model.workface_cell(target_item):front_claims[index]["lane"]=0
 		var at_destination=staff.pos.distance_to(Vector2(destination.x+.5,destination.y+.5))<.03
 		var route_invalid=_staff_route_invalid(staff,route_geometry)
 		if route_invalid or staff.destination!=destination or (not at_destination and (staff.blocked_time>.25 or (not staff.path.is_empty() and staff.index>=staff.path.size()))):
@@ -1881,7 +1964,7 @@ func _animate_staff(delta: float):
 		if staff.blocked_reason!="" and (not moved or target_item.is_empty()):
 			var blocked_item=model.get_item(int(staff.blocked_target_id))
 			# An intentionally unavailable stove is quiet during service.
-			var action="idle" if str(blocked_item.get("kind",""))=="stove" and not editing else "blocked"
+			var action="idle" if waiting_for_workspace or (str(blocked_item.get("kind",""))=="stove" and not editing) else "blocked"
 			_set_staff_art(staff,action,blocked_item,0.0,payload)
 			if staff.job_kind=="":
 				staff.art_guest_id=int(staff.blocked_guest_id)
@@ -1904,14 +1987,14 @@ func _animate_staff(delta: float):
 		var action_seconds=float(step.seconds)
 		if str(step.action)=="cooking": action_seconds=Model.cooking_seconds(Model.stove_speed_multiplier(target_item))
 		var station_key=Vector3i(int(target_item.id),destination.x,destination.y) if str(step.kind)=="sink" else int(target_item.id)
-		if not front_claims[index].is_empty():station_key=Vector4i(int(target_item.id),destination.x,destination.y,int(front_claims[index].lane))
+		if int(front_claims[index].get("lane",0))>0:station_key=Vector4i(int(target_item.id),destination.x,destination.y,int(front_claims[index].lane))
 		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():
 				if other_index==index or model.layout_held("staff",other_index): continue
 				var other=staff_states[other_index]
-				var other_target=_service_target(other)
-				if other_target.is_empty() or int(other_target.id)!=int(target_item.id): continue
+				var other_claim=_staff_work_claim(other,other.destination)
+				if other_claim.is_empty() or other_claim.resource!=front_claims[index].resource:continue
 				if float(other.job_elapsed)>0.0 or (other_index<index and float(staff.job_elapsed)<=0.0): station_busy=true; break
 		if station_busy: continue
 		if str(step.kind)!="table": worked_stations[station_key]=true

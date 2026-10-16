@@ -85,6 +85,23 @@ func update(key: Variant, world_pos: Vector2, delta: float) -> void:
 func sample(key: Variant) -> Dictionary:
 	return _pose(_actors[key] if _actors.has(key) else _new_actor(Vector2.ZERO))
 
+func settled(key:Variant)->bool:
+	if not _actors.has(key):return false
+	var actor:Dictionary=_actors[key]
+	if actor.was_moving:return false
+	if not actor.has_heading:return true
+	for foot in [actor.left,actor.right]:
+		if foot.settling or float(foot.lift)>=.01 or (foot.ground as Vector2).distance_to(project(actor.position)+_rest_center(foot.side,actor.heading))>=.01:return false
+	return true
+
+func preview(key:Variant,world_pos:Vector2,delta:float)->Dictionary:
+	# A frame-local, single-actor copy reuses the exact planted-foot geometry.
+	# Shared contact placement cannot mutate real feet or retain preview history.
+	var probe=get_script().new()
+	if _actors.has(key):probe._actors[key]=_actors[key].duplicate(true)
+	probe.update(key,world_pos,delta)
+	return probe.sample(key)
+
 func remove(key: Variant) -> void:
 	_actors.erase(key)
 
