@@ -44,8 +44,13 @@ func setup_combined_work():
  # Two held-meal fallbacks compete with an order and a different chef's pass.
  # The original blocked pass/stove remain blocked; only guest204 owns pass130.
  model.items.append({"id":130,"kind":"counter","x":2,"z":4,"rot":0})
- for id in [203,204]:
-  var guest=model.customers[1].duplicate(true);guest.id=id;model.customers.append(guest)
+ for entry in [[203,140,2,7],[204,142,9,4]]:
+  var id=entry[0];var table=entry[1];var x=entry[2];var z=entry[3]
+  model.items.append({"id":table,"kind":"table","x":x,"z":z,"rot":0})
+  model.items.append({"id":table+1,"kind":"chair","x":x,"z":z+1,"rot":0})
+  var guest=model.customers[1].duplicate(true)
+  guest.id=id;guest.table_id=table;guest.chair_id=table+1;guest.x=x+.5;guest.z=z+1.5
+  model.customers.append(guest)
  model.revision+=1;_sync_service_guests()
  _add_staff("chef",Vector2(2.5,3.5));_add_staff("chef",Vector2(3.5,2.5))
  for index in [2,3]:
