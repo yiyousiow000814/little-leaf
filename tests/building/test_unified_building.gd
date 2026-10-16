@@ -98,6 +98,12 @@ func _initialize():
 	check(restored.built_walls==model.built_walls and restored.wall_attachments==model.wall_attachments,"modern model exact building roundtrip")
 	var fixtures=OS.get_environment("UNIFIED_LEGACY_FIXTURE_DIR")
 	if fixtures=="":fixtures="res://tests/fixtures/unified_building"
+	# Independent expected road seed for the existing empty v1 parking fixtures.
+	var expected_road_cars=[]
+	for index in 8:
+		var position=Vector2(-4.65 if index%2==0 else -7.35,-65.0+index*19.0)
+		expected_road_cars.append({"id":index,"position":{"$vector2":[position.x,position.y]},"direction":1 if index%2==0 else -1,"color":"a2b3b3" if index%3==0 else "ddcdb0"})
+	var expected_initial_traffic={"elapsed":0.0,"cars":expected_road_cars}
 	if fixtures!="":
 		for name in ["historical","public_closed","owned_custom","intentionally_bare_grass","removed_structure","progress_and_payroll","inherited_extension_full","inherited_extension_half"]:
 			var path=fixtures.path_join(name+".json");var digest=FileAccess.get_sha256(path)
@@ -113,10 +119,16 @@ func _initialize():
 			var new_save=JSON.parse_string(FileAccess.get_file_as_string("user://imported.json"))
 			for field in original_save:
 				if field in ["wall_format","shell_segment_format","shell_segment_products","shell_products","shell_material","built_walls","wall_attachment_format","wall_attachments"]:continue
-				check(new_save.has(field) and same(new_save[field],original_save[field]),name+" preserves "+field)
+				var expected=original_save[field]
+				if field=="parking":
+					check(same(expected,{"format":"little_leaf.parking.v1","owned":false,"paid_cost":0,"visits":[]}),name+" legacy parking fixture remains empty and unowned")
+					expected=expected.duplicate(true)
+					expected.format="little_leaf.parking.v2";expected["traffic"]=expected_initial_traffic
+				check(new_save.has(field) and same(new_save[field],expected),name+" preserves "+field)
 			check(FileAccess.get_sha256("user://imported.json.pre-grid-"+digest+".json")==digest,name+" original recovery copy is exact")
 			var again=Model.new();check(again.load_save("user://imported.json"),name+" migrated reload: "+again.last_error)
 			check(again.built_walls==imported_model.built_walls and again.wall_attachments==imported_model.wall_attachments,name+" modern building roundtrip")
+			check(again.parking_owned==imported_model.parking_owned and again.parking_paid_cost==imported_model.parking_paid_cost and same(again.parking_visits,imported_model.parking_visits) and same(again.road_traffic_state,imported_model.road_traffic_state),name+" migrated parking and road state roundtrip")
 	# Boundary fixtures modify copies only; original recovery inputs stay exact.
 	var wide=JSON.parse_string(FileAccess.get_file_as_string(fixtures.path_join("historical.json")))
 	wide.wall_attachments[0].width=1.5
