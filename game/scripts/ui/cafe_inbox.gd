@@ -78,8 +78,8 @@ func fit_popup():
  var padding=panel.get_theme_stylebox("panel").get_minimum_size();var bar=scroll.get_v_scroll_bar()
  var gutter=bar.get_minimum_size().x+scroll.get_theme_constant("scrollbar_h_separation") if bar.visible else 0.0
  body.size.x=maxf(0,width-padding.x);content.size.x=maxf(0,width-padding.x-gutter)
- var fixed_height=heading_box.get_combined_minimum_size().y+footer.get_combined_minimum_size().y+28+padding.y
- var available=maxf(44,minf(620,compact.hud.popup_height_budget())-fixed_height)
+ var fixed_height=heading_box.get_combined_minimum_size().y+footer.get_combined_minimum_size().y+2*body.get_theme_constant("separation")+padding.y
+ var available=maxf(0,minf(620,MailFrame.height_budget(view,insets,compact.hud.popup_height_budget()))-fixed_height)
  scroll.custom_minimum_size=Vector2(0,minf(available,content.get_combined_minimum_size().y))
  panel.size=Vector2(width,0)
  panel.position=Vector2(insets.x+(view.x-insets.x-insets.z-panel.size.x)/2,insets.y+(view.y-insets.y-insets.w-panel.size.y)/2)

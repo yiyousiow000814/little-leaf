@@ -39,8 +39,10 @@ var subtitle:Label
 var footer:VBoxContainer
 var gift_catalog=GiftCatalog.new()
 var gift_search:LineEdit
-var gift_category:OptionButton
-var gift_filters:BoxContainer
+var gift_category="All"
+var gift_categories:GridContainer
+var category_buttons:Dictionary={}
+var gift_filters:VBoxContainer
 var result_slots:Array=[]
 var result_page=0
 var result_page_label:Label
@@ -140,7 +142,8 @@ func setup():
  _theme_action(send_button,true)
  focus_controls=[back,selected_button,all_button,recipient,find_button,coins.get_line_edit()]
  for slot in selected_slots:focus_controls.append_array([slot.minus,slot.plus])
- focus_controls.append_array([selected_previous,selected_next,item_toggle,gift_search,gift_category])
+ focus_controls.append_array([selected_previous,selected_next,item_toggle,gift_search])
+ focus_controls.append_array(category_buttons.values())
  for slot in result_slots:focus_controls.append(slot.add)
  focus_controls.append_array([result_previous,result_next,case_id,subject,letter,preview_button,send_button])
  for control in [header,form,footer]:control.minimum_size_changed.connect(compact._queue_popup_fit)
@@ -170,12 +173,16 @@ func _setup_gift_picker(parent:VBoxContainer):
  selected_next=game.button("›",_move_selected_page.bind(1));selected_next.custom_minimum_size=Vector2(44,44);selected_nav.add_child(selected_next);_theme_action(selected_next,false);selected_next.accessibility_name="Next selected items"
  item_toggle=game.button("Add item attachments",func():item_picker.visible=not item_picker.visible;_refresh_attachment_summary();compact._queue_popup_fit());parent.add_child(item_toggle)
  item_picker=VBoxContainer.new();item_picker.add_theme_constant_override("separation",6);parent.add_child(item_picker);item_picker.hide()
- gift_filters=BoxContainer.new();gift_filters.add_theme_constant_override("separation",6);item_picker.add_child(gift_filters)
+ gift_filters=VBoxContainer.new();gift_filters.add_theme_constant_override("separation",6);item_picker.add_child(gift_filters)
  gift_search=LineEdit.new();gift_search.placeholder_text="Search item names";gift_search.size_flags_horizontal=Control.SIZE_EXPAND_FILL;gift_search.accessibility_name="Search item catalogue";gift_filters.add_child(gift_search);_theme_input(gift_search)
  gift_search.text_changed.connect(func(_value):result_page=0;_refresh_gift_results())
- gift_category=OptionButton.new();gift_category.custom_minimum_size=Vector2(120,44);gift_category.accessibility_name="Item category";gift_filters.add_child(gift_category);_theme_action(gift_category,false)
- for category in gift_catalog.categories():gift_category.add_item("All categories" if category=="All" else str(category))
- gift_category.item_selected.connect(func(_index):result_page=0;_refresh_gift_results())
+ gift_categories=GridContainer.new();gift_categories.columns=2;gift_categories.add_theme_constant_override("h_separation",6);gift_categories.add_theme_constant_override("v_separation",6);gift_filters.add_child(gift_categories)
+ # Inline categories belong to the same clipped form as the results. No native
+ # popup can escape the wood face or cover the fixed Review/Send actions.
+ for category in gift_catalog.categories():
+  var button=game.button(str(category),_select_gift_category.bind(str(category)))
+  button.toggle_mode=true;button.button_pressed=category==gift_category;button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+  button.accessibility_name="Item category: "+str(category);gift_categories.add_child(button);_theme_action(button,false);category_buttons[category]=button
  gift_grid=GridContainer.new();gift_grid.columns=2;gift_grid.add_theme_constant_override("h_separation",8);gift_grid.add_theme_constant_override("v_separation",6);item_picker.add_child(gift_grid)
  for index in RESULT_PAGE_SIZE:
   var card=PanelContainer.new();card.mouse_filter=Control.MOUSE_FILTER_PASS;card.add_theme_stylebox_override("panel",_surface(Color("f3ecd8"),Color("d9c9aa"),6,6));card.size_flags_horizontal=Control.SIZE_EXPAND_FILL;gift_grid.add_child(card)
@@ -191,10 +198,15 @@ func _setup_gift_picker(parent:VBoxContainer):
  result_next=game.button("›",_move_result_page.bind(1));result_next.custom_minimum_size=Vector2(44,44);nav.add_child(result_next);_theme_action(result_next,false);result_next.accessibility_name="Next item results"
  parent.add_child(_label("After Claim: items → Storage; coins → wallet.",12,MUTED))
 
+func _select_gift_category(category:String):
+ if not category_buttons.has(category):return
+ gift_category=category
+ for name in category_buttons:category_buttons[name].button_pressed=name==category
+ result_page=0;_refresh_gift_results()
+
 func _refresh_gift_results():
- if gift_category==null:return
- var category="All" if gift_category.selected==0 else gift_category.get_item_text(gift_category.selected)
- var page=GiftCatalog.page(gift_catalog.matching(category,gift_search.text),result_page,RESULT_PAGE_SIZE)
+ if gift_grid==null:return
+ var page=GiftCatalog.page(gift_catalog.matching(gift_category,gift_search.text),result_page,RESULT_PAGE_SIZE)
  result_page=int(page.page)
  for index in result_slots.size():
   var slot:Dictionary=result_slots[index];slot.card.visible=index<page.rows.size()
@@ -330,10 +342,11 @@ func fit_popup():
  var gutter=bar.get_minimum_size().x+scroll.get_theme_constant("scrollbar_h_separation") if bar.visible else 0.0
  var inner_width=maxf(0,width-padding.x)
  gift_grid.columns=2 if inner_width-gutter>=500 else 1
- gift_filters.vertical=inner_width-gutter<480
+ gift_categories.columns=3 if inner_width-gutter>=480 else 2
  frame.size.x=inner_width;form.size.x=maxf(0,inner_width-gutter)
- var fixed=header.get_combined_minimum_size().y+footer.get_combined_minimum_size().y+20+padding.y
- scroll.custom_minimum_size=Vector2(0,minf(maxf(44,compact.hud.popup_height_budget()-fixed),form.get_combined_minimum_size().y))
+ var fixed=header.get_combined_minimum_size().y+footer.get_combined_minimum_size().y+2*frame.get_theme_constant("separation")+padding.y
+ var budget=MailFrame.height_budget(view,insets,compact.hud.popup_height_budget())
+ scroll.custom_minimum_size=Vector2(0,minf(maxf(0,budget-fixed),form.get_combined_minimum_size().y))
  panel.size=Vector2(width,0)
  panel.position=Vector2(insets.x+(view.x-insets.x-insets.z-panel.size.x)/2,insets.y+(view.y-insets.y-insets.w-panel.size.y)/2)
 

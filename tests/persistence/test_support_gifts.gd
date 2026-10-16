@@ -161,6 +161,8 @@ func run():
  var removed_id=str(composer.selected_slots[0].id);composer._remove_selected(0)
  check(not composer.quantities.has(removed_id),"basket remove clears only its selected item")
  check("Storage" in _text(composer.item_toggle.get_parent()),"mail item destination uses Storage, not a Gifts shelf")
+ check(composer.category_buttons.size()==composer.gift_catalog.categories().size() and _popup_count(composer.item_picker)==0,"category navigation is inline, with no PopupMenu/window")
+ composer.note.text="All-player delivery needs the server audience service. Nothing has been sent."
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=viewport
   for i in 8:await process_frame
@@ -175,6 +177,18 @@ func run():
   composer.scroll.ensure_control_visible(composer.result_next)
   for i in 3:await process_frame
   check(composer.scroll.get_global_rect().encloses(composer.result_next.get_global_rect()),"last gift page controls reachable "+str(viewport))
+  var selected_before=composer.quantities.duplicate(true)
+  await _click(composer.category_buttons.Kitchen,composer.scroll)
+  check(composer.gift_category=="Kitchen" and composer.category_buttons.Kitchen.button_pressed and not composer.category_buttons.All.button_pressed,"normal category click selects inline Kitchen "+str(viewport))
+  check(composer.result_slots.filter(func(slot):return slot.card.visible).all(func(slot):return slot.id in ["stove","sink","counter"]),"category results contain Kitchen entries only "+str(viewport))
+  composer.scroll.ensure_control_visible(composer.result_slots[0].card)
+  for i in 4:await process_frame
+  check(composer.scroll.get_global_rect().encloses(composer.result_slots[0].card.get_global_rect()),"category result card is fully reachable "+str(viewport))
+  check(composer.quantities==selected_before,"category click preserves selected quantities "+str(viewport))
+  await _click(composer.category_buttons.All,composer.scroll)
+  check(composer.gift_category=="All" and _popup_count(composer.item_picker)==0,"normal category return never opens an overlay "+str(viewport))
+  check(wood.encloses(composer.send_button.get_global_rect()) and wood.encloses(composer.preview_button.get_global_rect()),"actual fixed actions remain inside wood "+str(viewport))
+  if viewport.y<500:check(composer.scroll.size.y>=100,"short landscape retains at least one readable result card")
   check(composer.selected_slots.filter(func(slot):return slot.card.visible).all(func(slot):return slot.minus.size.x>=44 and slot.minus.size.y>=44 and slot.plus.size.x>=44 and slot.plus.size.y>=44),"selected quantity tap targets remain 44px "+str(viewport))
   check("1 Leaf Coins" in composer.attachment_summary.text and composer.attachment_summary.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"per-player attachment total remains outside the scroller "+str(viewport))
  composer.scroll.scroll_vertical=0;composer.preview_summary.text="Confirm this synthetic letter.";composer.preview_card.show();composer._reveal_review()
@@ -189,3 +203,18 @@ func _text(node:Node)->String:
  var result=str(node.text) if node is Label or node is Button else ""
  for child in node.get_children():result+="\n"+_text(child)
  return result
+
+func _click(button:Button,scroller:ScrollContainer):
+ scroller.ensure_control_visible(button)
+ for i in 4:await process_frame
+ var point=button.get_global_rect().get_center()
+ var motion=InputEventMouseMotion.new();motion.position=point;motion.global_position=point;root.push_input(motion,true)
+ for pressed in [true,false]:
+  var event=InputEventMouseButton.new();event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed;event.position=point;event.global_position=point
+  root.push_input(event,true);await process_frame
+ for i in 4:await process_frame
+
+func _popup_count(node:Node)->int:
+ var count=1 if node is PopupMenu else 0
+ for child in node.get_children():count+=_popup_count(child)
+ return count

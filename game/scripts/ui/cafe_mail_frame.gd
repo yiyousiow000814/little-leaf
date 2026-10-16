@@ -13,3 +13,10 @@ static func apply(panel:PanelContainer,width:float):
 
 static func inner_rect(panel:Control)->Rect2:
  return Rect2(panel.global_position+Vector2(WOOD_FACE.x,WOOD_FACE.y),panel.size-Vector2(WOOD_FACE.x+WOOD_FACE.z,WOOD_FACE.y+WOOD_FACE.w))
+
+# Short landscape needs the available safe height rather than a tall-screen
+# percentage; keep a 12px exterior gap on both edges, outside the wood itself.
+static func height_budget(view:Vector2,insets:Vector4,preferred:float)->float:
+ var safe_height=maxf(0,view.y-insets.y-insets.w)
+ var available=maxf(0,safe_height-24)
+ return available if safe_height<500 else minf(available,preferred)
