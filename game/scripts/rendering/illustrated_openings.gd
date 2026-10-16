@@ -21,9 +21,11 @@ static func face(view,host:Dictionary,a:float,b:float,low:float,high:float,origi
 	if host.material=="original":
 		original_base="e0e7d0" if host.axis=="x" else "cfdbc2"
 		original_panel="91a27d" if host.axis=="x" else "819874"
-		quad(view,[p(view,host,a,low,offset),p(view,host,b,low,offset),p(view,host,b,high,offset),p(view,host,a,high,offset)],tinted(original_base,alpha,tint))
+		# Reuse only within this face; camera/preview changes are read afresh.
+		var lower_a=p(view,host,a,low,offset);var lower_b=p(view,host,b,low,offset)
+		quad(view,[lower_a,lower_b,p(view,host,b,high,offset),p(view,host,a,high,offset)],tinted(original_base,alpha,tint))
 		if low<36:
-			quad(view,[p(view,host,a,low,offset),p(view,host,b,low,offset),p(view,host,b,minf(high,36),offset),p(view,host,a,minf(high,36),offset)],tinted(original_panel,alpha,tint))
+			quad(view,[lower_a,lower_b,p(view,host,b,minf(high,36),offset),p(view,host,a,minf(high,36),offset)],tinted(original_panel,alpha,tint))
 		# A filled rail shares exact endpoints with adjacent wall slices. An
 		# antialiased line per slice leaves tiny cap notches at every boundary.
 		if low<=36 and high>=36:quad(view,[p(view,host,a,35,offset),p(view,host,b,35,offset),p(view,host,b,37,offset),p(view,host,a,37,offset)],tinted("a9b797",alpha,tint))

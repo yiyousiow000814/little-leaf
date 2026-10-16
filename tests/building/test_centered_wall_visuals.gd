@@ -8,10 +8,13 @@ class Painter extends RefCounted:
  var game={"model":{"built_walls":[]}}
  var zoom=1.0
  var origin=Vector2.ZERO
+ var projection_calls=0
  var filled=[]
  var outlined=[]
  var lines=[]
- func iso(x,z,h=0.0):return origin+Vector2((x-z)*39,(x+z)*19.5-h)*zoom
+ func iso(x,z,h=0.0):
+  projection_calls+=1
+  return origin+Vector2((x-z)*39,(x+z)*19.5-h)*zoom
  func art_draw_polygon(points,colors,uvs,texture):filled.append({"points":points,"colors":colors,"uvs":uvs,"texture":texture})
  func poly(points,_color):outlined.append(points)
  func line(a,b,_color,_width):lines.append([a,b])
@@ -111,7 +114,32 @@ func slice_group_lifetime()->WeakRef:
  check(observed.get_ref()!=null,"Remaining slice keeps only its own preparation alive")
  final_slice={}
  return observed
+func inspect_face_corner_reuse(axis):
+ var painter=Painter.new();var host=Geometry.wall_host(wall("face",axis,2,3))
+ var tint=Color("efd095");var alpha=.68
+ for camera in [false,true]:
+  painter.zoom=1.55 if camera else 1.0;painter.origin=Vector2(135,79) if camera else Vector2.ZERO
+  for limits in [Vector2(0,128),Vector2(0,20),Vector2(35,37),Vector2(36,128),Vector2(40,128)]:
+   var low=limits.x;var high=limits.y;var a=.125;var b=.375;var offset=Art.front(host)
+   var expected=[]
+   var bands=[[low,high,"e0e7d0" if axis=="x" else "cfdbc2"]]
+   if low<36:bands.append([low,minf(high,36),"91a27d" if axis=="x" else "819874"])
+   if low<=36 and high>=36:bands.append([35,37,"a9b797"])
+   for band in bands:
+    var points=PackedVector2Array()
+    for corner in [Vector2(a,band[0]),Vector2(b,band[0]),Vector2(b,band[1]),Vector2(a,band[1])]:
+     var world=host.a+(host.b-host.a).normalized()*corner.x+offset
+     points.append(painter.iso(world.x,world.y,corner.y))
+    var color=Color(band[2])*Color(tint.r,tint.g,tint.b,alpha*tint.a)
+    expected.append({"points":points,"colors":PackedColorArray([color,color,color,color]),"uvs":PackedVector2Array(),"texture":null})
+   var before=host.duplicate(true);painter.filled=[];painter.projection_calls=0
+   Art.face(painter,host,a,b,low,high,"unused","unused",alpha,tint)
+   check(painter.filled==expected,"Face reuses corners with identical ordered points/colors/UVs after an immediate camera change")
+   check(painter.projection_calls==bands.size()*4-(2 if low<36 else 0),"Face saves exactly two projections only when a lower panel shares the corners")
+   check(host==before,"Face keeps scratch coordinates local and never mutates its host")
+
 func _initialize():
+ for axis in ["x","z"]:inspect_face_corner_reuse(axis)
  for cycle in range(12):check(slice_group_lifetime().get_ref()==null,"Dropping the final slice releases preparation on every cycle")
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))
  for index in 4:Art.face(painter,host,index*.25,(index+1)*.25,0,128)
