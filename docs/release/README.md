@@ -146,7 +146,7 @@ notes and includes merged [PR333](https://github.com/yiyousiow000814/little-leaf
 [PR334](https://github.com/yiyousiow000814/little-leaf/pull/334) and
 [PR336](https://github.com/yiyousiow000814/little-leaf/pull/336). These are
 next-release candidate notes, pending final release-scope reconciliation.
-They are not a record of a new deployment. The existing schema, English copy,
+They are not a record of a new deployment. The existing schema, English language,
 history and release metadata remain intact; no final release version or date is
 chosen here. Important existing limits remain: local/account progress stays
 separate, older meals keep their durations, existing stoves keep their value,
