@@ -482,7 +482,7 @@ func _build_player():
  selection_label=_label("",13,MUTED);overview.add_child(selection_label)
  edition_host=VBoxContainer.new();edition_host.name="RecordingEditions";player_body.add_child(edition_host)
  context_label=_label("",12,MUTED);context_label.hide();player_body.add_child(context_label)
- group_note=_label("Premium is free now · charging planned",11,GOLD_INK);group_note.tooltip_text=Catalog.PREMIUM_TOOLTIP
+ group_note=_label("Premium is free now · fees planned",11,GOLD_INK);group_note.tooltip_text=Catalog.PREMIUM_TOOLTIP
  group_note.accessibility_description=Catalog.PREMIUM_TOOLTIP;player_body.add_child(group_note)
 
 func _build_library():
@@ -493,13 +493,16 @@ func _build_library():
  library_heading=_label("SONGS  /  "+str(Catalog.families().size()),11,MUTED);library_heading.add_theme_font_override("font",compact.hud.font_bold);library_body.add_child(library_heading)
  scroll=ScrollContainer.new();scroll.name="MusicTracks";scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
  scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ scroll.scroll_deadzone=12
  scroll.follow_focus=true;scroll.focus_mode=Control.FOCUS_ALL;scroll.accessibility_name="Songs. Arrow keys browse; Enter chooses a song; Tab moves to its editions.";library_body.add_child(scroll)
- track_body=VBoxContainer.new();track_body.add_theme_constant_override("separation",2);track_body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(track_body)
+ track_body=VBoxContainer.new();track_body.mouse_filter=Control.MOUSE_FILTER_PASS;track_body.add_theme_constant_override("separation",2);track_body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(track_body)
  for family in Catalog.families():_add_family(family)
 
 func _add_family(family:Dictionary):
  var button=_button("",_choose_family.bind(str(family.id)));button.name="MusicFamily_"+str(family.id)
  button.toggle_mode=true;button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+ # Native ScrollContainer cancels release activation once its drag begins.
+ button.mouse_filter=Control.MOUSE_FILTER_PASS;button.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
  button.add_theme_stylebox_override("normal",_surface(Color.TRANSPARENT,Color.TRANSPARENT,8))
  button.add_theme_stylebox_override("hover",_surface(Color("eee3c8"),Color.TRANSPARENT,8))
  button.add_theme_stylebox_override("pressed",_surface(Color("dce4cc"),Color("a7b596"),8))
@@ -860,7 +863,7 @@ func layout():
  now_playing.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER if hero.vertical else HORIZONTAL_ALIGNMENT_LEFT
  status_label.horizontal_alignment=now_playing.horizontal_alignment;selection_label.horizontal_alignment=now_playing.horizontal_alignment
  group_note.add_theme_font_size_override("font_size",int(16*reference_scale) if reference_desktop else 10 if short_view else 11)
- group_note.text="Premium free · fees planned" if short_view else "Premium is free now · charging planned"
+ group_note.text="Premium free · fees planned" if short_view else "Premium is free now · fees planned"
  group_note.add_theme_color_override("font_color",MUTED)
  group_note.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER if desktop else HORIZONTAL_ALIGNMENT_LEFT
  # Context reasons occupy their own bounded explanation; they never hide transport.
@@ -947,7 +950,7 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  # ornament or tiny control bank; reuse the same native controls and owners.
  var narrow=usable.x<370
  var tight_landscape=not portrait and usable.x<700
- content_insets=Vector4(22,20,22,22) if portrait else Vector4(20,16,20,16) if tight_landscape else Vector4(24,18,24,18)
+ content_insets=Vector4(40,36,40,32)
  _theme_board()
  heading_indent.show();heading_indent.custom_minimum_size=Vector2(24,28)
  heading.add_theme_font_size_override("font_size",24)
@@ -959,15 +962,15 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  speaker_mark.ink_scale=1.0;speaker_mark.queue_redraw()
  if compact_controls:compact_controls=false;_apply_palette()
  content.add_theme_constant_override("separation",12 if portrait or tight_landscape else 18)
- player.size_flags_stretch_ratio=.82 if not portrait else 1.0
- library.size_flags_stretch_ratio=1.22
+ player.size_flags_stretch_ratio=1.0 if portrait or tight_landscape else .82
+ library.size_flags_stretch_ratio=1.0 if tight_landscape else 1.22
  library.custom_minimum_size.x=0 if portrait else 280 if usable.x>=740 else 200
  player.add_theme_stylebox_override("panel",_surface(Color.TRANSPARENT,Color.TRANSPARENT,0))
  player_body.alignment=BoxContainer.ALIGNMENT_CENTER
- player_body.add_theme_constant_override("separation",6)
+ player_body.add_theme_constant_override("separation",6 if portrait else 3)
  hero.vertical=not portrait
- hero.add_theme_constant_override("separation",5 if not portrait else 12)
- record_mark.show();record_mark.custom_minimum_size=Vector2(104,86) if narrow else Vector2(120,98) if portrait else Vector2(102,78) if tight_landscape else Vector2(92,70) if context_label.visible else Vector2(154,110)
+ hero.add_theme_constant_override("separation",3 if not portrait else 12)
+ record_mark.show();record_mark.custom_minimum_size=Vector2(104,86) if narrow else Vector2(120,98) if portrait else Vector2(78,42) if tight_landscape else Vector2(92,48) if context_label.visible else Vector2(112,56)
  now_playing.add_theme_font_size_override("font_size",17 if tight_landscape else 18 if narrow else 20)
  status_label.add_theme_font_size_override("font_size",10)
  status_label.visible=portrait
@@ -990,11 +993,11 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  group_note.text="Premium free · fees planned" if tight_landscape else "Premium is free now · fees planned"
  group_note.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
  context_label.add_theme_font_size_override("font_size",10)
- scroll.custom_minimum_size.y=144 if portrait else 132
- transport.add_theme_constant_override("separation",8)
- controls_row.add_theme_constant_override("separation",8)
+ scroll.custom_minimum_size.y=(96 if usable.y<680 else 144) if portrait else 116
+ transport.add_theme_constant_override("separation",4 if portrait else 8)
+ controls_row.add_theme_constant_override("separation",4 if portrait else 8)
  footer.add_theme_constant_override("separation",4)
- volume_slider.custom_minimum_size.x=56 if portrait else 64
+ volume_slider.custom_minimum_size.x=44 if portrait else 64
  elapsed_label.add_theme_font_size_override("font_size",12);duration_label.add_theme_font_size_override("font_size",12)
  volume_value.hide()
  for button in [previous_button,play_button,next_button,mute_button]:button.custom_minimum_size=Vector2(44,44)
