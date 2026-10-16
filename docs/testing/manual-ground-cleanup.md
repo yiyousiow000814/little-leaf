@@ -146,6 +146,55 @@ before adopting those rows. Existing native images and timings remain scoped
 to their original source, not this composition. GitHub Actions access from this
 execution environment returns `Forbidden`; final-head CI remains pending.
 
+### Bounded stalled-release recovery (R2, 2026-10-16)
+
+This is a separate correction to admission timing, not proof that the newest
+user screenshot was caused by furniture occlusion. Native control source
+`0698eb3b5cf388955780653d808041c195abe6a9` / tree
+`d43fc1ce098fba298948f49a505b79653bd8b429` reproduced an exposed-paper click lost
+after a controlled 300 ms presentation stall. R2 changes only
+`cafe_manual_cleanup.gd`; tested script SHA256 is
+`0ee60a42e007a81cb94ab230d96976c1a35b0afcebcd28ad1a8a4cd09baed58c`, patch SHA256
+`1bfff2d375a135a79b5aa72c33b8954c514fab5f58c0130e575839db87f457a4`.
+
+One unpresented expired query may request a fresh completed receipt. It retains
+unused attempts from the original two-frame budget and an absolute 750 ms
+intent deadline. A second expiration, exhausted attempts or an expired completed
+receipt refuses cleanup. Duplicate release cannot renew either bound. The same
+record object, identity, ground custody/shape, model revision and projection must
+remain current; ordinary guest/meal/waiter progress is outside that ground-mess
+semantic snapshot. No expired pixels authorize completion, and no timer, saved
+field, new rendering resource or atlas change is introduced.
+
+Actual native synthetic-scene evidence uses official Godot 4.6.3, X11 GL
+Compatibility, Mesa 25.0.7 / llvmpipe LLVM 19.1.7 at 1360×880. It reuses the
+existing synthetic mouse-event interaction handlers and actual completed-frame
+callbacks; it is not physical-device or browser qualification. Control passes
+38 diagnostic assertions, reproducing the stalled loss; R2 passes 107 assertions:
+normal/delayed exposed-paper taps settle exactly +1, duplicates cannot reward
+again, camera/layout/custody/shape/record replacement refuses, guest progress
+allows the fresh receipt, true table coverage still refuses, and a second stall
+or total deadline refuses. For the delayed R2 tap, completed frame 11 observes
+expiration and rearms with two unchanged attempts; frame 12 submits fresh paint
+and settles once. A separate 26-check capture pass inspects real before/after
+and final-cleared images after the existing cosmetic effect lifetime; frozen
+feedback at age zero is not mistaken for persistent authoritative litter.
+
+The original R2 cleanup headless suite passes 155 assertions. These results bind
+to the named base plus exact R2 script, not a new whole-tree native qualification
+or performance measurement. The existing suite now retains scalar admission,
+semantic invalidation and duplicate/budget regressions, plus native delayed-frame
+checks. The expanded ordinary headless suite passes 200 assertions with zero
+engine diagnostics; the full tracked native suite was not rerun for this
+source-preservation successor. The first exploratory native harness had an unfinished startup cover and
+an invalid empty-dining guest fixture; those failed logs remain preserved. The
+corrected control/candidate runs have no script errors; their unsupported VSync
+warning is recorded. No new user screenshot root-cause proof, user visual
+approval, canonical atlas pass or release is claimed. The canonical Mesa/LLVM
+mismatch and six stale producer rows above remain open; assets, manifest and
+strict guard stay unchanged. Final-head CI is pending; do not retry the denied
+workflow lookup as part of this candidate preservation.
+
 The read-only query never repaints, solves a pose or changes routing. A draw-time
 projection stamp, matching pre/post draw state, completed repaint revisions and
 current state check protect the completed image. Visible stale commands and

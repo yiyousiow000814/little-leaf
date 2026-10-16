@@ -48,6 +48,11 @@ func run():
  var Fixture=load("res://tests/fixtures/role_fixture.gd")
  if not "saveguard" in OS.get_user_data_dir():printerr("Use isolated profile");quit(2);return
  root.size=Vector2i(1360,880);game=Fixture.new();root.add_child(game);await process_frame
+ if DisplayServer.get_name()!="headless":
+  for frame in 30:
+   if not game.startup_preparation_report.is_empty():break
+   await settle()
+  check(not game.startup_preparation_report.is_empty(),"native input waits for actual startup preparation")
  game.set_process(false);game.illustration.set_process(false)
  if game.cafe_intro!=null:game.cafe_intro.finish()
  cleaner=game.interaction.manual_cleanup
@@ -82,7 +87,15 @@ func run():
   event(deferred_point,true);event(deferred_point,false)
   game.illustration.character_pick_geometry.query_deadline=Time.get_ticks_msec()-1
   await settle()
-  check(alive(deferred_id) and not cleaner.released,"expired query never completes and drops its intent")
+  check(alive(deferred_id) and cleaner.released and cleaner.release_rearmed,"expired unpresented query waits for one fresh frame")
+  await settle();await settle()
+  check(not alive(deferred_id),"one fresh native receipt settles the rearmed release")
+  deferred_id=fresh("crumbs");deferred_point=await point_for(deferred_id)
+  var delayed_wallet=game.model.coins
+  event(deferred_point,true);event(deferred_point,false);OS.delay_msec(300)
+  check(alive(deferred_id),"300ms stall cannot settle without a completed frame")
+  await settle();await settle();await settle()
+  check(not alive(deferred_id) and game.model.coins==delayed_wallet+1,"300ms delayed release completes once on fresh native paint")
   # The paired native capture uses these exact generated targets and cameras.
   for zoom_name in ["normal","max"]:
    game.illustration.zoom=1.15 if zoom_name=="normal" else game.illustration.camera_zoom_limits().y
@@ -149,6 +162,7 @@ func run():
   check(cleaner.puffs.is_empty() and game.floor_tasks.messes.is_empty(),"save restore drops cosmetic puff without resurrecting dirt")
   check(game.model.coins>wallet,"successful player cleanup rewards persist in the generated save")
  reward_visual_checks()
+ release_intent_checks()
  await coin_audio_checks()
  if DisplayServer.get_name()!="headless":await mesh_runtime_checks()
  # Shared API preserves concurrent table obligations and waiter sink claim.
@@ -291,6 +305,47 @@ func reward_visual_checks():
  id=fresh("crumbs");identity=game.ground_mess_identity("floor",id)
  check(not cleaner._complete(identity) and alive(id) and game.model.coins==1000000000,"full wallet preserves litter and loadable balance")
  game.model.coins=wallet+2
+
+func release_intent_checks():
+ # Scalar intent/admission regression only: no headless frame is certified.
+ # Native completed-frame/pointer acceptance remains a separate rendered check.
+ for scenario in ["rearm","camera","layout","custody","shape","replacement","guest-progress","total-cap","attempts-exhausted","expired-presented"]:
+  var id=fresh("crumbs");var record:Dictionary=game.floor_tasks.messes[id]
+  if scenario=="guest-progress":
+   game.floor_tasks.messes.erase(id)
+   record.guest={"id":9001,"phase":"dirty","x":-1.5,"patience":1.0}
+   game.service_guests[9001]=record
+  var world:Vector2=record.mess_shape.pieces[0].center
+  var art=game.illustration;var pick=art.character_pick_geometry
+  game.interaction._pan_by(art.camera_safe_rect().get_center()-art.iso(world.x,world.y))
+  var point=art.iso(world.x,world.y);var wallet=game.model.coins
+  cleaner.begin(point)
+  check(cleaner.release(point),scenario+" starts actual release intent")
+  var deadline=cleaner.release_deadline
+  check(deadline-Time.get_ticks_msec()<=750 and deadline>Time.get_ticks_msec(),scenario+" has bounded total intent lifetime")
+  if scenario=="camera":art.pan_offset+=Vector2(1,0);art.update_projection()
+  if scenario=="layout":game.model._notify()
+  if scenario=="custody":record.trash_owner="staff";record.trash_staff_index=0
+  if scenario=="shape":record.mess_shape.pieces[0].angle+=.1
+  if scenario=="replacement":game.floor_tasks.messes[id]=record.duplicate(true)
+  if scenario=="guest-progress":record.guest.x+=.02;record.guest.patience-=.01;record.order_elapsed=.05
+  if scenario=="total-cap":cleaner.release_deadline=Time.get_ticks_msec()-1
+  if scenario=="attempts-exhausted":pick.query_frames=0
+  if scenario=="expired-presented":pick.presented_frame=art.canvas_stream.frame_id
+  if scenario=="rearm":
+   pick.query_frames=1
+   check(cleaner.release(point) and cleaner.release_deadline==deadline and pick.query_frames==1,"duplicate release cannot renew deadline or attempts")
+  var remaining=pick.query_frames
+  pick.query_deadline=Time.get_ticks_msec()-1
+  cleaner.presented()
+  var permitted=scenario in ["rearm","guest-progress"]
+  check(cleaner.released==permitted,scenario+" admits only unchanged unpresented intent")
+  check(game.model.coins==wallet and cleaner.puffs.is_empty(),scenario+" admission never authorizes old pixels or rewards")
+  if permitted:
+   check(cleaner.release_rearmed and pick.query_frames==remaining and cleaner.release_deadline==deadline,scenario+" fresh rearm preserves remaining attempts and total deadline")
+   pick.query_deadline=Time.get_ticks_msec()-1;cleaner.presented()
+   check(not cleaner.released and game.model.coins==wallet,scenario+" refuses a second expired window")
+  cleaner.cancel()
 
 func coin_audio_checks():
  var id=fresh("crumbs")

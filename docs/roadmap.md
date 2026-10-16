@@ -13,6 +13,16 @@
 
 ### Current state and ownership
 
+Litter-click candidate preservation (0.1.11, 2026-10-16): existing branch
+`fix/ground-litter-painted-occlusion` retains the painted-coverage repair and the
+separately reviewed bounded stalled-release R2 on reconciled base `0698eb3`.
+[Cleanup contract and exact-source evidence](testing/manual-ground-cleanup.md#bounded-stalled-release-recovery-r2-2026-10-16)
+separate native synthetic-scene checks from screenshot diagnosis, user visual
+acceptance, canonical atlas qualification and release. The available Mesa/LLVM
+fingerprint cannot qualify the six stale atlas producer rows; reference assets,
+manifest and strict guard are preserved. Keep this candidate Draft; no merge,
+release or deployment, and no renewed CI dispatch after the Forbidden lookup.
+
 PR341 settled-main source closeout (0.1.11,2026-10-16): [PR341](https://github.com/yiyousiow000814/little-leaf/pull/341) reconciles settled main `a85f68d19bf135a7beb1048258aa3029f9557e11` after accepted PR331/339. Every production file equals settled main except the two exact qualified renderer postimages from `db038263c6b1af2c96db90f924cb7098ff8aaa3b` and the atlas provenance composition. All80 main producer dependencies/custody changes remain; only the two already-qualified renderer hashes are selected. PR340 fast path and PR338 notes remain. No novel runtime resolution, persistent cache or optimization. Focused final composition checks pass1166 assertions (318wall/lifetime,808layout reconciliation,40idle);12 native wall pairs exactly match qualified db038263. Exact head/tree/mandatory CI and authorized guarded merge receipt are recorded on PR341. The 2026-10-16 ready-work approval permits this scoped merge once mandatory gates pass; separate long release memory soak still lacks a final receipt, and no release/tag/deployment is approved.
 
 Historical frozen-main qualification (superseded base, evidence retained):
