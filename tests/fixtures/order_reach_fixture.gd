@@ -20,8 +20,29 @@ func setup_idle_chef():
  model.cooks=1;model.waiters=1;model.cleaners=0;model.cashiers=0
  _add_staff("chef",Vector2(5.5,6.5));_add_staff("waiter",Vector2(3.5,6.5))
  _assign_service_job(staff_states[1],1);_refresh_idle_homes()
+func setup_targetless_cook():
+ setup_idle_chef()
+ model.items.append({"id":110,"kind":"stove","x":8,"z":1,"rot":0})
+ model.items.append({"id":111,"kind":"plant","x":8,"z":2,"rot":0})
+ model.items.append({"id":112,"kind":"counter","x":8,"z":7,"rot":0})
+ model.items.append({"id":113,"kind":"plant","x":8,"z":8,"rot":0})
+ model.items.append({"id":121,"kind":"table","x":8,"z":4,"rot":0})
+ model.items.append({"id":122,"kind":"chair","x":8,"z":5,"rot":0})
+ var guest=model.customers[0].duplicate(true)
+ guest.id=202;guest.table_id=121;guest.chair_id=122;guest.x=8.5;guest.phase="cooking";guest.duration=Model.PHASE_SECONDS.cooking
+ model.customers.append(guest);model.revision+=1;_sync_service_guests()
+ var chef=staff_states[0];var record=service_guests[202]
+ chef.job_kind="cook";chef.job_guest_id=202;chef.job_token=record.token;chef.job_step=3;chef.job_elapsed=0.0;chef.station_id=110
+ record.plate_owner="staff";record.plate_staff_index=0;record.plate_target_id=-1;record.meal_station_id=110
+ _reserve_pass(chef);_refresh_idle_homes()
+ # The reviewed old-source state: a valid held-meal job has no pass target,
+ # so its prior idle fallback is R even though the waiter already pinned R.
+ chef.destination=Vector2i(5,6)
 func snapshot()->Dictionary:
  var staff=staff_states.filter(func(worker):return worker.role=="waiter")[0];var record=service_guests[201]
  var result={"pos":str(staff.pos),"destination":str(staff.destination),"job":staff.job_kind,"elapsed":staff.job_elapsed,"action":staff.art_action,"order_done":record.order_done,"phase":record.guest.phase,"token":record.token}
  if staff_states[0].role=="chef":result.idle_chef={"pos":str(staff_states[0].pos),"destination":str(staff_states[0].destination),"home":str(staff_states[0].idle_home_cell),"job":staff_states[0].job_kind}
+ if service_guests.has(202):
+  var held=service_guests[202]
+  result.held_meal={"token":held.token,"plate_owner":held.plate_owner,"plate_staff_index":held.plate_staff_index,"pass":held.meal_pass_id,"reserved":held.pass_reserved}
  return result

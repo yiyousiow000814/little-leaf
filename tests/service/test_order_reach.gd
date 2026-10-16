@@ -60,8 +60,9 @@ func run():
  check(g._service_destination(s,g.model.get_item(101),Vector2i(3,6),[REAR])==INVALID,"same-frame claim excludes rear")
  g._add_staff("waiter",Vector2(7.5,6.5))
  var peer=g.staff_states[1];peer.job_kind="order";peer.destination=REAR
+ peer.job_guest_id=201;peer.job_token=g.service_guests[201].token
  check(destination(g)==INVALID,"peer work endpoint excludes rear")
- peer.job_kind="";peer.pos=g.model.cell_center(REAR)
+ g._clear_service_job(peer);peer.pos=g.model.cell_center(REAR)
  check(destination(g)==REAR,"passing body does not reserve the rear floor")
  g.model.customers.append({"id":202,"phase":"checkout_walk","checkout_cell":REAR,"checkout_register_id":999,"table_id":-1,"chair_id":-1})
  check(destination(g)==INVALID,"checkout endpoint claim excludes rear")
@@ -128,6 +129,7 @@ func run():
   check(destination(g)==INVALID,kind+" cannot use rear order pin")
   cleanup(g)
  idle_fallback_priority()
+ targetless_cook_priority()
  negative_routes()
  print("ORDER_REACH_EVIDENCE ",JSON.stringify(evidence))
  print("ORDER_REACH_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false}))
@@ -192,12 +194,45 @@ func negative_routes():
  g.model.items.erase(g.model.get_item(446)) # Opening (4,6) changes topology without a revision bump.
  g._add_staff("waiter",Vector2(2.5,7.5));var peer=g.staff_states[1]
  peer.job_kind="order";peer.destination=REAR
+ peer.job_guest_id=201;peer.job_token=g.service_guests[201].token
  g._assign_service_job(s,0)
  check(s.job_kind=="" and g.rear_route_calls==first+1,"live peer claim excludes newly open rear while topology invalidates other verdict")
- peer.job_kind="";g._assign_service_job(s,0)
+ g._clear_service_job(peer);g._assign_service_job(s,0)
  check(s.job_kind=="order" and s.table_face_cell==REAR and g.rear_route_calls==first+2,"released endpoint claim permits fresh successful route after topology change")
  first=g.rear_route_calls
  var target=g.model.get_item(101)
  check(g._service_destination(s,target,Vector2i(s.pos.floor()),[REAR])==INVALID,"positive cached route still rechecks same-frame endpoint claim")
  check(g._service_destination(s,target,Vector2i(s.pos.floor()))==REAR and g.rear_route_calls==first,"released same-frame claim reuses positive verdict")
+ cleanup(g)
+
+func targetless_cook_priority():
+ var g=fixture();g.setup_targetless_cook()
+ var chef=g.staff_states[0];var waiter=g.staff_states[1]
+ var held=g.service_guests[202];var order=g.service_guests[201]
+ var chef_token=held.token;var order_token=order.token
+ check(chef.job_kind=="cook" and chef.job_token==chef_token and chef.job_step==3,"targetless cook retains a valid live guest/token and placing stage")
+ check(g.model.get_item(112).kind=="counter" and held.meal_pass_id==-1 and not held.pass_reserved and g._service_target(chef).is_empty(),"existing pass is genuinely unavailable so the cook has no current target")
+ check(chef.idle_home_cell==INVALID and chef.destination==REAR and waiter.table_face_cell==REAR,"targetless cook fallback conflicts with the already pinned order endpoint")
+ check(g._table_face_available(REAR,waiter,[]),"targetless nonempty job does not own the table endpoint")
+ check(not g._staff_cell_claimed(REAR,1),"common workface ownership also excludes targetless fallback")
+ var kept_custody=true;var safe_motion=true;var yielded=false
+ for tick in range(160):
+  var previous:Vector2=chef.pos
+  g._animate_staff(.05)
+  safe_motion=safe_motion and not g.model.segment_blocked(previous,chef.pos) and g._staff_walkable(Vector2i(chef.pos.floor()))
+  kept_custody=kept_custody and chef.job_kind=="cook" and chef.job_token==chef_token and chef.job_step==3 and chef.job_elapsed==0.0 and held.plate_owner=="staff" and held.plate_staff_index==0 and held.plate_target_id==-1 and held.meal_pass_id==-1 and not held.pass_reserved
+  if waiter.job_kind=="order":yielded=yielded or chef.destination!=REAR
+  if order.order_done:break
+ evidence.targetless_cook=g.snapshot()
+ check(yielded and safe_motion,"targetless cook yields the selected endpoint using a real clear-floor route")
+ check(order.order_done and order.token==order_token,"later waiter completes its own order despite the targetless cook job")
+ check(kept_custody and held.token==chef_token,"every tick preserves held plate, owner, token and unfinished cook stage")
+ # Once the pass really becomes usable, its productive endpoint still owns
+ # work space. Merely classifying an endpoint never transfers plate custody.
+ g.model.items.erase(g.model.get_item(113));g._reserve_pass(chef)
+ var pass_target=g._service_target(chef)
+ check(not pass_target.is_empty() and int(pass_target.id)==112 and held.pass_reserved,"opening the pass restores the same cook's actual target")
+ chef.destination=g._service_cell(pass_target,Vector2i(chef.pos.floor()),[],"chef")
+ check(chef.destination!=INVALID and not g._table_face_available(chef.destination,waiter,[]) and g._staff_cell_claimed(chef.destination,1),"both ownership gates retain a real productive cook endpoint")
+ check(held.plate_owner=="staff" and held.plate_staff_index==0 and held.token==chef_token,"pass retry and endpoint checks preserve held food custody")
  cleanup(g)

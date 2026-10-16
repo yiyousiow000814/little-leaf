@@ -17,6 +17,7 @@ func run():
  if game.cafe_intro!=null:game.cafe_intro.finish()
  game.setup();game.paused=false
  if OS.get_environment("ORDER_REACH_IDLE_CHEF")=="1":game.setup_idle_chef()
+ if OS.get_environment("ORDER_REACH_TARGETLESS_COOK")=="1":game.setup_targetless_cook()
  game.illustration.zoom=1.7;game.illustration.update_projection()
  game.illustration.pan_offset+=Vector2(680,490)-game.illustration.iso(5.5,5.5);game.illustration.update_projection()
  # Identical scene, clock, route/gesture updates and camera on both sources.

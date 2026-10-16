@@ -862,12 +862,20 @@ func _is_floor_cleanup(staff:Dictionary)->bool:
 	var index=int(staff.get("job_step",-1))
 	return index>=0 and index<SERVICE_STEPS.cleanup.size() and str(SERVICE_STEPS.cleanup[index].action) in ["sweeping","mopping"]
 
+func _staff_owns_work_endpoint(staff:Dictionary,cell:Vector2i)->bool:
+	if staff.job_kind=="":return false
+	if staff.get("table_face_cell",Vector2i(-1,-1))!=cell and staff.destination!=cell:return false
+	# A retained job can be waiting for a missing target while its destination
+	# is only idle fallback. Looking up the current target does not select a
+	# destination or alter the job, its token or held food.
+	return not _service_target(staff).is_empty()
+
 func _table_face_available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
 	# Work destinations stay exclusive; passing bodies never reserve the floor.
 	if claimed.has(cell) or model.checkout_claims().has(cell):return false
 	for other in staff_states:
 		if is_same(other,staff):continue
-		if other.job_kind!="" and (other.get("table_face_cell",Vector2i(-1,-1))==cell or other.destination==cell):return false
+		if _staff_owns_work_endpoint(other,cell):return false
 	return true
 
 func _order_route_length(staff:Dictionary,staff_index:int,from:Vector2i,cell:Vector2i)->int:
@@ -1537,7 +1545,7 @@ func _staff_cell_claimed(cell: Vector2i, index: int, _guest_yield=false) -> bool
 	for other_index in staff_states.size():
 		if other_index==index:continue
 		var other=staff_states[other_index]
-		if other.job_kind!="" and (other.destination==cell or other.get("table_face_cell",Vector2i(-1,-1))==cell):return true
+		if _staff_owns_work_endpoint(other,cell):return true
 	return false
 
 func _try_peer_retreat(_index: int) -> bool:
