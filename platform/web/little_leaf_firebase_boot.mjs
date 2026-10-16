@@ -1,6 +1,7 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {getAuth,getIdTokenResult,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js';
 export async function start(config,options={}) {
   const popup=options.surface==='trusted-itch-frame';
   if(options.surface!==undefined && !popup)throw Error('Unknown account entry surface.');
@@ -91,7 +92,7 @@ export async function start(config,options={}) {
   let runtime,ownership,exited=false,startupPending=true,cancelStartup;
   const closedStartup=()=>Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});
   // Register before awaiting the lock: page exit/account change may win that wait.
-  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
+  const closeRuntime=()=>{if(exited)return;exited=true;window.LittleLeafSupportMail=null;ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
   // Once installed, native pagehide saves finish asynchronously under this same
   // exclusive lock. Do not close their client or release writer identity early.
   // Unloading-document cleanup releases browser locks on actual termination;
@@ -114,13 +115,39 @@ export async function start(config,options={}) {
   }).finally(()=>{cancelStartup=null;});
   if(exited || auth.currentUser?.uid!==uid)throw closedStartup();
   runtime.assertHeld();
-  const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
+  const callSupport=async(name,data)=>{
+    if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+    try {
+      const response=await httpsCallable(getFunctions(app),name)(data);
+      if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+      return response.data;
+    }catch(e){
+      if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+      throw Object.assign(Error(e.message||'Protected save could not be confirmed.'),{code:e.details?.code||e.code||'CLOUD_ERROR'});
+    }
+  };
+  const protectedCommit=request=>callSupport('commitProtectedSave',request);
+  const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership,protectedCommit);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB,{cloudOnly:true});
   runtime.assertHeld();
-  client=window.LittleLeafFirebase.createClient({uid,cloudStartup:true,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
+  client=window.LittleLeafFirebase.createClient({uid,cloudStartup:true,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,supportClaim:request=>callSupport('claimSupportMail',request),prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
   if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
   window.LittleLeafUpdate=window.LittleLeafUpdates.create({currentRelease:window.__littleLeafRelease,checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
   window.__littleLeafVault.close();window.__littleLeafVault=client;
+  const supportFailure=e=>({ok:false,code:e.details?.code||e.code||'MAIL_UNAVAILABLE',error:e.message||'Support mail is unavailable.'});
+  const invokeSupport=async(name,data,callback)=>{
+    let result;
+    try{result={ok:true,...await callSupport(name,data)};}catch(e){result=supportFailure(e);}
+    callback(JSON.stringify(result));
+  };
+  window.LittleLeafSupportMail=Object.freeze({
+    capabilities:callback=>invokeSupport('supportCapabilities',null,callback),
+    lookup:(recipient,callback)=>invokeSupport('lookupPlayerForSupport',recipient,callback),
+    preview:(raw,callback)=>{try{invokeSupport('previewSupportMail',JSON.parse(raw),callback);}catch(e){callback(JSON.stringify(supportFailure(e)));}},
+    issue:(raw,callback)=>{try{invokeSupport('issueSupportMail',JSON.parse(raw),callback);}catch(e){callback(JSON.stringify(supportFailure(e)));}},
+    list:(cursor,callback)=>invokeSupport('listMyMail',cursor||null,callback),
+    claim:(mailId,profileId,revision,callback)=>client.claimSupportMail(mailId,profileId,revision).then(result=>callback(JSON.stringify(result)),e=>callback(JSON.stringify(supportFailure(e))))
+  });
   let recoveryBusy=false,recoveryMessage='',preparedChoice=null;
   const failure=code=>({ok:false,code,error:code==='REVISION_CONFLICT'?'Two different saves are available. Choose which progress to continue.':code==='RECOVERY_CHANGED'?'A save changed. Review both saves and choose again.':'Could not finish safely. Your progress is preserved. Keep this page open and try again.'});
   const sameAccount=()=>auth.currentUser?.uid===uid && !loginBusy;
@@ -163,7 +190,22 @@ export async function start(config,options={}) {
     preparedChoice=null;return invoke('confirmChoice',[token],callback);
   }
   window.LittleLeafVault=Object.freeze({
-    retry(){if(!recoveryBusy && saveState!=='conflict')location.reload();},
+    retry(callback){
+      if(!recoveryBusy && saveState!=='conflict')location.reload();
+    },
+    async exportPending(callback){
+      if(recoveryBusy||!sameAccount())return callback(JSON.stringify(failure('RECOVERY_UNAVAILABLE')));
+      recoveryBusy=true;
+      try{
+        const exported=await client.exportRecovery();
+        if(!exported.ok||!sameAccount())throw Error('Pending progress could not be exported.');
+        const url=URL.createObjectURL(new Blob([exported.text],{type:'application/json'}));
+        try{const link=document.createElement('a');link.href=url;link.download=exported.fileName;document.body.append(link);link.click();link.remove();}
+        finally{setTimeout(()=>URL.revokeObjectURL(url),1000);}
+        callback(JSON.stringify({ok:true}));
+      }catch(e){callback(JSON.stringify({ok:false,error:e.message||'Could not export pending progress.'}));}
+      finally{recoveryBusy=false;}
+    },
     recoverySnapshot(){return JSON.stringify(recoverySnapshot());},prepareChoice,confirmChoice,
     preserveRuntime(payload,revision,profileId,callback){return invoke('preserveRuntime',[payload,revision,profileId],callback);},
     preserveOwnerRuntime(payload,revision,profileId,callback){return invoke('preserveOwnerRuntime',[payload,revision,profileId],callback);},

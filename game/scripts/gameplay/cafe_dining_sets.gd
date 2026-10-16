@@ -4,7 +4,7 @@ const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const DIRECTIONS=[Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT]
 # Product keys are stable UI identities; physical members remain table/chair.
 # New purchases use current catalog prices; historical costs keep their resale value.
-const PRODUCTS={"table_set":"oak_single","table_set_cottage":"cottage_single","table_set_retro":"retro_single","table_set_refined":"refined_single"}
+const PRODUCTS={"table_set":"oak_single","table_set_cottage":"cottage_single","table_set_retro":"retro_single","table_set_refined":"refined_single","table_set_legacy_bench":"legacy_bench"}
 const VARIANTS={
  "oak_single":{"table":"table","seat":"chair","price":280,"name":"Basic oak","description":"Round oak table · simple wooden chair"},
  "cottage_single":{"table":"table","seat":"chair","price":420,"name":"Cottage","description":"Cream farmhouse table · sage cross-back chair"},
@@ -89,7 +89,7 @@ static func validate(raw,items:Array,customers:Array)->Dictionary:
 static func parts(model,x:int,z:int,rot:int,id:int=-1,variant:String="oak_single")->Array[Dictionary]:
  var group=group_for(model.dining_sets,id);var direction:Vector2i=DIRECTIONS[posmod(rot,4)];var table={};var seat={}
  if not group.is_empty():table=model.get_item(int(group.table_id)).duplicate();seat=model.get_item(int(group.seat_id)).duplicate()
- else:table={"id":-100,"kind":"table"};seat={"id":-101,"kind":"chair"}
+ else:table={"id":-100,"kind":"table"};seat={"id":-101,"kind":str(VARIANTS[variant].seat)}
  if not group.is_empty():variant=str(group.variant)
  table["dining_variant"]=variant;seat["dining_variant"]=variant
  table.merge({"x":x,"z":z,"rot":posmod(rot,4)},true);seat.merge({"x":x+direction.x,"z":z+direction.y,"rot":posmod(rot,4)},true)

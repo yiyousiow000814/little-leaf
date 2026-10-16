@@ -300,7 +300,7 @@ func _select_item(item: Dictionary):
 	if item.is_empty(): return
 	item=game.model.get_item(game.model.logical_item_id(int(item.id)))
 	game.selected_id = int(item.id)
-	game.selected_kind = ""
+	game.selected_kind = "";game.selected_stored_id=-1
 	game.rotation_step = game.model.logical_rotation(int(item.id))
 	var kind = str(game.model.logical_kind(int(item.id)))
 	var display_name = kind.replace("_", " ").capitalize()
@@ -322,7 +322,7 @@ func _update_validity(screen: Vector2):
 	if drag_item_id >= 0:
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
-	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions(),EditPlan.Context.DECORATE)
+	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions(),EditPlan.Context.DECORATE,EditPlan.Source.STORAGE if game.selected_stored_id>=0 and drag_item_id<0 else EditPlan.Source.SHOP,game.selected_stored_id)
 	drag_footprint_valid = bool(placement_receipt.physical_ok)
 	if not placement_receipt.ok:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return
@@ -346,7 +346,7 @@ func _commit_preview():
 			return
 	var success: bool = edit_plan.commit(game.model,placement_receipt,_staff_positions())
 	if not success:return
-	if was_move: game._cancel_selection()
+	if was_move or game.selected_stored_id>=0: game._cancel_selection()
 	game._rebuild_furniture()
 	game._update_ui()
 	# Accepted layout feedback does not wait for the periodic save slot.

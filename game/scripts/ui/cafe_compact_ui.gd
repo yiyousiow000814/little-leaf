@@ -7,6 +7,7 @@ const Hud=preload("res://scripts/ui/cafe_hud.gd")
 const ShopUI=preload("res://scripts/ui/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/ui/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/ui/cafe_inbox.gd")
+const SupportMail=preload("res://scripts/ui/cafe_support_mail.gd")
 const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
 const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
@@ -29,6 +30,7 @@ var hud
 var wallet_notice
 var update_notes
 var inbox
+var support_mail
 var settings_inbox:Button
 var update_badges=[]
 var staff_panel
@@ -48,6 +50,7 @@ var removal_plan=EditPlan.new()
 var removal_quote={}
 var replacement_plan=EditPlan.new()
 var replacement_quote={}
+var store_button:Button
 var remove_button:Button
 var finish_button:Button
 var cancel_button:Button
@@ -67,6 +70,7 @@ var help_scrim:ColorRect
 var help_modal=false
 var help_done:Button
 var help_retry:Button
+var help_export_pending:Button
 var help_choose_local:Button
 var help_choose_cloud:Button
 var help_choices:GridContainer
@@ -159,6 +163,7 @@ func _popup_panels()->Array:
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
+ if support_mail!=null and is_instance_valid(support_mail.panel):panels.append(support_mail.panel)
  if music_panel!=null and is_instance_valid(music_panel.panel):panels.append(music_panel.panel)
  return panels
 
@@ -179,6 +184,7 @@ func setup():
  rotate_button=_small_button("Rotate",_rotate_selected);context.add_child(rotate_button)
  move_button=_small_button("Move",_move_opening);context.add_child(move_button)
  finish_button=_small_button("Replace",show_finishes);context.add_child(finish_button)
+ store_button=_small_button("Store",game._store_selected,72);context.add_child(store_button)
  remove_button=_small_button("Remove",_remove_selected,92);context.add_child(remove_button)
  cancel_button=_small_button("×",func():game._cancel_selection();sync(),42);context.add_child(cancel_button)
  context.hide()
@@ -232,6 +238,7 @@ func setup():
  help_choose_cloud=_small_button("Keep cloud save",func():game.web_save.choose_save("cloud"));help_footer.add_child(help_choose_cloud);help_choose_cloud.hide()
  help_switch_device=_small_button("Switch to this device",func():game.web_save.switch_to_this_device());help_footer.add_child(help_switch_device);help_switch_device.hide()
  help_footer.add_child(help_retry)
+ help_export_pending=_small_button("Export pending progress",func():game.web_save.export_pending());help_footer.add_child(help_export_pending);help_export_pending.hide()
  help_overview=_small_button("Show whole café",func():_camera_action(0));help_footer.add_child(help_overview)
  help_done=_small_button("Done",_close_help);help_footer.add_child(help_done)
  help_scrim=ColorRect.new();help_scrim.name="QuickHelpModalBackdrop";help_scrim.color=Color(0.12,0.16,0.10,0.28);help_scrim.z_index=49;game.ui.add_child(help_scrim);help_scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);help_scrim.hide()
@@ -279,6 +286,8 @@ func setup():
  update_notes=UpdateNotes.new(self);update_notes.setup()
  for button in [help_overview,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
+ support_mail=SupportMail.new(self);support_mail.setup()
+ settings_button.pressed.connect(support_mail.refresh_capabilities)
  _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
@@ -362,6 +371,9 @@ func sync():
  move_button.disabled=game.save_recovery_blocked
  finish_button.visible=not wall.is_empty() or selected_shell!="" or edge
  finish_button.text="Style" if edge else "Replace"
+ store_button.visible=not item.is_empty()
+ store_button.disabled=game.save_recovery_blocked
+ store_button.tooltip_text="Keep this furnishing in Storage, without selling or refund"
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false;remove_button.tooltip_text=""
  var refund=0
@@ -426,7 +438,7 @@ func sync():
  # Preserve exact breakpoint styling without repeatedly invalidating it.
  var action_font_size=12 if width<650 else 13
  var action_margin=8.0 if width<650 else 16.0
- for action_button in [rotate_button,move_button,finish_button,remove_button,cancel_button]:
+ for action_button in [rotate_button,move_button,finish_button,store_button,remove_button,cancel_button]:
   if not action_button.has_theme_font_size_override("font_size") or action_button.get_theme_font_size("font_size")!=action_font_size:
    action_button.add_theme_font_size_override("font_size",action_font_size)
   for state in ["normal","hover","pressed","disabled"]:
@@ -483,6 +495,7 @@ func _fit_themed_popups():
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
  _fit_help_panel()
  if inbox!=null:inbox.fit_popup()
+ if support_mail!=null:support_mail.fit_popup()
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
@@ -568,7 +581,7 @@ func _help_tab(event:InputEventKey)->bool:
  if game.get("tutorial")!=null:
   for button in [game.tutorial.help_entry,game.tutorial.restart_entry]:
    if button.visible and not button.disabled:controls.append(button)
- for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry]:
+ for button in [help_choose_local,help_choose_cloud,help_switch_device,help_retry,help_export_pending]:
   if button.visible and not button.disabled:controls.append(button)
  for button in [help_overview,help_log,help_done]:
   if button.visible and not button.disabled:controls.append(button)
@@ -703,7 +716,9 @@ func _sync_help_content():
   help_choice_labels[choice.id].text=name+"\nCoins: "+coins+"\nLast saved: "+saved+"\nDevice: "+device
  help_retry.visible=game.web_save!=null and (game.web_save.runtime_snapshot_failed or (game.web_save.startup_error!="" and not choices_available and not ownership_paused))
  help_retry.disabled=help_retry.visible and (game.web_save.retrying or recovery_busy)
- help_retry.text="Try protecting again" if game.web_save!=null and game.web_save.runtime_snapshot_failed else "Loading saved café…" if help_retry.disabled else "Try loading again"
+ help_retry.text="Try protecting again" if game.web_save!=null and game.web_save.runtime_snapshot_failed else "Loading saved café…" if help_retry.disabled else "Check protected placement" if bool(recovery.get("giftPlacementPending",false)) else "Try loading again"
+ help_export_pending.visible=bool(recovery.get("canExport",false))
+ help_export_pending.disabled=recovery_busy
  var save_detail=""
  if game.web_save!=null and game.web_save.platform_managed:save_detail="Progress submitted to CrazyGames. Guest saves stay on this device; signed-in progress syncs through the platform and may take up to 30 seconds. Cloud sync is not confirmed here.\n\n"
  if ownership_paused and recovery.get("status","")=="resume-needed":
@@ -714,6 +729,8 @@ func _sync_help_content():
   save_detail="Your game is running on another device. Switch here to continue. Current progress will be protected before switching.\n\n"
  elif game.save_recovery_blocked and choices_available:
   save_detail="Choose which café to keep. The other save stays protected on this device.\nLast saved uses each device’s clock.\n"
+ elif game.save_recovery_blocked and bool(recovery.get("giftPlacementPending",false)):
+  save_detail="An earlier placement has an unknown cloud outcome. Keep this page open and export the protected progress before asking support. It cannot be replayed into Storage automatically.\n\n"
  elif game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:
@@ -751,6 +768,7 @@ func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
  if music_panel!=null and music_panel.handle_input(event):return true
  if inbox!=null and inbox.handle_input(event):return true
+ if support_mail!=null and support_mail.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
  var any_open=false

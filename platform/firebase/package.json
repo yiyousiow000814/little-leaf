@@ -1,8 +1,16 @@
 {
   "private": true,
   "type": "module",
+  "main": "index.mjs",
+  "engines": {"node":"22"},
   "scripts": {
-    "test:rules": "firebase emulators:exec --only firestore --project demo-little-leaf 'node rules.test.mjs && node session.rules.test.mjs && node fullflow_fixtures.test.mjs && node fullflow_network.test.mjs'"
+    "test:rules": "firebase emulators:exec --only firestore --project demo-little-leaf 'node rules.test.mjs && node session.rules.test.mjs && node fullflow_fixtures.test.mjs && node fullflow_network.test.mjs'",
+    "test:support:contract": "node support_mail_contract.test.mjs && node support_storage.test.mjs && node support_mail_identity.test.mjs && node support_mail_adapter.test.mjs && node support_mail_client.test.mjs",
+    "test:support:emulator": "firebase emulators:exec --only firestore --project demo-little-leaf 'node support_mail.test.mjs && node support_mail_rules.test.mjs'"
+  },
+  "dependencies": {
+    "firebase-admin": "14.5.0",
+    "firebase-functions": "7.4.0"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.0",

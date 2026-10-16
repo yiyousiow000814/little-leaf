@@ -13,12 +13,19 @@ var game
 var root:Control
 var background:NinePatchRect
 var action_background:NinePatchRect
+var frame:Control
+var mode_row:HBoxContainer
+var shop_mode:Button
+var storage_mode:Button
+var search:LineEdit
+var empty_stock:Label
 var category_scroll:ScrollContainer
 var category_row:HBoxContainer
 var category_more:Button
 var category_back:Button
 var category_picker:Button
 var category_panel:PanelContainer
+var category_body:VBoxContainer
 var category_panel_buttons={}
 var product_back:Button
 var product_next:Button
@@ -148,14 +155,27 @@ func _scroll_skin(scroll:ScrollContainer):
 func _nav(label:String,callback:Callable)->Button:
  var button=ui._small_button(label,callback,44);_style(button);button.add_theme_font_size_override("font_size",12);root.add_child(button);return button
 func setup():
- root=Control.new();root.mouse_filter=Control.MOUSE_FILTER_IGNORE;ui.column.add_child(root)
+ frame=Control.new();frame.mouse_filter=Control.MOUSE_FILTER_IGNORE;ui.column.add_child(frame)
+ root=Control.new();root.mouse_filter=Control.MOUSE_FILTER_IGNORE;frame.add_child(root)
+ mode_row=HBoxContainer.new();mode_row.add_theme_constant_override("separation",6);frame.add_child(mode_row)
+ shop_mode=ui._small_button("Shop",func():game._set_catalog_mode("Shop"),72);shop_mode.toggle_mode=true;shop_mode.custom_minimum_size.y=44;_style(shop_mode);mode_row.add_child(shop_mode)
+ storage_mode=ui._small_button("Storage",func():game._set_catalog_mode("Storage"),92);storage_mode.toggle_mode=true;storage_mode.custom_minimum_size.y=44;_style(storage_mode);mode_row.add_child(storage_mode)
+ search=LineEdit.new();search.placeholder_text="Search items";search.accessibility_name="Search catalogue";search.custom_minimum_size=Vector2(80,44);search.size_flags_horizontal=Control.SIZE_EXPAND_FILL;mode_row.add_child(search)
+ var field=game._style(Color("fffdf8"),Color("c8b590"),9)
+ field.set_content_margin(SIDE_LEFT,9);field.set_content_margin(SIDE_RIGHT,9);search.add_theme_stylebox_override("normal",field)
+ search.add_theme_font_override("font",ui.hud.font_bold);search.add_theme_font_size_override("font_size",13)
+ search.add_theme_color_override("font_color",ui.hud.INK);search.add_theme_color_override("font_placeholder_color",Color("7b856c"));search.add_theme_color_override("caret_color",ui.hud.INK)
+ var focus=game._style(Color.TRANSPARENT,Color("668852"),9);focus.set_border_width_all(2);search.add_theme_stylebox_override("focus",focus)
+ search.text_changed.connect(game._set_catalog_query)
+ root.visibility_changed.connect(func():mode_row.visible=root.visible;background.visible=root.visible)
+ empty_stock=ui.hud._label(root,"",14);empty_stock.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;empty_stock.mouse_filter=Control.MOUSE_FILTER_IGNORE
  background=NinePatchRect.new();background.texture=ui.hud._texture("shop_frame");background.mouse_filter=Control.MOUSE_FILTER_IGNORE
  background.material=ui.hud._art_material()
- background.patch_margin_left=26;background.patch_margin_right=26;background.patch_margin_top=23;background.patch_margin_bottom=23;root.add_child(background)
+ background.patch_margin_left=26;background.patch_margin_right=26;background.patch_margin_top=23;background.patch_margin_bottom=23;frame.add_child(background);frame.move_child(background,0)
  game.tray.add_theme_stylebox_override("panel",StyleBoxEmpty.new());ui.categories.hide()
  category_scroll=ScrollContainer.new();category_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_SHOW_NEVER;category_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;root.add_child(category_scroll)
  category_scroll.follow_focus=true;category_row=HBoxContainer.new();category_row.add_theme_constant_override("separation",6);category_scroll.add_child(category_row);category_row.size_flags_horizontal=Control.SIZE_EXPAND_FILL;category_row.alignment=BoxContainer.ALIGNMENT_CENTER;_scroll_skin(category_scroll)
- var kinds={"Tables":"table_set","Kitchen":"stove","Drinks":"beverage","Cleaning":"sink","Decor":"plant","Build":"counter"}
+ var kinds={"All":"bookshelf","Tables":"table_set","Kitchen":"stove","Drinks":"beverage","Cleaning":"sink","Decor":"plant","Build":"counter"}
  for category in game.category_buttons:
   var button:Button=game.category_buttons[category];button.reparent(category_row);_style(button)
   button.alignment=HORIZONTAL_ALIGNMENT_CENTER;button.add_theme_font_size_override("font_size",14)
@@ -206,11 +226,11 @@ func setup():
   var coin=ui.hud._picture(price_row,ui.hud._texture("coin"));coin.custom_minimum_size=Vector2(21,21);coin.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   price.reparent(price_row);price.size_flags_vertical=Control.SIZE_SHRINK_CENTER
   var availability=ui.hud._label(column,"",11);availability.custom_minimum_size.y=16
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:_style(button)
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.store_button,ui.remove_button,ui.cancel_button]:_style(button)
  footer_hint=ui.hud._label(root,"",13);footer_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.clip_text=true;ui.context_label.custom_minimum_size.x=0;ui.context_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER;ui.context_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_LEFT
  ui.context_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER;ui.context_label.add_theme_font_override("font",ui.hud.font_bold);ui.context_label.add_theme_color_override("font_color",ui.hud.INK)
- for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.remove_button,ui.cancel_button]:button.custom_minimum_size.y=44
+ for button in [ui.rotate_button,ui.move_button,ui.finish_button,ui.store_button,ui.remove_button,ui.cancel_button]:button.custom_minimum_size.y=44
  for card in game.catalog_cards.values():_flatten_card(card)
  for key in ["full","door","window"]:_flatten_card(game.build_tools.tool_buttons[key])
  _setup_tiles()
@@ -406,7 +426,9 @@ func _setup_category_picker():
  category_picker=ui._small_button("",_toggle_category_picker,112);_style(category_picker);category_picker.add_theme_font_size_override("font_size",13);category_picker.accessibility_name="Choose furniture category";root.add_child(category_picker);category_picker.hide()
  category_picker.draw.connect(_draw_category_picker_arrow)
  category_panel=ui._panel();category_panel.name="CatalogueCategories";ui.hud.theme_panel(category_panel,false,12)
- var grid=GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",8);grid.add_theme_constant_override("v_separation",8);category_panel.add_child(grid)
+ category_body=VBoxContainer.new();category_body.add_theme_constant_override("separation",8);category_panel.add_child(category_body)
+ search.reparent(category_body);search.custom_minimum_size=Vector2(0,44)
+ var grid=GridContainer.new();grid.columns=2;grid.add_theme_constant_override("h_separation",8);grid.add_theme_constant_override("v_separation",8);category_body.add_child(grid)
  for category in game.category_buttons:
   var button=ui._small_button(category,_pick_category.bind(category),124);_style(button);button.custom_minimum_size=Vector2(124,44);button.add_theme_font_size_override("font_size",13);button.toggle_mode=true;grid.add_child(button);category_panel_buttons[category]=button
  category_panel.resized.connect(_position_category_panel)
@@ -484,7 +506,7 @@ func _scroll_categories(direction:int):
  _scroll_to(category_scroll,category_scroll.scroll_horizontal+direction*(category_scroll.size.x+6))
 func _reveal_category():
  if ui==null or not is_instance_valid(game):return
- var names=game.category_buttons.keys();var index=names.find(game.catalog_category)
+ var names=game.category_buttons.keys().filter(func(key):return game.category_buttons[key].visible);var index=names.find(game.catalog_category)
  if index<0:return
  var button:Button=game.category_buttons[game.catalog_category]
  var start=floori(float(index)/category_page_items)*category_page_items*(button.size.x+6)
@@ -527,6 +549,7 @@ func sync_action_details():
   action_coin.visible=bool(stroke.ok)
   detail="New %s · refund %s · pay %s"%[ui.Money.amount(int(stroke.paid)),ui.Money.amount(int(stroke.refund)),ui.Money.amount(int(stroke.net))]
   if not stroke.ok:detail+=" · "+str(stroke.error)
+ if game.selected_stored_id>=0:price="From Storage · free"
  var price_font_size=18 if action_coin.visible else 12
  if not price_label.has_theme_font_size_override("font_size") or price_label.get_theme_font_size("font_size")!=price_font_size:
   price_label.add_theme_font_size_override("font_size",price_font_size)
@@ -706,9 +729,10 @@ func _short_landscape_card_width()->float:
    if not card.visible:continue
    var title:Label=card.get_child(0).get_child(1)
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(title.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
-   var shortfall=maxi(0,int(game.model.price_of(kind))-int(game.model.coins))
+   var owned=game.catalog_mode=="Storage"
+   var shortfall=0 if owned else maxi(0,int(game.model.price_of(kind))-int(game.model.coins))
    var status="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
-   if kind=="register":status="Counter + cashier" if (game.model.included_checkout_pending or game.model.register_unplaced) else "Move it in the café"
+   if kind=="register" and not owned:status="Counter + cashier" if (game.model.included_checkout_pending or game.model.register_unplaced) else "Move it in the café"
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(status,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+66.0)
   if parking_card.visible:
    width=maxf(width,ceilf(ui.hud.font_bold.get_string_size("Parking · 4 bays",HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+16.0)
@@ -719,6 +743,7 @@ func sync(width:float):
  if not tiles_active():reset_inspection()
  if game.catalog_category!="Build" and build_page!="products":build_page="products";_sync_build_page()
  _sync_parking_card()
+ parking_card.visible=parking_card.visible and game.catalog_mode=="Shop" and game.catalog_query==""
  var insets=ui.hud._safe_insets();var available_width=width-insets.x-insets.z;var narrow=available_width<650
  var tray_style=game.tray.get_theme_stylebox("panel");tray_style.content_margin_left=0;tray_style.content_margin_right=0;tray_style.content_margin_top=0;tray_style.content_margin_bottom=0
  var w=minf(940,available_width-20)
@@ -730,10 +755,13 @@ func sync(width:float):
  # availability line, rather than making type smaller to meet a fixed box.
  var tight_landscape=short_landscape and view.y<360.0
  var product_vertical_padding=14.0 if tight_landscape else 20.0
- var picker_landscape=short_landscape and available_width<700.0
+ var picker_landscape=short_landscape
  if short_landscape:h=maxf(h,ceilf(ui.hud.font_bold.get_height(13)*2+maxf(24,ui.hud.font_bold.get_height(18))+12)+product_vertical_padding)
  var header_y=(h-44.0)*.5 if short_landscape else 8.0
- root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);background.size=root.size
+ root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);root.position=Vector2.ZERO
+ frame.custom_minimum_size=Vector2(w,h);frame.size=frame.custom_minimum_size;background.size=frame.size
+ shop_mode.set_pressed_no_signal(game.catalog_mode=="Shop");storage_mode.set_pressed_no_signal(game.catalog_mode=="Storage")
+ search.accessibility_name="Search "+game.catalog_mode
  game.tray.offset_left=insets.x+(available_width-w)/2;game.tray.offset_right=-(insets.z+(available_width-w)/2);ui.tray_base_top=-h-12-insets.w
  var next_active=ui.has_item_action()
  # Selection keeps the catalogue, category and scroll position intact.
@@ -751,8 +779,10 @@ func sync(width:float):
  var categories_overflow=short_landscape or 6*minimum_chip+30>w-category_margin*2-tail
  category_more.visible=categories_overflow and not picker_landscape;category_back.visible=categories_overflow and not picker_landscape;category_scroll.visible=not picker_landscape
  category_picker.visible=picker_landscape;category_picker.text=game.catalog_category+"   "
- if not picker_landscape or not game.editing:category_panel.hide()
- for category in category_panel_buttons:category_panel_buttons[category].set_pressed_no_signal(category==game.catalog_category)
+ if not game.editing:category_panel.hide()
+ for category in category_panel_buttons:
+  category_panel_buttons[category].set_pressed_no_signal(category==game.catalog_category)
+  category_panel_buttons[category].visible=game.category_buttons[category].visible
  var category_width=112.0 if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_margin*2-tail-(104 if categories_overflow else 0))
  category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else 6)
  var chip_width=(category_width-6*(category_page_items-1))/category_page_items
@@ -781,6 +811,25 @@ func sync(width:float):
  hide_objects_button.set_pressed_no_signal(hide_objects)
  hide_objects_button.disabled=game.save_recovery_blocked or ui.viewport_too_small
  _put(hide_objects_button,Rect2(heading_x,header_y,heading_width,44))
+ # Source tabs replace, rather than enlarge, the existing category header.
+ # Short landscape keeps the original112px side column; search lives in the
+ # existing category popup so neither products nor the playable floor shrink.
+ category_scroll.hide();category_back.hide();category_more.hide()
+ category_picker.visible=not nested
+ mode_row.visible=root.visible and not nested
+ for button in [shop_mode,storage_mode]:
+  button.custom_minimum_size=Vector2(50 if short_landscape else (72 if button==shop_mode else 92),44)
+  button.add_theme_font_size_override("font_size",12 if short_landscape else 14)
+  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+   var style=button.get_theme_stylebox(state);style.content_margin_left=5 if short_landscape else 14;style.content_margin_right=5 if short_landscape else 14
+ if short_landscape:
+  _put(mode_row,Rect2(category_margin,(h-88)*.5,112,44))
+  _put(category_picker,Rect2(category_margin,(h-88)*.5+44,112,44))
+ else:
+  _put(mode_row,Rect2(category_margin,8,170,44))
+  _put(category_picker,Rect2(category_margin+182,8,w-category_margin*2-182,44))
+ category_picker.accessibility_name="Choose category or search "+game.catalog_mode
+ category_picker.tooltip_text="Categories and item search"
  if stacked_inspection:
   _put(tiles_back,Rect2(category_margin,(h-88)*.5,back_width,44))
   _put(hide_objects_button,Rect2(category_margin,h*.5,back_width,44))
@@ -810,7 +859,7 @@ func sync(width:float):
   next_page_items=maxi(1,floori((shelf_width+product_gap)/((card_w if short_landscape else 168.0)+product_gap)))
   card_w=floori((shelf_width-product_gap*(next_page_items-1))/next_page_items)
   shelf_width=card_w*next_page_items+product_gap*(next_page_items-1)
- var next_key=str([game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
+ var next_key=str([game.catalog_mode,game.catalog_query,count,game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:
   var index=roundi(_active_products().scroll_horizontal/product_stride) if product_stride>0 and last_product_category==game.catalog_category else 0
   if game.catalog_category=="Build" and build_page=="tiles" and game.build_tools.mode=="floor":index=maxi(0,_visible_build_keys().find(game.build_tools.floor_material))
@@ -834,6 +883,8 @@ func sync(width:float):
  var shelf_y=(6.0 if tight_landscape else 8.0) if short_landscape else 58.0
  var shelf=Rect2(product_left+(product_width-shelf_width)*.5,shelf_y,shelf_width,card_h)
  product_shelf=shelf;_put(game.catalog_scroll,shelf);_put(ui.build_scroll,shelf)
+ empty_stock.text="No stored items" if game.catalog_query=="" else "No matching items"
+ empty_stock.visible=count==0 and game.catalog_category!="Build";_put(empty_stock,Rect2(shelf.position.x,shelf.position.y,shelf.size.x,shelf.size.y))
  game.catalog_scroll.visible=game.catalog_category!="Build";ui.build_scroll.visible=game.catalog_category=="Build"
  _put(product_back,Rect2(product_left,shelf_y+(card_h-44)/2,44,44));_put(product_next,Rect2(product_right-44,shelf_y+(card_h-44)/2,44,44))
  for kind in game.catalog_cards:
@@ -845,15 +896,23 @@ func sync(width:float):
   column.get_child(1).add_theme_font_size_override("font_size",13);price_label.add_theme_font_size_override("font_size",18)
   card.set_pressed_no_signal(game.selected_kind==kind)
   for label in [column.get_child(1),price_label]:label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else ui.hud.INK)
-  var shortfall=maxi(0,int(game.model.price_of(kind))-int(game.model.coins))
+  var owned=game.catalog_mode=="Storage"
+  price_icons[kind].visible=not owned
+  price_label.text="Owned ×%d"%game.model.stored_ids(kind).size() if owned else ui.Money.amount(game.model.price_of(kind))
+  var shortfall=0 if owned else maxi(0,int(game.model.price_of(kind))-int(game.model.coins))
   affordability_labels[kind].add_theme_font_size_override("font_size",13 if short_landscape else 11)
   affordability_labels[kind].text="Need "+ui.Money.amount(shortfall) if shortfall>0 else ""
   affordability_labels[kind].add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   if shortfall>0:price_label.add_theme_color_override("font_color",ui.hud.CREAM if card.button_pressed else Color("93482e"))
   card.accessibility_description=("Need "+ui.Money.amount(shortfall)+" more coins. Preview available; purchase is blocked.") if shortfall>0 else "Available to place"
   card.tooltip_text=column.get_child(1).text+" · "+ui.Money.amount(game.model.price_of(kind))+" coins"+(" · need "+ui.Money.amount(shortfall)+" more; preview only" if shortfall>0 else "")
-  if kind=="register":
-   var pending=bool(game.model.included_checkout_pending or game.model.register_unplaced)
+  card.disabled=game.save_recovery_blocked
+  if owned:
+   affordability_labels[kind].text="Place · free"
+   card.accessibility_description="Owned, %d available. Place without spending coins."%game.model.stored_ids(kind).size()
+   card.tooltip_text=column.get_child(1).text+" · "+price_label.text+" · place for free"
+  if kind=="register" and not owned:
+   var pending=bool(game.model.included_checkout_pending or game.model.register_unplaced) and game.model.stored_ids("register").is_empty()
    price_icons[kind].hide();price_label.text="Included" if pending else "Placed"
    price_label.add_theme_font_size_override("font_size",17)
    card.disabled=not pending or game.save_recovery_blocked

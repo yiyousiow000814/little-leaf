@@ -94,6 +94,7 @@ var catalog: Array[Dictionary] = [
 	{"kind":"table_set_cottage","name":"Cottage","price":420,"variant":"cottage_single","description":"Cream farmhouse table · sage cross-back chair"},
 	{"kind":"table_set_retro","name":"Retro","price":1200,"variant":"retro_single","description":"Mint pedestal table · coral diner chair"},
 	{"kind":"table_set_refined","name":"Refined","price":3600,"variant":"refined_single","description":"Ivory-inlaid walnut table · forest upholstered chair"},
+	{"kind":"table_set_legacy_bench","hidden":true,"name":"Original bench set","price":175,"variant":"legacy_bench","description":"Original table and bench · owned only"},
 	{"kind": "table", "hidden":true, "name": "Cafe table", "price": 100},
 	{"kind": "chair", "hidden":true, "name": "Dining chair", "price": 40},
 	{"kind": "stove", "name": "Stove", "price": 220},
@@ -110,6 +111,9 @@ var catalog: Array[Dictionary] = [
 	{"kind": "divider", "name": "Room divider", "price": 85},
 ]
 
+const Storage=preload("res://scripts/gameplay/cafe_storage.gd")
+var storage:Dictionary=Storage.empty()
+var storage_used=false
 var items: Array[Dictionary] = []
 var customers: Array[Dictionary] = []
 var outside_queue: Array[Dictionary] = []
@@ -210,7 +214,7 @@ func _init() -> void:
 func reset_new() -> void:
 	tutorial_state.clear()
 	first_guest_pending=false;first_guest_start=Vector2.INF
-	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_decoration_baseline.clear()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_decoration_baseline.clear();storage=Storage.empty();storage_used=false
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
@@ -411,7 +415,7 @@ var decoration_purchases:Dictionary={}
 var decoration_build_purchases:Dictionary={}
 var _decoration_baseline:Dictionary={}
 const DECORATION_STATE=[
-	"items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
+	"items","storage","storage_used","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
 	"dining_sets","built_walls","wall_attachments","_next_wall_id","_next_attachment_id",
 	"floor_style","floor_finishes",
 	"coins","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers",
@@ -477,7 +481,12 @@ func wall_attachment_refund(id:int)->int:
 func logical_refund(id:int)->int:
 	if get_item(id).is_empty():return 0
 	if decoration_session_active and dining_set_for(id).is_empty() and decoration_purchases.has(id):return int(decoration_purchases[id])
+	var item=get_item(id)
+	if dining_set_for(id).is_empty() and item.has("paid_cost"):return int(int(item.paid_cost)/2)+decoration_refund_bonus(id)
 	return DiningSets.refund(self,id)+decoration_refund_bonus(id)
+func stored_ids(kind:String)->Array:return Storage.ids_for(self,kind)
+func store_item(id:int)->bool:return Storage.store(self,id)
+func place_stored(id:int,x:int,z:int,rot:int=0,actors:Array=[])->bool:return Storage.place(self,id,x,z,rot,actors)
 func logical_item_count()->int:return items.size()-dining_sets.size()
 func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionary]:
 	if is_dining_product(kind) or not dining_set_for(id).is_empty():return DiningSets.parts(self,x,z,rot,id,DiningSets.variant_for_product(kind))
@@ -486,6 +495,7 @@ func placement_parts(kind:String,x:int,z:int,rot:int,id:int=-1)->Array[Dictionar
 func can_place(kind: String, x: int, z: int, ignore_id: int = -1, rot: int = 0, actor_positions: Array = []) -> bool:
 	last_error = "";last_placement_issue={}
 	if is_dining_product(kind) or not dining_set_for(ignore_id).is_empty():return DiningSets.can_place(self,x,z,rot,ignore_id,actor_positions)
+	if kind=="register" and ignore_id<0 and not stored_ids("register").is_empty():return _fail("Use the register you own in Storage")
 	if kind=="register" and ignore_id<0 and not (included_checkout_pending or register_unplaced):return _fail("The included register is already placed")
 	if price_of(kind) < 0:return _fail("Unknown furnishing")
 	if not is_floor_owned(Vector2i(x,z)):
@@ -513,6 +523,8 @@ func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = 
 	if coins < price:
 		return _fail("Not enough coins · need %s" % Money.amount(price))
 	var item: Dictionary = {"id": _next_item_id, "kind": kind, "x": x, "z": z, "rot": posmod(rot, 4)}
+	# Preserve the included-bin legacy resale exception; do not invent paid history.
+	if price>0:item.paid_cost=price
 	items.append(item)
 	if kind=="bin":included_bin_pending=false
 	_next_item_id += 1
@@ -1750,13 +1762,15 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		return saved
 	var data=save_data()
 	if data.is_empty():return false
+	var serialized=JSON.stringify(data, "\t", true, true)
+	if serialized.to_utf8_buffer().size()>1048576:return _fail("Save exceeds the existing safe file limit; previous save left unchanged")
 	var backup_error=BuildingCodec.preserve_original(_legacy_building_original,path)
 	if backup_error!="":return _fail(backup_error)
 	var temp_path := path + ".tmp"
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		return _fail("Could not write the reconstructed save")
-	file.store_string(JSON.stringify(data, "\t", true, true))
+	file.store_string(serialized)
 	file.flush()
 	var write_error := file.get_error()
 	file.close()
@@ -1778,7 +1792,12 @@ func save_data()->Dictionary:
 	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _save_data_error("First-visit eligibility disagrees with progress")
 	var codec=RuntimeCodec.new()
 	var held_format=service_snapshot.has("layout_hold")
-	var source_version=SaveContract.LAYOUT_HOLD_VERSION if held_format else SAVE_VERSION
+	var has_storage=storage_used or not storage.items.is_empty() or items.any(func(item):return item.has("paid_cost"))
+	var source_version=SaveContract.STORAGE_VERSION if has_storage else (SaveContract.LAYOUT_HOLD_VERSION if held_format else SAVE_VERSION)
+	var stock_check=Storage.validate(self,storage,items,_next_item_id)
+	if not stock_check.ok:return _save_data_error(stock_check.error)
+	var stock_service_error=Storage.held_error(stock_check.storage,service_snapshot)
+	if stock_service_error!="":return _save_data_error(stock_service_error)
 	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
 	if held_format:runtime["layout_hold_format"]=LayoutHold.FORMAT
 	var checked=codec.validate(runtime,items,cooks,PHASES,source_version,staff_roster(),duty_counts)
@@ -1820,6 +1839,7 @@ func save_data()->Dictionary:
 		"wall_attachment_format":BuildingCodec.ATTACHMENT_FORMAT,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
 	}
 	if held_format:data.layout_hold_format=LayoutHold.FORMAT
+	if has_storage:data.storage_format=Storage.FORMAT;data.storage=stock_check.storage
 	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(tutorial_state)
 	if first_guest_pending:data["first_guest_pending"]=true
 	var walls_check=_validate_saved_walls(data,owned_parcels)
@@ -1868,7 +1888,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SaveContract.LAYOUT_HOLD_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SaveContract.STORAGE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
 	var scalar_error=_saved_statistics_error(data)
@@ -1938,6 +1958,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		if (int(data.version)<SAVE_VERSION and point in [ENTRANCE,ENTRY_LANDING]) or occupied.has(point) or ids.has(int(raw.id)):
 			return _fail("Overlapping furniture or blocked entrance in save")
 		var item: Dictionary = {"id": int(raw.id), "kind": str(raw.kind), "x": int(raw.x), "z": int(raw.z), "rot": int(raw.rot)}
+		if raw.has("paid_cost"):
+			if int(data.version)!=SaveContract.STORAGE_VERSION or not _valid_int(raw.paid_cost,0,1000000000):return _fail("Invalid furniture purchase basis")
+			item.paid_cost=int(raw.paid_cost)
 		if item.kind == "stove":
 			if not _valid_int(raw.get("level", 1), 1, LEGACY_STOVE_LEVEL_MAX):
 				return _fail("Invalid historical stove level")
@@ -1950,6 +1973,9 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if (not SaveContract.has_checkout(int(data.version)) and register_count!=0) or (SaveContract.has_checkout(int(data.version)) and register_count!=(0 if saved_register_unplaced else saved_cashiers)):return _fail("Register count disagrees with deployment")
 	if not _valid_int(data.get("next_item_id"), highest_id + 1, 1000000001):
 		return _fail("Invalid saved furniture sequence")
+	var stock_check=Storage.validate(self,data.get("storage",Storage.empty()),validated,int(data.next_item_id))
+	if not stock_check.ok:return _fail(stock_check.error)
+	if stock_check.storage.items.any(func(item):return item.kind=="register") and not saved_register_unplaced:return _fail("Stored register disagrees with deployment")
 	var checked_walls=_validate_saved_walls(data,saved_parcels)
 	if not checked_walls.ok:return _fail(str(checked_walls.error))
 	var checked_floors=_validate_saved_floors(data,saved_parcels,str(checked_walls.floor_style))
@@ -1970,7 +1996,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
-	var held_format=int(data.version)==SaveContract.LAYOUT_HOLD_VERSION
+	var held_format=data.has("layout_hold_format")
 	var active_guests=LayoutHold.active_guests(runtime_state.customers,runtime_state.service)
 	var active_service={"staff":LayoutHold.active_staff(runtime_state.service)}
 	if held_format:
@@ -1989,6 +2015,8 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if saved_checkout_pending:
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
+	var stock_service_error=Storage.held_error(stock_check.storage,runtime_state.service)
+	if stock_service_error!="":return _fail(stock_service_error)
 	var saved_sets:Dictionary
 	if int(data.version)>=7:saved_sets=DiningSets.validate(data.get("dining_sets"),validated,active_guests)
 	else:saved_sets={"ok":true,"groups":DiningSets.migrate(validated,runtime_state.customers)}
@@ -2019,6 +2047,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	# Imported openings keep their exact saved aperture and complete support.
 	finish_decoration_session()
 	_legacy_building_original=original_payload if int(data.get("wall_format",0))!=BuildingCodec.WALL_FORMAT else ""
+	storage=stock_check.storage;storage_used=int(data.version)==SaveContract.STORAGE_VERSION
 	items = validated
 	dining_sets.assign(saved_sets.groups)
 	built_walls.assign(checked_walls.walls)
@@ -2530,7 +2559,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.LAYOUT_HOLD_VERSION]:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.LAYOUT_HOLD_VERSION,SaveContract.STORAGE_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0

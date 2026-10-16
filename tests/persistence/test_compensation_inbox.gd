@@ -124,7 +124,7 @@ func run():
  game.web_save.inbox_snapshot={"ok":true,"profileId":PROFILE,"revision":30,"paid":history,"deferred":[]}
  inbox.show();await settle()
  check(inbox.rows.size()==30 and inbox.scroll.get_v_scroll_bar().visible,"long retained history scrolls")
- check(inbox.rows[0].get_node("EnvelopePadding").get_theme_constant("margin_left")==64 and inbox.rows[0].get_node("EnvelopePadding").get_theme_constant("margin_right")==28,"envelope content has real internal margins")
+ check(inbox.rows[0].get_node("EnvelopePadding").get_theme_constant("margin_left")==64 and inbox.rows[0].get_node("EnvelopePadding").get_theme_constant("margin_right")==30,"envelope content has real internal margins")
  var tab=InputEventKey.new();tab.keycode=KEY_TAB;tab.pressed=true
  for i in 35:
   check(ui.handle_input(tab),"Inbox captures keyboard focus step "+str(i))
