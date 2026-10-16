@@ -99,13 +99,26 @@ static func corner_cut(host:Dictionary,walls:Array,at_end:bool)->Vector2:
 	var back_t=Geometry.axis_value(back(joint) if inward else front(joint),host.axis)
 	return Vector2(t+front_t,t+back_t)
 
+static func built_depth_entries(wall:Dictionary)->Array[Dictionary]:
+	var pieces=WallArt.depth_entries(wall)
+	# Only this draw's slice group owns the scratch data; the next draw
+	# builds a fresh group so layout and camera changes cannot reuse it.
+	var preparation={}
+	for piece in pieces:piece["wall_preparation"]=preparation
+	return pieces
+
 static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
 	var wall:Dictionary=piece.entry
-	var host=Geometry.wall_host(wall)
+	var preparation:Dictionary=piece.get("wall_preparation",{})
+	if preparation.is_empty():
+		var prepared_host=Geometry.wall_host(wall)
+		preparation["host"]=prepared_host
+		preparation["panels"]=Geometry.solid_panels(prepared_host,view.game.model.built_walls,attachments)
+	var host:Dictionary=preparation.host
 	var a=float(piece.wall_t0);var b=float(piece.wall_t1)
 	var cut_a=corner_cut(host,view.game.model.built_walls,false) if is_zero_approx(a) else Vector2(a,a)
 	var cut_b=corner_cut(host,view.game.model.built_walls,true) if piece.wall_end else Vector2(b,b)
-	var panels=Geometry.solid_panels(host,view.game.model.built_walls,attachments)
+	var panels:Array=preparation.panels
 	for panel in panels:
 		var start=maxf(a,float(panel.from));var finish=minf(b,float(panel.to))
 		if is_zero_approx(start):start=cut_a.x

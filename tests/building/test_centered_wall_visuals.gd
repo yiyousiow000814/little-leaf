@@ -5,11 +5,14 @@ const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
 class Painter extends RefCounted:
  var ui_scale=1.0
+ var game={"model":{"built_walls":[]}}
+ var zoom=1.0
+ var origin=Vector2.ZERO
  var filled=[]
  var outlined=[]
  var lines=[]
- func iso(x,z,h=0.0):return Vector2((x-z)*39,(x+z)*19.5-h)
- func art_draw_polygon(points,colors,_uvs,_texture):filled.append({"points":points,"colors":colors})
+ func iso(x,z,h=0.0):return origin+Vector2((x-z)*39,(x+z)*19.5-h)*zoom
+ func art_draw_polygon(points,colors,uvs,texture):filled.append({"points":points,"colors":colors,"uvs":uvs,"texture":texture})
  func poly(points,_color):outlined.append(points)
  func line(a,b,_color,_width):lines.append([a,b])
 var checks=0
@@ -71,6 +74,34 @@ func inspect_visible_end(axis):
  var full=next.duplicate(true);full.height="full"
  check(Art.visible_end_bottom(host,[next,full])==58.0 and Art.visible_end_bottom(host,[full,next])==128.0,"First compatible continuation retains its original precedence")
  check(Art.visible_end_bottom(host,[unrelated])==0.0,"Perpendicular walls do not hide this end face")
+func inspect_slice_preparation(axis):
+ var painter=Painter.new()
+ var first=wall("first",axis,2,3)
+ var second=wall("second",axis,3 if axis=="x" else 2,3 if axis=="x" else 4)
+ var walls=[first,second];painter.game.model.built_walls=walls
+ var attachments=[{"id":8,"kind":"door","wall_ids":["first","second"],"offset":1.0,"width":1.5}]
+ var previous={}
+ for transition in range(4):
+  if transition==1:attachments[0].offset=.85;attachments[0].width=.7
+  if transition==2:attachments[0].kind="window";painter.zoom=1.55;painter.origin=Vector2(135,79)
+  if transition==3:first.height="half";attachments.clear()
+  var before=[walls,attachments].duplicate(true)
+  for member in walls:
+   var original=WallArt.depth_entries(member);var pieces=Art.built_depth_entries(member)
+   var preparation=pieces[0].wall_preparation
+   check(preparation.is_empty() and not is_same(preparation,previous),"Every new wall/draw group starts with independent empty preparation")
+   previous=preparation
+   for index in pieces.size():
+    var ordering=pieces[index].duplicate();ordering.erase("wall_preparation")
+    check(ordering==original[index] and is_same(pieces[index].wall_preparation,preparation),"All four slices preserve exact depth records and share one preparation")
+   painter.filled=[]
+   for piece in original:Art.draw_built_piece(painter,piece,attachments,.68,Color("efd095"))
+   var expected=painter.filled
+   painter.filled=[]
+   for piece in pieces:Art.draw_built_piece(painter,piece,attachments,.68,Color("efd095"))
+   check(painter.filled==expected,"Shared preparation preserves every emitted point, color, UV and texture after immediate edits/camera changes")
+   check(preparation.size()==2 and preparation.host==Geometry.wall_host(member) and preparation.panels==Geometry.solid_panels(preparation.host,walls,attachments),"Preparation retains only this wall descriptor and its current panels")
+  check(before==[walls,attachments],"Preparing slices never stores scratch data in model inputs")
 func _initialize():
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))
  for index in 4:Art.face(painter,host,index*.25,(index+1)*.25,0,128)
@@ -85,7 +116,7 @@ func _initialize():
  check(Art.corner_cut(Geometry.wall_host(straight[0]),straight,true)==Vector2.ONE,"Straight continuation never mitered")
  var mixed=[wall("a","x",0,0),wall("b","z",0,0)];mixed[1].height="half"
  check(Art.corner_cut(Geometry.wall_host(mixed[0]),mixed,false)==Vector2.ZERO,"Unequal heights retain independent end profile")
- for axis in ["x","z"]:inspect_visible_end(axis)
+ for axis in ["x","z"]:inspect_visible_end(axis);inspect_slice_preparation(axis)
  for axis in ["x","z"]:
   for kind in ["door","window"]:
    for width in ([1.0,1.5] if kind=="door" else [.7]):inspect_frames(axis,kind,width)
