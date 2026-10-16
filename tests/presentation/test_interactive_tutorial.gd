@@ -61,7 +61,8 @@ func check_drag_release():
  root.size=Vector2i(1360,880);await settle()
  var before=game.model.items.duplicate(true);var coins=game.model.coins
  var item=game.model.items.filter(func(value):return value.kind=="table")[0]
- var point=game.illustration.iso(float(item.x)+.5,float(item.z)+.5)-Vector2(0,20*game.illustration.ui_scale*game.illustration.zoom)
+ var point=game.illustration.iso(float(item.x)+.5,float(item.z)+.5)
+ check(game._floor_cell(point)==Vector2i(item.x,item.z),"furniture drag begins on its actual occupied grid cell")
  await mouse_move(point,false);await mouse_button(point,true);await mouse_move(point+Vector2(24,0),true)
  check(game.interaction.drag_active,"actual furniture drag starts outside guide")
  await mouse_button(game.tutorial.copy.get_global_rect().get_center(),false)
