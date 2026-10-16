@@ -1309,6 +1309,23 @@ func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items)->Array
 		if _table_side_open_in(cell,layout) and not edge_blocked(center,cell):result.append(cell)
 	return result
 
+func order_rear_cell(table:Dictionary,guest:Dictionary)->Vector2i:
+	# Conversation may reach the seated diner from one cell behind their actual
+	# chair. This does not add a physical serving/wiping face or a walking edge.
+	var invalid=Vector2i(-1,-1)
+	if table.is_empty() or str(table.get("kind",""))!="table" or int(guest.get("table_id",-1))!=int(table.id):return invalid
+	if not customers.any(func(active):return is_same(active,guest)):return invalid
+	if str(guest.get("phase",""))!="ordering" or not bool(guest.get("seated",false)) or bool(guest.get("withdrawn",false)) or bool(guest.get("meal_abandoned",false)) or not guest.get("mobility",{}).is_empty():return invalid
+	var chair=get_item(int(guest.get("chair_id",-1)))
+	if chair.is_empty() or str(chair.kind) not in ["chair","bench"]:return invalid
+	var center=Vector2i(int(table.x),int(table.z))
+	var seat=Vector2i(int(chair.x),int(chair.z))
+	var offset=seat-center
+	if absi(offset.x)+absi(offset.y)!=1:return invalid
+	var rear=seat+offset
+	if not _table_side_open_in(rear,items) or edge_blocked(center,seat) or edge_blocked(seat,rear):return invalid
+	return rear
+
 func _table_guest_direction_in(table: Dictionary, layout: Array[Dictionary]) -> Vector2i:
 	var table_cell=Vector2i(int(table.x),int(table.z))
 	for guest in customers:

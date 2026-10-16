@@ -47,3 +47,63 @@ asset import is unavailable, the focused runner can use --import-cache followed
 by a source project whose asset inputs and .import metadata match byte-for-byte.
 It copies only imported assets and marks clean import unverified. The normal
 fresh-import CI/build remains required before publication.
+
+## Chef pass allocation follow-up (0.1.11 candidate)
+
+The user authorized repairing the reproduced held-meal wait cycle and choosing
+the nearest reachable available pass. Main's service ledger continues to own
+the dish, guest/token and reservation; this is not a new navigation system.
+Assignment uses one cardinal distance search with the actual staff rule x>=1,
+owned floor, furniture and walls. Both chef rear and waiter front must connect.
+Equal route lengths use the lower counter ID. This is a local greedy choice,
+not a globally optimal multi-worker schedule.
+
+Valid reservations stay pinned. Geometry/content changes invalidate runtime-only
+validation, and an unassigned search retries when the chef cell, geometry or
+reserved-counter set changes. A lost pre-contact target may be reselected while
+the same chef still owns the meal; only the incomplete placing action restarts.
+Cooking/plating, guest/token, food and movement are never recreated or teleported.
+After placing contact transfers custody to the counter, allocation must leave
+that counter identity alone through the remaining handoff.
+
+All valid chef work endpoints, including stove preparation/cooking, take priority
+over idle/fallback standing choices regardless of roster order. If no standing
+alternative exists, fallback does not claim such an endpoint as real work. Chef
+slots prioritize an already started action, then a valid in-flight endpoint owner,
+then accumulated blocked-work waiting time with roster order as a deterministic
+tie. An owner retains its endpoint while approaching and through the action;
+waiting time resets only on action completion. Completion releases ownership so
+waiting chefs arbitrate the next action. The per-staff runtime claim binds
+guest/token, action step, target and face; a changed binding or invalid face
+releases it, and acquisition checks the actual staff route. Geometry changes
+revalidate that route while preserving a still-valid owner; unrelated edits
+do not preempt travel. Idle staff never own
+these claims. This fixes the reviewed idle-before-active obstruction and the
+approaching-chefs framewise preemption, rather than relying on both chefs
+already standing at the shared cell. Other role order and
+complementary sink lanes remain unchanged. Actor pass-through and static collision
+stay unchanged. The cached search keys
+are runtime fields on each staff dictionary, omitted from the existing explicit
+save projection and removed with the job/staff. No all-counter search runs for
+an unchanged valid reservation; no grid map is retained between assignments.
+
+Relevant pillars are Gameplay, Living World and existing Game Feel contacts.
+Art, audio, economy, UI structure and publishing are unaffected. Targeted
+old-fail/new-pass tests and actual runtime evidence remain required; this record
+does not establish gameplay acceptance, merge authority or deployment.
+
+The combined PR331/PR335 candidate uses one frame-local union after the existing
+navigation refresh: valid chef workfaces and the chosen order endpoint protect
+both ordinary idle choices and blocked-work fallback. If no alternative exists,
+remaining in place does not turn that protected cell into a fallback work claim.
+Only chef slots retain the incumbent/travel/wait arbitration above; waiter and
+cleaner ordering and sink front-claim snapshots are unchanged. Both existing
+ownership gates share PR335's nonrecursive current-target classifier, so a
+retained cook with no pass target keeps its plate and job without owning an idle
+fallback. Endpoint collection remains one bounded staff scan, with no retained
+union, new reservation owner or recursive destination call. PR335's per-staff
+positive/negative order-route cache and both candidates' cleanup stay intact.
+This composition affects Gameplay, Living World and existing service contacts;
+rendering, audio, economy and persisted state format are unchanged. The actual
+combined source needs its own runtime checks, same-scene evidence, independent
+review, CI and user acceptance; separate-head passes cannot qualify it.
