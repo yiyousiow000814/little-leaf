@@ -60,6 +60,10 @@ var _credit_base_coins=0
 var _credit_expected=0
 # Read-only presentation cache, separate from model serialization.
 var inbox_snapshot:Dictionary={"ok":false}
+var _support_claim_mail_id=""
+var _support_claim_callback
+var _gift_commit_callback
+var _gift_commit_pending=false
 
 func _init(owner):game_ref=weakref(owner)
 
@@ -114,6 +118,7 @@ func _accept_boot(result:Dictionary)->bool:
 	_refresh_inbox(result)
 	_log("read_accepted","",source)
 	_callback=JavaScriptBridge.create_callback(_on_commit)
+	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.refresh()
 	return true
 
 func _recovery_bridge():
@@ -429,6 +434,7 @@ func request_save(skip_unchanged:bool=false)->bool:
 	return false
 
 func _hold_for_credit():
+	if _credit_hold:return
 	# Freeze only while a grant-bearing transaction is pending. No wallet
 	# credit is visible/spendable before its receipt and payload commit.
 	if game.web_lifecycle!=null:game.web_lifecycle.cancel_pending()
@@ -448,12 +454,15 @@ func _release_credit_hold():
 
 func stop():
 	_recovery_generation+=1;_update_generation+=1;update_busy=false;recovery_busy=false;recovery_action=""
+	_support_claim_mail_id=""
+	_gift_commit_pending=false;_gift_commit_callback=null
+	if game!=null and game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.reset()
 	var update_bridge=_update_bridge()
 	if update_bridge!=null:update_bridge.close()
 	_release_update_input();_release_credit_hold();ready=false
 
 func _on_commit(arguments:Array):
-	_release_credit_hold()
+	if _support_claim_mail_id=="":_release_credit_hold()
 	if game==null or not game.is_inside_tree():return
 	var parser=JSON.new()
 	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
@@ -468,6 +477,7 @@ func _on_commit(arguments:Array):
 			ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
 			game.startup_notice="Unsaved changes · "+reason
 		game.progress_save_error=reason
+		if _support_claim_mail_id!="":_support_claim_fail(reason)
 		return
 	var platform_ack=bool(result.get("platformAccepted",false)) and str(api.storageKind)=="crazygames-data" and result.get("cloudConfirmed",true)==false
 	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not (bool(result.get("durable",false)) or platform_ack):
@@ -475,13 +485,16 @@ func _on_commit(arguments:Array):
 		_log("save_failure","INVALID_REVISION_ACK")
 		game.progress_save_error="Invalid browser save revision; reload to recover"
 		game.startup_notice="Unsaved changes · "+game.progress_save_error
+		if _support_claim_mail_id!="":_support_claim_fail(game.progress_save_error)
 		return
 	var credit=result.get("creditedCoins",0)
 	if not (credit is int or credit is float) or not is_finite(float(credit)) or floor(float(credit))!=float(credit) or int(credit)!=_credit_expected or int(credit)<0 or int(credit)>1000000000:
 		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 		_log("save_failure","INVALID_CREDIT_ACK")
 		game.progress_save_error="Invalid compensation acknowledgement; reload to recover"
-		game.startup_notice="Unsaved changes · "+game.progress_save_error;return
+		game.startup_notice="Unsaved changes · "+game.progress_save_error
+		if _support_claim_mail_id!="":_support_claim_fail(game.progress_save_error)
+		return
 	if int(credit)>0:
 		if game.model.coins!=_credit_base_coins or game.model.coins>1000000000-int(credit):
 			ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
@@ -501,6 +514,16 @@ func _on_commit(arguments:Array):
 		# An older receipt must not mark newer ordinary Web changes clean.
 		game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
 	_log("platform_controller_accepted" if platform_ack else "save_accepted")
+	if _support_claim_mail_id!="":
+		if queued or generation!=inflight_generation:
+			_support_claim_fail("Progress changed while preparing this claim. Save again before claiming.")
+			queued=false;game.call_deferred("_save");return
+		var support=JavaScriptBridge.get_interface("LittleLeafSupportMail")
+		if support==null:
+			_support_claim_fail("Support mail is unavailable. Your café save is preserved.");return
+		_support_claim_callback=JavaScriptBridge.create_callback(_on_support_claim)
+		support.claim(_support_claim_mail_id,profile_id,revision,_support_claim_callback)
+		return
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
@@ -517,3 +540,100 @@ func _refresh_inbox(result:Dictionary):
 	if not snapshot.get("paid") is Array or not snapshot.get("deferred") is Array:
 		inbox_snapshot={"ok":false};return
 	inbox_snapshot=snapshot.duplicate(true)
+
+func claim_support_mail(mail_id:String)->bool:
+	if not ready or pending or _support_claim_mail_id!="" or game.editing or game.save_recovery_blocked or game.save_writes_suppressed:return false
+	if not OS.has_feature("web") or JavaScriptBridge.get_interface("LittleLeafSupportMail")==null:return false
+	_support_claim_mail_id=mail_id
+	_hold_for_credit()
+	request_save()
+	if not pending:
+		_support_claim_fail(game.progress_save_error if game.progress_save_error!="" else "Could not prepare the current café save.")
+		return false
+	return true
+
+func _support_claim_fail(reason:String,uncertain:bool=false):
+	_support_claim_mail_id="";_support_claim_callback=null
+	_release_credit_hold()
+	if uncertain or not ready or game.save_recovery_blocked:
+		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+	game.progress_save_error=reason
+	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(false,reason)
+	game._update_ui()
+
+func _on_support_claim(arguments:Array):
+	if _support_claim_mail_id=="" or game==null or not game.is_inside_tree():return
+	var parser=JSON.new()
+	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		var uncertain=result is Dictionary and bool(result.get("uncertain",false))
+		_support_claim_fail(str(result.get("error","Claim outcome is unknown. Reload to check your café.")) if result is Dictionary else "Claim outcome is unknown. Reload to check your café.",uncertain)
+		return
+	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not result.get("payload") is String or not result.get("stock") is Dictionary:
+		_support_claim_fail("Claim confirmation needs a cloud reload.",true);return
+	var candidate=game.Model.new()
+	if not _write_stage(str(result.payload)) or not candidate.load_save(STAGING_FILE):
+		_support_claim_fail("Claim was saved but the café could not be installed. Reload to recover it.",true);return
+	var stock:Dictionary=result.stock
+	if not accept_gift_stock({"profileId":profile_id,"stock":stock},candidate):
+		_support_claim_fail("Gift stock confirmation needs a cloud reload.",true);return
+	game.model=candidate;game.fresh_start=false
+	game._connect_model_events()
+	revision=int(result.revision);_confirmed_payload=str(result.payload);_inflight_payload=""
+	_refresh_inbox(result)
+	_support_claim_mail_id="";_support_claim_callback=null
+	game.progress_unsaved=false;game.progress_save_error=""
+	game._rebuild_room();game._rebuild_furniture();game._restore_service_runtime()
+	_release_credit_hold()
+	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(true,"")
+	game._update_ui()
+
+func accept_gift_stock(result:Dictionary,target=null)->bool:
+	if str(result.get("profileId",""))!=profile_id or not result.get("stock") is Dictionary:return false
+	if result.has("revision") and int(result.revision)!=revision:return false
+	var stock:Dictionary=result.stock
+	if int(stock.get("schema",-1))!=1 or not stock.get("counts") is Dictionary:return false
+	var counts:Dictionary=stock.counts
+	for kind in counts:
+		if not kind in ["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"] or not counts[kind] is int or int(counts[kind])<0 or int(counts[kind])>100:return false
+	var model=target if target!=null else game.model
+	if model.decoration_session_active:return false
+	model.gift_stock=counts.duplicate(true)
+	return true
+
+func commit_gift_decoration()->bool:
+	if not ready or pending or game.save_recovery_blocked or game.save_writes_suppressed or not game.editing:return false
+	var support=JavaScriptBridge.get_interface("LittleLeafSupportMail") if OS.has_feature("web") else null
+	if support==null:return false
+	var consumed=[]
+	for item_id in game.model.decoration_gifts:
+		consumed.append({"itemId":int(item_id),"catalogId":str(game.model.decoration_gifts[item_id])})
+	if consumed.is_empty() or consumed.size()>10:return false
+	game._update_people();game.model.service_snapshot=game._service_save_snapshot()
+	game.model.finish_decoration_session()
+	if not game.model.save(STAGING_FILE):
+		game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+		game.progress_save_error=game.model.last_error;return false
+	var payload=FileAccess.get_file_as_string(STAGING_FILE)
+	if payload=="":
+		game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+		game.progress_save_error="Could not read the validated gift placement";return false
+	_hold_for_credit();pending=true;_gift_commit_pending=true
+	_inflight_payload=payload;game.progress_unsaved=true
+	_gift_commit_callback=JavaScriptBridge.create_callback(_on_gift_commit)
+	support.place(payload,revision,profile_id,JSON.stringify(consumed),_gift_commit_callback)
+	return true
+
+func _on_gift_commit(arguments:Array):
+	if not _gift_commit_pending or game==null or not game.is_inside_tree():return
+	var result:Variant=JSON.parse_string(str(arguments[0])) if arguments.size()>0 else null
+	_gift_commit_pending=false;_gift_commit_callback=null;pending=false
+	if not result is Dictionary or not bool(result.get("ok",false)) or str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or str(result.get("payload",""))!=_inflight_payload or not accept_gift_stock(result):
+		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+		game.progress_save_error=str(result.get("error","Gift placement needs a cloud reload.")) if result is Dictionary else "Gift placement needs a cloud reload."
+		game.startup_notice="Gift placement outcome needs recovery · "+game.progress_save_error
+		_release_credit_hold();game._update_ui();return
+	revision=int(result.revision);_confirmed_payload=_inflight_payload;_inflight_payload=""
+	queued=false
+	game.progress_unsaved=false;game.progress_save_error=""
+	_release_credit_hold();game._update_ui()

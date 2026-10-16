@@ -50,11 +50,14 @@ assert(results.every(value=>value.status==='claimed'&&value.record.revision===2)
 const granted=results[0].record;
 assert.equal(JSON.parse(granted.payload).coins,100);
 assert.deepEqual(results[0].stock.counts,{plant:2,stove:1});
+assert.equal((await service.myGiftStock(auth(player))).stock.counts.plant,2);
 assert.equal((await controlRef.get()).data().claimSequence,1);
 assert.equal((await db.doc(`players/${player}/mailClaims/${issueId}`).get()).data().toDigest,granted.digest);
 assert.equal((await db.doc(`players/${player}/saveBackups/supportMailV1`).get()).data().record,JSON.stringify(original));
 assert.equal((await service.claimMail(auth(player),request)).record.digest,granted.digest,'response loss returns current head');
-const candidate={...granted,revision:3,updatedAt:clock+1,
+// A server-dated claim can precede a valid save from a slower device clock.
+// Revision and digest, not client wall time, order protected progress.
+const candidate={...granted,revision:3,updatedAt:clock-1000,
   payload:JSON.stringify({...JSON.parse(granted.payload),coins:90}),previous:null};
 candidate.digest=hash(fingerprint(candidate));
 await assert.rejects(service.commitProtectedSave(auth(player),{...request,candidate}),{code:'REVISION_CONFLICT'});
@@ -78,6 +81,10 @@ const placeRequest={...request,revision:3,digest:candidate.digest,candidate:plac
   operationId:'55555555-5555-4555-8555-555555555555',consumed:[{itemId:1,catalogId:'plant'}]};
 await assert.rejects(service.commitGiftPlacement(auth(player),{...placeRequest,consumed:[{itemId:1,catalogId:'register'}]}),
   {code:'INVALID_PLACEMENT'});
+const ownerRef=db.doc(`players/${player}/session/owner`);
+await ownerRef.update({request:{id:'66666666-6666-4666-8666-666666666666',requester:'other-device',device:'Other',at:Timestamp.fromMillis(clock)}});
+await assert.rejects(service.commitGiftPlacement(auth(player),placeRequest),{code:'OWNERSHIP_LOST'});
+await ownerRef.update({request:null});
 const placedResult=await service.commitGiftPlacement(auth(player),placeRequest);
 assert.equal(placedResult.stock.counts.plant,1);
 assert.equal(placedResult.record.digest,placed.digest);

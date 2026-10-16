@@ -7,6 +7,7 @@ const Hud=preload("res://scripts/ui/cafe_hud.gd")
 const ShopUI=preload("res://scripts/ui/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/ui/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/ui/cafe_inbox.gd")
+const SupportMail=preload("res://scripts/ui/cafe_support_mail.gd")
 const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
 const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
@@ -29,6 +30,7 @@ var hud
 var wallet_notice
 var update_notes
 var inbox
+var support_mail
 var settings_inbox:Button
 var update_badges=[]
 var staff_panel
@@ -155,6 +157,7 @@ func _popup_panels()->Array:
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
+ if support_mail!=null and is_instance_valid(support_mail.panel):panels.append(support_mail.panel)
  if music_panel!=null and is_instance_valid(music_panel.panel):panels.append(music_panel.panel)
  return panels
 
@@ -275,6 +278,8 @@ func setup():
  update_notes=UpdateNotes.new(self);update_notes.setup()
  for button in [help_overview,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
+ support_mail=SupportMail.new(self);support_mail.setup()
+ settings_button.pressed.connect(support_mail.refresh_capabilities)
  _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
  staff_panel.apply_theme(hud)
@@ -366,6 +371,9 @@ func sync():
  remove_button.disabled=remove_button.disabled or game.save_recovery_blocked
  remove_button.text="Sell +"+Money.amount(refund)
  for kind in game.catalog_prices:game.catalog_prices[kind].text=Money.amount(game.model.price_of(kind))
+ for kind in game.gift_cards:
+  game.gift_cards[kind].visible=game.catalog_category=="Gifts" and int(game.model.gift_stock.get(kind,0))>0
+  game.gift_counts[kind].text="Gift ×%d"%int(game.model.gift_stock.get(kind,0))
  build_scroll.visible=game.editing and game.catalog_category=="Build"
  tray_base_top=(-210 if context.visible else -162)-(44 if game.get_viewport().get_visible_rect().size.x<650 else 0)
  _set_tray_reveal(tray_reveal)

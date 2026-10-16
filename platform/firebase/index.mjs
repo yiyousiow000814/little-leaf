@@ -18,6 +18,7 @@ export const lookupPlayerForSupport=call('lookup');
 export const previewSupportMail=call('previewMail');
 export const issueSupportMail=call('issueMail');
 export const listMyMail=call('listMyMail');
+export const getMyGiftStock=call('myGiftStock');
 export const claimSupportMail=call('claimMail');
 // Keep ordinary protected saves available while new grants are disabled.
 export const commitProtectedSave=call('commitProtectedSave');

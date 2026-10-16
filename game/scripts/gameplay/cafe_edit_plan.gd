@@ -7,6 +7,7 @@ var _key:Array=[]
 var _kind=""
 var _id=-1
 var _rotation=0
+var _gift=false
 var _receipt:Dictionary={}
 var _plan_result:Dictionary={}
 var validations=0
@@ -22,19 +23,19 @@ func stamp(model,actors:Array)->Array:
   hash(model.checkout_staff_claims),hash(actors),
   # Purchase entitlement and staffing used by the existing planners.
   model.coins,model._next_item_id,hash(model.catalog),
-  model.decoration_session_active,hash(model.decoration_purchases),
+  model.decoration_session_active,hash(model.decoration_purchases),hash(model.decoration_gifts),hash(model.gift_stock),
   model.included_checkout_pending,model.register_unplaced,model.included_bin_pending,
   model.cashiers,model.cooks,model.waiters,model.cleaners,model.operating_open,
   hash(model.duty_counts),hash(model.duty_targets),
  ]
 
-func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[])->Dictionary:
+func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[],gift:bool=false)->Dictionary:
  id=model.logical_item_id(id) if id>=0 else -1
  if id>=0:kind=model.logical_kind(id)
  var next_state=stamp(model,actors)
- var next=next_state+[kind,id,posmod(rotation,4),cell]
+ var next=next_state+[kind,id,posmod(rotation,4),cell,gift]
  if next==_key:return _receipt
- invalidate();_state=next_state;_key=next;_kind=kind;_id=id;_rotation=posmod(rotation,4)
+ invalidate();_state=next_state;_key=next;_kind=kind;_id=id;_rotation=posmod(rotation,4);_gift=gift and id<0
  validations+=1
  var problem=_physical_problem(model,cell,actors)
  if problem!="":_plan_result={"ok":false,"error":problem}
@@ -62,13 +63,13 @@ func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
  shadow.duty_counts=model.duty_counts.duplicate(true);shadow.duty_targets=model.duty_targets.duplicate(true)
  shadow.wall_actor_positions.assign(model.wall_actor_positions)
  shadow.checkout_staff_claims.assign(model.checkout_staff_claims)
- var ok=shadow.place(_kind,cell.x,cell.y,_rotation,actors)
+ var ok=shadow.place_gift(_kind,cell.x,cell.y,_rotation,actors) if _gift else shadow.place(_kind,cell.x,cell.y,_rotation,actors)
  var plan={"ok":ok,"error":shadow.last_error,"issue":shadow.last_placement_issue.duplicate(true)}
  if ok:
   plan.merge({
    "items":shadow.items,"groups":shadow.dining_sets,
    "coins":shadow.coins,"next_id":shadow._next_item_id,
-   "decoration_purchases":shadow.decoration_purchases,
+   "decoration_purchases":shadow.decoration_purchases,"decoration_gifts":shadow.decoration_gifts,"gift_stock":shadow.gift_stock,
    "checkout_pending":shadow.included_checkout_pending,"register_unplaced":shadow.register_unplaced,
    "bin_pending":shadow.included_bin_pending,"event":shadow.last_event,
    "cashiers":shadow.cashiers,
@@ -93,6 +94,8 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
    if int(item.id)>=model._next_item_id:model.items.append(item.duplicate(true))
   model.dining_sets.assign(plan.groups.duplicate(true))
   model.decoration_purchases=plan.decoration_purchases.duplicate(true)
+  model.decoration_gifts=plan.decoration_gifts.duplicate(true)
+  model.gift_stock=plan.gift_stock.duplicate(true)
   model.coins=int(plan.coins)
   model._next_item_id=int(plan.next_id)
   model.included_checkout_pending=bool(plan.checkout_pending)
@@ -109,4 +112,4 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
  return true
 
 func invalidate():
- _state=[];_key=[];_receipt={};_plan_result={};_kind="";_id=-1;_rotation=0
+ _state=[];_key=[];_receipt={};_plan_result={};_kind="";_id=-1;_rotation=0;_gift=false

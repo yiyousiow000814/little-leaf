@@ -1,5 +1,5 @@
 extends RefCounted
-## Receipt-backed letters only. Never writes a wallet, campaign, save or CFG.
+## Legacy paid receipts and independently authenticated support mail.
 signal unread_changed(unread:bool)
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
@@ -88,14 +88,20 @@ func _refresh_snapshot(force=false)->bool:
  # Only the verified WebSave cache can supply letters, never a wallet balance.
  var source:Dictionary={"ok":true,"profileId":"","revision":0,"paid":[],"deferred":[]}
  if game.web_save!=null:source=game.web_save.inbox_snapshot
+ var support={"ok":false,"mail":[]}
+ if compact.support_mail!=null:support=compact.support_mail.mail_snapshot
  var raw=JSON.stringify(source);var now=float(clock.call());var second=int(now/1000.0)
- if not force and raw==last_source and second==last_refresh_second:return false
- last_source=raw;last_refresh_second=second
+ var identity=raw+JSON.stringify(support)
+ if not force and identity==last_source and second==last_refresh_second:return false
+ last_source=identity;last_refresh_second=second
  var next:Dictionary
  if api!=null:
   var projected=JSON.parse_string(str(api.visibleSnapshotJson(raw,_persist())))
   next=projected if projected is Dictionary else {"ok":false}
  else:next=_native_projection(source,now)
+ # Support mail is a separate authenticated mailbox snapshot. It never goes
+ # through the paid-receipt retention/verification API.
+ next["supportMail"]=support.get("mail",[]) if bool(support.get("ok",false)) and str(support.get("profileId",""))==str(source.get("profileId","")) else []
  # Clock polling must not rebuild controls or steal focus every second.
  next.erase("displayNow")
  var serialized=JSON.stringify(next)
@@ -119,14 +125,18 @@ func _native_projection(source:Dictionary,now:float)->Dictionary:
  return next
 
 func _key(receipt:Dictionary)->String:
+ if receipt.has("mailId"):return "support-mail/"+str(snapshot.get("profileId",""))+"/"+str(receipt.mailId)
  return str(snapshot.get("profileId",""))+"/"+str(receipt.get("id",""))+"/"+str(receipt.get("revision",0))
 
 func _read(receipt:Dictionary)->bool:
  if session_read.has(_key(receipt)):return true
+ if receipt.has("mailId"):return false
  if api!=null:return bool(api.isRead(str(snapshot.get("profileId","")),str(receipt.id),int(receipt.revision)))
  return false
 
 func has_unread()->bool:
+ for mail in snapshot.get("supportMail",[]):
+  if not _read(mail):return true
  if not bool(snapshot.get("ok",false)):return false
  for receipt in snapshot.get("paid",[]):
   if not _read(receipt):return true
@@ -142,12 +152,15 @@ func sync():
   storage_note.visible=storage_note.text!=""
 
 func show():
+ if compact.support_mail!=null:compact.support_mail.refresh_mail()
  _refresh_snapshot(true);detail_id="";_rebuild()
  game.settings.hide();compact._popup_at(panel,WIDTH)
  scroll.scroll_vertical=0;scroll.grab_focus.call_deferred();compact._queue_popup_fit();sync()
 
 func _show_detail(id:String):
  _refresh_snapshot(true);detail_id=id
+ for mail in snapshot.get("supportMail",[]):
+  if "support-mail/"+str(mail.get("mailId",""))==id:session_read[_key(mail)]=true
  for receipt in snapshot.get("paid",[]):
   if str(receipt.id)!=id:continue
   session_read[_key(receipt)]=true
@@ -165,11 +178,15 @@ func _rebuild():
   for child in container.get_children():container.remove_child(child);child.queue_free()
  rows.clear();letter_paper=null;letter_body=null
  heading_box.add_child(_label("Inbox",24))
- if not bool(snapshot.get("ok",false)):
+ if not bool(snapshot.get("ok",false)) and snapshot.get("supportMail",[]).is_empty():
   content.add_child(_label("Your letters are unavailable. Try reloading your café.",16,MUTED))
  elif detail_id!="":
   var found=false
+  for mail in snapshot.get("supportMail",[]):
+   if "support-mail/"+str(mail.get("mailId",""))!=detail_id:continue
+   found=true;_support_detail(mail);break
   for receipt in snapshot.get("paid",[]):
+   if found:break
    if str(receipt.id)!=detail_id:continue
    found=true;_detail(receipt);break
   if not found:detail_id="";_list()
@@ -182,12 +199,18 @@ func _rebuild():
 
 func _list():
  var paid:Array=snapshot.get("paid",[]);var deferred:Array=snapshot.get("deferred",[])
- heading_box.add_child(_label("Letters are kept for 14 days.",14,MUTED))
- if paid.is_empty():
+ var support:Array=snapshot.get("supportMail",[])
+ heading_box.add_child(_label("Support letters stay until claimed. Past paid receipts are kept for 14 days.",14,MUTED))
+ if paid.is_empty() and support.is_empty():
   var empty=PanelContainer.new();empty.name="EmptyMailbox";empty.add_theme_stylebox_override("panel",_paper_style(24));content.add_child(empty)
   var words=VBoxContainer.new();words.add_theme_constant_override("separation",8);empty.add_child(words)
   words.add_child(_label("No letters for now",18));words.add_child(_label("New letters will arrive here.",15,MUTED))
+ for mail in support:_entry(mail)
+ if compact.support_mail!=null and compact.support_mail.mail_snapshot.get("nextCursor")!=null:
+  var more=game.button("Load older support letters",compact.support_mail.load_more_mail)
+  more.custom_minimum_size.y=44;content.add_child(more)
  for receipt in paid:_entry(receipt)
+ if compact.support_mail!=null and compact.support_mail.mail_error!="":content.add_child(_label(compact.support_mail.mail_error,14,MUTED))
  # Eligibility isn't delivery: no fabricated receipt, date, unread dot or letter.
  for pending in deferred:
   var note=_label("Compensation pending · "+Money.amount(int(pending.coins))+" Leaf Coins\nYour wallet is full. It will be added after a successful save with enough room.",14,MUTED)
@@ -197,7 +220,7 @@ func _entry(record:Dictionary):
  var unread=not _read(record)
  var entry=EnvelopeButton.new();entry.unread=unread;entry.name="InboxMessage"
  entry.set_meta("soft_panel_button",true);entry.custom_minimum_size=Vector2(0,88);entry.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- entry.pressed.connect(_show_detail.bind(str(record.id)))
+ entry.pressed.connect(_show_detail.bind("support-mail/"+str(record.mailId) if record.has("mailId") else str(record.id)))
  entry.pressed.connect(func():game.settings_controls.play_sfx("click"))
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
   var style=_paper_style(0);style.bg_color=Color("fff8e9") if state=="normal" else Color("f0e8d3");style.set_corner_radius_all(6)
@@ -225,14 +248,38 @@ func _detail(record:Dictionary):
  amount.add_child(_label(Money.amount(int(record.coins))+" Leaf Coins",22));amount.add_child(_label("Paid · Added to your wallet",14,GREEN))
  letter_body.add_child(_label("Warmly,\nLittle Leaf",16))
 
+func _support_detail(record:Dictionary):
+ letter_paper=PanelContainer.new();letter_paper.name="SupportLetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(22));content.add_child(letter_paper)
+ letter_body=VBoxContainer.new();letter_body.add_theme_constant_override("separation",14);letter_paper.add_child(letter_body)
+ letter_body.add_child(_label(str(record.get("title","Support letter")),20))
+ letter_body.add_child(_label(_date(record),13,MUTED))
+ letter_body.add_child(_label(str(record.get("body","")),16))
+ var attachments="%s Leaf Coins"%Money.amount(int(record.get("coins",0)))
+ for item in record.get("items",[]):attachments+="\n%s ×%d"%[str(item.get("catalogId","Gift")).capitalize(),int(item.get("quantity",0))]
+ letter_body.add_child(_label(attachments,16,GREEN))
+ var claimed=str(record.get("status",""))=="claimed"
+ letter_body.add_child(_label("Claimed" if claimed else "Ready to claim · reading does not claim gifts",14,MUTED))
+ if not claimed:
+  var claim:Button=game.button("Claim gifts",func():pass)
+  claim.pressed.connect(func():
+   if game.web_save==null or not game.web_save.claim_support_mail(str(record.mailId)):
+    if compact.support_mail!=null:compact.support_mail.mail_error="Finish decorating and save your café before claiming."
+   else:
+    claim.disabled=true
+    if compact.support_mail!=null:compact.support_mail.mail_error="Checking and saving your gifts…"
+   sync()
+  )
+  claim.custom_minimum_size.y=44;letter_body.add_child(claim)
+
 func _title(record:Dictionary)->String:
+ if record.has("mailId"):return str(record.get("title","Support letter"))+(" · Claim gifts" if str(record.get("status",""))!="claimed" else " · Claimed")
  return "Café update compensation" if str(record.id)==KNOWN_CAMPAIGN else "Café compensation"
 
 func _reason(record:Dictionary)->String:
  return "Compensation for issues in the 0.1.5 update." if str(record.id)==KNOWN_CAMPAIGN else "We've added compensation to your café. The original reason wasn't recorded."
 
 func _date(record:Dictionary)->String:
- var date=Time.get_datetime_dict_from_unix_time(int(float(record.get("deliveredAt",record.get("grantedAt",0)))/1000.0))
+ var date=Time.get_datetime_dict_from_unix_time(int(float(record.get("deliveredAt",record.get("grantedAt",record.get("issuedAt",0))))/1000.0))
  return "%d %s %d"%[date.day,MONTHS[int(date.month)-1],date.year]
 
 func _paper_style(padding:float)->StyleBoxFlat:

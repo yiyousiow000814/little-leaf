@@ -110,6 +110,8 @@ var catalog: Array[Dictionary] = [
 ]
 
 var items: Array[Dictionary] = []
+var gift_stock:Dictionary={}
+var decoration_gifts:Dictionary={}
 var customers: Array[Dictionary] = []
 var outside_queue: Array[Dictionary] = []
 var parking_owned=false
@@ -209,7 +211,7 @@ func _init() -> void:
 func reset_new() -> void:
 	tutorial_state.clear()
 	first_guest_pending=false;first_guest_start=Vector2.INF
-	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_decoration_baseline.clear()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();decoration_gifts.clear();gift_stock.clear();_decoration_baseline.clear()
 	## A free furnished starter layout leaves the NEW game budget untouched.
 	items.clear()
 	dining_sets.clear()
@@ -395,7 +397,7 @@ var decoration_purchases:Dictionary={}
 var decoration_build_purchases:Dictionary={}
 var _decoration_baseline:Dictionary={}
 const DECORATION_STATE=[
-	"items","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
+	"items","gift_stock","decoration_gifts","customers","outside_queue","parking_owned","parking_paid_cost","parking_visits",
 	"dining_sets","built_walls","wall_attachments","_next_wall_id","_next_attachment_id",
 	"floor_style","floor_finishes",
 	"coins","owned_parcels","expanded","width","depth","cooks","waiters","cleaners","cashiers",
@@ -432,7 +434,7 @@ func begin_decoration_session():
 func finish_decoration_session():
 	_parking_session_purchase=false
 	_decoration_baseline.clear()
-	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();_notify()
+	decoration_session_active=false;decoration_purchases.clear();decoration_build_purchases.clear();decoration_gifts.clear();_notify()
 func record_decoration_purchase(id:int,paid:int):
 	if decoration_session_active:decoration_purchases[id]=paid
 func consume_decoration_purchase(ids:Array):
@@ -460,6 +462,7 @@ func wall_attachment_refund(id:int)->int:
 	return int(int(attachment.paid_cost)/2)
 func logical_refund(id:int)->int:
 	if get_item(id).is_empty():return 0
+	if decoration_gifts.has(id):return 0
 	if decoration_session_active and dining_set_for(id).is_empty() and decoration_purchases.has(id):return int(decoration_purchases[id])
 	return DiningSets.refund(self,id)+decoration_refund_bonus(id)
 func logical_item_count()->int:return items.size()-dining_sets.size()
@@ -505,6 +508,18 @@ func place(kind: String, x: int, z: int, rot: int = 0, actor_positions: Array = 
 	rebuild_dining_sets()
 	last_event = "Placed %s · −%s coins" % [kind, Money.amount(price)]
 	_notify()
+	return true
+
+func place_gift(kind:String,x:int,z:int,rot:int=0,actor_positions:Array=[])->bool:
+	if not decoration_session_active or int(gift_stock.get(kind,0))<1:return _fail("No unplaced gift is available")
+	if kind not in ["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"]:return _fail("Unsupported gift")
+	if not can_place(kind,x,z,-1,rot,actor_positions):return false
+	var item:Dictionary={"id":_next_item_id,"kind":kind,"x":x,"z":z,"rot":posmod(rot,4)}
+	items.append(item);_next_item_id+=1
+	if kind=="bin":included_bin_pending=false
+	gift_stock[kind]=int(gift_stock[kind])-1
+	decoration_gifts[int(item.id)]=kind
+	rebuild_dining_sets();last_event="Placed gift %s"%kind;_notify()
 	return true
 
 
@@ -564,8 +579,11 @@ func remove(id: int, refund: bool = true) -> bool:
 	var essential_error := _essential_removal_error([id])
 	if essential_error != "":
 		return _fail(essential_error)
+	var gift_kind=str(decoration_gifts.get(id,""))
 	var returned: int = logical_refund(id) if refund else 0
 	consume_decoration_purchase([id])
+	if gift_kind!="":
+		decoration_gifts.erase(id);gift_stock[gift_kind]=int(gift_stock.get(gift_kind,0))+1
 	items.erase(item)
 	if item.kind=="register":register_unplaced=true
 	coins += returned

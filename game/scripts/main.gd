@@ -44,6 +44,8 @@ var tool_text: Label
 var business_button: Button
 var catalog_prices={}
 var catalog_cards={}
+var gift_cards={}
+var gift_counts={}
 var category_buttons={}
 var catalog_category="Tables"
 var build_panel:Control
@@ -57,6 +59,7 @@ var expand_button: Button
 var pause_button: Button
 var settings: PanelContainer
 var selected_kind = ""
+var selected_gift = false
 var selected_id = -1
 var rotation_step = 0
 var editing = false
@@ -337,7 +340,7 @@ func _build_ui():
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
-	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
+	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Gifts","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
 		categories.add_child(tab);category_buttons[category]=tab
 	var scroll=ScrollContainer.new();catalog_scroll=scroll; scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; column.add_child(scroll)
@@ -350,10 +353,18 @@ func _build_ui():
 		var icon=Illustration.new(); icon.icon_kind=spec.kind; icon_holder.add_child(icon)
 		var title=label(spec.name,11); title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; v.add_child(title)
 		var price=label("",11,Color("7b856c")); price.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER; v.add_child(price);catalog_prices[spec.kind]=price
+	for kind in ["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"]:
+		var card=button("",func():_choose_gift(kind));card.custom_minimum_size=Vector2(99,105);products.add_child(card);gift_cards[kind]=card
+		var v=VBoxContainer.new();v.mouse_filter=Control.MOUSE_FILTER_IGNORE;v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);v.offset_left=4;v.offset_right=-4;card.add_child(v)
+		var icon_holder=Control.new();icon_holder.custom_minimum_size=Vector2(91,57);icon_holder.mouse_filter=Control.MOUSE_FILTER_IGNORE;v.add_child(icon_holder)
+		var icon=Illustration.new();icon.icon_kind=kind;icon_holder.add_child(icon)
+		var title=label(kind.capitalize(),11);title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;v.add_child(title)
+		var count=label("",11,Color("527958"));count.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;v.add_child(count);gift_counts[kind]=count
 
 	build_panel=build_tools.build();column.add_child(build_panel);build_panel.hide()
 	compact_ui=CompactUI.new(self);compact_ui.setup()
 	for kind in catalog_cards:catalog_cards[kind].visible=_catalog_group(kind)==catalog_category
+	for kind in gift_cards:gift_cards[kind].visible=false
 
 func _catalog_group(kind:String)->String:
 	if model.is_dining_product(kind) or kind in ["table","chair","bench"]:return "Tables"
@@ -367,6 +378,7 @@ func _set_catalog_category(category:String):
 	_cancel_selection()
 	for key in category_buttons:category_buttons[key].button_pressed=key==category
 	for kind in catalog_cards:catalog_cards[kind].visible=category=="All" or _catalog_group(kind)==category
+	for kind in gift_cards:gift_cards[kind].visible=category=="Gifts" and int(model.gift_stock.get(kind,0))>0
 	if is_instance_valid(build_panel):build_panel.visible=category=="Build"
 	if is_instance_valid(catalog_scroll):catalog_scroll.visible=category!="Build"
 	if compact_ui!=null:compact_ui.sync()
@@ -378,6 +390,12 @@ func _toggle_business():
 
 func _toggle_edit():
 	if save_recovery_blocked:return
+	if editing and not model.decoration_gifts.is_empty():
+		_cancel_selection()
+		if web_save==null or not web_save.commit_gift_decoration():return
+		editing=false
+		_apply_music_selection();_update_ui();compact_ui.set_tray_open(false)
+		return
 	editing=not editing
 	if editing:
 		model.service_snapshot=_service_save_snapshot()
@@ -404,11 +422,17 @@ func _choose(kind: String):
 	selected_kind=kind
 	tool_text.text="Place %s · R rotates · right click cancels" % kind.capitalize()
 
+func _choose_gift(kind:String):
+	_choose(kind)
+	selected_gift=true
+	tool_text.text="Place gifted %s · R rotates · right click cancels"%kind.capitalize()
+
 func _cancel_selection():
 	if compact_ui!=null:compact_ui.clear_selection()
 	if build_tools!=null:build_tools.cancel()
 	if interaction!=null: interaction.cancel(false)
 	selected_kind=""; selected_id=-1
+	selected_gift=false
 	if is_instance_valid(tool_text): tool_text.text="Choose an item · click a floor tile to place"
 
 func _rotate():

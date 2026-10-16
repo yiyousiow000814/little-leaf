@@ -43,10 +43,10 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     if(doc.digest!==record.digest||doc.revision!==record.revision||doc.profileId!==record.profileId)throw error('CORRUPT_AUTHORITY','Cloud save identity changed.');
     return record;
   }
-  function fence(value,request,time) {
+  function fence(value,request,time,requireIdle=false) {
     if(!uuid(request.writerId)||!Number.isSafeInteger(request.writerEpoch)||request.writerEpoch<1
       ||value?.schema!==1||value.owner!==request.writerId||value.epoch!==request.writerEpoch
-      ||value.ack!==null||!value.updatedAt?.toMillis
+      ||value.ack!==null||(requireIdle&&value.request!==null)||!value.updatedAt?.toMillis
       ||time>=value.updatedAt.toMillis()+60000)throw error('OWNERSHIP_LOST','This device no longer owns the café.');
   }
   function expected(record,request) {
@@ -62,8 +62,9 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     if(!uid(recipientUid))throw error('INVALID_UID','Enter one exact player UID.');
     const found=await db.runTransaction(async tx=>{
       const limit=rate(actorId);
-      const [r,quota,saved,ctrl]=await Promise.all([tx.get(role(actorId)),tx.get(limit),
-        tx.get(save(recipientUid)),tx.get(control(recipientUid))]);
+      const [r,quota,saved,ctrl,recent]=await Promise.all([tx.get(role(actorId)),tx.get(limit),
+        tx.get(save(recipientUid)),tx.get(control(recipientUid)),
+        tx.get(db.collection(`players/${recipientUid}/mail`).orderBy('issuedAt','desc').limit(10))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('lookup'))throw error('PERMISSION_DENIED','Support access changed.');
       const next=checkedRate(quota,'lookup',time,20);
       tx.set(limit,next);
@@ -71,7 +72,9 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       const record=head(saved.data());
       return {uid:recipientUid,profileId:record.profileId,revision:record.revision,
         savedAt:record.updatedAt,timeSource:'client record time',device:saved.data().device||'Unknown device',
-        protected:ctrl.exists,evidence:'Current verified save only; historic purchases unavailable.'};
+        protected:ctrl.exists,evidence:'Current verified save only; historic purchases unavailable.',
+        recentMail:recent.docs.map(doc=>({mailId:doc.id,caseId:doc.data().caseId||'',
+          status:doc.data().status,issuedAt:doc.data().issuedAt,claimedAt:doc.data().claimedAt})),historyLimit:10};
     });
     if(found.missing)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
     return found;
@@ -119,7 +122,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
         throw error('PREVIEW_EXPIRED','Review the exact letter again before sending.');
       if(!s.exists||head(s.data()).profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
       tx.set(limit,checkedRate(quota,'issue',time,5));
-      const payload={schema:1,mailId:value.issueId,issueId:value.issueId,profileId:value.profileId,
+      const payload={schema:1,mailId:value.issueId,issueId:value.issueId,caseId:value.caseId,profileId:value.profileId,
         title:value.subject,body:value.body,coins:value.coins,items:value.items,
         issuedAt:time,status:'unclaimed',claimedAt:null};
       tx.create(issue(value.issueId),{...value,requestHash:normalizedHash,actorUid:actorId,issuedAt:time});
@@ -141,21 +144,35 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       query=query.startAfter(previous);
     }
     const page=await query.get(),window=page.docs.slice(0,20),rows=window.map(s=>s.data()).filter(m=>m.profileId===profileId);
-    return {mail:rows,nextCursor:page.docs.length>20?window.at(-1).id:null};
+    return {profileId,mail:rows,nextCursor:page.docs.length>20?window.at(-1).id:null};
+  }
+  async function myGiftStock(context) {
+    const player=actor(context);
+    return db.runTransaction(async tx=>{
+      const [saved,g,ctrl]=await Promise.all([tx.get(save(player)),tx.get(stock(player)),tx.get(control(player))]);
+      if(!saved.exists)throw error('MAIL_UNAVAILABLE','Open a cloud café before reading gifts.');
+      const record=head(saved.data()),value=g.data()||{schema:1,revision:0,counts:{}};
+      if((record.format===3&&(value.revision!==record.mailState.stockRevision||!ctrl.exists
+        ||ctrl.data().stockRevision!==value.revision))||(record.format!==3&&(g.exists||ctrl.exists)))
+        throw error('PROTOCOL_CHANGED','Gift stock and cloud save differ. Reload.');
+      return {profileId:record.profileId,revision:record.revision,digest:record.digest,stock:value};
+    });
   }
   async function claimMail(context,request) {
     active();
-    const player=actor(context),time=now();
+    const player=actor(context);
     if(!uuid(request?.mailId)||!uuid(request?.operationId))throw error('INVALID_CLAIM','Invalid claim request.');
     return db.runTransaction(async tx=>{
       const [m,c,s,ctrl,own,g,b]=await Promise.all([tx.get(mail(player,request.mailId)),tx.get(claim(player,request.mailId)),
         tx.get(save(player)),tx.get(control(player)),tx.get(session(player)),tx.get(stock(player)),tx.get(backup(player))]);
+      const time=now();
       if(!m.exists||!s.exists)throw error('MAIL_UNAVAILABLE','This letter is unavailable.');
       const current=head(s.data());
+      fence(own.data(),request,time,true);
       if(c.exists){if(m.data().status!=='claimed')throw error('CORRUPT_MAIL','Claim state is inconsistent.');
         return {status:'claimed',receipt:c.data(),record:current,stock:g.data()||{schema:1,revision:0,counts:{}}};}
       if(m.data().status!=='unclaimed')throw error('CORRUPT_MAIL','Claim state is inconsistent.');
-      fence(own.data(),request,time);expected(current,request);
+      expected(current,request);
       if(ctrl.exists && (current.format!==3||ctrl.data().claimSequence!==current.mailState.claimSequence
         ||ctrl.data().stockRevision!==current.mailState.stockRevision
         ||(g.data()?.revision||0)!==current.mailState.stockRevision))throw error('PROTOCOL_CHANGED','Save protocol changed.');
@@ -181,11 +198,12 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     });
   }
   async function commitProtectedSave(context,request) {
-    const player=actor(context),time=now(),candidate=request?.candidate;
+    const player=actor(context),candidate=request?.candidate;
     verifyRecord(candidate);
     if(candidate.format!==3)throw error('PROTOCOL_CHANGED','Update the game to save this café.');
     return db.runTransaction(async tx=>{
       const [s,ctrl,own]=await Promise.all([tx.get(save(player)),tx.get(control(player)),tx.get(session(player))]);
+      const time=now();
       if(!s.exists||!ctrl.exists)throw error('PROTOCOL_CHANGED','Protected save is unavailable.');
       fence(own.data(),request,time);
       const current=head(s.data()),protocol=ctrl.data();
@@ -197,14 +215,14 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
         ||candidate.createdAt!==current.createdAt||JSON.stringify(candidate.origin)!==JSON.stringify(current.origin)
         ||JSON.stringify(candidate.campaigns)!==JSON.stringify(current.campaigns)
         ||JSON.stringify(candidate.mailState)!==JSON.stringify(current.mailState)
-        ||candidate.previous!==null||candidate.updatedAt<current.updatedAt)
+        ||candidate.previous!==null)
         throw error('PROTOCOL_CHANGED','Save was based on an old claim or café. Reload.');
       tx.set(save(player),docFor(candidate,s.data(),request));
       return {status:'saved',record:candidate};
     });
   }
   async function commitGiftPlacement(context,request) {
-    const player=actor(context),time=now(),candidate=request?.candidate,consumed=request?.consumed;
+    const player=actor(context),candidate=request?.candidate,consumed=request?.consumed;
     if(!uuid(request?.operationId)||!Array.isArray(consumed)||consumed.length<1||consumed.length>10)
       throw error('INVALID_PLACEMENT','Invalid gift placement.');
     verifyRecord(candidate);
@@ -219,16 +237,17 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     return db.runTransaction(async tx=>{
       const [done,s,ctrl,own,g]=await Promise.all([tx.get(placement(player,request.operationId)),tx.get(save(player)),
         tx.get(control(player)),tx.get(session(player)),tx.get(stock(player))]);
+      const time=now();
       if(!s.exists||!ctrl.exists||!g.exists)throw error('PROTOCOL_CHANGED','Gift stock is unavailable.');
       const current=head(s.data()),protocol=ctrl.data(),stockValue=g.data();
       if(done.exists){
         if(done.data().operationHash!==operationHash)throw error('ISSUE_CONFLICT','Placement ID was already used.');
         return {status:'placed',receipt:done.data(),record:current,stock:stockValue};
       }
-      fence(own.data(),request,time);expected(current,request);
+      fence(own.data(),request,time,true);expected(current,request);
       if(current.format!==3||candidate.format!==3||candidate.profileId!==current.profileId
         ||candidate.revision!==current.revision+1||candidate.createdAt!==current.createdAt
-        ||candidate.previous!==null||candidate.updatedAt<current.updatedAt
+        ||candidate.previous!==null
         ||JSON.stringify(candidate.origin)!==JSON.stringify(current.origin)
         ||JSON.stringify(candidate.campaigns)!==JSON.stringify(current.campaigns)
         ||protocol.claimSequence!==current.mailState.claimSequence
@@ -267,5 +286,5 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       return {status:'placed',receipt,record:candidate,stock:updatedStock};
     });
   }
-  return {capabilities,lookup,previewMail,issueMail,listMyMail,claimMail,commitProtectedSave,commitGiftPlacement};
+  return {capabilities,lookup,previewMail,issueMail,listMyMail,myGiftStock,claimMail,commitProtectedSave,commitGiftPlacement};
 }

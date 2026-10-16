@@ -316,7 +316,7 @@ func _update_validity(screen: Vector2):
 	if drag_item_id >= 0:
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
-	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
+	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions(),bool(game.get("selected_gift")) and drag_item_id<0)
 	drag_footprint_valid = bool(placement_receipt.physical_ok)
 	if not placement_receipt.ok:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return

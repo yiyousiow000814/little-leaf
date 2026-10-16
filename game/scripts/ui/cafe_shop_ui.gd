@@ -155,11 +155,11 @@ func setup():
  game.tray.add_theme_stylebox_override("panel",StyleBoxEmpty.new());ui.categories.hide()
  category_scroll=ScrollContainer.new();category_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_SHOW_NEVER;category_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;root.add_child(category_scroll)
  category_scroll.follow_focus=true;category_row=HBoxContainer.new();category_row.add_theme_constant_override("separation",6);category_scroll.add_child(category_row);category_row.size_flags_horizontal=Control.SIZE_EXPAND_FILL;category_row.alignment=BoxContainer.ALIGNMENT_CENTER;_scroll_skin(category_scroll)
- var kinds={"Tables":"table_set","Kitchen":"stove","Drinks":"beverage","Cleaning":"sink","Decor":"plant","Build":"counter"}
+ var kinds={"Tables":"table_set","Kitchen":"stove","Drinks":"beverage","Cleaning":"sink","Decor":"plant","Gifts":"plant","Build":"counter"}
  for category in game.category_buttons:
   var button:Button=game.category_buttons[category];button.reparent(category_row);_style(button)
   button.alignment=HORIZONTAL_ALIGNMENT_CENTER;button.add_theme_font_size_override("font_size",14)
-  button.tooltip_text=category+" furniture" if category!="Build" else "Walls, doors, windows and flooring"
+  button.tooltip_text="Unplaced gifts from support letters" if category=="Gifts" else category+" furniture" if category!="Build" else "Walls, doors, windows and flooring"
   category_icons[category]=_illustration(button,kinds[category])
  game.catalog_scroll.reparent(root);ui.build_scroll.reparent(root);ui.context.reparent(root)
  action_background=background.duplicate();root.add_child(action_background);root.move_child(action_background,0);action_background.mouse_filter=Control.MOUSE_FILTER_STOP;action_background.hide()
