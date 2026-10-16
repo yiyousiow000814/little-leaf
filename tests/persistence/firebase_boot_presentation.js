@@ -9,11 +9,51 @@ function fixture(user=null,options={}){
   nodes.set('status-label',element());nodes.set('status-progress',element());
   const auth={currentUser:user,authStateReady:async()=>{if(options.authReady)await options.authReady;}};
   let client={sync(){},close(){clientClosed++;}};
-  const win={addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return options.sessionRemote || {};},createSession(value){sessionOptions=value;if(options.createSession){const session=options.createSession(value),close=session.close;session.close=()=>{if(!ownershipClosed){ownershipClosed++;close();}};return session;}return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(_db,journalConfig){journalOptions=journalConfig;opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){cloudOptions=value;statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
+  const win={navigator:options.navigator || {},addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return options.sessionRemote || {};},createSession(value){sessionOptions=value;if(options.createSession){const session=options.createSession(value),close=session.close;session.close=()=>{if(!ownershipClosed){ownershipClosed++;close();}};return session;}return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(_db,journalConfig){journalOptions=journalConfig;opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){cloudOptions=value;statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
   const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setTimeout:options.timers?.setTimeout || setTimeout,clearTimeout:options.timers?.clearTimeout || clearTimeout,setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
   return {nodes,auth,win,events,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed,cloudStartup:cloudOptions?.cloudStartup,cloudOnly:journalOptions?.cloudOnly}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),get client(){return client;}};
+}
+async function uidSettings(){
+  const uid='SyntheticUidAbCdEf0123456789XY',writes=[];
+  let finishCopy;
+  const f=fixture({uid,isAnonymous:false,email:'not-a-uid@example.invalid',accessToken:'not-a-uid-token'},{
+    navigator:{clipboard:{writeText(text){writes.push(text);return new Promise(resolve=>{finishCopy=resolve;});}}}
+  });
+  await f.start();const api=f.win.LittleLeafCloudSettings,view=()=>JSON.parse(api.snapshot());
+  assert.equal(view().uid,uid);assert(!api.snapshot().includes('not-a-uid'));
+  let observed=[];api.watchUid(()=>observed.push(view()));
+  const copying=api.copyUid();assert.equal(view().copyStatus,'copying');assert.deepEqual(writes,[uid]);
+  await api.copyUid();assert.equal(writes.length,1,'repeat click cannot duplicate pending clipboard work');
+  finishCopy();await copying;assert.equal(view().copyStatus,'copied');assert.equal(observed.at(-1).copyStatus,'copied');
+  const changed=api.copyUid();f.setUser({uid:'SyntheticOtherAccount',isAnonymous:false});
+  assert.equal(view().uid,'');assert.equal(view().copyStatus,'');assert.equal(observed.at(-1).uid,'');
+  finishCopy();await changed;assert.equal(view().copyStatus,'','late clipboard completion cannot restore old identity feedback');
+  f.setUser({uid,isAnonymous:false});assert.equal(view().uid,'','closed client cannot adopt an account that signs back in');
+  await api.copyUid();assert.equal(writes.length,2);
+  api.unwatchUid();const count=observed.length;f.setUser(null);assert.equal(observed.length,count);
+  const brokenObserver=fixture({uid,isAnonymous:false});await brokenObserver.start();
+  brokenObserver.win.LittleLeafCloudSettings.watchUid(()=>{throw Error('synthetic observer failure');});
+  brokenObserver.setUser(null);
+  assert.equal(brokenObserver.accountCounts().clientClosed,1);assert.equal(brokenObserver.runtimeState().runtimeClosed,1);
+  assert.equal(JSON.parse(brokenObserver.win.LittleLeafCloudSettings.snapshot()).uid,'','presentation failure cannot interrupt account closure');
+  for(const navigator of [{},{clipboard:{writeText:async()=>{throw Error('synthetic denial');}}}]){
+    const denied=fixture({uid,isAnonymous:false},{navigator});await denied.start();
+    await denied.win.LittleLeafCloudSettings.copyUid();
+    const value=JSON.parse(denied.win.LittleLeafCloudSettings.snapshot());assert.equal(value.uid,uid);assert.equal(value.copyStatus,'failed');
+  }
+  let finishSignout;
+  const leaving=fixture({uid,isAnonymous:false},{confirm:true,signOutWait:new Promise(resolve=>{finishSignout=resolve;})});
+  await leaving.start();const out=leaving.win.LittleLeafCloudSettings;let cleared=false;
+  out.watchUid(()=>{if(JSON.parse(out.snapshot()).uid==='')cleared=true;});
+  const pending=out.signOut();assert(cleared);assert.equal(JSON.parse(out.snapshot()).uid,'');
+  finishSignout();await pending;assert.equal(JSON.parse(out.snapshot()).uid,'');
+  const failed=fixture({uid,isAnonymous:false},{confirm:true,signOutError:true});await failed.start();
+  await failed.win.LittleLeafCloudSettings.signOut();assert.equal(JSON.parse(failed.win.LittleLeafCloudSettings.snapshot()).uid,uid);
+  const guest=fixture();guest.start();await flush();assert.equal(JSON.parse(guest.win.LittleLeafCloudSettings.snapshot()).uid,'');
+  const anonymous=fixture({uid,isAnonymous:true});await assert.rejects(anonymous.start());assert.equal(JSON.parse(anonymous.win.LittleLeafCloudSettings.snapshot()).uid,'');
+  console.log('UID settings: full Auth UID, clipboard settlement/denial, account invalidation and observer lifecycle passed');
 }
 async function ownershipStartupDeadline(){
   const root={crypto:webcrypto};root.globalThis=root;
@@ -97,6 +137,7 @@ async function activePagehideSave(){
   assert.deepEqual(local,preserved,'closed/account-changed callbacks cannot replace the last journal');
 }
 (async()=>{
+  await uidSettings();
   await ownershipStartupDeadline();
   const bridgeSource=fs.readFileSync('game/scripts/persistence/cafe_cloud_settings.gd','utf8');
   const presence=bridgeSource.match(/if not JavaScriptBridge\.eval\("([^"\n]+)"\):return null/)[1];

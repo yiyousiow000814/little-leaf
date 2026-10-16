@@ -17,7 +17,12 @@ class EntryPresentationTests(unittest.TestCase):
         # Google sign-in remains the reviewed path. Runtime ownership is governed
         # by the focused boot/refresh behavior checks, not this historical text.
         login_path=lambda text:text[text.index('  button.onclick=async()=>{'):text.index('  if(!window.LittleLeafFirebaseSession)')]
-        self.assertEqual(login_path(candidate),login_path(baseline))
+        # Only UID feedback wraps the original confirmed sign-out wait/finally.
+        candidate_login=login_path(candidate)
+        for feedback in ["copyStatus='';notifyUid();", "settingsActive=false;notifyUid();", "notifyUid();"]:
+            self.assertIn(feedback,candidate_login)
+            candidate_login=candidate_login.replace(feedback,"",1)
+        self.assertEqual(candidate_login,login_path(baseline))
         handler=lambda text:text[text.index('  button.onclick=async()=>{',text.index('async function verifyAuthOnly')):]
         self.assertEqual(handler(candidate),handler(baseline))
 
