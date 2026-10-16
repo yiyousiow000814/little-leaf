@@ -1,6 +1,7 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {getAuth,getIdTokenResult,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js';
 export async function start(config,options={}) {
   const popup=options.surface==='trusted-itch-frame';
   if(options.surface!==undefined && !popup)throw Error('Unknown account entry surface.');
@@ -114,7 +115,18 @@ export async function start(config,options={}) {
   }).finally(()=>{cancelStartup=null;});
   if(exited || auth.currentUser?.uid!==uid)throw closedStartup();
   runtime.assertHeld();
-  const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership);
+  const protectedCommit=async request=>{
+    if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+    try {
+      const response=await httpsCallable(getFunctions(app),'commitProtectedSave')(request);
+      if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+      return response.data;
+    }catch(e){
+      if(exited||auth.currentUser?.uid!==uid)throw closedStartup();
+      throw Object.assign(Error(e.message||'Protected save could not be confirmed.'),{code:e.details?.code||e.code||'CLOUD_ERROR'});
+    }
+  };
+  const remote=window.LittleLeafFirebase.createRemote(db,{doc,getDocFromServer,runTransaction},ownership,protectedCommit);
   const journal=await window.LittleLeafFirebase.openJournal(indexedDB,{cloudOnly:true});
   runtime.assertHeld();
   client=window.LittleLeafFirebase.createClient({uid,cloudStartup:true,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
