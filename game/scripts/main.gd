@@ -1452,10 +1452,14 @@ func _mark_blocked_job(staff: Dictionary, guest: Dictionary, kind: String):
 		if _service_cell(item,from,[],str(staff.role))!=Vector2i(-1,-1): has_usable=true;break
 	staff.blocked_reason="Waiting for a free %s"%station_kind if has_usable else ("Table service side blocked · make space beside the diner in Decorate" if station_kind=="table" else ("%s front blocked · make space in Decorate"%station_kind.capitalize() if staff.blocked_target_id>=0 else "Add a %s in Decorate"%station_kind))
 
-func _cleanup_ready(guest: Dictionary) -> bool:
+func _cleanup_ready(guest: Dictionary, allow_checkout:bool=false) -> bool:
 	if bool(guest.get("withdrawn",false)):return false
 	if str(guest.phase) in ["dirty","cleaning"]: return true
-	if str(guest.phase)!="leaving" or bool(guest.get("seated",false)): return false
+	# Table clearing follows the actual chair departure, not payment or exit.
+	# Floor jobs retain their existing lifecycle and never borrow this gate.
+	var early_table=allow_checkout and str(guest.phase) in ["checkout_walk","checkout_wait","paying"]
+	if str(guest.phase)!="leaving" and not early_table:return false
+	if bool(guest.get("seated",false)) or bool(guest.get("dismounting",false)) or str(guest.get("mobility",{}).get("kind",""))=="to_assigned_seat":return false
 	var chair=model.get_item(int(guest.chair_id))
 	var table=model.get_item(int(guest.table_id))
 	if chair.is_empty() or table.is_empty(): return false
@@ -1480,10 +1484,14 @@ func _assign_service_job(staff: Dictionary, index: int):
 			if kind=="brew" and (phase!="drinking" or record.drink_ready): continue
 			if kind=="deliver_meal" and (phase!="cooking" or not record.meal_ready or record.meal_done): continue
 			if kind=="deliver_drink" and (phase!="drinking" or not record.drink_ready or record.drink_done): continue
-			if kind=="cleanup" and (not _cleanup_ready(guest) or record.cleanup_done or _cleanup_role_step(record,str(staff.role))>=SERVICE_STEPS.cleanup.size()): continue
+			if kind=="cleanup" and (not _cleanup_ready(guest,staff.role=="waiter") or record.cleanup_done or _cleanup_role_step(record,str(staff.role))>=SERVICE_STEPS.cleanup.size()): continue
 			var assigned=false
 			for other in staff_states:
-				if int(other.job_guest_id)==int(guest.id) and int(other.job_token)==int(record.token): assigned=true;break
+				if int(other.job_guest_id)!=int(guest.id) or int(other.job_token)!=int(record.token):continue
+				# A cashier owns payment; a waiter owns this table's dishes. These
+				# two independent jobs may overlap, never two table workers.
+				var parallel_checkout=(kind=="take_payment" and other.role=="waiter" and other.job_kind=="cleanup") or (kind=="cleanup" and staff.role=="waiter" and other.job_kind=="take_payment")
+				if not parallel_checkout:assigned=true;break
 			if assigned: continue
 			if kind=="cleanup":
 				var cleanup_step=_cleanup_role_step(record,str(staff.role))
