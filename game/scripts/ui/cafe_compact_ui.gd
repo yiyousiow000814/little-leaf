@@ -335,14 +335,18 @@ func _selected_editable_wall()->Dictionary:
  return game.model.get_editable_wall(_selected_wall_key()) if game.model.has_method("get_editable_wall") else game.model.get_wall(selected_wall)
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
+func has_item_action()->bool:
+ if not game.editing:return false
+ if game.selected_kind!="" or (game.selected_id>=0 and not game.model.get_item(game.selected_id).is_empty()):return true
+ if _selected_wall_key()!="" or (game.build_tools.opening_source_id>=0 and not _selected_opening().is_empty()):return true
+ return game.build_tools.active() and game.build_tools.mode!="select_opening"
 func sync():
  if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
  var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=_selected_editable_wall()
  var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode in ["floor","remove_floor"]
- var selected=not item.is_empty() or not opening.is_empty() or not wall.is_empty() or selected_shell!="" or placing or edge or flooring
- context.visible=game.editing and (selected or game.catalog_category=="Build")
+ context.visible=has_item_action()
  var selected_kind=game.model.logical_kind(int(item.id)) if not item.is_empty() else game.selected_kind
  context_label.text=game.model.name_of(selected_kind) if game.model.has_method("is_dining_product") and game.model.is_dining_product(selected_kind) else SHORT_NAMES.get(selected_kind,selected_kind.capitalize())
  if not opening.is_empty():context_label.text=str(opening.kind).capitalize()+" selected"
