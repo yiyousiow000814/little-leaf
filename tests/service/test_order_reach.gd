@@ -130,6 +130,7 @@ func run():
   cleanup(g)
  idle_fallback_priority()
  targetless_cook_priority()
+ combined_work_priority()
  negative_routes()
  print("ORDER_REACH_EVIDENCE ",JSON.stringify(evidence))
  print("ORDER_REACH_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false}))
@@ -235,4 +236,27 @@ func targetless_cook_priority():
  chef.destination=g._service_cell(pass_target,Vector2i(chef.pos.floor()),[],"chef")
  check(chef.destination!=INVALID and not g._table_face_available(chef.destination,waiter,[]) and g._staff_cell_claimed(chef.destination,1),"both ownership gates retain a real productive cook endpoint")
  check(held.plate_owner=="staff" and held.plate_staff_index==0 and held.token==chef_token,"pass retry and endpoint checks preserve held food custody")
+ cleanup(g)
+
+func combined_work_priority():
+ var g=fixture();g.setup_combined_work()
+ var pass_record=g.service_guests[204];var order=g.service_guests[201]
+ var tokens=[g.service_guests[202].token,g.service_guests[203].token,pass_record.token,order.token]
+ check(pass_record.meal_pass_id==130 and pass_record.pass_reserved,"combined fixture pins productive chef to its only available pass")
+ check(g._service_target(g.staff_states[0]).is_empty() and g._service_target(g.staff_states[2]).is_empty(),"both other retained cooks genuinely have no current pass target")
+ check(g.staff_states[1].table_face_cell==REAR,"combined waiter retains the selected rear endpoint")
+ var retained=true;var both_yielded=false;var placed=false
+ for tick in range(200):
+  g._animate_staff(.05)
+  for pair in [[202,0],[203,2]]:
+   var record=g.service_guests[pair[0]];var chef=g.staff_states[pair[1]]
+   retained=retained and record.plate_owner=="staff" and record.plate_staff_index==pair[1] and chef.job_kind=="cook" and chef.job_step==3 and chef.job_elapsed==0.0
+  if tick==0:both_yielded=g.staff_states[0].destination!=REAR and g.staff_states[2].destination!=Vector2i(2,3)
+  placed=placed or (pass_record.plate_owner=="counter" and pass_record.plate_target_id==130)
+  if order.order_done and pass_record.meal_ready:break
+ evidence.combined={"order":g.snapshot(),"placed":placed,"meal_ready":pass_record.meal_ready,"fallback_custody_retained":retained}
+ check(both_yielded,"one frame excludes both selected order and productive chef endpoints from fallback")
+ check(placed and pass_record.meal_ready and order.order_done,"chef pass contact and rear order both finish in the same scene")
+ check(retained,"both waiting cooks retain their held plates and unfinished stage throughout")
+ check(tokens==[g.service_guests[202].token,g.service_guests[203].token,pass_record.token,order.token],"combined arbitration preserves all four service tokens")
  cleanup(g)

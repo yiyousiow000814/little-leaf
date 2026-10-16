@@ -38,6 +38,22 @@ func setup_targetless_cook():
  # The reviewed old-source state: a valid held-meal job has no pass target,
  # so its prior idle fallback is R even though the waiter already pinned R.
  chef.destination=Vector2i(5,6)
+func setup_combined_work():
+ setup_targetless_cook()
+ # Two held-meal fallbacks compete with an order and a different chef's pass.
+ # The original blocked pass/stove remain blocked; only guest204 owns pass130.
+ model.items.append({"id":130,"kind":"counter","x":2,"z":4,"rot":0})
+ for id in [203,204]:
+  var guest=model.customers[1].duplicate(true);guest.id=id;model.customers.append(guest)
+ model.revision+=1;_sync_service_guests()
+ _add_staff("chef",Vector2(2.5,3.5));_add_staff("chef",Vector2(3.5,2.5))
+ for index in [2,3]:
+  var chef=staff_states[index];var record=service_guests[201+index]
+  chef.job_kind="cook";chef.job_guest_id=201+index;chef.job_token=record.token;chef.job_step=3;chef.station_id=110
+  record.plate_owner="staff";record.plate_staff_index=index;record.meal_station_id=110
+ _reserve_pass(staff_states[3]);_reserve_pass(staff_states[2]);_reserve_pass(staff_states[0])
+ staff_states[2].destination=Vector2i(2,3)
+ _refresh_idle_homes()
 func snapshot()->Dictionary:
  var staff=staff_states.filter(func(worker):return worker.role=="waiter")[0];var record=service_guests[201]
  var result={"pos":str(staff.pos),"destination":str(staff.destination),"job":staff.job_kind,"elapsed":staff.job_elapsed,"action":staff.art_action,"order_done":record.order_done,"phase":record.guest.phase,"token":record.token}
