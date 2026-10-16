@@ -719,7 +719,8 @@ func _sync_help_content():
  elif game.save_recovery_blocked:
   save_detail="Your saved café could not be opened. Your original progress is unchanged. Try loading again. If it still fails, keep this page open and share the details below.\n\nDetails: "+game._recovery_notice()+"\n\n" if help_retry.visible else "Saving is paused to protect your progress. Keep this page open and share these details: "+game._recovery_notice()+"\n\n"
  elif game.progress_unsaved:
-  save_detail=game._unsaved_progress_message()+"\n\n"
+  save_detail=game._unsaved_progress_message()
+  if save_detail!="":save_detail+="\n\n"
  elif game.paused and game.startup_notice!="":
   save_detail=game.startup_notice+"\n\n"
  if str(recovery.get("reason",""))!="" and not str(recovery.reason) in save_detail:save_detail+=str(recovery.reason)+"\n\n"
