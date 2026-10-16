@@ -87,7 +87,8 @@ func _display_profile(value)->String:
  return id.substr(0,18)+"\n"+id.substr(18) if id.length()>18 else id
 
 func _call(name:String,args:Array,handler:Callable):
- bridge=JavaScriptBridge.get_interface("LittleLeafSupportMail") if OS.has_feature("web") else null
+ if not OS.has_feature("web") or not JavaScriptBridge.eval("typeof window.LittleLeafSupportMail === 'object' && window.LittleLeafSupportMail !== null"):return
+ bridge=JavaScriptBridge.get_interface("LittleLeafSupportMail")
  if bridge==null:return
  if _callbacks.size()>=12:
   note.text="Support is busy. Wait for the current request.";return

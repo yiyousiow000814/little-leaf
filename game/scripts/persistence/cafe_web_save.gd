@@ -127,6 +127,10 @@ func _recovery_bridge():
 	_recovery_api=JavaScriptBridge.get_interface("LittleLeafVault")
 	return _recovery_api
 
+func _support_bridge():
+	if not OS.has_feature("web") or not JavaScriptBridge.eval("typeof window.LittleLeafSupportMail === 'object' && window.LittleLeafSupportMail !== null"):return null
+	return JavaScriptBridge.get_interface("LittleLeafSupportMail")
+
 func recovery_snapshot()->Dictionary:
 	var bridge=_recovery_bridge()
 	if bridge==null:return {}
@@ -534,7 +538,7 @@ func _on_commit(arguments:Array):
 		if queued or generation!=inflight_generation:
 			_support_claim_fail("Progress changed while preparing this claim. Save again before claiming.")
 			queued=false;game.call_deferred("_save");return
-		var support=JavaScriptBridge.get_interface("LittleLeafSupportMail")
+		var support=_support_bridge()
 		if support==null:
 			_support_claim_fail("Support mail is unavailable. Your café save is preserved.");return
 		# The native save has a durable ACK, but the claim is still in flight.
@@ -562,7 +566,7 @@ func _refresh_inbox(result:Dictionary):
 
 func claim_support_mail(mail_id:String)->bool:
 	if not ready or pending or _support_claim_mail_id!="" or game.editing or game.save_recovery_blocked or game.save_writes_suppressed:return false
-	if not OS.has_feature("web") or JavaScriptBridge.get_interface("LittleLeafSupportMail")==null:return false
+	if _support_bridge()==null:return false
 	_support_claim_mail_id=mail_id
 	_hold_for_credit()
 	request_save()
@@ -636,7 +640,7 @@ func accept_gift_stock(result:Dictionary,target=null,expected_revision:int=-1)->
 
 func commit_gift_decoration()->bool:
 	if not ready or pending or game.save_recovery_blocked or game.save_writes_suppressed or not game.editing:return false
-	var support=JavaScriptBridge.get_interface("LittleLeafSupportMail") if OS.has_feature("web") else null
+	var support=_support_bridge()
 	if support==null:return false
 	var consumed=[]
 	for item_id in game.model.decoration_gifts:
@@ -672,7 +676,7 @@ func _on_gift_prepare(arguments:Array,consumed:Array):
 		_gift_prepare_fail("Could not read the validated gift placement");return
 	_inflight_payload=payload;game.progress_unsaved=true
 	_gift_commit_callback=JavaScriptBridge.create_callback(_on_gift_commit)
-	var support=JavaScriptBridge.get_interface("LittleLeafSupportMail")
+	var support=_support_bridge()
 	if support==null:
 		_gift_prepare_fail("Support mail is unavailable. Your decoration draft is preserved.");return
 	support.place(payload,revision,profile_id,JSON.stringify(consumed),_gift_commit_callback)
