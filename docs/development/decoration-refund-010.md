@@ -8,6 +8,36 @@ During Decorate, the existing native and Web save paths serialize the baseline t
 
 This is a pending implementation, with generated regression cases and actual native/browser interaction acceptance still required. No live player recovery is performed.
 
+## Actor-independent editing follow-up (requirements 25/26)
+
+The user approved moving, rotating, placing and selling furniture independently
+of present actors. Apply must preserve existing customers, orders, payloads,
+job/meal progress and payment state, prefer surviving compatible bindings, and
+wait with frozen progress when equipment or floor is unavailable. Cancel must
+restore the complete existing baseline, including confirmed external credits
+exactly once. This approval does not authorize deletion, forced departure,
+invented completion or payment.
+
+The local quote candidate extends the existing EditPlan with explicit Runtime
+and Decorate contexts and Place/Move/Sell action discriminators. Its isolated
+Decorate model omits actor/service constraints while retaining geometry,
+ownership, prices, refunds, entitlements and stale-quote checks. Commit changes
+only furniture and its existing purchase/refund fields. Normal Model operations
+keep their original collision and service rules. The controller and UI are not
+connected to this candidate yet: enabling sales before complete reconciliation
+would create an unsaveable intermediate state.
+
+Feature Design Quality Gate: this reuses EditPlan, domain adapters and the
+whole-session baseline. Living World identity/custody, UI/UX actions and QA are
+affected; art, Technical Art, audio, economy amounts and animation assets are
+unchanged. A cold hovered-cell quote creates bounded temporary model copies;
+unchanged queries reuse the existing stamp. Sell scans furniture linearly and
+retains no extra runtime timer or actor system. Runtime freeze/retry, versioned
+layout-hold persistence and final Apply preflight remain unimplemented. They
+require coordinated Main loop guards alongside PR331/335 and preservation of
+PR329's gift baselines and browser validation. The local quote tests are not
+actual gameplay, visual acceptance, integration or release evidence.
+
 ## Historical 0.1.10 refund contract
 
 The following dated refund rules retain their price/entitlement scope. Their interrupted-session persistence behavior is superseded by the whole-session transaction above.

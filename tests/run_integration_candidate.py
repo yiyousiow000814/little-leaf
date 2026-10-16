@@ -67,6 +67,7 @@ SUITES = [
     ("test_legacy_3d_suppression", "LEGACY_3D_SUPPRESSION_RESULT"),
     ("test_decoration_build_refund", "DECORATION_BUILD_REFUND_RESULT"),
     ("test_decoration_refund", "DECORATION_REFUND_RESULT"),
+    ("test_decorate_action_quotes", "DECORATE_ACTION_QUOTES_RESULT"),
     ("test_floor_approach_cache", "FLOOR_APPROACH_CACHE_RESULT"),
     ("test_floor_cleaning_approach", "FLOOR_CLEANING_APPROACH_RESULT"),
     ("test_floor_tool_depth", "FLOOR_TOOL_DEPTH_RESULT"),
