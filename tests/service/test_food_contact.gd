@@ -7,6 +7,13 @@ var failures=[]
 class Artist extends Node2D:
  var colors=[]
  var seconds=0.0
+ var matrix=Transform2D.IDENTITY
+ # Record the retained-mesh tint through the same palette checks as primitives.
+ func art_draw_mesh(_mesh,_texture,_transform,tint):colors.append(tint.to_html(false))
+ func art_local_begin(at):
+  var saved=matrix;_set_art_matrix(matrix.translated_local(at));return saved
+ func _set_art_matrix(value):matrix=value
+ func art_local_end(saved):_set_art_matrix(saved)
  func col(c):return Color(c)
  func art_polyline(_points,_color,_width):colors.append(_color)
  func ellipse(_at,_size,color):colors.append(color)
@@ -37,6 +44,7 @@ func run():
    for rotation in range(4):
     artist.seconds=seconds;artist.colors.clear()
     furniture.draw_stove_vessel(artist,Vector2.ZERO,rotation,1)
+    check(artist.matrix==Transform2D.IDENTITY,"Cooking vessel restores artist transform")
     check("b5c2a7" in artist.colors and "c9d1b7" in artist.colors,"Covered lid absent in rotation")
     for food_color in Pose.FOOD_COLOR:check(food_color not in artist.colors,"Cooking vessel exposes ingredients")
  artist.free()

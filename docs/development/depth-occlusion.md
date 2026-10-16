@@ -249,3 +249,110 @@ browser/device surfaces remain unqualified. The parent reviewer inspected its
 pixels; this lane received metadata/image pointer only. Revised appearance,
 independent source review and mandatory CI remain pending. Keep Draft and all
 merge/deployment holds; no Golden reference or prior acceptance is inferred.
+
+
+## Accepted lid steam — requirement18 source closeout
+
+This is preservation of the provisionally accepted stronger burst, with no new
+effect design and no requirement17 delta. Original accepted source is
+`839c984b5532854af69067f38b286cebf96d0fb4`, tree
+`96e397304ab3c32232f5e1de3203330dc62a4042`. Uploaded MP4:2177013 bytes,
+SHA256 `a7b7e218644467609f0ce462d0d9c8e2242e4f86b718f5d93b3f615f19c999e7`.
+The user's “可以吧 暂时先这样” is a bounded provisional keep decision, not a
+Golden Reference or full browser/device approval. The owner retains the accepted
+native recordings (including pause/resume, two-mesh reuse and zero saves), prior
+rejected versions and original449-check log SHA256
+`69d861d7e40afadf5592bf9aa332ee10b7cacd1666e9a8c48b6b0a0e220892a9`.
+Those original media were not copied or re-inspected during this closeout.
+
+Exact supplied patch SHA256:
+`caae35e1ef755cbc9406ae3f800c23b4c462b9f846622cea8b518852d1138f33`.
+It applies to unchanged preimages on main `6a8cd095ea0ab61086d91427b84f84fc36884684`.
+Local source commit `e6b38bcabc4fbe7e7ad079f3411d659ace1f243c`, tree
+`485aaeb6fc8dabe7ace58455840e300271ecc4c4`, changes exactly four files:
+
+| File | Accepted raw SHA256 |
+| --- | --- |
+| `game/scripts/rendering/cooking_tool_pose.gd` | `8149008d244fd174eae5b8a6507f3b1951800ebd5540e240f0d15e9afe946781` |
+| `game/scripts/rendering/illustrated_furniture.gd` | `ef165839273899ed7f9d06160f6343ff4925ae08e1c3950e0bb43f4dd48567ad` |
+| `tests/presentation/test_gentle_cooking.gd` | `580aadd310963c2c397b9209b93ba7918741f69de403e62ef75c1c58ef3249ac` |
+| `tests/presentation/test_lid_steam.gd` | `6519906c2bccb097a0595033157511ac9b0ddc5b933b1fda73c62809f0745cc7` |
+
+Focused code-health review covers the cook-clock envelope, behind-vessel drawing,
+transform restoration and retained-resource ownership. The existing cook clock
+drives continuous vapor and the short rim release; stop/reduced-motion/completion
+use the existing envelope. The furniture RefCounted artist owns two lazily built
+immutable meshes (125 vertices/192 triangles each), released with that owner.
+Per draw, only transforms and alpha vary: six continuous draws, at most twelve
+during release. No per-phase mesh variants, new persistent cache, simulation,
+service, custody or save-state changes. No measured FPS/headroom claim follows.
+The original CRLF bytes in illustrated_furniture are preserved; a CR-aware
+whitespace check passes without changing repository Git settings.
+
+Fresh focused headless checks on this exact commit pass10217 gentle-cooking and
+449 lid-steam assertions, with zero engine warnings/errors and no save files.
+The gentle fixture checks actual generated cooking, timer-preserving pause,
+completion, ownership and reduced motion. The existing focused scripts are run
+from disposable staged projects; they are not newly registered in the canonical
+integration runner. No unrelated suite or visual matrix was repeated.
+
+One fresh actual native original-three `_build` qualification passes on official
+Godot4.6.3 `7d41c59c4` (executable SHA256
+`f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3`),
+X11 GL Compatibility, Mesa25.0.7-2+deb13u1 / llvmpipeLLVM19.1.7. Fixed committed
+PNGs/imports and manifest expected RGBA remain the reference. Procedural,
+imported, READY-runtime, direct-source and saved-PNG paths all match exactly:
+furniture `ba615c7535d6e3806d1b6b27abf2c50575e59486c8b9ab8c08d4eadff401b5ac`,
+moving `6dc71a1bde51fc5c514356e5188736d24b6edc54acfa15185091b31cfce69bbc`,
+heads `d16a8ea4064eb3aa5fa1daa90f61731e1288aa1e5089b0a8b3d9b381b106c1d7`.
+
+The supplied generic driver's comparison and closure logic is unchanged; only
+expected source commit/tree and isolated paths differ. New driver SHA256:
+`791618607d2a61b3cb82eb78a5da363e15f776fc4c014ce2181c0025975080b6`.
+Unchanged components come from `d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0`;
+the historical source-bound wrapper is archived, never executed or modified.
+No historical Mesa pin is imposed. The native log retains one unsupported-VSync
+warning; import/decoding checks pass. This untimed atlas test makes no gameplay
+instance or player-data request and does not qualify full-scene composition.
+
+After reviewing every receipt and the80-input closure, only the two changed
+renderer hashes are adopted. The other78 rows, all six fixed PNG/import bytes,
+asset records and previous provenance remain; new provenance is append-only.
+Runtime shared locks are released after owned Godot processes exit.
+Qualification native receipt SHA256:
+`3fb78aa9b98b0c202e614837f611cdaf8df693ddc9a049827d5ed4d4e70d43b7`;
+summary SHA256 `c2f5895ad0cd6c1d368c909fa43d8809d59ff0fda73f9ed92abff051c40c817c`.
+Final composition/source binding and automatic CI remain separate. No new Web,
+phone, performance, release, tag, merge or deployment acceptance is claimed.
+
+
+### Food-contact fixture follow-up after failed CI
+
+Initial PR345 head `093f8cb13ae8435bea87e95f41caf26e96acdeef` fails automatic
+[run38942952428 / engine3 job117115506022](https://github.com/yiyousiow000814/little-leaf/actions/runs/38942952428/job/117115506022)
+on `test_food_contact`:7474checks,80 lid-presence failures,800missing
+`art_draw_mesh` and80missing `art_local_begin` script errors. CI tested merge
+`725c94efa1ee43082f9abe384d54192241001e7b` into unchanged main6a8cd095.
+Raw failed job log SHA256 `748ee67b4f8b9ff9e0a56454be4f95e9cbc9840ba9aa65537ea791c7268fc312`;
+original failed artifact12064441158 / SHA256
+`2bf2f4d0f9623873836831a47e1f39787dededc9dd956a56f2e442b1c7034840`
+remains attached to that run. No unchanged CI rerun is requested.
+
+Before editing, the identical original fixture passes7474checks on unchanged
+main `6a8cd095ea0ab61086d91427b84f84fc36884684` and reproduces all80failures on
+accepted head093f8cb through the canonical disposable runner. Production Artist
+already implements the missing calls; the fixture's primitive-only substitute
+is obsolete for the accepted steam and lid tilt. Test-only commit
+`36a95f29b0eef49080e4933a5876e3d92f89296b` implements those existing interfaces,
+records retained-mesh tint through the same forbidden-food palette check and
+models local transform save/restore. Every original assertion remains;808new
+checks require transform restoration after every sampled vessel draw.
+The focused canonical runner passes8282checks, zero failures/diagnostics.
+Fixed test log SHA256 `487320e62656d2ff83c7906be3580c820fbccba16b1163b7f12defcbeb3ddadf`.
+
+No production runtime or effect changes. All four accepted raw postimages,
+all80 producer hashes, protected PNG/import bytes and the existing actual atlas
+qualification remain unchanged. No new visual or atlas regeneration is needed
+for this fixture-only delta. The failed CI and local old-fail/new-pass evidence
+remain separate from the next exact-head automatic CI result. Keep Draft and
+all merge/release/deployment holds.
