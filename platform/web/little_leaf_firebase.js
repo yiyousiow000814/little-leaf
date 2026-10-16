@@ -39,11 +39,26 @@
     if (new TextEncoder().encode(text).length > MAX_BYTES) throw error('SAVE_TOO_LARGE','This café exceeds the cloud save limit. Previous progress is unchanged.');
     return text;
   }
-  function createRemote(db, sdk, ownership=null) {
+  function createRemote(db, sdk, ownership=null, protectedCommit=null) {
     const ref=uid=>sdk.doc(db,'players',uid,'saves','cafe');
+    const control=uid=>sdk.doc(db,'players',uid,'saveControl','protocol');
     return {
       async read(uid) { const snapshot=await sdk.getDocFromServer(ref(uid));return snapshot.exists()?snapshot.data():null; },
       async compareAndSet(uid,base,next,guard,verifyArchive=null) {
+        // A protected account cannot fall back to the client rules path. This
+        // read is only a routing hint; rules still fence a racing enrollment.
+        guard();const protocol=typeof sdk.getDocFromServer==='function' ? await sdk.getDocFromServer(control(uid)) : null;guard();
+        if(protocol?.exists()){
+          if(!protectedCommit||!ownership)throw error('UPDATE_REQUIRED','Reload the updated game to save this café.');
+          const fence=ownership.assertActive(true);
+          if(verifyArchive){await verifyArchive();guard();}
+          const result=await protectedCommit({candidate:JSON.parse(next.record),profileId:next.profileId,
+            revision:next.revision-1,digest:base,...fence});
+          guard();
+          if(result?.status!=='saved'||result.record?.digest!==next.digest)
+            throw error('PROTOCOL_CHANGED','Protected save confirmation differed. Pending progress is preserved.');
+          return;
+        }
         await sdk.runTransaction(db,async tx=>{
           guard();let fence=null;
           if(ownership){
