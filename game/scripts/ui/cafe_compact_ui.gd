@@ -78,7 +78,6 @@ var hint:PanelContainer
 var hint_text:Label
 var selected_wall=""
 var selected_shell=""
-var last_detail=""
 var top_row
 var title
 var business_state:Label
@@ -335,14 +334,18 @@ func _selected_editable_wall()->Dictionary:
  return game.model.get_editable_wall(_selected_wall_key()) if game.model.has_method("get_editable_wall") else game.model.get_wall(selected_wall)
 func _selected_opening()->Dictionary:
  return game.model.get_wall_attachment(int(game.build_tools.opening_source_id)) if game.build_tools!=null else {}
+func has_item_action()->bool:
+ if not game.editing:return false
+ if game.selected_kind!="" or (game.selected_id>=0 and not game.model.get_item(game.selected_id).is_empty()):return true
+ if _selected_wall_key()!="" or (game.build_tools.opening_source_id>=0 and not _selected_opening().is_empty()):return true
+ return game.build_tools.active() and game.build_tools.mode!="select_opening"
 func sync():
  if inbox!=null:inbox.sync()
  if update_notes!=null:update_notes.sync();_sync_update_badges()
  if not is_instance_valid(context):return
  var b=game.build_tools;var item=game.model.get_item(game.selected_id);var opening=_selected_opening();var wall=_selected_editable_wall()
  var placing=game.selected_kind!="";var edge=b.mode in ["half","full"];var flooring=b.mode in ["floor","remove_floor"]
- var selected=not item.is_empty() or not opening.is_empty() or not wall.is_empty() or selected_shell!="" or placing or edge or flooring
- context.visible=game.editing and (selected or game.catalog_category=="Build")
+ context.visible=has_item_action()
  var selected_kind=game.model.logical_kind(int(item.id)) if not item.is_empty() else game.selected_kind
  context_label.text=game.model.name_of(selected_kind) if game.model.has_method("is_dining_product") and game.model.is_dining_product(selected_kind) else SHORT_NAMES.get(selected_kind,selected_kind.capitalize())
  if not opening.is_empty():context_label.text=str(opening.kind).capitalize()+" selected"
@@ -711,7 +714,8 @@ func _sync_help_content():
   save_detail=game.startup_notice+"\n\n"
  if str(recovery.get("reason",""))!="" and not str(recovery.reason) in save_detail:save_detail+=str(recovery.reason)+"\n\n"
  if game.web_save!=null and game.web_save.recovery_message!="" and game.web_save.recovery_message!=str(recovery.get("reason","")):save_detail+=game.web_save.recovery_message+"\n\n"
- help_text.text=save_detail+(last_detail+"\n\n" if not game.save_recovery_blocked and game.editing and last_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
+ var build_detail=_build_pointer_reason()
+ help_text.text=save_detail+(build_detail+"\n\n" if not game.save_recovery_blocked and build_detail!="" else "")+"View: drag empty ground. Use the mouse wheel or pinch with two fingers to zoom.\n\nIn Decorate, drag furniture to move it. A two-finger camera gesture cancels the current unplaced preview.\n\nSelect a wall, door or window for its actions. Doors and windows need full walls.\n\nBuild > Tiles: choose a style, then click one tile. Replacements refund half the old tile’s paid cost.\n\n+ / - zoom · 0 or Home shows the whole café\nF1 help · R rotates · Esc cancels"
  if game.save_recovery_blocked:help_text.text=save_detail+"You can still use View, Settings and Help while loading is paused."
 func _show_help_from_settings():
  show_help();help_returns_to_settings=true;help_done.text="Back to Settings"
@@ -801,17 +805,16 @@ func short_reason(text:String)->String:
 
  var short=text.split(" · ")[0]
  return short if short.length()<=44 else short.left(41)+"…"
+func _build_pointer_reason()->String:
+ var b=game.build_tools
+ return b.preview_reason if game.editing and b.active() and b.mode!="select_opening" and not b.preview_valid else ""
 func update_pointer():
  if not is_instance_valid(hint):return
- var reason="";var b=game.build_tools
+ var reason=_build_pointer_reason()
  if shop_ui!=null:shop_ui.sync_action_details()
- if game.editing and b.active() and b.mode!="select_opening" and not b.preview_valid and b.preview_reason!="":reason=b.preview_reason
- elif game.editing and game.interaction!=null and game.interaction.preview_active:
-  if not game.interaction.drag_valid:reason=game.interaction.drag_reason
-  elif game.interaction.drag_warning!="":reason=game.interaction.drag_warning
  var pointer=game.get_viewport().get_mouse_position()
  if reason=="" or (game.interaction!=null and game.interaction._over_ui(pointer)):hint.hide();return
- last_detail=reason;hint_text.text=short_reason(reason);hint.size=Vector2.ZERO
+ hint_text.text=short_reason(reason);hint.size=Vector2.ZERO
  var view=game.get_viewport().get_visible_rect().size
  hint.position=Vector2(clampf(pointer.x+18,12,maxf(12,view.x-hint.size.x-12)),clampf(pointer.y-58,82,maxf(82,game.tray.position.y-48)))
  hint.show()

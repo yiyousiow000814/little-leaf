@@ -290,10 +290,72 @@ The user requests a designed Music image alongside the existing brush, chef,
 pause and gear. An original transparent sage/wood musical-note raster reuses
 those assets as style references; prompt and exact source hash are preserved
 with the existing HUD provenance. The existing HUD texture owner bounds the
-retained texture to320px and crops alpha bounds; the44px native action, tooltip,
+retained texture to 320px and crops alpha bounds; the44px native action, tooltip,
 accessibility name, focus, popup ownership and existing press motion remain.
 Responsive arrangements keep the same Music hit rectangles and render the
 picture inside them. No player-state/save/audio path changes. The generated
 raster and prompt are recoverable; layered GUI/vector authoring is unavailable
 for this generated source and no new Golden approval is claimed. Actual native
 normal-scale toolbar inspection and focused responsive checks remain pending.
+# Gramophone toolbar candidate (2026-10-16)
+
+The user rejected the paired musical-note Music entry and explicitly requested a
+gramophone. This scoped candidate replaces only the toolbar raster and its alpha
+crop, using an original brass-horn, vinyl-record and wooden-cabinet illustration.
+The inspected existing Decorate/Settings art informed the style. The successful
+built-in generation used a text prompt, retained beside the unchanged generated
+RGBA source; it is not a layered editable illustration or a new Golden Reference.
+
+The existing native Music button, tooltip, accessible name, input, focus/press
+feedback, retained texture loading and panel behavior remain. Source
+resolution stays 1254x1254, and the same loader limits the cached texture to 320px;
+there is no new frame callback, animation, resource owner or invalidation path.
+This is an intentional appearance change awaiting the user's actual game-pixel
+acceptance. Desktop/mobile-size paired fixture captures and narrow toolbar checks
+are recorded in the candidate PR; native emulated touch does not qualify a phone
+browser, performance or release. Hat/steam reference work remains separate.
+
+The user subsequently requested balanced icon proportions, vertical centering
+and equal spacing across the toolbar. The revised candidate keeps the same
+generated gramophone PNG and tight alpha crop. It draws the gramophone at44px
+height on the desktop rail,30px on phone layouts, and uses
+the same retained material treatment as Decorate/Staff/Settings. This replaces
+the earlier32px square fit and stronger lightening that reduced its visible
+width and weight. It adds no texture, material variant or frame callback.
+
+Desktop actions share a painted centerline and equal18px gaps (8px at the
+compact breakpoint), including both sides of Pause and Music-to-Decorate. Phone
+actions use equal44x44 native cells and6px gaps; wrapped rows retain aligned
+columns. Original asset aspects,44px minimum targets, focus order and actions
+remain. Actual pixels and existing responsive/input suites must confirm this
+candidate; numeric geometry alone does not establish visual acceptance.
+
+PR330 at09bbd6d4 owns Settings UID footer/clipboard changes in
+`cafe_compact_ui.gd`, `cafe_cloud_settings.gd` and the Web adapter. This candidate
+changes the separate `cafe_hud.gd` layout and its existing layout tests. The
+shared Roadmap receives only the scoped status update; no PR330 runtime delta
+is copied, changed or claimed integrated.
+
+Mobile button-padding refinement: the user requested a little more space
+between artwork and button edges. Phone artwork now fits30px for brush/gear,
+30px high for the chef and gramophone. The latest user request explicitly
+aligns the gramophone with the two adjacent illustrations, not just their frames.
+Every illustrated action now has at least7px internal clearance while retaining
+native aspect,44px hit cells,6px gaps and the existing centerline. The already
+inset Pause glyph and wallet coin retain their spacing. The desktop path and
+its44px gramophone remain unchanged; actual paired desktop pixels verify this.
+
+The actual390x844 rendered button comparison isolates foreground art against
+the same buttons with only their artwork hidden. At a summed RGB-difference
+threshold of12, visible gramophone/brush/chef bounds are23x30,30x25 and22x30
+pixels, with529,536 and475 visible pixels. Gramophone contrast-weighted area
+is157.110 versus161.237 for the brush; the cream chef is naturally lighter.
+These are descriptive comparison measurements, not new numeric art standards
+or user acceptance. Equal44px frames,6px gaps and vertical centers remain.
+
+A separate302e77d baseline versus f262331 candidate capture used the identical
+original harness with verbose logging. Both exit0 with no ObjectDB warning;
+the retained nonverbose candidate capture still reports the intermittent exit
+warning. That one matched pair does not establish either a pre-existing leak
+or a PR332-introduced leak. No production teardown change is made without
+candidate-cause evidence; the diagnostic limit remains explicit.

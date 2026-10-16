@@ -494,7 +494,7 @@ func _restore_browse_offset():
  category_scroll.scroll_horizontal=browse_offset
 func sync_action_details():
  if ui==null or not is_instance_valid(price_label):return
- ui.context.visible=game.editing and ui.hud.has_edit_action();ui.cancel_button.visible=ui.context.visible
+ ui.context.visible=ui.has_item_action();ui.cancel_button.visible=ui.context.visible
  var b=game.build_tools;var price="";var detail=""
  action_coin.hide()
  # Both periodic UI sync and pointer refresh consume this same presentation.
@@ -735,7 +735,7 @@ func sync(width:float):
  var header_y=(h-44.0)*.5 if short_landscape else 8.0
  root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);background.size=root.size
  game.tray.offset_left=insets.x+(available_width-w)/2;game.tray.offset_right=-(insets.z+(available_width-w)/2);ui.tray_base_top=-h-12-insets.w
- var next_active=ui.hud.has_edit_action()
+ var next_active=ui.has_item_action()
  # Selection keeps the catalogue, category and scroll position intact.
  header_active=next_active
  ui.context.visible=game.editing and header_active

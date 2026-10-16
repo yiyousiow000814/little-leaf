@@ -48,11 +48,15 @@ func run():
     var gear=painted_rect(hud.action_art.settings)
     var expected_gap=18.0 if view.x>=850 else 8.0
     var pause=hud.pause_face.get_global_rect()
-    var play_gap=16.0 if view.x>=850 else 8.0
+    var play_gap=expected_gap
     check(absf(pause.position.x-staff.end.x-expected_gap)<.1,label+" equal painted staff/Pause gap")
     check(absf(gear.position.x-pause.end.x-play_gap)<.1,label+" Pause immediately before settings")
     check(absf(pause.get_center().y-gear.get_center().y)<.1,label+" Pause/settings optical centerline")
     check(absf(staff.get_center().y-gear.get_center().y)<.1,label+" staff/settings optical centerline")
+    var music=painted_rect(hud.action_art.music)
+    var next_art=hud.done_face.get_global_rect() if editing else painted_rect(hud.action_art.decorate)
+    check(absf(next_art.position.x-music.end.x-expected_gap)<.1,label+" equal painted Music/Decorate gap")
+    check(absf(music.get_center().y-staff.get_center().y)<.1,label+" Music shares icon optical centerline")
     check(wood_right-gear.end.x>=9,label+" visible gear outer inset")
     if not editing:
      var decorate=painted_rect(hud.action_art.decorate)

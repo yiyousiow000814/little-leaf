@@ -50,7 +50,7 @@ const INK=Color("554631")
 const CREAM=Color("fcf6e7")
 const GREEN=Color("426b49")
 const ASSETS="res://assets/ui/wood_hud/"
-const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022),"music":Rect2(123,102,1030,1047)}
+const BOUNDS={"rail":Rect2(23,261,2126,192),"wallet":Rect2(45,73,2095,561),"sign":Rect2(239,238,1058,512),"decorate":Rect2(105,109,1071,998),"staff":Rect2(239,108,773,1053),"settings":Rect2(91,115,1069,1022),"music":Rect2(156,34,934,1200)}
 
 class RailArtwork extends Control:
  var art:Texture2D
@@ -108,7 +108,7 @@ func _material_for_texture(texture:Texture2D)->Material:
  if texture==textures.get("green_face"):return _art_material(2)
  if texture in [textures.get("wallet"),textures.get("mobile_purse")]:return _art_material(0,.65)
  if texture==textures.get("coin"):return _art_material(0,.35)
- if texture in [textures.get("decorate"),textures.get("staff"),textures.get("settings")]:return _art_material(0,.70,.45)
+ if texture in [textures.get("decorate"),textures.get("staff"),textures.get("settings"),textures.get("music")]:return _art_material(0,.70,.45)
  return _art_material()
 func _soft_button(button:Button):
  # Put only the painted face behind the native Button's live glyphs. Children
@@ -451,7 +451,6 @@ func _layout_unified_toolbar(width:float):
  # The portrait staff art and landscape gear keep their original proportions.
  var roomy=usable>=850.0
  var action_gap=18.0 if roomy else 8.0
- var group_gap=16.0 if roomy else 8.0
  var pair_gap=6.0 if roomy else 4.0
  # Balance the wide sparse brush/bucket against the denser portrait silhouette.
  # Compact dimensions remain unchanged; all artwork keeps its native aspect.
@@ -459,17 +458,19 @@ func _layout_unified_toolbar(width:float):
  var decorate_size=Vector2(decorate_width,decorate_width*_texture("decorate").get_height()/_texture("decorate").get_width())
  var staff_size=Vector2(float(_texture("staff").get_width())/_texture("staff").get_height(),1)*(48.0 if roomy else 44.0)
  var settings_size=Vector2(1,float(_texture("settings").get_height())/_texture("settings").get_width())*(56.0 if roomy else 40.0)
+ var music_size=_texture("music").get_size()*(44.0/_texture("music").get_height())
+ var music_inset=(maxf(44,music_size.x+4)-music_size.x)*.5
  var edit_width=88.0+pair_gap if game.editing else decorate_size.x
- var action_width=edit_width+action_gap*3+staff_size.x+64.0+settings_size.x
- var max_action_width=88.0+pair_gap+action_gap*3+staff_size.x+64.0+settings_size.x
+ var action_width=music_inset+music_size.x+edit_width+staff_size.x+PLAY_CONTROL_WIDTH+settings_size.x+action_gap*4
+ var max_action_width=music_inset+music_size.x+88.0+pair_gap+staff_size.x+PLAY_CONTROL_WIDTH+settings_size.x+action_gap*4
  var gap=8.0 if usable>=750 else 4.0
  # The end cap and the clear gap after the gear are separate from its hit box.
  var end_padding=44.0 if roomy else 40.0
  var identity_limit=280.0 if game.get_viewport().get_visible_rect().size.y-inset.y-inset.w<600.0 else 380.0
- var identity_width=minf(identity_limit,usable-16.0-(PLAY_CONTROL_WIDTH+group_gap+max_action_width+gap*2+end_padding))
+ var identity_width=minf(identity_limit,usable-16.0-(max_action_width+gap*2+end_padding))
  var sign_width=maxf(76,identity_width*120.0/380.0)
  var wallet_width=identity_width-sign_width
- var w=wallet_width+sign_width+gap*2+PLAY_CONTROL_WIDTH+group_gap+action_width+end_padding
+ var w=wallet_width+sign_width+gap*2+action_width+end_padding
  var wallet_height=wallet_width*155.0/415.0*scale
  var h=maxf(56*scale,wallet_height)+4.0
  layout_host.position=Vector2(inset.x+(usable-w)*.5,inset.y+2);layout_host.size=Vector2(w,h)
@@ -512,8 +513,8 @@ func _layout_unified_toolbar(width:float):
  var controls_y=maxf(2,(h-56*scale)*.5)
  _layout_unified_play_controls(scale)
  var center_y=controls_y+28
- var action_x=controls_x
- _place(ui.music_access,Rect2(action_x,center_y-22,64,44));_mobile_action_art(ui.music_access,"music");action_x+=64+action_gap
+ var action_x=controls_x+music_inset
+ _place_action_art(ui.music_access,"music",Vector2(action_x,center_y),music_size);action_captions.music.hide();action_x+=music_size.x+action_gap
  if game.editing:
   _place(game.edit_button,Rect2(action_x,center_y-22,44,44))
   _place(edit_cancel,Rect2(action_x+44+pair_gap,center_y-22,44,44))
@@ -523,7 +524,7 @@ func _layout_unified_toolbar(width:float):
  action_x+=edit_width+action_gap
  _place_action_art(ui.staff_access,"staff",Vector2(action_x,center_y),staff_size)
  action_x+=staff_size.x+action_gap
- _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56));action_x+=PLAY_CONTROL_WIDTH+group_gap
+ _place(ui.play_controls,Rect2(action_x,controls_y,PLAY_CONTROL_WIDTH,56));action_x+=PLAY_CONTROL_WIDTH+action_gap
  _place_action_art(ui.settings_button,"settings",Vector2(action_x,center_y),settings_size)
  for name in ["decorate","staff","settings"]:action_captions[name].hide()
  if game.editing:
@@ -535,7 +536,7 @@ func _layout_mobile_toolbar(width:float):
  # Phone UI is composed from small painted controls, not a squeezed shop sign.
  # Status and tools have distinct groups; every live action retains a 44px target.
  var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<600
- var w=usable-16;var compact_music=wrapped and usable<378.0
+ var w=usable-16
  var h=92.0 if wrapped else 44.0
  ui.music_access.text="Music"
  layout_host.position=Vector2(inset.x+8,inset.y+6);layout_host.size=Vector2(w,h)
@@ -566,8 +567,7 @@ func _layout_mobile_toolbar(width:float):
  var action_count=(2 if wrapped else 4)+(1 if game.editing else 0)
  var action_x=w-action_count*action_width-(action_count-1)*gap
  # Music uses the free slot before the tools, never the recovery badge width.
- var music_width=44.0 if compact_music else 64.0
- _place(ui.music_access,Rect2(action_x-music_width-gap,tool_y,music_width,44));_mobile_action_art(ui.music_access,"music")
+ _place(ui.music_access,Rect2(action_x-action_width-gap,tool_y,action_width,44));_mobile_action_art(ui.music_access,"music")
  _place(game.edit_button,Rect2(action_x,tool_y,44,44))
  _mobile_action_art(game.edit_button,"decorate")
  var staff_x=action_x+action_width+gap
@@ -586,7 +586,7 @@ func _layout_mobile_toolbar(width:float):
  game.settings.offset_top=popup_top()
 func _mobile_action_art(button:Button,name:String):
  var art:TextureRect=action_art[name];var texture_size=art.texture.get_size()
- var extent=Vector2(30,32) if name=="staff" else Vector2(32,32)
+ var extent=Vector2(28,30) if name=="staff" else Vector2(30,30)
  var fitted=texture_size*minf(extent.x/texture_size.x,extent.y/texture_size.y)
  art.position=(button.size-fitted)*.5;art.size=fitted;action_captions[name].hide()
 
