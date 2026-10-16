@@ -87,20 +87,34 @@ Proportionate Feature Design Quality Gate:
   pose/art replay. Ground rugs/rings and cosmetic litter/coins are below the span.
 - Cost/ownership: two span integers on the scene artist and two scalar repaint
   revision counters on each existing native draw/shape node. No new nodes,
-  retained mesh/image cache, timer, routing state, saved field or wall-slice
-  preparation. Revisions advance only on changed commands/appearance and record
-  completion in the existing native draw. Geometry hashing/traversal and temporary
-  image readback run only during a released query, bounded to 250 ms and at most
-  two submitted/completed frames. This is O(world commands + relevant geometry),
-  not constant cost or an FPS qualification. Scene-owned nodes release their
-  counters; temporary query arrays/images are not retained.
+  mesh cache, timer, routing state, saved field or wall-slice preparation.
+  Revisions advance only on changed commands/appearance and record completion in
+  the existing native draw. A hidden subtree keeps its identity/visibility marker
+  but skips inactive geometry hashing; showing it still invalidates the receipt.
+  Geometry hashing/traversal and non-atlas image readback run only during a
+  released query. The existing 250 ms admission deadline and maximum two
+  certification frames are not a hard CPU execution-time budget. Traversal is
+  O(world commands + relevant geometry), not constant cost or an FPS qualification.
+- Measured-cost correction: the existing furniture atlas owner prepares one
+  level-zero LA8 image during asset loading (or reuses the CPU image from runtime
+  baking). Native conversion retains exact 8-bit alpha and unchanged bilinear
+  sampling without a per-pixel GDScript loop. At 1280×3216 this costs 8,232,960
+  retained bytes, half a duplicate RGBA image; it also moves one image acquisition
+  and conversion into loading, including sessions that never click litter. This
+  is one fixed owner resource, not a growing texture cache. Texture replacement,
+  content-change signals and dimension checks prevent stale reuse, and the alpha
+  revision participates in the presentation receipt. Replacement/owner destruction
+  releases the image; other textures retain per-query fallback. Scene-owned nodes
+  release their counters; temporary query arrays/images are not retained.
 - Evidence boundary: fixed-coordinate command fixtures cover clear table-leg
   gaps, solid neighbors, doorway holes, transformed objects, paint revisions,
   painter-span exclusion and polygon/mesh texture alpha. The native cleanup test
   also defines authored round-table exposed/covered paper points at normal,
   detail and first-frame zoom/pan, without searching `hit()` for a passing point.
   That generated fixture is not the unidentified object in the user's crop.
-  Headless tests cannot establish native pointer or pixel acceptance. Native
+  Headless tests cannot establish native pointer or pixel acceptance. Exact alpha
+  conversion, bilinear/edge samples, texture invalidation, hidden-to-visible
+  transitions and snapshot ownership have focused deterministic checks. Native
   source-bound before/after capture, composed renderer cost and visual acceptance
   remain required; this candidate does not change merged/released status.
 

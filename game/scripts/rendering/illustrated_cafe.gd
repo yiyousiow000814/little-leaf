@@ -2160,6 +2160,14 @@ func _record_character_pick_frame():
 func _record_character_pick_submission():
 	character_pick_geometry.submitting(self)
 
+func ground_hit_alpha_state()->Array:
+	return furniture_art.static_atlas.hit_alpha_state()
+
+func ground_hit_images()->Dictionary:
+	var atlas=furniture_art.static_atlas
+	var alpha:Image=atlas.hit_alpha_for(atlas.texture)
+	return {atlas.texture:alpha} if alpha!=null else {}
+
 func ground_mess_occluded(screen:Vector2)->bool:
 	return character_pick_geometry.occludes(self,screen)
 

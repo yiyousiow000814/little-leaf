@@ -42,7 +42,18 @@ const STOVE_PARTS := ["stove_base","stove_pan","stove_controls"]
 const CABINET_PARTS := ["counter","sink","beverage_base"]
 var size := Vector2i(PACK_WIDTH,0)
 var state := "cold"
-var texture: Texture2D
+var texture: Texture2D:
+	set(value):
+		if texture==value:return
+		if texture!=null and texture.changed.is_connected(_clear_hit_alpha):texture.changed.disconnect(_clear_hit_alpha)
+		_clear_hit_alpha()
+		texture=value
+		if texture!=null:texture.changed.connect(_clear_hit_alpha)
+# One owner-bound, level-zero LA8 image: native conversion preserves all alpha
+# bytes without a scripted per-pixel loop or retaining a duplicate RGBA image.
+var _hit_alpha: Image
+var _hit_texture: WeakRef
+var _hit_alpha_revision := 0
 # Historical filtering control only; ordinary opt-in uses level zero.
 var use_mipmaps_for_qa := false
 var regions: Dictionary = {}
@@ -169,9 +180,32 @@ func _build(tree: SceneTree):
 	stats["mipmaps"]=use_mipmaps_for_qa
 	texture=ImageTexture.create_from_image(image)
 	stats["retained_image_bytes"]=image.get_data().size()
+	prepare_hit_alpha(image)
 	stats["warmup_ms"]=(Time.get_ticks_usec()-_started_us)/1000.0
 	stats["bake_passes"]=3
 	state="ready";stats.state=state
+
+func _clear_hit_alpha():
+	_hit_alpha=null;_hit_texture=null
+	_hit_alpha_revision+=1
+
+func prepare_hit_alpha(source:Image)->bool:
+	_clear_hit_alpha()
+	if texture==null or source==null or source.is_empty() or source.is_compressed() or source.get_format()!=Image.FORMAT_RGBA8 or source.get_size()!=size or Vector2i(texture.get_size())!=size:return false
+	# Duplicate before conversion: the caller's exact source pixels stay intact.
+	_hit_alpha=source.duplicate()
+	_hit_alpha.clear_mipmaps()
+	_hit_alpha.convert(Image.FORMAT_LA8)
+	_hit_texture=weakref(texture)
+	return true
+
+func hit_alpha_for(candidate:Texture2D)->Image:
+	if candidate==null or candidate!=texture or _hit_texture==null or _hit_texture.get_ref()!=candidate or _hit_alpha==null or Vector2i(candidate.get_size())!=_hit_alpha.get_size():return null
+	return _hit_alpha
+
+func hit_alpha_state()->Array:
+	# The size check also covers ImageTexture size overrides (no changed signal).
+	return [_hit_alpha_revision,texture,texture.get_size() if texture!=null else Vector2.ZERO]
 
 func _readback(tree: SceneTree,painter_script,bake_size: Vector2i,bake_regions: Dictionary,bake_bounds: Dictionary,bake_parts: Array) -> Image:
 	var viewport := _viewport(tree,bake_size)

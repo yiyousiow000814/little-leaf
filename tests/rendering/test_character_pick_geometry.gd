@@ -4,6 +4,10 @@ const Native=preload("res://scripts/rendering/cafe_native_draw_node.gd")
 const Shape=preload("res://scripts/rendering/cafe_shape_2d.gd")
 class CountingPick extends Pick:
 	var state_calls=0
+	var node_visits=0
+	func _node_state(node:Node2D,state:int)->int:
+		node_visits+=1
+		return super._node_state(node,state)
 	func _state(art)->int:
 		state_calls+=1
 		return super._state(art)
@@ -31,6 +35,8 @@ class Art extends Node2D:
 	var zoom=1.0
 	var ui_scale=1.0
 	var pan_offset=Vector2.ZERO
+	var alpha_revision=0
+	func ground_hit_alpha_state()->Array:return [alpha_revision]
 func _initialize():run.call_deferred()
 func check(value,label):
 	checks+=1
@@ -124,6 +130,7 @@ func run():
 		for point in [Vector2(-.5,-.5),Vector2(0,2),Vector2(5,6),Vector2(10.5,10.5),Vector2(20,20)]:
 			var reference=pick._triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,1)
 			check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,10),Color.WHITE,width,true],point,1,Transform2D.IDENTITY,null,{})==reference,"AA broad rejection preserves exact native quads "+str(width)+" "+str(point))
+	hidden_subtree_cases(pick,art,node,shape)
 	world_span_cases(pick,art,node,texture)
 	pick.request_query()
 	var before_calls=pick.state_calls
@@ -209,3 +216,29 @@ func world_span_cases(pick,art,actor,texture):
 	present(pick,art,actor)
 	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"completed immediate-painter fallback without native span fails closed")
 	art.ground_occlusion_start=0;art.ground_occlusion_end=1
+
+func hidden_subtree_cases(pick,art,node,shape):
+	var hidden=Native.new();node.add_child(hidden);node.shapes.append(hidden)
+	var inactive=Shape.new();hidden.add_child(inactive);hidden.shapes.append(inactive)
+	inactive.configure(&"draw_rect",[Rect2(0,0,20,20),Color.WHITE,true,-1.0,false],Transform2D.IDENTITY)
+	hidden.hide();node.show()
+	shape.configure(&"draw_rect",[Rect2(200,200,5,5),Color.WHITE,true,-1.0,false],Transform2D.IDENTITY)
+	present(pick,art,node)
+	pick.node_visits=0;var state=pick._state(art)
+	check(pick.node_visits==3,"hidden subtree hashes only its visibility marker, not descendants")
+	inactive.draw_arguments[0]=Rect2(-100,-100,200,200)
+	hidden.position=Vector2(70,70)
+	check(pick._state(art)==state,"inactive geometry and transforms cannot dirty a hidden subtree receipt")
+	hidden.show()
+	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"revealing hidden subtree invalidates an already completed receipt")
+	present(pick,art,node)
+	inactive.draw_arguments[1]=Color(1,1,1,.5)
+	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"visible payload mutation still invalidates without a revision-counter shortcut")
+	hidden.hide();present(pick,art,node)
+	art.canvas_stream.frame_id+=1;node.generation=art.canvas_stream.frame_id
+	pick.request_query();pick.drawing(art);pick.submitting(art);hidden.show();pick.presented(art)
+	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"hidden-to-visible mutation between submit and present fails closed")
+	hidden.hide();present(pick,art,node)
+	art.alpha_revision+=1
+	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"atlas alpha invalidation rejects a previous presentation receipt")
+	node.shapes.erase(hidden);hidden.queue_free()

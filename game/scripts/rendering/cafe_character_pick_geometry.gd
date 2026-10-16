@@ -51,7 +51,10 @@ func _supported_ancestors(art)->bool:
 	return art.material==null and art.clip_children==CanvasItem.CLIP_CHILDREN_DISABLED
 
 func _node_state(node:Node2D,state:int)->int:
-	state=hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_global_transform_with_canvas(),node.visible,node.modulate,node.self_modulate,node.material])
+	# A hidden pooled subtree paints nothing. Keep its identity/visibility marker
+	# so revealing it invalidates the receipt, but do not hash inactive geometry.
+	if not node.visible:return hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),false])
+	state=hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_global_transform_with_canvas(),true,node.modulate,node.self_modulate,node.material])
 	if node.get_script()==Shape:
 		state=hash([state,node.get_meta("generation",-1),node.draw_method,node.draw_arguments,node.paint_revision,node.painted_revision])
 		if node.material is ShaderMaterial:state=hash([state,node.material.get_shader_parameter("stroke_width"),node.material.get_shader_parameter("geometry_scale")])
@@ -66,7 +69,8 @@ func _in_world_span(art,order:int)->bool:
 
 func _state(art)->int:
 	# A bounded scalar receipt, not copied geometry or retained renderer resources.
-	var state=hash([art.modulate,art.self_modulate,art.ground_occlusion_start,art.ground_occlusion_end])
+	var alpha_state=art.ground_hit_alpha_state() if art.has_method("ground_hit_alpha_state") else []
+	var state=hash([art.modulate,art.self_modulate,art.ground_occlusion_start,art.ground_occlusion_end,alpha_state])
 	for nodes in [art.native_object_nodes,art.native_world_shapes]:
 		for order in nodes:
 			if _in_world_span(art,int(order)) and is_instance_valid(nodes[order]):state=_node_state(nodes[order],state)
@@ -97,9 +101,9 @@ func occludes(art,screen:Vector2)->bool:
 	last_uncertain=false
 	if not query_active() or not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or art.ground_occlusion_start<0 or art.ground_occlusion_end<art.ground_occlusion_start or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
 		last_uncertain=true;return true
-	# Images/mesh arrays live only for this pointer query; no retained readback
-	# cache, additional nodes, renderer resources or per-frame geometry copies.
-	var images={}
+	# Borrow only the furniture atlas owner's prepared alpha image. Other image
+	# readbacks and mesh arrays remain local to this one pointer query.
+	var images:Dictionary=art.ground_hit_images() if art.has_method("ground_hit_images") else {}
 	for nodes in [art.native_object_nodes,art.native_world_shapes]:
 		for order in nodes:
 			if not _in_world_span(art,int(order)):continue
@@ -231,7 +235,7 @@ func _texture_hit(args:Array,point:Vector2,opacity:float,images:Dictionary)->int
 
 func _texture_alpha(texture:Texture2D,sample:Vector2,images:Dictionary)->float:
 	if not images.has(texture):
-		var decoded=texture.get_image()
+		var decoded=_read_texture_image(texture)
 		if decoded!=null and decoded.is_compressed() and decoded.decompress()!=OK:return -1.0
 		images[texture]=decoded
 	var image:Image=images[texture]
@@ -242,3 +246,6 @@ func _texture_alpha(texture:Texture2D,sample:Vector2,images:Dictionary)->float:
 	var c=image.get_pixel(clampi(x,0,image.get_width()-1),clampi(y+1,0,image.get_height()-1)).a
 	var d=image.get_pixel(clampi(x+1,0,image.get_width()-1),clampi(y+1,0,image.get_height()-1)).a
 	return lerpf(lerpf(a,b,mix.x),lerpf(c,d,mix.x),mix.y)
+
+func _read_texture_image(texture:Texture2D)->Image:
+	return texture.get_image()
