@@ -17,6 +17,12 @@ static func try_load(atlas, name: String, expected_size: Vector2i) -> bool:
 	var texture = load(path) as Texture2D
 	if texture == null or Vector2i(texture.get_size()) != expected_size:return false
 	atlas.texture = texture
+	if name == "furniture":
+		# The one measured alpha-readback hotspot prepares once during asset loading.
+		# Runtime baking supplies its already-owned CPU image to the same owner.
+		var image=texture.get_image()
+		if image!=null and image.is_compressed() and image.decompress()!=OK:image=null
+		atlas.prepare_hit_alpha(image)
 	atlas.state = "ready"
 	atlas.stats["state"] = "ready"
 	atlas.stats["prebaked"] = true

@@ -16,6 +16,9 @@ var generation: int = -1
 var draw_order: int = 0
 var paint_opacity: float = 1.0
 var draw_count: int = 0
+# Scalar receipts distinguish requested art from its completed native draw list.
+var paint_revision: int = 0
+var painted_revision: int = -1
 var contacts: Array = []
 var resources: Array[Resource] = []
 const CafeShape = preload("res://scripts/rendering/cafe_shape_2d.gd")
@@ -67,6 +70,7 @@ func configure(source: Node2D, callback: Callable, next: Array, placement: Trans
 		appearance = next.duplicate(true)
 		paint = callback
 		contacts.clear()
+		paint_revision += 1
 		queue_redraw()
 	show()
 
@@ -76,6 +80,7 @@ func _draw() -> void:
 		draw_count += 1
 		rigid_hits += 1
 		_apply_body_segments(body_meshes[appearance])
+		painted_revision = paint_revision
 		return
 	if _rigid_key_supported() and rigid_meshes.has(appearance):
 		draw_count += 1
@@ -85,6 +90,7 @@ func _draw() -> void:
 		draw_mesh(rigid_meshes[appearance], null)
 		for child in shapes:
 			child.hide()
+		painted_revision = paint_revision
 		return
 	draw_count += 1
 	resources.clear()
@@ -99,6 +105,7 @@ func _draw() -> void:
 			body_meshes[appearance] = segments
 			rigid_builds += 1
 			_apply_body_segments(segments)
+			painted_revision = paint_revision
 			return
 		# Reject the whole optimized body before showing any of its commands.
 		# Repaint through the original raster rules, and include scale in future
@@ -111,6 +118,7 @@ func _draw() -> void:
 	for index in range(shapes.size()):
 		if shapes[index].visible != (index < shape_cursor and not merged):
 			shapes[index].visible = index < shape_cursor and not merged
+	painted_revision = paint_revision
 
 
 func _draw_merged_geometry() -> bool:

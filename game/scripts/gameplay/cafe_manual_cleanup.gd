@@ -19,6 +19,9 @@ const CoinMeshRenderer=preload("res://scripts/rendering/cafe_coin_mesh_renderer.
 const COIN_TRAVEL_MIN=.46
 const COIN_TRAVEL_MAX=.82
 const MAX_PUFFS=32
+# One stalled release may obtain a fresh receipt, never an expired one.
+# The total intent lifetime and original two certification attempts stay bounded.
+const RELEASE_MSEC=750
 var game
 var coin_rng=RandomNumberGenerator.new()
 var coin_renderer
@@ -28,6 +31,10 @@ var projection:Array=[]
 var puffs:Array=[]
 var released=false
 var release_point=Vector2.ZERO
+var release_deadline=0
+var release_rearmed=false
+var release_state:Array=[]
+var release_record:Dictionary={}
 var hovered:Dictionary={}
 var hover_projection:Array=[]
 var hover_state:Array=[]
@@ -82,6 +89,7 @@ func _init(owner):
  coin_audio=preload("res://scripts/audio/cafe_cleanup_coin_sfx.gd").new(owner)
 func cancel():
  pending={};projection=[];released=false
+ release_deadline=0;release_rearmed=false;release_state=[];release_record={}
  clear_hover()
  if is_instance_valid(game.illustration):game.illustration.character_pick_geometry.close_query()
 func clear_hover():
@@ -90,7 +98,7 @@ func clear_hover():
  if had_hover and is_instance_valid(game.illustration):game.illustration.queue_redraw()
 func hover(screen:Vector2):
  if not allowed():clear_hover();return
- # Hover is cosmetic and stays below characters in the existing floor pass.
+ # Hover is provisional and cosmetic, below all world solids in the floor pass.
  # Never open/replace the certified release query from a pointer motion.
  if released:clear_hover();return
  # refresh() is also called for a stationary mouse each gameplay frame.
@@ -125,14 +133,7 @@ func allowed()->bool:
  if game.cafe_intro!=null and game.cafe_intro.active:return false
  if game.compact_ui!=null and (game.compact_ui.viewport_too_small or game.compact_ui.has_open_popup()):return false
  return not (is_instance_valid(game.settings) and game.settings.visible)
-func _occluded(screen:Vector2,characters=true)->bool:
- var art=game.illustration
- var item_id=art.hit_item(screen)
- if item_id>=0 and str(game.model.get_item(item_id).get("kind",""))!="rug":return true
- if not art.hit_wall_host(screen).is_empty():return true
- return characters and art.character_occludes(screen)
-
-func hit(screen:Vector2,characters=true)->Dictionary:
+func hit(screen:Vector2,certified=true)->Dictionary:
  if not allowed() or not game.interaction._point_in_view(screen) or game.interaction._over_ui(screen):return {}
  var art=game.illustration
  art.update_projection()
@@ -146,27 +147,58 @@ func hit(screen:Vector2,characters=true)->Dictionary:
    if record.is_empty() or not art._floor_mess_active(record):continue
    var paint=HitPaint.new(art,screen)
    MessArt.draw(paint,record)
-   if paint.hit:return {} if _occluded(screen,characters) else identity
+   # Press/hover only nominate the original litter silhouette. No coarse
+   # furniture/wall mask may reject visible floor; release alone settles after
+   # the renderer certifies actual painted coverage in its completed frame.
+   if paint.hit:return {} if certified and art.ground_mess_occluded(screen) else identity
  return {}
 func begin(screen:Vector2):
  cancel()
  pending=hit(screen,false)
  if not pending.is_empty():projection=_projection()
 func release(screen:Vector2)->bool:
+ if released:return true # Duplicate release cannot restart its lifetime or work.
  if pending.is_empty() or not allowed():cancel();return false
  game.illustration.update_projection()
  if projection!=_projection() or hit(screen,false)!=pending:cancel();return false
  released=true;release_point=screen
+ release_deadline=Time.get_ticks_msec()+RELEASE_MSEC
+ release_record=game.resolve_ground_mess(pending)
+ release_state=_release_state()
  game.illustration.character_pick_geometry.request_query()
  game.illustration.queue_redraw()
  return true
+func _release_state()->Array:
+ var record:Dictionary=game.resolve_ground_mess(pending)
+ if record.is_empty():return []
+ # Guest records also contain live guest/meal/waiter state. Only ground-mess
+ # semantics belong to this intent; ordinary guest progress must not cancel it.
+ # The fresh painter receipt owns world coverage, actors and texture alpha.
+ var ground=[]
+ for key in ["floor_dirty","floor_cleaned","floor_debris","floor_spill","spill_cleaned","spill_remaining","trash_owner","trash_staff_index","trash_target_id","floor_cell","floor_target","debris_target","spill_target"]:
+  ground.append(record.get(key))
+ ground.append(hash(record.get("mess_shape",{})))
+ return [game.illustration.character_pick_geometry._projection(game.illustration),game.model.revision,ground]
+func _release_current()->bool:
+ return Time.get_ticks_msec()<release_deadline and allowed() and projection==_projection() and not release_state.is_empty() and is_same(release_record,game.resolve_ground_mess(pending)) and release_state==_release_state()
 func presented():
  if not released:return
  var pick=game.illustration.character_pick_geometry
- if not pick.query_active():cancel();return
+ if not _release_current():cancel();return
+ if not pick.query_active():
+  # No completed frame means there are no old pixels we may authorize. Re-arm
+  # once, only with unused attempts, then wait for a NEW completed receipt.
+  var attempts:int=pick.query_frames
+  if release_rearmed or pick.presented_frame>=0 or attempts<=0 or hit(release_point,false)!=pending:cancel();return
+  release_rearmed=true
+  pick.request_query()
+  pick.query_frames=attempts
+  pick.query_deadline=mini(pick.query_deadline,release_deadline)
+  game.illustration.queue_redraw()
+  return
  if pick.presented_frame!=game.illustration.canvas_stream.frame_id:return
  var identity=pending.duplicate()
- var valid=allowed() and projection==_projection() and hit(release_point)==identity and pick.query_active()
+ var valid=_release_current() and hit(release_point)==identity and pick.query_active()
  cancel()
  if not valid:return
  _complete(identity)
@@ -191,6 +223,7 @@ func _complete(identity:Dictionary)->bool:
  return true
 func tick(delta:float)->bool:
  if not is_instance_valid(game) or not game.has_method("ground_mess_identity"):return false
+ if released and not _release_current():cancel()
  var epoch=_epoch()
  coin_audio.tick(epoch)
  if not hovered.is_empty() and (not allowed() or hover_projection!=_projection() or game.resolve_ground_mess(hovered).is_empty()):clear_hover()

@@ -16,6 +16,10 @@ var native_draw_target:Node2D
 var native_command_transform=Transform2D.IDENTITY
 var native_object_nodes={}
 var native_world_shapes={}
+# Half-open painter span above floor litter, excluding ground and editor UI.
+# Queries read these existing commands only while a cleanup release is pending.
+var ground_occlusion_start = -1
+var ground_occlusion_end = -1
 const WorldShape=preload("res://scripts/rendering/cafe_shape_2d.gd")
 const NativeDrawNode=preload("res://scripts/rendering/cafe_native_draw_node.gd")
 var use_local_character_geometry=true
@@ -950,6 +954,7 @@ func _draw_staff_ground_rings(show_service:bool):
 
 func _draw():
 	var playtest_started=Time.get_ticks_usec()
+	ground_occlusion_start=-1;ground_occlusion_end=-1
 	canvas_stream.begin(self,use_command_retention and use_retained_geometry and is_instance_valid(game) and icon_kind=="" and material==null and not use_parent_material and clip_children==CanvasItem.CLIP_CHILDREN_DISABLED)
 	retained_geometry.begin_frame()
 	rounded_seen_previous=rounded_seen_current;rounded_seen_current={}
@@ -1042,6 +1047,7 @@ func _draw():
 		if not show_service:break
 		_draw_floor_mess(record)
 	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
+	if canvas_stream.active and use_native_object_nodes:ground_occlusion_start=canvas_stream.cursor
 	for opening in openings:OpeningArt.threshold(self,opening)
 	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
@@ -1264,6 +1270,7 @@ func _draw():
 				art_transform(p,0,Vector2.ONE*ui_scale*zoom*(1.55 if game.wall_detail else 1.0))
 				bubble(anchor,bubble_symbol)
 			art_transform(Vector2.ZERO)
+	if ground_occlusion_start>=0 and canvas_stream.active and use_native_object_nodes:ground_occlusion_end=canvas_stream.cursor
 	if game.editing and game.build_tools!=null:
 		game.build_tools.draw_wall_selection(self)
 		for opening in openings:
@@ -2153,7 +2160,15 @@ func _record_character_pick_frame():
 func _record_character_pick_submission():
 	character_pick_geometry.submitting(self)
 
-func character_occludes(screen:Vector2)->bool:
+func ground_hit_alpha_state()->Array:
+	return furniture_art.static_atlas.hit_alpha_state()
+
+func ground_hit_images()->Dictionary:
+	var atlas=furniture_art.static_atlas
+	var alpha:Image=atlas.hit_alpha_for(atlas.texture)
+	return {atlas.texture:alpha} if alpha!=null else {}
+
+func ground_mess_occluded(screen:Vector2)->bool:
 	return character_pick_geometry.occludes(self,screen)
 
 func _floor_mess_active(record:Dictionary) -> bool:
