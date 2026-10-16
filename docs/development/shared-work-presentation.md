@@ -91,3 +91,11 @@ composition/native source bindings, final-result.json, native-analysis.json,
 early-departure-defect.json, actual logs/PNGs and their SHA256SUMS. The preserved
 historical defect receipt is read with the allowed-passing classification above.
 No player originals, denied transfer retries, new native matrix, merge or deploy.
+
+## Final-runtime original-three atlas qualification
+
+Item30 unified task/resource/shared-display qualification on runtime source ecb5f62f315beabebc49c3d2fda500d196aa7a5a/tree4e04c88aa2b889ca6ca5111233e4141b7fcdc185: one actual original-three native procedural generation on official Godot4.6.3 X11 GL Compatibility Mesa25.0.7 llvmpipeLLVM19.1.7. NativeReceiptSHA256 50583f82926083be69f6180c1811325d431ca043e9eb62b6ad44b8beed1b8586; SummarySHA256 452d1cf504304bb011bc90aa801a0e281f707525cf17044ab771b8fc6080a82d; ClosureSHA256 63ba883af52a8f40df95b6afb0053e50d9b7cad635ffc2ae8c9f48e08f1edeb8. All83 actual producer inputs bound; update only12 existing hashes and add3 verified dependency rows, retain68 other rows, all original PNG/import/asset records and complete main steam plus historical PR344 provenance. Generated/imported/READY/direct-source/saved-PNG RGBA equal fixed ba615/6dc/d16; independent nine-PNG decoding confirms. Runtime files equal captured834925b; native evidence is102 paired PNG screenshots/fixed-step states, not a continuous clip, with allowed pedestrian crossing reclassification and synthetic-start limits. No user visual, FPS/browser/device/release acceptance; no release, tag or deployment. Final-head automatic CI remains separate.
+
+The exact changed closure rows and raw source hashes are retained in the local
+manifest-adoption.json receipt. Fixed image references are not refreshed. The
+subsequent metadata/docs-only commit preserves all qualified runtime postimages.
