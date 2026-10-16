@@ -66,10 +66,21 @@ Cooking/plating, guest/token, food and movement are never recreated or teleporte
 After placing contact transfers custody to the counter, allocation must leave
 that counter identity alone through the remaining handoff.
 
-Currently valid chef placing endpoints take priority over idle/fallback standing
-choices. Those choices avoid the endpoints and, if no standing alternative
-exists, do not claim a placing endpoint as real work. Chef slots prioritize an already started action, then accumulated blocked-work
-waiting time with roster order as a deterministic tie. Other role order and
+All valid chef work endpoints, including stove preparation/cooking, take priority
+over idle/fallback standing choices regardless of roster order. If no standing
+alternative exists, fallback does not claim such an endpoint as real work. Chef
+slots prioritize an already started action, then a valid in-flight endpoint owner,
+then accumulated blocked-work waiting time with roster order as a deterministic
+tie. An owner retains its endpoint while approaching and through the action;
+waiting time resets only on action completion. Completion releases ownership so
+waiting chefs arbitrate the next action. The per-staff runtime claim binds
+guest/token, action step, target and face; a changed binding or invalid face
+releases it, and acquisition checks the actual staff route. Geometry changes
+revalidate that route while preserving a still-valid owner; unrelated edits
+do not preempt travel. Idle staff never own
+these claims. This fixes the reviewed idle-before-active obstruction and the
+approaching-chefs framewise preemption, rather than relying on both chefs
+already standing at the shared cell. Other role order and
 complementary sink lanes remain unchanged. Actor pass-through and static collision
 stay unchanged. The cached search keys
 are runtime fields on each staff dictionary, omitted from the existing explicit

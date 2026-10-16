@@ -114,6 +114,7 @@ func run():
  g._animate_staff(.1)
  check(g.service_guests[202].meal_pass_id==103 and g.service_guests[201].meal_pass_id==-1,"longer waiting chef gets a newly available pass before roster order")
  cleanup(g)
+ incumbent_endpoints()
  route_boundary()
  evidence.checks=checks;evidence.failures=failures
  print("CHEF_PASS_RUNTIME ",JSON.stringify(evidence))
@@ -134,4 +135,50 @@ func route_boundary():
   g.model.items.erase(g.model.get_item(2))
   check(g._staff_distances(Vector2i(1,0)).has(Vector2i(1,2)) and not g._staff_route(0,Vector2i(1,2)).is_empty(),"opening a legal staff route restores eligibility")
  else:check(false,"assignment must observe the actual staff route domain")
+ cleanup(g)
+
+func incumbent_endpoints():
+ var g=fixture();var a=g.staff_states[0];var b=g.staff_states[1]
+ g.model.get_item(102).x=6;g.model.get_item(102).z=4;g.model.get_item(102).rot=1;g.model.revision+=1
+ g._clear_service_job(a)
+ # A is genuinely idle: its own guest has already finished cooking.
+ g.service_guests[201].meal_ready=true
+ a.pos=Vector2(5.5,4.5);b.pos=a.pos;b.job_step=1;b.job_elapsed=3.0
+ g._animate_staff(.1)
+ check(a.job_kind=="" and b.job_elapsed>3.0,"earlier idle chef cannot claim an incumbent cooking endpoint")
+ check(a.destination!=Vector2i(5,4),"idle home yields the real stove endpoint")
+ cleanup(g)
+ g=fixture();a=g.staff_states[0];b=g.staff_states[1]
+ g.model.get_item(102).x=6;g.model.get_item(102).z=4;g.model.get_item(102).rot=1;g.model.revision+=1
+ a.job_step=0;b.job_step=0;a.pos=Vector2(3.5,4.5);b.pos=Vector2(4.5,6.5)
+ var owner=-1;var retained=true;var began=false
+ for tick in range(70):
+  g._animate_staff(.1)
+  if tick==0:owner=0 if a.destination==Vector2i(5,4) else 1
+  if tick==1:
+   g.model.items.append({"id":107,"kind":"plant","x":10,"z":8,"rot":0})
+   g.staff_states[1-owner].work_wait_seconds=100.0
+  var winner=g.staff_states[owner]
+  if winner.job_elapsed>0.0 or winner.job_step>0:began=true;break
+  retained=retained and winner.destination==Vector2i(5,4)
+ check(owner>=0 and retained,"in-flight chef retains its endpoint throughout approach")
+ check(began,"shared endpoint approach reaches actual preparation instead of framewise livelock")
+ # Finish the real action rather than manually jumping its step.
+ var winner=g.staff_states[owner];var waiter=g.staff_states[1-owner]
+ for tick in range(100):
+  if winner.job_step>0:break
+  g._animate_staff(.1)
+ check(winner.job_step==1 and not winner.has("work_endpoint"),"natural action completion releases the endpoint")
+ g._animate_staff(.1)
+ check(waiter.destination==Vector2i(5,4),"waiting chef wins after incumbent action releases")
+ for tick in range(100):
+  if waiter.job_elapsed>0.0 or waiter.job_step>0:break
+  g._animate_staff(.1)
+ check(waiter.job_elapsed>0.0 or waiter.job_step>0,"released endpoint lets the waiting chef arrive and begin work")
+ var saved=g._service_save_snapshot()
+ check(not saved.staff[owner].has("work_endpoint"),"in-flight endpoint ownership is runtime-only")
+ # A genuine static invalidation releases any in-flight claim.
+ g.model.items.append({"id":106,"kind":"plant","x":5,"z":4,"rot":0})
+ g._animate_staff(.1)
+ check(not a.has("work_endpoint") and not b.has("work_endpoint"),"blocked workface invalidates in-flight claims")
  cleanup(g)
