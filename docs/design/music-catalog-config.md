@@ -318,7 +318,7 @@ browser, performance or release. Hat/steam reference work remains separate.
 The user subsequently requested balanced icon proportions, vertical centering
 and equal spacing across the toolbar. The revised candidate keeps the same
 generated gramophone PNG and tight alpha crop. It draws the gramophone at44px
-height on the desktop rail,34px on phone layouts, and uses
+height on the desktop rail,30px on phone layouts, and uses
 the same retained material treatment as Decorate/Staff/Settings. This replaces
 the earlier32px square fit and stronger lightening that reduced its visible
 width and weight. It adds no texture, material variant or frame callback.
@@ -338,8 +338,24 @@ is copied, changed or claimed integrated.
 
 Mobile button-padding refinement: the user requested a little more space
 between artwork and button edges. Phone artwork now fits30px for brush/gear,
-30px high for the chef, and34px high for the gramophone's taller silhouette.
-Every illustrated action has at least5px internal clearance while retaining
+30px high for the chef and gramophone. The latest user request explicitly
+aligns the gramophone with the two adjacent illustrations, not just their frames.
+Every illustrated action now has at least7px internal clearance while retaining
 native aspect,44px hit cells,6px gaps and the existing centerline. The already
 inset Pause glyph and wallet coin retain their spacing. The desktop path and
 its44px gramophone remain unchanged; actual paired desktop pixels verify this.
+
+The actual390x844 rendered button comparison isolates foreground art against
+the same buttons with only their artwork hidden. At a summed RGB-difference
+threshold of12, visible gramophone/brush/chef bounds are23x30,30x25 and22x30
+pixels, with529,536 and475 visible pixels. Gramophone contrast-weighted area
+is157.110 versus161.237 for the brush; the cream chef is naturally lighter.
+These are descriptive comparison measurements, not new numeric art standards
+or user acceptance. Equal44px frames,6px gaps and vertical centers remain.
+
+A separate302e77d baseline versus f262331 candidate capture used the identical
+original harness with verbose logging. Both exit0 with no ObjectDB warning;
+the retained nonverbose candidate capture still reports the intermittent exit
+warning. That one matched pair does not establish either a pre-existing leak
+or a PR332-introduced leak. No production teardown change is made without
+candidate-cause evidence; the diagnostic limit remains explicit.
