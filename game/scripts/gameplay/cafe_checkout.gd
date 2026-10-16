@@ -26,7 +26,7 @@ static func queue(m)->Array:
 static func claimed_cells(m,except_id:int=-1)->Dictionary:
  var result={}
  for guest in m.customers:
-  if int(guest.id)==except_id:continue
+  if int(guest.id)==except_id or m.layout_held("guests",int(guest.id)):continue
   var cell=guest.get("checkout_cell",NONE)
   if cell!=NONE and (str(guest.phase) in STAGES or (guest.phase=="leaving" and point(guest).distance_to(m.cell_center(cell))<.8)):
    result[cell]=int(guest.id)
@@ -193,17 +193,20 @@ static func _route_to(m,guest:Dictionary,destination:Vector2i)->bool:
  guest.checkout_reason="";return true
 static func advance(m,delta:float):
  for guest in m.customers:
+  if m.layout_held("guests",int(guest.id)):continue
   if guest.phase=="leaving" and guest.paid and str(guest.get("settlement_mode","legacy"))=="register" and guest.departure_blocked:depart(m,guest)
   if guest.phase=="leaving" and guest.get("checkout_cell",NONE)!=NONE and point(guest).distance_to(m.cell_center(guest.checkout_cell))>=.8:guest.checkout_cell=NONE
  var waiting=queue(m)
  if waiting.is_empty():return
  var item=register(m)
  if item.is_empty():
-  for guest in waiting:guest.checkout_reason="Add the included register in Decorate"
+  for guest in waiting:
+   if not m.layout_held("guests",int(guest.id)):guest.checkout_reason="Add the included register in Decorate"
   return
  var front=m.workface_cell(item);var back=rear(m,item);var slot=NONE;var slot_checked=false
  for rank in range(waiting.size()):
   var guest:Dictionary=waiting[rank]
+  if m.layout_held("guests",int(guest.id)):continue
   guest.checkout_register_id=int(item.id)
   if not guest.get("mobility",{}).is_empty() or guest.phase in ["paying","checkout_walk"]:continue
   # The optional standing slot cannot affect an already moving/paying guest,
@@ -231,6 +234,7 @@ static func arrived(m,guest:Dictionary):
  var item=register(m)
  if not item.is_empty():guest.heading=(m.cell_center(Vector2i(int(item.x),int(item.z)))-point(guest)).normalized()
 static func ready(m,guest:Dictionary,register_id:int)->bool:
+ if m.layout_held("guests",int(guest.get("id",-1))):return false
  if not guest.get("mobility",{}).is_empty():return false
  var item=m.get_item(register_id)
  if item.is_empty() or item.kind!="register" or guest.is_empty() or guest.paid or bool(guest.get("meal_abandoned",false)) or str(guest.get("settlement_mode","legacy"))!="register":return false
@@ -285,13 +289,13 @@ static func layout_error(m,layout:Array,walls:Array,ownership:Array,guests:Array
    if m._built_edge_blocked(center,face,walls,openings):return "A guest is checking out · keep both register faces clear"
   if cell!=front and (m._built_edge_blocked(cell,front,walls,openings)):return "A guest is queued · keep the path to the register clear"
  return ""
-static func state_error(pending:bool,cashiers:int,layout:Array,guests:Array,targets:Dictionary,duties:Dictionary,unplaced:bool=false,open:bool=false)->String:
+static func state_error(pending:bool,cashiers:int,layout:Array,guests:Array,targets:Dictionary,duties:Dictionary,unplaced:bool=false,open:bool=false,layout_hold:bool=false)->String:
  var registers=0
  for item in layout:
   if item.kind=="register":registers+=1
  if cashiers not in [0,1] or pending!=(cashiers==0) or registers!=(0 if unplaced else cashiers):return "Cashier/register deployment disagrees with entitlement"
  if int(targets.get("cashier",-1))!=cashiers or int(duties.get("cashier",-1))!=cashiers:return "Cashier duty disagrees with deployment"
- if unplaced and (pending or cashiers!=1 or open or not guests.is_empty()):return "An unplaced register requires a closed idle cafe and the existing cashier entitlement"
+ if unplaced and not layout_hold and (pending or cashiers!=1 or open or not guests.is_empty()):return "An unplaced register requires a closed idle cafe and the existing cashier entitlement"
  if pending:
   for guest in guests:
    if str(guest.get("settlement_mode","legacy"))=="register":return "Register-mode guest exists before cashier deployment"

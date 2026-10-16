@@ -53,7 +53,7 @@ func _initialize():run.call_deferred()
 func run():
  if not "saveguard" in OS.get_user_data_dir():printerr("Use isolated UI runner");quit(2);return
  root.size=Vector2i(1360,880);game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
- await process_frame;game.editing=true;game.tray.show();game.model.coins=10000;game._set_catalog_category("Build");await settle()
+ await process_frame;game.editing=true;game.tray.show();game.model.coins=10000;game.model.begin_decoration_session();game._set_catalog_category("Build");await settle()
  var ui=game.compact_ui;var tool=game.build_tools;var art=game.illustration
  # Every starter wall is now an ordinary installed wall, including both
  # boundary axes and the one-tile host containing the starter doorway.
