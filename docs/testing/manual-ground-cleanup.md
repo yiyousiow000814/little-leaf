@@ -118,17 +118,19 @@ Proportionate Feature Design Quality Gate:
   source-bound before/after capture, composed renderer cost and visual acceptance
   remain required; this candidate does not change merged/released status.
 
-### Current-main integration limit (2026-10-16)
+### Current-main integration and atlas qualification (2026-10-16)
 
 The existing painted-floor candidate `64e4da79bc331c6cba0dbcd70886aeb22c4f832f`
 was reconciled once with settled main
 `63642fdd453b1581e94f283e14aa9842e0021fc6`, without text conflicts.
-The delta against main remains the same twelve candidate paths; the automatic
+At that integration, the delta against main retained the same twelve candidate
+paths; the automatic
 `illustrated_cafe.gd` merge retains both the main wall preparation and cleanup
 painter span. Main's PR331/339 custody, PR340/341 optimizations and PR330 UID
-remain present. The transitive producer closure now has 80 inputs; only the six
-cleanup renderer rows differ from the retained manifest. All three reference
-PNGs and all three import records equal main byte for byte.
+remain present. The transitive producer closure has 80 inputs. The six formerly
+stale cleanup renderer rows are adopted from the exact native-qualified source
+below; the other 74 rows, all atlas asset records, reference PNGs and imports
+remain unchanged.
 
 Focused disposable checks pass 1,485 assertions with zero engine diagnostics:
 manual cleanup 155, painted picking 72, retained shapes 18, imported atlas/alpha
@@ -136,15 +138,39 @@ manual cleanup 155, painted picking 72, retained shapes 18, imported atlas/alpha
 centered walls 318. These headless checks do not certify native pointer/pixel
 acceptance or performance of the composed source.
 
-Canonical qualification is **blocked**, not passed: the disposable Debian X11
-GL Compatibility probe runs official Godot 4.6.3 with Mesa 25.0.7 and llvmpipe
-LLVM 19.1.7; the existing canonical recipe requires Mesa 25.2.8 and LLVM 20.1.2.
-No atlas regeneration/parity claim or source-provenance refresh is made from
-this host. The strict guard intentionally continues rejecting the six stale
-source rows. Re-run the original-three qualification on its prescribed renderer
-before adopting those rows. Existing native images and timings remain scoped
-to their original source, not this composition. GitHub Actions access from this
-execution environment returns `Forbidden`; final-head CI remains pending.
+One bounded actual native regeneration on exact source
+`ff2c3f5eea0889520ac2784cbe01ed9fee3c7678` / tree
+`9061786ec01494e1e6ce10ccaf998e3da5adf87a` passes the current repository's
+original-three exact-RGBA gate. Verified official Godot 4.6.3 runs X11 GL
+Compatibility on Mesa 25.0.7 / llvmpipe LLVM 19.1.7. Fresh procedural output,
+unchanged imported references, runtime READY/prebaked textures, direct original
+PNG decodes and saved PNG decodes all match the fixed ba615/6dc/d16 RGBA hashes.
+Native receipt SHA256 is
+`a6fa783ed56e42bc39a3a3f7e9dd1a574de60715a5062596b81e84da1a19468a`;
+summary SHA256 is
+`a4f0ef6b1e68cdb9304e3ccc31d20fe1a52e4fdaa7785eb7b7db9cbf25e42792`;
+closure SHA256 is
+`0f0d6012c6dcd35c20115d22a1f8a7e45a20e3b2fdb4495879992a362efe268f`.
+Independent review verified the exact remote rows/assets and decoded native
+receipt, log, driver and unchanged components before this authorized
+six-row/provenance adoption. No runtime postimage changes in this successor;
+all historical provenance remains intact. The strict 80-source/three-atlas guard,
+release metadata validation and 23 related fast unit checks pass on the adoption
+source. Final-head CI, user gameplay/visual
+acceptance, browser/performance qualification and release remain separate.
+
+Historical limitation and failure evidence remain preserved: the first attempt
+stopped before regeneration by applying the historical Car158 wrapper's scoped
+Mesa 25.2.8 / LLVM 20.1.2 fingerprint to this different candidate. That was an
+over-broad prerequisite; the current general contract has no Mesa pin. The
+Car158 wrapper was neither modified nor executed by the new invocation.
+The earlier workflow lookup returned `Forbidden`, and no dispatch/retry followed.
+Automatic [CI38917981817](https://github.com/yiyousiow000814/little-leaf/actions/runs/38917981817)
+for ff2c3f5 failed preflight at `verify_prebaked_atlases.py:79` with
+`Atlas procedural dependencies changed: regenerate and verify RGBA before updating manifest`;
+release metadata had passed, later checks did not run, and mandatory aggregation
+failed. That source-closure failure is retained as history, not a new runtime
+regression or a successful final-head CI result.
 
 ### Bounded stalled-release recovery (R2, 2026-10-16)
 
@@ -190,10 +216,10 @@ source-preservation successor. The first exploratory native harness had an unfin
 an invalid empty-dining guest fixture; those failed logs remain preserved. The
 corrected control/candidate runs have no script errors; their unsupported VSync
 warning is recorded. No new user screenshot root-cause proof, user visual
-approval, canonical atlas pass or release is claimed. The canonical Mesa/LLVM
-mismatch and six stale producer rows above remain open; assets, manifest and
-strict guard stay unchanged. Final-head CI is pending; do not retry the denied
-workflow lookup as part of this candidate preservation.
+approval or release is claimed. The separate exact ff2c3f5 original-three atlas
+pass and bounded six-row/provenance adoption are recorded above; reference assets
+and the strict guard remain unchanged. Final-head CI is pending; do not retry
+the denied workflow lookup as part of this candidate preservation.
 
 The read-only query never repaints, solves a pose or changes routing. A draw-time
 projection stamp, matching pre/post draw state, completed repaint revisions and
