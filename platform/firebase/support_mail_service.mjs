@@ -1,10 +1,14 @@
-import {hash,uid,uuid,normalizeIssue,verifyRecord,grant,error,parsePayload,MAIL_CATALOG} from './support_mail_contract.mjs';
+import {randomInt} from 'node:crypto';
+import {hash,uid,publicUid,uuid,normalizeIssue,verifyRecord,grant,error,parsePayload,MAIL_CATALOG} from './support_mail_contract.mjs';
 
 // Trusted Firestore service. All paths, roles and player identities are derived
 // here; callable arguments never grant authority. The default flag is closed.
-export function createSupportMailService({db,enabled=false,now=Date.now}) {
+export function createSupportMailService({db,enabled=false,publicUidEnabled=false,now=Date.now,
+  randomPublicUid=()=>String(randomInt(100000000000,1000000000000))}) {
   const path=(...segments)=>db.doc(segments.join('/'));
   const role=actor=>path('supportAdmins',actor);
+  const identity=player=>path('players',player,'identity','public');
+  const publicIndex=id=>path('playerUidIndex',id);
   const save=player=>path('players',player,'saves','cafe');
   const control=player=>path('players',player,'saveControl','protocol');
   const session=player=>path('players',player,'session','owner');
@@ -57,20 +61,60 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     return {schema:1,profileId:record.profileId,revision:record.revision,digest:record.digest,record:JSON.stringify(record),
       writerId:request.writerId,writerEpoch:request.writerEpoch,device:old.device||'Unknown device'};
   }
-  async function lookup(context,recipientUid) {
+  // Only the trusted service can allocate/resolve this player-facing identifier.
+  // The private auth UID remains the owner of save, mail and session documents.
+  async function myPublicUid(context) {
+    if(!publicUidEnabled)throw error('FEATURE_DISABLED','Player UID is unavailable.');
+    const player=actor(context);
+    for(let attempt=0;attempt<8;attempt++){
+      const result=await db.runTransaction(async tx=>{
+        const existing=await tx.get(identity(player));
+        if(existing.exists){
+          const value=existing.data();
+          if(value?.schema!==1||!publicUid(value.publicUid))throw error('CORRUPT_IDENTITY','Player UID is unavailable.');
+          const paired=await tx.get(publicIndex(value.publicUid));
+          if(!paired.exists||paired.data()?.schema!==1||paired.data()?.authUid!==player)
+            throw error('CORRUPT_IDENTITY','Player UID is unavailable.');
+          return {publicUid:value.publicUid};
+        }
+        const candidate=randomPublicUid();
+        if(!publicUid(candidate))throw error('INVALID_UID','Public UID allocator returned an invalid value.');
+        const taken=await tx.get(publicIndex(candidate));
+        if(taken.exists)return {collision:true};
+        tx.create(identity(player),{schema:1,publicUid:candidate});
+        tx.create(publicIndex(candidate),{schema:1,authUid:player});
+        return {publicUid:candidate};
+      });
+      if(!result.collision)return result;
+    }
+    throw error('UID_UNAVAILABLE','Player UID is temporarily unavailable.');
+  }
+  async function resolvePublic(tx,id) {
+    if(!publicUid(id))throw error('INVALID_UID','Enter the exact 12-digit player UID.');
+    const indexed=await tx.get(publicIndex(id));
+    if(!indexed.exists)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
+    const player=indexed.data()?.authUid;
+    if(indexed.data()?.schema!==1||!uid(player))throw error('CORRUPT_IDENTITY','Player UID is unavailable.');
+    const paired=await tx.get(identity(player));
+    if(!paired.exists||paired.data()?.schema!==1||paired.data()?.publicUid!==id)
+      throw error('CORRUPT_IDENTITY','Player UID is unavailable.');
+    return player;
+  }
+  async function lookup(context,recipientPublicUid) {
     const actorId=await authorized(context,'lookup'),time=now();
-    if(!uid(recipientUid))throw error('INVALID_UID','Enter one exact player UID.');
+    if(!publicUid(recipientPublicUid))throw error('INVALID_UID','Enter the exact 12-digit player UID.');
     const found=await db.runTransaction(async tx=>{
       const limit=rate(actorId);
-      const [r,quota,saved,ctrl,recent]=await Promise.all([tx.get(role(actorId)),tx.get(limit),
-        tx.get(save(recipientUid)),tx.get(control(recipientUid)),
-        tx.get(db.collection(`players/${recipientUid}/mail`).orderBy('issuedAt','desc').limit(10))]);
+      const [r,quota]=await Promise.all([tx.get(role(actorId)),tx.get(limit)]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('lookup'))throw error('PERMISSION_DENIED','Support access changed.');
+      const recipientUid=await resolvePublic(tx,recipientPublicUid);
+      const [saved,ctrl,recent]=await Promise.all([tx.get(save(recipientUid)),tx.get(control(recipientUid)),
+        tx.get(db.collection(`players/${recipientUid}/mail`).orderBy('issuedAt','desc').limit(10))]);
       const next=checkedRate(quota,'lookup',time,20);
       tx.set(limit,next);
       if(!saved.exists)return {missing:true};
       const record=head(saved.data());
-      return {uid:recipientUid,profileId:record.profileId,revision:record.revision,
+      return {publicUid:recipientPublicUid,profileId:record.profileId,revision:record.revision,
         savedAt:record.updatedAt,timeSource:'client record time',device:saved.data().device||'Unknown device',
         protected:ctrl.exists,evidence:'Current verified save only; historic purchases unavailable.',
         recentMail:recent.docs.map(doc=>({mailId:doc.id,caseId:doc.data().caseId||'',
@@ -89,19 +133,21 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
       const limit=rate(actorId);
-      const [r,quota,p,s,existing]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
-        tx.get(save(value.recipientUid)),tx.get(issue(value.issueId))]);
+      const [r,quota,p,existing]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
+        tx.get(issue(value.issueId))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
       if(existing.exists)throw error('ISSUE_EXISTS','This issue was already sent. Check its status.');
       if(p.exists&&p.data().requestHash!==normalizedHash)throw error('ISSUE_CONFLICT','Issue ID was already used for different content.');
+      const recipientUid=await resolvePublic(tx,value.recipientPublicUid);
+      const s=await tx.get(save(recipientUid));
       if(!s.exists)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
       const record=head(s.data());
       if(record.profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
       tx.set(limit,checkedRate(quota,'preview',time,10));
       tx.set(preview(value.issueId),{schema:1,actorUid:actorId,requestHash:normalizedHash,
-        recipientUid:value.recipientUid,profileId:value.profileId,createdAt:time,expiresAt:time+10*60*1000});
+        recipientUid,recipientPublicUid:value.recipientPublicUid,profileId:value.profileId,createdAt:time,expiresAt:time+10*60*1000});
       return {issueId:value.issueId,previewHash:normalizedHash,expiresAt:time+10*60*1000,
-        recipientUid:value.recipientUid,profileId:value.profileId,subject:value.subject,body:value.body,
+        recipientPublicUid:value.recipientPublicUid,profileId:value.profileId,subject:value.subject,body:value.body,
         coins:value.coins,items:value.items,caseId:value.caseId};
     });
   }
@@ -110,26 +156,29 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
       const limit=rate(actorId);
-      const [r,quota,p,existing,usedCase,s]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
-        tx.get(issue(value.issueId)),tx.get(caseRef(value.recipientUid,value.caseId)),tx.get(save(value.recipientUid))]);
+      const [r,quota,p,existing]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
+        tx.get(issue(value.issueId))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
       if(existing.exists){
         if(existing.data().requestHash!==normalizedHash||existing.data().actorUid!==actorId)throw error('ISSUE_CONFLICT','Issue ID was already used.');
         return {mailId:value.issueId,status:'sent',alreadyIssued:true};
       }
+      const recipientUid=await resolvePublic(tx,value.recipientPublicUid);
+      const [usedCase,s]=await Promise.all([tx.get(caseRef(recipientUid,value.caseId)),tx.get(save(recipientUid))]);
       if(usedCase.exists)throw error('CASE_ALREADY_ISSUED','This recipient and case already have a letter.');
-      if(!p.exists||p.data().actorUid!==actorId||p.data().requestHash!==normalizedHash||p.data().expiresAt<time)
+      if(!p.exists||p.data().actorUid!==actorId||p.data().requestHash!==normalizedHash
+        ||p.data().recipientUid!==recipientUid||p.data().expiresAt<time)
         throw error('PREVIEW_EXPIRED','Review the exact letter again before sending.');
       if(!s.exists||head(s.data()).profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
       tx.set(limit,checkedRate(quota,'issue',time,5));
       const payload={schema:1,mailId:value.issueId,issueId:value.issueId,caseId:value.caseId,profileId:value.profileId,
         title:value.subject,body:value.body,coins:value.coins,items:value.items,
         issuedAt:time,status:'unclaimed',claimedAt:null};
-      tx.create(issue(value.issueId),{...value,requestHash:normalizedHash,actorUid:actorId,issuedAt:time});
-      tx.create(caseRef(value.recipientUid,value.caseId),{issueId:value.issueId,recipientUid:value.recipientUid,caseId:value.caseId});
-      tx.create(mail(value.recipientUid,value.issueId),payload);
+      tx.create(issue(value.issueId),{...value,recipientUid,requestHash:normalizedHash,actorUid:actorId,issuedAt:time});
+      tx.create(caseRef(recipientUid,value.caseId),{issueId:value.issueId,recipientUid,recipientPublicUid:value.recipientPublicUid,caseId:value.caseId});
+      tx.create(mail(recipientUid,value.issueId),payload);
       tx.create(audit(value.issueId+'-issued'),{type:'issued',issueId:value.issueId,actorUid:actorId,
-        recipientUid:value.recipientUid,profileId:value.profileId,requestHash:normalizedHash,at:time});
+        recipientUid,recipientPublicUid:value.recipientPublicUid,profileId:value.profileId,requestHash:normalizedHash,at:time});
       return {mailId:value.issueId,status:'sent',alreadyIssued:false};
     });
   }
@@ -287,5 +336,5 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       return {status:'placed',receipt,record:candidate,stock:updatedStock};
     });
   }
-  return {capabilities,lookup,previewMail,issueMail,listMyMail,myGiftStock,claimMail,commitProtectedSave,commitGiftPlacement};
+  return {myPublicUid,capabilities,lookup,previewMail,issueMail,listMyMail,myGiftStock,claimMail,commitProtectedSave,commitGiftPlacement};
 }

@@ -26,6 +26,10 @@ try {
   await assertFails(getDoc(doc(other,'players','syntheticRecipient20','saveControl','protocol')));
   await assertFails(setDoc(control,{schema:1,version:0}));
   await assertFails(setDoc(role,{enabled:true,capabilities:['issue']}));
+  await assertFails(setDoc(doc(player,'players','syntheticRecipient20','identity','public'),{schema:1,publicUid:'123456789012'}));
+  await assertFails(getDoc(doc(player,'players','syntheticRecipient20','identity','public')));
+  await assertFails(setDoc(doc(player,'playerUidIndex','123456789012'),{schema:1,authUid:'syntheticRecipient20'}));
+  await assertFails(getDoc(doc(other,'playerUidIndex','123456789012')));
   await assertFails(setDoc(grant,{schema:1,revision:999,counts:{stove:99}}));
   await assertFails(setDoc(mail,{status:'claimed'}));
   await assertFails(setDoc(doc(player,'players','syntheticRecipient20','mailClaims','letter'),{coins:99}));

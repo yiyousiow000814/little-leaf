@@ -3,12 +3,14 @@ import {createHash} from 'node:crypto';
 export const MAIL_CATALOG = Object.freeze(['stove','beverage','sink','counter','bin','plant','lamp','bookshelf','rug','divider']);
 export const MAX_COINS = 1000000000;
 const uidPattern = /^[A-Za-z0-9_-]{6,128}$/;
+const publicUidPattern = /^[1-9][0-9]{11}$/;
 const uuidPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const digestPattern = /^[a-f0-9]{64}$/;
 const error = (code, message) => Object.assign(new Error(message), {code});
 export {error};
 export const hash = value => createHash('sha256').update(value, 'utf8').digest('hex');
 export const uid = value => typeof value === 'string' && uidPattern.test(value);
+export const publicUid = value => typeof value === 'string' && publicUidPattern.test(value);
 export const uuid = value => typeof value === 'string' && uuidPattern.test(value);
 
 // Keep the browser authority's ordered fingerprint, including historic formats.
@@ -59,7 +61,7 @@ export function verifyRecord(record) {
   return record;
 }
 export function normalizeIssue(input) {
-  if(!input||!uuid(input.issueId)||!uid(input.recipientUid)||!uuid(input.profileId)
+  if(!input||!uuid(input.issueId)||!publicUid(input.recipientPublicUid)||!uuid(input.profileId)
     || typeof input.caseId!=='string'||!/^[A-Za-z0-9][A-Za-z0-9._-]{2,79}$/.test(input.caseId)
     || typeof input.subject!=='string'||input.subject.trim().length<1||input.subject.length>100
     || typeof input.body!=='string'||input.body.trim().length<1||input.body.length>2000
@@ -73,7 +75,7 @@ export function normalizeIssue(input) {
   }
   items.sort((a,b)=>a.catalogId.localeCompare(b.catalogId));
   if(input.coins===0&&items.length===0)throw error('INVALID_ISSUE','A gift is required.');
-  return {issueId:input.issueId,recipientUid:input.recipientUid,profileId:input.profileId,caseId:input.caseId,
+  return {issueId:input.issueId,recipientPublicUid:input.recipientPublicUid,profileId:input.profileId,caseId:input.caseId,
     subject:input.subject.trim(),body:input.body.trim(),coins:input.coins,items};
 }
 export function grant(record,mail,stock,now) {

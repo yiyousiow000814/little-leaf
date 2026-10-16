@@ -5,7 +5,7 @@ import {createSupportMailService} from './support_mail_service.mjs';
 import {hash,fingerprint,verifyRecord,normalizeIssue} from './support_mail_contract.mjs';
 
 initializeApp({projectId:'demo-little-leaf'});
-const db=getFirestore(),clock=Date.now(),service=createSupportMailService({db,enabled:true,now:()=>clock});
+const db=getFirestore(),clock=Date.now(),service=createSupportMailService({db,enabled:true,publicUidEnabled:true,now:()=>clock});
 const player='syntheticRecipient20',owner='syntheticSupportOwner20',other='syntheticOther20';
 const profileId='22222222-2222-4222-8222-222222222222',writerId='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
 const auth=id=>({auth:{uid:id,token:{firebase:{sign_in_provider:'google.com'}}}});
@@ -21,19 +21,30 @@ await db.doc(`players/${player}/session/owner`).set({schema:1,owner:writerId,epo
   updatedAt:Timestamp.fromMillis(clock),request:null,ack:null});
 const roleRef=db.doc(`supportAdmins/${owner}`);
 await roleRef.set({enabled:true,capabilities:['lookup','issue']});
+const publicId=(await service.myPublicUid(auth(player))).publicUid;
+assert.match(publicId,/^[1-9][0-9]{11}$/);
+assert.equal((await service.myPublicUid(auth(player))).publicUid,publicId,'same account keeps its public UID');
+assert.equal((await db.doc(`players/${player}/identity/public`).get()).data().publicUid,publicId);
+assert.equal((await db.doc(`playerUidIndex/${publicId}`).get()).data().authUid,player);
 const issueId='11111111-1111-4111-8111-111111111111',operationId='33333333-3333-4333-8333-333333333333';
-const input={issueId,recipientUid:player,profileId,caseId:'synthetic-case-20',subject:'A note for you',body:'Here are your gifts.',coins:60,
+const input={issueId,recipientPublicUid:publicId,profileId,caseId:'synthetic-case-20',subject:'A note for you',body:'Here are your gifts.',coins:60,
   items:[{catalogId:'plant',quantity:2},{catalogId:'stove',quantity:1}]};
 assert.equal((await service.capabilities(auth(owner))).canIssue,true);
 assert.equal((await service.capabilities(auth(other))).canIssue,false);
-await assert.rejects(service.lookup(auth(other),player),{code:'PERMISSION_DENIED'});
-assert.equal((await service.lookup(auth(owner),player)).revision,1);
-for(let i=0;i<19;i++)await service.lookup(auth(owner),player);
-await assert.rejects(service.lookup(auth(owner),player),{code:'RATE_LIMITED'});
+await assert.rejects(service.lookup(auth(other),publicId),{code:'PERMISSION_DENIED'});
+await assert.rejects(service.lookup(auth(owner),player),{code:'INVALID_UID'});
+const found=await service.lookup(auth(owner),publicId);
+assert.equal(found.revision,1);
+assert.equal(found.publicUid,publicId);
+assert.equal(Object.hasOwn(found,'uid'),false,'owner lookup does not reveal private Auth UID');
+for(let i=0;i<19;i++)await service.lookup(auth(owner),publicId);
+await assert.rejects(service.lookup(auth(owner),publicId),{code:'RATE_LIMITED'});
 for(const invalid of [{...input,items:[{catalogId:'register',quantity:1}]},{...input,coins:-1},
   {...input,items:[{catalogId:'plant',quantity:2},{catalogId:'plant',quantity:2}]},
   {...input,body:'\u0001'}])assert.throws(()=>normalizeIssue(invalid),{code:'INVALID_ISSUE'});
-await service.previewMail(auth(owner),input);
+const preview=await service.previewMail(auth(owner),input);
+assert.equal(preview.recipientPublicUid,publicId);
+assert.equal(Object.hasOwn(preview,'recipientUid'),false);
 await assert.rejects(service.issueMail(auth(other),input),{code:'PERMISSION_DENIED'});
 const sent=await Promise.all([service.issueMail(auth(owner),input),service.issueMail(auth(owner),input)]);
 assert(sent.every(value=>value.mailId===issueId));
@@ -75,7 +86,7 @@ const lowered={...candidate,revision:4,updatedAt:clock+2,mailState:{...candidate
 lowered.digest=hash(fingerprint(lowered));
 await assert.rejects(service.commitProtectedSave(auth(player),{...request,revision:6,digest:coalesced.digest,candidate:lowered}),{code:'CORRUPT_AUTHORITY'});
 await roleRef.set({enabled:false,capabilities:['lookup','issue']});
-await assert.rejects(service.lookup(auth(owner),player),{code:'PERMISSION_DENIED'});
+await assert.rejects(service.lookup(auth(owner),publicId),{code:'PERMISSION_DENIED'});
 const stopped=createSupportMailService({db,enabled:false,now:()=>clock});
 await assert.rejects(stopped.claimMail(auth(player),request),{code:'FEATURE_DISABLED'});
 assert.equal((await stopped.commitProtectedSave(auth(player),{...request,revision:3,digest:candidate.digest,candidate:coalesced})).record.digest,coalesced.digest,

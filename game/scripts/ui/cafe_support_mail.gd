@@ -25,7 +25,8 @@ var preview_payload:Dictionary={}
 var issue_id=""
 var request_generation=0
 var form_generation=0
-var _callbacks:Array=[]
+var _callbacks:Dictionary={}
+var callback_serial=0
 
 func _init(owner):compact_ref=weakref(owner);game=owner.game
 
@@ -39,8 +40,9 @@ func setup():
  var heading=game.label("Support Mail",22);frame.add_child(heading)
  var scroller=ScrollContainer.new();scroller.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
  scroller.custom_minimum_size=Vector2(0,420);frame.add_child(scroller)
+ compact.hud.theme_scroll(scroller)
  var form=VBoxContainer.new();form.add_theme_constant_override("separation",8);scroller.add_child(form)
- form.add_child(game.label("Exact player UID",14));recipient=LineEdit.new();recipient.placeholder_text="Paste full player UID";form.add_child(recipient)
+ form.add_child(game.label("Exact 12-digit player UID",14));recipient=LineEdit.new();recipient.placeholder_text="Paste 12-digit player UID";form.add_child(recipient)
  var find=game.button("Find player",_lookup);form.add_child(find)
  lookup_summary=game.label("Find a player before composing.",14);lookup_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;form.add_child(lookup_summary)
  form.add_child(game.label("Support case reference",14));case_id=LineEdit.new();case_id.placeholder_text="For example: case-123";form.add_child(case_id)
@@ -56,13 +58,31 @@ func setup():
  var preview_button=game.button("Preview exact letter and gifts",_preview);form.add_child(preview_button)
  preview_summary=game.label("",14);preview_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;form.add_child(preview_summary)
  send_button=game.button("Send this letter",_send);send_button.disabled=true;form.add_child(send_button)
+ compact.hud.theme_button(send_button,true)
  note=game.label("",14);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;frame.add_child(note)
  var back=game.button("Back to Settings",func():panel.hide();game.settings.show());frame.add_child(back)
  for field in [recipient,case_id,subject]:field.text_changed.connect(func(_value):_invalidate_preview())
  letter.text_changed.connect(_invalidate_preview);coins.value_changed.connect(func(_value):_invalidate_preview())
  compact.hud.theme_panel_contents(panel)
+ for field in [recipient,case_id,subject,letter,coins.get_line_edit()]:_theme_input(field)
+ for amount in quantities.values():_theme_input(amount.get_line_edit())
  compact._wrap_themed_popup(panel,450)
  panel.hide()
+
+func _theme_input(field:Control):
+ var normal=game._style(Color("fff8e9"),Color("ad9c7f"),8)
+ for side in [SIDE_LEFT,SIDE_RIGHT]:normal.set_content_margin(side,9)
+ for side in [SIDE_TOP,SIDE_BOTTOM]:normal.set_content_margin(side,5)
+ field.add_theme_stylebox_override("normal",normal)
+ field.add_theme_stylebox_override("focus",game._style(Color.TRANSPARENT,Color("668367"),8))
+ field.add_theme_color_override("font_color",Color("554631"))
+ field.add_theme_color_override("font_placeholder_color",Color("887c6a"))
+ field.add_theme_color_override("caret_color",Color("554631"))
+ if field is LineEdit:field.custom_minimum_size.y=44
+
+func _display_profile(value)->String:
+ var id=str(value)
+ return id.substr(0,18)+"\n"+id.substr(18) if id.length()>18 else id
 
 func _call(name:String,args:Array,handler:Callable):
  bridge=JavaScriptBridge.get_interface("LittleLeafSupportMail") if OS.has_feature("web") else null
@@ -70,14 +90,15 @@ func _call(name:String,args:Array,handler:Callable):
  if _callbacks.size()>=12:
   note.text="Support is busy. Wait for the current request.";return
  var generation=request_generation
- var callback
- callback=JavaScriptBridge.create_callback(func(values):
-  _callbacks.erase(callback)
+ callback_serial+=1
+ var callback_id=callback_serial
+ var callback=JavaScriptBridge.create_callback(func(values):
+  _callbacks.erase(callback_id)
   if generation!=request_generation or game==null or not game.is_inside_tree():return
   var value=JSON.parse_string(str(values[0])) if values.size()>0 else null
   handler.call(value if value is Dictionary else {"ok":false,"error":"Invalid support response."})
  )
- _callbacks.append(callback)
+ _callbacks[callback_id]=callback
  match name:
   "capabilities":bridge.capabilities(callback)
   "lookup":bridge.lookup(args[0],callback)
@@ -149,23 +170,25 @@ func _invalidate_preview(reset_issue=true):
  preview_payload={};send_button.disabled=true;preview_summary.text=""
 
 func _lookup():
- _invalidate_preview();found={};lookup_summary.text="Checking exact UID…"
+ _invalidate_preview();found={};lookup_summary.text="Checking exact player UID…"
  _call("lookup",[recipient.text.strip_edges()],func(result):
   if not bool(result.get("ok",false)):
    lookup_summary.text=str(result.get("error","Player unavailable."));return
-  if str(result.get("uid",""))!=recipient.text.strip_edges():return
+  if str(result.get("publicUid",""))!=recipient.text.strip_edges():return
   found=result
-  lookup_summary.text="UID: %s\nCafé: %s · save revision %s\nSaved: %s (%s) · %s\n%s\nRecent mail (up to 10): %s"%[result.uid,result.profileId,str(result.revision),str(result.savedAt),str(result.timeSource),str(result.device),str(result.evidence),JSON.stringify(result.get("recentMail",[]))]
+  var saved_at=float(result.get("savedAt",0))
+  var saved_label=Time.get_datetime_string_from_unix_time(int(saved_at/1000.0))+" UTC" if saved_at>0 else "Unavailable"
+  lookup_summary.text="Player UID: %s\nCafé profile:\n%s\nSave revision: %d\nRecorded save: %s (%s)\nDevice: %s\n%s\nRecent mail (up to 10): %s"%[result.publicUid,_display_profile(result.profileId),int(result.revision),saved_label,str(result.timeSource),str(result.device),str(result.evidence),JSON.stringify(result.get("recentMail",[]))]
  )
 
 func _request()->Dictionary:
- if found.is_empty() or str(found.get("uid",""))!=recipient.text.strip_edges():return {}
+ if found.is_empty() or str(found.get("publicUid",""))!=recipient.text.strip_edges():return {}
  var items=[]
  for kind in CATALOG:
   var count=int(quantities[kind].value)
   if count>0:items.append({"catalogId":kind,"quantity":count})
  if issue_id=="":issue_id=str(JavaScriptBridge.eval("crypto.randomUUID()"))
- return {"issueId":issue_id,"recipientUid":recipient.text.strip_edges(),"profileId":str(found.profileId),"caseId":case_id.text.strip_edges(),"subject":subject.text,"body":letter.text,"coins":int(coins.value),"items":items}
+ return {"issueId":issue_id,"recipientPublicUid":recipient.text.strip_edges(),"profileId":str(found.profileId),"caseId":case_id.text.strip_edges(),"subject":subject.text,"body":letter.text,"coins":int(coins.value),"items":items}
 
 func _preview():
  var request=_request()
@@ -177,7 +200,9 @@ func _preview():
    note.text=str(result.get("error","Preview unavailable."));return
   if str(result.get("issueId",""))!=issue_id:return
   preview_payload=request.duplicate(true)
-  preview_summary.text="Recipient UID: %s\nCafé: %s\nCase: %s\nSubject: %s\n\n%s\n\nCoins: %s · Items: %s"%[result.recipientUid,result.profileId,result.caseId,result.subject,result.body,str(result.coins),JSON.stringify(result.items)]
+  var gifts="%d Leaf Coins"%int(result.get("coins",0))
+  for item in result.get("items",[]):gifts+="\n%s ×%d"%[str(item.get("catalogId","")).capitalize(),int(item.get("quantity",0))]
+  preview_summary.text="Player UID: %s\nCafé profile:\n%s\nCase: %s\nSubject: %s\n\n%s\n\nGifts: %s"%[result.recipientPublicUid,_display_profile(result.profileId),result.caseId,result.subject,result.body,gifts]
   note.text="Review the exact recipient and contents before sending."
   send_button.disabled=false
  )

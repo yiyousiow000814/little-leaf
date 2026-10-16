@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {hash,fingerprint,verifyRecord,normalizeIssue,grant} from './support_mail_contract.mjs';
+import {hash,fingerprint,verifyRecord,normalizeIssue,publicUid,grant} from './support_mail_contract.mjs';
 
 vm.runInThisContext(readFileSync(new URL('../web/little_leaf_vault.js',import.meta.url),'utf8'));
 const browser=globalThis.LittleLeafAuthorityCodec;
@@ -32,10 +32,13 @@ for(const format of [1,2]){
   assert.throws(()=>verifyRecord(tampered),{code:'CORRUPT_AUTHORITY'});
   await assert.rejects(browser.verifyRecord(tampered),{code:'CORRUPT_AUTHORITY'});
 }
-const issue={issueId:'11111111-1111-4111-8111-111111111111',recipientUid:'syntheticRecipient20',profileId,
+assert.equal(publicUid('123456789012'),true);
+for(const invalid of ['012345678901','12345678901','1234567890123','１２３４５６７８９０１２',123456789012,'syntheticRecipient20'])
+  assert.equal(publicUid(invalid),false);
+const issue={issueId:'11111111-1111-4111-8111-111111111111',recipientPublicUid:'123456789012',profileId,
   caseId:'synthetic-case-20',subject:' Hello ',body:' Take care ',coins:0,items:[{catalogId:'stove',quantity:1}]};
 assert.equal(normalizeIssue(issue).subject,'Hello');
-for(const invalid of [{...issue,items:[{catalogId:'register',quantity:1}]},{...issue,coins:-1},
+for(const invalid of [{...issue,recipientPublicUid:'syntheticRecipient20'},{...issue,items:[{catalogId:'register',quantity:1}]},{...issue,coins:-1},
   {...issue,items:[{catalogId:'stove',quantity:1},{catalogId:'stove',quantity:1}]},
   {...issue,items:[],coins:0},{...issue,body:'\u0001'}])assert.throws(()=>normalizeIssue(invalid),{code:'INVALID_ISSUE'});
 console.log('Support mail contract: browser/server format parity, old receipt preservation, gift stock, wallet and stock caps passed.');

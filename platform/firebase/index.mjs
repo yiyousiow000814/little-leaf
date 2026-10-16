@@ -4,8 +4,11 @@ import {onCall,HttpsError} from 'firebase-functions/v2/https';
 import {createSupportMailService} from './support_mail_service.mjs';
 
 initializeApp();
-const service=createSupportMailService({db:getFirestore(),enabled:process.env.LITTLE_LEAF_SUPPORT_MAIL_ENABLED==='true'});
+const service=createSupportMailService({db:getFirestore(),
+  enabled:process.env.LITTLE_LEAF_SUPPORT_MAIL_ENABLED==='true',
+  publicUidEnabled:process.env.LITTLE_LEAF_PUBLIC_UID_ENABLED==='true'});
 const codes={UNAUTHENTICATED:'unauthenticated',PERMISSION_DENIED:'permission-denied',FEATURE_DISABLED:'failed-precondition',
+  UID_UNAVAILABLE:'unavailable',CORRUPT_IDENTITY:'failed-precondition',
   PLAYER_NOT_FOUND:'not-found',MAIL_UNAVAILABLE:'not-found',REVISION_CONFLICT:'aborted',OWNERSHIP_LOST:'failed-precondition',
   WALLET_FULL:'failed-precondition',STOCK_FULL:'failed-precondition',PROTOCOL_CHANGED:'failed-precondition',
   INVALID_ISSUE:'invalid-argument',INVALID_UID:'invalid-argument',INVALID_CLAIM:'invalid-argument',INVALID_CURSOR:'invalid-argument'};
@@ -14,6 +17,7 @@ const call=method=>onCall({maxInstances:4},async request=>{
   catch(e){throw new HttpsError(codes[e.code]||'internal',e.message||'Support mail failed.',{code:e.code||'INTERNAL'});}
 });
 export const supportCapabilities=call('capabilities');
+export const getMyPublicUid=call('myPublicUid');
 export const lookupPlayerForSupport=call('lookup');
 export const previewSupportMail=call('previewMail');
 export const issueSupportMail=call('issueMail');
