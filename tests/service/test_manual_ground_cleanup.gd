@@ -9,6 +9,7 @@ var checks=0
 var failures=[]
 var cleaner
 var initial_positions=[]
+var occlusion_observations=[]
 func _initialize():run.call_deferred()
 func check(ok,label):
  checks+=1
@@ -187,6 +188,7 @@ func run():
    event(point,true);event(point,false);await settle()
    check(not alive(id) and game.floor_tasks.completed==1,"completed-frame cleanup remains usable with active artist repaint "+str(trial))
   game.illustration.set_process(false)
+ await fixed_furniture_occlusion_checks()
  var coin_viewport=cleaner.coin_renderer.viewport
  var coin_world=cleaner.coin_renderer.world_root
  var coin_audio_player=cleaner.coin_audio.player
@@ -198,7 +200,7 @@ func run():
  var drain=await AudioDrain.wait_for_mixer_cycles(self)
  check(drain.ok,"cleanup fixture teardown observes mixer retirement")
  print("AUDIO_TEARDOWN_RESULT ",JSON.stringify(drain))
- print("MANUAL_GROUND_CLEANUP_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":DisplayServer.get_name()!="headless","pointer_checks_skipped":DisplayServer.get_name()=="headless"}))
+ print("MANUAL_GROUND_CLEANUP_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false,"native_render_verified":DisplayServer.get_name()!="headless","pointer_checks_skipped":DisplayServer.get_name()=="headless","fixed_occlusion_observations":occlusion_observations}))
  quit(0 if failures.is_empty() else 1)
 
 func reward_visual_checks():
@@ -458,3 +460,80 @@ func mesh_runtime_checks():
  check(renderer.active_count==0 and renderer.viewport.render_target_update_mode==SubViewport.UPDATE_DISABLED,"expired effects stop 3D viewport updates and texture submission")
  check(not renderer.pool[0].root.visible and not renderer.pool[1].root.visible,"expired models are hidden without ghost geometry")
  print("COIN_MESH_RUNTIME_RECEIPT ",JSON.stringify(renderer.receipt()))
+
+func fixed_furniture_occlusion_checks():
+ # Generated fixture, not a reconstruction of the user's cropped screenshot.
+ # Coordinates derive from the authored round table, not hit() or a pixel scan.
+ # x=28 is beyond its painted top/legs but inside the legacy +/-30 box;
+ # (20,-24) lies on its opaque top. Both point at a saved paper silhouette.
+ game.model.items.clear();game.model.dining_sets.clear();game.model.coins=100000
+ game.model._notify()
+ check(game.model.place("table_set",4,4),"fixed occlusion table fixture")
+ game._rebuild_furniture();game._update_ui()
+ var art=game.illustration
+ for camera in ["normal","detail","zoom-pan"]:
+  for exposed in [true,false]:
+   var id=fresh("crumbs")
+   check(id>=0,"fixed litter fixture can spawn")
+   if id<0:continue
+   for staff in game.staff_states:staff.pos=Vector2(-10,-10)
+   game.wall_detail=camera=="detail";art.zoom=1.15
+   art.pan_offset=Vector2.ZERO;art.update_projection()
+   if camera=="zoom-pan":art.zoom=art.camera_zoom_limits().y;art.update_projection()
+   var local=Vector2(28,-15) if exposed else Vector2(20,-24)
+   var point=art.iso(4.5,4.5)+local*art.ui_scale*art.zoom*(1.55 if game.wall_detail else 1.0)
+   game.interaction._pan_by(art.camera_safe_rect().get_center()-point)
+   point=art.iso(4.5,4.5)+local*art.ui_scale*art.zoom*(1.55 if game.wall_detail else 1.0)
+   var world=art.screen_to_world(point)
+   var record=game.floor_tasks.messes[id]
+   var piece={"kind":"paper","center":world,"angle":0.0,"size":.5}
+   record.floor_cell=Vector2i(world.floor());record.floor_target=world
+   record.debris_target=world;record.spill_target=world
+   record.mess_shape={"version":1,"seed":1,"center":world,"outline":game.floor_tasks.geometry.piece_bounds(piece),"spill_outline":[],"pieces":[piece]}
+   check(art.hit_item(point)>=0,"fixed "+camera+" point reproduces old rectangle rejection")
+   check(cleaner.hit(point,false)==game.ground_mess_identity("floor",id),"fixed "+camera+" point hits original paper without searching picker")
+   if DisplayServer.get_name()=="headless":
+    # Dummy runs the real retained draw callbacks, but has no presented-image
+    # signal. Inspect their completed commands only; never fabricate a frame
+    # receipt or claim a pointer transaction/pixel result in this branch.
+    art.queue_redraw()
+    for frame in 4:await process_frame
+    var covered=fixed_command_coverage(point)
+    check(covered==(0 if exposed else 1),"actual retained table commands match fixed "+camera+(" exposed" if exposed else " covered")+" point")
+    occlusion_observations.append({"scene":camera+("-exposed" if exposed else "-covered"),"pointer":[point.x,point.y],"table_local_point":[local.x,local.y],"command_coverage":covered,"native_pointer_skipped":true})
+    continue
+   # Normal/detail await actual paint for optional baseline evidence. Zoom-pan
+   # deliberately taps immediately after projection changes, requiring a fresh
+   # completed receipt rather than reusing the previous camera's commands.
+   if camera!="zoom-pan":art.queue_redraw();await settle();await settle()
+   var label=camera+("-exposed" if exposed else "-covered")
+   var capture=OS.get_environment("LL_CAPTURE_OUTPUT")
+   if capture!="" and camera!="zoom-pan" and DisplayServer.get_name()!="headless":
+    check(root.get_texture().get_image().save_png(capture.path_join("ground-"+label+".png"))==OK,"capture actual fixed "+label)
+   var wallet=game.model.coins
+   event(point,true);event(point,false);await settle();await settle()
+   check(alive(id)!=exposed,"fixed "+label+" respects actual painted coverage")
+   check(game.model.coins==wallet+(1 if exposed else 0),"fixed "+label+" rewards only visible completed litter")
+   occlusion_observations.append({"scene":label,"pointer":[point.x,point.y],"table_local_point":[local.x,local.y],"expected_cleaned":exposed,"cleaned":not alive(id),"legacy_box_hits":true})
+
+ # Native-slot counters stay at zero in immediate fallback, but that empty
+ # range must never certify furniture/walls as absent from the painted scene.
+ for flag in ["use_command_retention","use_retained_geometry","use_native_object_nodes"]:
+  art.set(flag,false);art.queue_redraw()
+  for frame in 4:await process_frame
+  check(art.ground_occlusion_start==-1 and art.ground_occlusion_end==-1,"immediate painter invalidates ground span when "+flag+" is disabled")
+  art.set(flag,true)
+ art.queue_redraw()
+ for frame in 4:await process_frame
+ check(art.ground_occlusion_start>=0 and art.ground_occlusion_end>art.ground_occlusion_start,"retained painter restores a nonempty world span after fallback")
+
+func fixed_command_coverage(point:Vector2)->int:
+ var art=game.illustration
+ var pick=art.character_pick_geometry
+ var images={}
+ for nodes in [art.native_object_nodes,art.native_world_shapes]:
+  for order in nodes:
+   if order<art.ground_occlusion_start or order>=art.ground_occlusion_end:continue
+   var result=pick._node_hit(nodes[order],point,art.modulate.a,images)
+   if result!=0:return result
+ return 0

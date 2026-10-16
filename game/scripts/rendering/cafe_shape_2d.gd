@@ -8,6 +8,8 @@ var contour_material: ShaderMaterial
 var contour_scale = -1.0
 var draw_method: StringName
 var draw_arguments: Array = []
+var paint_revision: int = 0
+var painted_revision: int = -1
 
 
 func configure(method: StringName, arguments: Array, placement: Transform2D) -> void:
@@ -78,6 +80,7 @@ func configure(method: StringName, arguments: Array, placement: Transform2D) -> 
 		# changes too and appears dirty on every following frame. Godot's deep
 		# array copy preserves Resource identities while isolating packed arrays.
 		draw_arguments = arguments.duplicate(true)
+		paint_revision += 1
 		queue_redraw()
 	show()
 
@@ -95,3 +98,4 @@ func _draw() -> void:
 		)
 	elif draw_method != &"":
 		callv(draw_method, draw_arguments)
+	painted_revision = paint_revision

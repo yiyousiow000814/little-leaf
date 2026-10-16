@@ -90,7 +90,7 @@ func clear_hover():
  if had_hover and is_instance_valid(game.illustration):game.illustration.queue_redraw()
 func hover(screen:Vector2):
  if not allowed():clear_hover();return
- # Hover is cosmetic and stays below characters in the existing floor pass.
+ # Hover is provisional and cosmetic, below all world solids in the floor pass.
  # Never open/replace the certified release query from a pointer motion.
  if released:clear_hover();return
  # refresh() is also called for a stationary mouse each gameplay frame.
@@ -125,14 +125,7 @@ func allowed()->bool:
  if game.cafe_intro!=null and game.cafe_intro.active:return false
  if game.compact_ui!=null and (game.compact_ui.viewport_too_small or game.compact_ui.has_open_popup()):return false
  return not (is_instance_valid(game.settings) and game.settings.visible)
-func _occluded(screen:Vector2,characters=true)->bool:
- var art=game.illustration
- var item_id=art.hit_item(screen)
- if item_id>=0 and str(game.model.get_item(item_id).get("kind",""))!="rug":return true
- if not art.hit_wall_host(screen).is_empty():return true
- return characters and art.character_occludes(screen)
-
-func hit(screen:Vector2,characters=true)->Dictionary:
+func hit(screen:Vector2,certified=true)->Dictionary:
  if not allowed() or not game.interaction._point_in_view(screen) or game.interaction._over_ui(screen):return {}
  var art=game.illustration
  art.update_projection()
@@ -146,7 +139,10 @@ func hit(screen:Vector2,characters=true)->Dictionary:
    if record.is_empty() or not art._floor_mess_active(record):continue
    var paint=HitPaint.new(art,screen)
    MessArt.draw(paint,record)
-   if paint.hit:return {} if _occluded(screen,characters) else identity
+   # Press/hover only nominate the original litter silhouette. No coarse
+   # furniture/wall mask may reject visible floor; release alone settles after
+   # the renderer certifies actual painted coverage in its completed frame.
+   if paint.hit:return {} if certified and art.ground_mess_occluded(screen) else identity
  return {}
 func begin(screen:Vector2):
  cancel()

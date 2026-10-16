@@ -63,23 +63,60 @@ The coin is an actual editable GLB model: three indexed mesh surfaces (front/bac
 The initial emergence/landing and two diminishing bounces retain their previous timing and heights. Each successful emission samples a dedicated cosmetic RNG once for bounded world-space direction/travel, kept only in the transient effect. A bounded path search redirects or shortens near walls/furniture. The moving ground shadow paints below every coin. Ground support is computed from actual mesh vertices after real 3D rotation. The three true contacts emit `coin_drop` once each at effect ages 1.15s, 1.59s and 1.91s, with individual gains 0, -4 and -8 dB. Monotonic threshold crossings retain every actual contact even when one slow frame passes several; independent bounded playback voices preserve overlapping tails. Resting on the floor never retriggers a cue. After the second rebound and a short settle, `coin_pickup` starts once at 2.05s while the same rigid mesh translates upward and fades. Source identities are recorded in [coin feedback provenance](../../game/assets/audio/sfx/COIN_FEEDBACK_PROVENANCE.json). Exactly +1 once remains; no model RNG or save schema change. Effects expire after 2.55s and restoration invalidates them before delayed sound can play.
 
 
-Character occlusion queries the current retained painter. It does not repaint a
-character, solve a pose, change routing or allocate retained meshes, textures or
-nodes. A draw-time projection stamp, matching pre/post draw state and current
-state check protect the completed image. Visible stale characters and unsupported
-ancestor presentation fail closed. The receipt hashes command arrays, so work is
-O(character descendants + geometry content) only during a bounded cleanup query;
-ordinary rendering does not traverse geometry. A valid release queues one painted
-frame instead of changing the model immediately. Its query expires after 250 ms
-and allows at most two submission/completion certifications; cancellation closes
-it. Settlement rechecks input guards, identity, projection and current geometry
-against the completed receipt. No receipt or an expired window grants no cleanup.
-This is not a constant-cost or FPS acceptance claim. Mesh resources are treated as
-immutable renderer-owned inputs, matching the existing retained painter contract.
+## Painted floor-hit candidate (2026-10-16)
+
+Purpose: exposed litter must remain clickable beside/behind furniture. The old
+cleanup guard combined a real litter silhouette with `hit_item` rectangles and
+full wall-host faces, incorrectly rejecting empty portions of those masks. PR337
+addressed Decorate's different clicked-cell policy; it did not fix this play-mode
+visibility guard. Keep that accepted cell-selection behavior and GUI/camera input
+ownership unchanged. No customer/staff click-to-serve route is introduced.
+
+Proportionate Feature Design Quality Gate:
+
+- Gameplay/UI: keep original litter hit geometry, identity, cancellation, custody
+  and exactly-once +1 completion. Press/hover nominate a candidate only. Hover is
+  provisional cosmetic paint in the existing floor pass, so solids naturally
+  cover it; it is not an authorization or a geometry query. Release alone asks
+  the renderer to certify visibility before the shared transaction can run.
+- Renderer owner: extend the existing bounded retained-command query (historical
+  `cafe_character_pick_geometry.gd` name) to the half-open painter span after floor
+  litter/effects and before editing overlays. The same actual furniture parts,
+  doorway panels, actor poses, transforms, triangles and texture alpha determine
+  coverage. Do not infer silhouettes from model footprints, host boxes or another
+  pose/art replay. Ground rugs/rings and cosmetic litter/coins are below the span.
+- Cost/ownership: two span integers on the scene artist and two scalar repaint
+  revision counters on each existing native draw/shape node. No new nodes,
+  retained mesh/image cache, timer, routing state, saved field or wall-slice
+  preparation. Revisions advance only on changed commands/appearance and record
+  completion in the existing native draw. Geometry hashing/traversal and temporary
+  image readback run only during a released query, bounded to 250 ms and at most
+  two submitted/completed frames. This is O(world commands + relevant geometry),
+  not constant cost or an FPS qualification. Scene-owned nodes release their
+  counters; temporary query arrays/images are not retained.
+- Evidence boundary: fixed-coordinate command fixtures cover clear table-leg
+  gaps, solid neighbors, doorway holes, transformed objects, paint revisions,
+  painter-span exclusion and polygon/mesh texture alpha. The native cleanup test
+  also defines authored round-table exposed/covered paper points at normal,
+  detail and first-frame zoom/pan, without searching `hit()` for a passing point.
+  That generated fixture is not the unidentified object in the user's crop.
+  Headless tests cannot establish native pointer or pixel acceptance. Native
+  source-bound before/after capture, composed renderer cost and visual acceptance
+  remain required; this candidate does not change merged/released status.
+
+The read-only query never repaints, solves a pose or changes routing. A draw-time
+projection stamp, matching pre/post draw state, completed repaint revisions and
+current state check protect the completed image. Visible stale commands and
+unsupported presentation fail closed. A frame using immediate painting instead of
+native command retention leaves the span invalid, never an apparently clear empty
+range. No receipt or an expired window grants cleanup. Mesh resources remain immutable renderer-owned inputs, as required by
+the existing retained painter contract. Unknown commands do not silently grant a
+click. Full wall hosts and furniture rectangles are no longer cleanup vetoes.
 
 The integration runner executes `test_manual_ground_cleanup` against a disposable
 profile. Headless runs check the shared custody, duplicate completion and save
-API, and explicitly skip real-pointer checks. Native GL Compatibility runs execute
+API plus the actual retained table commands at fixed points; they explicitly skip
+real-pointer certification and pixels. No completed-frame receipt is fabricated. Native GL Compatibility runs execute
 the full input checks after actual completed frames. `test_character_pick_geometry`
 uses synthetic command/receipt fixtures and does not establish rendered pixels.
 `test_direct_janitor_cleanup` protects the existing automatic path.

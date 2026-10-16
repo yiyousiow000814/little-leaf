@@ -1,6 +1,7 @@
 extends RefCounted
-## Query the current retained painter's commands. Never repaint or solve a pose.
-## Alpha below this threshold includes the character's non-occluding shadow.
+## Ground-litter visibility in the current retained painter (historical filename).
+## Read only the completed world span above litter; never repaint or solve a pose.
+## Alpha below this threshold includes non-occluding ground shadows.
 const ALPHA=.2
 const CLEAR=0
 const HIT=1
@@ -52,19 +53,23 @@ func _supported_ancestors(art)->bool:
 func _node_state(node:Node2D,state:int)->int:
 	state=hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_global_transform_with_canvas(),node.visible,node.modulate,node.self_modulate,node.material])
 	if node.get_script()==Shape:
-		state=hash([state,node.draw_method,node.draw_arguments])
+		state=hash([state,node.get_meta("generation",-1),node.draw_method,node.draw_arguments,node.paint_revision,node.painted_revision])
 		if node.material is ShaderMaterial:state=hash([state,node.material.get_shader_parameter("stroke_width"),node.material.get_shader_parameter("geometry_scale")])
 	elif node.get_script()==Native:
-		state=hash([state,node.generation,node.appearance,node.draw_count,node.resources])
+		state=hash([state,node.generation,node.appearance,node.draw_count,node.resources,node.paint_revision,node.painted_revision])
 		for child in node.shapes:
 			if is_instance_valid(child):state=_node_state(child,state)
 	return state
 
+func _in_world_span(art,order:int)->bool:
+	return order>=art.ground_occlusion_start and order<art.ground_occlusion_end
+
 func _state(art)->int:
 	# A bounded scalar receipt, not copied geometry or retained renderer resources.
-	var state=hash([art.modulate,art.self_modulate])
-	for node in art.native_object_nodes.values():
-		if is_instance_valid(node) and not node.appearance.is_empty() and node.appearance[0][0]=="character":state=_node_state(node,state)
+	var state=hash([art.modulate,art.self_modulate,art.ground_occlusion_start,art.ground_occlusion_end])
+	for nodes in [art.native_object_nodes,art.native_world_shapes]:
+		for order in nodes:
+			if _in_world_span(art,int(order)) and is_instance_valid(nodes[order]):state=_node_state(nodes[order],state)
 	return state
 
 func submitting(art):
@@ -90,30 +95,33 @@ func presented(art):
 
 func occludes(art,screen:Vector2)->bool:
 	last_uncertain=false
-	if not query_active() or not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
+	if not query_active() or not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or art.ground_occlusion_start<0 or art.ground_occlusion_end<art.ground_occlusion_start or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
 		last_uncertain=true;return true
 	# Images/mesh arrays live only for this pointer query; no retained readback
 	# cache, additional nodes, renderer resources or per-frame geometry copies.
 	var images={}
-	for node in art.native_object_nodes.values():
-		if not is_instance_valid(node) or not node.is_visible_in_tree():continue
-		var appearance:Array=node.appearance
-		if appearance.is_empty() or appearance[0].is_empty() or appearance[0][0]!="character":continue
-		if node.generation!=presented_frame:last_uncertain=true;return true
-		# configure clears these existing receipts when appearance changes; the
-		# native character callback repopulates them only after actual painting.
-		if node.contacts.is_empty():last_uncertain=true;return true
-		var result=_node_hit(node,screen,art.modulate.a,images)
-		if result!=CLEAR:last_uncertain=result==UNKNOWN;return true
+	for nodes in [art.native_object_nodes,art.native_world_shapes]:
+		for order in nodes:
+			if not _in_world_span(art,int(order)):continue
+			var node=nodes[order]
+			if not is_instance_valid(node) or not node.is_visible_in_tree():continue
+			var generation=node.generation if node.get_script()==Native else int(node.get_meta("generation",-1))
+			if generation!=presented_frame:last_uncertain=true;return true
+			if node.get_script()==Native and not node.appearance.is_empty() and node.appearance[0][0]=="character" and node.contacts.is_empty():
+				last_uncertain=true;return true
+			var result=_node_hit(node,screen,art.modulate.a,images)
+			if result!=CLEAR:last_uncertain=result==UNKNOWN;return true
 	return false
 
 func _node_hit(node:Node2D,screen:Vector2,opacity:float,images:Dictionary)->int:
 	if not node.is_visible_in_tree():return CLEAR
 	opacity*=node.modulate.a*node.self_modulate.a
 	if opacity<=ALPHA:return CLEAR
+	if node.get_script() not in [Shape,Native] or node.paint_revision!=node.painted_revision:return UNKNOWN
 	var transform=node.get_global_transform_with_canvas()
 	if not transform.is_finite() or is_zero_approx(transform.determinant()):return UNKNOWN
 	var point=transform.affine_inverse()*screen
+	if node.material!=null and not (node.get_script()==Shape and node.draw_method in [&"retained_aa_mesh",&"scaled_contours"] and node.material is ShaderMaterial):return UNKNOWN
 	if node.get_script()==Shape:return command_hit(node.draw_method,node.draw_arguments,point,opacity,transform,node.material,images)
 	if node.get_script()!=Native:return UNKNOWN
 	if node._rigid_key_supported() and not node.resources.is_empty():
@@ -130,16 +138,13 @@ func _node_hit(node:Node2D,screen:Vector2,opacity:float,images:Dictionary)->int:
 
 func command_hit(method:StringName,args:Array,point:Vector2,opacity:float,transform:Transform2D,material:Material,images:Dictionary)->int:
 	match method:
-		&"draw_colored_polygon":
-			if args[3]!=null:return UNKNOWN
-			return HIT if args[1].a*opacity>ALPHA and Geometry2D.is_point_in_polygon(point,args[0]) else CLEAR
-		&"draw_polygon":
-			if args[3]!=null:return UNKNOWN
+		&"draw_colored_polygon",&"draw_polygon":
 			if not Geometry2D.is_point_in_polygon(point,args[0]):return CLEAR
-			return _triangles_hit(args[0],args[1],Geometry2D.triangulate_polygon(args[0]),point,opacity)
+			var colors=PackedColorArray([args[1]]) if method==&"draw_colored_polygon" else args[1]
+			return _triangles_hit(args[0],colors,Geometry2D.triangulate_polygon(args[0]),point,opacity,args[3],args[2],images)
 		&"draw_mesh":
-			if args[1]!=null:return UNKNOWN
-			return _mesh_hit(args[0],args[2].affine_inverse()*point,opacity*args[3].a)
+			if not args[2].is_finite() or is_zero_approx(args[2].determinant()):return UNKNOWN
+			return _mesh_hit(args[0],args[2].affine_inverse()*point,opacity*args[3].a,0.0,1.0,args[1],images)
 		&"retained_aa_mesh",&"scaled_contours":
 			var scale=maxf(transform.x.length(),1.0)
 			var width=float(material.get_shader_parameter("stroke_width")) if method==&"retained_aa_mesh" and material is ShaderMaterial else .7
@@ -177,7 +182,7 @@ func _line_hit(a:Vector2,b:Vector2,color:Color,width:float,point:Vector2,opacity
 	var stroke=Strokes.new();stroke.add_line(a,b,color,width)
 	return _triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,opacity)
 
-func _mesh_hit(mesh:Mesh,point:Vector2,opacity:float,fringe=0.0,geometry_scale=1.0)->int:
+func _mesh_hit(mesh:Mesh,point:Vector2,opacity:float,fringe=0.0,geometry_scale=1.0,texture:Texture2D=null,images:Dictionary={})->int:
 	var bounds=mesh.get_aabb()
 	var rect=Rect2(Vector2(bounds.position.x,bounds.position.y)*geometry_scale,Vector2(bounds.size.x,bounds.size.y)*geometry_scale)
 	if not rect.grow(5.0 if fringe!=0 else 0.0).has_point(point):return CLEAR
@@ -188,11 +193,11 @@ func _mesh_hit(mesh:Mesh,point:Vector2,opacity:float,fringe=0.0,geometry_scale=1
 		for i in arrays[Mesh.ARRAY_VERTEX].size():
 			var vertex=arrays[Mesh.ARRAY_VERTEX][i]
 			vertices.append(Vector2(vertex.x,vertex.y)*geometry_scale+(uv[i]*fringe if uv!=null and fringe!=0 else Vector2.ZERO))
-		var result=_triangles_hit(vertices,arrays[Mesh.ARRAY_COLOR],arrays[Mesh.ARRAY_INDEX],point,opacity)
+		var result=_triangles_hit(vertices,arrays[Mesh.ARRAY_COLOR],arrays[Mesh.ARRAY_INDEX],point,opacity,texture,uv,images)
 		if result!=CLEAR:return result
 	return CLEAR
 
-func _triangles_hit(vertices,colors,indices,point:Vector2,opacity:float)->int:
+func _triangles_hit(vertices,colors,indices,point:Vector2,opacity:float,texture:Texture2D=null,uvs=null,images:Dictionary={})->int:
 	var count=indices.size() if indices!=null and not indices.is_empty() else vertices.size()
 	for i in range(0,count-2,3):
 		var ids=[indices[i],indices[i+1],indices[i+2]] if indices!=null and not indices.is_empty() else [i,i+1,i+2]
@@ -204,6 +209,13 @@ func _triangles_hit(vertices,colors,indices,point:Vector2,opacity:float)->int:
 		var alpha=1.0
 		if colors!=null and not colors.is_empty():
 			alpha=colors[0].a if colors.size()==1 else u*colors[ids[0]].a+v*colors[ids[1]].a+w*colors[ids[2]].a
+		if alpha*opacity<=ALPHA:continue
+		if texture!=null:
+			if uvs==null or uvs.size()!=vertices.size():return UNKNOWN
+			var uv:Vector2=u*uvs[ids[0]]+v*uvs[ids[1]]+w*uvs[ids[2]]
+			var sampled=_texture_alpha(texture,uv*texture.get_size()-Vector2(.5,.5),images)
+			if sampled<0:return UNKNOWN
+			alpha*=sampled
 		if alpha*opacity>ALPHA:return HIT
 	return CLEAR
 
@@ -211,16 +223,22 @@ func _texture_hit(args:Array,point:Vector2,opacity:float,images:Dictionary)->int
 	var rect:Rect2=args[1];var source:Rect2=args[2]
 	if not rect.abs().has_point(point) or args[3].a*opacity<=ALPHA:return CLEAR
 	if is_zero_approx(rect.size.x) or is_zero_approx(rect.size.y):return CLEAR
-	var texture:Texture2D=args[0]
-	if not images.has(texture):images[texture]=texture.get_image()
-	var image:Image=images[texture]
-	if image==null or image.is_empty():return UNKNOWN
 	var uv=(point-rect.position)/rect.size
 	if args[4]:uv=Vector2(uv.y,uv.x)
-	var sample=source.position+uv*source.size-Vector2(.5,.5)
+	var sampled=_texture_alpha(args[0],source.position+uv*source.size-Vector2(.5,.5),images)
+	if sampled<0:return UNKNOWN
+	return HIT if sampled*args[3].a*opacity>ALPHA else CLEAR
+
+func _texture_alpha(texture:Texture2D,sample:Vector2,images:Dictionary)->float:
+	if not images.has(texture):
+		var decoded=texture.get_image()
+		if decoded!=null and decoded.is_compressed() and decoded.decompress()!=OK:return -1.0
+		images[texture]=decoded
+	var image:Image=images[texture]
+	if image==null or image.is_empty():return -1.0
 	var x=floori(sample.x);var y=floori(sample.y);var mix=sample-Vector2(x,y)
 	var a=image.get_pixel(clampi(x,0,image.get_width()-1),clampi(y,0,image.get_height()-1)).a
 	var b=image.get_pixel(clampi(x+1,0,image.get_width()-1),clampi(y,0,image.get_height()-1)).a
 	var c=image.get_pixel(clampi(x,0,image.get_width()-1),clampi(y+1,0,image.get_height()-1)).a
 	var d=image.get_pixel(clampi(x+1,0,image.get_width()-1),clampi(y+1,0,image.get_height()-1)).a
-	return HIT if lerpf(lerpf(a,b,mix.x),lerpf(c,d,mix.x),mix.y)*args[3].a*opacity>ALPHA else CLEAR
+	return lerpf(lerpf(a,b,mix.x),lerpf(c,d,mix.x),mix.y)
