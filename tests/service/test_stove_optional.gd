@@ -10,6 +10,40 @@ var checks=0;var failures=[]
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
+func inspect_live_idle_constraints(game):
+ game._refresh_idle_homes()
+ var free=[]
+ for z in range(game.model.depth):
+  for x in range(1,game.model.width):
+   var cell=Vector2i(x,z)
+   if game._is_station_workface(cell) or not game._idle_cell_clear(cell,1,[]):continue
+   if game.staff_states.any(func(peer):return peer.idle_home_cell==cell):continue
+   if not game._static_service_path(Model.ENTRY_LANDING,cell).is_empty():free.append(cell)
+ check(free.size()>=2,"synthetic layout has two reachable idle destinations")
+ if free.size()<2:return
+ var from:Vector2i=free[0];var home:Vector2i=free[1]
+ var worker=game.staff_states[1];worker.pos=game.model.cell_center(from);worker.idle_home_cell=home;worker.idle_return_delay=.01
+ check(game._staff_idle_cell(1,[])==from,"positive home delay keeps the valid current cell")
+ var revision=game.model.revision
+ game.model.customers.append({"id":99001,"phase":"checkout_wait","checkout_cell":from})
+ check(game.model.revision==revision and game._staff_idle_cell(1,[])!=from,"live checkout claim excludes current cell without a revision change")
+ game.model.customers.pop_back()
+ check(game.model.revision==revision and game._staff_idle_cell(1,[])==from,"removing a live checkout claim restores current-cell eligibility")
+ game.model.items.append({"id":99002,"kind":"plant","x":home.x,"z":home.y,"rot":0})
+ worker.idle_return_delay=0.0
+ check(game._staff_idle_cell(1,[])==from and worker.idle_return_delay==1.5,"blocked home resets return delay before choosing current cell")
+ check(game._static_service_path(from,home).is_empty(),"geometry mutation invalidates the previously reachable home path")
+ game.model.items.pop_back();worker.idle_return_delay=0.0
+ check(game._staff_idle_cell(1,[])==home and not game._static_service_path(from,home).is_empty(),"geometry reversal restores home priority and reachability")
+ worker.idle_return_delay=.01
+ check(game._staff_idle_cell(1,[])==from,"current cell remains preferred before delay reaches zero")
+ worker.idle_return_delay=0.0
+ check(game._staff_idle_cell(1,[])==home,"home wins immediately when delay crosses zero")
+ worker.idle_return_delay=1.5
+ var peer=game.staff_states[2];var peer_home=peer.idle_home_cell;peer.idle_home_cell=from
+ check(game._staff_idle_cell(1,[])!=from,"live peer-home change excludes current cell")
+ peer.idle_home_cell=peer_home
+ check(game._staff_idle_cell(1,[])==from,"removing peer-home reservation restores current cell")
 func _initialize():run.call_deferred()
 func run():
  var m=Model.new();m.items.clear();m.dining_sets.clear();m.customers.clear();m.coins=100000
@@ -59,6 +93,7 @@ func run():
  chef.blocked_reason="";chef.art_block_reason="";chef.blocked_target_id=-1
  game._staff_idle_cell(0,[])
  check(chef.blocked_reason=="","idle decorative stove does not generate recurring blocked prompt")
+ inspect_live_idle_constraints(game)
  check(game.saves==0,"diagnosis and idle planning never save")
  print("STOVE_OPTIONAL_RESULT ",JSON.stringify({"checks":checks,"failures":failures}))
  for player in game.audio_players.values():player.stop();player.stream=null
