@@ -64,7 +64,8 @@ func run():
  check(ui.inbox.rows.size()==1 and ui.inbox.has_unread(),"support letter appears without a legacy paid-receipt projection")
  ui.inbox.rows[0].pressed.emit();await process_frame
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
- check("Claim gifts" in _text(ui.inbox.footer),"unclaimed gifts keep the real claim action in the fixed footer")
+ check("Claim attachments" in _text(ui.inbox.footer),"unclaimed gifts keep the real claim action in the fixed footer")
+ check(ui.inbox.MailFrame.inner_rect(ui.inbox.panel).encloses(ui.inbox.footer.get_global_rect()) and ui.inbox.MailFrame.inner_rect(ui.inbox.panel).encloses(ui.inbox.heading_box.get_global_rect()),"Inbox heading/actions stay inside the wood face")
  check(ui.inbox.panel.get_theme_stylebox("panel") is StyleBoxTexture and ui.inbox.WIDTH==460,"Inbox restores its original wood frame and width")
  check(ui.inbox.has_unread()==false,"reading does not claim or retain unread dot")
  var tab=InputEventKey.new();tab.keycode=KEY_TAB;tab.pressed=true
@@ -80,7 +81,7 @@ func run():
  check(game.web_save.pending and game.web_save.queued and game.web_save._support_claim_mail_id==MAIL,"pagehide or autosave queues behind an active claim without clearing its identity")
  game.web_save.pending=false;game.web_save.queued=false;game.web_save._support_claim_mail_id="";game.save_writes_suppressed=true
  ui._hide_popups();ui.support_mail.entry.visible=true;ui.support_mail.show()
- check(ui.support_mail.panel.visible and ui.support_mail.quantities.size()==10 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
+ check(ui.support_mail.panel.visible and ui.support_mail.gift_catalog.entries.size()==10 and ui.support_mail.result_slots.size()==4 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
  var composer=ui.support_mail
  # Exercise the actual lookup callback without a Web bridge or live account.
  var delayed=DelayedLookup.new(ui);delayed.setup();delayed.recipient.text="123456789012"
@@ -139,20 +140,42 @@ func run():
  check(composer._request().is_empty() and composer.send_button.disabled,"unimplemented all-player service fails closed")
  composer._set_recipient_mode("selected")
  composer.recipient.text="123456789012"
- composer.quantities.plant.value=2
+ composer._set_gift_quantity("plant",2)
  composer.item_toggle.pressed.emit();composer.item_toggle.pressed.emit()
- check(not composer.item_picker.visible and int(composer.quantities.plant.value)==2 and "2 selected" in composer.item_toggle.text,"collapsing item choices retains selected gifts and count")
+ check(not composer.item_picker.visible and int(composer.quantities.plant)==2 and "2 items" in composer.selected_title.text,"collapsing item choices retains selected gifts and count")
  composer.item_picker.show()
+ var supported_rows=composer.gift_catalog.entries.duplicate(true)
+ var large_rows:Array=[]
+ for i in 125:large_rows.append({"id":"fixture_%03d"%i,"name":"Fixture item %03d"%i,"category":"Kitchen" if i%2==0 else "Decor"})
+ composer.gift_catalog.configure(large_rows);composer.result_page=0;composer._refresh_gift_results()
+ check(composer.result_slots.size()==4 and composer.gift_grid.get_child_count()==4 and "125 items" in composer.result_page_label.text,"125 display entries retain four result controls, not 125 widgets")
+ check(composer.result_slots.all(func(slot):return slot.add.disabled),"unsupported display fixtures never become grantable items")
+ composer.gift_search.text="item 124";composer.gift_search.text_changed.emit(composer.gift_search.text)
+ check(composer.result_slots[0].id=="fixture_124" and "1 items" in composer.result_page_label.text,"multi-token search finds the last of 125 entries")
+ composer.gift_search.text="no matching item";composer.gift_search.text_changed.emit(composer.gift_search.text)
+ check(composer.result_empty.visible and composer.result_slots.all(func(slot):return not slot.card.visible),"empty search hides stale catalogue results")
+ composer.gift_catalog.configure(supported_rows);composer.gift_search.text="";composer.gift_search.text_changed.emit("")
+ for kind in ["stove","sink","lamp","divider"]:composer._set_gift_quantity(kind,1)
+ composer._move_selected_page(1)
+ check(composer.selected_slots.size()==3 and composer.selected_page==1 and composer.selected_slots[0].id!="","selected basket is separately paged without another scroller")
+ var removed_id=str(composer.selected_slots[0].id);composer._remove_selected(0)
+ check(not composer.quantities.has(removed_id),"basket remove clears only its selected item")
+ check("Storage" in _text(composer.item_toggle.get_parent()),"mail item destination uses Storage, not a Gifts shelf")
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=viewport
   for i in 8:await process_frame
   check(Rect2(Vector2.ZERO,Vector2(viewport)).encloses(composer.panel.get_global_rect()),"composer fits safe viewport "+str(viewport))
+  var wood=composer.MailFrame.inner_rect(composer.panel)
+  check(wood.encloses(composer.header.get_global_rect()) and wood.encloses(composer.footer.get_global_rect()) and wood.encloses(composer.scroll.get_global_rect()),"header, footer and scroller stay within actual wood face "+str(viewport))
   check(composer.letter.size.y>500 and not composer.letter.get_v_scroll_bar().visible,"long letter expands without an editor scrollbar "+str(viewport))
   check(composer.scroll.get_v_scroll_bar().visible,"form owns long-content scroll "+str(viewport))
   check(composer.send_button.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"send stays below scrolling content "+str(viewport))
-  composer.scroll.ensure_control_visible(composer.quantities.divider)
+  composer._move_result_page(99)
   for i in 3:await process_frame
-  check(composer.scroll.get_global_rect().encloses(composer.quantities.divider.get_global_rect()),"expanded final attachment reachable "+str(viewport))
+  composer.scroll.ensure_control_visible(composer.result_next)
+  for i in 3:await process_frame
+  check(composer.scroll.get_global_rect().encloses(composer.result_next.get_global_rect()),"last gift page controls reachable "+str(viewport))
+  check(composer.selected_slots.filter(func(slot):return slot.card.visible).all(func(slot):return slot.minus.size.x>=44 and slot.minus.size.y>=44 and slot.plus.size.x>=44 and slot.plus.size.y>=44),"selected quantity tap targets remain 44px "+str(viewport))
   check("1 Leaf Coins" in composer.attachment_summary.text and composer.attachment_summary.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"per-player attachment total remains outside the scroller "+str(viewport))
  composer.scroll.scroll_vertical=0;composer.preview_summary.text="Confirm this synthetic letter.";composer.preview_card.show();composer._reveal_review()
  for i in 4:await process_frame

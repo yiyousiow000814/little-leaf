@@ -114,6 +114,8 @@ func run():
   inbox.rows[0].pressed.emit();await settle()
   check(inbox.letter_body.get_global_rect().position.x-inbox.letter_paper.get_global_rect().position.x>=21.5 and inbox.letter_paper.get_global_rect().end.x-inbox.letter_body.get_global_rect().end.x>=21.5,"real paper margins at "+str(size))
   check(not inbox.scroll.get_h_scroll_bar().visible,"letter never scrolls horizontally at "+str(size))
+  var wood=inbox.MailFrame.inner_rect(inbox.panel)
+  check(wood.encloses(inbox.heading_box.get_global_rect()) and wood.encloses(inbox.scroll.get_global_rect()) and wood.encloses(inbox.footer.get_global_rect()),"Inbox content stays inside measured wood face at "+str(size))
   await capture("06-detail-"+str(size.x)+"x"+str(size.y))
  root.size=Vector2i(390,844);game.set_meta("hud_safe_insets",Vector4(14,30,14,28));await settle();inbox.show();await settle()
  check(inbox.panel.position.x>=14 and inbox.panel.position.y>=30 and inbox.panel.get_global_rect().end.x<=376 and inbox.panel.get_global_rect().end.y<=816,"Inbox respects safe insets")

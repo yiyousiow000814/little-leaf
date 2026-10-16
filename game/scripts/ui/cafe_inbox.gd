@@ -1,6 +1,7 @@
 extends RefCounted
 ## Legacy paid receipts and independently authenticated support mail.
 signal unread_changed(unread:bool)
+const MailFrame=preload("res://scripts/ui/cafe_mail_frame.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
 const WIDTH=460.0
@@ -59,7 +60,7 @@ func setup():
  if OS.has_feature("web"):api=JavaScriptBridge.get_interface("__littleLeafInbox")
  panel=compact._panel();panel.name="CompensationInbox"
  body=VBoxContainer.new();body.add_theme_constant_override("separation",12);panel.add_child(body)
- compact.hud.theme_panel(panel,true,26)
+ compact.hud.theme_panel(panel,true,0);MailFrame.apply(panel,WIDTH)
  heading_box=VBoxContainer.new();heading_box.add_theme_constant_override("separation",6);body.add_child(heading_box)
  scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true;body.add_child(scroll)
  content=VBoxContainer.new();content.add_theme_constant_override("separation",12);content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(content)
@@ -73,6 +74,7 @@ func fit_popup():
  if not is_instance_valid(panel) or not panel.visible:return
  var view=game.get_viewport().get_visible_rect().size;var insets=compact.hud._safe_insets()
  var width=minf(WIDTH,maxf(0,view.x-insets.x-insets.z-24))
+ MailFrame.apply(panel,width)
  var padding=panel.get_theme_stylebox("panel").get_minimum_size();var bar=scroll.get_v_scroll_bar()
  var gutter=bar.get_minimum_size().x+scroll.get_theme_constant("scrollbar_h_separation") if bar.visible else 0.0
  body.size.x=maxf(0,width-padding.x);content.size.x=maxf(0,width-padding.x-gutter)
@@ -274,12 +276,12 @@ func _support_detail(record:Dictionary):
   coin_row.add_child(_label("%s Leaf Coins"%Money.amount(int(record.coins)),18))
  for item in record.get("items",[]):
   gift_contents.add_child(_label("%s ×%d"%[str(item.get("catalogId","Gift")).capitalize(),int(item.get("quantity",0))],16))
- if not record.get("items",[]).is_empty():gift_contents.add_child(_label("Items will be waiting in Decorate → Gifts.",13,MUTED))
+ if not record.get("items",[]).is_empty():gift_contents.add_child(_label("After Claim: items → Storage; coins → wallet.",13,MUTED))
  letter_body.add_child(_label("Warmly,\nLittle Leaf",16))
  var claimed=str(record.get("status",""))=="claimed"
- letter_body.add_child(_label("Claimed" if claimed else "Ready to claim · reading does not claim gifts",14,MUTED))
+ letter_body.add_child(_label("Claimed" if claimed else "Ready to claim · reading does not claim",14,MUTED))
  if not claimed:
-  var claim:Button=game.button("Claim gifts",func():pass)
+  var claim:Button=game.button("Claim attachments",func():pass)
   claim.pressed.connect(func():
    if game.web_save==null or not game.web_save.claim_support_mail(str(record.mailId)):
     if compact.support_mail!=null:compact.support_mail.mail_error="Finish decorating and save your café before claiming."
