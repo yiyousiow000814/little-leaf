@@ -8,6 +8,7 @@ var _ages := PackedFloat32Array()
 var _cursor := 0
 var reduced := false
 var _music_energy := 0.0
+var _render_preparation: Dictionary = {}
 signal touched(point: Vector2)
 
 func _init() -> void:
@@ -21,6 +22,24 @@ func _init() -> void:
   var paint:=ShaderMaterial.new();paint.shader=PAINT;wave.material=paint
   wave.visible=false;add_child(wave);_waves.append(wave)
  visibility_changed.connect(_visibility_changed)
+
+func prepare_render() -> void:
+ # A retained static wave draws its real shader beneath the startup cover.
+ # Do not emit a touch, advance the wave pool or sample audio during this pass.
+ if not _render_preparation.is_empty() or not is_visible_in_tree():return
+ var wave:=_waves[0]
+ _render_preparation={"position":wave.position,"visible":wave.visible,"age":wave.material.get_shader_parameter("age"),"process":is_processing(),"input":is_processing_input()}
+ set_process(false);set_process_input(false)
+ wave.position=(size-wave.size)*0.5
+ wave.material.set_shader_parameter("age",0.3);wave.show()
+
+func finish_render_preparation() -> void:
+ if _render_preparation.is_empty():return
+ var wave:=_waves[0]
+ wave.position=_render_preparation.position;wave.visible=_render_preparation.visible
+ wave.material.set_shader_parameter("age",_render_preparation.age)
+ set_process(_render_preparation.process);set_process_input(_render_preparation.input)
+ _render_preparation.clear()
 
 func emit_at(point:Vector2) -> void:
  if reduced or not is_visible_in_tree():return
@@ -56,6 +75,7 @@ func _process(delta:float) -> void:
 
 func _visibility_changed() -> void:
  if is_visible_in_tree():return
+ finish_render_preparation()
  clear()
 
 func clear() -> void:

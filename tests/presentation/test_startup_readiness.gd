@@ -33,24 +33,61 @@ func fresh_intro():
 	game.cafe_intro.finish();Intro.shown_this_session = false
 	game.cafe_intro = Intro.new();game.cafe_intro.start(game)
 	return game.cafe_intro
+func rims_match(music_panel,premium):
+	# Family rows intentionally use their own selection faces, not gilded rims.
+	for button in [music_panel.automatic_button,music_panel.play_button,music_panel.mute_button]:
+		if music_panel.button_rims[button.get_instance_id()].visible!=premium:return false
+	return music_panel.premium_palette==premium
+func ripple_state(ripple):
+	var wave = ripple._waves[0]
+	return {"visible":wave.visible,"position":wave.position,"age":wave.material.get_shader_parameter("age"),"ages":ripple._ages.duplicate(),"cursor":ripple._cursor,"energy":ripple._music_energy,"reduced":ripple.reduced,"process":ripple.is_processing(),"input":ripple.is_processing_input()}
 func run():
 	Intro.shown_this_session = false
 	game = TestMain.new();game.process_mode = Node.PROCESS_MODE_DISABLED;root.add_child(game)
 	var music = game.audio_players.duplicate()
 	var elapsed = game.animation_time
 	var intro = game.cafe_intro
+	var music_panel = game.compact_ui.music_panel
+	var controls = game.settings_controls
+	var selected = controls.music_track
+	var old_dirty = controls.preferences_dirty
+	controls.preferences_dirty = true
+	var settings_before = FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray()
+	var ripple = music_panel.air_ripple
+	var ripple_before = ripple_state(ripple)
+	var touches = [0]
+	ripple.touched.connect(func(_point):touches[0] += 1)
 	var gate = TestWarmup.new();gate.start(game)
 	var first = FakeAtlas.new();first.state = "ready"
 	var second = FakeAtlas.new();var third = FakeAtlas.new()
 	gate.atlases = [first,second,third];gate._update_status()
 	check(intro.preparing and intro.active and intro.hud_alpha == 1.0,"opaque preparation owns active intro and warms real HUD")
 	check(gate.cover.color.a == 1.0 and gate.layer > intro.layer,"warm HUD stays behind fully opaque cover")
+	check(music_panel.preparing_render and music_panel.panel.visible and music_panel.poll_timer.is_stopped() and is_zero_approx(music_panel.record_mark.reveal),"Default music materials draw under the cover without starting playback polling")
+	check(rims_match(music_panel,false),"Default covered pose uses the actual ordinary control palette")
+	check(ripple.active_count()==1 and ripple._waves[0].is_visible_in_tree() and ripple._waves[0].get_global_rect().intersects(ripple.get_global_rect()) and not ripple.is_processing() and not ripple.is_processing_input() and touches[0]==0,"Covered static ripple is drawable without touch signals, wave processing or audio sampling")
 	check(gate.ready_count == 1 and gate.terminal_count == 1 and "1/3" in gate.label.text,"readiness count reflects actual ready atlases")
 	intro._process(5.0)
 	check(intro.elapsed == 0.0 and intro.motion_delta(.5) == 0.0 and intro.motion_delta(5.0) == 0.0,"preparation never advances intro or simulation clocks")
 	var key = InputEventKey.new();key.keycode = KEY_ENTER;key.pressed = true
 	check(intro.handle_input(key) and intro.active,"loading key is consumed without entry or skip")
-	gate._after_draw();gate._after_draw()
+	gate._after_draw()
+	check(is_equal_approx(music_panel.board_material.reveal,0.12) and music_panel.board_material._corner_canvas.visible and music_panel.board_material._corner_canvas.modulate.a>0,"Intermediate covered frame includes the fading corner material hidden at settled endpoints")
+	check(rims_match(music_panel,true) and music_panel.button_rims[music_panel.play_button.get_instance_id()].is_visible_in_tree(),"Intermediate covered Premium pose draws the real gilded control shader")
+	gate._after_draw()
+	check(music_panel.record_mark.reveal==1.0 and music_panel.board_material.reveal==1.0,"Next covered frame draws existing Premium materials before first user selection")
+	ripple.finish_render_preparation()
+	check(ripple_state(ripple)==ripple_before,"Static preparation restores every ripple field before ordinary panel dismissal")
+	ripple.prepare_render()
+	gate._after_draw()
+	check(not music_panel.preparing_render and not music_panel.panel.visible and music_panel.poll_timer.is_stopped(),"Completed material preparation restores the hidden, idle Music panel")
+	# The existing hide handler clears waves and stops idle processing. Test its
+	# hidden-state result separately from the exact restoration above.
+	var hidden_ripple = ripple_before.duplicate(true);hidden_ripple.process = false
+	if ripple_state(ripple)!=hidden_ripple:print("MUSIC_PREPARATION_RIPPLE_STATE ",JSON.stringify({"expected_hidden":hidden_ripple,"after":ripple_state(ripple)}))
+	check(ripple_state(ripple)==hidden_ripple and ripple.active_count()==0 and touches[0]==0,"Ordinary dismissal leaves the restored ripple pool hidden and idle without synthesizing a touch")
+	check(controls.music_track==selected and controls.preferences_dirty and (FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray())==settings_before,"Render preparation preserves the selected recording and does not flush pending preferences")
+	controls.preferences_dirty = old_dirty
 	check(not gate.finishing,"draws alone cannot release incomplete preparation")
 	for early_frame in range(8):gate._after_draw()
 	second.state = "ready";third.state = "ready";gate._update_status();gate._after_draw()
@@ -59,6 +96,7 @@ func run():
 	check(not gate.finishing and intro.preparing,"resource admission and upload stay behind the opaque cover")
 	gate._after_draw();await process_frame
 	check(game.startup_preparation_report.terminal_draws == 4,"release records four draws after final atlas became terminal")
+	check(game.startup_preparation_report.music_preparation_draws==3,"Readiness records Default, intermediate corner and full Premium draws")
 	check(not intro.preparing and intro.active and intro.elapsed == 0.0 and intro.hud_alpha == 0.0,"ready warm-up restores original welcome start and hidden HUD")
 	check(intro.handle_input(key) and intro.active,"held loading key cannot skip newly visible welcome")
 	key.pressed = false;check(intro.handle_input(key),"loading key release remains owned")
@@ -71,6 +109,19 @@ func run():
 	key.pressed = true
 	check(intro.handle_input(key) and intro.active and intro.entry_requested and intro.elapsed == 1.0,"first independent gesture after preparation starts normal descent")
 	key.pressed = false;check(intro.handle_input(key),"post-preparation entrance release is consumed")
+	for saved_id in ["service","service-1nd"]:
+		controls.music_track = saved_id
+		var dirty_before = controls.preferences_dirty
+		var wave_before = ripple_state(ripple)
+		check(music_panel.prepare_render(false) and rims_match(music_panel,false),"Covered Default palette is independent of saved selection "+saved_id)
+		music_panel.prepare_render(true,0.12)
+		check(rims_match(music_panel,true) and ripple.active_count()==1,"Covered Premium includes controls and ripple for "+saved_id)
+		music_panel.prepare_render(true);music_panel.finish_render_preparation()
+		var premium = saved_id=="service-1nd"
+		check(rims_match(music_panel,premium) and music_panel.record_mark._premium==premium and music_panel.board_material._premium==premium,"Preparation restores the actual saved Default/Premium presentation for "+saved_id)
+		check(not music_panel.panel.visible and music_panel.poll_timer.is_stopped() and ripple_state(ripple)==wave_before,"Preparation leaves no visible ripple or active polling for "+saved_id)
+		check(controls.music_track==saved_id and controls.preferences_dirty==dirty_before and game.audio_players==music and (FileAccess.get_file_as_bytes(controls.config_path) if FileAccess.file_exists(controls.config_path) else PackedByteArray())==settings_before,"Preparation preserves selection, pending preferences, original bytes and audio identities for "+saved_id)
+	controls.music_track = selected
 
 	intro = fresh_intro();gate = TestWarmup.new();gate.start(game)
 	first = FakeAtlas.new();first.state = "ready";second = FakeAtlas.new();third = FakeAtlas.new()
