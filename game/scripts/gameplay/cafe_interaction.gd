@@ -144,7 +144,6 @@ func refresh(screen: Vector2):
 		drag_valid = false
 		drag_footprint_valid = false
 	game.hover_cell = drag_cell if preview_active else game._floor_cell(screen)
-	if preview_active and is_instance_valid(game.tool_text):game.tool_text.text=drag_reason
 
 func cancel(clear_selection = true):
 	edit_plan.invalidate()
@@ -193,6 +192,18 @@ func rotate_selection():
 	else:
 		game.rotation_step = next
 
+func pick_furniture(screen:Vector2)->int:
+	if not game.editing or game.illustration.objects_hidden():return -1
+	# Decorate selects the clicked ground cell, not a tall sprite's rectangle.
+	# Physical dining parts resolve to one product; ground rugs stay below solids.
+	var cell:Vector2i=game._floor_cell(screen)
+	var rug_id=-1
+	for item in game.model.items:
+		if int(item.x)!=cell.x or int(item.z)!=cell.y:continue
+		if str(item.kind)!="rug":return game.model.logical_item_id(int(item.id))
+		rug_id=maxi(rug_id,int(item.id))
+	return rug_id
+
 func _begin_left(screen: Vector2, device: int = 0):
 	if _left_down: return
 	_pointer_device = device
@@ -209,12 +220,7 @@ func _begin_left(screen: Vector2, device: int = 0):
 	_gesture = "pending"
 	if not game.editing:manual_cleanup.begin(screen)
 	if game.editing and _press_kind == "":
-		_press_item_id = game.illustration.hit_item(screen)
-		if _press_item_id < 0:
-			var cell: Vector2i = game._floor_cell(screen)
-			var item: Dictionary = game.model.item_at(cell.x, cell.y)
-			if not item.is_empty(): _press_item_id = int(item.id)
-	if _press_item_id>=0:_press_item_id=game.model.logical_item_id(_press_item_id)
+		_press_item_id = pick_furniture(screen)
 	if game.editing and _press_kind == "" and _press_selected_id < 0 and _press_item_id < 0:
 		_press_parcel_id = _hit_parcel(screen)
 	refresh(screen)
