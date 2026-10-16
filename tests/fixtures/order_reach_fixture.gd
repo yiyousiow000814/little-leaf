@@ -40,6 +40,7 @@ func setup_targetless_cook():
  chef.destination=Vector2i(5,6)
 func setup_combined_work():
  setup_targetless_cook()
+ model.cooks=3
  # Two held-meal fallbacks compete with an order and a different chef's pass.
  # The original blocked pass/stove remain blocked; only guest204 owns pass130.
  model.items.append({"id":130,"kind":"counter","x":2,"z":4,"rot":0})
