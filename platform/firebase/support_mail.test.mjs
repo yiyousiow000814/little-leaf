@@ -28,6 +28,8 @@ assert.equal((await service.capabilities(auth(owner))).canIssue,true);
 assert.equal((await service.capabilities(auth(other))).canIssue,false);
 await assert.rejects(service.lookup(auth(other),player),{code:'PERMISSION_DENIED'});
 assert.equal((await service.lookup(auth(owner),player)).revision,1);
+for(let i=0;i<19;i++)await service.lookup(auth(owner),player);
+await assert.rejects(service.lookup(auth(owner),player),{code:'RATE_LIMITED'});
 for(const invalid of [{...input,items:[{catalogId:'register',quantity:1}]},{...input,coins:-1},
   {...input,items:[{catalogId:'plant',quantity:2},{catalogId:'plant',quantity:2}]},
   {...input,body:'\u0001'}])assert.throws(()=>normalizeIssue(invalid),{code:'INVALID_ISSUE'});

@@ -17,11 +17,12 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
   const backup=player=>path('players',player,'saveBackups','supportMailV1');
   const placement= (player,id)=>path('players',player,'giftPlacements',id);
   const caseRef=(player,caseId)=>path('supportCases',hash(player+'\n'+caseId));
-  const rate=(player,kind,time)=>path('supportRate',player,'windows',kind+'-'+Math.floor(time/60000));
-  function checkedRate(snapshot,limit) {
-    const count=snapshot.data()?.count||0;
+  const rate=player=>path('supportRate',player);
+  function checkedRate(snapshot,kind,time,limit) {
+    const previous=snapshot.data()||{},minute=Math.floor(time/60000);
+    const count=previous[kind]?.minute===minute?previous[kind].count:0;
     if(!Number.isSafeInteger(count)||count<0||count>=limit)throw error('RATE_LIMITED','Wait before another support action.');
-    return {count:count+1};
+    return {...previous,schema:1,[kind]:{minute,count:count+1}};
   }
   function active() {if(!enabled)throw error('FEATURE_DISABLED','Support mail is unavailable.');}
   function actor(context) {
@@ -60,11 +61,11 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const actorId=await authorized(context,'lookup'),time=now();
     if(!uid(recipientUid))throw error('INVALID_UID','Enter one exact player UID.');
     const found=await db.runTransaction(async tx=>{
-      const limit=rate(actorId,'lookup',time);
+      const limit=rate(actorId);
       const [r,quota,saved,ctrl]=await Promise.all([tx.get(role(actorId)),tx.get(limit),
         tx.get(save(recipientUid)),tx.get(control(recipientUid))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('lookup'))throw error('PERMISSION_DENIED','Support access changed.');
-      const next=checkedRate(quota,20);
+      const next=checkedRate(quota,'lookup',time,20);
       tx.set(limit,next);
       if(!saved.exists)return {missing:true};
       const record=head(saved.data());
@@ -84,7 +85,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const actorId=await authorized(context,'issue'),value=normalizeIssue(input),time=now();
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
-      const limit=rate(actorId,'preview',time);
+      const limit=rate(actorId);
       const [r,quota,p,s,existing]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
         tx.get(save(value.recipientUid)),tx.get(issue(value.issueId))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
@@ -93,7 +94,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       if(!s.exists)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
       const record=head(s.data());
       if(record.profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
-      tx.set(limit,checkedRate(quota,10));
+      tx.set(limit,checkedRate(quota,'preview',time,10));
       tx.set(preview(value.issueId),{schema:1,actorUid:actorId,requestHash:normalizedHash,
         recipientUid:value.recipientUid,profileId:value.profileId,createdAt:time,expiresAt:time+10*60*1000});
       return {issueId:value.issueId,previewHash:normalizedHash,expiresAt:time+10*60*1000,
@@ -105,7 +106,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const actorId=await authorized(context,'issue'),value=normalizeIssue(input),time=now();
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
-      const limit=rate(actorId,'issue',time);
+      const limit=rate(actorId);
       const [r,quota,p,existing,usedCase,s]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
         tx.get(issue(value.issueId)),tx.get(caseRef(value.recipientUid,value.caseId)),tx.get(save(value.recipientUid))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
@@ -117,7 +118,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       if(!p.exists||p.data().actorUid!==actorId||p.data().requestHash!==normalizedHash||p.data().expiresAt<time)
         throw error('PREVIEW_EXPIRED','Review the exact letter again before sending.');
       if(!s.exists||head(s.data()).profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
-      tx.set(limit,checkedRate(quota,5));
+      tx.set(limit,checkedRate(quota,'issue',time,5));
       const payload={schema:1,mailId:value.issueId,issueId:value.issueId,profileId:value.profileId,
         title:value.subject,body:value.body,coins:value.coins,items:value.items,
         issuedAt:time,status:'unclaimed',claimedAt:null};
