@@ -3,11 +3,11 @@ extends RefCounted
 signal unread_changed(unread:bool)
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
-const WIDTH=460.0
+const WIDTH=520.0
 const RETENTION_MSEC=14.0*24*60*60*1000
 const KNOWN_CAMPAIGN="little-leaf-0.1.5-existing-profile-compensation"
 const INK=Color("554631")
-const MUTED=Color("75644f")
+const MUTED=Color("79735e")
 const GREEN=Color("426b49")
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 var compact_ref:WeakRef
@@ -33,23 +33,17 @@ var last_snapshot=""
 var last_source=""
 var last_refresh_second=-1
 var rows=[]
+var focus_actions=[]
 # Native has no Web authority. This clock also makes synthetic UI tests repeatable.
 var clock:Callable=func():return Time.get_unix_time_from_system()*1000.0
 var native_high_water=0.0
 var native_future_delivery={}
 
-class EnvelopeButton extends Button:
+class LetterButton extends Button:
  var unread=false
  func _ready():resized.connect(queue_redraw)
  func _draw():
-  var ink=Color("a99170");var p=Vector2(17,size.y/2-13)
-  draw_style_box(_envelope_style(),Rect2(p,Vector2(34,26)))
-  draw_polyline(PackedVector2Array([p+Vector2(1,2),p+Vector2(17,14),p+Vector2(33,2)]),ink,1.2,true)
-  draw_line(p+Vector2(1,25),p+Vector2(12,14),ink,.8,true)
-  draw_line(p+Vector2(33,25),p+Vector2(22,14),ink,.8,true)
-  if unread:draw_circle(Vector2(size.x-17,18),4,Color("527958"),true,-1,true)
- func _envelope_style()->StyleBoxFlat:
-  var style=StyleBoxFlat.new();style.bg_color=Color("f2e7ce");style.border_color=Color("a99170");style.set_border_width_all(1);style.set_corner_radius_all(2);return style
+  if unread:draw_circle(Vector2(size.x-19,20),4,Color("527958"),true,-1,true)
 
 func _init(owner):
  compact_ref=weakref(owner);game=owner.game
@@ -57,8 +51,10 @@ func _init(owner):
 func setup():
  if OS.has_feature("web"):api=JavaScriptBridge.get_interface("__littleLeafInbox")
  panel=compact._panel();panel.name="CompensationInbox"
- body=VBoxContainer.new();body.add_theme_constant_override("separation",14);panel.add_child(body)
- compact.hud.theme_panel(panel,true,26)
+ body=VBoxContainer.new();body.add_theme_constant_override("separation",12);panel.add_child(body)
+ var surface=game._style(Color("fcf6e7"),Color("b9cbb7"),18)
+ for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:surface.set_content_margin(side,18)
+ panel.add_theme_stylebox_override("panel",surface)
  heading_box=VBoxContainer.new();heading_box.add_theme_constant_override("separation",6);body.add_child(heading_box)
  scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true;body.add_child(scroll)
  content=VBoxContainer.new();content.add_theme_constant_override("separation",12);content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(content)
@@ -180,8 +176,8 @@ func _back():
 func _rebuild():
  for container in [heading_box,content,footer]:
   for child in container.get_children():container.remove_child(child);child.queue_free()
- rows.clear();letter_paper=null;letter_body=null
- heading_box.add_child(_label("Inbox",24))
+ rows.clear();focus_actions.clear();letter_paper=null;letter_body=null
+ heading_box.add_child(_label("Inbox",23))
  if not bool(snapshot.get("ok",false)) and snapshot.get("supportMail",[]).is_empty():
   content.add_child(_label("Your letters are unavailable. Try reloading your café.",16,MUTED))
  elif detail_id!="":
@@ -198,7 +194,7 @@ func _rebuild():
  storage_note=_label("",13,MUTED);footer.add_child(storage_note);storage_note.hide()
  back_button=game.button("Back to Inbox" if detail_id!="" else "Back to Settings",_back)
  back_button.custom_minimum_size=Vector2(0,44);footer.add_child(back_button)
- compact.hud.theme_panel_contents(panel)
+ _theme_mail_action(back_button,false)
  sync()
 
 func _list():
@@ -212,10 +208,10 @@ func _list():
  for mail in support:_entry(mail)
  if compact.support_mail!=null and compact.support_mail.mail_page>0:
   var latest=game.button("Latest support letters",compact.support_mail.refresh_mail)
-  latest.custom_minimum_size.y=44;content.add_child(latest)
+  latest.custom_minimum_size.y=44;content.add_child(latest);_theme_mail_action(latest,false);focus_actions.append(latest)
  if compact.support_mail!=null and compact.support_mail.mail_snapshot.get("nextCursor")!=null:
   var more=game.button("Load older support letters",compact.support_mail.load_more_mail)
-  more.custom_minimum_size.y=44;content.add_child(more)
+  more.custom_minimum_size.y=44;content.add_child(more);_theme_mail_action(more,false);focus_actions.append(more)
  for receipt in paid:_entry(receipt)
  if compact.support_mail!=null and compact.support_mail.mail_error!="":content.add_child(_label(compact.support_mail.mail_error,14,MUTED))
  # Eligibility isn't delivery: no fabricated receipt, date, unread dot or letter.
@@ -225,45 +221,50 @@ func _list():
 
 func _entry(record:Dictionary):
  var unread=not _read(record)
- var entry=EnvelopeButton.new();entry.unread=unread;entry.name="InboxMessage"
- entry.set_meta("soft_panel_button",true);entry.custom_minimum_size=Vector2(0,88);entry.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ var entry=LetterButton.new();entry.unread=unread;entry.name="InboxMessage"
+ entry.mouse_filter=Control.MOUSE_FILTER_PASS;entry.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
+ entry.set_meta("soft_panel_button",true);entry.custom_minimum_size=Vector2(0,76);entry.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  entry.pressed.connect(_show_detail.bind("support-mail/"+str(record.mailId) if record.has("mailId") else str(record.id)))
  entry.pressed.connect(func():game.settings_controls.play_sfx("click"))
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
-  var style=_paper_style(0);style.bg_color=Color("fff8e9") if state=="normal" else Color("f0e8d3");style.set_corner_radius_all(6)
+  var style=_paper_style(0);style.bg_color=Color("ffffff") if state=="normal" else Color("f3f8f1");style.set_corner_radius_all(11)
   entry.add_theme_stylebox_override(state,style)
- var focus=_paper_style(0);focus.bg_color=Color.TRANSPARENT;focus.border_color=GREEN;focus.set_border_width_all(2);focus.set_corner_radius_all(6);entry.add_theme_stylebox_override("focus",focus)
+ var focus=_paper_style(0);focus.bg_color=Color.TRANSPARENT;focus.border_color=GREEN;focus.set_border_width_all(2);focus.set_corner_radius_all(11);entry.add_theme_stylebox_override("focus",focus)
  var inset=MarginContainer.new();inset.name="EnvelopePadding";inset.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- for side in ["top","bottom"]:inset.add_theme_constant_override("margin_"+side,14)
- inset.add_theme_constant_override("margin_left",64);inset.add_theme_constant_override("margin_right",28);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
- var words=VBoxContainer.new();words.add_theme_constant_override("separation",5);words.mouse_filter=Control.MOUSE_FILTER_IGNORE;inset.add_child(words)
- words.add_child(_label(_title(record),16));words.add_child(_label(_date(record),13,MUTED))
+ for side in ["top","bottom"]:inset.add_theme_constant_override("margin_"+side,12)
+ inset.add_theme_constant_override("margin_left",16);inset.add_theme_constant_override("margin_right",30);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
+ var words=VBoxContainer.new();words.add_theme_constant_override("separation",3);words.mouse_filter=Control.MOUSE_FILTER_IGNORE;inset.add_child(words)
+ words.add_child(_label(_title(record),17));words.add_child(_label(_entry_description(record)+"  ·  "+_date(record),13,MUTED))
  entry.accessibility_name=_title(record)+", "+_date(record)+(", unread" if unread else ", read")
  content.add_child(entry);rows.append(entry)
- words.minimum_size_changed.connect(func():entry.custom_minimum_size.y=maxf(88,words.get_combined_minimum_size().y+28))
+ words.minimum_size_changed.connect(func():entry.custom_minimum_size.y=maxf(76,words.get_combined_minimum_size().y+24))
 
 func _detail(record:Dictionary):
- letter_paper=PanelContainer.new();letter_paper.name="LetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(22));content.add_child(letter_paper)
+ letter_paper=PanelContainer.new();letter_paper.mouse_filter=Control.MOUSE_FILTER_PASS;letter_paper.name="LetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(22));content.add_child(letter_paper)
  letter_body=VBoxContainer.new();letter_body.name="LetterContents";letter_body.add_theme_constant_override("separation",16);letter_paper.add_child(letter_body)
  var heading=VBoxContainer.new();heading.add_theme_constant_override("separation",6);letter_body.add_child(heading)
  heading.add_child(_label(_title(record),20));heading.add_child(_label(_date(record),13,MUTED))
  var line=HSeparator.new();var line_style=StyleBoxLine.new();line_style.color=Color("ddceb4");line_style.thickness=1;line.add_theme_stylebox_override("separator",line_style);letter_body.add_child(line)
  letter_body.add_child(_label("Dear café owner,",16))
  letter_body.add_child(_label(_reason(record),16))
- var payment=PanelContainer.new();payment.name="PaidCompensation";var payment_style=_paper_style(14);payment_style.bg_color=Color("edf0df");payment_style.border_color=Color("d4dcc4");payment.add_theme_stylebox_override("panel",payment_style);letter_body.add_child(payment)
+ var payment=PanelContainer.new();payment.mouse_filter=Control.MOUSE_FILTER_PASS;payment.name="PaidCompensation";var payment_style=_paper_style(14);payment_style.bg_color=Color("edf0df");payment_style.border_color=Color("d4dcc4");payment.add_theme_stylebox_override("panel",payment_style);letter_body.add_child(payment)
  var amount=VBoxContainer.new();amount.add_theme_constant_override("separation",4);payment.add_child(amount)
  amount.add_child(_label(Money.amount(int(record.coins))+" Leaf Coins",22));amount.add_child(_label("Paid · Added to your wallet",14,GREEN))
  letter_body.add_child(_label("Warmly,\nLittle Leaf",16))
 
 func _support_detail(record:Dictionary):
- letter_paper=PanelContainer.new();letter_paper.name="SupportLetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(22));content.add_child(letter_paper)
- letter_body=VBoxContainer.new();letter_body.add_theme_constant_override("separation",14);letter_paper.add_child(letter_body)
- letter_body.add_child(_label(str(record.get("title","Support letter")),20))
+ letter_paper=PanelContainer.new();letter_paper.mouse_filter=Control.MOUSE_FILTER_PASS;letter_paper.name="SupportLetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(18));content.add_child(letter_paper)
+ letter_body=VBoxContainer.new();letter_body.add_theme_constant_override("separation",12);letter_paper.add_child(letter_body)
+ letter_body.add_child(_label("FROM LITTLE LEAF",12,GREEN))
+ letter_body.add_child(_label(str(record.get("title","Support letter")),22))
  letter_body.add_child(_label(_date(record),13,MUTED))
+ var line=HSeparator.new();var line_style=StyleBoxLine.new();line_style.color=Color("e1e9dc");line_style.thickness=1;line.add_theme_stylebox_override("separator",line_style);letter_body.add_child(line)
  letter_body.add_child(_label(str(record.get("body","")),16))
  var attachments="%s Leaf Coins"%Money.amount(int(record.get("coins",0)))
  for item in record.get("items",[]):attachments+="\n%s ×%d"%[str(item.get("catalogId","Gift")).capitalize(),int(item.get("quantity",0))]
- letter_body.add_child(_label(attachments,16,GREEN))
+ var gift_box=PanelContainer.new();gift_box.mouse_filter=Control.MOUSE_FILTER_PASS;gift_box.add_theme_stylebox_override("panel",_tint_style(14));letter_body.add_child(gift_box)
+ var gift_contents=VBoxContainer.new();gift_contents.add_theme_constant_override("separation",5);gift_box.add_child(gift_contents)
+ gift_contents.add_child(_label("GIFTS",12,GREEN));gift_contents.add_child(_label(attachments,16,INK))
  var claimed=str(record.get("status",""))=="claimed"
  letter_body.add_child(_label("Claimed" if claimed else "Ready to claim · reading does not claim gifts",14,MUTED))
  if not claimed:
@@ -276,11 +277,15 @@ func _support_detail(record:Dictionary):
     if compact.support_mail!=null:compact.support_mail.mail_error="Checking and saving your gifts…"
    sync()
   )
-  claim.custom_minimum_size.y=44;letter_body.add_child(claim)
+  claim.custom_minimum_size.y=44;letter_body.add_child(claim);_theme_mail_action(claim,true);focus_actions.append(claim)
 
 func _title(record:Dictionary)->String:
- if record.has("mailId"):return str(record.get("title","Support letter"))+(" · Claim gifts" if str(record.get("status",""))!="claimed" else " · Claimed")
+ if record.has("mailId"):return str(record.get("title","Support letter"))
  return "Café update compensation" if str(record.id)==KNOWN_CAMPAIGN else "Café compensation"
+
+func _entry_description(record:Dictionary)->String:
+ if record.has("mailId"):return "Claimed" if str(record.get("status",""))=="claimed" else "Gift ready"
+ return "Paid"
 
 func _reason(record:Dictionary)->String:
  return "Compensation for issues in the 0.1.5 update." if str(record.id)==KNOWN_CAMPAIGN else "We've added compensation to your café. The original reason wasn't recorded."
@@ -290,18 +295,42 @@ func _date(record:Dictionary)->String:
  return "%d %s %d"%[date.day,MONTHS[int(date.month)-1],date.year]
 
 func _paper_style(padding:float)->StyleBoxFlat:
- var style=game._style(Color("fffbf0"),Color("d9c9aa"),4)
+ var style=game._style(Color("ffffff"),Color("e0e9dc"),12)
  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:style.set_content_margin(side,padding)
  return style
 
+func _tint_style(padding:float)->StyleBoxFlat:
+ var style=game._style(Color("f2f7ee"),Color("dce9d7"),10)
+ for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:style.set_content_margin(side,padding)
+ return style
+
+func _theme_mail_action(button:Button,primary:bool):
+ button.mouse_filter=Control.MOUSE_FILTER_PASS;button.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
+ button.set_meta("soft_panel_button",true)
+ button.add_theme_font_override("font",compact.hud.font_bold)
+ for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+  var fill=Color("416b4d") if primary else Color("eef4eb")
+  if state=="hover":fill=Color("517b59") if primary else Color("e2eddf")
+  if state in ["pressed","hover_pressed"]:fill=Color("365a40") if primary else Color("d9e8d5")
+  if state=="disabled":fill=Color("e3e8de")
+  var style=game._style(fill,Color("416b4d") if primary else Color("c8d8c6"),10)
+  for side in [SIDE_LEFT,SIDE_RIGHT]:style.set_content_margin(side,8)
+  button.add_theme_stylebox_override(state,style)
+ var focus=game._style(Color.TRANSPARENT,GREEN,10);focus.set_border_width_all(2);button.add_theme_stylebox_override("focus",focus)
+ for name in ["font_color","font_hover_color","font_pressed_color","font_hover_pressed_color","font_focus_color"]:button.add_theme_color_override(name,Color("ffffff") if primary else INK)
+ button.add_theme_color_override("font_disabled_color",MUTED)
+
 func _label(words:String,size:int,color:Color=INK)->Label:
  var label=game.label(words,size,color);label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;label.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ if size>=17:label.add_theme_font_override("font",compact.hud.font_bold)
  return label
 
 func handle_input(event:InputEvent)->bool:
  if not panel.visible or not event is InputEventKey or not event.pressed or event.keycode!=KEY_TAB:return false
  var controls:Array=[scroll]
  for row in rows:controls.append(row)
+ for action in focus_actions:
+  if not action.disabled:controls.append(action)
  controls.append(back_button)
  var current=game.get_viewport().gui_get_focus_owner();var index=controls.find(current)
  index=posmod(index+(-1 if event.shift_pressed else 1),controls.size())

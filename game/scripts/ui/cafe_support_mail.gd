@@ -1,12 +1,22 @@
 extends RefCounted
 ## Owner compose surface and bounded player mail/stock projection. Authority lives in Functions.
 const CATALOG=["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"]
+const INK=Color("554631")
+const MUTED=Color("79735e")
+const GREEN=Color("426b49")
 var compact_ref:WeakRef
 var compact:
  get:return compact_ref.get_ref()
 var game
 var bridge
 var panel:PanelContainer
+var frame:VBoxContainer
+var header:HBoxContainer
+var scroll:ScrollContainer
+var form:VBoxContainer
+var gift_grid:GridContainer
+var preview_card:PanelContainer
+var preview_button:Button
 var entry:Button
 var note:Label
 var recipient:LineEdit
@@ -29,6 +39,7 @@ var request_generation=0
 var form_generation=0
 var _callbacks:Dictionary={}
 var callback_serial=0
+var focus_controls:Array=[]
 
 func _init(owner):compact_ref=weakref(owner);game=owner.game
 
@@ -37,49 +48,124 @@ func setup():
  game.settings.get_child(0).add_child(entry)
  compact.hud.theme_button(entry)
  panel=compact._panel();panel.name="SupportMailCompose"
- compact.hud.theme_panel(panel,true,24)
- var frame=VBoxContainer.new();frame.add_theme_constant_override("separation",9);panel.add_child(frame)
- var heading=game.label("Support Mail",22);frame.add_child(heading)
- var scroller=ScrollContainer.new();scroller.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
- scroller.custom_minimum_size=Vector2(0,420);frame.add_child(scroller)
- compact.hud.theme_scroll(scroller)
- var form=VBoxContainer.new();form.add_theme_constant_override("separation",8);scroller.add_child(form)
- form.add_child(game.label("Exact 12-digit player UID",14));recipient=LineEdit.new();recipient.placeholder_text="Paste 12-digit player UID";form.add_child(recipient)
- var find=game.button("Find player",_lookup);form.add_child(find)
- lookup_summary=game.label("Find a player before composing.",14);lookup_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;form.add_child(lookup_summary)
- form.add_child(game.label("Support case reference",14));case_id=LineEdit.new();case_id.placeholder_text="For example: case-123";form.add_child(case_id)
- form.add_child(game.label("Subject",14));subject=LineEdit.new();form.add_child(subject)
- form.add_child(game.label("Letter",14));letter=TextEdit.new();letter.custom_minimum_size.y=110;letter.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY;form.add_child(letter)
- form.add_child(game.label("Leaf Coins · maximum 100,000 per letter",14));coins=SpinBox.new();coins.min_value=0;coins.max_value=100000;coins.step=1;form.add_child(coins)
- form.add_child(game.label("Unplaced gifts",15))
+ panel.add_theme_stylebox_override("panel",_surface(Color("fcf6e7"),Color("b9cbb7"),18,18))
+ frame=VBoxContainer.new();frame.add_theme_constant_override("separation",10);panel.add_child(frame)
+ header=HBoxContainer.new();header.add_theme_constant_override("separation",12);frame.add_child(header)
+ var heading=VBoxContainer.new();heading.add_theme_constant_override("separation",1);heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL;header.add_child(heading)
+ heading.add_child(_label("Support mail",23,INK));heading.add_child(_label("A personal note for one player",13,MUTED))
+ var back=game.button("Settings",func():panel.hide();game.settings.show();entry.grab_focus.call_deferred());back.accessibility_name="Back to Settings";back.custom_minimum_size=Vector2(88,44);header.add_child(back)
+ scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true;scroll.accessibility_name="Support mail form";frame.add_child(scroll)
+ compact.hud.theme_scroll(scroll)
+ form=VBoxContainer.new();form.add_theme_constant_override("separation",12);form.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(form)
+ var recipient_card=_section("Recipient","Find the café attached to an exact 12-digit Player UID.");form.add_child(recipient_card)
+ var recipient_body=recipient_card.get_child(0)
+ var lookup_row=HBoxContainer.new();lookup_row.add_theme_constant_override("separation",8);recipient_body.add_child(lookup_row)
+ recipient=LineEdit.new();recipient.placeholder_text="12-digit Player UID";recipient.size_flags_horizontal=Control.SIZE_EXPAND_FILL;lookup_row.add_child(recipient)
+ var find=game.button("Find player",_lookup);find.custom_minimum_size=Vector2(116,44);lookup_row.add_child(find)
+ lookup_summary=_label("No player selected yet.",14,MUTED);lookup_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;recipient_body.add_child(lookup_summary)
+ var message_card=_section("Message","Write the note the player will read in Inbox.");form.add_child(message_card)
+ var message_body=message_card.get_child(0)
+ message_body.add_child(_label("Support case",13,MUTED));case_id=LineEdit.new();case_id.placeholder_text="Case reference";message_body.add_child(case_id)
+ message_body.add_child(_label("Subject",13,MUTED));subject=LineEdit.new();subject.placeholder_text="A short, clear subject";message_body.add_child(subject)
+ message_body.add_child(_label("Letter",13,MUTED));letter=TextEdit.new();letter.custom_minimum_size.y=112;letter.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY;letter.scroll_fit_content_height=true;letter.scroll_past_end_of_file=false;letter.mouse_filter=Control.MOUSE_FILTER_PASS;letter.placeholder_text="Dear café owner,…";message_body.add_child(letter)
+ var gift_card=_section("Attachments","Attachments are delivered only after the player claims them.");form.add_child(gift_card)
+ var gift_body=gift_card.get_child(0)
+ var coin_row=HBoxContainer.new();coin_row.add_theme_constant_override("separation",10);gift_body.add_child(coin_row)
+ var coin_label=_label("Leaf Coins  ·  up to 100,000",14,INK);coin_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;coin_row.add_child(coin_label)
+ coins=SpinBox.new();coins.min_value=0;coins.max_value=100000;coins.step=1;coins.custom_minimum_size=Vector2(100,44);coin_row.add_child(coins)
+ gift_body.add_child(_label("Unplaced items",13,MUTED))
+ gift_grid=GridContainer.new();gift_grid.columns=2;gift_grid.add_theme_constant_override("h_separation",8);gift_grid.add_theme_constant_override("v_separation",8);gift_body.add_child(gift_grid)
  for kind in CATALOG:
-  var line=HBoxContainer.new();form.add_child(line)
-  var title=game.label(kind.capitalize(),14);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL;line.add_child(title)
-  var amount=SpinBox.new();amount.min_value=0;amount.max_value=10;amount.step=1;amount.custom_minimum_size.x=95;line.add_child(amount);quantities[kind]=amount
+  var item=PanelContainer.new();item.mouse_filter=Control.MOUSE_FILTER_PASS;item.add_theme_stylebox_override("panel",_surface(Color("f5f8f1"),Color("e1e9dc"),10,8));item.size_flags_horizontal=Control.SIZE_EXPAND_FILL;gift_grid.add_child(item)
+  var item_body=HBoxContainer.new();item_body.add_theme_constant_override("separation",6);item.add_child(item_body)
+  item_body.add_child(_label(kind.capitalize(),13,INK))
+  var amount=SpinBox.new();amount.min_value=0;amount.max_value=10;amount.step=1;amount.custom_minimum_size=Vector2(72,44);item_body.add_child(amount);quantities[kind]=amount
   amount.value_changed.connect(func(_value):_invalidate_preview())
- var preview_button=game.button("Preview exact letter and gifts",_preview);form.add_child(preview_button)
- preview_summary=game.label("",14);preview_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;form.add_child(preview_summary)
- send_button=game.button("Send this letter",_send);send_button.disabled=true;form.add_child(send_button)
- compact.hud.theme_button(send_button,true)
- note=game.label("",14);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;frame.add_child(note)
- var back=game.button("Back to Settings",func():panel.hide();game.settings.show());frame.add_child(back)
+ preview_card=_section("Review your letter","Confirm the exact recipient, message and gifts.");form.add_child(preview_card);preview_card.hide()
+ preview_summary=_label("",14,INK);preview_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;preview_card.get_child(0).add_child(preview_summary)
+ var footer=VBoxContainer.new();footer.add_theme_constant_override("separation",6);frame.add_child(footer)
+ var actions=HBoxContainer.new();actions.add_theme_constant_override("separation",8);footer.add_child(actions)
+ preview_button=game.button("Review letter",_preview);preview_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(preview_button)
+ send_button=game.button("Send letter",_send);send_button.disabled=true;send_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(send_button)
+ note=_label("",13,MUTED);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;footer.add_child(note)
  for field in [recipient,case_id,subject]:field.text_changed.connect(func(_value):_invalidate_preview())
+ letter.caret_changed.connect(func():_reveal_letter_caret.call_deferred())
  letter.text_changed.connect(_invalidate_preview);coins.value_changed.connect(func(_value):_invalidate_preview())
- compact.hud.theme_panel_contents(panel)
  for field in [recipient,case_id,subject,letter,coins.get_line_edit()]:_theme_input(field)
  for amount in quantities.values():_theme_input(amount.get_line_edit())
- compact._wrap_themed_popup(panel,450)
+ for button in [back,find,preview_button]:_theme_action(button,false)
+ _theme_action(send_button,true)
+ focus_controls=[back,recipient,find,case_id,subject,letter,coins.get_line_edit()]
+ for amount in quantities.values():focus_controls.append(amount.get_line_edit())
+ focus_controls.append_array([preview_button,send_button])
+ for control in [header,form,footer]:control.minimum_size_changed.connect(compact._queue_popup_fit)
+ panel.visibility_changed.connect(compact._queue_popup_fit);panel.resized.connect(compact._queue_popup_fit)
  panel.hide()
 
+func _surface(fill:Color,border:Color,radius:int,padding:int)->StyleBoxFlat:
+ var style=game._style(fill,border,radius)
+ for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:style.set_content_margin(side,padding)
+ return style
+
+func _label(words:String,size:int,color:Color)->Label:
+ var value=game.label(words,size,color);value.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;value.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ if size>=16:value.add_theme_font_override("font",compact.hud.font_bold)
+ return value
+
+func _section(title:String,description:String)->PanelContainer:
+ var card=PanelContainer.new();card.mouse_filter=Control.MOUSE_FILTER_PASS;card.add_theme_stylebox_override("panel",_surface(Color("ffffff"),Color("e0e9dc"),12,14))
+ var body=VBoxContainer.new();body.add_theme_constant_override("separation",6);card.add_child(body)
+ body.add_child(_label(title,16,GREEN));body.add_child(_label(description,13,MUTED))
+ return card
+
+func _theme_action(button:Button,primary:bool):
+ button.mouse_filter=Control.MOUSE_FILTER_PASS;button.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
+ button.set_meta("soft_panel_button",true)
+ button.add_theme_font_override("font",compact.hud.font_bold)
+ var base=Color("416b4d") if primary else Color("eef4eb")
+ var border=Color("416b4d") if primary else Color("c8d8c6")
+ for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+  var style=_surface(base,border,10,8)
+  if state=="hover":style.bg_color=Color("517b59") if primary else Color("e2eddf")
+  if state in ["pressed","hover_pressed"]:style.bg_color=Color("365a40") if primary else Color("d9e8d5")
+  if state=="disabled":style.bg_color=Color("e3e8de");style.border_color=Color("d7dfd3")
+  button.add_theme_stylebox_override(state,style)
+ var focus=_surface(Color.TRANSPARENT,GREEN,10,0);focus.set_border_width_all(2);button.add_theme_stylebox_override("focus",focus)
+ for name in ["font_color","font_hover_color","font_pressed_color","font_hover_pressed_color","font_focus_color"]:button.add_theme_color_override(name,Color("ffffff") if primary else INK)
+ button.add_theme_color_override("font_disabled_color",MUTED);button.custom_minimum_size.y=maxf(44,button.custom_minimum_size.y)
+
+func fit_popup():
+ if not is_instance_valid(panel) or not panel.visible:return
+ var view=game.get_viewport().get_visible_rect().size;var insets=compact.hud._safe_insets()
+ var width=minf(540,maxf(0,view.x-insets.x-insets.z-24))
+ var padding=panel.get_theme_stylebox("panel").get_minimum_size();var bar=scroll.get_v_scroll_bar()
+ var gutter=bar.get_minimum_size().x+scroll.get_theme_constant("scrollbar_h_separation") if bar.visible else 0.0
+ gift_grid.columns=1 if width<480 else 2
+ frame.size.x=maxf(0,width-padding.x);form.size.x=maxf(0,width-padding.x-gutter)
+ var fixed=header.get_combined_minimum_size().y+frame.get_child(2).get_combined_minimum_size().y+20+padding.y
+ scroll.custom_minimum_size=Vector2(0,minf(maxf(44,compact.hud.popup_height_budget()-fixed),form.get_combined_minimum_size().y))
+ panel.size=Vector2(width,0)
+ panel.position=Vector2(insets.x+(view.x-insets.x-insets.z-panel.size.x)/2,insets.y+(view.y-insets.y-insets.w-panel.size.y)/2)
+
+# The form owns scrolling, including caret visibility in an expanding letter.
+func _reveal_letter_caret():
+ if not letter.has_focus():return
+ var caret_y=letter.global_position.y+letter.get_caret_draw_pos().y
+ var top=scroll.global_position.y+8
+ var bottom=scroll.global_position.y+scroll.size.y-letter.get_line_height()-8
+ if caret_y>bottom:scroll.scroll_vertical+=int(ceil(caret_y-bottom))
+ elif caret_y<top:scroll.scroll_vertical-=int(ceil(top-caret_y))
+
 func _theme_input(field:Control):
- var normal=game._style(Color("fff8e9"),Color("ad9c7f"),8)
+ var normal=game._style(Color("fffdf8"),Color("c8d8c6"),9)
  for side in [SIDE_LEFT,SIDE_RIGHT]:normal.set_content_margin(side,9)
  for side in [SIDE_TOP,SIDE_BOTTOM]:normal.set_content_margin(side,5)
  field.add_theme_stylebox_override("normal",normal)
- field.add_theme_stylebox_override("focus",game._style(Color.TRANSPARENT,Color("668367"),8))
- field.add_theme_color_override("font_color",Color("554631"))
- field.add_theme_color_override("font_placeholder_color",Color("887c6a"))
- field.add_theme_color_override("caret_color",Color("554631"))
+ var focus=game._style(Color.TRANSPARENT,GREEN,9);focus.set_border_width_all(2)
+ field.add_theme_stylebox_override("focus",focus)
+ field.add_theme_color_override("font_color",INK)
+ field.add_theme_color_override("font_placeholder_color",MUTED)
+ field.add_theme_color_override("caret_color",INK)
  if field is LineEdit:field.custom_minimum_size.y=44
 
 func _display_profile(value)->String:
@@ -169,13 +255,13 @@ func refresh_capabilities():
 
 func show():
  if not entry.visible:return
- game.settings.hide();compact._popup_at(panel,450);note.text="";panel.show();_invalidate_preview()
+ game.settings.hide();compact._popup_at(panel,540);note.text="";panel.show();scroll.scroll_vertical=0;_invalidate_preview()
  compact._queue_popup_fit()
 
 func _invalidate_preview(reset_issue=true):
  form_generation+=1
  if reset_issue:issue_id=""
- preview_payload={};send_button.disabled=true;preview_summary.text=""
+ preview_payload={};send_button.disabled=true;preview_summary.text="";preview_card.hide()
 
 func _lookup():
  _invalidate_preview();found={};lookup_summary.text="Checking exact player UID…"
@@ -186,7 +272,11 @@ func _lookup():
   found=result
   var saved_at=float(result.get("savedAt",0))
   var saved_label=Time.get_datetime_string_from_unix_time(int(saved_at/1000.0))+" UTC" if saved_at>0 else "Unavailable"
-  lookup_summary.text="Player UID: %s\nCafé profile:\n%s\nSave revision: %d\nRecorded save: %s (%s)\nDevice: %s\n%s\nRecent mail (up to 10): %s"%[result.publicUid,_display_profile(result.profileId),int(result.revision),saved_label,str(result.timeSource),str(result.device),str(result.evidence),JSON.stringify(result.get("recentMail",[]))]
+  var recent:Array=result.get("recentMail",[])
+  var recent_text="None recorded" if recent.is_empty() else ""
+  for mail in recent:
+   recent_text+=("\n" if recent_text!="" else "")+str(mail.get("caseId","Case unavailable"))+" · "+str(mail.get("status","Unknown"))
+  lookup_summary.text="UID %s  ·  save r%d\nCafé profile %s\nRecorded %s (%s)  ·  %s\n%s\nRecent letters: %s"%[result.publicUid,int(result.revision),_display_profile(result.profileId),saved_label,str(result.timeSource),str(result.device),str(result.evidence),recent_text]
  )
 
 func _request()->Dictionary:
@@ -211,9 +301,15 @@ func _preview():
   var gifts="%d Leaf Coins"%int(result.get("coins",0))
   for item in result.get("items",[]):gifts+="\n%s ×%d"%[str(item.get("catalogId","")).capitalize(),int(item.get("quantity",0))]
   preview_summary.text="Player UID: %s\nCafé profile:\n%s\nCase: %s\nSubject: %s\n\n%s\n\nGifts: %s"%[result.recipientPublicUid,_display_profile(result.profileId),result.caseId,result.subject,result.body,gifts]
+  preview_card.show();_reveal_review()
   note.text="Review the exact recipient and contents before sending."
   send_button.disabled=false
  )
+
+func _reveal_review():
+ # Wait for the newly visible card and status to settle before choosing its offset.
+ await game.get_tree().process_frame
+ if is_instance_valid(preview_card) and preview_card.visible:scroll.scroll_vertical=int(preview_card.position.y)
 
 func _send():
  if preview_payload.is_empty():return
@@ -224,3 +320,11 @@ func _send():
   note.text="Send status uncertain · %s. Check the same case before retrying."%str(result.get("error","Please retry with the same issue ID"))
   send_button.disabled=false
  )
+
+func handle_input(event:InputEvent)->bool:
+ if not panel.visible or not event is InputEventKey or not event.pressed or event.keycode!=KEY_TAB:return false
+ var available=focus_controls.filter(func(control):return control.is_visible_in_tree() and not (control is Button and control.disabled))
+ var current=game.get_viewport().gui_get_focus_owner()
+ var index=posmod(available.find(current)+(-1 if event.shift_pressed else 1),available.size())
+ available[index].grab_focus()
+ return true

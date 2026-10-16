@@ -62,6 +62,9 @@ func run():
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
  check("Claim gifts" in _text(ui.inbox.letter_body),"unclaimed gifts have a real claim action")
  check(ui.inbox.has_unread()==false,"reading does not claim or retain unread dot")
+ var tab=InputEventKey.new();tab.keycode=KEY_TAB;tab.pressed=true
+ ui.inbox.scroll.grab_focus();ui.inbox.handle_input(tab)
+ check(game.get_viewport().gui_get_focus_owner()==ui.inbox.focus_actions[0],"Tab reaches Claim without activating it")
  var older=[]
  for i in range(20):older.append({"schema":1,"mailId":"%08d-aaaa-4aaa-aaaa-aaaaaaaaaaaa"%i,"title":"Older letter %d"%i,"issuedAt":1770000000000.0,"status":"unclaimed"})
  ui.support_mail.mail_snapshot={"ok":true,"profileId":PROFILE,"mail":older,"nextCursor":"another-page"};ui.support_mail.mail_page=4
@@ -73,6 +76,26 @@ func run():
  game.web_save.pending=false;game.web_save.queued=false;game.web_save._support_claim_mail_id="";game.save_writes_suppressed=true
  ui._hide_popups();ui.support_mail.entry.visible=true;ui.support_mail.show()
  check(ui.support_mail.panel.visible and ui.support_mail.quantities.size()==10 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
+ var composer=ui.support_mail
+ composer.letter.grab_focus();composer.handle_input(tab)
+ check(game.get_viewport().gui_get_focus_owner()==composer.coins.get_line_edit(),"Tab leaves multiline editor for attachments")
+ for i in 22:
+  composer.handle_input(tab)
+  check(composer.panel.is_ancestor_of(game.get_viewport().gui_get_focus_owner()),"composer keyboard focus remains inside "+str(i))
+ composer.letter.text="A long letter for our café owner.\n".repeat(30)
+ for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+  root.size=viewport
+  for i in 8:await process_frame
+  check(Rect2(Vector2.ZERO,Vector2(viewport)).encloses(composer.panel.get_global_rect()),"composer fits safe viewport "+str(viewport))
+  check(composer.letter.size.y>500 and not composer.letter.get_v_scroll_bar().visible,"long letter expands without an editor scrollbar "+str(viewport))
+  check(composer.scroll.get_v_scroll_bar().visible,"form owns long-content scroll "+str(viewport))
+  check(composer.send_button.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"send stays below scrolling content "+str(viewport))
+  composer.scroll.scroll_vertical=int(composer.scroll.get_v_scroll_bar().max_value)
+  for i in 3:await process_frame
+  check(composer.scroll.get_global_rect().encloses(composer.quantities.divider.get_global_rect()),"last attachment reachable "+str(viewport))
+ composer.scroll.scroll_vertical=0;composer.preview_summary.text="Confirm this synthetic letter.";composer.preview_card.show();composer._reveal_review()
+ for i in 4:await process_frame
+ check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"review waits for layout and reveals the new card")
  print("SUPPORT_GIFTS_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"synthetic_only":true}))
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

@@ -483,6 +483,7 @@ func _fit_themed_popups():
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
  _fit_help_panel()
  if inbox!=null:inbox.fit_popup()
+ if support_mail!=null:support_mail.fit_popup()
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
@@ -754,6 +755,7 @@ func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
  if music_panel!=null and music_panel.handle_input(event):return true
  if inbox!=null and inbox.handle_input(event):return true
+ if support_mail!=null and support_mail.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
  var any_open=false
