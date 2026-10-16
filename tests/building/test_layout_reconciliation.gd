@@ -71,7 +71,7 @@ func run_case(name:String,kind:String):
  var resumed=Reconcile.plan(loaded,held_items,loaded.service_snapshot)
  check(resumed.ok,name+" replacement reconciliation: "+str(resumed.get("error","")))
  if resumed.ok:
-  check(resumed.service.layout_hold.guests.is_empty() and resumed.service.layout_hold.dishes.is_empty() and resumed.service.layout_hold.staff.is_empty(),name+" replacement releases holds")
+  check(not resumed.service.has("layout_hold") and resumed.data.version==15,name+" replacement releases holds and validates the ordinary client contract")
   check_clock_identity(before,{"customers":resumed.customers,"service":resumed.service},name+" resumed")
   publish_for_test(loaded,resumed);check(loaded.save("user://resumed-"+name+".json"),name+" rebound state persists")
 func rejects_corruption(m,plan:Dictionary):
@@ -111,7 +111,7 @@ func unusable_layout():
   for item in m.items.duplicate():
    if int(item.id) not in baseline_ids:check(sell(m,int(item.id)),"clear one blocking furnishing")
   var restored=Reconcile.plan(m,blocked,m.service_snapshot)
-  check(restored.ok and restored.service.layout_hold.guests.is_empty() and restored.service.layout_hold.staff.is_empty(),"compatible floor releases all original service")
+  check(restored.ok and not restored.service.has("layout_hold") and restored.data.version==15,"compatible floor releases all original service and validates the ordinary client contract")
   if restored.ok:check_clock_identity(original,{"customers":restored.customers,"service":restored.service},"restored floor")
 func cancel_and_failure(game):
  game.editing=false;check(game.model.load_save("user://fixture-cooking.json"),"failure fixture loads");game._restore_service_runtime()
@@ -214,6 +214,32 @@ func run_live_case(game,name:String,kind:String):
  for tick in 20:game._tick_live_service(.1);game._animate_staff(.1)
  check(held_values(game)==restored,name+" reloaded held work remains frozen")
 
+func ordinary_layout_contract():
+ var cafe=Fixture.new();root.add_child(cafe);cafe.set_process(false);cafe.illustration.set_process(false)
+ var model=cafe.model;model.coins=10000;model.service_snapshot=cafe._service_save_snapshot()
+ var prior=model.items.duplicate(true);model.begin_decoration_session()
+ var action=Plan.new();var quote=action.prepare_build(model,Plan.Action.WALL_REPLACE,{"key":"x:2:0","height":"half","material":"sage_panels"})
+ check(quote.ok and action.commit(model,quote),"ordinary compatibility fixture confirms a one-tile wall replacement")
+ var proposal=Reconcile.plan(model,prior,model.service_snapshot)
+ check(proposal.ok and proposal.data.version==15 and not proposal.service.has("layout_hold"),"ordinary wall Apply retains the original complete client contract")
+ if not proposal.ok:return
+ publish_for_test(model,proposal)
+ # An empty hold envelope is still necessary when geometry alone requires
+ # the explicit new contract: open service may retain an unplaced register.
+ model.operating_open=true;prior=model.items.duplicate(true);model.begin_decoration_session()
+ var register=model.items.filter(func(item):return item.kind=="register")[0]
+ check(sell(model,int(register.id)),"geometry-only fixture sells its register with no active visit")
+ check(model.save_data().is_empty(),"original save contract still rejects the open unplaced-register layout")
+ proposal=Reconcile.plan(model,prior,model.service_snapshot)
+ check(proposal.ok and proposal.data.version==16 and proposal.service.layout_hold.guests.is_empty(),"required geometry allowance retains the explicit new envelope even without held actors")
+ if not proposal.ok:return
+ publish_for_test(model,proposal)
+ check(model.save("user://geometry-held-no-guests.json"),"geometry allowance remains persistable")
+ var loaded=Model.new();check(loaded.load_save("user://geometry-held-no-guests.json") and loaded.register_unplaced and loaded.operating_open,"explicit geometry allowance reloads without silently closing service")
+ for player in cafe.audio_players.values():player.stop();player.stream=null
+ cafe.settings_controls.sfx_player.stop();cafe.settings_controls.sfx_player.stream=null
+ cafe.queue_free();await process_frame;await process_frame
+
 func run():
  if not "saveguard" in OS.get_user_data_dir():quit(2);return
  var game=Fixture.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
@@ -235,7 +261,7 @@ func run():
  for spec in [["cooking","stove"],["counter","counter"],["table","table"],["washing","sink"],["payment","register"]]:
   if fixtures.has(spec[0]):
    run_case(spec[0],spec[1]);run_live_case(game,spec[0],spec[1])
- unusable_layout();crossed_worker();cancel_and_failure(game);pending_service_capacity(game)
+ unusable_layout();crossed_worker();cancel_and_failure(game);pending_service_capacity(game);await ordinary_layout_contract()
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null
  game.queue_free();await process_frame;await process_frame

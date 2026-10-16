@@ -250,6 +250,12 @@ static func plan(model,prior_items:Array,snapshot:Dictionary)->Dictionary:
   var proposal=_attempt(shadow,group,hosts,used,loads,reserved,reachable,false)
   if proposal.ok:_accept(group,proposal,used,loads,hosts)
   else:_hold_group(group,hosts,hold,Hold._map(shadow.items,"id"))
+ # A compatible ordinary edit keeps its existing client contract. Only use
+ # the new envelope when actual holds or a layout requiring its explicit
+ # geometry allowance prevent the complete original save preflight.
+ if hold.guests.is_empty() and hold.staff.is_empty() and hold.dishes.is_empty() and hold.floor.is_empty():
+  var ordinary=shadow.save_data()
+  if not ordinary.is_empty():return {"ok":true,"customers":shadow.customers,"service":shadow.service_snapshot,"data":ordinary}
  state=Hold.detach(state,hold);shadow.customers.assign(state.customers);shadow.service_snapshot=state.service
  var data=shadow.save_data()
  if data.is_empty():return {"ok":false,"error":"Apply reconciliation: "+shadow.last_error}
