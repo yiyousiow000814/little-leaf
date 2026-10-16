@@ -324,3 +324,35 @@ Qualification native receipt SHA256:
 summary SHA256 `c2f5895ad0cd6c1d368c909fa43d8809d59ff0fda73f9ed92abff051c40c817c`.
 Final composition/source binding and automatic CI remain separate. No new Web,
 phone, performance, release, tag, merge or deployment acceptance is claimed.
+
+
+### Food-contact fixture follow-up after failed CI
+
+Initial PR345 head `093f8cb13ae8435bea87e95f41caf26e96acdeef` fails automatic
+[run38942952428 / engine3 job117115506022](https://github.com/yiyousiow000814/little-leaf/actions/runs/38942952428/job/117115506022)
+on `test_food_contact`:7474checks,80 lid-presence failures,800missing
+`art_draw_mesh` and80missing `art_local_begin` script errors. CI tested merge
+`725c94efa1ee43082f9abe384d54192241001e7b` into unchanged main6a8cd095.
+Raw failed job log SHA256 `748ee67b4f8b9ff9e0a56454be4f95e9cbc9840ba9aa65537ea791c7268fc312`;
+original failed artifact12064441158 / SHA256
+`2bf2f4d0f9623873836831a47e1f39787dededc9dd956a56f2e442b1c7034840`
+remains attached to that run. No unchanged CI rerun is requested.
+
+Before editing, the identical original fixture passes7474checks on unchanged
+main `6a8cd095ea0ab61086d91427b84f84fc36884684` and reproduces all80failures on
+accepted head093f8cb through the canonical disposable runner. Production Artist
+already implements the missing calls; the fixture's primitive-only substitute
+is obsolete for the accepted steam and lid tilt. Test-only commit
+`36a95f29b0eef49080e4933a5876e3d92f89296b` implements those existing interfaces,
+records retained-mesh tint through the same forbidden-food palette check and
+models local transform save/restore. Every original assertion remains;808new
+checks require transform restoration after every sampled vessel draw.
+The focused canonical runner passes8282checks, zero failures/diagnostics.
+Fixed test log SHA256 `487320e62656d2ff83c7906be3580c820fbccba16b1163b7f12defcbeb3ddadf`.
+
+No production runtime or effect changes. All four accepted raw postimages,
+all80 producer hashes, protected PNG/import bytes and the existing actual atlas
+qualification remain unchanged. No new visual or atlas regeneration is needed
+for this fixture-only delta. The failed CI and local old-fail/new-pass evidence
+remain separate from the next exact-head automatic CI result. Keep Draft and
+all merge/release/deployment holds.
