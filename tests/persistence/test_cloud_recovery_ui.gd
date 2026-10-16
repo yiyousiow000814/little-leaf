@@ -120,6 +120,14 @@ func run():
  ui.show_help();await settle();check(not ui.help_choose_local.visible and not ui.help_choose_cloud.visible,"normal play has no conflict actions")
  check(not ui.help_switch_device.visible,"takeover absent without server capability")
  check(game.tutorial.help_entry.visible,"normal Help restores tutorial action")
+ for status in ["completed","active","skipped"]:
+  game.model.tutorial_state={"status":status,"step":0}
+  for pending in [true,false,true,false]:
+   controller.pending=pending;await settle();game.tutorial.sync()
+   check(game.tutorial.help_entry.visible,"ordinary save retains tutorial entry: "+status)
+   check(game.tutorial.restart_entry.visible==(status!="completed"),"ordinary save retains restart visibility: "+status)
+   check(game.tutorial.help_entry.disabled==pending and game.tutorial.restart_entry.disabled==pending,"ordinary save preserves tutorial mutation guard until settlement: "+status)
+   check(game.tutorial.help_entry.tooltip_text==("Available after saving finishes" if pending else ""),"tutorial explains temporary save guard: "+status)
  bridge.value.serverOwnership=true;bridge.value.ownershipPaused=true;bridge.value.status="other-device";bridge.value.canRequestTakeover=true;bridge.value.canForceTakeover=false
  controller.check_runtime_recovery()
  check(game.paused and game.save_recovery_blocked and game.save_writes_suppressed and bridge.preserve_calls==1,"ownership loss freezes and snapshots live model once")
