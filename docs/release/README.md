@@ -124,17 +124,41 @@ Historical support gap: main `d30115b6932af1ab28e30672996eae09becaef16` rejected
 
 ## Update-note style
 
-- Write short English sentences. Describe one change per sentence.
+- Use one short English sentence per bullet. Describe one player-visible change.
+- Aim for 5–12 words per bullet. Split a long sentence instead of joining fixes.
 - Prefer Added, Improved and Fixed. Use Changed or Removed for actual changes or removals, not a misleading Fixed.
 - Reuse the same names and words for the same features. Repetition is clearer than synonyms.
 - Describe what players notice. Keep internal implementation details out unless they explain an important limit.
+- Keep source hashes, test results and verification details in PRs.
 - Put important limits and preserved behavior in separate short sentences. Do not lose facts to shorten the text.
 - Keep game Updates and GitHub Release copy in the shared `game/data/release_notes.json`. Preserve historical notes and release metadata during wording-only changes.
 
 Examples:
 - Added multi-cell floor and wall painting.
 - Improved saving feedback in the Save button.
-- Fixed decorations shifting when moving the camera while hovering over a parcel.
+- Fixed decorations shifting when panning over a parcel.
+
+### Next unified release note candidate
+
+The current wording revision is based on checked source
+`1263d8d4ef6c7f46a9cedce0a74fb1820e668fd7`. It shortens the existing cumulative
+notes and includes merged [PR333](https://github.com/yiyousiow000814/little-leaf/pull/333),
+[PR334](https://github.com/yiyousiow000814/little-leaf/pull/334) and
+[PR336](https://github.com/yiyousiow000814/little-leaf/pull/336). These are
+next-release candidate notes, pending final release-scope reconciliation.
+They are not a record of a new deployment. The existing schema, English copy,
+history and release metadata remain intact; no final release version or date is
+chosen here. Important existing limits remain: local/account progress stays
+separate, older meals keep their durations, existing stoves keep their value,
+and Decorate Cancel covers the whole session. Direct Firebase play, original
+wall refunds, existing parking and bin rights, painting price preview/charge-free
+Cancel, and all save/ownership guards are unchanged in source. Technical details
+remain in the associated PRs.
+
+Game Updates and GitHub Releases still consume the same JSON. This candidate
+reaches players only through a separately approved release. Existing GitHub
+Release bodies and itch pages are untouched; uploading an itch build does not
+automatically publish a devlog.
 
 ## Publish an approved version
 
