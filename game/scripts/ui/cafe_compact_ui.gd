@@ -270,6 +270,8 @@ func setup():
  hud=Hud.new(self);hud.setup()
  music_panel=MusicPanel.new(self);music_panel.setup()
  shop_ui=ShopUI.new(self);shop_ui.setup()
+ if game.settings_controls.cloud_settings!=null and is_instance_valid(game.settings_controls.cloud_settings.uid_box):
+  game.settings_controls.cloud_settings.attach_footer(settings_box)
  for popup in [wall_review,management,help_panel,play_panel,game.settings,shop_ui.parking_review]:
   hud.theme_panel(popup,true,INFORMATION_PANEL_PADDING if popup in [help_panel,game.settings] else 26);hud.theme_panel_contents(popup)
   _wrap_themed_popup(popup,340 if popup==help_panel else (330 if popup==game.settings else 320))
