@@ -1235,7 +1235,7 @@ func _service_target(staff: Dictionary) -> Dictionary:
 	return model.get_item(int(guest.table_id) if kind=="table" else int(staff.station_id))
 
 func _clear_service_job(staff: Dictionary):
-	staff.erase("work_wait_seconds")
+	staff.erase("pass_validation");staff.erase("pass_search");staff.erase("work_wait_seconds")
 	if staff.job_kind=="cleanup" and (staff.role=="waiter" or int(staff.job_step)<3) and service_guests.has(int(staff.job_guest_id)):
 		var record=service_guests[int(staff.job_guest_id)]
 		if record.plate_owner!="staff":record.dish_sink_id=-1
@@ -1283,21 +1283,57 @@ func _pass_faces(item:Dictionary)->Array:
 		if not _staff_walkable(face) or model.edge_blocked(Vector2i(int(item.x),int(item.z)),face):return []
 	return [rear,front]
 
+func _staff_distances(from:Vector2i)->Dictionary:
+	# Same traversal domain as _staff_route, including its x>=1 boundary.
+	var occupied=model.navigation_cells()
+	var distance={from:0};var queue=[from];var cursor=0
+	while cursor<queue.size():
+		var cell:Vector2i=queue[cursor];cursor+=1
+		for direction in [Vector2i.RIGHT,Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP]:
+			var next=cell+direction
+			if next.x<1 or not model.is_floor_owned(next) or bool(occupied.get(next,false)) or distance.has(next) or model.edge_blocked(cell,next):continue
+			distance[next]=int(distance[cell])+1;queue.append(next)
+	return distance
+
 func _reserve_pass(staff: Dictionary):
 	var record=service_guests[int(staff.job_guest_id)]
-	if int(record.meal_pass_id)>=0: return
+	# Contact already put the dish down. Never retarget counter-owned food.
+	if record.plate_owner=="counter":return
+	if record.plate_owner=="staff" and int(record.plate_staff_index)!=staff_states.find(staff):return
+	if record.plate_owner not in ["staff","kitchen"]:return
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
-	var any_counter=false
-	var full=false
+	var geometry=model.navigation_signature()
+	var current=int(record.meal_pass_id)
+	var validation=[geometry,int(record.token),current]
+	if current>=0 and bool(record.pass_reserved) and staff.get("pass_validation",[])==validation:return
+	var reserved=[]
+	for other in service_guests.values():
+		if not is_same(other,record) and bool(other.get("pass_reserved",false)):reserved.append(int(other.meal_pass_id))
+	reserved.sort()
+	var search=[geometry,from,int(record.token),reserved]
+	if current<0 and staff.get("pass_search",[])==search:return
+	# One assignment-scoped BFS scores every counter and verifies both sides.
+	var distance=_staff_distances(from)
+	var faces=_pass_faces(model.get_item(current))
+	if current>=0 and bool(record.pass_reserved) and not reserved.has(current) and not faces.is_empty() and distance.has(faces[0]) and distance.has(faces[1]):
+		staff.pass_validation=validation;return
+	if current>=0:
+		record.meal_pass_id=-1;record.pass_reserved=false
+		staff.job_elapsed=0.0 # Only the invalid, pre-contact placing action restarts.
+	staff.erase("pass_validation")
+	var best={};var shortest=1000000;var any_counter=false;var full=false
 	for item in model.items:
-		if str(item.kind)!="counter": continue
+		if str(item.kind)!="counter":continue
 		any_counter=true;staff.blocked_target_id=int(item.id)
-		if _service_cell(item,from,[],"chef")==Vector2i(-1,-1) or _service_cell(item,from,[],"waiter")==Vector2i(-1,-1): continue
-		var reserved=false
-		for other in service_guests.values():
-			if bool(other.get("pass_reserved",false)) and int(other.get("meal_pass_id",-1))==int(item.id): reserved=true;break
-		if reserved: full=true;continue
-		record.meal_pass_id=int(item.id);record.pass_reserved=true;staff.blocked_reason="";return
+		faces=_pass_faces(item)
+		if faces.is_empty() or not distance.has(faces[0]) or not distance.has(faces[1]):continue
+		if reserved.has(int(item.id)):full=true;continue
+		var steps=int(distance[faces[0]])
+		if steps<shortest or (steps==shortest and int(item.id)<int(best.get("id",1000000001))):best=item;shortest=steps
+	if not best.is_empty():
+		record.meal_pass_id=int(best.id);record.pass_reserved=true;staff.blocked_reason=""
+		staff.pass_validation=[geometry,int(record.token),int(best.id)];staff.erase("pass_search");return
+	staff.pass_search=search
 	staff.blocked_reason="Pass counter full · waiting for the waiter" if full else ("Pass counter blocked · clear its back and front in Decorate" if any_counter else "Add a pass counter in Decorate")
 	staff.blocked_guest_id=int(staff.job_guest_id)
 

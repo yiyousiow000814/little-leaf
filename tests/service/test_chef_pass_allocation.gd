@@ -47,6 +47,55 @@ func run():
  check(r.meal_ready and r.token==token,"normal placing completes with the same meal token")
  check(standing_yielded,"blocked chef uses a standing alternative during the real handoff")
  cleanup(g)
+ g=fixture();b=g.staff_states[1];r=g.service_guests[202]
+ g.model.items.append({"id":104,"kind":"counter","x":8,"z":5,"rot":0});g.model.revision+=1
+ g._reserve_pass(b)
+ check(r.meal_pass_id==104,"nearest reachable chef endpoint wins over furniture order")
+ token=r.token
+ b.pos=Vector2(5.5,4.5)
+ for i in range(20):g._reserve_pass(b)
+ check(r.meal_pass_id==104,"valid reservation does not thrash when another counter becomes closer")
+ r.meal_pass_id=104;r.pass_reserved=true # Independent invalidation fixture on both old/new implementations.
+ b.job_elapsed=.3
+ g.model.items.append({"id":105,"kind":"plant","x":8,"z":4,"rot":0}) # direct mutation without revision bump
+ g._reserve_pass(b)
+ check(r.meal_pass_id==103 and r.pass_reserved,"blocked rear invalidates and replaces the old reservation")
+ check(r.plate_owner=="staff" and r.plate_staff_index==1 and r.token==token,"retarget preserves dish custody and token")
+ check(b.job_step==3 and b.job_elapsed==0.0,"only incomplete placing contact restarts on target change")
+ g._service_contact(b,1,"placing_plate",g.model.get_item(103),.65)
+ b.job_elapsed=.6
+ g.model.items.erase(g.model.get_item(105));g.model.revision+=1
+ g._reserve_pass(b)
+ check(r.meal_pass_id==103 and r.plate_target_id==103 and r.plate_owner=="counter","post-contact dish never jumps to a newly available pass")
+ check(b.job_elapsed==.6,"post-contact handoff clock is preserved")
+ cleanup(g)
+ g=fixture();b=g.staff_states[1];r=g.service_guests[202]
+ var other=g.service_guests[201];other.meal_pass_id=103;other.pass_reserved=true
+ g._reserve_pass(b)
+ check(r.meal_pass_id==-1 and r.plate_owner=="staff","full pass preserves held food")
+ other.pass_reserved=false
+ g._reserve_pass(b)
+ check(r.meal_pass_id==103,"released pass invalidates a waiting search immediately")
+ cleanup(g)
+ g=fixture();b=g.staff_states[1];r=g.service_guests[202]
+ g.model.items.append({"id":104,"kind":"counter","x":8,"z":5,"rot":0})
+ g.model.items.append({"id":105,"kind":"plant","x":8,"z":6,"rot":0})
+ g._reserve_pass(b)
+ check(r.meal_pass_id==103,"near counter with blocked waiter front is unavailable")
+ cleanup(g)
+ g=fixture();b=g.staff_states[1];r=g.service_guests[202]
+ g.model.get_item(103).x=6
+ g.model.items.push_front({"id":104,"kind":"counter","x":8,"z":5,"rot":0})
+ g._reserve_pass(b)
+ check(r.meal_pass_id==103,"equal routes use stable lower counter ID despite list order")
+ cleanup(g)
+ g=fixture();b=g.staff_states[1];r=g.service_guests[202]
+ g.model.items.append({"id":104,"kind":"counter","x":8,"z":5,"rot":0});g._reserve_pass(b)
+ g.model.items.erase(g.model.get_item(104));g._reserve_pass(b)
+ check(r.meal_pass_id==103 and r.plate_owner=="staff","direct counter deletion safely replans held food")
+ var saved=g._service_save_snapshot()
+ check(not saved.staff[1].has("pass_validation") and not saved.staff[1].has("pass_search") and not saved.staff[1].has("work_wait_seconds"),"runtime allocation caches do not change saved staff schema")
+ cleanup(g)
  g=fixture();a=g.staff_states[0];b=g.staff_states[1]
  # Two independently usable stoves share a work cell. Later chef is mid-cook.
  g.model.get_item(102).x=6;g.model.get_item(102).z=4;g.model.get_item(102).rot=1;g.model.revision+=1
@@ -65,5 +114,24 @@ func run():
  g._animate_staff(.1)
  check(g.service_guests[202].meal_pass_id==103 and g.service_guests[201].meal_pass_id==-1,"longer waiting chef gets a newly available pass before roster order")
  cleanup(g)
+ route_boundary()
+ evidence.checks=checks;evidence.failures=failures
+ print("CHEF_PASS_RUNTIME ",JSON.stringify(evidence))
  print("CHEF_PASS_ALLOCATION_RESULT checks=",checks," failures=",failures.size())
  quit(0 if failures.is_empty() else 1)
+
+class SmallModel extends "res://scripts/core/cafe_model.gd":
+ func is_floor_owned(cell:Vector2i)->bool:return cell.x>=0 and cell.x<4 and cell.y>=0 and cell.y<3
+func route_boundary():
+ var g=Main.new();g.model=SmallModel.new();g.model.reset_new();g.model.items.clear();g.model.built_walls.clear()
+ for x in range(1,4):g.model.items.append({"id":x,"kind":"plant","x":x,"z":1,"rot":0})
+ g._add_staff("chef",Vector2(1.5,.5))
+ check(not g.model.path_between(Vector2i(1,0),Vector2i(1,2)).is_empty(),"model retains its existing x0 route semantics")
+ check(g._staff_route(0,Vector2i(1,2)).is_empty(),"staff cannot use x0-only detour")
+ if g.has_method("_staff_distances"):
+  check(not g._staff_distances(Vector2i(1,0)).has(Vector2i(1,2)),"assignment uses actual staff route domain")
+  check(g._staff_distances(Vector2i(0,2)).has(Vector2i(1,2)),"legacy boundary start may enter the legal staff grid")
+  g.model.items.erase(g.model.get_item(2))
+  check(g._staff_distances(Vector2i(1,0)).has(Vector2i(1,2)) and not g._staff_route(0,Vector2i(1,2)).is_empty(),"opening a legal staff route restores eligibility")
+ else:check(false,"assignment must observe the actual staff route domain")
+ cleanup(g)
