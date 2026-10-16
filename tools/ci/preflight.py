@@ -19,6 +19,7 @@ RELEASE_TESTS = (
 NODE_CHECKS = (
     "tests/persistence/crazygames_storage.js",
     "tests/persistence/legacy_byte_storage.js",
+    "tests/persistence/layout_hold_codec.js",
     "tests/presentation/boot_presentation.js",
     "tests/presentation/fresh_tutorial_browser_test.js",
     "--check tests/presentation/fresh_tutorial_browser.js",
