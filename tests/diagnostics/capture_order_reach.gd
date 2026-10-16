@@ -16,6 +16,7 @@ func run():
  game=Fixture.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  if game.cafe_intro!=null:game.cafe_intro.finish()
  game.setup();game.paused=false
+ if OS.get_environment("ORDER_REACH_IDLE_CHEF")=="1":game.setup_idle_chef()
  game.illustration.zoom=1.7;game.illustration.update_projection()
  game.illustration.pan_offset+=Vector2(680,490)-game.illustration.iso(5.5,5.5);game.illustration.update_projection()
  # Identical scene, clock, route/gesture updates and camera on both sources.

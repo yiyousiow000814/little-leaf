@@ -6,6 +6,11 @@ const INVALID=Vector2i(-1,-1)
 var checks=0
 var failures=[]
 var evidence={}
+class CountedFixture extends Fixture:
+ var rear_route_calls=0
+ func _staff_route(index:int,cell:Vector2i)->Array:
+  if cell in [Vector2i(5,6),Vector2i(8,6)]:rear_route_calls+=1
+  return super._staff_route(index,cell)
 func check(ok,label):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
@@ -101,9 +106,9 @@ func run():
  check(destination(g)==INVALID,"closed real route invalidates rear pin without waiting for a stall")
  g.model.items.erase(g.model.get_item(303));check(destination(g)==REAR,"reopening real route permits retry")
  var saved=g._service_save_snapshot()
- check(not saved.staff[0].has("order_route_key") and not saved.staff[0].has("order_route_available"),"bounded route verdict is absent from save projection")
+ check(not saved.staff[0].has("order_route_key") and not saved.staff[0].has("order_route_lengths"),"bounded route verdicts are absent from save projection")
  g._clear_service_job(s)
- check(not s.has("order_route_key") and not s.has("order_route_available"),"clearing job releases route verdict")
+ check(not s.has("order_route_key") and not s.has("order_route_lengths"),"clearing job releases route verdicts")
  cleanup(g)
  # Invalidate contact in place after the real waiter has begun its gesture.
  g=fixture();record=g.service_guests[201];s=g.staff_states[0]
@@ -122,6 +127,77 @@ func run():
   s.pos=g.model.cell_center(REAR);s.table_face_id=101;s.table_face_cell=REAR
   check(destination(g)==INVALID,kind+" cannot use rear order pin")
   cleanup(g)
+ idle_fallback_priority()
+ negative_routes()
  print("ORDER_REACH_EVIDENCE ",JSON.stringify(evidence))
  print("ORDER_REACH_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"player_save_used":false}))
  quit(0 if failures.is_empty() else 1)
+
+func idle_fallback_priority():
+ var g=fixture();g.setup_idle_chef()
+ var chef=g.staff_states[0];var waiter=g.staff_states[1];var record=g.service_guests[201]
+ check(chef.job_kind=="" and chef.idle_home_cell==INVALID and chef.pos==g.model.cell_center(REAR),"earlier idle chef has no home and stands on rear endpoint")
+ check(waiter.job_kind=="order" and waiter.table_face_cell==REAR,"later waiter already owns an actual reachable rear order endpoint")
+ var token=record.token;var yielded=false
+ for tick in range(160):
+  g._animate_staff(.05)
+  if waiter.job_kind=="order":yielded=yielded or chef.destination!=REAR
+  if record.order_done:break
+ evidence.idle_chef=g.snapshot()
+ check(yielded,"idle fallback chooses a standing alternative to productive order endpoint")
+ check(record.order_done and record.token==token and record.plate_owner=="kitchen","later waiter completes same order despite earlier idle chef")
+ # Protection is released as soon as the order finishes.
+ chef.pos=g.model.cell_center(REAR);g._animate_staff(.05)
+ check(chef.destination==REAR,"completed order releases its endpoint for idle standing")
+ cleanup(g)
+ g=fixture();g.setup_idle_chef();chef=g.staff_states[0]
+ g.service_guests[201].guest.seated=false;g._animate_staff(.05)
+ check(chef.destination==REAR,"ineligible diner releases rear protection immediately")
+ cleanup(g)
+ g=fixture();g.model.items.erase(g.model.get_item(103));g.staff_states.clear()
+ g._add_staff("chef",g.model.cell_center(REAR));g._add_staff("waiter",Vector2(3.5,6.5))
+ g._assign_service_job(g.staff_states[1],1);g._animate_staff(.05)
+ check(g.staff_states[1].table_face_cell==Vector2i(4,4) and g.staff_states[0].destination==REAR,"only selected ordinary endpoint is protected; unused rear remains free")
+ cleanup(g)
+ # If no standing alternative exists, remaining in place is not a work claim.
+ g=fixture();g.setup_idle_chef();waiter=g.staff_states[1];record=g.service_guests[201]
+ waiter.pos=g.model.cell_center(REAR)
+ for cell in [Vector2i(4,6),Vector2i(6,6),Vector2i(5,7)]:g.model.items.append({"id":200+cell.x*10+cell.y,"kind":"plant","x":cell.x,"z":cell.y,"rot":0})
+ for tick in range(80):g._animate_staff(.05)
+ check(g.staff_states[0].pos==g.model.cell_center(REAR),"no alternate standing cell does not teleport the idle chef")
+ check(record.order_done,"unavoidable idle fallback does not claim the productive endpoint")
+ cleanup(g)
+
+func negative_routes():
+ var g=CountedFixture.new();g.setup();var s=g.staff_states[0]
+ # Two independently eligible but enclosed rear cells, one resting waiter.
+ for item in g.model.items.duplicate(true):
+  item.id+=10;item.x+=3;g.model.items.append(item)
+ var guest=g.model.customers[0].duplicate(true)
+ guest.id=202;guest.table_id=111;guest.chair_id=112;guest.x+=3;g.model.customers.append(guest)
+ for cell in [Vector2i(4,6),Vector2i(6,6),Vector2i(5,7),Vector2i(7,6),Vector2i(9,6),Vector2i(8,7)]:g.model.items.append({"id":400+cell.x*10+cell.y,"kind":"plant","x":cell.x,"z":cell.y,"rot":0})
+ g._sync_service_guests();g._assign_service_job(s,0)
+ var first=g.rear_route_calls
+ for frame in range(200):g._assign_service_job(s,0)
+ evidence.negative_route_calls={"initial":first,"after_200_retries":g.rear_route_calls}
+ check(first==2 and s.job_kind=="","both actual rear candidates are unreachable")
+ check(g.rear_route_calls==first,"negative results memoize both diners across idle assignment retries")
+ check(s.get("order_route_lengths",{}).size()==2,"cache retains only two endpoint verdicts for this start/topology")
+ s.pos=Vector2(3.5,7.5);g._assign_service_job(s,0)
+ check(g.rear_route_calls==first+2,"changed start cell rechecks both unreachable rear endpoints")
+ first=g.rear_route_calls
+ g.model.customers[0].seated=false;g._assign_service_job(s,0)
+ g.model.customers[0].seated=true;g._assign_service_job(s,0)
+ check(g.rear_route_calls==first and s.job_kind=="","live diner eligibility changes do not cache claims or repeat static searches")
+ g.model.items.erase(g.model.get_item(446)) # Opening (4,6) changes topology without a revision bump.
+ g._add_staff("waiter",Vector2(2.5,7.5));var peer=g.staff_states[1]
+ peer.job_kind="order";peer.destination=REAR
+ g._assign_service_job(s,0)
+ check(s.job_kind=="" and g.rear_route_calls==first+1,"live peer claim excludes newly open rear while topology invalidates other verdict")
+ peer.job_kind="";g._assign_service_job(s,0)
+ check(s.job_kind=="order" and s.table_face_cell==REAR and g.rear_route_calls==first+2,"released endpoint claim permits fresh successful route after topology change")
+ first=g.rear_route_calls
+ var target=g.model.get_item(101)
+ check(g._service_destination(s,target,Vector2i(s.pos.floor()),[REAR])==INVALID,"positive cached route still rechecks same-frame endpoint claim")
+ check(g._service_destination(s,target,Vector2i(s.pos.floor()))==REAR and g.rear_route_calls==first,"released same-frame claim reuses positive verdict")
+ cleanup(g)
