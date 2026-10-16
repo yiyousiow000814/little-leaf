@@ -32,6 +32,7 @@ func _init(owner):compact_ref=weakref(owner);game=owner.game
 func setup():
  entry=game.button("Support Mail",show);entry.name="OpenSupportMail";entry.visible=false
  game.settings.get_child(0).add_child(entry)
+ compact.hud.theme_button(entry)
  panel=compact._panel();panel.name="SupportMailCompose"
  compact.hud.theme_panel(panel,true,24)
  var frame=VBoxContainer.new();frame.add_theme_constant_override("separation",9);panel.add_child(frame)
@@ -59,6 +60,7 @@ func setup():
  var back=game.button("Back to Settings",func():panel.hide();game.settings.show());frame.add_child(back)
  for field in [recipient,case_id,subject]:field.text_changed.connect(func(_value):_invalidate_preview())
  letter.text_changed.connect(_invalidate_preview);coins.value_changed.connect(func(_value):_invalidate_preview())
+ compact.hud.theme_panel_contents(panel)
  compact._wrap_themed_popup(panel,450)
  panel.hide()
 
