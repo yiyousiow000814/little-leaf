@@ -208,3 +208,36 @@ No final Golden set, new pixel tolerance or automatic reference-promotion rule
 is approved here. Keep source-bound comparison controls, user acceptance,
 required CI, merge and release as distinct states. See
 [assets and licenses](../art-audio/README.md) for retained art provenance.
+
+## Stove handle over chef head — requirement16 candidate
+
+The user reported a grip painted on a rabbit head. In isolated native GL
+captures based on main302e77d, a rabbit at the rotation0 stove workface reproduces
+this during `preparing_food` and `plating`, at normalized phase0.5. The existing
+queue schedules a whole-vessel foreground redraw after the actor in rotations0/1;
+that redraw includes the grip. Chef plating already paints its idle visual pose,
+so its obsolete vessel foreground is removed. Preparation still needs the vessel
+over the lifted plate; its local foreground now omits the handle, leaving the
+original depth-ordered handle to be occluded naturally by the head/hand. No head
+repaint, actor relocation, handle shortening or geometry change is introduced.
+
+This uses the existing painter queue and furniture helper. The normal vessel
+path includes the unchanged handle by default; the foreground opts out. No new
+retained object, cache, callback, save field or lifecycle owner is added. Work
+remains proportional to current stove interactions; plating removes one entry,
+and preparation removes duplicate handle strokes. That is a source work-count
+reduction, not a measured whole-frame performance gain.
+
+The scoped acceptance surface is native Godot4.6.3 GL/llvmpipe,1360x880, a
+synthetic no-save rabbit/stove scene, rotations0/1 across preparation/cooking/
+plating, normal zoom1 and the actual camera maximum. Rotation3 controls the
+shared default vessel path. Cooking frames and every rotation3 frame match the
+baseline exactly; changed pixels are local to the affected vessel/handle region.
+Normal and maximum captures were inspected, retaining the plate/hand/vessel
+relationship and visible grip. The existing pan-handle geometry regression passes
+22376 assertions including8 foreground checks. This is a generated reproduction;
+the exact phase/layout of IMG_0828 and full continuous-cycle/browser/device
+acceptance are not established. The parent reviewer inspected the original;
+this cloud lane received its Library metadata/image pointer, not decodable pixels.
+Actual user appearance acceptance, independent review, CI, merge and deployment
+remain pending. The all20-item deployment hold stays in force.

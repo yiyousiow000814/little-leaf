@@ -302,12 +302,12 @@ func _stove_pan_handle():
 	var light=Vector2(-.25,-.35)
 	edge(grip+light,tip+light,"b49b73",.65)
 
-func stove_pan():
+func stove_pan(include_handle=true):
 	var c=point(0,0,34)
 	var handle_in_front=stove_handle_in_front(turn)
 	# The far-side collar belongs behind the vessel. Do not repaint it over
 	# the lip or wood grip after the pan has occluded the attachment.
-	if not handle_in_front:_stove_pan_handle()
+	if include_handle and not handle_in_front:_stove_pan_handle()
 	# Joined upper/back and lower/front arcs form a continuous tapered vessel,
 	# rather than a rounded trapezoid with a separate oval painted on it.
 	var body:Array=[]
@@ -320,17 +320,17 @@ func stove_pan():
 	a.poly(body,"9eac94")
 	a.outlined_ellipse(c+Vector2(0,-7),Vector2(8.5*PAN_WIDTH,4.2*PAN_DEPTH),"607d6b","dce0c9",1.2)
 	a.ellipse(c+Vector2(0,-7),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"718c77")
-	if handle_in_front:_stove_pan_handle()
+	if include_handle and handle_in_front:_stove_pan_handle()
 
 func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	CookingFood.draw_rest_food(artist,point(0,0,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
 
-func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
+func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0,include_handle=true):
 	var motion={"pot":Vector2.ZERO,"lid":Vector2.ZERO}
 	if artist.has_method("_stove_vessel_motion"):motion=artist._stove_vessel_motion(id)
 	kitchen_height=true;a=artist;turn=posmod(rotation,4);origin=p+motion.pot
-	stove_pan()
+	stove_pan(include_handle)
 	# Reuse the vessel's original palette and elliptical rim geometry.
 	var lid=point(0,0,34)+Vector2(0,-7.6)+motion.lid-motion.pot
 	a.outlined_ellipse(lid,Vector2(8.4*PAN_WIDTH,4.1*PAN_DEPTH),"b5c2a7","dce0c9",1.0)
@@ -340,7 +340,9 @@ func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
 	origin=p
 
 func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):
-	draw_stove_vessel(artist,p,rotation,id)
+	# The original depth-ordered pass owns the handle. Repaint only the vessel
+	# over the preparation plate, leaving a foreground head to occlude its grip.
+	draw_stove_vessel(artist,p,rotation,id,false)
 
 func _sink_faucet():
 	# One centered tap serves the full basin; there is no decorative rack.
