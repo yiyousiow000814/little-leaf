@@ -1,4 +1,4 @@
-import {hash,uid,uuid,normalizeIssue,verifyRecord,grant,error} from './support_mail_contract.mjs';
+import {hash,uid,uuid,normalizeIssue,verifyRecord,grant,error,parsePayload,MAIL_CATALOG} from './support_mail_contract.mjs';
 
 // Trusted Firestore service. All paths, roles and player identities are derived
 // here; callable arguments never grant authority. The default flag is closed.
@@ -15,7 +15,14 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
   const issue=id=>path('supportIssues',id);
   const preview=id=>path('supportPreviews',id);
   const backup=player=>path('players',player,'saveBackups','supportMailV1');
+  const placement= (player,id)=>path('players',player,'giftPlacements',id);
   const caseRef=(player,caseId)=>path('supportCases',hash(player+'\n'+caseId));
+  const rate=(player,kind,time)=>path('supportRate',player,'windows',kind+'-'+Math.floor(time/60000));
+  function checkedRate(snapshot,limit) {
+    const count=snapshot.data()?.count||0;
+    if(!Number.isSafeInteger(count)||count<0||count>=limit)throw error('RATE_LIMITED','Wait before another support action.');
+    return {count:count+1};
+  }
   function active() {if(!enabled)throw error('FEATURE_DISABLED','Support mail is unavailable.');}
   function actor(context) {
     const auth=context?.auth;
@@ -50,14 +57,23 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       writerId:request.writerId,writerEpoch:request.writerEpoch,device:old.device||'Unknown device'};
   }
   async function lookup(context,recipientUid) {
-    await authorized(context,'lookup');
+    const actorId=await authorized(context,'lookup'),time=now();
     if(!uid(recipientUid))throw error('INVALID_UID','Enter one exact player UID.');
-    const [saved,ctrl]=await Promise.all([save(recipientUid).get(),control(recipientUid).get()]);
-    if(!saved.exists)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
-    const record=head(saved.data());
-    return {uid:recipientUid,profileId:record.profileId,revision:record.revision,
-      savedAt:record.updatedAt,timeSource:'client record time',device:saved.data().device||'Unknown device',
-      protected:ctrl.exists,evidence:'Current verified save only; historic purchases unavailable.'};
+    const found=await db.runTransaction(async tx=>{
+      const limit=rate(actorId,'lookup',time);
+      const [r,quota,saved,ctrl]=await Promise.all([tx.get(role(actorId)),tx.get(limit),
+        tx.get(save(recipientUid)),tx.get(control(recipientUid))]);
+      if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('lookup'))throw error('PERMISSION_DENIED','Support access changed.');
+      const next=checkedRate(quota,20);
+      tx.set(limit,next);
+      if(!saved.exists)return {missing:true};
+      const record=head(saved.data());
+      return {uid:recipientUid,profileId:record.profileId,revision:record.revision,
+        savedAt:record.updatedAt,timeSource:'client record time',device:saved.data().device||'Unknown device',
+        protected:ctrl.exists,evidence:'Current verified save only; historic purchases unavailable.'};
+    });
+    if(found.missing)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
+    return found;
   }
   async function capabilities(context) {
     const id=actor(context),r=(await role(id).get()).data();
@@ -68,7 +84,8 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const actorId=await authorized(context,'issue'),value=normalizeIssue(input),time=now();
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
-      const [r,p,s,existing]=await Promise.all([tx.get(role(actorId)),tx.get(preview(value.issueId)),
+      const limit=rate(actorId,'preview',time);
+      const [r,quota,p,s,existing]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
         tx.get(save(value.recipientUid)),tx.get(issue(value.issueId))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
       if(existing.exists)throw error('ISSUE_EXISTS','This issue was already sent. Check its status.');
@@ -76,6 +93,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       if(!s.exists)throw error('PLAYER_NOT_FOUND','No cloud café exists for that UID.');
       const record=head(s.data());
       if(record.profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
+      tx.set(limit,checkedRate(quota,10));
       tx.set(preview(value.issueId),{schema:1,actorUid:actorId,requestHash:normalizedHash,
         recipientUid:value.recipientUid,profileId:value.profileId,createdAt:time,expiresAt:time+10*60*1000});
       return {issueId:value.issueId,previewHash:normalizedHash,expiresAt:time+10*60*1000,
@@ -87,7 +105,8 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
     const actorId=await authorized(context,'issue'),value=normalizeIssue(input),time=now();
     const normalizedHash=hash(JSON.stringify(value));
     return db.runTransaction(async tx=>{
-      const [r,p,existing,usedCase,s]=await Promise.all([tx.get(role(actorId)),tx.get(preview(value.issueId)),
+      const limit=rate(actorId,'issue',time);
+      const [r,quota,p,existing,usedCase,s]=await Promise.all([tx.get(role(actorId)),tx.get(limit),tx.get(preview(value.issueId)),
         tx.get(issue(value.issueId)),tx.get(caseRef(value.recipientUid,value.caseId)),tx.get(save(value.recipientUid))]);
       if(r.data()?.enabled!==true||!r.data()?.capabilities?.includes('issue'))throw error('PERMISSION_DENIED','Support access changed.');
       if(existing.exists){
@@ -98,6 +117,7 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       if(!p.exists||p.data().actorUid!==actorId||p.data().requestHash!==normalizedHash||p.data().expiresAt<time)
         throw error('PREVIEW_EXPIRED','Review the exact letter again before sending.');
       if(!s.exists||head(s.data()).profileId!==value.profileId)throw error('PROFILE_CHANGED','Recipient café changed.');
+      tx.set(limit,checkedRate(quota,5));
       const payload={schema:1,mailId:value.issueId,issueId:value.issueId,profileId:value.profileId,
         title:value.subject,body:value.body,coins:value.coins,items:value.items,
         issuedAt:time,status:'unclaimed',claimedAt:null};
@@ -182,5 +202,69 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       return {status:'saved',record:candidate};
     });
   }
-  return {capabilities,lookup,previewMail,issueMail,listMyMail,claimMail,commitProtectedSave};
+  async function commitGiftPlacement(context,request) {
+    const player=actor(context),time=now(),candidate=request?.candidate,consumed=request?.consumed;
+    if(!uuid(request?.operationId)||!Array.isArray(consumed)||consumed.length<1||consumed.length>10)
+      throw error('INVALID_PLACEMENT','Invalid gift placement.');
+    verifyRecord(candidate);
+    const operations=new Map();
+    for(const entry of consumed){
+      if(!entry||!MAIL_CATALOG.includes(entry.catalogId)||!Number.isSafeInteger(entry.itemId)
+        ||entry.itemId<1||entry.itemId>1000000000||operations.has(entry.itemId))throw error('INVALID_PLACEMENT','Invalid gift furnishing.');
+      operations.set(entry.itemId,entry.catalogId);
+    }
+    const operationHash=hash(JSON.stringify({digest:candidate.digest,consumed:[...operations].sort((a,b)=>a[0]-b[0]),
+      profileId:request.profileId,revision:request.revision,base:request.digest}));
+    return db.runTransaction(async tx=>{
+      const [done,s,ctrl,own,g]=await Promise.all([tx.get(placement(player,request.operationId)),tx.get(save(player)),
+        tx.get(control(player)),tx.get(session(player)),tx.get(stock(player))]);
+      if(!s.exists||!ctrl.exists||!g.exists)throw error('PROTOCOL_CHANGED','Gift stock is unavailable.');
+      const current=head(s.data()),protocol=ctrl.data(),stockValue=g.data();
+      if(done.exists){
+        if(done.data().operationHash!==operationHash)throw error('ISSUE_CONFLICT','Placement ID was already used.');
+        return {status:'placed',receipt:done.data(),record:current,stock:stockValue};
+      }
+      fence(own.data(),request,time);expected(current,request);
+      if(current.format!==3||candidate.format!==3||candidate.profileId!==current.profileId
+        ||candidate.revision!==current.revision+1||candidate.createdAt!==current.createdAt
+        ||candidate.previous!==null||candidate.updatedAt<current.updatedAt
+        ||JSON.stringify(candidate.origin)!==JSON.stringify(current.origin)
+        ||JSON.stringify(candidate.campaigns)!==JSON.stringify(current.campaigns)
+        ||protocol.claimSequence!==current.mailState.claimSequence
+        ||protocol.stockRevision!==current.mailState.stockRevision||stockValue.revision!==protocol.stockRevision
+        ||candidate.mailState.claimSequence!==current.mailState.claimSequence
+        ||candidate.mailState.stockRevision!==current.mailState.stockRevision+1)
+        throw error('PROTOCOL_CHANGED','Gift placement was based on old progress.');
+      const oldItems=parsePayload(current.payload).items,nextItems=parsePayload(candidate.payload).items;
+      if(!Array.isArray(oldItems)||!Array.isArray(nextItems))throw error('INVALID_PLACEMENT','Invalid furniture list.');
+      const oldIds=new Set(),newIds=new Set(),added=new Map();
+      for(const item of oldItems){
+        if(!Number.isSafeInteger(item?.id)||oldIds.has(item.id))throw error('INVALID_PLACEMENT','Invalid saved furnishing identity.');
+        oldIds.add(item.id);
+      }
+      for(const item of nextItems){
+        if(!Number.isSafeInteger(item?.id)||newIds.has(item.id))throw error('INVALID_PLACEMENT','Duplicate furnishing.');
+        newIds.add(item.id);
+        if(!oldIds.has(item.id))added.set(item.id,item.kind);
+      }
+      const counts={...stockValue.counts};
+      for(const [itemId,kind] of operations){
+        if(added.get(itemId)!==kind||!Number.isSafeInteger(counts[kind])||counts[kind]<1)
+          throw error('STOCK_CHANGED','Gift stock or placed furnishing changed.');
+        counts[kind]--;
+      }
+      const updatedStock={schema:1,revision:stockValue.revision+1,counts};
+      const receipt={schema:1,operationId:request.operationId,operationHash,profileId:current.profileId,
+        consumed:[...operations].map(([itemId,catalogId])=>({itemId,catalogId})),
+        fromDigest:current.digest,toDigest:candidate.digest,at:time};
+      tx.set(save(player),docFor(candidate,s.data(),request));
+      tx.set(stock(player),updatedStock);
+      tx.set(control(player),{...protocol,stockRevision:updatedStock.revision});
+      tx.create(placement(player,request.operationId),receipt);
+      tx.create(audit(request.operationId+'-gift-placement'),{type:'gift-placement',actorUid:player,
+        recipientUid:player,operationHash,fromDigest:current.digest,toDigest:candidate.digest,at:time});
+      return {status:'placed',receipt,record:candidate,stock:updatedStock};
+    });
+  }
+  return {capabilities,lookup,previewMail,issueMail,listMyMail,claimMail,commitProtectedSave,commitGiftPlacement};
 }

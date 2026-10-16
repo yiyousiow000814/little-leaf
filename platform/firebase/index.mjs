@@ -21,3 +21,4 @@ export const listMyMail=call('listMyMail');
 export const claimSupportMail=call('claimMail');
 // Keep ordinary protected saves available while new grants are disabled.
 export const commitProtectedSave=call('commitProtectedSave');
+export const commitGiftPlacement=call('commitGiftPlacement');

@@ -69,4 +69,17 @@ const stopped=createSupportMailService({db,enabled:false,now:()=>clock});
 await assert.rejects(stopped.claimMail(auth(player),request),{code:'FEATURE_DISABLED'});
 assert.equal((await stopped.commitProtectedSave(auth(player),{...request,revision:2,digest:granted.digest,candidate})).record.digest,candidate.digest,
   'kill switch preserves protected-save recovery');
-console.log('Support mail emulator: issue idempotency, role revocation, atomic gift claim, backup, protected save and kill switch passed.');
+const placed={...candidate,revision:4,updatedAt:clock+2,mailState:{...candidate.mailState,stockRevision:2},
+  payload:JSON.stringify({...JSON.parse(candidate.payload),items:[{id:1,kind:'plant',x:0,z:0,rot:0}],next_item_id:2})};
+placed.digest=hash(fingerprint(placed));
+const placeRequest={...request,revision:3,digest:candidate.digest,candidate:placed,
+  operationId:'55555555-5555-4555-8555-555555555555',consumed:[{itemId:1,catalogId:'plant'}]};
+await assert.rejects(service.commitGiftPlacement(auth(player),{...placeRequest,consumed:[{itemId:1,catalogId:'register'}]}),
+  {code:'INVALID_PLACEMENT'});
+const placedResult=await service.commitGiftPlacement(auth(player),placeRequest);
+assert.equal(placedResult.stock.counts.plant,1);
+assert.equal(placedResult.record.digest,placed.digest);
+assert.equal((await service.commitGiftPlacement(auth(player),placeRequest)).record.digest,placed.digest);
+await assert.rejects(service.commitGiftPlacement(auth(player),{...placeRequest,consumed:[{itemId:2,catalogId:'plant'}]}),
+  {code:'ISSUE_CONFLICT'});
+console.log('Support mail emulator: issue idempotency, role revocation, atomic gift claim and placement, backup, protected save and kill switch passed.');
