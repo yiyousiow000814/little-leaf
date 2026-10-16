@@ -250,3 +250,35 @@ unchanged longer-than30-second decoder assertion. The corrected fixture uses
 Petal, without weakening that assertion. Corrected transport206 checks pass with zero diagnostics; together with the
 unchanged context368 result this gives574 focused checks. Actual UI/browser/audio
 acceptance remains pending.
+
+## Panel-edge botanical correction candidate (2026-10-16)
+
+The user's annotated follow-up requires the existing foliage on the actual panel
+upper/left inner edges, rather than a centered smaller-aspect frame crossing the
+gramophone and playback copy. The isolated cloud candidate starts from verified
+handoff `8b5261ae5a1066b964361d572162c324bb3c7ef6`; that transfer is source
+provenance, not visual acceptance. Fresh native Before/After captures reproduce
+the issue at1882x831 and include1360x880 and the annotated1917x867 viewport.
+
+Eight retained corner/edge regions reuse the original continuous botanical PNG.
+Corners retain uniform proportions; intervening edge strips span the available
+panel dimensions. Adjacent slices use level-zero linear sampling to avoid seams
+from differing mip levels. The original gramophone source, meshes, UVs, placement,
+controls and PNG/import bytes are preserved. The desktop quiet region now covers
+actual status/title/edition/fee/context text ink, rather than only the song title.
+All raised frame islands, finials and emboss layers receive the same actual mask;
+the explicit ink inventory reflects those masks. Source masks update with layout,
+without per-frame resource allocation. Four additional desktop edge nodes and
+four added raised-ornament mask materials remain owned by the existing frame.
+
+The focused engine suite passes49,875 assertions for panel-edge placement,
+adjacency, masks after resize, repeated material identity and material release
+on teardown. It is registered in the ordinary integration runner. The unchanged
+79-source/three-atlas guard passes. Fresh inspected Godot4.6.3 native captures use
+Mesa llvmpipe software rendering in disposable synthetic profiles; no original
+saves or production services were used. Earlier source-transfer tests/screenshots
+are not relabelled as this candidate's proof. Intermediate broad-mask clipping
+and mip-seam attempts remain retained outside source and are not the final
+candidate. Actual browser/device performance, integrated Music regression,
+user acceptance, merge and publication remain open; PR321 stays the sole
+principal Music review. No remote branch or PR write accompanies this candidate.

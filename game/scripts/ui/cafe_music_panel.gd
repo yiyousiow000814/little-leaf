@@ -319,9 +319,17 @@ func _fit_air_ripple():
    title_ink.position-=panel.global_position;title_ink.size.y+=title_ink.position.y;title_ink.position.y=0;quiet.append(title_ink)
    for button in [automatic_button,close_button]:
     var area=button.get_global_rect().grow(3);area.position-=panel.global_position;area.size.y+=area.position.y;area.position.y=0;quiet.append(area)
-   var song_ink=now_playing.get_global_rect()
-   var song_width=minf(song_ink.size.x,now_playing.get_theme_font("font").get_string_size(now_playing.text,HORIZONTAL_ALIGNMENT_LEFT,-1,now_playing.get_theme_font_size("font_size")).x)
-   song_ink.position.x+=(song_ink.size.x-song_width)*.5;song_ink.size.x=song_width;song_ink=song_ink.grow(6);song_ink.position-=panel.global_position;quiet.append(song_ink)
+   # One continuous quiet block spans the real copy/control ink. Using the
+   # entire overview allocation would cut the newly anchored left-edge vine.
+   var song_ink=Rect2()
+   for copy in [status_label,now_playing,selection_label,group_note,context_label]:
+    if not copy.visible or copy.text.is_empty():continue
+    var area=copy.get_global_rect()
+    var width=minf(area.size.x,copy.get_theme_font("font").get_string_size(copy.text,HORIZONTAL_ALIGNMENT_LEFT,-1,copy.get_theme_font_size("font_size")).x)
+    if copy.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER:area.position.x+=(area.size.x-width)*.5
+    elif copy.horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT:area.position.x+=area.size.x-width
+    area.size.x=width;song_ink=song_ink.merge(area) if song_ink.has_area() else area
+   song_ink=song_ink.grow(6);song_ink.position-=panel.global_position;quiet.append(song_ink)
    for card in family_cards.values():
     if card.versions.visible:
      var area=card.versions.get_global_rect().grow(3);area.position-=panel.global_position;quiet.append(area)
