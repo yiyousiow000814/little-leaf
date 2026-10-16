@@ -77,12 +77,25 @@ func run():
  ui._hide_popups();ui.support_mail.entry.visible=true;ui.support_mail.show()
  check(ui.support_mail.panel.visible and ui.support_mail.quantities.size()==10 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
  var composer=ui.support_mail
+ check(composer._utf16_units("🍃") == 2 and composer._utf16_units("Letter 🍃")==9,"client counts emoji as two UTF-16 units like the service")
+ composer.recipient.text="123456789012";composer.found={"publicUid":"123456789012","profileId":PROFILE}
+ composer.case_id.text="case-20";composer.subject.text="S".repeat(100);composer.letter.text="🍃".repeat(1000);composer.coins.value=1
+ composer._refresh_message_feedback()
+ check(composer._field_error()=="" and "2000/2000" in composer.message_feedback.text,"exact service subject and letter bounds remain usable")
+ composer.subject.text+="S";composer._preview()
+ check("Shorten the subject" in composer.note.text and composer.preview_payload.is_empty() and composer.issue_id=="","overlong subject cannot request a preview or allocate an issue")
+ composer.subject.text="Thank you";composer.letter.text+="🍃";composer._preview()
+ check("Shorten the letter" in composer.note.text and composer.preview_payload.is_empty(),"overlong emoji letter cannot request a preview")
+ composer.letter.text="A note";composer.case_id.text="bad/case"
+ check("case reference" in composer._field_error(),"client rejects the service's case-reference format")
+ composer.case_id.text="case-20";composer.recipient.text="023456789012"
+ check("12-digit" in composer._field_error(),"client rejects an invalid public UID")
+ composer.recipient.text="123456789012";composer.subject.text="A little thank-you";composer.letter.text="A long letter for our café owner.\n".repeat(30)
  composer.letter.grab_focus();composer.handle_input(tab)
  check(game.get_viewport().gui_get_focus_owner()==composer.coins.get_line_edit(),"Tab leaves multiline editor for attachments")
  for i in 22:
   composer.handle_input(tab)
   check(composer.panel.is_ancestor_of(game.get_viewport().gui_get_focus_owner()),"composer keyboard focus remains inside "+str(i))
- composer.letter.text="A long letter for our café owner.\n".repeat(30)
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=viewport
   for i in 8:await process_frame

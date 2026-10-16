@@ -1,6 +1,8 @@
 extends RefCounted
 ## Owner compose surface and bounded player mail/stock projection. Authority lives in Functions.
 const CATALOG=["stove","beverage","sink","counter","bin","plant","lamp","bookshelf","rug","divider"]
+const MAX_SUBJECT_UNITS=100
+const MAX_LETTER_UNITS=2000
 const INK=Color("554631")
 const MUTED=Color("79735e")
 const GREEN=Color("426b49")
@@ -23,6 +25,7 @@ var recipient:LineEdit
 var case_id:LineEdit
 var subject:LineEdit
 var letter:TextEdit
+var message_feedback:Label
 var coins:SpinBox
 var quantities:Dictionary={}
 var lookup_summary:Label
@@ -68,6 +71,7 @@ func setup():
  message_body.add_child(_label("Support case",13,MUTED));case_id=LineEdit.new();case_id.placeholder_text="Case reference";message_body.add_child(case_id)
  message_body.add_child(_label("Subject",13,MUTED));subject=LineEdit.new();subject.placeholder_text="A short, clear subject";message_body.add_child(subject)
  message_body.add_child(_label("Letter",13,MUTED));letter=TextEdit.new();letter.custom_minimum_size.y=112;letter.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY;letter.scroll_fit_content_height=true;letter.scroll_past_end_of_file=false;letter.mouse_filter=Control.MOUSE_FILTER_PASS;letter.placeholder_text="Dear café owner,…";message_body.add_child(letter)
+ message_feedback=_label("",12,MUTED);message_body.add_child(message_feedback)
  var gift_card=_section("Attachments","Attachments are delivered only after the player claims them.");form.add_child(gift_card)
  var gift_body=gift_card.get_child(0)
  var coin_row=HBoxContainer.new();coin_row.add_theme_constant_override("separation",10);gift_body.add_child(coin_row)
@@ -88,9 +92,11 @@ func setup():
  preview_button=game.button("Review letter",_preview);preview_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(preview_button)
  send_button=game.button("Send letter",_send);send_button.disabled=true;send_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(send_button)
  note=_label("",13,MUTED);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;footer.add_child(note)
- for field in [recipient,case_id,subject]:field.text_changed.connect(func(_value):_invalidate_preview())
+ for field in [recipient,case_id]:field.text_changed.connect(func(_value):_invalidate_preview())
+ subject.text_changed.connect(func(_value):_invalidate_preview();_refresh_message_feedback())
  letter.caret_changed.connect(func():_reveal_letter_caret.call_deferred())
- letter.text_changed.connect(_invalidate_preview);coins.value_changed.connect(func(_value):_invalidate_preview())
+ letter.text_changed.connect(func():_invalidate_preview();_refresh_message_feedback())
+ coins.value_changed.connect(func(_value):_invalidate_preview())
  for field in [recipient,case_id,subject,letter,coins.get_line_edit()]:_theme_input(field)
  for amount in quantities.values():_theme_input(amount.get_line_edit())
  for button in [back,find,preview_button]:_theme_action(button,false)
@@ -100,6 +106,7 @@ func setup():
  focus_controls.append_array([preview_button,send_button])
  for control in [header,form,footer]:control.minimum_size_changed.connect(compact._queue_popup_fit)
  panel.visibility_changed.connect(compact._queue_popup_fit);panel.resized.connect(compact._queue_popup_fit)
+ _refresh_message_feedback()
  panel.hide()
 
 func _surface(fill:Color,border:Color,radius:int,padding:int)->StyleBoxFlat:
@@ -171,6 +178,58 @@ func _theme_input(field:Control):
 func _display_profile(value)->String:
  var id=str(value)
  return id.substr(0,18)+"\n"+id.substr(18) if id.length()>18 else id
+
+# JavaScript String.length counts UTF-16 units; Godot String.length counts code points.
+func _utf16_units(value:String)->int:
+ var total=0
+ for index in value.length():total+=2 if value.unicode_at(index)>0xffff else 1
+ return total
+
+func _refresh_message_feedback():
+ var subject_units=_utf16_units(subject.text)
+ var letter_units=_utf16_units(letter.text)
+ message_feedback.text="Subject %d/%d · Letter %d/%d"%[subject_units,MAX_SUBJECT_UNITS,letter_units,MAX_LETTER_UNITS]
+ message_feedback.add_theme_color_override("font_color",Color("aa5147") if subject_units>MAX_SUBJECT_UNITS or letter_units>MAX_LETTER_UNITS else MUTED)
+
+func _valid_public_uid(value:String)->bool:
+ if value.length()!=12:return false
+ for index in value.length():
+  var point=value.unicode_at(index)
+  if point<48 or point>57 or (index==0 and point==48):return false
+ return true
+
+func _valid_case(value:String)->bool:
+ if value.length()<3 or value.length()>80:return false
+ for index in value.length():
+  var point=value.unicode_at(index)
+  var alpha=(point>=65 and point<=90) or (point>=97 and point<=122)
+  var digit=point>=48 and point<=57
+  if not alpha and not digit and (index==0 or (point!=46 and point!=95 and point!=45)):return false
+ return true
+
+func _has_forbidden_controls(value:String)->bool:
+ for index in value.length():
+  var point=value.unicode_at(index)
+  if point<=8 or point in [11,12] or (point>=14 and point<=31):return true
+ return false
+
+func _field_error()->String:
+ var uid=recipient.text.strip_edges()
+ if not _valid_public_uid(uid):return "Enter an exact 12-digit Player UID."
+ if found.is_empty() or str(found.get("publicUid",""))!=uid:return "Find the exact player UID first."
+ if not _valid_case(case_id.text.strip_edges()):return "Use a 3–80 character case reference: ASCII letters, digits, period, underscore or hyphen."
+ var subject_units=_utf16_units(subject.text)
+ if subject.text.strip_edges().is_empty():return "Add a subject."
+ if subject_units>MAX_SUBJECT_UNITS:return "Shorten the subject to 100 characters (emoji count as two)."
+ var letter_units=_utf16_units(letter.text)
+ if letter.text.strip_edges().is_empty():return "Write a letter."
+ if letter_units>MAX_LETTER_UNITS:return "Shorten the letter to 2,000 characters (emoji count as two)."
+ if _has_forbidden_controls(subject.text+letter.text):return "Remove unsupported control characters from the message."
+ var has_gift=int(coins.value)>0
+ for amount in quantities.values():
+  if int(amount.value)>0:has_gift=true;break
+ if not has_gift:return "Choose Leaf Coins or at least one gift item."
+ return ""
 
 func _call(name:String,args:Array,handler:Callable):
  if not OS.has_feature("web") or not JavaScriptBridge.eval("typeof window.LittleLeafSupportMail === 'object' && window.LittleLeafSupportMail !== null"):return
@@ -264,7 +323,11 @@ func _invalidate_preview(reset_issue=true):
  preview_payload={};send_button.disabled=true;preview_summary.text="";preview_card.hide()
 
 func _lookup():
- _invalidate_preview();found={};lookup_summary.text="Checking exact player UID…"
+ _invalidate_preview();found={}
+ if not _valid_public_uid(recipient.text.strip_edges()):
+  lookup_summary.text="Enter an exact 12-digit Player UID."
+  return
+ lookup_summary.text="Checking exact player UID…"
  _call("lookup",[recipient.text.strip_edges()],func(result):
   if not bool(result.get("ok",false)):
    lookup_summary.text=str(result.get("error","Player unavailable."));return
@@ -289,6 +352,8 @@ func _request()->Dictionary:
  return {"issueId":issue_id,"recipientPublicUid":recipient.text.strip_edges(),"profileId":str(found.profileId),"caseId":case_id.text.strip_edges(),"subject":subject.text,"body":letter.text,"coins":int(coins.value),"items":items}
 
 func _preview():
+ var error=_field_error()
+ if error!="":note.text=error;return
  var request=_request()
  if request.is_empty():note.text="Find the exact player UID first.";return
  _invalidate_preview(false);var generation=form_generation;note.text="Checking letter and gifts…"
