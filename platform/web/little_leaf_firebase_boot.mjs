@@ -216,9 +216,11 @@ export async function start(config,options={}) {
     }
   });
   onAuthStateChanged(auth,user=>{if(user?.uid!==uid){window.LittleLeafUpdate?.close();state('signed-out');}});
-  // A hard minimum interval bounds sustained play to <=120 writes/hour/account.
+  // The adapter retains its 30-second minimum between upload attempts.
+  // A one-second check cadence avoids another 30-second timer phase after
+  // that minimum. Guarded checks do no I/O; browsers may delay background timers.
   // No unload upload: asynchronous unload completion cannot be promised.
-  setInterval(()=>client.sync(),30000);
+  setInterval(()=>client.sync(),1000);
   setInterval(()=>client.renewOwnership?.(),20000);
   window.addEventListener('focus',()=>client.refreshOwnership?.());
   window.addEventListener('online',()=>client.sync());

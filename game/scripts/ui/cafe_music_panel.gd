@@ -220,6 +220,7 @@ var fit_queued=false
 var stacked_layout=false
 var short_layout=false
 var seeking=false
+var preparing_render=false
 var last_state:Array=[]
 var last_playback:Array=[]
 var last_layout:Array=[]
@@ -318,9 +319,17 @@ func _fit_air_ripple():
    title_ink.position-=panel.global_position;title_ink.size.y+=title_ink.position.y;title_ink.position.y=0;quiet.append(title_ink)
    for button in [automatic_button,close_button]:
     var area=button.get_global_rect().grow(3);area.position-=panel.global_position;area.size.y+=area.position.y;area.position.y=0;quiet.append(area)
-   var song_ink=now_playing.get_global_rect()
-   var song_width=minf(song_ink.size.x,now_playing.get_theme_font("font").get_string_size(now_playing.text,HORIZONTAL_ALIGNMENT_LEFT,-1,now_playing.get_theme_font_size("font_size")).x)
-   song_ink.position.x+=(song_ink.size.x-song_width)*.5;song_ink.size.x=song_width;song_ink=song_ink.grow(6);song_ink.position-=panel.global_position;quiet.append(song_ink)
+   # One continuous quiet block spans the real copy/control ink. Using the
+   # entire overview allocation would cut the newly anchored left-edge vine.
+   var song_ink=Rect2()
+   for copy in [status_label,now_playing,selection_label,group_note,context_label]:
+    if not copy.visible or copy.text.is_empty():continue
+    var area=copy.get_global_rect()
+    var width=minf(area.size.x,copy.get_theme_font("font").get_string_size(copy.text,HORIZONTAL_ALIGNMENT_LEFT,-1,copy.get_theme_font_size("font_size")).x)
+    if copy.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER:area.position.x+=(area.size.x-width)*.5
+    elif copy.horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT:area.position.x+=area.size.x-width
+    area.size.x=width;song_ink=song_ink.merge(area) if song_ink.has_area() else area
+   song_ink=song_ink.grow(6);song_ink.position-=panel.global_position;quiet.append(song_ink)
    for card in family_cards.values():
     if card.versions.visible:
      var area=card.versions.get_global_rect().grow(3);area.position-=panel.global_position;quiet.append(area)
@@ -473,7 +482,7 @@ func _build_player():
  selection_label=_label("",13,MUTED);overview.add_child(selection_label)
  edition_host=VBoxContainer.new();edition_host.name="RecordingEditions";player_body.add_child(edition_host)
  context_label=_label("",12,MUTED);context_label.hide();player_body.add_child(context_label)
- group_note=_label("Premium is free now · charging planned",11,GOLD_INK);group_note.tooltip_text=Catalog.PREMIUM_TOOLTIP
+ group_note=_label("Premium is free now · fees planned",11,GOLD_INK);group_note.tooltip_text=Catalog.PREMIUM_TOOLTIP
  group_note.accessibility_description=Catalog.PREMIUM_TOOLTIP;player_body.add_child(group_note)
 
 func _build_library():
@@ -484,13 +493,16 @@ func _build_library():
  library_heading=_label("SONGS  /  "+str(Catalog.families().size()),11,MUTED);library_heading.add_theme_font_override("font",compact.hud.font_bold);library_body.add_child(library_heading)
  scroll=ScrollContainer.new();scroll.name="MusicTracks";scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
  scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ scroll.scroll_deadzone=12
  scroll.follow_focus=true;scroll.focus_mode=Control.FOCUS_ALL;scroll.accessibility_name="Songs. Arrow keys browse; Enter chooses a song; Tab moves to its editions.";library_body.add_child(scroll)
- track_body=VBoxContainer.new();track_body.add_theme_constant_override("separation",2);track_body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(track_body)
+ track_body=VBoxContainer.new();track_body.mouse_filter=Control.MOUSE_FILTER_PASS;track_body.add_theme_constant_override("separation",2);track_body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(track_body)
  for family in Catalog.families():_add_family(family)
 
 func _add_family(family:Dictionary):
  var button=_button("",_choose_family.bind(str(family.id)));button.name="MusicFamily_"+str(family.id)
  button.toggle_mode=true;button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+ # Native ScrollContainer cancels release activation once its drag begins.
+ button.mouse_filter=Control.MOUSE_FILTER_PASS;button.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
  button.add_theme_stylebox_override("normal",_surface(Color.TRANSPARENT,Color.TRANSPARENT,8))
  button.add_theme_stylebox_override("hover",_surface(Color("eee3c8"),Color.TRANSPARENT,8))
  button.add_theme_stylebox_override("pressed",_surface(Color("dce4cc"),Color("a7b596"),8))
@@ -566,7 +578,7 @@ func _build_transport():
  mute_button.size_flags_horizontal=Control.SIZE_SHRINK_BEGIN;footer.add_child(mute_button)
  speaker_mark=SpeakerMark.new();speaker_mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);speaker_mark.mouse_filter=Control.MOUSE_FILTER_IGNORE;mute_button.add_child(speaker_mark)
  volume_slider=_slider("Background music volume");volume_slider.name="MusicVolume";volume_slider.custom_minimum_size.x=64;footer.add_child(volume_slider)
- volume_value=_label("",11,MUTED);volume_value.custom_minimum_size.x=28;volume_value.size_flags_horizontal=Control.SIZE_SHRINK_END;volume_value.size_flags_vertical=Control.SIZE_SHRINK_CENTER;footer.add_child(volume_value)
+ volume_value=_label("",11,MUTED);volume_value.autowrap_mode=TextServer.AUTOWRAP_OFF;volume_value.custom_minimum_size.x=28;volume_value.size_flags_horizontal=Control.SIZE_SHRINK_END;volume_value.size_flags_vertical=Control.SIZE_SHRINK_CENTER;footer.add_child(volume_value)
  volume_slider.value_changed.connect(_set_volume);volume_slider.drag_ended.connect(func(_changed):game.settings_controls.flush_preferences())
 
 func _slider(purpose:String)->HSlider:
@@ -615,7 +627,8 @@ func _time(seconds:float)->String:
  return "%d:%02d"%[whole/60,whole%60]
 
 
-func sync():
+func sync(force:bool=false):
+ if preparing_render and not force:return
  if not is_instance_valid(panel) or not panel.is_visible_in_tree():return
  var settings=game.settings_controls
  var state=[settings.music_track,settings.bgm_enabled,settings.bgm_volume,game.music_state,game.editing,game.browser_suspended,game.music_catalog_ready]
@@ -628,9 +641,10 @@ func sync():
  mute_button.accessibility_name="Background music "+("on; mute" if settings.bgm_enabled else "off; unmute");mute_button.tooltip_text=mute_button.accessibility_name
  volume_slider.set_value_no_signal(settings.bgm_volume);volume_value.text="%d%%"%int(settings.bgm_volume)
  volume_slider.tooltip_text="Background music volume: "+volume_value.text
- last_playback.clear();_poll_playback()
+ last_playback.clear();_poll_playback(force)
 
-func _poll_playback():
+func _poll_playback(force:bool=false):
+ if preparing_render and not force:return
  if compact==null or not is_instance_valid(panel) or not panel.is_visible_in_tree():return
  snapshot=game.music_transport_snapshot()
  if seeking and not snapshot.get("seekable",false):seeking=false
@@ -714,6 +728,26 @@ func _sync_cards(shown:String,effective:String):
   target.grab_focus()
   if scroll.is_ancestor_of(target):scroll.ensure_control_visible(target)
  _queue_layout()
+func prepare_render(premium:bool,amount:float=1.0)->bool:
+ # Draw the existing materials only under the startup gate's opaque cover.
+ # This presentation pass never selects a recording or changes playback.
+ if not preparing_render:
+  if panel.visible:return false
+  preparing_render=true;panel.show();last_state.clear();sync(true);layout()
+ if not palette_ready or premium_palette!=premium:
+  premium_palette=premium;palette_ready=true;_apply_palette();_queue_layout()
+ record_mark.set_state(false,premium,true)
+ board_material.set_state(premium,true,false)
+ if premium:record_mark.set_reveal(amount);board_material.set_reveal(amount)
+ air_ripple.prepare_render()
+ return true
+
+func finish_render_preparation():
+ if not preparing_render:return
+ air_ripple.finish_render_preparation()
+ last_state.clear();sync(true);panel.hide()
+ preparing_render=false;last_state.clear()
+
 func show(origin:Control=null):
  if panel.visible:return
  if origin==null:origin=compact.music_access
@@ -726,7 +760,7 @@ func dismiss():
  panel.hide();compact.sync()
 
 func _visibility_changed():
- if compact==null:return
+ if compact==null or preparing_render:return
  if panel.is_visible_in_tree():
   if is_instance_valid(poll_timer):poll_timer.start()
  else:
@@ -829,7 +863,7 @@ func layout():
  now_playing.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER if hero.vertical else HORIZONTAL_ALIGNMENT_LEFT
  status_label.horizontal_alignment=now_playing.horizontal_alignment;selection_label.horizontal_alignment=now_playing.horizontal_alignment
  group_note.add_theme_font_size_override("font_size",int(16*reference_scale) if reference_desktop else 10 if short_view else 11)
- group_note.text="Premium free · fees planned" if short_view else "Premium is free now · charging planned"
+ group_note.text="Premium free · fees planned" if short_view else "Premium is free now · fees planned"
  group_note.add_theme_color_override("font_color",MUTED)
  group_note.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER if desktop else HORIZONTAL_ALIGNMENT_LEFT
  # Context reasons occupy their own bounded explanation; they never hide transport.
@@ -916,7 +950,7 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  # ornament or tiny control bank; reuse the same native controls and owners.
  var narrow=usable.x<370
  var tight_landscape=not portrait and usable.x<700
- content_insets=Vector4(22,20,22,22) if portrait else Vector4(20,16,20,16) if tight_landscape else Vector4(24,18,24,18)
+ content_insets=Vector4(40,36,40,32)
  _theme_board()
  heading_indent.show();heading_indent.custom_minimum_size=Vector2(24,28)
  heading.add_theme_font_size_override("font_size",24)
@@ -928,15 +962,15 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  speaker_mark.ink_scale=1.0;speaker_mark.queue_redraw()
  if compact_controls:compact_controls=false;_apply_palette()
  content.add_theme_constant_override("separation",12 if portrait or tight_landscape else 18)
- player.size_flags_stretch_ratio=.82 if not portrait else 1.0
- library.size_flags_stretch_ratio=1.22
+ player.size_flags_stretch_ratio=1.0 if portrait or tight_landscape else .82
+ library.size_flags_stretch_ratio=1.0 if tight_landscape else 1.22
  library.custom_minimum_size.x=0 if portrait else 280 if usable.x>=740 else 200
  player.add_theme_stylebox_override("panel",_surface(Color.TRANSPARENT,Color.TRANSPARENT,0))
  player_body.alignment=BoxContainer.ALIGNMENT_CENTER
- player_body.add_theme_constant_override("separation",6)
+ player_body.add_theme_constant_override("separation",6 if portrait else 3)
  hero.vertical=not portrait
- hero.add_theme_constant_override("separation",5 if not portrait else 12)
- record_mark.show();record_mark.custom_minimum_size=Vector2(104,86) if narrow else Vector2(120,98) if portrait else Vector2(102,78) if tight_landscape else Vector2(92,70) if context_label.visible else Vector2(154,110)
+ hero.add_theme_constant_override("separation",3 if not portrait else 12)
+ record_mark.show();record_mark.custom_minimum_size=Vector2(104,86) if narrow else Vector2(120,98) if portrait else Vector2(78,42) if tight_landscape else Vector2(92,48) if context_label.visible else Vector2(112,56)
  now_playing.add_theme_font_size_override("font_size",17 if tight_landscape else 18 if narrow else 20)
  status_label.add_theme_font_size_override("font_size",10)
  status_label.visible=portrait
@@ -959,11 +993,11 @@ func _layout_mobile(usable:Vector2,portrait:bool)->Vector2:
  group_note.text="Premium free · fees planned" if tight_landscape else "Premium is free now · fees planned"
  group_note.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
  context_label.add_theme_font_size_override("font_size",10)
- scroll.custom_minimum_size.y=144 if portrait else 132
- transport.add_theme_constant_override("separation",8)
- controls_row.add_theme_constant_override("separation",8)
+ scroll.custom_minimum_size.y=(96 if usable.y<680 else 144) if portrait else 116
+ transport.add_theme_constant_override("separation",4 if portrait else 8)
+ controls_row.add_theme_constant_override("separation",4 if portrait else 8)
  footer.add_theme_constant_override("separation",4)
- volume_slider.custom_minimum_size.x=56 if portrait else 64
+ volume_slider.custom_minimum_size.x=44 if portrait else 64
  elapsed_label.add_theme_font_size_override("font_size",12);duration_label.add_theme_font_size_override("font_size",12)
  volume_value.hide()
  for button in [previous_button,play_button,next_button,mute_button]:button.custom_minimum_size=Vector2(44,44)

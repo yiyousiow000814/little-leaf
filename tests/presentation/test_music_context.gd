@@ -25,11 +25,11 @@ func run():
 	await process_frame
 	var controls=game.settings_controls
 	controls.config_path="user://synthetic_music_context.cfg";controls.persist_enabled=true
-	check(game.music_catalog_ready and game.music_available.size()==23,"All23 retained tracks are imported and available without23 retained streams")
+	check(game.music_catalog_ready and game.music_available.size()==20,"All20 retained tracks are imported and available without20 retained streams")
 	check(game.audio_players.size()<=2,"Only incoming/outgoing streams are retained")
 	for player in game.audio_players.values():
 		check(player.playback_type==AudioServer.PLAYBACK_TYPE_DEFAULT,"Native BGM keeps its original default playback backend")
-	check(Catalog.selection_ids().size()==24 and Catalog.selection_ids().has("corner-cafe-reference-rearrangement-112"),"Automatic plus23 gameplay choices include Corner Café")
+	check(Catalog.selection_ids().size()==21 and Catalog.selection_ids().has("cloverlight-phrasefix-r3"),"Automatic plus20 retained gameplay choices include Cloverlight")
 	check(Catalog.selectable_tracks(Catalog.PREMIUM).size()==13,"All13 marked versions belong to free Premium")
 	var music_panel=game.compact_ui.music_panel
 	check(is_instance_valid(music_panel.panel) and not music_panel.panel.visible,"Independent Music window exists without opening at startup")
@@ -39,7 +39,7 @@ func run():
 		check(row.button.get_meta("music_track_id")==id,"Track row preserves stable ID "+id)
 		check(row.button.disabled==not row.selectable,"Selectable music remains currently free "+id)
 		if row.group==Catalog.PREMIUM:premium_choices+=1
-	check(music_panel.rows.size()==23 and premium_choices==13,"Independent window exposes Default and Premium tracks")
+	check(music_panel.rows.size()==20 and premium_choices==13,"Independent window exposes Default and Premium tracks")
 	check("free" in music_panel.group_note.text and "planned" in music_panel.group_note.text and music_panel.group_note.tooltip_text==Catalog.PREMIUM_TOOLTIP,"Visible disclosure and full tooltip explain free Premium and future charging")
 	for invalid in [null,true,12,{},[],"Premium","removed-theme"]:
 		check(Catalog.normalize_selection(invalid)==Catalog.AUTOMATIC,"Invalid preference safely defaults to Automatic")
@@ -76,21 +76,21 @@ func run():
 	game._toggle_edit();game._music_tick(300.0);game._toggle_edit()
 	check(game.music_state=="busy" and is_equal_approx(game.music_age,11.0),"Automatic restores the actual previous busy state without recomputing it")
 	# A deliberate user choice made inside Decorate applies when that context ends.
-	persist_theme("corner-cafe-reference-rearrangement-112");game._toggle_edit()
+	persist_theme("cloverlight-phrasefix-r3");game._toggle_edit()
 	var decorate_generation=game.music_fade_generation
-	persist_theme("harmony-study-B")
+	persist_theme("fiesta-en-flor-trumpet-throughout-r4")
 	check(game.music_fade_generation==decorate_generation,"Changing preference during Decorate preserves the existing Quiet Table fade")
-	check(game.music_state==Catalog.DECORATE and controls.music_track=="harmony-study-B","Theme change during Decorate keeps effective Quiet Table playback")
+	check(game.music_state==Catalog.DECORATE and controls.music_track=="fiesta-en-flor-trumpet-throughout-r4","Theme change during Decorate keeps effective Quiet Table playback")
 	game._toggle_edit()
-	check(game.music_state=="harmony-study-B" and is_zero_approx(game.music_age),"Explicit new preference is honored after Decorate")
+	check(game.music_state=="fiesta-en-flor-trumpet-throughout-r4" and is_zero_approx(game.music_age),"Explicit new preference is honored after Decorate")
 	# Existing volume/mute rules operate on the effective context, not the preference.
-	persist_theme("corner-cafe-reference-rearrangement-112");game._toggle_edit()
+	persist_theme("cloverlight-phrasefix-r3");game._toggle_edit()
 	controls.set_audio_volume("BGM",17);controls.set_audio_enabled("BGM",false)
-	check(not game.music_enabled and game.music_state==Catalog.DECORATE and controls.music_track=="corner-cafe-reference-rearrangement-112","BGM mute preserves context and selected theme")
+	check(not game.music_enabled and game.music_state==Catalog.DECORATE and controls.music_track=="cloverlight-phrasefix-r3","BGM mute preserves context and selected theme")
 	controls.set_audio_enabled("BGM",true)
 	check(game.music_enabled and game.music_state==Catalog.DECORATE and controls.bgm_volume==17,"Re-enable retains Quiet Table and chosen volume")
 	game._toggle_edit()
-	check(game.music_state=="corner-cafe-reference-rearrangement-112" and controls.music_track=="corner-cafe-reference-rearrangement-112" and controls.bgm_volume==17,"Exit restores Corner Café with existing volume settings")
+	check(game.music_state=="cloverlight-phrasefix-r3" and controls.music_track=="cloverlight-phrasefix-r3" and controls.bgm_volume==17,"Exit restores Cloverlight with existing volume settings")
 	for cycle in 12:game._toggle_edit();game._toggle_edit()
 	await process_frame;await process_frame
 	check(game.audio_players.size()<=2,"Repeated contexts release retired stream resources")
@@ -106,8 +106,8 @@ func run():
 	game._finish_music_crossfade("service",game.music_fade_generation)
 	check(game.audio_players.has("service") and not game.audio_players.has("busy"),"Only the current fade completion releases its outgoing stream")
 	# Real players under the Dummy device expose start/stop positions without hearing.
-	persist_theme("corner-cafe-reference-rearrangement-112")
-	var cafe_player=game.audio_players["corner-cafe-reference-rearrangement-112"]
+	persist_theme("cloverlight-phrasefix-r3")
+	var cafe_player=game.audio_players["cloverlight-phrasefix-r3"]
 	var seek_node_ref=weakref(cafe_player)
 	var seek_stream_ref=weakref(cafe_player.stream)
 	cafe_player.play(23.75)
@@ -115,11 +115,11 @@ func run():
 	game.music_tween=game.create_tween()
 	game.music_tween.tween_property(cafe_player,"volume_db",-17.0,1.2)
 	var same_target_generation=game.music_fade_generation
-	game._switch_music("corner-cafe-reference-rearrangement-112")
+	game._switch_music("cloverlight-phrasefix-r3")
 	check(game.music_fade_generation==same_target_generation,"Re-selecting an already playing target preserves its transition")
 	var observed_gameplay_position=cafe_player.get_playback_position()
 	check(absf(observed_gameplay_position-23.75)<.25,"Dummy decoder exposes the distinctive nonzero gameplay offset")
-	game.music_positions["corner-cafe-reference-rearrangement-112"]=0.0
+	game.music_positions["cloverlight-phrasefix-r3"]=0.0
 	game.hold_music_completion=true
 	game._toggle_edit()
 	controls.set_audio_enabled("BGM",false)
@@ -133,43 +133,43 @@ func run():
 		await create_timer(.05).timeout
 	var played_retirement_wait_ms=Time.get_ticks_msec()-release_started
 	check(seek_node_ref.get_ref()==null and seek_stream_ref.get_ref()==null,"Actually played decoder and node retire before fixture shutdown")
-	check(absf(float(game.music_positions.get("corner-cafe-reference-rearrangement-112",0.0))-observed_gameplay_position)<.25,"Muting during Decorate entry retains the previous gameplay offset")
+	check(absf(float(game.music_positions.get("cloverlight-phrasefix-r3",0.0))-observed_gameplay_position)<.25,"Muting during Decorate entry retains the previous gameplay offset")
 	game._toggle_edit()
-	check(absf(float(game.music_positions.get("corner-cafe-reference-rearrangement-112",0.0))-observed_gameplay_position)<.25,"Decorate exit preserves that retained decoder position")
+	check(absf(float(game.music_positions.get("cloverlight-phrasefix-r3",0.0))-observed_gameplay_position)<.25,"Decorate exit preserves that retained decoder position")
 	controls.set_audio_enabled("BGM",true)
 	# Retirement must release both the node and its compressed stream after deletion.
-	var retired_player=game.audio_players["corner-cafe-reference-rearrangement-112"]
+	var retired_player=game.audio_players["cloverlight-phrasefix-r3"]
 	var retired_stream=weakref(retired_player.stream)
 	var retired_node=weakref(retired_player)
 	retired_player=null;cafe_player=null
-	persist_theme("harmony-study-A")
+	persist_theme("petal-promenade-clarinet-main-r3")
 	await process_frame;await process_frame
 	check(retired_node.get_ref()==null and retired_stream.get_ref()==null,"Retired player and compressed stream have no retained ownership")
 	# A new selection made while suspended must be started after visibility returns.
 	game.set_browser_suspended(true)
-	persist_theme("corner-cafe-reference-rearrangement-112")
+	persist_theme("cloverlight-phrasefix-r3")
 	var suspended_generation=game.music_fade_generation
 	game.music_age=7.5
 	game.set_browser_suspended(false)
-	check(game.music_fade_generation==suspended_generation+1 and game.music_state=="corner-cafe-reference-rearrangement-112","Resume retries a selection deferred while suspended")
+	check(game.music_fade_generation==suspended_generation+1 and game.music_state=="cloverlight-phrasefix-r3","Resume retries a selection deferred while suspended")
 	check(is_equal_approx(game.music_age,7.5),"Resume retains the selection's state age")
 	game.set_browser_suspended(true)
 	controls.set_audio_enabled("BGM",false)
-	persist_theme("harmony-study-A")
+	persist_theme("petal-promenade-clarinet-main-r3")
 	suspended_generation=game.music_fade_generation
 	game.set_browser_suspended(false)
 	check(not game.music_enabled and game.music_fade_generation==suspended_generation,"Resume never starts an explicitly disabled track")
 	controls.set_audio_enabled("BGM",true)
 	game.set_browser_suspended(true)
-	persist_theme("corner-cafe-reference-rearrangement-112")
+	persist_theme("cloverlight-phrasefix-r3")
 	check(game.music_resume_pending,"Suspended enabled selection owns a pending start")
 	controls.set_audio_enabled("BGM",false)
 	game.set_browser_suspended(false)
-	check(not game.music_resume_pending and not game.audio_players["corner-cafe-reference-rearrangement-112"].playing,"Disable before resume safely consumes pending start without playback")
+	check(not game.music_resume_pending and not game.audio_players["cloverlight-phrasefix-r3"].playing,"Disable before resume safely consumes pending start without playback")
 	controls.set_audio_enabled("BGM",true)
 	check(game.model.coins==coins and game.model.served==served and game.model.customers==customers and game.model.items==items,"Music context does not change jobs, wallet, customers or furniture")
 	# No context state is added to the ordinary preference schema.
-	for removed_id in ["corner-cafe-main-street-112","corner-cafe-main-street-112-1nd","corner-cafe-main-street-112-2nd","corner-cafe-shop-rhythm-fix-112","corner-cafe-shop-rhythm-fix-112-1nd","corner-cafe-shop-rhythm-fix-112-2nd"]:
+	for removed_id in ["harmony-study-A","harmony-study-B","corner-cafe-reference-rearrangement-112","corner-cafe-main-street-112","corner-cafe-main-street-112-1nd","corner-cafe-main-street-112-2nd","corner-cafe-shop-rhythm-fix-112","corner-cafe-shop-rhythm-fix-112-1nd","corner-cafe-shop-rhythm-fix-112-2nd"]:
 		var cfg=ConfigFile.new();cfg.set_value("audio","music_track",removed_id);cfg.save(controls.config_path)
 		var original_bytes=FileAccess.get_file_as_bytes(controls.config_path)
 		controls.load_preferences()

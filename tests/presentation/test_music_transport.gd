@@ -29,30 +29,33 @@ func run():
 	var sfx_bus=AudioServer.get_bus_index("SFX")
 	var sfx_db=AudioServer.get_bus_volume_db(sfx_bus);var sfx_mute=AudioServer.is_bus_mute(sfx_bus)
 	var coins=game.model.coins;var customers=game.model.customers.duplicate(true)
-	check(Catalog.TRACKS.size()==23 and game.music_available.size()==23,"All retained recording IDs remain available")
+	check(Catalog.TRACKS.size()==20 and game.music_available.size()==20,"All retained recording IDs remain available")
 	var families=Catalog.families();var unique_ids={};var paired=0
 	for family in families:
 		if family.has_default and family.premium_ids.size()==2:paired+=1
 		for entry in family.variants:
 			check(not unique_ids.has(entry.id) and entry==Catalog.track(entry.id),"Family preserves one exact original recording "+entry.id)
 			unique_ids[entry.id]=true
-	check(families.size()==9 and unique_ids.size()==23 and paired==6,"Nine configured songs preserve all23 retained recordings, including Harmony and the requested Sunshine versions")
-	var harmony=Catalog.family_for_track("harmony-study-A")
-	check(harmony.id=="harmony-study" and harmony.title=="Harmony" and harmony.variants.size()==2,"Harmony Study1 and2 share one requested family")
-	check(Catalog.family_for_track("harmony-study-B").id==harmony.id and harmony.variants[0].id=="harmony-study-A" and harmony.variants[1].id=="harmony-study-B","Harmony choices retain both original IDs and source order")
-	check(Catalog.edition_label("harmony-study-A")=="Version 1" and Catalog.edition_label("harmony-study-B")=="Version 2","Harmony edition selectors use requested Version 1/Version 2 labels")
+	check(families.size()==7 and unique_ids.size()==20 and paired==6,"Seven configured songs preserve all20 retained recordings and requested Sunshine versions")
+	var service=Catalog.family_for_track("service")
+	check(service.id=="service" and service.title=="Doorway Sunshine" and service.variants.size()==3,"Retained service versions share their source family")
+	check(Catalog.family_for_track("service-2nd").id==service.id and service.variants[0].id=="service" and service.variants[1].id=="service-1nd","Retained choices preserve original IDs and source order")
+	check(Catalog.edition_label("service")=="Default" and Catalog.edition_label("service-1nd")=="Premium A","Retained edition labels come from the catalog")
 	for entry in Catalog.TRACKS:
 		check(not "1nd" in Catalog.display_title(entry.id) and not "2nd" in Catalog.display_title(entry.id),"Visible title excludes source suffix "+entry.id)
-		if entry.group==Catalog.PREMIUM:check(Catalog.edition_label(entry.id)==("Premium A" if entry.id.ends_with("-1nd") else "Premium B"),"Premium A/B retains exact source mapping "+entry.id)
+		if entry.group==Catalog.PREMIUM:
+			var expected="Premium A" if entry.id.ends_with("-1nd") or entry.id=="sunshine-skip-150-r6-2nd" else "Premium B"
+			check(Catalog.edition_label(entry.id)==expected,"Premium labels follow the requested catalog display "+entry.id)
 	var sunshine=Catalog.family_for_track("sunshine-skip-150-r6-2nd")
 	check(sunshine.id==Catalog.family_for_track("sunshine-skip-176-new-theme").id and sunshine.title=="Sunshine Skip" and sunshine.variants.size()==2,"Requested same-name Sunshine versions share one song row")
-	check(sunshine.default_id=="sunshine-skip-176-new-theme" and sunshine.premium_ids==["sunshine-skip-150-r6-2nd"] and sunshine.variants[0].id==sunshine.default_id,"Sunshine retains exact Default/Premium B mapping and order")
-	for id in ["service","corner-cafe-reference-rearrangement-112"]:
+	check(sunshine.default_id=="sunshine-skip-176-new-theme" and sunshine.premium_ids==["sunshine-skip-150-r6-2nd"] and sunshine.variants[0].id==sunshine.default_id,"Sunshine retains its exact recording IDs and order")
+	check(Catalog.edition_label(sunshine.premium_ids[0])=="Premium A" and Catalog.variant_key(sunshine.premium_ids[0])=="2nd" and Catalog.normalize_selection(sunshine.premium_ids[0])==sunshine.premium_ids[0] and Catalog.track(sunshine.premium_ids[0]).path=="res://assets/audio/Sunshine_Skip_150bpm_R6_2nd.mp3","Sunshine changes only its visible edition label, preserving audio and stored selection")
+	for id in ["service","petal-promenade-clarinet-main-r3"]:
 		controls.set_music_track(id)
 		var player=game.audio_players[id]
 		var state=game.music_transport_snapshot()
 		check(state.effective_id==id and state.title==Catalog.display_title(id),"Snapshot reports the effective imported track "+id)
-		check(state.duration>30.0 and is_equal_approx(state.duration,player.stream.get_length()),"Duration comes from the current MP3/Ogg stream "+id)
+		check(state.duration>30.0 and is_equal_approx(state.duration,player.stream.get_length()),"Duration comes from the current imported stream "+id)
 		check(state.available and state.can_play and state.playing and state.seekable,"Actual decoder exposes supported controls "+id)
 		check(game.seek_music_transport(7.25),"Seek accepted for imported recording "+id)
 		await create_timer(.12).timeout
@@ -94,7 +97,7 @@ func run():
 		check(game.audio_players.size()<=2,"Repeated navigation retains no more than two streams")
 	check(not game.step_music_transport(0),"Zero-direction navigation is inert")
 	game.set_music_transport_paused(false)
-	controls.set_music_track("service");controls.set_music_track("busy");controls.set_music_track("corner-cafe-reference-rearrangement-112")
+	controls.set_music_track("service");controls.set_music_track("busy");controls.set_music_track("cloverlight-phrasefix-r3")
 	check(game.audio_players.size()==2,"Interrupted fades keep exactly current and outgoing streams")
 	var stale_generation=game.music_fade_generation
 	game.set_music_transport_paused(true)
@@ -118,30 +121,30 @@ func run():
 	controls.set_audio_volume("BGM",37)
 	check(game.music_transport_snapshot().volume==37 and not game.music_transport_snapshot().muted,"Independent volume reports the existing BGM setting")
 	# Pausing is retained across the existing Quiet Table override and restore lifecycle.
-	controls.set_music_track("corner-cafe-reference-rearrangement-112");game.seek_music_transport(15.0);game.set_music_transport_paused(true)
+	controls.set_music_track("cloverlight-phrasefix-r3");game.seek_music_transport(15.0);game.set_music_transport_paused(true)
 	game.editing=true;game._apply_music_selection()
 	var state=game.music_transport_snapshot()
 	check(state.effective_id==Catalog.DECORATE and state.paused and not state.can_step and state.context_reason!="","Decorate truthfully reports Quiet Table and unavailable family navigation")
-	check(not game.step_music_transport(1) and controls.music_track=="corner-cafe-reference-rearrangement-112","Disabled Quiet Table navigation cannot alter the saved selection")
+	check(not game.step_music_transport(1) and controls.music_track=="cloverlight-phrasefix-r3","Disabled Quiet Table navigation cannot alter the saved selection")
 	check(game.seek_music_transport(4.5),"Paused Quiet Table seeks its own loaded stream")
 	game.editing=false;game._apply_music_selection()
-	check(game.music_state=="corner-cafe-reference-rearrangement-112" and absf(game.music_transport_snapshot().position-15.0)<.25,"Leaving Decorate restores the gameplay track and independent offset")
-	game.editing=true;game._apply_music_selection();controls.set_music_track("harmony-study-A")
+	check(game.music_state=="cloverlight-phrasefix-r3" and absf(game.music_transport_snapshot().position-15.0)<.25,"Leaving Decorate restores the gameplay track and independent offset")
+	game.editing=true;game._apply_music_selection();controls.set_music_track("petal-promenade-clarinet-main-r3")
 	check(game.music_state==Catalog.DECORATE,"Explicit selection while decorating preserves Quiet Table")
 	game.editing=false;game._apply_music_selection()
-	check(game.music_state=="harmony-study-A" and game.music_transport_snapshot().paused,"New selection takes effect after Decorate while remaining paused")
+	check(game.music_state=="petal-promenade-clarinet-main-r3" and game.music_transport_snapshot().paused,"New selection takes effect after Decorate while remaining paused")
 	# Visibility never releases a user pause or permits hidden transport work.
 	game.set_browser_suspended(true)
 	state=game.music_transport_snapshot()
 	check(not state.can_play and not state.can_step and not state.seekable and not state.playing,"Hidden game exposes unavailable transport without synthetic progress")
 	check(not game.seek_music_transport(9.0) and not game.step_music_transport(-1),"Hidden seek/navigation are inert")
-	controls.set_music_track("corner-cafe-reference-rearrangement-112")
+	controls.set_music_track("cloverlight-phrasefix-r3")
 	game.set_browser_suspended(false)
-	check(game.music_transport_snapshot().paused and not game.audio_players["corner-cafe-reference-rearrangement-112"].playing,"Visibility return never releases a user pause")
+	check(game.music_transport_snapshot().paused and not game.audio_players["cloverlight-phrasefix-r3"].playing,"Visibility return never releases a user pause")
 	game.set_browser_suspended(true);game.set_music_transport_paused(false)
-	check(game.music_resume_pending and not game.audio_players["corner-cafe-reference-rearrangement-112"].playing,"Unpausing while hidden defers real playback")
+	check(game.music_resume_pending and not game.audio_players["cloverlight-phrasefix-r3"].playing,"Unpausing while hidden defers real playback")
 	game.set_browser_suspended(false)
-	check(game.audio_players["corner-cafe-reference-rearrangement-112"].playing and not game.music_resume_pending,"Visibility return starts the deferred real decoder")
+	check(game.audio_players["cloverlight-phrasefix-r3"].playing and not game.music_resume_pending,"Visibility return starts the deferred real decoder")
 	game.set_browser_suspended(true);controls.set_music_track("service");controls.set_audio_enabled("BGM",false);game.set_browser_suspended(false)
 	check(not game.audio_players.service.playing and not game.music_resume_pending,"Muting before visibility return cancels deferred playback")
 	controls.set_audio_enabled("BGM",true)
@@ -156,7 +159,7 @@ func run():
 	var stream_ref=weakref(current.stream);var node_ref=weakref(current)
 	for sample in 100:game.music_transport_snapshot()
 	check(game.audio_players.size()==1 and game.audio_players[game.music_state]==current,"Repeated snapshots retain no extra stream/player resources")
-	current=null;controls.set_music_track("corner-cafe-reference-rearrangement-112")
+	current=null;controls.set_music_track("cloverlight-phrasefix-r3")
 	var release_deadline=Time.get_ticks_msec()+1000
 	while stream_ref.get_ref()!=null and Time.get_ticks_msec()<release_deadline:
 		await create_timer(.05).timeout
@@ -177,7 +180,7 @@ func check_catalog_config():
 	for entry in originals:
 		lines.append("\t".join(PackedStringArray([entry.id,entry.title,entry.path,entry.group,entry.loop_qualification,"true" if entry.selectable else "false"])))
 	# Retained recording metadata, sorted by stable ID; no audio/source renames.
-	check("\n".join(lines).sha256_text()=="ecf09ec532f6cbc946563a0c4df6a604c268a91c52b2be1551d6a5b97a1f7383","All23 retained IDs, exact paths, raw titles, tiers, qualification notes and selectability match original provenance")
+	check("\n".join(lines).sha256_text()=="270daa80c75d549909ed9d40a258e443395f8caa021824c2ffca59d19274526a","All20 retained IDs, exact paths, raw titles, tiers, qualification notes and selectability match original provenance")
 	var presets=ConfigFile.new()
 	check(presets.load("res://export_presets.cfg")==OK,"Export presets are available for the config packaging contract")
 	for index in [0,1]:
@@ -202,7 +205,7 @@ func check_catalog_config():
 		check("assets/audio/TIMGM6MB_PACKAGE_NOTICE.txt" in str(presets.get_value("preset.%d"%index,"include_filter","")).split(","),"Existing supplied-music package notice is retained in export preset "+str(index))
 	var malformed=[null,{}, {"schema_version":2,"songs":[]}, {"schema_version":1,"songs":[]}, {"schema_version":1,"songs":[null]}]
 	for value in malformed:check(Catalog.validate_document(value)!="","Invalid document shape is rejected without partial catalog state")
-	check(Catalog.song_title("harmony-study")=="Harmony" and Catalog.display_title("sunshine-skip")=="Sunshine Skip","Clean title lookup supports stable song IDs as well as recording IDs")
+	check(Catalog.song_title("service")=="Doorway Sunshine" and Catalog.display_title("sunshine-skip")=="Sunshine Skip","Clean title lookup supports stable song IDs as well as recording IDs")
 	var reserved=document.duplicate(true);reserved.songs[0].id=Catalog.AUTOMATIC
 	check(Catalog.validate_document(reserved)!="","Automatic cannot shadow a configured song row")
 	var duplicate=document.duplicate(true);duplicate.songs.append(duplicate.songs[0].duplicate(true))
@@ -237,4 +240,4 @@ func check_catalog_config():
 	check(Catalog.track(edition.id).path==edition.audio_path and Catalog.normalize_selection(edition.id)==edition.id,"Explicit config audio mapping and saved recording identity require no code case")
 	check(Catalog.sibling_family_track("petal-promenade-clarinet-main-r3-2nd",1)=="sunshine-skip-150-r6-2nd","Next retains Premium B into grouped Sunshine")
 	Catalog.TRACKS=retained
-	check(Catalog.TRACKS.size()==23,"Synthetic authoring probe restores the real catalog before constructing Main")
+	check(Catalog.TRACKS.size()==20,"Synthetic authoring probe restores the real catalog before constructing Main")

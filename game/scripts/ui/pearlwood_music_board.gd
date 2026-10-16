@@ -13,7 +13,7 @@ const SOURCE_ORIGINS := [Vector2(0, 0), Vector2(440, 0), Vector2(0, 94), Vector2
 const SOURCE_ROOTS := [Vector2(43, 33), Vector2(477, 33), Vector2(36, 130), Vector2(480, 130)]
 const SOURCE_TIPS := [Vector2(24, 3), Vector2(494, 5), Vector2(3, 137), Vector2(507, 126)]
 signal reveal_changed(amount:float)
-const TRANSITION_SECONDS := 0.5
+const TRANSITION_SECONDS := 1.0
 const PALETTE_PARAMETERS := ["surface_kind", "treatment_strength", "wood_lift", "preserve_dark_details",
 	"birch_ink", "birch_shadow", "birch_body", "birch_light",
 	"cream_ink", "cream_shadow", "cream_body", "cream_light"]
@@ -260,7 +260,7 @@ func set_state(premium: bool, reduced: bool, _playing: bool = true) -> void:
 		_kill_transition()
 		_transition = create_tween()
 		_transition.tween_property(self, "reveal", target,
-			TRANSITION_SECONDS * maxf(0.2, absf(target - reveal))).set_trans(Tween.TRANS_LINEAR)
+			TRANSITION_SECONDS * maxf(0.2, absf(target - reveal))).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		_transition.finished.connect(_transition_finished)
 
 

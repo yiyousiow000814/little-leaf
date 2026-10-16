@@ -33,12 +33,56 @@ The user requested one row per named song with its recordings/versions together.
   Decorate ownership still belong to the runtime.
 
 Harmony contains both original recordings with Version 1/Version 2 labels.
-Sunshine Skip now contains the original176 Default and150 Premium B recordings,
-as explicitly requested. The subsequent requested removals are recorded below.
+Sunshine Skip contains the original176 Default and150 premium recordings. The
+user requested that its sole premium choice display **Premium A**. Only the
+`edition_label` changes: the `sunshine-skip-150-r6-2nd` ID, `2nd` navigation key,
+audio path, source metadata and stored preference remain intact. This label
+does not imply that a second premium recording was found or generated.
+The subsequent requested removals are recorded below.
 Premium remains currently free with the existing future-charging disclosure.
 The retained23-recording metadata is pinned by the catalog fixture's projection
 hash; deliberate future catalog changes must update that regression evidence
 without silently replacing an existing recording or source asset.
+
+## First-use rendering and volume follow-up (2026-10-16)
+
+The release2752 native baseline reproduced the visible `100%` label on two
+lines (37.63px allocation versus44px ink). The value now uses a single line,
+allowing the existing container to reserve its actual text width.
+
+That same bounded synthetic baseline measured audio loads of3.123–11.281ms,
+while the first visible Default-to-Premium switch included a371.527ms frame.
+The following process was substantially lighter; caches were not purged, so
+these observations do not prove a cold-driver or Web performance result.
+The narrow candidate reuses the existing startup readiness cover to draw the
+already-owned Default and Premium Music materials once before Welcome. It
+restores the hidden panel and actual presentation state without selecting a
+recording, adding an audio cache, flushing preferences or starting its poll
+timer. Gate teardown also restores the panel. Separately, the user reported
+the visual reveal felt too fast: the board and hero now share a one-second
+sine ease-in/out, replacing the half-second linear reveal. Artwork, bounded
+interruption/reversal, reduced-motion behavior and audio timing remain intact.
+Source-bound candidate tests, pixels and performance
+evidence are required before claiming the reported stall is resolved.
+
+Independent review of the bd12 candidate found two omitted cold draw paths:
+the gilded control palette/rims and the click ripple's shader. The correction
+uses the real palette during each covered pose and temporarily displays one
+existing wave at a nonzero age. It emits no touch, advances no wave cursor or
+audio envelope, and restores the wave's shader value, position, visibility and
+input/processing flags before restoring the actual saved Default/Premium UI.
+No new wave, shader, callback or audio resource is created. Existing readiness
+regressions now check both saved editions and exact ripple-state restoration.
+This follows Godot's [Compatibility loading guidance](https://docs.godotengine.org/en/4.6/tutorials/performance/pipeline_compilations.html):
+materials must actually draw in view during loading. These are confirmed
+coverage omissions, not proof that they caused the measured stall. The prior
+bd12 CI/native results remain bound to bd12; corrected-source CI, rendered
+coverage, performance and user acceptance must be reported separately.
+
+Downloads contains eight of the nine live catalog song families. Harmony's
+Version1/Version2 OGG files remain present in the repository and catalog; their
+absence from Downloads does not remove them from the game. No new candidate
+song or source file is imported by this follow-up.
 
 ## Verify a config change
 
@@ -174,3 +218,82 @@ hooks. Its unmerged changes are not copied or replaced by this music addition.
 Historical native r27 screenshots remain bound to their original candidate, not
 relabelled as proof of this current-main composition. Neither tests nor Draft PR
 publication constitute visual approval, merge or deployment.
+
+
+## Cloud continuation: rejected composition aliases (2026-10-16, candidate)
+
+The latest user correction rejects the Corner Café composition and its Harmony,
+Main Street and Shop aliases/arrangements. Earlier short-reference approval
+remains historical evidence. The runtime catalog candidate removes Harmony
+Version 1/2 and Corner Café, in addition to the six already excluded Main
+Street/Shop recordings. Seven families retain20 recordings (7 Default,
+13 Premium), plus Automatic. Every original audio, import, production source,
+licence and recovery record remains preserved. The existing unknown-selection
+fallback handles excluded stored IDs without writing preferences on load.
+
+This is a source-family exclusion, not a judgement from filenames or distinct
+hashes. Preserved event data shows41 identical opening melody performance events
+between Harmony B and Corner Café; Main Street's parent has the same514 events
+as the supplied Corner Café loop; Shop preserves all123 theme pitch/onset/duration
+events. Actual decoded runtime Harmony A/B and Corner Café PCM each match their
+preserved technical derivatives (756000/756000/2268000 stereo44100Hz frames).
+No listening or new recording approval is claimed.
+
+The change reuses the authored catalog and existing normalization, playback and
+CrazyGames packaging owners. It adds no per-frame cost, stream/cache ownership,
+audio processing or save policy. Context/transport fixtures use retained tracks,
+including a42-second Petal decoder in place of the excluded51-second Corner
+loop, retaining seek/pause/visibility/retirement and invalid-ID byte-preservation
+checks. Initial context368 checks passed; initial transport206 checks exposed
+that the first replacement Cloverlight is29.28 seconds and cannot satisfy the
+unchanged longer-than30-second decoder assertion. The corrected fixture uses
+Petal, without weakening that assertion. Corrected transport206 checks pass with zero diagnostics; together with the
+unchanged context368 result this gives574 focused checks. Actual UI/browser/audio
+acceptance remains pending.
+
+## Panel-edge botanical correction candidate (2026-10-16)
+
+The user's annotated follow-up requires the existing foliage on the actual panel
+upper/left inner edges, rather than a centered smaller-aspect frame crossing the
+gramophone and playback copy. The isolated cloud candidate starts from verified
+handoff `8b5261ae5a1066b964361d572162c324bb3c7ef6`; that transfer is source
+provenance, not visual acceptance. Fresh native Before/After captures reproduce
+the issue at1882x831 and include1360x880 and the annotated1917x867 viewport.
+
+Eight retained corner/edge regions reuse the original continuous botanical PNG.
+Corners retain uniform proportions; intervening edge strips span the available
+panel dimensions. Adjacent slices use level-zero linear sampling to avoid seams
+from differing mip levels. The original gramophone source, meshes, UVs, placement,
+controls and PNG/import bytes are preserved. The desktop quiet region now covers
+actual status/title/edition/fee/context text ink, rather than only the song title.
+All raised frame islands, finials and emboss layers receive the same actual mask;
+the explicit ink inventory reflects those masks. Source masks update with layout,
+without per-frame resource allocation. Four additional desktop edge nodes and
+four added raised-ornament mask materials remain owned by the existing frame.
+
+The focused engine suite passes49,875 assertions for panel-edge placement,
+adjacency, masks after resize, repeated material identity and material release
+on teardown. It is registered in the ordinary integration runner. The unchanged
+79-source/three-atlas guard passes. Fresh inspected Godot4.6.3 native captures use
+Mesa llvmpipe software rendering in disposable synthetic profiles; no original
+saves or production services were used. Earlier source-transfer tests/screenshots
+are not relabelled as this candidate's proof. Intermediate broad-mask clipping
+and mip-seam attempts remain retained outside source and are not the final
+candidate. Actual browser/device performance, integrated Music regression,
+user acceptance, merge and publication remain open; PR321 stays the sole
+principal Music review. No remote branch or PR write accompanies this candidate.
+
+
+### Music toolbar image candidate (2026-10-16)
+
+The user requests a designed Music image alongside the existing brush, chef,
+pause and gear. An original transparent sage/wood musical-note raster reuses
+those assets as style references; prompt and exact source hash are preserved
+with the existing HUD provenance. The existing HUD texture owner bounds the
+retained texture to320px and crops alpha bounds; the44px native action, tooltip,
+accessibility name, focus, popup ownership and existing press motion remain.
+Responsive arrangements keep the same Music hit rectangles and render the
+picture inside them. No player-state/save/audio path changes. The generated
+raster and prompt are recoverable; layered GUI/vector authoring is unavailable
+for this generated source and no new Golden approval is claimed. Actual native
+normal-scale toolbar inspection and focused responsive checks remain pending.
