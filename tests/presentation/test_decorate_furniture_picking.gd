@@ -95,6 +95,23 @@ func run():
  point=game.illustration.iso(center.x,center.y,(opening.bottom+opening.top)*.5);click(point)
  check(game.build_tools.opening_source_id==int(opening.id) and game.selected_id<0,"opening remains in its hosted selection domain")
  await capture("07-opening",point,-1)
+ fixture([["plant",4,4]]);point=game.illustration.iso(4.5,4.5)
+ var plant_id=int(game.model.item_at(4,4).id);var shop=game.compact_ui.shop_ui
+ for full_input in [false,true]:
+  game._cancel_selection();game._set_catalog_category("Build");shop.show_tiles()
+  if not shop.objects_hidden():shop.toggle_objects()
+  var path="full input" if full_input else "interaction"
+  check(game.build_tools.mode=="" and game.illustration.objects_hidden(),path+" uses Tiles browse with hidden objects and no floor tool")
+  var hidden_before=state()
+  if full_input:click(point)
+  else:game.interaction._begin_left(point);game.interaction._release_left(point)
+  check(game.selected_id<0,path+" cannot select hidden furniture")
+  check(not game.compact_ui.has_item_action(),path+" does not open hidden furniture actions")
+  check(state()==hidden_before,path+" hidden click preserves layout, wallet, revision and saves")
+ game._cancel_selection();game._set_catalog_category("Build");shop.show_tiles()
+ if shop.objects_hidden():shop.toggle_objects()
+ check(not game.illustration.objects_hidden() and game.build_tools.mode=="","Show objects restores visible Tiles browse without choosing a tool")
+ await floor_case("shown-tiles-control",point,plant_id,false)
  game._cancel_selection();game.editing=false;var before=state();click(game.illustration.iso(4.5,4.5))
  check(game.selected_id<0 and state()==before,"non-Decorate click does not select or mutate furniture")
  check(game.saves==0,"all examples avoid original and synthetic saves")

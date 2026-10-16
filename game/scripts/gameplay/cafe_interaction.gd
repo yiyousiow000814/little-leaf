@@ -194,7 +194,7 @@ func rotate_selection():
 		game.rotation_step = next
 
 func pick_furniture(screen:Vector2)->int:
-	if not game.editing:return -1
+	if not game.editing or game.illustration.objects_hidden():return -1
 	# Decorate selects the clicked ground cell, not a tall sprite's rectangle.
 	# Physical dining parts resolve to one product; ground rugs stay below solids.
 	var cell:Vector2i=game._floor_cell(screen)
