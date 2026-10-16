@@ -91,3 +91,19 @@ Relevant pillars are Gameplay, Living World and existing Game Feel contacts.
 Art, audio, economy, UI structure and publishing are unaffected. Targeted
 old-fail/new-pass tests and actual runtime evidence remain required; this record
 does not establish gameplay acceptance, merge authority or deployment.
+
+The combined PR331/PR335 candidate uses one frame-local union after the existing
+navigation refresh: valid chef workfaces and the chosen order endpoint protect
+both ordinary idle choices and blocked-work fallback. If no alternative exists,
+remaining in place does not turn that protected cell into a fallback work claim.
+Only chef slots retain the incumbent/travel/wait arbitration above; waiter and
+cleaner ordering and sink front-claim snapshots are unchanged. Both existing
+ownership gates share PR335's nonrecursive current-target classifier, so a
+retained cook with no pass target keeps its plate and job without owning an idle
+fallback. Endpoint collection remains one bounded staff scan, with no retained
+union, new reservation owner or recursive destination call. PR335's per-staff
+positive/negative order-route cache and both candidates' cleanup stay intact.
+This composition affects Gameplay, Living World and existing service contacts;
+rendering, audio, economy and persisted state format are unchanged. The actual
+combined source needs its own runtime checks, same-scene evidence, independent
+review, CI and user acceptance; separate-head passes cannot qualify it.
