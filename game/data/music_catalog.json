@@ -128,54 +128,6 @@
       ]
     },
     {
-      "id": "harmony-study",
-      "title": "Harmony",
-      "recordings": [
-        {
-          "id": "harmony-study-A",
-          "edition_key": "default",
-          "edition_label": "Version 1",
-          "tier": "Default",
-          "audio_path": "res://assets/audio/corner_cafe_harmony_a_loop.ogg",
-          "selectable": true,
-          "source": {
-            "title": "Harmony Study A",
-            "loop_qualification": "existing source; source-bound evidence retained"
-          }
-        },
-        {
-          "id": "harmony-study-B",
-          "edition_key": "default",
-          "edition_label": "Version 2",
-          "tier": "Default",
-          "audio_path": "res://assets/audio/corner_cafe_harmony_b_loop.ogg",
-          "selectable": true,
-          "source": {
-            "title": "Harmony Study B",
-            "loop_qualification": "existing source; source-bound evidence retained"
-          }
-        }
-      ]
-    },
-    {
-      "id": "corner-cafe-reference-rearrangement-112",
-      "title": "Corner Café",
-      "recordings": [
-        {
-          "id": "corner-cafe-reference-rearrangement-112",
-          "edition_key": "default",
-          "edition_label": "Default",
-          "tier": "Default",
-          "audio_path": "res://assets/audio/corner_cafe_reference_rearrangement_loop.ogg",
-          "selectable": true,
-          "source": {
-            "title": "Corner Café Loop",
-            "loop_qualification": "existing source; source-bound evidence retained"
-          }
-        }
-      ]
-    },
-    {
       "id": "cloverlight-phrasefix-r3",
       "title": "Cloverlight",
       "recordings": [
@@ -320,7 +272,7 @@
         {
           "id": "sunshine-skip-150-r6-2nd",
           "edition_key": "2nd",
-      "edition_label": "Premium A",
+          "edition_label": "Premium A",
           "tier": "Premium",
           "audio_path": "res://assets/audio/Sunshine_Skip_150bpm_R6_2nd.mp3",
           "selectable": true,

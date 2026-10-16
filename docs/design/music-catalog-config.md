@@ -218,3 +218,35 @@ hooks. Its unmerged changes are not copied or replaced by this music addition.
 Historical native r27 screenshots remain bound to their original candidate, not
 relabelled as proof of this current-main composition. Neither tests nor Draft PR
 publication constitute visual approval, merge or deployment.
+
+
+## Cloud continuation: rejected composition aliases (2026-10-16, candidate)
+
+The latest user correction rejects the Corner Café composition and its Harmony,
+Main Street and Shop aliases/arrangements. Earlier short-reference approval
+remains historical evidence. The runtime catalog candidate removes Harmony
+Version 1/2 and Corner Café, in addition to the six already excluded Main
+Street/Shop recordings. Seven families retain20 recordings (7 Default,
+13 Premium), plus Automatic. Every original audio, import, production source,
+licence and recovery record remains preserved. The existing unknown-selection
+fallback handles excluded stored IDs without writing preferences on load.
+
+This is a source-family exclusion, not a judgement from filenames or distinct
+hashes. Preserved event data shows41 identical opening melody performance events
+between Harmony B and Corner Café; Main Street's parent has the same514 events
+as the supplied Corner Café loop; Shop preserves all123 theme pitch/onset/duration
+events. Actual decoded runtime Harmony A/B and Corner Café PCM each match their
+preserved technical derivatives (756000/756000/2268000 stereo44100Hz frames).
+No listening or new recording approval is claimed.
+
+The change reuses the authored catalog and existing normalization, playback and
+CrazyGames packaging owners. It adds no per-frame cost, stream/cache ownership,
+audio processing or save policy. Context/transport fixtures use retained tracks,
+including a42-second Petal decoder in place of the excluded51-second Corner
+loop, retaining seek/pause/visibility/retirement and invalid-ID byte-preservation
+checks. Initial context368 checks passed; initial transport206 checks exposed
+that the first replacement Cloverlight is29.28 seconds and cannot satisfy the
+unchanged longer-than30-second decoder assertion. The corrected fixture uses
+Petal, without weakening that assertion. Corrected transport206 checks pass with zero diagnostics; together with the
+unchanged context368 result this gives574 focused checks. Actual UI/browser/audio
+acceptance remains pending.
