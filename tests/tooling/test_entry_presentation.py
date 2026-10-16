@@ -19,7 +19,7 @@ class EntryPresentationTests(unittest.TestCase):
         login_path=lambda text:text[text.index('  button.onclick=async()=>{'):text.index('  if(!window.LittleLeafFirebaseSession)')]
         # Only UID feedback wraps the original confirmed sign-out wait/finally.
         candidate_login=login_path(candidate)
-        for feedback in ["copyStatus='';notifyUid();", "settingsActive=false;notifyUid();", "notifyUid();"]:
+        for feedback in ["clearPublicUid();", "settingsActive=false;notifyUid();", "notifyUid();if(settingsActive && publicUidStatus==='unavailable')void loadPublicUid();"]:
             self.assertIn(feedback,candidate_login)
             candidate_login=candidate_login.replace(feedback,"",1)
         self.assertEqual(candidate_login,login_path(baseline))

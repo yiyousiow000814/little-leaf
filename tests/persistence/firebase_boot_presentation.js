@@ -4,56 +4,67 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const source=fs.readFileSync('platform/web/little_leaf_firebase_boot.mjs','utf8').replace(/^import .*;\r?\n/gm,'').replace('export async function start','async function start');
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(user=null,options={}){
-  const nodes=new Map(),listeners=[],events=new Map();let runtimeOptions,sessionOptions,cloudOptions,journalOptions,runtimeClosed=0,ownershipClosed=0;let opened=0,closed=0,redirectError=null,statusCallback=null,clientClosed=0,signOutCalls=0,popupCalls=0,redirectCalls=0,redirectResults=0;
+  const nodes=new Map(),listeners=[],events=new Map(),identityCalls=[];let runtimeOptions,sessionOptions,cloudOptions,journalOptions,runtimeClosed=0,ownershipClosed=0;let opened=0,closed=0,redirectError=null,statusCallback=null,clientClosed=0,signOutCalls=0,popupCalls=0,redirectCalls=0,redirectResults=0;
   const element=()=>({textContent:'',hidden:false,disabled:false,style:{},setAttribute(){},append(...x){this.children=x;}});
   nodes.set('status-label',element());nodes.set('status-progress',element());
   const auth={currentUser:user,authStateReady:async()=>{if(options.authReady)await options.authReady;}};
   let client={sync(){},close(){clientClosed++;}};
   const win={navigator:options.navigator || {},addEventListener(name,fn){events.set(name,fn);},__littleLeafVault:{close(){closed++;}},LittleLeafAuthorityCodec:options.codec || {},LittleLeafUpdates:{create(){return {close(){}};}},LittleLeafFirebaseSession:{async acquireRuntime(value){runtimeOptions=value;if(options.acquireWait)await options.acquireWait;return {sessionId:'synthetic-runtime',assertHeld(){if(runtimeClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});},close(){runtimeClosed++;}};},createRemote(){return options.sessionRemote || {};},createSession(value){sessionOptions=value;if(options.createSession){const session=options.createSession(value),close=session.close;session.close=()=>{if(!ownershipClosed){ownershipClosed++;close();}};return session;}return {async start(){},assertActive(){value.assertRuntime();if(ownershipClosed)throw Object.assign(Error('closed'),{code:'NOT_READY'});return {writerId:value.sessionId,writerEpoch:1};},close(){if(!ownershipClosed)ownershipClosed++;}};}},LittleLeafFirebase:{createRemote(){return options.remote || {};},async openJournal(_db,journalConfig){journalOptions=journalConfig;opened++;if(options.journalWait)await options.journalWait;if(options.journalError)throw Error("synthetic journal unavailable");return options.journal || {};},createClient(value){cloudOptions=value;statusCallback=value.status;if(options.createClient){client=options.createClient(value);const close=client.close;client.close=()=>{clientClosed++;close();};}return client;}}};win.top=win.self=win;if(options.iframe)win.top={};
   const document={createElement:element,getElementById:id=>nodes.get(id),body:{append(x){nodes.set(x.id,x);}}};
-  const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setTimeout:options.timers?.setTimeout || setTimeout,clearTimeout:options.timers?.clearTimeout || clearTimeout,setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
+  const context={window:win,document,location:{hostname:options.hostname || 'demo.firebaseapp.com',protocol:options.protocol || 'https:',origin:options.origin || 'https://demo.firebaseapp.com',ancestorOrigins:options.ancestors,pathname:options.pathname || '/',reload(){}},indexedDB:{},initializeApp:()=>({}),getAuth:()=>auth,getFirestore:()=>({}),getFunctions:()=>({}),httpsCallable:(_functions,name)=>async data=>{identityCalls.push({name,data});if(options.publicUidWait)await options.publicUidWait;if(options.publicUidError)throw Error('synthetic identity refusal');return {data:{publicUid:Object.hasOwn(options,'publicUid')?options.publicUid:'100123456789'}};},getIdTokenResult:async()=>{if(options.tokenWait)await options.tokenWait;return {claims:{firebase:{sign_in_provider:options.authProvider || 'google.com'}}};},GoogleAuthProvider:class{},setPersistence:async()=>{},browserLocalPersistence:{},getRedirectResult:async()=>{redirectResults++;if(options.redirectResultError)throw Error("sensitive SDK detail");return null;},signInWithRedirect:async()=>{redirectCalls++;if(redirectError)throw redirectError;},signInWithPopup:async()=>{popupCalls++;if(options.popupError)throw Error(options.popupError);if(options.popupWait)await options.popupWait;if(options.popupUser){auth.currentUser=options.popupUser;for(const fn of [...listeners])fn(auth.currentUser);}return {user:auth.currentUser};},signOut:async()=>{signOutCalls++;if(options.signOutError)throw Error("synthetic signout failure");if(options.signOutWait)await options.signOutWait;},onAuthStateChanged:(a,fn)=>{listeners.push(fn);return()=>{};},setTimeout:options.timers?.setTimeout || setTimeout,clearTimeout:options.timers?.clearTimeout || clearTimeout,setInterval(){},doc(){},getDocFromServer(){},runTransaction(){},serverTimestamp(){},onSnapshot(){},confirm:()=>!!options.confirm};
   vm.createContext(context);vm.runInContext(source,context);
-  return {nodes,auth,win,events,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed,cloudStartup:cloudOptions?.cloudStartup,cloudOnly:journalOptions?.cloudOnly}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),get client(){return client;}};
+  return {nodes,auth,win,events,identityCalls,runtimeState:()=>({runtimeOptions,sessionOptions,runtimeClosed,ownershipClosed,cloudStartup:cloudOptions?.cloudStartup,cloudOnly:journalOptions?.cloudOnly}),emitStatus(value){statusCallback(value);},start:()=>context.start({authDomain:'demo.firebaseapp.com',projectId:'demo'},options.surface?{surface:options.surface,runtimeOrigin:options.runtimeOrigin,runtimePath:options.runtimePath}:{}),authCounts:()=>({popupCalls,redirectCalls,redirectResults}),setUser(u){auth.currentUser=u;for(const fn of [...listeners])fn(u);},failRedirect(){redirectError=Error('synthetic cancelled sign-in');},counts:()=>({opened,closed}),accountCounts:()=>({clientClosed,signOutCalls}),get client(){return client;}};
 }
 async function uidSettings(){
-  const uid='SyntheticUidAbCdEf0123456789XY',writes=[];
-  let finishCopy;
-  const f=fixture({uid,isAnonymous:false,email:'not-a-uid@example.invalid',accessToken:'not-a-uid-token'},{
-    navigator:{clipboard:{writeText(text){writes.push(text);return new Promise(resolve=>{finishCopy=resolve;});}}}
-  });
-  await f.start();const api=f.win.LittleLeafCloudSettings,view=()=>JSON.parse(api.snapshot());
-  assert.equal(view().uid,uid);assert(!api.snapshot().includes('not-a-uid'));
+  const uid='SyntheticFirebaseAuthUid',publicUid='100123456789',writes=[];let finishCopy;
+  const ready=async f=>{await flush();await flush();return JSON.parse(f.win.LittleLeafCloudSettings.snapshot());};
+  const f=fixture({uid,isAnonymous:false,email:'not-a-uid@example.invalid',accessToken:'not-a-uid-token'},{navigator:{clipboard:{writeText(text){writes.push(text);return new Promise(resolve=>{finishCopy=resolve;});}}}});
+  await f.start();assert.equal((await ready(f)).publicUid,publicUid);
+  assert.deepEqual(f.identityCalls,[{name:'ensureMyPublicUid',data:null}],'own identity has no target-UID argument');
+  const api=f.win.LittleLeafCloudSettings,view=()=>JSON.parse(api.snapshot());
+  assert.equal(view().publicUidStatus,'ready');assert(!api.snapshot().includes('not-a-uid'));
   let observed=[];api.watchUid(()=>observed.push(view()));
-  const copying=api.copyUid();assert.equal(view().copyStatus,'copying');assert.deepEqual(writes,[uid]);
+  const copying=api.copyUid();assert.equal(view().copyStatus,'copying');assert.deepEqual(writes,[publicUid]);
   await api.copyUid();assert.equal(writes.length,1,'repeat click cannot duplicate pending clipboard work');
   finishCopy();await copying;assert.equal(view().copyStatus,'copied');assert.equal(observed.at(-1).copyStatus,'copied');
   const changed=api.copyUid();f.setUser({uid:'SyntheticOtherAccount',isAnonymous:false});
-  assert.equal(view().uid,'');assert.equal(view().copyStatus,'');assert.equal(observed.at(-1).uid,'');
+  assert.equal(view().publicUid,'');assert.equal(view().copyStatus,'');assert.equal(observed.at(-1).publicUid,'');
   finishCopy();await changed;assert.equal(view().copyStatus,'','late clipboard completion cannot restore old identity feedback');
-  f.setUser({uid,isAnonymous:false});assert.equal(view().uid,'','closed client cannot adopt an account that signs back in');
+  f.setUser({uid,isAnonymous:false});assert.equal(view().publicUid,'','closed client cannot adopt an account that signs back in');
   await api.copyUid();assert.equal(writes.length,2);
   api.unwatchUid();const count=observed.length;f.setUser(null);assert.equal(observed.length,count);
-  const brokenObserver=fixture({uid,isAnonymous:false});await brokenObserver.start();
-  brokenObserver.win.LittleLeafCloudSettings.watchUid(()=>{throw Error('synthetic observer failure');});
-  brokenObserver.setUser(null);
-  assert.equal(brokenObserver.accountCounts().clientClosed,1);assert.equal(brokenObserver.runtimeState().runtimeClosed,1);
-  assert.equal(JSON.parse(brokenObserver.win.LittleLeafCloudSettings.snapshot()).uid,'','presentation failure cannot interrupt account closure');
+  const broken=fixture({uid,isAnonymous:false});await broken.start();await ready(broken);
+  broken.win.LittleLeafCloudSettings.watchUid(()=>{throw Error('synthetic observer failure');});broken.setUser(null);
+  assert.equal(broken.accountCounts().clientClosed,1);assert.equal(broken.runtimeState().runtimeClosed,1);
+  assert.equal(JSON.parse(broken.win.LittleLeafCloudSettings.snapshot()).publicUid,'','presentation failure cannot interrupt account closure');
   for(const navigator of [{},{clipboard:{writeText:async()=>{throw Error('synthetic denial');}}}]){
-    const denied=fixture({uid,isAnonymous:false},{navigator});await denied.start();
-    await denied.win.LittleLeafCloudSettings.copyUid();
-    const value=JSON.parse(denied.win.LittleLeafCloudSettings.snapshot());assert.equal(value.uid,uid);assert.equal(value.copyStatus,'failed');
+    const denied=fixture({uid,isAnonymous:false},{navigator});await denied.start();await ready(denied);await denied.win.LittleLeafCloudSettings.copyUid();
+    const value=JSON.parse(denied.win.LittleLeafCloudSettings.snapshot());assert.equal(value.publicUid,publicUid);assert.equal(value.copyStatus,'failed');
+  }
+  for(const invalid of [100123456789,null,'','012345678901','10012345678','1001234567890','10012345678A','١٠٠١٢٣٤٥٦٧٨٩',...['\n','\r','\u2028'].map(suffix=>publicUid+suffix)]){
+    const invalidId=fixture({uid:publicUid,isAnonymous:false},{publicUid:invalid});await invalidId.start();const value=await ready(invalidId);
+    assert.equal(value.publicUid,'');assert.equal(value.publicUidStatus,'unavailable');await invalidId.win.LittleLeafCloudSettings.copyUid();assert.equal(value.copyStatus,'');
+  }
+  const unavailable=fixture({uid:publicUid,isAnonymous:false},{publicUidError:true});await unavailable.start();
+  assert.equal((await ready(unavailable)).publicUid,'','an all-digit Auth UID is never a public-ID fallback');
+  const nonGoogle=fixture({uid,isAnonymous:false},{authProvider:'password'});await nonGoogle.start();assert.equal((await ready(nonGoogle)).publicUidStatus,'unavailable');assert.equal(nonGoogle.identityCalls.length,0);
+  for(const transition of ['ready','other-account','signed-out']){
+    let release;const pending=fixture({uid,isAnonymous:false},{publicUidWait:new Promise(resolve=>{release=resolve;})});await pending.start();
+    const before=await ready(pending);assert.equal(before.publicUidStatus,'loading');assert.equal(before.publicUid,'');
+    await pending.win.LittleLeafCloudSettings.copyUid();assert.equal(JSON.parse(pending.win.LittleLeafCloudSettings.snapshot()).copyStatus,'');
+    if(transition==='other-account')pending.setUser({uid:'SyntheticOtherAccount',isAnonymous:false});
+    if(transition==='signed-out')pending.setUser(null);
+    release();const after=await ready(pending);assert.equal(after.publicUid,transition==='ready'?publicUid:'');
   }
   let finishSignout;
-  const leaving=fixture({uid,isAnonymous:false},{confirm:true,signOutWait:new Promise(resolve=>{finishSignout=resolve;})});
-  await leaving.start();const out=leaving.win.LittleLeafCloudSettings;let cleared=false;
-  out.watchUid(()=>{if(JSON.parse(out.snapshot()).uid==='')cleared=true;});
-  const pending=out.signOut();assert(cleared);assert.equal(JSON.parse(out.snapshot()).uid,'');
-  finishSignout();await pending;assert.equal(JSON.parse(out.snapshot()).uid,'');
-  const failed=fixture({uid,isAnonymous:false},{confirm:true,signOutError:true});await failed.start();
-  await failed.win.LittleLeafCloudSettings.signOut();assert.equal(JSON.parse(failed.win.LittleLeafCloudSettings.snapshot()).uid,uid);
-  const guest=fixture();guest.start();await flush();assert.equal(JSON.parse(guest.win.LittleLeafCloudSettings.snapshot()).uid,'');
-  const anonymous=fixture({uid,isAnonymous:true});await assert.rejects(anonymous.start());assert.equal(JSON.parse(anonymous.win.LittleLeafCloudSettings.snapshot()).uid,'');
-  console.log('UID settings: full Auth UID, clipboard settlement/denial, account invalidation and observer lifecycle passed');
+  const leaving=fixture({uid,isAnonymous:false},{confirm:true,signOutWait:new Promise(resolve=>{finishSignout=resolve;})});await leaving.start();await ready(leaving);
+  const out=leaving.win.LittleLeafCloudSettings;let cleared=false;out.watchUid(()=>{if(JSON.parse(out.snapshot()).publicUid==='')cleared=true;});
+  const pending=out.signOut();assert(cleared);assert.equal(JSON.parse(out.snapshot()).publicUid,'');finishSignout();await pending;assert.equal(JSON.parse(out.snapshot()).publicUid,'');
+  const failed=fixture({uid,isAnonymous:false},{confirm:true,signOutError:true});await failed.start();await ready(failed);await failed.win.LittleLeafCloudSettings.signOut();
+  assert.equal((await ready(failed)).publicUid,publicUid,'failed sign-out re-confirms the same server-owned identity');assert.equal(failed.identityCalls.length,2);
+  const guest=fixture();guest.start();await flush();assert.equal(JSON.parse(guest.win.LittleLeafCloudSettings.snapshot()).publicUid,'');
+  const anonymous=fixture({uid,isAnonymous:true});await assert.rejects(anonymous.start());assert.equal(JSON.parse(anonymous.win.LittleLeafCloudSettings.snapshot()).publicUid,'');
+  console.log('Public UID:12-digit string, own Google callable, unavailable/loading, clipboard settlement/denial, late account fencing and observer lifecycle passed');
 }
 async function ownershipStartupDeadline(){
   const root={crypto:webcrypto};root.globalThis=root;

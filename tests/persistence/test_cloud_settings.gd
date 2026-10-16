@@ -1,7 +1,8 @@
 extends SceneTree
 const CloudSettings=preload("res://scripts/persistence/cafe_cloud_settings.gd")
 class FakeApi extends RefCounted:
-	var value={"status":"Not saved","reason":"","canSave":true,"reload":false,"uid":"SyntheticUidAbCdEf0123456789XY","copyStatus":""}
+	# Numeric presentation fixture only; no allocator or production ID contract.
+	var value={"status":"Not saved","reason":"","canSave":true,"reload":false,"uid":"SyntheticFirebaseAuthUid","publicUid":"100123456789","publicUidStatus":"ready","copyStatus":""}
 	var observer
 	var copies=0
 	func snapshot():return JSON.stringify(value)
@@ -38,17 +39,18 @@ func run():
 	check(box.get_child_count()==2 and cloud.reason_label.get_index()>cloud.save_button.get_parent().get_index(),"No loose status line above the Save action")
 	check(cloud.uid_box.get_parent()==settings_box and cloud.uid_box.get_index()>game.compact_ui.settings_help.get_index(),"UID belongs to the footer below primary Settings actions")
 	check(not cloud.uid_action is Button and cloud.uid_action.accessibility_name=="Copy player UID" and cloud.uid_action.focus_mode==Control.FOCUS_ALL,"UID text has native keyboard activation without a separate visible button")
-	check(cloud.uid_field.text==api.value.uid and cloud.uid_box.visible and cloud.uid_field.selection_enabled,"Full UID is selectable read-only account text")
+	check(cloud.uid_field.text==api.value.publicUid and cloud.uid_box.visible and cloud.uid_field.selection_enabled,"Full UID is selectable read-only account text")
+	check(cloud.uid_caption.text=="UID:","Numeric UID uses a compact inline prefix")
 	cloud.uid_action.pressed.emit()
-	check(api.copies==1 and cloud.uid_action.disabled and cloud.uid_caption.text!="Copied","Copy waits for clipboard settlement")
+	check(api.copies==1 and cloud.uid_action.disabled and cloud.uid_feedback.text!="Copied","Copy waits for clipboard settlement")
 	api.value.copyStatus="failed";api.publish()
-	check(cloud.copy_note.visible and cloud.uid_field.get_selected_text()==api.value.uid and cloud.uid_caption.text!="Copied","Denied clipboard retains selected manual fallback without success")
+	check(cloud.copy_note.visible and cloud.uid_field.get_selected_text()==api.value.publicUid and cloud.uid_feedback.text!="Copied","Denied clipboard retains selected manual fallback without success")
 	api.value.copyStatus="copied";api.publish()
-	check(cloud.uid_caption.text=="Copied" and cloud.uid_action.accessibility_description=="Player UID copied" and not cloud.copy_note.visible,"Only confirmed clipboard success shows brief accessible feedback")
-	cloud.copied_until_msec=0;cloud.sync();check(cloud.uid_caption.text=="Player UID","Copy feedback expires without restarting or changing identity")
-	api.value.uid="";api.publish()
-	check(not cloud.uid_box.visible and cloud.uid_field.text=="" and cloud.uid_action.disabled,"Account event immediately clears UID and copy action")
-	api.value.uid="SyntheticUidAbCdEf0123456789XY";api.value.copyStatus="";api.publish()
+	check(cloud.uid_feedback.text=="Copied" and cloud.uid_action.accessibility_description=="Player UID copied" and not cloud.copy_note.visible,"Only confirmed clipboard success shows brief accessible feedback")
+	cloud.copied_until_msec=0;cloud.sync();check(not cloud.uid_feedback.visible,"Copy feedback expires without restarting or changing identity")
+	api.value.publicUid="";api.publish()
+	check(cloud.uid_field.text=="" and cloud.uid_action.disabled,"Account event immediately clears UID and copy action")
+	api.value.publicUid="100123456789";api.value.copyStatus="";api.publish()
 	for state in ["Saved","Saving…","Not saved"]:
 		api.value.status=state;game._update_ui()
 		var expected="Saved" if state=="Saved" else ("Saving…" if state=="Saving…" else "Save")
@@ -75,15 +77,26 @@ func run():
 	api.value={"status":"Not saved","reason":"Saving is unavailable. Keep this page open and try again.","canSave":true,"reload":false};cloud.sync()
 	check(cloud.reason_label.visible and cloud.reason_label.text==api.value.reason,"Failure details remain visible below actions")
 	api.value={"status":"Saving…","reason":"","canSave":true,"reload":false};cloud.sync()
-	api.value.uid="SyntheticUidAbCdEf0123456789XY";cloud.sync()
+	api.value.publicUid="100123456789";api.value.publicUidStatus="ready";cloud.sync()
 	for size in [Vector2i(360,680),Vector2i(390,844),Vector2i(844,390),Vector2i(1360,880)]:
 		root.size=size;game._update_ui();await process_frame;await process_frame
 		check(Rect2(Vector2.ZERO,Vector2(size)).encloses(game.settings.get_global_rect()),"Settings stays inside viewport "+str(size))
 		for button in cloud.save_button.get_parent().get_children():
 			check(button.size.y>=44 and button.get_global_rect().position.x>=game.settings.get_global_rect().position.x and button.get_global_rect().end.x<=game.settings.get_global_rect().end.x,"Account action has usable width/touch height "+str(size))
-		check(cloud.uid_field.text==api.value.uid and cloud.uid_action.size.y>=44 and cloud.uid_action.get_global_rect().end.x<=game.settings.get_global_rect().end.x,"Full UID and invisible44px copy hit area fit Settings "+str(size))
-	api.value.uid="x".repeat(128);api.publish();check(cloud.uid_field.text==api.value.uid,"Long UID is retained in full without ellipsis or substitution")
-	api.value.uid="";api.publish();check(not cloud.uid_box.visible,"Guest/signed-out view never invents a UID")
+		check(cloud.uid_field.text==api.value.publicUid and cloud.uid_action.size.y>=44 and cloud.uid_action.get_global_rect().end.x<=game.settings.get_global_rect().end.x,"Full UID and invisible44px copy hit area fit Settings "+str(size))
+	for invalid in [100123456789,null,"","012345678901","10012345678","1001234567890","10012345678A","١٠٠١٢٣٤٥٦٧٨٩","100123456789\n"]:
+		api.value.publicUid=invalid;api.publish()
+		check(cloud.uid_field.text=="" and cloud.uid_action.disabled and cloud.uid_feedback.text=="Unavailable","Invalid or coerced public UID fails closed: "+str(invalid))
+	api.value.publicUid="100123456789";api.value.publicUidStatus="loading";api.publish()
+	check(cloud.uid_field.text=="" and cloud.uid_action.disabled and cloud.uid_feedback.text=="Loading...","Loading never shows a stale or unconfirmed public UID")
+	api.value.publicUidStatus="unavailable";api.publish()
+	check(cloud.uid_field.text=="" and cloud.uid_action.disabled and cloud.uid_feedback.text=="Unavailable","Unavailable disables copy without Auth UID fallback")
+	# A production-style build never consumes the legacy Auth UID as public UID.
+	var raw_api=FakeApi.new();raw_api.value.erase("publicUid");raw_api.value.uid="912345678901"
+	var held=CloudSettings.new(game);held.api=raw_api;var held_box=held.build();settings_box.add_child(held_box)
+	check(held.uid_field.text=="" and held.uid_action.disabled,"An all-digit Auth UID is not accepted as an allocated public UID")
+	raw_api.value.uid="SyntheticFirebaseAuthUid";held.sync()
+	check(held.uid_field.text=="" and held.uid_action.disabled,"Raw Firebase UID stays out of the public footer")
 	game.settings.hide();check(not box.is_visible_in_tree(),"Closing Settings hides all account controls")
 	game.queue_free();await process_frame;await process_frame
 	check(api.observer==null,"Freeing Settings removes its bridge callback")
