@@ -35,6 +35,10 @@ These are source/counter bounds, not a measured frame-time or visual-quality cla
 
 ## Source-bound native closeout and allowed passing
 
+[Draft PR346](https://github.com/yiyousiow000814/little-leaf/pull/346) is the coherent
+accepted-main source candidate; [PR344](https://github.com/yiyousiow000814/little-leaf/pull/344)
+remains its explicitly included dependency and is not rewritten.
+
 The captured candidate is834925b91e144d77b35f8f1fc9e6df2f520b1a78,
 tree411f1f83cd86449f524d0f12d58650338cd92c25. The accepted-main468cc490
 composition preserves all461 runtime production files byte-for-byte, excluding
