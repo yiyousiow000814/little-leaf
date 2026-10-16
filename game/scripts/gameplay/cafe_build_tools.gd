@@ -22,6 +22,9 @@ var floor_material="warm_oak"
 var floor_preview={}
 var floor_quote={}
 var _press_floor_quote=""
+const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
+var action_plan=EditPlan.new()
+var action_quote={}
 var game
 var mode=""
 var material="sage_panels"
@@ -163,7 +166,7 @@ func refresh(screen:Vector2):
 	preview=proposed;selected_key=key
 	# Replacement quotes are cheap and refreshed even on a cached render so
 	# the context always exposes the current cost, refund and net payment.
-	if replacing:replacement_quote=game.model.wall_replacement_quote(key,str(proposed.height),material,actors)
+	if replacing:replacement_quote=action_plan.prepare_build(game.model,EditPlan.Action.WALL_REPLACE,{"key":key,"height":str(proposed.height),"material":material})
 	if signature==_cache_key:
 		if selected_key==successful_key and successful_key!="":preview={};preview_reason=""
 		return
@@ -172,8 +175,9 @@ func refresh(screen:Vector2):
 		preview_valid=bool(replacement_quote.valid)
 		preview_reason=replacement_price_text() if preview_valid else str(replacement_quote.reason)
 	elif mode in ["half","full"]:
-		preview_valid=game.model.can_place_wall(str(proposed.axis),int(proposed.x),int(proposed.z),mode,material,actors)
-		preview_reason=str(game.model.last_error)
+		action_quote=action_plan.prepare_build(game.model,EditPlan.Action.WALL_PLACE,{"axis":str(proposed.axis),"x":int(proposed.x),"z":int(proposed.z),"height":mode,"material":material})
+		preview_valid=bool(action_quote.ok)
+		preview_reason=str(action_quote.error)
 		if preview_valid and int(game.model.coins)<int(Geometry.PRICES[mode]):preview_valid=false;preview_reason="Not enough coins · "+Money.amount(int(Geometry.PRICES[mode]))+" needed"
 		if preview_valid:preview_warning=game.model.wall_placement_warning(str(proposed.axis),int(proposed.x),int(proposed.z),mode,material,actors)
 		if preview_valid:preview_reason=preview_warning if preview_warning!="" else "Build %s wall · %s coins · R turns · click or drag to paint"%[mode,Money.amount(int(Geometry.PRICES[mode]))]
@@ -251,7 +255,7 @@ func _commit():
 	if replacing:
 		game.compact_ui.review_wall_replacement(selected_key,mode if not preview_shell.is_empty() else str(preview.height),material)
 		return
-	elif mode in ["half","full"]:ok=game.model.place_wall(str(preview.axis),int(preview.x),int(preview.z),mode,material,actor_positions())
+	elif mode in ["half","full"]:ok=action_plan.commit(game.model,action_quote)
 	if ok:
 		successful_key=selected_key;successful_point=pointer;_changed()
 	_cache_key="";refresh(pointer)
@@ -304,11 +308,13 @@ func _refresh_opening(screen:Vector2):
 		if mode=="select_opening" or (mode=="move_opening" and opening_source_id<0):
 			preview_valid=true;preview_reason="Select this %s, then click a new wall host"%attachment.kind
 		elif mode=="move_opening":
-			preview_valid=game.model.can_move_wall_attachment(opening_source_id,str(attachment.host_id),float(attachment.offset),actors)
-			preview_reason="Move %s here · old wall restored · no charge"%attachment.kind if preview_valid else str(game.model.last_error)
+			action_quote=action_plan.prepare_build(game.model,EditPlan.Action.OPENING_MOVE,{"id":opening_source_id,"host_id":str(attachment.host_id),"offset":float(attachment.offset)})
+			preview_valid=bool(action_quote.ok)
+			preview_reason="Move %s here · old wall restored · no charge"%attachment.kind if preview_valid else str(action_quote.get("error",game.model.last_error))
 		else:
-			preview_valid=game.model.can_place_wall_attachment(mode,str(attachment.host_id),float(attachment.offset),actors)
-			preview_reason="Attach %s · %s coins · drag to pan"%[mode,Money.amount(game.model.attachment_price(mode))] if preview_valid else str(game.model.last_error)
+			action_quote=action_plan.prepare_build(game.model,EditPlan.Action.OPENING_PLACE,{"kind":mode,"host_id":str(attachment.host_id),"offset":float(attachment.offset)})
+			preview_valid=bool(action_quote.ok)
+			preview_reason="Attach %s · %s coins · drag to pan"%[mode,Money.amount(game.model.attachment_price(mode))] if preview_valid else str(action_quote.get("error",game.model.last_error))
 			if preview_valid and game.model.coins<game.model.attachment_price(mode):preview_valid=false;preview_reason="Not enough coins for this "+mode
 		if preview_valid and mode!="select_opening" and not (mode=="move_opening" and opening_source_id<0):
 			_render_preview_active=true;_render_attachments=game.model.wall_attachments.duplicate(true)
@@ -329,8 +335,7 @@ func _commit_opening():
 		opening_source_id=int(opening_preview.id);_cache_key="";_render_attachments=[]
 		refresh(pointer);return
 	var ok=false
-	if mode in ["door","window"]:ok=game.model.place_wall_attachment(mode,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
-	elif mode=="move_opening":ok=game.model.move_wall_attachment(opening_source_id,str(opening_preview.host_id),float(opening_preview.offset),actor_positions())
+	if mode in ["door","window","move_opening"]:ok=action_plan.commit(game.model,action_quote)
 	if ok:
 		successful_key=selected_key;successful_point=pointer
 		if mode=="move_opening":opening_source_id=-1;game.settings_controls.play_sfx("place")
@@ -392,8 +397,9 @@ func _refresh_moving_wall(screen:Vector2):
 	preview.height=source.height;preview.material=source.material;preview["id"]=source.id
 	if source.has("placement"):preview.placement=source.placement.duplicate(true)
 	selected_key=Geometry.key_of(preview)
-	preview_valid=game.model.can_move_wall(wall_source_key,str(preview.axis),int(preview.x),int(preview.z),actor_positions())
-	preview_reason="Move wall here · no charge · R turns" if preview_valid else str(game.model.last_error)
+	action_quote=action_plan.prepare_build(game.model,EditPlan.Action.WALL_MOVE,{"key":wall_source_key,"axis":str(preview.axis),"x":int(preview.x),"z":int(preview.z)})
+	preview_valid=bool(action_quote.ok)
+	preview_reason="Move wall here · no charge · R turns" if preview_valid else str(action_quote.get("error",game.model.last_error))
 	game.tool_text.text=preview_reason
 
 func _commit_moving_wall():
@@ -403,7 +409,7 @@ func _commit_moving_wall():
 	if source.is_empty():return
 	if str(source.axis)==str(preview.axis) and int(source.x)==int(preview.x) and int(source.z)==int(preview.z):return
 	var target_key=Geometry.key_of(preview)
-	if not game.model.move_wall(wall_source_key,str(preview.axis),int(preview.x),int(preview.z),actor_positions()):
+	if not action_plan.commit(game.model,action_quote):
 		preview_valid=false;preview_reason=str(game.model.last_error);return
 	cancel();game.compact_ui.selected_shell="";game.compact_ui.selected_wall=target_key
 	_changed();game.compact_ui.sync()

@@ -43,6 +43,11 @@ var context:Control
 var context_label:Label
 var rotate_button:Button
 var move_button:Button
+const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
+var removal_plan=EditPlan.new()
+var removal_quote={}
+var replacement_plan=EditPlan.new()
+var replacement_quote={}
 var remove_button:Button
 var finish_button:Button
 var cancel_button:Button
@@ -362,12 +367,14 @@ func sync():
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false;remove_button.tooltip_text=""
  var refund=0
- if not opening.is_empty():refund=game.model.wall_attachment_refund(int(opening.id))
+ if not opening.is_empty():
+  removal_quote=removal_plan.prepare_build(game.model,EditPlan.Action.OPENING_SELL,{"id":int(opening.id)})
+  refund=int(removal_quote.refund);remove_button.disabled=not removal_quote.ok
  elif not wall.is_empty():
-  refund=game.model.wall_refund(_selected_wall_key())
-  remove_button.disabled=not game.model.can_remove_wall(_selected_wall_key())
-  remove_button.tooltip_text=game.model.last_error if remove_button.disabled else "Sell wall for "+Money.amount(refund)+" coins"
- elif not item.is_empty():refund=game.model.logical_refund(int(item.id))
+  removal_quote=removal_plan.prepare_build(game.model,EditPlan.Action.WALL_SELL,{"key":_selected_wall_key()})
+  refund=int(removal_quote.refund);remove_button.disabled=not removal_quote.ok
+ elif not item.is_empty():
+  var quote=game._sell_quote();refund=int(quote.refund);remove_button.disabled=not quote.ok
  remove_button.disabled=remove_button.disabled or game.save_recovery_blocked
  remove_button.text="Sell +"+Money.amount(refund)
  for kind in game.catalog_prices:game.catalog_prices[kind].text=Money.amount(game.model.price_of(kind))
@@ -632,7 +639,8 @@ func show_wall_product():
  shop_ui.show_walls(product_target)
 func review_wall_replacement(key:String,height:String,paper:String):
  pending_wall={"key":key,"height":height,"material":paper}
- var quote=game.model.wall_replacement_quote(key,height,paper,game.build_tools.actor_positions())
+ replacement_quote=replacement_plan.prepare_build(game.model,EditPlan.Action.WALL_REPLACE,{"key":key,"height":height,"material":paper})
+ var quote=replacement_quote
  var scope="Selected one-tile wall"
  wall_review_text.text=scope+"\n"+("Half wall" if height=="half" else "Full wall")+" · "+("Original room" if paper=="original" else game.build_tools.MATERIAL_NAMES[game.model.WallGeometry.MATERIALS.find(paper)])
  wall_review_text.text+="\n\nNew wall: %s coins\nOld wall refund: %s coins\nYou pay: %s coins"%[Money.amount(int(quote.new_cost)),Money.amount(int(quote.refund)),Money.amount(int(quote.net))]
@@ -642,7 +650,7 @@ func review_wall_replacement(key:String,height:String,paper:String):
 func _confirm_wall_replacement():
  if not wall_review.visible or not game.editing or game.save_recovery_blocked or viewport_too_small or pending_wall.is_empty():return
  var chosen=pending_wall.duplicate(true)
- if not game.model.replace_wall(chosen.key,chosen.height,chosen.material,game.build_tools.actor_positions()):
+ if not replacement_plan.commit(game.model,replacement_quote):
   review_wall_replacement(chosen.key,chosen.height,chosen.material);return
  pending_wall={};wall_review.hide();game.build_tools.cancel()
  selected_shell=""
@@ -737,8 +745,7 @@ func _move_opening():
 func _remove_selected():
  if not game.editing or game.save_recovery_blocked:return
  var opening=_selected_opening();var ok=false
- if not opening.is_empty():ok=game.model.remove_wall_attachment(int(opening.id),game.build_tools.actor_positions())
- elif _selected_wall_key()!="":ok=game.model.remove_wall(_selected_wall_key())
+ if not opening.is_empty() or _selected_wall_key()!="":ok=removal_plan.commit(game.model,removal_quote)
  else:game._sell();sync();return
  if ok:game._cancel_selection();game._update_ui();game.illustration.queue_redraw()
  sync()
