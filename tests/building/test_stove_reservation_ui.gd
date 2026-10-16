@@ -30,6 +30,7 @@ func run():
   game.selected_id=-1;game.selected_kind="plant";game.rotation_step=0;var before=state()
   game.interaction.refresh(game.illustration.iso(front.x+.5,front.y+.5))
   check(game.interaction.preview_active and game.interaction.drag_valid and game.interaction.drag_footprint_valid,"empty working tile is a physically valid preview r"+str(rot))
+  check(not game.interaction.drag_active and game.interaction.drag_item_id==-1,"shop preview does not need an active drag r"+str(rot))
   check(state()==before,"hover never commits r"+str(rot))
   key(KEY_ESCAPE);check(state()==before and not game.interaction.preview_active,"Escape revokes preview without saving r"+str(rot))
   game.selected_kind="plant";game.selected_id=-1;game.interaction.refresh(game.illustration.iso(front.x+.5,front.y+.5))
@@ -47,6 +48,24 @@ func run():
  for size in [Vector2i(390,844),Vector2i(1360,880)]:
   root.size=size;await process_frame;game.illustration.update_projection();var before=state()
   NoBottom.verify(game,check,"physical stove UI "+str(size));check(state()==before,"resize preserves transaction state "+str(size))
+ # Furniture placement reasons remain internal; neither pointer nor Help retains them.
+ game.selected_kind="plant";game.selected_id=-1
+ var point=game.illustration.iso(stove.x+.5,stove.z+.5)
+ game.interaction.refresh(point)
+ var ui=game.compact_ui;ui.update_pointer();ui._sync_help_content()
+ check(not game.interaction.drag_valid and game.interaction.drag_reason!="","real overlapping furniture retains validator details")
+ check(not ui.hint.visible and not ui.help_text.text.contains(game.interaction.drag_reason),"overlap has no furniture tooltip or stale Help detail")
+ check(game.tool_text.text!=game.interaction.drag_reason,"legacy tool label does not consume furniture validator errors")
+ for warning in ["Counter back blocked","Counter front blocked","Front blocked"]:
+  game.interaction.drag_valid=true;game.interaction.drag_warning=warning
+  ui.update_pointer();ui._sync_help_content()
+  check(not ui.hint.visible and not ui.help_text.text.contains(warning),"furniture warning is not presented: "+warning)
+ # Build transaction details are read from the current tool, not a cached furniture error.
+ game.build_tools.mode="wall";game.build_tools.preview_valid=false;game.build_tools.preview_reason="Not enough coins · need 100"
+ ui.update_pointer();ui._sync_help_content()
+ check(ui.hint.visible and ui.hint_text.text=="Not enough coins" and ui.help_text.text.contains(game.build_tools.preview_reason),"current Build transaction detail is preserved")
+ game.build_tools.cancel();ui.update_pointer();ui._sync_help_content()
+ check(not ui.hint.visible and not ui.help_text.text.contains("need 100"),"cancelled Build detail does not linger in Help")
  game.editing=false;check(Guide.describe(game).is_empty(),"play has no decorate-only diagnostic draft")
  var report={"checks":checks,"failures":failures,"save_calls":game.saves}
  for player in game.audio_players.values():player.stop();player.stream=null

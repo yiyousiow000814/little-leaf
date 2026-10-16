@@ -1043,7 +1043,7 @@ func _draw():
 		_draw_floor_mess(record)
 	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
-	if preview and interaction.drag_active:
+	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
 			var c=Vector2i(int(part.x),int(part.z))
