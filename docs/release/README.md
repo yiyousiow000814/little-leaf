@@ -160,6 +160,13 @@ reaches players only through a separately approved release. Existing GitHub
 Release bodies and itch pages are untouched; uploading an itch build does not
 automatically publish a devlog.
 
+The wording candidate is now reconciled with main
+`d95449bf5b3d990e64ec84a374adc7608d3e78c9`. The JSON is unchanged from the
+reviewed wording revision. This composition preserves main's PR337 picking and
+PR340 runtime/test/atlas changes without adding new completed-note claims for
+either. Its new combined source requires its own ordinary CI; the earlier
+natural-payment failure remains retained evidence, not an established cause.
+
 ## Publish an approved version
 
 1. Update `game/project.godot` and `data/release_notes.json` in a reviewed PR. Both versions must match; release notes must be marked `released`, describe the changes, and have a nonfuture date.
