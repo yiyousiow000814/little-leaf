@@ -326,17 +326,98 @@ func draw_stove_food(artist:Node2D,p:Vector2,rotation:int,remaining:float):
 	kitchen_height=true;a=artist;origin=p;turn=posmod(rotation,4)
 	CookingFood.draw_rest_food(artist,point(0,0,34)+Vector2(0,-7),remaining,-1.0 if turn in [2,3] else 1.0)
 
+# Two soft curling ribbon meshes: transparent edges and dissolving tips.
+# Furniture owns exactly two immutable meshes, released with its artist.
+const STEAM_PATHS=[
+ [Vector2(0,0),Vector2(-1,-4),Vector2(2,-9),Vector2(4,-14),Vector2(-1,-19),Vector2(-3,-24),Vector2(2,-30)],
+ [Vector2(0,0),Vector2(2,-4),Vector2(0,-8),Vector2(-3,-13),Vector2(-1,-18),Vector2(4,-23),Vector2(3,-29)]
+]
+var _stove_steam_meshes:Array[ArrayMesh]=[]
+
+func _prepare_stove_steam_meshes():
+	if not _stove_steam_meshes.is_empty():return
+	for path in STEAM_PATHS:
+		var centers=PackedVector2Array()
+		for segment in range(path.size()-1):
+			for step in range(4):
+				centers.append(path[segment].cubic_interpolate(path[segment+1],path[maxi(segment-1,0)],path[mini(segment+2,path.size()-1)],float(step)/4.0))
+		centers.append(path[-1])
+		var vertices=PackedVector2Array();var colors=PackedColorArray();var indices=PackedInt32Array()
+		for index in range(centers.size()):
+			var t=float(index)/float(centers.size()-1)
+			var normal=(centers[mini(index+1,centers.size()-1)]-centers[maxi(index-1,0)]).normalized().orthogonal()
+			var width=.55+2.6*sin(t*PI)
+			var opacity=smoothstep(0.0,.06,t)*(1.0-smoothstep(.50,1.0,t))
+			for across in range(5):
+				vertices.append(centers[index]+normal*width*(float(across)-2.0)*.5)
+				var edge=1.0 if across==2 else (.55 if across in [1,3] else 0.0)
+				colors.append(Color(1,1,1,opacity*edge))
+			if index>0:
+				for across in range(4):
+					var at=index*5+across
+					indices.append_array(PackedInt32Array([at-5,at,at+1,at-5,at+1,at-4]))
+		var arrays=[];arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_COLOR]=colors;arrays[Mesh.ARRAY_INDEX]=indices
+		var mesh=ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays,[],{},Mesh.ARRAY_FLAG_USE_2D_VERTICES)
+		_stove_steam_meshes.append(mesh)
+
+func _draw_stove_steam(mouth:Vector2,age:float,strength:float,burst:float,release_age:float=-1.0):
+	_prepare_stove_steam_meshes()
+	# Continuous closed-lid vapor remains rooted at the rim. The second fold
+	# rises through each connected ribbon and dissolves, never retracting.
+	for index in range(3):
+		var side=0.0 if index==0 else (-1.0 if index==1 else 1.0)
+		var seam=Vector2(0,-4.2*PAN_DEPTH*.82) if index==0 else Vector2(side*8.5*PAN_WIDTH*.82,.6)
+		var breath=sin(age*.95+float(index)*2.1)
+		var placement=Transform2D(side*.12+breath*.025,Vector2(.95+breath*.08,.95+breath*.05),0.0,mouth+seam)
+		var tint=Color("f4f2e7");tint.a=(.58+.18*burst)*strength
+		# Alpha is a draw argument, not a mesh/material cache key.
+		a.art_draw_mesh(_stove_steam_meshes[index%2],null,placement,a.col(tint))
+		var life=fposmod(age*.58+float(index)*.37,1.0)
+		var rise=Vector2(side*5.0*life,-17.0*life)
+		var growth=.42+.65*life
+		placement=Transform2D(-side*.08,Vector2(growth,growth),0.0,mouth+seam+rise)
+		tint.a=(.43+.20*burst)*sin(life*PI)*strength
+		a.art_draw_mesh(_stove_steam_meshes[(index+1)%2],null,placement,a.col(tint))
+
+	# One short release around the entire rim. Each fold pushes outward quickly,
+	# then keeps rising/expanding while its feathered mesh dissolves in place.
+	# The six transient draws reuse the two immutable continuous-vapor meshes.
+	if release_age>=0.0 and release_age<1.75:
+		for index in range(6):
+			var seconds=maxf(0.0,release_age-float(index%3)*.018)
+			var phase=clampf(seconds/1.70,0.0,1.0)
+			var angle=TAU*float(index)/6.0
+			var side=cos(angle)
+			var seam=Vector2(side*8.5*PAN_WIDTH*.88,sin(angle)*4.2*PAN_DEPTH*.88)
+			var push=1.0-exp(-seconds*7.5)
+			var drift=Vector2(side*(13.0*push+7.0*phase),-22.0*phase)
+			var scale=Vector2(1.0+2.8*push+phase,.30+1.05*push+.55*phase)
+			var placement=Transform2D(side*(.38-.12*phase),scale,0.0,mouth+seam+drift)
+			var tint=Color("dce2d9")
+			tint.a=.77*smoothstep(0.0,.065,seconds)*(1.0-smoothstep(.42,1.0,phase))*strength
+			a.art_draw_mesh(_stove_steam_meshes[index%2],null,placement,a.col(tint))
+
 func draw_stove_vessel(artist:Node2D,p:Vector2,rotation:int,id=0):
 	var motion={"pot":Vector2.ZERO,"lid":Vector2.ZERO}
 	if artist.has_method("_stove_vessel_motion"):motion=artist._stove_vessel_motion(id)
 	kitchen_height=true;a=artist;turn=posmod(rotation,4);origin=p+motion.pot
+	var steam_age=float(motion.get("steam_age",-1.0))
+	if steam_age>=0.0:_draw_stove_steam(point(0,0,34)+Vector2(0,-7.0),steam_age,float(motion.get("steam",0.0)),float(motion.get("steam_burst",0.0)),float(motion.get("steam_release_age",-1.0)))
 	stove_pan()
 	# Reuse the vessel's original palette and elliptical rim geometry.
 	var lid=point(0,0,34)+Vector2(0,-7.6)+motion.lid-motion.pot
+	var lid_tilt=float(motion.get("lid_tilt",0.0))
+	var lid_transform=a.art_local_begin(lid) if lid_tilt!=0.0 else Transform2D.IDENTITY
+	if lid_tilt!=0.0:
+		a._set_art_matrix(lid_transform*Transform2D(lid_tilt,lid))
+		lid=Vector2.ZERO
 	a.outlined_ellipse(lid,Vector2(8.4*PAN_WIDTH,4.1*PAN_DEPTH),"b5c2a7","dce0c9",1.0)
 	a.ellipse(lid+Vector2(0,-.6),Vector2(6.8*PAN_WIDTH,2.8*PAN_DEPTH),"c9d1b7")
 	a.line(lid+Vector2(0,-1.0),lid+Vector2(0,-3.0),"6d8475",1.6)
 	a.ellipse(lid+Vector2(0,-3.0),Vector2(2.1,1.0),"79674e")
+	if lid_tilt!=0.0:a.art_local_end(lid_transform)
 	origin=p
 
 func draw_stove_foreground(artist:Node2D,p:Vector2,rotation:int,id=0):

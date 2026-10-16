@@ -36,10 +36,16 @@ static func vessel(elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->D
  var motion=stroke(elapsed_seconds,false,remaining_seconds,strength)
  var envelope=1.0-float(motion.finish)
  var wave=sin(float(motion.phase)*TAU)
- # One brief, soft lid hop every three cycles; never a flying ingredient.
- var hop_phase=fposmod(maxf(elapsed_seconds,0.0),FRY_SECONDS*3.0)/(FRY_SECONDS*3.0)
- var hop=pow(sin(clampf((hop_phase-.72)/.10,0.0,1.0)*PI),2)
- return {"pot":Vector2(wave*.22,-wave*wave*.35)*envelope,"lid":Vector2(-wave*.16,wave*wave*.18-hop*.85)*envelope}
+ # Pressure release uses the same cook clock and 7.8-second cadence.
+ # The lid settles first; emitted steam keeps rising and dissipating.
+ var release=fposmod(maxf(elapsed_seconds,0.0),FRY_SECONDS*3.0)-FRY_SECONDS*3.0*.72
+ var lift=0.0
+ var tilt=0.0
+ if release>=0.0 and release<.82:
+  lift=smoothstep(0.0,.16,release)*(1.0-smoothstep(.43,.82,release))
+  tilt=sin(clampf(release/.82,0.0,1.0)*TAU)*.065*lift
+ var steam_age=maxf(elapsed_seconds,0.0) if envelope>0.0 else -1.0
+ return {"pot":Vector2(wave*.22,-wave*wave*.35)*envelope,"lid":Vector2(-wave*.16,wave*wave*.18-lift*7.0)*envelope,"lid_tilt":tilt*envelope,"steam":envelope,"steam_age":steam_age,"steam_burst":lift*envelope,"steam_release_age":release}
 
 static func body_weight(elapsed_seconds:float,remaining_seconds=-1.0,strength=1.0)->Vector2:
  return stroke(elapsed_seconds,false,remaining_seconds,strength).body

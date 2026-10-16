@@ -22,7 +22,7 @@ func run():
   var v=Pose.vessel(seconds)
   check(p.body.length()<.20,"small shoulder displacement")
   check(absf(v.pot.x)<=.221 and absf(v.pot.y)<=.351,"small pot bob")
-  check(absf(v.lid.x)<=.161 and absf(v.lid.y)<=.851,"small lid hop")
+  check(absf(v.lid.x)<=.161 and absf(v.lid.y)<=7.001,"bounded occasional lid hop")
   check(v.pot.x*v.lid.x<=.000001,"opposed horizontal lid motion")
   for remaining in [-1.0,0.0]:
    var rest=Pose.vessel(seconds,remaining,0.0)
