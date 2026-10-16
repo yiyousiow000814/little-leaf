@@ -78,7 +78,7 @@ func _texture(name:String)->Texture2D:
    guarded.blit_rect(source,Rect2i(Vector2i.ZERO,source.get_size()),Vector2i((side-source.get_width())/2,(side-source.get_height())/2));source=guarded
   source.generate_mipmaps()
   var result=ImageTexture.create_from_image(source);textures[name]=result;return result
- var image=Image.load_from_file(ASSETS+name+".png")
+ var image=Image.new();image.load_png_from_buffer(FileAccess.get_file_as_bytes(ASSETS+name+".png"))
  # Original artwork stays intact on disk. Keep runtime HUD textures small;
  # even the largest icon renders below54px, so full2k textures waste memory.
  var limit=1536 if name=="rail" else (1024 if name=="wallet" else (512 if name=="sign" else 320))
