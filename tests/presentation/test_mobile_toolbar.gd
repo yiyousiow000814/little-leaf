@@ -61,6 +61,14 @@ func run():
     var controls=[hud.wallet,game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.music_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
     check(ui.music_access.get_global_rect().encloses(hud.action_art.music.get_global_rect()),label+" Music picture stays within its native target")
+    if mobile:
+     check(ui.music_access.size.is_equal_approx(Vector2(44,44)),label+" Music uses the same44px cell as its neighbors")
+     var ordered=[ui.music_access,game.edit_button]
+     if editing:ordered.append(hud.edit_cancel)
+     ordered.append(ui.staff_access)
+     for i in range(ordered.size()-1):
+      var left=ordered[i].get_global_rect();var right=ordered[i+1].get_global_rect()
+      check(absf(right.position.x-left.end.x-6)<.1 and absf(left.get_center().y-right.get_center().y)<.1,label+" equal tool spacing and vertical center")
     check(not hud.action_captions.music.visible and ui.music_access.accessibility_name=="Music",label+" Music uses artwork with retained accessible name")
     check(ui.staff_access.find_next_valid_focus()==game.pause_button,label+" Tab moves from Staff to Pause")
     check(game.pause_button.find_next_valid_focus()==ui.settings_button,label+" Tab moves from Pause to Settings")

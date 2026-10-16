@@ -306,11 +306,32 @@ The inspected existing Decorate/Settings art informed the style. The successful
 built-in generation used a text prompt, retained beside the unchanged generated
 RGBA source; it is not a layered editable illustration or a new Golden Reference.
 
-The existing native Music button, tooltip, accessible name, target sizes, input,
-focus/press feedback, retained texture loading and panel behavior remain. Source
+The existing native Music button, tooltip, accessible name, input, focus/press
+feedback, retained texture loading and panel behavior remain. Source
 resolution stays 1254x1254, and the same loader limits the cached texture to 320px;
-there is no added per-frame work, animation, resource owner or invalidation path.
+there is no new frame callback, animation, resource owner or invalidation path.
 This is an intentional appearance change awaiting the user's actual game-pixel
 acceptance. Desktop/mobile-size paired fixture captures and narrow toolbar checks
 are recorded in the candidate PR; native emulated touch does not qualify a phone
 browser, performance or release. Hat/steam reference work remains separate.
+
+The user subsequently requested balanced icon proportions, vertical centering
+and equal spacing across the toolbar. The revised candidate keeps the same
+generated gramophone PNG and tight alpha crop. It draws the gramophone at44px
+height on the desktop rail,40px on phone layouts, and uses
+the same retained material treatment as Decorate/Staff/Settings. This replaces
+the earlier32px square fit and stronger lightening that reduced its visible
+width and weight. It adds no texture, material variant or frame callback.
+
+Desktop actions share a painted centerline and equal18px gaps (8px at the
+compact breakpoint), including both sides of Pause and Music-to-Decorate. Phone
+actions use equal44x44 native cells and6px gaps; wrapped rows retain aligned
+columns. Original asset aspects,44px minimum targets, focus order and actions
+remain. Actual pixels and existing responsive/input suites must confirm this
+candidate; numeric geometry alone does not establish visual acceptance.
+
+PR330 at09bbd6d4 owns Settings UID footer/clipboard changes in
+`cafe_compact_ui.gd`, `cafe_cloud_settings.gd` and the Web adapter. This candidate
+changes the separate `cafe_hud.gd` layout and its existing layout tests. The
+shared Roadmap receives only the scoped status update; no PR330 runtime delta
+is copied, changed or claimed integrated.
