@@ -1,6 +1,7 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {getAuth,getIdTokenResult,GoogleAuthProvider,signInWithRedirect,signInWithPopup,getRedirectResult,signOut,onAuthStateChanged,browserLocalPersistence,setPersistence} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {getFirestore,doc,getDocFromServer,runTransaction,serverTimestamp,onSnapshot} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js';
 export async function start(config,options={}) {
   const popup=options.surface==='trusted-itch-frame';
   if(options.surface!==undefined && !popup)throw Error('Unknown account entry surface.');
@@ -24,7 +25,32 @@ export async function start(config,options={}) {
   const panel=document.createElement('div');panel.id='cloud-account';panel.setAttribute('aria-live','polite');
   panel.className='leaf-entry-card leaf-account';
   const label=document.createElement('span'),button=document.createElement('button');button.disabled=true;panel.append(label,button);document.body.append(panel);
-  let client,uid,loginBusy=false;
+  let client,uid,loginBusy=false,settingsActive=false,uidObserver=null,copyStatus='',copyBusy=false;
+  let publicUid='',publicUidStatus='loading',publicUidGeneration=0;
+  // Identity belongs to this running client, never to a save/profile or token.
+  const settingsUid=()=>settingsActive && !loginBusy && !auth.currentUser?.isAnonymous && auth.currentUser?.uid===uid?uid:'';
+  // Presentation callbacks must never interrupt account/ownership shutdown.
+  const notifyUid=()=>{try{uidObserver?.();}catch(_){}};
+  const validPublicUid=value=>typeof value==='string' && value.length===12 && /^[1-9][0-9]{11}$/.test(value);
+  const currentPublicUid=()=>settingsUid() && publicUidStatus==='ready'?publicUid:'';
+  function clearPublicUid(){publicUidGeneration++;publicUid='';publicUidStatus='unavailable';copyStatus='';notifyUid();}
+  async function loadPublicUid(){
+    if(!settingsUid())return;
+    const generation=++publicUidGeneration,user=auth.currentUser;
+    publicUid='';publicUidStatus='loading';copyStatus='';notifyUid();
+    const current=()=>generation===publicUidGeneration && settingsUid() && auth.currentUser?.uid===user.uid;
+    try{
+      const token=await getIdTokenResult(user);
+      if(!current())return;
+      if(token.claims?.firebase?.sign_in_provider!=='google.com')throw Error('Google identity required');
+      // Same callable SDK/region as the support service; allocation stays server-owned.
+      const result=await httpsCallable(getFunctions(app),'ensureMyPublicUid')(null);
+      if(!current())return;
+      if(!validPublicUid(result?.data?.publicUid))throw Error('Public UID unavailable');
+      publicUid=result.data.publicUid;publicUidStatus='ready';
+    }catch(_){if(!current())return;publicUid='';publicUidStatus='unavailable';}
+    notifyUid();
+  }
   function startup(message,waiting=false){
     const caption=document.getElementById('status-label'),progress=document.getElementById('status-progress');
     if(caption)caption.textContent=message;
@@ -61,12 +87,23 @@ export async function start(config,options={}) {
   }
   function state(value){saveState=value;accountError='';label.textContent=primary[value] || 'Not saved';if(value==='permission-denied')showRefusedSave();}
   window.LittleLeafCloudSettings=Object.freeze({
-    snapshot(){return JSON.stringify({status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out','permission-denied'].includes(saveState)});},
+    snapshot(){return JSON.stringify({uid:settingsUid(),publicUid:currentPublicUid(),publicUidStatus:settingsUid()?publicUidStatus:'unavailable',copyStatus:currentPublicUid()?copyStatus:'',status:primary[saveState] || 'Not saved',reason:accountError || reasons[saveState] || '',reload:false,canSave:!['conflict','signed-out','permission-denied'].includes(saveState)});},
+    watchUid(callback){uidObserver=callback;},
+    unwatchUid(){uidObserver=null;},
+    async copyUid(){
+      const expected=currentPublicUid(),generation=publicUidGeneration;if(!expected || copyBusy)return;
+      copyBusy=true;copyStatus='copying';notifyUid();
+      try{
+        await window.navigator.clipboard.writeText(expected);
+        if(generation===publicUidGeneration && currentPublicUid()===expected)copyStatus='copied';
+      }catch(_){if(generation===publicUidGeneration && currentPublicUid()===expected)copyStatus='failed';}
+      finally{copyBusy=false;notifyUid();}
+    },
     signOut(){return button.onclick();},
     reload(){location.reload();}
   });
   button.textContent='Sign in with Google';label.textContent='Sign in to load your café across devices';
-  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;accountError='';try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;await signOut(auth);client?.close();window.LittleLeafUpdate?.close();location.reload();}else{startup('Opening Google sign-in…',true);await (popup?signInWithPopup:signInWithRedirect)(auth,new GoogleAuthProvider());if(!auth.currentUser)startup(signInPrompt,true);}}catch(e){if(auth.currentUser){accountError='Sign out did not finish. You are still signed in. Try again.';}else{state('signed-out');startup('Sign-in did not finish. Try Sign in with Google again.',true);}}finally{loginBusy=false;button.disabled=false;}};
+  button.onclick=async()=>{if(loginBusy)return;loginBusy=true;button.disabled=true;accountError='';try{if(auth.currentUser){if(!confirm('Sign out now? Changes not yet saved on this device may be lost. Cloud-pending saves stay on this device for this account.'))return;clearPublicUid();await signOut(auth);settingsActive=false;notifyUid();client?.close();window.LittleLeafUpdate?.close();location.reload();}else{startup('Opening Google sign-in…',true);await (popup?signInWithPopup:signInWithRedirect)(auth,new GoogleAuthProvider());if(!auth.currentUser)startup(signInPrompt,true);}}catch(e){if(auth.currentUser){accountError='Sign out did not finish. You are still signed in. Try again.';}else{state('signed-out');startup('Sign-in did not finish. Try Sign in with Google again.',true);}}finally{loginBusy=false;button.disabled=false;notifyUid();if(settingsActive && publicUidStatus==='unavailable')void loadPublicUid();}};
   try {
     await setPersistence(auth,browserLocalPersistence);
     if(!popup)await getRedirectResult(auth);
@@ -91,7 +128,7 @@ export async function start(config,options={}) {
   let runtime,ownership,exited=false,startupPending=true,cancelStartup;
   const closedStartup=()=>Object.assign(Error('This page has closed. Progress remains paused.'),{code:'NOT_READY'});
   // Register before awaiting the lock: page exit/account change may win that wait.
-  const closeRuntime=()=>{if(exited)return;exited=true;ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
+  const closeRuntime=()=>{if(exited)return;exited=true;settingsActive=false;clearPublicUid();ownership?.close();client?.close();runtime?.close();cancelStartup?.();};
   // Once installed, native pagehide saves finish asynchronously under this same
   // exclusive lock. Do not close their client or release writer identity early.
   // Unloading-document cleanup releases browser locks on actual termination;
@@ -120,7 +157,7 @@ export async function start(config,options={}) {
   client=window.LittleLeafFirebase.createClient({uid,cloudStartup:true,codec:window.LittleLeafAuthorityCodec,remote,journal,ownership,deviceLabel,prepareReload:ticket=>{try{return window.LittleLeafFirebaseSession.storeReload(window.sessionStorage,ticket);}catch(_){return false;}},currentUid:()=>auth.currentUser?.uid,status:state});
   if(!window.LittleLeafUpdates || typeof window.LittleLeafUpdates.create!=='function')throw Error('Update support is missing. Reload the full game package.');
   window.LittleLeafUpdate=window.LittleLeafUpdates.create({currentRelease:window.__littleLeafRelease,checkUpdateReady:(...args)=>client.checkUpdateReady(...args),canReloadUpdate:(...args)=>client.canReloadUpdate(...args)});
-  window.__littleLeafVault.close();window.__littleLeafVault=client;
+  window.__littleLeafVault.close();window.__littleLeafVault=client;settingsActive=true;notifyUid();void loadPublicUid();
   let recoveryBusy=false,recoveryMessage='',preparedChoice=null;
   const failure=code=>({ok:false,code,error:code==='REVISION_CONFLICT'?'Two different saves are available. Choose which progress to continue.':code==='RECOVERY_CHANGED'?'A save changed. Review both saves and choose again.':'Could not finish safely. Your progress is preserved. Keep this page open and try again.'});
   const sameAccount=()=>auth.currentUser?.uid===uid && !loginBusy;

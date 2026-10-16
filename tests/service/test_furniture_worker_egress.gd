@@ -1,7 +1,7 @@
 extends SceneTree
 const AudioDrain = preload("res://tests/fixtures/audio_mixer_drain.gd")
-## Physical bodies, not hypothetical staff relocation, govern editor geometry.
-## Ordinary active-service reader/custody rules remain separate.
+## Runtime bodies stay strict; Decorate ignores actors without relocating them.
+## Draft autosaves retain the complete entry baseline.
 const Model=preload("res://scripts/core/cafe_model.gd")
 class TestMain extends "res://scripts/main.gd":
  var save_calls=0
@@ -83,18 +83,21 @@ func ui_cases():
  blank(cafe.model);cafe.editing=true;cafe.ui.hide()
  for i in cafe.staff_states.size():cafe.staff_states[i].pos=Vector2(2.5+i,.5)
  cafe._rebuild_furniture();cafe._update_ui();cafe.ui.hide();cafe.illustration.update_projection();await frames()
+ cafe.model.begin_decoration_session()
  var field=cafe.interaction.edit_plan;var actors=cafe.interaction._staff_positions();var before=state(cafe.model);var saves=cafe.save_calls
  cafe.platform_autosave_dirty=false;cafe.progress_unsaved=false;cafe.save_timer=0.0
  var dirty_generation=cafe.platform_dirty_generation
  var point=cafe.illustration.iso(2.5,.5);cafe.selected_kind="plant";cafe.rotation_step=0
  cafe.interaction.refresh(point)
- check(not cafe.interaction.drag_footprint_valid and not cafe.interaction.drag_valid,"actual UI refuses hidden worker body")
+ check(cafe.interaction.drag_footprint_valid and cafe.interaction.drag_valid,"Decorate UI permits placement across a hidden worker body")
  var receipt=field.prepare(cafe.model,"plant",-1,0,Vector2i(2,0),actors)
- check(not receipt.physical_ok and not field.commit(cafe.model,receipt,actors),"invalid body receipt cannot publish")
+ check(not receipt.physical_ok and not field.commit(cafe.model,receipt,actors),"explicit runtime body receipt remains strict")
  await mouse(point,true);await mouse(point,false)
- unchanged(cafe.model,before,"rejected pointer purchase")
- check(cafe.save_calls==saves and cafe.interaction._staff_positions()==actors,"body refusal neither saves nor relocates staff")
- cafe.interaction.cancel();unchanged(cafe.model,before,"cancel")
+ check(cafe.model.items.size()==before.items.size()+1 and cafe.model.coins==before.coins-cafe.model.price_of("plant"),"Decorate pointer purchase crosses a worker and charges once")
+ check(cafe.save_calls==saves and cafe.interaction._staff_positions()==actors,"draft purchase neither saves nor relocates staff")
+ cafe.interaction.cancel()
+ check(cafe.model.cancel_decoration_session() and cafe.model.items==before.items and cafe.model.coins==before.coins and cafe.model.service_snapshot==before.service,"Cancel restores the actor-overlapping draft and exact wallet/service baseline")
+ cafe.model.begin_decoration_session();before=state(cafe.model);dirty_generation=cafe.platform_dirty_generation
  receipt=field.prepare(cafe.model,"table_set",-1,0,Vector2i(6,6),actors)
  check(receipt.ok and receipt.physical_ok,"clear group receipt prepares")
  cafe.staff_states[0].pos=Vector2(6.5,6.5)
@@ -108,8 +111,8 @@ func ui_cases():
  check(cafe.save_calls==saves and cafe.platform_autosave_dirty,"purchased furniture remains dirty until the five-second slot")
  cafe._tick_autosave(.1);cafe.save_writes_suppressed=true
  var durable=Model.new()
- check(cafe.save_calls==saves+1 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"five-second slot writes one reloadable purchased layout")
- check(durable.items==cafe.model.items and durable.coins==cafe.model.coins and durable.dining_sets==cafe.model.dining_sets,"durable purchase retains exact bodies, dining group and charged wallet")
+ check(cafe.save_calls==saves+1 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"five-second slot writes one reloadable entry baseline")
+ check(durable.items==before.items and durable.coins==before.coins and durable.dining_sets==before.sets and cafe.model.items.size()==before.items.size()+2,"draft autosave retains entry wallet/layout without losing the live purchase")
  dirty_generation=cafe.platform_dirty_generation
  check(not cafe.model.dining_sets.is_empty(),"real pointer purchase retains dining-group metadata for selected R")
  if not cafe.model.dining_sets.is_empty():
@@ -119,8 +122,8 @@ func ui_cases():
   check(cafe.model.coins==money and cafe.save_calls==saves+1 and cafe.platform_dirty_generation>dirty_generation and cafe.platform_autosave_dirty,"rotation keeps wallet and marks dirty without an operation save")
   cafe.save_writes_suppressed=false;cafe._tick_autosave(5.0);cafe.save_writes_suppressed=true
   durable=Model.new()
-  check(cafe.save_calls==saves+2 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"next five-second slot writes one reloadable rotated layout")
-  check(durable.logical_rotation(id)==1 and durable.coins==money and durable.items==cafe.model.items,"durable rotation retains its exact body positions and unchanged wallet")
+  check(cafe.save_calls==saves+2 and not cafe.platform_autosave_dirty and durable.load_save("user://worker-egress-interval.json"),"next five-second slot writes one reloadable entry baseline")
+  check(durable.items==before.items and durable.coins==before.coins and durable.dining_sets==before.sets and cafe.model.logical_rotation(id)==1 and cafe.model.coins==money,"draft rotation survives while durable layout and wallet remain the entry baseline")
   check(cafe.interaction._staff_positions()==actors,"rotation does not teleport workers")
  for tween in get_processed_tweens():tween.kill()
  cafe.settings_controls.sfx_player.stop();cafe.queue_free();await frames()

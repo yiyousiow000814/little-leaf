@@ -1077,9 +1077,9 @@ func _draw():
 	entities.append_array(scenery_trees)
 	for opening in openings:entities.append_array(OpeningArt.depth_entries(opening))
 	for wall in game.model.built_wall_segments() if show_objects else []:
-		for piece in WallArt.depth_entries(wall):entities.append(piece)
+		for piece in OpeningArt.built_depth_entries(wall):entities.append(piece)
 	if show_objects and game.build_tools!=null and game.build_tools.active() and not game.build_tools.paint_stroke.active and not game.build_tools.preview.is_empty():
-		for piece in WallArt.depth_entries(game.build_tools.preview):
+		for piece in OpeningArt.built_depth_entries(game.build_tools.preview):
 			piece["wall_preview"]=true;piece.depth+=.001;entities.append(piece)
 	for entry in render_items:
 		if entry.kind=="rug":continue

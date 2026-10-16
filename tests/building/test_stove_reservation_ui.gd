@@ -21,6 +21,7 @@ func run():
  var m=game.model;m.items.clear();m.dining_sets.clear();m.customers.clear();m.coins=100000;m.checkout_staff_claims.clear();m.wall_actor_positions.clear();m._notify()
  for staff in game.staff_states:staff.pos=Vector2(1.5,7.5)
  check(m.place("stove",5,4),"isolated stove fixture places")
+ m.begin_decoration_session()
  var stove=m.items[-1];game._rebuild_furniture();game._update_ui();await process_frame
  for rot in 4:
   game.interaction.cancel();check(m.move(int(stove.id),5,4,rot),"fixture rotates r"+str(rot));game._rebuild_furniture()

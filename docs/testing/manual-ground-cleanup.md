@@ -118,6 +118,34 @@ Proportionate Feature Design Quality Gate:
   source-bound before/after capture, composed renderer cost and visual acceptance
   remain required; this candidate does not change merged/released status.
 
+### Current-main integration limit (2026-10-16)
+
+The existing painted-floor candidate `64e4da79bc331c6cba0dbcd70886aeb22c4f832f`
+was reconciled once with settled main
+`63642fdd453b1581e94f283e14aa9842e0021fc6`, without text conflicts.
+The delta against main remains the same twelve candidate paths; the automatic
+`illustrated_cafe.gd` merge retains both the main wall preparation and cleanup
+painter span. Main's PR331/339 custody, PR340/341 optimizations and PR330 UID
+remain present. The transitive producer closure now has 80 inputs; only the six
+cleanup renderer rows differ from the retained manifest. All three reference
+PNGs and all three import records equal main byte for byte.
+
+Focused disposable checks pass 1,485 assertions with zero engine diagnostics:
+manual cleanup 155, painted picking 72, retained shapes 18, imported atlas/alpha
+34, automatic janitor 39, Decorate picking 41, layout reconciliation 808 and
+centered walls 318. These headless checks do not certify native pointer/pixel
+acceptance or performance of the composed source.
+
+Canonical qualification is **blocked**, not passed: the disposable Debian X11
+GL Compatibility probe runs official Godot 4.6.3 with Mesa 25.0.7 and llvmpipe
+LLVM 19.1.7; the existing canonical recipe requires Mesa 25.2.8 and LLVM 20.1.2.
+No atlas regeneration/parity claim or source-provenance refresh is made from
+this host. The strict guard intentionally continues rejecting the six stale
+source rows. Re-run the original-three qualification on its prescribed renderer
+before adopting those rows. Existing native images and timings remain scoped
+to their original source, not this composition. GitHub Actions access from this
+execution environment returns `Forbidden`; final-head CI remains pending.
+
 The read-only query never repaints, solves a pose or changes routing. A draw-time
 projection stamp, matching pre/post draw state, completed repaint revisions and
 current state check protect the completed image. Visible stale commands and

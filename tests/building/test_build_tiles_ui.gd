@@ -168,7 +168,7 @@ func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  await process_frame
  ui=game.compact_ui;shop=ui.shop_ui
- game.editing=true;game.tray.show();game.model.coins=1000;game._set_catalog_category("Build");ui._set_tray_reveal(1);await settle()
+ game.editing=true;game.tray.show();game.model.coins=1000;game.model.begin_decoration_session();game._set_catalog_category("Build");ui._set_tray_reveal(1);await settle()
  check(shop.build_page=="products","Build initially shows products")
  check(shop._visible_build_keys().size()==4,"Build shows exactly four product cards")
  for name in ["Wall","Door","Window","Tiles"]:check(named_button(game.build_panel,name)!=null,"Build contains "+name+" product")
@@ -266,12 +266,16 @@ func run():
  shop.show_build_products();shop.show_tiles();shop.choose_floor_style("cream_tile");shop.show_build_products();await settle()
  check(game.model.floor_finishes==expected and game.model.coins==coins,"Tiles navigation preserves inherited and custom tile records")
  var path="user://build-tiles-generated.json"
+ # This roundtrip inspects the accepted layout; active-draft saves deliberately
+ # persist the entry baseline instead. Resume the fixture's edit session below.
+ game.model.finish_decoration_session()
  check(game.model.save(path),"generated floor save succeeds")
  var saved_hash=FileAccess.get_sha256(path);var loaded=Model.new()
  check(loaded.load_save(path),"generated custom/inherited floor save loads")
  check(loaded.floor_finishes==expected and loaded.coins==coins,"custom and inherited floors round trip unchanged")
  check(loaded.floor_quote(Vector2i(4,4),"warm_oak").refund==0 and loaded.floor_quote(Vector2i(6,5),"warm_oak").refund==6,"inherited floor refund stays zero and paid floor refund stays six")
  check(FileAccess.get_sha256(path)==saved_hash,"load leaves source save bytes unchanged")
+ game.model.begin_decoration_session()
  # Stable title/price separation also covers other Build actions and furnishing selection.
  for mode in ["half","full","door","window"]:
   game.build_tools.choose(mode);game.build_tools.refresh(Vector2.ZERO);await settle()

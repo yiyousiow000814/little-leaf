@@ -3,6 +3,7 @@ extends RefCounted
 ## Validation is completed before a saved runtime may replace the live model.
 var error:=""
 const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
+const LayoutHold=preload("res://scripts/persistence/cafe_layout_hold.gd")
 const CHECKOUT_STAGES=["checkout_wait","checkout_walk","paying"]
 const NONE=Vector2i(-100,-100)
 const PAYMENT_SECONDS=1.6
@@ -265,6 +266,16 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
 	if not SaveContract.accepts_version(source_version):return _fail("Unsupported runtime source version")
+	if source_version==SaveContract.LAYOUT_HOLD_VERSION:
+		if state.get("layout_hold_format")!=LayoutHold.FORMAT:return _fail("Missing layout hold runtime format")
+		var projected=LayoutHold.project(state,items,self)
+		if not projected.ok:return _fail(projected.error)
+		# Validate all original custody, identity, phase, clock and payment rules
+		# against explicit held bindings, without creating physical inventory.
+		var checked=validate(encode(projected.state),projected.items,cooks,phases,SaveContract.VERSION,staffing,duty)
+		if not checked.ok:return checked
+		return {"ok":true,"state":LayoutHold.detach(checked.state,state.service.layout_hold)}
+	if state.has("layout_hold_format") or (state.get("service") is Dictionary and state.service.has("layout_hold")):return _fail("Legacy runtime contains layout hold state")
 	if SaveContract.has_layout_motion(source_version):
 		if state.get("layout_motion_format")!=SaveContract.LAYOUT_MOTION_FORMAT:return _fail("Invalid layout motion runtime format")
 	elif state.has("layout_motion_format"):return _fail("Legacy runtime contains layout motion format")

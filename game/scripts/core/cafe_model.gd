@@ -20,6 +20,7 @@ const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/gameplay/cafe_walls.gd")
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const RuntimeCodec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
+const LayoutHold=preload("res://scripts/persistence/cafe_layout_hold.gd")
 const OutsideQueue=preload("res://scripts/world/cafe_outside_queue.gd")
 const Parking=preload("res://scripts/world/cafe_parking.gd")
 const SaveContract=preload("res://scripts/persistence/cafe_save_contract.gd")
@@ -391,6 +392,21 @@ func logical_members(id:int)->Array:
 # interrupted session uses its baseline, including the original wallet/custody.
 # IDs are stable through moves; only successful purchases/sales change this ledger.
 var decoration_session_active=false
+# Derived membership indexes: bounded by the existing service ledgers and
+# replaced when the canonical registry object changes. Never serialized.
+var _layout_hold_source:Dictionary={}
+var _layout_hold_members:Dictionary={}
+func layout_held(scope:String,id:int)->bool:
+	if not service_snapshot.has("layout_hold"):return false
+	var source:Dictionary=service_snapshot.get("layout_hold",{})
+	if not is_same(source,_layout_hold_source):
+		_layout_hold_source=source;_layout_hold_members.clear()
+		for key in ["guests","staff","dishes","floor"]:
+			var members={}
+			for row in source.get(key,[]):members[int(row.index if key=="staff" else row.id)]=true
+			_layout_hold_members[key]=members
+	return _layout_hold_members.get(scope,{}).has(id)
+
 var decoration_purchases:Dictionary={}
 var decoration_build_purchases:Dictionary={}
 var _decoration_baseline:Dictionary={}
@@ -1117,6 +1133,7 @@ func _tick_step(delta: float) -> void:
 	var occupied_sinks := 0
 	var departing: Array[Dictionary] = []
 	for customer in customers:
+		if layout_held("guests",int(customer.id)):continue
 		if FurnitureMotion.active(customer):
 			FurnitureMotion.advance(self,customer,delta)
 			if bool(customer.get("meal_abandoned",false)) and not FurnitureMotion.active(customer):_begin_departure(customer)
@@ -1308,6 +1325,23 @@ func table_service_cells(table:Dictionary,layout:Array[Dictionary]=items)->Array
 		var cell=center+direction
 		if _table_side_open_in(cell,layout) and not edge_blocked(center,cell):result.append(cell)
 	return result
+
+func order_rear_cell(table:Dictionary,guest:Dictionary)->Vector2i:
+	# Conversation may reach the seated diner from one cell behind their actual
+	# chair. This does not add a physical serving/wiping face or a walking edge.
+	var invalid=Vector2i(-1,-1)
+	if table.is_empty() or str(table.get("kind",""))!="table" or int(guest.get("table_id",-1))!=int(table.id):return invalid
+	if not customers.any(func(active):return is_same(active,guest)):return invalid
+	if str(guest.get("phase",""))!="ordering" or not bool(guest.get("seated",false)) or bool(guest.get("withdrawn",false)) or bool(guest.get("meal_abandoned",false)) or not guest.get("mobility",{}).is_empty():return invalid
+	var chair=get_item(int(guest.get("chair_id",-1)))
+	if chair.is_empty() or str(chair.kind) not in ["chair","bench"]:return invalid
+	var center=Vector2i(int(table.x),int(table.z))
+	var seat=Vector2i(int(chair.x),int(chair.z))
+	var offset=seat-center
+	if absi(offset.x)+absi(offset.y)!=1:return invalid
+	var rear=seat+offset
+	if not _table_side_open_in(rear,items) or edge_blocked(center,seat) or edge_blocked(seat,rear):return invalid
+	return rear
 
 func _table_guest_direction_in(table: Dictionary, layout: Array[Dictionary]) -> Vector2i:
 	var table_cell=Vector2i(int(table.x),int(table.z))
@@ -1714,72 +1748,8 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 		var saved:bool=baseline.save(path)
 		if not saved:last_error=baseline.last_error
 		return saved
-	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _fail("First-visit eligibility disagrees with progress")
-	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts,register_unplaced,operating_open)
-	if checkout_error!="":return _fail(checkout_error)
-	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,customers)
-	if checkout_error!="":return _fail(checkout_error)
-	## Only our explicit reconstructed schema is written; no legacy paths probed.
-	var group_check=DiningSets.validate(dining_sets,items,customers)
-	if not group_check.ok:return _fail(str(group_check.error))
-	var reserved_error:=_reserved_chair_egress_error(built_walls,items,customers,_wall_reachable(built_walls,items,owned_parcels))
-	if reserved_error!="":return _fail("Could not save inconsistent active service: "+reserved_error)
-	var codec=RuntimeCodec.new()
-	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
-	var checked=codec.validate(runtime,items,cooks,PHASES,SAVE_VERSION,staff_roster(),duty_counts)
-	if not checked.ok:return _fail("Could not save inconsistent active service: "+str(checked.error))
-	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
-	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
-	if not queue_check.ok:return _fail(str(queue_check.error))
-	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
-	var parking_check=Parking.validate(parking,customers,outside_queue,_next_customer_id,operating_open)
-	if not parking_check.ok:return _fail(str(parking_check.error))
-	var motion_error=_layout_motion_geometry_error(checked.state.customers,items,built_walls,owned_parcels,wall_attachments)
-	if motion_error!="":return _fail("Could not save layout motion: "+motion_error)
-	checkout_error=Checkout.staff_floor_error(self,checked.state.service,owned_parcels,items)
-	if checkout_error!="":return _fail(checkout_error)
-	var data: Dictionary = {
-		"schema": SAVE_SCHEMA, "version": SAVE_VERSION, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
-		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,"register_unplaced":register_unplaced,
-		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
-		"total_earned": total_earned, "total_cleaned": total_cleaned,
-		"items": _items_without_stove_levels(), "next_item_id": _next_item_id,"dining_sets":dining_sets,
-		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,"parking":parking,
-		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
-		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
-		"building_format":BuildingCodec.FORMAT,"wall_format":BuildingCodec.WALL_FORMAT,"built_walls":built_walls,"floor_style":floor_style,
-		"wall_attachment_format":BuildingCodec.ATTACHMENT_FORMAT,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
-	}
-	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(tutorial_state)
-	if first_guest_pending:data["first_guest_pending"]=true
-	var walls_check=_validate_saved_walls(data,owned_parcels)
-	if not walls_check.ok:return _fail("Could not save walls: "+str(walls_check.error))
-	var floors_check=_validate_saved_floors(data,owned_parcels,floor_style)
-	if not floors_check.ok:return _fail("Could not save flooring: "+str(floors_check.error))
-	var openings_check=_validate_saved_attachments(data,built_walls)
-	if not openings_check.ok:return _fail("Could not save wall attachments: "+str(openings_check.error))
-	# Match load's physical safety gates before touching either destination.
-	# Active diner intent also keeps the existing structural gates.
-	var saved_actors:Array=[]
-	for actor in checked.state.service.get("staff",[]):saved_actors.append(actor.pos)
-	# With no diner intent to relocate, save physical bodies without making
-	# walking access a placement rule. Active service keeps its existing gates.
-	var physical_error=_furniture_body_error(items,saved_actors) if checked.state.customers.is_empty() else ""
-	if physical_error!="":return _fail("Could not save physical layout: "+physical_error)
-	var egress_error="" if checked.state.customers.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,checked.state.customers,openings_check.attachments)
-	if egress_error!="":return _fail("Could not save invalid walls: "+egress_error)
-	var actors=saved_actors.duplicate()
-	for guest in checked.state.customers:
-		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
-	var body_error=_opening_body_error(built_walls,openings_check.attachments,actors)
-	if body_error!="":return _fail("Could not save invalid walls: "+body_error)
-	var scalar_error=_saved_statistics_error(data)
-	if scalar_error!="":return _fail(scalar_error)
-	scalar_error=_saved_payroll_error(data)
-	if scalar_error!="":return _fail(scalar_error)
-	# Match the active-service reader before touching either saved destination.
-	if not checked.state.customers.is_empty() and not _layout_has_access(items,depth,owned_parcels):
-		return _fail("Saved layout blocks access to service stations")
+	var data=save_data()
+	if data.is_empty():return false
 	var backup_error=BuildingCodec.preserve_original(_legacy_building_original,path)
 	if backup_error!="":return _fail(backup_error)
 	var temp_path := path + ".tmp"
@@ -1800,6 +1770,89 @@ func save(path: String = SaveContract.PRIMARY_FILE) -> bool:
 	return true
 
 
+func _save_data_error(message:String)->Dictionary:
+	_fail(message);return {}
+
+func save_data()->Dictionary:
+	# Pure preflight for Apply. The ordinary writer still owns file replacement.
+	if first_guest_pending and (_next_customer_id!=1 or not customers.is_empty() or not outside_queue.is_empty() or served!=0 or total_earned!=0):return _save_data_error("First-visit eligibility disagrees with progress")
+	var codec=RuntimeCodec.new()
+	var held_format=service_snapshot.has("layout_hold")
+	var source_version=SaveContract.LAYOUT_HOLD_VERSION if held_format else SAVE_VERSION
+	var runtime=codec.encode({"customers":customers,"service":service_snapshot,"next_customer_id":_next_customer_id,"arrival_elapsed":_arrival_elapsed,"walking_customer_id":_walking_customer_id,"next_checkout_ticket":next_checkout_ticket,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT})
+	if held_format:runtime["layout_hold_format"]=LayoutHold.FORMAT
+	var checked=codec.validate(runtime,items,cooks,PHASES,source_version,staff_roster(),duty_counts)
+	if not checked.ok:return _save_data_error("Could not save inconsistent active service: "+str(checked.error))
+	var active_guests=LayoutHold.active_guests(checked.state.customers,checked.state.service)
+	var active_service={"staff":LayoutHold.active_staff(checked.state.service)}
+	if held_format:
+		for host in checked.state.service.layout_hold.hosts:
+			if int(host.id)>=_next_item_id:return _save_data_error("Held host exceeds furniture identity sequence")
+	var checkout_error=Checkout.state_error(included_checkout_pending,cashiers,items,customers,duty_targets,duty_counts,register_unplaced,operating_open,held_format)
+	if checkout_error!="":return _save_data_error(checkout_error)
+	checkout_error=Checkout.layout_error(self,items,built_walls,owned_parcels,active_guests)
+	if checkout_error!="":return _save_data_error(checkout_error)
+	## Only our explicit reconstructed schema is written; no legacy paths probed.
+	var group_check=DiningSets.validate(dining_sets,items,active_guests)
+	if not group_check.ok:return _save_data_error(str(group_check.error))
+	var reserved_error:=_reserved_chair_egress_error(built_walls,items,active_guests,_wall_reachable(built_walls,items,owned_parcels))
+	if reserved_error!="":return _save_data_error("Could not save inconsistent active service: "+reserved_error)
+	var outside=codec.encode({"format":OutsideQueue.FORMAT,"visitors":outside_queue})
+	var queue_check=OutsideQueue.validate(outside,customers,_next_customer_id)
+	if not queue_check.ok:return _save_data_error(str(queue_check.error))
+	var parking=codec.encode({"format":Parking.FORMAT,"owned":parking_owned,"paid_cost":parking_paid_cost,"visits":parking_visits})
+	var parking_check=Parking.validate(parking,customers,outside_queue,_next_customer_id,operating_open)
+	if not parking_check.ok:return _save_data_error(str(parking_check.error))
+	var motion_error=_layout_motion_geometry_error(active_guests,items,built_walls,owned_parcels,wall_attachments)
+	if motion_error!="":return _save_data_error("Could not save layout motion: "+motion_error)
+	checkout_error=Checkout.staff_floor_error(self,active_service,owned_parcels,items)
+	if checkout_error!="":return _save_data_error(checkout_error)
+	var data: Dictionary = {
+		"schema": SAVE_SCHEMA, "version": source_version, "new_reconstruction": true,"checkout_format":SaveContract.CHECKOUT_FORMAT,"layout_motion_format":SaveContract.LAYOUT_MOTION_FORMAT,
+		"cashiers":cashiers,"included_checkout_pending":included_checkout_pending,"register_unplaced":register_unplaced,
+		"coins": coins, "expanded": expanded, "owned_parcels": owned_parcels, "cooks": cooks, "served": served,
+		"total_earned": total_earned, "total_cleaned": total_cleaned,
+		"items": _items_without_stove_levels(), "next_item_id": _next_item_id,"dining_sets":dining_sets,
+		"operating_open":operating_open,"included_bin_pending":included_bin_pending,"runtime":runtime,"outside_queue":outside,"parking":parking,
+		"waiters":waiters,"cleaners":cleaners,"duty_targets":duty_targets,"duty_counts":duty_counts,"payroll_elapsed":payroll_elapsed,"payroll_accrued":payroll_accrued,"wages_due":wages_due,"total_wages_paid":total_wages_paid,
+		"floor_finishes":floor_finishes,"starter_geometry_version":Footprint.SAVE_REVISION,
+		"building_format":BuildingCodec.FORMAT,"wall_format":BuildingCodec.WALL_FORMAT,"built_walls":built_walls,"floor_style":floor_style,
+		"wall_attachment_format":BuildingCodec.ATTACHMENT_FORMAT,"wall_attachments":wall_attachments,"next_wall_id":_next_wall_id,"next_attachment_id":_next_attachment_id,
+	}
+	if held_format:data.layout_hold_format=LayoutHold.FORMAT
+	if not tutorial_state.is_empty():data["tutorial"]=preload("res://scripts/gameplay/cafe_tutorial_state.gd").read(tutorial_state)
+	if first_guest_pending:data["first_guest_pending"]=true
+	var walls_check=_validate_saved_walls(data,owned_parcels)
+	if not walls_check.ok:return _save_data_error("Could not save walls: "+str(walls_check.error))
+	var floors_check=_validate_saved_floors(data,owned_parcels,floor_style)
+	if not floors_check.ok:return _save_data_error("Could not save flooring: "+str(floors_check.error))
+	var openings_check=_validate_saved_attachments(data,built_walls)
+	if not openings_check.ok:return _save_data_error("Could not save wall attachments: "+str(openings_check.error))
+	# Match load's physical safety gates before touching either destination.
+	# Active diner intent also keeps the existing structural gates.
+	var saved_actors:Array=[]
+	for actor in active_service.staff:saved_actors.append(actor.pos)
+	# With no diner intent to relocate, save physical bodies without making
+	# walking access a placement rule. Active service keeps its existing gates.
+	var physical_error=_furniture_body_error(items,saved_actors) if active_guests.is_empty() else ""
+	if physical_error!="":return _save_data_error("Could not save physical layout: "+physical_error)
+	var egress_error="" if active_guests.is_empty() else _wall_egress_error(built_walls,saved_actors,items,owned_parcels,active_guests,openings_check.attachments)
+	if egress_error!="":return _save_data_error("Could not save invalid walls: "+egress_error)
+	var actors=saved_actors.duplicate()
+	for guest in active_guests:
+		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
+	var body_error=_opening_body_error(built_walls,openings_check.attachments,actors)
+	if body_error!="":return _save_data_error("Could not save invalid walls: "+body_error)
+	var scalar_error=_saved_statistics_error(data)
+	if scalar_error!="":return _save_data_error(scalar_error)
+	scalar_error=_saved_payroll_error(data)
+	if scalar_error!="":return _save_data_error(scalar_error)
+	# Match the active-service reader before touching either saved destination.
+	if not held_format and not active_guests.is_empty() and not _layout_has_access(items,depth,owned_parcels):
+		return _save_data_error("Saved layout blocks access to service stations")
+	return data
+
+
 func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: bool = false) -> bool:
 	## Validate all layout, wallet and runtime data before replacing any state.
 	## Legacy v1/v2 saves never contained guests; only those open with refreshed tables.
@@ -1815,7 +1868,7 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 	if parse_result != OK or not json.data is Dictionary:
 		return _fail("Invalid reconstructed save JSON")
 	var data: Dictionary = json.data
-	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SAVE_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
+	if data.get("schema") != SAVE_SCHEMA or not _valid_int(data.get("version"), 1, SaveContract.LAYOUT_HOLD_VERSION) or not data.get("new_reconstruction") is bool or data.get("new_reconstruction") != true:
 		return _fail("This is not a supported reconstructed cafe save")
 	if not SaveContract.accepts_header(data):return _fail("Unsupported or foreign save format")
 	var scalar_error=_saved_statistics_error(data)
@@ -1917,7 +1970,13 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		var checked=codec.validate(data.get("runtime"),validated,int(data.cooks),PHASES,int(data.version),{"chef":int(data.cooks),"waiter":saved_waiters,"cleaner":saved_cleaners,"cashier":saved_cashiers},saved_duty)
 		if not checked.ok:return _fail("Invalid active service: "+str(checked.error))
 		runtime_state=checked.state
-	if (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
+	var held_format=int(data.version)==SaveContract.LAYOUT_HOLD_VERSION
+	var active_guests=LayoutHold.active_guests(runtime_state.customers,runtime_state.service)
+	var active_service={"staff":LayoutHold.active_staff(runtime_state.service)}
+	if held_format:
+		for host in runtime_state.service.layout_hold.hosts:
+			if int(host.id)>=int(data.next_item_id):return _fail("Held host exceeds furniture identity sequence")
+	if not held_format and (int(data.version)<SAVE_VERSION or not runtime_state.customers.is_empty()) and not _layout_has_access(validated,saved_depth,saved_parcels):
 		return _fail("Saved layout blocks access to service stations")
 	var queue_check=OutsideQueue.validate(data.get("outside_queue",{"format":OutsideQueue.FORMAT,"visitors":[]}),runtime_state.customers,int(runtime_state.next_customer_id))
 	if not queue_check.ok:return _fail(str(queue_check.error))
@@ -1931,29 +1990,29 @@ func load_save(path: String = SaveContract.PRIMARY_FILE, allow_enclosed_staff: b
 		for guest in runtime_state.customers:
 			if str(guest.get("settlement_mode","legacy"))=="register":return _fail("Register-mode guest exists before cashier deployment")
 	var saved_sets:Dictionary
-	if int(data.version)>=7:saved_sets=DiningSets.validate(data.get("dining_sets"),validated,runtime_state.customers)
+	if int(data.version)>=7:saved_sets=DiningSets.validate(data.get("dining_sets"),validated,active_guests)
 	else:saved_sets={"ok":true,"groups":DiningSets.migrate(validated,runtime_state.customers)}
 	if not saved_sets.ok:return _fail(str(saved_sets.error))
-	var checkout_state_error=Checkout.state_error(saved_checkout_pending,saved_cashiers,validated,runtime_state.customers,saved_targets,saved_duty,saved_register_unplaced,saved_open)
+	var checkout_state_error=Checkout.state_error(saved_checkout_pending,saved_cashiers,validated,runtime_state.customers,saved_targets,saved_duty,saved_register_unplaced,saved_open,held_format)
 	if checkout_state_error!="":return _fail(checkout_state_error)
-	checkout_state_error=Checkout.staff_floor_error(self,runtime_state.service,saved_parcels,validated)
+	checkout_state_error=Checkout.staff_floor_error(self,active_service,saved_parcels,validated)
 	if checkout_state_error!="":return _fail(checkout_state_error)
 	var geometry=FurnitureMotion.copy_model(self)
-	var motion_error=geometry._layout_motion_geometry_error(runtime_state.customers,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
+	var motion_error=geometry._layout_motion_geometry_error(active_guests,validated,checked_walls.walls,saved_parcels,checked_attachments.attachments)
 	if motion_error!="":return _fail("Invalid saved layout motion: "+motion_error)
 	var saved_actors:Array=[]
-	for actor in runtime_state.service.get("staff",[]):saved_actors.append(actor.pos)
-	var idle_physical=int(data.version)==SAVE_VERSION and runtime_state.customers.is_empty()
+	for actor in active_service.staff:saved_actors.append(actor.pos)
+	var idle_physical=int(data.version)>=SAVE_VERSION and active_guests.is_empty()
 	var physical_error=_furniture_body_error(validated,saved_actors) if idle_physical else ""
 	if physical_error!="":return _fail("Invalid saved physical layout: "+physical_error)
-	var egress_error="" if idle_physical else geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+	var egress_error="" if idle_physical else geometry._wall_egress_error(checked_walls.walls,saved_actors,validated,saved_parcels,active_guests,checked_attachments.attachments)
 	if egress_error!="" and allow_enclosed_staff and int(data.version)==SaveContract.CHECKOUT_INTRO_VERSION and egress_error=="This wall would seal a staff member away from every exit":
 		# Explicit repair import only: preserve the historically enclosed worker,
 		# while every entrance, guest, chair and opening check still runs.
-		egress_error=geometry._wall_egress_error(checked_walls.walls,[],validated,saved_parcels,runtime_state.customers,checked_attachments.attachments)
+		egress_error=geometry._wall_egress_error(checked_walls.walls,[],validated,saved_parcels,active_guests,checked_attachments.attachments)
 	if egress_error!="":return _fail("Invalid saved walls: "+egress_error)
 	var actors=saved_actors.duplicate()
-	for guest in runtime_state.customers:
+	for guest in active_guests:
 		if str(guest.phase) not in ["dirty","cleaning"]:actors.append(Vector2(float(guest.x),float(guest.z)))
 	var body_error=geometry._opening_body_error(checked_walls.walls,checked_attachments.attachments,actors)
 	if body_error!="":return _fail("Invalid saved walls: "+body_error)
@@ -2471,7 +2530,7 @@ func _validate_saved_walls(data:Dictionary,ownership:Array) -> Dictionary:
 	var fail_result:Dictionary={"ok":false,"error":"Invalid saved wall or finish data"}
 	if int(data.version)>=4 and (not data.has("wall_format") or not data.has("built_walls") or not data.has("floor_style") or not data.has("shell_material")):return fail_result
 	if data.has("wall_format") and (not _valid_int(data.wall_format,1,2)):return fail_result
-	if int(data.get("wall_format",1))==2 and int(data.version)!=SAVE_VERSION:return fail_result
+	if int(data.get("wall_format",1))==2 and int(data.version) not in [SAVE_VERSION,SaveContract.LAYOUT_HOLD_VERSION]:return fail_result
 	if data.has("built_walls") and (not data.built_walls is Array or data.built_walls.size()>(262 if int(data.version)<6 else MAX_WIDTH*(MAX_DEPTH+1)+(MAX_WIDTH+1)*MAX_DEPTH)):return fail_result
 	if data.has("built_walls") and not data.has("wall_format"):return fail_result
 	var keys:Dictionary={};var wall_ids={};var highest_wall_id=0

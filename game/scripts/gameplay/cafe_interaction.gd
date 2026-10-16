@@ -182,7 +182,7 @@ func rotate_selection():
 		# R on a clicked selection retains the previous immediate rotation
 		# behavior, but R while dragging is purely a preview until release.
 		var actors=_staff_positions()
-		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors)
+		var receipt=edit_plan.prepare(game.model,game.model.logical_kind(int(selected.id)),int(selected.id),next,Vector2i(selected.x,selected.z),actors,EditPlan.Context.DECORATE)
 		if edit_plan.commit(game.model,receipt,actors):
 			game.rotation_step = next
 			game._rebuild_furniture()
@@ -322,7 +322,7 @@ func _update_validity(screen: Vector2):
 	if drag_item_id >= 0:
 		if game.model.get_item(drag_item_id).is_empty():
 			drag_reason = "This furnishing is no longer available"; return
-	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions())
+	placement_receipt=edit_plan.prepare(game.model,drag_kind,drag_item_id,drag_rotation,drag_cell,_staff_positions(),EditPlan.Context.DECORATE)
 	drag_footprint_valid = bool(placement_receipt.physical_ok)
 	if not placement_receipt.ok:
 		drag_reason=placement_receipt.error;game.model.last_placement_issue=placement_receipt.issue;return

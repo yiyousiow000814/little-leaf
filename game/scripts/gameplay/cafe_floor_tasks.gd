@@ -33,6 +33,7 @@ func observe_walks():
  for guest in game.model.customers:
   var id=int(guest.id);live[id]=true;var pos=Vector2(float(guest.x),float(guest.z));var cell=Vector2i(floori(pos.x),floori(pos.y))
   if not walks.has(id):walks[id]={"guest_id":id,"pos":pos,"cell":cell,"inside_steps":0,"dropped":false};continue
+  if game.model.layout_held("guests",id):continue
   var track=walks[id];var old_cell:Vector2i=track.cell;var moved=pos.distance_to(track.pos)>.00001
   var adjacent=absi(cell.x-old_cell.x)+absi(cell.y-old_cell.y)==1
   if moved and adjacent and str(guest.phase) in WALKING_PHASES and not bool(guest.get("withdrawn",false)) and not game.model.segment_blocked(track.pos,pos) and litter_allowed(old_cell):
@@ -82,6 +83,7 @@ func assign(staff:Dictionary,index:int):
  if staff.role!="cleaner" or staff.job_kind!="":return
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var blocked={};var shortest=1000000
  for entry in messes.values():
+  if game.model.layout_held("floor",int(entry.id)):continue
   var busy=false
   for other in game.staff_states:
    if other.job_kind=="floor" and int(other.get("job_mess_id",-1))==int(entry.id):busy=true;break
