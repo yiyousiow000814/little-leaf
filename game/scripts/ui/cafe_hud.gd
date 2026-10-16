@@ -586,10 +586,10 @@ func _layout_mobile_toolbar(width:float):
  game.settings.offset_top=popup_top()
 func _mobile_action_art(button:Button,name:String):
  var art:TextureRect=action_art[name];var texture_size=art.texture.get_size()
- var extent=Vector2(30,32) if name=="staff" else Vector2(32,32)
+ var extent=Vector2(28,30) if name=="staff" else Vector2(30,30)
  # The tall horn/cabinet silhouette uses more height to match the neighboring
  # brush and chef's visible weight, inside the same44px phone action cell.
- if name=="music":extent=Vector2(36,40)
+ if name=="music":extent=Vector2(32,34)
  var fitted=texture_size*minf(extent.x/texture_size.x,extent.y/texture_size.y)
  art.position=(button.size-fitted)*.5;art.size=fitted;action_captions[name].hide()
 

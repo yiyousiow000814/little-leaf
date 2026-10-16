@@ -318,7 +318,7 @@ browser, performance or release. Hat/steam reference work remains separate.
 The user subsequently requested balanced icon proportions, vertical centering
 and equal spacing across the toolbar. The revised candidate keeps the same
 generated gramophone PNG and tight alpha crop. It draws the gramophone at44px
-height on the desktop rail,40px on phone layouts, and uses
+height on the desktop rail,34px on phone layouts, and uses
 the same retained material treatment as Decorate/Staff/Settings. This replaces
 the earlier32px square fit and stronger lightening that reduced its visible
 width and weight. It adds no texture, material variant or frame callback.
@@ -335,3 +335,11 @@ PR330 at09bbd6d4 owns Settings UID footer/clipboard changes in
 changes the separate `cafe_hud.gd` layout and its existing layout tests. The
 shared Roadmap receives only the scoped status update; no PR330 runtime delta
 is copied, changed or claimed integrated.
+
+Mobile button-padding refinement: the user requested a little more space
+between artwork and button edges. Phone artwork now fits30px for brush/gear,
+30px high for the chef, and34px high for the gramophone's taller silhouette.
+Every illustrated action has at least5px internal clearance while retaining
+native aspect,44px hit cells,6px gaps and the existing centerline. The already
+inset Pause glyph and wallet coin retain their spacing. The desktop path and
+its44px gramophone remain unchanged; actual paired desktop pixels verify this.

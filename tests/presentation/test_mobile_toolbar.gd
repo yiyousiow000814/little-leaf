@@ -63,6 +63,11 @@ func run():
     check(ui.music_access.get_global_rect().encloses(hud.action_art.music.get_global_rect()),label+" Music picture stays within its native target")
     if mobile:
      check(ui.music_access.size.is_equal_approx(Vector2(44,44)),label+" Music uses the same44px cell as its neighbors")
+     for name in ["music","decorate","staff","settings"]:
+      var icon=hud.action_art[name];var area=icon.get_parent().get_global_rect();var painted=icon.get_global_rect()
+      check(area.grow(-4.9).encloses(painted),label+" mobile artwork has internal padding "+name)
+     check(game.pause_button.get_global_rect().grow(-4.9).encloses(hud.pause_art.get_global_rect()),label+" Pause glyph has internal padding")
+     check(hud.wallet.get_global_rect().grow(-4.9).encloses(hud.mobile_coin.get_global_rect()),label+" wallet coin has internal padding")
      var ordered=[ui.music_access,game.edit_button]
      if editing:ordered.append(hud.edit_cancel)
      ordered.append(ui.staff_access)
