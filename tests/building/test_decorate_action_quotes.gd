@@ -14,6 +14,29 @@ func prepare(plan,model,kind:String,id:int,rot:int,cell:Vector2i,actors:Array):
  return plan.callv("prepare",args)
 func frozen(model)->String:
  return JSON.stringify([model.customers,model.service_snapshot,model.wall_actor_positions,model.checkout_staff_claims])
+func wall_quotes():
+ var model=Model.new();Start.apply(model);model.coins=1000
+ var plan=Plan.new();var args={"key":"x:2:0","height":"full","material":"cream_stripe"}
+ var before=JSON.stringify([model.built_walls,model.coins,model.revision])
+ var quote=plan.prepare_build(model,Plan.Action.WALL_REPLACE,args)
+ check(quote.new_cost==55 and quote.refund==0 and quote.net==55,"closed-session quote retains the actual inherited wall price")
+ check(not quote.ok and not quote.valid and quote.reason=="Open Decorate first","domain price cannot override the closed-session gate")
+ check(not plan.commit(model,quote) and JSON.stringify([model.built_walls,model.coins,model.revision])==before,"closed-session wall quote cannot publish or charge")
+ model.begin_decoration_session()
+ for spec in [[1000,"x:2:0","full","cream_stripe",true],[0,"x:2:0","full","cream_stripe",false],[1000,"x:2:0","full","original",false],[1000,"x:2:0","full","unknown",false],[1000,"missing","full","cream_stripe",false]]:
+  model.coins=spec[0];args={"key":spec[1],"height":spec[2],"material":spec[3]}
+  var domain=model.wall_replacement_quote(args.key,args.height,args.material)
+  before=JSON.stringify([model.built_walls,model.coins,model.revision,model.decoration_build_purchases])
+  quote=plan.prepare_build(model,Plan.Action.WALL_REPLACE,args)
+  check(quote.ok==spec[4] and quote.valid==spec[4],"wall action preserves domain refusal "+str(spec))
+  check(quote.new_cost==domain.new_cost and quote.refund==domain.refund and quote.net==domain.net,"every replacement result carries the complete domain price "+str(spec))
+  check(JSON.stringify([model.built_walls,model.coins,model.revision,model.decoration_build_purchases])==before,"replacement quote remains nonmutating "+str(spec))
+ model.coins=1000;args={"key":"x:2:0","height":"full","material":"cream_stripe"}
+ quote=plan.prepare_build(model,Plan.Action.WALL_REPLACE,args)
+ check(plan.commit(model,quote) and model.coins==945,"wall commit charges the displayed55 once")
+ check(not plan.commit(model,quote) and model.coins==945,"reusing a replacement receipt cannot charge again")
+ quote=plan.prepare_build(model,Plan.Action.WALL_REPLACE,{"key":"x:2:0","height":"half","material":"sage_panels"})
+ check(quote.new_cost==35 and quote.refund==27 and quote.net==8,"paid wall quote carries its real refund and net payment")
 func run():
  var m=Model.new();Start.apply(m);m.coins=10000
  # This bounded actor-only fixture does not claim to be a resumable visit.
@@ -83,5 +106,6 @@ func run():
   check(build.ok and plan.commit(m,build),"unattached wall Sell shares quote and execution")
  check(frozen(m)==before,"building draft changes no actor or service field")
  check(m.cancel_decoration_session() and m.coins==wallet and m.items==original,"building Cancel restores exact wallet and furnishing baseline")
+ wall_quotes()
  print("DECORATE_ACTION_QUOTES_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"original_player_save_used":false,"scope":"isolated planner only; no Apply/reconciliation/UI acceptance"}))
  quit(0 if failures.is_empty() else 1)

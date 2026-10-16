@@ -81,13 +81,16 @@ func prepare_build(model,action:Action,args:Dictionary)->Dictionary:
  invalidate();_state=next_state;_key=next.duplicate(true);_action=action;_context=Context.DECORATE
  validations+=1
  var shadow=geometry_model(model);var ok=false;var details={"refund":0}
+ # Pricing is presentation data even when the session or transaction refuses
+ # execution. Keep the domain quote complete without letting its valid flag
+ # override the action's final gate below.
+ if action==Action.WALL_REPLACE:details=shadow.wall_replacement_quote(args.key,args.height,args.material,[])
  if not model.decoration_session_active:shadow.last_error="Open Decorate first"
  else:
   match action:
    Action.WALL_PLACE:ok=shadow.place_wall(args.axis,args.x,args.z,args.height,args.material,[])
    Action.WALL_MOVE:ok=shadow.move_wall(args.key,args.axis,args.x,args.z,[])
    Action.WALL_REPLACE:
-    details=shadow.wall_replacement_quote(args.key,args.height,args.material,[])
     ok=shadow.replace_wall(args.key,args.height,args.material,[])
    Action.WALL_SELL:
     details.refund=shadow.wall_refund(args.key);ok=shadow.remove_wall(args.key)
@@ -99,8 +102,9 @@ func prepare_build(model,action:Action,args:Dictionary)->Dictionary:
  _plan_result={"ok":ok,"error":shadow.last_error}
  if ok:
   for key in ["built_walls","wall_attachments","_next_wall_id","_next_attachment_id","decoration_build_purchases","coins","last_event"]:_plan_result[key]=shadow.get(key)
- _receipt={"action":action,"context":_context,"ok":ok,"physical_ok":ok,"error":shadow.last_error,"valid":ok,"reason":shadow.last_error}
- _receipt.merge(details,true);return _receipt
+ _receipt=details.duplicate(true)
+ _receipt.merge({"action":action,"context":_context,"ok":ok,"physical_ok":ok,"error":shadow.last_error,"valid":ok,"reason":shadow.last_error},true)
+ return _receipt
 
 func _physical_problem(model,cell:Vector2i,actors:Array)->String:
  if _context==Context.DECORATE:

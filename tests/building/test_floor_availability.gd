@@ -21,6 +21,7 @@ func run():
  var game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true;game.editing=true;game.model.coins=100000
  await process_frame
  var m=game.model;var interaction=game.interaction;var plan=interaction.edit_plan
+ m.begin_decoration_session()
  check(not has_property(interaction,"floor_availability"),"retired background cache is not allocated")
  check(not interaction.has_method("draw_floor_feedback"),"retired whole-floor painter is actually absent")
  check(not FileAccess.file_exists("res://scripts/gameplay/cafe_floor_availability.gd"),"obsolete cache source is deleted")
