@@ -1043,7 +1043,7 @@ func _draw():
 		_draw_floor_mess(record)
 	if game.interaction!=null and game.interaction.get("manual_cleanup")!=null:game.interaction.manual_cleanup.draw(self)
 	for opening in openings:OpeningArt.threshold(self,opening)
-	if preview and interaction.drag_active:
+	if preview and (int(interaction.drag_item_id)<0 or interaction.drag_active):
 		var outline=Color(.34,.50,.28,.80) if interaction.drag_footprint_valid else Color(.62,.37,.29,.80)
 		for part in game.model.placement_parts(interaction.drag_kind,interaction.drag_cell.x,interaction.drag_cell.y,interaction.drag_rotation,interaction.drag_item_id):
 			var c=Vector2i(int(part.x),int(part.z))
@@ -1119,8 +1119,9 @@ func _draw():
 				# The worktop sits below the reaching hand; the tall rear-facing
 				# espresso unit stays in front until the cup is withdrawn clear.
 				entities.append({"depth":target_depth+.04,"type":"beverage_foreground","entry":target})
-		if staff_action in ["preparing_food","plating"] and str(target.get("kind",""))=="stove" and posmod(int(target.get("rot",0)),4) in [0,1]:
-			# Preserve the pan/plate occlusion while the rear plate is lifted.
+		if split and staff_action=="preparing_food" and str(target.get("kind",""))=="stove" and posmod(int(target.get("rot",0)),4) in [0,1]:
+			# Only a rear worker needs the complete vessel over its lifted plate.
+			# A foreground actor occludes both pan and handle in their original pass.
 			entities.append({"depth":maxf(body_depth,target_depth)+.04,"type":"stove_foreground","entry":target})
 	entities.sort_custom(func(a,b): return a.depth<b.depth if not is_equal_approx(a.depth,b.depth) else str(a.type)+str(a.entry.get("id",0))<str(b.type)+str(b.entry.get("id",0)))
 	for e in entities:

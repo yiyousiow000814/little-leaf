@@ -144,7 +144,6 @@ func refresh(screen: Vector2):
 		drag_valid = false
 		drag_footprint_valid = false
 	game.hover_cell = drag_cell if preview_active else game._floor_cell(screen)
-	if preview_active and is_instance_valid(game.tool_text):game.tool_text.text=drag_reason
 
 func cancel(clear_selection = true):
 	edit_plan.invalidate()

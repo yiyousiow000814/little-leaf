@@ -208,3 +208,44 @@ No final Golden set, new pixel tolerance or automatic reference-promotion rule
 is approved here. Keep source-bound comparison controls, user acceptance,
 required CI, merge and release as distinct states. See
 [assets and licenses](../art-audio/README.md) for retained art provenance.
+
+## Stove handle over chef head — requirement16 candidate
+
+The user rejected PR333 at8d74a50 after inspecting actual before/after pixels:
+the grip appeared lost and both pan and handle should be behind the character
+from this view. That candidate's source review and tests were not visual
+acceptance. Its original artifacts remain historical rejected evidence.
+
+The revised queue uses the existing actor/station depth relationship: a complete
+stove foreground is admitted only when the worker is behind its target (`split`)
+and a preparation plate needs that local occluder. A worker in front naturally
+occludes the whole vessel and handle in their original furniture pass. Plating
+already uses idle art and keeps no obsolete whole-vessel redraw. The furniture
+painter, complete handle/collar/grip and every geometry constant are restored
+byte-for-byte to main11f4c869; the foreground no longer has a handle-exclusion
+option. Legitimate rear-work foregrounds retain their full original handle.
+No global head repaint, actor relocation, shortening, removal, pose, footprint,
+contact or save change. Overlapped handle portions are naturally hidden by the
+character; this does not promise every grip pixel remains visible from all views.
+
+This reuses the current painter queue and existing `split` relation, with no new
+cache, retained object, callback or lifecycle owner. Plating and front-worker
+preparation omit an unnecessary queue entry; no measured FPS claim follows.
+
+The revised native Godot4.6.3 GL/llvmpipe synthetic no-save fixture matches
+rotation0/1/3 preparation/cooking/plating, normal zoom1 and the actual maximum
+against original source302e77d and the rejected candidate. Cooking, all rotation3
+controls and rotation1 preparation are exact RGBA matches to original. Rotation0
+preparation now changes the complete vessel/actor boundary, not just the grip;
+rotation0/1 plating retains the idle-visual queue correction. All18 camera,
+logical/rendered actor, target and phase/clock records match. Original furniture
+source identity and the existing22376 geometry assertions (including full-grip
+foreground checks) protect exposed geometry. Canonical regeneration verifies
+all3fixed atlas RGBA images; selective provenance updates preserve every atlas
+PNG/import/asset record and prior proof. Required CI is separate.
+
+The exact original IMG_0828 runtime phase/layout, all continuous phases and
+browser/device surfaces remain unqualified. The parent reviewer inspected its
+pixels; this lane received metadata/image pointer only. Revised appearance,
+independent source review and mandatory CI remain pending. Keep Draft and all
+merge/deployment holds; no Golden reference or prior acceptance is inferred.
