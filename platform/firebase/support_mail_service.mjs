@@ -240,11 +240,12 @@ export function createSupportMailService({db,enabled=false,now=Date.now}) {
       const time=now();
       if(!s.exists||!ctrl.exists||!g.exists)throw error('PROTOCOL_CHANGED','Gift stock is unavailable.');
       const current=head(s.data()),protocol=ctrl.data(),stockValue=g.data();
+      fence(own.data(),request,time,true);
       if(done.exists){
         if(done.data().operationHash!==operationHash)throw error('ISSUE_CONFLICT','Placement ID was already used.');
         return {status:'placed',receipt:done.data(),record:current,stock:stockValue};
       }
-      fence(own.data(),request,time,true);expected(current,request);
+      expected(current,request);
       if(current.format!==3||candidate.format!==3||candidate.profileId!==current.profileId
         ||candidate.revision!==current.revision+1||candidate.createdAt!==current.createdAt
         ||candidate.previous!==null

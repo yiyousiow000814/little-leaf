@@ -88,6 +88,9 @@ await ownerRef.update({request:null});
 const placedResult=await service.commitGiftPlacement(auth(player),placeRequest);
 assert.equal(placedResult.stock.counts.plant,1);
 assert.equal(placedResult.record.digest,placed.digest);
+await ownerRef.update({request:{id:'66666666-6666-4666-8666-666666666666',requester:'other-device',device:'Other',at:Timestamp.fromMillis(clock)}});
+await assert.rejects(service.commitGiftPlacement(auth(player),placeRequest),{code:'OWNERSHIP_LOST'});
+await ownerRef.update({request:null});
 assert.equal((await service.commitGiftPlacement(auth(player),placeRequest)).record.digest,placed.digest);
 await assert.rejects(service.commitGiftPlacement(auth(player),{...placeRequest,consumed:[{itemId:2,catalogId:'plant'}]}),
   {code:'ISSUE_CONFLICT'});
