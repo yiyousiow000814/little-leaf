@@ -85,7 +85,7 @@ func run():
   for call in artist.calls:
    if call.kind=="handle" and call.color=="79674e":foreground_grips+=1
    if call.kind=="rim":foreground_rims+=1
-  check(foreground_grips==0,"Preparation foreground must not redraw the wood grip over the chef")
+  check(foreground_grips==1,"Rear-work foreground must retain the original wood grip")
   check(foreground_rims==2,"Preparation foreground must retain both vessel and lid rims")
   artist.calls.clear();furniture._stove_controls()
   var knobs=[];var indicators=[]

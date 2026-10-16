@@ -211,36 +211,41 @@ required CI, merge and release as distinct states. See
 
 ## Stove handle over chef head — requirement16 candidate
 
-The user reported a grip painted on a rabbit head. In isolated native GL
-captures based on main302e77d, a rabbit at the rotation0 stove workface reproduces
-this during `preparing_food` and `plating`, at normalized phase0.5. The existing
-queue schedules a whole-vessel foreground redraw after the actor in rotations0/1;
-that redraw includes the grip. Chef plating already paints its idle visual pose,
-so its obsolete vessel foreground is removed. Preparation still needs the vessel
-over the lifted plate; its local foreground now omits the handle, leaving the
-original depth-ordered handle to be occluded naturally by the head/hand. No head
-repaint, actor relocation, handle shortening or geometry change is introduced.
+The user rejected PR333 at8d74a50 after inspecting actual before/after pixels:
+the grip appeared lost and both pan and handle should be behind the character
+from this view. That candidate's source review and tests were not visual
+acceptance. Its original artifacts remain historical rejected evidence.
 
-This uses the existing painter queue and furniture helper. The normal vessel
-path includes the unchanged handle by default; the foreground opts out. No new
-retained object, cache, callback, save field or lifecycle owner is added. Work
-remains proportional to current stove interactions; plating removes one entry,
-and preparation removes duplicate handle strokes. That is a source work-count
-reduction, not a measured whole-frame performance gain.
+The revised queue uses the existing actor/station depth relationship: a complete
+stove foreground is admitted only when the worker is behind its target (`split`)
+and a preparation plate needs that local occluder. A worker in front naturally
+occludes the whole vessel and handle in their original furniture pass. Plating
+already uses idle art and keeps no obsolete whole-vessel redraw. The furniture
+painter, complete handle/collar/grip and every geometry constant are restored
+byte-for-byte to main11f4c869; the foreground no longer has a handle-exclusion
+option. Legitimate rear-work foregrounds retain their full original handle.
+No global head repaint, actor relocation, shortening, removal, pose, footprint,
+contact or save change. Overlapped handle portions are naturally hidden by the
+character; this does not promise every grip pixel remains visible from all views.
 
-The scoped acceptance surface is native Godot4.6.3 GL/llvmpipe,1360x880, a
-synthetic no-save rabbit/stove scene, rotations0/1 across preparation/cooking/
-plating, normal zoom1 and the actual camera maximum. Rotation3 controls the
-shared default vessel path. Cooking frames and every rotation3 frame match the
-baseline exactly; changed pixels are local to the affected vessel/handle region.
-Normal and maximum captures were inspected, retaining the plate/hand/vessel
-relationship and visible grip. The existing pan-handle geometry regression passes
-22376 assertions including8 foreground checks. Required atlas source qualification
-regenerates all three canonical atlases with exact checked-in RGBA equality;
-only the two changed source rows and provenance suffix are updated in the existing
-manifest, preserving all PNG/import bytes and prior records. This is a generated reproduction;
-the exact phase/layout of IMG_0828 and full continuous-cycle/browser/device
-acceptance are not established. The parent reviewer inspected the original;
-this cloud lane received its Library metadata/image pointer, not decodable pixels.
-Actual user appearance acceptance, independent review, CI, merge and deployment
-remain pending. The all20-item deployment hold stays in force.
+This reuses the current painter queue and existing `split` relation, with no new
+cache, retained object, callback or lifecycle owner. Plating and front-worker
+preparation omit an unnecessary queue entry; no measured FPS claim follows.
+
+The revised native Godot4.6.3 GL/llvmpipe synthetic no-save fixture matches
+rotation0/1/3 preparation/cooking/plating, normal zoom1 and the actual maximum
+against original source302e77d and the rejected candidate. Cooking, all rotation3
+controls and rotation1 preparation are exact RGBA matches to original. Rotation0
+preparation now changes the complete vessel/actor boundary, not just the grip;
+rotation0/1 plating retains the idle-visual queue correction. All18 camera,
+logical/rendered actor, target and phase/clock records match. Original furniture
+source identity and the existing22376 geometry assertions (including full-grip
+foreground checks) protect exposed geometry. Canonical regeneration verifies
+all3fixed atlas RGBA images; selective provenance updates preserve every atlas
+PNG/import/asset record and prior proof. Required CI is separate.
+
+The exact original IMG_0828 runtime phase/layout, all continuous phases and
+browser/device surfaces remain unqualified. The parent reviewer inspected its
+pixels; this lane received metadata/image pointer only. Revised appearance,
+independent source review and mandatory CI remain pending. Keep Draft and all
+merge/deployment holds; no Golden reference or prior acceptance is inferred.
