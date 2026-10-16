@@ -235,7 +235,10 @@ shared default vessel path. Cooking frames and every rotation3 frame match the
 baseline exactly; changed pixels are local to the affected vessel/handle region.
 Normal and maximum captures were inspected, retaining the plate/hand/vessel
 relationship and visible grip. The existing pan-handle geometry regression passes
-22376 assertions including8 foreground checks. This is a generated reproduction;
+22376 assertions including8 foreground checks. Required atlas source qualification
+regenerates all three canonical atlases with exact checked-in RGBA equality;
+only the two changed source rows and provenance suffix are updated in the existing
+manifest, preserving all PNG/import bytes and prior records. This is a generated reproduction;
 the exact phase/layout of IMG_0828 and full continuous-cycle/browser/device
 acceptance are not established. The parent reviewer inspected the original;
 this cloud lane received its Library metadata/image pointer, not decodable pixels.
