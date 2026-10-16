@@ -772,8 +772,8 @@ func handle_unhandled_input(event:InputEvent)->bool:
  if not event is InputEventMouseButton or not event.pressed or event.button_index!=MOUSE_BUTTON_LEFT:return false
  if game.interaction==null or game.interaction._over_ui(event.position):return false
  # Shop categories only filter products. Existing world objects remain
- # selectable, while active placement and foreground furniture keep priority.
- if game.illustration.hit_item(event.position)>=0:
+ # selectable, while active placement and the clicked furniture cell keep priority.
+ if game.interaction.pick_furniture(event.position)>=0:
   clear_selection()
   if game.build_tools.mode=="select_opening":game.build_tools.cancel()
   return false

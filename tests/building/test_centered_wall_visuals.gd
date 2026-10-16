@@ -48,6 +48,29 @@ func inspect_frames(axis,kind,width):
   check(entry.depth>support_depth and entry.depth<support_depth+.25,"Casing follows matching wall slice, before next slice")
  check(count>=3 and is_equal_approx(cursor,width+half),"Complete header retains original frame span")
  check(opening==before,"Frame slicing preserves aperture, ownership and source host")
+func inspect_visible_end(axis):
+ var source=wall("source",axis,2,3)
+ var host=Geometry.wall_host(source)
+ var next=wall("next",axis,host.b.x,host.b.y)
+ var unrelated=wall("unrelated","z" if axis=="x" else "x",host.b.x,host.b.y)
+ var walls=[unrelated,next];var before=walls.duplicate(true)
+ check(Art.visible_end_bottom(host,walls)==128.0,"Full continuation hides the complete end face")
+ check(walls==before,"End-face query preserves wall records")
+ next.height="half"
+ check(Art.visible_end_bottom(host,walls)==58.0,"Half continuation leaves the upper end visible")
+ next.x+=.000001
+ check(Art.visible_end_bottom(host,walls)==58.0,"Adjacent endpoint retains approximate comparison")
+ next.x+=.01
+ check(Art.visible_end_bottom(host,walls)==0.0,"A gap exposes the complete end face")
+ next.x=host.b.x
+ next.placement=Walls.PLACEMENT.duplicate();next.placement.visual_front+=.1
+ check(Art.visible_end_bottom(host,walls)==0.0,"Different front planes expose the end face")
+ next.placement=Walls.PLACEMENT.duplicate();next.placement.visual_back-=.1
+ check(Art.visible_end_bottom(host,walls)==0.0,"Different back planes expose the end face")
+ next.erase("placement")
+ var full=next.duplicate(true);full.height="full"
+ check(Art.visible_end_bottom(host,[next,full])==58.0 and Art.visible_end_bottom(host,[full,next])==128.0,"First compatible continuation retains its original precedence")
+ check(Art.visible_end_bottom(host,[unrelated])==0.0,"Perpendicular walls do not hide this end face")
 func _initialize():
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))
  for index in 4:Art.face(painter,host,index*.25,(index+1)*.25,0,128)
@@ -62,6 +85,7 @@ func _initialize():
  check(Art.corner_cut(Geometry.wall_host(straight[0]),straight,true)==Vector2.ONE,"Straight continuation never mitered")
  var mixed=[wall("a","x",0,0),wall("b","z",0,0)];mixed[1].height="half"
  check(Art.corner_cut(Geometry.wall_host(mixed[0]),mixed,false)==Vector2.ZERO,"Unequal heights retain independent end profile")
+ for axis in ["x","z"]:inspect_visible_end(axis)
  for axis in ["x","z"]:
   for kind in ["door","window"]:
    for width in ([1.0,1.5] if kind=="door" else [.7]):inspect_frames(axis,kind,width)

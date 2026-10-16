@@ -1616,6 +1616,13 @@ func _staff_idle_cell(index: int, claimed: Array, allow_home:bool=true) -> Vecto
 	else:staff.idle_return_delay=1.5
 	# Choose a free standing destination if the home is statically unavailable
 	# or reserved for work. The designated home never follows traffic.
+	# A valid current cell has distance zero and therefore wins the same
+	# nearest-cell ordering without enumerating the rest of the cafe.
+	if from.x>=1 and from.x<model.width and from.y>=0 and from.y<model.depth and not _is_station_workface(from) and _idle_cell_clear(from,index,claimed):
+		var another_home=false
+		for peer in staff_states:
+			if not is_same(peer,staff) and peer.get("idle_home_cell",Vector2i(-1,-1))==from:another_home=true;break
+		if not another_home and not _static_service_path(from,from).is_empty():return from
 	var candidates=[]
 	for z in range(model.depth):
 		for x in range(1,model.width):
