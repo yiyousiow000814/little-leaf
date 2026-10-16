@@ -80,6 +80,7 @@ func assign(staff:Dictionary,index:int)->bool:
  if staff.role!="cleaner" or staff.job_kind!="":return false
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var shortest=1000000
  for dish in dishes.values():
+  if game.model.layout_held("dishes",int(dish.id)):continue
   var sink=game.model.get_item(int(dish.sink_id))
   if sink.is_empty():continue
   var assigned=false

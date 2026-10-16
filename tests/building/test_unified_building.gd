@@ -5,6 +5,7 @@ const Minimal=preload("res://scripts/minimal_start.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const Codec=preload("res://scripts/persistence/cafe_building_codec.gd")
+const Contract=preload("res://scripts/persistence/cafe_save_contract.gd")
 const Segments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 var checks=0
 var failures=[]
@@ -74,6 +75,7 @@ func _initialize():
 	check(JSON.stringify(legacy)==original,"candidate migration never edits original legacy records")
 	if migrated.ok:
 		var data={"version":15,"building_format":Codec.FORMAT,"wall_format":Codec.WALL_FORMAT,"wall_attachment_format":2,"starter_geometry_version":1,
+			"checkout_format":Contract.CHECKOUT_FORMAT,"layout_motion_format":Contract.LAYOUT_MOTION_FORMAT,
 			"built_walls":migrated.walls,"floor_style":"warm_oak","next_wall_id":1,"wall_attachments":migrated.attachments,"next_attachment_id":2}
 		var owns=func(cell):return cell.x>=0 and cell.x<12 and cell.y>=0 and cell.y<9
 		var parsed=Codec.read_walls(data,18,18,owns,["warm_oak","cream_tile","sage_tile"])
@@ -81,6 +83,9 @@ func _initialize():
 		if parsed.ok:check(Codec.read_openings(data,parsed.walls).ok,"new opening codec reads the complete imported aperture")
 		var roundtrip=JSON.parse_string(JSON.stringify(data))
 		check(Codec.read_walls(roundtrip,18,18,owns,["warm_oak"]).ok,"JSON scalar roundtrip preserves modern wall geometry and identity")
+		for header in ["checkout_format","layout_motion_format"]:
+			var missing=data.duplicate(true);missing.erase(header)
+			check(not Codec.read_walls(missing,18,18,owns,["warm_oak"]).ok,"building import rejects missing "+header)
 		var invalid=data.duplicate(true);invalid.built_walls.append(invalid.built_walls[0].duplicate(true))
 		check(not Codec.read_walls(invalid,18,18,owns,["warm_oak"]).ok,"codec rejects duplicate active edges instead of layering")
 		invalid=data.duplicate(true);invalid.erase("starter_geometry_version")

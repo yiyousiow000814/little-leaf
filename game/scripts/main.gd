@@ -59,6 +59,8 @@ var settings: PanelContainer
 var selected_kind = ""
 var selected_id = -1
 var rotation_step = 0
+const LayoutHold=preload("res://scripts/persistence/cafe_layout_hold.gd")
+const LayoutReconcile=preload("res://scripts/gameplay/cafe_layout_reconcile.gd")
 var editing = false
 var paused = false
 var platform_music
@@ -261,6 +263,7 @@ func _rebuild_room():
 
 func _rebuild_furniture():
 	static_service_paths.clear();static_service_revision=model.revision
+	if editing:return
 	for staff in staff_states:
 		staff.destination=Vector2i(-100,-100); staff.path=[]; staff.index=0
 
@@ -378,16 +381,64 @@ func _toggle_business():
 
 func _toggle_edit():
 	if save_recovery_blocked:return
-	editing=not editing
-	if editing:
+	if not editing:
 		model.service_snapshot=_service_save_snapshot()
 		model.begin_decoration_session()
-	else:model.finish_decoration_session()
+		editing=true
+	else:
+		var proposal=LayoutReconcile.plan(model,model._decoration_baseline.items,_current_service_snapshot())
+		if not proposal.ok:
+			model.last_error=str(proposal.error);_update_ui();return
+		_publish_layout_plan(proposal)
+		model.finish_decoration_session()
+		editing=false
 	_apply_music_selection()
 	_cancel_selection()
 	if not editing:_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
+
+func _publish_layout_plan(proposal:Dictionary):
+	# Planning already validated the complete snapshot. Publish synchronously,
+	# retaining live identity objects and every surviving route/claim cache.
+	for index in model.customers.size():model.customers[index].merge(proposal.customers[index],true)
+	model.service_snapshot=proposal.service.duplicate(true)
+	for saved in proposal.service.records:
+		var record=service_guests[int(saved.guest_id)]
+		var fields=saved.duplicate(true);fields.erase("guest_id");record.merge(fields,true)
+	for index in staff_states.size():
+		var staff=staff_states[index];var saved=proposal.service.staff[index]
+		var changed=false
+		for key in ["pos","destination","path","station_id","table_face_id","table_face_cell"]:
+			if staff.get(key)!=saved.get(key):changed=true
+		staff.merge(saved,true)
+		if changed:
+			for key in ["work_endpoint","validated_route_signature","order_route_key","order_route_lengths","pass_validation","pass_search"]:staff.erase(key)
+		if model.layout_held("staff",index):
+			staff.erase("work_endpoint");_set_staff_art(staff,"idle",{},0.0,_staff_payload(staff,index))
+		staff.node.position=Vector3(staff.pos.x,0,staff.pos.y)
+	floor_tasks.restore(proposal.service.floor_tasks);dishwashing.restore(proposal.service.dishwashing)
+	static_service_paths.clear();static_service_revision=-1;idle_home_revision=-1
+	model._notify()
+	_layout_retry_signature=_layout_capacity_signature()
+
+var _layout_retry_signature:Array=[]
+func _layout_capacity_signature()->Array:
+	var capacity=[]
+	for record in service_guests.values():
+		capacity.append([int(record.guest.id),str(record.guest.phase),record.plate_owner,record.plate_target_id,record.drink_owner,record.drink_target_id,record.pass_reserved,record.meal_pass_id,record.dish_sink_id,record.dish_id])
+	for staff in staff_states:capacity.append([staff.job_kind,staff.job_guest_id,staff.station_id])
+	for dish in dishwashing.dishes.values():capacity.append([dish.id,dish.sink_id])
+	return [model.navigation_signature().slice(1),hash(model.dining_sets),hash(model.duty_counts),capacity]
+
+func _retry_layout_holds():
+	var hold=LayoutHold.registry(model.service_snapshot)
+	if editing or hold.is_empty() or (hold.guests.is_empty() and hold.staff.is_empty() and hold.dishes.is_empty() and hold.floor.is_empty()):return
+	var signature=_layout_capacity_signature()
+	if signature==_layout_retry_signature:return
+	_layout_retry_signature=signature
+	var proposal=LayoutReconcile.plan(model,model.items,_service_save_snapshot())
+	if proposal.ok:_publish_layout_plan(proposal)
 
 func _cancel_edit():
 	if not editing:return
@@ -457,12 +508,15 @@ func _staff_on_duty()->bool:
 		if staff.job_kind!="":return true
 	return false
 
+const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
+var sell_plan=EditPlan.new()
+func _sell_quote()->Dictionary:
+	return sell_plan.prepare_sell(model,selected_id,EditPlan.Context.DECORATE)
 func _sell():
-	model.service_snapshot=_service_save_snapshot()
-	if save_recovery_blocked:return
-	if selected_id<0 or _item_service_locked(selected_id):return
-	if model.remove(selected_id):
-		_cancel_selection(); _rebuild_furniture(); _update_ui()
+	if save_recovery_blocked or not editing or selected_id<0:return
+	var quote=_sell_quote()
+	if sell_plan.commit(model,quote):
+		_cancel_selection();_rebuild_furniture();_update_ui()
 
 func _update_ui():
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
@@ -482,7 +536,11 @@ func _update_ui():
 	if compact_ui!=null:compact_ui.sync()
 
 func _service_save_snapshot()->Dictionary:
+	if editing and model.decoration_session_active:return model._decoration_baseline.service_snapshot.duplicate(true)
 	_sync_staff_duty();_sync_service_guests()
+	return _current_service_snapshot()
+
+func _current_service_snapshot()->Dictionary:
 	var records=[]
 	for id in service_guests:
 		var record=service_guests[id].duplicate(true);record.erase("guest");record["guest_id"]=int(id);records.append(record)
@@ -492,7 +550,9 @@ func _service_save_snapshot()->Dictionary:
 		for key in ["role","on_duty","duty_pending","pos","destination","path","index","yield_time","blocked_reason","blocked_target_id","blocked_guest_id","job_guest_id","job_mess_id","job_dish_id","job_token","job_kind","job_step","job_elapsed","station_id","blocked_time","stalled_time","art_heading","table_face_id","table_face_cell"]:
 			if source.has(key):state[key]=source[key].duplicate(true) if source[key] is Array or source[key] is Dictionary else source[key]
 		staff.append(state)
-	return {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
+	var result= {"version":SaveContract.SERVICE_VERSION,"checkout_format":SaveContract.CHECKOUT_FORMAT,"serial":service_serial,"records":records,"staff":staff,"animation_time":animation_time,"floor_tasks":floor_tasks.snapshot(),"dishwashing":dishwashing.snapshot()}
+	if model.service_snapshot.has("layout_hold"):result.layout_hold=model.service_snapshot.layout_hold.duplicate(true)
+	return result
 
 func _restore_service_runtime():
 	# Homes belong to the runtime roster, even when revision and count match.
@@ -527,6 +587,8 @@ func _restore_service_runtime():
 	dishwashing.migrate_legacy()
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):
+			_set_staff_art(staff,"idle",{},0.0,_staff_payload(staff,index));continue
 		if staff.job_kind=="":_set_staff_art(staff,"idle",{},0.0,"none");continue
 		_prepare_cleanup_step(staff,index);floor_tasks.prepare(staff,index)
 		if staff.job_kind=="":_set_staff_art(staff,"idle",{},0.0,"none");continue
@@ -708,7 +770,7 @@ func _process(delta):
 		return
 	if intro_active and world_delta<=0.0:
 		_music_tick(delta);return
-	_sync_staff_duty()
+	if not editing:_sync_staff_duty()
 	# The descent reveals live service, but still owns all player interaction.
 	if not intro_active:
 		if interaction!=null: interaction.refresh(get_viewport().get_mouse_position())
@@ -727,7 +789,7 @@ func _process(delta):
 	if not intro_active:_tick_autosave(delta)
 	if visual_timer>.2:
 		visual_timer=0; _update_ui()
-	_update_people()
+	if not editing:_update_people()
 	animation_time+=world_delta if not editing and not paused and not save_recovery_blocked else 0.0
 	_music_tick(delta)
 
@@ -800,13 +862,19 @@ func _is_station_workface(cell: Vector2i) -> bool:
 		if str(item.kind) in ["counter","register"] and Vector2i(int(item.x),int(item.z))*2-model.workface_cell(item)==cell: return true
 	return false
 
+func _layout_guest_held(id:int)->bool:
+	return model.layout_held("guests",id)
+
+func _layout_staff_held(staff:Dictionary)->bool:
+	return model.layout_held("staff",staff_states.find(staff))
+
 func _sync_service_guests():
 	var active={}
 	for guest in model.customers:
 		var id=int(guest.id)
 		active[id]=true
 		if service_guests.has(id) and is_same(service_guests[id].guest,guest):
-			_update_floor_state(service_guests[id])
+			if not _layout_guest_held(id):_update_floor_state(service_guests[id])
 			continue
 		service_serial+=1
 		var phase=str(guest.phase)
@@ -863,7 +931,7 @@ func _is_floor_cleanup(staff:Dictionary)->bool:
 	return index>=0 and index<SERVICE_STEPS.cleanup.size() and str(SERVICE_STEPS.cleanup[index].action) in ["sweeping","mopping"]
 
 func _staff_owns_work_endpoint(staff:Dictionary,cell:Vector2i)->bool:
-	if staff.job_kind=="":return false
+	if _layout_staff_held(staff) or staff.job_kind=="":return false
 	if staff.get("table_face_cell",Vector2i(-1,-1))!=cell and staff.destination!=cell:return false
 	# A retained job can be waiting for a missing target while its destination
 	# is only idle fallback. Looking up the current target does not select a
@@ -1084,7 +1152,7 @@ func _guest_waiting_for_meal(record:Dictionary)->bool:
 	var guest:Dictionary=record.get("guest",{})
 	# Ordering begins only when the arrival route reaches the actual seat.
 	# Keep counting if that seat is relocated; its meal phase is preserved.
-	return not bool(guest.get("meal_abandoned",false)) and str(guest.get("phase","")) in ["ordering","cooking"] and not bool(record.get("meal_done",false)) and str(record.get("plate_owner",""))!="table"
+	return not _layout_guest_held(int(guest.get("id",-1))) and not bool(guest.get("meal_abandoned",false)) and str(guest.get("phase","")) in ["ordering","cooking"] and not bool(record.get("meal_done",false)) and str(record.get("plate_owner",""))!="table"
 
 func _advance_meal_wait(delta:float):
 	if not is_finite(delta) or delta<=0.0:return
@@ -1152,6 +1220,7 @@ func _abandon_unfinished_meal(record:Dictionary):
 	_retire_service_station_references()
 
 func _tick_live_service(delta: float):
+	_retry_layout_holds()
 	_sync_service_guests()
 	# Advance before model movement: a guest reaching its seat this tick starts
 	# at zero, and none of the arrival tick is mistaken for seated waiting.
@@ -1160,7 +1229,7 @@ func _tick_live_service(delta: float):
 	# physical-service holds stay timed. Contact alone cannot finish delivery.
 	var held=[]
 	for guest in model.customers:
-		if not guest.get("mobility",{}).is_empty():continue
+		if _layout_guest_held(int(guest.id)) or not guest.get("mobility",{}).is_empty():continue
 		var record=service_guests[int(guest.id)]
 		if str(guest.phase)=="cooking" and delta>0.0 and is_finite(delta):
 			var delivered=bool(record.meal_ready) and bool(record.meal_done) and not bool(record.dishes_collected)
@@ -1281,6 +1350,7 @@ func _retire_service_station_references():
 	# These IDs locate unfinished physical work; completed meals do not keep
 	# an idle stove, pass or beverage station alive as historical provenance.
 	for record in service_guests.values():
+		if _layout_guest_held(int(record.guest.id)):continue
 		var needs_stove=record.plate_owner=="station"
 		var needs_pass=bool(record.pass_reserved) or record.plate_owner=="counter"
 		var needs_drink=record.drink_owner=="station"
@@ -1303,7 +1373,7 @@ func _service_station(kind: String, from: Vector2i, staff_index: int) -> Diction
 		for record in service_guests.values():
 			if (record.plate_owner=="station" and int(record.plate_target_id)==int(item.id)) or (record.drink_owner=="station" and int(record.drink_target_id)==int(item.id)): busy=true;break
 		for index in staff_states.size():
-			if index==staff_index: continue
+			if index==staff_index or model.layout_held("staff",index): continue
 			var other=staff_states[index]
 			if other.job_kind!="" and int(other.station_id)==int(item.id) and not _service_target(other).is_empty() and int(_service_target(other).id)==int(item.id): busy=true; break
 		if not busy and _service_cell(item,from)!=Vector2i(-1,-1): return item
@@ -1393,13 +1463,14 @@ func _cleanup_ready(guest: Dictionary) -> bool:
 	return position.distance_to(Vector2(chair.x+.5,chair.z+.5))>.9 and position.distance_to(Vector2(table.x+.5,table.z+.5))>1.3
 
 func _assign_service_job(staff: Dictionary, index: int):
+	if _layout_staff_held(staff):return
 	if not bool(staff.get("on_duty",true)) or bool(staff.get("duty_pending",false)):return
 	staff.blocked_reason="";staff.blocked_target_id=-1;staff.blocked_guest_id=-1
 	var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 	if dishwashing.assign(staff,index):return
 	for kind in ROLE_JOBS[str(staff.role)]:
 		for guest in model.customers:
-			if bool(guest.get("withdrawn",false)):continue
+			if _layout_guest_held(int(guest.id)) or bool(guest.get("withdrawn",false)):continue
 			if bool(guest.get("meal_abandoned",false)) and kind!="cleanup":continue
 			var record=service_guests[int(guest.id)]
 			var phase=str(guest.phase)
@@ -1478,12 +1549,14 @@ func _refresh_idle_homes():
 	var retained={}
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		if staff.role!="chef" or not bool(staff.get("on_duty",true)):continue
 		for stove in stoves:
 			if int(stove.id)==int(staff.get("idle_home_id",-1)) and not reserved.has(model.workface_cell(stove)):
 				retained[index]=stove;reserved.append(model.workface_cell(stove));break
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		if staff.role!="chef" or not bool(staff.get("on_duty",true)):continue
 		var home:Dictionary=retained.get(index,{})
 		if home.is_empty():
@@ -1494,6 +1567,7 @@ func _refresh_idle_homes():
 		staff.idle_home_cell=model.workface_cell(home) if not home.is_empty() else Vector2i(-1,-1)
 	for index in range(staff_states.size()):
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		if staff.role=="chef" and bool(staff.get("on_duty",true)):continue
 		if staff.role=="cashier":
 			var register=model.checkout_register()
@@ -1687,7 +1761,7 @@ func _chef_work_order()->Array:
 	# Waiter/cleaner ordering and complementary sink lanes remain unchanged.
 	var order=range(staff_states.size());var chefs=[]
 	for index in order:
-		if staff_states[index].role=="chef" and staff_states[index].job_kind=="cook":chefs.append(index)
+		if not model.layout_held("staff",index) and staff_states[index].role=="chef" and staff_states[index].job_kind=="cook":chefs.append(index)
 	chefs.sort_custom(func(a,b):
 		var left=staff_states[a];var right=staff_states[b]
 		var active_left=float(left.job_elapsed)>0.0;var active_right=float(right.job_elapsed)>0.0
@@ -1698,16 +1772,18 @@ func _chef_work_order()->Array:
 		return wait_left>wait_right if wait_left!=wait_right else a<b)
 	var cursor=0
 	for slot in order.size():
-		if staff_states[order[slot]].role=="chef" and staff_states[order[slot]].job_kind=="cook":order[slot]=chefs[cursor];cursor+=1
+		if not model.layout_held("staff",order[slot]) and staff_states[order[slot]].role=="chef" and staff_states[order[slot]].job_kind=="cook":order[slot]=chefs[cursor];cursor+=1
 	return order
 
 func _animate_staff(delta: float):
 	_sync_service_guests()
 	_refresh_idle_homes()
-	for staff in staff_states:staff.idle_return_delay=maxf(0.0,float(staff.get("idle_return_delay",0.0))-delta)
+	for staff in staff_states:
+		if not _layout_staff_held(staff):staff.idle_return_delay=maxf(0.0,float(staff.get("idle_return_delay",0.0))-delta)
 	# Drop only stale runtime jobs (guest removed/reset or its furnishing gone).
 	for index in _chef_work_order():
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		if staff.job_kind=="": continue
 		if staff.job_kind=="wash":
 			if dishwashing.entry(staff).is_empty():_clear_service_job(staff)
@@ -1727,6 +1803,7 @@ func _animate_staff(delta: float):
 	for index in staff_states.size():
 		if staff_states[index].job_kind=="": _assign_service_job(staff_states[index],index)
 	for index in range(staff_states.size()):
+		if model.layout_held("staff",index):continue
 		_prepare_cleanup_step(staff_states[index],index);floor_tasks.prepare(staff_states[index],index)
 	# One union protects actual chef and selected order endpoints from standing.
 	# Other possible table faces and actor transit remain unreserved.
@@ -1735,6 +1812,7 @@ func _animate_staff(delta: float):
 	var workfaces=[]
 	for index in staff_states.size():
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		var chef_work=staff.role=="chef" and staff.job_kind=="cook"
 		if not chef_work:staff.erase("work_endpoint")
 		if not chef_work and staff.job_kind!="order":continue
@@ -1754,6 +1832,7 @@ func _animate_staff(delta: float):
 	var front_claims={} # Value snapshots survive a peer completing its job this frame.
 	for index in _chef_work_order():
 		var staff=staff_states[index]
+		if model.layout_held("staff",index):continue
 		var target_item=_service_target(staff)
 		var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y))
 		var destination=_service_destination(staff,target_item,from,claimed,front_claims) if not target_item.is_empty() else _staff_idle_cell(index,claimed+workfaces)
@@ -1829,7 +1908,7 @@ func _animate_staff(delta: float):
 		var station_busy=worked_stations.has(station_key)
 		if str(step.kind) not in ["table","sink"]:
 			for other_index in staff_states.size():
-				if other_index==index: continue
+				if other_index==index or model.layout_held("staff",other_index): continue
 				var other=staff_states[other_index]
 				var other_target=_service_target(other)
 				if other_target.is_empty() or int(other_target.id)!=int(target_item.id): continue

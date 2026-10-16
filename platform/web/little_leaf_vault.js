@@ -50,6 +50,7 @@
   const SCHEMA = 'little_leaf_reconstructed_cafe';
   const CHECKOUT = 'little_leaf.checkout.v1';
   const MOTION = 'little_leaf.layout_motion.v1';
+  const HOLD = 'little_leaf.layout_hold.v1';
   const fail = (code, message) => Object.assign(new Error(message), { code });
   const resultError = error => ({ ok: false, code: (typeof error.code === 'string' && error.code) || error.name || 'STORAGE_ERROR', error: error.message || String(error) });
   const uuid = () => root.crypto.randomUUID();
@@ -62,9 +63,19 @@
     if (typeof text !== 'string' || new TextEncoder().encode(text).length > LIMIT) throw fail('INVALID_SAVE', 'Save is unreadable or too large');
     let data;
     try { data = JSON.parse(text); } catch (_) { throw fail('INVALID_SAVE', 'Invalid save JSON'); }
-    if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== SCHEMA || data.version !== version || data.new_reconstruction !== true || data.checkout_format !== CHECKOUT) throw fail('INVALID_SAVE', 'Unsupported save format');
+    if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== SCHEMA || (data.version !== version && !(version === 15 && data.version === 16)) || data.new_reconstruction !== true || data.checkout_format !== CHECKOUT) throw fail('INVALID_SAVE', 'Unsupported save format');
     if (version === 15 && data.layout_motion_format !== MOTION) throw fail('INVALID_SAVE', 'Missing layout movement format');
     if (version === 13 && Object.hasOwn(data, 'layout_motion_format')) throw fail('INVALID_SAVE', 'Legacy save has a foreign movement format');
+    // v16 remains in this profile/authority. Older clients reject its version;
+    // neither import nor an award may downgrade or strip its suspended work.
+    const runtime = data.runtime, service = runtime && runtime.service;
+    if (data.version === 16) {
+      const hold = service && service.layout_hold;
+      if (data.layout_hold_format !== HOLD || !runtime || runtime.layout_hold_format !== HOLD || !hold || hold.format !== HOLD || Object.keys(hold).sort().join(',') !== 'dishes,floor,format,guests,hosts,staff') throw fail('INVALID_SAVE', 'Missing layout hold format');
+      for (const [key, limit] of [['hosts', 512], ['guests', 60], ['staff', 64], ['dishes', 512], ['floor', 512]])
+        if (!Array.isArray(hold[key]) || hold[key].length > limit) throw fail('INVALID_SAVE', 'Invalid layout hold bounds');
+    } else if (Object.hasOwn(data, 'layout_hold_format') || (runtime && Object.hasOwn(runtime, 'layout_hold_format')) || (service && Object.hasOwn(service, 'layout_hold')))
+      throw fail('INVALID_SAVE', 'Legacy save has foreign layout hold state');
     return data;
   }
   function fingerprint(record) {
