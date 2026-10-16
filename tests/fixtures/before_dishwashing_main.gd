@@ -43,6 +43,10 @@ var tool_text: Label
 var business_button: Button
 var catalog_prices={}
 var catalog_cards={}
+# The retained role baseline has no Gifts shelf; current CompactUI still reads
+# these UI containers while rendering the historical controller fixture.
+var gift_cards={}
+var gift_counts={}
 var category_buttons={}
 var catalog_category="Tables"
 var build_panel:Control
