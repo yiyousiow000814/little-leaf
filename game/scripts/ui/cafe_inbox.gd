@@ -3,11 +3,11 @@ extends RefCounted
 signal unread_changed(unread:bool)
 const Money=preload("res://scripts/gameplay/cafe_money.gd")
 const UpdateNotes=preload("res://scripts/ui/cafe_update_notes.gd")
-const WIDTH=520.0
+const WIDTH=460.0
 const RETENTION_MSEC=14.0*24*60*60*1000
 const KNOWN_CAMPAIGN="little-leaf-0.1.5-existing-profile-compensation"
 const INK=Color("554631")
-const MUTED=Color("79735e")
+const MUTED=Color("75644f")
 const GREEN=Color("426b49")
 const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 var compact_ref:WeakRef
@@ -39,11 +39,18 @@ var clock:Callable=func():return Time.get_unix_time_from_system()*1000.0
 var native_high_water=0.0
 var native_future_delivery={}
 
-class LetterButton extends Button:
+class EnvelopeButton extends Button:
  var unread=false
  func _ready():resized.connect(queue_redraw)
  func _draw():
-  if unread:draw_circle(Vector2(size.x-19,20),4,Color("527958"),true,-1,true)
+  var ink=Color("a99170");var p=Vector2(17,size.y/2-13)
+  draw_style_box(_envelope_style(),Rect2(p,Vector2(34,26)))
+  draw_polyline(PackedVector2Array([p+Vector2(1,2),p+Vector2(17,14),p+Vector2(33,2)]),ink,1.2,true)
+  draw_line(p+Vector2(1,25),p+Vector2(12,14),ink,.8,true)
+  draw_line(p+Vector2(33,25),p+Vector2(22,14),ink,.8,true)
+  if unread:draw_circle(Vector2(size.x-17,18),4,Color("527958"),true,-1,true)
+ func _envelope_style()->StyleBoxFlat:
+  var style=StyleBoxFlat.new();style.bg_color=Color("f2e7ce");style.border_color=Color("a99170");style.set_border_width_all(1);style.set_corner_radius_all(2);return style
 
 func _init(owner):
  compact_ref=weakref(owner);game=owner.game
@@ -52,9 +59,7 @@ func setup():
  if OS.has_feature("web"):api=JavaScriptBridge.get_interface("__littleLeafInbox")
  panel=compact._panel();panel.name="CompensationInbox"
  body=VBoxContainer.new();body.add_theme_constant_override("separation",12);panel.add_child(body)
- var surface=game._style(Color("fcf6e7"),Color("b9cbb7"),18)
- for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:surface.set_content_margin(side,18)
- panel.add_theme_stylebox_override("panel",surface)
+ compact.hud.theme_panel(panel,true,26)
  heading_box=VBoxContainer.new();heading_box.add_theme_constant_override("separation",6);body.add_child(heading_box)
  scroll=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO;scroll.follow_focus=true;body.add_child(scroll)
  content=VBoxContainer.new();content.add_theme_constant_override("separation",12);content.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(content)
@@ -221,23 +226,23 @@ func _list():
 
 func _entry(record:Dictionary):
  var unread=not _read(record)
- var entry=LetterButton.new();entry.unread=unread;entry.name="InboxMessage"
+ var entry=EnvelopeButton.new();entry.unread=unread;entry.name="InboxMessage"
  entry.mouse_filter=Control.MOUSE_FILTER_PASS;entry.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
- entry.set_meta("soft_panel_button",true);entry.custom_minimum_size=Vector2(0,76);entry.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ entry.set_meta("soft_panel_button",true);entry.custom_minimum_size=Vector2(0,88);entry.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  entry.pressed.connect(_show_detail.bind("support-mail/"+str(record.mailId) if record.has("mailId") else str(record.id)))
  entry.pressed.connect(func():game.settings_controls.play_sfx("click"))
  for state in ["normal","hover","pressed","hover_pressed","disabled"]:
-  var style=_paper_style(0);style.bg_color=Color("ffffff") if state=="normal" else Color("f3f8f1");style.set_corner_radius_all(11)
+  var style=_paper_style(0);style.bg_color=Color("fff8e9") if state=="normal" else Color("f0e8d3");style.set_corner_radius_all(6)
   entry.add_theme_stylebox_override(state,style)
- var focus=_paper_style(0);focus.bg_color=Color.TRANSPARENT;focus.border_color=GREEN;focus.set_border_width_all(2);focus.set_corner_radius_all(11);entry.add_theme_stylebox_override("focus",focus)
+ var focus=_paper_style(0);focus.bg_color=Color.TRANSPARENT;focus.border_color=GREEN;focus.set_border_width_all(2);focus.set_corner_radius_all(6);entry.add_theme_stylebox_override("focus",focus)
  var inset=MarginContainer.new();inset.name="EnvelopePadding";inset.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  for side in ["top","bottom"]:inset.add_theme_constant_override("margin_"+side,12)
- inset.add_theme_constant_override("margin_left",16);inset.add_theme_constant_override("margin_right",30);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
+ inset.add_theme_constant_override("margin_left",64);inset.add_theme_constant_override("margin_right",30);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
  var words=VBoxContainer.new();words.add_theme_constant_override("separation",3);words.mouse_filter=Control.MOUSE_FILTER_IGNORE;inset.add_child(words)
  words.add_child(_label(_title(record),17));words.add_child(_label(_entry_description(record)+"  ·  "+_date(record),13,MUTED))
  entry.accessibility_name=_title(record)+", "+_date(record)+(", unread" if unread else ", read")
  content.add_child(entry);rows.append(entry)
- words.minimum_size_changed.connect(func():entry.custom_minimum_size.y=maxf(76,words.get_combined_minimum_size().y+24))
+ words.minimum_size_changed.connect(func():entry.custom_minimum_size.y=maxf(88,words.get_combined_minimum_size().y+24))
 
 func _detail(record:Dictionary):
  letter_paper=PanelContainer.new();letter_paper.mouse_filter=Control.MOUSE_FILTER_PASS;letter_paper.name="LetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(22));content.add_child(letter_paper)
@@ -255,16 +260,22 @@ func _detail(record:Dictionary):
 func _support_detail(record:Dictionary):
  letter_paper=PanelContainer.new();letter_paper.mouse_filter=Control.MOUSE_FILTER_PASS;letter_paper.name="SupportLetterPaper";letter_paper.add_theme_stylebox_override("panel",_paper_style(18));content.add_child(letter_paper)
  letter_body=VBoxContainer.new();letter_body.add_theme_constant_override("separation",12);letter_paper.add_child(letter_body)
- letter_body.add_child(_label("FROM LITTLE LEAF",12,GREEN))
  letter_body.add_child(_label(str(record.get("title","Support letter")),22))
  letter_body.add_child(_label(_date(record),13,MUTED))
- var line=HSeparator.new();var line_style=StyleBoxLine.new();line_style.color=Color("e1e9dc");line_style.thickness=1;line.add_theme_stylebox_override("separator",line_style);letter_body.add_child(line)
+ var line=HSeparator.new();var line_style=StyleBoxLine.new();line_style.color=Color("ddceb4");line_style.thickness=1;line.add_theme_stylebox_override("separator",line_style);letter_body.add_child(line)
+ letter_body.add_child(_label("Dear café owner,",16))
  letter_body.add_child(_label(str(record.get("body","")),16))
- var attachments="%s Leaf Coins"%Money.amount(int(record.get("coins",0)))
- for item in record.get("items",[]):attachments+="\n%s ×%d"%[str(item.get("catalogId","Gift")).capitalize(),int(item.get("quantity",0))]
  var gift_box=PanelContainer.new();gift_box.mouse_filter=Control.MOUSE_FILTER_PASS;gift_box.add_theme_stylebox_override("panel",_tint_style(14));letter_body.add_child(gift_box)
- var gift_contents=VBoxContainer.new();gift_contents.add_theme_constant_override("separation",5);gift_box.add_child(gift_contents)
- gift_contents.add_child(_label("GIFTS",12,GREEN));gift_contents.add_child(_label(attachments,16,INK))
+ var gift_contents=VBoxContainer.new();gift_contents.add_theme_constant_override("separation",6);gift_box.add_child(gift_contents)
+ gift_contents.add_child(_label("Enclosed for your café",16,GREEN))
+ if int(record.get("coins",0))>0:
+  var coin_row=HBoxContainer.new();coin_row.add_theme_constant_override("separation",8);gift_contents.add_child(coin_row)
+  var coin_art=compact.hud._picture(coin_row,compact.hud._texture("coin"));coin_art.custom_minimum_size=Vector2(28,28)
+  coin_row.add_child(_label("%s Leaf Coins"%Money.amount(int(record.coins)),18))
+ for item in record.get("items",[]):
+  gift_contents.add_child(_label("%s ×%d"%[str(item.get("catalogId","Gift")).capitalize(),int(item.get("quantity",0))],16))
+ if not record.get("items",[]).is_empty():gift_contents.add_child(_label("Items will be waiting in Decorate → Gifts.",13,MUTED))
+ letter_body.add_child(_label("Warmly,\nLittle Leaf",16))
  var claimed=str(record.get("status",""))=="claimed"
  letter_body.add_child(_label("Claimed" if claimed else "Ready to claim · reading does not claim gifts",14,MUTED))
  if not claimed:
@@ -277,7 +288,7 @@ func _support_detail(record:Dictionary):
     if compact.support_mail!=null:compact.support_mail.mail_error="Checking and saving your gifts…"
    sync()
   )
-  claim.custom_minimum_size.y=44;letter_body.add_child(claim);_theme_mail_action(claim,true);focus_actions.append(claim)
+  claim.custom_minimum_size.y=44;footer.add_child(claim);_theme_mail_action(claim,true);focus_actions.append(claim)
 
 func _title(record:Dictionary)->String:
  if record.has("mailId"):return str(record.get("title","Support letter"))
@@ -295,30 +306,18 @@ func _date(record:Dictionary)->String:
  return "%d %s %d"%[date.day,MONTHS[int(date.month)-1],date.year]
 
 func _paper_style(padding:float)->StyleBoxFlat:
- var style=game._style(Color("ffffff"),Color("e0e9dc"),12)
+ var style=game._style(Color("fffbf0"),Color("d9c9aa"),4)
  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:style.set_content_margin(side,padding)
  return style
 
 func _tint_style(padding:float)->StyleBoxFlat:
- var style=game._style(Color("f2f7ee"),Color("dce9d7"),10)
+ var style=game._style(Color("edf0df"),Color("d4dcc4"),6)
  for side in [SIDE_LEFT,SIDE_TOP,SIDE_RIGHT,SIDE_BOTTOM]:style.set_content_margin(side,padding)
  return style
 
 func _theme_mail_action(button:Button,primary:bool):
  button.mouse_filter=Control.MOUSE_FILTER_PASS;button.action_mode=BaseButton.ACTION_MODE_BUTTON_RELEASE
- button.set_meta("soft_panel_button",true)
- button.add_theme_font_override("font",compact.hud.font_bold)
- for state in ["normal","hover","pressed","hover_pressed","disabled"]:
-  var fill=Color("416b4d") if primary else Color("eef4eb")
-  if state=="hover":fill=Color("517b59") if primary else Color("e2eddf")
-  if state in ["pressed","hover_pressed"]:fill=Color("365a40") if primary else Color("d9e8d5")
-  if state=="disabled":fill=Color("e3e8de")
-  var style=game._style(fill,Color("416b4d") if primary else Color("c8d8c6"),10)
-  for side in [SIDE_LEFT,SIDE_RIGHT]:style.set_content_margin(side,8)
-  button.add_theme_stylebox_override(state,style)
- var focus=game._style(Color.TRANSPARENT,GREEN,10);focus.set_border_width_all(2);button.add_theme_stylebox_override("focus",focus)
- for name in ["font_color","font_hover_color","font_pressed_color","font_hover_pressed_color","font_focus_color"]:button.add_theme_color_override(name,Color("ffffff") if primary else INK)
- button.add_theme_color_override("font_disabled_color",MUTED)
+ compact.hud.theme_button(button,primary)
 
 func _label(words:String,size:int,color:Color=INK)->Label:
  var label=game.label(words,size,color);label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;label.mouse_filter=Control.MOUSE_FILTER_IGNORE

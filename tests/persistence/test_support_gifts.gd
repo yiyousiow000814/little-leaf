@@ -11,6 +11,10 @@ class TestMain extends "res://scripts/main.gd":
   web_save=WebSave.new(self)
   web_save.inbox_snapshot={"ok":true,"profileId":PROFILE,"revision":2,"paid":[],"deferred":[]}
  func _save():return true
+class DelayedLookup extends "res://scripts/ui/cafe_support_mail.gd":
+ var pending:Array=[]
+ func _call(name:String,_args:Array,handler:Callable):
+  if name=="lookup":pending.append(handler)
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -60,7 +64,8 @@ func run():
  check(ui.inbox.rows.size()==1 and ui.inbox.has_unread(),"support letter appears without a legacy paid-receipt projection")
  ui.inbox.rows[0].pressed.emit();await process_frame
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
- check("Claim gifts" in _text(ui.inbox.letter_body),"unclaimed gifts have a real claim action")
+ check("Claim gifts" in _text(ui.inbox.footer),"unclaimed gifts keep the real claim action in the fixed footer")
+ check(ui.inbox.panel.get_theme_stylebox("panel") is StyleBoxTexture and ui.inbox.WIDTH==460,"Inbox restores its original wood frame and width")
  check(ui.inbox.has_unread()==false,"reading does not claim or retain unread dot")
  var tab=InputEventKey.new();tab.keycode=KEY_TAB;tab.pressed=true
  ui.inbox.scroll.grab_focus();ui.inbox.handle_input(tab)
@@ -77,6 +82,35 @@ func run():
  ui._hide_popups();ui.support_mail.entry.visible=true;ui.support_mail.show()
  check(ui.support_mail.panel.visible and ui.support_mail.quantities.size()==10 and ui.support_mail.send_button.disabled,"synthetic capability exposes bounded composer with Send gated by preview")
  var composer=ui.support_mail
+ # Exercise the actual lookup callback without a Web bridge or live account.
+ var delayed=DelayedLookup.new(ui);delayed.setup();delayed.recipient.text="123456789012"
+ var lookup_result={"ok":true,"publicUid":"123456789012","profileId":PROFILE,"revision":2,"timeSource":"synthetic","device":"fixture","evidence":"No live data."}
+ delayed._lookup();var late_all:Callable=delayed.pending.pop_front();delayed._set_recipient_mode("all")
+ var all_summary=delayed.lookup_summary.text
+ late_all.call(lookup_result)
+ check(delayed.found.is_empty() and delayed.lookup_summary.text==all_summary,"late single-UID lookup success cannot overwrite All players")
+ late_all.call({"ok":false,"error":"Late lookup failure"})
+ check(delayed.lookup_summary.text==all_summary,"late lookup failure cannot overwrite All players")
+ delayed._set_recipient_mode("selected");delayed._lookup();var late_roundtrip:Callable=delayed.pending.pop_front()
+ delayed._set_recipient_mode("all");delayed._set_recipient_mode("selected")
+ late_roundtrip.call(lookup_result)
+ check(delayed.found.is_empty() and delayed.lookup_summary.text=="No player checked yet.","mode round trip with the same UID still invalidates old lookup")
+ delayed._lookup();var late_edit:Callable=delayed.pending.pop_front()
+ delayed.recipient.text="234567890123";delayed.recipient.text_changed.emit()
+ var edited_summary=delayed.lookup_summary.text
+ late_edit.call(lookup_result);late_edit.call({"ok":false,"error":"Late lookup failure"})
+ check(delayed.found.is_empty() and delayed.lookup_summary.text==edited_summary,"recipient edit fences stale success and failure")
+ delayed.recipient.text="123456789012";delayed.recipient.text_changed.emit()
+ delayed._lookup();var superseded:Callable=delayed.pending.pop_front()
+ delayed._lookup();var latest:Callable=delayed.pending.pop_front();latest.call(lookup_result)
+ var latest_summary=delayed.lookup_summary.text
+ superseded.call({"ok":false,"error":"Older request failed"})
+ check(delayed.found==lookup_result and delayed.lookup_summary.text==latest_summary,"newest single-UID lookup succeeds and older error is ignored")
+ delayed._lookup();var during_edit:Callable=delayed.pending.pop_front()
+ delayed.subject.text="Continue writing while checking";delayed.subject.text_changed.emit(delayed.subject.text)
+ during_edit.call(lookup_result)
+ check(delayed.found==lookup_result,"unrelated message editing does not invalidate a recipient lookup")
+ delayed.entry.queue_free();delayed.panel.queue_free();delayed=null
  check(composer._utf16_units("🍃") == 2 and composer._utf16_units("Letter 🍃")==9,"client counts emoji as two UTF-16 units like the service")
  composer.recipient.text="123456789012";composer.found={"publicUid":"123456789012","profileId":PROFILE}
  composer.case_id.text="case-20";composer.subject.text="S".repeat(100);composer.letter.text="🍃".repeat(1000);composer.coins.value=1
@@ -92,10 +126,23 @@ func run():
  check("12-digit" in composer._field_error(),"client rejects an invalid public UID")
  composer.recipient.text="123456789012";composer.subject.text="A little thank-you";composer.letter.text="A long letter for our café owner.\n".repeat(30)
  composer.letter.grab_focus();composer.handle_input(tab)
- check(game.get_viewport().gui_get_focus_owner()==composer.coins.get_line_edit(),"Tab leaves multiline editor for attachments")
+ check(game.get_viewport().gui_get_focus_owner()==composer.preview_button,"Tab leaves multiline editor for review in visual order")
  for i in 22:
   composer.handle_input(tab)
   check(composer.panel.is_ancestor_of(game.get_viewport().gui_get_focus_owner()),"composer keyboard focus remains inside "+str(i))
+ composer.recipient.text="123456789012, 234567890123\n123456789012"
+ composer._refresh_audience_feedback()
+ check("2 unique UIDs" in composer.audience_feedback.text and "1 duplicate removed" in composer.audience_feedback.text,"batch paste reports unique UIDs separately from unconfirmed players")
+ check("server audience service" in composer._field_error() and composer._request().is_empty(),"batch mode cannot fall back to issuing one selected UID")
+ composer._set_recipient_mode("all")
+ check(not composer.recipient_input.visible and "count not confirmed" in composer.audience_feedback.text,"all players hides UID paste and never fabricates a recipient count")
+ check(composer._request().is_empty() and composer.send_button.disabled,"unimplemented all-player service fails closed")
+ composer._set_recipient_mode("selected")
+ composer.recipient.text="123456789012"
+ composer.quantities.plant.value=2
+ composer.item_toggle.pressed.emit();composer.item_toggle.pressed.emit()
+ check(not composer.item_picker.visible and int(composer.quantities.plant.value)==2 and "2 selected" in composer.item_toggle.text,"collapsing item choices retains selected gifts and count")
+ composer.item_picker.show()
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=viewport
   for i in 8:await process_frame
@@ -103,9 +150,10 @@ func run():
   check(composer.letter.size.y>500 and not composer.letter.get_v_scroll_bar().visible,"long letter expands without an editor scrollbar "+str(viewport))
   check(composer.scroll.get_v_scroll_bar().visible,"form owns long-content scroll "+str(viewport))
   check(composer.send_button.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"send stays below scrolling content "+str(viewport))
-  composer.scroll.scroll_vertical=int(composer.scroll.get_v_scroll_bar().max_value)
+  composer.scroll.ensure_control_visible(composer.quantities.divider)
   for i in 3:await process_frame
-  check(composer.scroll.get_global_rect().encloses(composer.quantities.divider.get_global_rect()),"last attachment reachable "+str(viewport))
+  check(composer.scroll.get_global_rect().encloses(composer.quantities.divider.get_global_rect()),"expanded final attachment reachable "+str(viewport))
+  check("1 Leaf Coins" in composer.attachment_summary.text and composer.attachment_summary.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"per-player attachment total remains outside the scroller "+str(viewport))
  composer.scroll.scroll_vertical=0;composer.preview_summary.text="Confirm this synthetic letter.";composer.preview_card.show();composer._reveal_review()
  for i in 4:await process_frame
  check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"review waits for layout and reveals the new card")
