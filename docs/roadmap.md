@@ -13,7 +13,7 @@
 
 ### Current state and ownership
 
-Requirement18 accepted-source closeout (0.1.11, 2026-10-16): the user's
+Requirement18 accepted-source closeout ([Draft PR345](https://github.com/yiyousiow000814/little-leaf/pull/345), 0.1.11, 2026-10-16): the user's
 “可以吧 暂时先这样” provisionally accepts only the stronger-burst video from
 `839c984b5532854af69067f38b286cebf96d0fb4` / tree
 `96e397304ab3c32232f5e1de3203330dc62a4042`. The exact four-file patch is retained
@@ -26,7 +26,7 @@ only two existing producer hashes advance within the80-input closure, with78
 rows, PNG/import/asset records and historical provenance preserved. Existing
 accepted recordings and all rejected versions remain in their original custody;
 no new visual design or broad visual matrix. Requirement17 is excluded.
-Draft publication and exact final-head automatic CI remain pending; no merge,
+Draft PR345 is open; exact final-head automatic CI remains pending; no merge,
 release, tag or deployment.
 
 Litter-click candidate preservation (0.1.11, 2026-10-16): [Draft PR342](https://github.com/yiyousiow000814/little-leaf/pull/342)
