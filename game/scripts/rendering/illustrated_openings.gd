@@ -117,8 +117,11 @@ static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,t
 			if float(panel.to)>=1.0-.00001:end_face(view,host,1,maxf(float(panel.bottom),visible_end_bottom(host,view.game.model.built_walls)),panel.top,alpha,tint)
 static func visible_end_bottom(host:Dictionary,walls:Array)->float:
 	for wall in walls:
+		# Only a collinear wall starting at this end can hide its end face.
+		# Reject other walls before constructing their complete opening host.
+		if wall.axis!=host.axis or not Vector2(float(wall.x),float(wall.z)).is_equal_approx(host.b):continue
 		var next=Geometry.wall_host(wall)
-		if next.a.is_equal_approx(host.b) and next.axis==host.axis and front(next).is_equal_approx(front(host)) and back(next).is_equal_approx(back(host)):
+		if front(next).is_equal_approx(front(host)) and back(next).is_equal_approx(back(host)):
 			return Geometry.WALL_HEIGHT if next.height=="full" else 58.0
 	return 0.0
 
