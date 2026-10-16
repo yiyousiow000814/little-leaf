@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 SUITES = [
+    ("test_decorate_furniture_picking", "DECORATE_FURNITURE_PICKING_RESULT"),
     ("test_item_action_board", "ITEM_ACTION_BOARD_RESULT"),
     ("test_unified_building", "UNIFIED_BUILDING_RESULT"),
     ("test_modular_cabinets", "MODULAR_CABINETS_RESULT"),
