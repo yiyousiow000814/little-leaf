@@ -107,3 +107,120 @@ This composition affects Gameplay, Living World and existing service contacts;
 rendering, audio, economy and persisted state format are unchanged. The actual
 combined source needs its own runtime checks, same-scene evidence, independent
 review, CI and user acceptance; separate-head passes cannot qualify it.
+
+
+## Shared task, resource and contact policy (item 30 candidate)
+
+The approved Gameplay/Living World change replaces the floor-only role-pair
+exception rather than adding more exceptions. Independent non-equipment jobs
+may use the same stance: different tables, independent litter, and legacy
+visit-owned floor work follow the same rule. Actors still pass through each
+other; this does not change static route collision or allow furniture/wall
+penetration. This section supersedes the earlier cook/order-only idle priority.
+
+`CafeWorkClaims` derives three facts from the existing service state: task
+identity, contact resource and exclusive/shared workspace. It owns no new
+ledger. Guest meal/order jobs remain serial. Finished-visit table cleanup,
+floor litter and payment are separate task domains; one task still has one
+owner. Dish and independent-mess identities remain separately exclusive.
+Actual stove, beverage, counter, register, sink and real-bin contacts remain
+equipment work, even if an actor's role or historical action label says floor
+cleanup. Only synthetic equipment-free disposal shares the floor task stance.
+Distinct table resources share stance, not the same table resource or payload.
+
+Main uses the descriptor for assignment, selected destinations, current-frame
+snapshots and physical contact. A productive endpoint requires the current
+real target, its authored contact geometry and a reachable staff route.
+Targetless, layout-held and blocked fallback jobs are not productive claims.
+One selected geometry-valid endpoint per real task protects it from idle
+standing. Anonymous extra cell claims are never silently waived.
+
+Shared-stance work cannot take an already selected exclusive equipment
+workspace, including an in-flight later roster owner. Existing chef
+incumbency/travel/wait ordering and the sink's one-washer/one-front-dropper
+lanes remain authoritative. Sink drop body clearance, queue capacity, FIFO,
+dish custody and the .75/20-second clocks are unchanged. Value snapshots keep
+an earlier worker's contact through its completion frame; release is visible
+on the next frame, without an idle/fallback ghost claim.
+
+All nine jobs use these categories: order and table phases of brew, meal/drink
+delivery and cleanup are table resources; cook, beverage preparation/pickup,
+pass pickup/placement and payment use equipment; wash and sink drop use the
+existing sink lanes; floor and legacy cleanup floor stages use their actual
+floor task. Actual equipment selection and held-payload reservations remain
+with their existing owners, not this stance policy.
+
+The shared identity check also rejects duplicate ordinary restored service
+jobs after existing legacy migrations and structural validation. No new saved
+fields or format are introduced: this successor depends on item 31 service6
+exactly once. Its checkout debt, booking, early-cleanup and older-reader fence
+remain unchanged. Original-save byte preservation remains mandatory.
+
+Cost is bounded by the staff roster and existing contact candidates. The
+existing positive/negative route-length cache is reused for all real work,
+not duplicated: at most 324 owned-floor entries per staff, invalidated by
+start/topology changes and cleared with job/layout/staff lifetime. Frame claims
+and the idle-protection union are local arrays/dictionaries discarded each
+frame. No actor grid, retained reservation system, new assets or rendering
+changes are added. This is not a global optimal scheduler or an FPS claim.
+
+`test_work_claim_policy` is registered in the existing focused runner. It
+observes the original endpoint denial, both roster orders, sweep/local
+disposal/mop, distinct-table and legacy-floor sharing, actual custody,
+assignment uniqueness, completion snapshots, exclusive equipment ownership,
+geometry/fallback controls and generated-save roundtrips/duplicate rejection.
+The existing sink, chef, order, floor and role/service suites cover the retained
+contracts. Rendered same-scene body/contact separation, actual user gameplay
+acceptance, production import/export qualification, CI, merge and publication
+remain separate gates. No visual offsets or logical positions are altered by
+this candidate.
+
+
+### Presentation successor: bounded shared-contact stances
+
+This source candidate follows the shared-policy packet above. It changes only
+existing rendered stance offsets and the explanation of a proven equipment
+hold; logical cells, routing, ownership, service timing and service6 are not
+changed. Main retains the geometry prepass result only for its current frame.
+An actual conflicting exclusive owner, including its completion snapshot, may
+produce “Waiting for the work space” instead of a false Decorate fault. Real
+geometry failure, duplicate task ownership and unidentified claims are not
+silently classified as expected waits.
+
+The renderer consumes the common task/resource descriptor without requesting
+routes. Independent contacts in one selected cell use a fixed 25-point search
+and two coordinate passes, not a combinatorial solver or a reservation ledger.
+Candidates reuse the existing swept body/furniture/wall checks, original cell
+margin and .30 body radius. The authored head ellipse supplies a conservative
+separation metric, not proof of all silhouette/arm/prop pixels. Feet still use
+stance_offsets and its existing 1.5-unit/s transition. Actual world contacts,
+short-arm lengths and floor stroke extrema remain unchanged; candidate floor
+handles cannot exceed their previous center-stance lengths. An already-visible
+completed worker may retain its sidestep only while leaving that current cell.
+It owns no task and cannot delay the next assignment.
+
+A single current-group cache is keyed by model identity/revision, binding,
+contact and authored stance. It is replaced each update, retires when the
+nearby contact group dissolves, and retains no model nodes or reservation
+history. Single-worker, actual-equipment, checkout and complementary-sink
+stances stay with their existing owners. This adds bounded per-group geometry
+work on a binding/layout change and swept validation during display movement;
+it is not an FPS, native-pixel or memory-soak qualification.
+
+Local equipment-free disposal explicitly keeps the pan attached to the paw;
+it does not aim at the previous missing-item/table-height fallback. Real-bin
+rim contact retains its existing pose. No bin trip or transfer-time change is
+introduced.
+
+The same focused presentation test fails before and passes after for sweep,
+local finish, distinct-table sharing and the one-frame sink warning, in both
+roster orders. A separate lifecycle fixture observes restore/release, cache
+bounds and fixed local-pan attachment. Both are in the existing focused runner.
+A known constraint is explicit: authored table wiping leans .55 toward the
+low tabletop, but the conservative full-tile placement-body test allows only
+.20. This candidate does not waive that collision rule or change short-arm
+reach to force a shared wiping arrangement. Such constrained presentation
+falls back to the unchanged authored pose while valid service still proceeds.
+The actual same-scene native pixels, including arrival/release and props, must
+be reviewed before visual acceptance; this source packet is not universally
+qualified shared-stance presentation.

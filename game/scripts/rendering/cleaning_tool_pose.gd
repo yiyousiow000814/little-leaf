@@ -54,3 +54,10 @@ static func disposal_pose(shoulder:Vector2,carrying_hand:Vector2,rim:Vector2,bac
  var raised_hand=short_hand(shoulder,rim+Vector2(-4,9))
  var hand=short_hand(shoulder,(carrying_hand as Vector2).lerp(raised_hand,lift))
  return {"axis":axis,"pan":pan,"hand":hand,"mouth":pan-axis*3.5,"lift":lift}
+
+static func local_disposal_pose(hand:Vector2,back:bool,phase:float)->Dictionary:
+ # A local finish has no bin or imaginary tabletop to reach. Keep the pan's
+ # rigid handle attached to its carrying paw through the existing work clock.
+ var carry=carried_pan(hand,back,0.0,false)
+ var angle=sin(clampf(phase,0.0,1.0)*PI)*.18
+ return {"axis":Vector2.RIGHT.rotated(angle),"pan":hand+(carry.pan-hand).rotated(angle),"hand":hand}

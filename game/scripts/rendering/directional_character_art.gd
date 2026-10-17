@@ -164,17 +164,18 @@ func far_overlay_paw(start:Vector2,tip:Vector2,color,width:float,species:int,hea
   var world=[]
   for point in part:world.append(origin+point)
   a.poly(world,color)
+static func shoe_outline(ankle:Vector2,axis:Vector2)->Array:
+ var center=ankle+axis*1.5;var across=axis.orthogonal();var outline=[]
+ for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2.0),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:outline.append(center+axis*q.x+across*q.y)
+ return outline
 func shoe(ankle:Vector2,near:bool,axis_override=Vector2.ZERO):
  var axis:Vector2=axis_override if axis_override.length_squared()>.01 else (Vector2.RIGHT if profile else Vector2(1,-.48 if back else .48).normalized())
  var center=ankle+axis*1.5;var across=axis.orthogonal()
  var saved_origin=origin
  var local=a.has_method("art_local_begin") and a.use_local_character_geometry and (a.canvas_stream.active or a.native_draw_target!=null)
  if local:origin+=center;center=Vector2.ZERO
- # A narrow heel and rounded toe make forward direction legible. The same
- # ground center and bounds are retained for the planted-foot controller.
- var outline=[]
- for q in [Vector2(-3.9,-1.25),Vector2(-2.8,-2.0),Vector2(1.4,-2.2),Vector2(3.5,-1.6),Vector2(4.1,-.3),Vector2(3.5,1.45),Vector2(1.4,2.15),Vector2(-2.8,1.9),Vector2(-3.9,.95)]:outline.append(center+axis*q.x+across*q.y)
- shape(outline,"80785b",.45)
+ # Same authored contour in drawing and table-contact geometry.
+ shape(shoe_outline(center-axis*1.5,axis),"80785b",.45)
  var heel=center-axis*2.9
  if back:
   # Rear views expose the heel band, not the front-facing toe highlight.
@@ -269,7 +270,7 @@ func draw(artist:Node2D,at:Vector2,species:int,facing_back:bool,walking=false,ph
   if action=="sweeping":far_tip=cleaning_pose.far_hand
  if action=="disposing_trash":
   var bin_rim:Vector2=settings.get("reach",Vector2(18,-32))-origin+Vector2(3,-3)
-  disposal_pose=CleaningPose.disposal_pose(near_shoulder,near_tip,bin_rim,back,t)
+  disposal_pose=CleaningPose.local_disposal_pose(near_tip,back,t) if bool(settings.get("local_trash_disposal",false)) else CleaningPose.disposal_pose(near_shoulder,near_tip,bin_rim,back,t)
   near_tip=disposal_pose.hand
  if not overlay and waiter_tablet.enabled and back:
   waiter_tablet.draw_tablet(a,origin)

@@ -5,11 +5,26 @@ const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const LegacyFixture=preload("res://tests/fixtures/build_litter_legacy_spill.gd")
 const MessArt=preload("res://scripts/rendering/floor_mess_art.gd")
 class Fixture extends RefCounted:
+	const WorkClaims=preload("res://scripts/gameplay/cafe_work_claims.gd")
 	var model=Model.new()
 	var staff_states=[]
 	var floor_tasks
 	var service_guests={}
 	var wall_detail=false
+	func _task_owned(identity:Array,except_index:int=-1)->bool:
+		for index in staff_states.size():
+			if index!=except_index and WorkClaims.task_conflicts(identity,WorkClaims.task(staff_states[index])):return true
+		return false
+	func _floor_work_intent(staff:Dictionary,entry:Dictionary,cell:Vector2i)->Dictionary:
+		var prospective={"job_kind":"floor","job_mess_id":int(entry.id),"job_token":int(entry.token)}
+		return WorkClaims.contact(prospective,{"kind":"floor","id":-1000000-int(entry.id)},cell,staff_states.find(staff))
+	func _work_cell_available(cell:Vector2i,staff:Dictionary,intent:Dictionary,claimed:Array,frame_claims:Dictionary={})->bool:
+		# This model-only fixture exercises one cleaner's custody, not roster arbitration.
+		# Fail explicitly if a future scenario needs Main's multi-worker interface.
+		assert(staff_states.size()==1 and is_same(staff_states[0],staff) and claimed.is_empty() and frame_claims.is_empty())
+		if intent.is_empty() or not _staff_walkable(cell) or model.checkout_claims().has(cell):return false
+		var from=Vector2i(staff.pos.floor())
+		return from==cell or not _static_service_path(from,cell).is_empty()
 	func _staff_walkable(cell):
 		if cell.x<1 or not model.is_floor_owned(cell):return false
 		var item=model.item_at(cell.x,cell.y)

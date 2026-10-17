@@ -53,7 +53,7 @@ func roundtrip(label:String):
  var receipt=game.web_save.inbox_snapshot.duplicate(true)
  var payload=save_payload("user://policy-current.json")
  if payload.is_empty():return
- check(payload.runtime.service.version==5 and payload.version==15,label+" writes service5 under the unchanged save header")
+ check(payload.runtime.service.version==before.version and before.version==game.SaveContract.SERVICE_VERSION and payload.version==game.SaveContract.VERSION,label+" retains the current service contract under the unchanged save header")
  var checksum=FileAccess.get_sha256("user://policy-current.json")
  check(game.model.load_save("user://policy-current.json"),label+" reloads: "+game.model.last_error)
  game._restore_service_runtime()
@@ -237,7 +237,7 @@ func run():
    var file=FileAccess.open("user://policy-legacy.json",FileAccess.WRITE);file.store_string(JSON.stringify(legacy));file.close()
    check(game.model.load_save("user://policy-legacy.json"),"old service"+str(version)+" loads without new departure state")
    game._restore_service_runtime();r=record()
-   check(not r.guest.meal_abandoned and r.meal_wait_seconds==(0.0 if missing else 95.0) and game.model.service_snapshot.version==5,"legacy migration preserves known clock or grants fresh grace period")
+   check(not r.guest.meal_abandoned and r.meal_wait_seconds==(0.0 if missing else 95.0) and game.model.service_snapshot.version==game.SaveContract.SERVICE_VERSION,"legacy migration preserves known clock or grants fresh grace period in the current service contract")
  r=reset();r.meal_wait_seconds=120.0;game._resolve_meal_deadlines()
  var good=game._service_save_snapshot();check(valid(good).ok,"new departure snapshot validates")
  check(not valid({}).ok,"abandoned guest cannot load through the standalone empty-service shortcut")

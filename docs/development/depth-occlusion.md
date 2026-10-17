@@ -356,3 +356,14 @@ qualification remain unchanged. No new visual or atlas regeneration is needed
 for this fixture-only delta. The failed CI and local old-fail/new-pass evidence
 remain separate from the next exact-head automatic CI result. Keep Draft and
 all merge/release/deployment holds.
+
+### PR345 accepted-main integration status
+
+PR345 merged as468cc49032c2b751b267f7b8d385f19b15414869,
+tree48997fa186d9ec0b2cf0b782f1683f74926ca8ae, at2026-10-16T18:20:51Z.
+The historical failed CI and fixture repair above are preserved. Accepted steam
+postimages, its original atlas qualification and the repaired food-contact
+fixture remain unchanged in the item30 composition. Merged-main automatic CI
+is unverified here because read-only GitHub PR/run requests returned Forbidden;
+no unchanged CI rerun or inferred success is recorded. Merge does not imply
+release, tag, deployment or any broader user visual acceptance.

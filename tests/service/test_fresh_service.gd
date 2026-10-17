@@ -21,6 +21,16 @@ func release_game(game):
 func guest_identity(guest:Dictionary)->Array:
  # JSON numbers decode as floats; compare the schema's identity types exactly.
  return [int(guest.id),int(guest.table_id),int(guest.chair_id),float(guest.x),float(guest.z),int(guest.get("appearance_sequence",guest.id))]
+func save_capabilities(payload:Dictionary)->Dictionary:
+ var capabilities={}
+ for label in ["header","runtime","service"]:
+  var scope=payload if label=="header" else (payload.runtime if label=="runtime" else payload.runtime.service)
+  var keys=scope.keys();keys.sort()
+  var markers={"fields":keys}
+  for key in keys:
+   if key in ["schema","version"] or str(key).ends_with("_format"):markers[key]=scope[key]
+  capabilities[label]=markers
+ return capabilities
 func completion_clock():
  var game=ClockMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false)
  game.model._spawn_customer()
@@ -36,6 +46,14 @@ func completion_clock():
   guest.phase="cooking";guest.elapsed=0.0;guest.duration=game.Model.PHASE_SECONDS.cooking
  second.elapsed=5.86081833333331
  game._sync_service_guests()
+ game.model.service_snapshot=game._service_save_snapshot()
+ var before_saved=game.model.save("user://service-clock-before-completion.json")
+ check(before_saved,"unfinished cooking saves before real completion: "+game.model.last_error)
+ if not before_saved:
+  await release_game(game);return
+ var before_header=JSON.parse_string(FileAccess.get_file_as_string("user://service-clock-before-completion.json"))
+ check(before_header.version==game.SaveContract.VERSION and before_header.runtime.service.version==game.SaveContract.SERVICE_VERSION,"unfinished cooking uses the current save and service contract")
+ var capabilities_before=save_capabilities(before_header)
  var record=game.service_guests[int(second.id)]
  var identity=guest_identity(second);var token=int(record.token)
  game._tick_live_service(.1)
@@ -68,7 +86,9 @@ func completion_clock():
   await release_game(game);return
  var hash_before=FileAccess.get_sha256("user://service-clock-delivered.json")
  var header=JSON.parse_string(FileAccess.get_file_as_string("user://service-clock-delivered.json"))
- check(header.version==15 and header.runtime.service.version==5,"completion adds no save capability or service marker")
+ var capabilities_after=save_capabilities(header)
+ check(capabilities_after==capabilities_before,"completion adds no save capability or service marker")
+ print("FRESH_COMPLETION_SAVE_CONTRACT ",JSON.stringify({"before":capabilities_before,"after":capabilities_after}))
  var restored=game.model.load_save("user://service-clock-delivered.json")
  check(restored,"legacy delivered-cooking state loads unchanged: "+game.model.last_error)
  if not restored:

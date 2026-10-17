@@ -189,14 +189,9 @@ func work_cells(entry:Dictionary,action:String="")->Array:
 	work_cell_cache[cache_key]=result
 	return result
 
-func available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
-	# Passing people do not interrupt cleanup. Only standing work ownership
-	# reserves a face; actual mess/furniture/wall geometry stays authoritative.
-	if claimed.has(cell) or game.model.checkout_claims().has(cell):return false
+func space_available(cell:Vector2i)->bool:
+	if game.model.checkout_claims().has(cell):return false
 	var point=Vector2(cell)+Vector2(.5,.5)
-	for other in game.staff_states:
-		if is_same(other,staff):continue
-		if other.job_kind!="" and (other.destination==cell or other.get("table_face_cell",NO_CELL)==cell):return false
 	if game.floor_tasks!=null:
 		for other_mess in game.floor_tasks.messes.values():
 			if other_mess.has("mess_shape") and not outside(point,other_mess.mess_shape.outline):return false
@@ -205,13 +200,18 @@ func available(cell:Vector2i,staff:Dictionary,claimed:Array)->bool:
 			if bool(other_mess.get("floor_dirty",false)) and not bool(other_mess.get("floor_cleaned",false)) and other_mess.has("mess_shape") and not outside(point,other_mess.mess_shape.outline):return false
 	return true
 
-func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="")->Vector2i:
+func available(cell:Vector2i,staff:Dictionary,claimed:Array,intent:Dictionary={},frame_claims:Dictionary={})->bool:
+	if intent.is_empty():intent=game._work_intent(staff,game._service_target(staff),cell)
+	return space_available(cell) and game._work_cell_available(cell,staff,intent,claimed,frame_claims)
+
+func destination(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,action:String="",frame_claims:Dictionary={})->Vector2i:
+	var intent=game._floor_work_intent(staff,entry,NO_CELL)
 	var cells=work_cells(entry,action)
 	var pinned:Vector2i=entry.get("floor_work_cell",NO_CELL)
-	if cells.has(pinned) and available(pinned,staff,claimed) and (from==pinned or not game._static_service_path(from,pinned).is_empty()):return pinned
+	if cells.has(pinned) and available(pinned,staff,claimed,intent,frame_claims) and (from==pinned or not game._static_service_path(from,pinned).is_empty()):return pinned
 	var best=NO_CELL;var shortest=1000000
 	for cell in cells:
-		if not available(cell,staff,claimed):continue
+		if not available(cell,staff,claimed,intent,frame_claims):continue
 		var route=game._static_service_path(from,cell)
 		if route.is_empty() and from!=cell:continue
 		if route.size()<shortest:best=cell;shortest=route.size()

@@ -13,7 +13,9 @@
 
 ### Current state and ownership
 
-Requirement18 accepted-source closeout ([Draft PR345](https://github.com/yiyousiow000814/little-leaf/pull/345), 0.1.11, 2026-10-16): the user's
+Item30 unified shared-work source closeout ([Draft PR346](https://github.com/yiyousiow000814/little-leaf/pull/346),0.1.11 candidate,2026-10-16): the isolated composition on accepted main468cc490 includes [PR344](https://github.com/yiyousiow000814/little-leaf/pull/344) head81a7e48f exactly once, then unified task/resource contacts and shared display stances. PR344 itself is unchanged. All461 runtime production files excluding qualification metadata match captured834925b / tree411f1f83 byte-for-byte, so no native matrix is repeated for documentation/fixture-only composition. Accepted steam postimages, main's food-contact fixture and atlas provenance are retained. The [existing presentation record](development/shared-work-presentation.md#source-bound-native-closeout-and-allowed-passing) separates102 paired PNG screenshots and recorded fixed-step states from continuous video, user appearance acceptance and performance. The synthetic three-person co-location/early finish produces allowed pedestrian crossing; stable productive peers separate after tick6, so no universal pedestrian avoidance is introduced. Four table styles have source-bound stable cloth/support observations; early approach is not already settled contact. One original-three qualification on final runtimeecb5f62f/tree4e04c88a passed all fixed RGBA paths; only12 existing closure hashes and3 added rows are adopted within83 inputs, with68 other rows, all references and main/PR344 provenance preserved. Canonical focused regressions are retained; final exact-head automatic CI, user gameplay/visual acceptance and any merge remain separate. Draft source work only; no original saves, release, tag or deployment.
+
+Requirement18 accepted-source closeout ([PR345](https://github.com/yiyousiow000814/little-leaf/pull/345), 0.1.11, 2026-10-16): the user's
 “可以吧 暂时先这样” provisionally accepts only the stronger-burst video from
 `839c984b5532854af69067f38b286cebf96d0fb4` / tree
 `96e397304ab3c32232f5e1de3203330dc62a4042`. The exact four-file patch is retained
@@ -26,14 +28,13 @@ only two existing producer hashes advance within the80-input closure, with78
 rows, PNG/import/asset records and historical provenance preserved. Existing
 accepted recordings and all rejected versions remain in their original custody;
 no new visual design or broad visual matrix. Requirement17 is excluded.
-Draft PR345 is open. Initial head093f8cb CI38942952428 fails engine3's
-food-contact fixture: unchanged main6a8 passes7474checks; accepted source
-reproduces80 lid failures because its test Artist lacks mesh/local-transform
-interfaces already present in production. Fixture-only36a95f2 retains all
-original assertions, records mesh tint and adds808transform-restoration checks;
-8282checks now pass without diagnostics. All four accepted postimages and the
-qualified producer closure remain unchanged. New exact-final-head automatic CI
-is pending; no unchanged-run retry, merge, release, tag or deployment.
+PR345 merged as accepted main `468cc49032c2b751b267f7b8d385f19b15414869`
+/ tree `48997fa186d9ec0b2cf0b782f1683f74926ca8ae` on2026-10-16T18:20:51Z.
+Its retained food-contact fixture includes mesh/local-transform recording and
+all8282checks; the initial38942952428failure remains historical evidence.
+The merged-main automatic CI status is unverified in this closeout: read-only
+GitHub PR/run queries returned Forbidden. No CI pass or rerun is claimed.
+No release, tag or deployment.
 
 Litter-click candidate preservation (0.1.11, 2026-10-16): [Draft PR342](https://github.com/yiyousiow000814/little-leaf/pull/342)
 retains the painted-coverage repair and separately reviewed bounded stalled-release

@@ -84,10 +84,8 @@ func assign(staff:Dictionary,index:int):
  var from=Vector2i(floori(staff.pos.x),floori(staff.pos.y));var chosen={};var blocked={};var shortest=1000000
  for entry in messes.values():
   if game.model.layout_held("floor",int(entry.id)):continue
-  var busy=false
-  for other in game.staff_states:
-   if other.job_kind=="floor" and int(other.get("job_mess_id",-1))==int(entry.id):busy=true;break
-  if busy:continue
+  var identity=game.WorkClaims.task({"job_kind":"floor","job_mess_id":int(entry.id),"job_token":int(entry.token)})
+  if game._task_owned(identity,index):continue
   var work_cell=geometry.destination(entry,staff,from,[])
   if work_cell==Vector2i(-1,-1):
    if blocked.is_empty():blocked=entry
@@ -138,18 +136,18 @@ func target(staff:Dictionary)->Dictionary:
  if entry.is_empty() or int(staff.job_step)>=STEPS.size():return {}
  if STEPS[int(staff.job_step)].kind=="bin":return {"id":-3000000-game.staff_states.find(staff),"kind":"floor_disposal","x":floori(staff.pos.x),"z":floori(staff.pos.y),"rot":0}
  return {"id":-1000000-int(entry.id),"kind":"floor","x":entry.floor_cell.x,"z":entry.floor_cell.y,"rot":0}
-func destination(staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
+func destination(staff:Dictionary,from:Vector2i,claimed:Array,frame_claims:Dictionary={})->Vector2i:
  var entry=record(staff)
  if entry.is_empty():return Vector2i(-1,-1)
- return geometry.destination(entry,staff,from,claimed,str(STEPS[int(staff.job_step)].action))
-func destination_for_record(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array)->Vector2i:
+ return geometry.destination(entry,staff,from,claimed,str(STEPS[int(staff.job_step)].action),frame_claims)
+func destination_for_record(entry:Dictionary,staff:Dictionary,from:Vector2i,claimed:Array,frame_claims:Dictionary={})->Vector2i:
  var action=""
  # This also ranks unassigned records. Only a matching active cleanup may
  # override first-needed inference with its saved in-progress floor step.
  if staff.get("job_kind","")=="cleanup" and entry.has("guest") and int(staff.get("job_guest_id",-1))==int(entry.guest.id) and int(staff.get("job_token",-1))==int(entry.token):
   var current=str(game.SERVICE_STEPS.cleanup[int(staff.job_step)].action)
   if current in ["sweeping","mopping"]:action=current
- return geometry.destination(entry,staff,from,claimed,action)
+ return geometry.destination(entry,staff,from,claimed,action,frame_claims)
 func contact_target(entry:Dictionary,staff:Dictionary,action:String)->Vector2:
  return geometry.contact_target(entry,staff,action)
 static func validate_geometry(entry:Dictionary,codec)->String:

@@ -62,6 +62,10 @@ var motion=MotionArt.new()
 var seat_blends={}
 var stance_offsets={}
 var floor_approach_cache={}
+var shared_stance_cache={} # Bounded to current shared contacts; no history.
+var shared_stance_stats:Dictionary={}
+var shared_stance_constraints=[]
+const SharedWorkStance=preload("res://scripts/rendering/shared_work_stance.gd")
 var carry_hand_offsets={}
 var guest_motion_cleanup_elapsed := 0.0
 const HeadAtlas=preload("res://scripts/rendering/character_head_atlas.gd")
@@ -468,37 +472,15 @@ func update_motion(delta: float):
 			var table=game.model.get_item(int(guest.table_id))
 			if not table.is_empty():heading=Vector2(table.x+.5,table.z+.5)-position
 		_update_character_facing(key,heading)
+	var natural={}
+	for i in game.staff_states.size():
+		var key="staff_%s"%i
+		natural[key]=_staff_docking(game.staff_states[i],key)
+	var shared=_shared_staff_stances(natural,delta)
 	for i in range(game.staff_states.size()):
 		var staff=game.staff_states[i]
 		var key="staff_%s"%i
-		var docking=Vector2.ZERO
-		if str(staff.get("art_action","")) in ["sweeping","mopping"]:
-			if not floor_approach_cache.has(key):floor_approach_cache[key]={}
-			docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
-		elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
-			var target=staff.get("art_target",staff.pos)
-			var station=game.model.get_item(int(staff.get("art_target_id",-1)))
-			# A table has no tall cabinet: keep the worker on its aisle side so
-			# the tabletop does not swallow its shoulders during the small gesture.
-			var inset=.12 if str(station.get("kind",""))=="table" else .40
-			if str(station.get("kind","")) in ["counter","beverage"]:inset=.27
-			# Keep the whole owned stove job planted through prep and cooking.
-			if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
-			if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.work_inset(int(station.get("rot",0)))
-			if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.DROP_INSET
-			if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
-			# Wiping needs actual tabletop contact with the same short arms. Only
-			# this job steps close to the edge; serving keeps its small aisle lean.
-			if str(station.get("kind",""))=="table" and str(staff.get("art_action",""))=="wiping":inset=DirectionalCharacter.CleaningPose.table_inset(target-staff.pos)
-			if target.distance_to(staff.pos)>.1:docking=(target-staff.pos).normalized()*inset
-		# A front drop uses the outer corner of the existing work tile. Begin the
-		# sidestep on arrival; the janitor retains its authored washing contact.
-		if str(staff.get("art_action","")) in ["carrying_dishes","dropping_dishes"]:
-			var sink=game.model.get_item(int(staff.get("art_target_id",-1)))
-			if sink.get("kind","")=="sink":
-				var front=game.model.workface_cell(sink)
-				if staff.destination==front and staff.pos.distance_to(game.model.cell_center(front))<.75:
-					docking=SinkWashArt.front_drop_stance(int(sink.rot))
+		var docking:Vector2=shared.get(key,natural[key])
 		stance_offsets[key]=(stance_offsets.get(key,Vector2.ZERO) as Vector2).move_toward(docking,delta*1.5)
 		motion.update(key,staff.pos+stance_offsets[key],delta)
 		var direction=_staff_visual_heading(staff,motion.sample(key))
@@ -513,6 +495,159 @@ func update_motion(delta: float):
 		# A held cup/plate turns across the torso continuously when a walking
 		# sprite changes facing. It must not flip instantaneously to the other hand.
 		carry_hand_offsets[key]=(carry_hand_offsets.get(key,target_hand) as Vector2).move_toward(target_hand,delta*90.0) if carrying else target_hand
+func _staff_docking(staff:Dictionary,key:String)->Vector2:
+	var docking=Vector2.ZERO
+	if str(staff.get("art_action","")) in ["sweeping","mopping"]:
+		if not floor_approach_cache.has(key):floor_approach_cache[key]={}
+		docking=FloorCleaningApproach.cached_offset(staff.pos,staff.get("art_target",staff.pos),game.model,stance_offsets.get(key,Vector2.ZERO),floor_approach_cache[key])
+	elif str(staff.get("art_action","")) in ["taking_order","preparing_food","cooking","plating","preparing_drink","placing_plate","dropping_dishes","collecting_plate","collecting_drink","serving","collecting","wiping","washing","disposing_trash","taking_payment"]:
+		var target=staff.get("art_target",staff.pos)
+		var station=game.model.get_item(int(staff.get("art_target_id",-1)))
+		# A table has no tall cabinet: keep the worker on its aisle side so
+		# the tabletop does not swallow its shoulders during the small gesture.
+		var inset=.12 if str(station.get("kind",""))=="table" else .40
+		if str(station.get("kind","")) in ["counter","beverage"]:inset=.27
+		# Keep the whole owned stove job planted through prep and cooking.
+		if str(station.get("kind",""))=="stove" and str(staff.get("job_kind",""))=="cook" and int(staff.get("station_id",-1))==int(station.get("id",-2)):inset=FurnitureArt.CookingFood.WORK_INSET
+		if str(staff.get("art_action",""))=="washing":inset=SinkWashArt.work_inset(int(station.get("rot",0)))
+		if str(staff.get("art_action",""))=="dropping_dishes":inset=SinkWashArt.DROP_INSET
+		if str(staff.get("art_action",""))=="taking_payment":inset=CheckoutArt.payment_inset(target-staff.pos,int(station.get("rot",0)),true)
+		# Wiping needs actual tabletop contact with the same short arms. Only
+		# this job steps close to the edge; serving keeps its small aisle lean.
+		if str(station.get("kind",""))=="table" and str(staff.get("art_action",""))=="wiping":inset=DirectionalCharacter.CleaningPose.table_inset(target-staff.pos)
+		if target.distance_to(staff.pos)>.1:docking=(target-staff.pos).normalized()*inset
+	# A front drop uses the outer corner of the existing work tile. Begin the
+	# sidestep on arrival; the janitor retains its authored washing contact.
+	if str(staff.get("art_action","")) in ["carrying_dishes","dropping_dishes"]:
+		var sink=game.model.get_item(int(staff.get("art_target_id",-1)))
+		if sink.get("kind","")=="sink":
+			var front=game.model.workface_cell(sink)
+			if staff.destination==front and staff.pos.distance_to(game.model.cell_center(front))<.75:
+				docking=SinkWashArt.front_drop_stance(int(sink.rot))
+	return docking
+
+func _shared_staff_stances(natural:Dictionary,delta:float)->Dictionary:
+	var groups={};var result={};var current_cache={};var live={}
+	shared_stance_constraints.clear()
+	shared_stance_stats={"candidate_checks":0,"candidate_steps":0,"motion_previews":0,"groups":0,"participants":0}
+	if not game.has_method("_service_target"):shared_stance_cache.clear();return result
+	for index in game.staff_states.size():
+		var staff=game.staff_states[index]
+		if game.model.layout_held("staff",index) or str(staff.get("blocked_reason",""))!="":continue
+		if str(staff.get("art_action","")) not in ["taking_order","serving","collecting","wiping","sweeping","mopping","disposing_trash"]:continue
+		var cell:Vector2i=staff.destination;var center=game.model.cell_center(cell)
+		if staff.pos.distance_to(center)>=.03 or str(staff.get("job_kind",""))=="":continue
+		var target=game._service_target(staff)
+		if target.is_empty():continue
+		var claim=SharedWorkStance.Claims.contact(staff,target,cell,index)
+		if claim.is_empty() or bool(claim.exclusive):continue
+		var key="staff_%s"%index
+		var entry={"key":key,"worker":index,"actor_id":staff.node.get_instance_id(),"center":center,"contact":staff.art_target,"target_id":int(target.id),"kind":str(target.kind),"action":str(staff.art_action),"natural":natural[key],"claim":claim}
+		_shared_contact_geometry(entry,target)
+		if not groups.has(cell):groups[cell]=[]
+		groups[cell].append(entry);live[key]=cell
+	# Completion removes task ownership immediately, not the body that is still
+	# on screen. Retain only previous participants, not arbitrary nearby actors.
+	for cell in shared_stance_cache:
+		var prior=shared_stance_cache[cell]
+		for old in prior.get("entries",[]):
+			if live.has(old.key) or int(old.worker)>=game.staff_states.size():continue
+			var staff=game.staff_states[int(old.worker)]
+			if staff.node.get_instance_id()!=int(old.get("actor_id",-1)) or game.model.layout_held("staff",int(old.worker)):continue
+			var held:Vector2=stance_offsets.get(old.key,Vector2.ZERO)
+			# A cell/radius boundary is not a safe release condition. Each live
+			# actor belongs to at most one current display group; retain only its
+			# nonzero offset until normal drawing is clear, then discard it.
+			if held.is_equal_approx(natural[old.key]) and _shared_release_clear(staff,old,prior.entries,natural):continue
+			var entry={"key":old.key,"worker":old.worker,"actor_id":old.actor_id,"center":staff.pos,"contact":staff.pos+natural[old.key],"target_id":-1,"kind":"display","action":str(staff.art_action),"natural":natural[old.key],"claim":{},"lookahead":_shared_departure_lookahead(staff,old.center)}
+			# A final painted work frame keeps its real contact but owns nothing.
+			# This works for synthetic local disposal and every retained action,
+			# instead of an allowlist that forgets one completion order.
+			if str(staff.art_action)==str(old.action) and staff.art_target==old.contact and staff.pos.distance_to(old.center)<.03:
+				entry.contact=old.contact;entry.target_id=old.target_id;entry.kind=old.kind
+				var target=game.model.get_item(int(old.target_id))
+				if not target.is_empty():_shared_contact_geometry(entry,target)
+			if not groups.has(cell):groups[cell]=[]
+			groups[cell].append(entry);live[old.key]=cell
+	for cell in groups:
+		var entries:Array=groups[cell]
+		if entries.size()<2:continue
+		shared_stance_stats.groups+=1;shared_stance_stats.participants+=entries.size()
+		# Item references are frame-local geometry input, never copied into
+		# retained display state or its signature.
+		var descriptors=[]
+		for entry in entries:
+			var descriptor=entry.duplicate();descriptor.erase("clearance_items");descriptors.append(descriptor)
+		var signature=[game.model.get_instance_id(),game.model.revision,descriptors]
+		var cached=shared_stance_cache.get(cell,{})
+		if cached.get("signature",[])!=signature:
+			cached={"signature":signature.duplicate(true),"entries":descriptors.duplicate(true),"placement":SharedWorkStance.solve(entries,game.model,stance_offsets,cached.get("placement",{}).get("domains",{}),cached.get("placement",{}).get("offsets",{}))}
+			shared_stance_stats.candidate_checks+=int(cached.placement.metrics.candidate_checks)
+		var settled=bool(cached.placement.clear) and entries.all(func(entry):return (stance_offsets.get(entry.key,Vector2.ZERO) as Vector2).is_equal_approx(cached.placement.offsets[entry.key]))
+		# A stationary body can still have a shoe finishing its existing step.
+		# Check that exact next pose before reusing the settled placement.
+		if settled:
+			for entry in entries:
+				if not entry.has("table_geometry"):continue
+				if cached.get("resting_contacts",{}).has(entry.key) and motion.settled(entry.key):continue
+				shared_stance_stats.motion_previews+=1
+				if SharedWorkStance.TableContact.support_gap(entry,stance_offsets[entry.key],motion.preview(entry.key,entry.center+stance_offsets[entry.key],delta))<SharedWorkStance.TableContact.INK_MARGIN:settled=false;break
+				if motion.settled(entry.key):
+					if not cached.has("resting_contacts"):cached.resting_contacts={}
+					cached.resting_contacts[entry.key]=true
+		var next={"offsets":cached.placement.offsets,"clear":true} if settled else SharedWorkStance.step(entries,game.model,cached.placement,stance_offsets,delta,motion)
+		shared_stance_stats.candidate_steps+=int(next.get("candidate_steps",0));shared_stance_stats.motion_previews+=int(next.get("motion_previews",0))
+		if not settled and bool(next.clear):
+			var docked=true
+			for entry in entries:
+				if cached.placement.choices[entry.key].has(next.offsets[entry.key]):continue
+				shared_stance_stats.candidate_checks+=1
+				if not SharedWorkStance._valid(entry,next.offsets[entry.key],game.model):docked=false;break
+			if docked:
+				# Accept a proven continuous contact, not only an arbitrary grid
+				# endpoint. Otherwise a valid escape step keeps chasing a bad rest.
+				cached.placement.offsets=next.offsets.duplicate();cached.placement.clear=true
+		# Failure never collapses a previously separated group back through its
+		# colleague. Keep the best legal bounded step and expose the constraint.
+		if not bool(cached.placement.clear) or not bool(next.clear):shared_stance_constraints.append(cell)
+		for entry in entries:result[entry.key]=next.offsets[entry.key]
+		var released=entries.all(func(entry):return entry.claim.is_empty() and (next.offsets[entry.key] as Vector2).distance_squared_to(natural[entry.key])<.000001)
+		if not released:current_cache[cell]=cached
+	shared_stance_cache=current_cache
+	return result
+
+func _shared_release_clear(staff:Dictionary,old:Dictionary,peers:Array,natural:Dictionary)->bool:
+	var shown:Vector2=staff.pos+natural[old.key]
+	var future:Vector2=_shared_departure_lookahead(staff,old.center)+natural[old.key]
+	for peer in peers:
+		if peer.key==old.key or int(peer.worker)>=game.staff_states.size():continue
+		var other=game.staff_states[int(peer.worker)]
+		if other.node.get_instance_id()!=int(peer.actor_id):continue
+		var current:Vector2=other.pos+stance_offsets.get(peer.key,Vector2.ZERO)
+		var released:Vector2=_shared_departure_lookahead(other,peer.center)+natural[peer.key]
+		# A last peer may return to natural docking when the group dissolves.
+		# Check that release sweep too, rather than an arbitrary tile radius.
+		if SharedWorkStance._swept_separation(shown,future,current,released)<1.0:return false
+	return true
+
+func _shared_departure_lookahead(staff:Dictionary,previous:Vector2)->Vector2:
+	var direction:Vector2=staff.pos-previous
+	if direction.length_squared()<.000001:return staff.pos
+	# Walk at most the next two existing route segments, not a new route.
+	var point:Vector2=staff.pos;var remaining=SharedWorkStance.BODY_GAP
+	for index in range(int(staff.index),mini(staff.path.size(),int(staff.index)+2)):
+		var target=game.model.cell_center(staff.path[index]);var length=point.distance_to(target)
+		if length>=remaining:return point.move_toward(target,remaining)
+		point=target;remaining-=length
+	return point
+
+func _shared_contact_geometry(entry:Dictionary,target:Dictionary):
+	if str(entry.action)!="wiping" or str(target.kind)!="table":return
+	# Only this actual target's authored contact envelope replaces its tile
+	# proxy. All unrelated furniture, owned-floor and wall checks stay intact.
+	entry.table_geometry=SharedWorkStance.TableContact.geometry(_dining_style(int(target.id)),int(target.get("rot",0)))
+	entry.clearance_items=game.model.items.filter(func(item):return int(item.id)!=int(target.id))
+
 func _update_character_facing(key:String,heading:Vector2):
 	if heading.length_squared()<.00001:return
 	var d=heading.normalized();var next={"back":d.x+d.y<0.0,"mirror":-1.0 if d.x-d.y<0.0 else 1.0}
@@ -1217,6 +1352,7 @@ func _draw():
 				var ground=(iso(target.x,target.y)-p)/unit_scale
 				var target_item=game.model.get_item(int(d.get("art_target_id",-1))) if e.type=="staff" else game.model.get_item(int(d.get("checkout_register_id",-1)) if d.phase=="paying" else int(d.table_id))
 				var kind=str(target_item.get("kind","table"))
+				pose["local_trash_disposal"]=e.type=="staff" and action=="disposing_trash" and target_item.is_empty() and int(d.get("art_target_id",0))==-3000000-int(e.index)
 				var drink_job="drink" in str(d.get("art_service_kind","")) or str(d.get("art_service_kind",""))=="brew" or action in ["collecting_drink","preparing_drink","drinking"]
 				var surface=FurnitureArt.KitchenGeometry.surface(Vector2.ZERO,31) if kind in ["counter","sink"] else Vector2(0,-31)
 				if kind=="table":
@@ -1573,7 +1709,7 @@ func item(kind: String,p: Vector2,rot: int,id: int,variant:String=""):
 func _table_body(p:Vector2):
 	if furniture_art.try_draw_static(self,"table_body",p,0):return
 	ellipse(p+Vector2(1,1),Vector2(25,10),Color(.45,.39,.23,.09))
-	for d in [Vector2(-17,-5),Vector2(18,-5),Vector2(-16,6),Vector2(17,6)]:
+	for d in DiningPlacement.BASIC_LEGS:
 		line(p+d,p+d+Vector2(0,-DiningPlacement.table_height(30)),"947340",3)
 		line(p+d+Vector2(1,-1),p+d+Vector2(1,-DiningPlacement.table_height(29)),"b3915b",1)
 	ellipse(p+Vector2(0,-DiningPlacement.table_height(29)),DiningPlacement.ROUND_TOP,"b38c55")
