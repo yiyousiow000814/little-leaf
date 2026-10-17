@@ -60,6 +60,9 @@ class MailNativeReviewTests(unittest.TestCase):
                           "firebase deploy", "contents: write", "id-token:", "rules deploy"):
             self.assertNotIn(forbidden, source)
         self.assertNotIn("functions", json.loads((ROOT / "platform/firebase/firebase.json").read_text()))
+        native_condition = source.split("  native:\n", 1)[1].split("    if: ", 1)[1].splitlines()[0]
+        self.assertIn("head.sha == '02875bce37c54a29b122f85c200b544acddcdc67'", native_condition)
+        self.assertEqual(source.count("head.sha == '02875bce37c54a29b122f85c200b544acddcdc67'"), 1)
         emulator_condition = source.split("  emulator:\n", 1)[1].splitlines()[0]
         self.assertIn("head.sha == '1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa'", emulator_condition)
         self.assertEqual(source.count("head.sha == '1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa'"), 1)

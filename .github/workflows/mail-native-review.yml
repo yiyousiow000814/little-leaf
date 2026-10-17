@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    # Scoped composer-footer follow-up; pin to its captured SHA at closeout.
-    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository
+    # Completed composer capture only; later metadata commits do not rerun it.
+    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.sha == '02875bce37c54a29b122f85c200b544acddcdc67'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

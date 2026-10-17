@@ -102,15 +102,63 @@ audience checks use generated in-memory fixtures. Native claim tests use the
 actual current Model/WebSave with generated payloads; renderer-method tests use
 the actual composer/Inbox and real catalogue, mocking transport only.
 
-The PR329-only native job binds exact source, preserves the qualified 83-input
-atlas closure without regeneration, and plans 15 full-game PNGs across 1360×880,
-390×844 and 844×390. Its separate loopback-only local emulator job tests actual
-Firestore transactions/rules and audience cursor behavior. Receipt and pixel
-inspection results belong in the PR after execution; neither is claimed here.
-Full required exact-head CI, current visual acceptance, physical mobile/keyboard
-behavior and compiled-browser real IndexedDB/Functions transport remain separate.
+The PR329-only native job passed on source `1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa`
+(tree `75b12819dd4543966c6adeb8c30dc9300999d1b3`) in
+[run39017375011](https://github.com/yiyousiow000814/little-leaf/actions/runs/39017375011).
+Godot4.6.3 GL Compatibility rendered 18 full-game PNGs at 1360×880, 390×844 and
+844×390, with 240 passing checks and isolated generated profiles. The six surfaces
+are editable composer, selected review/attachments, All review, and Inbox letter/
+attachments. All 18 frames were inspected; narrow forms retain one outer scroll,
+so a single frame does not show every editable field or attachment. The native
+ZIP SHA256 is `b6f0bb4a817fadce0fa6f30f41ea92b0722f7d77d7d802d9085eebfaf18f0d0e`.
+The qualified 83-input atlas closure and PNG/import bytes remain unchanged, with
+no atlas regeneration or manifest write.
 
-Source publication is authorized for this Draft only. Functions remain absent
+The separate local Firestore emulator job passed actual claim transactions,
+concurrent selected dispatch, All query/cursor and frozen-cohort cases, changed
+profiles, role revocation, old-writer/forged-access denial, and 13 real-SDK/rules
+routing cases against the immutable current-main and candidate policies. Its ZIP
+SHA256 is `ef1ebb9a8cd25155c11ae99a201a64c02eac6b7a03bacb46720683fd86cb68b8`.
+Four test entrypoints require loopback before initialization and use demo-only
+projects. The earlier passing fa46 run retained SDK metadata-detection warnings;
+the successor disables that detection in emulator CI and passes its no-warning
+guard. No production service, actual accounts or Functions transport was used.
+The browser journal in these rules tests is FixtureIDB, not browser IndexedDB.
+
+At 08:18–08:21 UTC the user accepted the shown Inbox/All-review theme/layout,
+requesting the short Claim label and removal of automatic destination,
+Ready-to-claim and confirmation-footer copy. The 1bf6 captures apply that cleanup
+and restore right padding28 to the unchanged strict Inbox fixture. Claimed state,
+pending/failure feedback and the actual claim destinations/amounts remain.
+The user conditionally approved source merge after checks, not deployment.
+
+The user subsequently identified the empty status row below the composer actions.
+Source `02875bce37c54a29b122f85c200b544acddcdc67`
+(tree `d3ccbaf289c01151f1ffb5f49ab7fe33bbc28bbc`) collapses only empty status;
+errors/progress, 44px targets and the existing wood insets remain.
+[Run39018961899](https://github.com/yiyousiow000814/little-leaf/actions/runs/39018961899)
+passed 162 checks and rendered only the three affected editable-composer sizes.
+All three actual frames were inspected and show the removed empty row without
+new observed overflow. The user accepted these exact three corrected composer
+screenshots at08:57:14 UTC after their delivery as native test-data previews,
+not a deployed service. The follow-up ZIP SHA256 is
+`1dd1c6357d8bb5d8cbb3c57d8f6af7909f2d79a7c753b6f2f7b2134cffd21a56`.
+The prior full-mail receipt remains separately retained. Unchanged backend/client
+emulator inputs reuse the successful 1bf6 receipt; no new emulator run is claimed.
+
+Ordinary fixtures retain strict no-write protections in separate corrupt-identity
+and independently signed newer-record/stale-base CAS cases. Inbox browser input
+checks now use the current combined header and actual ready-client unavailable-
+service path, including explicit unavailable-message OCR; read markers, legacy
+retention, authority bytes and the original OCR deadline remain checked.
+Full required exact-head ordinary CI remains a separate gate recorded in the PR;
+these results do not qualify physical mobile/keyboard behavior or compiled-
+browser real IndexedDB/Functions transport. The native diagnostic is pinned to
+02875 and the emulator diagnostic to1bf6, so metadata-only successors repeat
+neither unchanged rendering nor emulator qualification.
+
+Related source publication and conditional source merge after checks are authorized.
+Functions remain absent
 from `firebase.json`; identity allocation and support-mail flags default off.
 No real admin role, capability, account, UID, mail, grant, rule application,
 credential, billing, service activation, deployment or release is authorized or
