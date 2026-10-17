@@ -36,6 +36,15 @@ func region(control:Control)->Dictionary:
  var rect=control.get_global_rect()
  check(control.is_visible_in_tree() and Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(rect),"bounded visible OCR region "+str(control.name))
  return {"x":floor(rect.position.x),"y":floor(rect.position.y),"width":ceil(rect.size.x),"height":ceil(rect.size.y)}
+func category_text_region(button:Button)->Dictionary:
+ # Exclude the icon/frame using the actual style content margins, not guessed
+ # text centering. Keep the complete text content area and original pixels.
+ var value=region(button);var style=button.get_theme_stylebox("normal")
+ var left=ceilf(style.get_margin(SIDE_LEFT));var right=ceilf(style.get_margin(SIDE_RIGHT))
+ value.x+=left;value.width-=left+right
+ check(value.width>0 and left>=0 and right>=0,"bounded category text content")
+ value.psm=7;value.scale=3
+ return value
 func text_region(control:Control)->Dictionary:
  var bounds=control.get_global_rect()
  if control is Button:
@@ -111,17 +120,14 @@ func run():
    check(categories.category_scroll.visible and categories.category_more.visible,"real category paging is available")
    var first=game.category_buttons["Tables"]
    check(categories.category_scroll.get_global_rect().encloses(first.get_global_rect()),"initial Tables category is fully exposed")
-   # Category icons use asymmetric style margins; retain the whole control.
-   result.regions.category_ready=region(first)
-   result.regions.category_ready.psm=7;result.regions.category_ready.scale=3
+   result.regions.category_ready=category_text_region(first)
    await click("build_next",categories.category_more)
   var rail_rect=categories.category_scroll.get_global_rect();var build_rect=build.get_global_rect()
   var category_bar=categories.category_scroll.get_h_scroll_bar()
   result.category_navigation={"rail":[rail_rect.position.x,rail_rect.position.y,rail_rect.size.x,rail_rect.size.y],"build":[build_rect.position.x,build_rect.position.y,build_rect.size.x,build_rect.size.y],"scroll":categories.category_scroll.scroll_horizontal,"end":maxf(0,category_bar.max_value-category_bar.page)}
   check(categories.category_scroll.get_global_rect().encloses(build.get_global_rect()),"Build is fully exposed before its real pointer input")
   if result.points.has("build_next"):
-   result.regions.build_category=region(build)
-   result.regions.build_category.psm=7;result.regions.build_category.scale=3
+   result.regions.build_category=category_text_region(build)
   await click("build",build)
   check(game.catalog_category=="Build","real native Build pointer selects category")
   result.regions.catalog=region(game.tray)

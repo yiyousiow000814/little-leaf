@@ -123,6 +123,31 @@ for (const fixture of fixtures) {
     assert.deepEqual([raw.width, raw.height], size.slice(1).map(Number));
   });
 }
+const categoryRaw = pixels(path.join(folder, 'category-tables-button.png'));
+const categoryContent = pixels(path.join(folder, 'category-tables-content-3x.png'));
+check('category crop uses actual asymmetric style content margins, not the icon/frame', () => {
+  assert(shopSource.includes('style.content_margin_left=36;style.content_margin_right=9'));
+  assert.match(layoutSource, /func category_text_region\(button:Button\)->Dictionary:[\s\S]*?var value=region\(button\);var style=button.get_theme_stylebox\("normal"\)/);
+  assert(layoutSource.includes('ceilf(style.get_margin(SIDE_LEFT))'));
+  assert(layoutSource.includes('ceilf(style.get_margin(SIDE_RIGHT))'));
+  assert(layoutSource.includes('value.x+=left;value.width-=left+right'));
+  assert(layoutSource.includes('value.psm=7;value.scale=3'));
+  assert(layoutSource.includes('result.regions.category_ready=category_text_region(first)'));
+  assert(layoutSource.includes('result.regions.build_category=category_text_region(build)'));
+});
+check('category OCR repeats only the complete native content pixels without alteration', () => {
+  assert.deepEqual([categoryRaw.width, categoryRaw.height], [113, 44]);
+  assert.deepEqual([categoryContent.width, categoryContent.height], [(categoryRaw.width-36-9)*3, categoryRaw.height*3]);
+  for (let y=0; y<categoryContent.height; y++) for (let x=0; x<categoryContent.width; x++) {
+    const source=(Math.floor(y/3)*categoryRaw.width+36+Math.floor(x/3))*3;
+    const target=(y*categoryContent.width+x)*3;
+    assert(categoryContent.data.subarray(target,target+3).equals(categoryRaw.data.subarray(source,source+3)));
+  }
+});
+check('category readiness never accepts the observed OCR error or a clipped/wrong label', () => {
+  for (const text of ['taies', 'Tabl', 'Kitchen', '']) assert.throws(() => requireVisibleText(text, ['Tables']));
+  requireVisibleText('Tables', ['Tables']);
+});
 const layoutIndex = process.argv.indexOf('--layout-file');
 if (layoutIndex >= 0) {
   const layout = JSON.parse(fs.readFileSync(process.argv[layoutIndex + 1]));
@@ -139,6 +164,14 @@ if (layoutIndex >= 0) {
 }
 if (process.argv.includes('--ocr-fixtures')) {
   const tesseract = process.env.TESSERACT_BIN || 'tesseract';
+  const categoryFile=path.join(folder,'category-tables-content-3x.png');
+  const categoryBefore=hash(fs.readFileSync(categoryFile));
+  const categoryText=cp.execFileSync(tesseract,[categoryFile,'stdout','-l','eng','--psm','7'],
+    {encoding:'utf8',timeout:15000,env:{...process.env,OMP_THREAD_LIMIT:'1'}});
+  check('actual retained category-content OCR requires the complete Tables label', () => {
+    assert.equal(hash(fs.readFileSync(categoryFile)),categoryBefore);
+    requireVisibleText(categoryText,['Tables']);
+  });
   const results = fixtures.map(fixture => {
     const file = path.join(folder, fixture.name + '-3x.png'), before = hash(fs.readFileSync(file));
     const text = cp.execFileSync(tesseract, [file, 'stdout', '-l', 'eng', '--psm', '7', '-c', 'thresholding_method=2'],
@@ -151,7 +184,7 @@ if (process.argv.includes('--ocr-fixtures')) {
     });
     return {file: fixture.name + '-3x.png', psm: 7, scale: 3, thresholding_mode: 'sauvola', thresholding_method: 2, text, matched};
   });
-  console.log(JSON.stringify({ocr_fixture_checks: 'passed', results,
+  console.log(JSON.stringify({ocr_fixture_checks: 'passed', category_text: categoryText, results,
     tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0]}));
 }
 console.log(JSON.stringify({passed: true, checks, browser_runtime_exercised: false,
