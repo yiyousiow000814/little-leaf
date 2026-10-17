@@ -1796,10 +1796,20 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var visual_action=_kitchen_visual_action(action,staff,role)
 	options.merge({"role":role if staff else "customer","shirt":shirt,"action":visual_action,"progress":progress,"payload":payload,"tool":tool,"reach":reach,"seat_mix":float(pose.get("seat_mix",1.0 if seated else 0.0)),"blink":is_instance_valid(game) and fposmod(game.animation_time+id*1.73,4.6)<.13,"chef_hat":staff and role=="chef"},true)
 	var phase = float(pose.get("phase", 0))
-	var callback = _paint_native_character.bind(p, id, staff, moving, species, away, phase, action, progress, reach, payload, options)
-	if retain_native_local_object(callback, ["character", p, id, staff, moving, species, away, phase, action, progress, reach, payload, options], _art_transform):
+	# Relaxed standby consumes no action-clock geometry. Keep its live contact
+	# metadata current without rebuilding unchanged native commands.
+	var retained_standby=staff and not moving and not seated and action=="standby" and payload=="none" and tool=="none" and float(options.seat_mix)==0.0
+	var visual_progress=0.0 if retained_standby else progress
+	if retained_standby:options.progress=visual_progress
+	var callback = _paint_native_character.bind(p, id, staff, moving, species, away, phase, action, visual_progress, reach, payload, options)
+	if retain_native_local_object(callback, ["character", p, id, staff, moving, species, away, phase, action, visual_progress, reach, payload, options], _art_transform):
+		var owner=native_object_nodes[canvas_stream.cursor-1]
+		owner.contact_progress=progress if retained_standby else NAN
+		if retained_standby:
+			for contact in owner.contacts:contact.progress=progress
 		return
 	var contact: Dictionary = callback.call()
+	if retained_standby and not contact.is_empty():contact.progress=progress
 	if not contact.is_empty():render_contacts.append(contact)
 
 func _paint_native_character(p: Vector2, id: int, staff: bool, moving: bool, species: int, away: bool, phase: float, action: String, progress: float, reach: Vector2, payload: String, options: Dictionary) -> Dictionary:
@@ -2456,6 +2466,7 @@ func paint_native_object(target: Node2D, callback: Callable) -> void:
 	var result = callback.call()
 	if result is Dictionary and not result.is_empty():
 		var owner_id = target.get_instance_id()
+		if not is_nan(target.contact_progress):result["progress"]=target.contact_progress
 		result["native_owner"] = owner_id
 		target.contacts = [result]
 		for index in range(render_contacts.size()-1, -1, -1):
