@@ -27,11 +27,13 @@ func run():
  game.set_process(false);game.paused=true
  var ui=game.compact_ui;var hud=ui.hud
  var desktop_wallet=Vector2.ZERO
- for view in [Vector2i(1360,880),Vector2i(960,540),Vector2i(850,600),Vector2i(800,600),Vector2i(640,480),Vector2i(606,500),Vector2i(566,360),Vector2i(390,844)]:
+ for view in [Vector2i(1360,880),Vector2i(960,540),Vector2i(850,600),Vector2i(800,600),Vector2i(640,480),Vector2i(606,500),Vector2i(566,360),Vector2i(599,360),Vector2i(600,360),Vector2i(390,844)]:
   root.size=view
   for editing in [false,true]:
    game.editing=editing;game.settings.hide();ui._hide_popups();await settle()
    var label="%s %s"%[str(view),"edit" if editing else "play"]
+   if view.y==360:
+    check(not ui.viewport_too_small and not hud.layout_host.get_meta("unified_wrapped",true),str(view)+" supported short landscape keeps one-row44px toolbar")
    var buttons=[game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
    if editing:buttons.append(hud.edit_cancel)
    for button in buttons:

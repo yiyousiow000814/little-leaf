@@ -6,6 +6,7 @@ var checks=0
 var failures=[]
 var game
 var capture_dir=OS.get_environment("LL_CAPTURE_OUTPUT")
+var boundary_capture="--storage-short-boundary" in OS.get_cmdline_user_args()
 func _initialize():run.call_deferred()
 func check(ok:bool,label:String):
  checks+=1
@@ -80,8 +81,11 @@ func run():
  check(game.rotation_step==2,"owned selection starts with stored rotation")
  check(game.selected_stored_id>=0 and not shop.price_label.visible and not shop.action_coin.visible,"owned preview adds no free or sales copy")
  game._cancel_selection()
- for view in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
+ var views=[Vector2i(566,360)] if boundary_capture else [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]
+ for view in views:
   root.size=view;await settle()
+  check(not game.compact_ui.viewport_too_small,"supported Storage viewport remains playable "+str(view))
+  if boundary_capture:check(not game.compact_ui.hud.layout_host.get_meta("unified_wrapped",true),"566px short landscape uses existing one-row toolbar")
   await click(shop.shop_mode);await category("Decor")
   check(game.catalog_mode=="Shop" and game.category_buttons.Build.visible,"Shop source and categories retained "+str(view))
   check(game.catalog_prices.plant.text=="45" and not shop.stock_badges.plant.visible,"Shop retains price and no inventory badge "+str(view))
@@ -120,7 +124,7 @@ func run():
     check(card.size.x>=44 and card.size.x<=96,"icon-only width remains compact with44px minimum "+kind+str(view))
     var art_slot=card.get_child(0).get_child(0).get_global_rect()
     check(not art_slot.intersects(shop.stock_badges[kind].get_global_rect()),"crate digits do not overlap the original art slot "+kind+str(view))
-  check(full_cards>=(5 if view.x==1360 else (2 if view.x==390 else 3)),"denser full-card Storage page "+str(view))
+  check(full_cards>=(1 if boundary_capture else (5 if view.x==1360 else (2 if view.x==390 else 3))),"denser full-card Storage page "+str(view))
   await capture("storage",view)
   await show_count("lamp",view);await show_count("bookshelf",view)
   if not shop.product_next.disabled:
@@ -165,7 +169,13 @@ func run():
  await category("Kitchen");await click(game.catalog_cards.stove)
  check(game.selected_stored_id==id,"actual stock card keeps stored furnishing identity")
  var original_stove=original.filter(func(item):return int(item.id)==id)[0]
- await click_point(game.illustration.iso(float(original_stove.x)+.5,float(original_stove.z)+.5))
+ # Main processing is deliberately paused; headless has no canvas draw to refresh
+ # the projection after source/selection changed the shared tray geometry.
+ game.illustration.update_projection()
+ var floor_point=game.illustration.iso(float(original_stove.x)+.5,float(original_stove.z)+.5)
+ check(game._floor_cell(floor_point)==Vector2i(original_stove.x,original_stove.z),"floor target round-trips after current tray projection")
+ check(game.interaction._point_in_view(floor_point) and not game.interaction._over_ui(floor_point),"real placement target is exposed cafe floor")
+ await click_point(floor_point)
  check(not game.model.get_item(id).is_empty() and game.model.coins==wallet,"real floor click places owned item without purchase")
  check(int(game.catalog_stock.stove)==1 and shop.stock_counts.stove.text=="1","place-back refreshes shared stock count")
  game.selected_id=id;await settle();await click(game.compact_ui.store_button)

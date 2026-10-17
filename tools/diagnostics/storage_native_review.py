@@ -17,12 +17,17 @@ REVIEWED_SOURCE = "9127a53d31258c28eaa37e06cc1752e8bd48b9f4"
 REVIEWED_TREE = "c82bf154e29da90ad34ff40a8910956c7bd9d68e"
 COMPONENT_SOURCE = "d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0"
 FIXTURE = "tests/presentation/test_storage_ui.gd"
-FIXTURE_SHA = "cbc24301f1c939a0d32ef3b1c212946293821bf80ecb7bf136d339a8049845c1"
+FIXTURE_SHA = "7951f612e155d9f08e83798cc1f82a0d24b82768fab2326588f550433591dddd"
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be",
     "game/scripts/ui/cafe_shop_ui.gd": "4d3502e99344331349e495c02a52727864995bae887440ee73afaf5675264dd0",
-    "tests/presentation/test_storage_ui.gd": "cbc24301f1c939a0d32ef3b1c212946293821bf80ecb7bf136d339a8049845c1"
+    "game/scripts/ui/cafe_hud.gd": "c417d5aca980b4d0828724090faae1b81b37ce9b19bb50fd00281d765828395c",
+    "tests/presentation/test_storage_ui.gd": "7951f612e155d9f08e83798cc1f82a0d24b82768fab2326588f550433591dddd",
+    "tests/presentation/test_hud_layout.gd": "f2462fd139623a85c430b23797397845337cd140c8c03f1d0802932f3efac572",
+    "tests/audio/test_feedback_sfx.gd": "67e2f6cc113b2b41dc6521c7035fb1001e2d4e665604bee131ca5d9b8cfd3305",
+    "game/data/prebaked_atlas_manifest.json": "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283"
 }
+REVIEWED_PARENT = "6f433915f816c484d81c5040080ee31cf3a488e3"
 PRIOR_ATLAS = {
     "source": "207409f5f19187e13f005de0f8a832b69f430cb9",
     "tree": "e27e58e115590eb7e973d1dcbe01fc28b7ddab7f",
@@ -84,8 +89,7 @@ def check_closure(current, manifest):
             "Producer closure differs from reviewed Storage source")
     previous = manifest["source_sha256"]
     require(set(previous) == set(current), "Producer dependency set changed")
-    require({name for name in current if current[name] != previous[name]} == STALE,
-            "Expected exactly four pending source qualifications")
+    require(current == previous, "Qualified source manifest differs from exact producer closure")
     require(tuple(manifest["atlases"][n]["rgba_sha256"] for n in NAMES) == EXPECTED_RGBA,
             "Fixed reference RGBA changed")
 
@@ -128,7 +132,7 @@ def check_frames(folder, log):
             "OpenGL API" in log and "Compatibility" in log, "Missing native UI renderer evidence")
     expected = {f"{state}-{size}.png": tuple(map(int, size.split("x")))
                 for state in ("shop", "storage", "storage-count2", "storage-count1", "storage-categories", "store-action")
-                for size in ("1360x880", "390x844", "844x390")}
+                for size in ("566x360",)}
     require({p.name for p in folder.glob("*.png")} == set(expected), "Incomplete or extra Storage captures")
     rows = {}
     for name, size in expected.items():
@@ -177,10 +181,13 @@ def main():
     require(re.fullmatch(r"[0-9a-f]{40}", args.expected_head), "Exact head SHA required")
     head = git("rev-parse", "HEAD").decode().strip()
     require(head == args.expected_head, "Checkout differs from expected PR head")
+    require(git("rev-parse", "HEAD^").decode().strip() == REVIEWED_PARENT,
+            "This one-off boundary capture is only for the reviewed direct successor")
     require(not git("status", "--porcelain", "--untracked-files=no"), "Tracked checkout must be clean")
     require(git("rev-parse", REVIEWED_SOURCE + "^{tree}").decode().strip() == REVIEWED_TREE,
             "Reviewed implementation tree unavailable or changed")
-    protected = ("game", "platform/web", FIXTURE, "tools/build/project_layout.py",
+    protected = ("game", "platform/web", FIXTURE, "tests/presentation/test_hud_layout.gd",
+                 "tests/audio/test_feedback_sfx.gd", "tools/build/project_layout.py",
                  "tools/qualification/verify_prebaked_atlases.py", "tools/ci/toolchain.json")
     changed = git("diff", "--name-only", REVIEWED_SOURCE, head, "--", *protected).decode().splitlines()
     check_reviewed_postimages(changed, ROOT)
@@ -205,6 +212,8 @@ def main():
               "helper_sha256": HELPERS, "fixture_sha256": FIXTURE_SHA,
               "reviewed_ui_postimages": REVIEWED_POSTIMAGES,
               "prior_atlas_qualification": PRIOR_ATLAS, "atlas_regenerated": False,
+              "capture_scope": "566x360 short-landscape boundary only",
+              "accepted_r4_runtime": "cc349bef3a6c33ff9b8d0e3fe3fd70b36a5c9bf7",
               "producer_count": len(closure), "closure_sha256": CLOSURE_SHA,
               "manifest_sha256": file_sha(manifest_path), "engine_sha256": file_sha(args.godot),
               "expected_rgba": EXPECTED_RGBA, "manifest_written": False, "player_save_used": False,
@@ -261,7 +270,7 @@ def main():
             # references above equal the retained original-three qualification.
             # Main/Shop UI are outside that closure: capture only changed UI.
             native = engine + ["--rendering-method", "gl_compatibility"]
-            log = run("storage-native", native + ["--script", "res://" + FIXTURE, "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial"], env)
+            log = run("storage-native", native + ["--script", "res://" + FIXTURE, "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial", "--storage-short-boundary"], env)
             report["storage"] = check_frames(frames, log)
             require(all(file_sha(project / n) == sha for n, sha in originals.items() if n not in report["disposable_overrides"]),
                     "Staged production, assets, imports or fixture changed during native run")

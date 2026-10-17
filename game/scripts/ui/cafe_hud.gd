@@ -535,7 +535,10 @@ func _layout_unified_toolbar(width:float):
 func _layout_mobile_toolbar(width:float):
  # Phone UI is composed from small painted controls, not a squeezed shop sign.
  # Status and tools have distinct groups; every live action retains a 44px target.
- var inset=_safe_insets();var usable=width-inset.x-inset.z;var wrapped=usable<600
+ var inset=_safe_insets();var usable=width-inset.x-inset.z
+ # The existing one-row controls already fit at the supported566px short
+ # landscape boundary; wrapping here unnecessarily consumes48px of world space.
+ var wrapped=usable<600 and not ui.ViewportLayout.short_landscape(game.get_viewport().get_visible_rect().size,inset)
  var w=usable-16
  var h=92.0 if wrapped else 44.0
  ui.music_access.text="Music"

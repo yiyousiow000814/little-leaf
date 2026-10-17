@@ -82,7 +82,7 @@ class StorageNativeReviewTests(unittest.TestCase):
         current = {str(i): str(i) for i in range(83)}
         for i, name in enumerate(sorted(review.STALE)):
             current.pop(str(i)); current[name] = str(i)
-        previous = {k: ("old" if k in review.STALE else v) for k, v in current.items()}
+        previous = current.copy()
         manifest = {"source_sha256": previous, "atlases": {
             n: {"rgba_sha256": review.EXPECTED_RGBA[i]} for i, n in enumerate(review.NAMES)}}
         expected = review.digest(json.dumps(current, sort_keys=True, separators=(",", ":")).encode())
@@ -93,8 +93,8 @@ class StorageNativeReviewTests(unittest.TestCase):
             wrong = copy.deepcopy(current); wrong["82"] = "changed"
             with self.assertRaisesRegex(RuntimeError, "differs"):
                 review.check_closure(wrong, manifest)
-            wrong = copy.deepcopy(manifest); wrong["source_sha256"] = current
-            with self.assertRaisesRegex(RuntimeError, "four"):
+            wrong = copy.deepcopy(manifest); wrong["source_sha256"]["82"] = "stale"
+            with self.assertRaisesRegex(RuntimeError, "Qualified source"):
                 review.check_closure(current, wrong)
             wrong = copy.deepcopy(manifest); wrong["atlases"]["heads"]["rgba_sha256"] = "0" * 64
             with self.assertRaisesRegex(RuntimeError, "Fixed"):
@@ -103,15 +103,15 @@ class StorageNativeReviewTests(unittest.TestCase):
     def frames(self):
         # Deliberately structural PNG headers, not real screenshot/pixel evidence.
         for state in ("shop", "storage", "storage-count2", "storage-count1", "storage-categories", "store-action"):
-            for size in ((1360, 880), (390, 844), (844, 390)):
+            for size in ((566, 360),):
                 (self.folder / f"{state}-{size[0]}x{size[1]}.png").write_bytes(
                     b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + struct.pack(">II", *size) + b"\0" * 1100)
         return ('Godot Engine v4.6.3.stable.official.7d41c59c4\nOpenGL API - Compatibility\n'
                 'STORAGE_UI_RESULT {"checks":160,"failures":[],"player_save_used":false}\n')
 
-    def test_eighteen_frame_contract_never_accepts_pixels(self):
+    def test_six_boundary_frame_contract_never_accepts_pixels(self):
         result = review.check_frames(self.folder, self.frames())
-        self.assertEqual(len(result["frames"]), 18)
+        self.assertEqual(len(result["frames"]), 6)
         self.assertFalse(result["pixels_inspected"])
 
     def test_missing_wrong_size_failed_or_headless_ui_refused(self):
@@ -120,10 +120,10 @@ class StorageNativeReviewTests(unittest.TestCase):
                     log.replace("OpenGL API", "headless"), log + log):
             with self.assertRaises(RuntimeError):
                 review.check_frames(self.folder, bad)
-        (self.folder / "storage-390x844.png").write_bytes(b"not a PNG")
+        (self.folder / "storage-566x360.png").write_bytes(b"not a PNG")
         with self.assertRaisesRegex(RuntimeError, "Invalid"):
             review.check_frames(self.folder, log)
-        (self.folder / "storage-390x844.png").unlink()
+        (self.folder / "storage-566x360.png").unlink()
         with self.assertRaisesRegex(RuntimeError, "Incomplete"):
             review.check_frames(self.folder, log)
 
@@ -152,7 +152,10 @@ class StorageNativeReviewTests(unittest.TestCase):
     def test_atlas_reuse_stays_bound_to_original_receipt(self):
         self.assertEqual(review.PRIOR_ATLAS["source"], "207409f5f19187e13f005de0f8a832b69f430cb9")
         self.assertEqual(review.PRIOR_ATLAS["receipt_sha256"], "ea7452ab917c85ae36f261e0372471291d1941254717e3b9736716dff7a18133")
-        self.assertEqual(set(review.REVIEWED_POSTIMAGES), {"game/scripts/main.gd", "game/scripts/ui/cafe_shop_ui.gd", review.FIXTURE})
+        self.assertEqual(set(review.REVIEWED_POSTIMAGES), {"game/scripts/main.gd", "game/scripts/ui/cafe_shop_ui.gd",
+            "game/scripts/ui/cafe_hud.gd", "game/data/prebaked_atlas_manifest.json", review.FIXTURE,
+            "tests/presentation/test_hud_layout.gd", "tests/audio/test_feedback_sfx.gd"})
+        self.assertEqual(review.REVIEWED_PARENT, "6f433915f816c484d81c5040080ee31cf3a488e3")
         for name, sha in review.REVIEWED_POSTIMAGES.items():
             self.assertEqual(review.file_sha(ROOT / name), sha)
         source = (ROOT / "tools/diagnostics/storage_native_review.py").read_text()
@@ -179,8 +182,7 @@ class StorageNativeReviewTests(unittest.TestCase):
     def test_workflow_is_read_only_pr349_and_not_a_deployment_route(self):
         text = (ROOT / ".github/workflows/storage-native-review.yml").read_text()
         for required in ("number == 349", "feat/decorate-storage", "contents: read", "persist-credentials: false",
-                         "--native-only", "github.event.pull_request.head.sha", "if: always()",
-                         "head.sha == 'cc349bef3a6c33ff9b8d0e3fe3fd70b36a5c9bf7'"):
+                         "--native-only", "github.event.pull_request.head.sha", "if: always()"):
             self.assertIn(required, text)
         for forbidden in ("workflow_dispatch", "pull_request_target", "secrets.", "write-manifest", "build_web.py",
                           "firebase", "needs:", "contents: write", "id-token:"):
