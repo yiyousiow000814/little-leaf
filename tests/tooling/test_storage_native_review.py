@@ -184,6 +184,7 @@ class StorageNativeReviewTests(unittest.TestCase):
     def test_workflow_is_read_only_pr349_and_not_a_deployment_route(self):
         text = (ROOT / ".github/workflows/storage-native-review.yml").read_text()
         for required in ("number == 349", "feat/decorate-storage", "contents: read", "persist-credentials: false",
+                         "github.event.pull_request.head.sha == '875d6df54327ab410b659facfb544b0a61dc4ed6'",
                          "--native-only", "github.event.pull_request.head.sha", "if: always()"):
             self.assertIn(required, text)
         for forbidden in ("workflow_dispatch", "pull_request_target", "secrets.", "write-manifest", "build_web.py",

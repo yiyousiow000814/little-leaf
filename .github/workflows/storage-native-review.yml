@@ -17,10 +17,11 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    # One-off566px Parking text regression capture; no atlas regeneration.
-    # The diagnostic binds the direct parent and all changed protected bytes.
-    # Retire the trigger after its source-bound receipt; ordinary CI stays mandatory.
-    if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository
+    # Completed one-off: run39004567874 captured owned/unowned Parking at566px.
+    # Pin its exact source so closeout metadata cannot rerun native qualification.
+    # Receipt SHA256:a0ea74091bb9b4ff604dca25be4f65dedb564aa4f01a3a670806e35703dbb2fc.
+    # Ordinary complete CI remains mandatory on each candidate head.
+    if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.sha == '875d6df54327ab410b659facfb544b0a61dc4ed6'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
