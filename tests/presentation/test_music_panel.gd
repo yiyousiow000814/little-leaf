@@ -545,6 +545,56 @@ func check_touch_waves(music):
  check(ripple.active_count()==0 and not ripple.is_processing(),"Hidden touch waves clear immediately")
  ripple.show()
 
+func check_palette_batches(music):
+ # Observe the production method, including repeated same-value applications.
+ # No playback, preference, artwork, or layout policy is changed by this check.
+ var buttons:Array=[music.automatic_button,music.close_button,music.previous_button,music.play_button,music.next_button,music.mute_button]
+ buttons.append_array(music.track_buttons.values())
+ var controls=buttons.duplicate()
+ controls.append_array([music.progress_slider,music.volume_slider,music.scroll.get_v_scroll_bar()])
+ var counts=[];var callbacks=[]
+ for index in controls.size():
+  counts.append(0)
+  var callback=func():counts[index]+=1
+  controls[index].theme_changed.connect(callback);callbacks.append(callback)
+ var old_compact=music.compact_controls;var old_premium=music.premium_palette
+ for compact in [false,true]:
+  for premium in [false,true,true,false]:
+   music.compact_controls=compact;music.premium_palette=premium;counts.fill(0)
+   music._apply_palette()
+   for index in controls.size():
+    check(counts[index]==1,"Edition palette notifies each control once, including repeated values: %s/%s/%d"%[compact,premium,index])
+   for button in buttons:
+    var id=button.get_instance_id()
+    var faces=music.compact_faces[id]["premium" if premium else "ordinary"] if compact else music.gilded_faces[id] if premium else music.ordinary_faces[id]
+    for state in ["normal","hover","pressed","hover_pressed","disabled"]:
+     check(button.get_theme_stylebox(state)==faces[state],"Batch preserves retained edition style "+state)
+    check(button.get_theme_stylebox("focus")== (music.gilded_focus[id] if premium else music.ordinary_focus[id]),"Batch preserves retained focus style")
+    check(music.button_rims[id].visible==premium,"Batch preserves gilded rim visibility")
+    if button==music.play_button:continue
+    var premium_track=button.has_meta("music_track_id") and Catalog.track(str(button.get_meta("music_track_id"))).get("group","")==Catalog.PREMIUM
+    for state in ["font_color","font_hover_color","font_focus_color","font_pressed_color","font_hover_pressed_color"]:
+     var expected=Color("654a2b") if premium else music.GOLD_INK if premium_track else music.CREAM if state in ["font_pressed_color","font_hover_pressed_color"] else music.INK
+     check(button.get_theme_color(state)==expected,"Batch preserves exact edition ink "+state)
+   for slider in [music.progress_slider,music.volume_slider]:
+    var faces=music.slider_faces["premium" if premium else slider.get_instance_id()]
+    for state in ["slider","grabber_area"]:check(slider.get_theme_stylebox(state)==faces[state],"Batch preserves slider face "+state)
+    for state in ["grabber","grabber_highlight"]:check(slider.get_theme_icon(state)==faces[state],"Batch preserves slider thumb "+state)
+   # Same-value overrides still notify normally after both scrollbar branches.
+   for index in controls.size():
+    counts[index]=0
+    var control=controls[index]
+    var key="normal" if control is Button else "slider" if control is HSlider else "scroll"
+    var had_override=control.has_theme_stylebox_override(key)
+    var original=control.get_theme_stylebox(key)
+    control.add_theme_stylebox_override(key,original)
+    check(counts[index]==1,"Edition bulk block is closed for control "+str(index))
+    if not had_override:control.remove_theme_stylebox_override(key)
+    check(control.has_theme_stylebox_override(key)==had_override and control.get_theme_stylebox(key)==original,"Notification probe preserves original override ownership")
+ music.compact_controls=old_compact;music.premium_palette=old_premium;music._apply_palette()
+ for index in controls.size():controls[index].theme_changed.disconnect(callbacks[index])
+ check(music.board_material.TRANSITION_SECONDS==1.0 and music.record_mark.TRANSITION_SECONDS==1.0,"Edition batching preserves the one-second reveal")
+
 func run():
  game=TestMain.new();root.add_child(game);game.set_process(false);game.paused=true
  game.set_meta("hud_reduce_motion",false)
@@ -557,6 +607,7 @@ func run():
  check(not music.panel.visible and not game.settings.visible,"Music setup never opens a popup")
  check(music.poll_timer.is_stopped() and is_equal_approx(music.poll_timer.wait_time,.25),"Progress timer is bounded to 4Hz and starts stopped")
  check_board_geometry(music)
+ check_palette_batches(music)
  check(music.track_buttons.size()==20 and music.family_cards.size()==7,"All 20 recordings occur in 7 configured song families")
  check(Catalog.selectable_tracks().size()==20,"All 20 retained recordings remain available")
  check(music.library_heading.text=="SONGS  /  "+str(Catalog.families().size()),"Shelf heading count derives from configured song families")

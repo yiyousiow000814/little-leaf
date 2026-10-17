@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - '.github/workflows/cloud-recovery-visual.yml'
+      - 'tools/diagnostics/capture_music_palette.py'
+      - 'tests/diagnostics/capture_music_palette.gd'
+      - 'game/scripts/ui/cafe_music_panel.gd'
+      - 'tests/presentation/test_music_panel.gd'
       - 'tools/diagnostics/capture_cloud_recovery_ui.py'
       - 'tests/diagnostics/capture_cloud_recovery_ui.gd'
       - 'tests/persistence/test_cloud_recovery_ui.gd'
@@ -56,5 +60,38 @@ jobs:
           path: |
             ${{ runner.temp }}/panel-paired/
             ${{ runner.temp }}/panel-engine/
+          if-no-files-found: error
+          retention-days: 7
+  music_palette:
+    # Completed PR348 evidence at this qualified head; do not rerender metadata-only closeout.
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/music-palette-batching-011' && github.event.pull_request.head.sha == 'f53abea139b23f8732e71f337e53940f16383e45'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fetch the pinned Music comparison baseline only
+        run: git fetch --no-tags --depth=1 origin dd3145b196845b4d163e1ff8191924651328317f
+      - name: Install existing checksum-pinned official native engine
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/music-tools"
+      - name: Prepare Ubuntu native software renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Capture four source-bound Music component frames
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          LL_ENGINE_LOCK: ${{ runner.temp }}/music-engine.lock
+        run: python3 tools/diagnostics/capture_music_palette.py --expected-head "$EXPECTED_HEAD" --output "$RUNNER_TEMP/music-paired"
+      - name: Retain Music pixels and exact source receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: music-palette-paired-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/music-paired/
           if-no-files-found: error
           retention-days: 7

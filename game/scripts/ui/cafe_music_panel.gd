@@ -371,6 +371,8 @@ func _apply_palette():
      inset_face.set_expand_margin(SIDE_TOP,-5);inset_face.set_expand_margin(SIDE_BOTTOM,-5)
      if inset_face is StyleBoxFlat:inset_face.set_corner_radius_all(16);inset_face.border_width_bottom=2
      compact_faces[key][tier][state]=inset_face
+  # Notify the native control once after its complete edition palette.
+  button.begin_bulk_theme_override()
   for state in ordinary_faces[key]:
    var face=compact_faces[key]["premium" if premium_palette else "ordinary"][state] if compact_controls else gilded_faces[key][state] if premium_palette else ordinary_faces[key][state]
    button.add_theme_stylebox_override(state,face)
@@ -381,6 +383,7 @@ func _apply_palette():
    var is_premium=button.has_meta("music_track_id") and Catalog.track(str(button.get_meta("music_track_id"))).get("group","")==Catalog.PREMIUM
    for state in ["font_color","font_hover_color","font_focus_color"]:button.add_theme_color_override(state,GOLD_INK if is_premium else INK)
    for state in ["font_pressed_color","font_hover_pressed_color"]:button.add_theme_color_override(state,GOLD_INK if is_premium else CREAM)
+  button.end_bulk_theme_override()
  heading.add_theme_color_override("font_color",Color("654627") if premium_palette else INK)
  now_playing.add_theme_color_override("font_color",Color("664425") if premium_palette else INK)
  library_heading.add_theme_color_override("font_color",Color("748057") if premium_palette else MUTED)
@@ -400,19 +403,24 @@ func _theme_music_sliders():
   slider_faces["premium"]={"slider":track,"grabber_area":filled,"grabber":thumb,"grabber_highlight":thumb}
  for slider in [progress_slider,volume_slider]:
   var faces=slider_faces["premium" if premium_palette else slider.get_instance_id()]
+  slider.begin_bulk_theme_override()
   for key in ["slider","grabber_area"]:slider.add_theme_stylebox_override(key,faces[key])
   for key in ["grabber","grabber_highlight"]:slider.add_theme_icon_override(key,faces[key])
+  slider.end_bulk_theme_override()
  var bar=scroll.get_v_scroll_bar()
+ bar.begin_bulk_theme_override()
  if not premium_palette:
   compact.hud.theme_scroll(scroll)
   var ordinary_rail=bar.get_theme_stylebox("scroll").duplicate()
   ordinary_rail.content_margin_left=7;ordinary_rail.content_margin_right=7
-  bar.custom_minimum_size.x=14;bar.add_theme_stylebox_override("scroll",ordinary_rail);return
+  bar.custom_minimum_size.x=14;bar.add_theme_stylebox_override("scroll",ordinary_rail)
+  bar.end_bulk_theme_override();return
  var rail=_surface(Color("f8edcf"),Color("a17c45"),0);rail.set_corner_radius_all(7);rail.set_border_width_all(2);rail.content_margin_left=7;rail.content_margin_right=7
  bar.custom_minimum_size.x=14;bar.add_theme_stylebox_override("scroll",rail)
  for state in ["grabber","grabber_highlight","grabber_pressed"]:
   var grip=_surface(Color("efcc83") if state=="grabber_pressed" else Color("f7dfa7"),Color("b78a44"),0);grip.set_corner_radius_all(7);grip.set_border_width_all(2)
   bar.add_theme_stylebox_override(state,grip)
+ bar.end_bulk_theme_override()
 
 func _apply_material_reveal(amount:float):
  var material_mix=smoothstep(0.0,.24,amount)
