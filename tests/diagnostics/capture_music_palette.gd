@@ -80,7 +80,8 @@ func run():
  assert(not output.is_empty() and not profile.is_empty())
  assert(OS.get_user_data_dir().begins_with(profile+"/"))
  assert(DisplayServer.get_name()!="headless")
- assert(Engine.get_version_info().string.begins_with("4.6.3.stable.official."))
+ var version=Engine.get_version_info()
+ assert(version.major==4 and version.minor==6 and version.patch==3 and version.status=="stable" and version.build=="official")
  assert(RenderingServer.get_current_rendering_method()=="gl_compatibility")
  seed(8246)
  get_window().content_scale_mode=Window.CONTENT_SCALE_MODE_DISABLED
@@ -114,7 +115,7 @@ func run():
  assert(music.board_material.reveal==1.0 and music.record_mark.reveal==1.0)
  shot("settled-premium")
  assert(settings_controls.music_track=="service-1nd" and not settings_controls.persist_enabled and save_writes_suppressed)
- var receipt={"scope":"actual Music component, synthetic host/transport; no full cafe or audio playback","generated_profile":true,"player_save_used":false,"preferences_persist_enabled":false,"engine":Engine.get_version_info().string,"renderer":RenderingServer.get_current_rendering_method(),"adapter":RenderingServer.get_video_adapter_name(),"display":DisplayServer.get_name(),"viewport":[1360,880],"scale":1.0,"fixed_fps":60,"transition_seconds":1.0,"frames":frames}
+ var receipt={"scope":"actual Music component, synthetic host/transport; no full cafe or audio playback","generated_profile":true,"player_save_used":false,"preferences_persist_enabled":false,"engine":version.string,"engine_info":version,"renderer":RenderingServer.get_current_rendering_method(),"adapter":RenderingServer.get_video_adapter_name(),"display":DisplayServer.get_name(),"viewport":[1360,880],"scale":1.0,"fixed_fps":60,"transition_seconds":1.0,"frames":frames}
  FileAccess.open(output+"/capture.json",FileAccess.WRITE).store_string(JSON.stringify(receipt,"  "))
  print("MUSIC_PALETTE_CAPTURE "+JSON.stringify(receipt))
  music.panel.queue_free();settings_controls=null;music=null;compact=null

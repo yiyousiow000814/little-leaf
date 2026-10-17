@@ -39,7 +39,9 @@ def verify_frames(folder):
             or receipt.get("fixed_fps") != 60
             or receipt.get("scale") != 1.0
             or receipt.get("transition_seconds") != 1.0
-            or not receipt.get("engine", "").startswith("4.6.3.stable.official.")):
+            or any(receipt.get("engine_info", {}).get(key) != value
+                   for key, value in {"major": 4, "minor": 6, "patch": 3,
+                                      "status": "stable", "build": "official"}.items())):
         raise RuntimeError("Missing native component/profile/viewport contract")
     frames = receipt["frames"]
     expected = [f"1360x880-{state}.png" for state in STATES]
