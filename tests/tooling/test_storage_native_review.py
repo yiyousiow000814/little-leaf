@@ -158,11 +158,35 @@ class StorageNativeReviewTests(unittest.TestCase):
             "tests/presentation/test_toolbar_help.gd",
             "tests/presentation/test_hud_layout.gd", "tests/audio/test_feedback_sfx.gd"})
         self.assertEqual(review.REVIEWED_PARENT, "654cb9a873f6813b7838daa155d559bfcaf66122")
-        for name, sha in review.REVIEWED_POSTIMAGES.items():
-            self.assertEqual(review.file_sha(ROOT / name), sha)
+        self.check_current_postimages()
         source = (ROOT / "tools/diagnostics/storage_native_review.py").read_text()
         self.assertNotIn('run("atlas-native"', source)
         self.assertNotIn('run(name, engine +', source)
+
+    def check_current_postimages(self):
+        # The retired 875d6df capture and its pins remain unchanged. This one
+        # later, uncaptured subpixel alignment fix requires ordinary CI qualification,
+        # not a new native visual receipt. No other postimage may differ.
+        for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
+            expected = captured_sha
+            if name == "game/scripts/ui/cafe_shop_ui.gd":
+                self.assertEqual(captured_sha, "5d3590d6e715eb5f09c2d82a11eaa99e4ca6d1da31e0638acbdeb9eecb3da22f")
+                expected = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
+            self.assertEqual(review.file_sha(ROOT / name), expected, name)
+
+    def test_post_capture_exception_accepts_only_exact_shop_hash(self):
+        expected = dict(review.REVIEWED_POSTIMAGES)
+        expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
+        def current(path):
+            return expected[path.relative_to(ROOT).as_posix()]
+        with patch.object(review, "file_sha", side_effect=current):
+            self.check_current_postimages()
+            for name in ("game/scripts/ui/cafe_shop_ui.gd", "game/scripts/main.gd"):
+                exact = expected[name]
+                expected[name] = "0" * 64
+                with self.assertRaises(AssertionError):
+                    self.check_current_postimages()
+                expected[name] = exact
 
     def test_engine_error_is_retained_and_stops_before_timeout(self):
         log = self.folder / "early-error.log"

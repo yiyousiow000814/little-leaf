@@ -816,7 +816,9 @@ func sync(width:float):
  var picker_width=maxf(44.0,ceilf(ui.hud.font_bold.get_string_size(category_picker.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+28.0) if tight_shop else 112.0
  var category_width=picker_width if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_start-category_margin-tail-(104 if categories_overflow else 0))
  category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else category_count)
- var chip_width=(category_width-6*(category_page_items-1))/category_page_items
+ # ScrollContainer offsets and HBox child positions use integer pixels.
+ # Keep the final chip within the same endpoint rather than a fractional sliver.
+ var chip_width=floorf((category_width-6*(category_page_items-1))/category_page_items)
  for category in game.category_buttons:
   var button:Button=game.category_buttons[category];button.custom_minimum_size=Vector2(chip_width,44);button.add_theme_font_size_override("font_size",13 if short_landscape else (12 if narrow else 14))
   var art:Node2D=category_icons[category];art.scale=Vector2(.36,.36) if narrow or short_landscape else Vector2(.43,.43);art.position=Vector2(7,7)

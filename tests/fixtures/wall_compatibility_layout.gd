@@ -115,6 +115,9 @@ func run():
    result.regions.category_ready=region(first)
    result.regions.category_ready.psm=7;result.regions.category_ready.scale=3
    await click("build_next",categories.category_more)
+  var rail_rect=categories.category_scroll.get_global_rect();var build_rect=build.get_global_rect()
+  var category_bar=categories.category_scroll.get_h_scroll_bar()
+  result.category_navigation={"rail":[rail_rect.position.x,rail_rect.position.y,rail_rect.size.x,rail_rect.size.y],"build":[build_rect.position.x,build_rect.position.y,build_rect.size.x,build_rect.size.y],"scroll":categories.category_scroll.scroll_horizontal,"end":maxf(0,category_bar.max_value-category_bar.page)}
   check(categories.category_scroll.get_global_rect().encloses(build.get_global_rect()),"Build is fully exposed before its real pointer input")
   if result.points.has("build_next"):
    result.regions.build_category=region(build)
