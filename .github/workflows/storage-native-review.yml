@@ -7,6 +7,7 @@ on:
       - 'tests/diagnostics/canonical_atlas/**'
       - 'tests/tooling/test_storage_native_review.py'
       - 'tests/presentation/test_storage_ui.gd'
+      - 'tests/world/test_parking_decor_ui.gd'
       - 'game/**'
       - 'platform/web/**'
 permissions:
@@ -16,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    # One-off566px boundary regression capture; no atlas regeneration.
+    # One-off566px Parking text regression capture; no atlas regeneration.
     # The diagnostic binds the direct parent and all changed protected bytes.
     # Retire the trigger after its source-bound receipt; ordinary CI stays mandatory.
     if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository
@@ -37,7 +38,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
           dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 > "$RUNNER_TEMP/storage-tools/renderer-packages.txt"
-      - name: Capture actual566px Shop and Storage boundary with qualified atlas closure
+      - name: Capture actual566px owned and unowned Parking with qualified atlas closure
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           LIBGL_ALWAYS_SOFTWARE: '1'

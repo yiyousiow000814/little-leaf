@@ -173,6 +173,10 @@ func run():
  # the projection after source/selection changed the shared tray geometry.
  game.illustration.update_projection()
  var floor_point=game.illustration.iso(float(original_stove.x)+.5,float(original_stove.z)+.5)
+ # Arrange the real camera, as the existing wall-input fixture does, before
+ # pushing input. Resizing can leave this original stove cell under the tray.
+ game.interaction._pan_by(game.illustration.camera_safe_rect().get_center()-floor_point)
+ floor_point=game.illustration.iso(float(original_stove.x)+.5,float(original_stove.z)+.5)
  check(game._floor_cell(floor_point)==Vector2i(original_stove.x,original_stove.z),"floor target round-trips after current tray projection")
  check(game.interaction._point_in_view(floor_point) and not game.interaction._over_ui(floor_point),"real placement target is exposed cafe floor")
  await click_point(floor_point)

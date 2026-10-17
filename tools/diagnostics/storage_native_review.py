@@ -16,18 +16,21 @@ ROOT = Path(__file__).resolve().parents[2]
 REVIEWED_SOURCE = "9127a53d31258c28eaa37e06cc1752e8bd48b9f4"
 REVIEWED_TREE = "c82bf154e29da90ad34ff40a8910956c7bd9d68e"
 COMPONENT_SOURCE = "d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0"
-FIXTURE = "tests/presentation/test_storage_ui.gd"
-FIXTURE_SHA = "7951f612e155d9f08e83798cc1f82a0d24b82768fab2326588f550433591dddd"
+FIXTURE = "tests/world/test_parking_decor_ui.gd"
+FIXTURE_SHA = "747e54edd43a6f150bc5f3f6a2014a4200eeea3bb40560c3332b89225158e5db"
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be",
-    "game/scripts/ui/cafe_shop_ui.gd": "4d3502e99344331349e495c02a52727864995bae887440ee73afaf5675264dd0",
+    "game/scripts/ui/cafe_shop_ui.gd": "5d3590d6e715eb5f09c2d82a11eaa99e4ca6d1da31e0638acbdeb9eecb3da22f",
     "game/scripts/ui/cafe_hud.gd": "c417d5aca980b4d0828724090faae1b81b37ce9b19bb50fd00281d765828395c",
-    "tests/presentation/test_storage_ui.gd": "7951f612e155d9f08e83798cc1f82a0d24b82768fab2326588f550433591dddd",
+    "tests/presentation/test_storage_ui.gd": "d934d9a86331ce368f69655d8297c789aa9d6ab17b8094e30dbf468af5b08355",
     "tests/presentation/test_hud_layout.gd": "f2462fd139623a85c430b23797397845337cd140c8c03f1d0802932f3efac572",
     "tests/audio/test_feedback_sfx.gd": "67e2f6cc113b2b41dc6521c7035fb1001e2d4e665604bee131ca5d9b8cfd3305",
+    "tests/presentation/test_intro_lifecycle_headless.gd": "1dd53cc071c75f442077c9db626f5298d186f8db3a10d73d5bac4d51ca867693",
+    "tests/presentation/test_toolbar_help.gd": "0878e9ee1f7391720b60a772daa03fee2e61e7dda04e09ce46e02a02435d8962",
+    "tests/world/test_parking_decor_ui.gd": "747e54edd43a6f150bc5f3f6a2014a4200eeea3bb40560c3332b89225158e5db",
     "game/data/prebaked_atlas_manifest.json": "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283"
 }
-REVIEWED_PARENT = "6f433915f816c484d81c5040080ee31cf3a488e3"
+REVIEWED_PARENT = "654cb9a873f6813b7838daa155d559bfcaf66122"
 PRIOR_ATLAS = {
     "source": "207409f5f19187e13f005de0f8a832b69f430cb9",
     "tree": "e27e58e115590eb7e973d1dcbe01fc28b7ddab7f",
@@ -124,16 +127,16 @@ def check_atlas(folder, head):
 
 def check_frames(folder, log):
     results = [json.loads(line.split(" ", 1)[1]) for line in log.splitlines()
-               if line.startswith("STORAGE_UI_RESULT ")]
+               if line.startswith("PARKING_DECOR_UI_RESULT ")]
     require(len(results) == 1 and results[0].get("failures") == [] and
             results[0].get("checks", 0) >= 100 and results[0].get("player_save_used") is False,
-            "Missing or failed full-game Storage UI result")
+            "Missing or failed full-game Parking UI result")
     require("Godot Engine v4.6.3.stable.official.7d41c59c4" in log and
             "OpenGL API" in log and "Compatibility" in log, "Missing native UI renderer evidence")
     expected = {f"{state}-{size}.png": tuple(map(int, size.split("x")))
-                for state in ("shop", "storage", "storage-count2", "storage-count1", "storage-categories", "store-action")
+                for state in ("parking-unowned", "parking-owned")
                 for size in ("566x360",)}
-    require({p.name for p in folder.glob("*.png")} == set(expected), "Incomplete or extra Storage captures")
+    require({p.name for p in folder.glob("*.png")} == set(expected), "Incomplete or extra Parking captures")
     rows = {}
     for name, size in expected.items():
         data = (folder / name).read_bytes()
@@ -187,7 +190,9 @@ def main():
     require(git("rev-parse", REVIEWED_SOURCE + "^{tree}").decode().strip() == REVIEWED_TREE,
             "Reviewed implementation tree unavailable or changed")
     protected = ("game", "platform/web", FIXTURE, "tests/presentation/test_hud_layout.gd",
-                 "tests/audio/test_feedback_sfx.gd", "tools/build/project_layout.py",
+                 "tests/audio/test_feedback_sfx.gd", "tests/presentation/test_storage_ui.gd",
+                 "tests/presentation/test_intro_lifecycle_headless.gd", "tests/presentation/test_toolbar_help.gd",
+                 "tools/build/project_layout.py",
                  "tools/qualification/verify_prebaked_atlases.py", "tools/ci/toolchain.json")
     changed = git("diff", "--name-only", REVIEWED_SOURCE, head, "--", *protected).decode().splitlines()
     check_reviewed_postimages(changed, ROOT)
@@ -212,7 +217,7 @@ def main():
               "helper_sha256": HELPERS, "fixture_sha256": FIXTURE_SHA,
               "reviewed_ui_postimages": REVIEWED_POSTIMAGES,
               "prior_atlas_qualification": PRIOR_ATLAS, "atlas_regenerated": False,
-              "capture_scope": "566x360 short-landscape boundary only",
+              "capture_scope": "566x360 Parking Shop card owned/unowned only",
               "accepted_r4_runtime": "cc349bef3a6c33ff9b8d0e3fe3fd70b36a5c9bf7",
               "producer_count": len(closure), "closure_sha256": CLOSURE_SHA,
               "manifest_sha256": file_sha(manifest_path), "engine_sha256": file_sha(args.godot),
@@ -270,7 +275,7 @@ def main():
             # references above equal the retained original-three qualification.
             # Main/Shop UI are outside that closure: capture only changed UI.
             native = engine + ["--rendering-method", "gl_compatibility"]
-            log = run("storage-native", native + ["--script", "res://" + FIXTURE, "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial", "--storage-short-boundary"], env)
+            log = run("storage-native", native + ["--script", "res://" + FIXTURE, "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial", "--parking-short-boundary"], env)
             report["storage"] = check_frames(frames, log)
             require(all(file_sha(project / n) == sha for n, sha in originals.items() if n not in report["disposable_overrides"]),
                     "Staged production, assets, imports or fixture changed during native run")

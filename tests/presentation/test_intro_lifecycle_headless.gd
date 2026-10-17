@@ -329,13 +329,16 @@ func run():
 		await process_frame
 		game._sync_window_scale()
 		var hud = game.compact_ui.hud
-		var minimum = preload("res://scripts/ui/cafe_viewport_layout.gd").minimum_size(hud.layout_host.get_global_rect().end.y, hud._safe_insets(), Vector2(view.size))
+		var minimum = preload("res://scripts/ui/cafe_viewport_layout.gd").minimum_size(hud.layout_host.get_global_rect().end.y, hud._safe_insets(), Vector2(view.size), game.compact_ui.shop_ui.browse_rect().size.y)
 		minimum_landscape_size = Vector2i(568, int(ceil(minimum.y)))
 		view.size = minimum_landscape_size
 	await process_frame
 	game._sync_window_scale()
 	intro = fresh_intro()
 	intro._process(.5)
+	# Independent short-landscape budget: 80px world, two4px gaps and60px actions.
+	var usable_world = game.compact_ui.shop_ui.browse_rect().position.y - game.compact_ui.hud.layout_host.get_global_rect().end.y - 8.0 - 60.0
+	check(usable_world >= 80.0, "minimum landscape preserves actual world and action clearance")
 	check(not game.compact_ui.viewport_too_small, "minimum landscape supports the current HUD budget")
 	check(Rect2(Vector2.ZERO, Vector2(view.size)).encloses(intro.title_group.get_rect()), "minimum landscape title visible")
 	check(Rect2(Vector2.ZERO, Vector2(view.size)).encloses(Rect2(intro.title_group.position + intro.welcome.position, intro.welcome.size)), "minimum landscape greeting visible")

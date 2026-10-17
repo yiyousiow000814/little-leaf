@@ -774,6 +774,9 @@ func sync(width:float):
  var owned=game.catalog_mode=="Storage"
  var compact_source=short_landscape or w<358.0
  var source_width=112.0 if short_landscape else (128.0 if compact_source else 170.0)
+ # Only the minimum supported short Shop lane needs its measured compact picker.
+ # Storage and the accepted desktop/portrait/844px arrangements stay unchanged.
+ var tight_shop=not owned and short_landscape and available_width<600.0
  var category_count=game.category_buttons.values().filter(func(button):return button.visible).size()
  var picker_landscape=(short_landscape and available_width<700.0) or w-64-source_width-12<216
  var title_height=ceilf(ui.hud.font_bold.get_height(13))
@@ -800,7 +803,7 @@ func sync(width:float):
  var tiny=w<440
  var repair_width=0.0
  var tail=repair_width+8 if repair_width>0 else 0.0
- var category_margin=32.0
+ var category_margin=26.0 if tight_shop else 32.0
  var category_start=category_margin+source_width+12.0
  var minimum_chip=100.0 if narrow else 112.0
  var categories_overflow=short_landscape or category_count*minimum_chip+maxi(0,category_count-1)*6>w-category_start-category_margin-tail
@@ -810,7 +813,8 @@ func sync(width:float):
  for category in category_panel_buttons:
   category_panel_buttons[category].set_pressed_no_signal(category==game.catalog_category)
   category_panel_buttons[category].visible=game.category_buttons[category].visible
- var category_width=112.0 if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_start-category_margin-tail-(104 if categories_overflow else 0))
+ var picker_width=maxf(44.0,ceilf(ui.hud.font_bold.get_string_size(category_picker.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+28.0) if tight_shop else 112.0
+ var category_width=picker_width if picker_landscape else (_short_landscape_chip_width() if short_landscape else w-category_start-category_margin-tail-(104 if categories_overflow else 0))
  category_page_items=1 if short_landscape else (maxi(1,mini(5,floori((category_width+6)/(minimum_chip+6)))) if categories_overflow else category_count)
  var chip_width=(category_width-6*(category_page_items-1))/category_page_items
  for category in game.category_buttons:
@@ -819,7 +823,7 @@ func sync(width:float):
   for state in ["normal","hover","pressed","hover_pressed","disabled"]:
    var style=button.get_theme_stylebox(state);style.content_margin_left=36;style.content_margin_right=9
  var category_x=category_start+(52 if categories_overflow and not picker_landscape else 0)
- _put(category_picker,Rect2(category_start,header_y,112,44))
+ _put(category_picker,Rect2(category_start,header_y,picker_width,44))
  _put(category_scroll,Rect2(category_x,header_y,category_width,44));_put(category_back,Rect2(category_start,header_y,44,44));_put(category_more,Rect2(category_x+category_width+8,header_y,44,44))
  tiles_back.visible=nested;tiles_heading.visible=nested
  if nested:
@@ -860,15 +864,16 @@ func sync(width:float):
  if parking_card.visible:count+=1
  if game.catalog_category=="Build":count=_visible_build_keys().size()
  var card_w=88.0 if owned else (_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0))
- var margin=32.0
- var product_left=category_x+category_width+(12 if picker_landscape else 64) if short_landscape else float(margin)
+ var margin=category_margin
+ var picker_gap=6.0 if tight_shop else 12.0
+ var product_left=category_x+category_width+(picker_gap if picker_landscape else 64) if short_landscape else float(margin)
  if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible or (hide_objects_button.visible and not stacked_inspection) else category_margin+back_width+12
  var product_right=w-margin-tail if short_landscape else w-margin
  var product_width=product_right-product_left
  var product_gap=_active_products().get_child(0).get_theme_constant("separation")
  var content_width=count*card_w+maxi(0,count-1)*product_gap
  var arrows=content_width>product_width
- var side=(56 if narrow or short_landscape else 48) if arrows else 0
+ var side=(50 if tight_shop else (56 if narrow or short_landscape else 48)) if arrows else 0
  var shelf_width=product_width-side*2
  var next_page_items=1
  if arrows:

@@ -57,7 +57,10 @@ func run():
     game.editing=editing;await settle()
     check(question_buttons(ui.shop_ui.root).is_empty(),label+" no rightmost catalogue help control after layout")
     if editing and view.x==1360 and not safe:
-     check(absf(ui.shop_ui.category_scroll.position.x-32)<.1 and absf(ui.shop_ui.category_scroll.size.x-(ui.shop_ui.root.size.x-64))<.1,label+" category strip reclaims removed help space")
+     var shop=ui.shop_ui;var interior=shop.background.get_global_rect().grow_individual(-26,-23,-26,-23)
+     check(interior.encloses(shop.mode_row.get_global_rect()) and interior.encloses(shop.category_scroll.get_global_rect()),label+" source tabs and category rail stay inside painted shelf")
+     check(shop.category_scroll.position.x>=shop.mode_row.position.x+shop.mode_row.size.x+12,label+" categories clear shared source tabs")
+     check(absf(shop.category_more.position.x+shop.category_more.size.x-(shop.root.size.x-32))<.1,label+" category navigation reclaims removed help space")
     var controls=[game.business_button,game.pause_button,game.edit_button,ui.staff_access,ui.settings_button]
     if editing:controls.append(hud.edit_cancel)
     for i in controls.size():
