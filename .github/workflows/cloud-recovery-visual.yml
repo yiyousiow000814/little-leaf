@@ -63,8 +63,8 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   music_palette:
-    # Scoped PR348 evidence, not a new every-PR visual matrix or publication gate.
-    if: github.event_name == 'pull_request' && github.head_ref == 'fix/music-palette-batching-011'
+    # Completed PR348 evidence at this qualified head; do not rerender metadata-only closeout.
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/music-palette-batching-011' && github.event.pull_request.head.sha == 'f53abea139b23f8732e71f337e53940f16383e45'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
