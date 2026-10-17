@@ -33,6 +33,7 @@ class CaptureMail extends "res://scripts/ui/cafe_support_mail.gd":
 var checks=0
 var failures=[]
 var capture_dir=""
+var capture_composer_only=false
 var captures:Array=[]
 func check(ok:bool,label:String):
  checks+=1
@@ -40,6 +41,7 @@ func check(ok:bool,label:String):
 func _initialize():
  var args=OS.get_cmdline_user_args()
  for index in args.size():
+  if args[index]=="--capture-composer-only":capture_composer_only=true
   if args[index].begins_with("--capture-dir="):capture_dir=args[index].trim_prefix("--capture-dir=")
   elif args[index]=="--capture-dir" and index+1<args.size():capture_dir=args[index+1]
  run.call_deferred()
@@ -155,13 +157,14 @@ func run():
  check(not composer.quantities.has(removed_id),"basket remove clears only its selected item")
  check("Storage" in _text(composer.item_toggle.get_parent()),"mail item destination uses Storage, not a Gifts shelf")
  check(composer.category_buttons.size()==composer.gift_catalog.categories().size() and _popup_count(composer.item_picker)==0,"category navigation is inline, with no PopupMenu/window")
- composer.note.text="Preparing audience · nothing sent."
+ composer._set_note("Preparing audience · nothing sent.")
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
   root.size=viewport
   for i in 8:await process_frame
   check(Rect2(Vector2.ZERO,Vector2(viewport)).encloses(composer.panel.get_global_rect()),"composer fits safe viewport "+str(viewport))
   var wood=composer.MailFrame.inner_rect(composer.panel)
   check(wood.encloses(composer.header.get_global_rect()) and wood.encloses(composer.footer.get_global_rect()) and wood.encloses(composer.scroll.get_global_rect()),"header, footer and scroller stay within actual wood face "+str(viewport))
+  check(composer.note.visible and composer.note.text=="Preparing audience · nothing sent." and wood.encloses(composer.note.get_global_rect()),"nonempty review progress remains readable in fixed footer "+str(viewport))
   check(composer.letter.size.y>500 and not composer.letter.get_v_scroll_bar().visible,"long letter expands without an editor scrollbar "+str(viewport))
   check(composer.scroll.get_v_scroll_bar().visible,"form owns long-content scroll "+str(viewport))
   check(composer.send_button.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"send stays below scrolling content "+str(viewport))
@@ -184,6 +187,14 @@ func run():
   if viewport.y<500:check(composer.scroll.size.y>=100,"short landscape retains at least one readable result card")
   check(composer.selected_slots.filter(func(slot):return slot.card.visible).all(func(slot):return slot.minus.size.x>=44 and slot.minus.size.y>=44 and slot.plus.size.x>=44 and slot.plus.size.y>=44),"selected quantity tap targets remain 44px "+str(viewport))
   check("1 Leaf Coins" in composer.attachment_summary.text and composer.attachment_summary.get_global_rect().position.y>=composer.scroll.get_global_rect().end.y,"per-player attachment total remains outside the scroller "+str(viewport))
+  composer._set_note("Synthetic review error.")
+  for i in 3:await process_frame
+  check(composer.note.visible and composer.note.text=="Synthetic review error." and composer.MailFrame.inner_rect(composer.panel).encloses(composer.note.get_global_rect()),"review error remains visible inside painted footer "+str(viewport))
+  composer._set_note("")
+  for i in 3:await process_frame
+  check(not composer.note.visible and is_equal_approx(composer.footer.get_global_rect().end.y,composer.send_button.get_global_rect().end.y),"empty status removes footer line and separation "+str(viewport))
+  check(composer.preview_button.size.y>=44 and composer.send_button.size.y>=44 and composer.panel.get_theme_stylebox("panel").get_content_margin(SIDE_BOTTOM)==(30.0 if composer.panel.size.x<480 else 34.0),"collapsed footer preserves themed touch targets and wood bottom inset "+str(viewport))
+  composer._set_note("Preparing audience · nothing sent.")
  composer.scroll.scroll_vertical=0;composer.preview_summary.text="Confirm this synthetic letter.";composer.preview_card.show();composer._reveal_review()
  for i in 4:await process_frame
  check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"review waits for layout and reveals the new card")
@@ -226,6 +237,7 @@ func _capture_mail_surfaces(game,ui):
   _check_compose_capture(composer,viewport,false)
   check(composer.recipient.editable and composer.recipient.text=="123456789012, 234567890123" and composer.coins.editable and int(composer.coins.value)==125 and int(composer.quantities.plant)==2 and int(composer.quantities.beverage)==1,"editable capture retains selected UIDs and coin/item quantities "+str(viewport))
   await _save_capture("editable-composer",viewport)
+  if capture_composer_only:continue
   composer._preview()
   await _settle_capture(ui)
   _check_compose_capture(composer,viewport)
@@ -261,6 +273,8 @@ func _check_compose_capture(composer,viewport:Vector2i,expect_review:bool=true):
  for part in [composer.header,composer.footer,composer.scroll,composer.preview_button,composer.send_button]:
   check(wood.encloses(part.get_global_rect()),"capture composer fixed controls remain within painted wood face "+part.get_class()+str(viewport))
  check(_scroll_count(composer.panel)==1 and not composer.letter.get_v_scroll_bar().visible and not composer.recipient.get_v_scroll_bar().visible,"capture composer retains one scroll area "+str(viewport))
+ check(composer.note.text.is_empty() and not composer.note.visible and is_equal_approx(composer.footer.get_global_rect().end.y,composer.send_button.get_global_rect().end.y),"capture empty footer closes immediately below actions "+str(viewport))
+ check(composer.preview_button.size.y>=44 and composer.send_button.size.y>=44,"capture actions retain themed 44px touch height "+str(viewport))
  check("125 Leaf Coins · 3 items" in composer.attachment_summary.text,"capture fixed per-player totals are visible "+str(viewport))
  if expect_review:check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"capture review card is in the scrolling viewport "+str(viewport))
  else:check(composer.scroll.scroll_vertical==0 and not composer.preview_card.visible and composer.send_button.disabled,"editable top capture has no prepared review or Send authority "+str(viewport))

@@ -142,7 +142,7 @@ func setup():
  var actions=HBoxContainer.new();actions.add_theme_constant_override("separation",8);footer.add_child(actions)
  preview_button=game.button("Review letter",_preview);preview_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(preview_button)
  send_button=game.button("Send letter",_send);send_button.disabled=true;send_button.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;send_button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;actions.add_child(send_button)
- note=_label("",13,MUTED);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;note.max_lines_visible=2;note.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS;footer.add_child(note)
+ note=_label("",13,MUTED);note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;note.max_lines_visible=2;note.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS;note.hide();footer.add_child(note)
  case_id.text_changed.connect(func(_value):_invalidate_preview())
  subject.text_changed.connect(func(_value):_invalidate_preview();_refresh_message_feedback())
  letter.caret_changed.connect(func():_reveal_editor_caret.call_deferred(letter))
@@ -520,6 +520,12 @@ func show():
  game.settings.hide();compact._popup_at(panel,640);panel.show()
  compact._queue_popup_fit()
 
+func _set_note(message:String):
+ note.text=message
+ # Hidden status contributes neither an empty line nor VBox separation.
+ note.visible=not message.is_empty()
+ compact._queue_popup_fit()
+
 func _invalidate_preview(reset_issue=true):
  if delivery_started:return
  form_generation+=1
@@ -574,40 +580,40 @@ func _new_issue_id()->String:
 
 func _preview():
  if preview_pending or send_pending:return
- if delivery_terminal:_reset_delivery();note.text="Ready for a new letter.";return
+ if delivery_terminal:_reset_delivery();_set_note("Ready for a new letter.");return
  if delivery_started:return
  var error=_field_error()
- if error!="":note.text=error;return
+ if error!="":_set_note(error);return
  if preview_expires_at>0 and preview_expires_at<=Time.get_unix_time_from_system()*1000.0:_invalidate_preview()
  var request=_request()
- if request.is_empty():note.text="Check the audience first.";return
+ if request.is_empty():_set_note("Check the audience first.");return
  var generation=form_generation
  preview_payload={};preview_status="";preview_recipient_count=0
  preview_pending=true;preview_button.disabled=true;send_button.disabled=true
- note.text="Preparing audience and checking attachments…"
+ _set_note("Preparing audience and checking attachments…")
  _call("preview",[request],func(result):
   if generation!=form_generation:return
   preview_pending=false;preview_button.disabled=false
   if not bool(result.get("ok",false)):
    if str(result.get("code",""))=="PREVIEW_EXPIRED":_invalidate_preview()
-   note.text=str(result.get("error","Review unavailable. Continue Review to retry."));return
+   _set_note(str(result.get("error","Review unavailable. Continue Review to retry.")));return
   if not _matching_review(result,request):
-   note.text="Review did not match this letter. Nothing has been sent.";return
+   _set_note("Review did not match this letter. Nothing has been sent.");return
   preview_status=str(result.get("status",""))
   preview_expires_at=float(result.get("expiresAt",0))
   if preview_status=="preparing":
    preview_payload={};preview_button.text="Continue review"
    preview_summary.text="All players\n%d cloud cafés prepared. Continue Review to finish the audience."%int(result.get("preparedCount",0))
-   note.text="Preparing audience · nothing sent."
+   _set_note("Preparing audience · nothing sent.")
   else:
    preview_recipient_count=int(result.recipientCount)
    preview_payload=request.duplicate(true);preview_payload.previewHash=str(result.previewHash)
    _render_review(result)
    send_button.text="Send to %d players"%preview_recipient_count if result.audience.mode=="all" else "Send letter"
    preview_button.text="Review again"
-   note.text=""
+   _set_note("")
    send_button.disabled=int(result.recipientCount)<=0 or preview_expires_at<=Time.get_unix_time_from_system()*1000.0
-   if int(result.recipientCount)<=0:note.text="No recipients found. Nothing to send."
+   if int(result.recipientCount)<=0:_set_note("No recipients found. Nothing to send.")
   preview_card.show();_reveal_review()
  )
 
@@ -669,22 +675,22 @@ func _reset_delivery():
 func _send():
  if send_pending or preview_pending or delivery_terminal or preview_payload.is_empty() or preview_status!="ready" or preview_recipient_count<=0:return
  if not delivery_started and preview_expires_at<=Time.get_unix_time_from_system()*1000.0:
-  _invalidate_preview();note.text="Review expired. Review again before sending.";return
+  _invalidate_preview();_set_note("Review expired. Review again before sending.");return
  var request=preview_payload.duplicate(true);var generation=form_generation
  delivery_started=true;send_pending=true;_set_composition_locked(true)
- send_button.disabled=true;preview_button.disabled=true;note.text="Checking delivery status…"
+ send_button.disabled=true;preview_button.disabled=true;_set_note("Checking delivery status…")
  _call("issue",[request],func(result):
   if generation!=form_generation:return
   send_pending=false
   # The audience service reserves this code for the exact frozen request with
   # zero sent/failed recipients. Other errors never release an uncertain send.
   if not bool(result.get("ok",false)) and str(result.get("code",""))=="PREVIEW_EXPIRED":
-   _reset_delivery();note.text="Review expired before delivery. Review again; nothing was sent.";return
+   _reset_delivery();_set_note("Review expired before delivery. Review again; nothing was sent.");return
   if not bool(result.get("ok",false)) or not _matching_delivery(result,request):
-   note.text="Delivery unconfirmed. Resume the same send. "+str(result.get("error","No confirmed result."))
+   _set_note("Delivery unconfirmed. Resume the same send. "+str(result.get("error","No confirmed result.")))
    send_button.text="Resume send";send_button.disabled=false;return
   var sent=int(result.sentCount);var failed=int(result.failedCount);var pending=int(result.pendingCount)
-  note.text="%d / %d sent · %d failed · %d pending"%[sent,int(result.total),failed,pending]
+  _set_note("%d / %d sent · %d failed · %d pending"%[sent,int(result.total),failed,pending])
   delivery_terminal=str(result.status)!="sending"
   if not delivery_terminal:
    send_button.text="Continue send";send_button.disabled=false

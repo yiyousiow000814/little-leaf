@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   native:
-    # One scoped candidate; pin this condition to its captured SHA at closeout.
+    # Scoped composer-footer follow-up; pin to its captured SHA at closeout.
     if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -57,7 +57,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
   emulator:
-    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.sha == '1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

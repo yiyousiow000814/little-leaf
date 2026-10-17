@@ -1,4 +1,4 @@
-"""PR329-only full-game mail pixels. Mock transport; no player data or service."""
+"""PR329 composer-footer follow-up. Mock transport; prior Inbox evidence retained."""
 import argparse
 import hashlib
 import importlib.util
@@ -12,8 +12,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "f6ebeccd9fb8d2ded28895dc2f134c2a491f1ced"
 OLD_PR_HEAD = "076747fe956f08e34cf18e67bf0b4339d1aac00b"
+PRIOR_CAPTURE_HEAD = "1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa"
+PRIOR_CAPTURE_RUN = 39017375011
 FIXTURE = "tests/persistence/test_support_mail_ui.gd"
-FIXTURE_SHA = 'bebf7311dfa14e672f45728af03cf8de1de5d049c584e676273651e694c937e5'
+FIXTURE_SHA = 'd6d6d4cffd4482658d22c5f38b4c692ebb0cb704a9dfcc3e60090ec229ca7306'
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78",
     "game/scripts/persistence/cafe_web_save.gd": "42eb9aea6a1bbaf79f29dc8c8b4b7a0a16852f9ace5a8e31f405a44492b62f0d",
@@ -22,7 +24,7 @@ REVIEWED_POSTIMAGES = {
     "game/scripts/ui/cafe_mail_frame.gd": "47696e4a6980a78bcf6db42856adcaedf731b80180a8d5f815e8eaeecbd4ab00",
     "game/scripts/ui/cafe_mail_gift_catalog.gd": "bac2c5c930be7ed59782584a6930e3ccbeebe4ee3ace9d39f644a5f2d0689e88",
     "game/scripts/ui/cafe_mail_recipients.gd": "ae3f114c3012a011b481863d531c221bbc167c8afced3b9676eb6db3ebafbef0",
-    "game/scripts/ui/cafe_support_mail.gd": "1395ee05d80f9241e966fa1ce3ee529b79ce1d80ee475e3af55d24bea87c950c",
+    "game/scripts/ui/cafe_support_mail.gd": "d554349d328e21e18d2d11a8496716c310e258917848c15181ac323023730432",
     "platform/firebase/firestore.rules": "350806e48d676a2b09bcd9e938c6faddbccedacaac60125c1091931b136b7601",
     "platform/firebase/index.mjs": "93464f1e4c5d3e8ce8a4fd7ffd033c756e6ac844714915643cb39bdf233b60e1",
     "platform/firebase/package-lock.json": "2e9194dac6f50f02bce3b637763e3ca47b9ddca1371163e78c4a2aef6dbb96d9",
@@ -47,7 +49,7 @@ REVIEWED_POSTIMAGES = {
     "platform/web/little_leaf_vault.js": "34a9d8ab24e1b8aab5cddd9a7da5d3f596d9b2c0ceaf798fe91d32894a73709c"
 }
 SIZES = ("1360x880", "390x844", "844x390")
-SURFACES = ("editable-composer", "selected-review", "selected-attachments", "all-review", "inbox-letter", "inbox-attachments")
+SURFACES = ("editable-composer",)
 
 
 def require(ok, message):
@@ -78,7 +80,7 @@ def verify_postimages(changed, root):
 
 def verify_checkout(expected_head):
     require(git("rev-parse", "HEAD") == expected_head, "Checkout does not match PR head")
-    for parent in (BASE, OLD_PR_HEAD):
+    for parent in (BASE, OLD_PR_HEAD, PRIOR_CAPTURE_HEAD):
         require(subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", parent, "HEAD"]).returncode == 0,
                 "Preserve current main and original PR329 history")
     require(not git("status", "--porcelain", "--untracked-files=no"), "Tracked source must be clean")
@@ -136,7 +138,9 @@ def main():
               "fixture_sha256": FIXTURE_SHA, "reviewed_postimages": REVIEWED_POSTIMAGES,
               "engine_sha256": sha(args.godot), "producer_count": len(closure), "closure_sha256": native.CLOSURE_SHA,
               "atlas_regenerated": False, "manifest_written": False, "player_save_used": False,
-              "mock_transport": True, "status": "running", "steps": [], "pixels_inspected": False}
+              "mock_transport": True, "status": "running", "steps": [], "pixels_inspected": False,
+              "capture_scope": "composer_footer_only", "prior_full_mail_capture_head": PRIOR_CAPTURE_HEAD,
+              "prior_full_mail_capture_run": PRIOR_CAPTURE_RUN}
 
     def save():
         (output / "summary.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -178,7 +182,7 @@ def main():
                 config.write_text(runtime)
             frames = output / "mail"; frames.mkdir()
             log = run("mail-native", engine + ["--rendering-method", "gl_compatibility", "--script", "res://" + FIXTURE,
-                "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial", "--capture-dir=" + str(frames)], env)
+                "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial", "--capture-composer-only", "--capture-dir=" + str(frames)], env)
             report["mail"] = check_frames(frames, log)
             require(all(sha(project / n) == value for n, value in originals.items() if n not in report["disposable_overrides"]),
                     "Staged source or assets changed during capture")

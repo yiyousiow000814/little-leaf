@@ -36,7 +36,15 @@ async function storageOrdinaryCas(){
     ok(JSON.parse(head.payload).storage.items[0].id===item.id&&JSON.parse(head.payload).coins===stored.coins,'ordinary CAS preserves stock identity and wallet');
     ok(writes===1&&reads.every(ref=>ref===path),'Storage uses only the existing save path and one ordinary CAS');
     await remote.compareAndSet('alice',record.digest,document,()=>{});ok(writes===1,'same record replay does not write twice');
-    await assert.rejects(remote.compareAndSet('alice','stale',{...document,digest:'f'.repeat(64)},()=>{}),{code:'REVISION_CONFLICT'});checks++;
+    const preservedDocument=JSON.stringify(document);
+    await assert.rejects(remote.compareAndSet('alice',head.digest,{...document,digest:'f'.repeat(64)},()=>{}),{code:'CORRUPT_AUTHORITY'});checks++;
+    ok(writes===1&&JSON.stringify(document)===preservedDocument,'inconsistent document identity cannot write or overwrite ordinary progress');
+    const newer={...head,revision:head.revision+1};
+    newer.digest=await root.LittleLeafAuthorityCodec.hash(root.LittleLeafAuthorityCodec.fingerprint(newer));
+    await root.LittleLeafAuthorityCodec.verifyRecord(newer);
+    const nextDocument={...document,revision:newer.revision,digest:newer.digest,record:JSON.stringify(newer)};
+    await assert.rejects(remote.compareAndSet('alice',record.digest,nextDocument,()=>{}),{code:'REVISION_CONFLICT'});checks++;
+    ok(writes===1&&JSON.stringify(document)===preservedDocument,'valid signed candidate with stale base cannot overwrite ordinary progress');
     const reopened=client(),boot=await reopened.boot();ok(boot.payload===head.payload,'reload retains v17 Storage in the same profile');
     const placed=structuredClone(stored);placed.storage.items=[];placed.items.push({...item,x:3,z:6});time+=30001;
     ok((await reopened.commit(JSON.stringify(placed),head.revision,head.profileId)).ok,'same owned item places back through ordinary save');await reopened.sync();

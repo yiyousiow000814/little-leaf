@@ -14,6 +14,8 @@ class TestMain extends "res://scripts/main.gd":
  func _load_startup():
   save_writes_suppressed=true;fresh_start=false;MinimalStart.apply(model);model.coins=43000
   web_save=WebSave.new(self)
+  # Match the ready local-Web client without an activated support-mail service.
+  web_save.ready=true;web_save.profile_id="11111111-1111-4111-8111-111111111111"
   web_save.inbox_snapshot={"ok":true,"profileId":"11111111-1111-4111-8111-111111111111","revision":2,"paid":[],"deferred":[]}
  func _save():save_calls+=1;return true
 var game
@@ -106,6 +108,9 @@ func run():
  web_points.first_message=point(inbox.rows[0])
  await capture("05-one-letter-desktop")
  web_regions.list=region(inbox.heading_box)
+ check("Letters & receipts" in text(inbox.heading_box),"current combined mailbox heading is explicit")
+ check(inbox.content.get_child_count()==2 and text(inbox.content.get_child(1))=="Mail service is unavailable.","ready local client retains the honest unavailable-service row")
+ web_regions.mail_notice=region(inbox.content.get_child(1))
  for size in [Vector2i(800,600),Vector2i(390,844),Vector2i(844,390)]:
   root.size=size;await settle();inbox.show();await settle()
   check(inbox.panel.get_global_rect().end.x<=size.x+.5 and inbox.panel.position.x>=0,"horizontal bounds at "+str(size))

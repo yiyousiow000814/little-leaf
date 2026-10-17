@@ -24,7 +24,7 @@ class MailNativeReviewTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
 
-    def test_eighteen_frames_are_structural_evidence_not_acceptance(self):
+    def test_three_composer_frames_are_structural_evidence_not_acceptance(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
             for surface in review.SURFACES:
@@ -36,7 +36,7 @@ class MailNativeReviewTests(unittest.TestCase):
             (folder / "capture-receipt.json").write_text(json.dumps(receipt))
             log = 'OpenGL API - Compatibility\nSUPPORT_MAIL_UI_RESULT {"checks":200,"failures":[]}\n'
             result = review.check_frames(folder, log)
-            self.assertEqual(len(result["frames"]), 18)
+            self.assertEqual(len(result["frames"]), 3)
             self.assertFalse(result["pixels_inspected"])
             for bad in (log.replace("OpenGL API", "headless"), log + log,
                         log.replace('"failures":[]', '"failures":["overflow"]')):
@@ -60,6 +60,9 @@ class MailNativeReviewTests(unittest.TestCase):
                           "firebase deploy", "contents: write", "id-token:", "rules deploy"):
             self.assertNotIn(forbidden, source)
         self.assertNotIn("functions", json.loads((ROOT / "platform/firebase/firebase.json").read_text()))
+        emulator_condition = source.split("  emulator:\n", 1)[1].splitlines()[0]
+        self.assertIn("head.sha == '1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa'", emulator_condition)
+        self.assertEqual(source.count("head.sha == '1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa'"), 1)
 
     def test_admin_emulator_fixtures_refuse_non_loopback_before_initialization(self):
         for name in ("support_mail.test.mjs", "support_mail_audience.emulator.test.mjs", "support_storage_routing.rules.test.mjs", "support_mail_rules.test.mjs"):
@@ -77,6 +80,9 @@ class MailNativeReviewTests(unittest.TestCase):
         self.assertNotIn("--write-manifest", source)
         self.assertNotIn('run("atlas-native"', source)
         self.assertEqual(review.BASE, "f6ebeccd9fb8d2ded28895dc2f134c2a491f1ced")
+        self.assertEqual(review.PRIOR_CAPTURE_HEAD, "1bf6ee8de84496fd27ccd1f9b23658c4fa6b63fa")
+        self.assertEqual(review.PRIOR_CAPTURE_RUN, 39017375011)
+        self.assertIn("--capture-composer-only", source)
 
 
 if __name__ == "__main__":
