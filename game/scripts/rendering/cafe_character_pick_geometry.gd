@@ -53,19 +53,28 @@ func _supported_ancestors(art)->bool:
 func _node_state(node:Node2D,state:int)->int:
 	# A hidden pooled subtree paints nothing. Keep its identity/visibility marker
 	# so revealing it invalidates the receipt, but do not hash inactive geometry.
-	if not node.visible:return hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),false])
-	state=hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_global_transform_with_canvas(),true,node.modulate,node.self_modulate,node.material])
+	if not node.visible:return hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_index(),node.get_meta("native_painter_order",-1),false])
+	state=hash([state,node.get_instance_id(),node.get_parent().get_instance_id(),node.get_index(),node.get_meta("native_painter_order",-1),node.get_global_transform_with_canvas(),true,node.modulate,node.self_modulate,node.material])
 	if node.get_script()==Shape:
 		state=hash([state,node.get_meta("generation",-1),node.draw_method,node.draw_arguments,node.paint_revision,node.painted_revision])
 		if node.material is ShaderMaterial:state=hash([state,node.material.get_shader_parameter("stroke_width"),node.material.get_shader_parameter("geometry_scale")])
 	elif node.get_script()==Native:
-		state=hash([state,node.generation,node.appearance,node.draw_count,node.resources,node.paint_revision,node.painted_revision])
+		state=hash([state,node.generation,node.draw_order,node.appearance,node.draw_count,node.resources,node.paint_revision,node.painted_revision])
 		for child in node.shapes:
 			if is_instance_valid(child):state=_node_state(child,state)
 	return state
 
 func _in_world_span(art,order:int)->bool:
 	return order>=art.ground_occlusion_start and order<art.ground_occlusion_end
+
+func _unsubmitted_native_nodes(art)->Array:
+	# Query-only: preserve hidden ownership markers after the order view is rebuilt.
+	var submitted={}
+	for node in art.native_object_nodes.values():submitted[node.get_instance_id()]=true
+	var result=[]
+	for child in art.get_children():
+		if child.get_script()==Native and not submitted.has(child.get_instance_id()):result.append(child)
+	return result
 
 func _state(art)->int:
 	# A bounded scalar receipt, not copied geometry or retained renderer resources.
@@ -74,6 +83,7 @@ func _state(art)->int:
 	for nodes in [art.native_object_nodes,art.native_world_shapes]:
 		for order in nodes:
 			if _in_world_span(art,int(order)) and is_instance_valid(nodes[order]):state=_node_state(nodes[order],state)
+	for node in _unsubmitted_native_nodes(art):state=_node_state(node,state)
 	return state
 
 func submitting(art):
@@ -101,6 +111,8 @@ func occludes(art,screen:Vector2)->bool:
 	last_uncertain=false
 	if not query_active() or not screen.is_finite() or not is_instance_valid(art.game) or not art.game.has_method("ground_mess_identity") or not art.use_native_object_nodes or art.canvas_stream.active or art.ground_occlusion_start<0 or art.ground_occlusion_end<art.ground_occlusion_start or presented_frame!=art.canvas_stream.frame_id or presented_projection!=_projection(art) or not _supported_ancestors(art) or presented_state!=_state(art):
 		last_uncertain=true;return true
+	for node in _unsubmitted_native_nodes(art):
+		if node.is_visible_in_tree():last_uncertain=true;return true
 	# Borrow only the furniture atlas owner's prepared alpha image. Other image
 	# readbacks and mesh arrays remain local to this one pointer query.
 	var images:Dictionary=art.ground_hit_images() if art.has_method("ground_hit_images") else {}
