@@ -307,13 +307,39 @@
       }return snapshot();
     }
     async function takeOver(force=false){
-      guard();const id=current?.request?.id;
-      await change((value,save,stamp)=>{
-        if(value?.owner===sessionId)return value;
-        if(!value||value.request?.requester!==sessionId||value.request.id!==id)throw fail('HANDOFF_CHANGED','The device switch request changed.');
-        if(!value.ack&&!(force&&now()-millis(value.request.at)>=HANDOFF_WAIT_MS))throw fail('HANDOFF_WAITING','The other device has not confirmed its final save.');
-        return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
-      });return snapshot();
+      guard();const id=current?.request?.id,generation=requestGeneration;
+      // Retain only this acknowledged intent, not permission to take a newer
+      // owner's café. A transient response failure gets one proven retry.
+      const expected=current&&{owner:current.owner,epoch:current.epoch,
+        request:current.request&&{...current.request,at:timestamp(current.request.at)},ack:current.ack&&{...current.ack}};
+      const takeoverGuard=()=>{guard();if(generation!==requestGeneration)throw fail('HANDOFF_CHANGED','The device switch request changed.');};
+      const sameIntent=value=>expected?.ack&&value?.owner===expected.owner&&value.epoch===expected.epoch
+        &&value.request?.id===expected.request?.id&&value.request?.requester===sessionId&&value.request.device===expected.request.device
+        &&compareTimestamp(timestamp(value.request.at),expected.request.at)===0
+        &&value.ack?.requestId===expected.ack.requestId&&value.ack?.digest===expected.ack.digest&&value.ack?.revision===expected.ack.revision;
+      const committed=value=>expected?.ack&&value?.owner===sessionId&&value.epoch===expected.epoch+1
+        &&value.device===deviceLabel&&value.request===null&&value.ack===null;
+      const perform=async retry=>{
+        const result=await remote.change((value,save,stamp)=>{
+          takeoverGuard();
+          if(retry&&!sameIntent(value)&&!committed(value))throw fail('HANDOFF_CHANGED','The acknowledged device switch changed. Progress remains paused.');
+          if(value?.owner===sessionId)return value;
+          if(!value||value.request?.requester!==sessionId||value.request.id!==id)throw fail('HANDOFF_CHANGED','The device switch request changed.');
+          if(!value.ack&&!(force&&now()-millis(value.request.at)>=HANDOFF_WAIT_MS))throw fail('HANDOFF_WAITING','The other device has not confirmed its final save.');
+          return {schema:1,owner:sessionId,epoch:value.epoch+1,device:deviceLabel,updatedAt:stamp(),request:null,ack:null};
+        },takeoverGuard);
+        takeoverGuard();receive(result);return snapshot();
+      };
+      try{return await perform(false);}catch(error){
+        takeoverGuard();
+        if(force||!expected?.ack||!['OFFLINE','NETWORK_TIMEOUT','unavailable','deadline-exceeded'].includes(error.code))throw error;
+        const latest=await remote.read();takeoverGuard();
+        // Read back an uncertain success before issuing another transaction.
+        // Only the exact next epoch without a subsequent request can resume.
+        if(committed(latest)){receive(latest);return snapshot();}
+        if(!sameIntent(latest))throw fail('HANDOFF_CHANGED','The acknowledged device switch changed. Progress remains paused.');
+        return perform(true);
+      }
     }
     return {start,snapshot,assertActive,renew,requestTakeover,acknowledge,takeOver,reloadContinuation,handoffReceipt,assertHandoff,confirmHandoff,
       async refresh(){guard();receive(await remote.read());return snapshot();},
