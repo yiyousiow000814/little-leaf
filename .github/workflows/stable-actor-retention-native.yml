@@ -1,7 +1,7 @@
 name: Stable café actor ownership paired native and atlas qualification
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     paths:
       - 'game/scripts/rendering/illustrated_cafe.gd'
       - 'game/scripts/rendering/cafe_character_pick_geometry.gd'
@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   paired-native:
-    # One capture when the reviewed draft opens. Later commits do not rerender.
-    if: github.head_ref == 'perf/retain-cafe-actor-owners' && github.event.pull_request.head.repo.full_name == github.repository
+    # One corrective capture only from the preserved failed initial head. Later commits do not rerender.
+    if: github.event.action == 'synchronize' && github.event.before == 'e8a318b4f4a6ed3cab1aafb839ec1c82c4516728' && github.head_ref == 'perf/retain-cafe-actor-owners' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 18
     steps:

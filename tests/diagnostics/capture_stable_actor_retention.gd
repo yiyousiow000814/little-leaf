@@ -24,6 +24,9 @@ class SyntheticMain extends "res://scripts/main.gd":
 var game
 var art
 var frames = []
+var pending_frame = {}
+var cafe_guest_cohort = []
+var actor_domains = {}
 var output = OS.get_environment("OUTPUT")
 var smoke = OS.get_environment("STABLE_ACTOR_CAPTURE_HEADLESS_SMOKE") == "1"
 var candidate = false
@@ -35,7 +38,102 @@ var lifecycle = {"guest_replacements":0, "staff_replacements":0, "service_restor
 var failures = []
 var abnormal_safety = {"executed":false, "passed":false, "cases":[]}
 
-func _initialize(): run.call_deferred()
+func _initialize():
+ if "--classifier-only" in OS.get_cmdline_user_args(): classifier_checks.call_deferred()
+ else: run.call_deferred()
+
+# Pure domain classification: no ID ranges and no dependency on the live café
+# roster. A retired cohort ID remains café and cannot hide a departed ghost.
+static func make_actor_domains(cohort:Array, sources:Dictionary)->Dictionary:
+ var cafe = {}
+ var ambient = {}
+ var errors = []
+ for id in cohort:
+  if cafe.has(int(id)): errors.append("Duplicate café cohort ID " + str(id))
+  cafe[int(id)] = true
+ for source in sources:
+  for actor in sources[source]:
+   if not actor.has("appearance"):
+    errors.append("Ambient appearance missing in " + str(source))
+    continue
+   var id = int(actor.appearance)
+   if cafe.has(id): errors.append("Café/ambient appearance collision " + str(id))
+   if ambient.has(id): errors.append("Duplicate ambient appearance " + str(id))
+   ambient[id] = str(source) + "/" + str(actor.get("key", ""))
+ return {"ok":errors.is_empty(), "errors":errors, "cafe":cafe, "ambient":ambient}
+
+static func classify_actor(is_staff:bool, appearance:int, domains:Dictionary)->String:
+ if is_staff: return "cafe"
+ if domains.cafe.has(appearance) and domains.ambient.has(appearance): return "collision"
+ if domains.cafe.has(appearance): return "cafe"
+ if domains.ambient.has(appearance): return "ambient"
+ return "unknown"
+
+static func body_multiset_matches(actual:Array, expected:Array, allow_culled=false)->bool:
+ var left = actual.duplicate()
+ var right = expected.duplicate()
+ left.sort()
+ right.sort()
+ if not allow_culled: return left == right
+ # Culling may omit a current body, never add a departed/duplicate one.
+ for key in left:
+  var index = right.find(key)
+  if index < 0: return false
+  right.remove_at(index)
+ return true
+
+func refresh_actor_domains():
+ actor_domains = make_actor_domains(cafe_guest_cohort, {
+  "street_walkers":art.street_pedestrians.walkers,
+  "street_departures":art.street_pedestrians.departures.values(),
+  "bus_stop":art.bus_stop_pedestrians.actors
+ })
+
+func actor_domain(key:String)->String:
+ if key == "": return "unknown"
+ var identity = key.get_slice("|",0)
+ var family = identity.get_slice("/",0)
+ var appearance = identity.get_slice("/",1)
+ if family not in ["staff", "guest"] or not appearance.is_valid_int(): return "unknown"
+ return classify_actor(family == "staff", int(appearance), actor_domains)
+
+func expected_cafe_bodies()->Array:
+ var result = []
+ if not game.editing:
+  for guest in game.model.customers: result.append("guest/" + str(guest.id) + "|body")
+  for index in game.staff_states.size(): result.append("staff/" + str(index) + "|body")
+ result.sort()
+ return result
+
+func classifier_checks():
+ var rows = []
+ var sources = {"street_walkers":[{"appearance":112,"key":"walker"}], "street_departures":[{"appearance":114,"key":"departure"}], "bus_stop":[{"appearance":401,"key":"bus"}]}
+ var domains = make_actor_domains([1,2,3], sources)
+ rows.append({"case":"positive-source-enumeration", "passed":domains.ok and domains.ambient.size() == 3})
+ for id in [112,114,401]: rows.append({"case":"ambient-" + str(id), "passed":classify_actor(false,id,domains) == "ambient"})
+ rows.append({"case":"all-staff-remain-cafe", "passed":classify_actor(true,401,domains) == "cafe"})
+ rows.append({"case":"unknown-id-rejected", "passed":classify_actor(false,999,domains) == "unknown"})
+ rows.append({"case":"retired-cohort-id-remains-cafe", "passed":classify_actor(false,3,domains) == "cafe"})
+ rows.append({"case":"cafe-ambient-collision-rejected", "passed":not make_actor_domains([112],sources).ok})
+ rows.append({"case":"duplicate-cohort-rejected", "passed":not make_actor_domains([1,1],sources).ok})
+ var duplicate = sources.duplicate(true)
+ duplicate.bus_stop.append({"appearance":112,"key":"duplicate"})
+ rows.append({"case":"duplicate-ambient-rejected", "passed":not make_actor_domains([1,2,3],duplicate).ok})
+ var expected = ["guest/1|body","guest/2|body","staff/0|body"]
+ rows.append({"case":"exact-cafe-multiset", "passed":body_multiset_matches(expected,expected)})
+ rows.append({"case":"departed-ghost-rejected", "passed":not body_multiset_matches(expected+["guest/3|body"],expected)})
+ rows.append({"case":"duplicate-body-rejected", "passed":not body_multiset_matches(expected+["guest/1|body"],expected)})
+ rows.append({"case":"equal-count-wrong-identity-rejected", "passed":not body_multiset_matches(["guest/1|body","guest/3|body","staff/0|body"],expected)})
+ rows.append({"case":"intentional-culling-subset", "passed":body_multiset_matches(["staff/0|body"],expected,true)})
+ rows.append({"case":"culled-departed-ghost-rejected", "passed":not body_multiset_matches(["guest/3|body"],expected,true)})
+ rows.append({"case":"culled-duplicate-rejected", "passed":not body_multiset_matches(["staff/0|body","staff/0|body"],expected,true)})
+ rows.append({"case":"decorate-empty-cafe", "passed":body_multiset_matches([],[]) and not body_multiset_matches(["guest/3|body"],[])})
+ var result = {"checks":rows, "passed":rows.all(func(row): return row.passed), "game_instance_created":false, "native_render_executed":false}
+ if output != "":
+  DirAccess.make_dir_recursive_absolute(output)
+  FileAccess.open(output.path_join("classifier.json"),FileAccess.WRITE).store_string(JSON.stringify(result,"  "))
+ print("STABLE_ACTOR_DOMAIN_CLASSIFIER_RESULT ",JSON.stringify(result))
+ quit(0 if result.passed else 2)
 
 func check(ok:bool, message:String):
  if ok: return
@@ -81,6 +179,7 @@ func inputs()->Dictionary:
   "clock":{"animation_time":game.animation_time, "paused":game.paused, "editing":game.editing, "cooking_motion_strength":art.cooking_motion_strength},
   "camera":{"zoom":art.zoom, "pan":art.pan_offset, "origin":art.origin, "tile":art.tile, "ui_scale":art.ui_scale, "wall_detail":game.wall_detail},
   "presentation":{"motion":art.motion._actors, "facings":art.character_facings, "seats":art.seat_blends, "stances":art.stance_offsets, "carry_hands":art.carry_hand_offsets, "meal_chairs":art.meal_chair_offsets, "table_directions":art.table_dining_directions, "traffic":art.road_traffic.cars},
+  "actor_domains":{"cafe_guest_cohort":cafe_guest_cohort, "classification":actor_domains, "street_walkers":art.street_pedestrians.walkers, "street_departures":art.street_pedestrians.departures, "bus_stop":art.bus_stop_pedestrians.actors},
   "lifecycle":lifecycle.duplicate(true)
  }
  var hashes = {}
@@ -168,6 +267,11 @@ func prepare_scene():
    fixture_table = int(guest.table_id)
    normal_guest = guest
  check(fixture_table >= 0 and game.model.customers.size() == 3, "Three species and rear seat are present")
+ check(cafe_guest_cohort.is_empty(), "Initial café identity cohort must be enrolled only once")
+ for guest in game.model.customers: cafe_guest_cohort.append(int(guest.id))
+ cafe_guest_cohort.sort()
+ refresh_actor_domains()
+ check(actor_domains.ok, "Generated café and ambient appearance domains must be disjoint")
  game._sync_service_guests()
  check(game.floor_tasks.spawn(Vector2i(5, 6), "banana") >= 0, "Real floor litter geometry")
  place_worker("chef", Vector2(8.5, .5))
@@ -194,6 +298,7 @@ func semantic(node)->Dictionary:
   result["kind"] = str(shape[0])
   if shape[0] == "character":
    result["actor"] = actor_key(node)
+   result["domain"] = actor_domain(result.actor)
    result["pose"] = plain(shape)
   elif shape[0] == "furniture":
    result["part"] = shape[1]
@@ -207,24 +312,24 @@ func semantic(node)->Dictionary:
   result["command"] = str(node.draw_method)
  return result
 
-func current_order()->Array:
+func current_order(issues:Array)->Array:
  var rows = []
  var last = -1
  for child in art.get_children():
   var order = int(child.get_meta("native_painter_order", -1))
   if order < 0 or not child.is_visible_in_tree(): continue
   var generation = child.generation if child.get_script() == Native else child.get_meta("generation", -1)
-  check(generation == art.canvas_stream.frame_id, "Visible stale painter sibling")
-  check(order > last, "Mixed native/world sibling order differs from submitted order")
+  if generation != art.canvas_stream.frame_id: issues.append("Visible stale painter sibling")
+  if order <= last: issues.append("Mixed native/world sibling order differs from submitted order")
   last = order
   if child.get_script() == Native:
-   check(child.draw_order == order and art.native_object_nodes.get(order) == child, "Active native owner lookup/order mismatch")
+   if child.draw_order != order or art.native_object_nodes.get(order) != child: issues.append("Active native owner lookup/order mismatch")
   else:
-   check(art.native_world_shapes.get(order) == child, "Active world shape lookup mismatch")
+   if art.native_world_shapes.get(order) != child: issues.append("Active world shape lookup mismatch")
   rows.append(semantic(child))
  return rows
 
-func contacts_normalized(source:Array)->Array:
+func contacts_normalized(source:Array, issues:Array)->Array:
  var owner_keys = {}
  for owner in art.native_object_nodes.values():
   if owner.visible: owner_keys[owner.get_instance_id()] = actor_key(owner)
@@ -232,10 +337,11 @@ func contacts_normalized(source:Array)->Array:
  var seen = {}
  for contact in source:
   var key = owner_keys.get(contact.get("native_owner", -1), "")
-  check(key != "" and not seen.has(key), "Missing or double-rendered semantic actor contact")
+  if key == "" or seen.has(key): issues.append("Missing or double-rendered semantic actor contact: " + key)
   seen[key] = true
   var row = plain(contact)
   row["actor"] = key
+  row["domain"] = actor_domain(key)
   result.append(row)
  result.sort_custom(func(a,b): return a.actor < b.actor)
  return result
@@ -285,15 +391,16 @@ func node_bounds(node:Node2D)->Rect2:
   bounds = node.get_global_transform_with_canvas() * local
  return bounds
 
-func actor_bounds(label:String)->Array:
+func actor_bounds(label:String, issues:Array)->Array:
  var rows = []
  for node in art.native_object_nodes.values():
   var key = actor_key(node)
   if key == "" or not node.visible: continue
   var bounds = node_bounds(node)
-  check(bounds.has_area(), "Actor has no completed geometry bounds")
-  if label != "pan-offscreen": check(VIEW.encloses(bounds), "Complete silhouette outside viewport: " + key + " " + str(bounds))
-  rows.append({"actor":key, "bounds":plain(bounds), "fully_in_view":VIEW.encloses(bounds), "reflected":node.transform.determinant() < 0})
+  var domain = actor_domain(key)
+  if not bounds.has_area(): issues.append("Actor has no completed geometry bounds: " + key)
+  if domain == "cafe" and label != "pan-offscreen" and not VIEW.encloses(bounds): issues.append("Complete café silhouette outside viewport: " + key + " " + str(bounds))
+  rows.append({"actor":key, "domain":domain, "bounds":plain(bounds), "fully_in_view":VIEW.encloses(bounds), "reflected":node.transform.determinant() < 0})
  rows.sort_custom(func(a,b): return a.actor < b.actor)
  return rows
 
@@ -351,9 +458,18 @@ func pick_receipt(label:String)->Dictionary:
 
 func validate_scene(label:String, rows:Array, contacts:Array):
  var keys = contacts.map(func(row): return row.actor)
- var expected_count = 0 if game.editing else game.model.customers.size() + game.staff_states.size()
- var bodies = keys.filter(func(key): return key.ends_with("|body"))
- if label != "pan-offscreen": check(bodies.size() == expected_count, "Dropped or duplicated full-scene actor")
+ check(actor_domains.ok, "Café/ambient domain collision: " + str(actor_domains.errors))
+ for contact in contacts: check(contact.domain in ["cafe","ambient"], "Unknown actor appearance domain: " + str(contact.actor))
+ for row in rows:
+  if row.has("actor"): check(row.domain in ["cafe","ambient"], "Unknown painter actor appearance domain: " + str(row.actor))
+ var bodies = rows.filter(func(row): return row.get("domain", "") == "cafe" and str(row.get("actor", "")).ends_with("|body")).map(func(row): return row.actor)
+ var contact_bodies = contacts.filter(func(row): return row.domain == "cafe" and row.actor.ends_with("|body")).map(func(row): return row.actor)
+ var expected = expected_cafe_bodies()
+ check(body_multiset_matches(contact_bodies,bodies), "Visible café bodies and live contact bodies differ")
+ check(body_multiset_matches(bodies,expected,label == "pan-offscreen"), "Café body identities differ; expected " + str(expected) + ", actual " + str(bodies))
+ for row in rows + contacts:
+  if row.get("domain", "") == "cafe":
+   check(row.actor.get_slice("|",0) + "|body" in expected, "Departed or unknown café actor pass remains: " + str(row.actor))
  check(rows.any(func(row): return row.kind == "wall-slice"), "Real wall slices missing")
  if label != "pan-offscreen": check(rows.any(func(row): return row.kind == "furniture" and row.item.kind == "chair"), "Real chairs missing")
  if label in ["seated-table-reach", "waiter-food-delivery", "chef-station-rear"]:
@@ -410,33 +526,73 @@ func save_image(filename:String)->String:
  check(img.save_png(output.path_join(filename)) == OK, "PNG save failed")
  return hash_context.finish().hex_encode()
 
+func capture_failed()->bool:
+ if failures.is_empty(): return false
+ pending_frame.status = "failed_incomplete"
+ pending_frame.first_completed_frame = false
+ pending_frame.completed.all_completed = false
+ write_report()
+ return true
+
 func capture(label:String):
+ if not failures.is_empty(): return
+ # Keep incomplete evidence outside frames. Nothing becomes a completed pair
+ # until every first-frame assertion and the PNG write have succeeded.
+ pending_frame = {"label":label, "status":"preparing", "first_completed_frame":false, "input":{}, "completed":{"native_groups":0,"shapes":0,"all_completed":false}, "contacts":[], "emitted_contacts":[], "semantic_order":[], "silhouettes":[], "picking":{}, "file":"%02d-%s.png" % [frames.size(),label], "rgba_sha256":""}
+ art.update_projection()
+ refresh_actor_domains()
+ pending_frame.input = inputs()
+ pending_frame["expected_cafe_bodies"] = expected_cafe_bodies()
+ write_report()
  check(label == LABELS[frames.size()], "Capture order differs")
  check(game.save_calls == 0, "Save callback occurred")
- art.update_projection()
- var state = inputs()
+ check(actor_domains.ok, "Café/ambient domain collision: " + str(actor_domains.errors))
+ if capture_failed(): return
  if not smoke: art.character_pick_geometry.request_query()
+ pending_frame.status = "awaiting_first_post_draw"
  art.queue_redraw()
  if smoke: await process_frame
  else: await RenderingServer.frame_post_draw
- var completed = {"native_groups":0, "shapes":0, "all_completed":false}
- var row = {"label":label, "first_completed_frame":not smoke, "input":state, "completed":completed, "contacts":[], "semantic_order":[], "silhouettes":[], "picking":{}, "file":"%02d-%s.png" % [frames.size(),label], "rgba_sha256":""}
  if not smoke:
-  completed_native(art, completed)
-  check(completed.native_groups > 0 and completed.shapes > 0, "Full scene lacks completed native paint")
-  completed.all_completed = true
+  pending_frame.status = "first_post_draw_observed_unvalidated"
   var owner_contacts = []
   for owner in art.native_object_nodes.values():
    if owner.visible: owner_contacts.append_array(owner.contacts)
-  row.contacts = contacts_normalized(owner_contacts)
-  check(contacts_normalized(art.render_contacts) == row.contacts, "Emitted/current owner contacts differ")
-  row.semantic_order = current_order()
-  validate_scene(label, row.semantic_order, row.contacts)
-  row.silhouettes = actor_bounds(label)
-  row.picking = pick_receipt(label)
-  row.rgba_sha256 = save_image(row.file)
-  row["post_draw_state"] = inputs()
- frames.append(row)
+  var contact_issues = []
+  var order_issues = []
+  pending_frame.contacts = contacts_normalized(owner_contacts,contact_issues)
+  pending_frame.emitted_contacts = contacts_normalized(art.render_contacts,contact_issues)
+  pending_frame.semantic_order = current_order(order_issues)
+  pending_frame["visible_cafe_bodies"] = pending_frame.semantic_order.filter(func(row): return row.get("domain", "") == "cafe" and str(row.get("actor", "")).ends_with("|body")).map(func(row): return row.actor)
+  pending_frame.visible_cafe_bodies.sort()
+  pending_frame["contact_issues"] = contact_issues
+  pending_frame["order_issues"] = order_issues
+  # Persist complete raw identity/contact/order observations before assertions.
+  write_report()
+  check(contact_issues.is_empty(), "Contact observation errors: " + str(contact_issues))
+  check(order_issues.is_empty(), "Painter observation errors: " + str(order_issues))
+  check(pending_frame.emitted_contacts == pending_frame.contacts, "Emitted/current owner contacts differ")
+  if capture_failed(): return
+  completed_native(art,pending_frame.completed)
+  check(pending_frame.completed.native_groups > 0 and pending_frame.completed.shapes > 0, "Full scene lacks completed native paint")
+  if capture_failed(): return
+  var silhouette_issues = []
+  pending_frame.silhouettes = actor_bounds(label,silhouette_issues)
+  pending_frame["silhouette_issues"] = silhouette_issues
+  write_report()
+  validate_scene(label,pending_frame.semantic_order,pending_frame.contacts)
+  check(silhouette_issues.is_empty(), "Silhouette observation errors: " + str(silhouette_issues))
+  if capture_failed(): return
+  pending_frame.picking = pick_receipt(label)
+  if capture_failed(): return
+  pending_frame.rgba_sha256 = save_image(pending_frame.file)
+  pending_frame["post_draw_state"] = inputs()
+  if capture_failed(): return
+  pending_frame.completed.all_completed = true
+  pending_frame.first_completed_frame = true
+ pending_frame.status = "headless_smoke_only" if smoke else "validated_first_post_draw"
+ frames.append(pending_frame)
+ pending_frame = {}
  write_report()
 
 func fresh_safety_frame():
@@ -457,7 +613,7 @@ func safety_image(label:String, evidence:Dictionary):
  write_report()
 
 func exceptional_safety():
- if smoke or not candidate: return
+ if smoke or not candidate or not failures.is_empty(): return
  DirAccess.make_dir_recursive_absolute(output.path_join("abnormal"))
  abnormal_safety.executed = true
  var guest_key = "guest/" + str(normal_guest.id) + "|body"
@@ -529,7 +685,7 @@ func exceptional_safety():
 
 func write_report():
  if output == "": return
- var report = {"engine":Engine.get_version_info(), "display":DisplayServer.get_name(), "renderer":RenderingServer.get_current_rendering_method(), "viewport":[1360,880], "fixture_seed":13017, "generated_profile":true, "save_calls":game.save_calls if is_instance_valid(game) else 0, "game_instance_created":is_instance_valid(game), "smoke_only":smoke, "frames":frames, "abnormal_safety":abnormal_safety, "failures":failures, "scope":"24 frozen generated full-Main first-post-draw frames; fixed logical poses, real native painter/query protocol. Candidate-only exceptional ownership cases are not paired pixels. No browser, continuous gameplay, FPS, GPU or user visual acceptance."}
+ var report = {"engine":Engine.get_version_info(), "display":DisplayServer.get_name(), "renderer":RenderingServer.get_current_rendering_method(), "viewport":[1360,880], "fixture_seed":13017, "generated_profile":true, "save_calls":game.save_calls if is_instance_valid(game) else 0, "game_instance_created":is_instance_valid(game), "smoke_only":smoke, "frames":frames, "pending_frame":pending_frame, "abnormal_safety":abnormal_safety, "failures":failures, "scope":"24 frozen generated full-Main first-post-draw frames; fixed logical poses, real native painter/query protocol. Candidate-only exceptional ownership cases are not paired pixels. No browser, continuous gameplay, FPS, GPU or user visual acceptance."}
  var file = FileAccess.open(output.path_join("capture.json"), FileAccess.WRITE)
  if file != null: file.store_string(JSON.stringify(report, "  ", true, true))
 

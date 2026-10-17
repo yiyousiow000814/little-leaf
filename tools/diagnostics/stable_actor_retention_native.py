@@ -12,7 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[2]
 BASE = "d81afcd5b760eb4cc70eb941b4c28795f8c04df6"
 FIXTURE = "tests/diagnostics/capture_stable_actor_retention.gd"
-FIXTURE_SHA = "32cc02a7f745fcc0c663aafcb678be4ee5c8f17b72af6766a9dd0fc9e41cce0c"
+FIXTURE_SHA = "ed33d9151e32a68b906f02e0596449cd437be9e0071a28c9ebb9083c9404f14a"
 PRODUCTION = {'game/scripts/rendering/illustrated_cafe.gd': '144eea1e8866ff9bd55e20f23eddecb0b158e1226ca5bbd7b107526fc40ab5fc', 'game/scripts/rendering/cafe_character_pick_geometry.gd': '5157e40693b445219b0648c695652c6b17fe7854bc0159cf215166f0495b1c06'}
 LABELS = ('initial', 'equal-depth-approach-a', 'equal-depth-approach-b', 'seated-table-reach', 'waiter-food-delivery', 'chef-station-rear', 'cleaner-litter-foreground', 'body-overlay-depth-reversal', 'front-back-turn', 'reflected-placement', 'blink-on', 'blink-off', 'pan-offscreen', 'pan-back', 'zoom-out', 'zoom-back', 'decorate-hide', 'decorate-return', 'guest-departure', 'same-id-guest-replacement', 'staff-node-replacement', 'same-main-service-restore', 'model-replacement', 'final-normal-scene')
 
