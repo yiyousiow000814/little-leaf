@@ -13,16 +13,16 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = "f6ebeccd9fb8d2ded28895dc2f134c2a491f1ced"
 OLD_PR_HEAD = "076747fe956f08e34cf18e67bf0b4339d1aac00b"
 FIXTURE = "tests/persistence/test_support_mail_ui.gd"
-FIXTURE_SHA = 'e707fa8d9d1637eb24e72f0b3a1a93186b9451c7bad7117a7320d5ebf14161a8'
+FIXTURE_SHA = 'bebf7311dfa14e672f45728af03cf8de1de5d049c584e676273651e694c937e5'
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78",
     "game/scripts/persistence/cafe_web_save.gd": "42eb9aea6a1bbaf79f29dc8c8b4b7a0a16852f9ace5a8e31f405a44492b62f0d",
     "game/scripts/ui/cafe_compact_ui.gd": "52dce3768a941a847d3d93684f6e8dda43c49546f183d06df286f11fac36c881",
-    "game/scripts/ui/cafe_inbox.gd": "4e256a5ff15fde90f2b55787221a85100caefd4cc4b4075d38b7fa425c564c50",
+    "game/scripts/ui/cafe_inbox.gd": "148f18401952e7a06e1720bc928a2ac236323e59e7d36ed01ad281a4bcb131b7",
     "game/scripts/ui/cafe_mail_frame.gd": "47696e4a6980a78bcf6db42856adcaedf731b80180a8d5f815e8eaeecbd4ab00",
     "game/scripts/ui/cafe_mail_gift_catalog.gd": "bac2c5c930be7ed59782584a6930e3ccbeebe4ee3ace9d39f644a5f2d0689e88",
     "game/scripts/ui/cafe_mail_recipients.gd": "ae3f114c3012a011b481863d531c221bbc167c8afced3b9676eb6db3ebafbef0",
-    "game/scripts/ui/cafe_support_mail.gd": "ab9c2645795c58824ce20e60b69aae6b5eff391c21514142b38a75f55d792a2a",
+    "game/scripts/ui/cafe_support_mail.gd": "1395ee05d80f9241e966fa1ce3ee529b79ce1d80ee475e3af55d24bea87c950c",
     "platform/firebase/firestore.rules": "350806e48d676a2b09bcd9e938c6faddbccedacaac60125c1091931b136b7601",
     "platform/firebase/index.mjs": "93464f1e4c5d3e8ce8a4fd7ffd033c756e6ac844714915643cb39bdf233b60e1",
     "platform/firebase/package-lock.json": "2e9194dac6f50f02bce3b637763e3ca47b9ddca1371163e78c4a2aef6dbb96d9",
@@ -39,7 +39,7 @@ REVIEWED_POSTIMAGES = {
     "platform/firebase/support_mail_service.mjs": "394e0debf6ffed2305235de2e560625fa273a89270aee08f71a4b86634a2900b",
     "platform/firebase/support_storage.test.mjs": "3f784fb0d8c842e677e6bb4e260de8155a07ecb1e8b8c632d9379142dafd2775",
     "platform/firebase/support_storage_fixture.mjs": "5160069fd12bcf9813cfc376499919d3f216cefe90f6a438ff1b1506da20c80b",
-    "platform/firebase/support_storage_routing.rules.test.mjs": "4e6d76f7e0cefdcf3251827ee25ff7078b2390e402e0379f708bda8ac22d9539",
+    "platform/firebase/support_storage_routing.rules.test.mjs": "2f906aacd64f441a1d3a774dc076cee1228259d7ff3070b0214dbf0a3bfc1332",
     "platform/web/little_leaf_crazygames_shell.html": "27fab3b123d464fc02bee8bb3a9187d16c2abfbf812eeb814afc91723bc6d21a",
     "platform/web/little_leaf_firebase.js": "d63b7ec0343aebb534e9c0b4f86197519ce7ac2dbf14476d510dcaeba550d027",
     "platform/web/little_leaf_firebase_boot.mjs": "39f7cbefab4a6155e79ff00537dde479b88b0b87b314d38014bcf1764ea32635",
@@ -47,7 +47,7 @@ REVIEWED_POSTIMAGES = {
     "platform/web/little_leaf_vault.js": "34a9d8ab24e1b8aab5cddd9a7da5d3f596d9b2c0ceaf798fe91d32894a73709c"
 }
 SIZES = ("1360x880", "390x844", "844x390")
-SURFACES = ("selected-review", "selected-attachments", "all-review", "inbox-letter", "inbox-attachments")
+SURFACES = ("editable-composer", "selected-review", "selected-attachments", "all-review", "inbox-letter", "inbox-attachments")
 
 
 def require(ok, message):

@@ -605,7 +605,7 @@ func _preview():
    _render_review(result)
    send_button.text="Send to %d players"%preview_recipient_count if result.audience.mode=="all" else "Send letter"
    preview_button.text="Review again"
-   note.text="Confirm recipients and contents, then Send."
+   note.text=""
    send_button.disabled=int(result.recipientCount)<=0 or preview_expires_at<=Time.get_unix_time_from_system()*1000.0
    if int(result.recipientCount)<=0:note.text="No recipients found. Nothing to send."
   preview_card.show();_reveal_review()

@@ -55,7 +55,7 @@ func run():
  check(ui.inbox.rows.size()==1 and ui.inbox.has_unread(),"support letter appears without a legacy paid-receipt projection")
  ui.inbox.rows[0].pressed.emit();await process_frame
  check("Thank you for your report." in _text(ui.inbox.letter_body),"support letter opens in Inbox")
- check("Claim attachments" in _text(ui.inbox.footer),"unclaimed gifts keep the real claim action in the fixed footer")
+ check(ui.inbox.claim_button.text=="Claim","unclaimed letters keep the concise Claim action in the fixed footer")
  check(ui.inbox.MailFrame.inner_rect(ui.inbox.panel).encloses(ui.inbox.footer.get_global_rect()) and ui.inbox.MailFrame.inner_rect(ui.inbox.panel).encloses(ui.inbox.heading_box.get_global_rect()),"Inbox heading/actions stay inside the wood face")
  check(ui.inbox.panel.get_theme_stylebox("panel") is StyleBoxTexture and ui.inbox.WIDTH==460,"Inbox restores its original wood frame and width")
  check(ui.inbox.has_unread()==false,"reading does not claim or retain unread dot")
@@ -221,7 +221,12 @@ func _capture_mail_surfaces(game,ui):
  var record={"schema":1,"mailId":MAIL,"title":composer.subject.text,"body":composer.letter.text,"coins":125,"items":[{"catalogId":"plant","quantity":2},{"catalogId":"beverage","quantity":1}],"issuedAt":1770000000000.0,"status":"unclaimed"}
  composer.mail_snapshot={"ok":true,"profileId":PROFILE,"mail":[record]}
  for viewport in [Vector2i(1360,880),Vector2i(390,844),Vector2i(844,390)]:
-  root.size=viewport;ui._hide_popups();composer.show();composer._set_recipient_mode("selected");composer._preview()
+  root.size=viewport;ui._hide_popups();composer.show();composer._set_recipient_mode("selected")
+  composer.scroll.scroll_vertical=0;await _settle_capture(ui)
+  _check_compose_capture(composer,viewport,false)
+  check(composer.recipient.editable and composer.recipient.text=="123456789012, 234567890123" and composer.coins.editable and int(composer.coins.value)==125 and int(composer.quantities.plant)==2 and int(composer.quantities.beverage)==1,"editable capture retains selected UIDs and coin/item quantities "+str(viewport))
+  await _save_capture("editable-composer",viewport)
+  composer._preview()
   await _settle_capture(ui)
   _check_compose_capture(composer,viewport)
   check("2 recipients" in composer.preview_summary.text and "Leafy plant ×2" in composer.preview_summary.text and "Beverage station ×1" in composer.preview_summary.text,"selected review uses exact real attachment names and quantities "+str(viewport))
@@ -250,14 +255,15 @@ func _settle_capture(ui):
  for i in 10:
   ui._fit_themed_popups();await process_frame
 
-func _check_compose_capture(composer,viewport:Vector2i):
+func _check_compose_capture(composer,viewport:Vector2i,expect_review:bool=true):
  var wood=composer.MailFrame.inner_rect(composer.panel)
  check(Rect2(Vector2.ZERO,Vector2(viewport)).encloses(composer.panel.get_global_rect()),"capture composer fits viewport "+str(viewport))
  for part in [composer.header,composer.footer,composer.scroll,composer.preview_button,composer.send_button]:
   check(wood.encloses(part.get_global_rect()),"capture composer fixed controls remain within painted wood face "+part.get_class()+str(viewport))
  check(_scroll_count(composer.panel)==1 and not composer.letter.get_v_scroll_bar().visible and not composer.recipient.get_v_scroll_bar().visible,"capture composer retains one scroll area "+str(viewport))
  check("125 Leaf Coins · 3 items" in composer.attachment_summary.text,"capture fixed per-player totals are visible "+str(viewport))
- check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"capture review card is in the scrolling viewport "+str(viewport))
+ if expect_review:check(composer.scroll.get_global_rect().intersects(composer.preview_card.get_global_rect()),"capture review card is in the scrolling viewport "+str(viewport))
+ else:check(composer.scroll.scroll_vertical==0 and not composer.preview_card.visible and composer.send_button.disabled,"editable top capture has no prepared review or Send authority "+str(viewport))
 
 func _save_capture(surface:String,viewport:Vector2i):
  await RenderingServer.frame_post_draw

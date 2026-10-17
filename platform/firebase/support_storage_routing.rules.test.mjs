@@ -17,7 +17,7 @@ for(const name of ['little_leaf_vault','little_leaf_firebase'])
 const api=globalThis.LittleLeafFirebase,codec=globalThis.LittleLeafAuthorityCodec;
 const oldRules=readFileSync(new URL('../../tests/fixtures/storage-current-main.rules',import.meta.url),'utf8');
 assert.equal(createHash('sha256').update(oldRules).digest('hex'),'54b8c54ca686839b0dde12ef2de5aaf6f3dc9ed4410bb052dcf5c5e89e3895f5',
-  'unchanged main63642fdd rules fixture');
+  'unchanged main f6ebeccd rules fixture');
 assert.match(process.env.FIRESTORE_EMULATOR_HOST||'',/^(127\.0\.0\.1|localhost):[0-9]+$/,'Local emulator only');
 const app=initializeApp({projectId:'demo-little-leaf'}),admin=getFirestore(app);
 const service=createSupportMailService({db:admin,enabled:true});
@@ -129,4 +129,4 @@ for(const [policy,rules] of [['current-main',oldRules],['candidate',readFileSync
 }
 await deleteApp(app);
 console.log(JSON.stringify({passed:true,cases:completed,real_firestore_rules:true,real_sdk:true,real_indexeddb:false,real_functions_transport:false,
-  production_access:false,node:process.version,policies:['main63642fdd immutable fixture','unchanged R2 candidate']}));
+  production_access:false,node:process.version,policies:['main f6ebeccd immutable fixture','PR329 candidate']}));

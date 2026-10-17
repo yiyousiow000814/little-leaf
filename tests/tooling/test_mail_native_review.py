@@ -24,7 +24,7 @@ class MailNativeReviewTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
 
-    def test_fifteen_frames_are_structural_evidence_not_acceptance(self):
+    def test_eighteen_frames_are_structural_evidence_not_acceptance(self):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
             for surface in review.SURFACES:
@@ -36,7 +36,7 @@ class MailNativeReviewTests(unittest.TestCase):
             (folder / "capture-receipt.json").write_text(json.dumps(receipt))
             log = 'OpenGL API - Compatibility\nSUPPORT_MAIL_UI_RESULT {"checks":200,"failures":[]}\n'
             result = review.check_frames(folder, log)
-            self.assertEqual(len(result["frames"]), 15)
+            self.assertEqual(len(result["frames"]), 18)
             self.assertFalse(result["pixels_inspected"])
             for bad in (log.replace("OpenGL API", "headless"), log + log,
                         log.replace('"failures":[]', '"failures":["overflow"]')):
@@ -53,7 +53,8 @@ class MailNativeReviewTests(unittest.TestCase):
                          "head.repo.full_name == github.repository", "persist-credentials: false",
                          "--native-only", "--verify-only", "if: always()", "--ignore-scripts",
                          "setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38", "node-version: '22.20.0'",
-                         "GOOGLE_APPLICATION_CREDENTIALS: ''", "FIREBASE_TOKEN: ''"):
+                         "GOOGLE_APPLICATION_CREDENTIALS: ''", "FIREBASE_TOKEN: ''",
+                         "METADATA_SERVER_DETECTION: 'none'", "grep -q 'MetadataLookupWarning'"):
             self.assertIn(required, source)
         for forbidden in ("workflow_dispatch", "pull_request_target", "secrets.", "write-manifest",
                           "firebase deploy", "contents: write", "id-token:", "rules deploy"):

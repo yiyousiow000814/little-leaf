@@ -248,9 +248,10 @@ func _entry(record:Dictionary):
  var focus=_paper_style(0);focus.bg_color=Color.TRANSPARENT;focus.border_color=GREEN;focus.set_border_width_all(2);focus.set_corner_radius_all(6);entry.add_theme_stylebox_override("focus",focus)
  var inset=MarginContainer.new();inset.name="EnvelopePadding";inset.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
  for side in ["top","bottom"]:inset.add_theme_constant_override("margin_"+side,12)
- inset.add_theme_constant_override("margin_left",64);inset.add_theme_constant_override("margin_right",30);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
+ inset.add_theme_constant_override("margin_left",64);inset.add_theme_constant_override("margin_right",28);inset.mouse_filter=Control.MOUSE_FILTER_IGNORE;entry.add_child(inset)
  var words=VBoxContainer.new();words.add_theme_constant_override("separation",3);words.mouse_filter=Control.MOUSE_FILTER_IGNORE;inset.add_child(words)
- words.add_child(_label(_title(record),17));words.add_child(_label(_entry_description(record)+"  ·  "+_date(record),13,MUTED))
+ var description=_entry_description(record)
+ words.add_child(_label(_title(record),17));words.add_child(_label((description+"  ·  " if description!="" else "")+_date(record),13,MUTED))
  entry.accessibility_name=_title(record)+", "+_date(record)+(", unread" if unread else ", read")
  content.add_child(entry);rows.append(entry)
  words.minimum_size_changed.connect(func():entry.custom_minimum_size.y=maxf(88,words.get_combined_minimum_size().y+24))
@@ -277,18 +278,16 @@ func _support_detail(record:Dictionary):
  letter_body.add_child(_label(str(record.get("body","")),16))
  var gift_box=PanelContainer.new();gift_box.mouse_filter=Control.MOUSE_FILTER_PASS;gift_box.add_theme_stylebox_override("panel",_tint_style(14));letter_body.add_child(gift_box)
  var gift_contents=VBoxContainer.new();gift_contents.add_theme_constant_override("separation",6);gift_box.add_child(gift_contents)
- gift_contents.add_child(_label("Enclosed for your café",16,GREEN))
  if int(record.get("coins",0))>0:
   var coin_row=HBoxContainer.new();coin_row.add_theme_constant_override("separation",8);gift_contents.add_child(coin_row)
   var coin_art=compact.hud._picture(coin_row,compact.hud._texture("coin"));coin_art.custom_minimum_size=Vector2(28,28)
   coin_row.add_child(_label("%s Leaf Coins"%Money.amount(int(record.coins)),18))
  for item in record.get("items",[]):
   gift_contents.add_child(_label("%s ×%d"%[GiftCatalog.item_name(game.model,str(item.get("catalogId",""))),int(item.get("quantity",0))],16))
- if not record.get("items",[]).is_empty():gift_contents.add_child(_label("Items → Storage · Coins → wallet",13,MUTED))
  var claimed=str(record.get("status",""))=="claimed"
- letter_body.add_child(_label("Claimed" if claimed else "Ready to claim",14,MUTED))
+ if claimed:letter_body.add_child(_label("Claimed",14,MUTED))
  if not claimed:
-  var claim:Button=game.button("Claim attachments",func():pass)
+  var claim:Button=game.button("Claim",func():pass)
   claim_button=claim
   claim.pressed.connect(func():
    if claim.disabled:return
@@ -297,7 +296,7 @@ func _support_detail(record:Dictionary):
     if compact.support_mail!=null and compact.support_mail.mail_error=="":compact.support_mail.mail_error="Finish decorating and save your café before claiming."
    else:
     claim.disabled=true
-    if compact.support_mail!=null:compact.support_mail.mail_error="Claiming attachments…"
+    if compact.support_mail!=null:compact.support_mail.mail_error="Claiming…"
    sync()
   )
   claim.custom_minimum_size.y=44;footer.add_child(claim);_theme_mail_action(claim,true);focus_actions.append(claim)
@@ -308,7 +307,7 @@ func _title(record:Dictionary)->String:
  return "Café update compensation" if str(record.id)==KNOWN_CAMPAIGN else "Café compensation"
 
 func _entry_description(record:Dictionary)->String:
- if record.has("mailId"):return "Claimed" if str(record.get("status",""))=="claimed" else "Ready to claim"
+ if record.has("mailId"):return "Claimed" if str(record.get("status",""))=="claimed" else ""
  return "Paid"
 
 func _reason(record:Dictionary)->String:

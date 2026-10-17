@@ -79,6 +79,7 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ''
           FIREBASE_TOKEN: ''
+          METADATA_SERVER_DETECTION: 'none'
         run: |
           set -euo pipefail
           export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
@@ -89,6 +90,10 @@ jobs:
           npm --prefix platform/firebase ci --ignore-scripts --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/mail-emulator/install.log"
           npm --prefix platform/firebase run test:support:contract 2>&1 | tee "$RUNNER_TEMP/mail-emulator/contract.log"
           npm --prefix platform/firebase run test:support:emulator 2>&1 | tee "$RUNNER_TEMP/mail-emulator/emulator.log"
+          if grep -q 'MetadataLookupWarning' "$RUNNER_TEMP/mail-emulator/emulator.log"; then
+            echo 'Unexpected metadata environment probe in isolated emulator run' >&2
+            exit 1
+          fi
           printf '%s\n' '{"passed":true,"local_emulator_only":true,"real_accounts":false,"functions_transport":false}' > "$RUNNER_TEMP/mail-emulator/result.json"
       - name: Retain local emulator results and failures
         if: always()

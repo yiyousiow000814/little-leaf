@@ -79,6 +79,7 @@ func run():
  check(composer.pending.size()==1 and composer.preview_button.disabled and composer.send_button.disabled,"double Review launches one request and gates Send")
  var initial=composer.pending.pop_front();initial.handler.call(_review(initial.args[0],"ready",2))
  check(not composer.send_button.disabled and composer.preview_payload.previewHash=="synthetic-review-hash","ready snapshot enables Send only with hash")
+ check(composer.note.text=="","ready review omits redundant confirmation footer")
  check("Total for this audience:\n250 Leaf Coins\nLeafy plant ×4\nDishwashing sink ×2" in composer.preview_summary.text and composer.send_button.text=="Send letter","selected review shows exact server aggregates without changing selected Send")
  check("Captured 2026-10-17 08:00:00.123 UTC to 2026-10-17 08:00:05.456 UTC" in composer.preview_summary.text,"review renders exact millisecond-accurate server capture interval")
  var wrong_totals=_review(initial.args[0],"ready",2);wrong_totals.totals.coins=251
@@ -148,7 +149,7 @@ func run():
  var record={"mailId":"synthetic","title":"A little thank-you","body":"A short note.","issuedAt":1770000000000.0,"coins":125,"items":records,"status":"claimed"}
  inbox._support_detail(record)
  var actual=_text(inbox.letter_body)
- for expected in ["Leafy plant ×2","Dishwashing sink ×1","Future Lantern ×3","Unknown item ×4","125 Leaf Coins","Items → Storage","Claimed"]:
+ for expected in ["Leafy plant ×2","Dishwashing sink ×1","Future Lantern ×3","Unknown item ×4","125 Leaf Coins","Claimed"]:
   check(expected in actual,"actual Inbox controls show "+expected)
  check(not "Dear café owner" in actual and not "Warmly" in actual,"support letter does not wrap supplied body in redundant greeting")
  var rendering=_review(request,"ready",2);rendering.items=records;composer._render_review(rendering)
@@ -160,8 +161,9 @@ func run():
  # A failed claim must update detail feedback even when mailbox bytes are unchanged.
  inbox.panel=PanelContainer.new();game.add_child(inbox.panel);inbox.panel.hide();compact.inbox=inbox;game.web_save=ClaimTransport.new()
  record.status="unclaimed";inbox._support_detail(record);inbox.sync()
+ check(inbox.claim_button.text=="Claim" and inbox._entry_description(record)=="" and not "Ready to claim" in _text(inbox.letter_body) and not "Items → Storage" in _text(inbox.letter_body) and not "Enclosed for" in _text(inbox.letter_body),"unclaimed letter contains only authored text and attachment values, with concise Claim action")
  inbox.claim_button.pressed.emit();inbox.claim_button.pressed.emit()
- check(game.web_save.attempts==1 and inbox.claim_button.disabled and inbox.claim_status.text=="Claiming attachments…","Claim double-click is guarded and pending detail feedback remains visible")
+ check(game.web_save.attempts==1 and inbox.claim_button.disabled and inbox.claim_status.text=="Claiming…","Claim double-click is guarded and pending detail feedback remains visible")
  game.web_save.pending=false;game.web_save._support_claim_mail_id="";composer.claim_result(false,"Synthetic known failure")
  check(not inbox.claim_button.disabled and inbox.claim_status.text=="Synthetic known failure","known failure re-enables Claim and shows exact reason without mailbox rebuild")
  game.web_save.ready=false;composer.claim_result(false,"Reload to recover an uncertain claim.")
