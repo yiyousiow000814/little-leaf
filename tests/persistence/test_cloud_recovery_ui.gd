@@ -151,6 +151,24 @@ func run():
  bridge.finish({"ok":true,"source":"authority","profileId":"synthetic","revision":11,"payload":payload});await settle()
  check(game.resumes==3 and not game.paused and not game.save_recovery_blocked,"same-owner reconnect resumes validated preserved snapshot")
  bridge.value.accountChanged=true;controller.check_runtime_recovery();check(game.save_recovery_blocked and game.paused,"account switch preserves current model on page")
+ # The client exposes a failed bounded finish as the existing retry state.
+ # Reuse the explicit switch action, not a force or local/cloud choice.
+ var retry_controller=Controller.new(game);game.web_save=retry_controller
+ retry_controller.startup_error="Synthetic ownership pause"
+ retry_controller._takeover_finish_attempted=true
+ var retry_bridge=retry_controller.bridge
+ retry_bridge.value={"serverOwnership":true,"status":"resume-needed","ownershipPaused":true,"canRequestTakeover":true,"canForceTakeover":false}
+ ui.show_help();await settle()
+ check(ui.help_switch_device.visible and ui.help_switch_device.text=="Try again" and not ui.help_switch_device.disabled,"failed bounded finish leaves usable retry")
+ check(not ui.help_choose_local.visible and not ui.help_choose_cloud.visible,"retry does not ask for save source again")
+ for step in 120:retry_controller.check_runtime_recovery()
+ check(retry_bridge.finish_calls==0 and retry_bridge.switch_calls==0,"failed bounded finish does not poll new transactions")
+ ui.help_switch_device.pressed.emit();ui.help_switch_device.pressed.emit()
+ check(retry_bridge.switch_calls==1 and retry_controller.recovery_busy,"explicit retry dispatches once")
+ retry_bridge.value.status="takeover-ready";retry_bridge.value.canRequestTakeover=false
+ retry_bridge.finish({"ok":true,"status":"takeover-ready"});retry_controller.check_runtime_recovery()
+ check(retry_bridge.finish_calls==1 and retry_controller.recovery_busy,"acknowledged retry resumes existing automatic finish")
+ retry_bridge.finish({"ok":false,"code":"OFFLINE"})
  check(game.saves==0,"UI never submits an ordinary save")
  game.save_writes_suppressed=true;game.web_save=null
  print("CLOUD_RECOVERY_UI_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"geometry":records,"player_save_used":false}))

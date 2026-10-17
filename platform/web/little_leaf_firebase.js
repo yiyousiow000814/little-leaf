@@ -66,7 +66,7 @@
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
-    let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0;
+    let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0,takeoverFailed=false;
     const savedDevice=displayDevice(deviceLabel),recordDevices=new WeakMap();
     let localQueue=Promise.resolve();
     // Network waits never hold this queue. Only local journal transitions serialize.
@@ -508,7 +508,7 @@
         if(!ownership)return {serverOwnership:false};
         const state=ownership.snapshot();
         if(permissionDenied)return {...state,status:'resume-needed',ownershipPaused:true,canRequestTakeover:false,reason:permissionReason};
-        if(state.status==='active' && stopped && !recovery && !updateInProgress && !recoveryBusy)
+        if((state.status==='active'||takeoverFailed&&state.status==='takeover-ready'&&!state.canForceTakeover) && stopped && !recovery && !updateInProgress && !recoveryBusy)
           return {...state,status:'resume-needed',ownershipPaused:true,canRequestTakeover:true,reason:'Your café could not be opened yet. Retry on this device; current progress is preserved.'};
         return state;
       },
@@ -519,16 +519,17 @@
       async renewOwnership(){if(!ownership)return;try {accountGuard();await ownership.renew();await retryOwnerHandoff();}catch(_){/* Native observes the paused ownership snapshot. */}},
       async requestTakeover(){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
-        try {accountGuard();const state=await ownership.requestTakeover();if(state.status==='active')return client.finishTakeover();return {ok:true,...state};}catch(e){return failure(e);}
+        try {accountGuard();takeoverFailed=false;const state=await ownership.requestTakeover();if(state.status==='active')return client.finishTakeover();return {ok:true,...state};}catch(e){return failure(e);}
       },
       async finishTakeover(force=false){
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership is unavailable.'));
         try {
-          accountGuard();const previous=ownerHandoff;ownerHandoff=null;handoffGeneration++;handoffMode=false;stopped=true;
+          accountGuard();takeoverFailed=false;const previous=ownerHandoff;ownerHandoff=null;handoffGeneration++;handoffMode=false;stopped=true;
           // Explicit recovery invalidates old work before any new boot/write.
           for(const task of [handoffRetryTask,uploadTask,previous?.ackTask])if(task)await networkWait(task.catch(()=>{}));
-          await localQueue;accountGuard();await ownership.takeOver(force);accountGuard();stopped=false;bootReady=false;opened=null;recovery=null;choiceOperation=null;return client.boot();
-        }catch(e){return failure(e);}
+          await localQueue;accountGuard();await ownership.takeOver(force);accountGuard();stopped=false;bootReady=false;opened=null;recovery=null;choiceOperation=null;
+          const result=await client.boot();takeoverFailed=!result.ok;return result;
+        }catch(e){takeoverFailed=true;return failure(e);}
       },
       async forceTakeover(){return client.finishTakeover(true);},
       async preserveOwnerRuntime(payload,revision,profileId){

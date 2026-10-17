@@ -247,5 +247,6 @@ async function ackLeaseWriteChecks(){
  await require('./firebase_request_retry.js');
  await require('./firebase_ack_retry.js');
  await require('./firebase_handoff_continuation.js');
+ await require('./firebase_takeover_retry.js');
  console.log('Synthetic session: freeze/snapshot/flush/ack before fenced takeover, timeout force, old-cache resume, offline pending retention, abandoned-request cancel, no ping-pong and account/request races passed.');
 })().catch(e=>{console.error(e);process.exit(1);});
