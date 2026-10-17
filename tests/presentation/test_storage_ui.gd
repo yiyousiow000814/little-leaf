@@ -30,6 +30,17 @@ func category(name:String):
   for frame in 5:await process_frame
   await click(game.category_buttons[name])
  check(game.catalog_category==name,"real category input selects "+name)
+func settled_page():
+ await create_timer(.3).timeout
+ await settle()
+func show_count(kind:String,view:Vector2i):
+ var shop=game.compact_ui.shop_ui
+ for attempt in 8:
+  if game.catalog_scroll.get_global_rect().encloses(game.catalog_cards[kind].get_global_rect()):break
+  await click(shop.product_next);await settled_page()
+ check(game.catalog_scroll.get_global_rect().encloses(game.catalog_cards[kind].get_global_rect()),"count example is fully visible "+kind+str(view))
+ board_fit("Storage count "+kind,view)
+ await capture("storage-count"+shop.stock_counts[kind].text,view)
 func board_fit(mode:String,view:Vector2i):
  var shop=game.compact_ui.shop_ui
  var board=shop.background.get_global_rect();var interior=board.grow_individual(-26,-23,-26,-23)
@@ -40,6 +51,7 @@ func board_fit(mode:String,view:Vector2i):
   if not card.visible:continue
   var painted=card.get_global_rect().intersection(game.catalog_scroll.get_global_rect())
   check(not painted.has_area() or interior.encloses(painted),mode+" visible card inside painted wood "+str(view))
+  check(not painted.has_area() or game.catalog_scroll.get_global_rect().grow(.5).encloses(card.get_global_rect()),mode+" resting page shows whole cards "+str(view))
   for child in card.get_child(0).get_children():
    if child is Control and child.is_visible_in_tree():check(card.get_global_rect().encloses(child.get_global_rect()),mode+" card contents stay inside "+str(view))
 
@@ -93,10 +105,20 @@ func run():
    check(not body.get_child(1).visible and not body.get_child(2).visible and not body.get_child(3).visible,"owned card has no name/price/status copy "+kind+str(view))
    check(shop.stock_badges[kind].visible and shop.stock_counts[kind].text==str(int(game.catalog_stock[kind])),"small crate has plain stock number "+kind+str(view))
    check(card.get_global_rect().encloses(shop.stock_badges[kind].get_global_rect()),"crate badge stays inside item card "+kind+str(view))
+   var digits:Label=shop.stock_counts[kind];var font=digits.get_theme_font("font");var font_size=digits.get_theme_font_size("font_size")
+   var ink=font.get_string_size(digits.text,HORIZONTAL_ALIGNMENT_LEFT,-1,font_size)
+   check(not digits.clip_text and font_size>=14 and digits.size.x>=ceilf(ink.x) and digits.size.y>=ceilf(font.get_height(font_size)),"all stock digits have readable glyph bounds "+kind+str(view))
+   check(shop.stock_badges[kind].get_global_rect().encloses(digits.get_global_rect()) and card.get_global_rect().encloses(digits.get_global_rect()),"stock number is not clipped by badge/card "+kind+str(view))
    var painted=card.get_global_rect().intersection(rail)
    check(not painted.has_area() or interior.encloses(painted),"visible item card stays inside board "+kind+str(view))
   board_fit("Storage",view)
   await capture("storage",view)
+  await show_count("lamp",view);await show_count("bookshelf",view)
+  if not shop.product_next.disabled:
+   await click(shop.product_next);await settled_page();board_fit("Storage next page",view)
+  for attempt in 8:
+   if shop.product_back.disabled:break
+   await click(shop.product_back);await settled_page()
   if shop.category_picker.visible:
    await click(shop.category_picker)
    check(shop.category_panel.visible and viewport.encloses(shop.category_panel.get_global_rect()),"category-only picker fits viewport "+str(view))

@@ -17,11 +17,11 @@ REVIEWED_SOURCE = "9127a53d31258c28eaa37e06cc1752e8bd48b9f4"
 REVIEWED_TREE = "c82bf154e29da90ad34ff40a8910956c7bd9d68e"
 COMPONENT_SOURCE = "d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0"
 FIXTURE = "tests/presentation/test_storage_ui.gd"
-FIXTURE_SHA = "09b3a32513441fbe933c20f5f5d20b5b494b816b8da576b5652d70a05c190458"
+FIXTURE_SHA = "aa71c9c950542eaf8b0ffbdf874bb303d41116c84a0e122d900c7a7a978ded27"
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be",
-    "game/scripts/ui/cafe_shop_ui.gd": "798ce2bcba3e32350c77f3bf0d5615ad7043be86d2e59ac428cf44616dcfeb6e",
-    "tests/presentation/test_storage_ui.gd": "09b3a32513441fbe933c20f5f5d20b5b494b816b8da576b5652d70a05c190458"
+    "game/scripts/ui/cafe_shop_ui.gd": "3435fdfe5a4a1b4e3ad4c5bee42973d7a123cf1ffb85322929c5725477a720cf",
+    "tests/presentation/test_storage_ui.gd": "aa71c9c950542eaf8b0ffbdf874bb303d41116c84a0e122d900c7a7a978ded27"
 }
 PRIOR_ATLAS = {
     "source": "207409f5f19187e13f005de0f8a832b69f430cb9",
@@ -127,7 +127,7 @@ def check_frames(folder, log):
     require("Godot Engine v4.6.3.stable.official.7d41c59c4" in log and
             "OpenGL API" in log and "Compatibility" in log, "Missing native UI renderer evidence")
     expected = {f"{state}-{size}.png": tuple(map(int, size.split("x")))
-                for state in ("shop", "storage", "storage-categories", "store-action")
+                for state in ("shop", "storage", "storage-count2", "storage-count1", "storage-categories", "store-action")
                 for size in ("1360x880", "390x844", "844x390")}
     require({p.name for p in folder.glob("*.png")} == set(expected), "Incomplete or extra Storage captures")
     rows = {}

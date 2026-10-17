@@ -220,7 +220,7 @@ func setup():
   var availability=ui.hud._label(column,"",11,Color("93482e"));availability.custom_minimum_size.y=16;availability.size_flags_horizontal=Control.SIZE_EXPAND_FILL;affordability_labels[kind]=availability
   var badge=HBoxContainer.new();badge.mouse_filter=Control.MOUSE_FILTER_IGNORE;badge.add_theme_constant_override("separation",2);card.add_child(badge);stock_badges[kind]=badge
   var crate=StockCrate.new();crate.custom_minimum_size=Vector2(14,16);crate.mouse_filter=Control.MOUSE_FILTER_IGNORE;badge.add_child(crate)
-  var count=ui.hud._label(badge,"",12);count.mouse_filter=Control.MOUSE_FILTER_IGNORE;count.add_theme_font_override("font",ui.hud.font_bold);stock_counts[kind]=count
+  var count=ui.hud._label(badge,"",14);count.clip_text=false;count.mouse_filter=Control.MOUSE_FILTER_IGNORE;count.add_theme_font_override("font",ui.hud.font_bold);stock_counts[kind]=count
  for key in ["full","door","window"]:
   var card:Button=game.build_tools.tool_buttons[key];build_cards[key]=card;_style(card);card.custom_minimum_size=Vector2(148,140)
   var column:VBoxContainer=card.get_child(0);column.add_theme_constant_override("separation",2);column.offset_left=8;column.offset_right=-8;column.offset_top=4;column.offset_bottom=-4
@@ -869,10 +869,10 @@ func sync(width:float):
  var side=(56 if narrow or short_landscape else 48) if arrows else 0
  var shelf_width=product_width-side*2
  var next_page_items=1
- if (narrow or short_landscape) and arrows:
-  # Resting mobile pages contain complete cards. Do not trade readable text
+ if arrows:
+  # Resting pages at every width contain complete cards. Do not trade readable text
   # or the 44px arrow targets for a sliver of a neighbouring product.
-  next_page_items=maxi(1,floori((shelf_width+product_gap)/((card_w if short_landscape else 168.0)+product_gap)))
+  next_page_items=maxi(1,floori((shelf_width+product_gap)/(card_w+product_gap)))
   card_w=floori((shelf_width-product_gap*(next_page_items-1))/next_page_items)
   shelf_width=card_w*next_page_items+product_gap*(next_page_items-1)
  var next_key=str([game.catalog_mode,count,game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
@@ -881,7 +881,7 @@ func sync(width:float):
   if game.catalog_category=="Build" and build_page=="tiles" and game.build_tools.mode=="floor":index=maxi(0,_visible_build_keys().find(game.build_tools.floor_material))
   for scroll in [game.catalog_scroll,ui.build_scroll]:_stop_product_scroll(scroll);product_contacts.erase(scroll.get_instance_id())
   product_restore_index=index;product_layout_key=next_key;last_product_category=game.catalog_category
- product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=(narrow or short_landscape) and arrows
+ product_stride=card_w+product_gap;product_page_items=next_page_items;product_snap_enabled=arrows
  var card_h=float(geometry.card_height);var image_h=minf(58,card_h-16)
  var name_h=18;var price_h=24
  for key in _visible_build_keys():
@@ -944,7 +944,11 @@ func sync(width:float):
  for kind in game.catalog_cards:
   var card=game.catalog_cards[kind];_layout_product_card(card,card_w,card_h,short_landscape,owned)
   var holder=card.get_child(0).get_child(0);_fit_thumbnail(kind,holder.get_child(0),holder.size)
-  var badge:HBoxContainer=stock_badges[kind];var badge_size=badge.get_combined_minimum_size()
+  # HUD labels clip by default. Reserve actual digits before placing the badge,
+  # rather than measuring an empty/clipped HBox and waiting for a layout pass.
+  var count_label:Label=stock_counts[kind];var count_font=count_label.get_theme_font("font");var count_size=count_label.get_theme_font_size("font_size")
+  count_label.custom_minimum_size=Vector2(ceilf(count_font.get_string_size(count_label.text,HORIZONTAL_ALIGNMENT_LEFT,-1,count_size).x),ceilf(count_font.get_height(count_size)))
+  var badge:HBoxContainer=stock_badges[kind];var badge_size=Vector2(16+count_label.custom_minimum_size.x,maxf(16,count_label.custom_minimum_size.y))
   _put(badge,Rect2(Vector2(card_w-8-badge_size.x,4),badge_size))
  _layout_parking_card(card_w,card_h,short_landscape)
  for key in _visible_build_keys():

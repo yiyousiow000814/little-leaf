@@ -102,16 +102,16 @@ class StorageNativeReviewTests(unittest.TestCase):
 
     def frames(self):
         # Deliberately structural PNG headers, not real screenshot/pixel evidence.
-        for state in ("shop", "storage", "storage-categories", "store-action"):
+        for state in ("shop", "storage", "storage-count2", "storage-count1", "storage-categories", "store-action"):
             for size in ((1360, 880), (390, 844), (844, 390)):
                 (self.folder / f"{state}-{size[0]}x{size[1]}.png").write_bytes(
                     b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + struct.pack(">II", *size) + b"\0" * 1100)
         return ('Godot Engine v4.6.3.stable.official.7d41c59c4\nOpenGL API - Compatibility\n'
                 'STORAGE_UI_RESULT {"checks":160,"failures":[],"player_save_used":false}\n')
 
-    def test_twelve_frame_contract_never_accepts_pixels(self):
+    def test_eighteen_frame_contract_never_accepts_pixels(self):
         result = review.check_frames(self.folder, self.frames())
-        self.assertEqual(len(result["frames"]), 12)
+        self.assertEqual(len(result["frames"]), 18)
         self.assertFalse(result["pixels_inspected"])
 
     def test_missing_wrong_size_failed_or_headless_ui_refused(self):
