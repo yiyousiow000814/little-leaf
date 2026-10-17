@@ -25,6 +25,9 @@ var game
 var art
 var frames = []
 var pending_frame = {}
+# Wall-clock observations are diagnostic only, never paired semantic inputs.
+var picker_diagnostics = []
+var evidence_write_proof = {}
 var cafe_guest_cohort = []
 var actor_domains = {}
 var output = OS.get_environment("OUTPUT")
@@ -40,6 +43,7 @@ var abnormal_safety = {"executed":false, "passed":false, "cases":[]}
 
 func _initialize():
  if "--classifier-only" in OS.get_cmdline_user_args(): classifier_checks.call_deferred()
+ elif "--evidence-write-only" in OS.get_cmdline_user_args(): evidence_write_checks.call_deferred()
  else: run.call_deferred()
 
 # Pure domain classification: no ID ranges and no dependency on the live café
@@ -135,13 +139,60 @@ func classifier_checks():
  print("STABLE_ACTOR_DOMAIN_CLASSIFIER_RESULT ",JSON.stringify(result))
  quit(0 if result.passed else 2)
 
+func record_failure(message:String):
+ failures.append(message)
+ if not pending_frame.is_empty():
+  pending_frame.status = "failed_incomplete"
+  pending_frame.first_completed_frame = false
+  pending_frame.completed.all_completed = false
+ # The external runner terminates on ERROR, so commit and close first.
+ write_report()
+
 func check(ok:bool, message:String):
  if ok: return
- failures.append(message)
+ record_failure(message)
  push_error(message)
- write_report()
  quit(2)
  assert(ok, message)
+
+static func atomic_json(path:String, value:Dictionary)->Error:
+ # Serialize before opening anything. The target is never truncated: a killed
+ # writer leaves either the previous complete target or the renamed successor.
+ var encoded = JSON.stringify(value, "  ", true, true)
+ var temporary = path + ".pending"
+ var file = FileAccess.open(temporary, FileAccess.WRITE)
+ if file == null: return FileAccess.get_open_error()
+ file.store_string(encoded)
+ file.flush()
+ var error = file.get_error()
+ file.close()
+ if error != OK: return error
+ return DirAccess.rename_absolute(temporary, path)
+
+func evidence_write_checks():
+ # Pure file/error-order probe, not a game frame or rendering smoke test.
+ check(output != "" and "saveguard" in output, "Disposable evidence-write output required")
+ DirAccess.make_dir_recursive_absolute(output)
+ pending_frame = {"label":"pure-io-proof-not-gameplay", "status":"observed_unvalidated", "first_completed_frame":false, "completed":{"all_completed":false}, "input":{"synthetic":true}, "contacts":[{"actor":"synthetic-proof"}], "semantic_order":[{"order":0,"actor":"synthetic-proof"}], "picking":{"samples":[{"name":"synthetic-proof","occluded":true,"uncertain":true,"source_primitive_hit":1}]}}
+ evidence_write_proof = {"game_instance_created":false,"native_render_executed":false}
+ write_report()
+ var path = output.path_join("capture.json")
+ var previous = FileAccess.get_file_as_string(path)
+ check(JSON.parse_string(previous) is Dictionary, "Initial atomic snapshot must decode")
+ var partial = FileAccess.open(path + ".pending",FileAccess.WRITE)
+ check(partial != null, "Interrupted-write staging file required")
+ partial.store_string('{"deliberately_incomplete":')
+ partial.flush()
+ partial.close()
+ check(FileAccess.get_file_as_string(path) == previous, "Partial staging write changed committed evidence")
+ evidence_write_proof["partial_staging_preserved_target"] = true
+ evidence_write_proof["error_emitted_after_commit"] = true
+ record_failure("Expected pure evidence-write termination probe")
+ push_error("Expected pure evidence-write termination probe")
+ # Only this pure-IO mode waits, giving execute_native an actual ERROR-triggered
+ # termination opportunity. The normal frame path never waits or settles.
+ OS.delay_msec(5000)
+ quit(3)
 
 func plain(value):
  match typeof(value):
@@ -409,50 +460,73 @@ func actual_owner(key:String):
   if node.visible and actor_key(node) == key: return node
  return null
 
-func sample_pick(name:String, point:Vector2, expected:bool, owner=null)->Dictionary:
+func lease_observation()->Dictionary:
+ var pick = art.character_pick_geometry
+ return {"observed_msec":Time.get_ticks_msec(), "deadline_msec":pick.query_deadline, "active":pick.query_active(), "submitted_frame":pick.submitted_frame, "presented_frame":pick.presented_frame, "draw_frame":pick.draw_frame, "canvas_frame":art.canvas_stream.frame_id}
+
+func sample_pick(name:String, point:Vector2, expected:bool, issues:Array, diagnostics:Array, owner=null)->Dictionary:
+ var before = lease_observation()
  var hit = art.ground_mess_occluded(point)
  var uncertain = art.character_pick_geometry.last_uncertain
- check(hit == expected and not uncertain, "Real completed picker differs at " + name)
+ var after_query = lease_observation()
  var primitive = -1
  if owner != null:
   primitive = art.character_pick_geometry._node_hit(owner, point, 1.0, art.ground_hit_images())
-  check(primitive == Pick.HIT, "Fixed semantic sample misses completed primitive: " + name)
+ diagnostics.append({"name":name,"before":before,"after_query":after_query,"after_primitive":lease_observation()})
+ # Collect every result before any assertion or report serialization. Failure
+ # retains the actual public query, uncertainty and independent primitive result.
+ if hit != expected or uncertain: issues.append("Real completed picker differs at " + name)
+ if owner != null and primitive != Pick.HIT: issues.append("Fixed semantic sample misses completed primitive: " + name)
  return {"name":name, "screen":plain(point), "expected_occluded":expected, "occluded":hit, "uncertain":uncertain, "source_primitive_hit":primitive}
 
-func pick_receipt(label:String)->Dictionary:
+func pick_receipt(label:String, issues:Array, diagnostic:Dictionary)->Dictionary:
  var pick = art.character_pick_geometry
- check(pick.presented_frame == art.canvas_stream.frame_id, "Normal real picker query lacks first-frame receipt")
+ diagnostic["entry"] = lease_observation()
+ var submitted_current = pick.submitted_frame == art.canvas_stream.frame_id
+ var presented_current = pick.presented_frame == art.canvas_stream.frame_id
+ if not presented_current: issues.append("Normal real picker query lacks first-frame receipt")
  var samples = []
- # These are fixed source-derived points, never searched for a passing result.
+ # Fixed source-derived points, never searched for a passing primitive. The
+ # production picker covers the ground span, including street people but not
+ # earlier bus props; café/ambient identity is not an occlusion predicate.
  var actor_keys = []
  for node in art.native_object_nodes.values():
   var key = actor_key(node)
-  if node.visible and key.ends_with("|body") and VIEW.has_point(node.get_global_transform_with_canvas() * Vector2(0,-40)): actor_keys.append(key)
+  var in_span = node.draw_order >= art.ground_occlusion_start and node.draw_order < art.ground_occlusion_end
+  if node.visible and in_span and key.ends_with("|body") and VIEW.has_point(node.get_global_transform_with_canvas() * Vector2(0,-40)): actor_keys.append(key)
  actor_keys.sort()
  if not actor_keys.is_empty():
   var actor = actual_owner(actor_keys[0])
-  samples.append(sample_pick(actor_keys[0] + "-head", actor.get_global_transform_with_canvas() * Vector2(0,-40), true, actor))
+  samples.append(sample_pick(actor_keys[0] + "-head", actor.get_global_transform_with_canvas() * Vector2(0,-40), true, issues, diagnostic.samples, actor))
  if label != "pan-offscreen":
   var chair = game.model.get_item(fixture_chair)
   var point = art.iso(chair.x+.5, chair.z+.5) + Vector2(0,-18) * art.ui_scale * art.zoom
-  samples.append(sample_pick("rear-chair-seat-region", point, true))
-  samples.append(sample_pick("centered-wall-lower-panel", art.iso(4.25,5.0,18), true))
-  samples.append(sample_pick("clear-front-floor", art.iso(2.5,7.5), false))
+  samples.append(sample_pick("rear-chair-seat-region", point, true, issues, diagnostic.samples))
+  samples.append(sample_pick("centered-wall-lower-panel", art.iso(4.25,5.0,18), true, issues, diagnostic.samples))
+  samples.append(sample_pick("clear-front-floor", art.iso(2.5,7.5), false, issues, diagnostic.samples))
  if label == "waiter-food-delivery":
   var key = "staff/" + str(game.staff_states.find(staff("waiter"))) + "|overlay"
   var carrier = actual_owner(key)
-  check(carrier != null, "Delivery must exercise a real reach overlay")
-  samples.append(sample_pick("carried-plate-center", carrier.get_global_transform_with_canvas() * Vector2(21,-25), true, carrier))
- check(not samples.is_empty(), "Frame must contain at least one verified query point")
+  if carrier == null: issues.append("Delivery must exercise a real reach overlay")
+  else: samples.append(sample_pick("carried-plate-center", carrier.get_global_transform_with_canvas() * Vector2(21,-25), true, issues, diagnostic.samples, carrier))
+ if samples.is_empty(): issues.append("Frame must contain at least one verified query point")
  # A shared pre-existing transform dependency invalidates both source receipts.
  # Candidate-only sibling-order protection is checked in exceptional_safety().
- var node = art.native_object_nodes.values().filter(func(n): return n.visible and n.draw_order >= art.ground_occlusion_start and n.draw_order < art.ground_occlusion_end)[0]
- var old = node.position
- node.position = old + Vector2(1,0)
- var invalid = pick.occludes(art, art.iso(2.5,7.5)) and pick.last_uncertain
- node.position = old
- check(invalid, "Transform mutation must invalidate old picker receipt")
- var result = {"query_requested_before_draw":true, "submitted_current":pick.submitted_frame == art.canvas_stream.frame_id, "presented_current":true, "samples":samples, "transform_mutation_invalidates":invalid}
+ var nodes = art.native_object_nodes.values().filter(func(n): return n.visible and n.draw_order >= art.ground_occlusion_start and n.draw_order < art.ground_occlusion_end)
+ var invalid = false
+ diagnostic["before_mutation"] = lease_observation()
+ if nodes.is_empty(): issues.append("Transform invalidation requires a world-span owner")
+ else:
+  var node = nodes[0]
+  var old = node.position
+  node.position = old + Vector2(1,0)
+  invalid = pick.occludes(art, art.iso(2.5,7.5)) and pick.last_uncertain
+  node.position = old
+ diagnostic["after_mutation"] = lease_observation()
+ # Expiry must never masquerade as successful transform invalidation.
+ if not diagnostic.before_mutation.active or not diagnostic.after_mutation.active: issues.append("Picker lease expired during transform invalidation")
+ if not invalid: issues.append("Transform mutation must invalidate old picker receipt")
+ var result = {"query_requested_before_draw":true, "submitted_current":submitted_current, "presented_current":presented_current, "samples":samples, "transform_mutation_invalidates":invalid}
  pick.close_query()
  return result
 
@@ -548,13 +622,24 @@ func capture(label:String):
  check(game.save_calls == 0, "Save callback occurred")
  check(actor_domains.ok, "Café/ambient domain collision: " + str(actor_domains.errors))
  if capture_failed(): return
- if not smoke: art.character_pick_geometry.request_query()
+ var query_diagnostic = {}
+ if not smoke:
+  query_diagnostic = {"label":label,"request_before":lease_observation(),"samples":[]}
+  art.character_pick_geometry.request_query()
+  query_diagnostic["request_after"] = lease_observation()
+  picker_diagnostics.append(query_diagnostic)
  pending_frame.status = "awaiting_first_post_draw"
  art.queue_redraw()
  if smoke: await process_frame
  else: await RenderingServer.frame_post_draw
  if not smoke:
+  query_diagnostic["first_post_draw"] = lease_observation()
   pending_frame.status = "first_post_draw_observed_unvalidated"
+  # Observe the existing 250ms production query lease immediately. No await,
+  # re-request, deadline extension or serialization is inserted before querying.
+  var pick_issues = []
+  pending_frame.picking = pick_receipt(label,pick_issues,query_diagnostic)
+  pending_frame["picking_issues"] = pick_issues
   var owner_contacts = []
   for owner in art.native_object_nodes.values():
    if owner.visible: owner_contacts.append_array(owner.contacts)
@@ -569,6 +654,7 @@ func capture(label:String):
   pending_frame["order_issues"] = order_issues
   # Persist complete raw identity/contact/order observations before assertions.
   write_report()
+  check(pick_issues.is_empty(), "Picker observation errors: " + str(pick_issues))
   check(contact_issues.is_empty(), "Contact observation errors: " + str(contact_issues))
   check(order_issues.is_empty(), "Painter observation errors: " + str(order_issues))
   check(pending_frame.emitted_contacts == pending_frame.contacts, "Emitted/current owner contacts differ")
@@ -582,8 +668,6 @@ func capture(label:String):
   write_report()
   validate_scene(label,pending_frame.semantic_order,pending_frame.contacts)
   check(silhouette_issues.is_empty(), "Silhouette observation errors: " + str(silhouette_issues))
-  if capture_failed(): return
-  pending_frame.picking = pick_receipt(label)
   if capture_failed(): return
   pending_frame.rgba_sha256 = save_image(pending_frame.file)
   pending_frame["post_draw_state"] = inputs()
@@ -685,9 +769,12 @@ func exceptional_safety():
 
 func write_report():
  if output == "": return
- var report = {"engine":Engine.get_version_info(), "display":DisplayServer.get_name(), "renderer":RenderingServer.get_current_rendering_method(), "viewport":[1360,880], "fixture_seed":13017, "generated_profile":true, "save_calls":game.save_calls if is_instance_valid(game) else 0, "game_instance_created":is_instance_valid(game), "smoke_only":smoke, "frames":frames, "pending_frame":pending_frame, "abnormal_safety":abnormal_safety, "failures":failures, "scope":"24 frozen generated full-Main first-post-draw frames; fixed logical poses, real native painter/query protocol. Candidate-only exceptional ownership cases are not paired pixels. No browser, continuous gameplay, FPS, GPU or user visual acceptance."}
- var file = FileAccess.open(output.path_join("capture.json"), FileAccess.WRITE)
- if file != null: file.store_string(JSON.stringify(report, "  ", true, true))
+ var report = {"engine":Engine.get_version_info(), "display":DisplayServer.get_name(), "renderer":RenderingServer.get_current_rendering_method(), "viewport":[1360,880], "fixture_seed":13017, "generated_profile":true, "save_calls":game.save_calls if is_instance_valid(game) else 0, "game_instance_created":is_instance_valid(game), "smoke_only":smoke, "frames":frames, "pending_frame":pending_frame, "picker_diagnostics":picker_diagnostics, "evidence_write_proof":evidence_write_proof, "abnormal_safety":abnormal_safety, "failures":failures, "scope":"24 frozen generated full-Main first-post-draw frames; fixed logical poses, real native painter/query protocol. Candidate-only exceptional ownership cases are not paired pixels. No browser, continuous gameplay, FPS, GPU or user visual acceptance."}
+ var error = atomic_json(output.path_join("capture.json"),report)
+ if error != OK:
+  # An old committed snapshot remains readable even if this update fails.
+  push_error("Atomic capture report write failed: " + str(error))
+  quit(2)
 
 func run():
  check(output != "" and "saveguard" in OS.get_user_data_dir(), "Disposable output/profile required")
