@@ -1278,7 +1278,7 @@ func _draw():
 			var tint=Color.WHITE
 			if is_preview:
 				tint=Color("eeb9a1") if not game.build_tools.preview_valid else (Color("efd095") if game.build_tools.preview_warning!="" else Color("c6e1ae"))
-			OpeningArt.draw_built_piece(self,e,render_wall_attachments,.68 if is_preview else 1.0,tint);continue
+			_draw_wall_slice(e,.68 if is_preview else 1.0,tint);continue
 		if e.type in ["item","chair_back","beverage_foreground","stove_foreground"]:
 			var d=e.entry
 			var meal_offset:Vector2=e.get("meal_offset",Vector2.ZERO)
@@ -1428,6 +1428,29 @@ func _draw():
 	canvas_stream.finish()
 	character_pick_geometry.drawing(self)
 	playtest_draw_ms=(Time.get_ticks_usec()-playtest_started)/1000.0
+func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color):
+	# Keep each depth slice in its original painter slot. Reuse the existing
+	# native draw-list owner instead of rebuilding unchanged wall polygons.
+	# Each draw's existing preparation owns the exact geometry dependency
+	# values, including neighboring end/corner cuts and draft openings. Keep
+	# neither whole-model copies nor a persistent layout cache in every slice.
+	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments)
+	var shape=["wall-slice",piece.wall_t0,piece.wall_t1,piece.wall_end,
+		preparation,alpha,tint,origin]
+	# The retained callback owns derived geometry only, never model/draft arrays.
+	var prepared_piece={"wall_t0":piece.wall_t0,"wall_t1":piece.wall_t1,"wall_end":piece.wall_end,"wall_preparation":preparation}
+	var callback=_paint_wall_slice.bind(prepared_piece,alpha,tint,origin)
+	if not retain_native_local_object(callback,shape,_art_transform):
+		OpeningArt.draw_built_piece(self,piece,render_wall_attachments,alpha,tint)
+
+func _paint_wall_slice(piece:Dictionary,alpha:float,tint:Color,draw_origin:Vector2):
+	# Preserve the exact projected vertices. Only the existing presentation
+	# transform moves to the retained parent; do not change float arithmetic.
+	var previous_origin=origin
+	origin=draw_origin
+	OpeningArt.draw_built_piece(self,piece,[],alpha,tint)
+	origin=previous_origin
+
 func _draw_legacy_pavement(ground_view: Rect2):
 	var rows=Neighborhood.visible_pavement_rows(self)
 	for z in range(maxi(rows.x,ExteriorExtent.PAVEMENT_Z_MIN),mini(rows.y,ExteriorExtent.PAVEMENT_Z_MAX)):
