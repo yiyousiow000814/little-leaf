@@ -27,6 +27,7 @@ class Owner extends Node:
 	var editing = true
 	var save_recovery_blocked = false
 	var rotation_step = 0
+	var selected_stored_id = -1
 	var saves = 0
 	var rebuilds = 0
 	var asynchronous_save = true

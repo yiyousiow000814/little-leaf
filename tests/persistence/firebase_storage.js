@@ -14,6 +14,41 @@ function harness(){
   return {client,cloud,local,setUid:x=>uid=x,setOffline:x=>offline=x,tick:()=>time+=30001,writes:()=>writes};
 }
 async function save(c,p=payload){let b=JSON.parse(c.bootJson);return c.commit(p,b.revision,b.profileId);}
+async function storageOrdinaryCas(){
+  let checks=0;
+  const ok=(condition,label)=>{assert(condition,label);checks++;};
+  for(const format of [1,2]){
+    const seed=harness(),initial=seed.client();await initial.boot();await save(initial);await initial.sync();
+    let record=JSON.parse(seed.cloud.get('alice').record);record.format=format;if(format===2)record.campaigns={};else delete record.campaigns;
+    record.digest=await root.LittleLeafAuthorityCodec.hash(root.LittleLeafAuthorityCodec.fingerprint(record));
+    let document={schema:1,profileId:record.profileId,revision:record.revision,digest:record.digest,record:JSON.stringify(record)},entry=null,writes=0,time=1000;
+    const reads=[],path='players/alice/saves/cafe',snapshot=()=>({exists:()=>document!==null,data:()=>clone(document)});
+    const sdk={doc(_db,...parts){return parts.join('/');},async getDocFromServer(ref){reads.push(ref);return snapshot();},
+      async runTransaction(_db,action){return action({async get(ref){reads.push(ref);return snapshot();},set(ref,next){assert.equal(ref,path);document=clone(next);writes++;}});}};
+    const remote=root.LittleLeafFirebase.createRemote({},sdk);
+    const journal={async read(){return clone(entry);},async replace(_uid,before,next){assert.equal(JSON.stringify(entry),JSON.stringify(clone(before)));entry=clone(next);}};
+    const client=()=>root.LittleLeafFirebase.createClient({uid:'alice',codec:root.LittleLeafAuthorityCodec,remote,journal,currentUid:()=> 'alice',status(){},now:()=>time});
+    const c=client(),started=await c.boot();ok(started.ok,'ordinary cloud fixture boots: '+JSON.stringify(started));const stored=JSON.parse(payload);stored.version=17;stored.storage_format='little_leaf.storage.v1';
+    const item={id:stored.next_item_id++,kind:'plant',x:0,z:0,rot:2,paid_cost:45};stored.storage={items:[item],dining_sets:[]};
+    const committed=await c.commit(JSON.stringify(stored),record.revision,record.profileId);
+    ok(committed.ok,'Storage commits through ordinary client: '+JSON.stringify(committed));await c.sync();
+    const head=JSON.parse(document.record);ok(head.format===format&&!Object.hasOwn(head,'mailState'),'Storage retains envelope '+format+' without mail protection');
+    ok(JSON.parse(head.payload).storage.items[0].id===item.id&&JSON.parse(head.payload).coins===stored.coins,'ordinary CAS preserves stock identity and wallet');
+    ok(writes===1&&reads.every(ref=>ref===path),'Storage uses only the existing save path and one ordinary CAS');
+    await remote.compareAndSet('alice',record.digest,document,()=>{});ok(writes===1,'same record replay does not write twice');
+    await assert.rejects(remote.compareAndSet('alice','stale',{...document,digest:'f'.repeat(64)},()=>{}),{code:'REVISION_CONFLICT'});checks++;
+    const reopened=client(),boot=await reopened.boot();ok(boot.payload===head.payload,'reload retains v17 Storage in the same profile');
+    const placed=structuredClone(stored);placed.storage.items=[];placed.items.push({...item,x:3,z:6});time+=30001;
+    ok((await reopened.commit(JSON.stringify(placed),head.revision,head.profileId)).ok,'same owned item places back through ordinary save');await reopened.sync();
+    const final=JSON.parse(document.record);ok(final.format===format&&JSON.parse(final.payload).items.some(value=>value.id===item.id)&&JSON.parse(final.payload).storage.items.length===0,'place-back preserves envelope and one physical identity');
+    const protectedEntry=clone(entry),bad=structuredClone(placed);bad.storage.items.push(item);
+    ok(!(await reopened.commit(JSON.stringify(bad),final.revision,final.profileId)).ok,'duplicate placed/stored identity is refused');
+    ok(JSON.stringify(entry)===JSON.stringify(protectedEntry),'invalid stock cannot replace the pending journal');
+    await assert.rejects(root.LittleLeafAuthorityCodec.verifyRecord({...final,format:3,mailState:{schema:1,claimSequence:1,stockRevision:1}}),{code:'CORRUPT_AUTHORITY'});checks++;
+    c.close();reopened.close();initial.close();
+  }
+  console.log('STORAGE_ORDINARY_CAS_RESULT',JSON.stringify({checks,failures:[],real_adapter:true,synthetic_sdk:true,envelopes:[1,2],mail_backend_used:false}));
+}
 (async()=>{
   let h=harness(),c=h.client();assert.equal((await c.commit(payload,0,'x')).code,'NOT_READY');
   c=h.client();let b=await c.boot();assert.equal(b.source,'fresh');assert.equal(h.writes(),0,'boot never creates cloud doc');
@@ -28,5 +63,6 @@ async function save(c,p=payload){let b=JSON.parse(c.bootJson);return c.commit(p,
   assert.throws(()=>root.LittleLeafFirebase.capacity({text:'界'.repeat(300001)}),/limit/,'UTF-8 not UTF-16 size');
   h=harness();c=h.client();await c.boot();await save(c);await c.sync();let fresh=h.client();await fresh.boot();await save(fresh);await fresh.sync();let next=await fresh.commit(payload,2,JSON.parse(fresh.bootJson).profileId);assert(next.ok);await fresh.sync();assert.equal(h.writes(),2,'rate limited');h.tick();await fresh.sync();assert.equal(h.writes(),3);
   h=harness();c=h.client();await c.boot();await save(c);await c.sync();h.cloud.delete('alice');assert.equal((await h.client().boot()).code,'CORRUPT_AUTHORITY','missing remote is not new-player evidence');
+  await storageOrdinaryCas();
   console.log('Firebase synthetic adapter: all contract assertions passed (no real Firebase or device)');
 })().catch(e=>{console.error(e);process.exit(1);});

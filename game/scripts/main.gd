@@ -44,6 +44,9 @@ var state_badge: Label
 var tool_text: Label
 var business_button: Button
 var catalog_prices={}
+var catalog_mode="Shop"
+var catalog_stock={}
+var selected_stored_id=-1
 var catalog_cards={}
 var category_buttons={}
 var catalog_category="Tables"
@@ -347,7 +350,7 @@ func _build_ui():
 	var scroll=ScrollContainer.new();catalog_scroll=scroll; scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; column.add_child(scroll)
 	var products=HBoxContainer.new(); products.add_theme_constant_override("separation",8); scroll.add_child(products)
 	for spec in model.catalog:
-		if bool(spec.get("hidden",false)):continue
+
 		var card=button("",func(): _choose(spec.kind)); card.custom_minimum_size=Vector2(99,105); products.add_child(card);catalog_cards[spec.kind]=card
 		var v=VBoxContainer.new(); v.mouse_filter=Control.MOUSE_FILTER_IGNORE; v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); v.offset_top=1; v.offset_left=4; v.offset_right=-4; card.add_child(v)
 		var icon_holder=Control.new(); icon_holder.custom_minimum_size=Vector2(91,57); icon_holder.mouse_filter=Control.MOUSE_FILTER_IGNORE; v.add_child(icon_holder)
@@ -357,7 +360,7 @@ func _build_ui():
 
 	build_panel=build_tools.build();column.add_child(build_panel);build_panel.hide()
 	compact_ui=CompactUI.new(self);compact_ui.setup()
-	for kind in catalog_cards:catalog_cards[kind].visible=_catalog_group(kind)==catalog_category
+	_filter_catalog()
 
 func _catalog_group(kind:String)->String:
 	if model.is_dining_product(kind) or kind in ["table","chair","bench"]:return "Tables"
@@ -366,11 +369,27 @@ func _catalog_group(kind:String)->String:
 	if kind in ["sink","bin"]:return "Cleaning"
 	return "Decor"
 
+func _filter_catalog():
+	catalog_stock.clear()
+	for spec in model.catalog:
+		var kind=str(spec.kind)
+		if not catalog_cards.has(kind):continue
+		var owned=catalog_mode=="Storage"
+		# One ownership read per kind per refresh; the shared shelf reuses it.
+		catalog_stock[kind]=model.stored_ids(kind).size() if owned or kind=="register" else 0
+		var shown=int(catalog_stock[kind])>0 if owned else not bool(spec.get("hidden",false))
+		catalog_cards[kind].visible=shown and _catalog_group(kind)==catalog_category
+	if category_buttons.has("Build"):category_buttons.Build.visible=catalog_mode=="Shop"
+func _set_catalog_mode(mode:String):
+	if mode not in ["Shop","Storage"]:return
+	catalog_mode=mode
+	if mode=="Storage" and catalog_category=="Build":catalog_category="Tables"
+	_set_catalog_category(catalog_category)
 func _set_catalog_category(category:String):
 	catalog_category=category
 	_cancel_selection()
 	for key in category_buttons:category_buttons[key].button_pressed=key==category
-	for kind in catalog_cards:catalog_cards[kind].visible=category=="All" or _catalog_group(kind)==category
+	_filter_catalog()
 	if is_instance_valid(build_panel):build_panel.visible=category=="Build"
 	if is_instance_valid(catalog_scroll):catalog_scroll.visible=category!="Build"
 	if compact_ui!=null:compact_ui.sync()
@@ -454,13 +473,19 @@ func _cancel_edit():
 func _choose(kind: String):
 	_cancel_selection()
 	selected_kind=kind
+	if catalog_mode=="Storage":
+		var owned=model.stored_ids(kind)
+		if owned.is_empty():selected_kind="";return
+		selected_stored_id=int(owned[0])
+		var group=model.Storage.group_for(model,selected_stored_id)
+		rotation_step=int(group.rot) if not group.is_empty() else int(model.Storage.item_for(model,selected_stored_id).rot)
 	tool_text.text="Place %s · R rotates · right click cancels" % kind.capitalize()
 
 func _cancel_selection():
 	if compact_ui!=null:compact_ui.clear_selection()
 	if build_tools!=null:build_tools.cancel()
 	if interaction!=null: interaction.cancel(false)
-	selected_kind=""; selected_id=-1
+	selected_kind=""; selected_id=-1;selected_stored_id=-1
 	if is_instance_valid(tool_text): tool_text.text="Choose an item · click a floor tile to place"
 
 func _rotate():
@@ -511,6 +536,13 @@ func _staff_on_duty()->bool:
 
 const EditPlan=preload("res://scripts/gameplay/cafe_edit_plan.gd")
 var sell_plan=EditPlan.new()
+var store_plan=EditPlan.new()
+func _store_quote()->Dictionary:return store_plan.prepare_store(model,selected_id)
+func _store_selected():
+	if save_recovery_blocked or not editing or selected_id<0:return
+	var quote=_store_quote()
+	if store_plan.commit(model,quote):_cancel_selection();_rebuild_furniture();_update_ui()
+
 func _sell_quote()->Dictionary:
 	return sell_plan.prepare_sell(model,selected_id,EditPlan.Context.DECORATE)
 func _sell():
@@ -520,6 +552,7 @@ func _sell():
 		_cancel_selection();_rebuild_furniture();_update_ui()
 
 func _update_ui():
+	_filter_catalog()
 	top_text.text="Leaf Coins  %s" % Money.amount(model.coins)
 	if is_instance_valid(detail_stats): detail_stats.text="%s served · %s guests" % [model.served,model.customers.size()]
 	pause_button.text="Resume" if paused else "Pause"

@@ -36,6 +36,15 @@ func region(control:Control)->Dictionary:
  var rect=control.get_global_rect()
  check(control.is_visible_in_tree() and Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(rect),"bounded visible OCR region "+str(control.name))
  return {"x":floor(rect.position.x),"y":floor(rect.position.y),"width":ceil(rect.size.x),"height":ceil(rect.size.y)}
+func category_text_region(button:Button)->Dictionary:
+ # Exclude the icon/frame using the actual style content margins, not guessed
+ # text centering. Keep the complete text content area and original pixels.
+ var value=region(button);var style=button.get_theme_stylebox("normal")
+ var left=ceilf(style.get_margin(SIDE_LEFT));var right=ceilf(style.get_margin(SIDE_RIGHT))
+ value.x+=left;value.width-=left+right
+ check(value.width>0 and left>=0 and right>=0,"bounded category text content")
+ value.psm=7;value.scale=3
+ return value
 func text_region(control:Control)->Dictionary:
  var bounds=control.get_global_rect()
  if control is Button:
@@ -103,8 +112,23 @@ func run():
    result.codec_fixtures[pair[0]]=codec_projection(model,pair[0],pair[1])
   await click("decorate",game.edit_button)
   check(game.editing,"real native Decorate pointer enters edit mode")
-  # At desktop size the category rail is visible; no guessed screen locations.
-  await click("build",game.category_buttons["Build"])
+  # Source tabs share the desktop rail. Page through its real control before
+  # deriving Build coordinates, rather than clicking a clipped category.
+  var categories=game.compact_ui.shop_ui
+  var build=game.category_buttons["Build"]
+  if not categories.category_scroll.get_global_rect().encloses(build.get_global_rect()):
+   check(categories.category_scroll.visible and categories.category_more.visible,"real category paging is available")
+   var first=game.category_buttons["Tables"]
+   check(categories.category_scroll.get_global_rect().encloses(first.get_global_rect()),"initial Tables category is fully exposed")
+   result.regions.category_ready=category_text_region(first)
+   await click("build_next",categories.category_more)
+  var rail_rect=categories.category_scroll.get_global_rect();var build_rect=build.get_global_rect()
+  var category_bar=categories.category_scroll.get_h_scroll_bar()
+  result.category_navigation={"rail":[rail_rect.position.x,rail_rect.position.y,rail_rect.size.x,rail_rect.size.y],"build":[build_rect.position.x,build_rect.position.y,build_rect.size.x,build_rect.size.y],"scroll":categories.category_scroll.scroll_horizontal,"end":maxf(0,category_bar.max_value-category_bar.page)}
+  check(categories.category_scroll.get_global_rect().encloses(build.get_global_rect()),"Build is fully exposed before its real pointer input")
+  if result.points.has("build_next"):
+   result.regions.build_category=category_text_region(build)
+  await click("build",build)
   check(game.catalog_category=="Build","real native Build pointer selects category")
   result.regions.catalog=region(game.tray)
   # Retain the complete tray; enlarge only the separate OCR input losslessly.

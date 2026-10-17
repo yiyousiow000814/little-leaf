@@ -194,6 +194,17 @@ newLayout.expected_cost = 35; newLayout.expected_target = 'x:2:0';
 newLayout.expected_segment = {id: 'shell:back#2', axis: 'x', x: 2, z: 0, height: 'half', material: 'sage_panels', paid_cost: 35, refund_credit: 17};
 check('historical recovery layout needs no current Wall tray controls', () => verifyLayout(oldLayout, 'old'));
 check('current bottom Wall tray coordinates and OCR regions bind', () => verifyLayout(newLayout, 'new'));
+const pagedLayout = structuredClone(newLayout); pagedLayout.points.build_next = [400, 700];
+pagedLayout.regions.category_ready = {...region}; pagedLayout.regions.build_category = {...region};
+for (const name of ['category_ready', 'build_category']) check('category navigation requires observed region ' + name, () => {
+  const changed = structuredClone(pagedLayout); delete changed.regions[name];
+  assert.throws(() => verifyLayout(changed, 'new'));
+});
+check('derived category page point binds before Build', () => verifyLayout(pagedLayout, 'new'));
+for (const bad of [[1360, 700], [400, NaN], [400]]) check('invalid category page point is rejected ' + String(bad), () => {
+  const changed = structuredClone(pagedLayout); changed.points.build_next = bad;
+  assert.throws(() => verifyLayout(changed, 'new'));
+});
 for (const [label, mutate] of [
   ['old floating-picker route', layout => {layout.ui_route = 'floating-wall-picker';}],
   ['absent product paging target', layout => {delete layout.points.wall_next;}],
@@ -233,6 +244,41 @@ for (const [label, mutate] of [
     assert.deepEqual(calls.map(call => call[0]), ['click', 'ocr', 'click', 'ocr', 'click', 'ocr', 'click', 'ocr', 'click', 'ocr']);
     assert.deepEqual(calls.filter(call => call[0] === 'ocr').map(call => call[3]).filter(Boolean), ['build'], 'Only idempotent Build navigation is retried');
     assert(calls.at(-1)[2].includes('You pay 35 coins'));
+  });
+  const paged = [];
+  await selectWallReplacement(async (name, delay) => {
+    assert(pagedLayout.points[name]); paged.push(['click', name, delay]);
+  }, async (name, regions, phrases, retryTarget) => {
+    for (const key of Array.isArray(regions) ? regions : [regions]) assert(pagedLayout.regions[key]);
+    if (retryTarget) assert(pagedLayout.points[retryTarget]);
+    paged.push(['ocr', name, phrases, retryTarget]);
+  }, true);
+  check('paged category route exposes Build before unchanged Wall selection', () => {
+    assert.deepEqual(paged.filter(call => call[0] === 'click').map(call => call[1]), ['decorate', 'build_next', 'wall', 'wall_next', 'wall_style', 'segment']);
+    assert.deepEqual(paged.slice(0, 4).map(call => call.slice(0, 2)), [['click', 'decorate'], ['ocr', 'case-b-category-ready'], ['click', 'build_next'], ['ocr', 'case-b-build-exposed']]);
+    assert.equal(paged[1][3], undefined, 'Readiness observes without unbounded input retries');
+    assert.equal(paged[3][3], undefined, 'Exposure is required without repeating category paging');
+    assert.equal(paged[4][3], 'build', 'Build remains actual idempotent pointer navigation after observed exposure');
+    assert.deepEqual(paged.slice(4), calls.slice(1), 'Wall/OCR/review route remains byte-for-byte equivalent');
+  });
+  let releaseReady;
+  const ready = new Promise(resolve => {releaseReady = resolve;});
+  const delayed = [];
+  const delayedNavigation = selectWallReplacement(async name => {delayed.push(name);}, async name => {
+    if (name === 'case-b-category-ready') await ready;
+  }, true);
+  await Promise.resolve();
+  check('delayed rendered readiness blocks the category arrow', () => assert.deepEqual(delayed, ['decorate']));
+  releaseReady(); await delayedNavigation;
+  check('observed readiness permits exactly one category page', () => assert.equal(delayed.filter(name => name === 'build_next').length, 1));
+  const ignored = [];
+  await assert.rejects(() => selectWallReplacement(async name => {ignored.push(['click', name]);}, async (name, regions, phrases, retryTarget) => {
+    ignored.push(['ocr', name, retryTarget]);
+    if (name === 'case-b-build-exposed') throw Error('Page click ignored: Build not exposed');
+  }, true), /Build not exposed/);
+  check('ignored category page blocks Build selection, product actions and payment', () => {
+    assert.deepEqual(ignored.filter(call => call[0] === 'click').map(call => call[1]), ['decorate', 'build_next']);
+    assert.equal(ignored.some(call => call[2]), false, 'No retry target can click the wrong category');
   });
   const stopped = [];
   await assert.rejects(() => selectWallReplacement(async name => {stopped.push(name);}, async name => {

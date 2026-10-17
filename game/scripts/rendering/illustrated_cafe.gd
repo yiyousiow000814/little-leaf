@@ -1629,9 +1629,10 @@ func item(kind: String,p: Vector2,rot: int,id: int,variant:String=""):
 		variant=DiningStyles.variant_for_product(kind)
 		var direction=Vector2.DOWN.rotated(rot*PI/2);var offset=Vector2((direction.x-direction.y)*28,(direction.x+direction.y)*14)
 		var table_at=p-offset*.5;var seat_at=p+offset*.5
-		if offset.y<0:item("chair",seat_at,rot,0,variant)
+		var seat_kind=str(DiningStyles.VARIANTS[variant].seat)
+		if offset.y<0:item(seat_kind,seat_at,rot,0,variant)
 		item("table",table_at,rot,0,variant)
-		if offset.y>=0:item("chair",seat_at,rot,0,variant)
+		if offset.y>=0:item(seat_kind,seat_at,rot,0,variant)
 		return
 	if furniture_art.draw_item(self,kind,p,rot,id): return
 	match kind:

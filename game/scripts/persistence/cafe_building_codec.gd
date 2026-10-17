@@ -54,7 +54,7 @@ static func _placement(raw,previous:bool=false)->Dictionary:
 static func read_walls(data:Dictionary,max_width:int,max_depth:int,owned:Callable,floor_styles:Array)->Dictionary:
 	var bad={"ok":false,"error":"Invalid unified building data"};var codec=Runtime.new()
 	var previous=data.get("wall_format")==PREVIOUS_WALL_FORMAT
-	if not codec._integer(data.get("version"),Contract.VERSION,Contract.LAYOUT_HOLD_VERSION) or not Contract.accepts_header(data) or not codec._integer(data.get("wall_format"),PREVIOUS_WALL_FORMAT,WALL_FORMAT) or data.get("building_format")!=(PREVIOUS_FORMAT if previous else FORMAT):return bad
+	if not codec._integer(data.get("version"),Contract.VERSION,Contract.STORAGE_VERSION) or not Contract.accepts_header(data) or not codec._integer(data.get("wall_format"),PREVIOUS_WALL_FORMAT,WALL_FORMAT) or data.get("building_format")!=(PREVIOUS_FORMAT if previous else FORMAT):return bad
 	if not codec._integer(data.get("wall_attachment_format"),ATTACHMENT_FORMAT,ATTACHMENT_FORMAT) or not codec._integer(data.get("starter_geometry_version"),Footprint.SAVE_REVISION,Footprint.SAVE_REVISION):return bad
 	for obsolete in ["shell_products","shell_segment_products","shell_segment_format","shell_material"]:
 		if data.has(obsolete):return bad

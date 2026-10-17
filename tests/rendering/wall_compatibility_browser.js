@@ -403,7 +403,8 @@ async function main() {
         await boot(newPage, 'new', revision);
         await selectWallReplacement(
           (name, delay) => click(newPage, 'new', name, delay),
-          (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget));
+          (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget),
+          Object.hasOwn(layouts.new.points, 'build_next'));
         check((await observation(newPage)).saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
         await click(newPage, 'new', 'confirm'); await idle(newPage);
         check((await observation(newPage)).saveStarts === 0, 'Wall Confirm changes only the Decorate draft before Apply');

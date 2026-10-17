@@ -267,7 +267,7 @@ func validate(raw,items:Array,cooks:int,phases:Array,source_version:int=10,staff
 	if error!="":return _fail(error)
 	if not state is Dictionary:return _fail("Missing runtime snapshot")
 	if not SaveContract.accepts_version(source_version):return _fail("Unsupported runtime source version")
-	if source_version==SaveContract.LAYOUT_HOLD_VERSION:
+	if source_version==SaveContract.LAYOUT_HOLD_VERSION or (source_version==SaveContract.STORAGE_VERSION and state.has("layout_hold_format")):
 		if state.get("layout_hold_format")!=LayoutHold.FORMAT:return _fail("Missing layout hold runtime format")
 		var projected=LayoutHold.project(state,items,self)
 		if not projected.ok:return _fail(projected.error)

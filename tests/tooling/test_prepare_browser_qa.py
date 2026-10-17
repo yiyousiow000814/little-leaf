@@ -1,4 +1,6 @@
 """Selected preparation behavior with synthetic coordinates; never start Godot."""
+import contextlib
+import io
 import json
 import shutil
 from pathlib import Path
@@ -73,7 +75,7 @@ class PreparationTests(unittest.TestCase):
     def test_bad_coordinates_cannot_produce_success_receipt(self):
         self.cloud(invalid=True)
 
-    def wall(self, missing_historical_resource=False, split=False, mutation=None):
+    def wall(self, missing_historical_resource=False, split=False, mutation=None, failed_native=False):
         fixture_bytes = (qa.ROOT / 'tests/fixtures/wall_compatibility_layout.gd').read_bytes()
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -102,8 +104,8 @@ class PreparationTests(unittest.TestCase):
                     b'res://scripts/persistence/cafe_web_save.gd', b'res://scripts/cafe_web_save.gd')
                 self.assertEqual((project / 'tests/wall_compatibility_layout.gd').read_bytes(), expected)
                 result = Path(next(x.removeprefix('--layout-output=') for x in command if x.startswith('--layout-output=')))
-                result.write_text(json.dumps({'checks': 1, 'failures': []}), encoding='utf-8')
-                return SimpleNamespace(returncode=0, stdout=b'synthetic layout pass\n')
+                result.write_text(json.dumps({'checks': 1, 'failures': ['native failed'] if failed_native else []}), encoding='utf-8')
+                return SimpleNamespace(returncode=1 if failed_native else 0, stdout=b'ERROR: synthetic native failure\n' if failed_native else b'synthetic layout pass\n')
             manifest = {'source_commit': 'synthetic-source', 'source_tree': 'synthetic-tree',
                         'toolchain_receipt': {'godot': 'synthetic-pinned-engine', 'templates': 'synthetic-pinned-template'},
                         'production_sha256': {}}
@@ -119,6 +121,14 @@ class PreparationTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, 'exact WebSave resource'):
                         qa.wall_main(args)
                     engine.assert_not_called()
+                elif failed_native:
+                    diagnostic = io.StringIO()
+                    with contextlib.redirect_stderr(diagnostic), self.assertRaisesRegex(RuntimeError, 'preflight failed'):
+                        qa.wall_main(args)
+                    self.assertEqual(diagnostic.getvalue(), 'ERROR: synthetic native failure\n')
+                    self.assertEqual((root / 'output/old-layout.log').read_text(), diagnostic.getvalue())
+                    self.assertFalse((root / 'output/preflight.json').exists())
+                    self.assertEqual(engine.call_count, 1)
                 elif not split:
                     qa.wall_main(args)
                     self.assertEqual(engine.call_count, 2)
@@ -161,6 +171,9 @@ class PreparationTests(unittest.TestCase):
             if not split:
                 for path, content in production.items():
                     self.assertEqual(path.read_bytes(), content)
+
+    def test_failed_native_log_is_retained_and_visible_without_success_receipt(self):
+        self.wall(failed_native=True)
 
     def test_wall_preflight_uses_each_source_namespace_without_mutating_inputs(self):
         self.wall()

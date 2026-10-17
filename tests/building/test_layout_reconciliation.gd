@@ -21,7 +21,7 @@ func checkpoint(game,name:String):
   if name=="washing":
    var queue=data.runtime.service.dishwashing
    queue.dishes.append({"id":queue.next_id,"sink_id":queue.dishes[0].sink_id,"elapsed":0.0});queue.next_id+=1
-  fixtures[name]=data
+  fixtures[name]=data.duplicate(true)
 func load_fixture(name:String):
  var path="user://fixture-"+name+".json"
  FileAccess.open(path,FileAccess.WRITE).store_string(JSON.stringify(fixtures[name]))
@@ -71,9 +71,36 @@ func run_case(name:String,kind:String):
  var resumed=Reconcile.plan(loaded,held_items,loaded.service_snapshot)
  check(resumed.ok,name+" replacement reconciliation: "+str(resumed.get("error","")))
  if resumed.ok:
-  check(not resumed.service.has("layout_hold") and resumed.data.version==15,name+" replacement releases holds and validates the ordinary client contract")
+  check(not resumed.service.has("layout_hold") and resumed.data.version==(15 if kind in ["table","register"] else 17),name+" replacement releases holds and validates the ordinary client contract")
   check_clock_identity(before,{"customers":resumed.customers,"service":resumed.service},name+" resumed")
   publish_for_test(loaded,resumed);check(loaded.save("user://resumed-"+name+".json"),name+" rebound state persists")
+func run_store_case(name:String,kind:String):
+ var m=load_fixture(name);var prior=m.items.duplicate(true);var wallet=m.coins;var next_id=m._next_item_id
+ var before={"customers":m.customers.duplicate(true),"service":m.service_snapshot.duplicate(true)}
+ var target=m.items.filter(func(item):return item.kind==kind)[0].duplicate(true)
+ m.begin_decoration_session();var planner=Plan.new();var quote=planner.prepare_store(m,int(target.id))
+ check(quote.ok and planner.commit(m,quote),name+" stores functional furniture")
+ check(m.coins==wallet and m._next_item_id==next_id and m.customers==before.customers and m.service_snapshot==before.service,name+" Store changes no wallet, work or identities")
+ var plan=Reconcile.plan(m,prior,m.service_snapshot)
+ check(plan.ok,name+" stored service reconciliation: "+str(plan.get("error","")))
+ if not plan.ok:return
+ check(plan.data.version==17 and plan.service.has("layout_hold"),name+" Storage and held service share17")
+ check_clock_identity(before,{"customers":plan.customers,"service":plan.service},name+" stored")
+ publish_for_test(m,plan);check(m.save("user://stored-"+name+".json"),name+" stored functional save")
+ var loaded=Model.new();check(loaded.load_save("user://stored-"+name+".json"),name+" stored functional reload: "+loaded.last_error)
+ var held_items=loaded.items.duplicate(true);loaded.begin_decoration_session();planner=Plan.new()
+ var product=preload("res://scripts/gameplay/cafe_storage.gd").kind_for(loaded,int(target.id))
+ quote=planner.prepare(loaded,product,-1,int(target.rot),Vector2i(target.x,target.z),[],Plan.Context.DECORATE,Plan.Source.STORAGE,int(target.id))
+ check(quote.ok and planner.commit(loaded,quote),name+" free restoration uses same functional ID")
+ var resumed=Reconcile.plan(loaded,held_items,loaded.service_snapshot)
+ check(resumed.ok,name+" restored functional reconciliation: "+str(resumed.get("error","")))
+ if resumed.ok:
+  check(not resumed.service.has("layout_hold") and resumed.data.version==17,name+" original work resumes while Storage contract stays explicit")
+  check_clock_identity(before,{"customers":resumed.customers,"service":resumed.service},name+" free restored")
+  publish_for_test(loaded,resumed)
+  check(loaded.coins==wallet and loaded._next_item_id==next_id and loaded.storage.items.is_empty(),name+" full store/reload/unpack conserves inventory and coins")
+  check(loaded.save("user://stored-resumed-"+name+".json"),name+" resumed stock persists")
+
 func rejects_corruption(m,plan:Dictionary):
  var codec=preload("res://scripts/persistence/cafe_runtime_codec.gd").new()
  var original=plan.data.runtime
@@ -111,7 +138,7 @@ func unusable_layout():
   for item in m.items.duplicate():
    if int(item.id) not in baseline_ids:check(sell(m,int(item.id)),"clear one blocking furnishing")
   var restored=Reconcile.plan(m,blocked,m.service_snapshot)
-  check(restored.ok and not restored.service.has("layout_hold") and restored.data.version==15,"compatible floor releases all original service and validates the ordinary client contract")
+  check(restored.ok and not restored.service.has("layout_hold") and restored.data.version in [15,17],"compatible floor releases all original service and validates the ordinary client contract")
   if restored.ok:check_clock_identity(original,{"customers":restored.customers,"service":restored.service},"restored floor")
 func cancel_and_failure(game):
  game.editing=false;check(game.model.load_save("user://fixture-cooking.json"),"failure fixture loads");game._restore_service_runtime()
@@ -260,7 +287,7 @@ func run():
  check(fixtures.size()==5,"natural service supplies five actual work phases")
  for spec in [["cooking","stove"],["counter","counter"],["table","table"],["washing","sink"],["payment","register"]]:
   if fixtures.has(spec[0]):
-   run_case(spec[0],spec[1]);run_live_case(game,spec[0],spec[1])
+   run_case(spec[0],spec[1]);run_store_case(spec[0],spec[1]);run_live_case(game,spec[0],spec[1])
  unusable_layout();crossed_worker();cancel_and_failure(game);pending_service_capacity(game);await ordinary_layout_contract()
  for player in game.audio_players.values():player.stop();player.stream=null
  game.settings_controls.sfx_player.stop();game.settings_controls.sfx_player.stream=null

@@ -9,6 +9,8 @@ var ui
 var shop
 var checks=0
 var failures=[]
+var capture_dir=OS.get_environment("LL_CAPTURE_OUTPUT")
+var boundary_capture="--parking-short-boundary" in OS.get_cmdline_user_args()
 func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
@@ -49,6 +51,10 @@ func card_fits(context:String):
   if label.is_visible_in_tree():check(bounds.grow(.6).encloses(label.get_global_rect()),context+" label stays inside card: "+label.text)
  var art=shop.parking_preview;var art_bounds=Rect2(art.global_position,Vector2(84,54)*art.scale)
  check(bounds.grow(.6).encloses(art_bounds),context+" four-bay thumbnail fits card")
+func capture(state:String,view:Vector2i):
+ if capture_dir=="":return
+ await RenderingServer.frame_post_draw
+ check(root.get_texture().get_image().save_png(capture_dir.path_join(state+"-"+str(view.x)+"x"+str(view.y)+".png"))==OK,"capture "+state+str(view))
 func open_sale():
  await reveal_parking();await click(shop.parking_card)
  check(shop.parking_review.visible,"owned click opens explicit sale review")
@@ -131,12 +137,22 @@ func run():
  check(not shop.parking_sell.disabled,"sale unlocks after final visit leaves")
  coins=game.model.coins;saves=game.saves;dirty_generation=game.platform_dirty_generation;await click(shop.parking_sell)
  check(not game.model.parking_owned and game.model.coins==coins+half and game.saves==saves and game.platform_dirty_generation>dirty_generation,"later-session sale credits exactly the advertised half refund and marks dirty")
- # Responsive headless layout checks only; no rendered or graphical benchmark.
- for view in [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]:
+ # Ordinary CI keeps every responsive case; native evidence is only the changed566px lane.
+ var views=[Vector2i(566,360)] if boundary_capture else [Vector2i(1360,880),Vector2i(344,844),Vector2i(390,844),Vector2i(566,360),Vector2i(844,390),Vector2i(390,844),Vector2i(1360,880)]
+ for view in views:
   root.size=view;game.model.coins=game.model.parking_price();game._set_catalog_category("Decor");await settle();await reveal_parking()
   var context=str(view);check(not ui.viewport_too_small,context+" remains supported")
-  card_fits(context+" unowned")
-  await click(shop.parking_card);await reveal_parking();card_fits(context+" owned")
+  if view==Vector2i(566,360):
+   check(game.catalog_scroll.size.x>=168.0 and game.catalog_scroll.size.x>=shop._short_landscape_card_width(),context+" page reserves measured Shop minimum before card layout")
+   var interior=shop.background.get_global_rect().grow_individual(-26,-23,-26,-23)
+   for control in [shop.mode_row,shop.category_picker,shop.product_back,shop.product_next,game.catalog_scroll]:
+    if control.is_visible_in_tree():check(interior.grow(.1).encloses(control.get_global_rect()),context+" Shop controls fit painted interior")
+   for button in [shop.shop_mode,shop.storage_mode,shop.category_picker,shop.product_back,shop.product_next]:
+    check(button.size.x>=44 and button.size.y>=44,context+" Shop navigation retains44px targets")
+   var picker=shop.category_picker
+   check(picker.get_theme_font("font").get_string_size(picker.text,HORIZONTAL_ALIGNMENT_LEFT,-1,picker.get_theme_font_size("font_size")).x<=picker.size.x-28,context+" category caption fits its unchanged font and inset")
+  card_fits(context+" unowned");await capture("parking-unowned",view)
+  await click(shop.parking_card);await reveal_parking();card_fits(context+" owned");await capture("parking-owned",view)
   await open_sale()
   check(Rect2(Vector2.ZERO,Vector2(view)).grow(.6).encloses(shop.parking_review.get_global_rect()),context+" review fits viewport")
   for button in [shop.parking_sell,shop.parking_cancel]:check(button.size.x>=44 and button.size.y>=44,context+" review action has 44px target")

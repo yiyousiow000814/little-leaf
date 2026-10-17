@@ -1,4 +1,11 @@
 extends "res://tests/fixtures/before_main.gd"
+# Presentation-only adapter for the current shared Shop. The frozen scheduler
+# and save producer below do not implement or exercise Storage transactions.
+var catalog_mode="Shop"
+var catalog_stock={}
+var selected_stored_id=-1
+func _store_selected():push_error("Store is outside the frozen role fixture")
+func _set_catalog_mode(_mode:String):push_error("Catalogue source changes are outside the frozen role fixture")
 func _load_startup():
  save_writes_suppressed=true
  fresh_start=false

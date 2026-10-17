@@ -1,0 +1,60 @@
+name: Storage native review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/storage-native-review.yml'
+      - 'tools/diagnostics/storage_native_review.py'
+      - 'tests/diagnostics/canonical_atlas/**'
+      - 'tests/tooling/test_storage_native_review.py'
+      - 'tests/presentation/test_storage_ui.gd'
+      - 'tests/world/test_parking_decor_ui.gd'
+      - 'game/**'
+      - 'platform/web/**'
+permissions:
+  contents: read
+concurrency:
+  group: storage-native-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  native:
+    # Completed one-off: run39004567874 captured owned/unowned Parking at566px.
+    # Pin its exact source so closeout metadata cannot rerun native qualification.
+    # Receipt SHA256:a0ea74091bb9b4ff604dca25be4f65dedb564aa4f01a3a670806e35703dbb2fc.
+    # Ordinary complete CI remains mandatory on each candidate head.
+    if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.sha == '875d6df54327ab410b659facfb544b0a61dc4ed6'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify diagnostic contracts without rendering
+        run: python3 -m unittest discover -s tests/tooling -p test_storage_native_review.py -v
+      - name: Install existing checksum-pinned official engine only
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/storage-tools"
+      - name: Prepare native software renderer and record actual packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
+          dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 > "$RUNNER_TEMP/storage-tools/renderer-packages.txt"
+      - name: Capture actual566px owned and unowned Parking with qualified atlas closure
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 tools/diagnostics/storage_native_review.py \
+            --expected-head "$EXPECTED_HEAD" --godot "$RUNNER_TEMP/storage-tools/godot" \
+            --output "$RUNNER_TEMP/storage-native"
+      - name: Retain screenshots, source bindings and failures, never profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: storage-native-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/storage-native/
+            ${{ runner.temp }}/storage-tools/godot-toolchain-receipt.json
+            ${{ runner.temp }}/storage-tools/renderer-packages.txt
+          if-no-files-found: error
+          retention-days: 7
