@@ -666,14 +666,32 @@ body {
       }
     }
   }
+  function storageFingerprint(data) {
+    const storage = data.storage || {items:[], dining_sets:[]};
+    const items = storage.items.map(item => {
+      const value = {id:item.id, kind:item.kind, x:item.x, z:item.z, rot:item.rot};
+      if (Object.hasOwn(item, 'paid_cost')) value.paid_cost = item.paid_cost;
+      return value;
+    }).sort((a,b) => a.id-b.id);
+    const dining_sets = storage.dining_sets.map(group => ({id:group.id, table_id:group.table_id, seat_id:group.seat_id,
+      variant:group.variant, rot:group.rot, paid_cost:group.paid_cost})).sort((a,b) => a.id-b.id);
+    return JSON.stringify({items,dining_sets});
+  }
   function fingerprint(record) {
     const value = { format: record.format, profileId: record.profileId, revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt, origin: record.origin, payload: record.payload };
-    if (record.format === 2) value.campaigns = record.campaigns;
+    if (record.format >= 2) value.campaigns = record.campaigns;
+    if (record.format === 3) value.mailState = record.mailState;
     return JSON.stringify(value);
   }
   function validRecord(record) {
-    if (!record || ![1, 2].includes(record.format) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(record.profileId) || !Number.isSafeInteger(record.revision) || record.revision < 0 || !Number.isFinite(record.createdAt) || !Number.isFinite(record.updatedAt)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save identity is damaged; recovery is required');
+    if (!record || ![1, 2, 3].includes(record.format) || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(record.profileId) || !Number.isSafeInteger(record.revision) || record.revision < 0 || !Number.isFinite(record.createdAt) || !Number.isFinite(record.updatedAt)) throw fail('CORRUPT_AUTHORITY', 'Authoritative save identity is damaged; recovery is required');
     validReceipts(record);
+    if (record.format === 3) {
+      const state = record.mailState;
+      if (!state || state.schema !== 1 || !Number.isSafeInteger(state.claimSequence) || state.claimSequence < 1
+        || !Number.isSafeInteger(state.stockRevision) || state.stockRevision < 0
+        || Object.keys(state).sort().join(',') !== 'claimSequence,schema,stockRevision') throw fail('CORRUPT_AUTHORITY', 'Mail save watermark is damaged');
+    } else if (Object.hasOwn(record, 'mailState')) throw fail('CORRUPT_AUTHORITY', 'Unexpected mail save watermark');
     if (record.revision === 0) {
       if (record.payload !== null || record.digest !== null || record.origin !== null || record.previous !== null) throw fail('CORRUPT_AUTHORITY', 'Uncommitted save record is damaged');
     } else {
@@ -1000,7 +1018,7 @@ body {
     };
     return client;
   }
-  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, buildingPayload, verifyRecord, fingerprint, hash, ensurePreGridArchive, verifyPreGridArchives });
+  root.LittleLeafAuthorityCodec = Object.freeze({ parsePayload, buildingPayload, verifyRecord, fingerprint, storageFingerprint, hash, ensurePreGridArchive, verifyPreGridArchives });
   let retrying = null;
   function retry(callback) {
     // A fresh client reopens storage after a transient boot failure. No saved

@@ -1,0 +1,70 @@
+import assert from 'node:assert/strict';
+import {createSupportMailService} from './support_mail_service.mjs';
+import {fixture,auth,key,sign,document,mailId} from './support_storage_fixture.mjs';
+const {db,documents,original,baseline,request}=fixture();
+const service=createSupportMailService({db,enabled:true,now:()=>1000});
+const unchanged=()=>JSON.stringify([...documents]);
+let snapshot=unchanged();db.failNextCommit=true;
+await assert.rejects(service.claimMail(auth,request),{code:'OFFLINE'});
+assert.equal(unchanged(),snapshot,'failed commit changes no wallet, receipt, audit, backup, control or letter');
+const claims=await Promise.all([service.claimMail(auth,request),service.claimMail(auth,request)]);
+assert.equal(claims[0].record.digest,claims[1].record.digest,'duplicate concurrent claim is one grant');
+let current=claims[0].record;
+const claimed=JSON.parse(current.payload);
+assert.equal(claimed.coins,100);assert.equal(claimed.storage.items.length,2);
+assert.deepEqual(claimed.storage.items.map(item=>item.id),[baseline.next_item_id,baseline.next_item_id+1]);
+assert.equal((await service.claimMail(auth,request)).record.digest,current.digest,'response-loss retry returns one receipt');
+assert.equal(documents.get(key(`mailClaims/${mailId}`)).toDigest,current.digest);
+assert.equal(documents.get(key(`mail/${mailId}`)).status,'claimed');
+assert.equal(documents.get(key('saveBackups/supportMailV1')).record,JSON.stringify(original));
+assert.equal([...documents.keys()].some(path=>/giftStock|giftPlacements/.test(path)),false,'no parallel stock authority is created');
+const saveRequest=()=>({...request,revision:current.revision,digest:current.digest});
+const candidate=(data,delta=1,stock=1)=>sign({...current,revision:current.revision+delta,payload:JSON.stringify(data),
+  mailState:{...current.mailState,stockRevision:current.mailState.stockRevision+stock}});
+const stored=structuredClone(claimed),bought=stored.items.find(item=>item.kind==='stove');
+assert(bought);stored.items=stored.items.filter(item=>item.id!==bought.id);stored.storage.items.push(bought);
+let next=candidate(stored);
+snapshot=unchanged();db.failNextCommit=true;
+await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:next}),{code:'OFFLINE'});
+assert.equal(unchanged(),snapshot,'failed Storage commit preserves save and control atomically');
+const result=await service.commitProtectedSave(auth,{...saveRequest(),candidate:next});
+assert.equal(result.record.digest,next.digest);assert.equal(JSON.parse(result.record.payload).coins,100,'store never refunds');
+assert.equal(documents.get(key('saveControl/protocol')).stockRevision,next.mailState.stockRevision);
+assert.equal((await service.commitProtectedSave(auth,{...saveRequest(),candidate:next})).record.digest,next.digest,'same-digest save replay is idempotent');
+current=next;
+const unpacked=structuredClone(stored),free=unpacked.storage.items.shift();unpacked.items.push({...free,x:8,z:8});
+next=candidate(unpacked);const oldRequest=saveRequest();
+assert.equal((await service.commitProtectedSave(auth,{...oldRequest,candidate:next})).record.digest,next.digest);
+assert.equal(JSON.parse(next.payload).coins,100,'unpack never charges');current=next;
+const malformed=structuredClone(unpacked);malformed.items.at(-1).paid_cost=800;
+await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:candidate(malformed,1,0)}),{code:'PROTOCOL_CHANGED'});
+const duplicate=structuredClone(unpacked);duplicate.storage.items.push(duplicate.items.at(-1));
+await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:candidate(duplicate)}),{code:'INVALID_SAVE'});
+const downgraded=structuredClone(unpacked);downgraded.version=15;delete downgraded.storage;delete downgraded.storage_format;
+for(const item of downgraded.items)delete item.paid_cost;
+await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:candidate(downgraded)}),{code:'PROTOCOL_CHANGED'});
+const mutateClaim=sign({...candidate(unpacked,1,0),mailState:{...current.mailState,claimSequence:2}});
+await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:mutateClaim}),{code:'PROTOCOL_CHANGED'});
+// Two storage-changing saves can be coalesced back to the same final contents.
+next=candidate(unpacked,2,2);assert.equal((await service.commitProtectedSave(auth,{...saveRequest(),candidate:next})).record.digest,next.digest);current=next;
+await assert.rejects(service.commitProtectedSave(auth,{...oldRequest,candidate:candidate(unpacked,1,0)}),{code:'REVISION_CONFLICT'});
+const owner=documents.get(key('session/owner'));
+for(const change of [{epoch:2},{ack:{digest:current.digest}},{updatedAt:{toMillis:()=>-60000}}]){
+  documents.set(key('session/owner'),{...owner,...change});
+  await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:candidate(unpacked,1,0)}),{code:'OWNERSHIP_LOST'});
+}
+documents.set(key('session/owner'),owner);
+const stopped=createSupportMailService({db,now:()=>1000});
+await assert.rejects(stopped.claimMail(auth,request),{code:'FEATURE_DISABLED'});
+next=candidate(unpacked,1,0);assert.equal((await stopped.commitProtectedSave(auth,{...saveRequest(),candidate:next})).record.digest,next.digest);current=next;
+for(const counts of [{},{plant:2}]){
+  documents.set(key('giftStock/current'),{schema:1,revision:1,counts});snapshot=unchanged();
+  await assert.rejects(service.claimMail(auth,request),{code:'STORAGE_REVIEW_REQUIRED'});
+  await assert.rejects(service.commitProtectedSave(auth,{...saveRequest(),candidate:candidate(unpacked,1,0)}),{code:'STORAGE_REVIEW_REQUIRED'});
+  assert.equal(unchanged(),snapshot,'legacy sidecar is never silently consumed or deleted');
+}
+documents.delete(key('giftStock/current'));
+const oldEnvelope=sign({...original,format:3,mailState:{schema:1,claimSequence:1,stockRevision:0}});
+documents.set(key('saves/cafe'),document(oldEnvelope));
+await assert.rejects(service.claimMail(auth,request),{code:'STORAGE_REVIEW_REQUIRED'});
+console.log('Unified Storage synthetic transactions: atomic rollback, concurrent/replayed claim, ordinary store/unpack, cost preservation, coalescing, fences, kill-switch recovery and legacy evidence preservation passed. Firestore/emulator not exercised.');

@@ -166,17 +166,23 @@ class StorageNativeReviewTests(unittest.TestCase):
     def check_current_postimages(self):
         # The retired 875d6df capture and its pins remain unchanged. This one
         # later, uncaptured subpixel alignment fix requires ordinary CI qualification,
-        # not a new native visual receipt. No other postimage may differ.
+        # not a new native visual receipt. PR329 adds only reviewed mail refresh hooks
+        # to Main; these are uncaptured by the old Storage fixture and will be
+        # independently bound by the mail capture. Other postimages stay pinned.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
                 self.assertEqual(captured_sha, "5d3590d6e715eb5f09c2d82a11eaa99e4ca6d1da31e0638acbdeb9eecb3da22f")
                 expected = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
+            if name == "game/scripts/main.gd":
+                self.assertEqual(captured_sha, "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be")
+                expected = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
-    def test_post_capture_exception_accepts_only_exact_shop_hash(self):
+    def test_post_capture_exceptions_accept_only_exact_shop_and_mail_main_hashes(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
+        expected["game/scripts/main.gd"] = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):

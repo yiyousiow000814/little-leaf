@@ -17,6 +17,12 @@ RELEASE_TESTS = (
     "test_firebase_hosting_deploy",
 )
 NODE_CHECKS = (
+    "platform/firebase/support_mail_contract.test.mjs",
+    "platform/firebase/support_mail_audience.test.mjs",
+    "platform/firebase/support_storage.test.mjs",
+    "platform/firebase/support_mail_identity.test.mjs",
+    "platform/firebase/support_mail_adapter.test.mjs",
+    "platform/firebase/support_mail_client.test.mjs",
     "tests/persistence/crazygames_storage.js",
     "tests/persistence/legacy_byte_storage.js",
     "tests/persistence/layout_hold_codec.js",

@@ -1,0 +1,103 @@
+name: Mail candidate review
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/mail-native-review.yml'
+      - 'tools/diagnostics/mail_native_review.py'
+      - 'tests/tooling/test_mail_native_review.py'
+      - 'tests/persistence/test_support_mail*.gd'
+      - 'game/**'
+      - 'platform/**'
+permissions:
+  contents: read
+concurrency:
+  group: mail-candidate-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  native:
+    # One scoped candidate; pin this condition to its captured SHA at closeout.
+    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check exact reviewed source and diagnostic guards
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 -m unittest discover -s tests/tooling -p test_mail_native_review.py -v
+          python3 tools/diagnostics/mail_native_review.py --expected-head "$EXPECTED_HEAD" --verify-only
+      - name: Install existing checksum-pinned official engine
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/mail-tools"
+      - name: Prepare native software renderer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
+          dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 > "$RUNNER_TEMP/mail-tools/renderer-packages.txt"
+      - name: Capture full-game mail with synthetic transport and isolated profile
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1600x1000x24' python3 tools/diagnostics/mail_native_review.py \
+            --expected-head "$EXPECTED_HEAD" --godot "$RUNNER_TEMP/mail-tools/godot" --output "$RUNNER_TEMP/mail-native"
+      - name: Retain actual PNGs, source binding and failure logs, never profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mail-native-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/mail-native/
+            ${{ runner.temp }}/mail-tools/godot-toolchain-receipt.json
+            ${{ runner.temp }}/mail-tools/renderer-packages.txt
+          if-no-files-found: error
+          retention-days: 7
+  emulator:
+    if: github.event.pull_request.number == 329 && github.head_ref == 'codex/support-mail-gifts-item20-011' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind exact reviewed client and backend source
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/diagnostics/mail_native_review.py --expected-head "$EXPECTED_HEAD" --verify-only
+      - name: Use exact official Node runtime for the pinned dependency lock
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22.20.0'
+          check-latest: false
+      - name: Run generated-profile local emulator tests, without credentials
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ''
+          FIREBASE_TOKEN: ''
+        run: |
+          set -euo pipefail
+          export JAVA_HOME="${JAVA_HOME_21_X64:?Java 21 is required}"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          mkdir -p "$RUNNER_TEMP/mail-emulator"
+          node --version > "$RUNNER_TEMP/mail-emulator/toolchain.log"
+          java -version >> "$RUNNER_TEMP/mail-emulator/toolchain.log" 2>&1
+          npm --prefix platform/firebase ci --ignore-scripts --no-audit --no-fund 2>&1 | tee "$RUNNER_TEMP/mail-emulator/install.log"
+          npm --prefix platform/firebase run test:support:contract 2>&1 | tee "$RUNNER_TEMP/mail-emulator/contract.log"
+          npm --prefix platform/firebase run test:support:emulator 2>&1 | tee "$RUNNER_TEMP/mail-emulator/emulator.log"
+          printf '%s\n' '{"passed":true,"local_emulator_only":true,"real_accounts":false,"functions_transport":false}' > "$RUNNER_TEMP/mail-emulator/result.json"
+      - name: Retain local emulator results and failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: mail-emulator-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/mail-emulator/
+            platform/firebase/firestore-debug.log
+            platform/firebase/ui-debug.log
+          if-no-files-found: error
+          retention-days: 7
