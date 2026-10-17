@@ -1,5 +1,5 @@
 extends SceneTree
-const Proof=preload("res://test_standby_native_retention.gd")
+const Proof=preload("res://tests/rendering/test_standby_native_retention.gd")
 class Model extends RefCounted:
  var customers=[]
 class Fixture extends Node:
