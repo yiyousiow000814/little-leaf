@@ -27,6 +27,31 @@ for (const mutate of [d => delete d.layout_hold_format, d => delete d.runtime.la
   d => d.runtime.service.layout_hold.staff = {}, d => d.version = 15, d => d.version = 17]) {
   const broken = structuredClone(held); mutate(broken); rejects(modern, broken, 15, 'reject malformed or disguised hold');
 }
+const stored = structuredClone(baseline);
+stored.version = 17; stored.storage_format = 'little_leaf.storage.v1';
+stored.storage = {items: [{id: stored.next_item_id++, kind: 'plant', x: 0, z: 0, rot: 2, paid_cost: 45}], dining_sets: []};
+ok(modern.parsePayload(JSON.stringify(stored), 15).storage.items[0].paid_cost === 45, 'owned v17 keeps purchase basis and stored identity');
+ok(modern.buildingPayload(JSON.stringify(stored), 15).generation === modern.buildingPayload(JSON.stringify(baseline), 15).generation, 'Storage uses the same building profile');
+rejects(old, stored, 15, 'old reader cannot discard Storage');
+rejects(modern, stored, 13, 'legacy import cannot consume Storage');
+const storedHeld = structuredClone(stored);
+storedHeld.layout_hold_format = held.layout_hold_format;
+storedHeld.runtime.layout_hold_format = held.layout_hold_format;
+storedHeld.runtime.service.layout_hold = structuredClone(held.runtime.service.layout_hold);
+storedHeld.runtime.service.version = 6;
+ok(modern.parsePayload(JSON.stringify(storedHeld), 15).runtime.service.version === 6, 'Storage preserves current service-v6 and matching held-work markers');
+for (const mutate of [d => delete d.storage, d => d.storage_format = 'future', d => d.version = 15,
+  d => d.storage.items.push(structuredClone(d.items[0])), d => d.next_item_id--,
+  d => d.storage.items[0].kind = 'future_item', d => d.storage.items[0].paid_cost = -1,
+  d => d.storage.items[0].paid_cost = 1.5, d => d.storage.items[0].extra = true,
+  d => d.storage.items[0].rot = 4, d => d.storage.items[0].x = 18,
+  d => d.storage.dining_sets.push({}), d => d.storage.extra = []]) {
+  const broken = structuredClone(stored); mutate(broken); rejects(modern, broken, 15, 'malformed owned records fail closed');
+}
+for (const mutate of [d => delete d.layout_hold_format, d => delete d.runtime.layout_hold_format,
+  d => delete d.runtime.service.layout_hold, d => d.runtime.service.layout_hold = []]) {
+  const broken = structuredClone(storedHeld); mutate(broken); rejects(modern, broken, 15, 'v17 cannot hide mismatched held work');
+}
 for (const shell of ['little_leaf_shell.html', 'little_leaf_crazygames_shell.html'])
   ok(fs.readFileSync('platform/web/' + shell, 'utf8').includes(current), shell + ' embeds the exact authority codec');
 console.log('LAYOUT_HOLD_BROWSER_CODEC_RESULT', JSON.stringify({checks, failures: [], original_player_save_used: false, browser_verified: false}));

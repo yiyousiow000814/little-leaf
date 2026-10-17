@@ -35,6 +35,7 @@ func run():
  var included_register=game.model.checkout_register().duplicate(true)
  for staff in game.staff_states:staff.pos=Vector2(1.5,7.5)
  for kind in game.catalog_cards:
+  if kind=="table_set_legacy_bench":continue # Owned historic variant, never a new purchase.
   game._cancel_selection()
   var m=game.model;m.items.clear();m.dining_sets.clear();m.customers.clear();m.checkout_staff_claims.clear();m.wall_actor_positions.clear();m.coins=100000;m._notify()
   game._set_catalog_category(game._catalog_group(kind));game.catalog_cards[kind].pressed.emit();refresh()

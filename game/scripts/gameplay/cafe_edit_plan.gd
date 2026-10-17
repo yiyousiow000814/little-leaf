@@ -3,7 +3,10 @@ extends RefCounted
 ## Background floor colors never request hypothetical placement plans.
 const Motion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 enum Context { RUNTIME, DECORATE }
-enum Action { PLACE, MOVE, SELL, WALL_PLACE, WALL_MOVE, WALL_REPLACE, WALL_SELL, OPENING_PLACE, OPENING_MOVE, OPENING_SELL }
+enum Source { SHOP, STORAGE }
+enum Action { PLACE, MOVE, SELL, STORE, PLACE_FROM_STORAGE, WALL_PLACE, WALL_MOVE, WALL_REPLACE, WALL_SELL, OPENING_PLACE, OPENING_MOVE, OPENING_SELL }
+var _source:Source=Source.SHOP
+var _stored_id=-1
 var _context:Context=Context.RUNTIME
 var _action:Action=Action.PLACE
 var _state:Array=[]
@@ -18,7 +21,7 @@ func stamp(model,actors:Array)->Array:
  return [
   # Owner and layout, including direct changes that have no notification.
   model.get_instance_id(),model.revision,
-  hash(model.items),hash(model.dining_sets),hash(model.built_walls),
+  hash(model.items),hash(model.storage),model.storage_used,hash(model.dining_sets),hash(model.built_walls),
   hash(model.wall_attachments),model._next_wall_id,model._next_attachment_id,hash(model.decoration_build_purchases),
   hash(model.owned_parcels),model.width,model.depth,
   # Runtime routes, physical reservations, and directional safety policy.
@@ -32,14 +35,14 @@ func stamp(model,actors:Array)->Array:
   hash(model.duty_counts),hash(model.duty_targets),
  ]
 
-func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[],context:Context=Context.RUNTIME)->Dictionary:
+func prepare(model,kind:String,id:int,rotation:int,cell:Vector2i,actors:Array=[],context:Context=Context.RUNTIME,source:Source=Source.SHOP,stored_id:int=-1)->Dictionary:
  id=model.logical_item_id(id) if id>=0 else -1
  if id>=0:kind=model.logical_kind(id)
  var next_state=stamp(model,actors)
- var next=next_state+[kind,id,posmod(rotation,4),cell,context]
+ var next=next_state+[kind,id,posmod(rotation,4),cell,context,source,stored_id]
  if next==_key:return _receipt
- invalidate();_state=next_state;_key=next;_kind=kind;_id=id;_rotation=posmod(rotation,4);_context=context
- _action=Action.MOVE if id>=0 else Action.PLACE
+ invalidate();_state=next_state;_key=next;_kind=kind;_id=id;_rotation=posmod(rotation,4);_context=context;_source=source;_stored_id=stored_id
+ _action=Action.PLACE_FROM_STORAGE if source==Source.STORAGE and id<0 else (Action.MOVE if id>=0 else Action.PLACE)
  validations+=1
  var problem=_physical_problem(model,cell,actors)
  if problem!="":_plan_result={"ok":false,"error":problem}
@@ -75,6 +78,17 @@ func prepare_sell(model,id:int,context:Context=Context.RUNTIME)->Dictionary:
  _receipt={"action":Action.SELL,"context":context,"ok":ok,"physical_ok":ok,"error":_plan_result.error,"refund":refund}
  return _receipt
 
+func prepare_store(model,id:int)->Dictionary:
+ id=model.logical_item_id(id)
+ var next_state=stamp(model,[]);var next=next_state+[Action.STORE,id]
+ if next==_key:return _receipt
+ invalidate();_state=next_state;_key=next;_id=id;_context=Context.DECORATE;_action=Action.STORE
+ var shadow=geometry_model(model);var ok=shadow.store_item(id)
+ _plan_result={"ok":ok,"error":shadow.last_error}
+ if ok:_plan_result.merge({"items":shadow.items,"groups":shadow.dining_sets,"storage":shadow.storage,"storage_used":shadow.storage_used,"register_unplaced":shadow.register_unplaced,"event":shadow.last_event})
+ _receipt={"action":Action.STORE,"context":_context,"ok":ok,"physical_ok":ok,"error":shadow.last_error,"cost":0}
+ return _receipt
+
 func prepare_build(model,action:Action,args:Dictionary)->Dictionary:
  var next_state=stamp(model,[]);var next=next_state+[action,args]
  if next==_key:return _receipt
@@ -107,6 +121,9 @@ func prepare_build(model,action:Action,args:Dictionary)->Dictionary:
  return _receipt
 
 func _physical_problem(model,cell:Vector2i,actors:Array)->String:
+ if _action==Action.PLACE_FROM_STORAGE:
+  var shadow=geometry_model(model)
+  return "" if shadow.place_stored(_stored_id,cell.x,cell.y,_rotation,[]) else shadow.last_error
  if _context==Context.DECORATE:
   if not model.decoration_session_active:return "Open Decorate first"
   var shadow=geometry_model(model)
@@ -123,6 +140,9 @@ func _physical_problem(model,cell:Vector2i,actors:Array)->String:
  return problem
 
 func _plan(model,cell:Vector2i,actors:Array)->Dictionary:
+ if _action==Action.PLACE_FROM_STORAGE:
+  var shadow=geometry_model(model);var ok=shadow.place_stored(_stored_id,cell.x,cell.y,_rotation,[])
+  return {"ok":ok,"error":shadow.last_error,"items":shadow.items,"groups":shadow.dining_sets,"storage":shadow.storage,"storage_used":shadow.storage_used,"register_unplaced":shadow.register_unplaced,"event":shadow.last_event}
  if _context==Context.DECORATE and _id>=0:
   var shadow=geometry_model(model)
   var ok=shadow._move_static(_id,cell.x,cell.y,_rotation,[])
@@ -160,6 +180,14 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
   for key in ["_next_wall_id","_next_attachment_id","coins","last_event"]:model.set(key,plan[key])
   model.decoration_build_purchases=plan.decoration_build_purchases.duplicate(true)
   model.last_error="";model._notify()
+ elif _action in [Action.STORE,Action.PLACE_FROM_STORAGE]:
+  var live={}
+  for item in model.items:live[int(item.id)]=item
+  var next_items:Array[Dictionary]=[]
+  for item in plan.items:next_items.append(live[int(item.id)] if live.has(int(item.id)) else item.duplicate(true))
+  model.items.assign(next_items);model.dining_sets.assign(plan.groups.duplicate(true))
+  model.storage=plan.storage.duplicate(true);model.storage_used=bool(plan.storage_used)
+  model.register_unplaced=bool(plan.register_unplaced);model.last_error="";model.last_event=plan.event;model._notify()
  elif _action==Action.SELL:
   var remaining={}
   for item in plan.items:remaining[int(item.id)]=true
@@ -194,4 +222,4 @@ func commit(model,receipt:Dictionary,actors:Array=[])->bool:
  return true
 
 func invalidate():
- _state=[];_key=[];_receipt={};_plan_result={};_kind="";_id=-1;_rotation=0
+ _state=[];_key=[];_receipt={};_plan_result={};_kind="";_id=-1;_rotation=0;_source=Source.SHOP;_stored_id=-1

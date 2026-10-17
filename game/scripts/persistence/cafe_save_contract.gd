@@ -4,6 +4,8 @@ extends RefCounted
 const SCHEMA = "little_leaf_reconstructed_cafe"
 const VERSION = 15
 const LAYOUT_HOLD_VERSION = 16
+const STORAGE_VERSION = 17
+const STORAGE_FORMAT = "little_leaf.storage.v1"
 const LAYOUT_HOLD_FORMAT = "little_leaf.layout_hold.v1"
 const CHECKOUT_INTRO_VERSION = 13
 const LAYOUT_MOTION_INTRO_VERSION = 15
@@ -18,7 +20,7 @@ const LEGACY_MAX_VERSION = 12
 const PROFILES = [{"file":"little_leaf_cafe_layout_motion_v15.json","app":"Little Leaf Cafe"}]
 static func accepts_version(value)->bool:
  if not (value is int or value is float) or not is_finite(float(value)) or floor(float(value))!=float(value):return false
- return (int(value)>=1 and int(value)<=CHECKOUT_INTRO_VERSION) or int(value) in [VERSION,LAYOUT_HOLD_VERSION]
+ return (int(value)>=1 and int(value)<=CHECKOUT_INTRO_VERSION) or int(value) in [VERSION,LAYOUT_HOLD_VERSION,STORAGE_VERSION]
 static func has_checkout(version:int)->bool:
  return version>=CHECKOUT_INTRO_VERSION
 static func has_layout_motion(version:int)->bool:
@@ -27,10 +29,17 @@ static func accepts_header(data:Dictionary)->bool:
  if not accepts_version(data.get("version")):return false
  var version=int(data.version)
  var held_runtime=data.get("runtime",{})
- if version!=LAYOUT_HOLD_VERSION and held_runtime is Dictionary:
+ var has_hold=version==LAYOUT_HOLD_VERSION or (version==STORAGE_VERSION and data.has("layout_hold_format"))
+ if version==STORAGE_VERSION:
+  if data.get("storage_format")!=STORAGE_FORMAT or not data.get("storage") is Dictionary:return false
+ elif data.has("storage_format") or data.has("storage"):return false
+ if not has_hold and held_runtime is Dictionary:
   if held_runtime.has("layout_hold_format") or (held_runtime.get("service") is Dictionary and held_runtime.service.has("layout_hold")):return false
- if version==LAYOUT_HOLD_VERSION:
+ if has_hold:
   if data.get("layout_hold_format")!=LAYOUT_HOLD_FORMAT:return false
+  if not held_runtime is Dictionary or held_runtime.get("layout_hold_format")!=LAYOUT_HOLD_FORMAT:return false
+  var held_service=held_runtime.get("service")
+  if not held_service is Dictionary or not held_service.get("layout_hold") is Dictionary or held_service.layout_hold.get("format")!=LAYOUT_HOLD_FORMAT:return false
  elif data.has("layout_hold_format"):return false
  if has_checkout(version) and data.get("checkout_format")!=CHECKOUT_FORMAT:return false
  if has_layout_motion(version):return data.get("layout_motion_format")==LAYOUT_MOTION_FORMAT

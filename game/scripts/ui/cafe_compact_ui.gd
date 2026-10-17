@@ -48,6 +48,7 @@ var removal_plan=EditPlan.new()
 var removal_quote={}
 var replacement_plan=EditPlan.new()
 var replacement_quote={}
+var store_button:Button
 var remove_button:Button
 var finish_button:Button
 var cancel_button:Button
@@ -179,6 +180,7 @@ func setup():
  rotate_button=_small_button("Rotate",_rotate_selected);context.add_child(rotate_button)
  move_button=_small_button("Move",_move_opening);context.add_child(move_button)
  finish_button=_small_button("Replace",show_finishes);context.add_child(finish_button)
+ store_button=_small_button("Store",game._store_selected,72);context.add_child(store_button)
  remove_button=_small_button("Remove",_remove_selected,92);context.add_child(remove_button)
  cancel_button=_small_button("×",func():game._cancel_selection();sync(),42);context.add_child(cancel_button)
  context.hide()
@@ -364,6 +366,9 @@ func sync():
  move_button.disabled=game.save_recovery_blocked
  finish_button.visible=not wall.is_empty() or selected_shell!="" or edge
  finish_button.text="Style" if edge else "Replace"
+ store_button.visible=not item.is_empty()
+ store_button.disabled=game.save_recovery_blocked
+ store_button.tooltip_text="Keep this furnishing in Storage, without selling or refund"
  remove_button.visible=not item.is_empty() or not opening.is_empty() or not wall.is_empty()
  remove_button.disabled=false;remove_button.tooltip_text=""
  var refund=0
@@ -428,7 +433,7 @@ func sync():
  # Preserve exact breakpoint styling without repeatedly invalidating it.
  var action_font_size=12 if width<650 else 13
  var action_margin=8.0 if width<650 else 16.0
- for action_button in [rotate_button,move_button,finish_button,remove_button,cancel_button]:
+ for action_button in [rotate_button,move_button,finish_button,store_button,remove_button,cancel_button]:
   if not action_button.has_theme_font_size_override("font_size") or action_button.get_theme_font_size("font_size")!=action_font_size:
    action_button.add_theme_font_size_override("font_size",action_font_size)
   for state in ["normal","hover","pressed","disabled"]:

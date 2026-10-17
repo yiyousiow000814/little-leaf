@@ -2,6 +2,7 @@
 
 Use the [canonical roadmap](../roadmap.md) for current scope, ownership and status. These contracts specify behavior and constraints; approval of a document does not establish implemented code or accepted game pixels.
 
+- [Owned Storage in Decorate](owned-storage.md)
 - [Character authoring and accessories](cute-staff-accessories-011.md)
 - [Eight-direction routing design](rc-inspired-routing-011.md), with [verification cases](../testing/rc-inspired-routing-011-qa.md)
 - [Starter-wall geometry and migration](starter-wall-grid-segments.md), [implementation review](starter-wall-implementation-review.md) and [source-bound review data](starter-wall-design-review.json)

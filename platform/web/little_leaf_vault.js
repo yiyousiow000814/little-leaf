@@ -51,6 +51,7 @@
   const CHECKOUT = 'little_leaf.checkout.v1';
   const MOTION = 'little_leaf.layout_motion.v1';
   const HOLD = 'little_leaf.layout_hold.v1';
+  const STORAGE = 'little_leaf.storage.v1';
   const fail = (code, message) => Object.assign(new Error(message), { code });
   const resultError = error => ({ ok: false, code: (typeof error.code === 'string' && error.code) || error.name || 'STORAGE_ERROR', error: error.message || String(error) });
   const uuid = () => root.crypto.randomUUID();
@@ -63,20 +64,72 @@
     if (typeof text !== 'string' || new TextEncoder().encode(text).length > LIMIT) throw fail('INVALID_SAVE', 'Save is unreadable or too large');
     let data;
     try { data = JSON.parse(text); } catch (_) { throw fail('INVALID_SAVE', 'Invalid save JSON'); }
-    if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== SCHEMA || (data.version !== version && !(version === 15 && data.version === 16)) || data.new_reconstruction !== true || data.checkout_format !== CHECKOUT) throw fail('INVALID_SAVE', 'Unsupported save format');
+    if (!data || typeof data !== 'object' || Array.isArray(data) || data.schema !== SCHEMA || (data.version !== version && !(version === 15 && [16, 17].includes(data.version))) || data.new_reconstruction !== true || data.checkout_format !== CHECKOUT) throw fail('INVALID_SAVE', 'Unsupported save format');
     if (version === 15 && data.layout_motion_format !== MOTION) throw fail('INVALID_SAVE', 'Missing layout movement format');
     if (version === 13 && Object.hasOwn(data, 'layout_motion_format')) throw fail('INVALID_SAVE', 'Legacy save has a foreign movement format');
     // v16 remains in this profile/authority. Older clients reject its version;
     // neither import nor an award may downgrade or strip its suspended work.
     const runtime = data.runtime, service = runtime && runtime.service;
-    if (data.version === 16) {
+    const hasHold = Object.hasOwn(data, 'layout_hold_format') || (runtime && Object.hasOwn(runtime, 'layout_hold_format')) || (service && Object.hasOwn(service, 'layout_hold'));
+    if (data.version === 16 || (data.version === 17 && hasHold)) {
       const hold = service && service.layout_hold;
       if (data.layout_hold_format !== HOLD || !runtime || runtime.layout_hold_format !== HOLD || !hold || hold.format !== HOLD || Object.keys(hold).sort().join(',') !== 'dishes,floor,format,guests,hosts,staff') throw fail('INVALID_SAVE', 'Missing layout hold format');
       for (const [key, limit] of [['hosts', 512], ['guests', 60], ['staff', 64], ['dishes', 512], ['floor', 512]])
         if (!Array.isArray(hold[key]) || hold[key].length > limit) throw fail('INVALID_SAVE', 'Invalid layout hold bounds');
     } else if (Object.hasOwn(data, 'layout_hold_format') || (runtime && Object.hasOwn(runtime, 'layout_hold_format')) || (service && Object.hasOwn(service, 'layout_hold')))
       throw fail('INVALID_SAVE', 'Legacy save has foreign layout hold state');
+    validateStorage(data);
     return data;
+  }
+  // Storage is part of the one save payload, never a second stock balance.
+  // Validate one canonical union of placed and stored furniture.
+  const OWNED_KINDS = ['table','chair','bench','stove','beverage','sink','counter','bin','register','plant','lamp','bookshelf','rug','divider'];
+  const DINING_COSTS = {oak_single:[140,280],cottage_single:[420],retro_single:[1200],refined_single:[3600],legacy_bench:[175]};
+  const integer = (value, min, max) => Number.isSafeInteger(value) && value >= min && value <= max;
+  function validateStorage(data) {
+    if (data.version !== 17) {
+      if (Object.hasOwn(data, 'storage') || Object.hasOwn(data, 'storage_format')
+        || (Array.isArray(data.items) && data.items.some(item => item && Object.hasOwn(item, 'paid_cost'))))
+        throw fail('INVALID_SAVE', 'Legacy save has foreign Storage state');
+      return;
+    }
+    const storage = data.storage;
+    if (data.storage_format !== STORAGE || !storage || Object.keys(storage).sort().join(',') !== 'dining_sets,items'
+      || !Array.isArray(data.items) || !Array.isArray(data.dining_sets) || !Array.isArray(storage.items) || !Array.isArray(storage.dining_sets))
+      throw fail('INVALID_SAVE', 'Missing Storage contract');
+    const owned = new Map(); let registers = 0, highest = 0;
+    for (const [items, stored] of [[data.items, false], [storage.items, true]]) {
+      for (const item of items) {
+        if (!item || typeof item !== 'object' || Array.isArray(item) || !integer(item.id, 1, 1000000000)
+          || !OWNED_KINDS.includes(item.kind) || !integer(item.x, 0, 17) || !integer(item.z, 0, 17) || !integer(item.rot, 0, 3)
+          || owned.has(item.id) || (Object.hasOwn(item, 'paid_cost') && !integer(item.paid_cost, 0, 1000000000))
+          || (stored && Object.keys(item).sort().join(',') !== (Object.hasOwn(item, 'paid_cost') ? 'id,kind,paid_cost,rot,x,z' : 'id,kind,rot,x,z')))
+          throw fail('INVALID_SAVE', 'Invalid or duplicated owned furniture');
+        owned.set(item.id, item); highest = Math.max(highest, item.id);
+        if (item.kind === 'register') registers++;
+      }
+    }
+    if (registers > 1) throw fail('INVALID_SAVE', 'Duplicate owned register');
+    const hosts = data.runtime?.service?.layout_hold?.hosts || [], held = new Set();
+    for (const host of hosts) {
+      if (!host || !integer(host.id, 1, 1000000000) || held.has(host.id) || !OWNED_KINDS.includes(host.kind)
+        || (owned.has(host.id) && owned.get(host.id).kind !== host.kind)) throw fail('INVALID_SAVE', 'Invalid held furniture identity');
+      held.add(host.id); highest = Math.max(highest, host.id);
+    }
+    if (!integer(data.next_item_id, highest + 1, 1000000001)) throw fail('INVALID_SAVE', 'Invalid owned furniture sequence');
+    for (const [items, groups] of [[data.items, data.dining_sets], [storage.items, storage.dining_sets]]) {
+      const byId = new Map(items.map(item => [item.id, item])), grouped = new Set(), directions = [[0,1],[-1,0],[0,-1],[1,0]];
+      for (const group of groups) {
+        const table = byId.get(group?.table_id), seat = byId.get(group?.seat_id), costs = DINING_COSTS[group?.variant];
+        if (!group || Object.keys(group).sort().join(',') !== 'id,paid_cost,rot,seat_id,table_id,variant'
+          || group.id !== group.table_id || group.table_id === group.seat_id || !integer(group.rot, 0, 3)
+          || !table || !seat || table.kind !== 'table' || seat.kind !== (group.variant === 'legacy_bench' ? 'bench' : 'chair')
+          || grouped.has(table.id) || grouped.has(seat.id) || !costs || !costs.includes(group.paid_cost)
+          || seat.x - table.x !== directions[group.rot][0] || seat.z - table.z !== directions[group.rot][1])
+          throw fail('INVALID_SAVE', 'Invalid stored dining set');
+        grouped.add(table.id); grouped.add(seat.id);
+      }
+    }
   }
   function fingerprint(record) {
     const value = { format: record.format, profileId: record.profileId, revision: record.revision, createdAt: record.createdAt, updatedAt: record.updatedAt, origin: record.origin, payload: record.payload };
