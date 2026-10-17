@@ -15,6 +15,14 @@ class Painter extends RefCounted:
  func art_draw_polygon(points,colors,uvs,texture):filled.append({"points":points,"colors":colors,"uvs":uvs,"texture":texture})
  func poly(points,_color):outlined.append(points)
  func line(a,b,_color,_width):lines.append([a,b])
+class WallFixture extends Node:
+ var model={"built_walls":[]}
+ var wall_detail=false
+class RetainedPainter extends "res://scripts/rendering/illustrated_cafe.gd":
+ var filled=[]
+ func art_draw_polygon(points:PackedVector2Array,colors:PackedColorArray,uvs:PackedVector2Array=PackedVector2Array(),texture:Texture2D=null):
+  filled.append({"points":points,"colors":colors,"uvs":uvs,"texture":texture})
+  if native_draw_target!=null:native_draw_target.submit_shape(&"draw_polygon",[points,colors,uvs,texture],native_command_transform)
 var checks=0
 var failures=[]
 func check(ok,label):
@@ -100,7 +108,7 @@ func inspect_slice_preparation(axis):
    painter.filled=[]
    for piece in pieces:Art.draw_built_piece(painter,piece,attachments,.68,Color("efd095"))
    check(painter.filled==expected,"Shared preparation preserves every emitted point, color, UV and texture after immediate edits/camera changes")
-   check(preparation.size()==2 and preparation.host==Geometry.wall_host(member) and preparation.panels==Geometry.solid_panels(preparation.host,walls,attachments),"Preparation retains only this wall descriptor and its current panels")
+   check(preparation.size()==5 and preparation.host==Geometry.wall_host(member) and preparation.panels==Geometry.solid_panels(preparation.host,walls,attachments),"Preparation retains this wall descriptor, panels and exact neighbor cuts")
   check(before==[walls,attachments],"Preparing slices never stores scratch data in model inputs")
 func slice_group_lifetime()->WeakRef:
  var pieces=Art.built_depth_entries(wall("lifetime","x",2,3))
@@ -111,7 +119,70 @@ func slice_group_lifetime()->WeakRef:
  check(observed.get_ref()!=null,"Remaining slice keeps only its own preparation alive")
  final_slice={}
  return observed
+func inspect_retained_slice():
+ var painter=RetainedPainter.new();var fixture=WallFixture.new();painter.game=fixture
+ var first=wall("first","x",2,3);var next=wall("next","x",3,3)
+ fixture.model.built_walls=[first,next]
+ painter.render_wall_attachments=[{"id":8,"kind":"door","wall_ids":["first","next"],"offset":1.0,"width":1.5}]
+ painter.origin=Vector2(135,79);painter.canvas_stream.active=true
+ var alpha=1.0;var tint=Color.WHITE;var prior_revision=0
+ for transition in 10:
+  match transition:
+   1:painter.render_wall_attachments[0].offset=.85
+   2:painter.render_wall_attachments[0].kind="window"
+   3:first.material="cream_stripe"
+   4:next.height="half"
+   5:first.x=1;next.x=2
+   6:fixture.model.built_walls.erase(next);painter.render_wall_attachments.clear()
+   7:painter.zoom=1.55;painter.tile=Vector2(39,19.5)*1.55
+   8:painter.origin+=Vector2(17,9)
+   9:alpha=.68;tint=Color("efd095")
+  var before=[fixture.model.built_walls,painter.render_wall_attachments].duplicate(true)
+  var piece=Art.built_depth_entries(first)[3]
+  painter.canvas_stream.cursor=0;painter._draw_wall_slice(piece,alpha,tint)
+  var node=painter.native_object_nodes[0]
+  check(node.paint_revision>prior_revision,"Wall slice immediately invalidates for attachment, style, neighbor, movement, deletion, zoom, origin or draft tint")
+  prior_revision=node.paint_revision
+  painter.filled=[];painter.paint_native_object(node,node.paint)
+  var retained=painter.filled
+  painter.filled=[];Art.draw_built_piece(painter,Art.built_depth_entries(first)[3],painter.render_wall_attachments,alpha,tint)
+  check(painter.filled==retained,"Retained wall callback preserves exact projected points, colors, UVs and texture")
+  check(before==[fixture.model.built_walls,painter.render_wall_attachments],"Retained wall never mutates model or draft inputs")
+  painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
+  check(node.paint_revision==prior_revision,"Fresh per-draw preparation does not invalidate unchanged retained wall")
+  painter._art_transform=Transform2D(0,Vector2(20+transition,30))
+  painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
+  check(node.paint_revision==prior_revision and node.transform==painter._art_transform,"Presentation pan moves retained wall without rebuilding geometry")
+ check(painter.native_object_nodes.size()==1,"Repeated wall updates reuse their bounded painter slot")
+ var sentinel=RefCounted.new();var source_lifetime=weakref(sentinel)
+ painter.render_wall_attachments=[{"id":10,"kind":"window","wall_ids":["first"],"offset":.5,"width":.5,"lifetime_probe":sentinel}]
+ sentinel=null
+ painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
+ painter.render_wall_attachments=[]
+ check(source_lifetime.get_ref()==null,"Wall callback does not retain a discarded attachment array")
+ var capacity=0;var child_capacity=0
+ for cycle in 12:
+  painter.canvas_stream.frame_id+=1
+  for slot in [0,2,5,9]:
+   painter.canvas_stream.cursor=slot;painter._draw_wall_slice(Art.built_depth_entries(first)[slot%4],alpha,tint)
+   var node=painter.native_object_nodes[slot];node.shape_cursor=0
+   painter.paint_native_object(node,node.paint)
+  painter._finish_native_objects()
+  var occupied=painter.native_object_nodes.size()
+  var children=0
+  for node in painter.native_object_nodes.values():children+=node.shapes.size()
+  if cycle==0:capacity=occupied;child_capacity=children
+  check(children==child_capacity and children>0,"Repeated depth shifts reuse populated native child-shape capacity")
+  check(occupied==capacity,"Repeated wall depth-slot shifts reuse historical bounded slot capacity")
+  painter.canvas_stream.frame_id+=1;painter._finish_native_objects()
+  check(painter.native_object_nodes.values().all(func(node):return not node.visible),"Removing every wall hides every historical retained slot immediately")
+
+ var observed=weakref(painter.native_object_nodes[0])
+ painter.free();fixture.free()
+ check(observed.get_ref()==null,"Wall draw-list owner is released with its artist")
+
 func _initialize():
+ inspect_retained_slice()
  for cycle in range(12):check(slice_group_lifetime().get_ref()==null,"Dropping the final slice releases preparation on every cycle")
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))
  for index in 4:Art.face(painter,host,index*.25,(index+1)*.25,0,128)

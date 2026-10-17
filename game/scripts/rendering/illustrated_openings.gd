@@ -107,17 +107,24 @@ static func built_depth_entries(wall:Dictionary)->Array[Dictionary]:
 	for piece in pieces:piece["wall_preparation"]=preparation
 	return pieces
 
-static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
-	var wall:Dictionary=piece.entry
+static func built_preparation(view,piece:Dictionary,attachments:Array)->Dictionary:
 	var preparation:Dictionary=piece.get("wall_preparation",{})
 	if preparation.is_empty():
-		var prepared_host=Geometry.wall_host(wall)
-		preparation["host"]=prepared_host
-		preparation["panels"]=Geometry.solid_panels(prepared_host,view.game.model.built_walls,attachments)
+		var host=Geometry.wall_host(piece.entry)
+		var walls:Array=view.game.model.built_walls
+		preparation["host"]=host
+		preparation["panels"]=Geometry.solid_panels(host,walls,attachments)
+		preparation["cut_start"]=corner_cut(host,walls,false)
+		preparation["cut_end"]=corner_cut(host,walls,true)
+		preparation["end_bottom"]=visible_end_bottom(host,walls)
+	return preparation
+
+static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,tint=Color.WHITE):
+	var preparation=built_preparation(view,piece,attachments)
 	var host:Dictionary=preparation.host
 	var a=float(piece.wall_t0);var b=float(piece.wall_t1)
-	var cut_a=corner_cut(host,view.game.model.built_walls,false) if is_zero_approx(a) else Vector2(a,a)
-	var cut_b=corner_cut(host,view.game.model.built_walls,true) if piece.wall_end else Vector2(b,b)
+	var cut_a:Vector2=preparation.cut_start if is_zero_approx(a) else Vector2(a,a)
+	var cut_b:Vector2=preparation.cut_end if piece.wall_end else Vector2(b,b)
 	var panels:Array=preparation.panels
 	for panel in panels:
 		var start=maxf(a,float(panel.from));var finish=minf(b,float(panel.to))
@@ -127,7 +134,7 @@ static func draw_built_piece(view,piece:Dictionary,attachments:Array,alpha=1.0,t
 	cap(view,host,cut_a.x,cut_b.x,alpha,tint,cut_a.y,cut_b.y)
 	if piece.wall_end and is_equal_approx(cut_b.x,cut_b.y):
 		for panel in panels:
-			if float(panel.to)>=1.0-.00001:end_face(view,host,1,maxf(float(panel.bottom),visible_end_bottom(host,view.game.model.built_walls)),panel.top,alpha,tint)
+			if float(panel.to)>=1.0-.00001:end_face(view,host,1,maxf(float(panel.bottom),float(preparation.end_bottom)),panel.top,alpha,tint)
 static func visible_end_bottom(host:Dictionary,walls:Array)->float:
 	for wall in walls:
 		# Only a collinear wall starting at this end can hide its end face.

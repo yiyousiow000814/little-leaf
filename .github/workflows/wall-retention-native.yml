@@ -1,0 +1,56 @@
+name: Wall retention paired native review
+on:
+  pull_request:
+    types: [opened]
+    paths:
+      - 'game/scripts/rendering/illustrated_cafe.gd'
+      - 'game/scripts/rendering/illustrated_openings.gd'
+      - 'tests/diagnostics/capture_wall_retention.gd'
+      - 'tools/diagnostics/wall_retention_native.py'
+      - '.github/workflows/wall-retention-native.yml'
+permissions:
+  contents: read
+concurrency:
+  group: wall-retention-native-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  paired-native:
+    # One capture when the reviewed draft opens. Later commits do not rerender.
+    if: github.head_ref == 'perf/retain-wall-slice-draws' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify reviewed renderer and unchanged atlas artifacts
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: /usr/bin/python3 tools/diagnostics/wall_retention_native.py --expected-head "$EXPECTED_HEAD" --verify-only
+      - name: Install existing checksum-pinned official engine
+        run: /usr/bin/python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/wall-tools"
+      - name: Prepare the existing native software-rendering route
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0 python3-pil
+          dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 python3-pil > "$RUNNER_TEMP/wall-tools/renderer-packages.txt"
+      - name: Capture and independently compare sixteen paired frames
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1600x1000x24' /usr/bin/python3 tools/diagnostics/wall_retention_native.py \
+            --expected-head "$EXPECTED_HEAD" --godot "$RUNNER_TEMP/wall-tools/godot" --output "$RUNNER_TEMP/wall-native"
+      - name: Preserve PNGs, source bindings and failures without generated profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: wall-retention-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/wall-native/
+            ${{ runner.temp }}/wall-tools/godot-toolchain-receipt.json
+            ${{ runner.temp }}/wall-tools/renderer-packages.txt
+          if-no-files-found: error
+          retention-days: 7
