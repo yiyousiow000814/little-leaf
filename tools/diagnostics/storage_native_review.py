@@ -17,7 +17,18 @@ REVIEWED_SOURCE = "9127a53d31258c28eaa37e06cc1752e8bd48b9f4"
 REVIEWED_TREE = "c82bf154e29da90ad34ff40a8910956c7bd9d68e"
 COMPONENT_SOURCE = "d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0"
 FIXTURE = "tests/presentation/test_storage_ui.gd"
-FIXTURE_SHA = "a92cea2eca60fb47b130d8504f623ec54778328f381daecc26d812aa463af89a"
+FIXTURE_SHA = "09b3a32513441fbe933c20f5f5d20b5b494b816b8da576b5652d70a05c190458"
+REVIEWED_POSTIMAGES = {
+    "game/scripts/main.gd": "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be",
+    "game/scripts/ui/cafe_shop_ui.gd": "798ce2bcba3e32350c77f3bf0d5615ad7043be86d2e59ac428cf44616dcfeb6e",
+    "tests/presentation/test_storage_ui.gd": "09b3a32513441fbe933c20f5f5d20b5b494b816b8da576b5652d70a05c190458"
+}
+PRIOR_ATLAS = {
+    "source": "207409f5f19187e13f005de0f8a832b69f430cb9",
+    "tree": "e27e58e115590eb7e973d1dcbe01fc28b7ddab7f",
+    "run": "https://github.com/yiyousiow000814/little-leaf/actions/runs/38998426362",
+    "receipt_sha256": "ea7452ab917c85ae36f261e0372471291d1941254717e3b9736716dff7a18133",
+}
 CLOSURE_SHA = "e540266523346c68bb05fd52e5050aea96a4a26c5b0cb4e0b528a13274814bec"
 ENGINE_SHA = "f64d4ed19fc9df9440321653fcc80df8c6e365ba7b6de0a29e2cfa9fa71bfeb3"
 HELPERS = {
@@ -59,6 +70,12 @@ def load_module(name, path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def check_reviewed_postimages(changed, root):
+    require(set(changed) == set(REVIEWED_POSTIMAGES), "Unreviewed protected source changes")
+    require(all(file_sha(root / name) == sha for name, sha in REVIEWED_POSTIMAGES.items()),
+            "Reviewed Storage UI postimage changed")
 
 
 def check_closure(current, manifest):
@@ -105,12 +122,12 @@ def check_frames(folder, log):
     results = [json.loads(line.split(" ", 1)[1]) for line in log.splitlines()
                if line.startswith("STORAGE_UI_RESULT ")]
     require(len(results) == 1 and results[0].get("failures") == [] and
-            results[0].get("checks", 0) >= 60 and results[0].get("player_save_used") is False,
+            results[0].get("checks", 0) >= 100 and results[0].get("player_save_used") is False,
             "Missing or failed full-game Storage UI result")
     require("Godot Engine v4.6.3.stable.official.7d41c59c4" in log and
             "OpenGL API" in log and "Compatibility" in log, "Missing native UI renderer evidence")
     expected = {f"{state}-{size}.png": tuple(map(int, size.split("x")))
-                for state in ("storage", "storage-filter-open", "store-action")
+                for state in ("shop", "storage", "storage-categories", "store-action")
                 for size in ("1360x880", "390x844", "844x390")}
     require({p.name for p in folder.glob("*.png")} == set(expected), "Incomplete or extra Storage captures")
     rows = {}
@@ -165,8 +182,8 @@ def main():
             "Reviewed implementation tree unavailable or changed")
     protected = ("game", "platform/web", FIXTURE, "tools/build/project_layout.py",
                  "tools/qualification/verify_prebaked_atlases.py", "tools/ci/toolchain.json")
-    require(not git("diff", "--name-only", REVIEWED_SOURCE, head, "--", *protected),
-            "Production/fixture differs from reviewed Storage; rebind after review")
+    changed = git("diff", "--name-only", REVIEWED_SOURCE, head, "--", *protected).decode().splitlines()
+    check_reviewed_postimages(changed, ROOT)
     require(file_sha(args.godot) == ENGINE_SHA, "Official engine binary hash mismatch")
     require(file_sha(ROOT / FIXTURE) == FIXTURE_SHA, "Storage capture fixture changed")
     helper = ROOT / "tests/diagnostics/canonical_atlas"
@@ -186,6 +203,8 @@ def main():
     report = {"head": head, "tree": git("rev-parse", "HEAD^{tree}").decode().strip(),
               "reviewed_source": REVIEWED_SOURCE, "component_source": COMPONENT_SOURCE,
               "helper_sha256": HELPERS, "fixture_sha256": FIXTURE_SHA,
+              "reviewed_ui_postimages": REVIEWED_POSTIMAGES,
+              "prior_atlas_qualification": PRIOR_ATLAS, "atlas_regenerated": False,
               "producer_count": len(closure), "closure_sha256": CLOSURE_SHA,
               "manifest_sha256": file_sha(manifest_path), "engine_sha256": file_sha(args.godot),
               "expected_rgba": EXPECTED_RGBA, "manifest_written": False, "player_save_used": False,
@@ -227,10 +246,9 @@ def main():
                 folder = temp / "profile" / key.lower()
                 folder.mkdir(parents=True)
                 env[key] = str(folder)
-            atlas = output / "atlas"
             frames = output / "storage"
-            atlas.mkdir(); frames.mkdir()
-            env.update(LIBGL_ALWAYS_SOFTWARE="1", LL_ATLAS_SOURCE=head, LL_ATLAS_OUTPUT=str(atlas), LL_CAPTURE_OUTPUT=str(frames))
+            frames.mkdir()
+            env.update(LIBGL_ALWAYS_SOFTWARE="1", LL_CAPTURE_OUTPUT=str(frames))
             runtime_config = config.read_text()
             require("[editor]" not in runtime_config, "Review existing editor import policy")
             config.write_text(runtime_config + "\n[editor]\nimport/use_multiple_threads=false\n")
@@ -239,13 +257,10 @@ def main():
                 run("import", engine + ["--headless", "--editor", "--import", "--quit"], env)
             finally:
                 config.write_text(runtime_config)
-            scene = project / "tests/diagnostics/canonical_atlas/parity.tscn"
-            scene.write_text('[gd_scene load_steps=2 format=3]\n[ext_resource type="Script" path="res://tests/diagnostics/canonical_atlas/parity.gd" id="1"]\n[node name="ZeroGameParity" type="Node"]\nscript=ExtResource("1")\n')
+            # The complete83-source closure, source PNG/import records and fixed
+            # references above equal the retained original-three qualification.
+            # Main/Shop UI are outside that closure: capture only changed UI.
             native = engine + ["--rendering-method", "gl_compatibility"]
-            run("atlas-native", native + ["res://tests/diagnostics/canonical_atlas/parity.tscn"], env)
-            for name in ("check_saved", "check_source_png"):
-                run(name, engine + ["--headless", "--script", "res://tests/diagnostics/canonical_atlas/" + name + ".gd"], env)
-            report["atlas"] = check_atlas(atlas, head)
             log = run("storage-native", native + ["--script", "res://" + FIXTURE, "--", "--visual-qa", "--fresh-review", "--skip-intro", "--skip-tutorial"], env)
             report["storage"] = check_frames(frames, log)
             require(all(file_sha(project / n) == sha for n, sha in originals.items() if n not in report["disposable_overrides"]),

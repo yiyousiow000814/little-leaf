@@ -45,7 +45,7 @@ var tool_text: Label
 var business_button: Button
 var catalog_prices={}
 var catalog_mode="Shop"
-var catalog_query=""
+var catalog_stock={}
 var selected_stored_id=-1
 var catalog_cards={}
 var category_buttons={}
@@ -344,7 +344,7 @@ func _build_ui():
 	expand_button.tooltip_text="Buy the next unowned plot, or click a specific FOR SALE sign"
 	tools.add_child(button("Hire cook",_hire))
 	var categories=HFlowContainer.new();categories.add_theme_constant_override("separation",6);column.add_child(categories)
-	for category in ["All","Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
+	for category in ["Tables","Kitchen","Drinks","Cleaning","Decor","Build"]:
 		var tab=button(category,func():_set_catalog_category(category));tab.toggle_mode=true;tab.button_pressed=category==catalog_category
 		categories.add_child(tab);category_buttons[category]=tab
 	var scroll=ScrollContainer.new();catalog_scroll=scroll; scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_AUTO; scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; column.add_child(scroll)
@@ -370,23 +370,21 @@ func _catalog_group(kind:String)->String:
 	return "Decor"
 
 func _filter_catalog():
+	catalog_stock.clear()
 	for spec in model.catalog:
 		var kind=str(spec.kind)
 		if not catalog_cards.has(kind):continue
 		var owned=catalog_mode=="Storage"
-		var shown=(not model.stored_ids(kind).is_empty()) if owned else not bool(spec.get("hidden",false))
-		catalog_cards[kind].visible=shown and (catalog_category=="All" or _catalog_group(kind)==catalog_category) and (catalog_query=="" or str(spec.name).to_lower().contains(catalog_query.to_lower()))
+		# One ownership read per kind per refresh; the shared shelf reuses it.
+		catalog_stock[kind]=model.stored_ids(kind).size() if owned or kind=="register" else 0
+		var shown=int(catalog_stock[kind])>0 if owned else not bool(spec.get("hidden",false))
+		catalog_cards[kind].visible=shown and _catalog_group(kind)==catalog_category
 	if category_buttons.has("Build"):category_buttons.Build.visible=catalog_mode=="Shop"
-	if category_buttons.has("All"):category_buttons.All.visible=catalog_mode=="Storage"
 func _set_catalog_mode(mode:String):
 	if mode not in ["Shop","Storage"]:return
 	catalog_mode=mode
-	if mode=="Storage":catalog_category="All"
-	elif catalog_category=="All":catalog_category="Tables"
+	if mode=="Storage" and catalog_category=="Build":catalog_category="Tables"
 	_set_catalog_category(catalog_category)
-func _set_catalog_query(query:String):
-	catalog_query=query;_cancel_selection();_filter_catalog()
-	if compact_ui!=null:compact_ui.sync()
 func _set_catalog_category(category:String):
 	catalog_category=category
 	_cancel_selection()

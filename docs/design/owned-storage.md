@@ -10,17 +10,26 @@ interface as Shop inside Decorate, and show only owned items, inspired by
 Restaurant City. Preserved Restaurant City inventory, editor-menu and sale-dialog
 screenshots were inspected on 17 October 2026. They show an inventory source tab
 inside the editor catalogue, shared item categories, ownership counts and paging,
-with selling as a separate action. These are structural references, not artwork
+with selling as a separate action. The preserved inventory image and its
+[original guide](https://www.gamezebo.com/walkthroughs/restaurant-city-walkthrough/)
+were revisited after the first candidate was rejected: the small crate beside a
+plain number at each card's upper-right communicates the inventory count. The
+large crate above the catalogue is a separate source selector. These are
+structural references, not artwork
 to copy and not approval of the Little Leaf candidate's appearance.
 
 ## Reuse and interaction
 
-- Keep the existing Little Leaf wood shelf, cards, thumbnails, category picker,
-  search, horizontal paging, placement preview and whole-session Decorate controls.
-- Shop and Storage are two sources in that same shelf. Storage shows owned
-  furniture only, with All and existing categories, `Owned ×N`, no coin-price
-  icon, and explicit empty/no-match states. It creates one card per catalogue
-  kind, not one control per stored physical item.
+- Keep the existing Little Leaf wood shelf, cards, thumbnails, category
+  rail/picker, horizontal paging, placement preview and whole-session controls.
+- Shop and Storage are two sources in that same shelf and share the existing
+  Decorate categories, cards and responsive layout. Storage shows only owned
+  furniture pictures, with a small Little Leaf-style crate and plain count at
+  the upper-right. No All, text input, visible item title, `Owned`, `×N`, price
+  or `Place · free` copy. An empty category remains explicit. One shared card
+  represents each catalogue kind, not each stored physical item. The filter
+  and badge reuse one ownership count per kind per refresh. This bounded UI
+  projection is rebuilt on refresh, never saved or used as a second inventory.
 - Store and Sell remain separate. Store transfers the existing identity into
   Storage without payment or refund. Selecting it again uses the same placement
   planner, original rotation and identity, without buying another item.
@@ -29,8 +38,10 @@ to copy and not approval of the Little Leaf candidate's appearance.
 - Cancel restores the complete Decorate baseline, including stock, wallet,
   identity counter and purchase receipts. Apply retains existing save/retry and
   service-hold reconciliation. Invalid or repeated placement cannot duplicate stock.
-- Mobile reuses the category/search popup and the existing short-landscape shelf
-  rather than enlarging the panel over the café. Painted fit remains to be checked.
+- Mobile reuses the existing category-only picker when space requires it, and
+  the category rail/arrows otherwise. Short landscape does not stack two44px
+  rows inside a96px board. Storage controls and clipped item content must fit
+  inside the actual26px/23px nine-slice wood interior, not merely the viewport.
 
 ## One ownership and persistence model
 
@@ -60,14 +71,18 @@ asset cache or per-owned-item control is introduced. Large-stock performance is
 not certified by the synthetic ownership tests.
 
 Existing focused fixtures cover purchase/store/place-back, stable identity and
-cost, Cancel, duplicate/corrupt records, held-work markers, category/search,
-105 owned items and desktop/portrait/short-landscape control bounds. Browser
+cost, Cancel, duplicate/corrupt records, held-work markers, categories,105 owned items and
+desktop/portrait/short-landscape control bounds. The revised native UI fixture
+checks painted board insets, plain crate counts, no redundant text/input,
+actual category/source/Store clicks and paired Shop/Storage captures. Browser
 tests cover payload17 validation and actual ordinary adapter CAS with synthetic
 SDK/journal boundaries, preserving envelopes1/2 and rejecting envelope3.
 
-Source tests do not accept the pixels. Required next review is actual full-asset
-Little Leaf at1360×880,390×844 and844×390: Storage, open category/search and distinct
-Store/Sell, then place-back/Cancel interaction and the user's visual decision.
-Current-main full UI, browser/device qualification, canonical atlas/source
-closure and exact-head CI remain separate gates. No release or deployment is
-implied by this design or its draft PR.
+Source tests do not accept the pixels. The first native candidate was explicitly
+rejected for crowded/out-of-board controls, the oversized All selector, text input
+and redundant copy. Its screenshots and test evidence are retained, not accepted
+or relabelled as the revision. Actual full-asset desktop/portrait/short-landscape
+revision captures, place-back/Cancel interaction and the user's visual decision
+remain required. Current revision status belongs in the roadmap and PR.
+Browser/device, broader full UI, atlas/source closure and exact-head CI remain
+separate gates. No release or deployment is implied by this design or draft PR.

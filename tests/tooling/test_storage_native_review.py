@@ -102,21 +102,21 @@ class StorageNativeReviewTests(unittest.TestCase):
 
     def frames(self):
         # Deliberately structural PNG headers, not real screenshot/pixel evidence.
-        for state in ("storage", "storage-filter-open", "store-action"):
+        for state in ("shop", "storage", "storage-categories", "store-action"):
             for size in ((1360, 880), (390, 844), (844, 390)):
                 (self.folder / f"{state}-{size[0]}x{size[1]}.png").write_bytes(
                     b"\x89PNG\r\n\x1a\n" + b"\0" * 8 + struct.pack(">II", *size) + b"\0" * 1100)
         return ('Godot Engine v4.6.3.stable.official.7d41c59c4\nOpenGL API - Compatibility\n'
-                'STORAGE_UI_RESULT {"checks":60,"failures":[],"player_save_used":false}\n')
+                'STORAGE_UI_RESULT {"checks":160,"failures":[],"player_save_used":false}\n')
 
-    def test_nine_frame_contract_never_accepts_pixels(self):
+    def test_twelve_frame_contract_never_accepts_pixels(self):
         result = review.check_frames(self.folder, self.frames())
-        self.assertEqual(len(result["frames"]), 9)
+        self.assertEqual(len(result["frames"]), 12)
         self.assertFalse(result["pixels_inspected"])
 
     def test_missing_wrong_size_failed_or_headless_ui_refused(self):
         log = self.frames()
-        for bad in (log.replace('"checks":60', '"checks":51'), log.replace('"failures":[]', '"failures":["bad"]'),
+        for bad in (log.replace('"checks":160', '"checks":99'), log.replace('"failures":[]', '"failures":["bad"]'),
                     log.replace("OpenGL API", "headless"), log + log):
             with self.assertRaises(RuntimeError):
                 review.check_frames(self.folder, bad)
@@ -133,6 +133,31 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertEqual(len(review.EXPECTED_RGBA), 3)
         self.assertEqual(len(review.STALE), 4)
         self.assertEqual(review.REVIEWED_SOURCE, "9127a53d31258c28eaa37e06cc1752e8bd48b9f4")
+
+    def test_only_reviewed_ui_postimages_may_change(self):
+        names = ("main.gd", "shop.gd", "fixture.gd")
+        for name in names:
+            (self.folder / name).write_text(name)
+        expected = {name: review.file_sha(self.folder / name) for name in names}
+        with patch.object(review, "REVIEWED_POSTIMAGES", expected):
+            review.check_reviewed_postimages(names, self.folder)
+            with self.assertRaisesRegex(RuntimeError, "Unreviewed"):
+                review.check_reviewed_postimages((*names, "model.gd"), self.folder)
+            with self.assertRaisesRegex(RuntimeError, "Unreviewed"):
+                review.check_reviewed_postimages(names[:-1], self.folder)
+            (self.folder / names[0]).write_text("changed")
+            with self.assertRaisesRegex(RuntimeError, "postimage"):
+                review.check_reviewed_postimages(names, self.folder)
+
+    def test_atlas_reuse_stays_bound_to_original_receipt(self):
+        self.assertEqual(review.PRIOR_ATLAS["source"], "207409f5f19187e13f005de0f8a832b69f430cb9")
+        self.assertEqual(review.PRIOR_ATLAS["receipt_sha256"], "ea7452ab917c85ae36f261e0372471291d1941254717e3b9736716dff7a18133")
+        self.assertEqual(set(review.REVIEWED_POSTIMAGES), {"game/scripts/main.gd", "game/scripts/ui/cafe_shop_ui.gd", review.FIXTURE})
+        for name, sha in review.REVIEWED_POSTIMAGES.items():
+            self.assertEqual(review.file_sha(ROOT / name), sha)
+        source = (ROOT / "tools/diagnostics/storage_native_review.py").read_text()
+        self.assertNotIn('run("atlas-native"', source)
+        self.assertNotIn('run(name, engine +', source)
 
     def test_engine_error_is_retained_and_stops_before_timeout(self):
         log = self.folder / "early-error.log"

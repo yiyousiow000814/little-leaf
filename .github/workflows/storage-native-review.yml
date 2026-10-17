@@ -18,6 +18,7 @@ jobs:
   native:
     # Deliberately independent of the stale-atlas preflight. This produces
     # evidence only; it cannot relax that guard or qualify an export.
+    # R2 reuses original-three run38998426362 only after exact83-source/asset checks.
     if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -36,7 +37,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth mesa-utils libgl1-mesa-dri libglx-mesa0
           dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 > "$RUNNER_TEMP/storage-tools/renderer-packages.txt"
-      - name: Render fixed atlas comparisons and actual full-game Storage
+      - name: Capture revised full-game Shop and Storage with unchanged atlas closure
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
           LIBGL_ALWAYS_SOFTWARE: '1'
