@@ -24,6 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from build.project_layout import stage_project
 SUITES = [
+    ("test_mail_recipients", "MAIL_RECIPIENTS_RESULT"),
+    ("test_mail_gift_catalog", "MAIL_GIFT_CATALOG_RESULT"),
+    ("test_support_mail_claim", "SUPPORT_MAIL_CLAIM_RESULT"),
+    ("test_support_mail_render", "SUPPORT_MAIL_RENDER_RESULT"),
+    ("test_support_mail_ui", "SUPPORT_MAIL_UI_RESULT"),
     ("test_storage", "STORAGE_RESULT"),
     ("test_storage_ui", "STORAGE_UI_RESULT"),
     ("test_decorate_furniture_picking", "DECORATE_FURNITURE_PICKING_RESULT"),

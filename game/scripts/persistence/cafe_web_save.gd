@@ -60,6 +60,9 @@ var _credit_base_coins=0
 var _credit_expected=0
 # Read-only presentation cache, separate from model serialization.
 var inbox_snapshot:Dictionary={"ok":false}
+var _support_claim_mail_id=""
+var _support_claim_callback
+var _support_claim_generation=0
 
 func _init(owner):game_ref=weakref(owner)
 
@@ -122,6 +125,10 @@ func _recovery_bridge():
 	if not JavaScriptBridge.eval("typeof window.LittleLeafVault === 'object' && window.LittleLeafVault !== null && typeof window.LittleLeafVault.recoverySnapshot === 'function'"):return null
 	_recovery_api=JavaScriptBridge.get_interface("LittleLeafVault")
 	return _recovery_api
+
+func _support_bridge():
+	if not OS.has_feature("web") or not JavaScriptBridge.eval("typeof window.LittleLeafSupportMail === 'object' && window.LittleLeafSupportMail !== null"):return null
+	return JavaScriptBridge.get_interface("LittleLeafSupportMail")
 
 func recovery_snapshot()->Dictionary:
 	var bridge=_recovery_bridge()
@@ -429,6 +436,7 @@ func request_save(skip_unchanged:bool=false)->bool:
 	return false
 
 func _hold_for_credit():
+	if _credit_hold:return
 	# Freeze only while a grant-bearing transaction is pending. No wallet
 	# credit is visible/spendable before its receipt and payload commit.
 	if game.web_lifecycle!=null:game.web_lifecycle.cancel_pending()
@@ -448,12 +456,14 @@ func _release_credit_hold():
 
 func stop():
 	_recovery_generation+=1;_update_generation+=1;update_busy=false;recovery_busy=false;recovery_action=""
+	_support_claim_generation+=1;_support_claim_mail_id="";_support_claim_callback=null
+	if game!=null and game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.reset()
 	var update_bridge=_update_bridge()
 	if update_bridge!=null:update_bridge.close()
 	_release_update_input();_release_credit_hold();ready=false
 
 func _on_commit(arguments:Array):
-	_release_credit_hold()
+	if _support_claim_mail_id=="":_release_credit_hold()
 	if game==null or not game.is_inside_tree():return
 	var parser=JSON.new()
 	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
@@ -468,6 +478,7 @@ func _on_commit(arguments:Array):
 			ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
 			game.startup_notice="Unsaved changes · "+reason
 		game.progress_save_error=reason
+		if _support_claim_mail_id!="":_support_claim_fail(reason)
 		return
 	var platform_ack=bool(result.get("platformAccepted",false)) and str(api.storageKind)=="crazygames-data" and result.get("cloudConfirmed",true)==false
 	if str(result.get("profileId",""))!=profile_id or int(result.get("revision",-1))!=revision+1 or not (bool(result.get("durable",false)) or platform_ack):
@@ -475,19 +486,24 @@ func _on_commit(arguments:Array):
 		_log("save_failure","INVALID_REVISION_ACK")
 		game.progress_save_error="Invalid browser save revision; reload to recover"
 		game.startup_notice="Unsaved changes · "+game.progress_save_error
+		if _support_claim_mail_id!="":_support_claim_fail(game.progress_save_error)
 		return
 	var credit=result.get("creditedCoins",0)
 	if not (credit is int or credit is float) or not is_finite(float(credit)) or floor(float(credit))!=float(credit) or int(credit)!=_credit_expected or int(credit)<0 or int(credit)>1000000000:
 		ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 		_log("save_failure","INVALID_CREDIT_ACK")
 		game.progress_save_error="Invalid compensation acknowledgement; reload to recover"
-		game.startup_notice="Unsaved changes · "+game.progress_save_error;return
+		game.startup_notice="Unsaved changes · "+game.progress_save_error
+		if _support_claim_mail_id!="":_support_claim_fail(game.progress_save_error)
+		return
 	if int(credit)>0:
 		if game.model.coins!=_credit_base_coins or game.model.coins>1000000000-int(credit):
 			ready=false;game.progress_unsaved=true;game.save_recovery_blocked=true;game.paused=true
 			_log("save_failure","CREDIT_SYNC_REQUIRED")
 			game.progress_save_error="Compensation was saved; reload to synchronize the wallet"
-			game.startup_notice=game.progress_save_error;return
+			game.startup_notice=game.progress_save_error
+			if _support_claim_mail_id!="":_support_claim_fail(game.progress_save_error,true)
+			return
 		game.model.coins+=int(credit)
 		if game.model.has_method("record_decoration_credit"):game.model.record_decoration_credit(int(credit))
 		game._update_ui()
@@ -501,6 +517,19 @@ func _on_commit(arguments:Array):
 		# An older receipt must not mark newer ordinary Web changes clean.
 		game.platform_autosave_dirty=int(game.platform_dirty_generation)!=_platform_dirty_snapshot
 	_log("platform_controller_accepted" if platform_ack else "save_accepted")
+	if _support_claim_mail_id!="":
+		if queued or generation!=inflight_generation:
+			_support_claim_fail("Progress changed while preparing this claim. Save again before claiming.")
+			queued=false;game.call_deferred("_save");return
+		var support=_support_bridge()
+		if support==null:
+			_support_claim_fail("Support mail is unavailable. Your café save is preserved.");return
+		# The native save has a durable ACK, but the claim is still in flight.
+		# Keep the same serialization gate through its authoritative outcome.
+		pending=true
+		_support_claim_callback=_make_recovery_callback(_on_support_claim.bind(_support_claim_generation))
+		support.claim(_support_claim_mail_id,profile_id,revision,_support_claim_callback)
+		return
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
@@ -517,3 +546,52 @@ func _refresh_inbox(result:Dictionary):
 	if not snapshot.get("paid") is Array or not snapshot.get("deferred") is Array:
 		inbox_snapshot={"ok":false};return
 	inbox_snapshot=snapshot.duplicate(true)
+
+func claim_support_mail(mail_id:String)->bool:
+	if not ready or pending or retrying or recovery_busy or update_busy or _support_claim_mail_id!="" or game.editing or game.save_recovery_blocked or game.save_writes_suppressed:return false
+	if _support_bridge()==null:return false
+	_support_claim_generation+=1;_support_claim_mail_id=mail_id
+	_hold_for_credit()
+	request_save()
+	if not pending:
+		_support_claim_fail(game.progress_save_error if game.progress_save_error!="" else "Could not prepare the current café save.")
+		return false
+	return true
+
+func _support_claim_fail(reason:String,uncertain:bool=false):
+	pending=false
+	_support_claim_generation+=1;_support_claim_mail_id="";_support_claim_callback=null
+	_release_credit_hold()
+	if uncertain or not ready or game.save_recovery_blocked:
+		ready=false;game.save_recovery_blocked=true;game.save_writes_suppressed=true;game.paused=true
+	game.progress_save_error=reason
+	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(false,reason)
+	game._update_ui()
+
+func _on_support_claim(arguments:Array,request_generation:int):
+	if request_generation!=_support_claim_generation or _support_claim_mail_id=="" or game==null or not game.is_inside_tree():return
+	var parser=JSON.new()
+	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
+	if not result is Dictionary or not bool(result.get("ok",false)):
+		var uncertain=not result is Dictionary or bool(result.get("uncertain",false))
+		_support_claim_fail(str(result.get("error","Claim outcome is unknown. Reload to check your café.")) if result is Dictionary else "Claim outcome is unknown. Reload to check your café.",uncertain)
+		return
+	if str(result.get("profileId",""))!=profile_id or not game.model._valid_int(result.get("revision"),revision+1,revision+1) or not result.get("payload") is String:
+		_support_claim_fail("Claim confirmation needs a cloud reload.",true);return
+	var candidate=game.Model.new()
+	if not _write_stage(str(result.payload)) or not candidate.load_save(STAGING_FILE) or not candidate.storage_used:
+		_support_claim_fail("Claim was saved but the café could not be installed. Reload to recover it.",true);return
+	game.model=candidate;game.fresh_start=false
+	game._connect_model_events()
+	revision=int(result.revision);_confirmed_payload=str(result.payload);_inflight_payload=""
+	_refresh_inbox(result)
+	_support_claim_generation+=1;_support_claim_mail_id="";_support_claim_callback=null
+	pending=false
+	var save_queued=queued or generation!=inflight_generation
+	queued=false
+	game.progress_unsaved=save_queued;game.progress_save_error=""
+	game._rebuild_room();game._rebuild_furniture();game._restore_service_runtime()
+	_release_credit_hold()
+	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(true,"")
+	game._update_ui()
+	if save_queued:game.call_deferred("_save")

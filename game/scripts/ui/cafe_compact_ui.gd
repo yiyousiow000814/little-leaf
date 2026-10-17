@@ -7,6 +7,7 @@ const Hud=preload("res://scripts/ui/cafe_hud.gd")
 const ShopUI=preload("res://scripts/ui/cafe_shop_ui.gd")
 const WalletNotice=preload("res://scripts/ui/cafe_wallet_notice.gd")
 const Inbox=preload("res://scripts/ui/cafe_inbox.gd")
+const SupportMail=preload("res://scripts/ui/cafe_support_mail.gd")
 const UpdateNotice=preload("res://scripts/ui/cafe_update_notice.gd")
 const SaveLogPanel=preload("res://scripts/ui/cafe_save_log_panel.gd")
 var save_log_panel
@@ -29,6 +30,7 @@ var hud
 var wallet_notice
 var update_notes
 var inbox
+var support_mail
 var settings_inbox:Button
 var update_badges=[]
 var staff_panel
@@ -160,6 +162,7 @@ func _popup_panels()->Array:
  if staff_panel!=null and is_instance_valid(staff_panel.panel):panels.append(staff_panel.panel)
  if update_notes!=null and is_instance_valid(update_notes.panel):panels.append(update_notes.panel)
  if inbox!=null and is_instance_valid(inbox.panel):panels.append(inbox.panel)
+ if support_mail!=null and is_instance_valid(support_mail.panel):panels.append(support_mail.panel)
  if music_panel!=null and is_instance_valid(music_panel.panel):panels.append(music_panel.panel)
  return panels
 
@@ -282,6 +285,8 @@ func setup():
  help_log=save_log_panel.make_menu_entry();help_footer.add_child(help_log);help_footer.move_child(help_log,help_done.get_index())
  update_notes=UpdateNotes.new(self);update_notes.setup()
  for button in [help_overview,help_log,help_done,help_retry,help_choose_local,help_choose_cloud,help_switch_device]:button.add_theme_font_size_override("font_size",14);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ support_mail=SupportMail.new(self);support_mail.setup()
+ settings_button.pressed.connect(support_mail.refresh_capabilities)
  inbox=Inbox.new(self);inbox.setup();inbox.unread_changed.connect(_on_notes_unread_changed)
  _add_update_badge(settings_updates);_add_update_badge(settings_button);_add_update_badge(settings_inbox)
  update_notes.unread_changed.connect(_on_notes_unread_changed);_sync_update_badges()
@@ -490,6 +495,7 @@ func _fit_themed_popups():
  if shop_ui!=null:shop_ui.root.visible=not has_open_popup() and not viewport_too_small
  _fit_help_panel()
  if inbox!=null:inbox.fit_popup()
+ if support_mail!=null:support_mail.fit_popup()
  var view=game.get_viewport().get_visible_rect().size;var insets=hud._safe_insets()
  for record in themed_popups:
   var panel:PanelContainer=record.panel
@@ -759,6 +765,7 @@ func handle_input(event:InputEvent)->bool:
  if consume_modal_dismissal(event):return true
  if music_panel!=null and music_panel.handle_input(event):return true
  if inbox!=null and inbox.handle_input(event):return true
+ if support_mail!=null and support_mail.handle_input(event):return true
  var panels=_popup_panels()
  if is_instance_valid(game.settings):panels.append(game.settings)
  var any_open=false

@@ -14,7 +14,7 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(commands[0][-2:], ["--tag", "v0.1.11"])
         self.assertEqual(commands[1][-1], "tools/qualification/verify_prebaked_atlases.py")
         self.assertEqual(commands[2][1:], ["-m", "unittest", "discover", "-s", "tests/tooling", "-t", ".", "-p", "test_*.py", "-v"])
-        self.assertEqual(len(commands), 21)
+        self.assertEqual(len(commands), 27)
         self.assertEqual(len({tuple(command) for command in commands}), len(commands))
         self.assertEqual(commands[3:], [["node", *check.split()] for check in preflight.NODE_CHECKS])
         self.assertIn(["node", "tests/persistence/layout_hold_codec.js"], commands[3:])

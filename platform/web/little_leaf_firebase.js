@@ -39,34 +39,75 @@
     if (new TextEncoder().encode(text).length > MAX_BYTES) throw error('SAVE_TOO_LARGE','This café exceeds the cloud save limit. Previous progress is unchanged.');
     return text;
   }
-  function createRemote(db, sdk, ownership=null) {
+  function createRemote(db, sdk, ownership=null, protectedCommit=null) {
     const ref=uid=>sdk.doc(db,'players',uid,'saves','cafe');
+    async function verified(doc) {
+      if(!doc)return null;
+      const codec=root.LittleLeafAuthorityCodec;
+      if(!codec)throw error('UPDATE_REQUIRED','Reload the updated game to save this café.');
+      let record;
+      try {
+        if(doc.schema!==1||typeof doc.record!=='string')throw Error('invalid document');
+        record=JSON.parse(doc.record);await codec.verifyRecord(record);capacity(record);
+        if(record.revision<1||doc.digest!==record.digest||doc.revision!==record.revision||doc.profileId!==record.profileId)
+          throw Error('invalid document identity');
+      } catch (_) {throw error('CORRUPT_AUTHORITY','Cloud save identity is damaged. Pending progress is preserved.');}
+      if(record.format===3&&codec.parsePayload(record.payload,15).version!==17)
+        throw error('STORAGE_REVIEW_REQUIRED','Earlier gift stock is preserved and needs review before play.');
+      return record;
+    }
     return {
       async read(uid) { const snapshot=await sdk.getDocFromServer(ref(uid));return snapshot.exists()?snapshot.data():null; },
       async compareAndSet(uid,base,next,guard,verifyArchive=null) {
-        await sdk.runTransaction(db,async tx=>{
+        guard();const pending={...next},candidate=await verified(pending);guard();
+        if(!candidate)throw error('CORRUPT_AUTHORITY','Pending progress is damaged.');
+        // Route from the verified save head inside the existing CAS transaction.
+        // Ordinary accounts need no new control-document read permission. Never
+        // infer unprotected authority from a denied read or a candidate alone.
+        const protectedHead=await sdk.runTransaction(db,async tx=>{
           guard();let fence=null;
           if(ownership){
             fence=ownership.assertActive(true);
             const ownerSnapshot=await tx.get(ownership.sessionRef),owner=ownerSnapshot.exists()?ownerSnapshot.data():null;
             if(!owner||owner.owner!==fence.writerId||owner.epoch!==fence.writerEpoch||owner.ack)throw error('OWNERSHIP_LOST','Your game was opened on another device.');
           }
-          const snapshot=await tx.get(ref(uid)),old=snapshot.exists()?snapshot.data():null;guard();
+          const snapshot=await tx.get(ref(uid));guard();
+          const head=await verified(snapshot.exists()?snapshot.data():null);guard();
+          // Recheck on every retry: Claim enrollment changes this save, and
+          // protected-account rules also fence a control-only enrollment race.
+          if((head?.format===3)!==(candidate.format===3))
+            throw error('PROTOCOL_CHANGED','Cloud save protection changed. Pending progress is preserved.');
+          if(head&&head.profileId!==candidate.profileId)
+            throw error('REVISION_CONFLICT','Cloud progress changed. Pending progress is preserved.');
           // Firestore can retry or suspend this callback after client preflight.
           // Recheck the captured upload's archive before this attempt may write.
           if(verifyArchive){await verifyArchive();guard();}
-          if(old?.digest===next.digest)return;
-          if((old?.digest || null)!==base)throw error('REVISION_CONFLICT','Another device has newer progress. Pending progress is preserved.');
-          tx.set(ref(uid),fence?{...next,...fence}:next);
+          if(head?.digest===candidate.digest)return null;
+          if((head?.digest||null)!==base||head&&candidate.revision<=head.revision)
+            throw error('REVISION_CONFLICT','Another device has newer progress. Pending progress is preserved.');
+          if(head?.format===3){
+            if(!protectedCommit||!fence)throw error('UPDATE_REQUIRED','Reload the updated game to save this café.');
+            return {revision:head.revision,fence};
+          }
+          tx.set(ref(uid),fence?{...pending,...fence}:pending);
+          return null;
         });
+        guard();
+        if(protectedHead){
+          const result=await protectedCommit({candidate,profileId:candidate.profileId,
+            revision:protectedHead.revision,digest:base,...protectedHead.fence});
+          guard();
+          if(result?.status!=='saved'||result.record?.digest!==candidate.digest)
+            throw error('PROTOCOL_CHANGED','Protected save confirmation differed. Pending progress is preserved.');
+        }
       }
     };
   }
-  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null,cloudStartup=false}) {
+  function createClient({uid, codec, remote, journal, currentUid, status, now=Date.now, deviceLabel=genericDevice(root.navigator),ownership=null,networkTimeoutMs=15000,prepareReload=null,cloudStartup=false,supportClaim=null}) {
     let entry, opened, busy=false, syncing=false, bootReady=false, stopped=false, closed=false, lastAttempt=-Infinity;
     let recovery=null, recoveryBackup=null, recoveryBusy=false, recoveredDigest=null, recoveredRevision=null, pendingExport=null, backupProblem='',permissionDenied=false;
     let choiceArchive=null,choiceArchives=[],choiceProblem='',choiceOperation=null,handoffMode=false,uploadTask=null,updateTicket=null,updateInProgress=false;
-    let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0,takeoverFailed=false;
+    let ownerHandoff=null,handoffRetryTask=null,handoffGeneration=0,takeoverFailed=false,claimBusy=false;
     const savedDevice=displayDevice(deviceLabel),recordDevices=new WeakMap();
     let localQueue=Promise.resolve();
     // Network waits never hold this queue. Only local journal transitions serialize.
@@ -84,6 +125,8 @@
       catch (_) { throw error('CORRUPT_AUTHORITY','Cloud save is damaged. Pending progress is preserved.'); }
       if(!record.revision || !/^[a-f0-9]{64}$/.test(record.digest)) throw error('CORRUPT_AUTHORITY','Cloud save has no committed progress.');
       if(doc.digest!==record.digest || doc.revision!==record.revision || doc.profileId!==record.profileId) throw error('CORRUPT_AUTHORITY','Cloud save identity is damaged.');
+      if(record.format===3 && codec.parsePayload(record.payload,15).version!==17)
+        throw error('STORAGE_REVIEW_REQUIRED','Earlier gift stock is preserved and needs review before play.');
       recordDevices.set(record,{device:displayDevice(doc.device),recordText:doc.record});
       return record;
     }
@@ -93,6 +136,14 @@
       await codec.verifyRecord(local.record); capacity(local.record);
       if(local.pending && !local.record.revision) throw error('CORRUPT_AUTHORITY','Pending local progress is damaged.');
       if(!local.pending && local.base!==local.record.digest) throw error('CORRUPT_AUTHORITY','Local cloud acknowledgment is damaged.');
+      if(local.giftPlacement){
+        const intent=local.giftPlacement;
+        if(!local.pending||local.uploading||local.record.format!==3||!root.crypto?.randomUUID
+          || !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(intent.operationId||'')
+          || !Array.isArray(intent.consumed)||intent.consumed.length<1||intent.consumed.length>10
+          || intent.consumed.some(item=>!Number.isSafeInteger(item.itemId)||typeof item.catalogId!=='string')
+          || local.record.mailState?.stockRevision<1)throw error('CORRUPT_AUTHORITY','Gift placement intent is damaged.');
+      }
       if(checkArchives)await verifyPreGridRequirement(local);
       if(local.uploading) {
         await codec.verifyRecord(local.uploading.record); capacity(local.uploading.record);
@@ -189,6 +240,8 @@
       if(!Number.isSafeInteger(revision) || revision<1)throw error('REVISION_LIMIT','Save revision limit reached.');
       const time=now(),record={...previous,revision,payload,updatedAt:time,
         previous:null,origin:previous.origin || {source:'fresh',legacyDigest:null,importedAt:time}};
+      if (record.format===3 && codec.storageFingerprint(codec.parsePayload(previous.payload,15))!==codec.storageFingerprint(codec.parsePayload(payload,15)))
+        record.mailState={...previous.mailState,stockRevision:previous.mailState.stockRevision+1};
       record.digest=await codec.hash(codec.fingerprint(record));await codec.verifyRecord(record);capacity(record);return record;
     }
     // Bound network waits only. A local storage transaction has an unknown
@@ -254,6 +307,7 @@
       };
       uploadGuard();
       if(!entry?.pending) return;
+      if(entry.giftPlacement)throw error('STORAGE_REVIEW_REQUIRED','Earlier gift placement is preserved for review.');
       lastAttempt=now();
       let snapshot;
       await serial(async()=>{
@@ -393,7 +447,21 @@
             // Google startup reads the server before touching any local record.
             // Pending/offline journals are never an authority or an upload here.
             guard();const cloud=await networkWait(remote.read(uid));guard();
-            const record=await validate(cloud);guard();
+            let record;
+            try {record=await validate(cloud);guard();}
+            catch(problem) {
+              if(problem.code==='STORAGE_REVIEW_REQUIRED') {
+                // The old cloud envelope is verified, but is never playable.
+                // Preserve a same-account legacy intent for read-only export;
+                // do not install, acknowledge, migrate or retry its placement.
+                const local=await journal.read(uid);guard();
+                if(local?.giftPlacement) {
+                  await validateLocal(local,false);guard();
+                  pendingExport=local;
+                }
+              }
+              throw problem;
+            }
             const time=now(),next={base:token(cloud),pending:false,
               ...(cloud && Object.hasOwn(cloud,'device')?{device:displayDevice(cloud.device)}:{}),
               record:record || {format:2,profileId:root.crypto.randomUUID(),revision:0,createdAt:time,updatedAt:time,payload:null,digest:null,origin:null,previous:null,campaigns:{}}};
@@ -401,6 +469,11 @@
             // original migration archive from an unrelated local pending save.
             if(gridRecord(next.record))next.preGrid=emptyPreGridRequirement();
             const local=await journal.read(uid);guard();
+            if(local?.giftPlacement){
+              pendingExport=local;
+              await validateLocal(local);guard();
+              throw error('STORAGE_REVIEW_REQUIRED','Earlier gift placement is preserved for review; it will not be replayed.');
+            }
             await journal.replace(uid,local,next,{guard});guard();entry=next;
             state(record?'saved':'ready');return acceptedBoot();
           }
@@ -443,6 +516,7 @@
       recoverySnapshot() {
         const allowed=!closed && currentUid()===uid;
         return {
+          giftPlacementPending:!!(allowed && stopped && pendingExport?.giftPlacement),
           available:!!(allowed && recovery?.record && !recovery.blocked),busy:recoveryBusy,
            canExport:!!(allowed && (pendingExport || recoveryBackup || choiceArchives.length || stopped && entry?.pending)),
           cloudRevision:allowed ? recovery?.record?.revision ?? recoveredRevision : null,
@@ -457,6 +531,7 @@
         };
       },
       async saveForUpdate(payload,revision,profileId){
+        if(claimBusy)return failure(error('SAVE_BUSY','A letter claim is being confirmed.'));
         if(updateInProgress)return failure(error('SAVE_BUSY','An update save is already in progress.'));
         if(!ownership)return failure(error('OWNERSHIP_UNAVAILABLE','Server ownership must be confirmed before updating.'));
         updateInProgress=true;updateTicket=null;let saved=null;
@@ -678,6 +753,8 @@
       },
       async commit(payload,revision,profileId) {
         if(ownerHandoff){try{accountGuard();ownership.assertActive();}catch(problem){return failure(problem);}return failure(error('HANDOFF_SAVING','The frozen progress is being preserved for the device switch.'));}
+        if(claimBusy)return failure(error('SAVE_BUSY','A letter claim is being confirmed.'));
+        if(entry?.giftPlacement)return failure(error('SAVE_BUSY','Earlier gift placement is preserved for review.'));
         if(updateInProgress)return failure(error('SAVE_BUSY','The café is being saved for an update.'));
         if(busy) return failure(error('SAVE_BUSY','A save is pending.')); busy=true;
         try {
@@ -687,13 +764,60 @@
           const r=entry.record;
           if(revision!==r.revision || profileId!==r.profileId) throw error('REVISION_CONFLICT','This page has older progress. Reload before continuing.');
           if(revision>=Number.MAX_SAFE_INTEGER) throw error('REVISION_LIMIT','Save revision limit reached.');
-          const time=now(),record={...r,revision:revision+1,payload,updatedAt:time,previous:null,origin:r.origin || {source:'fresh',legacyDigest:null,importedAt:time}};
-          record.digest=await codec.hash(codec.fingerprint(record));capacity(record);guard();
+          const record=await nextRecord(r,payload);guard();
           const next={...entry,pending:true,record,device:savedDevice};const proof=await preservePreGrid(entry,next,guard);await journal.replace(uid,entry,next,{proof,guard});entry=next;accountGuard();state('pending');
           return {ok:true,durable:true,cloudConfirmed:false,profileId,revision:record.revision,creditedCoins:0};
           });
         } catch(e) { if(['REVISION_CONFLICT','NOT_READY'].includes(e.code)){stopped=true;state('conflict');}else state('blocked');return failure(e); }
         finally {busy=false;}
+      },
+      async claimSupportMail(mailId,profileId,revision) {
+        if(claimBusy||busy||updateInProgress||recoveryBusy||ownerHandoff)
+          return failure(error('SAVE_BUSY','Wait for the current save or account transition before claiming.'));
+        if(!supportClaim||!ownership)return failure(error('MAIL_UNAVAILABLE','Support mail is unavailable.'));
+        claimBusy=true;
+        let sent=false;
+        try {
+          guard();
+          if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(mailId)||!entry||entry.record.profileId!==profileId||entry.record.revision!==revision)
+            throw error('REVISION_CONFLICT','Save the exact current café before claiming.');
+          // Native already froze play and durably saved its exact snapshot.
+          // A local journal receipt is not cloud confirmation.
+          while(entry.pending)await networkWait(upload());
+          guard();
+          if(entry.record.profileId!==profileId||entry.record.revision!==revision||entry.pending)
+            throw error('REVISION_CONFLICT','Progress changed before the claim.');
+          const base=entry.record,cloud=await validate(await networkWait(remote.read(uid)));
+          guard();
+          if(!cloud||cloud.digest!==base.digest)throw error('REVISION_CONFLICT','Cloud progress changed before the claim.');
+          await networkWait(ownership.renew());guard();
+          const fence=ownership.assertActive();
+          const request={mailId,operationId:root.crypto.randomUUID(),profileId,revision,digest:base.digest,...fence};
+          let result;
+          for(let attempt=0;attempt<2;attempt++){
+            try{sent=true;result=await networkWait(supportClaim(request));break;}
+            catch(e){if(attempt || !offline(e))throw e;guard();}
+          }
+          guard();
+          if(result?.status!=='claimed'||result.receipt?.fromDigest!==base.digest
+            ||result.receipt?.toDigest!==result.record?.digest||result.record?.revision!==revision+1
+            ||result.record?.profileId!==profileId)throw error('CLAIM_RECOVERY_REQUIRED','Claim result needs a cloud reload.');
+          await codec.verifyRecord(result.record);capacity(result.record);guard();
+          await serial(async()=>{
+            guard();
+            if(entry.pending||entry.record.digest!==base.digest)throw error('REVISION_CONFLICT','Local progress changed during claim.');
+            const next={...entry,record:result.record,base:result.record.digest,pending:false,uploading:null};
+            await journal.replace(uid,entry,next,{guard});entry=next;
+          });
+          const paid=Object.entries(result.record.campaigns||{}).map(([id,receipt])=>({id,...receipt}));
+          state('saved');return {ok:true,profileId,revision:result.record.revision,payload:result.record.payload,
+            inbox:{ok:true,profileId,revision:result.record.revision,paid,deferred:[]},receipt:result.receipt};
+        }catch(e){
+          if((sent&&!['WALLET_FULL','STOCK_FULL','UNSUPPORTED_GIFT','FEATURE_DISABLED','PROFILE_CHANGED','STORAGE_REVIEW_REQUIRED'].includes(e.code))||e.code==='CLAIM_RECOVERY_REQUIRED'){
+            stopped=true;state('blocked');return {...failure(e),uncertain:true};
+          }
+          return failure(e);
+        }finally{claimBusy=false;}
       },
       async sync() { if(syncing || !bootReady || stopped || !entry?.pending || now()-lastAttempt<30000)return;syncing=true;try {await upload();}catch(e){if(offline(e))state('offline');else {stopped=true;state('conflict');if(e.code==='REVISION_CONFLICT'){try{const record=await validate(await remote.read(uid));accountGuard();if(record)await previewRecovery(entry,record);}catch(_){/* Keep current model and journal; never reload an unavailable preview. */}}}}finally{syncing=false;} },
       save(payload,revision,profileId,callback){client.commit(payload,revision,profileId).then(r=>callback(JSON.stringify(r)));},

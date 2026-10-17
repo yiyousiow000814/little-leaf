@@ -67,9 +67,12 @@ service cloud.firestore {
         return request.resource.data.writerId == session.owner && request.resource.data.writerEpoch == session.epoch
           && session.ack == null && request.time < session.updatedAt + duration.value(60,'s');
       }
+      function unprotected() {
+        return !exists(/databases/$(database)/documents/players/$(uid)/saveControl/protocol);
+      }
       allow get: if owner(uid);
-      allow create: if owner(uid) && valid() && currentWriter();
-      allow update: if owner(uid) && valid() && currentWriter() && request.resource.data.profileId == resource.data.profileId
+      allow create: if owner(uid) && unprotected() && valid() && currentWriter();
+      allow update: if owner(uid) && unprotected() && valid() && currentWriter() && request.resource.data.profileId == resource.data.profileId
         && request.resource.data.revision > resource.data.revision;
       allow list, delete: if false;
     }
