@@ -187,5 +187,82 @@ if (process.argv.includes('--ocr-fixtures')) {
   console.log(JSON.stringify({ocr_fixture_checks: 'passed', category_text: categoryText, results,
     tesseract: cp.execFileSync(tesseract, ['--version'], {encoding: 'utf8'}).split('\n')[0]}));
 }
-console.log(JSON.stringify({passed: true, checks, browser_runtime_exercised: false,
-  method: 'native-source geometry and lossless retained-pixel guards'}));
+async function verifyConfirmFailureEvidence() {
+  // Execute the actual boundary/collector source with synthetic read-only pages.
+  // This checks diagnostics and unchanged input order, not browser qualification.
+  const start = browserSource.indexOf('        const captureConfirmFailure = ');
+  const end = browserSource.indexOf('        check(canonical(await readSnapshot(fixture))', start);
+  assert(start > 0 && end > start, 'Actual confirmation boundary is present');
+  const AsyncFunction = Object.getPrototypeOf(async function() {}).constructor;
+  const run = new AsyncFunction('observation', 'check', 'click', 'idle', 'newPage', 'oldPage',
+    'fixture', 'report', 'baseline', 'layouts', 'readSnapshot', 'path', 'output', browserSource.slice(start, end));
+  const beforeMessage = 'New tray/product/target actions cause no save before the verified wall confirmation';
+  const afterMessage = 'Wall Confirm changes only the Decorate draft before Apply';
+  for (const [beforeCount, afterCount, failReads, acknowledged] of [
+    [0, 0, false, true], [1, 0, false, true], [1, 0, false, false],
+    [1, 0, true, true], [0, 1, false, true], [0, 1, true, true],
+  ]) {
+    const calls = [], report = {}, baseline = {authority: 'synthetic baseline'};
+    const acknowledgement = {ok: true, durable: true, revision: 9, creditedCoins: 0};
+    const observed = count => ({saveStarts: count, saves: count && acknowledged ? [acknowledgement] : []});
+    const boundary = observed(beforeCount), successor = observed(afterCount);
+    let observations = 0;
+    const page = label => ({
+      evaluate: async callback => {
+        calls.push(label + ' read');
+        if (failReads) throw Error('synthetic diagnostic failure');
+        return require('node:vm').runInNewContext('(' + callback.toString() + ')()', {
+          structuredClone, __wallCompatibility: observed(beforeCount || afterCount),
+          LittleLeafSaveLog: {snapshot: () => [{event: 'save_confirmed', timestamp: '2026-01-01T00:00:00.000Z'}]},
+          document: {visibilityState: 'visible', hasFocus: () => true}, Date,
+        });
+      },
+      screenshot: async options => {
+        calls.push(path.basename(options.path));
+        if (failReads) throw Error('synthetic screenshot failure');
+      },
+    });
+    const promise = run(async () => {calls.push('observe'); return observations++ ? successor : boundary;},
+      assert, async () => {calls.push('confirm');}, async () => {calls.push('idle');},
+      page('new'), page('old'), {}, report, baseline, {new: {points: {confirm: [12, 34]}}},
+      async () => {calls.push('authority read'); if (failReads) throw Error('synthetic authority failure'); return {authority: 'synthetic after'};},
+      path, '/unused-synthetic-output');
+    if (!beforeCount && !afterCount) {
+      await promise;
+      check('successful confirmation performs no diagnostic reads or extra input', () => {
+        assert.deepEqual(calls, ['observe', 'confirm', 'idle', 'observe']);
+        assert.deepEqual(report, {});
+      });
+      continue;
+    }
+    await assert.rejects(promise, {name: 'AssertionError', message: beforeCount ? beforeMessage : afterMessage});
+    check(`confirmation failure evidence: before=${beforeCount}, read errors=${failReads}, acknowledged=${acknowledged}`, () => {
+      const evidence = beforeCount ? report.pre_confirm_failure : report.confirm_failure;
+      assert.equal(evidence.before, boundary, 'Frozen original observation is retained');
+      assert.deepEqual(evidence.before.saves, boundary.saves, 'Pending versus acknowledged save is not invented');
+      assert.equal(evidence.authority_before, baseline);
+      assert.equal(evidence.synthetic_only, true);
+      assert(!Number.isNaN(Date.parse(evidence.started_at)));
+      assert(!Number.isNaN(Date.parse(beforeCount ? evidence.observed_at : evidence.finished_at)));
+      assert.deepEqual(beforeCount ? evidence.pending_confirm_point : evidence.derived_point, [12, 34]);
+      assert.equal(calls.filter(value => value === 'confirm').length, beforeCount ? 0 : 1);
+      assert.equal(calls.filter(value => value === 'idle').length, beforeCount ? 0 : 1);
+      assert.equal(calls.at(-1), beforeCount ? 'case-b-before-confirm-failure.png' : 'case-b-confirm-failure.png');
+      if (!beforeCount) assert.equal(evidence.after, successor);
+      if (failReads) {
+        for (const key of ['authority_read_error', 'old_diagnostic_error', 'new_diagnostic_error', 'screenshot_error']) assert(evidence[key], key);
+      } else {
+        assert.equal(evidence.authority_after.authority, 'synthetic after');
+        assert.equal(evidence.new_diagnostics.observation.saveStarts, beforeCount || afterCount);
+        assert.equal(evidence.new_diagnostics.save_log[0].event, 'save_confirmed');
+        assert.equal(evidence.old_diagnostics.visibility, 'visible');
+        assert.equal(evidence.new_diagnostics.focused, true);
+        assert(!Number.isNaN(Date.parse(evidence.new_diagnostics.timestamp)));
+      }
+    });
+  }
+}
+verifyConfirmFailureEvidence().then(() => console.log(JSON.stringify({passed: true, checks,
+  browser_runtime_exercised: false,
+  method: 'native-source geometry, retained-pixel and failure-only boundary guards'})))
+  .catch(error => {console.error(error); process.exitCode = 1;});
