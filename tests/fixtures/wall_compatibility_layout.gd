@@ -103,8 +103,23 @@ func run():
    result.codec_fixtures[pair[0]]=codec_projection(model,pair[0],pair[1])
   await click("decorate",game.edit_button)
   check(game.editing,"real native Decorate pointer enters edit mode")
-  # At desktop size the category rail is visible; no guessed screen locations.
-  await click("build",game.category_buttons["Build"])
+  # Source tabs share the desktop rail. Page through its real control before
+  # deriving Build coordinates, rather than clicking a clipped category.
+  var categories=game.compact_ui.shop_ui
+  var build=game.category_buttons["Build"]
+  if not categories.category_scroll.get_global_rect().encloses(build.get_global_rect()):
+   check(categories.category_scroll.visible and categories.category_more.visible,"real category paging is available")
+   var first=game.category_buttons["Tables"]
+   check(categories.category_scroll.get_global_rect().encloses(first.get_global_rect()),"initial Tables category is fully exposed")
+   # Category icons use asymmetric style margins; retain the whole control.
+   result.regions.category_ready=region(first)
+   result.regions.category_ready.psm=7;result.regions.category_ready.scale=3
+   await click("build_next",categories.category_more)
+  check(categories.category_scroll.get_global_rect().encloses(build.get_global_rect()),"Build is fully exposed before its real pointer input")
+  if result.points.has("build_next"):
+   result.regions.build_category=region(build)
+   result.regions.build_category.psm=7;result.regions.build_category.scale=3
+  await click("build",build)
   check(game.catalog_category=="Build","real native Build pointer selects category")
   result.regions.catalog=region(game.tray)
   # Retain the complete tray; enlarge only the separate OCR input losslessly.

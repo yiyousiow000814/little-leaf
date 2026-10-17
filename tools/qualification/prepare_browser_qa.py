@@ -174,6 +174,9 @@ def wall_main(argv):
             text = completed.stdout.decode(errors="replace")
             (output / (label + "-layout.log")).write_text(text)
             if completed.returncode or "ERROR:" in text or not result_path.is_file():
+                # This process uses only fixed public fixtures in an isolated profile.
+                # Keep its complete diagnostics in Actions as well as the artifact.
+                print(text, file=sys.stderr, end="" if text.endswith("\n") else "\n")
                 raise RuntimeError(label + " layout/codec preflight failed; inspect retained log")
             receipt["layouts"][label] = layout_record(output, label)
             for name, expected in manifest["production_sha256"].items():

@@ -79,6 +79,10 @@ function verifyLayout(layout, label) {
   region(layout.help_rect, 'Help');
   if (label === 'new') {
     for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm', 'apply']) point(name);
+    if (Object.hasOwn(layout.points, 'build_next')) {
+      point('build_next');
+      for (const name of ['category_ready', 'build_category']) region(layout.regions?.[name], name);
+    }
     for (const name of ['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text']) region(layout.regions?.[name], name);
     assert.equal(layout.expected_cost, 35, 'Unchanged half-wall purchase price');
     assert.equal(layout.expected_segment?.height, 'half', 'Exact requested height');
@@ -93,8 +97,16 @@ function verifyLayout(layout, label) {
 
 // The actual browser calls this same route. It only prepares the review;
 // payment and all storage/transaction assertions remain in the browser gate.
-async function selectWallReplacement(click, screenUiText) {
+async function selectWallReplacement(click, screenUiText, categoryPage = false) {
+  // The source-bound native recipe records this only when Build is off the rail.
   await click('decorate', 0);
+  if (categoryPage) {
+    // Observe the settled initial rail before its one real paging input. Then
+    // require Build at its fully exposed native position before selecting it.
+    await screenUiText('case-b-category-ready', 'category_ready', ['Tables']);
+    await click('build_next', 0);
+    await screenUiText('case-b-build-exposed', 'build_category', ['Build']);
+  }
   await screenUiText('case-b-build-catalog', 'catalog', ['Wall', 'Door', 'Window'], 'build');
   await click('wall', 0);
   await screenUiText('case-b-wall-tray', ['wall_heading', 'wall_back'], ['Wall', 'Build']);
