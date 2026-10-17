@@ -17,11 +17,11 @@ REVIEWED_SOURCE = "9127a53d31258c28eaa37e06cc1752e8bd48b9f4"
 REVIEWED_TREE = "c82bf154e29da90ad34ff40a8910956c7bd9d68e"
 COMPONENT_SOURCE = "d40fe870b56c1614a9ba84ade8c9cf5d4ae177d0"
 FIXTURE = "tests/presentation/test_storage_ui.gd"
-FIXTURE_SHA = "aa71c9c950542eaf8b0ffbdf874bb303d41116c84a0e122d900c7a7a978ded27"
+FIXTURE_SHA = "cbc24301f1c939a0d32ef3b1c212946293821bf80ecb7bf136d339a8049845c1"
 REVIEWED_POSTIMAGES = {
     "game/scripts/main.gd": "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be",
-    "game/scripts/ui/cafe_shop_ui.gd": "3435fdfe5a4a1b4e3ad4c5bee42973d7a123cf1ffb85322929c5725477a720cf",
-    "tests/presentation/test_storage_ui.gd": "aa71c9c950542eaf8b0ffbdf874bb303d41116c84a0e122d900c7a7a978ded27"
+    "game/scripts/ui/cafe_shop_ui.gd": "4d3502e99344331349e495c02a52727864995bae887440ee73afaf5675264dd0",
+    "tests/presentation/test_storage_ui.gd": "cbc24301f1c939a0d32ef3b1c212946293821bf80ecb7bf136d339a8049845c1"
 }
 PRIOR_ATLAS = {
     "source": "207409f5f19187e13f005de0f8a832b69f430cb9",

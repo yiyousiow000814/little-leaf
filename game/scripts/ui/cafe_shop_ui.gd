@@ -31,6 +31,7 @@ var category_icons={}
 var price_icons={}
 var stock_badges={}
 var stock_counts={}
+var stock_badge_height=20.0
 var scroll_tweens={}
 var affordability_labels={}
 var build_previews={}
@@ -475,7 +476,8 @@ func _layout_product_card(card:Button,width:float,height:float,short_landscape:b
  title.visible=not owned;body.get_child(2).visible=not owned
  if owned:
   body.get_child(3).hide()
-  _put(image,Rect2((body_width-minf(77,body_width))*.5,0,minf(77,body_width),body_height))
+  # Keep the original art slot below the crate digits in narrow stock cards.
+  _put(image,Rect2((body_width-minf(77,body_width))*.5,stock_badge_height,minf(77,body_width),body_height-stock_badge_height))
   return
  title.autowrap_mode=TextServer.AUTOWRAP_OFF if tiny else TextServer.AUTOWRAP_WORD_SMART
  var title_width=body_width if tiny else text_width
@@ -727,7 +729,6 @@ func _short_landscape_chip_width()->float:
   width=maxf(width,ceilf(ui.hud.font_bold.get_string_size(button.text,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x)+45.0)
  return width
 func _short_landscape_card_width()->float:
- if game.catalog_mode=="Storage":return 168.0
  # Fit the actual names and availability text before choosing a whole-card page.
  var width=168.0
  if game.catalog_category=="Build":
@@ -780,7 +781,8 @@ func sync(width:float):
  var status_height=maxf(16,ceilf(ui.hud.font_bold.get_height(13 if short_landscape else 11)))
  var copy_height=title_height+4+maxf(42,price_height+2+status_height)+8
  if not narrow and not short_landscape:copy_height=title_height*2+2+price_height+2+status_height+8
- var geometry=_shelf_geometry(view,available_width,52.0 if owned else copy_height)
+ stock_badge_height=maxf(20,ceilf(ui.hud.font_bold.get_height(14)))
+ var geometry=_shelf_geometry(view,available_width,52.0+stock_badge_height if owned else copy_height)
  h=geometry.height
  var header_y=float(geometry.header_y)
  root.custom_minimum_size=Vector2(w,h);root.size=Vector2(w,h);root.position=Vector2.ZERO
@@ -857,7 +859,7 @@ func sync(width:float):
   if card.visible:count+=1
  if parking_card.visible:count+=1
  if game.catalog_category=="Build":count=_visible_build_keys().size()
- var card_w=_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0)
+ var card_w=88.0 if owned else (_short_landscape_card_width() if short_landscape else (168.0 if tiny else 200.0))
  var margin=32.0
  var product_left=category_x+category_width+(12 if picker_landscape else 64) if short_landscape else float(margin)
  if nested and short_landscape:product_left=heading_x+heading_width+12 if tiles_heading.visible or (hide_objects_button.visible and not stacked_inspection) else category_margin+back_width+12
@@ -874,6 +876,7 @@ func sync(width:float):
   # or the 44px arrow targets for a sliver of a neighbouring product.
   next_page_items=maxi(1,floori((shelf_width+product_gap)/(card_w+product_gap)))
   card_w=floori((shelf_width-product_gap*(next_page_items-1))/next_page_items)
+  if owned:card_w=minf(card_w,96.0) # Never stretch icon-only stock into text-card width.
   shelf_width=card_w*next_page_items+product_gap*(next_page_items-1)
  var next_key=str([game.catalog_mode,count,game.catalog_category,build_page,narrow,short_landscape,card_w,shelf_width])
  if product_layout_key!=next_key:

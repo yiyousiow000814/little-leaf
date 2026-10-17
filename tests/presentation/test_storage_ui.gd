@@ -112,6 +112,15 @@ func run():
    var painted=card.get_global_rect().intersection(rail)
    check(not painted.has_area() or interior.encloses(painted),"visible item card stays inside board "+kind+str(view))
   board_fit("Storage",view)
+  var full_cards=0
+  for kind in game.catalog_cards:
+   var card:Button=game.catalog_cards[kind]
+   if card.visible and rail.encloses(card.get_global_rect()):full_cards+=1
+   if card.visible:
+    check(card.size.x>=44 and card.size.x<=96,"icon-only width remains compact with44px minimum "+kind+str(view))
+    var art_slot=card.get_child(0).get_child(0).get_global_rect()
+    check(not art_slot.intersects(shop.stock_badges[kind].get_global_rect()),"crate digits do not overlap the original art slot "+kind+str(view))
+  check(full_cards>=(5 if view.x==1360 else (2 if view.x==390 else 3)),"denser full-card Storage page "+str(view))
   await capture("storage",view)
   await show_count("lamp",view);await show_count("bookshelf",view)
   if not shop.product_next.disabled:
