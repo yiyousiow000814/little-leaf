@@ -171,7 +171,8 @@ class StorageNativeReviewTests(unittest.TestCase):
         # independently bound by the mail capture. PR351 separately regenerated all
         # three atlases with exact original pixels and adopted two source hashes.
         # PR352 independently repeats original-three qualification for standby retention.
-        # Neither successor manifest is evidence from the old Storage capture. Other pins stay.
+        # PR353 repeats qualification for stable café actor ownership.
+        # None of these successor manifests is evidence from the old Storage capture.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
@@ -182,14 +183,14 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "b1c1150d3690125045a85c2f3e8b3575efe11b4ecb10061e62a3b2248a8c36ac"
+                expected = "7d34ba9a00aaa572010f0fe2caf3953bcc1d535d222243e36f96032f07bfca16"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
         expected["game/scripts/main.gd"] = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
-        expected["game/data/prebaked_atlas_manifest.json"] = "b1c1150d3690125045a85c2f3e8b3575efe11b4ecb10061e62a3b2248a8c36ac"
+        expected["game/data/prebaked_atlas_manifest.json"] = "7d34ba9a00aaa572010f0fe2caf3953bcc1d535d222243e36f96032f07bfca16"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -222,7 +223,27 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
         self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
         self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
-        self.assertEqual(manifest["source_sha256"]["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+        # Reconstruct the independently qualified PR352 source map, not today's map.
+        historical = dict(manifest["source_sha256"])
+        historical["scripts/rendering/illustrated_cafe.gd"] = "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e"
+        historical["scripts/rendering/cafe_character_pick_geometry.gd"] = "f09338d941fbf246c48d4fa1bbefab761c143a55c5f872751f5e35dc72bb633e"
+        self.assertEqual(review.digest(json.dumps(historical, sort_keys=True, separators=(",", ":")).encode()), "6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde")
+
+    def test_actor_owner_manifest_preserves_entire_prior_provenance(self):
+        manifest = json.loads((ROOT / "game/data/prebaked_atlas_manifest.json").read_text())
+        prior, separator, current = manifest["provenance"].partition("; PR353 stable cafe actor ownership qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "626c50c1a18b6dec8f54712aee2ed7d72b49e0749d668201d84475963d434456")
+        self.assertIn("source a8391d63ef6eba84cef90a8a8d29d8ace7888cb6 / tree 10373fda8b283f358e2df0d85d1c55c3b72cd559", current)
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/39052483690", current)
+        self.assertIn("38832530e8f02b58a62e70396164a0d50c1b66bfa3a181635533257ccc143c12", current)
+        closure = "f9444c14f48f3b51b47f0859c770a25870a2ad83b9af3be9aee4f3da2dcd0664"
+        self.assertIn(closure, current)
+        self.assertEqual(len(manifest["source_sha256"]), 83)
+        self.assertEqual(review.digest(json.dumps(manifest["source_sha256"], sort_keys=True, separators=(",", ":")).encode()), closure)
+        self.assertEqual(manifest["source_sha256"]["scripts/rendering/illustrated_cafe.gd"], "144eea1e8866ff9bd55e20f23eddecb0b158e1226ca5bbd7b107526fc40ab5fc")
+        self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_character_pick_geometry.gd"], "5157e40693b445219b0648c695652c6b17fe7854bc0159cf215166f0495b1c06")
+        self.assertEqual(tuple(manifest["atlases"][name]["rgba_sha256"] for name in review.NAMES), review.EXPECTED_RGBA)
 
     def test_engine_error_is_retained_and_stops_before_timeout(self):
         log = self.folder / "early-error.log"
