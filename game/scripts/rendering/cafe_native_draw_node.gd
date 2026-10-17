@@ -19,6 +19,8 @@ var draw_count: int = 0
 # Scalar receipts distinguish requested art from its completed native draw list.
 var paint_revision: int = 0
 var painted_revision: int = -1
+# Current nonvisual standby clock; never part of the retained draw key.
+var contact_progress: float = NAN
 var contacts: Array = []
 var resources: Array[Resource] = []
 const CafeShape = preload("res://scripts/rendering/cafe_shape_2d.gd")
@@ -67,6 +69,7 @@ func configure(source: Node2D, callback: Callable, next: Array, placement: Trans
 	if visibility_layer != source.visibility_layer:
 		visibility_layer = source.visibility_layer
 	if appearance != next:
+		contact_progress = NAN
 		appearance = next.duplicate(true)
 		paint = callback
 		contacts.clear()

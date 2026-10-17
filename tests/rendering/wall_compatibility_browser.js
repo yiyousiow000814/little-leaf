@@ -405,19 +405,9 @@ async function main() {
           (name, delay) => click(newPage, 'new', name, delay),
           (name, region, phrases, retryTarget) => screenUiText(newPage, name, region, phrases, retryTarget),
           Object.hasOwn(layouts.new.points, 'build_next'));
-        const confirmStartedAt = new Date().toISOString();
-        const beforeConfirm = await observation(newPage);
-        check(beforeConfirm.saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
-        await click(newPage, 'new', 'confirm'); await idle(newPage);
-        const afterConfirm = await observation(newPage);
-        const confirmFinishedAt = new Date().toISOString();
-        if (afterConfirm.saveStarts !== 0) {
+        const captureConfirmFailure = async (evidence, screenshotName) => {
           // Failure-only reads preserve the original boundary observation before
           // context.close() discards it. No input, save, retry or timer is changed.
-          const evidence = report.confirm_failure = {synthetic_only: true,
-            before: beforeConfirm, after: afterConfirm, authority_before: baseline,
-            started_at: confirmStartedAt, finished_at: confirmFinishedAt,
-            derived_point: layouts.new.points.confirm};
           try {evidence.authority_after = await readSnapshot(fixture);}
           catch (error) {evidence.authority_read_error = String(error);}
           for (const [label, page] of [['old', oldPage], ['new', newPage]]) {
@@ -428,8 +418,28 @@ async function main() {
               timestamp: new Date().toISOString()}));}
             catch (error) {evidence[label + '_diagnostic_error'] = String(error);}
           }
-          try {await newPage.screenshot({path: path.join(output, 'case-b-confirm-failure.png')});}
+          try {await newPage.screenshot({path: path.join(output, screenshotName)});}
           catch (error) {evidence.screenshot_error = String(error);}
+        };
+        const confirmStartedAt = new Date().toISOString();
+        const beforeConfirm = await observation(newPage);
+        if (beforeConfirm.saveStarts !== 0) {
+          const evidence = report.pre_confirm_failure = {synthetic_only: true,
+            before: beforeConfirm, authority_before: baseline,
+            started_at: confirmStartedAt, observed_at: new Date().toISOString(),
+            pending_confirm_point: layouts.new.points.confirm};
+          await captureConfirmFailure(evidence, 'case-b-before-confirm-failure.png');
+        }
+        check(beforeConfirm.saveStarts === 0, 'New tray/product/target actions cause no save before the verified wall confirmation');
+        await click(newPage, 'new', 'confirm'); await idle(newPage);
+        const afterConfirm = await observation(newPage);
+        const confirmFinishedAt = new Date().toISOString();
+        if (afterConfirm.saveStarts !== 0) {
+          const evidence = report.confirm_failure = {synthetic_only: true,
+            before: beforeConfirm, after: afterConfirm, authority_before: baseline,
+            started_at: confirmStartedAt, finished_at: confirmFinishedAt,
+            derived_point: layouts.new.points.confirm};
+          await captureConfirmFailure(evidence, 'case-b-confirm-failure.png');
         }
         check(afterConfirm.saveStarts === 0, 'Wall Confirm changes only the Decorate draft before Apply');
         check(canonical(await readSnapshot(fixture)) === canonical(baseline), 'Unapplied wall edit preserves every durable authority, wallet and ownership byte');

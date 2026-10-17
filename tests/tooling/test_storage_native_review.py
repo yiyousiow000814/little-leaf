@@ -170,7 +170,8 @@ class StorageNativeReviewTests(unittest.TestCase):
         # to Main; these are uncaptured by the old Storage fixture and will be
         # independently bound by the mail capture. PR351 separately regenerated all
         # three atlases with exact original pixels and adopted two source hashes.
-        # Its manifest is not evidence from the old Storage capture. Other pins stay.
+        # PR352 independently repeats original-three qualification for standby retention.
+        # Neither successor manifest is evidence from the old Storage capture. Other pins stay.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
             if name == "game/scripts/ui/cafe_shop_ui.gd":
@@ -181,14 +182,14 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "47d4c0be8ba2aa6fd3f68052ae725d435deae8d33caad434f3f1545303758cde"
+                expected = "b1c1150d3690125045a85c2f3e8b3575efe11b4ecb10061e62a3b2248a8c36ac"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
         expected["game/scripts/main.gd"] = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
-        expected["game/data/prebaked_atlas_manifest.json"] = "47d4c0be8ba2aa6fd3f68052ae725d435deae8d33caad434f3f1545303758cde"
+        expected["game/data/prebaked_atlas_manifest.json"] = "b1c1150d3690125045a85c2f3e8b3575efe11b4ecb10061e62a3b2248a8c36ac"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -210,6 +211,18 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("92a7df57c6cbc61473e85518d2dfa8d19f734ac5190a0031852ede9e3d1e373b", current)
         self.assertIn("b23351e0973159c2033c8d8fbe169c6f31f596cef99a9d00b773bc61a9f1078b", current)
         self.assertEqual(tuple(manifest["atlases"][name]["rgba_sha256"] for name in review.NAMES), review.EXPECTED_RGBA)
+
+    def test_standby_manifest_preserves_entire_prior_provenance(self):
+        manifest = json.loads((ROOT / "game/data/prebaked_atlas_manifest.json").read_text())
+        prior, separator, current = manifest["provenance"].partition("; PR352 standby retention qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "6272265281c71dd6c892e5b1b7d4047bd1d83669dd3ba7130cc8d92da7f5a243")
+        self.assertIn("source 6b89414ced6240a277259e89dd215f5c9a09d0cd / tree 44f68461777f0637b8bc493c1f2ee0d0b54518b3", current)
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/39037439249", current)
+        self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
+        self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
+        self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
+        self.assertEqual(manifest["source_sha256"]["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
 
     def test_engine_error_is_retained_and_stops_before_timeout(self):
         log = self.folder / "early-error.log"
