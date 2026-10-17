@@ -18,8 +18,9 @@ jobs:
   native:
     # Deliberately independent of the stale-atlas preflight. This produces
     # evidence only; it cannot relax that guard or qualify an export.
-    # R2 reuses original-three run38998426362 only after exact83-source/asset checks.
-    if: github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository
+    # Completed one-off: retain the evidence route only for its captured R4 head.
+    # Metadata successors skip native capture; ordinary CI remains mandatory.
+    if: github.event.pull_request.head.sha == 'cc349bef3a6c33ff9b8d0e3fe3fd70b36a5c9bf7' && github.event.pull_request.number == 349 && github.head_ref == 'feat/decorate-storage' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
