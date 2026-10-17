@@ -5,6 +5,10 @@ const Shape=preload("res://scripts/rendering/cafe_shape_2d.gd")
 class CountingPick extends Pick:
 	var state_calls=0
 	var node_visits=0
+	var orphan_scans=0
+	func _unsubmitted_native_nodes(art)->Array:
+		orphan_scans+=1
+		return super._unsubmitted_native_nodes(art)
 	func _node_state(node:Node2D,state:int)->int:
 		node_visits+=1
 		return super._node_state(node,state)
@@ -68,6 +72,7 @@ func run():
 	for frame in 60:
 		pick.drawing(art);pick.submitting(art);pick.presented(art)
 	check(pick.state_calls==0,"ordinary frame hooks do not traverse world geometry")
+	check(pick.orphan_scans==0,"ordinary frames and unrequested queries do not scan orphan owners")
 	fixture_painted(node)
 	pick.request_query();pick.drawing(art);pick.submitting(art);pick.presented(art)
 	check(pick.occludes(art,Vector2.ZERO) and not pick.last_uncertain,"actual command fill occludes")
@@ -131,6 +136,7 @@ func run():
 			var reference=pick._triangles_hit(stroke.vertices,stroke.colors,stroke.indices,point,1)
 			check(pick.command_hit(&"draw_line",[Vector2.ZERO,Vector2(10,10),Color.WHITE,width,true],point,1,Transform2D.IDENTITY,null,{})==reference,"AA broad rejection preserves exact native quads "+str(width)+" "+str(point))
 	hidden_subtree_cases(pick,art,node,shape)
+	unsubmitted_owner_cases(pick,art,node)
 	world_span_cases(pick,art,node,texture)
 	pick.request_query()
 	var before_calls=pick.state_calls
@@ -242,3 +248,19 @@ func hidden_subtree_cases(pick,art,node,shape):
 	art.alpha_revision+=1
 	check(pick.occludes(art,Vector2.ZERO) and pick.last_uncertain,"atlas alpha invalidation rejects a previous presentation receipt")
 	node.shapes.erase(hidden);hidden.queue_free()
+
+func unsubmitted_owner_cases(pick,art,node):
+	for family in ["stable","fallback"]:
+		var orphan=Native.new();art.add_child(orphan)
+		if family=="stable":orphan.set_meta("cafe_actor_key","guest/999")
+		orphan.hide();present(pick,art,node)
+		check(not pick.occludes(art,Vector2(100000,100000)) and not pick.last_uncertain,"hidden unsubmitted "+family+" owner permits valid current query")
+		orphan.show()
+		check(pick.occludes(art,Vector2(100000,100000)) and pick.last_uncertain,"unsubmitted "+family+" resurrection invalidates receipt")
+		present(pick,art,node)
+		check(pick.occludes(art,Vector2(100000,100000)) and pick.last_uncertain,"already-visible unsubmitted "+family+" owner fails closed")
+		orphan.hide();present(pick,art,node)
+		check(not pick.occludes(art,Vector2(100000,100000)) and not pick.last_uncertain,"hiding unsubmitted "+family+" restores valid current query")
+		orphan.queue_free();orphan.show();present(pick,art,node)
+		check(pick.occludes(art,Vector2(100000,100000)) and pick.last_uncertain,"queue-free-pending "+family+" cannot certify clear")
+		art.remove_child(orphan);orphan.free()
