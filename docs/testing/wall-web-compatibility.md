@@ -74,8 +74,13 @@ category selection may retry while
 the real opening tween still disables input; the confirmation is clicked once.
 For a paged category rail, the initial Tables label can be readable before the
 opening tween enables mouse input. Before its one real page click, the gate moves
-the pointer over the receipt-bound arrow and requires its rendered “Next categories ·
-swipe to browse” tooltip in a rectangle derived from the same native control.
+the pointer over the receipt-bound arrow and requires its complete rendered
+“Next categories · swipe to browse” tooltip. Tables, the bounded native tooltip
+rectangle, and (only when the pointer-side placement would overflow) the
+same-size mirrored placement are read from one retained browser frame. The
+alternate rectangle follows Godot's embedded-popup rule with the native cursor
+offset and the matching browser viewport. Neither larger crops nor partial
+labels can qualify the arrow.
 The original fully exposed Build OCR remains mandatory after that click.
 The gate requires zero new-client saves before that verified confirmation and
 retains the expected/actual wall segment if the final state assertion fails.

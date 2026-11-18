@@ -56,7 +56,32 @@ function requireVisibleText(text, phrases) {
 // Distinct native regions: a readable chip is not proof the arrow can receive input.
 function requireInitialRailOCR(tables, hint) {
   requireVisibleText(tables, ['Tables']);
-  assert.equal(normalizedText(hint), 'next categories swipe to browse', 'OCR inconclusive: actual enabled next-category arrow tooltip required');
+  const observed = (Array.isArray(hint) ? hint : [hint]).map(normalizedText);
+  assert(observed.includes('next categories swipe to browse'),
+    'OCR inconclusive: actual enabled next-category arrow tooltip required; observed ' + JSON.stringify(observed));
+}
+function categoryHintRegions(layout, viewport) {
+  assert(viewport && layout.viewport[0] === viewport.width && layout.viewport[1] === viewport.height,
+    'Tooltip crop requires the exact native and browser viewport');
+  const {x, y, width, height, offset_x: offsetX, psm, scale} = layout.regions.category_hint;
+  assert([x, y, width, height].every(Number.isInteger) && x >= 0 && y >= 0 && width > 0 && height > 0
+    && x + width <= viewport.width && y + height <= viewport.height, 'Bounded native tooltip rectangle');
+  assert(Number.isFinite(offsetX) && offsetX >= 0 && offsetX < viewport.width && psm === 7 && scale === 3,
+    'Exact native tooltip OCR metadata');
+  const [pointerX, pointerY] = layout.points.build_next;
+  assert(Number.isFinite(pointerX) && pointerX >= 0 && pointerX < viewport.width && Number.isFinite(pointerY)
+    && pointerY >= 0 && pointerY < viewport.height, 'Bounded hovered arrow point');
+  const regions = [{key: 'category_hint', x, y, width, height, psm, scale}];
+  // Godot 4.6.3 Viewport::_gui_show_tooltip flips a right-overflowing
+  // embedded tooltip to pointer - popup width - styled cursor offset.
+  // Preserve the exact native rectangle too: native and Web can differ at the
+  // same viewport edge. No search, enlarging the crop, or arbitrary offsets.
+  const mirroredX = Math.trunc(pointerX - width - offsetX);
+  if (pointerX + offsetX + width > viewport.width && mirroredX >= 0
+      && mirroredX + width <= pointerX && mirroredX !== x) {
+    regions.push({...regions[0], key: 'category_hint_mirrored', x: mirroredX});
+  }
+  return regions;
 }
 // The back-button crop must contain the complete label as its own token.
 // Arrow punctuation is harmless; clipped "Buil", "Builder" and "Rebuild" are not.
@@ -87,6 +112,7 @@ function verifyLayout(layout, label) {
     if (Object.hasOwn(layout.points, 'build_next')) {
       point('build_next');
       for (const name of ['category_ready', 'category_hint', 'build_category']) region(layout.regions?.[name], name);
+      categoryHintRegions(layout, {width: layout.viewport[0], height: layout.viewport[1]});
     }
     for (const name of ['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text']) region(layout.regions?.[name], name);
     assert.equal(layout.expected_cost, 35, 'Unchanged half-wall purchase price');
@@ -191,4 +217,4 @@ function assertOriginalArchived(before, after) {
   assert.equal(canonical(after.legacy), canonical(before.legacy), 'Migration leaves original legacy bytes unchanged');
   assert.equal(canonical(archiveRows(after).filter(([name]) => name !== key)), canonical(archiveRows(before).filter(([name]) => name !== key)), 'Unrelated archives remain unchanged');
 }
-module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireInitialRailOCR, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived};
+module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireInitialRailOCR, categoryHintRegions, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived};

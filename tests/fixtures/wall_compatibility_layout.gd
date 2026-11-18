@@ -56,9 +56,12 @@ func next_category_hint_region(button:Button)->Dictionary:
   var popup=hint.get_window()
   if not popup.visible:continue
   var r=Rect2(Vector2(popup.position),Vector2(popup.size))
+  var tooltip_offset:Vector2=ProjectSettings.get_setting("display/mouse_cursor/tooltip_position_offset")
+  tooltip_offset*=popup.content_scale_factor
   check(root.gui_get_hovered_control()==button and popup.is_embedded(),"actual next-page arrow owns the visible hover tooltip")
   check(Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(r) and not r.has_point(p),"tooltip fits viewport and does not cover arrow pointer")
-  return {"x":int(r.position.x),"y":int(r.position.y),"width":int(r.size.x),"height":int(r.size.y),"psm":7,"scale":3}
+  check(is_finite(tooltip_offset.x) and tooltip_offset.x>=0.0,"known horizontal tooltip offset")
+  return {"x":int(r.position.x),"y":int(r.position.y),"width":int(r.size.x),"height":int(r.size.y),"offset_x":tooltip_offset.x,"psm":7,"scale":3}
  check(false,"actual next-page hover tooltip not available");return {}
 
 func text_region(control:Control)->Dictionary:
