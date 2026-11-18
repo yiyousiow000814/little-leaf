@@ -24,9 +24,10 @@ jobs:
       ORIGIN_RUN: '44233643387'
       ORIGIN_ARTIFACT: '14396966380'
       ORIGIN_NAME: little-leaf-ci-inputs-a6147afedb1621f8c6181e29b4e3d9b7618491b5-1
-      PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
       PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
     steps:
+      - name: Resolve runner-local Playwright module path
+        run: printf 'PLAYWRIGHT_MODULE=%s\n' "$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
