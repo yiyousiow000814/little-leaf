@@ -1,0 +1,147 @@
+name: Isolated Play provisioning benchmark
+# This file is for a temporary benchmark branch, never main or a release gate.
+on:
+  push:
+    branches: [bench/play-provision-v1]
+    paths: ['.github/workflows/play-apt-ab.yml', 'bench/play-provision-v1/**']
+permissions: {}
+jobs:
+  play-ab:
+    if: github.repository == 'yiyousiow000814/little-leaf'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    permissions:
+      actions: read
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        arm: [baseline, candidate]
+    env:
+      ARM: ${{ matrix.arm }}
+      SOURCE_SHA: a6147afedb1621f8c6181e29b4e3d9b7618491b5
+      ORIGIN_RUN: '44233643387'
+      ORIGIN_ARTIFACT: '14396966380'
+      ORIGIN_NAME: little-leaf-ci-inputs-a6147afedb1621f8c6181e29b4e3d9b7618491b5-1
+      PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+      PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+          path: benchmark
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+      - name: Bind trusted engine/export input to immutable origin
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/ab-receipts"
+          export GH_REPO=yiyousiow000814/little-leaf
+          d="$RUNNER_TEMP/ab-receipts"
+          gh api "repos/$GH_REPO/actions/runs/$ORIGIN_RUN" | jq -e --arg sha "$SOURCE_SHA" --arg rid "$ORIGIN_RUN" --arg repo "$GH_REPO" '
+            select((.id|tostring)==$rid and .head_sha==$sha and .head_branch=="main" and .event=="push" and .name=="Check and build Web" and
+            .conclusion=="success" and .run_attempt==1 and .repository.full_name==$repo and .head_repository.full_name==$repo) |
+            {id,run_attempt,name,head_sha,event,head_branch,conclusion,repository:.repository.full_name}' > "$d/origin-run.json"
+          gh api "repos/$GH_REPO/actions/artifacts/$ORIGIN_ARTIFACT" | jq -e --arg sha "$SOURCE_SHA" --arg rid "$ORIGIN_RUN" --arg aid "$ORIGIN_ARTIFACT" --arg name "$ORIGIN_NAME" '
+            select((.id|tostring)==$aid and .name==$name and .expired==false and .size_in_bytes>0 and
+            (.workflow_run.id|tostring)==$rid and .workflow_run.head_sha==$sha and (.digest | test("^sha256:[a-f0-9]{64}$"))) |
+            {id,name,size_in_bytes,digest,workflow_run:{id:.workflow_run.id,head_sha:.workflow_run.head_sha}}' > "$d/origin-artifact.json"
+          test "$(git -C source rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Download exactly one origin package with server digest enforcement
+        timeout-minutes: 3
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          repository: yiyousiow000814/little-leaf
+          run-id: ${{ env.ORIGIN_RUN }}
+          artifact-ids: ${{ env.ORIGIN_ARTIFACT }}
+          path: ${{ runner.temp }}/ab-origin
+          digest-mismatch: error
+      - name: Verify unpacked artifact binding before measured work
+        working-directory: source
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          src="$RUNNER_TEMP/ab-origin"
+          node -e 'const fs=require("node:fs"); const p=process.argv[1];const {validateBinding}=require("./tests/presentation/fresh_tutorial_browser");const {layout,...receipt}=validateBinding(p+"/web-build/web",p+"/engine-evidence/test_interactive_tutorial-result.json",p+"/engine-evidence/summary.json");console.log(JSON.stringify(receipt))' "$src" > "$RUNNER_TEMP/ab-receipts/test-input-binding.json"
+      - name: Capture original preinstalled package versions
+        run: python3 benchmark/bench/play-provision-v1/provision.py snapshot "$RUNNER_TEMP/ab-receipts/preinstalled.json"
+      - name: Original Play package installation (baseline)
+        if: matrix.arm == 'baseline'
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/driver.seconds" -f %e npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/packages.seconds" -f %e bash -e -o pipefail -c '
+            "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+            sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+            google-chrome --version
+          '
+      - name: Install pinned Playwright driver (candidate)
+        if: matrix.arm == 'candidate'
+        timeout-minutes: 10
+        run: /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/driver.seconds" -f %e npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install only missing pinned Play packages (candidate, no fallback)
+        if: matrix.arm == 'candidate'
+        timeout-minutes: 3
+        run: |
+          /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/packages.seconds" -f %e bash -e -o pipefail -c '
+            python3 benchmark/bench/play-provision-v1/provision.py candidate "$RUNNER_TEMP/ab-receipts/candidate-package-transaction.json"
+            google-chrome --version
+          '
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        working-directory: source
+        timeout-minutes: 3
+        run: /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/chrome-download.seconds" -f %e python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        working-directory: source
+        run: |
+          /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/chrome-install.seconds" -f %e sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Capture package/font state and run common headed sandbox preflight
+        timeout-minutes: 1
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/ab-receipts"
+          python3 benchmark/bench/play-provision-v1/provision.py snapshot "$d/installed.json"
+          ldd /opt/google/chrome/chrome > "$d/chrome-ldd.txt"
+          ldd /usr/bin/tesseract > "$d/ocr-ldd.txt"
+          ! grep -F 'not found' "$d/chrome-ldd.txt" "$d/ocr-ldd.txt"
+          tesseract --version > "$d/tesseract-version.txt"
+          tesseract --list-langs > "$d/tesseract-languages.txt"
+          grep -Fx eng "$d/tesseract-languages.txt"
+          fc-list | LC_ALL=C sort > "$d/fonts.txt"
+          fc-match sans-serif > "$d/font-default.txt"
+          sha256sum "$CHROME_DEB" > "$d/pinned-chrome-sha256.txt"
+          xvfb-run -a node benchmark/bench/play-provision-v1/canary.cjs > "$d/browser-canary.json"
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        working-directory: source
+        timeout-minutes: 6
+        run: |
+          set -euo pipefail
+          /usr/bin/time -o "$RUNNER_TEMP/ab-receipts/full-play.seconds" -f %e bash -e -o pipefail -c '
+            src="$RUNNER_TEMP/ab-origin"
+            node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/ab-receipts/fresh-tutorial-ocr-fixtures.log"
+            xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$src/web-build/web" --output "$RUNNER_TEMP/ab-receipts/fresh-tutorial-browser" --layout-report "$src/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$src/engine-evidence/summary.json"
+          '
+      - name: Retain timing and bounded results, never a profile or save
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: play-provision-bench-${{ matrix.arm }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/ab-receipts/*.json
+            ${{ runner.temp }}/ab-receipts/*.seconds
+            ${{ runner.temp }}/ab-receipts/*.txt
+            ${{ runner.temp }}/ab-receipts/*.log
+            ${{ runner.temp }}/ab-receipts/fresh-tutorial-browser/fresh-tutorial-browser.json
+          if-no-files-found: warn
+          retention-days: 3
