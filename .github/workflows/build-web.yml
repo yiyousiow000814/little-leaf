@@ -211,11 +211,18 @@ jobs:
       inputs_id: ${{ steps.inputs.outputs.artifact-id }}
       inputs_digest: ${{ steps.inputs.outputs.artifact-digest }}
       compact_id: ${{ steps.compact.outputs.artifact-id }}
+    env:
+      # These source score archives are not inputs to Web export or live Play proof.
+      ARCHIVE_FREE_CHECKOUT: |
+        /*
+        !/docs/art-audio/scores/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ needs.guard.outputs.ordinary_pr == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
       - name: Require the route-correct complete preflight
         env:
           CI_SCOPE: ${{ needs.guard.outputs.scope }}
@@ -364,12 +371,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
+      # These source score archives are not inputs to Web export or live Play proof.
+      ARCHIVE_FREE_CHECKOUT: |
+        /*
+        !/docs/art-audio/scores/
       PLAY_LOCKED_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: ${{ env.PLAY_LOCKED_PROVISION == 'true' && env.ARCHIVE_FREE_CHECKOUT || '' }}
       - name: Install shared pinned browser tools
         if: env.PLAY_LOCKED_PROVISION != 'true'
         timeout-minutes: 10

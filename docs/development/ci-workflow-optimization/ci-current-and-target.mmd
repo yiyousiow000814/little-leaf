@@ -1,4 +1,6 @@
 %% Little Leaf / Check and build Web. GitHub Actions attempt 1.
+%% Fresh run, same CI code: https://github.com/yiyousiow000814/little-leaf/actions/runs/44304785952/attempts/1
+%% PR d97e23b54a3aec33619b961bb109a90f62148869; tested merge 7e7d268e9ce78d471e77c8b3a6987508c3920f24.
 %% First verified sub-10 full run: https://github.com/yiyousiow000814/little-leaf/actions/runs/44296804650/attempts/1
 %% PR fdbbaad018c6e4daa13900ef6c25528017c48dc1; tested merge d13008c2118254862affabcee058ee7c04c02112.
 %% Prior preflight-overlap full green: https://github.com/yiyousiow000814/little-leaf/actions/runs/44286678192/attempts/1
@@ -73,6 +75,12 @@ flowchart TB
     E2 --> E3["Two downloads: 134.9 MB → 0.39 MB · 22.61 s → 1.85 s<br/>Final gate: 47 s → 14 s measured job times"]
     E3 --> E5["All required checks green · 68 s below 10 minutes including queue<br/>Observed queue and Play variability can erase margin; confirm on a fresh run"]
     E4["Playwright driver + Ubuntu prerequisites in parallel · joint 10 s<br/>Both passed before the unchanged headed Play proof"]
+  end
+  subgraph repeat["Fresh run with same CI and game · 10:40 all green · target missed"]
+    direction TB
+    R0["Final gate 13 s · queue 3 s"] --> R1["Actual Play proof 178.738 s → 270.973 s<br/>Post-OCR saves 18–25: 45.120 s → 68.566 s; not an FPS measurement"]
+    R1 --> R2["Pending ordinary-PR pilot: omit only archival music scores at Build and Play checkout<br/>Exact source tree and required proof/assets retained; no runtime, release or preview change"]
+    R2 --> R3["280 archival paths · 831.94 MB tracked; not compressed Git transfer<br/>Prior two checkout steps combined 53.07 s; hosted savings unknown"]
   end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
