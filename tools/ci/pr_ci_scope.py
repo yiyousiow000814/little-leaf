@@ -10,6 +10,14 @@ SHA = re.compile(r"[0-9a-f]{40}")
 DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py",
                "tools/diagnostics/retained_handoff_route.py",
                "tools/diagnostics/current_handoff_route.py"}
+# Reviewed architecture deliverables. Exact paths only; no extension or
+# directory-wide exemption (the generator is authoring-only, not a CI input).
+ARCHITECTURE_DOCS = {
+    "docs/architecture-performance/current-function-atlas.mmd",
+    "docs/architecture-performance/generate-function-atlas.py",
+    "docs/architecture-performance/performance-workload-ledger.xlsx",
+    "docs/architecture-performance/target-workflow.mmd",
+}
 TOOLING_TEST = re.compile(r"tests/tooling/test_[A-Za-z0-9_]+\.py")
 JOBS = ("engine", "historical", "build", "browser", "compatibility", "firebase")
 
@@ -22,7 +30,8 @@ def allowed(path):
         return False
     # Guard always discovers these unittest modules; engine/browser jobs do not
     # consume them. Shared helpers, fixtures and runtime test scripts stay full.
-    return (path in DIAGNOSTICS or TOOLING_TEST.fullmatch(path) is not None or path == "README.md" or
+    return (path in DIAGNOSTICS or path in ARCHITECTURE_DOCS or
+            TOOLING_TEST.fullmatch(path) is not None or path == "README.md" or
             path.startswith("docs/") and path.endswith(".md") and
             not path.startswith("docs/art-audio/third-party/"))
 
