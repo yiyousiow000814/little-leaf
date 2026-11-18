@@ -1,0 +1,22 @@
+flowchart TD
+  %% PROPOSED architecture, NOT a map of the currently shipped control flow.
+  INPUT["Input and effective world time"] --> SIM["Simulation owns jobs, claims, custody, timers and saves"]
+  SIM --> COMMIT["Complete one logical transition or synchronization"]
+  COMMIT --> READ["Read committed state; no presentation writes to gameplay"]
+  READ --> MOTION["Presentation updates stance, facing and placement"]
+  MOTION --> REDRAW{"World redraw needed?"}
+  REDRAW -->|No| KEEP["Keep previous canvas commands"]
+  REDRAW -->|Yes| ADMIT["Admit visible world entries and required overlays"]
+  ADMIT --> ORDER["Preserve mixed painter order and original tie rules"]
+  ORDER --> NEED{"Does this consumer need a derived fact?"}
+  NEED -->|Yes| FACT["Resolve locally or share exact ordered facts within this draw"]
+  NEED -->|No| INPUTS["Read existing placement and identity"]
+  FACT --> INPUTS
+  INPUTS --> SAFE{"Retained commands valid before expensive preparation?"}
+  SAFE -->|Yes| REUSE["Keep eligible commands; refresh placement and live contact metadata"]
+  SAFE -->|No| STOCK["Run exact legacy preparation and paint; preserve contacts"]
+  REUSE --> END["Complete visibility, occlusion, contact and picking results"]
+  STOCK --> END
+  END --> DROP["Discard draw-local facts; delayed callbacks never borrow them"]
+  KEEP --> PRESENT["Present frame"]
+  DROP --> PRESENT
