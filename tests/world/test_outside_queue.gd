@@ -14,7 +14,7 @@ class StreetDrawProbe extends "res://scripts/rendering/illustrated_cafe.gd":
  func _ready():set_process(false)
  func _draw():pass
  func art_transform(_offset:Vector2,_rotation:float=0.0,_scale:Vector2=Vector2.ONE):pass
- func character(_p:Vector2,id:int,_staff=false,_moving=false,_seated=false,_action="idle",_progress=0.0,_reach=Vector2(18,-28),_look=Vector2(1,0),_payload="none",_tool="none",_pose={},_role="chef"):drawn_ids.append(id)
+ func character(_p:Vector2,id:int,_staff=false,_moving=false,_seated=false,_action="idle",_progress=0.0,_reach=Vector2(18,-28),_look=Vector2(1,0),_payload="none",_tool="none",_pose={},_role="chef",_owner_key=""):drawn_ids.append(id)
  func bubble(_p:Vector2,words:String):bubbles.append(words)
 var checks=0
 var failures=[]

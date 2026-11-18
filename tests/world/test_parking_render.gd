@@ -41,7 +41,7 @@ class StreetArt extends "res://scripts/rendering/illustrated_cafe.gd":
 	func rounded_poly(_points:Array,_radius:float,color):
 		if color is String and color in ["a2b3b3","ddcdb0"]:recorded.append("car")
 	func ellipse(_point:Vector2,_size:Vector2,_color):pass
-	func character(_p:Vector2,id:int,_staff=false,_moving=false,_seated=false,_action="idle",_progress=0.0,_reach=Vector2(18,-28),_look=Vector2(1,0),_payload="none",_tool="none",_pose={},_role="chef"):
+	func character(_p:Vector2,id:int,_staff=false,_moving=false,_seated=false,_action="idle",_progress=0.0,_reach=Vector2(18,-28),_look=Vector2(1,0),_payload="none",_tool="none",_pose={},_role="chef",_owner_key=""):
 		characters.append(id);recorded.append("guest_%s"%id)
 var checks=0
 var failures=[]

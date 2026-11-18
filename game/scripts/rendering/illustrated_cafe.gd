@@ -14,7 +14,12 @@ var use_command_retention=true
 var use_native_object_nodes=true
 var native_draw_target:Node2D
 var native_command_transform=Transform2D.IDENTITY
+# Current-frame painter order, separate from both ownership stores.
 var native_object_nodes={}
+var native_fallback_nodes={}
+var native_actor_nodes={}
+var native_actor_records={}
+var native_actor_epoch=[]
 var native_world_shapes={}
 # Half-open painter span above floor litter, excluding ground and editor UI.
 # Queries read these existing commands only while a cleanup release is pending.
@@ -1094,7 +1099,9 @@ func _draw():
 	retained_geometry.begin_frame()
 	rounded_seen_previous=rounded_seen_current;rounded_seen_current={}
 	render_contacts.clear()
+	_begin_native_owners()
 	if icon_kind!="":
+		_hide_native_owners()
 		background_cache.hide()
 		ui_scale=1; tile=Vector2(39,19.5); origin=Vector2.ZERO
 		art_transform(Vector2(49,57),0,Vector2(.80,.80))
@@ -1102,6 +1109,7 @@ func _draw():
 		art_transform(Vector2.ZERO)
 		return
 	if not is_instance_valid(game):
+		_hide_native_owners()
 		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
@@ -1391,7 +1399,7 @@ func _draw():
 				if action in ["picking_litter","sweeping","mopping"]:surface=Vector2.ZERO;anchor=Vector2(3,-3)
 				var contact=ground+surface
 				reach=Vector2(contact.x*face,contact.y)-anchor
-			character(Vector2.ZERO,int(e.get("index",d.get("id",1))),e.type=="staff",moving,seated,action,progress,reach,direction,payload,str(d.get("art_tool","none")),pose,str(d.get("art_role",d.get("role","chef"))))
+			character(Vector2.ZERO,int(e.get("index",d.get("id",1))),e.type=="staff",moving,seated,action,progress,reach,direction,payload,str(d.get("art_tool","none")),pose,str(d.get("art_role",d.get("role","chef"))),_cafe_native_owner_key(e))
 			if e.type=="staff" and not bool(d.get("on_duty",true)):
 				ellipse(Vector2(0,-80),Vector2(5.5,5.5),"f1eddc")
 				line(Vector2(-1.7,-82.5),Vector2(-1.7,-77.5),"819071",1.4);line(Vector2(1.7,-82.5),Vector2(1.7,-77.5),"819071",1.4)
@@ -1788,7 +1796,7 @@ func _staff_visual_heading(staff:Dictionary,pose:Dictionary) -> Vector2:
 static func _kitchen_visual_action(action:String,staff:bool,role:String)->String:
 	return "idle" if staff and role=="chef" and action=="plating" else action
 
-func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef"):
+func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="idle",progress=0.0,reach=Vector2(18,-28),look=Vector2(1,0),payload="none",tool="none",pose={},role="chef",owner_key=""):
 	var species=posmod(id,3);var away=bool(pose.get("view_back",look.x+look.y<-.5))
 	var shirt=["9cbbbd","c98e83","d6b16b","a9b78a"][id%4] if not staff else {"chef":"739c7f","waiter":"b99578","cleaner":"91b2ad","cashier":"b68b92"}.get(role,"739c7f")
 	var options=pose.duplicate()
@@ -1802,7 +1810,7 @@ func character(p:Vector2,id:int,staff=false,moving=false,seated=false,action="id
 	var visual_progress=0.0 if retained_standby else progress
 	if retained_standby:options.progress=visual_progress
 	var callback = _paint_native_character.bind(p, id, staff, moving, species, away, phase, action, visual_progress, reach, payload, options)
-	if retain_native_local_object(callback, ["character", p, id, staff, moving, species, away, phase, action, visual_progress, reach, payload, options], _art_transform):
+	if retain_native_local_object(callback, ["character", p, id, staff, moving, species, away, phase, action, visual_progress, reach, payload, options], _art_transform,owner_key):
 		var owner=native_object_nodes[canvas_stream.cursor-1]
 		owner.contact_progress=progress if retained_standby else NAN
 		if retained_standby:
@@ -2386,18 +2394,28 @@ func retain_native_body_group(callback: Callable, shape: Array, placement: Trans
 	native_draw_target.submit_group(self, callback, key, placement)
 	return true
 
-func retain_native_local_object(callback: Callable, shape: Array, placement: Transform2D) -> bool:
+func retain_native_local_object(callback: Callable, shape: Array, placement: Transform2D, owner_key: String = "") -> bool:
 	if not use_native_object_nodes or not canvas_stream.active:
 		return false
 	# Godot retains the complete object's native draw list. The adapter only
 	# supplies its identity, appearance invalidation and painter-order position.
 	var order = canvas_stream.cursor
 	canvas_stream.cursor += 1
-	if not native_object_nodes.has(order):
+	var stable = owner_key.get_slice_count("|")==2 and owner_key.get_slice("|",1) in ["body","overlay"] and native_actor_records.has(owner_key.get_slice("|",0))
+	var storage = native_actor_nodes if stable else native_fallback_nodes
+	var storage_key = owner_key if stable else order
+	if not storage.has(storage_key):
 		var created = NativeDrawNode.new()
 		_insert_native_canvas_child(created, order)
-		native_object_nodes[order] = created
-	var node = native_object_nodes[order]
+		storage[storage_key] = created
+		if stable:
+			var actor_key=owner_key.get_slice("|",0)
+			created.set_meta("cafe_actor_key",actor_key)
+			created.set_meta("cafe_actor_token",native_actor_records[actor_key])
+			created.set_meta("cafe_actor_epoch",native_actor_epoch.duplicate())
+	var node = storage[storage_key]
+	native_object_nodes[order] = node
+	node.set_meta("native_painter_order",order)
 	node.generation = canvas_stream.frame_id
 	node.draw_order = order
 	var outer = get_global_transform_with_canvas()
@@ -2431,15 +2449,76 @@ func _insert_native_canvas_child(child: Node2D, order: int) -> void:
 			destination += 1
 	move_child(child, destination)
 
+func _native_epoch() -> Array:
+	if not is_instance_valid(game) or not ("model" in game):return []
+	return [game.get_instance_id(),game.model.get_instance_id(),int(game.get("ground_mess_generation"))]
+
+func _clear_native_actor(node) -> void:
+	var owner_id=node.get_instance_id()
+	for index in range(render_contacts.size()-1,-1,-1):
+		if render_contacts[index].get("native_owner",-1)==owner_id:render_contacts.remove_at(index)
+	node.hide();node.paint=Callable();node.appearance=[];node.contacts.clear();node.contact_progress=NAN;node.generation=-1
+
+func _begin_native_owners() -> void:
+	native_object_nodes.clear()
+	var epoch=_native_epoch()
+	var roster={}
+	if not epoch.is_empty():
+		for guest in game.model.customers:roster["guest/"+str(guest.id)]=guest
+		for index in range(game.staff_states.size()):
+			var staff=game.staff_states[index]
+			if is_instance_valid(staff.node):roster["staff/"+str(index)]=staff.node.get_instance_id()
+	for key in native_actor_nodes.keys():
+		var node=native_actor_nodes[key];var actor_key=str(node.get_meta("cafe_actor_key"))
+		var token=node.get_meta("cafe_actor_token")
+		var same=roster.has(actor_key) and (is_same(token,roster[actor_key]) if token is Dictionary else token==roster[actor_key])
+		if epoch!=native_actor_epoch or not same:
+			_clear_native_actor(node);node.remove_meta("cafe_actor_token");native_actor_nodes.erase(key);node.queue_free()
+	native_actor_records=roster;native_actor_epoch=epoch
+
+func _cafe_native_owner_key(entity: Dictionary) -> String:
+	var actor_key="staff/"+str(entity.index) if entity.type=="staff" else "guest/"+str(entity.entry.id)
+	return actor_key+("|overlay" if bool(entity.get("reach_overlay",false)) else "|body")
+
+func _native_actor_current(node) -> bool:
+	if node.get_meta("cafe_actor_epoch",[])!=_native_epoch() or node.generation!=canvas_stream.frame_id or native_object_nodes.get(node.draw_order)!=node or not node.visible:return false
+	var actor_key=str(node.get_meta("cafe_actor_key"));var token=node.get_meta("cafe_actor_token")
+	if actor_key.begins_with("staff/"):
+		var index=int(actor_key.get_slice("/",1))
+		return index<game.staff_states.size() and is_instance_valid(game.staff_states[index].node) and game.staff_states[index].node.get_instance_id()==token
+	for guest in game.model.customers:
+		if is_same(guest,token):return true
+	return false
+
+func _hide_native_owners() -> void:
+	for node in native_fallback_nodes.values()+native_actor_nodes.values():node.hide()
+	for shape in native_world_shapes.values():shape.hide()
+
+func _commit_native_order() -> void:
+	var ordered=[]
+	for order in range(canvas_stream.cursor):
+		if native_object_nodes.has(order):ordered.append(native_object_nodes[order])
+		elif native_world_shapes.has(order) and native_world_shapes[order].get_meta("generation",-1)==canvas_stream.frame_id:ordered.append(native_world_shapes[order])
+	var prefix=[]
+	for child in get_children():
+		if int(child.get_meta("native_painter_order",-1))<0:prefix.append(child)
+	var desired=prefix+ordered
+	for index in range(desired.size()):
+		if desired[index].get_index()!=index:move_child(desired[index],index)
+
 func _finish_native_objects() -> void:
 	for order in native_world_shapes:
 		var shape = native_world_shapes[order]
 		shape.visible = shape.get_meta("generation", -1) == canvas_stream.frame_id and canvas_stream.active
-	for node in native_object_nodes.values():
+	for node in native_fallback_nodes.values()+native_actor_nodes.values():
 		node.visible = node.generation == canvas_stream.frame_id and canvas_stream.active
+	for node in native_object_nodes.values():
 		if node.visible:render_contacts.append_array(node.contacts)
+	_commit_native_order()
 
 func paint_native_object(target: Node2D, callback: Callable) -> void:
+	if target.has_meta("cafe_actor_key") and not _native_actor_current(target):
+		_clear_native_actor(target);return
 	# Helpers keep the original geometry and raster stroke rules. Only the
 	# draw recipient changes, during this Node2D's native _draw callback.
 	var saved_origin = origin

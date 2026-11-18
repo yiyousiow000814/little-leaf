@@ -42,6 +42,8 @@ SUITES = [
     ("test_camera_geometry_lifetime", "CAMERA_GEOMETRY_LIFETIME_RESULT"),
     ("test_native_shape_retention", "NATIVE_SHAPE_RETENTION_RESULT"),
     ("test_standby_native_retention", "STANDBY_NATIVE_RETENTION_RESULT"),
+    ("test_stable_actor_ownership", "STABLE_ACTOR_OWNERSHIP_RESULT"),
+    ("test_stable_actor_commands", "STABLE_ACTOR_COMMANDS_RESULT"),
     ("test_staff_ground_ring", "STAFF_GROUND_RING_RESULT"),
     ("test_retained_canvas_geometry", "RETAINED_CANVAS_RESULT"),
     ("test_prebaked_atlas", "PREBAKED_ATLAS_RESULT"),
