@@ -39,6 +39,7 @@ jobs:
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
       ordinary_pr: ${{ steps.engine_plan.outputs.ordinary_pr }}
+      inline_preflight: ${{ steps.inline_preflight.outcome }}
       engine_count: ${{ steps.engine_plan.outputs.count }}
       engine_matrix: ${{ steps.engine_plan.outputs.matrix }}
     runs-on: ubuntu-24.04
@@ -67,10 +68,6 @@ jobs:
             test "$GITHUB_RUN_ATTEMPT" = 1
           fi
           python3 tools/ci/pr_ci_scope.py
-      - name: Verify metadata and CI guard tests
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: python3 tools/ci/preflight.py
       - name: Select ordinary PR native-engine fanout
         id: engine_plan
         env:
@@ -83,6 +80,34 @@ jobs:
           esac
           printf 'count=%s\nmatrix=%s\n' "$count" "$matrix" >> "$GITHUB_OUTPUT"
           printf 'ordinary_pr=%s\n' "$ORDINARY_PR" >> "$GITHUB_OUTPUT"
+      - name: Verify metadata and CI guard tests
+        id: inline_preflight
+        if: steps.scope.outputs.scope != 'full' || steps.engine_plan.outputs.ordinary_pr != 'true'
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 tools/ci/preflight.py
+  preflight:
+    needs: guard
+    if: needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      binding: ${{ steps.bind.outputs.binding }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify metadata and CI guard tests
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python3 tools/ci/preflight.py
+      - name: Bind successful complete preflight to this exact PR merge and attempt
+        id: bind
+        run: |
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain --untracked-files=no)"
+          printf 'binding=%s:%s:%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
   engine:
     if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
@@ -151,8 +176,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
   build:
-    if: needs.guard.outputs.scope != 'lightweight'
-    needs: [guard, engine]
+    # A deliberately skipped PR-only job must not suppress the original non-PR path.
+    if: ${{ !cancelled() && needs.guard.result == 'success' && needs.engine.result == 'success' && needs.guard.outputs.scope == 'full' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') }}
+    needs: [guard, preflight, engine]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     outputs:
@@ -163,6 +189,14 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Require the route-correct complete preflight
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          INLINE_PREFLIGHT: ${{ needs.guard.outputs.inline_preflight }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          PREFLIGHT_BINDING: ${{ needs.preflight.outputs.binding }}
+        run: python3 tools/ci/pr_ci_scope.py --check-preflight-join
       - name: Install checksum-pinned Godot and official Web template
         run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -734,7 +768,7 @@ jobs:
           retention-days: 7
   gate:
     if: always()
-    needs: [guard, engine, historical, build, crazygames, play, browser, compatibility, firebase]
+    needs: [guard, preflight, engine, historical, build, crazygames, play, browser, compatibility, firebase]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -753,6 +787,14 @@ jobs:
             /tests/tooling/source_paths.js
             /tools/ci/pr_ci_scope.py
             /tools/ci/crazygames_pr_evidence.py
+      - name: Require the route-correct complete preflight
+        env:
+          CI_SCOPE: ${{ needs.guard.outputs.scope }}
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          INLINE_PREFLIGHT: ${{ needs.guard.outputs.inline_preflight }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          PREFLIGHT_BINDING: ${{ needs.preflight.outputs.binding }}
+        run: python3 tools/ci/pr_ci_scope.py --check-preflight-join
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: always() && needs.build.result == 'success'
         with:
@@ -825,6 +867,7 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
           ITCH_PREVIEW: ${{ inputs.itch_preview }}
           GUARD: ${{ needs.guard.result }}
+          PREFLIGHT: ${{ needs.preflight.result }}
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}

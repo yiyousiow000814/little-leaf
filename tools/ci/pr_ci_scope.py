@@ -11,7 +11,7 @@ DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py",
                "tools/diagnostics/retained_handoff_route.py",
                "tools/diagnostics/current_handoff_route.py"}
 TOOLING_TEST = re.compile(r"tests/tooling/test_[A-Za-z0-9_]+\.py")
-JOBS = ("engine", "historical", "build", "crazygames", "play", "browser", "compatibility", "firebase")
+JOBS = ("preflight", "engine", "historical", "build", "crazygames", "play", "browser", "compatibility", "firebase")
 
 
 def allowed(path):
@@ -69,6 +69,21 @@ def classify(env, event, git):
         return "full"
 
 
+def preflight_join(env):
+    scope, ordinary = env.get("CI_SCOPE"), env.get("ORDINARY_PR")
+    if (scope not in ("lightweight", "full") or ordinary not in ("true", "false")
+            or (ordinary == "true" and env.get("GITHUB_EVENT_NAME") != "pull_request")
+            or (scope == "lightweight" and ordinary != "true")):
+        return False
+    inline, sibling, binding = (env.get(k) for k in ("INLINE_PREFLIGHT", "PREFLIGHT", "PREFLIGHT_BINDING"))
+    if scope == "full" and ordinary == "true":
+        sha, run, attempt = (env.get(k, "") for k in ("GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"))
+        return bool(inline == "skipped" and sibling == "success"
+                    and SHA.fullmatch(sha) and re.fullmatch("[1-9][0-9]*", run)
+                    and re.fullmatch("[1-9][0-9]*", attempt) and binding == f"{sha}:{run}:{attempt}")
+    return inline == "success" and sibling == "skipped" and not binding
+
+
 def lightweight_gate(env):
     return (env.get("CI_SCOPE") == "lightweight" and env.get("GITHUB_EVENT_NAME") == "pull_request" and
             env.get("RELEASE_TAG", "") == "" and env.get("FIREBASE_PREVIEW") == "false" and
@@ -80,6 +95,10 @@ def lightweight_gate(env):
 
 def main():
     import sys
+    if sys.argv[1:] == ["--check-preflight-join"]:
+        if not preflight_join(os.environ):
+            raise SystemExit("Missing or unbound complete preflight for the selected route")
+        return
     if sys.argv[1:] == ["--check-lightweight-gate"]:
         if not lightweight_gate(os.environ):
             raise SystemExit("Invalid lightweight PR gate; full build evidence is required")

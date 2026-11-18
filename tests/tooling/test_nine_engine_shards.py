@@ -25,7 +25,7 @@ class NineEngineShardsTests(unittest.TestCase):
         self.assertEqual(engine['strategy']['matrix']['shard'], '${{ fromJSON(needs.guard.outputs.engine_matrix) }}')
         self.assertEqual(engine['strategy']['max-parallel'], '${{ fromJSON(needs.guard.outputs.engine_count) }}')
         self.assertEqual(engine['needs'], 'guard')
-        self.assertEqual(build['needs'], ['guard', 'engine'])
+        self.assertEqual(build['needs'], ['guard', 'preflight', 'engine'])
         for job, verb in ((engine, 'run'), (build, 'merge')):
             command = next(s for s in job['steps'] if 'engine_shards.py ' + verb in s.get('run', ''))
             self.assertEqual(command['env']['ENGINE_COUNT'], '${{ needs.guard.outputs.engine_count }}')
