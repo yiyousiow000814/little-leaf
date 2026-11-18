@@ -1,0 +1,64 @@
+%% Little Leaf / Check and build Web
+%% Source: run 44226970185 attempt 1, head dde1b54; workflow baseline d81afcd5.
+%% Current job labels are measured runner elapsed times (not including queue).
+%% Proposed jobs have not qualified. No changes to release or deploy permissions.
+flowchart TB
+  subgraph current["Current: full PR · #356 measured · 22:00 to failed gate"]
+    direction TB
+    CTrigger["Workflow created"]
+    CGuard["Guard / classify clean PR merge-tree<br/>0:35"]
+    CEngine["Five engine shards in parallel<br/>Slowest runner 7:36 including 6:55 tests"]
+    CHistorical["Historical client / verify and export<br/>3:13 in parallel"]
+    CBuild["Bind all same-source engine records<br/>Export + layout + CrazyGames · 2:08"]
+    CPlay["Browser play<br/>4:43 · passed"]
+    CRecovery["Browser recovery<br/>10:58 · shared setup timed out<br/>WebKit test never started"]
+    CCompatOld["Compatibility: old already open<br/>10:55 · shared setup timed out"]
+    CCompatNew["Compatibility: old opened after new<br/>10:53 · passed"]
+    CFirebase["Firebase preview<br/>Conditional · skipped in this PR"]
+    CGate["Mandatory gate<br/>0:30 · failed"]
+    CDoc["Existing lightweight docs gate<br/>No build or release artifact"]
+    CTrigger --> CGuard
+    CGuard -->|full| CEngine
+    CGuard -->|full| CHistorical
+    CGuard -->|eligible PR only| CDoc
+    CEngine --> CBuild
+    CBuild --> CPlay & CRecovery & CCompatOld & CCompatNew
+    CHistorical --> CCompatOld & CCompatNew
+    CPlay & CRecovery & CCompatOld & CCompatNew --> CGate
+    CBuild & CPlay & CRecovery & CCompatOld & CCompatNew -. "when requested" .-> CFirebase
+    CFirebase -. "if applicable" .-> CGate
+  end
+  subgraph target["Target: independent checks, same evidence · 5 min goal / 10 min ceiling"]
+    direction TB
+    TTrigger["Workflow created"]
+    TGuard["Guard: verified merge-tree + explicit scope"]
+    TDocument["Exact architecture docs paths · #358 candidate<br/>Existing lightweight gate only; no release outputs"]
+    TEngine["Engine shards · #357 candidate<br/>Rebalance using measured suite durations"]
+    TSource["Source-only checks<br/>IndexedDB / grid reopen / focused Firebase fixtures"]
+    THist["Historical client<br/>Verify and export exact pinned source"]
+    TBuild["Keep tested export binding<br/>Complete engine evidence + checksum"]
+    TPlay["Exported Web: tutorial / payment"]
+    TChromium["Exported Web: Chromium save diagnostic"]
+    TWebKit["Exported Web: WebKit recovery"]
+    TCompatOld["Compatibility: old already open"]
+    TCompatNew["Compatibility: old opened after new"]
+    TImage["Browser + OS dependencies ready<br/>Candidate only. Cold-pull and parity not yet proven."]
+    TFirebase["Conditional Firebase preview<br/>Preserve existing release conditions"]
+    TGate["Mandatory gate<br/>All expected receipts: source / run / attempt<br/>Fail on missing or cancelled required evidence"]
+    TTrigger --> TGuard
+    TGuard -->|eligible PR only| TDocument
+    TGuard -->|full| TEngine & TSource & THist
+    TEngine --> TBuild
+    TBuild --> TPlay & TChromium & TWebKit & TCompatOld & TCompatNew
+    THist --> TCompatOld & TCompatNew
+    TImage -. "qualify before adoption" .-> TSource & TPlay & TChromium & TWebKit & TCompatOld & TCompatNew
+    TSource & TPlay & TChromium & TWebKit & TCompatOld & TCompatNew --> TGate
+    TBuild & TSource & TPlay & TChromium & TWebKit & TCompatOld & TCompatNew -. "when requested" .-> TFirebase
+    TFirebase -. "if applicable" .-> TGate
+  end
+  classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
+  classDef failed fill:#F9EBDF,stroke:#AA5538,color:#703620
+  classDef candidate fill:#EEF2E5,stroke:#7C8D66,color:#304028
+  class CGuard,CEngine,CHistorical,CBuild,CPlay,CCompatNew measured
+  class CRecovery,CCompatOld,CGate failed
+  class TDocument,TEngine,TSource,TBuild,TImage,TGate candidate
