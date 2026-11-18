@@ -202,18 +202,30 @@ func check_decorative_ink(music,tag:String):
  if music.header_skin.is_visible_in_tree():
   for target in [music.automatic_button,music.close_button]:check(music.header_skin.get_global_rect().encloses(target.get_global_rect()),"Header backing covers current control "+str(target.name)+" "+tag)
  if music.botanical_frame.is_visible_in_tree():
-  for ink in music.botanical_frame.ink_rects():
+  var frame_ink=music.botanical_frame.ink_rects()
+  # This audit is synchronous. Resolve each visible control's forbidden
+  # geometry once for this observation, never across phases or layouts.
+  if frame_ink.is_empty():return
+  var forbidden_rects:Array[Rect2]=[]
+  var forbidden_controls:Array[Control]=[]
+  for control in other_controls:
+   if not (control is Label or control is BaseButton or control is Range) or not control.is_visible_in_tree():continue
+   var forbidden=control.get_global_rect()
+   if control is Label and control.get_line_count()==1:
+    var text_width=minf(forbidden.size.x,control.get_theme_font("font").get_string_size(control.text,HORIZONTAL_ALIGNMENT_LEFT,-1,control.get_theme_font_size("font_size")).x)
+    if control.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER:forbidden.position.x+=(forbidden.size.x-text_width)*.5
+    elif control.horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT:forbidden.position.x+=forbidden.size.x-text_width
+    forbidden.size.x=text_width
+   if music.scroll.is_ancestor_of(control):forbidden=forbidden.intersection(music.scroll.get_global_rect())
+   forbidden_rects.append(forbidden)
+   forbidden_controls.append(control as Control)
+  for ink in frame_ink:
    check(panel_bounds.encloses(ink),"Reference botanical ink stays within board "+tag)
-   for control in other_controls:
-    if not (control is Label or control is BaseButton or control is Range) or not control.is_visible_in_tree():continue
-    var forbidden=control.get_global_rect()
-    if control is Label and control.get_line_count()==1:
-     var text_width=minf(forbidden.size.x,control.get_theme_font("font").get_string_size(control.text,HORIZONTAL_ALIGNMENT_LEFT,-1,control.get_theme_font_size("font_size")).x)
-     if control.horizontal_alignment==HORIZONTAL_ALIGNMENT_CENTER:forbidden.position.x+=(forbidden.size.x-text_width)*.5
-     elif control.horizontal_alignment==HORIZONTAL_ALIGNMENT_RIGHT:forbidden.position.x+=forbidden.size.x-text_width
-     forbidden.size.x=text_width
-    if music.scroll.is_ancestor_of(control):forbidden=forbidden.intersection(music.scroll.get_global_rect())
-    check(not ink.intersection(forbidden).has_area(),"Reference botanical ink avoids control "+str(control.name)+" "+tag)
+   for forbidden_index in forbidden_rects.size():
+    if ink.intersection(forbidden_rects[forbidden_index]).has_area():
+     check(false,"Reference botanical ink avoids control "+str(forbidden_controls[forbidden_index].name)+" "+tag)
+    else:
+     checks+=1
 
 func step_artwork(music,seconds:float):
  for tween in [music.record_mark._transition,music.board_material._transition,music.premium_feedback.pulse]:
