@@ -1,0 +1,238 @@
+name: DIAGNOSTIC ONLY – preconfirm observer 359
+'on':
+  push:
+    branches:
+    - diagnostic/preconfirm-capsule-359
+permissions:
+  contents: read
+jobs:
+  clean_guard:
+    name: 'Nonqualifying: original exact-source guard'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+    - name: Read immutable diagnostic coordinator
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+        path: coord
+        persist-credentials: false
+    - name: 'Check coordinator scope; create clean detached #359 checkout'
+      working-directory: coord
+      timeout-minutes: 3
+      run: bash .github/preconfirm-diagnostic/prepare.sh clean
+    - name: Original full preflight on uninstrumented source; require repository unchanged
+      working-directory: clean
+      timeout-minutes: 5
+      run: |-
+        python3 tools/ci/preflight.py
+        test -z "$(git status --porcelain --untracked-files=no)"
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event_name == 'push' && !github.event.deleted && github.run_attempt == 1
+  engine:
+    name: 'Nonqualifying: shadow engine shard ${{ matrix.shard }}'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - name: Read immutable diagnostic coordinator
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 2
+        path: coord
+        persist-credentials: false
+    - name: Materialize exact separate shadow commit; check patch, tree and parent
+      working-directory: coord
+      timeout-minutes: 3
+      run: bash .github/preconfirm-diagnostic/prepare.sh shadow
+    - name: Install verified official Godot native
+      working-directory: shadow
+      timeout-minutes: 10
+      run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/godot-tools"
+    - name: Original complete engine schedule (one shard)
+      working-directory: shadow
+      timeout-minutes: 20
+      run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
+    - name: Retain nonqualifying diagnostic engine
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: diagnostic-preconfirm-359-engine-${{ matrix.shard }}-${{ github.sha }}-${{ github.run_attempt }}
+        path: |-
+          ${{ runner.temp }}/engine-${{ matrix.shard }}/*.json
+          ${{ runner.temp }}/engine-${{ matrix.shard }}/*.log
+        if-no-files-found: error
+        retention-days: 1
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        shard:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+    needs:
+    - clean_guard
+  historical:
+    name: 'Nonqualifying: original historical native suite, export and layout'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - name: Read immutable diagnostic coordinator
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 2
+        path: coord
+        persist-credentials: false
+    - name: 'Check coordinator scope; create clean detached #359 checkout'
+      working-directory: coord
+      timeout-minutes: 3
+      run: bash .github/preconfirm-diagnostic/prepare.sh clean
+    - name: Read the exact unchanged wall-format-1 client
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+        path: old
+        persist-credentials: false
+    - name: Install verified official Godot and Web template
+      working-directory: clean
+      timeout-minutes: 10
+      run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+    - name: Require historical identity and matching toolchains
+      working-directory: clean
+      timeout-minutes: 1
+      run: |-
+        test "$(git -C ../old rev-parse HEAD)" = 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+        cmp tools/ci/toolchain.json ../old/ci/toolchain.json
+    - name: Complete original historical native suite
+      working-directory: old
+      timeout-minutes: 15
+      run: python3 tests/run_integration_candidate.py --output "$RUNNER_TEMP/old-engine-evidence" --lock "$RUNNER_TEMP/old-engine.lock"
+    - name: Export and verify historical source
+      working-directory: old
+      timeout-minutes: 8
+      run: python3 ci/build_web.py --output "$RUNNER_TEMP/old-web-build" --test-report "$RUNNER_TEMP/old-engine-evidence/summary.json"
+    - name: Original historical producer layout and artifact binding
+      working-directory: clean
+      timeout-minutes: 5
+      run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side old --old-source ../old --old-build "$RUNNER_TEMP/old-web-build" --output "$RUNNER_TEMP/old-web-build/evidence/wall-layout"
+    - name: Retain nonqualifying diagnostic historical
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: diagnostic-preconfirm-359-historical-${{ github.sha }}-${{ github.run_attempt }}
+        path: |-
+          ${{ runner.temp }}/old-web-build/web/
+          ${{ runner.temp }}/old-web-build/evidence/wall-layout/
+        if-no-files-found: error
+        retention-days: 1
+      id: old_packet
+    outputs:
+      old_id: ${{ steps.old_packet.outputs.artifact-id }}
+    needs:
+    - clean_guard
+  case_b:
+    name: 'Nonqualifying: fresh Web export and isolated case B (no new binary uploaded)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+    - name: Read immutable diagnostic coordinator
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 2
+        path: coord
+        persist-credentials: false
+    - name: Materialize exact separate shadow commit; check patch, tree and parent
+      working-directory: coord
+      timeout-minutes: 3
+      run: bash .github/preconfirm-diagnostic/prepare.sh shadow
+    - name: Read the exact unchanged wall-format-1 client
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        ref: 9110ebd9a2d6cbf4d2af303be0e244e660c0f7fc
+        path: old
+        persist-credentials: false
+    - name: Install verified official Godot and Web template
+      working-directory: shadow
+      timeout-minutes: 10
+      run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+    - name: Download only this coordinator and attempt’s five diagnostic shard outputs
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        pattern: diagnostic-preconfirm-359-engine-*-${{ github.sha }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/engine-shards
+        merge-multiple: false
+        digest-mismatch: error
+    - name: Merge complete same-source, same-attempt native suite
+      working-directory: shadow
+      timeout-minutes: 2
+      run: python3 tools/ci/engine_shards.py merge --count 5 --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
+    - name: Perform original Web export (no local tools or qualification override)
+      working-directory: shadow
+      timeout-minutes: 8
+      run: python3 tools/build/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json"
+    - name: Prepare exact shadow new native layout
+      working-directory: shadow
+      timeout-minutes: 5
+      run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side new --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-layout"
+    - name: Require exact historical intermediate artifact ID
+      working-directory: shadow
+      timeout-minutes: 1
+      run: '[[ "$OLD_ID" =~ ^[0-9]+$ ]]'
+      env:
+        OLD_ID: ${{ needs.historical.outputs.old_id }}
+    - name: Restore original historical export and producer evidence, by same-run ID
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      with:
+        artifact-ids: ${{ needs.historical.outputs.old_id }}
+        path: ${{ runner.temp }}/old-web-build
+        merge-multiple: true
+        digest-mismatch: error
+    - name: Check original old and shadow new producer evidence at this run, attempt and coordinator
+      working-directory: shadow
+      timeout-minutes: 2
+      run: python3 tools/qualification/prepare_browser_qa.py wall --merge-only --old-source ../old --old-build "$RUNNER_TEMP/old-web-build" --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-preflight"
+    - name: Install shared pinned browser tools
+      working-directory: shadow
+      timeout-minutes: 10
+      run: |
+        npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+        "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+        sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+        google-chrome --version
+    - name: Install exact checksum-pinned Chrome for both compatibility cases
+      working-directory: shadow
+      timeout-minutes: 10
+      run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+    - name: Activate and verify the pinned Chrome channel
+      working-directory: shadow
+      timeout-minutes: 10
+      run: |
+        sudo dpkg -i "$CHROME_DEB"
+        python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+    - name: Real sandboxed case B (original OCR, controller, saves and assertions)
+      working-directory: shadow
+      timeout-minutes: 12
+      run: |
+        node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"
+        PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/rendering/wall_compatibility_browser.js --case already_open_old --old-source ../old --old-web "$RUNNER_TEMP/old-web-build/web" --new-web "$RUNNER_TEMP/web-build/web" --layout-dir "$RUNNER_TEMP/web-build/evidence/wall-preflight" --output "$RUNNER_TEMP/web-build/evidence/wall-browser/already_open_old"
+      env:
+        PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        LL_PRECONFIRM_TRACE: '1'
+    - name: Retain nonqualifying diagnostic evidence
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      with:
+        name: diagnostic-preconfirm-359-evidence-${{ github.sha }}-${{ github.run_attempt }}
+        path: |-
+          ${{ runner.temp }}/web-build/evidence/wall-browser/already_open_old/wall-compatibility-browser.json
+          ${{ runner.temp }}/web-build/evidence/wall-browser/already_open_old/*.png
+          ${{ runner.temp }}/web-build/evidence/wall-preflight/preflight.json
+          ${{ runner.temp }}/web-build/evidence/wall-ocr-fixtures.log
+        if-no-files-found: error
+        retention-days: 1
+      if: always()
+    needs:
+    - engine
+    - historical
