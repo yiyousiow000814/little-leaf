@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, verifyLayout, selectWallReplacement, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireInitialRailOCR, verifyLayout, selectWallReplacement, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
 let checks = 0;
 function check(label, fn) {fn(); checks++; console.log('PASS ' + label);}
 const fixtures = path.join(__dirname, '../fixtures/wall-compatibility');
@@ -195,8 +195,8 @@ newLayout.expected_segment = {id: 'shell:back#2', axis: 'x', x: 2, z: 0, height:
 check('historical recovery layout needs no current Wall tray controls', () => verifyLayout(oldLayout, 'old'));
 check('current bottom Wall tray coordinates and OCR regions bind', () => verifyLayout(newLayout, 'new'));
 const pagedLayout = structuredClone(newLayout); pagedLayout.points.build_next = [400, 700];
-pagedLayout.regions.category_ready = {...region}; pagedLayout.regions.build_category = {...region};
-for (const name of ['category_ready', 'build_category']) check('category navigation requires observed region ' + name, () => {
+pagedLayout.regions.category_hint = {...region}; pagedLayout.regions.category_ready = {...region}; pagedLayout.regions.build_category = {...region};
+for (const name of ['category_ready', 'category_hint', 'build_category']) check('category navigation requires observed region ' + name, () => {
   const changed = structuredClone(pagedLayout); delete changed.regions[name];
   assert.throws(() => verifyLayout(changed, 'new'));
 });
@@ -249,6 +249,7 @@ for (const [label, mutate] of [
   await selectWallReplacement(async (name, delay) => {
     assert(pagedLayout.points[name]); paged.push(['click', name, delay]);
   }, async (name, regions, phrases, retryTarget) => {
+    if (name === 'case-b-category-ready') assert.deepEqual(regions,['category_ready','category_hint']);
     for (const key of Array.isArray(regions) ? regions : [regions]) assert(pagedLayout.regions[key]);
     if (retryTarget) assert(pagedLayout.points[retryTarget]);
     paged.push(['ocr', name, phrases, retryTarget]);
@@ -261,6 +262,17 @@ for (const [label, mutate] of [
     assert.equal(paged[4][3], 'build', 'Build remains actual idempotent pointer navigation after observed exposure');
     assert.deepEqual(paged.slice(4), calls.slice(1), 'Wall/OCR/review route remains byte-for-byte equivalent');
   });
+  check('initial rail requires the exact live tooltip in its own crop', () => {
+    requireInitialRailOCR('» Tables','Next categories · swipe to browse');
+    for (const changed of ['', 'Decor', 'Next categories', 'Tables', 'Previous categories · swipe to browse'])
+      assert.throws(() => requireInitialRailOCR('Tables', changed));
+    assert.throws(() => requireInitialRailOCR('Decor','Next categories · swipe to browse'));
+  });
+  const notHovered = [];
+  await assert.rejects(() => selectWallReplacement(async name => {notHovered.push(name);}, async (name, regions) => {
+    if (name === 'case-b-category-ready' && regions.includes('category_hint')) requireInitialRailOCR('» Tables', 'Decor');
+  }, true), /actual enabled next-category arrow tooltip/);
+  check('readable initial category without its arrow hover tooltip cannot send the page click', () => assert.deepEqual(notHovered, ['decorate']));
   let releaseReady;
   const ready = new Promise(resolve => {releaseReady = resolve;});
   const delayed = [];

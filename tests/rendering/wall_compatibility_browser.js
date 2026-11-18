@@ -7,7 +7,7 @@ const path = require('node:path');
 const http = require('node:http');
 const cp = require('node:child_process');
 const {installEngineLaunchHook} = require('../tooling/engine_launch_hook');
-const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
+const {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, requireVisibleText, requireInitialRailOCR, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived} = require('./wall_compatibility_helpers');
 const root = path.resolve(__dirname, '../..');
 const fixtureDir = path.join(__dirname, '../fixtures/wall-compatibility');
 const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json')));
@@ -287,8 +287,14 @@ async function main() {
         return {key, ...spec};
       });
       const deadline = Date.now() + 45000;
+      const hintIndex = regions.findIndex(spec => spec.key === 'category_hint');
       let lastError;
       do {
+        if (hintIndex >= 0) {
+          const [x, y] = layouts.new.points.build_next;
+          // Motion only: re-hit-test after enable; sub-5px motion does not restart a matching tooltip.
+          await page.mouse.move(x + 1, y); await page.mouse.move(x, y);
+        }
         // Build category selection is idempotent. The real tray disables input
         // during its opening tween, so a slow exported frame may ignore the
         // first click even after a fixed wall-clock delay. Never retry payment.
@@ -329,6 +335,7 @@ async function main() {
         try {
           const backIndex = regions.findIndex(spec => spec.key === 'wall_back');
           if (backIndex >= 0) requireWallBackText(texts[backIndex]);
+          if (hintIndex >= 0) requireInitialRailOCR(texts[regions.findIndex(spec => spec.key === 'category_ready')], texts[hintIndex]);
           requireVisibleText(text, phrases);
           check(true, name + ' rendered UI state verified before the next action');
           return;

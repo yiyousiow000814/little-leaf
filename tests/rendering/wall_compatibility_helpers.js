@@ -53,6 +53,11 @@ function requireVisibleText(text, phrases) {
   const normalized = normalizedText(text);
   for (const phrase of phrases) assert(normalized.includes(normalizedText(phrase)), 'OCR inconclusive: required rendered text not found: ' + phrase);
 }
+// Distinct native regions: a readable chip is not proof the arrow can receive input.
+function requireInitialRailOCR(tables, hint) {
+  requireVisibleText(tables, ['Tables']);
+  assert.equal(normalizedText(hint), 'next categories swipe to browse', 'OCR inconclusive: actual enabled next-category arrow tooltip required');
+}
 // The back-button crop must contain the complete label as its own token.
 // Arrow punctuation is harmless; clipped "Buil", "Builder" and "Rebuild" are not.
 function requireWallBackText(text) {
@@ -81,7 +86,7 @@ function verifyLayout(layout, label) {
     for (const name of ['build', 'wall', 'wall_next', 'wall_style', 'segment', 'confirm', 'apply']) point(name);
     if (Object.hasOwn(layout.points, 'build_next')) {
       point('build_next');
-      for (const name of ['category_ready', 'build_category']) region(layout.regions?.[name], name);
+      for (const name of ['category_ready', 'category_hint', 'build_category']) region(layout.regions?.[name], name);
     }
     for (const name of ['catalog', 'wall_heading', 'wall_back', 'style_name', 'style_height', 'style_price', 'selected_height', 'selected_price', 'review', 'review_heading', 'review_text']) region(layout.regions?.[name], name);
     assert.equal(layout.expected_cost, 35, 'Unchanged half-wall purchase price');
@@ -103,7 +108,7 @@ async function selectWallReplacement(click, screenUiText, categoryPage = false) 
   if (categoryPage) {
     // Observe the settled initial rail before its one real paging input. Then
     // require Build at its fully exposed native position before selecting it.
-    await screenUiText('case-b-category-ready', 'category_ready', ['Tables']);
+    await screenUiText('case-b-category-ready', ['category_ready', 'category_hint'], ['Tables']);
     await click('build_next', 0);
     await screenUiText('case-b-build-exposed', 'build_category', ['Build']);
   }
@@ -186,4 +191,4 @@ function assertOriginalArchived(before, after) {
   assert.equal(canonical(after.legacy), canonical(before.legacy), 'Migration leaves original legacy bytes unchanged');
   assert.equal(canonical(archiveRows(after).filter(([name]) => name !== key)), canonical(archiveRows(before).filter(([name]) => name !== key)), 'Unrelated archives remain unchanged');
 }
-module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived};
+module.exports = {hash, canonical, within, verifyExport, verifyPreflightBinding, verifyCandidateSources, normalizedText, requireVisibleText, requireInitialRailOCR, requireWallBackText, verifyLayout, selectWallReplacement, progress, assertPreserved, building, verifyCodecProjection, assertImported, archiveRows, assertOriginalArchived};

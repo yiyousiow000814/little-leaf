@@ -45,6 +45,22 @@ func category_text_region(button:Button)->Dictionary:
  check(value.width>0 and left>=0 and right>=0,"bounded category text content")
  value.psm=7;value.scale=3
  return value
+# Real mouse motion only. The button owns the embedded Godot tooltip only after it can receive hover.
+func next_category_hint_region(button:Button)->Dictionary:
+ var p=button.get_global_rect().get_center()
+ var motion=InputEventMouseMotion.new();motion.position=p;motion.global_position=p;root.push_input(motion,true)
+ for frame in 180:
+  await process_frame
+  var hint=find_label(button,"Next categories · swipe to browse")
+  if hint==null or not hint.is_visible_in_tree():continue
+  var popup=hint.get_window()
+  if not popup.visible:continue
+  var r=Rect2(Vector2(popup.position),Vector2(popup.size))
+  check(root.gui_get_hovered_control()==button and popup.is_embedded(),"actual next-page arrow owns the visible hover tooltip")
+  check(Rect2(Vector2.ZERO,Vector2(1360,880)).encloses(r) and not r.has_point(p),"tooltip fits viewport and does not cover arrow pointer")
+  return {"x":int(r.position.x),"y":int(r.position.y),"width":int(r.size.x),"height":int(r.size.y),"psm":7,"scale":3}
+ check(false,"actual next-page hover tooltip not available");return {}
+
 func text_region(control:Control)->Dictionary:
  var bounds=control.get_global_rect()
  if control is Button:
@@ -121,6 +137,7 @@ func run():
    var first=game.category_buttons["Tables"]
    check(categories.category_scroll.get_global_rect().encloses(first.get_global_rect()),"initial Tables category is fully exposed")
    result.regions.category_ready=category_text_region(first)
+   result.regions.category_hint=await next_category_hint_region(categories.category_more)
    await click("build_next",categories.category_more)
   var rail_rect=categories.category_scroll.get_global_rect();var build_rect=build.get_global_rect()
   var category_bar=categories.category_scroll.get_h_scroll_bar()
