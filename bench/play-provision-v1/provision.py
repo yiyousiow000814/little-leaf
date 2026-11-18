@@ -56,10 +56,24 @@ def verify_simulation(stdout, needed):
         raise ValueError(f"Unexpected dependency transaction: {changes}")
 
 def simulate(files, report, write):
-    command = ("apt-get", "-s", "--no-download", "--no-install-recommends",
-               "install", *map(str, files))
-    sims = subprocess.run(command, text=True, capture_output=True, check=False,
-                          env={**os.environ, "LC_ALL": "C"})
+    # APT can prefer a remote archive record for the exact same bytes as a supplied
+    # local .deb. Keep the real installed dpkg status, but expose no remote indexes.
+    # A dependency absent from both installed status and the local files must fail.
+    with tempfile.TemporaryDirectory(prefix="noble-apt-local-index-") as td:
+        root = Path(td)
+        source_list = root / "sources.list"
+        source_list.touch()
+        source_parts, lists = root / "sources.list.d", root / "lists"
+        source_parts.mkdir()
+        lists.mkdir()
+        command = ("apt-get", "-s", "--no-download", "--no-install-recommends",
+                   "-o", f"Dir::Etc::sourcelist={source_list}",
+                   "-o", f"Dir::Etc::sourceparts={source_parts}",
+                   "-o", f"Dir::State::lists={lists}",
+                   "-o", "Dir::Cache::pkgcache=", "-o", "Dir::Cache::srcpkgcache=",
+                   "install", *map(str, files))
+        sims = subprocess.run(command, text=True, capture_output=True, check=False,
+                              env={**os.environ, "LC_ALL": "C"})
     report["simulation"] = {"exit_code": sims.returncode,
                             "stdout": sims.stdout, "stderr": sims.stderr}
     write()
