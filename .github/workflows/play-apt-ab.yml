@@ -1,4 +1,5 @@
 name: Isolated Play provisioning benchmark
+run-name: Play provisioning repeat (frozen inputs; compare runner image receipts)
 # This file is for a temporary benchmark branch, never main or a release gate.
 on:
   push:
