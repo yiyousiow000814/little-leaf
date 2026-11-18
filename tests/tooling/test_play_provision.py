@@ -1,6 +1,9 @@
 """Contracts for the independent, checked production Play PR lane."""
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -95,6 +98,32 @@ class PlayProvisionTests(unittest.TestCase):
             self.assertIn(required, real["run"])
         artifact = next(step for step in steps if "upload-artifact@" in step.get("uses", ""))
         self.assertEqual(artifact["with"]["name"], "little-leaf-browser-play-${{ github.sha }}-${{ github.run_attempt }}")
+
+    @unittest.skipUnless(os.name == "posix" and shutil.which("bash") and shutil.which("timeout"), "Linux shell contract")
+    def test_play_provision_requires_both_parallel_commands(self):
+        workflow = yaml.safe_load((ROOT / ".github/workflows/build-web.yml").read_text())
+        steps = workflow["jobs"]["play"]["steps"]
+        step = next(step for step in steps if step.get("name", "").startswith("Install only missing"))
+        with TemporaryDirectory() as d:
+            root = Path(d)
+            for command, other, status in (("npm", "python3", "DRIVER_STATUS"), ("python3", "npm", "PACKAGE_STATUS")):
+                stub = root / command
+                stub.write_text("#!/bin/bash\n"
+                                f'touch "$RUNNER_TEMP/{command}.marker"\n'
+                                f'for i in {{1..100}}; do [[ -e "$RUNNER_TEMP/{other}.marker" ]] && exit "${status}"; sleep .025; done\n'
+                                "exit 99\n")
+                stub.chmod(0o700)
+            for driver_status, package_status in ((0, 0), (41, 0), (0, 42), (41, 42)):
+                with self.subTest(driver=driver_status, packages=package_status):
+                    env = {**os.environ, "PATH": f"{root}:{os.environ['PATH']}", "RUNNER_TEMP": d,
+                           "DRIVER_STATUS": str(driver_status), "PACKAGE_STATUS": str(package_status)}
+                    for marker in root.glob("*.marker"):
+                        marker.unlink()
+                    result = subprocess.run(["bash", "-c", step["run"]], env=env, capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, int(bool(driver_status or package_status)), result.stderr)
+                    if result.returncode:
+                        self.assertIn(f"driver={driver_status} packages={package_status}", result.stderr)
+                    self.assertEqual(len(list(root.glob("*.marker"))), 2)
 
 
 if __name__ == "__main__":

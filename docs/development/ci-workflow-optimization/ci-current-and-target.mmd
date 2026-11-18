@@ -1,4 +1,6 @@
 %% Little Leaf / Check and build Web. GitHub Actions attempt 1.
+%% Latest hosted full green: https://github.com/yiyousiow000814/little-leaf/actions/runs/44286678192/attempts/1
+%% PR a2632e2906dac87287a6331b2fb66cadac8b9214; tested merge d34bc56891602b975b413f2860f7ecad40766421.
 %% Measured green #363: https://github.com/yiyousiow000814/little-leaf/actions/runs/44274956054/attempts/1
 %% PR head d15be31396a2763e1cb20e7ee25cf13d01ca83c7; tested merge 139658dddfb4aa7849c99916da4928ef840d61a6.
 %% Producer job 134702585130; exact evidence artifact 14415001659. Previous failed run 44259138080 and WebKit A/B 44268677602 remain in Excel.
@@ -33,22 +35,22 @@ flowchart TB
     F0 --> F1["Play and both compatibility cases passed<br/>All eight CrazyGames stages passed in required sibling"]
     F0 --> F2["Legacy WebKit setup started 09:50:21 UTC<br/>Still active at 10:00 UTC; final gate not complete at this checkpoint"]
   end
-  subgraph pilot["Pending pilot: overlap ordinary-PR preflight and native jobs · timing unverified"]
+  subgraph pilot["Verified on ordinary PR #363 · full CI 10:19 · 19 s over target"]
     direction TB
     PG["Guard selects existing routes"]
     PG -->|existing lightweight| PD["Docs guard only; no build artifact"]
-    PG -->|full ordinary PR| PF["Existing preflight suite in parallel after routing<br/>No checks removed; about 21 s observed on old path"]
+    PG -->|full ordinary PR| PF["Existing preflight suite in parallel after routing<br/>All checks retained · 45 s alongside engine tests"]
     PG -->|full ordinary PR| PN["Nine PR-only native shards; updated assignment weights<br/>Same suites and evidence; non-PR five weights unchanged"]
     PG -->|other full routes| PS["Original five shards and serial CrazyGames<br/>Release, tag, dispatch, previews unchanged"]
     PG -->|full routes| PH["Pinned historical client unchanged"]
     PN & PF --> PW["Verified ordinary Web and layout; retain same output receipts<br/>Bind exact post-import project by source / run / attempt"]
-    PW --> PP["Independent Play and OCR unchanged<br/>Same-frame OCR batching rejected; not shipped"]
+    PW --> PP["Independent Play and OCR unchanged · 4:36 runner<br/>197 s for full tutorial and natural first payment"]
     PW --> RA["Recovery setup: bounded official Ubuntu HTTPS via fresh signed indexes<br/>Same exact 61 Playwright packages and WebKit/FFmpeg pins; no regional or legacy fallback"]
     RA --> PR["Original four recovery checks unchanged"]
     PW --> CK["Both compatibility cases unchanged"]
     PH --> CK
     PW --> PX["Required CrazyGames sibling on ordinary PRs<br/>Same staged files excluding caches; same export and variant checks"]
-    PP & PR & CK & PX & PF --> PJ["Final gate verifies exact sibling evidence before outputs<br/>Five sparse-checked source files; no added permissions or API polling"]
+    PP & PR & CK & PX & PF --> PJ["Final gate requires the same source/run/attempt proofs · 47 s<br/>Two full CI input archives accounted for ~22.6 s in this run"]
     PS -. existing full gates, preview conditions and legacy WebKit setup .-> PJ
   end
   subgraph limits["Benchmarks and timing limits"]
@@ -58,8 +60,16 @@ flowchart TB
     L3["Same-run PR9 replay: longest native shard 177.21 s → 156.67 s (~20.54 s)<br/>Fixed per-lane overhead; not held out or additive to variant relief"] --> L2
     L1 --> L2["Historical zero-overhead arithmetic: about 9:55, only about 5 s margin<br/>10 minutes not yet demonstrated; 5 minutes remains the goal"]
     L4["One matched WebKit A/B (44268677602): same dependency state and recovery checks<br/>Official setup 34.476 s without proof vs 25.167 s baseline; no speed or stability claim"] --> L2
-    L5["Pending preflight overlap can hide only time actually running in parallel<br/>Queue delay and join skew still count; no 10-minute claim"] --> L2
+    L5["Latest full green 619 s vs prior 648 s; initial queue 2 s vs 43 s<br/>Do not attribute the full difference to preflight overlap"] --> L2
     L6["Rejected OCR batching: 900 ms → 523 ms isolated median total across three pairs<br/>Same retained frames; 17.98 s old wall gaps were opportunity only, not savings"] --> L2
+  end
+  subgraph evidence["Next experiment · compact final-gate downloads only · unmeasured"]
+    direction TB
+    E0["Ordinary and historical producers retain unchanged full inputs for browser jobs"]
+    E0 --> E1["Publish compact copies of required proofs and diagnostics<br/>Bind to exact full artifact IDs/digests and merge SHA/run/attempt"]
+    E1 --> E2["Ordinary full PR gate downloads and verifies compact evidence<br/>No Web payload re-download; non-PR routes unchanged"]
+    E2 --> E3["Latest large transfer: 22.6 s gross ceiling; earlier healthy gate only 3.9 s total downloads<br/>Companion upload/download overhead reduces savings; no stability claim"]
+    E4["Unmeasured: Playwright driver and pinned Ubuntu prerequisites run in parallel<br/>Both must pass before the unchanged headed Play proof"]
   end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
