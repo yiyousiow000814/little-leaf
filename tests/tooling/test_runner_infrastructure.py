@@ -313,9 +313,14 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         firebase = workflow.split('  firebase:\n', 1)[1].split('  gate:\n', 1)[0]
         self.assertLess(firebase.index('--merge'), firebase.index('tools/build/build_firebase.py'))
         self.assertEqual(workflow.count('python3 tools/build/build_web.py --output'), 1)
-        self.assertEqual(workflow.count('python3 tools/build/build_crazygames.py --validated-web-build'), 1)
+        build = workflow.split('  build:\n', 1)[1].split('  crazygames:\n', 1)[0]
+        crazygames = workflow.split('  crazygames:\n', 1)[1].split('  play:\n', 1)[0]
+        export = 'python3 tools/build/build_crazygames.py --validated-web-build'
+        self.assertEqual(workflow.count(export), 2)
+        self.assertEqual(build.count(export), 1)
+        self.assertEqual(crazygames.count(export), 1)
         self.assertIn('needs: [guard, engine]', workflow)
-        self.assertIn('needs: [guard, engine, historical, build, play, browser, compatibility, firebase]', workflow)
+        self.assertIn('needs: [guard, engine, historical, build, crazygames, play, browser, compatibility, firebase]', workflow)
         self.assertIn('"$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY";', workflow)
         self.assertIn('test "$result" = success || exit 1', workflow)
         self.assertNotIn('continue-on-error:', workflow)

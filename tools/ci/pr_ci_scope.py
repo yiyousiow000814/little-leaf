@@ -11,7 +11,7 @@ DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py",
                "tools/diagnostics/retained_handoff_route.py",
                "tools/diagnostics/current_handoff_route.py"}
 TOOLING_TEST = re.compile(r"tests/tooling/test_[A-Za-z0-9_]+\.py")
-JOBS = ("engine", "historical", "build", "play", "browser", "compatibility", "firebase")
+JOBS = ("engine", "historical", "build", "crazygames", "play", "browser", "compatibility", "firebase")
 
 
 def allowed(path):
@@ -74,7 +74,8 @@ def lightweight_gate(env):
             env.get("RELEASE_TAG", "") == "" and env.get("FIREBASE_PREVIEW") == "false" and
             env.get("ITCH_PREVIEW") == "false" and env.get("GUARD") == "success" and
             all(env.get(job.upper()) == "skipped" for job in JOBS) and
-            not env.get("WEB_ARTIFACT") and not env.get("FIREBASE_ARTIFACT") and not env.get("FIREBASE_MANIFEST"))
+            not env.get("WEB_ARTIFACT") and not env.get("CRAZYGAMES_ARTIFACT") and not env.get("CRAZYGAMES_EVIDENCE") and
+            not env.get("FIREBASE_ARTIFACT") and not env.get("FIREBASE_MANIFEST"))
 
 
 def main():

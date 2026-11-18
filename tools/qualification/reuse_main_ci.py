@@ -95,9 +95,14 @@ def require_jobs(jobs):
     gates = [j for j in jobs if j['name'] == 'web / gate']
     if len(gates) != 1 or gates[0]['conclusion'] != 'success':
         raise ValueError('The complete main CI acceptance gate must pass')
+    # These inventories are already bound to a trusted main push or dispatch.
+    # Ordinary PRs alone use the separate exporter; older main inventories omit it.
+    if any(j['name'] == 'web / crazygames' and
+           (j['status'] != 'completed' or j['conclusion'] != 'skipped') for j in jobs):
+        raise ValueError('PR-only CrazyGames job must be skipped in main CI')
     if any(j['status'] != 'completed' or
            (j['conclusion'] != 'success' and not
-            (j['name'] in {'web / firebase', 'common_tag'} and j['conclusion'] == 'skipped')) for j in jobs):
+            (j['name'] in {'web / firebase', 'common_tag', 'web / crazygames'} and j['conclusion'] == 'skipped')) for j in jobs):
         raise ValueError('A mandatory CI job did not succeed')
 
 

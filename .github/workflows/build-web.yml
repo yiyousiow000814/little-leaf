@@ -38,6 +38,7 @@ jobs:
   guard:
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
+      ordinary_pr: ${{ steps.engine_plan.outputs.ordinary_pr }}
       engine_count: ${{ steps.engine_plan.outputs.count }}
       engine_matrix: ${{ steps.engine_plan.outputs.matrix }}
     runs-on: ubuntu-24.04
@@ -81,6 +82,7 @@ jobs:
             *) echo "Unrecognized engine fanout route" >&2; exit 1 ;;
           esac
           printf 'count=%s\nmatrix=%s\n' "$count" "$matrix" >> "$GITHUB_OUTPUT"
+          printf 'ordinary_pr=%s\n' "$ORDINARY_PR" >> "$GITHUB_OUTPUT"
   engine:
     if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
@@ -179,9 +181,14 @@ jobs:
         run: python3 tools/build/build_web.py --output "$RUNNER_TEMP/web-build" --test-report "$RUNNER_TEMP/engine-evidence/summary.json" --tag "$RELEASE_TAG"
       - name: Prepare the exact candidate native layout once
         run: python3 tools/qualification/prepare_browser_qa.py wall --prepare-side new --new-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/web-build/evidence/wall-layout"
+      - name: Bind exact post-import staging metadata for the PR variant sibling
+        if: needs.guard.outputs.ordinary_pr == 'true'
+        run: python3 tools/build/crazygames_stage_handoff.py pack --web-build "$RUNNER_TEMP/web-build" --packet "$RUNNER_TEMP/crazygames-stage.json"
       - name: Export separate CrazyGames variant after the unchanged complete Web gate
+        if: needs.guard.outputs.ordinary_pr == 'false'
         run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
       - name: Retain separate CrazyGames export for review
+        if: needs.guard.outputs.ordinary_pr == 'false'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
@@ -206,6 +213,7 @@ jobs:
             ${{ runner.temp }}/web-build/web/
             ${{ runner.temp }}/web-build/evidence/
             ${{ runner.temp }}/crazygames-build/evidence/
+            ${{ runner.temp }}/crazygames-stage.json
           if-no-files-found: error
           retention-days: 7
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -216,6 +224,57 @@ jobs:
             ${{ runner.temp }}/web-build/project/
           include-hidden-files: true
           if-no-files-found: error
+          retention-days: 7
+  crazygames:
+    needs: [guard, build]
+    if: needs.guard.outputs.scope == 'full' && needs.guard.outputs.ordinary_pr == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_id: ${{ steps.variant.outputs.artifact-id }}
+      evidence_id: ${{ steps.evidence.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install checksum-pinned Godot and official Web template
+        run: python3 tools/ci/install_tools.py godot --output "$RUNNER_TEMP/godot-tools"
+      - name: Require immutable ID from the ordinary build
+        env:
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: '[[ "$CI_INPUTS_ID" =~ ^[1-9][0-9]*$ ]]'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Restore and verify the exact ordinary post-import stage
+        run: python3 tools/build/crazygames_stage_handoff.py restore --web-build "$RUNNER_TEMP/web-build" --packet "$RUNNER_TEMP/crazygames-stage.json"
+      - name: Export the independent PR variant through all original stages
+        run: python3 tools/build/build_crazygames.py --validated-web-build "$RUNNER_TEMP/web-build" --output "$RUNNER_TEMP/crazygames-build"
+      - name: Retain the original variant ZIP for review
+        id: variant
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-crazygames-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/web/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Bind variant upload and original eight stage logs
+        env:
+          VARIANT_ID: ${{ steps.variant.outputs.artifact-id }}
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: python3 tools/ci/crazygames_pr_evidence.py record --root "$RUNNER_TEMP"
+      - name: Retain variant evidence, including partial logs on a failure
+        id: evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-crazygames-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/crazygames-build/evidence/
+          if-no-files-found: warn
           retention-days: 7
   play:
     name: browser (play)
@@ -655,7 +714,7 @@ jobs:
           retention-days: 7
   gate:
     if: always()
-    needs: [guard, engine, historical, build, play, browser, compatibility, firebase]
+    needs: [guard, engine, historical, build, crazygames, play, browser, compatibility, firebase]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -673,6 +732,7 @@ jobs:
             /tests/rendering/wall_compatibility_helpers.js
             /tests/tooling/source_paths.js
             /tools/ci/pr_ci_scope.py
+            /tools/ci/crazygames_pr_evidence.py
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: always() && needs.build.result == 'success'
         with:
@@ -701,10 +761,26 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
+      - name: Collect the exact sibling evidence artifact, without name matching
+        if: always() && needs.crazygames.outputs.evidence_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.crazygames.outputs.evidence_id }}
+          path: ${{ runner.temp }}/crazygames-build/evidence
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify the sibling receipt and eight original stage logs before archiving
+        id: sibling_verify
+        if: needs.guard.outputs.ordinary_pr == 'true' && needs.guard.outputs.scope == 'full'
+        env:
+          VARIANT_ID: ${{ needs.crazygames.outputs.artifact_id }}
+          CI_INPUTS_ID: ${{ needs.build.outputs.inputs_id }}
+        run: python3 tools/ci/crazygames_pr_evidence.py verify --root "$RUNNER_TEMP"
       - name: Require both bound compatibility case receipts
         if: needs.build.result == 'success' && needs.compatibility.result == 'success'
         run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Keep test and export evidence (never profiles or credentials)
+        id: gate_evidence
         if: always() && needs.guard.outputs.scope != 'lightweight'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -732,6 +808,9 @@ jobs:
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          CRAZYGAMES: ${{ needs.crazygames.result }}
+          CRAZYGAMES_ARTIFACT: ${{ needs.crazygames.outputs.artifact_id }}
+          CRAZYGAMES_EVIDENCE: ${{ needs.crazygames.outputs.evidence_id }}
           PLAY: ${{ needs.play.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
@@ -745,10 +824,16 @@ jobs:
         id: accept
         if: needs.guard.outputs.scope != 'lightweight'
         env:
+          ORDINARY_PR: ${{ needs.guard.outputs.ordinary_pr }}
+          GATE_EVIDENCE: ${{ steps.gate_evidence.outputs.artifact-id }}
+          SIBLING_VERIFIED: ${{ steps.sibling_verify.outcome }}
           GUARD: ${{ needs.guard.result }}
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          CRAZYGAMES: ${{ needs.crazygames.result }}
+          CRAZYGAMES_ARTIFACT: ${{ needs.crazygames.outputs.artifact_id }}
+          CRAZYGAMES_EVIDENCE: ${{ needs.crazygames.outputs.evidence_id }}
           PLAY: ${{ needs.play.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
@@ -760,6 +845,11 @@ jobs:
         run: |
           for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
           if [ "$FIREBASE_REQUIRED" = true ]; then test "$FIREBASE" = success && test -n "$FIREBASE_ARTIFACT" && test -n "$FIREBASE_MANIFEST" || exit 1; else test "$FIREBASE" = skipped || exit 1; fi
+          case "$ORDINARY_PR" in
+            true) test "$CRAZYGAMES" = success && test "$SIBLING_VERIFIED" = success && test -n "$CRAZYGAMES_ARTIFACT" && test -n "$CRAZYGAMES_EVIDENCE" && test -n "$GATE_EVIDENCE" || exit 1 ;;
+            false) test "$CRAZYGAMES" = skipped && test -z "$CRAZYGAMES_ARTIFACT$CRAZYGAMES_EVIDENCE" || exit 1 ;;
+            *) exit 1 ;;
+          esac
           test -n "$WEB_ARTIFACT"
           echo "artifact_id=$WEB_ARTIFACT" >> "$GITHUB_OUTPUT"
           echo "firebase_artifact_id=$FIREBASE_ARTIFACT" >> "$GITHUB_OUTPUT"

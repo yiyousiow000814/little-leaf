@@ -42,6 +42,23 @@ class QualificationTests(unittest.TestCase):
     def test_exact_main_qualification(self):
         self.assertEqual(reuse.resolve(API(), SHA, 0)[1]['id'], 11)
 
+    def test_exact_main_accepts_only_the_named_completed_pr_only_skip(self):
+        for event in ('push', 'workflow_dispatch'):
+            api = API()
+            api.runs[0]['event'] = event
+            sibling = dict(name='web / crazygames', status='completed', conclusion='skipped')
+            api.jobs.append(sibling)
+            self.assertEqual(reuse.resolve(api, SHA, 0)[1]['id'], 11)
+            for changes in (dict(name='web / crazygames (other)'), dict(status='in_progress'),
+                            dict(conclusion='failure'), dict(conclusion='cancelled'), dict(conclusion='success')):
+                with self.subTest(event=event, changes=changes), self.assertRaises(ValueError):
+                    api.jobs[-1] = sibling | changes
+                    reuse.resolve(api, SHA, 0)
+            api.jobs[-1] = sibling
+            api.jobs.append(sibling.copy())
+            with self.assertRaises(ValueError):
+                reuse.resolve(api, SHA, 0)
+
     def test_rejects_other_commit_pr_fork_branch_or_workflow(self):
         for field, value in [('head_sha', 'd' * 40), ('event', 'pull_request'),
             ('head_branch', 'candidate'), ('workflow_id', 4),

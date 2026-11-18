@@ -187,7 +187,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('        default: false',text)
         self.assertNotIn('continue-on-error',text)
         self.assertIn('needs: [build, play, browser, compatibility]',text)
-        self.assertIn('needs: [guard, engine, historical, build, play, browser, compatibility, firebase]',text)
+        self.assertIn('needs: [guard, engine, historical, build, crazygames, play, browser, compatibility, firebase]',text)
         self.assertIn('jobs.gate.outputs.artifact_id',text)
         self.assertIn('digest-mismatch: error',text)
         self.assertNotIn('run-id:',text)
