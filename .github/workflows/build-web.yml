@@ -38,6 +38,8 @@ jobs:
   guard:
     outputs:
       scope: ${{ steps.scope.outputs.scope }}
+      engine_count: ${{ steps.engine_plan.outputs.count }}
+      engine_matrix: ${{ steps.engine_plan.outputs.matrix }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -68,6 +70,17 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 tools/ci/preflight.py
+      - name: Select ordinary PR native-engine fanout
+        id: engine_plan
+        env:
+          ORDINARY_PR: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+        run: |
+          case "$ORDINARY_PR" in
+            true) count=9; matrix='[0,1,2,3,4,5,6,7,8]' ;;
+            false) count=5; matrix='[0,1,2,3,4]' ;;
+            *) echo "Unrecognized engine fanout route" >&2; exit 1 ;;
+          esac
+          printf 'count=%s\nmatrix=%s\n' "$count" "$matrix" >> "$GITHUB_OUTPUT"
   engine:
     if: needs.guard.outputs.scope != 'lightweight'
     needs: guard
@@ -75,9 +88,9 @@ jobs:
     timeout-minutes: 20
     strategy:
       fail-fast: false
-      max-parallel: 5
+      max-parallel: ${{ fromJSON(needs.guard.outputs.engine_count) }}
       matrix:
-        shard: [0, 1, 2, 3, 4]
+        shard: ${{ fromJSON(needs.guard.outputs.engine_matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,7 +99,9 @@ jobs:
       - name: Install checksum-pinned Godot for native tests
         run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/godot-tools"
       - name: Run balanced complete engine shard
-        run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count 5 --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
+        env:
+          ENGINE_COUNT: ${{ needs.guard.outputs.engine_count }}
+        run: python3 tools/ci/engine_shards.py run --shard ${{ matrix.shard }} --count "$ENGINE_COUNT" --output "$RUNNER_TEMP/engine-${{ matrix.shard }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
@@ -155,7 +170,9 @@ jobs:
           merge-multiple: false
           digest-mismatch: error
       - name: Require all same-source shards and merge complete engine evidence
-        run: python3 tools/ci/engine_shards.py merge --count 5 --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
+        env:
+          ENGINE_COUNT: ${{ needs.guard.outputs.engine_count }}
+        run: python3 tools/ci/engine_shards.py merge --count "$ENGINE_COUNT" --reports "$RUNNER_TEMP/engine-shards" --output "$RUNNER_TEMP/engine-evidence"
       - name: Export exact source and verify packed resources
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -287,6 +304,9 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      CHROMIUM_PROVISION_RELATIVE: chromium-provision/recovery
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -299,12 +319,23 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install shared pinned browser tools
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install pinned Playwright driver for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install only missing pinned Ubuntu Chromium dependencies
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json"
       - name: Install exact checksum-pinned Chrome for ordinary browser gates
         run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
       - name: Activate and verify the pinned Chrome channel
@@ -313,6 +344,12 @@ jobs:
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Install WebKit only for recovery lane
         run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
+      - name: Verify headed Chrome sandbox and OCR for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
       - name: Verify cloud recovery in real IndexedDB before merge
         timeout-minutes: 4
         env:
@@ -354,6 +391,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
           cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          if [ -d "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" ]; then
+            mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision"
+            cp -a "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision/"
+          fi
           if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
@@ -372,6 +413,9 @@ jobs:
       matrix:
         lane: [compatibility]
         case: [old_opened_after_new, already_open_old]
+    env:
+      PR_LOCKED_CHROMIUM_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+      CHROMIUM_PROVISION_RELATIVE: chromium-provision/compatibility-${{ matrix.case }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -390,18 +434,35 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - name: Install shared pinned browser tools
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Install pinned Playwright driver for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install only missing pinned Ubuntu Chromium dependencies
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json"
       - name: Install exact checksum-pinned Chrome for both compatibility cases
         run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
       - name: Activate and verify the pinned Chrome channel
         run: |
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Verify headed Chrome sandbox and OCR for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
       - name: Verify compensation history in sandboxed Chromium
         if: matrix.lane == 'compatibility' && matrix.case == 'old_opened_after_new'
         env:
@@ -432,6 +493,10 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
           cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          if [ -d "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" ]; then
+            mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision"
+            cp -a "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE" "$RUNNER_TEMP/browser-evidence/web-build/evidence/chromium-provision/"
+          fi
           if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
@@ -602,6 +667,12 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /tests/rendering/wall_compatibility_parallel.js
+            /tests/rendering/wall_compatibility_helpers.js
+            /tests/tooling/source_paths.js
+            /tools/ci/pr_ci_scope.py
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: always() && needs.build.result == 'success'
         with:

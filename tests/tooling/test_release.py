@@ -568,7 +568,7 @@ class NativeToolInstallationTests(unittest.TestCase):
         engine = workflow.split('  engine:\n', 1)[1].split('  historical:\n', 1)[0]
         self.assertEqual(engine.count('--native-only'), 1)
         self.assertEqual(workflow.count('--native-only'), 1)
-        self.assertIn('shard: [0, 1, 2, 3, 4]', engine)
+        self.assertIn('shard: ${{ fromJSON(needs.guard.outputs.engine_matrix) }}', engine)
         self.assertIn('engine_shards.py run', engine)
 
     def test_chrome_cli_exports_verified_package_without_executing_it(self):

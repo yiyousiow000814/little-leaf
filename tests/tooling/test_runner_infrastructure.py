@@ -294,7 +294,7 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertIn('RUNTIME_BROWSER: webkit', browser)
         self.assertIn('name: browser (recovery)', browser)
         self.assertIn('lane: [compatibility]', browser)
-        self.assertIn('max-parallel: 5', workflow)
+        self.assertIn('max-parallel: ${{ fromJSON(needs.guard.outputs.engine_count) }}', workflow)
         self.assertIn('max-parallel: 2', browser)
         play = workflow.split('  play:\n', 1)[1].split('  browser:\n', 1)[0]
         self.assertIn('name: browser (play)', play)
