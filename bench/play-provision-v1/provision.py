@@ -15,7 +15,7 @@ ORIGIN = "https://archive.ubuntu.com/ubuntu/pool/"
 # Playwright 1.63.0's Noble Chromium dependency/tool list, excluding locked fonts.
 # Also require the helpers used by the original headed lane.
 LOCKED_TRANSITIVE = {
-    "liblept5": ("libjpeg8",), "libjpeg8": ("libjpeg-turbo8",),
+    "liblept5": ("libgif7", "libjpeg8"), "libjpeg8": ("libjpeg-turbo8",),
     "xfonts-cyrillic": ("xfonts-utils",), "xfonts-scalable": ("xfonts-utils",),
     "xfonts-utils": ("xfonts-encodings",),
 }
@@ -54,6 +54,22 @@ def verify_simulation(stdout, needed):
     changes = re.findall(r"^(?:Inst|Remv) ([^ \n:]+)", stdout, re.M)
     if sorted(changes) != sorted(needed) or re.search(r"^Remv ", stdout, re.M):
         raise ValueError(f"Unexpected dependency transaction: {changes}")
+
+def simulate(files, report, write):
+    command = ("apt-get", "-s", "--no-download", "--no-install-recommends",
+               "install", *map(str, files))
+    sims = subprocess.run(command, text=True, capture_output=True, check=False,
+                          env={**os.environ, "LC_ALL": "C"})
+    report["simulation"] = {"exit_code": sims.returncode,
+                            "stdout": sims.stdout, "stderr": sims.stderr}
+    write()
+    if sims.returncode:
+        if sims.stdout:
+            print(sims.stdout, file=sys.stderr, end="")
+        if sims.stderr:
+            print(sims.stderr, file=sys.stderr, end="")
+        raise RuntimeError(f"Offline apt simulation failed ({sims.returncode}); no packages installed")
+    return sims.stdout
 
 def fetch_package(name, spec, root):
     rel = spec["file"]
@@ -100,11 +116,7 @@ def main(mode, receipt):
                 if files:
                     # Dry-run uses installed versions and local file dependencies only. It must
                     # resolve before the original lane's existing sudo is allowed to mutate dpkg.
-                    sims = run("apt-get", "-s", "--no-download", "--no-install-recommends",
-                               "install", *map(str, files), capture_output=True)
-                    report["simulation"] = sims.stdout
-                    write()
-                    verify_simulation(sims.stdout, needed)
+                    verify_simulation(simulate(files, report, write), needed)
                     run("sudo", "-n", "dpkg", "-i", *map(str, files))
                 for n in needed:
                     if installed(n) != lock[n]["version"]:

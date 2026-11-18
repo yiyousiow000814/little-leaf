@@ -115,7 +115,7 @@ jobs:
           python3 benchmark/bench/play-provision-v1/provision.py snapshot "$d/installed.json"
           ldd /opt/google/chrome/chrome > "$d/chrome-ldd.txt"
           ldd /usr/bin/tesseract > "$d/ocr-ldd.txt"
-          ! grep -F 'not found' "$d/chrome-ldd.txt" "$d/ocr-ldd.txt"
+          if grep -F 'not found' "$d/chrome-ldd.txt" "$d/ocr-ldd.txt"; then exit 1; fi
           tesseract --version > "$d/tesseract-version.txt"
           tesseract --list-langs > "$d/tesseract-languages.txt"
           grep -Fx eng "$d/tesseract-languages.txt"

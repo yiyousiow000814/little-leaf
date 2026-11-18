@@ -34,6 +34,11 @@
     "sha256": "496969d65dc5664a3291e678d5cbef6815dc308ee5bf37b656c00af2cb490410",
     "version": "0.9.45-8"
   },
+  "libgif7": {
+    "file": "main/g/giflib/libgif7_5.2.2-1ubuntu1.2_amd64.deb",
+    "sha256": "8137945ac9167f26d0264f403ffb48a45974f096e8acab5479e33fdba6c28a36",
+    "version": "5.2.2-1ubuntu1.2"
+  },
   "libjpeg-turbo8": {
     "file": "main/libj/libjpeg-turbo/libjpeg-turbo8_2.1.5-2ubuntu2_amd64.deb",
     "sha256": "f68b5b23bc8a1688fb787d2aed7e2cdf895a73022f6a5025e183162dac4500b2",
