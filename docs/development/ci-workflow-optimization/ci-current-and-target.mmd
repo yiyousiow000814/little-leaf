@@ -1,5 +1,7 @@
 %% Little Leaf / Check and build Web. GitHub Actions attempt 1.
-%% Latest hosted full green: https://github.com/yiyousiow000814/little-leaf/actions/runs/44286678192/attempts/1
+%% First verified sub-10 full run: https://github.com/yiyousiow000814/little-leaf/actions/runs/44296804650/attempts/1
+%% PR fdbbaad018c6e4daa13900ef6c25528017c48dc1; tested merge d13008c2118254862affabcee058ee7c04c02112.
+%% Prior preflight-overlap full green: https://github.com/yiyousiow000814/little-leaf/actions/runs/44286678192/attempts/1
 %% PR a2632e2906dac87287a6331b2fb66cadac8b9214; tested merge d34bc56891602b975b413f2860f7ecad40766421.
 %% Measured green #363: https://github.com/yiyousiow000814/little-leaf/actions/runs/44274956054/attempts/1
 %% PR head d15be31396a2763e1cb20e7ee25cf13d01ca83c7; tested merge 139658dddfb4aa7849c99916da4928ef840d61a6.
@@ -63,13 +65,14 @@ flowchart TB
     L5["Latest full green 619 s vs prior 648 s; initial queue 2 s vs 43 s<br/>Do not attribute the full difference to preflight overlap"] --> L2
     L6["Rejected OCR batching: 900 ms → 523 ms isolated median total across three pairs<br/>Same retained frames; 17.98 s old wall gaps were opportunity only, not savings"] --> L2
   end
-  subgraph evidence["Next experiment · compact final-gate downloads only · unmeasured"]
+  subgraph evidence["Hosted compact gate · full CI 8:52 · one sample"]
     direction TB
     E0["Ordinary and historical producers retain unchanged full inputs for browser jobs"]
     E0 --> E1["Publish compact copies of required proofs and diagnostics<br/>Bind to exact full artifact IDs/digests and merge SHA/run/attempt"]
     E1 --> E2["Ordinary full PR gate downloads and verifies compact evidence<br/>No Web payload re-download; non-PR routes unchanged"]
-    E2 --> E3["Latest large transfer: 22.6 s gross ceiling; earlier healthy gate only 3.9 s total downloads<br/>Companion upload/download overhead reduces savings; no stability claim"]
-    E4["Unmeasured: Playwright driver and pinned Ubuntu prerequisites run in parallel<br/>Both must pass before the unchanged headed Play proof"]
+    E2 --> E3["Two downloads: 134.9 MB → 0.39 MB · 22.61 s → 1.85 s<br/>Final gate: 47 s → 14 s measured job times"]
+    E3 --> E5["All required checks green · 68 s below 10 minutes including queue<br/>Observed queue and Play variability can erase margin; confirm on a fresh run"]
+    E4["Playwright driver + Ubuntu prerequisites in parallel · joint 10 s<br/>Both passed before the unchanged headed Play proof"]
   end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
