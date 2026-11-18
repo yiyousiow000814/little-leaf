@@ -292,11 +292,12 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertLess(browser.index('Install shared pinned browser tools'), browser.index('Verify compensation history'))
         self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', browser)
         self.assertIn('RUNTIME_BROWSER: webkit', browser)
-        self.assertIn('lane: [play, recovery]', browser)
+        self.assertIn('name: browser (recovery)', browser)
         self.assertIn('lane: [compatibility]', browser)
         self.assertIn('max-parallel: 5', workflow)
         self.assertIn('max-parallel: 2', browser)
-        play = browser.split('  compatibility:\n', 1)[0]
+        play = workflow.split('  play:\n', 1)[1].split('  browser:\n', 1)[0]
+        self.assertIn('name: browser (play)', play)
         self.assertIn('needs: build', play)
         self.assertNotIn('old-web-build', play)
         self.assertIn('needs: [build, historical]', browser)
@@ -314,8 +315,8 @@ class WorkflowInfrastructureTests(unittest.TestCase):
         self.assertEqual(workflow.count('python3 tools/build/build_web.py --output'), 1)
         self.assertEqual(workflow.count('python3 tools/build/build_crazygames.py --validated-web-build'), 1)
         self.assertIn('needs: [guard, engine]', workflow)
-        self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]', workflow)
-        self.assertIn('"$BUILD" "$BROWSER" "$COMPATIBILITY";', workflow)
+        self.assertIn('needs: [guard, engine, historical, build, play, browser, compatibility, firebase]', workflow)
+        self.assertIn('"$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY";', workflow)
         self.assertIn('test "$result" = success || exit 1', workflow)
         self.assertNotIn('continue-on-error:', workflow)
 

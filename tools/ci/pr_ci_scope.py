@@ -11,7 +11,7 @@ DIAGNOSTICS = {"tools/diagnostics/diagnose_itch_status.py",
                "tools/diagnostics/retained_handoff_route.py",
                "tools/diagnostics/current_handoff_route.py"}
 TOOLING_TEST = re.compile(r"tests/tooling/test_[A-Za-z0-9_]+\.py")
-JOBS = ("engine", "historical", "build", "browser", "compatibility", "firebase")
+JOBS = ("engine", "historical", "build", "play", "browser", "compatibility", "firebase")
 
 
 def allowed(path):

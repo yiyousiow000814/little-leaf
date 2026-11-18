@@ -200,15 +200,93 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
-  browser:
+  play:
+    name: browser (play)
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        lane: [play, recovery]
+    env:
+      PLAY_LOCKED_PROVISION: ${{ github.event_name == 'pull_request' && inputs.release_tag == '' && !inputs.firebase_preview && !inputs.itch_preview && !inputs.itch_test_entry && inputs.publication_receipt == '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install shared pinned browser tools
+        if: env.PLAY_LOCKED_PROVISION != 'true'
+        timeout-minutes: 10
+        run: |
+          npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
+          google-chrome --version
+      - name: Install pinned Playwright driver for PR Play
+        if: env.PLAY_LOCKED_PROVISION == 'true'
+        timeout-minutes: 3
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install only missing pinned Ubuntu packages for PR Play
+        if: env.PLAY_LOCKED_PROVISION == 'true'
+        timeout-minutes: 3
+        run: |
+          mkdir -p "$RUNNER_TEMP/play-provision"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/play-provision/package-transaction.json"
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Verify headed Chrome sandbox and OCR for PR Play
+        if: env.PLAY_LOCKED_PROVISION == 'true'
+        timeout-minutes: 1
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/inbox-browser-tools/node_modules/playwright
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/play-provision"
+          ldd /opt/google/chrome/chrome > "$d/chrome-ldd.txt"
+          ldd /usr/bin/tesseract > "$d/ocr-ldd.txt"
+          if grep -F 'not found' "$d/chrome-ldd.txt" "$d/ocr-ldd.txt"; then exit 1; fi
+          tesseract --version > "$d/tesseract-version.txt"
+          tesseract --list-langs > "$d/tesseract-languages.txt"
+          grep -Fx eng "$d/tesseract-languages.txt"
+          fc-match sans-serif > "$d/font-default.txt"
+          xvfb-run -a node tools/ci/play_canary.cjs > "$d/browser-canary.json"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify fresh tutorial and natural first payment in ordinary Web
+        timeout-minutes: 6
+        env:
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
+      - name: Collect Play evidence without profiles
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
+          if [ -d "$RUNNER_TEMP/web-build/evidence" ]; then
+            cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          fi
+          if [ -d "$RUNNER_TEMP/play-provision" ]; then
+            cp -a "$RUNNER_TEMP/play-provision" "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
+          fi
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: little-leaf-browser-play-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/browser-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+  browser:
+    name: browser (recovery)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -234,10 +312,8 @@ jobs:
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Install WebKit only for recovery lane
-        if: matrix.lane == 'recovery'
         run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
       - name: Verify cloud recovery in real IndexedDB before merge
-        if: matrix.lane == 'recovery'
         timeout-minutes: 4
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -253,7 +329,6 @@ jobs:
           python3 tools/qualification/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/qualification/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
       - name: Verify grid upgrade archive transaction and reopen
-        if: matrix.lane == 'recovery'
         timeout-minutes: 3
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -262,23 +337,13 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/firebase-focused"
           node tests/persistence/pre_grid_archive_browser.js > "$RUNNER_TEMP/firebase-focused/pre-grid-archive-browser.json"
-      - name: Verify fresh tutorial and natural first payment in ordinary Web
-        if: matrix.lane == 'play'
-        timeout-minutes: 6
-        env:
-          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
-        run: |
-          node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify exported save diagnostic in sandboxed Chromium
-        if: matrix.lane == 'recovery'
         timeout-minutes: 5
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/persistence/save_log_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/save-log-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_save_log-result.json"
       - name: Verify closed-connection recovery in actual exported WebKit game
-        if: matrix.lane == 'recovery'
         timeout-minutes: 9
         env:
           RUNTIME_BROWSER: webkit
@@ -293,7 +358,7 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
-          name: little-leaf-browser-${{ matrix.lane }}-${{ github.sha }}-${{ github.run_attempt }}
+          name: little-leaf-browser-recovery-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/browser-evidence/
           if-no-files-found: warn
           retention-days: 7
@@ -377,7 +442,7 @@ jobs:
           retention-days: 7
   firebase:
     if: inputs.firebase_preview
-    needs: [build, browser, compatibility]
+    needs: [build, play, browser, compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     outputs:
@@ -525,7 +590,7 @@ jobs:
           retention-days: 7
   gate:
     if: always()
-    needs: [guard, engine, historical, build, browser, compatibility, firebase]
+    needs: [guard, engine, historical, build, play, browser, compatibility, firebase]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -545,7 +610,7 @@ jobs:
           merge-multiple: true
           digest-mismatch: error
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        if: always() && needs.build.result == 'success' && needs.browser.result != 'skipped'
+        if: always() && needs.build.result == 'success' && (needs.play.result != 'skipped' || needs.browser.result != 'skipped')
         with:
           pattern: little-leaf-browser-*-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}
@@ -596,6 +661,7 @@ jobs:
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          PLAY: ${{ needs.play.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
           FIREBASE: ${{ needs.firebase.result }}
@@ -612,6 +678,7 @@ jobs:
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          PLAY: ${{ needs.play.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
           FIREBASE: ${{ needs.firebase.result }}
@@ -620,7 +687,7 @@ jobs:
           FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
           FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
         run: |
-          for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
+          for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$PLAY" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
           if [ "$FIREBASE_REQUIRED" = true ]; then test "$FIREBASE" = success && test -n "$FIREBASE_ARTIFACT" && test -n "$FIREBASE_MANIFEST" || exit 1; else test "$FIREBASE" = skipped || exit 1; fi
           test -n "$WEB_ARTIFACT"
           echo "artifact_id=$WEB_ARTIFACT" >> "$GITHUB_OUTPUT"

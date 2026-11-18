@@ -613,8 +613,9 @@ class NativeToolInstallationTests(unittest.TestCase):
     def test_ordinary_and_fresh_firebase_verify_same_chrome_before_browser(self):
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/build-web.yml').read_text()
         for job, following, gates in [
+            ('play', 'browser', ['Verify fresh tutorial']),
             ('browser', 'compatibility', ['Verify cloud recovery in real IndexedDB',
-                'Verify fresh tutorial', 'Verify exported save diagnostic']),
+                'Verify exported save diagnostic']),
             ('firebase', 'gate', ['Check Firebase adapter', 'Verify compiled two-device cloud recovery']),
         ]:
             section = workflow.split('  ' + job + ':\n', 1)[1].split('  ' + following + ':\n', 1)[0]
@@ -628,7 +629,7 @@ class NativeToolInstallationTests(unittest.TestCase):
                     self.assertLess(section.index('verify_chrome_version()'), section.index(gate))
                 self.assertIn('PLAYWRIGHT_CHROMIUM_CHANNEL: chrome', section)
         browser = workflow.split('  browser:\n', 1)[1].split('  compatibility:\n', 1)[0]
-        self.assertIn('lane: [play, recovery]', browser)
+        self.assertIn('name: browser (recovery)', browser)
         self.assertIn('install --with-deps webkit', browser)
         self.assertIn('RUNTIME_BROWSER: webkit', browser)
 
