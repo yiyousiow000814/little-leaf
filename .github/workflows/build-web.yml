@@ -395,6 +395,8 @@ jobs:
       - name: Verify actual old and new Web save compatibility
         if: matrix.lane == 'compatibility'
         env:
+          # Disposable PR branch only; never enables a main, tag or staging trace.
+          LL_PRECONFIRM_TRACE: ${{ github.event_name == 'pull_request' && github.head_ref == 'diagnostic/preconfirm-trace-359' && matrix.case == 'already_open_old' && '1' || '0' }}
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
         run: |
           node tests/rendering/wall_compatibility_ocr_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/wall-ocr-fixtures.log"

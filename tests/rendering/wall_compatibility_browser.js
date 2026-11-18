@@ -15,7 +15,8 @@ const contract = JSON.parse(fs.readFileSync(path.join(fixtureDir, 'contract.json
 // Observation only. Every original storage method and save callback is invoked
 // with its original receiver/arguments and its return value is preserved. No
 // request, transaction, validator or acknowledgement is replaced or suppressed.
-function observeOwnedTestPage() {
+function observeOwnedTestPage(wallTrace) {
+  if (wallTrace) window.__llWallTrace = {request: '', submitted: -1, rows: [], dropped: 0};
   const observation = window.__wallCompatibility = {saveStarts: 0, saves: [], clients: 0, writes: [], transactions: [], launchArgs: null};
   const relevant = name => name === 'little-leaf.authoritative.v1' || name === '/userfs';
   for (const method of ['add', 'put', 'delete', 'clear']) {
@@ -60,6 +61,11 @@ function observeOwnedTestPage() {
     const save = value.save;
     value.save = function(payload, revision, profileId, callback) {
       observation.saveStarts++;
+      const trace = window.__llWallTrace;
+      if (trace && trace.rows.length < 16) {
+        try {const native = JSON.parse(trace.request); trace.rows.push({utc_ms:Date.now(), native,
+          linked:native.id===trace.submitted});} catch (_) {trace.rows.push({linked:false});}
+      } else if (trace) trace.dropped++;
       return save.call(this, payload, revision, profileId, function(...args) {
         try {
           const result = JSON.parse(args[0]);
@@ -104,7 +110,11 @@ async function readSnapshot(page) {
   });
 }
 const active = snapshot => snapshot.authority.find(([key]) => key === 'active')[1];
-async function observation(page) {return page.evaluate(() => structuredClone(__wallCompatibility));}
+async function observation(page, includeTrace=false) {return page.evaluate(include => {
+  const obs=structuredClone(__wallCompatibility);
+  if (include && globalThis.__llWallTrace) obs.shadow={rows:globalThis.__llWallTrace.rows,dropped:globalThis.__llWallTrace.dropped};
+  return obs;
+},includeTrace);}
 async function idle(page) {
   await page.waitForFunction(() => __wallCompatibility.saveStarts === __wallCompatibility.saves.length, null, {timeout: 15000});
 }
@@ -194,6 +204,7 @@ async function main() {
     const newSource = fs.readFileSync(path.join(root, 'platform/web/little_leaf_vault.js'), 'utf8');
     assert.equal(hash(oldSource), contract.old_vault_sha256);
     assert.equal(hash(newSource), preflight.production_sha256.new['web/little_leaf_vault.js']);
+    if (process.env.LL_PRECONFIRM_TRACE==='1') report.diagnostic_only='preconfirm-shadow; not eligible for release';
     report.inputs = {old_commit: contract.old_commit, new_commit: newCommit, fixture_sha256: contract.fixture_sha256,
       old_vault_sha256: hash(oldSource), new_vault_sha256: hash(newSource),
       export_files: {old: manifests.old.files, new: manifests.new.files}, preflight_sha256: hash(fs.readFileSync(path.join(layoutDir, 'preflight.json')))};
@@ -221,7 +232,7 @@ async function main() {
       playwright: require(path.join(process.env.PLAYWRIGHT_MODULE || 'playwright', 'package.json')).version, sandbox: true};
     const createPage = async (context, scale) => {
       const page = await context.newPage();
-      await page.addInitScript(observeOwnedTestPage);
+      await page.addInitScript(observeOwnedTestPage, scale===0.1 && process.env.LL_PRECONFIRM_TRACE==="1");
       await page.addInitScript(installEngineLaunchHook, {
         args: ['--time-scale', String(scale), '--', '--skip-intro'], reportKey: '__wallCompatibility'});
       page.on('pageerror', error => report.errors.push(String(error)));
@@ -246,8 +257,12 @@ async function main() {
       check(result.ok && result.source === 'authority' && result.revision === revision, label + ' actual export reads the expected verified authority revision');
       check((await observation(page)).launchArgs !== null, label + ' accepts supported runtime launch arguments');
     };
+    const traceActions=[]; let traceClicksDropped=0;
     const click = async (page, label, name, delay = 250) => {
       const point = layouts[label].points[name]; assert(point && point.length === 2, 'Derived point ' + name);
+      if (process.env.LL_PRECONFIRM_TRACE==='1' && label==='new') {
+        if (traceActions.length<96) traceActions.push({sent:name,utc_ms:Date.now()}); else traceClicksDropped++;
+      }
       await page.mouse.click(...point); await page.waitForTimeout(delay);
     };
     const screenText = async (page, label, name, phrases) => {
@@ -408,11 +423,16 @@ async function main() {
         const captureConfirmFailure = async (evidence, screenshotName) => {
           // Failure-only reads preserve the original boundary observation before
           // context.close() discards it. No input, save, retry or timer is changed.
+          if (process.env.LL_PRECONFIRM_TRACE==='1') {
+            evidence.harness_intent=traceActions; evidence.harness_intent_overflow=traceClicksDropped;
+          }
           try {evidence.authority_after = await readSnapshot(fixture);}
           catch (error) {evidence.authority_read_error = String(error);}
           for (const [label, page] of [['old', oldPage], ['new', newPage]]) {
             try {evidence[label + '_diagnostics'] = await page.evaluate(() => ({
               observation: structuredClone(__wallCompatibility),
+              shadow: globalThis.__llWallTrace ? {rows:globalThis.__llWallTrace.rows,
+                dropped:globalThis.__llWallTrace.dropped} : null,
               save_log: globalThis.LittleLeafSaveLog?.snapshot() || [],
               visibility: document.visibilityState, focused: document.hasFocus(),
               timestamp: new Date().toISOString()}));}
@@ -455,7 +475,8 @@ async function main() {
         check(payload.coins === JSON.parse(active(baseline).payload).coins - layouts.new.expected_cost, 'Real new UI charges the expected wall price once');
         check(canonical(payload.wall_attachments) === canonical(JSON.parse(layouts.new.codec_fixtures['old-format1.json'].converted_payload).wall_attachments), 'Real new UI retains paid wide door geometry and ownership');
         check(canonical(active(committed).campaigns) === canonical(active(baseline).campaigns), 'New commit retains compensation receipt without a second grant');
-        const newObserved = await observation(newPage);
+        const newObserved = await observation(newPage,process.env.LL_PRECONFIRM_TRACE==='1');
+        if (newObserved.shadow) report.shadow_after_apply=newObserved.shadow;
         check(newObserved.saveStarts === 1 && newObserved.saves.length === 1 && newObserved.saves[0].ok && newObserved.saves[0].durable && newObserved.saves[0].revision === revision + 1 && newObserved.saves[0].creditedCoins === 0, 'Actual new controller receives durable R+1 acknowledgement');
         await newPage.screenshot({path: path.join(output, 'case-b-new-committed.png')});
         await oldPage.bringToFront(); await idle(newPage);
