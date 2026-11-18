@@ -35,7 +35,9 @@ func build(test_api=null)->VBoxContainer:
 	if api==null:return null
 	box=VBoxContainer.new();box.name="CloudSaveSettings";box.add_theme_constant_override("separation",6)
 	var actions=HBoxContainer.new();box.add_child(actions)
-	save_button=game.button("Save",func():game._save();sync());actions.add_child(save_button)
+	save_button=game.button("Save",func():
+		if game.get("_wall_probe")!=null:game._wall_origin="settings_save"
+		game._save();sync());actions.add_child(save_button)
 	reload_button=game.button("Reload",func():api.reload());actions.add_child(reload_button)
 	var sign_out=game.button("Sign out",func():api.signOut());actions.add_child(sign_out)
 	for button in [save_button,reload_button,sign_out]:

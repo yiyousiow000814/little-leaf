@@ -139,7 +139,40 @@ var interaction
 var settings_controls
 var responsive_view=Vector2(-1,-1)
 
+# Disposable diagnostic export only. The browser fixture creates this interface
+# only on the synthetic new page in case B; never persisted or used by gameplay.
+var _wall_probe=null
+var _wall_play=0.0
+var _wall_phase=-1.0
+var _wall_delta=0.0
+var _wall_ui="none_observed"
+var _wall_dirty={}
+var _wall_origin="explicit_unlabelled"
+var _wall_id=0
+func _wall_edge(label:String):
+	if _wall_probe==null or platform_autosave_dirty:return
+	if int(_wall_dirty.get("generation",-1))!=platform_dirty_generation:
+		_wall_dirty={"source":label,"generation":platform_dirty_generation,"timer":save_timer,"play":_wall_play,"ui":_wall_ui}
+func _wall_request(periodic:bool,already_pending:bool):
+	_wall_id+=1
+	_wall_probe.request=JSON.stringify({"id":_wall_id,"trigger":"periodic" if periodic else _wall_origin,
+		"skip_unchanged":periodic,"play_elapsed":_wall_play,"timer_remainder":save_timer,
+		"timer_before_wrap":_wall_phase if periodic else -1.0,"timer_delta":_wall_delta if periodic else 0.0,
+		"editing":editing,"paused":paused,"dragging":interaction!=null and interaction.drag_active,
+		"blocked":save_recovery_blocked or save_writes_suppressed,
+		"dirty":platform_autosave_dirty,"pending":already_pending,"generation":platform_dirty_generation,
+		"first_dirty":_wall_dirty if platform_autosave_dirty else {},"last_engine_ui":_wall_ui,
+		"engine_scale":Engine.time_scale})
+	_wall_origin="explicit_unlabelled"
+func _wall_model_changed():
+	_wall_edge("model.changed")
+	_mark_platform_dirty()
+func _wall_explicit_save(label:String):
+	_wall_origin=label
+	return _save()
+
 func _ready():
+	if OS.has_feature("web") and JavaScriptBridge.eval("typeof window.__llWallTrace === 'object'"):_wall_probe=JavaScriptBridge.get_interface("__llWallTrace")
 	_sync_window_scale()
 	get_window().size_changed.connect(_sync_window_scale)
 	get_tree().auto_accept_quit=false
@@ -155,6 +188,7 @@ func _ready():
 	if web_save!=null and web_save.ready:compact_ui.support_mail.refresh()
 	if OS.has_feature("crazygames"):
 		platform_music=preload("res://scripts/platform/crazygames_music.gd").new(self)
+		if _wall_probe!=null:_wall_edge("platform_start")
 		_mark_platform_dirty()
 	else:_setup_music()
 	settings_controls.setup_audio()
@@ -196,6 +230,7 @@ func _notify_first_web_frame():
 
 func _mark_platform_dirty():
 	# One dirty generation covers every backend; mutation events never write.
+	if _wall_probe!=null:_wall_edge("unclassified_dirty")
 	platform_dirty_generation+=1
 	platform_autosave_dirty=true
 	progress_unsaved=true
@@ -204,10 +239,13 @@ func _connect_model_events():
 	# Startup retry may retain the same model or replace it. Only the live model
 	# owns these callbacks, and repeated setup must not multiply dirty events.
 	if _event_model!=null and _event_model!=model:
+		if _wall_probe!=null and _event_model.changed.is_connected(_wall_model_changed):_event_model.changed.disconnect(_wall_model_changed)
 		if _event_model.changed.is_connected(_mark_platform_dirty):_event_model.changed.disconnect(_mark_platform_dirty)
 		if _event_model.meal_completed.is_connected(_on_meal_completed):_event_model.meal_completed.disconnect(_on_meal_completed)
 	_event_model=model
-	if not model.changed.is_connected(_mark_platform_dirty):model.changed.connect(_mark_platform_dirty)
+	if _wall_probe!=null:
+		if not model.changed.is_connected(_wall_model_changed):model.changed.connect(_wall_model_changed)
+	elif not model.changed.is_connected(_mark_platform_dirty):model.changed.connect(_mark_platform_dirty)
 	if not model.meal_completed.is_connected(_on_meal_completed):model.meal_completed.connect(_on_meal_completed)
 
 func _on_meal_completed(_customer_id,payment):
@@ -388,6 +426,7 @@ func _set_catalog_mode(mode:String):
 	if mode=="Storage" and catalog_category=="Build":catalog_category="Tables"
 	_set_catalog_category(catalog_category)
 func _set_catalog_category(category:String):
+	if _wall_probe!=null and category=="Build":_wall_ui="build_category"
 	catalog_category=category
 	_cancel_selection()
 	for key in category_buttons:category_buttons[key].button_pressed=key==category
@@ -405,6 +444,7 @@ func _toggle_edit():
 	if save_recovery_blocked:return
 	if not editing:
 		model.service_snapshot=_service_save_snapshot()
+		if _wall_probe!=null:_wall_ui="decorate_enter"
 		model.begin_decoration_session()
 		editing=true
 	else:
@@ -416,6 +456,7 @@ func _toggle_edit():
 		editing=false
 	_apply_music_selection()
 	_cancel_selection()
+	if _wall_probe!=null and not editing:_wall_origin="decorate_exit";_wall_ui="decorate_exit"
 	if not editing:_save()
 	_update_ui()
 	compact_ui.set_tray_open(editing)
@@ -657,6 +698,7 @@ func _on_window_close():
 	if settings_controls!=null:settings_controls.flush_preferences()
 	# Persist the same validated runtime transaction before an ordinary close.
 	# Isolated QA suppresses all writes and can still exit its own process.
+	if _wall_probe!=null:_wall_origin="window_close"
 	if _save():get_tree().quit()
 	elif compact_ui!=null:compact_ui.show_help()
 
@@ -673,6 +715,7 @@ func _tick_autosave(delta:float):
 	# A missed slot retains dirty work. Long frames never burst catch-up writes.
 	save_timer+=delta
 	if save_timer<AutosavePolicy.INTERVAL_SECONDS:return
+	if _wall_probe!=null:_wall_phase=save_timer;_wall_delta=delta
 	save_timer=fmod(save_timer,AutosavePolicy.INTERVAL_SECONDS)
 	if AutosavePolicy.due(OS.has_feature("crazygames"),platform_autosave_dirty,AutosavePolicy.INTERVAL_SECONDS,web_save!=null and web_save.pending,save_recovery_blocked or save_writes_suppressed,interaction!=null and interaction.drag_active):_autosave()
 
@@ -815,10 +858,12 @@ func _process(delta):
 	if compact_ui!=null:compact_ui.tick_earnings(world_delta)
 	if not editing and not paused and not save_recovery_blocked:
 		if model.first_guest_pending and model.operating_open and model._arrival_elapsed+world_delta+.000001>=model.ARRIVAL_INTERVAL:model.first_guest_start=preload("res://scripts/gameplay/cafe_first_guest.gd").offscreen_start(self)
+		if _wall_probe!=null:_wall_play+=world_delta
 		_tick_live_service(world_delta)
 		# Resolve cooking/contact before deadlines and before any autosave.
 		_animate_staff(world_delta)
 		# Arrival/payroll/customer/staff timers advance saved state during play.
+		if _wall_probe!=null and world_delta>0.0:_wall_edge("live_play")
 		if world_delta>0.0:_mark_platform_dirty()
 	visual_timer+=world_delta
 	# First periodic save remains after entry, never during the title/descent.
@@ -2079,6 +2124,7 @@ func _capture():
 	if not "--capture-diagnostics" in OS.get_cmdline_user_args() or DisplayServer.get_name()=="headless" or "--visual-qa" in OS.get_cmdline_user_args(): return
 	await RenderingServer.frame_post_draw
 	# Exported resources are read-only. Diagnostics are an explicit local opt-in.
+	if _wall_probe!=null:_wall_origin="capture"
 	if not _save(): return
 	var directory="user://diagnostics"
 	if DirAccess.make_dir_recursive_absolute(directory)!=OK:

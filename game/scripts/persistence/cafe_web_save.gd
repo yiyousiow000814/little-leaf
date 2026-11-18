@@ -392,9 +392,11 @@ func _block_startup(reason:String,code:String="VALIDATION_FAILED"):
 	MinimalStart.apply(game.model)
 
 func request_save(skip_unchanged:bool=false)->bool:
+	if game!=null and game.get("_wall_probe")!=null:game._wall_request(skip_unchanged,pending)
 	_log("save_requested")
 	if not ready or game.save_recovery_blocked or game.save_writes_suppressed:
 		_log("save_skipped","NOT_READY" if not ready else "RECOVERY_BLOCKED" if game.save_recovery_blocked else "WRITES_SUPPRESSED");return false
+	if game.get("_wall_probe")!=null:game._wall_edge("controller_request")
 	generation+=1
 	if game.get("platform_dirty_generation")!=null:game.platform_autosave_dirty=true
 	game.progress_unsaved=true
@@ -431,6 +433,7 @@ func request_save(skip_unchanged:bool=false)->bool:
 	if _credit_expected>0:_hold_for_credit()
 	game.model.last_event="Saving café progress"
 	_log("save_submitted")
+	if game.get("_wall_probe")!=null:game._wall_probe.submitted=game._wall_id
 	api.save(payload,revision,profile_id,_callback)
 	# A submitted asynchronous write is never reported as durable success.
 	return false
@@ -467,6 +470,7 @@ func _on_commit(arguments:Array):
 	if game==null or not game.is_inside_tree():return
 	var parser=JSON.new()
 	var result:Variant=parser.data if arguments.size()>0 and parser.parse(str(arguments[0]))==OK else null
+	if game.get("_wall_probe")!=null:game._wall_edge("controller_ack")
 	pending=false
 	if game.get("platform_dirty_generation")!=null:game.platform_autosave_dirty=true
 	if not result is Dictionary or not bool(result.get("ok",false)):
@@ -520,6 +524,7 @@ func _on_commit(arguments:Array):
 	if _support_claim_mail_id!="":
 		if queued or generation!=inflight_generation:
 			_support_claim_fail("Progress changed while preparing this claim. Save again before claiming.")
+			if game.get("_wall_probe")!=null:queued=false;game.call_deferred("_wall_explicit_save","support_changed_deferred");return
 			queued=false;game.call_deferred("_save");return
 		var support=_support_bridge()
 		if support==null:
@@ -533,6 +538,7 @@ func _on_commit(arguments:Array):
 	if queued or generation!=inflight_generation:
 		queued=false
 		# Never clear a newer edit's unsaved marker from an older completion.
+		if game.get("_wall_probe")!=null:game.call_deferred("_wall_explicit_save","queued_deferred");return
 		game.call_deferred("_save");return
 	game.progress_unsaved=bool(game.get("platform_autosave_dirty")) if game.get("platform_dirty_generation")!=null else false;game.progress_save_error="";game.model.last_error="";game.model.last_event="Progress submitted to CrazyGames" if platform_ack else "Café progress saved"
 	game._update_ui()
@@ -552,6 +558,7 @@ func claim_support_mail(mail_id:String)->bool:
 	if _support_bridge()==null:return false
 	_support_claim_generation+=1;_support_claim_mail_id=mail_id
 	_hold_for_credit()
+	if game.get("_wall_probe")!=null:game._wall_origin="support_claim"
 	request_save()
 	if not pending:
 		_support_claim_fail(game.progress_save_error if game.progress_save_error!="" else "Could not prepare the current café save.")
@@ -594,4 +601,5 @@ func _on_support_claim(arguments:Array,request_generation:int):
 	_release_credit_hold()
 	if game.compact_ui!=null and game.compact_ui.support_mail!=null:game.compact_ui.support_mail.claim_result(true,"")
 	game._update_ui()
+	if game.get("_wall_probe")!=null and save_queued:game.call_deferred("_wall_explicit_save","credit_queued_deferred");return
 	if save_queued:game.call_deferred("_save")

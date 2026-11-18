@@ -161,6 +161,7 @@ func _on_browser_event(arguments:Array):
 	if arguments.size()>1 and bool(arguments[1]):
 		# Cancel previews before the validated runtime snapshot. This is not a
 		# synchronous IndexedDB flush, and page termination may interrupt it.
+		if game.get("_wall_probe")!=null:game._wall_origin="lifecycle:"+reason
 		game._save()
 	if reason in ["hidden","pagehide"]:game.set_browser_suspended(true)
 	elif reason=="visible":game.set_browser_suspended(false)

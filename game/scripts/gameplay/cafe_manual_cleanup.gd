@@ -218,6 +218,7 @@ func _complete(identity:Dictionary)->bool:
  puffs.append({"at":at,"age":0.0,"epoch":_epoch(),"record":snapshot,"coin_motion":new_coin_motion(at)})
  clear_hover()
  game._update_ui()
+ if game.get("_wall_probe")!=null:game._wall_edge("manual_ground_cleanup")
  game._mark_platform_dirty()
  game.illustration.queue_redraw()
  return true

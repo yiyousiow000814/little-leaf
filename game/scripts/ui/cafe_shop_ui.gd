@@ -387,10 +387,12 @@ func _sync_build_page():
  if is_instance_valid(tiles_back):tiles_back.accessibility_name="Back to Build from "+("Wall" if build_page=="walls" else "Tiles")
 func show_walls(target:String=""):
  if not game.editing or game.catalog_category!="Build" or game.save_recovery_blocked or ui.viewport_too_small:return
+ if game.get("_wall_probe")!=null:game._wall_ui="wall_tray_open"
  game.settings.hide();game._cancel_selection();ui._hide_popups();wall_target=target;build_page="walls";product_layout_key="";_sync_build_page();ui.build_scroll.scroll_horizontal=0;ui.sync()
 func choose_wall_style(height:String,material:String):
  var key="wall:"+height+":"+material
  if not game.editing or game.catalog_category!="Build" or build_page!="walls" or game.save_recovery_blocked or ui.viewport_too_small or not wall_cards.has(key) or not wall_cards[key].visible:return
+ if game.get("_wall_probe")!=null:game._wall_ui="wall_style_accepted"
  game.build_tools.material=material;game.build_tools.choose(height);ui.sync();ui.update_pointer()
 func tiles_active()->bool:
  return game.editing and game.catalog_category=="Build" and build_page=="tiles"
@@ -515,6 +517,7 @@ func _scroll_to(scroll:ScrollContainer,target:float):
  tween.tween_property(scroll,"scroll_horizontal",int(target),.18)
  if scroll!=category_scroll:tween.finished.connect(_product_scroll_finished.bind(scroll))
 func _scroll_categories(direction:int):
+ if game.get("_wall_probe")!=null:game._wall_ui="category_page"
  _scroll_to(category_scroll,category_scroll.scroll_horizontal+direction*(category_scroll.size.x+6))
 func _reveal_category():
  if ui==null or not is_instance_valid(game):return
@@ -683,6 +686,7 @@ func _snap_products(scroll:ScrollContainer):
  if absf(target-scroll.scroll_horizontal)>.5:_scroll_to(scroll,target)
  else:product_rest_offsets[scroll.get_instance_id()]=scroll.scroll_horizontal
 func _page_products(direction:int):
+ if game.get("_wall_probe")!=null:game._wall_ui="product_page"
  var scroll=_active_products();var current=float(scroll.get_meta("shop_scroll_target",scroll.scroll_horizontal)) if _product_tween_running(scroll) else float(scroll.scroll_horizontal)
  if product_snap_enabled and product_stride>0:
   _scroll_to(scroll,(roundf(current/product_stride)+direction*product_page_items)*product_stride)

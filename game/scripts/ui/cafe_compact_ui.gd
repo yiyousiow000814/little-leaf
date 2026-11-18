@@ -657,9 +657,11 @@ func review_wall_replacement(key:String,height:String,paper:String):
  wall_review_text.text+="\n\nNew wall: %s coins\nOld wall refund: %s coins\nYou pay: %s coins"%[Money.amount(int(quote.new_cost)),Money.amount(int(quote.refund)),Money.amount(int(quote.net))]
  if not quote.valid:wall_review_text.text+="\n\n"+str(quote.reason)
  wall_confirm_button.disabled=not quote.valid
+ if game.get("_wall_probe")!=null:game._wall_ui="wall_review_open"
  _popup_at(wall_review,320)
 func _confirm_wall_replacement():
  if not wall_review.visible or not game.editing or game.save_recovery_blocked or viewport_too_small or pending_wall.is_empty():return
+ if game.get("_wall_probe")!=null:game._wall_ui="wall_confirm_accepted"
  var chosen=pending_wall.duplicate(true)
  if not replacement_plan.commit(game.model,replacement_quote):
   review_wall_replacement(chosen.key,chosen.height,chosen.material);return
