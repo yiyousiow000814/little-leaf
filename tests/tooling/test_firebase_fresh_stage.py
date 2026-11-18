@@ -186,8 +186,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('firebase_preview:\n        description:',text)
         self.assertIn('        default: false',text)
         self.assertNotIn('continue-on-error',text)
-        self.assertIn('needs: [build, browser, compatibility]',text)
-        self.assertIn('needs: [guard, engine, historical, build, browser, compatibility, firebase]',text)
+        self.assertIn('needs: [build, source_recovery, browser, compatibility]',text)
+        self.assertIn('needs: [guard, engine, historical, build, source_recovery, browser, compatibility, firebase]',text)
         self.assertIn('jobs.gate.outputs.artifact_id',text)
         self.assertIn('digest-mismatch: error',text)
         self.assertNotIn('run-id:',text)
@@ -232,10 +232,13 @@ class WorkflowTests(unittest.TestCase):
 
     def test_recovery_browser_gate_is_bounded_and_not_skippable(self):
         text=(ROOT/'.github/workflows/build-web.yml').read_text()
-        section=text[text.index('      - name: Verify cloud recovery in real IndexedDB before merge'):text.index('      - name: Verify compensation history')]
+        source=text.split('  source_recovery:\n',1)[1].split('  browser:\n',1)[0]
+        section=source[source.index('      - name: Verify cloud recovery in real IndexedDB before merge'):]
         self.assertLess(text.index('      - name: Install shared pinned browser tools'),text.index(section))
-        self.assertIn("        if: matrix.lane == 'recovery'",section)
-        self.assertIn('lane: [play, recovery]',text)
+        self.assertIn("    needs: guard",source)
+        self.assertNotIn("if: matrix.",section)
+        self.assertNotIn("continue-on-error",source)
+        self.assertIn('lane: [play, save, recovery]',text)
         self.assertIn('lane: [compatibility]',text)
         self.assertIn('"$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1',text)
         self.assertNotIn('continue-on-error',section)

@@ -200,32 +200,23 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
-  browser:
-    needs: build
+  source_recovery:
+    if: needs.guard.outputs.scope != 'lightweight'
+    needs: guard
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        lane: [play, recovery]
+    outputs:
+      evidence_id: ${{ steps.upload.outputs.artifact-id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          artifact-ids: ${{ needs.build.outputs.inputs_id }}
-          path: ${{ runner.temp }}
-          merge-multiple: true
-          digest-mismatch: error
       - name: Install shared pinned browser tools
         timeout-minutes: 10
         run: |
           npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
       - name: Install exact checksum-pinned Chrome for ordinary browser gates
         run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
@@ -233,11 +224,7 @@ jobs:
         run: |
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
-      - name: Install WebKit only for recovery lane
-        if: matrix.lane == 'recovery'
-        run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
       - name: Verify cloud recovery in real IndexedDB before merge
-        if: matrix.lane == 'recovery'
         timeout-minutes: 4
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -253,7 +240,6 @@ jobs:
           python3 tools/qualification/run_firebase_focused.py --gate recovery-presentation.log --output "$RUNNER_TEMP/firebase-focused"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" python3 tools/qualification/run_firebase_focused.py --gate recovery-browser.log --output "$RUNNER_TEMP/firebase-focused"
       - name: Verify grid upgrade archive transaction and reopen
-        if: matrix.lane == 'recovery'
         timeout-minutes: 3
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -262,6 +248,58 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/firebase-focused"
           node tests/persistence/pre_grid_archive_browser.js > "$RUNNER_TEMP/firebase-focused/pre-grid-archive-browser.json"
+      - name: Retain exact source-only recovery evidence
+        if: always()
+        id: upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-source-recovery-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/firebase-focused/
+          if-no-files-found: error
+          retention-days: 7
+  browser:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        lane: [play, save, recovery]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.inputs_id }}
+          path: ${{ runner.temp }}
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Install pinned browser driver
+        timeout-minutes: 10
+        run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Install shared pinned browser tools
+        if: matrix.lane != 'recovery'
+        env:
+          LANE: ${{ matrix.lane }}
+        timeout-minutes: 10
+        run: |
+          "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
+          if [[ "$LANE" == play ]]; then sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng; fi
+          google-chrome --version
+      - name: Install exact checksum-pinned Chrome for ordinary browser gates
+        if: matrix.lane != 'recovery'
+        run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
+      - name: Activate and verify the pinned Chrome channel
+        if: matrix.lane != 'recovery'
+        run: |
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+      - name: Install WebKit only for recovery lane
+        if: matrix.lane == 'recovery'
+        run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
       - name: Verify fresh tutorial and natural first payment in ordinary Web
         if: matrix.lane == 'play'
         timeout-minutes: 6
@@ -271,7 +309,7 @@ jobs:
           node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures > "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-ocr-fixtures.log"
           PLAYWRIGHT_MODULE="$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright" xvfb-run -a node tests/presentation/fresh_tutorial_browser.js --web-build "$RUNNER_TEMP/web-build/web" --output "$RUNNER_TEMP/web-build/evidence/fresh-tutorial-browser" --layout-report "$RUNNER_TEMP/engine-evidence/test_interactive_tutorial-result.json" --engine-report "$RUNNER_TEMP/engine-evidence/summary.json"
       - name: Verify exported save diagnostic in sandboxed Chromium
-        if: matrix.lane == 'recovery'
+        if: matrix.lane == 'save'
         timeout-minutes: 5
         env:
           PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
@@ -289,7 +327,6 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/browser-evidence/web-build/evidence"
           cp -a "$RUNNER_TEMP/web-build/evidence/." "$RUNNER_TEMP/browser-evidence/web-build/evidence/"
-          if [ -d "$RUNNER_TEMP/firebase-focused" ]; then cp -a "$RUNNER_TEMP/firebase-focused" "$RUNNER_TEMP/browser-evidence/"; fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
@@ -377,7 +414,7 @@ jobs:
           retention-days: 7
   firebase:
     if: inputs.firebase_preview
-    needs: [build, browser, compatibility]
+    needs: [build, source_recovery, browser, compatibility]
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     outputs:
@@ -408,6 +445,19 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
+      - name: Require source recovery evidence ID
+        env:
+          SOURCE_EVIDENCE_ID: ${{ needs.source_recovery.outputs.evidence_id }}
+        run: test -n "$SOURCE_EVIDENCE_ID"
+      - name: Download this run's exact source recovery receipts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.source_recovery.outputs.evidence_id }}
+          path: ${{ runner.temp }}/firebase-focused
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify same-attempt source recovery contents
+        run: python3 tools/ci/verify_source_recovery.py "$RUNNER_TEMP/firebase-focused"
       - name: Require both bound compatibility case receipts
         run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
       - name: Install shared pinned browser tools
@@ -525,7 +575,7 @@ jobs:
           retention-days: 7
   gate:
     if: always()
-    needs: [guard, engine, historical, build, browser, compatibility, firebase]
+    needs: [guard, engine, historical, build, source_recovery, browser, compatibility, firebase]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -565,6 +615,22 @@ jobs:
           path: ${{ runner.temp }}
           merge-multiple: true
           digest-mismatch: error
+      - name: Require source recovery evidence ID
+        if: needs.source_recovery.result == 'success'
+        env:
+          SOURCE_EVIDENCE_ID: ${{ needs.source_recovery.outputs.evidence_id }}
+        run: test -n "$SOURCE_EVIDENCE_ID"
+      - name: Download this run's exact source recovery receipts
+        if: needs.source_recovery.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.source_recovery.outputs.evidence_id }}
+          path: ${{ runner.temp }}/firebase-focused
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify same-attempt source recovery contents
+        if: needs.source_recovery.result == 'success'
+        run: python3 tools/ci/verify_source_recovery.py "$RUNNER_TEMP/firebase-focused"
       - name: Require both bound compatibility case receipts
         if: needs.build.result == 'success' && needs.compatibility.result == 'success'
         run: node tests/rendering/wall_compatibility_parallel.js --merge "$RUNNER_TEMP/web-build/evidence/wall-browser"
@@ -596,6 +662,7 @@ jobs:
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          SOURCE_RECOVERY: ${{ needs.source_recovery.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
           FIREBASE: ${{ needs.firebase.result }}
@@ -612,6 +679,7 @@ jobs:
           ENGINE: ${{ needs.engine.result }}
           HISTORICAL: ${{ needs.historical.result }}
           BUILD: ${{ needs.build.result }}
+          SOURCE_RECOVERY: ${{ needs.source_recovery.result }}
           BROWSER: ${{ needs.browser.result }}
           COMPATIBILITY: ${{ needs.compatibility.result }}
           FIREBASE: ${{ needs.firebase.result }}
@@ -620,7 +688,7 @@ jobs:
           FIREBASE_ARTIFACT: ${{ needs.firebase.outputs.artifact_id }}
           FIREBASE_MANIFEST: ${{ needs.firebase.outputs.manifest_sha256 }}
         run: |
-          for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
+          for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$SOURCE_RECOVERY" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done
           if [ "$FIREBASE_REQUIRED" = true ]; then test "$FIREBASE" = success && test -n "$FIREBASE_ARTIFACT" && test -n "$FIREBASE_MANIFEST" || exit 1; else test "$FIREBASE" = skipped || exit 1; fi
           test -n "$WEB_ARTIFACT"
           echo "artifact_id=$WEB_ARTIFACT" >> "$GITHUB_OUTPUT"

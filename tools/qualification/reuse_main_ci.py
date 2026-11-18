@@ -32,7 +32,7 @@ MAX_MAIN_EXTRACTED_BYTES = 192 * 1024 * 1024
 # Four authenticated runtime surfaces plus room for future audio/assets.
 MAX_FIREBASE_ARTIFACT_BYTES = 512 * 1024 * 1024
 REQUIRED_JOBS = {'web / guard', 'web / historical', 'web / build', 'web / gate',
-    'web / browser (play)', 'web / browser (recovery)',
+    'web / source_recovery', 'web / browser (play)', 'web / browser (save)', 'web / browser (recovery)',
     'web / compatibility (compatibility, old_opened_after_new)',
     'web / compatibility (compatibility, already_open_old)',
     *(f'web / engine ({i})' for i in range(5))}

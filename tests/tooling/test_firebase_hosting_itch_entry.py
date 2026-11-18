@@ -136,7 +136,7 @@ class ItchTestEntry(unittest.TestCase):
             'source_sha256': {name:h.digest(source_path(ROOT,name)) for name in ['tools/build/build_itch_entry.py',
                 'tools/build/build_itch_trusted_preview.py','tools/build/build_firebase.py','web/little_leaf_firebase_boot.mjs',
                 'web/little_leaf_firebase_session.js','web/little_leaf_update.js','web/little_leaf_entry.css']}}
-        names = ['guard','historical','build','gate','firebase','browser (play)','browser (recovery)',
+        names = ['guard','historical','build','gate','firebase','source_recovery','browser (play)','browser (save)','browser (recovery)',
             'compatibility (compatibility, old_opened_after_new)','compatibility (compatibility, already_open_old)',
             *(f'engine ({i})' for i in range(5))]
         self.origin = {'run': {'id': 1,'run_attempt': 1,'repository': {'full_name':'yiyousiow000814/little-leaf'},
@@ -177,6 +177,15 @@ class ItchTestEntry(unittest.TestCase):
         self.assertEqual(result['previous'],h.ITCH_BASELINE)
         self.assertEqual(result['previous_files_sha256'],h.record_digest(FILES))
         self.assertTrue(result['rollback_version_verified'])
+
+    def test_split_source_and_exported_gates_are_mandatory_for_fresh_staging(self):
+        original=copy.deepcopy(self.origin)
+        for name in ('fresh / source_recovery','fresh / browser (save)','fresh / browser (recovery)'):
+            for state in (None,'failure','skipped','cancelled'):
+                self.origin=copy.deepcopy(original)
+                if state is None:self.origin['jobs']=[job for job in self.origin['jobs'] if job['name']!=name]
+                else:next(job for job in self.origin['jobs'] if job['name']==name)['conclusion']=state
+                with self.subTest(name=name,state=state),self.assertRaises(ValueError):self.verify()
 
     def test_every_proof_label_and_focused_receipt_is_mandatory(self):
         original=copy.deepcopy(self.manifest)

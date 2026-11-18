@@ -741,7 +741,7 @@ def verify_itch_test_package(folder, source_sha, manifest_sha, origin):
             or origin.get('commit', {}).get('commit', {}).get('tree', {}).get('sha') != tree):
         raise ValueError('Fresh authenticated staging artifact origin required')
     required = {'guard', 'historical', 'build', 'gate', 'firebase',
-                'browser (play)', 'browser (recovery)',
+                'source_recovery', 'browser (play)', 'browser (save)', 'browser (recovery)',
                 'compatibility (compatibility, old_opened_after_new)',
                 'compatibility (compatibility, already_open_old)', *(f'engine ({i})' for i in range(5))}
     required = {'fresh / ' + name for name in required} | {'selection'}

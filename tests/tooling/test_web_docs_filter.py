@@ -142,7 +142,7 @@ class PrScopeTests(unittest.TestCase):
     def test_lightweight_aggregate_rejects_false_qualification(self):
         env = {"CI_SCOPE": "lightweight", "GITHUB_EVENT_NAME": "pull_request", "RELEASE_TAG": "",
                "FIREBASE_PREVIEW": "false", "ITCH_PREVIEW": "false", "GUARD": "success"}
-        jobs = ("ENGINE", "HISTORICAL", "BUILD", "BROWSER", "COMPATIBILITY", "FIREBASE")
+        jobs = ("ENGINE", "HISTORICAL", "BUILD", "SOURCE_RECOVERY", "BROWSER", "COMPATIBILITY", "FIREBASE")
         env.update({job: "skipped" for job in jobs})
         self.assertTrue(lightweight_gate(env))
         for job in jobs:
@@ -207,11 +207,11 @@ class AddedCoverageTest(unittest.TestCase):
 
     def test_workflow_preserves_full_gate_and_all_guard_checks(self):
         workflow = (ROOT / ".github/workflows/build-web.yml").read_text(encoding="utf-8")
-        for job in ("engine", "historical", "build"):
+        for job in ("engine", "historical", "build", "source_recovery"):
             self.assertIn(f"  {job}:\n    if: needs.guard.outputs.scope != 'lightweight'", workflow)
-        self.assertIn("    if: always()\n    needs: [guard, engine, historical, build, browser, compatibility, firebase]", workflow)
+        self.assertIn("    if: always()\n    needs: [guard, engine, historical, build, source_recovery, browser, compatibility, firebase]", workflow)
         self.assertIn("python3 tools/ci/pr_ci_scope.py --check-lightweight-gate", workflow)
-        self.assertIn('for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done', workflow)
+        self.assertIn('for result in "$GUARD" "$ENGINE" "$HISTORICAL" "$BUILD" "$SOURCE_RECOVERY" "$BROWSER" "$COMPATIBILITY"; do test "$result" = success || exit 1; done', workflow)
         self.assertIn('test -n "$WEB_ARTIFACT"', workflow)
         self.assertIn("python3 tools/ci/preflight.py", workflow)
 
