@@ -2,6 +2,8 @@
 %% Measured green #363: https://github.com/yiyousiow000814/little-leaf/actions/runs/44274956054/attempts/1
 %% PR head d15be31396a2763e1cb20e7ee25cf13d01ca83c7; tested merge 139658dddfb4aa7849c99916da4928ef840d61a6.
 %% Producer job 134702585130; exact evidence artifact 14415001659. Previous failed run 44259138080 and WebKit A/B 44268677602 remain in Excel.
+%% Follow-up #363 attempt 1: https://github.com/yiyousiow000814/little-leaf/actions/runs/44278752308/attempts/1
+%% PR 67c69b54752dc994c94a6259518047eb1e498c85; merge a63df863622d792a2965dd6cfbb0256d407e42e4.
 flowchart TB
   subgraph observed["Measured green #363: 10:28 workflow · 10-minute target missed by 28 s"]
     direction TB
@@ -17,7 +19,12 @@ flowchart TB
     OH --> OK
     OP & OR & OK --> OJ["Final gate · 0:13 runner · passed at 10:27<br/>Workflow marked complete at 10:28"]
   end
-  subgraph pilot["Candidate: split CrazyGames only on full ordinary PRs · hosted timing unverified"]
+  subgraph followup["Hosted #363 follow-up · successful lanes are not a full-workflow pass"]
+    F0["Guard, all nine native shards, historical client and ordinary export passed"]
+    F0 --> F1["Play and both compatibility cases passed<br/>All eight CrazyGames stages passed in required sibling"]
+    F0 --> F2["Legacy WebKit setup started 09:50:21 UTC<br/>Still active at 10:00 UTC; final gate not complete at this checkpoint"]
+  end
+  subgraph pilot["Candidate: bounded WebKit provisioning on full ordinary PRs · hosted timing unverified"]
     direction TB
     PG["Guard selects existing routes"]
     PG -->|existing lightweight| PD["Docs guard only; no build artifact"]
@@ -26,22 +33,25 @@ flowchart TB
     PG -->|full routes| PH["Pinned historical client unchanged"]
     PN --> PW["Verified ordinary Web and layout; retain same output receipts<br/>Bind exact post-import project by source / run / attempt"]
     PW --> PP["Independent Play, unchanged"]
-    PW --> PR["Recovery and both compatibility cases, unchanged<br/>Legacy WebKit provisioning retained"]
-    PH --> PR
+    PW --> RA["Recovery setup: bounded official Ubuntu HTTPS via fresh signed indexes<br/>Same exact 61 Playwright packages and WebKit/FFmpeg pins; no regional or legacy fallback"]
+    RA --> PR["Original four recovery checks unchanged"]
+    PW --> CK["Both compatibility cases unchanged"]
+    PH --> CK
     PW --> PX["Required CrazyGames sibling on ordinary PRs<br/>Same staged files excluding caches; same export and variant checks"]
-    PP & PR & PX --> PJ["Final gate verifies exact sibling evidence before outputs<br/>Five sparse-checked source files; no added permissions or API polling"]
-    PS -. existing full gates and preview conditions .-> PJ
+    PP & PR & CK & PX --> PJ["Final gate verifies exact sibling evidence before outputs<br/>Five sparse-checked source files; no added permissions or API polling"]
+    PS -. existing full gates, preview conditions and legacy WebKit setup .-> PJ
   end
   subgraph limits["Timing limits: projection only"]
     direction TB
     L0["Observed 38.743 s to CI inputs upload start<br/>Includes 5.780 s ordinary Web upload that still remains"]
     L0 --> L1["At most 32.963 s direct relief from moving variant export and upload<br/>Added staging, transfer, runner queues and evidence checks may erode it"]
     L3["Same-run PR9 replay: longest native shard 177.21 s → 156.67 s (~20.54 s)<br/>Fixed per-lane overhead; not held out or additive to variant relief"] --> L2
-    L1 --> L2["Zero-overhead arithmetic: about 9:55, only about 5 s margin<br/>10 minutes not yet demonstrated; 5 minutes remains the goal"]
+    L1 --> L2["Historical zero-overhead arithmetic: about 9:55, only about 5 s margin<br/>10 minutes not yet demonstrated; 5 minutes remains the goal"]
+    L4["One matched WebKit A/B (44268677602): same dependency state and recovery checks<br/>Official setup 34.476 s without proof vs 25.167 s baseline; no speed or stability claim"] --> L2
   end
   classDef measured fill:#EAF1F2,stroke:#607C84,color:#253640
   classDef change fill:#EEF2E5,stroke:#7C8D66,color:#304028
   classDef caution fill:#F9EBDF,stroke:#AA5538,color:#703620
   class ON,OH,OC,OA,OP,OJ measured
-  class PW,PX,PJ change
-  class L0,L1,L2,L3 caution
+  class PW,RA,PR,PX,PJ change
+  class F2,L0,L1,L2,L3,L4 caution

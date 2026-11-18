@@ -1,7 +1,9 @@
 """Contract for checked Chromium provisioning on ordinary PR browser jobs."""
+import importlib.util
 import json
 import re
 from pathlib import Path
+import tempfile
 import unittest
 
 import yaml
@@ -45,7 +47,7 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
         for role in ("browser", "compatibility"):
             uses = [line for step in self.jobs[role]["steps"] for line in step.get("run", "").splitlines()
                     if "$CHROMIUM_PROVISION_RELATIVE" in line]
-            self.assertEqual(len(uses), 5, role)
+            self.assertEqual(len(uses), 7 if role == "browser" else 5, role)
             for line in uses:
                 self.assertIn('"$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE', line)
 
@@ -53,7 +55,17 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
         recovery = self.jobs["browser"]
         webkit = self.step(recovery, "Install WebKit only")
         self.assertIn("install --with-deps webkit", webkit["run"])
-        self.assertNotIn("if", webkit)
+        self.assertEqual(webkit["if"], "env.PR_LOCKED_CHROMIUM_PROVISION != 'true'")
+        deps = self.step(recovery, "Install signed Ubuntu WebKit")
+        binary = self.step(recovery, "Install pinned WebKit browser")
+        for step in (deps, binary):
+            self.assertEqual(step["if"], "env.PR_LOCKED_CHROMIUM_PROVISION == 'true'")
+            self.assertNotIn("continue-on-error", step)
+            self.assertNotIn("install --with-deps", step["run"])
+        self.assertIn("recovery_webkit_provision.py", deps["run"])
+        self.assertIn("install webkit", binary["run"])
+        self.assertIn("webkit-2359/pw_run.sh", binary["run"])
+        self.assertIn("ffmpeg-1011", binary["run"])
         shell = (ROOT / "tools/ci/verify_locked_chromium.sh").read_text()
         for required in ("chrome-ldd.txt", "ocr-ldd.txt", "grep -Fx eng", "fc-match sans-serif",
                          "xvfb-run -a node tools/ci/play_canary.cjs"):
@@ -65,10 +77,41 @@ class BrowserProvisionExtensionTests(unittest.TestCase):
             self.assertLess(steps.index(self.step(job, "Activate and verify")), probe)
             if role == "browser":
                 self.assertLess(steps.index(webkit), probe)
+                self.assertLess(steps.index(deps), steps.index(binary))
+                self.assertLess(steps.index(binary), probe)
             self.assertLess(probe, steps.index(self.step(job, first_test)))
             self.assertIn("chromium-provision/", self.step(job, "Collect lane evidence")["run"])
         self.assertEqual(self.jobs["browser"]["env"]["CHROMIUM_PROVISION_RELATIVE"], "chromium-provision/recovery")
         self.assertEqual(self.jobs["compatibility"]["env"]["CHROMIUM_PROVISION_RELATIVE"], "chromium-provision/compatibility-${{ matrix.case }}")
+
+    def test_webkit_apt_is_private_signed_bounded_and_fail_closed(self):
+        path = ROOT / "tools/ci/recovery_webkit_provision.py"
+        spec = importlib.util.spec_from_file_location("recovery_webkit_provision", path)
+        provision = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(provision)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            private_config = provision.isolated_config(root)
+            sources = (root / "ubuntu.sources").read_text()
+            for text in ("https://archive.ubuntu.com/ubuntu", "https://security.ubuntu.com/ubuntu",
+                         "noble noble-updates noble-backports", "noble-security",
+                         "Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg"):
+                self.assertIn(text, sources)
+            self.assertNotIn("ec2.archive", sources)
+            self.assertEqual(sources.count("Signed-By:"), 2)
+            config = private_config.read_text()
+            for text in ('Acquire::Check-Valid-Until "true"', 'Acquire::Retries "0"',
+                         'Acquire::https::Verify-Peer "true"', 'Acquire::https::Verify-Host "true"',
+                         'APT::Get::AllowUnauthenticated "false"', str(root / "conf.d"), str(root / "lists")):
+                self.assertIn(text, config)
+            argv = provision.root_apt(private_config, 23, "/usr/bin/apt-get", "update")
+            self.assertEqual(argv[:6], ("sudo", "-n", "/usr/bin/timeout", "--kill-after=5s", "23", "/usr/bin/env"))
+            self.assertIn("APT_CONFIG=" + str(private_config), argv)
+        line = "Inst libsample [1:old] (1:new Noble [amd64])"
+        self.assertEqual(provision.operations(line + " []"), {"libsample": {"from": "1:old", "to": "1:new"}})
+        for bad in (line + " [broken]", line + "\n" + line, line + "\nRemv other [1]", "Purg other [1]"):
+            with self.assertRaises(ValueError):
+                provision.operations(bad)
 
 
 if __name__ == "__main__":

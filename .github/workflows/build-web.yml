@@ -402,7 +402,27 @@ jobs:
           sudo dpkg -i "$CHROME_DEB"
           python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
       - name: Install WebKit only for recovery lane
+        if: env.PR_LOCKED_CHROMIUM_PROVISION != 'true'
         run: '"$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install --with-deps webkit'
+      - name: Install signed Ubuntu WebKit system prerequisites for ordinary PR
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 5
+        run: |
+          python3 tools/ci/recovery_webkit_provision.py "$RUNNER_TEMP/inbox-browser-tools/node_modules/playwright-core" \
+            "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit"
+      - name: Install pinned WebKit browser for ordinary PR recovery
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
+        timeout-minutes: 2
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '20000'
+        run: |
+          set -euo pipefail
+          export PLAYWRIGHT_BROWSERS_PATH="$RUNNER_TEMP/recovery-webkit-browsers"
+          /usr/bin/time -o "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/webkit/webkit-binary.seconds" -f %e \
+            "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install webkit
+          test -x "$PLAYWRIGHT_BROWSERS_PATH/webkit-2359/pw_run.sh"
+          test -d "$PLAYWRIGHT_BROWSERS_PATH/ffmpeg-1011"
+          printf 'PLAYWRIGHT_BROWSERS_PATH=%s\n' "$PLAYWRIGHT_BROWSERS_PATH" >> "$GITHUB_ENV"
       - name: Verify headed Chrome sandbox and OCR for ordinary PR
         if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
         timeout-minutes: 1
