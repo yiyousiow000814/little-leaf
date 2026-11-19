@@ -122,14 +122,23 @@ static func commit(model,transaction:Dictionary)->bool:
  if bool(transaction.get("noop",false)):return true
  # Keep dictionaries already referenced by service records alive. IDs, money,
  # purchase metadata and physical floor messes are never recreated or reset.
+ var items_by_id=first_by_id(model.items)
  for proposed in transaction.items:
-  var original=model.get_item(int(proposed.id))
+  var original:Dictionary=items_by_id.get(int(proposed.id),{})
   for key in ["x","z","rot"]:original[key]=proposed[key]
  model.dining_sets.assign(transaction.groups)
+ var guests_by_id=first_by_id(model.customers)
  for proposed in transaction.guests:
-  for original in model.customers:
-   if int(original.id)==int(proposed.id):original.merge(proposed,true);break
+  var id=int(proposed.id)
+  if guests_by_id.has(id):guests_by_id[id].merge(proposed,true)
  model.last_error="";model.last_event="Moved furniture · guests and staff keep their work";model._notify();return true
+static func first_by_id(records:Array)->Dictionary:
+ # Preserve the old first-match rule even on a duplicate legacy ID.
+ var result={}
+ for record in records:
+  var id=int(record.id)
+  if not result.has(id):result[id]=record
+ return result
 static func advance(model,guest:Dictionary,delta:float)->void:
  if not active(guest):return
  var invalid="" if model._mobility_validated.get(int(guest.id),-1)==model.revision else geometry_error(model,[guest],model.items,model.built_walls,model.owned_parcels,model.wall_attachments)

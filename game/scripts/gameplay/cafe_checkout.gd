@@ -52,24 +52,40 @@ static func is_door_landing(m,cell:Vector2i)->bool:
   if not opening.is_empty() and Geometry2D.get_closest_point_to_segment(m.cell_center(cell),opening.a,opening.b).distance_to(m.cell_center(cell))<.76:return true
  return false
 static func path(m,start:Vector2i,finish:Vector2i,blocked:Dictionary={},layout:Array=[])->Array[Vector2i]:
- var empty:Array[Vector2i]=[]
+ var tree=_path_tree(m,start,{finish:true},blocked,layout)
+ return _tree_route(tree.get("previous",{}),start,finish)
+
+static func _path_tree(m,start:Vector2i,targets:Dictionary,blocked:Dictionary,layout:Array,origin:Variant=null)->Dictionary:
+ if targets.is_empty():return {}
  var furniture=m.items if layout.is_empty() else layout
  var solids={}
  for item in furniture:
   if item.kind!="rug":solids[Vector2i(int(item.x),int(item.z))]=true
- if not m.is_floor_owned(start) or not m.is_floor_owned(finish) or solids.has(start) or solids.has(finish) or blocked.has(finish):return empty
+ if not m.is_floor_owned(start) or solids.has(start):return {}
+ var remaining={}
+ for target in targets:
+  if not blocked.has(target) and not solids.has(target) and m.is_floor_owned(target):remaining[target]=true
+ if remaining.is_empty():return {}
  var previous={start:start};var cells:Array[Vector2i]=[start];var cursor=0
+ var lengths={}
+ if origin!=null:lengths[start]=origin.distance_to(m.cell_center(start))
  while cursor<cells.size():
   var cell=cells[cursor];cursor+=1
-  if cell==finish:
-   var route:Array[Vector2i]=[finish]
-   while route[-1]!=start:route.append(previous[route[-1]])
-   route.reverse();return route
+  remaining.erase(cell)
+  if remaining.is_empty():break
   for direction in m.DIRECTIONS:
    var next:Vector2i=cell+direction
    if previous.has(next) or solids.has(next) or blocked.has(next) or not m.is_floor_owned(next) or m.edge_blocked(cell,next):continue
    previous[next]=cell;cells.append(next)
- return empty
+   if origin!=null:lengths[next]=lengths[cell]+m.cell_center(cell).distance_to(m.cell_center(next))
+ return {"previous":previous,"lengths":lengths}
+
+static func _tree_route(previous:Dictionary,start:Vector2i,finish:Vector2i)->Array[Vector2i]:
+ if not previous.has(finish):return []
+ var route:Array[Vector2i]=[finish]
+ while route[-1]!=start:route.append(previous[route[-1]])
+ route.reverse();return route
+
 static func placement_error(m,item:Dictionary,layout:Array,actors:Array)->String:
  # Customer/staff contact faces govern service, not the register's floor mount.
  return m._furniture_actor_error([item],layout,actors)
@@ -261,14 +277,24 @@ static func begin(m,id:int,ticket:int,register_id:int,token:int)->bool:
 static func depart(m,guest:Dictionary)->bool:
  var position=point(guest);var start=Vector2i(floori(position.x),floori(position.y))
  var best={};var route:Array[Vector2]=[];var length=INF
- for entry in m.boundary_entries():
-  var cells=path(m,start,entry.cell)
-  if cells.is_empty():continue
-  var candidate:Array[Vector2]=[]
-  for cell in cells:candidate.append(m.cell_center(cell))
-  candidate.append_array(m._exterior_approach(entry,false,m._departure_exit_z(int(guest.id))))
-  var distance=m._route_length(position,candidate)
-  if distance<length:length=distance;route=candidate;best=entry
+ var entries=m.boundary_entries();var targets={}
+ for entry in entries:targets[entry.cell]=true
+ var tree=_path_tree(m,start,targets,{},[],position)
+ var lengths:Dictionary=tree.get("lengths",{})
+ var exterior:Array[Vector2]=[]
+ # Keep west-entry order and the original addition order for exact route ties.
+ var exit_z=m._departure_exit_z(int(guest.id))
+ for entry in entries:
+  if not lengths.has(entry.cell):continue
+  var tail=m._exterior_approach(entry,false,exit_z)
+  var distance:float=lengths[entry.cell]
+  var previous:Vector2=m.cell_center(entry.cell)
+  for next in tail:
+   distance+=previous.distance_to(next);previous=next
+  if distance<length:length=distance;exterior=tail;best=entry
+ if not best.is_empty():
+  for cell in _tree_route(tree.previous,start,best.cell):route.append(m.cell_center(cell))
+  route.append_array(exterior)
  guest.phase="leaving";guest.seated=false;guest.dismounting=false;guest.elapsed=0.0;guest.route_index=0
  guest.exterior_exit=false;guest.waiting=true;guest.departure_blocked=route.is_empty();guest.route=route
  guest.duration=0.0 if route.is_empty() else length/m.WALK_SPEED

@@ -13,6 +13,55 @@ func check(ok:bool,label:String):
  if not ok:failures.append(label);printerr("FAIL ",label)
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
+const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallSupportValidation=preload("res://scripts/gameplay/cafe_wall_support_validation.gd")
+func opening_validation_input(id:int,supports:Array,offset:float,width:float,kind:String="window")->Dictionary:
+ return {"id":id,"kind":kind,"wall_ids":supports,"offset":offset,"width":width}
+
+func check_installed_support_index(model):
+ var walls=[]
+ for axis in ["x","z"]:
+  for row in range(6):
+   for offset in range(6):
+    var name:="%s:%d:%d"%[axis,row,offset]
+    walls.append(Walls.installed(name,Walls.make(axis,offset if axis=="x" else row,row if axis=="x" else offset),0,0))
+ var first=opening_validation_input(1,["x:0:0"],.5,.8)
+ var beyond=opening_validation_input(2,["x:0:0"],.15,.6)
+ var unused=opening_validation_input(3,["x:0:1","x:0:2"],.4,.4)
+ var unsupported=opening_validation_input(4,["missing"],.5,.7)
+ var intersecting_other_axis=opening_validation_input(5,["z:0:0"],.5,.7)
+ var adjacent=opening_validation_input(6,["x:0:1"],.5,1.0)
+ var full_first=opening_validation_input(7,["x:0:0"],.5,1.0)
+ var overlapping_tail=opening_validation_input(8,["x:0:0","x:0:1"],1.0,1.0,"door")
+ var near_left=opening_validation_input(9,["x:0:0"],.25,.50)
+ var near_threshold=opening_validation_input(10,["x:0:0"],.749991,.50)
+ var above_threshold=opening_validation_input(11,["x:0:0"],.749980,.50)
+ var duplicate=first.duplicate();duplicate.width=.7
+ var scenarios=[[],[first],[first,intersecting_other_axis],[adjacent,full_first],[first,duplicate],[first,beyond],[beyond,first],
+                [unused,first],[unsupported,first],[overlapping_tail,adjacent,first],[near_left,near_threshold],[near_left,above_threshold]]
+ check(WallSupportValidation.error(walls,[first,beyond])=="A door or window already occupies this wall interval",
+       "An earlier otherwise-valid opening reports its overlap before a later bad width")
+ check(WallSupportValidation.error(walls,[beyond,first])=="Opening extends beyond its supporting walls",
+       "A malformed opening reports its range error first when installed first")
+ for i in range(scenarios.size()):
+  var rows:Array=scenarios[i];var snapshot=[walls.duplicate(true),rows.duplicate(true)]
+  var reference:=OpeningGeometry.installed_support_error(walls,rows)
+  check(WallSupportValidation.error(walls,rows)==reference,"Installed opening priority matches reference case "+str(i))
+  check(model._attachment_layout_error(walls,rows)==reference,"Model routes installed opening validation through the index")
+  check([walls,rows]==snapshot,"Wall support validation does not mutate placed or proposed rows")
+ # Dense no-overlap fixture with realistic ordered wall IDs in both axes;
+ # this takes the entire original nested validation path instead of an early exit.
+ var dense:Array=[]
+ for i in range(walls.size()):
+  dense.append(opening_validation_input(i+20,[walls[i].id],.5,.7))
+ check(WallSupportValidation.error(walls,dense)==OpeningGeometry.installed_support_error(walls,dense)
+       and WallSupportValidation.error(walls,dense)=="","Dense distinct intervals pass both validators")
+ # Epsilon-adjacent and noncanonical endpoints can never be collapsed into a different line.
+ var unusual=walls.duplicate(true)
+ unusual[0].z=.000001
+ check(WallSupportValidation.error(unusual,[first,beyond])==OpeningGeometry.installed_support_error(unusual,[first,beyond]),
+       "Noncanonical wall coordinates retain exact fallback behavior")
+
 func check_blocked_edge_index(model):
  for axis in ["x","z"]:
   var walls=[]
@@ -62,6 +111,7 @@ func run():
  root.size=Vector2i(1164,624);game=TestMain.new();root.add_child(game);game.set_process(false);game.illustration.set_process(false);game.paused=true
  await process_frame;game.model.coins=1600;game._toggle_edit();game._set_catalog_category("Build");game.compact_ui._set_tray_reveal(1);await settle()
  var ui=game.compact_ui;var model=game.model;var tool=game.build_tools
+ check_installed_support_index(model)
  check_blocked_edge_index(model)
  game._cancel_selection();await settle();await click(aim(2.5))
  check(ui.selected_wall=="x:2:0","click existing wall selects exact one-tile host")

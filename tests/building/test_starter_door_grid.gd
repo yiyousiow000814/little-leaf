@@ -1,6 +1,7 @@
 extends SceneTree
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallCollision=preload("res://scripts/gameplay/cafe_wall_collision.gd")
 const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
 const Codec=preload("res://scripts/persistence/cafe_runtime_codec.gd")
 const Building=preload("res://scripts/persistence/cafe_building_codec.gd")
@@ -157,12 +158,74 @@ func finish():
  check(FileAccess.get_sha256(fixture_path())==LEGACY_SHA,"immutable pre-unification fixture remains byte exact")
  var report={"checks":checks,"failures":failures};write(OUT+"/REPORT.json",report)
  print("STARTER_DOOR_GRID_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)
+func exact_collision_segments(hosts:Array,walls:Array,attachments:Array)->Array:
+ var flat:Array=[]
+ for host in hosts:flat.append_array(Openings.solid_segments(host,walls,attachments))
+ return flat
+
+func check_collision_index(model):
+ var before=exact_collision_segments(model.collision_wall_hosts(),model.built_walls,model.wall_attachments)
+ var collision=WallCollision.new(model.collision_wall_hosts(),model.built_walls,model.wall_attachments)
+ check(collision.segments==before,"Starter collision geometry and segment order are exact")
+ for z in [4.95,5.0,5.000001,5.05,5.5,5.95,6.0,6.05]:
+  var a=Vector2(-.68,z);var b=Vector2(.47,z)
+  var old_cross=before.any(func(segment):return Openings.crosses(segment,a,b))
+  var point=Vector2(0,z)
+  var old_body=before.any(func(segment):return Openings.body_touches(segment,point))
+  check(collision.crosses(a,b)==old_cross and model.segment_blocked(a,b)==old_cross,
+        "Indexed body movement retains exact jamb behavior "+str(z))
+  check(collision.touches_body(point)==old_body and (model._opening_body_error(model.built_walls,model.wall_attachments,[point])!="")==old_body,
+        "Opening edit body guard retains exact jamb behavior "+str(z))
+ var old_snapshot=model._wall_collision
+ model.segment_blocked(Vector2(-1,4),Vector2(1,4))
+ check(model._wall_collision==old_snapshot,"Unchanged traversal reuses the derived geometry")
+ model._notify()
+ model.segment_blocked(Vector2(-1,4),Vector2(1,4))
+ check(model._wall_collision!=old_snapshot,"Collision cache retains existing revision invalidation")
+ var legacy_hosts=Openings.shell_hosts("original",model.built_walls)
+ var legacy_attachments=Openings.initial_attachments()
+ var legacy=WallCollision.new(legacy_hosts,model.built_walls,legacy_attachments)
+ check(legacy.segments==exact_collision_segments(legacy_hosts,model.built_walls,legacy_attachments),
+       "Legacy multi-cell shell host and door retain exact original geometry")
+
+func check_collision_grid():
+ var walls:Array=[]
+ var attachments:Array=[]
+ for x in range(5):
+  for z in range(5):
+   for axis in ["x","z"]:
+    var id:="wall:%d"%walls.size()
+    var wall=Openings.Walls.installed(id,Openings.Walls.make(axis,x,z),0,0)
+    walls.append(wall)
+    if (x+z)%3==0:
+     attachments.append({"id":walls.size(),"kind":"door" if x%2==0 else "window","wall_ids":[id],"offset":.5,"width":.7})
+ var hosts=Openings.installed_hosts(walls)
+ var reference=exact_collision_segments(hosts,walls,attachments)
+ var indexed=WallCollision.new(hosts,walls,attachments)
+ check(indexed.segments==reference,"Indexed door candidates preserve all segment cuts, windows and original order")
+ var rng=RandomNumberGenerator.new();rng.seed=364373
+ var equal=true
+ var visits:=0
+ for i in range(120):
+  var a=Vector2(rng.randf_range(-1,6),rng.randf_range(-1,6))
+  var b=a+Vector2(rng.randf_range(-.75,.75),rng.randf_range(-.75,.75))
+  equal=equal and indexed.crosses(a,b)==reference.any(func(segment):return Openings.crosses(segment,a,b))
+  equal=equal and indexed.touches_body(a)==reference.any(func(segment):return Openings.body_touches(segment,a))
+  visits+=indexed._indices(a.min(b),a.max(b)).size()
+ check(equal,"Every generated line and body broad-phase answer equals the ordered reference")
+ check(visits*4<reference.size()*120,"Ordinary movement visits only nearby collision segments")
+ var low=Vector2(-18,-18);var high=Vector2(32,32)
+ check(indexed._indices(low,high).size()==reference.size() and indexed.crosses(low,high)==reference.any(func(segment):return Openings.crosses(segment,low,high)),
+       "Long or out-of-profile traversals keep complete fallback candidates")
+
 func _init():
  if not "geometry-saveguard" in OS.get_user_data_dir():printerr("SAVEGUARD FAILED");quit(2);return
  DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT))
  check(FileAccess.get_sha256(fixture_path())==LEGACY_SHA,"pinned pre-unification fixture bytes")
  if not failures.is_empty():finish();return
  var model=Model.new();var door=model.wall_openings()[0]
+ check_collision_index(model)
+ check_collision_grid()
  check(door.a==Vector2(0,5) and door.b==Vector2(0,6),"fresh rendered aperture exactly meets grid boundaries 5/6")
  check(door.width==1.0 and (door.a+door.b)*.5==Vector2(0,5.5),"fresh center unchanged and one tile wide")
  check(model.wall_attachments[0].wall_ids==["wall:18"] and model.wall_attachments[0].offset==.5,"fresh door uses its installed grid support")
