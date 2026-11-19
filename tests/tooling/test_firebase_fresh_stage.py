@@ -185,7 +185,15 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('node tests/presentation/fresh_tutorial_browser_test.js --ocr-fixtures',text)
         self.assertIn('firebase_preview:\n        description:',text)
         self.assertIn('        default: false',text)
-        self.assertNotIn('continue-on-error',text)
+        # All existing checks are hard requirements. Only publishing the optional
+        # production-independent pinned package prefetch may fail without blocking.
+        import yaml
+        jobs = yaml.safe_load(text)["jobs"]
+        self.assertEqual(text.count("continue-on-error:"), 1)
+        optional = [(job, step.get("id"), step.get("uses"), step["continue-on-error"])
+                    for job, value in jobs.items() for step in value["steps"] if "continue-on-error" in step]
+        self.assertEqual(optional, [("preflight", "browser_packages",
+            "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a", True)])
         self.assertIn('needs: [build, play, browser, compatibility]',text)
         self.assertIn('needs: [guard, preflight, engine, historical, build, crazygames, play, browser, compatibility, firebase]',text)
         self.assertIn('jobs.gate.outputs.artifact_id',text)
