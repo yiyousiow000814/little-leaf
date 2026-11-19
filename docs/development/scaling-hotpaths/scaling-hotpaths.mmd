@@ -8,17 +8,19 @@ flowchart TB
   live --> li["Reuse indexed blocked edges"]
   dine --> di["Index adjacent seats, existing pairs and member IDs"]
   portal --> pi["Query west edge and existing furniture occupancy index"]
-  ri --> integrated["One local composition: 8,983 assertions in 10 headless suites"]
+  ri --> integrated["First batch #371 at a01104e: 8,983 assertions in 10 headless suites"]
   li --> integrated
   di --> integrated
   pi --> integrated
   base --> open["Separate audit: guest/item rendering, service, routing, validation, and checkout"]
-  integrated --> visual["Pixels and original-three atlas pending: four changed producers plus one new"]
-  integrated --> web["Ordinary Web CI and durable save compatibility pending"]
-  visual --> latest["Measure only the qualified new candidate against frozen #368 baseline"]
+  integrated --> visual["#372 scoped pass: all 16 native pixel pairs and nine atlas PNGs"]
+  integrated --> web["Ordinary exact-head CI and Web save compatibility pending"]
+  visual --> larger["Larger rendered scene coverage pending"]
+  larger --> latest["Integrated FPS pending: compare qualified new candidate with frozen #368 baseline"]
   web --> latest
   open --> latest
   classDef pending fill:#FDF1DB,stroke:#AD731B,color:#452B0B;
   classDef staged fill:#E7F3EE,stroke:#398170,color:#153B33;
-  class ri,li,di,pi,integrated staged;
-  class visual,web,open,latest pending;
+  class ri,li,di,pi,integrated,visual staged;
+  class larger,web,open,latest pending;
+  click visual href "https://github.com/yiyousiow000814/little-leaf/actions/runs/44467477097" "Scoped native pixel and atlas verification"
