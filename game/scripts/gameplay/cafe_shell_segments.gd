@@ -121,13 +121,18 @@ static func support_error(state:Dictionary,walls:Array,attachments:Array)->Strin
    if state.segments[key(attachment.host_id,index)].get("removed",false) or state.segments[key(attachment.host_id,index)].height!="full":return "Opening needs every supporting segment at full height"
  return ""
 
-static func _prepare_legacy_openings(walls:Array,attachments:Array,products:Dictionary)->Dictionary:
+static func _legacy_wall_lookup(walls:Array)->Dictionary:
  var by_id={};var by_ref={};var extension:Array=[]
  for wall in walls:
   if not wall is Dictionary or not wall.get("id") is int or by_id.has(wall.id) or wall.get("axis") not in ["x","z"]:return {}
   if not OrderedOverlap._grid_coordinate(float(wall.x)) or not OrderedOverlap._grid_coordinate(float(wall.z)):return {}
   by_id[wall.id]=wall;by_ref[Walls.identity(wall)]=wall
   if Footprint.is_extension_wall(wall):extension=[wall]
+ return {"by_id":by_id,"by_ref":by_ref,"extension":extension}
+
+static func _prepare_legacy_openings(walls:Array,attachments:Array,products:Dictionary)->Dictionary:
+ var lookup:=_legacy_wall_lookup(walls)
+ if lookup.is_empty():return {}
  var rows:Array=[];var lines={};var seen={}
  for i in attachments.size():
   var attachment=attachments[i]
@@ -137,7 +142,7 @@ static func _prepare_legacy_openings(walls:Array,attachments:Array,products:Dict
   if not is_finite(float(attachment.width)) or not is_finite(float(attachment.offset)) or float(attachment.width)<=0:return {}
   seen[attachment.id]=true
   var ref:String=attachment.host_id
-  var supporting=_legacy_host_rows(ref,by_id,by_ref,extension)
+  var supporting=_legacy_host_rows(ref,lookup.by_id,lookup.by_ref,lookup.extension)
   rows.append(Geometry.resolve_host(ref,supporting,products))
   # Match compatible_error: aperture geometry uses default shell roots,
   # while fit above uses the public forced-full root snapshot.
@@ -151,7 +156,7 @@ static func _prepare_legacy_openings(walls:Array,attachments:Array,products:Dict
   var line:=Vector2i(0 if axis=="x" else 1,int(cross))
   if not lines.has(line):lines[line]=[]
   lines[line].append({"index":i,"low":low,"high":high})
- return {"hosts":rows,"lines":lines,"extension":extension}
+ return {"hosts":rows,"lines":lines,"extension":lookup.extension}
 
 static func _legacy_host_rows(ref:String,by_id:Dictionary,by_ref:Dictionary,extension:Array)->Array:
  if ref in Geometry.SHELL_HOSTS:return extension

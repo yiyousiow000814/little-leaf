@@ -175,6 +175,7 @@ func run():
   finish();return
  base.coins=10000
  indexed_legacy_import_checks(base)
+ indexed_projection_support_checks()
  projection_edge_cases(base)
  var initial=Model.new();initial.coins=10000
  check(initial.save("user://initial.json"),"new unified model saves: "+initial.last_error)
@@ -421,3 +422,43 @@ func indexed_legacy_import_checks(base:Dictionary):
     check(imported.wall_attachments.size()==13 and imported.built_walls.size()==33 and imported.coins==raw.coins,label+" exact opening/wall counts and economy")
     check(imported.wall_attachments[-1].wall_ids==["wall:12"] and imported.wall_attachments[-1].id==13,label+" imported host and ordered identity retained")
    check(FileAccess.get_sha256(path)==original,label+" source never overwritten")
+
+func indexed_projection_support_checks():
+ for axis in ["x","z"]:
+  var edges={}
+  for along in [3,1,2]:
+   var a=Vector2(along,4) if axis=="x" else Vector2(4,along)
+   var b=a+(Vector2.RIGHT if axis=="x" else Vector2.DOWN)
+   var row={"axis":axis,"a":a,"b":b,"id":"wall:%s"%along,"height":"full"}
+   edges[Walls.key(axis,int(a.x),int(a.y))]=row
+  var low=Vector2(1.9,4) if axis=="x" else Vector2(4,1.9)
+  var high=Vector2(3.4,4) if axis=="x" else Vector2(4,3.4)
+  var aperture={"host":{"axis":axis,"a":low},"a":low,"b":high}
+  var before=JSON.stringify([edges,aperture])
+  var old=BuildingEdges._supports(edges,aperture)
+  check(old.ok and old.ids==["wall:1","wall:2","wall:3"] and BuildingEdges._supports(edges,aperture,true)==old,"projected aperture keeps three ordered unit edges on "+axis)
+  check(JSON.stringify([edges,aperture])==before,"indexed projection never changes input or insertion order")
+  var edge_2=Walls.key(axis,2,4) if axis=="x" else Walls.key(axis,4,2)
+  var edge_3=Walls.key(axis,3,4) if axis=="x" else Walls.key(axis,4,3)
+  edges.erase(edge_2);edges[edge_3].height="half"
+  old=BuildingEdges._supports(edges,aperture)
+  check(not old.ok and old.error=="Opening support is not full height" and BuildingEdges._supports(edges,aperture,true)==old,"half-height touched edge still reports before discovered gap")
+  edges[edge_3].height="full"
+  old=BuildingEdges._supports(edges,aperture)
+  check(not old.ok and old.error=="Opening crosses a missing wall edge" and BuildingEdges._supports(edges,aperture,true)==old,"projected missing unit edge keeps historical error")
+  var touch_aperture={"host":aperture.host,"a":edges[edge_3].a,"b":edges[edge_3].b}
+  old=BuildingEdges._supports(edges,touch_aperture)
+  check(old.ok and old.ids==["wall:3"] and BuildingEdges._supports(edges,touch_aperture,true)==old,"touching adjacent cell does not enlist a support")
+ var products=Geometry.initial_shell_products("cream_stripe")
+ var walls=[
+  {"id":41,"axis":"x","x":2,"z":2,"height":"full","material":"leaf_print"},
+  {"id":42,"axis":"x","x":3,"z":2,"height":"full","material":"leaf_print"},
+ ]
+ var segments=Segments.migrate(products,walls).segments
+ var span={"id":1,"kind":"door","host_id":"span:042,41","offset":1.0,"width":1.5,"paid_cost":40}
+ var result=BuildingEdges.project_validated_legacy(products,segments,walls,[span])
+ check(result.ok and result.openings[0].wall_ids==["wall:41","wall:42"] and result.migration_report.opening_aliases[1].host_id==span.host_id,"numeric span alias retained, support stays geometric order")
+ var duplicate=[span,span.duplicate(true)]
+ check(BuildingEdges.project_validated_legacy(products,segments,walls,duplicate).error=="Duplicate opening identity","projected duplicate opening order remains authoritative")
+ var unknown=span.duplicate(true);unknown.host_id="span:041,41"
+ check(BuildingEdges.project_validated_legacy(products,segments,walls,[unknown]).error=="Opening has no legacy host","ambiguous numeric alias still rejected by original host contract")

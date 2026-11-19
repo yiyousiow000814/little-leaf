@@ -14,22 +14,25 @@ static func project_validated_legacy(products:Dictionary,segments:Dictionary,wal
 	var result={"ok":true,"edges":{},"openings":[],
 		"migration_report":{"removed_ids":[],"discarded_covered_free_ids":[],"opening_aliases":{},"moved_origins":{}}}
 	var identities={}
+	var lookup:=Segments._legacy_wall_lookup(walls)
+	# Only the old optional west-extension edge affects shell root extent.
+	var root_walls:Array=walls if lookup.is_empty() else lookup.extension
 	for root_id in Openings.SHELL_HOSTS:
-		var root=Openings.resolve_host(root_id,walls,products)
+		var root=Openings.resolve_host(root_id,root_walls,products)
 		for index in Segments.full_count(root_id):
 			var id=Segments.key(root_id,index)
 			var receipt:Dictionary=segments[id]
 			if receipt.get("removed",false):
 				result.migration_report.removed_ids.append(id)
 				continue
-			if index>=Segments.active_count(root_id,walls):
+			if index>=Segments.active_count(root_id,root_walls):
 				# User decision: discard only the hidden covered free default.
 				# No inventory, refund or respawn; the original backup is kept.
 				if int(receipt.paid_cost)!=0 or int(receipt.refund_credit)!=0:
 					return {"ok":false,"error":"Covered wall has paid value"}
 				result.migration_report.discarded_covered_free_ids.append(id)
 				continue
-			var host=Segments.segment_host(state,walls,root_id,index)
+			var host=Segments.segment_host(state,root_walls,root_id,index)
 			var edge=_edge(id,host,int(receipt.paid_cost),int(receipt.refund_credit),root.a)
 			error=_insert(result.edges,identities,edge)
 			if error!="":return {"ok":false,"error":error}
@@ -46,9 +49,12 @@ static func project_validated_legacy(products:Dictionary,segments:Dictionary,wal
 		var id=int(attachment.id)
 		if opening_ids.has(id):return {"ok":false,"error":"Duplicate opening identity"}
 		opening_ids[id]=true
-		var aperture=Openings.aperture(attachment,walls,products)
+		var host_walls:Array=walls
+		if not lookup.is_empty() and not attachment.has("wall_ids") and attachment.get("host_id") is String:
+			host_walls=Segments._legacy_host_rows(attachment.host_id,lookup.by_id,lookup.by_ref,lookup.extension)
+		var aperture=Openings.aperture(attachment,host_walls,products)
 		if aperture.is_empty():return {"ok":false,"error":"Opening has no legacy host"}
-		var supports=_supports(result.edges,aperture)
+		var supports=_supports(result.edges,aperture,not lookup.is_empty())
 		if not supports.ok:return supports
 		result.openings.append({"id":id,"kind":str(attachment.kind),"paid_cost":int(attachment.paid_cost),
 			"a":aperture.a,"b":aperture.b,"width":float(aperture.width),"bottom":float(aperture.bottom),
@@ -70,12 +76,27 @@ static func _insert(edges:Dictionary,identities:Dictionary,edge:Dictionary)->Str
 	identities[edge.id]=true
 	return ""
 
-static func _supports(edges:Dictionary,aperture:Dictionary)->Dictionary:
+static func _coordinate_supports(edges:Dictionary,host:Dictionary,low:float,high:float)->Array:
+	var axis:String=host.axis
+	var cross:float=host.a.y if axis=="x" else host.a.x
+	# Legacy unit grid inputs have finite integer perpendicular coordinates.
+	# Keep the old geometry path for an unproven caller or unusual aperture.
+	if axis not in ["x","z"] or not is_finite(cross) or cross!=floorf(cross) or absf(cross)>64.0:
+		return edges.values()
+	if not is_finite(low) or not is_finite(high) or absf(low)>64.0 or absf(high)>64.0 or high<low or high-low>2.0:
+		return edges.values()
+	var rows:Array=[]
+	for along in range(floori(low),ceili(high)):
+		var edge_key:=Walls.key(axis,along,int(cross)) if axis=="x" else Walls.key(axis,int(cross),along)
+		if edges.has(edge_key):rows.append(edges[edge_key])
+	return rows
+
+static func _supports(edges:Dictionary,aperture:Dictionary,indexed:bool=false)->Dictionary:
 	var host:Dictionary=aperture.host
 	var low=Openings.axis_value(aperture.a,host.axis)
 	var high=Openings.axis_value(aperture.b,host.axis)
 	var supporting=[]
-	for edge in edges.values():
+	for edge in (_coordinate_supports(edges,host,low,high) if indexed else edges.values()):
 		if edge.axis!=host.axis:continue
 		if not (is_equal_approx(edge.a.y,host.a.y) if host.axis=="x" else is_equal_approx(edge.a.x,host.a.x)):continue
 		var start=Openings.axis_value(edge.a,host.axis)
