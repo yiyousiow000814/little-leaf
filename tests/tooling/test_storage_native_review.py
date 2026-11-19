@@ -172,7 +172,8 @@ class StorageNativeReviewTests(unittest.TestCase):
         # three atlases with exact original pixels and adopted two source hashes.
         # PR352 independently repeats original-three qualification for standby retention.
         # PR371 independently requalifies the original atlases and changes only
-        # scoped producer metadata. None of these is evidence from the old
+        # scoped producer metadata. Independently qualified PR373 advances one
+        # atlas producer and the current Main postimage. None of these is evidence from the old
         # Storage capture. Other pins stay.
         for name, captured_sha in review.REVIEWED_POSTIMAGES.items():
             expected = captured_sha
@@ -181,17 +182,17 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
             if name == "game/scripts/main.gd":
                 self.assertEqual(captured_sha, "4c1fb1afcb0d1c72797bd42b07937bb5828f4c389f0e1607a57c1aa9a50192be")
-                expected = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
+                expected = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "0681e6e3e78ee5637b787960ad02305617db4dc1f6acb214479c01bf4c905b67"
+                expected = "9fb67ddd0509386234815272cbfc1e197be3cb722181cb1cd3d28f33fe2f8369"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
-        expected["game/scripts/main.gd"] = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
-        expected["game/data/prebaked_atlas_manifest.json"] = "0681e6e3e78ee5637b787960ad02305617db4dc1f6acb214479c01bf4c905b67"
+        expected["game/scripts/main.gd"] = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
+        expected["game/data/prebaked_atlas_manifest.json"] = "9fb67ddd0509386234815272cbfc1e197be3cb722181cb1cd3d28f33fe2f8369"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -224,7 +225,31 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
         self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
         self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
-        self.assertEqual(self.check_scaling_manifest(manifest)["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+        previous = self.check_service_lookup_manifest(manifest)
+        self.assertEqual(self.check_scaling_manifest(previous)["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+
+    def check_service_lookup_manifest(self, manifest):
+        prior, separator, current = manifest["provenance"].partition("; PR373 service lookup qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "e096f74b00b7fb06b848c5f5bcfa3b695ac7e944bd39e02ed133ae9973fa5ef7")
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44470208736", current)
+        self.assertIn("29251c48c3a8e940bef4a8f600365833ac735dd4 / tree 60ea36b5aafe117a7ec0eaf336684a3f56b60dbb", current)
+        self.assertIn("76715f7cbb0edcdbc5d6eec97368a1fc8bc0a200d8306c546607a59e71a1cc82", current)
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44471097329", current)
+        closure = "722eabf4511fec4021832c036bdefd4c919ed3c71c2f6627ccd04a1ac1aff7bd"
+        self.assertIn(closure, current)
+        sources = dict(manifest["source_sha256"])
+        self.assertEqual(len(sources), 84)
+        self.assertEqual(review.digest(json.dumps(sources, sort_keys=True, separators=(",", ":")).encode()), closure)
+        # Only the qualified producer may advance. Reconstruct and verify the
+        # complete pinned predecessor before checking PR371 and PR352 as before.
+        key = "scripts/rendering/illustrated_cafe.gd"
+        self.assertEqual(sources[key], "9f1a5bf162959679f19196e0e797870f4da6da86049c5f0f1dbb958e36edfb90")
+        sources[key] = "6c53121163021b0dcef679bee61ae6e608da1af551a588d2632dac5f796325cb"
+        previous = {**manifest, "provenance": prior, "source_sha256": sources}
+        self.assertEqual(review.digest((json.dumps(previous, indent=2, ensure_ascii=False) + "\n").encode()),
+                         "0681e6e3e78ee5637b787960ad02305617db4dc1f6acb214479c01bf4c905b67")
+        return previous
 
     def check_scaling_manifest(self, manifest):
         prior, separator, current = manifest["provenance"].partition("; PR371 scaling-path qualification ")

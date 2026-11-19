@@ -3,6 +3,20 @@ const Model=preload("res://scripts/core/cafe_model.gd")
 const MinimalStart=preload("res://scripts/minimal_start.gd")
 const Sets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const Checkout=preload("res://scripts/gameplay/cafe_checkout.gd")
+class CheckoutScanModel extends "res://scripts/core/cafe_model.gd":
+ var ready_calls:=0
+ var claim_checks:=0
+ var attempts:Array=[]
+ func checkout_ready(guest:Dictionary,register_id:int)->bool:
+  ready_calls+=1
+  return super.checkout_ready(guest,register_id)
+ func layout_held(scope:String,id:int)->bool:
+  claim_checks+=1
+  return super.layout_held(scope,id)
+ func can_place(_kind:String,x:int,z:int,_ignore_id:int=-1,rot:int=0,_actor_positions:Array=[])->bool:
+  attempts.append([x,z,rot]);return false
+class CheckoutScanMain extends "res://scripts/main.gd":
+ func _service_cell(_item:Dictionary,_from=Vector2i(7,1),_claimed=[],_role="")->Vector2i:return Vector2i(6,4)
 var checks=0
 var failures=[]
 func check(ok:bool,label:String):
@@ -75,6 +89,43 @@ func check_scalar_save_preservation():
   check(not receiver.load_save(write("scalar-invalid-"+str(spec[0]),malformed)) and state(receiver)==before,"reader rejects scalar atomically: "+str(spec[0]))
   check(receiver.last_error==writer_error,"reader and writer share the existing diagnostic: "+str(spec[0]))
 
+func checkout_scan_bounds():
+ var game=CheckoutScanMain.new();var m=CheckoutScanModel.new();game.model=m
+ m.items.clear();m.built_walls.clear();m.wall_attachments.clear();m.customers.clear()
+ m.items.append({"id":51,"kind":"register","x":6,"z":4,"rot":0})
+ var front=m.workface_cell(m.items[0])
+ var staff={"role":"cashier","job_kind":"","pos":Vector2(6.5,4.5),"on_duty":true}
+ game.staff_states=[staff]
+ for i in 32:
+  var guest={"id":i+1,"phase":"checkout_wait","paid":false,"settlement_mode":"register","checkout_ticket":32-i,"checkout_register_id":51,"checkout_token":-1,"checkout_cell":front,"x":front.x+.5,"z":front.y+.5,"seated":false}
+  m.customers.append(guest);game.service_guests[i+1]={"token":i+1,"guest":guest}
+ m.service_snapshot={"layout_hold":{"guests":[{"id":32}]}}
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="" and m.ready_calls==0,"held FIFO head prevents evaluating or paying later diners")
+ m.service_snapshot={}
+ m.customers[-1].seated=true
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="" and m.ready_calls==1,"unready FIFO head does not cause repeated candidate validation")
+ m.customers[-1].seated=false
+ m.ready_calls=0
+ game._assign_service_job(staff,0)
+ check(staff.job_kind=="take_payment" and staff.job_guest_id==32 and m.ready_calls==1,"cashier validates the sole FIFO head even when array order differs")
+ check(m.customers[-1].checkout_token==32 and m.customers[0].checkout_token==-1,"cashier claims only the exact head token")
+ for node in [game.people,game.ui]:node.free()
+ game.free()
+ for guest in m.customers:guest.checkout_cell=Checkout.NONE;guest.checkout_token=-1
+ m.claim_checks=0
+ check(not Checkout.busy(m,51) and m.claim_checks==m.customers.size(),"register use check inspects guests once when there are no claims")
+ m.customers[-1].checkout_cell=front
+ check(Checkout.busy(m,51),"existing claim still prevents register removal")
+ m.items.clear();m.width=18;m.depth=18;m.included_checkout_pending=true
+ check(not Checkout.ensure(m),"blocked entitlement remains pending")
+ var starts=[]
+ for i in range(0,m.attempts.size(),4):starts.append(Vector2i(m.attempts[i][0],m.attempts[i][1]))
+ check(starts.slice(0,3)==[Vector2i(6,4),Vector2i(8,4),Vector2i(5,1)] and starts[3]==Vector2i(2,1) and starts[-1]==Vector2i(16,16),"priority attempts and row-major fallback preserve placement ordering")
+ var distinct={}
+ for cell in starts:distinct[cell]=true
+ check(starts.size()==240 and distinct.size()==240 and m.attempts.size()==960,"full plot checks each candidate exactly once at every rotation")
 func verify_dining_index_order():
  var layout=[
   {"id":50,"kind":"table","x":3,"z":3},
@@ -92,6 +143,7 @@ func verify_dining_index_order():
  check(Sets.validate(restored,layout,[{"table_id":100,"chair_id":98}]).error=="Diner association disagrees with its table set","indexed membership preserves diner mismatch validation")
 func _initialize():run.call_deferred()
 func run():
+ checkout_scan_bounds()
  verify_dining_index_order()
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
  check_scalar_save_preservation()

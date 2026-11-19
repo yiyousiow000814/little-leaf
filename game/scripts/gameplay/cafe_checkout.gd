@@ -32,9 +32,17 @@ static func claimed_cells(m,except_id:int=-1)->Dictionary:
    result[cell]=int(guest.id)
  return result
 static func busy(m,id:int)->bool:
+ var claimed_by={}
+ var claims_checked=false
  for guest in m.customers:
   if int(guest.get("checkout_register_id",-1))!=id:continue
-  if guest.phase=="paying" or (int(guest.get("checkout_token",-1))>0 and not guest.paid) or claimed_cells(m).values().has(int(guest.id)):return true
+  if guest.phase=="paying" or (int(guest.get("checkout_token",-1))>0 and not guest.paid):return true
+  if not claims_checked:
+   # Retain the final cell owner's identity when claims overlap. Only need
+   # the snapshot if this is a register in use by a possible owner.
+   for owner in claimed_cells(m).values():claimed_by[int(owner)]=true
+   claims_checked=true
+  if claimed_by.has(int(guest.id)):return true
  return false
 static func is_door_landing(m,cell:Vector2i)->bool:
  if cell in [m.ENTRANCE,m.ENTRY_LANDING]:return true
@@ -124,11 +132,14 @@ static func _automatic_placement_error(m,item:Dictionary,layout:Array,actors:Arr
 static func ensure(m,actors:Array=[])->bool:
  if not m.included_checkout_pending:return not register(m).is_empty() and m.cashiers==1
  if not register(m).is_empty():return m._fail("Included register entitlement is inconsistent")
- var candidates:Array[Vector2i]=[Vector2i(6,4),Vector2i(8,4),Vector2i(5,1)]
+ # The grid visits each row/column cell once by construction; only the three
+ # priority entries can duplicate it. Preserve their placement order.
+ var priority:Array[Vector2i]=[Vector2i(6,4),Vector2i(8,4),Vector2i(5,1)]
+ var candidates=priority.duplicate()
  for z in range(1,m.depth-1):
   for x in range(2,m.width-1):
    var cell=Vector2i(x,z)
-   if not candidates.has(cell):candidates.append(cell)
+   if not priority.has(cell):candidates.append(cell)
  for cell in candidates:
   for rotation in range(4):
    if not m.can_place("register",cell.x,cell.y,-1,rotation):continue
