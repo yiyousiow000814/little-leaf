@@ -1,4 +1,5 @@
 """Contracts for the independent, checked production Play PR lane."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -52,6 +53,83 @@ class PlayProvisionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "checksum"):
                 play_provision.fetch_package("tesseract-ocr", self.lock["tesseract-ocr"], Path(d))
             self.assertEqual(run.call_count, 1)
+
+    def test_transient_errors_retry_same_url_and_only_timeout_can_resume(self):
+        name = "tesseract-ocr"
+        package = b"pinned complete package bytes"
+        spec = dict(self.lock[name], sha256=hashlib.sha256(package).hexdigest())
+        for code in (28, 52):
+            with self.subTest(code=code), TemporaryDirectory() as d:
+                calls = []
+
+                def simulate(*args, **kwargs):
+                    if args[0] == "dpkg-deb":
+                        return subprocess.CompletedProcess(
+                            args, 0, {"Package": name, "Version": spec["version"], "Architecture": "amd64"}[args[-1]])
+                    calls.append(args)
+                    self.assertEqual(args[-1], play_provision.ORIGIN + spec["file"])
+                    self.assertNotIn("--location", args)
+                    dest = Path(args[-2])
+                    if len(calls) == 1:
+                        self.assertNotIn("--continue-at", args)
+                        dest.write_bytes(package[:8])
+                        raise subprocess.CalledProcessError(code, args)
+                    if code == 28:
+                        self.assertEqual(args[args.index("--continue-at") + 1], "-")
+                        self.assertEqual(dest.read_bytes(), package[:8])
+                        with dest.open("ab") as stream:
+                            stream.write(package[8:])
+                    else:
+                        self.assertNotIn("--continue-at", args)
+                        self.assertFalse(dest.exists())
+                        dest.write_bytes(package)
+                    self.assertLessEqual(kwargs["timeout"], 56)
+
+                with patch.object(play_provision, "run", side_effect=simulate):
+                    self.assertEqual(play_provision.fetch_package(name, spec, Path(d)).read_bytes(), package)
+                self.assertEqual(len(calls), 2)
+
+    def test_empty_timeout_restarts_under_remaining_budget_and_no_third_attempt(self):
+        def curl(*args, **kwargs):
+            self.assertNotIn("--continue-at", args)
+            raise subprocess.CalledProcessError(28, args)
+
+        with TemporaryDirectory() as d, patch.object(play_provision, "run", side_effect=curl) as run, patch.object(
+            play_provision.time, "monotonic", side_effect=[100, 144]
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                play_provision.fetch_package("tesseract-ocr", self.lock["tesseract-ocr"], Path(d), deadline=150)
+        self.assertEqual(len(run.call_args_list), 2)
+        budgets = [float(args[args.index("--max-time") + 1]) for args, _ in run.call_args_list]
+        self.assertEqual(budgets, [45.0, 6.0])
+
+    def test_nontransient_error_and_expired_budget_fail_before_retry(self):
+        for code in (22, 33, 60):  # HTTP status, invalid range, TLS verification.
+            with TemporaryDirectory() as d, patch.object(
+                play_provision, "run", side_effect=subprocess.CalledProcessError(code, "curl")
+            ) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    play_provision.fetch_package("tesseract-ocr", self.lock["tesseract-ocr"], Path(d))
+                self.assertEqual(run.call_count, 1)
+        with TemporaryDirectory() as d, patch.object(play_provision, "run") as run:
+            with self.assertRaisesRegex(TimeoutError, "budget exhausted"):
+                play_provision.fetch_package("tesseract-ocr", self.lock["tesseract-ocr"], Path(d), deadline=0)
+            run.assert_not_called()
+
+    def test_retry_result_still_requires_full_pinned_hash(self):
+        attempts = []
+
+        def curl(*args, **_):
+            self.assertEqual(args[0], "curl")  # Failure must occur before dpkg-deb.
+            attempts.append(args)
+            Path(args[-2]).write_bytes(b"bad package")
+            if len(attempts) == 1:
+                raise subprocess.CalledProcessError(28, args)
+
+        with TemporaryDirectory() as d, patch.object(play_provision, "run", side_effect=curl):
+            with self.assertRaisesRegex(ValueError, "checksum"):
+                play_provision.fetch_package("tesseract-ocr", self.lock["tesseract-ocr"], Path(d))
+        self.assertEqual(len(attempts), 2)
 
     def test_package_url_and_transaction_fail_closed(self):
         spec = dict(self.lock["tesseract-ocr"], file="//elsewhere.invalid/p.deb")
