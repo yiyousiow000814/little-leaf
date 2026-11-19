@@ -5,6 +5,11 @@ const Art=preload("res://scripts/rendering/illustrated_cafe.gd")
 const Model=preload("res://scripts/core/cafe_model.gd")
 const Relocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
+class OrderedWallsModel extends "res://scripts/core/cafe_model.gd":
+	func collision_wall_hosts()->Array[Dictionary]:
+		var hosts=super.collision_wall_hosts()
+		for host in hosts:host.id=host.host_id
+		return hosts
 class Fixture extends Node:
 	var model=Model.new()
 	var staff_states=[]
@@ -20,7 +25,38 @@ func check(ok,label):
 	checks+=1
 	if not ok:failures.append(label);printerr("FAIL ",label)
 func _initialize():run.call_deferred()
+func check_wall_sweep_reuse():
+	var model=OrderedWallsModel.new()
+	model.items.clear();model.built_walls.clear();model.wall_attachments.clear()
+	for z in range(8):
+		for x in range(1,9):
+			for axis in ["x","z"]:
+				var id:="wall:%d"%model.built_walls.size()
+				model.built_walls.append(Walls.installed(id,Walls.make(axis,x,z),0,0))
+				if (x+z)%4==0:model.wall_attachments.append({"id":model.built_walls.size(),"kind":"door","wall_ids":[id],"offset":.5,"width":.75})
+	var query={}
+	var rng=RandomNumberGenerator.new();rng.seed=378
+	var equal=true
+	var hits:=0
+	for sample in range(160):
+		var start=Vector2(rng.randf_range(1.1,7.9),rng.randf_range(.1,7.9))
+		var finish=start+Vector2(rng.randf_range(-.4,.4),rng.randf_range(-.4,.4))
+		var old=Approach.blocked_by(model,start,finish)
+		var indexed=Approach.blocked_by(model,start,finish,null,query)
+		equal=equal and old==indexed
+		hits+=1 if old.begins_with("wall") else 0
+	check(equal and hits>20,"Ordered local collision candidates retain the first exact wall reason")
+	var snapshot=query.walls
+	var start:=Vector2(1.1,.1);var finish:=Vector2(7.9,7.9)
+	check(snapshot.swept_indices(start,finish,Walls.BODY_RADIUS).size()==snapshot.segments.size() and Approach.blocked_by(model,start,finish)==Approach.blocked_by(model,start,finish,null,query),"Oversized sweeps use full ordered fallback")
+	check(query.walls==snapshot,"The same call-local scope reuses one wall snapshot")
+	model.items.append({"id":42,"kind":"chair","x":2,"z":2})
+	var guarded={}
+	check(Approach.blocked_by(model,Vector2(2.1,2.1),Vector2(3.9,3.9),null,guarded)=="furniture 42" and guarded.is_empty(),"Furniture wins and avoids building walls")
+	check(Approach.blocked_by(model,Vector2(-1,.1),Vector2(-1,1.1),null,guarded)=="unowned floor" and guarded.is_empty(),"Unowned floor wins and avoids building walls")
+
 func run():
+	check_wall_sweep_reuse()
 	var center=Vector2(5.5,5.5)
 	var open_model=Model.new();open_model.items.clear();open_model.customers.clear()
 	# Sample all bearings and near/far contacts; the body clearance includes

@@ -1,0 +1,11 @@
+flowchart TD
+    BASE["#378 · d4fb134 · cumulative scope"] --> OLD["Prior batches 1–5<br/>Render · guest service · geometry · editor · sink<br/>Prior #378 only: 34 sink pairs and 9 atlas PNGs matched"]
+    BASE --> FLOOR["Cold floor stance · both sweeps share ephemeral collision index"]
+    BASE --> EXIT["Legacy seated departure · up to three ordered reverse-distance sweeps"]
+    FLOOR --> FPROOF["21 walls / 1 door<br/>42 → 1 resolutions · 40 → 0 narrow checks<br/>20,561 assertions / 6 suites isolated"]
+    EXIT --> EPROOF["Preserve directed edges and original entry/path order<br/>8 / 16 / 24-grid probes: 879 → 204 / 8,211 → 804 / 28,923 → 1,788<br/>748 assertions / 5 suites isolated"]
+    FPROOF --> Q["Exact local combined: 30,124 assertions / 14 suites passed"]
+    EPROOF --> Q
+    Q --> RUN["Open: hosted-door pixels, canonical atlas, ordinary Web/save, larger scene, matched cloud FPS"]
+    BASE -.-> REM["Separate: bounded admission E × V and cleaner ownership"]
+    RUN -.-> FROZEN["Use one frozen native baseline; no historical rerun"]

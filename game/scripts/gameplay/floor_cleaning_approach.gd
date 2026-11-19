@@ -2,6 +2,7 @@ extends RefCounted
 ## Presentation-only foot placement for an already-routed floor work cell.
 const Relocation=preload("res://scripts/gameplay/cafe_staff_relocation.gd")
 const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallCollision=preload("res://scripts/gameplay/cafe_wall_collision.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const MAX_OFFSET=.50
 const CELL_MARGIN=.05
@@ -36,11 +37,13 @@ static func solve(position:Vector2,contact:Vector2,model,current:Vector2=Vector2
 		var edge=high[axis] if direction[axis]>0.0 else low[axis]
 		amount=minf(amount,maxf(0.0,(edge-position[axis])/direction[axis]))
 	var candidate=direction*amount
-	var obstruction=blocked_by(model,position,position+candidate)
-	if obstruction=="":obstruction=blocked_by(model,position+current,position+candidate)
+	var wall_query:Variant=null if model.wall_attachments.is_empty() else {}
+	var obstruction=blocked_by(model,position,position+candidate,null,wall_query)
+	var previous:=position+current
+	if obstruction=="" and previous!=position:obstruction=blocked_by(model,previous,position+candidate,null,wall_query)
 	return {"offset":candidate if obstruction=="" else Vector2.ZERO,"obstruction":obstruction}
 
-static func blocked_by(model,start:Vector2,finish:Vector2,items=null)->String:
+static func blocked_by(model,start:Vector2,finish:Vector2,items=null,wall_query=null)->String:
 	# Reuse the placement body's radius and the same solid wall rectangles as
 	# routing. Test the swept body, including corners, not only its endpoint.
 	var furnishings=model.items if items==null else items
@@ -48,10 +51,23 @@ static func blocked_by(model,start:Vector2,finish:Vector2,items=null)->String:
 		if str(item.kind)=="rug":continue
 		if _segment_near_rect(start,finish,Rect2(Vector2(item.x,item.z),Vector2.ONE),model.STAFF_PLACEMENT_RADIUS):return "furniture "+str(item.id)
 	if not Relocation.point_clear(model,start,furnishings) or not Relocation.point_clear(model,finish,furnishings):return "unowned floor"
+	# Share one snapshot for a cold solve's two body sweeps. Never consult
+	# the retained revision cache here: this query also reads edit proposals.
+	if wall_query!=null:
+		if not wall_query.has("walls"):
+			wall_query.walls=WallCollision.new(model.collision_wall_hosts(),model.built_walls,model.wall_attachments)
+		var walls:WallCollision=wall_query.walls
+		for index in walls.swept_indices(start,finish,Walls.BODY_RADIUS):
+			var segment:=walls.segments[index]
+			if _wall_blocks(segment,start,finish):return "wall "+str(segment.host.get("id","edge"))
+		return ""
 	for host in model.collision_wall_hosts():
 		for segment in Openings.solid_segments(host,model.built_walls,model.wall_attachments):
-			if Openings.body_touches(segment,start) or Openings.body_touches(segment,finish) or _segment_near_rect(start,finish,Openings.segment_rect(segment),Walls.BODY_RADIUS):return "wall "+str(host.get("id","edge"))
+			if _wall_blocks(segment,start,finish):return "wall "+str(host.get("id","edge"))
 	return ""
+
+static func _wall_blocks(segment:Dictionary,start:Vector2,finish:Vector2)->bool:
+	return Openings.body_touches(segment,start) or Openings.body_touches(segment,finish) or _segment_near_rect(start,finish,Openings.segment_rect(segment),Walls.BODY_RADIUS)
 
 static func _segment_near_rect(start:Vector2,finish:Vector2,rect:Rect2,radius:float)->bool:
 	if rect.has_point(start) or rect.has_point(finish):return true
