@@ -1,0 +1,107 @@
+name: Disposable Web active-service cadence diagnostic
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/active-service-cadence-diagnostic.yml'
+      - 'tools/diagnostics/active-service/**'
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: active-service-diagnostic-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  diagnostic:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/active-service-cadence-364'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    env:
+      BASE_COMMIT: 8c415d94fdb86e68dd0ce90d3482f9e668e8805d
+      BASE_TREE: e2f47c90931397e6d633bb3b7b6824fd4b4005cb
+      GAMEPLAY_HEAD: 2e3c7f6be9a633fff8e05450033ccdb3a2959c5f
+      CANDIDATE_COMMIT: cde0f1c857f46ba16973dbc3fda88f2a5f15fe6a
+      CANDIDATE_TREE: 3f76c412ecd12e4782b53ce037be378b019d7270
+      BASE_RUN: '44460244371'
+      CANDIDATE_RUN: '44460495543'
+      PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+      PLAYWRIGHT_MODULE: ${{ runner.temp }}/cadence-driver/node_modules/playwright
+    steps:
+      - name: Check out diagnostic files from trusted same-repository PR
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/active-service
+      - name: Check out exact baseline source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.BASE_COMMIT }}
+          path: source-base
+          persist-credentials: false
+      - name: Check out exact candidate CI merge source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CANDIDATE_COMMIT }}
+          path: source-candidate
+          persist-credentials: false
+      - name: Check source and runner bindings
+        run: |
+          set -euo pipefail
+          test "$(git -C source-base rev-parse HEAD)" = "$BASE_COMMIT"
+          test "$(git -C source-base rev-parse 'HEAD^{tree}')" = "$BASE_TREE"
+          test "$(git -C source-candidate rev-parse HEAD)" = "$CANDIDATE_COMMIT"
+          test "$(git -C source-candidate rev-parse 'HEAD^{tree}')" = "$CANDIDATE_TREE"
+          test "$(git -C source-candidate cat-file -p HEAD | sed -n 's/^parent //p')" = "$(printf '%s\n%s' "$BASE_COMMIT" "$GAMEPLAY_HEAD")"
+          cmp source-base/tools/ci/toolchain.json source-candidate/tools/ci/toolchain.json
+          mkdir -p "$RUNNER_TEMP/cadence-results"
+          node tools/diagnostics/active-service/active-service.cjs --self-test | tee "$RUNNER_TEMP/cadence-results/harness-self-test.txt"
+      - name: Verify selected CI run identities and wait for exact archives
+        timeout-minutes: 5
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: tools/diagnostics/active-service
+        run: python3 check_artifacts.py
+      - name: Reuse verified CI inputs for exact baseline only
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.BASE_RUN }}
+          name: little-leaf-ci-inputs-${{ env.BASE_COMMIT }}-1
+          path: ${{ runner.temp }}/cadence-artifact-base
+          digest-mismatch: error
+      - name: Reuse verified CI inputs for exact candidate CI merge only
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ env.CANDIDATE_RUN }}
+          name: little-leaf-ci-inputs-${{ env.CANDIDATE_COMMIT }}-1
+          path: ${{ runner.temp }}/cadence-artifact-candidate
+          digest-mismatch: error
+      - name: Install official pinned browser and missing signed packages
+        working-directory: source-candidate
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/cadence-driver" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/cadence-results/package-transaction.json"
+          python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/cadence-chrome"
+      - name: Activate exact Chrome and check headed sandbox and OCR
+        working-directory: source-candidate
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          sudo dpkg -i "$CHROME_DEB"
+          python3 -c 'from tools.ci.install_tools import verify_chrome_version; verify_chrome_version()'
+          bash tools/ci/verify_locked_chromium.sh "$RUNNER_TEMP/cadence-results"
+      - name: Measure same-runner A-B-B-A active-service cadence
+        timeout-minutes: 18
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" bash tools/diagnostics/active-service/run-probe.sh
+      - name: Retain diagnostic receipts only
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-active-service-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cadence-results/
+          if-no-files-found: warn
+          retention-days: 3
