@@ -1,0 +1,11 @@
+flowchart LR
+    START["#377 · run 44474276265<br/>No meaningful initial queue"] --> BUILD["Guard and build passed · +4:26"]
+    BUILD --> LANES["Browser lanes start · +4:28"]
+    LANES --> PLAY["Play passed · 239.338s test<br/>228.948s actual validation"]
+    LANES --> COMP["Compatibility<br/>A passed; B revision 5, expected 4"]
+    LANES --> WEB["WebKit signed refresh + solver passed<br/>APT download timed out; WebKit not exercised"]
+    PLAY --> G["Gate · 23s<br/>Failed closed · 10:21 total"]
+    COMP --> G
+    WEB --> G
+    WEB -.-> FIX["Local only: one bounded retry<br/>Signed cache · same 100s budget · 526 preflight checks"]
+    LANES -.-> FUTURE["Investigate independent prefetch<br/>Keep receipts and hashes; no measured savings"]

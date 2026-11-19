@@ -92,7 +92,7 @@ func _draw() -> void:
 		draw_polyline(draw_arguments[0], draw_arguments[1], draw_arguments[2], true)
 	elif draw_method == &"scalable_line":
 		draw_line(draw_arguments[0], draw_arguments[1], draw_arguments[2], draw_arguments[3], true)
-	elif draw_method == &"ordered_triangles":
+	elif draw_method in [&"ordered_triangles", &"wall_solid_quads"]:
 		RenderingServer.canvas_item_add_triangle_array(
 			get_canvas_item(), draw_arguments[0], draw_arguments[1], draw_arguments[2]
 		)

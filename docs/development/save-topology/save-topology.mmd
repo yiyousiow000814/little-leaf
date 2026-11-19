@@ -1,0 +1,25 @@
+%% Baseline: main a6147afedb1621f8c6181e29b4e3d9b7618491b5
+%% Scope: save and structural reachability, not render or gameplay movement
+flowchart TB
+    Save["Save requested"] --> InEdit{"Decorate active?"}
+    InEdit -->|Yes| LastApplied["Copy last applied model"]
+    InEdit -->|No| Live["Use live model"]
+    Apply["Apply preflight"] --> Draft["Use draft model"]
+    LastApplied --> Check["Validate one model"]
+    Live --> Check
+    Draft --> Check
+    Check --> Reach["Build reachability on demand"]
+    Reach --> Edges["Gameplay index: wall IDs and blocked edges"]
+    Edges --> Doors["Resolve each door using unchanged opening geometry"]
+    Doors --> Flood["Flood-fill structural reachability"]
+    Flood --> Checkout["Checkout reservations"]
+    Flood --> Chair["Reserved chair exits"]
+    Flood --> Egress["Walkable exit checks"]
+    Check --> Normalize{"Validated openings match input?"}
+    Normalize -->|Yes| Reach
+    Normalize -->|No| Separate["Build a separate map for checked openings"]
+    Checkout --> Gate["Keep all validation gates"]
+    Chair --> Gate
+    Egress --> Gate
+    Separate --> Gate
+    Gate --> Write["Stage existing save format"]

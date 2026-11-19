@@ -174,6 +174,8 @@ func run():
  if not base is Dictionary or base.has("building_format"):
   finish();return
  base.coins=10000
+ indexed_legacy_import_checks(base)
+ indexed_projection_support_checks()
  projection_edge_cases(base)
  var initial=Model.new();initial.coins=10000
  check(initial.save("user://initial.json"),"new unified model saves: "+initial.last_error)
@@ -354,3 +356,109 @@ func no_dormant_receipts(base:Dictionary):
 func finish():
  var report={"checks":checks,"failures":failures,"player_save_used":false,"browser_verified":false,"native_pixels_verified":false}
  print("SHELL_SEGMENT_MODEL_RESULT ",JSON.stringify(report));quit(0 if failures.is_empty() else 1)
+
+func indexed_legacy_import_checks(base:Dictionary):
+ var cases=[
+  ["wall:41",.5,"wall:42",.5],
+  ["span:42,041",1.0,"wall:43",.5],
+  ["span:041,41",1.0,"wall:43",.5],
+  ["span:42,41",1.0,"wall:42",.01],
+  ["wall:41",.5,"wall:041",.5],
+  ["wall:41",.5,"wall:41",.99],
+  ["wall:41",.5,"wall:41",1.0e39],
+  ["shell:west",5.5,"wall:44",.5],
+  ["shell:west",8.0,"wall:45",.5],
+  ["shell:west",8.0,"shell:back",.5],
+  ["wall:43",.5,"wall:42",.5],
+ ]
+ var walls=[
+  {"id":41,"axis":"x","x":2,"z":2,"height":"full","material":"leaf_print"},
+  {"id":42,"axis":"x","x":3,"z":2,"height":"full","material":"leaf_print"},
+  {"id":43,"axis":"x","x":4,"z":2,"height":"half","material":"leaf_print"},
+  {"id":44,"axis":"z","x":0,"z":5,"height":"full","material":"leaf_print"},
+  {"id":45,"axis":"z","x":0,"z":8,"height":"full","material":"leaf_print"},
+ ]
+ var state=Segments.migrate(Geometry.initial_shell_products("sage_panels"),walls)
+ for row in cases:
+  var openings=[
+   {"id":1,"kind":"window","host_id":row[0],"width":.7,"offset":row[1],"paid_cost":30},
+   {"id":2,"kind":"window","host_id":row[2],"width":.7,"offset":row[3],"paid_cost":30},
+  ]
+  for reverse in [false,true]:
+   if reverse:openings.reverse()
+   var before=JSON.stringify([state,walls,openings])
+   check(Segments.support_error(state,walls,openings)==Segments._legacy_support_error(state,walls,openings),"legacy indexed geometry and first-error parity "+str(row)+" reversed="+str(reverse))
+   check(JSON.stringify([state,walls,openings])==before,"legacy support query never mutates reference or order")
+ var sample=[{"id":1,"kind":"window","host_id":"wall:41","width":.7,"offset":.5,"paid_cost":30}]
+ sample.append(sample[0].duplicate(true))
+ check(Segments.support_error(state,walls,sample)==Segments._legacy_support_error(state,walls,sample),"duplicate-ID direct legacy callers retain original comparison")
+ var overlap_fit=[{"id":1,"kind":"window","host_id":"wall:41","width":.7,"offset":.5},{"id":2,"kind":"window","host_id":"wall:41","width":.7,"offset":.99}]
+ check(Segments.support_error(state,walls,overlap_fit)=="A door or window already occupies this part of the wall","later resolvable but unfit aperture still invalidates earlier overlap")
+ overlap_fit.reverse()
+ check(Segments.support_error(state,walls,overlap_fit)=="The opening must fit completely within its wall host","input order still prioritizes fit before overlap")
+
+ var source=base.duplicate(true)
+ for id in range(1,13):
+  source.built_walls.append({"id":id,"axis":"x","x":id-1,"z":2,"height":"full","material":"leaf_print"})
+  source.wall_attachments.append({"id":id+1,"kind":"window","host_id":"wall:%s"%id,"offset":.5,"width":.7,"paid_cost":30})
+ source.next_wall_id=13;source.next_attachment_id=14
+ for version in [15,16,17]:
+  for format in [1,2]:
+   var raw=source.duplicate(true);raw.version=version;raw.wall_format=format
+   if format==1:raw.erase("shell_segment_format");raw.erase("shell_segment_products")
+   if version==16:
+    var hold_format="little_leaf.layout_hold.v1"
+    raw.layout_hold_format=hold_format;raw.runtime.layout_hold_format=hold_format
+    raw.runtime.service={"version":6,"checkout_format":"little_leaf.checkout.v1","serial":0,"animation_time":0,
+     "records":[],"staff":[],"dishwashing":{"format":"little_leaf.dishwashing.v1","next_id":1,"completed":0,"dishes":[]},"layout_hold":{"format":hold_format,"hosts":[],"guests":[],"staff":[],"dishes":[],"floor":[]}}
+   if version==17:
+    raw.storage_format="little_leaf.storage.v1";raw.storage={"items":[],"dining_sets":[]}
+   var label="indexed-legacy-%s-%s"%[version,format]
+   var path=write(label,raw);var original=FileAccess.get_sha256(path)
+   var imported=Model.new()
+   var loaded=imported.load_save(path)
+   check(loaded,label+" genuine pre-grid geometry with version-specific envelope loads: "+imported.last_error)
+   if loaded:
+    check(imported.wall_attachments.size()==13 and imported.built_walls.size()==33 and imported.coins==raw.coins,label+" exact opening/wall counts and economy")
+    check(imported.wall_attachments[-1].wall_ids==["wall:12"] and imported.wall_attachments[-1].id==13,label+" imported host and ordered identity retained")
+   check(FileAccess.get_sha256(path)==original,label+" source never overwritten")
+
+func indexed_projection_support_checks():
+ for axis in ["x","z"]:
+  var edges={}
+  for along in [3,1,2]:
+   var a=Vector2(along,4) if axis=="x" else Vector2(4,along)
+   var b=a+(Vector2.RIGHT if axis=="x" else Vector2.DOWN)
+   var row={"axis":axis,"a":a,"b":b,"id":"wall:%s"%along,"height":"full"}
+   edges[Walls.key(axis,int(a.x),int(a.y))]=row
+  var low=Vector2(1.9,4) if axis=="x" else Vector2(4,1.9)
+  var high=Vector2(3.4,4) if axis=="x" else Vector2(4,3.4)
+  var aperture={"host":{"axis":axis,"a":low},"a":low,"b":high}
+  var before=JSON.stringify([edges,aperture])
+  var old=BuildingEdges._supports(edges,aperture)
+  check(old.ok and old.ids==["wall:1","wall:2","wall:3"] and BuildingEdges._supports(edges,aperture,true)==old,"projected aperture keeps three ordered unit edges on "+axis)
+  check(JSON.stringify([edges,aperture])==before,"indexed projection never changes input or insertion order")
+  var edge_2=Walls.key(axis,2,4) if axis=="x" else Walls.key(axis,4,2)
+  var edge_3=Walls.key(axis,3,4) if axis=="x" else Walls.key(axis,4,3)
+  edges.erase(edge_2);edges[edge_3].height="half"
+  old=BuildingEdges._supports(edges,aperture)
+  check(not old.ok and old.error=="Opening support is not full height" and BuildingEdges._supports(edges,aperture,true)==old,"half-height touched edge still reports before discovered gap")
+  edges[edge_3].height="full"
+  old=BuildingEdges._supports(edges,aperture)
+  check(not old.ok and old.error=="Opening crosses a missing wall edge" and BuildingEdges._supports(edges,aperture,true)==old,"projected missing unit edge keeps historical error")
+  var touch_aperture={"host":aperture.host,"a":edges[edge_3].a,"b":edges[edge_3].b}
+  old=BuildingEdges._supports(edges,touch_aperture)
+  check(old.ok and old.ids==["wall:3"] and BuildingEdges._supports(edges,touch_aperture,true)==old,"touching adjacent cell does not enlist a support")
+ var products=Geometry.initial_shell_products("cream_stripe")
+ var walls=[
+  {"id":41,"axis":"x","x":2,"z":2,"height":"full","material":"leaf_print"},
+  {"id":42,"axis":"x","x":3,"z":2,"height":"full","material":"leaf_print"},
+ ]
+ var segments=Segments.migrate(products,walls).segments
+ var span={"id":1,"kind":"door","host_id":"span:042,41","offset":1.0,"width":1.5,"paid_cost":40}
+ var result=BuildingEdges.project_validated_legacy(products,segments,walls,[span])
+ check(result.ok and result.openings[0].wall_ids==["wall:41","wall:42"] and result.migration_report.opening_aliases[1].host_id==span.host_id,"numeric span alias retained, support stays geometric order")
+ var duplicate=[span,span.duplicate(true)]
+ check(BuildingEdges.project_validated_legacy(products,segments,walls,duplicate).error=="Duplicate opening identity","projected duplicate opening order remains authoritative")
+ var unknown=span.duplicate(true);unknown.host_id="span:041,41"
+ check(BuildingEdges.project_validated_legacy(products,segments,walls,[unknown]).error=="Opening has no legacy host","ambiguous numeric alias still rejected by original host contract")

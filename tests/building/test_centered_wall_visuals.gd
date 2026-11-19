@@ -3,6 +3,7 @@ const Art=preload("res://scripts/rendering/illustrated_openings.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
+const WallQueries=preload("res://scripts/rendering/illustrated_wall_queries.gd")
 class Painter extends RefCounted:
  var ui_scale=1.0
  var game={"model":{"built_walls":[]}}
@@ -143,10 +144,19 @@ func inspect_retained_slice():
   var node=painter.native_object_nodes[0]
   check(node.paint_revision>prior_revision,"Wall slice immediately invalidates for attachment, style, neighbor, movement, deletion, zoom, origin or draft tint")
   prior_revision=node.paint_revision
-  painter.filled=[];painter.paint_native_object(node,node.paint)
+  painter.filled=[];node.shape_cursor=0;painter.paint_native_object(node,node.paint)
   var retained=painter.filled
   painter.filled=[];Art.draw_built_piece(painter,Art.built_depth_entries(first)[3],painter.render_wall_attachments,alpha,tint)
-  check(painter.filled==retained,"Retained wall callback preserves exact projected points, colors, UVs and texture")
+  if first.material=="original":
+   check(retained.is_empty() and node.shape_cursor==1 and node.shapes[0].draw_method==&"wall_solid_quads","One original wall slice emits exactly one native command")
+   var xy=PackedVector2Array();var colors=PackedColorArray();var ids=PackedInt32Array()
+   for q in painter.filled:
+    check(q.uvs.is_empty() and q.texture==null,"Only solid quads are packed")
+    for i in Geometry2D.triangulate_polygon(q.points):ids.append(xy.size()+i)
+    xy.append_array(q.points);colors.append_array(q.colors)
+   check(not xy.is_empty() and [ids,xy,colors]==node.shapes[0].draw_arguments,"Retained solid wall preserves every projected vertex, color, original triangle and painter order")
+  else:
+   check(painter.filled==retained,"Textured wall retains exact projected points, colors, UVs and texture")
   check(before==[fixture.model.built_walls,painter.render_wall_attachments],"Retained wall never mutates model or draft inputs")
   painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
   check(node.paint_revision==prior_revision,"Fresh per-draw preparation does not invalidate unchanged retained wall")
@@ -181,7 +191,62 @@ func inspect_retained_slice():
  painter.free();fixture.free()
  check(observed.get_ref()==null,"Wall draw-list owner is released with its artist")
 
+func inspect_draw_wall_index(size:int):
+ var walls:Array=[]
+ var attachments:Array=[]
+ for z in range(size):
+  for x in range(size):
+   for axis in ["x","z"]:
+    var id:="test:%s:%s:%s"%[axis,x,z]
+    walls.append(wall(id,axis,x,z))
+    if (x+10*z)%3==0:
+     attachments.append({"id":attachments.size()+1,"kind":"door" if x%2==0 else "window",
+                          "wall_ids":[id],"offset":.5,"width":.7,"preview":z%2==0})
+ # A canonical miss must not add a cut or replace the installed index.
+ attachments.append({"id":-1,"kind":"window","wall_ids":["unknown"],"offset":.5,"width":.7})
+ var snapshot=[walls.duplicate(true),attachments.duplicate(true)]
+ var painter=Painter.new();painter.game.model.built_walls=walls
+ var indexed=WallQueries.new(walls,attachments)
+ var total_visits:int=0
+ var total_neighbors:int=0
+ var apertures:Array=[]
+ for attachment in attachments:
+  var opening=Geometry.aperture(attachment,walls)
+  if not opening.is_empty():opening["preview"]=bool(attachment.get("preview",false));apertures.append(opening)
+ check(indexed.apertures==apertures,"Indexed aperture geometry, order, draft flags and missing IDs match the full resolver")
+ for row in walls:
+  var old=Art.built_preparation(painter,{"entry":row},attachments)
+  var prepared=Art.built_preparation(painter,{"entry":row},attachments,indexed)
+  check(prepared==old,"Indexed panels, corners and end face match full query for "+str(row.id))
+  var host=Geometry.wall_host(row)
+  total_visits+=indexed.apertures_for(host).size()
+  total_neighbors+=indexed.walls_at(host.a).size()+2*indexed.walls_at(host.b).size()
+ check(total_visits==attachments.size()-1 and total_visits*10<walls.size()*attachments.size(),
+       "Each unit cut visits one cell instead of all openings on each wall")
+ check(total_neighbors<=12*walls.size() and total_neighbors*4<3*walls.size()*walls.size(),
+       "Canonical joints query at most four adjacent wall records per endpoint")
+ check([walls,attachments]==snapshot,"The draw index never mutates installed or draft records")
+
+func inspect_draw_wall_index_fallback():
+ var walls=[wall("a","x",0,0),wall("b","x",1,0),wall("c","z",2,0),wall("d","x",2,0)]
+ var offset_support=wall("near","z",0,0)
+ offset_support.x=.000001;walls.append(offset_support)
+ var attachments=[
+  {"id":1,"kind":"door","wall_ids":["a","b"],"offset":1.0,"width":1.5},
+  {"id":2,"kind":"window","wall_ids":["a","b"],"offset":1.0,"width":.70,"preview":true},
+  {"id":3,"kind":"window","host_id":"d","offset":.5,"width":.70},
+  {"id":4,"kind":"window","wall_ids":["a","a"],"offset":.5,"width":.70}]
+ var painter=Painter.new();painter.game.model.built_walls=walls
+ var indexed=WallQueries.new(walls,attachments)
+ check(indexed.apertures.map(func(row):return row.id)==[1,2,3],
+       "A spanning opening and legacy host resolve in original input order; duplicate support is ignored")
+ for row in walls:
+  check(Art.built_preparation(painter,{"entry":row},attachments,indexed)==Art.built_preparation(painter,{"entry":row},attachments),
+        "Draw index retains fallback geometry on non-canonical drafts")
+
 func _initialize():
+ for size in [4,8]:inspect_draw_wall_index(size)
+ inspect_draw_wall_index_fallback()
  inspect_retained_slice()
  for cycle in range(12):check(slice_group_lifetime().get_ref()==null,"Dropping the final slice releases preparation on every cycle")
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))

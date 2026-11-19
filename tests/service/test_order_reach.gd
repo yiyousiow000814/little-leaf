@@ -26,6 +26,7 @@ func pin_order(g):
  var s=g.staff_states[0]
  s.job_kind="order";s.job_guest_id=201;s.job_token=g.service_guests[201].token;s.station_id=101
 func run():
+ check_order_retry_scope()
  var g=fixture();var s=g.staff_states[0];var record=g.service_guests[201]
  check(g.model.table_service_cells(g.model.get_item(101)).is_empty(),"fixture blocks all physical table faces")
  check(not g._staff_route(0,REAR).is_empty(),"rear has an actual furniture-safe staff route")
@@ -259,4 +260,61 @@ func combined_work_priority():
  check(placed and pass_record.meal_ready and order.order_done,"chef pass contact and rear order both finish in the same scene")
  check(retained,"both waiting cooks retain their held plates and unfinished stage throughout")
  check(tokens==[g.service_guests[202].token,g.service_guests[203].token,pass_record.token,order.token],"combined arbitration preserves all four service tokens")
+ cleanup(g)
+
+class OrderQueryModel extends "res://scripts/core/cafe_model.gd":
+ var old_queries:=false
+ var snapshots:=0
+ var scans:=0
+ func order_assignment_layout()->Dictionary:
+  if old_queries:return {}
+  snapshots+=1
+  return super.order_assignment_layout()
+ func _table_side_open_in(cell:Vector2i,layout:Array[Dictionary])->bool:
+  scans+=1
+  return super._table_side_open_in(cell,layout)
+
+func blocked_order_fixture(pairs:int):
+ var g=Fixture.new()
+ g.model=OrderQueryModel.new();g.setup()
+ var m=g.model
+ var original_guest=m.customers[0].duplicate(true)
+ m.items.clear();m.built_walls.clear();m.wall_attachments.clear();m.dining_sets.clear();m.customers.clear()
+ m.owned_parcels.assign(m.PARCEL_IDS);m.width=18;m.depth=18;m.operating_open=true
+ # A legal x=0 corridor connects both areas for guests. Staff cannot walk
+ # x=0, so their work endpoints remain physically present but inaccessible.
+ for x in range(1,18):m.built_walls.append(Walls.installed("wall:%s"%x,Walls.make("x",x,4),0,0))
+ for i in pairs:
+  var x=3+(i%5)*3;var z=5+int(i/5)*3;var id=101+i*2
+  m.items.append({"id":id,"kind":"table","x":x,"z":z,"rot":0})
+  m.items.append({"id":id+1,"kind":"chair","x":x,"z":z+1,"rot":0})
+  m.dining_sets.append({"table_id":id,"seat_id":id+1})
+  var guest=original_guest.duplicate(true)
+  guest.id=201+i;guest.table_id=id;guest.chair_id=id+1;guest.x=x+.5;guest.z=z+1.5
+  guest.checkout_cell=Vector2i(-100,-100);guest.settlement_mode="legacy"
+  m.customers.append(guest)
+ g.staff_states[0].pos=Vector2(3.5,2.5)
+ g.service_guests.clear();g._sync_service_guests()
+ return g
+
+func check_order_retry_scope():
+ var g=blocked_order_fixture(8);var m=g.model
+ for guest in m.customers:
+  check(not m.guest_access_for(int(guest.chair_id),true,Vector2(m.ARRIVAL_LANE_X,82),12.5,int(guest.table_id)).is_empty(),"each blocked ordering diner is legally guest-reachable")
+ var initial=g.staff_states[0].duplicate(true)
+ m.old_queries=true;m.scans=0
+ assign(g)
+ var control=g.staff_states[0].duplicate(true);var old_scans=m.scans
+ g.staff_states[0]=initial.duplicate(true);m.old_queries=false;m.scans=0
+ assign(g)
+ var current=g.staff_states[0]
+ check(current==control and current.job_kind=="" and int(current.blocked_guest_id)==208,"same final blocked diner and complete worker state")
+ check(m.snapshots==1 and m.scans<old_scans,"one local index after the first actual blocked attempt")
+ var prior=m.snapshots
+ m.built_walls.remove_at(2);m.navigation_cells()
+ g.staff_states[0]=initial.duplicate(true)
+ assign(g)
+ check(g.staff_states[0].job_kind=="order" and int(g.staff_states[0].job_guest_id)==201 and m.snapshots==prior,"geometry edit opens original first diner without an eager index")
+ var duplicate=m.items[0].duplicate(true);duplicate.x=1;m.items.append(duplicate)
+ check(m.order_assignment_layout().is_empty(),"ambiguous identity retains the complete direct scan")
  cleanup(g)

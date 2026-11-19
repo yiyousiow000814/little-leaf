@@ -26,10 +26,6 @@ static func product_for_variant(variant:String)->String:
 static func style_for_variant(variant:String)->String:
  return {"oak_single":"basic","cottage_single":"cottage","retro_single":"retro","refined_single":"refined"}.get(variant,"basic")
 static func inherited_cost(variant:String)->int:return int(LEGACY_UNRECORDED_COSTS.get(variant,-1))
-static func _metadata(table:Dictionary,seat:Dictionary,existing:Array)->Dictionary:
- for entry in existing:
-  if int(entry.get("table_id",-1))==int(table.id) and int(entry.get("seat_id",-1))==int(seat.id):return entry
- return {}
 static func _group(table:Dictionary,seat:Dictionary,rot:int,metadata:Dictionary)->Dictionary:
  var variant=str(metadata.get("variant","legacy_bench" if seat.kind=="bench" else "oak_single"))
  if not VARIANTS.has(variant) or VARIANTS[variant].seat!=seat.kind:variant="legacy_bench" if seat.kind=="bench" else "oak_single"
@@ -48,9 +44,25 @@ static func migrate(items:Array,customers:Array,existing:Array=[])->Array[Dictio
  candidates.append_array(existing)
  var tables=items.filter(func(i):return i.kind=="table");tables.sort_custom(func(a,b):return int(a.id)<int(b.id))
  var seats=items.filter(func(i):return i.kind in ["chair","bench"]);seats.sort_custom(func(a,b):return int(a.id)<int(b.id))
+ # The old Cartesian pass produced candidates in ascending table id, then
+ # ascending seat id. Index positions, but sort the neighboring seat ranks
+ # to preserve that exact selection order and its tie behavior.
+ var seat_ranks_by_cell={}
+ for rank in seats.size():
+  var seat=seats[rank]
+  var cell=Vector2i(int(seat.x),int(seat.z))
+  if not seat_ranks_by_cell.has(cell):seat_ranks_by_cell[cell]=[]
+  seat_ranks_by_cell[cell].append(rank)
  for table in tables:
-  for seat in seats:
-   if orientation(table,seat)>=0:candidates.append({"table_id":table.id,"seat_id":seat.id})
+  var cell=Vector2i(int(table.x),int(table.z))
+  var adjacent_ranks=[]
+  for direction in DIRECTIONS:adjacent_ranks.append_array(seat_ranks_by_cell.get(cell+direction,[]))
+  adjacent_ranks.sort()
+  for rank in adjacent_ranks:candidates.append({"table_id":table.id,"seat_id":seats[rank].id})
+ var metadata_by_pair={}
+ for entry in existing:
+  var pair=Vector2i(int(entry.get("table_id",-1)),int(entry.get("seat_id",-1)))
+  if not metadata_by_pair.has(pair):metadata_by_pair[pair]=entry
  for candidate in candidates:
   var tid=int(candidate.table_id);var sid=int(candidate.seat_id)
   if used.has(tid) or used.has(sid) or not by_id.has(tid) or not by_id.has(sid):continue
@@ -58,12 +70,12 @@ static func migrate(items:Array,customers:Array,existing:Array=[])->Array[Dictio
   if table.kind!="table" or seat.kind not in ["chair","bench"]:continue
   var rot=orientation(table,seat)
   if rot<0:continue
-  result.append(_group(table,seat,rot,_metadata(table,seat,existing)))
+  result.append(_group(table,seat,rot,metadata_by_pair.get(Vector2i(tid,sid),{})))
   used[tid]=true;used[sid]=true
  return result
 static func validate(raw,items:Array,customers:Array)->Dictionary:
  if not raw is Array or raw.size()>items.size()/2:return {"ok":false,"error":"Invalid dining-set list"}
- var by_id={};var used={};var groups:Array[Dictionary]=[]
+ var by_id={};var used={};var groups:Array[Dictionary]=[];var by_member={}
  for item in items:by_id[int(item.id)]=item
  for entry in raw:
   if not entry is Dictionary:return {"ok":false,"error":"Invalid dining-set entry"}
@@ -81,9 +93,11 @@ static func validate(raw,items:Array,customers:Array)->Dictionary:
   var paid=entry.get("paid_cost",inherited_cost(variant))
   if not (paid is int or paid is float) or not is_finite(float(paid)) or floorf(float(paid))!=float(paid) or float(paid)<0 or float(paid)>1000000000:return {"ok":false,"error":"Invalid dining-set purchase cost"}
   if int(paid) not in HISTORICAL_PAID_COSTS[variant]:return {"ok":false,"error":"Unrecognized dining-set purchase cost"}
-  groups.append(_group(table,seat,rot,entry));used[tid]=true;used[sid]=true
+  var group=_group(table,seat,rot,entry)
+  groups.append(group);used[tid]=true;used[sid]=true
+  by_member[tid]=group;by_member[sid]=group
  for guest in customers:
-  var group=group_for(groups,int(guest.table_id))
+  var group=by_member.get(int(guest.table_id),{})
   if not group.is_empty() and int(group.seat_id)!=int(guest.chair_id):return {"ok":false,"error":"Diner association disagrees with its table set"}
  return {"ok":true,"groups":groups}
 static func parts(model,x:int,z:int,rot:int,id:int=-1,variant:String="oak_single")->Array[Dictionary]:
