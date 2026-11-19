@@ -187,14 +187,14 @@ class StorageNativeReviewTests(unittest.TestCase):
                 expected = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
             if name == "game/data/prebaked_atlas_manifest.json":
                 self.assertEqual(captured_sha, "81724088c204877ce1f31d2620f8cd9db27aabffca12f2bc3d74d813c526b283")
-                expected = "b61766be3f15497dac26add7ace0dd78fc98de5edec51e0908cefcd680b1403a"
+                expected = "919066cf3f50b2c15137cad73be410aa19b5d02316bd8ac92a33214d50fd594d"
             self.assertEqual(review.file_sha(ROOT / name), expected, name)
 
     def test_post_capture_exceptions_accept_only_exact_qualified_postimages(self):
         expected = dict(review.REVIEWED_POSTIMAGES)
         expected["game/scripts/ui/cafe_shop_ui.gd"] = "5854f2deabb6d99781847c33497a3eb66fb0a1a99f40f755b2b51820a15e12e3"
         expected["game/scripts/main.gd"] = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
-        expected["game/data/prebaked_atlas_manifest.json"] = "b61766be3f15497dac26add7ace0dd78fc98de5edec51e0908cefcd680b1403a"
+        expected["game/data/prebaked_atlas_manifest.json"] = "919066cf3f50b2c15137cad73be410aa19b5d02316bd8ac92a33214d50fd594d"
         def current(path):
             return expected[path.relative_to(ROOT).as_posix()]
         with patch.object(review, "file_sha", side_effect=current):
@@ -227,9 +227,34 @@ class StorageNativeReviewTests(unittest.TestCase):
         self.assertIn("37d9904f066b111c8b7ece5b53f2339459760f52f1a04378f11ede1362fd28e2", current)
         self.assertIn("6117588144ac91122aadd90d6651fff158b07dd1647f6ba3b9ef992fff1dabde", current)
         self.assertEqual(manifest["source_sha256"]["scripts/rendering/cafe_native_draw_node.gd"], "485c298089fb735ccad3e99af0980b19eb4d44b5e434b1f1dc2c1a7c6baa60a3")
-        indexed_sink = self.check_cold_floor_manifest(manifest)
+        cold_floor = self.check_indexed_dining_manifest(manifest)
+        indexed_sink = self.check_cold_floor_manifest(cold_floor)
         previous = self.check_service_lookup_manifest(self.check_indexed_sink_manifest(indexed_sink))
         self.assertEqual(self.check_scaling_manifest(previous)["scripts/rendering/illustrated_cafe.gd"], "11ff59969cf60918b5e2b48c1df7f436b76d48ee9798530d82d8caa7d178023e")
+
+    def check_indexed_dining_manifest(self, manifest):
+        prior, separator, current = manifest["provenance"].partition(" PR384 indexed dining qualification ")
+        self.assertTrue(separator)
+        self.assertEqual(review.digest(prior.encode()), "773b862f5dd05421f337f07efc53605581d4f3dfcbe201dc97a2641aaf51b7cd")
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44480827344", current)
+        self.assertIn("f5f40581991a6ea104ff6494b5d4a49e2dabc840 / tree 7dbf1502548fa991bb6a863e216bae9c0093038c", current)
+        self.assertIn("dc95e6226c3c2765567b176f465a6ff5d1f0981995a9a288a6844e55a8ae5171", current)
+        self.assertIn("https://github.com/yiyousiow000814/little-leaf/actions/runs/44479666754", current)
+        closure = "b37c21d185648fc18c3ecff80f0022fa554d97edd8b3137ad9bd39101bf9dc8f"
+        self.assertIn(closure, current)
+        digest = lambda value: review.digest(json.dumps(value, sort_keys=True, separators=(",", ":")).encode())
+        sources = dict(manifest["source_sha256"])
+        self.assertEqual(len(sources), 85)
+        self.assertEqual(digest(sources), closure)
+        self.assertEqual(digest(manifest["atlases"]), "6a5dd21da0a1a548f8489624abaf0d2cc738634c4605abd0de48219aa9db5714")
+        key = "scripts/rendering/illustrated_cafe.gd"
+        self.assertEqual(sources[key], "b7cc3deeb173088f50076f1eecab52683258923b7c3e145d4122f48a7ca3a28a")
+        sources[key] = "543564c57d1dbdff604941f1f3938877789d2d7366877bd185eeb206bc2966f2"
+        previous = {**manifest, "provenance": prior, "source_sha256": sources}
+        self.assertEqual(digest(sources), "3e2fbbc903834631e612cc3b782903a67683ac3dc85c08a94ce35332cc207b27")
+        self.assertEqual(review.digest((json.dumps(previous, indent=2, ensure_ascii=False) + "\n").encode()),
+                         "b61766be3f15497dac26add7ace0dd78fc98de5edec51e0908cefcd680b1403a")
+        return previous
 
     def check_cold_floor_manifest(self, manifest):
         prior, separator, current = manifest["provenance"].partition(" PR380 cold floor qualification ")
