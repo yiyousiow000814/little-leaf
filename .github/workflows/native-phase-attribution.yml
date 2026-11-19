@@ -1,0 +1,75 @@
+name: Disposable current game phase attribution
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/native-phase-attribution.yml'
+      - 'tools/diagnostics/native-phase/**'
+permissions:
+  contents: read
+concurrency:
+  group: native-phase-attribution-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  current-only:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/native-phase-attribution-364'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    env:
+      CURRENT: 2e3c7f6be9a633fff8e05450033ccdb3a2959c5f
+      CURRENT_TREE: 3f76c412ecd12e4782b53ce037be378b019d7270
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/native-phase
+      - name: Get current #364 only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ env.CURRENT }}
+          path: source-current
+          persist-credentials: false
+          sparse-checkout: |
+            game
+            tools/ci
+      - name: Verify official Godot and existing cloud display tools
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          command -v xvfb-run
+          command -v Xvfb
+          command -v xauth
+          python3 source-current/tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/native-phase-tools"
+          mkdir -p "$RUNNER_TEMP/native-phase-evidence"
+          cp "$RUNNER_TEMP/native-phase-tools/godot-toolchain-receipt.json" "$RUNNER_TEMP/native-phase-evidence/"
+      - name: Stage committed game and current-only phase overlay
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          probe=tools/diagnostics/native-phase
+          python3 "$probe/stage.py" --repo source-current --commit "$CURRENT" --tree "$CURRENT_TREE" --output "$RUNNER_TEMP/staged-diagnostic-copy"
+          python3 "$probe/overlay.py" --staged-base "$RUNNER_TEMP/staged-diagnostic-copy" --output "$RUNNER_TEMP/staged-phase-only"
+      - name: Measure one current-only natural-cooking window
+        timeout-minutes: 9
+        env:
+          GODOT_BIN: ${{ runner.temp }}/native-phase-tools/godot
+        run: |
+          set -euo pipefail
+          probe=tools/diagnostics/native-phase
+          evidence="$RUNNER_TEMP/native-phase-evidence"
+          xvfb-run -a -s "-screen 0 1600x1000x24" bash "$probe/run-native.sh" "$RUNNER_TEMP/staged-phase-only" "$evidence/current" active-service | tee "$evidence/current-cadence.json"
+          python3 "$probe/report.py" "$evidence/current/diagnostic-native-draw.json" | tee "$evidence/current-phase-summary.json"
+      - name: Preserve phase receipts only (not profiles)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: little-leaf-native-current-phases-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/native-phase-evidence/*.json
+            ${{ runner.temp }}/native-phase-evidence/current/*.json
+            ${{ runner.temp }}/native-phase-evidence/current/*.log
+            ${{ runner.temp }}/native-phase-evidence/current/*.sha256
+            ${{ runner.temp }}/native-phase-evidence/current/runtime-envelope.txt
+          if-no-files-found: warn
+          retention-days: 30
