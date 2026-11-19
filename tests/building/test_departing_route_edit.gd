@@ -46,6 +46,27 @@ func verify_public_routes(m,label:String):
  check(loaded.load_save(path),label+": synthetic reload")
  check(FileAccess.get_sha256(path)==digest and loaded.coins==m.coins and loaded.owned_parcels==m.owned_parcels,label+": source save and economy preserved")
  check(loaded.boundary_entries()==entries,label+": reload preserves public thresholds")
+func commit_preserves_lookup_semantics():
+ var m=Model.new()
+ var item={"id":7,"x":1,"z":2,"rot":0,"metadata":"original"}
+ var duplicate_item={"id":"7","x":8,"z":9,"rot":1}
+ var guest={"id":41,"phase":"eating","ledger":12}
+ var duplicate_guest={"id":"41","phase":"waiting"}
+ m.items.assign([item,duplicate_item]);m.customers.assign([guest,duplicate_guest])
+ var notifications=[]
+ var on_changed=func():notifications.append([item.x,guest.phase,m.dining_sets.size()])
+ m.changed.connect(on_changed)
+ var original_revision=m.revision
+ var change={"ok":true,"items":[{"id":"7","x":3,"z":4,"rot":2,"metadata":"ignore"},{"id":999,"x":5,"z":6,"rot":1},{"id":7,"x":6,"z":7,"rot":3}],"groups":[{"id":31}],"guests":[{"id":"41","phase":"checkout_wait"},{"id":777,"phase":"walking"},{"id":41,"phase":"paying"}]}
+ check(Motion.commit(m,change),"accepts production commit transaction")
+ check(is_same(m.items[0],item) and is_same(m.customers[0],guest),"retains original service dictionary references")
+ check([item.x,item.z,item.rot,item.metadata]==[6,7,3,"original"],"last proposed coordinates win without changing other item fields")
+ check(guest.phase=="paying" and guest.ledger==12,"merged guest state retains untouched live fields")
+ check(duplicate_item.x==8 and duplicate_guest.phase=="waiting","duplicate live IDs keep original first-match behavior")
+ check(m.items.size()==2 and m.customers.size()==2,"missing IDs are not inserted")
+ check(notifications==[[6,"paying",1]] and m.revision==original_revision+1,"notify exactly once after coordinates, groups and guests commit")
+ check(Motion.commit(m,{"ok":true,"noop":true}) and not Motion.commit(m,{"ok":false,"error":"blocked"}) and notifications.size()==1,"failure and no-op do not publish a partial transaction")
+ m.changed.disconnect(on_changed)
 func corridor_cell_index_edits():
  var m=Model.new();Minimal.apply(m)
  var initial=m.boundary_entries()
@@ -118,6 +139,7 @@ func public_reroutes():
    var before=guest.duplicate(true)
    check(not m.reroute_guest(guest) and guest==before,"non-corridor origin refuses without rewriting guest "+str(position))
 func _initialize():
+ commit_preserves_lookup_semantics()
  corridor_cell_index_edits()
  ownership_routes()
  public_reroutes()

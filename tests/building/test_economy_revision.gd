@@ -144,6 +144,7 @@ func verify_dining_index_order():
 func _initialize():run.call_deferred()
 func run():
  checkout_scan_bounds()
+ checkout_departure_tree()
  verify_dining_index_order()
  if not "saveguard" in OS.get_user_data_dir():printerr("Use an isolated generated profile");quit(2);return
  check_scalar_save_preservation()
@@ -284,3 +285,68 @@ func run():
  check(legacy.coins==wallet+200 and legacy.total_earned==200 and legacy.served==1,"legacy settlement awards exactly200 for future completion")
  print("ECONOMY_REVISION_RESULT ",JSON.stringify({"checks":checks,"failures":failures,"meal_payment":200,"wages":[18,11,10,11],"table_price":280,"historical_oak_bases":[140,280]}))
  quit(0 if failures.is_empty() else 1)
+
+class DepartureSearchModel extends "res://scripts/core/cafe_model.gd":
+ var extent:=9
+ var edge_checks:=0
+ var open_thresholds:Array[int]=[]
+ var barriers:Dictionary={}
+ func is_floor_owned(cell:Vector2i)->bool:
+  return cell.x>=0 and cell.y>=0 and cell.x<extent and cell.y<extent
+ func edge_blocked(a:Vector2i,b:Vector2i)->bool:
+  edge_checks+=1
+  return barriers.has([a,b]) or barriers.has([b,a])
+ func boundary_entries()->Array[Dictionary]:
+  var result:Array[Dictionary]=[]
+  for z in open_thresholds:
+   result.append({"cell":Vector2i(0,z),"outside":Vector2i(-1,z),"direction":Vector2i.LEFT})
+  return result
+
+func legacy_departure(m,guest:Dictionary)->bool:
+ var position=Checkout.point(guest);var start=Vector2i(floori(position.x),floori(position.y))
+ var best={};var route:Array[Vector2]=[];var length=INF
+ for entry in m.boundary_entries():
+  var cells=Checkout.path(m,start,entry.cell)
+  if cells.is_empty():continue
+  var candidate:Array[Vector2]=[]
+  for cell in cells:candidate.append(m.cell_center(cell))
+  candidate.append_array(m._exterior_approach(entry,false,m._departure_exit_z(int(guest.id))))
+  var distance=m._route_length(position,candidate)
+  if distance<length:length=distance;route=candidate;best=entry
+ guest.phase="leaving";guest.seated=false;guest.dismounting=false;guest.elapsed=0.0;guest.route_index=0
+ guest.exterior_exit=false;guest.waiting=true;guest.departure_blocked=route.is_empty();guest.route=route
+ guest.duration=0.0 if route.is_empty() else length/m.WALK_SPEED
+ if best.is_empty():guest.checkout_reason="Register exit blocked";return false
+ guest.entry_cell=best.cell;guest.entry_direction=best.direction;guest.entry_outside=best.outside;guest.checkout_reason="";return true
+
+func checkout_departure_tree():
+ var m=DepartureSearchModel.new()
+ for scenario in range(9):
+  m.open_thresholds.assign([0,2,4,6,8]);m.barriers.clear();m.items.clear()
+  var start=Vector2(6.81,4.12)
+  if scenario==1:start=Vector2(.5,4.5)
+  if scenario==2:start=Vector2(-.51,4.5)
+  if scenario==3:m.open_thresholds.clear()
+  if scenario==4:m.open_thresholds.assign([8])
+  if scenario in [5,6]:
+   for z in range(m.extent):
+    if scenario==5 and z==6:continue
+    m.barriers[[Vector2i(2,z),Vector2i(3,z)]]=true
+  if scenario==7:
+   for z in [0,2,4]:m.items.append({"kind":"plant","x":0,"z":z})
+  if scenario==8:m.items.append({"kind":"rug","x":0,"z":4})
+  for id in [1,2]:
+   var previous={"id":id,"x":start.x,"z":start.y,"phase":"paying","elapsed":9.5,"paid":true,"entry_cell":Vector2i(99,99)}
+   var current=previous.duplicate(true)
+   var expected=legacy_departure(m,previous)
+   check(Checkout.depart(m,current)==expected and current==previous,"checkout exact route, entry, length and state: case %s guest %s"%[scenario,id])
+ for size in [8,16,32]:
+  m.extent=size;m.open_thresholds.assign(range(size));m.barriers.clear();m.items.clear()
+  var previous={"id":2,"x":size-.5,"z":size/2.0+.5}
+  var current=previous.duplicate(true)
+  m.edge_checks=0
+  var expected=legacy_departure(m,previous);var old_checks=m.edge_checks
+  m.edge_checks=0
+  var found=Checkout.depart(m,current)
+  print("DEPARTURE_TREE_WORK ",size," ",old_checks," ",m.edge_checks)
+  check(found==expected and current==previous and m.edge_checks<=size*size and old_checks>=m.edge_checks*size/2,"all thresholds use one BFS at grid width %s"%size)

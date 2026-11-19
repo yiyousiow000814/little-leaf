@@ -16,6 +16,8 @@ const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/gameplay/cafe_layout_access.gd")
 const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallSupportValidation=preload("res://scripts/gameplay/cafe_wall_support_validation.gd")
+const WallCollision=preload("res://scripts/gameplay/cafe_wall_collision.gd")
 const BuildingCodec=preload("res://scripts/persistence/cafe_building_codec.gd")
 const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
 const WallGeometry=preload("res://scripts/gameplay/cafe_walls.gd")
@@ -157,7 +159,7 @@ var wall_actor_positions: Array[Vector2] = []
 var _wall_index: Dictionary = {}
 var _wall_index_revision: int = -1
 var _collision_revision:int=-1
-var _solid_wall_segments:Array=[]
+var _wall_collision:WallCollision
 var _admission_signature:Array=[]
 var coins: int = INITIAL_COINS
 # Ownership, not the bounding rectangle, controls every walkable/placeable tile.
@@ -2162,13 +2164,9 @@ func edge_blocked(a:Vector2i,b:Vector2i)->bool:
 
 func segment_blocked(a:Vector2,b:Vector2)->bool:
 	if _collision_revision!=revision:
-		_solid_wall_segments.clear()
-		for host in collision_wall_hosts():
-			_solid_wall_segments.append_array(OpeningGeometry.solid_segments(host,built_walls,wall_attachments))
+		_wall_collision=WallCollision.new(collision_wall_hosts(),built_walls,wall_attachments)
 		_collision_revision=revision
-	for segment in _solid_wall_segments:
-		if OpeningGeometry.crosses(segment,a,b):return true
-	return false
+	return _wall_collision.crosses(a,b)
 
 func workface_accessible(item: Dictionary,reverse: bool=false) -> bool:
 	if item.is_empty():return false
@@ -2768,13 +2766,13 @@ func wall_openings()->Array[Dictionary]:
 	return result
 func attachment_price(kind:String)->int:return int(OpeningGeometry.PRICES.get(kind,-1))
 func _attachment_layout_error(walls:Array,attachments:Array,_products=null,_segments=null)->String:
-	return OpeningGeometry.installed_support_error(walls,attachments)
+	return WallSupportValidation.error(walls,attachments)
 
 func _opening_body_error(walls:Array,attachments:Array,actors:Array)->String:
-	for host in OpeningGeometry.installed_hosts(walls):
-		for segment in OpeningGeometry.solid_segments(host,walls,attachments):
-			for point in actors:
-				if OpeningGeometry.body_touches(segment,point):return "An actor is crossing this opening · wait until the doorway is clear"
+	if actors.is_empty():return ""
+	var collision:=WallCollision.new(OpeningGeometry.installed_hosts(walls),walls,attachments)
+	for point in actors:
+		if collision.touches_body(point):return "An actor is crossing this opening · wait until the doorway is clear"
 	return ""
 func _attachment_change_error(proposed:Array,actor_positions:Array)->String:
 	var reason=_attachment_layout_error(built_walls,proposed)
