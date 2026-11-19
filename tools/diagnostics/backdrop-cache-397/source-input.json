@@ -1,0 +1,20 @@
+{
+  "commit": "ce1435afb2329a6c1d2d77a8a19923dfd96bd205",
+  "tree": "03632a0d56e4294f5664859656c8809541766d1b",
+  "archive_sha256": "5a236669cca594a1437b289f4b4b8a933a204ddab064844485d2868ce8ee1406",
+  "reviewed_game_files": {
+    "game/main.tscn": "1d2968e46830db07b0834680b67029adf18d399f9767172cd5e288205b5b5902",
+    "game/project.godot": "09a15b9558d981fe31f4a0fe4b83c6c98bbad4cd7bbc03d840e76ad7da87bf93",
+    "game/scripts/gameplay/cafe_footprint.gd": "53bd9f7725c67439f895171c1bd4389d85f25129a487e9b4474473bbec25384c",
+    "game/scripts/gameplay/cafe_wall_openings.gd": "3bb835e16cbce15dd0e51e8716c6896bc6fbf7407d5296fe4fc673d88a0de933",
+    "game/scripts/gameplay/cafe_walls.gd": "8a49755497ecfdd3eb68eac80eef9a5614c5e1418421850be3e3101d80d5be31",
+    "game/scripts/rendering/cafe_background_cache.gd": "11cb8b2ff175dc354533c1ce043c53520ea062797aca7a837c168520549d14fd",
+    "game/scripts/rendering/cafe_background_native.gd": "ddfd9e41b72d48e1506f03f980fa98b3ec7f13945f1899d0ae98daae46d0d03d",
+    "game/scripts/rendering/cafe_canvas_draw.gd": "3061f9f1b9f3417ed8cd3ebcdde9d5b98f7dda5955b42294b92b63d8ea36388e",
+    "game/scripts/rendering/illustrated_cafe.gd": "ab7f4942e446c1e0d4116635d8aa5329b2ae82ff5ec6bd0cc99db2c86ee1926b",
+    "game/scripts/rendering/illustrated_openings.gd": "068253f3f5ee43f419831697476f14221ffa61938e1c39b097095a85f84e3493",
+    "game/scripts/rendering/illustrated_walls.gd": "9e97d6baf437fd7f0f6cd232e8688bdf37ec148f1bdc81a100c754d3f43621c4",
+    "game/scripts/world/exterior_environment.gd": "e473850fdc256b277180ab6f234f08674e8976f5662c693a22220edba28dcd74",
+    "game/shaders/retained_contours.gdshader": "f2902482e426136364298bd7ed46a3810ab3b7a5fbb14a8cfd6ada443b717f0d"
+  }
+}
