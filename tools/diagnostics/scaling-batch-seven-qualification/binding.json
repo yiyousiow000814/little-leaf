@@ -1,0 +1,31 @@
+{
+  "control": "0eb610848ac54edbd234c552f2460de2b42871f4",
+  "control_tree": "41c1e83129f650f362adc0d3e62d3a21bf4cfea3",
+  "candidate": "f5f40581991a6ea104ff6494b5d4a49e2dabc840",
+  "candidate_tree": "7dbf1502548fa991bb6a863e216bae9c0093038c",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths-7/README.md": "418709657a72bbe6b71a3213262852646f2f5abd587afda2159cc65454cc423b",
+    "docs/development/scaling-hotpaths-7/scaling-hotpaths-7.mmd": "47367f030d5b50ade286b5d0cc4da32fea15234723c51a2f6dad81aaef3d9c91",
+    "docs/development/scaling-hotpaths-7/scaling-ledger-7.xlsx": "86722ee2a5be9c9a26e7d6494ebe30692d5bad396f08689c08cc9f74d54ddbf1",
+    "game/scripts/core/cafe_model.gd": "81bbf3336fbc8105c6fee586b337f878333113dfa3061136e6b67c57bacc697b",
+    "game/scripts/gameplay/cafe_arrival_bands.gd": "aba81ebc622338889077db1f3a5b9595ad613fa1e3ede9adcb715ce8494441a4",
+    "game/scripts/gameplay/cafe_arrival_bands.gd.uid": "109620cf6fadccac2a3403face7c106fac30ef2ce80588fa3f9e02f30e8cd95d",
+    "game/scripts/rendering/illustrated_cafe.gd": "b7cc3deeb173088f50076f1eecab52683258923b7c3e145d4122f48a7ca3a28a",
+    "tests/building/test_departing_route_edit.gd": "40bf482dac155f05ef8bda39bf900940caaac4afab61ecfc4eb9b5139e66b995",
+    "tests/rendering/test_dining_docking.gd": "988940d810022280cae0f056ce3f24833f1b4a73789cc16644ff7a63005d48bb"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/rendering/illustrated_cafe.gd"
+    ],
+    "added": [],
+    "removed": []
+  },
+  "relative_closure_delta": {
+    "changed": [
+      "scripts/rendering/illustrated_cafe.gd"
+    ],
+    "added": [],
+    "removed": []
+  }
+}
