@@ -23,10 +23,12 @@ def suite_names():
 
 
 def plan(count, names=None, timing=None):
-    if count < 1 or count > 5:
-        raise ValueError('Use between one and five independent engine runners')
+    if count not in (1, 2, 3, 4, 5, 9):
+        raise ValueError('Use one to five independent engine runners or the nine-runner PR pilot')
     names = suite_names() if names is None else names
-    timing = json.loads(Path(__file__).with_name('engine_suite_times.json').read_text())['seconds'] if timing is None else timing
+    if timing is None:
+        filename = 'engine_suite_times_pr9.json' if count == 9 else 'engine_suite_times.json'
+        timing = json.loads(Path(__file__).with_name(filename).read_text())['seconds']
     shards = [[] for _ in range(count)]
     loads = [0.0] * count
     for name in sorted(names, key=lambda name: (-timing.get(name, 5.0), name)):
