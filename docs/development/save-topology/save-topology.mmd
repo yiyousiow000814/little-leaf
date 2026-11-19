@@ -9,8 +9,8 @@ flowchart TB
     Live --> Check
     Draft --> Check
     Check --> Reach["Build reachability on demand"]
-    Reach --> Edges["Index wall IDs and blocked edges"]
-    Edges --> Doors["Resolve each door once"]
+    Reach --> Edges["Gameplay index: wall IDs and blocked edges"]
+    Edges --> Doors["Resolve each door using unchanged opening geometry"]
     Doors --> Flood["Flood-fill structural reachability"]
     Flood --> Checkout["Checkout reservations"]
     Flood --> Chair["Reserved chair exits"]

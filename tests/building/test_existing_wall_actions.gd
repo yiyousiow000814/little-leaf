@@ -12,7 +12,7 @@ func check(ok:bool,label:String):
  checks+=1
  if not ok:failures.append(label);printerr("FAIL ",label)
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
-const Openings=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
 func check_blocked_edge_index(model):
  for axis in ["x","z"]:
   var walls=[]
@@ -38,7 +38,7 @@ func check_blocked_edge_index(model):
    for wall in tested:
     var cells=Walls.adjacent_cells(wall)
     if model._built_edge_blocked(cells[0],cells[1],tested,cases[i]):before[Walls.key_of(wall)]=true
-   check(Openings.blocked_grid_edges(tested,cases[i])==before,"indexed wall clearance matches legacy lookup for %s case %d"%[axis,i])
+   check(WallReachability.blocked_grid_edges(tested,cases[i])==before,"indexed wall clearance matches legacy lookup for %s case %d"%[axis,i])
 func _initialize():run.call_deferred()
 func settle():
  game._update_ui();game.illustration.queue_redraw()

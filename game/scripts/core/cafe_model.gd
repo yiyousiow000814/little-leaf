@@ -14,6 +14,7 @@ const DiningSets=preload("res://scripts/gameplay/cafe_dining_sets.gd")
 const WallTransactions=preload("res://scripts/gameplay/cafe_wall_transactions.gd")
 const FurnitureMotion=preload("res://scripts/gameplay/cafe_furniture_motion.gd")
 const LayoutAccess=preload("res://scripts/gameplay/cafe_layout_access.gd")
+const WallReachability=preload("res://scripts/gameplay/cafe_wall_reachability.gd")
 const OpeningGeometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const BuildingCodec=preload("res://scripts/persistence/cafe_building_codec.gd")
 const ShellSegments=preload("res://scripts/gameplay/cafe_shell_segments.gd")
@@ -2242,7 +2243,7 @@ func _wall_reachable(walls:Array,layout:Array,ownership:Array,openings=null) -> 
 	var blocked:Dictionary={}
 	for item in layout:
 		if str(item.kind)!="rug":blocked[Vector2i(int(item.x),int(item.z))]=true
-	var keys:=OpeningGeometry.blocked_grid_edges(walls,wall_attachments if openings==null else openings)
+	var keys:=WallReachability.blocked_grid_edges(walls,wall_attachments if openings==null else openings)
 	var reachable:Dictionary={}
 	var queue:Array[Vector2i]=[]
 	for z in range(MAX_DEPTH):

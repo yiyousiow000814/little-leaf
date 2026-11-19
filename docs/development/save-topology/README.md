@@ -13,7 +13,9 @@ previously applied copy. The two never share a reachability map.
 A reachability pass indexes wall IDs and starts with the set of blocked unit
 edges. It resolves each door once in support order and checks the same midpoint
 clearance before opening an edge. The flood fill, save format, legacy resolver,
-and art/render paths are unchanged. For the indexed canonical branch, this
+and art/render paths are unchanged. The gameplay reachability helper is outside
+the unchanged 83-input atlas-producer closure. The original three atlas PNGs,
+imports, and provenance are unchanged; the canonical atlas verifier passes. For the indexed canonical branch, this
 replaces W(W+1)/2 edge-search comparisons plus repeated support lookups with
 work proportional to walls, attachment/support references and overlapped
 unit edges. Legacy door records still use their original resolver once per

@@ -37,7 +37,7 @@ static func wall_host(wall:Dictionary)->Dictionary:
 static func host_ref(ids:Array)->String:
 	return str(ids[0]) if ids.size()==1 else "span:"+",".join(ids)
 
-static func resolve_ids(ids:Array,walls:Array,by_id:Variant=null)->Dictionary:
+static func resolve_ids(ids:Array,walls:Array)->Dictionary:
 	# A complete ordered support set replaces both starter roots and the old
 	# hard-coded two-wall span. Identity never selects a different product type.
 	if ids.is_empty():return {}
@@ -45,12 +45,8 @@ static func resolve_ids(ids:Array,walls:Array,by_id:Variant=null)->Dictionary:
 	for id in ids:
 		if not id is String or seen.has(id):return {}
 		seen[id]=true
-		if by_id!=null:
-			if not by_id.has(id):return {}
-			members.append(by_id[id])
-		else:
-			for wall in walls:
-				if Walls.identity(wall)==id:members.append(wall);break
+		for wall in walls:
+			if Walls.identity(wall)==id:members.append(wall);break
 	if members.size()!=ids.size():return {}
 	var first:Dictionary=members[0];var host=wall_host(first)
 	var cursor=axis_value(host.a,host.axis)
@@ -110,8 +106,8 @@ static func resolve_host(ref:String,walls:Array,material="original")->Dictionary
 	if (first.axis=="x" and (first.z!=second.z or absi(int(first.x)-int(second.x))!=1)) or (first.axis=="z" and (first.x!=second.x or absi(int(first.z)-int(second.z))!=1)):return {}
 	members.sort_custom(func(a,b):return int(a.x+a.z)<int(b.x+b.z))
 	var host=wall_host(members[0]);host.host_id=ref;host.b=wall_host(members[1]).b;host.wall_ids=[int(members[0].id),int(members[1].id)];return host
-static func aperture(attachment:Dictionary,walls:Array,material="original",by_id:Variant=null)->Dictionary:
-	var host=resolve_ids(attachment.wall_ids,walls,by_id) if attachment.has("wall_ids") else resolve_host(str(attachment.get("host_id","")),walls,material)
+static func aperture(attachment:Dictionary,walls:Array,material="original")->Dictionary:
+	var host=resolve_ids(attachment.wall_ids,walls) if attachment.has("wall_ids") else resolve_host(str(attachment.get("host_id","")),walls,material)
 	if host.is_empty():return {}
 	var direction=(host.b-host.a).normalized();var center=host.a+direction*float(attachment.offset)
 	return {"id":int(attachment.id),"kind":attachment.kind,"host_id":host.host_id,"host":host,"a":center-direction*float(attachment.width)*.5,"b":center+direction*float(attachment.width)*.5,"bottom":0.0 if attachment.kind=="door" else WINDOW_BOTTOM,"top":DOOR_TOP if attachment.kind=="door" else WINDOW_TOP,"width":float(attachment.width)}
@@ -161,48 +157,8 @@ static func solid_panels(host:Dictionary,walls:Array,attachments:Array)->Array[D
 static func point_in_door(point:Vector2,host:Dictionary,walls:Array,attachments:Array,clearance=0.0)->bool:
 	var position=axis_value(point-host.a,host.axis)
 	for cut in cuts(host,walls,attachments,true):
-		if _clear_cut(position,float(cut.from),float(cut.to),clearance):return true
+		if position>float(cut.from)+clearance+.00001 and position<float(cut.to)-clearance-.00001:return true
 	return false
-
-static func _clear_cut(position:float,low:float,high:float,clearance:float)->bool:
-	return position>low+clearance+.00001 and position<high-clearance-.00001
-
-static func blocked_grid_edges(walls:Array,attachments:Array)->Dictionary:
-	# One snapshot of unit grid edges. Door support is resolved in authored
-	# order once per opening; windows never affect pedestrian clearance.
-	var blocked:Dictionary={}
-	if walls.is_empty():return blocked
-	var by_id:Dictionary={}
-	var min_coord:=Vector2i(int(walls[0].x),int(walls[0].z))
-	var max_coord:=min_coord
-	for wall in walls:
-		var id:=Walls.identity(wall)
-		if not by_id.has(id):by_id[id]=wall
-		blocked[Walls.key_of(wall)]=true
-		var cell:=Vector2i(int(wall.x),int(wall.z))
-		min_coord=min_coord.min(cell);max_coord=max_coord.max(cell)
-	for attachment in attachments:
-		if attachment.kind!="door":continue
-		var opening:=aperture(attachment,walls,"original",by_id)
-		if opening.is_empty():continue
-		var axis:String=opening.host.axis
-		var horizontal:=axis=="x"
-		var a:Vector2=opening.a
-		var cross:=a.y if horizontal else a.x
-		if not is_equal_approx(cross,roundf(cross)):continue
-		var low:=axis_value(a,axis)
-		var high:=axis_value(opening.b,axis)
-		# Only the overlapped unit edges can contain an open midpoint.
-		var extent_start:=float(min_coord.x if horizontal else min_coord.y)
-		var extent_end:=float((max_coord.x if horizontal else max_coord.y)+1)
-		if not is_finite(low) or not is_finite(high) or high<=extent_start or low>=extent_end:continue
-		var first:=floori(maxf(extent_start,low))
-		var end:=ceili(minf(extent_end,high))
-		for i in range(first,end):
-			if not _clear_cut(.5,maxf(0.0,low-i),minf(1.0,high-i),.23):continue
-			var edge:=Walls.key(axis,i,roundi(cross)) if horizontal else Walls.key(axis,roundi(cross),i)
-			blocked.erase(edge)
-	return blocked
 static func segment_rect(segment:Dictionary)->Rect2:
 	var host:Dictionary=segment.host;var normal:Vector2=host.normal
 	var a:Vector2=segment.a;var b:Vector2=segment.b
