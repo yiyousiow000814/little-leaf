@@ -1,0 +1,115 @@
+name: Disposable litter and atlas parity for scaling batch nine
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+    paths:
+      - '.github/workflows/scaling-batch-nine-qualification.yml'
+      - 'tools/diagnostics/scaling-batch-nine-qualification/**'
+permissions:
+  contents: read
+concurrency:
+  group: scaling-batch-nine-qualification-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  qualify:
+    if: github.repository == 'yiyousiow000814/little-leaf' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/scaling-batch-nine-qualification'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [litter, atlas]
+    steps:
+      - name: Check out disposable diagnostic only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          sparse-checkout: tools/diagnostics/scaling-batch-nine-qualification
+      - name: Read the bound immutable candidate
+        id: binding
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          with open("tools/diagnostics/scaling-batch-nine-qualification/binding.json") as f:
+              binding = json.load(f)
+          candidate = binding["candidate"]
+          if re.fullmatch(r"[a-f0-9]{40}", candidate) is None:
+              raise SystemExit("Expected an immutable reviewed candidate SHA")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("candidate=" + candidate + "\n")
+          PY
+      - name: Check out candidate and bound control ancestry
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.binding.outputs.candidate }}
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+      - name: Verify exact source and immutable image references
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          set -euo pipefail
+          guide=tools/diagnostics/scaling-batch-nine-qualification
+          args=(--repo candidate --bind "$guide/binding.json" --verify-only)
+          case "$LANE" in
+            litter) python3 "$guide/litter_pixels.py" "${args[@]}";;
+            atlas) python3 "$guide/qualify.py" --lane atlas "${args[@]}";;
+          esac
+      - name: Install existing checksum-pinned official Godot
+        working-directory: candidate
+        run: python3 tools/ci/install_tools.py godot --native-only --output "$RUNNER_TEMP/scaling-nine-engine"
+      - name: Verify runner tools and supply only missing Pillow
+        timeout-minutes: 4
+        run: |
+          set -euo pipefail
+          command -v xvfb-run
+          command -v Xvfb
+          command -v xauth
+          # Match the earlier exact RGB workflow's signed Ubuntu dependency,
+          # avoiding any package refresh on runners that already supply it.
+          if ! /usr/bin/python3 -c 'from PIL import Image' >/dev/null 2>&1; then
+            # The Ubuntu runner's default mirrorlist tried a failing HTTP
+            # mirror before every package. Use signed official HTTPS sources
+            # for this disposable decoder only; do not alter runner config.
+            apt_dir="$(mktemp -d)"
+            trap 'rm -rf "$apt_dir"' EXIT
+            cat > "$apt_dir/sources.list" <<'APT'
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble-updates main
+          deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://security.ubuntu.com/ubuntu noble-security main
+          APT
+            apt_args=(-o "Dir::Etc::sourcelist=$apt_dir/sources.list" -o Dir::Etc::sourceparts=-
+                      -o Acquire::Languages=none -o Acquire::Retries=1 -o Acquire::https::Timeout=15)
+            sudo apt-get "${apt_args[@]}" -o APT::Update::Error-Mode=any update
+            sudo apt-get "${apt_args[@]}" install -y --no-install-recommends python3-pil
+          fi
+          /usr/bin/python3 -c 'from PIL import Image; print(Image.__version__)'
+          dpkg-query -W xvfb libgl1-mesa-dri libglx-mesa0 python3-pil > "$RUNNER_TEMP/scaling-nine-engine/renderer-packages.txt"
+      - name: Render and qualify with a fresh isolated display and profiles
+        env:
+          LANE: ${{ matrix.lane }}
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set -euo pipefail
+          guide=tools/diagnostics/scaling-batch-nine-qualification
+          args=(--repo candidate --bind "$guide/binding.json" --godot "$RUNNER_TEMP/scaling-nine-engine/godot"
+                --output "$RUNNER_TEMP/scaling-nine-$LANE")
+          case "$LANE" in
+            litter) xvfb-run -a -s '-screen 0 1600x1200x24' /usr/bin/python3 "$guide/litter_pixels.py" "${args[@]}";;
+            atlas) xvfb-run -a -s '-screen 0 1600x1000x24' /usr/bin/python3 "$guide/qualify.py" --lane atlas "${args[@]}";;
+          esac
+      - name: Retain source-bound receipts and PNGs without profiles
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: scaling-batch-nine-qualification-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/scaling-nine-${{ matrix.lane }}/
+            ${{ runner.temp }}/scaling-nine-engine/godot-toolchain-receipt.json
+            ${{ runner.temp }}/scaling-nine-engine/renderer-packages.txt
+            tools/diagnostics/scaling-batch-nine-qualification/binding.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,29 @@
+{
+  "control": "18f0fb6c2e9f7e6e76663c0009ca754b4b4b16d5",
+  "control_tree": "1079c00d768cbb901ed5cefc7c9ec41a994a1164",
+  "candidate": "079cee5bc8f02be6f5753940aec708a2f61c94c0",
+  "candidate_tree": "a5ec61adc47fc606dcee0643e2f5c0028be7d1ef",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths-9/README.md": "f11d96869b1214b1c793811c1f8b9eacc475ef5c6f8371b9943db356fc26d54b",
+    "docs/development/scaling-hotpaths-9/scaling-hotpaths-9.mmd": "bb1c0d176300d5593b1cd234b7250d1913ee5ba871845308c2d3fe9cab9a4a75",
+    "docs/development/scaling-hotpaths-9/scaling-ledger-9.xlsx": "f72d9f2a5e4e60a249bde8b930decd0a488b58ff5d4b62028d55334fc3bd136a",
+    "game/scripts/gameplay/cafe_floor_tasks.gd": "194af821c04b964f7b61d6b861e7b3b00add0d5889d1ff2fc24b13b878919ebd",
+    "game/scripts/gameplay/cafe_shell_segments.gd": "e2b3834f7a65db2255eff9c9308e813c7dafcb8a925759b1f1151094e41c10f1",
+    "tests/building/test_shell_segment_model.gd": "e8dc4a9100cadaf52f6b4b4655c43ff4229821c4411f2e5512fd55b9b02c81de",
+    "tests/service/test_customer_litter.gd": "f5714224314a12b9a7c0cfda4639b2e3e348f55f4e6be9ab5d4a2788a34a8a76"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/gameplay/cafe_floor_tasks.gd"
+    ],
+    "added": [],
+    "removed": []
+  },
+  "relative_closure_delta": {
+    "changed": [
+      "scripts/gameplay/cafe_floor_tasks.gd"
+    ],
+    "added": [],
+    "removed": []
+  }
+}
