@@ -2,6 +2,7 @@ extends RefCounted
 ## Additive starter-shell segment ledger. Geometric roots and opening IDs stay stable.
 ## Pure validation, migration and quote operations never mutate caller state.
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
+const OrderedOverlap=preload("res://scripts/gameplay/cafe_wall_support_validation.gd")
 const Walls=preload("res://scripts/gameplay/cafe_walls.gd")
 const Footprint=preload("res://scripts/gameplay/cafe_footprint.gd")
 const FORMAT="little_leaf.shell_segments.v1"
@@ -97,6 +98,74 @@ static func segment_host(state:Dictionary,walls:Array,root_id:String,index:int)-
  return segment
 
 static func support_error(state:Dictionary,walls:Array,attachments:Array)->String:
+ # Single-door layouts keep the existing lightweight validation path.
+ if attachments.size()<2:return _legacy_support_error(state,walls,attachments)
+ var products:Dictionary=state.roots.duplicate(true)
+ for root_id in Geometry.SHELL_HOSTS:products[root_id].height="full"
+ var prepared:=_prepare_legacy_openings(walls,attachments,products)
+ if prepared.is_empty():return _legacy_support_error(state,walls,attachments)
+ var overlaps:=OrderedOverlap._overlapping_rows(prepared.lines)
+ # An unfit but resolvable later aperture can still overlap an earlier one.
+ # Prepare geometry first, then return errors in original attachment order.
+ for i in attachments.size():
+  var attachment:Dictionary=attachments[i]
+  var host:Dictionary=prepared.hosts[i]
+  if host.is_empty():return "Attach to an existing wall; empty floor is not a host"
+  if host.height!="full":return "Doors and windows need a full-height wall"
+  var low=float(attachment.offset)-float(attachment.width)*.5
+  var high=float(attachment.offset)+float(attachment.width)*.5
+  if low< -EPS or high>host.a.distance_to(host.b)+EPS:return "The opening must fit completely within its wall host"
+  if overlaps.has(i):return "A door or window already occupies this part of the wall"
+  if attachment.host_id not in Geometry.SHELL_HOSTS:continue
+  for index in range(maxi(0,floori(low+EPS)),mini(active_count(attachment.host_id,prepared.extension),ceili(high-EPS))):
+   if state.segments[key(attachment.host_id,index)].get("removed",false) or state.segments[key(attachment.host_id,index)].height!="full":return "Opening needs every supporting segment at full height"
+ return ""
+
+static func _prepare_legacy_openings(walls:Array,attachments:Array,products:Dictionary)->Dictionary:
+ var by_id={};var by_ref={};var extension:Array=[]
+ for wall in walls:
+  if not wall is Dictionary or not wall.get("id") is int or by_id.has(wall.id) or wall.get("axis") not in ["x","z"]:return {}
+  if not OrderedOverlap._grid_coordinate(float(wall.x)) or not OrderedOverlap._grid_coordinate(float(wall.z)):return {}
+  by_id[wall.id]=wall;by_ref[Walls.identity(wall)]=wall
+  if Footprint.is_extension_wall(wall):extension=[wall]
+ var rows:Array=[];var lines={};var seen={}
+ for i in attachments.size():
+  var attachment=attachments[i]
+  if not attachment is Dictionary or not attachment.get("id") is int or seen.has(attachment.id) or attachment.has("wall_ids"):return {}
+  if attachment.get("kind") not in Geometry.PRICES or not attachment.get("host_id") is String:return {}
+  if not (attachment.get("width") is int or attachment.get("width") is float) or not (attachment.get("offset") is int or attachment.get("offset") is float):return {}
+  if not is_finite(float(attachment.width)) or not is_finite(float(attachment.offset)) or float(attachment.width)<=0:return {}
+  seen[attachment.id]=true
+  var ref:String=attachment.host_id
+  var supporting=_legacy_host_rows(ref,by_id,by_ref,extension)
+  rows.append(Geometry.resolve_host(ref,supporting,products))
+  # Match compatible_error: aperture geometry uses default shell roots,
+  # while fit above uses the public forced-full root snapshot.
+  var opening:=Geometry.aperture(attachment,supporting)
+  if opening.is_empty():continue
+  var axis:String=opening.host.axis
+  var cross:float=opening.host.a.y if axis=="x" else opening.host.a.x
+  var low:=Geometry.axis_value(opening.a,axis);var high:=Geometry.axis_value(opening.b,axis)
+  if not is_finite(low) or not is_finite(high) or high<low or not OrderedOverlap._grid_coordinate(cross):return {}
+  if high-low<=EPS:continue
+  var line:=Vector2i(0 if axis=="x" else 1,int(cross))
+  if not lines.has(line):lines[line]=[]
+  lines[line].append({"index":i,"low":low,"high":high})
+ return {"hosts":rows,"lines":lines,"extension":extension}
+
+static func _legacy_host_rows(ref:String,by_id:Dictionary,by_ref:Dictionary,extension:Array)->Array:
+ if ref in Geometry.SHELL_HOSTS:return extension
+ if by_ref.has(ref):return [by_ref[ref]]
+ if not ref.begins_with("span:"):return []
+ var ids=ref.trim_prefix("span:").split(",",false)
+ if ids.size()!=2 or not ids[0].is_valid_int() or not ids[1].is_valid_int():return []
+ var first:=int(ids[0]);var second:=int(ids[1])
+ if not by_id.has(first) or not by_id.has(second):return []
+ # resolve_host still authoritatively parses aliases, rejects duplicate or
+ # noncontiguous supports, and sorts accepted numeric members geometrically.
+ return [by_id[first]] if first==second else [by_id[first],by_id[second]]
+
+static func _legacy_support_error(state:Dictionary,walls:Array,attachments:Array)->String:
  # Root hosts stay geometric anchors. Height support is evaluated over every
  # actual segment covered by the full aperture, not a scalar root height.
  var products=state.roots.duplicate(true)

@@ -14,6 +14,9 @@ var geometry
 var game
 var messes={}
 var walks={}
+# Synchronous observe_walks scope only. A public/manual spawn outside this pass
+# uses the normal model queries; no save/revision key or persistent geometry.
+var _walk_policy:Variant=null
 var next_id=1
 var completed=0
 var generation=0
@@ -36,7 +39,7 @@ func observe_walks():
   if game.model.layout_held("guests",id):continue
   var track=walks[id];var old_cell:Vector2i=track.cell;var moved=pos.distance_to(track.pos)>.00001
   var adjacent=absi(cell.x-old_cell.x)+absi(cell.y-old_cell.y)==1
-  if moved and adjacent and str(guest.phase) in WALKING_PHASES and not bool(guest.get("withdrawn",false)) and not game.model.segment_blocked(track.pos,pos) and litter_allowed(old_cell):
+  if moved and adjacent and str(guest.phase) in WALKING_PHASES and not bool(guest.get("withdrawn",false)) and not game.model.segment_blocked(track.pos,pos) and _walk_litter_allowed(old_cell):
    track.inside_steps+=1
    # Each eligible crossing offers a small repeatable chance, so aggregate
    # frequency grows with customer traffic, not an every-footstep guarantee.
@@ -46,6 +49,7 @@ func observe_walks():
     var spawned=spawn(old_cell,kind,id,int(track.inside_steps))
     if spawned>=0:track.dropped=true
   track.pos=pos;track.cell=cell
+ _walk_policy=null
  for id in walks.keys():
   if not live.has(id):walks.erase(id)
 func spawn(cell:Vector2i,kind:String,guest_id=-1,path_step=0)->int:
@@ -61,7 +65,41 @@ func spawn(cell:Vector2i,kind:String,guest_id=-1,path_step=0)->int:
   if Vector2i(floori(point.x),floori(point.y))!=cell:return -1
  messes[id]=entry;next_id+=1
  return id
+func _build_walk_policy()->Dictionary:
+ var first_solid={};var any_solid={};var kitchens={};var registers={};var bins={}
+ for item in game.model.items:
+  var base=Vector2i(int(item.x),int(item.z));var kind=str(item.kind)
+  # Walkability respects the first item (including a rug); bin-side clearance
+  # rejects any solid, even if it follows a rug on the same historical tile.
+  if not first_solid.has(base):first_solid[base]=kind!="rug"
+  if kind!="rug":any_solid[base]=true
+  if kind in KITCHEN_KINDS:kitchens[base]=true
+  elif kind=="register":
+   var face=game.model.workface_cell(item)
+   registers[face]=true;registers[base*2-face]=true
+  elif kind=="bin" and game.model.is_floor_owned(base):bins[base]=true
+ return {"first_solid":first_solid,"any_solid":any_solid,"kitchens":kitchens,"registers":registers,"bins":bins}
+
+func _walk_litter_allowed(cell:Vector2i)->bool:
+ if cell.x<1 or not game.model.is_floor_owned(cell):return false
+ for zone in litter_exclusions:
+  if zone.has_point(cell):return false
+ if _walk_policy==null:_walk_policy=_build_walk_policy()
+ if _walk_policy.first_solid.get(cell,false) or _walk_policy.registers.has(cell):return false
+ # The 3×3 kitchen exclusion already contains both possible kitchen faces.
+ if not _walk_policy.kitchens.is_empty():
+  for z in range(-1,2):
+   for x in range(-1,2):
+    if _walk_policy.kitchens.has(cell+Vector2i(x,z)):return false
+ if not _walk_policy.bins.is_empty() and not _walk_policy.any_solid.has(cell):
+  # Only an adjacent, owned bin can have this tile as an open service face.
+  for step in [Vector2i.DOWN,Vector2i.LEFT,Vector2i.UP,Vector2i.RIGHT]:
+   var base=cell+step
+   if _walk_policy.bins.has(base) and not game.model.edge_blocked(base,cell):return false
+ return true
+
 func litter_allowed(cell:Vector2i)->bool:
+ if _walk_policy!=null:return _walk_litter_allowed(cell)
  if not game._staff_walkable(cell) or game._is_station_workface(cell):return false
  for zone in litter_exclusions:
   if zone.has_point(cell):return false
