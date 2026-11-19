@@ -15,12 +15,27 @@ spec.loader.exec_module(review)
 
 class MailNativeReviewTests(unittest.TestCase):
     def test_exact_postimages_and_no_unreviewed_production(self):
-        review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
-        with self.assertRaisesRegex(RuntimeError, "paths"):
-            review.verify_postimages([*review.REVIEWED_POSTIMAGES, "game/scripts/unreviewed.gd"], ROOT)
-        for name in ("game/scripts/main.gd", "platform/firebase/support_mail_service.mjs", review.FIXTURE):
-            original = review.sha
-            with patch.object(review, "sha", side_effect=lambda p: "0" * 64 if p == ROOT / name else original(p)):
+        main = "game/scripts/main.gd"
+        captured_main = "a585cfa764e893bb974343fe8dc77d5365ff8b8ac7ae17be5dbf6167bdf47b78"
+        current_main = "ce5e31dabaa771689227275ab60fc38e66fd0df294a93077c4aa3543922f0473"
+        original = review.sha
+        self.assertEqual(review.REVIEWED_POSTIMAGES[main], captured_main)
+        self.assertEqual(original(ROOT / main), current_main)
+        # The old capture verifier still refuses a successor on live files.
+        with self.assertRaisesRegex(RuntimeError, "postimage"):
+            review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
+
+        def historical_sha(path):
+            # Exercise the frozen capture guard with a fixture for only its
+            # archived Main postimage; every other byte is read normally.
+            return captured_main if path == ROOT / main else original(path)
+
+        with patch.object(review, "sha", side_effect=historical_sha):
+            review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
+            with self.assertRaisesRegex(RuntimeError, "paths"):
+                review.verify_postimages([*review.REVIEWED_POSTIMAGES, "game/scripts/unreviewed.gd"], ROOT)
+        for name in (main, "platform/firebase/support_mail_service.mjs", review.FIXTURE):
+            with patch.object(review, "sha", side_effect=lambda p: "0" * 64 if p == ROOT / name else historical_sha(p)):
                 with self.assertRaises(RuntimeError):
                     review.verify_postimages(review.REVIEWED_POSTIMAGES, ROOT)
 

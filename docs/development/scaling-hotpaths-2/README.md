@@ -1,6 +1,6 @@
 # Scaling hot paths, batch 2
 
-The second batch builds on [#371](https://github.com/yiyousiow000814/little-leaf/pull/371) at `c352e6629ae9f56db58e9f1ecd162b02c1e85875`. Source-isolated workload counters are not frame timings. No integrated FPS, merge, or deployment result is claimed.
+The second batch, [#373](https://github.com/yiyousiow000814/little-leaf/pull/373) at `29251c48c3a8e940bef4a8f600365833ac735dd4` (tree `60ea36b5aafe117a7ec0eaf336684a3f56b60dbb`), builds on [#371](https://github.com/yiyousiow000814/little-leaf/pull/371) at `c352e6629ae9f56db58e9f1ecd162b02c1e85875`. Source-isolated workload counters are not frame timings. No integrated FPS, merge, or deployment result is claimed.
 
 ## Changes and measured work
 
@@ -15,7 +15,9 @@ The second batch builds on [#371](https://github.com/yiyousiow000814/little-leaf
 
 - Three-change local combination (renderer, capacity, cashier) passed **10,947 assertions in nine targeted headless suites**.
 - The four-change local composition, including staff station indexing, passed **10,955 assertions in nine targeted headless suites**. These are separate runs; do not add their totals.
-- Before claiming production readiness, rerun native same-input pixel pairs and canonical original-three atlas checks for this renderer source; #371's earlier visual qualification does not qualify this renderer change. Ordinary exact-head CI, live Web/save compatibility, larger-scene coverage and integrated FPS remain pending.
+- [Dining/dismount pixel verification](https://github.com/yiyousiow000814/little-leaf/actions/runs/44471097329/job/135380482179) passed on exact #373: 11 visible same-input pairs at 1800 × 1200 decoded to equal pixels and their contact records matched after correction of the QA fixture. Actual images were inspected.
+- [Canonical atlas lane](https://github.com/yiyousiow000814/little-leaf/actions/runs/44470208736/job/135377545574) passed on the same product source: all three canonical atlases qualified through generation, import, READY, direct, and saved paths, and nine PNGs matched. One `illustrated_cafe.gd` producer hash changes. Art and import files are unchanged. The cited evidence is the successful atlas lane, separate from the corrected dining run.
+- Ordinary exact-head CI, live Web/save compatibility, larger rendered-scene coverage and final cloud FPS remain pending.
 - Reuse the [#368 frozen cloud baseline](https://github.com/yiyousiow000814/little-leaf/actions/runs/44464488862/job/135358861281). Do not rerun the old FPS baseline. Time only the qualified new candidate on a matching cloud envelope; do not equate native draws with Web or device FPS.
 
 ## Still open
