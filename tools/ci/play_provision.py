@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import platform
 import re
+import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -15,6 +17,10 @@ LOCK = Path(__file__).with_name("noble-lock.json")
 ORIGIN = "https://archive.ubuntu.com/ubuntu/pool/"
 RETRYABLE_DOWNLOAD_CODES = {28, 52}  # Timeout, empty reply.
 DOWNLOAD_PHASE_SECONDS = 110  # Shared by all packages, inside each 3-minute CI step.
+PREFETCH_SECONDS = 60  # Optional within ordinary preflight, in parallel with engine shards.
+# These large packages have already blocked hosted lanes; schedule them first
+# without changing any install transaction order or the lock.
+PREFETCH_PRIORITY = ("fonts-wqy-zenhei", "fonts-freefont-ttf", "fonts-unifont", "tesseract-ocr-eng")
 FIRST_DOWNLOAD_SECONDS = 45
 RETRY_DOWNLOAD_SECONDS = 55
 # Playwright 1.63.0's Noble Chromium dependency/tool list, excluding locked fonts.
@@ -113,16 +119,23 @@ def download_pinned_package(name, url, dest, deadline):
             print(f"Retrying pinned package {name} once after curl exit {error.returncode}"
                   f" ({'resume' if resume else 'restart'})", file=sys.stderr)
 
-def fetch_package(name, spec, root, deadline=None):
+def fetch_package(name, spec, root, deadline=None, bundle=None):
     rel = spec["file"]
     if not re.fullmatch(r"(main|universe)/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9+._~%-]+[.]deb", rel):
         raise ValueError(f"Unsafe package path: {rel}")
     dest = root / Path(rel).name
-    if deadline is None:
-        deadline = time.monotonic() + DOWNLOAD_PHASE_SECONDS
-    download_pinned_package(name, ORIGIN + rel, dest, deadline)
-    # Check the entire file after either a fresh transfer or continuation.
-    # Hash and package metadata failures never trigger a retry.
+    cached = bundle / dest.name if bundle is not None else None
+    from_bundle = cached is not None and (cached.exists() or cached.is_symlink())
+    if from_bundle:
+        if bundle.is_symlink() or not stat.S_ISREG(cached.lstat().st_mode):
+            raise ValueError(f"{name} is not a regular bundle file")
+        shutil.copyfile(cached, dest)
+    else:
+        if deadline is None:
+            deadline = time.monotonic() + DOWNLOAD_PHASE_SECONDS
+        download_pinned_package(name, ORIGIN + rel, dest, deadline)
+    # Verify full bytes after fresh transfer, continuation, or artifact restore.
+    # Hash and package metadata failures never trigger network fallback.
     with dest.open("rb") as stream:
         actual = hashlib.file_digest(stream, "sha256").hexdigest()
     if actual != spec["sha256"]:
@@ -133,14 +146,49 @@ def fetch_package(name, spec, root, deadline=None):
             raise ValueError(f"{name} unexpected {key}: {result}")
     if run("dpkg-deb", "-f", str(dest), "Architecture", capture_output=True).stdout.strip() not in {"all", "amd64"}:
         raise ValueError(f"{name} unexpected architecture")
+    if from_bundle:
+        print(f"Verified exact-attempt bundle package {name}")
     return dest
 
-def main(mode, receipt):
+def prefetch(lock, bundle):
+    """Stage only complete verified files for this run; never install packages here."""
+    bundle.mkdir(parents=True, exist_ok=False)
+    deadline = time.monotonic() + PREFETCH_SECONDS
+    with tempfile.TemporaryDirectory(prefix="checked-noble-prefetch-") as td:
+        stage = Path(td)
+
+        def one(name):
+            try:
+                path = fetch_package(name, lock[name], stage, deadline)
+            except (TimeoutError, subprocess.TimeoutExpired):
+                print(f"Optional bundle omitted {name}: transport budget exhausted", file=sys.stderr)
+                return
+            except subprocess.CalledProcessError as error:
+                # Transport was only anticipatory here. The mandatory
+                # consumer still performs the original pinned cold fetch.
+                if not isinstance(error.cmd, (tuple, list)) or not error.cmd or error.cmd[0] != "curl":
+                    raise
+                print(f"Optional bundle omitted {name}: curl exit {error.returncode}", file=sys.stderr)
+                return
+            shutil.copyfile(path, bundle / path.name)
+
+        priority = [name for name in PREFETCH_PRIORITY if name in lock]
+        names = priority + sorted(lock.keys() - set(priority))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(one, names))
+
+
+def main(mode, receipt, bundle=None):
     lock = json.loads(LOCK.read_text())
-    if mode not in {"baseline", "candidate", "snapshot"}:
+    if mode not in {"baseline", "candidate", "snapshot", "prefetch"}:
         raise ValueError("Unknown arm")
     if platform.freedesktop_os_release().get("VERSION_CODENAME") != "noble" or platform.machine() != "x86_64":
         raise ValueError("Expected Ubuntu Noble amd64")
+    if mode == "prefetch":
+        if bundle is not None:
+            raise ValueError("Prefetch takes one bundle output directory")
+        prefetch(lock, Path(receipt))
+        return
     names = sorted(set(PREINSTALLED) | lock.keys())
     current = {name: installed(name) for name in names}
     report = {"image_os": os.getenv("ImageOS"), "image_version": os.getenv("ImageVersion"), "mode": mode,
@@ -157,7 +205,8 @@ def main(mode, receipt):
                 root = Path(td)
                 deadline = time.monotonic() + DOWNLOAD_PHASE_SECONDS
                 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-                    files = list(pool.map(lambda n: fetch_package(n, lock[n], root, deadline), needed))
+                    bundle_path = Path(bundle) if bundle is not None else None
+                    files = list(pool.map(lambda n: fetch_package(n, lock[n], root, deadline, bundle_path), needed))
                 if files:
                     # Dry-run uses installed versions and local file dependencies only. It must
                     # resolve before the original lane's existing sudo is allowed to mutate dpkg.

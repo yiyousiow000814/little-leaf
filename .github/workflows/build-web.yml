@@ -93,6 +93,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       binding: ${{ steps.bind.outputs.binding }}
+      browser_packages_id: ${{ steps.browser_packages.outcome == 'success' && steps.browser_packages.outputs.artifact-id || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,6 +103,27 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: python3 tools/ci/preflight.py
+      - name: Prefetch verified Chromium dependencies during native tests
+        id: prefetch_browser_packages
+        timeout-minutes: 2
+        run: |
+          set -euo pipefail
+          python3 tools/ci/play_provision.py prefetch "$RUNNER_TEMP/pinned-chromium-prefetch"
+          if compgen -G "$RUNNER_TEMP/pinned-chromium-prefetch/*.deb" > /dev/null; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Retain verified browser dependency bytes for this attempt
+        id: browser_packages
+        timeout-minutes: 1
+        if: steps.prefetch_browser_packages.outputs.present == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: little-leaf-pinned-chromium-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pinned-chromium-prefetch/*.deb
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 1
       - name: Bind successful complete preflight to this exact PR merge and attempt
         id: bind
         run: |
@@ -208,6 +230,8 @@ jobs:
     timeout-minutes: 15
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      browser_packages_id: ${{ needs.preflight.outputs.browser_packages_id }}
+      browser_packages_binding: ${{ needs.preflight.outputs.binding }}
       inputs_id: ${{ steps.inputs.outputs.artifact-id }}
       inputs_digest: ${{ steps.inputs.outputs.artifact-digest }}
       compact_id: ${{ steps.compact.outputs.artifact-id }}
@@ -391,6 +415,14 @@ jobs:
           "$RUNNER_TEMP/inbox-browser-tools/node_modules/.bin/playwright" install-deps chromium
           sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng
           google-chrome --version
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PLAY_LOCKED_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
       - name: Install only missing pinned Ubuntu packages and pinned Playwright for PR Play
         if: env.PLAY_LOCKED_PROVISION == 'true'
         timeout-minutes: 3
@@ -401,7 +433,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/play-provision"
           timeout --kill-after=5s 170s npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0 &
           driver_pid=$!
-          timeout --kill-after=5s 170s python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/play-provision/package-transaction.json" &
+          timeout --kill-after=5s 170s python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/play-provision/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages" &
           packages_pid=$!
           trap 'kill "$driver_pid" "$packages_pid" 2>/dev/null || true; wait || true; exit 130' INT
           trap 'kill "$driver_pid" "$packages_pid" 2>/dev/null || true; wait || true; exit 143' TERM
@@ -497,12 +529,20 @@ jobs:
         if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
         timeout-minutes: 3
         run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
       - name: Install only missing pinned Ubuntu Chromium dependencies
         if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
         timeout-minutes: 3
         run: |
           mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
-          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages"
       - name: Install exact checksum-pinned Chrome for ordinary browser gates
         run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
       - name: Activate and verify the pinned Chrome channel
@@ -632,12 +672,20 @@ jobs:
         if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
         timeout-minutes: 3
         run: npm install --prefix "$RUNNER_TEMP/inbox-browser-tools" --ignore-scripts --no-audit --no-fund playwright@1.63.0
+      - name: Restore exact-attempt verified Chromium package bytes
+        if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true' && needs.build.outputs.browser_packages_id != '' && needs.build.outputs.browser_packages_binding == format('{0}:{1}:{2}', github.sha, github.run_id, github.run_attempt)
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          artifact-ids: ${{ needs.build.outputs.browser_packages_id }}
+          path: ${{ runner.temp }}/pinned-chromium-packages
+          merge-multiple: true
+          digest-mismatch: error
       - name: Install only missing pinned Ubuntu Chromium dependencies
         if: env.PR_LOCKED_CHROMIUM_PROVISION == 'true'
         timeout-minutes: 3
         run: |
           mkdir -p "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE"
-          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json"
+          python3 tools/ci/play_provision.py candidate "$RUNNER_TEMP/$CHROMIUM_PROVISION_RELATIVE/package-transaction.json" "$RUNNER_TEMP/pinned-chromium-packages"
       - name: Install exact checksum-pinned Chrome for both compatibility cases
         run: python3 tools/ci/install_tools.py chrome --output "$RUNNER_TEMP/chrome-tools"
       - name: Activate and verify the pinned Chrome channel
