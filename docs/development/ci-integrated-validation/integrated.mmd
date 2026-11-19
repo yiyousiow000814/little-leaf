@@ -1,0 +1,9 @@
+flowchart TD
+    B["Shared #394 · 16a34fd7"] --> W["Walls #396"]
+    B --> F["Furniture #395"]
+    W --> C["Combined exact local code"]
+    F --> C
+    A["#391 CI + signed refresh retry<br/>rc124 only · 50s first / 75s aggregate"] --> C
+    C --> P["532 local Python checks + JS/atlas · 24.15s<br/>22 focused Mail/Storage"]
+    P --> G["Open: fresh ordinary main-target full run<br/>5 min target · 10 min cap"]
+    G --> X["No main-push, release or 60 FPS qualification"]
