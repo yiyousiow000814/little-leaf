@@ -1,0 +1,18 @@
+{
+  "binding.json": "276c66bb52184bbcabfca8f45413844d73370b7ae94826890122ca5e440f5df1",
+  "capture.gd": "27563f9edb4dc101d0acf6aadec5ed68a1d62068898b4063f47fb9426ce11867",
+  "counter-project.godot": "27ce585e8607a3b68e1c456f608d08c6e2e1cfbc71c8fe66f329180c2bb47985",
+  "counter-scenes.gz.b64": "a296993ff093db5de5923bf05b220c992dfe98f9dcfc24dfb50cb659622b9103",
+  "counter.gd": "e508db3405dd75de93445f77916cc0c06bac02003ad4d534af79f0e8823daa81",
+  "counter_verify.py": "ed2a904ed634f86b509d59c444b197ef953beae02a13298e1d2f684bc919a4b8",
+  "decode.gd": "3e6990306623a5ffa804c0e1b324c14caaff86d3c531ecbe20b481e9fb8bb05b",
+  "failure.py": "e45ebc41179e706b97e00e53c0bddafa248120e58000786e0405db9275974cf1",
+  "finalize.py": "99aaddc37aab9cae6f82af41ecb7e62acd9b8b2ae45ae8050351b8c186d7126d",
+  "fixture.json": "ed6fcfc1e4a3396389eff71b09f60740d099de9c046eb0e37eabe900e8c1cf4f",
+  "guard.py": "19cbda00aa01b8bbeb9bb632ce001f80b9ec640db640d5fe6ccc97a1e9f6374c",
+  "prereqs.sh": "4c92ade54df72ea7b7734eeed86f7656b57ba8ca8b8fd9f2198d8ce3dcd5dac9",
+  "product.patch": "ed6c2b1affbfebf76df67c9548900be4ca37607738d9d95963d0517c0afa1512",
+  "receipt.py": "22dff5ecfd7724cd9a9c143b14150d0fcd05befbe1cf7f3ecacd19ceaf91baee",
+  "run.sh": "2edd08e6aed9c16b9aed903cc8a82f2235c1b502f4ea0a4cf5af8bda63845f36",
+  "verify.py": "f9924ae13c75f4d29e8faf22ea883f301e626428694a0137e2e9be43e3b4aa4a"
+}

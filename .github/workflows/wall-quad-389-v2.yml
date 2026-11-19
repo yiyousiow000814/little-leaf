@@ -1,0 +1,62 @@
+name: "One-shot #389 solid-wall native pixels"
+on:
+  push:
+    branches: [qa/wall-quad-389-v2]
+permissions:
+  contents: read
+concurrency:
+  group: wall-quad-389-v2
+  cancel-in-progress: false
+jobs:
+  exact-paired-stills:
+    if: >-
+      github.repository == 'yiyousiow000814/little-leaf' && github.actor == 'yiyousiow000814' &&
+      github.run_attempt == '1' && github.ref == 'refs/heads/qa/wall-quad-389-v2' &&
+      github.event_name == 'push' && !github.event.created && !github.event.forced && !github.event.deleted &&
+      github.event.before == '1556f2ad1e9985c723f7f3634a3f48535cc411a2'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      KIT: tools/diagnostics/wall-quad-389-v2
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check diagnostic direct child only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          sparse-checkout: tools/diagnostics/wall-quad-389-v2
+          persist-credentials: false
+      - name: Gate exact branch, change set and diagnostic files
+        timeout-minutes: 1
+        run: |
+          # Even a missing Python interpreter must leave a bounded public status.
+          mkdir -p "$RUNNER_TEMP/wall-quad-public"
+          printf '%s\n' '{"schema":"ll-wall-quad-native-v1","source":"1556f2ad1e9985c723f7f3634a3f48535cc411a2","patch_sha256":"ed6c2b1affbfebf76df67c9548900be4ca37607738d9d95963d0517c0afa1512","status":"unqualified","stage":"python_runtime","native_pixels_verified":false,"web_qualified":false,"game_timing_measured":false,"historical_comparison":false}' > "$RUNNER_TEMP/wall-quad-public/summary.json"
+          command -v python3 >/dev/null
+          python3 -c 'import hashlib,json,subprocess,tarfile; assert hasattr(hashlib,"file_digest")'
+          python3 "$KIT/receipt.py" source_binding
+          python3 "$KIT/guard.py" event
+      - name: Read exact integrated product and pinned installer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 1556f2ad1e9985c723f7f3634a3f48535cc411a2
+          path: product
+          fetch-depth: 1
+          sparse-checkout: |
+            game
+            tests/building/test_centered_wall_visuals.gd
+            tools/ci
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate identical-source paired stills, no deployment or cadence
+        timeout-minutes: 10
+        run: bash "$KIT/run.sh"
+      - name: Retain only bounded status, aggregate counts and decoded image hashes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: wall-quad-native-summary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/wall-quad-public/summary.json
+          if-no-files-found: warn
+          retention-days: 14
