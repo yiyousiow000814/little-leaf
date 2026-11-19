@@ -3,6 +3,65 @@ extends RefCounted
 ## Casing, reveals and glass never paint a solid wall behind an opening.
 const Geometry=preload("res://scripts/gameplay/cafe_wall_openings.gd")
 const WallArt=preload("res://scripts/rendering/illustrated_walls.gd")
+# One artist owns this bounded, world-space-only cache. Keys are scalar copies,
+# not source/model references, hashes or revision counters. Array order matters.
+class PreparationCache extends RefCounted:
+	var active=false
+	var inputs=[]
+	var installed={}
+	var entries={}
+	var hits=0
+	var misses=0
+	static func wall_key(wall:Dictionary)->Array:
+		# Custom invalid records keep the uncached path, without retaining Objects.
+		if not (wall.get("id",-1) is String or wall.get("id",-1) is int or wall.get("id",-1) is float):return []
+		for field in ["axis","height","material"]:
+			if not wall.get(field) is String:return []
+		return [wall.get("id",-1),wall.axis,float(wall.x),float(wall.z),wall.height,wall.material,
+			Geometry.Walls.placement_value(wall,"physical_front"),Geometry.Walls.placement_value(wall,"physical_back"),
+			Geometry.Walls.placement_value(wall,"visual_front"),Geometry.Walls.placement_value(wall,"visual_back"),
+			Geometry.Walls.placement_value(wall,"pattern_offset")]
+	static func attachment_key(attachment:Dictionary)->Array:
+		if not attachment.get("kind") is String:return []
+		var ids=attachment.get("wall_ids",[])
+		if not ids is Array or not ids.all(func(id):return id is String):return []
+		return [int(attachment.id),attachment.kind,attachment.has("wall_ids"),
+			attachment.get("wall_ids",[]).duplicate(),str(attachment.get("host_id","")),
+			float(attachment.offset),float(attachment.width)]
+	func clear():
+		active=false;inputs=[];installed={};entries={}
+	func begin(walls:Array,attachments:Array,enabled:bool):
+		if not enabled:
+			clear();return
+		var wall_keys=[];var attachment_keys=[]
+		for wall in walls:
+			var key=wall_key(wall)
+			if key.is_empty():clear();return
+			wall_keys.append(key)
+		for attachment in attachments:
+			var key=attachment_key(attachment)
+			if key.is_empty():clear();return
+			attachment_keys.append(key)
+		var next=[wall_keys,attachment_keys]
+		if inputs!=next:
+			inputs=next;installed={};entries={}
+			for key in wall_keys:installed[key]=true
+		active=true
+	func get_prepared(wall:Dictionary)->Dictionary:
+		if not active:return {}
+		var key=wall_key(wall)
+		# Drafts/nonmember fixtures retain the original path. Never cache history.
+		if not installed.has(key):return {}
+		if entries.has(key):
+			hits+=1;return entries[key]
+		misses+=1;return {}
+	func store(wall:Dictionary,preparation:Dictionary):
+		if not active:return
+		var key=wall_key(wall)
+		if installed.has(key):
+			# Never mutate a prior result held by an already-retained callback.
+			entries[key]=preparation.duplicate(true)
+
 static func front(host:Dictionary)->Vector2:
 	if host.has("visual_front"):return host.visual_front
 	return Vector2.ZERO if host.shell else host.normal*.5

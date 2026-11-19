@@ -139,6 +139,7 @@ func inspect_retained_slice():
    9:alpha=.68;tint=Color("efd095")
   var before=[fixture.model.built_walls,painter.render_wall_attachments].duplicate(true)
   var piece=Art.built_depth_entries(first)[3]
+  painter.wall_preparation_cache.begin(fixture.model.built_walls,painter.render_wall_attachments,true)
   painter.canvas_stream.cursor=0;painter._draw_wall_slice(piece,alpha,tint)
   var node=painter.native_object_nodes[0]
   check(node.paint_revision>prior_revision,"Wall slice immediately invalidates for attachment, style, neighbor, movement, deletion, zoom, origin or draft tint")
@@ -148,8 +149,11 @@ func inspect_retained_slice():
   painter.filled=[];Art.draw_built_piece(painter,Art.built_depth_entries(first)[3],painter.render_wall_attachments,alpha,tint)
   check(painter.filled==retained,"Retained wall callback preserves exact projected points, colors, UVs and texture")
   check(before==[fixture.model.built_walls,painter.render_wall_attachments],"Retained wall never mutates model or draft inputs")
+  var hits=painter.wall_preparation_cache.hits
+  painter.wall_preparation_cache.begin(fixture.model.built_walls,painter.render_wall_attachments,true)
   painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
-  check(node.paint_revision==prior_revision,"Fresh per-draw preparation does not invalidate unchanged retained wall")
+  check(node.paint_revision==prior_revision,"Cross-frame preparation does not invalidate unchanged retained wall")
+  check(painter.wall_preparation_cache.hits>hits,"Unchanged next draw reuses cached world preparation")
   painter._art_transform=Transform2D(0,Vector2(20+transition,30))
   painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
   check(node.paint_revision==prior_revision and node.transform==painter._art_transform,"Presentation pan moves retained wall without rebuilding geometry")
@@ -157,6 +161,7 @@ func inspect_retained_slice():
  var sentinel=RefCounted.new();var source_lifetime=weakref(sentinel)
  painter.render_wall_attachments=[{"id":10,"kind":"window","wall_ids":["first"],"offset":.5,"width":.5,"lifetime_probe":sentinel}]
  sentinel=null
+ painter.wall_preparation_cache.begin(fixture.model.built_walls,painter.render_wall_attachments,true)
  painter.canvas_stream.cursor=0;painter._draw_wall_slice(Art.built_depth_entries(first)[3],alpha,tint)
  painter.render_wall_attachments=[]
  check(source_lifetime.get_ref()==null,"Wall callback does not retain a discarded attachment array")
@@ -181,7 +186,71 @@ func inspect_retained_slice():
  painter.free();fixture.free()
  check(observed.get_ref()==null,"Wall draw-list owner is released with its artist")
 
+
+func inspect_cross_frame_cache():
+ var fields=["id","axis","x","z","height","material","physical_front","physical_back","visual_front","visual_back","pattern_offset","neighbor_order","neighbor_height","neighbor_position","neighbor_remove","opening_offset","opening_width","opening_kind","opening_id","opening_ids","legacy_host","opening_remove"]
+ for field in fields:
+  var cache=Art.PreparationCache.new();var painter=Painter.new()
+  var first=wall("first","x",2,3);var next=wall("next","x",3,3);var corner=wall("corner","z",2,3)
+  var walls=[first,next,corner];painter.game.model.built_walls=walls
+  var opening={"id":8,"kind":"door","wall_ids":["first","next"],"offset":1.0,"width":1.5}
+  var attachments=[opening]
+  cache.begin(walls,attachments,true)
+  var old=Art.built_preparation(painter,Art.built_depth_entries(first)[0],attachments)
+  var frozen=old.duplicate(true);cache.store(first,old)
+  cache.begin(walls,attachments,true)
+  check(cache.get_prepared(first)==frozen and cache.entries.size()==1,"Exact unchanged cache hit: "+field)
+  var held=cache.get_prepared(first)
+  match field:
+   "id":first.id="replacement"
+   "axis":first.axis="z"
+   "x":first.x=1
+   "z":first.z=2
+   "height":first.height="half"
+   "material":first.material="leaf_print"
+   "physical_front","physical_back","visual_front","visual_back","pattern_offset":
+    first.placement=Walls.PLACEMENT.duplicate();first.placement[field]+=.05
+   "neighbor_order":walls.reverse()
+   "neighbor_height":next.height="half"
+   "neighbor_position":next.x+=.01
+   "neighbor_remove":walls.erase(next)
+   "opening_offset":opening.offset=.9
+   "opening_width":opening.width=.7
+   "opening_kind":opening.kind="window"
+   "opening_id":opening.id=9
+   "opening_ids":opening.wall_ids.reverse()
+   "legacy_host":opening.erase("wall_ids");opening.host_id="first"
+   "opening_remove":attachments.clear()
+  cache.begin(walls,attachments,true)
+  check(cache.entries.is_empty(),"In-place dependency change invalidates without revision: "+field)
+  var current=Art.built_preparation(painter,Art.built_depth_entries(first)[0],attachments)
+  cache.store(first,current)
+  check(cache.get_prepared(first)==current,"Changed geometry equals original preparation: "+field)
+  check(held==frozen,"Invalidation never mutates held old derived value: "+field)
+  cache.clear();check(not cache.active and cache.inputs.is_empty() and cache.entries.is_empty() and cache.installed.is_empty(),"Explicit cache release: "+field)
+ var cache=Art.PreparationCache.new();var painter=Painter.new();var first=wall("first","x",2,3)
+ var walls=[first];painter.game.model.built_walls=walls
+ var sentinel=RefCounted.new();var observed=weakref(sentinel)
+ var attachment={"id":8,"kind":"window","wall_ids":["first"],"offset":.5,"width":.7,"lifetime_probe":sentinel}
+ var attachments=[attachment];sentinel=null
+ cache.begin(walls,attachments,true);cache.store(first,Art.built_preparation(painter,Art.built_depth_entries(first)[0],attachments))
+ attachments.clear();attachment={}
+ check(observed.get_ref()==null,"Cache retains no attachment metadata Objects")
+ var previous=cache.get_prepared(first).duplicate(true)
+ var draft=Walls.make("z",8,8)
+ cache.store(draft,previous)
+ check(cache.entries.size()==1 and cache.get_prepared(draft).is_empty(),"Nonmember draft uses uncached fallback, no history growth")
+ for cycle in 20:
+  walls[0]=wall("replacement-%d"%cycle,"x",2,3)
+  cache.begin(walls,[],true);cache.store(walls[0],Art.built_preparation(painter,Art.built_depth_entries(walls[0])[0],[]))
+  check(cache.entries.size()==1 and cache.installed.size()==1,"Replacement cycles retain only current-wall capacity")
+ cache.begin([],[],true);check(cache.entries.is_empty() and cache.installed.is_empty(),"Removing walls releases cached capacity")
+ cache.begin(walls,[],false);check(not cache.active and cache.inputs.is_empty(),"Disabled path releases state and falls back")
+ var owner=RetainedPainter.new();var owned=weakref(owner.wall_preparation_cache);owner.free()
+ check(owned.get_ref()==null,"Cache lifetime belongs only to its artist")
+
 func _initialize():
+ inspect_cross_frame_cache()
  inspect_retained_slice()
  for cycle in range(12):check(slice_group_lifetime().get_ref()==null,"Dropping the final slice releases preparation on every cycle")
  var painter=Painter.new();var host=Geometry.wall_host(wall("original","x",0,0))

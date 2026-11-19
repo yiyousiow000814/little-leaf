@@ -27,6 +27,8 @@ var rounded_contours={}
 var rounded_seen_current={}
 var rounded_seen_previous={}
 var canvas_stream=preload("res://scripts/rendering/retained_canvas_stream.gd").new()
+var use_wall_preparation_cache=true
+var wall_preparation_cache=OpeningArt.PreparationCache.new()
 var retain_fills=true
 var retain_outlines=true
 var use_local_outline_geometry=true
@@ -312,6 +314,7 @@ func _exit_tree():
 	if RenderingServer.frame_post_draw.is_connected(_record_character_pick_frame):RenderingServer.frame_post_draw.disconnect(_record_character_pick_frame)
 	canvas_stream.release()
 	background_cache.release()
+	wall_preparation_cache.clear()
 
 var cooking_motion_strength=1.0
 var cooking_reduce_motion=false
@@ -1095,6 +1098,7 @@ func _draw():
 	rounded_seen_previous=rounded_seen_current;rounded_seen_current={}
 	render_contacts.clear()
 	if icon_kind!="":
+		wall_preparation_cache.clear()
 		background_cache.hide()
 		ui_scale=1; tile=Vector2(39,19.5); origin=Vector2.ZERO
 		art_transform(Vector2(49,57),0,Vector2(.80,.80))
@@ -1102,6 +1106,7 @@ func _draw():
 		art_transform(Vector2.ZERO)
 		return
 	if not is_instance_valid(game):
+		wall_preparation_cache.clear()
 		background_cache.hide();return
 	var size=get_viewport_rect().size
 	var show_service=not game.editing
@@ -1114,6 +1119,7 @@ func _draw():
 	var preparing = use_retained_presentation and game.cafe_intro!=null and game.cafe_intro.preparing
 	_warmup_view=Rect2(Vector2(0,-size.y*1.35),Vector2(size.x,size.y*2.35)) if stable_admission or preparing else Rect2()
 	render_wall_attachments=game.build_tools.get_render_attachments() if game.build_tools!=null and game.build_tools.has_method("get_render_attachments") else game.model.wall_attachments
+	wall_preparation_cache.begin(game.model.built_walls,render_wall_attachments,use_wall_preparation_cache and show_objects)
 	var openings=[]
 	for attachment in render_wall_attachments if show_objects else []:
 		var opening=OpeningGeometry.aperture(attachment,game.model.built_walls)
@@ -1434,7 +1440,15 @@ func _draw_wall_slice(piece:Dictionary,alpha:float,tint:Color):
 	# Each draw's existing preparation owns the exact geometry dependency
 	# values, including neighboring end/corner cuts and draft openings. Keep
 	# neither whole-model copies nor a persistent layout cache in every slice.
-	var preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments)
+	var preparation:Dictionary=piece.get("wall_preparation",{})
+	if preparation.is_empty():
+		var cached=wall_preparation_cache.get_prepared(piece.entry)
+		if cached.is_empty():
+			preparation=OpeningArt.built_preparation(self,piece,render_wall_attachments)
+			wall_preparation_cache.store(piece.entry,preparation)
+		else:
+			# Fill this draw's existing shared slice dictionary, not the cache.
+			preparation.merge(cached)
 	var shape=["wall-slice",piece.wall_t0,piece.wall_t1,piece.wall_end,
 		preparation,alpha,tint,origin]
 	# The retained callback owns derived geometry only, never model/draft arrays.
