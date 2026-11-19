@@ -1,0 +1,34 @@
+{
+  "control": "3088fb1c4ddde3c12d346310b6a94f4b1506c21f",
+  "control_tree": "7f65e497b06705462cc809a8d7086e5fcd9c6a2e",
+  "candidate": "51b97f1149b6d27736e4f64b73233023ab88afc0",
+  "candidate_tree": "581c159c8edf753d14a285f3dcb2ee2d41d371ad",
+  "reviewed_paths": {
+    "docs/development/scaling-hotpaths-6/README.md": "7c773c619369436ed2f737f7340ca91c9a00764de3ebc7e6253c87c38617350e",
+    "docs/development/scaling-hotpaths-6/scaling-hotpaths-6.mmd": "31675f28565a1639ae3af8590f54b4d63dab87a846e92a0fe251e368cdfcc1a5",
+    "docs/development/scaling-hotpaths-6/scaling-ledger-6.xlsx": "4e2c9a7182443803cf513cad6ec723d6a216c1e32a1cdca76ba4605d9ef97a76",
+    "game/scripts/core/cafe_model.gd": "990fea27c56dcfbe4c4048049cf14ca972c96347f493c22401371725ea30a9ac",
+    "game/scripts/gameplay/cafe_wall_collision.gd": "9a40d56cf81f1a84774359c8030369362df9b50a7455b83e704fc84f2a1b3db1",
+    "game/scripts/gameplay/floor_cleaning_approach.gd": "b43fec8c370d608faeaec5a57c9c40894ad699b36fdce8d58bb5f88e189243fe",
+    "tests/building/test_departing_route_edit.gd": "920d7e9610d9827eb01c2e65f5f5818701b284ae637cfbd55b913c475c568f77",
+    "tests/building/test_floor_cleaning_approach.gd": "0a720886e6db97ed8fc8516305eea74f6e7714e7c47e4660928a5c993e30615e"
+  },
+  "closure_delta": {
+    "changed": [
+      "scripts/gameplay/floor_cleaning_approach.gd"
+    ],
+    "added": [
+      "scripts/gameplay/cafe_wall_collision.gd"
+    ],
+    "removed": []
+  },
+  "relative_closure_delta": {
+    "changed": [
+      "scripts/gameplay/floor_cleaning_approach.gd"
+    ],
+    "added": [
+      "scripts/gameplay/cafe_wall_collision.gd"
+    ],
+    "removed": []
+  }
+}
